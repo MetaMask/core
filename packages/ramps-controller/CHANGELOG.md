@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `RampsController.getProviders`, `RampsService.getProviders`, `RampsController.getPaymentMethods`, and `RampsService.getPaymentMethods` no longer accept a `fiat` query filter; region local fiat filtering is applied server-side when omitted ([#9245](https://github.com/MetaMask/core/pull/9245))
 - Bump `@metamask/controller-utils` from `^12.2.0` to `^12.3.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
 
 ## [14.3.0]
