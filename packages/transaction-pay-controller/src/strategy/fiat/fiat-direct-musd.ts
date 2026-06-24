@@ -288,6 +288,7 @@ export async function submitDirectMusdVaultDeposit({
     await messenger.call('TransactionController:addTransactionBatch', {
       disableHook: true,
       disableSequential: true,
+      disableUpgrade: true,
       from: moneyAccountAddress,
       isGasFeeSponsored: true,
       isInternal: true,

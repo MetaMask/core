@@ -384,6 +384,9 @@ describe('fiat-direct-musd', () => {
       expect(callMock).toHaveBeenCalledWith(
         'TransactionController:addTransactionBatch',
         expect.objectContaining({
+          disableHook: true,
+          disableSequential: true,
+          disableUpgrade: true,
           from: MONEY_ACCOUNT_ADDRESS_MOCK,
           isGasFeeSponsored: true,
           isInternal: true,
