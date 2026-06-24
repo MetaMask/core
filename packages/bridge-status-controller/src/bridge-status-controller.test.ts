@@ -626,7 +626,7 @@ function registerDefaultActionHandlers(
       ({
         address: account,
         metadata: { keyring: { type: 'any' } },
-      }) as never,
+      } as never),
   );
 
   rootMessenger.registerActionHandler(
@@ -649,7 +649,7 @@ function registerDefaultActionHandlers(
     () =>
       ({
         selectedNetworkClientId: 'networkClientId',
-      }) as NetworkState,
+      } as NetworkState),
   );
 
   const mockProvider = provider ?? {
@@ -5628,7 +5628,7 @@ describe('BridgeStatusController', () => {
               {
                 "account_hardware_type": null,
                 "action_type": "swapbridge-v1",
-                "actual_time_minutes": 833734.9086166667,
+                "actual_time_minutes": 833734.9086333333,
                 "allowance_reset_transaction": undefined,
                 "approval_transaction": undefined,
                 "batch_id": "0xBatchId3",
