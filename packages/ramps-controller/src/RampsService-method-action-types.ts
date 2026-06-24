@@ -45,13 +45,12 @@ export type RampsServiceGetTokensAction = {
 
 /**
  * Fetches the list of providers for a given region.
- * Supports optional query filters: provider, crypto, fiat, payments.
+ * Supports optional query filters: provider, crypto, payments.
  *
  * @param regionCode - The region code (e.g., "us", "fr", "us-ny").
  * @param options - Optional query parameters for filtering providers.
  * @param options.provider - Provider ID(s) to filter by.
  * @param options.crypto - Crypto currency ID(s) to filter by.
- * @param options.fiat - Fiat currency ID(s) to filter by.
  * @param options.payments - Payment method ID(s) to filter by.
  * @returns The providers response containing providers array.
  */
@@ -65,7 +64,7 @@ export type RampsServiceGetProvidersAction = {
  *
  * @param options - Query parameters for filtering payment methods.
  * @param options.region - User's region code (e.g., "us-al").
- * @param options.fiat - Fiat currency code (e.g., "usd").
+ * @param options.fiat - Optional fiat currency code (e.g., "usd"). When omitted, the API defaults to the region's local currency.
  * @param options.assetId - CAIP-19 cryptocurrency identifier.
  * @param options.provider - Provider ID path.
  * @returns The payment methods response containing payments array.

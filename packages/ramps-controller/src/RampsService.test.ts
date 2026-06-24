@@ -1477,7 +1477,6 @@ describe('RampsService', () => {
         .query({
           provider: 'paypal',
           crypto: 'ETH',
-          fiat: 'USD',
           payments: 'card',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
@@ -1489,7 +1488,6 @@ describe('RampsService', () => {
       const providersPromise = service.getProviders('us', {
         provider: 'paypal',
         crypto: 'ETH',
-        fiat: 'USD',
         payments: 'card',
       });
       await jest.runAllTimersAsync();
@@ -1526,14 +1524,13 @@ describe('RampsService', () => {
       expect(providersResponse.providers).toStrictEqual([]);
     });
 
-    it('handles single value filter options for fiat and payments', async () => {
+    it('handles single value filter options for payments', async () => {
       const mockProviders = {
         providers: [],
       };
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/v2/regions/us/providers')
         .query({
-          fiat: 'USD',
           payments: 'card',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
@@ -1543,7 +1540,6 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const providersPromise = service.getProviders('us', {
-        fiat: 'USD',
         payments: 'card',
       });
       await jest.runAllTimersAsync();
@@ -1553,14 +1549,13 @@ describe('RampsService', () => {
       expect(providersResponse.providers).toStrictEqual([]);
     });
 
-    it('handles array filter options for fiat and payments', async () => {
+    it('handles array filter options for payments', async () => {
       const mockProviders = {
         providers: [],
       };
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/v2/regions/us/providers')
         .query({
-          fiat: ['USD', 'EUR'],
           payments: ['card', 'bank'],
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
@@ -1570,7 +1565,6 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const providersPromise = service.getProviders('us', {
-        fiat: ['USD', 'EUR'],
         payments: ['card', 'bank'],
       });
       await jest.runAllTimersAsync();
@@ -1702,7 +1696,6 @@ describe('RampsService', () => {
         .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
-          fiat: 'usd',
           crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
@@ -1714,7 +1707,6 @@ describe('RampsService', () => {
 
       const paymentMethodsPromise = service.getPaymentMethods({
         region: 'us-al',
-        fiat: 'usd',
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
@@ -1732,7 +1724,7 @@ describe('RampsService', () => {
       ]);
     });
 
-    it('normalizes region and fiat case', async () => {
+    it('includes fiat query param when explicitly provided', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/v2/regions/us-al/payments')
         .query({
@@ -1748,8 +1740,34 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const paymentMethodsPromise = service.getPaymentMethods({
-        region: 'US-AL',
+        region: 'us-al',
         fiat: 'USD',
+        assetId: 'eip155:1/slip44:60',
+        provider: '/providers/stripe',
+      });
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      const paymentMethodsResponse = await paymentMethodsPromise;
+
+      expect(paymentMethodsResponse.payments).toHaveLength(2);
+    });
+
+    it('normalizes region case', async () => {
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/v2/regions/us-al/payments')
+        .query({
+          region: 'us-al',
+          crypto: 'eip155:1/slip44:60',
+          provider: '/providers/stripe',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, mockPaymentMethodsResponse);
+      const { service } = getService();
+
+      const paymentMethodsPromise = service.getPaymentMethods({
+        region: 'US-AL',
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
@@ -1765,7 +1783,6 @@ describe('RampsService', () => {
         .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
-          fiat: 'usd',
           crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
@@ -1777,7 +1794,6 @@ describe('RampsService', () => {
 
       const paymentMethodsPromise = service.getPaymentMethods({
         region: 'us-al',
-        fiat: 'usd',
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
@@ -1794,7 +1810,6 @@ describe('RampsService', () => {
         .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
-          fiat: 'usd',
           crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
@@ -1806,7 +1821,6 @@ describe('RampsService', () => {
 
       const paymentMethodsPromise = service.getPaymentMethods({
         region: 'us-al',
-        fiat: 'usd',
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
@@ -1823,7 +1837,6 @@ describe('RampsService', () => {
         .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
-          fiat: 'usd',
           crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
@@ -1835,7 +1848,6 @@ describe('RampsService', () => {
 
       const paymentMethodsPromise = service.getPaymentMethods({
         region: 'us-al',
-        fiat: 'usd',
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
@@ -1852,7 +1864,6 @@ describe('RampsService', () => {
         .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
-          fiat: 'usd',
           crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
@@ -1868,7 +1879,6 @@ describe('RampsService', () => {
 
       const paymentMethodsPromise = service.getPaymentMethods({
         region: 'us-al',
-        fiat: 'usd',
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
@@ -1876,7 +1886,7 @@ describe('RampsService', () => {
       await flushPromises();
 
       await expect(paymentMethodsPromise).rejects.toThrow(
-        `Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/v2/regions/us-al/payments?sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios&region=us-al&fiat=usd&crypto=eip155%3A1%2Fslip44%3A60&provider=%2Fproviders%2Fstripe' failed with status '500'`,
+        `Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/v2/regions/us-al/payments?sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios&region=us-al&crypto=eip155%3A1%2Fslip44%3A60&provider=%2Fproviders%2Fstripe' failed with status '500'`,
       );
     });
 
@@ -1885,7 +1895,6 @@ describe('RampsService', () => {
         .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
-          fiat: 'usd',
           crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
@@ -1897,7 +1906,6 @@ describe('RampsService', () => {
 
       const paymentMethodsPromise = service.getPaymentMethods({
         region: 'us-al',
-        fiat: 'usd',
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
@@ -1915,7 +1923,6 @@ describe('RampsService', () => {
         .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
-          fiat: 'usd',
           crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
@@ -1927,7 +1934,6 @@ describe('RampsService', () => {
 
       const paymentMethodsPromise = service.getPaymentMethods({
         region: 'us-al',
-        fiat: 'usd',
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });

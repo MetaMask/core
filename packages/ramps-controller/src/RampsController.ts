@@ -1563,7 +1563,6 @@ export class RampsController extends BaseController<
    * @param options - Options for cache behavior and query filters.
    * @param options.provider - Provider ID(s) to filter by.
    * @param options.crypto - Crypto currency ID(s) to filter by.
-   * @param options.fiat - Fiat currency ID(s) to filter by.
    * @param options.payments - Payment method ID(s) to filter by.
    * @returns The providers response containing providers array.
    */
@@ -1572,7 +1571,6 @@ export class RampsController extends BaseController<
     options?: ExecuteRequestOptions & {
       provider?: string | string[];
       crypto?: string | string[];
-      fiat?: string | string[];
       payments?: string | string[];
     },
   ): Promise<{ providers: Provider[] }> {
@@ -1583,7 +1581,6 @@ export class RampsController extends BaseController<
       normalizedRegion,
       options?.provider,
       options?.crypto,
-      options?.fiat,
       options?.payments,
     ]);
 
@@ -1596,7 +1593,6 @@ export class RampsController extends BaseController<
           {
             provider: options?.provider,
             crypto: options?.crypto,
-            fiat: options?.fiat,
             payments: options?.payments,
           },
         );
@@ -1625,7 +1621,7 @@ export class RampsController extends BaseController<
    *
    * @param region - User's region code (e.g. "fr", "us-ny").
    * @param options - Query parameters for filtering payment methods.
-   * @param options.fiat - Fiat currency code (e.g., "usd"). If not provided, uses the user's region currency.
+   * @param options.fiat - Optional fiat currency code (e.g., "usd"). When omitted, the API defaults to the region's local currency.
    * @param options.assetId - CAIP-19 cryptocurrency identifier.
    * @param options.provider - Provider ID path.
    * @returns The payment methods response containing payments array.
@@ -1639,21 +1635,13 @@ export class RampsController extends BaseController<
     },
   ): Promise<PaymentMethodsResponse> {
     const regionCode = region ?? this.#requireRegion();
-    const fiatToUse =
-      options?.fiat ?? this.state.userRegion?.country?.currency ?? null;
     const assetIdToUse =
       options?.assetId ?? this.state.tokens.selected?.assetId ?? '';
     const providerToUse =
       options?.provider ?? this.state.providers.selected?.id ?? '';
 
-    if (!fiatToUse) {
-      throw new Error(
-        'Fiat currency is required. Either provide a fiat parameter or ensure userRegion is set in controller state.',
-      );
-    }
-
     const normalizedRegion = regionCode.toLowerCase().trim();
-    const normalizedFiat = fiatToUse.toLowerCase().trim();
+    const normalizedFiat = options?.fiat?.trim().toLowerCase() ?? '';
     const cacheKey = createCacheKey('getPaymentMethods', [
       normalizedRegion,
       normalizedFiat,
@@ -1666,7 +1654,7 @@ export class RampsController extends BaseController<
       async () => {
         return this.messenger.call('RampsService:getPaymentMethods', {
           region: normalizedRegion,
-          fiat: normalizedFiat,
+          ...(normalizedFiat ? { fiat: normalizedFiat } : {}),
           assetId: assetIdToUse,
           provider: providerToUse,
         });

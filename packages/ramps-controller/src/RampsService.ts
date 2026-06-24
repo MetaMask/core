@@ -1136,13 +1136,13 @@ export class RampsService {
 
   /**
    * Fetches the list of providers for a given region.
-   * Supports optional query filters: provider, crypto, fiat, payments.
+   * Supports optional query filters: provider, crypto, payments.
+   * Region local fiat filtering is applied server-side when `fiat` is omitted.
    *
    * @param regionCode - The region code (e.g., "us", "fr", "us-ny").
    * @param options - Optional query parameters for filtering providers.
    * @param options.provider - Provider ID(s) to filter by.
    * @param options.crypto - Crypto currency ID(s) to filter by.
-   * @param options.fiat - Fiat currency ID(s) to filter by.
    * @param options.payments - Payment method ID(s) to filter by.
    * @returns The providers response containing providers array.
    */
@@ -1151,7 +1151,6 @@ export class RampsService {
     options?: {
       provider?: string | string[];
       crypto?: string | string[];
-      fiat?: string | string[];
       payments?: string | string[];
     },
   ): Promise<{ providers: Provider[] }> {
@@ -1174,13 +1173,6 @@ export class RampsService {
         ? options.crypto
         : [options.crypto];
       cryptoIds.forEach((id) => url.searchParams.append('crypto', id));
-    }
-
-    if (options?.fiat) {
-      const fiatIds = Array.isArray(options.fiat)
-        ? options.fiat
-        : [options.fiat];
-      fiatIds.forEach((id) => url.searchParams.append('fiat', id));
     }
 
     if (options?.payments) {
@@ -1217,14 +1209,14 @@ export class RampsService {
    *
    * @param options - Query parameters for filtering payment methods.
    * @param options.region - User's region code (e.g., "us-al").
-   * @param options.fiat - Fiat currency code (e.g., "usd").
+   * @param options.fiat - Optional fiat currency code (e.g., "usd"). When omitted, the API defaults to the region's local currency.
    * @param options.assetId - CAIP-19 cryptocurrency identifier.
    * @param options.provider - Provider ID path.
    * @returns The payment methods response containing payments array.
    */
   async getPaymentMethods(options: {
     region: string;
-    fiat: string;
+    fiat?: string;
     assetId: string;
     provider: string;
   }): Promise<PaymentMethodsResponse> {
@@ -1236,7 +1228,10 @@ export class RampsService {
     this.#addCommonParams(url);
 
     url.searchParams.set('region', options.region.toLowerCase().trim());
-    url.searchParams.set('fiat', options.fiat.toLowerCase().trim());
+    const normalizedFiat = options.fiat?.trim();
+    if (normalizedFiat) {
+      url.searchParams.set('fiat', normalizedFiat.toLowerCase());
+    }
     url.searchParams.set('crypto', options.assetId);
     url.searchParams.set('provider', options.provider);
 
