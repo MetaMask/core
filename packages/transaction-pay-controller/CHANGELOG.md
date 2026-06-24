@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add opt-in HyperLiquid activation-fee handling for Pay withdrawals, gated by the `confirmations_pay_post_quote` feature flag's `hyperliquidActivationFee` config (resolved from `overrides.<transactionType>.hyperliquidActivationFee`, falling back to `default.hyperliquidActivationFee`; with `enabled` and optional `amountUsd` defaulting to `1`) ([#9238](https://github.com/MetaMask/core/pull/9238))
   - When enabled and the HyperCore source account has not yet been activated, the one-time activation fee is reserved from the amount sent to HyperLiquid (so the `sendAsset` step retains enough balance to cover it) and surfaced as part of the provider fee, leaving the displayed withdrawal amount unchanged.
 
+## [23.15.0]
+
 ### Changed
 
 - Bump `@metamask/assets-controller` from `^9.0.2` to `^9.1.0` ([#9244](https://github.com/MetaMask/core/pull/9244))
@@ -1168,7 +1170,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.14.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.15.0...HEAD
+[23.15.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.14.0...@metamask/transaction-pay-controller@23.15.0
 [23.14.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.13.1...@metamask/transaction-pay-controller@23.14.0
 [23.13.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.13.0...@metamask/transaction-pay-controller@23.13.1
 [23.13.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.12.0...@metamask/transaction-pay-controller@23.13.0
