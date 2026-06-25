@@ -470,7 +470,6 @@ describe('submitFiatQuotes', () => {
     // Flush microtasks until waitForKeyringUnlock subscribes (order polling
     // resolves in one tick; submitRelayAfterFiatCompletion starts in the next)
     for (let i = 0; i < 5; i++) {
-      // eslint-disable-next-line no-await-in-loop
       await Promise.resolve();
     }
 
