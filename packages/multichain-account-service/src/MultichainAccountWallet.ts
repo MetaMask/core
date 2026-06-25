@@ -63,7 +63,8 @@ type DiscoveredGroupsState = WalletState;
  */
 export class MultichainAccountWallet<
   Account extends Bip44Account<KeyringAccount>,
-> implements MultichainAccountWalletDefinition<Account> {
+> implements MultichainAccountWalletDefinition<Account>
+{
   readonly #lock = new Mutex();
 
   readonly #id: MultichainAccountWalletId;
@@ -508,11 +509,10 @@ export class MultichainAccountWallet<
         },
       },
       async () => {
-        const { groupStateByGroupIndex, failures } = await this.#buildGroupState(
-          providers,
-          (provider) =>
+        const { groupStateByGroupIndex, failures } =
+          await this.#buildGroupState(providers, (provider) =>
             this.#getUnalignedSubRangesForProvider(provider, from, to),
-        );
+          );
 
         if (failures.length) {
           const error = failures.reduce(
