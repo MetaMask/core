@@ -1282,7 +1282,19 @@ export class BackendWebSocketService {
    * @returns True if the message is a subscription notification with subscriptionId
    */
   #isSubscriptionNotification(message: WebSocketMessage): boolean {
-    return 'subscriptionId' in message && !this.#isServerResponse(message);
+    if (!('subscriptionId' in message)) {
+      return false;
+    }
+
+    if (this.#isServerResponse(message)) {
+      const maybeNotification = message as Partial<ServerNotificationMessage>;
+      return (
+        typeof maybeNotification.channel === 'string' &&
+        isAccountActivityChannel(maybeNotification.channel)
+      );
+    }
+
+    return true;
   }
 
   /**
