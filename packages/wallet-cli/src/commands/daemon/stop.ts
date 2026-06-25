@@ -13,8 +13,6 @@ export default class DaemonStop extends Command {
   public async run(): Promise<void> {
     const { socketPath, pidPath } = getDaemonPaths(this.config.dataDir);
 
-    // Distinguish "no daemon was running" from "successful stop" so the user
-    // gets feedback either way.
     const ping = await pingDaemon(socketPath);
     const pid = await readPidFile(pidPath);
     if (ping.status === 'absent' && pid === undefined) {

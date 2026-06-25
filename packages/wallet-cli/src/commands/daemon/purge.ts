@@ -42,14 +42,9 @@ export default class DaemonPurge extends Command {
     );
 
     if (!stopped) {
-      // `stopDaemon` returns false when it couldn't be sure the daemon
-      // exited — typically because the socket exists but the daemon never
-      // responded to signals, or because the PID file is stale and the
-      // socket is orphan. Purge is the user's escape hatch for exactly
-      // these states, so as long as the daemon is not currently
-      // responsive, we proceed with the deletion the user already
-      // confirmed. If the daemon IS responsive, we still refuse — that
-      // would risk corrupting live state.
+      // Purge is the escape hatch for a daemon that wouldn't shut down cleanly,
+      // so proceed once we've confirmed it isn't responsive — deleting state
+      // out from under a live daemon would risk corrupting it.
       const ping = await pingDaemon(paths.socketPath);
       if (ping.status === 'responsive') {
         this.error(

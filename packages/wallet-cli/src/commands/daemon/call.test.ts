@@ -91,7 +91,6 @@ describe('daemon call', () => {
 
   it('handles non-Error throws from sendCommand', async () => {
     mockSendCommand.mockImplementation(async () =>
-      // Simulate a non-Error throw (the call site does not narrow to Error).
       Promise.reject('string error' as unknown as Error),
     );
 

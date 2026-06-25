@@ -92,9 +92,6 @@ describe('daemon purge', () => {
     await runCommand(DaemonPurge, ['--force']);
 
     const removed = mockRm.mock.calls.map(([path]) => path);
-    // The whitelist is built from getDaemonPaths(dataDir).{pidPath,socketPath,
-    // logPath,dbPath} plus the SQLite WAL/SHM sidecars. None of them is the
-    // dataDir itself.
     expect(removed).not.toContain('/tmp/mm-cli-test-data');
     expect(removed.some((path) => String(path).endsWith('daemon.pid'))).toBe(
       true,
