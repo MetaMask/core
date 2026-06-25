@@ -1920,10 +1920,12 @@ describe('RampsController', () => {
 
           await rootMessenger.call('RampsController:getCountries');
 
-          expect(controller.state.userRegion?.country.defaultAmount).toBe(25000);
-          expect(controller.state.userRegion?.country.quickAmounts).toStrictEqual(
-            [10000, 25000, 50000],
+          expect(controller.state.userRegion?.country.defaultAmount).toBe(
+            25000,
           );
+          expect(
+            controller.state.userRegion?.country.quickAmounts,
+          ).toStrictEqual([10000, 25000, 50000]);
         },
       );
     });
