@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `analytics` constructor option that makes `NetworkController` emit `RPC Service Unavailable` and `RPC Service Degraded` analytics events via the `AnalyticsController:trackEvent` action when an RPC endpoint becomes unavailable or degraded ([#0000](https://github.com/MetaMask/core/pull/0000))
+  - The option takes `isRpcEndpointUrlPublic` (decides whether an endpoint URL is safe to report verbatim or as `'custom'`) and `rpcServiceEventsSampleRate` (the proportion of events to emit, between `0` and `1`).
+  - No analytics are emitted when the option is omitted.
+  - Adds the `NetworkControllerAnalyticsOptions` and `RpcServiceEventName` types.
+
+### Changed
+
+- The `NetworkControllerMessenger` now allows the `AnalyticsController:getState` and `AnalyticsController:trackEvent` actions ([#0000](https://github.com/MetaMask/core/pull/0000))
+  - Consumers that pass the `analytics` option must delegate these actions to the network controller messenger.
+
 ## [33.0.0]
 
 ### Added

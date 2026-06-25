@@ -1,3 +1,4 @@
+import { getDefaultAnalyticsControllerState } from '@metamask/analytics-controller';
 import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import type { ConnectivityStatus } from '@metamask/connectivity-controller';
 import {
@@ -90,14 +91,18 @@ export const TESTNET = {
  * @param options.connectivityStatus - The connectivity status to return by default.
  * If not provided, defaults to Online.
  * @param options.isRpcFailoverEnabled - The RPC failover feature flag to return, defaults to false.
+ * @param options.analyticsId - The analytics ID that `AnalyticsController:getState`
+ * returns by default. Defaults to a fixed valid UUIDv4.
  * @returns The messenger.
  */
 export function buildRootMessenger({
   connectivityStatus = CONNECTIVITY_STATUSES.Online,
   isRpcFailoverEnabled = false,
+  analyticsId = '11111111-1111-4111-8111-111111111111',
 }: {
   connectivityStatus?: ConnectivityStatus;
   isRpcFailoverEnabled?: boolean;
+  analyticsId?: string;
 } = {}): RootMessenger {
   const rootMessenger = new Messenger<
     MockAnyNamespace,
@@ -120,6 +125,16 @@ export function buildRootMessenger({
       },
       cacheTimestamp: 0,
     }),
+  );
+
+  rootMessenger.registerActionHandler('AnalyticsController:getState', () => ({
+    ...getDefaultAnalyticsControllerState(),
+    analyticsId,
+  }));
+
+  rootMessenger.registerActionHandler(
+    'AnalyticsController:trackEvent',
+    jest.fn(),
   );
 
   return rootMessenger;
@@ -149,6 +164,8 @@ export function buildNetworkControllerMessenger(
     actions: [
       'ConnectivityController:getState',
       'RemoteFeatureFlagController:getState',
+      'AnalyticsController:getState',
+      'AnalyticsController:trackEvent',
     ],
     // eslint-disable-next-line no-restricted-syntax
     events: ['RemoteFeatureFlagController:stateChange'],

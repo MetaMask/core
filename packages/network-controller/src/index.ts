@@ -53,6 +53,10 @@ export type { AbstractRpcService } from './rpc-service/abstract-rpc-service';
 export type { RpcServiceRequestable } from './rpc-service/rpc-service-requestable';
 export type { DegradedEventType, RetryReason } from './create-network-client';
 export { classifyRetryReason } from './create-network-client';
+export type {
+  NetworkControllerAnalyticsOptions,
+  RpcServiceEventName,
+} from './rpc-service-events';
 export { isConnectionError } from './rpc-service/rpc-service';
 export type {
   NetworkControllerGetEthQueryAction,
