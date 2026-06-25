@@ -280,13 +280,6 @@ export async function submitDirectMusdVaultDeposit({
   });
 
   if (preChompHash) {
-    log('CHOMP already vaulted funds; skipping addTransactionBatch', {
-      chompHash: preChompHash,
-      moneyAccountAddress,
-      sourceAmountRaw,
-      transactionId,
-    });
-
     return { transactionHash: preChompHash };
   }
 
@@ -359,13 +352,6 @@ export async function submitDirectMusdVaultDeposit({
     });
 
     if (postChompHash) {
-      log('CHOMP detected after addTransactionBatch failure; returning CHOMP hash', {
-        chompHash: postChompHash,
-        moneyAccountAddress,
-        sourceAmountRaw,
-        transactionId,
-      });
-
       return { transactionHash: postChompHash };
     }
 
