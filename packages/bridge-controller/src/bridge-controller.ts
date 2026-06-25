@@ -25,7 +25,7 @@ import {
   ExchangeRateSourcesForLookup,
   selectIsAssetExchangeRateInState,
 } from './selectors';
-import { FeatureId, RequestStatus } from './types';
+import { ChainId, FeatureId, RequestStatus } from './types';
 import type {
   L1GasFees,
   GenericQuoteRequest,
@@ -63,10 +63,12 @@ import {
 } from './utils/fetch';
 import {
   AbortReason,
+  BatchSellMetricsEventName,
   MetaMetricsSwapsEventSource,
   MetricsActionType,
   UnifiedSwapBridgeEventName,
 } from './utils/metrics/constants';
+import type { BridgeControllerMetricsEventName } from './utils/metrics/constants';
 import {
   formatProviderLabel,
   getAccountHardwareType,
@@ -236,8 +238,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   readonly #fetchFn: FetchFunction;
 
   readonly #trackMetaMetricsFn: <
-    EventName extends
-      (typeof UnifiedSwapBridgeEventName)[keyof typeof UnifiedSwapBridgeEventName],
+    EventName extends BridgeControllerMetricsEventName,
   >(
     eventName: EventName,
     properties: CrossChainSwapsEventProperties<EventName>,
@@ -279,8 +280,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       customBridgeApiBaseUrl?: string;
     };
     trackMetaMetricsFn: <
-      EventName extends
-        (typeof UnifiedSwapBridgeEventName)[keyof typeof UnifiedSwapBridgeEventName],
+      EventName extends BridgeControllerMetricsEventName,
     >(
       eventName: EventName,
       properties: CrossChainSwapsEventProperties<EventName>,
@@ -1165,8 +1165,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
   };
 
   readonly #getEventProperties = <
-    EventName extends
-      (typeof UnifiedSwapBridgeEventName)[keyof typeof UnifiedSwapBridgeEventName],
+    EventName extends BridgeControllerMetricsEventName,
   >(
     eventName: EventName,
     propertiesFromClient: Pick<
@@ -1183,6 +1182,11 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     };
     const inputPrimaryDenominationProperties = {
       input_primary_denomination: this.state.inputPrimaryDenomination,
+    };
+    const batchSellPageProperties = {
+      chain_id: formatChainIdToCaip(
+        this.state.quoteRequest[0]?.srcChainId ?? ChainId.ETH,
+      ),
     };
     const quoteRequest = this.state.quoteRequest[quoteRequestIndex];
     switch (eventName) {
@@ -1204,6 +1208,25 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...inputPrimaryDenominationProperties,
           ...baseProperties,
         };
+      case BatchSellMetricsEventName.BatchSellTokenPageViewed:
+      case BatchSellMetricsEventName.BatchSellTokenPageSubmitted:
+        return {
+          ...batchSellPageProperties,
+          ...baseProperties,
+        };
+      case BatchSellMetricsEventName.BatchSellQuotePageViewed:
+      case BatchSellMetricsEventName.BatchSellQuotesReviewed:
+      case BatchSellMetricsEventName.BatchSellQuotePageSubmitted: {
+        const selectedTokenAddressList =
+          (
+            propertiesFromClient as RequiredEventContextFromClient[BatchSellMetricsEventName.BatchSellQuotePageViewed]
+          ).selected_token_address_list;
+        return {
+          ...batchSellPageProperties,
+          selected_tokens_count: selectedTokenAddressList.length,
+          ...baseProperties,
+        };
+      }
       case UnifiedSwapBridgeEventName.FiatCryptoToggleClicked:
         return {
           ...getRequestParams(
@@ -1349,8 +1372,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    * });
    */
   trackUnifiedSwapBridgeEvent = <
-    EventName extends
-      (typeof UnifiedSwapBridgeEventName)[keyof typeof UnifiedSwapBridgeEventName],
+    EventName extends BridgeControllerMetricsEventName,
   >(
     eventName: EventName,
     propertiesFromClient: Pick<

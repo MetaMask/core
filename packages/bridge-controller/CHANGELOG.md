@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Batch Sell token and quote page analytics event types
+
 ### Changed
 
 - Bump `@metamask/multichain-network-controller` from `^3.1.4` to `^3.2.0` ([#9264](https://github.com/MetaMask/core/pull/9264))

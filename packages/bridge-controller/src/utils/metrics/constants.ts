@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 export const UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY = 'Unified SwapBridge';
+export const BATCH_SELL_EVENT_CATEGORY = 'Batch Sell';
 
 /**
  * These event names map to events defined in the segment-schema: https://github.com/Consensys/segment-schema/tree/main/libraries/events/metamask-cross-chain-swaps
@@ -25,6 +26,18 @@ export enum UnifiedSwapBridgeEventName {
   AssetPickerOpened = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Asset Picker Opened`,
   PollingStatusUpdated = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Polling Status Updated`,
 }
+
+export enum BatchSellMetricsEventName {
+  BatchSellTokenPageViewed = `${BATCH_SELL_EVENT_CATEGORY} Token Page Viewed`,
+  BatchSellTokenPageSubmitted = `${BATCH_SELL_EVENT_CATEGORY} Token Page Submitted`,
+  BatchSellQuotePageViewed = `${BATCH_SELL_EVENT_CATEGORY} Quote Page Viewed`,
+  BatchSellQuotesReviewed = `${BATCH_SELL_EVENT_CATEGORY} Quotes Reviewed`,
+  BatchSellQuotePageSubmitted = `${BATCH_SELL_EVENT_CATEGORY} Quote Page Submitted`,
+}
+
+export type BridgeControllerMetricsEventName =
+  | UnifiedSwapBridgeEventName
+  | BatchSellMetricsEventName;
 
 export enum PollingStatus {
   MaxPollingReached = 'max_polling_reached',
@@ -55,6 +68,12 @@ export enum MetaMetricsSwapsEventSource {
   TransactionDetails = 'Transaction Details',
   DeepLink = 'Deep Link',
   Unknown = 'Unknown',
+}
+
+export enum BatchSellMetricsLocation {
+  TradeMenu = 'trade_menu',
+  Deeplink = 'deeplink',
+  AssetPicker = 'asset_picker',
 }
 
 export enum InputAmountPreset {
