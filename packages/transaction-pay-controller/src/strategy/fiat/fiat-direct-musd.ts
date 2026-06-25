@@ -126,17 +126,14 @@ export function isDirectMusdMoneyAccountQuote(
   return quote?.request.isDirectMusdMoneyAccount === true;
 }
 
-/**
- * Submits the direct mUSD post-Ramp path after fiat settlement.
- *
- * Derives the CHOMP idempotency baseline block from the ramps settlement tx
- * receipt (already fetched for the amount) — no additional network request.
- *
- * @param options - Submit options.
- * @param options.order - Completed fiat order.
- * @param options.request - Strategy execute request.
- * @returns Hash of the submitted direct mUSD transaction, if available.
- */
+ /**
+  * Submits the direct mUSD post-Ramp path after fiat settlement.
+  *
+  * @param options - Submit options.
+  * @param options.order - Completed fiat order.
+  * @param options.request - Strategy execute request.
+  * @returns Hash of the submitted direct mUSD transaction, if available.
+  */
 export async function submitDirectMusdAfterFiatCompletion({
   order,
   request,
@@ -172,25 +169,19 @@ export async function submitDirectMusdAfterFiatCompletion({
   }
 }
 
-/**
- * Submits the direct mUSD Money Account vault batch after fiat settlement.
- *
- * Before calling `addTransactionBatch` and again in the catch path, the
- * function checks whether CHOMP has already auto-vaulted the funds by scanning
- * recent Monad logs. When a valid CHOMP deposit is found in either location the
- * function returns its on-chain hash without adding a local vault child
- * transaction.
- *
- * @param options - Submit options.
- * @param options.fromBlock - Optional Monad block baseline for CHOMP
- *   idempotency scanning; sourced from the ramps settlement tx receipt via
- *   {@link resolveSourceAmountRaw}. When omitted the CHOMP checks are skipped.
- * @param options.request - Strategy execute request.
- * @param options.sourceAmountRaw - Settled source amount in raw mUSD units.
- * @param options.transaction - Original Money Account transaction.
- * @returns Hash of the final submitted child transaction (or the CHOMP deposit
- *   hash), if available.
- */
+ /**
+  * Submits the direct mUSD Money Account vault batch after fiat settlement.
+  *
+  * @param options - Submit options.
+  * @param options.fromBlock - Optional Monad block baseline for CHOMP
+  *   idempotency scanning; sourced from the ramps settlement tx receipt via
+  *   {@link resolveSourceAmountRaw}. When omitted the CHOMP checks are skipped.
+  * @param options.request - Strategy execute request.
+  * @param options.sourceAmountRaw - Settled source amount in raw mUSD units.
+  * @param options.transaction - Original Money Account transaction.
+  * @returns Hash of the final submitted child transaction (or the CHOMP deposit
+  *   hash), if available.
+  */
 export async function submitDirectMusdVaultDeposit({
   fromBlock,
   request,
@@ -474,23 +465,6 @@ function getRampsProviderFee(fiatQuote: RampsQuote): BigNumber {
   );
 }
 
-/**
- * Checks for a recent CHOMP auto-vault deposit, swallowing any errors so the
- * caller's normal flow is never interrupted by a detection failure.
- *
- * When `fromBlock` is `undefined` the check is skipped and `undefined` is
- * returned immediately — no network request is made.
- *
- * @param options - Detection options.
- * @param options.fromBlock - Starting block for the CHOMP log query. When
- *   `undefined` the check is skipped.
- * @param options.messenger - Controller messenger.
- * @param options.moneyAccountAddress - Money Account that owns the mUSD.
- * @param options.sourceAmountRaw - Minimum mUSD amount required for a match.
- * @param options.transactionId - Parent transaction ID used for logging.
- * @returns The matching CHOMP tx hash, or `undefined` if none is found or the
- *   check fails.
- */
 async function tryFindChompDeposit({
   fromBlock,
   messenger,

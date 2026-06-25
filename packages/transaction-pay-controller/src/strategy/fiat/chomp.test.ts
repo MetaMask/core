@@ -29,7 +29,6 @@ function padAddress(address: string): string {
 
 const MONEY_ACCOUNT_PADDED = padAddress(MONEY_ACCOUNT_ADDRESS);
 
-/** Build a matching mUSD Transfer-out log for the Money Account. */
 function buildMusdTransferLog(
   txHash: Hex = CHOMP_TX_HASH,
   data: string = TRANSFER_DATA_SUFFICIENT,

@@ -520,7 +520,7 @@ async function getErc20TransferAmount(
     return { amountRaw: undefined, blockNumber: undefined };
   }
 
-  const blockNumber = receipt.blockNumber;
+  const { blockNumber } = receipt;
   let total = new BigNumber(0);
 
   for (const txLog of receipt.logs) {

@@ -19,28 +19,6 @@ type RpcLog = {
   transactionHash: Hex;
 };
 
-/**
- * Scans recent Monad logs for a CHOMP auto-vault deposit that already
- * transferred the required mUSD amount out of the Money Account. Returns
- * the on-chain tx hash of the first (newest) matching Transfer log.
- *
- * Detection requires both conditions:
- * 1. A Transfer(from=moneyAccount) on the mUSD contract within [fromBlock, latest].
- * 2. The transferred amount is >= sourceAmountRaw.
- *
- * Logs are examined newest-first so the most recent CHOMP deposit wins.
- * Only a single `eth_getLogs` call is made — no per-tx follow-up requests.
- *
- * @param options - Detection options.
- * @param options.messenger - Controller messenger.
- * @param options.moneyAccountAddress - Money Account that owns the mUSD.
- * @param options.sourceAmountRaw - Minimum mUSD amount (in raw units) that must
- *   have been transferred out of the Money Account for the CHOMP deposit to count.
- * @param options.fromBlock - Starting block for the log query (hex block number
- *   derived from the ramps settlement tx, e.g. "0x1a2b3c").
- * @returns The transaction hash of the matching CHOMP deposit, or `undefined` if
- *   none is found.
- */
 export async function findRecentChompVaultDeposit({
   messenger,
   moneyAccountAddress,
@@ -103,12 +81,6 @@ export async function findRecentChompVaultDeposit({
   return undefined;
 }
 
-/**
- * Pads an EVM address to a 32-byte (64 hex character) topics value.
- *
- * @param address - 20-byte hex address with or without 0x prefix.
- * @returns 0x-prefixed 32-byte hex string suitable for `eth_getLogs` topics.
- */
 function padAddress(address: Hex): string {
   return `0x${address.replace(/^0x/u, '').toLowerCase().padStart(64, '0')}`;
 }
