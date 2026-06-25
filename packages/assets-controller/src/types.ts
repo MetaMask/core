@@ -372,8 +372,10 @@ export type DataResponse = {
    */
   updateMode?: AssetsUpdateMode;
   /**
-   * @internal Set by AssetsController when applying updates. Data sources must
+   * Set by AssetsController when applying updates. Data sources must
    * not populate this field.
+   *
+   * @internal
    */
   sourceId?: string;
 };

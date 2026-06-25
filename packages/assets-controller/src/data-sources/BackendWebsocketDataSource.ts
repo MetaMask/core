@@ -535,7 +535,7 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
         this.#pendingSubscriptions.set(subscriptionId, subscriptionRequest);
         return;
       }
-    } catch (error) {
+    } catch {
       // Store anyway - will be processed when we can connect
       this.#pendingSubscriptions.set(subscriptionId, subscriptionRequest);
       return;

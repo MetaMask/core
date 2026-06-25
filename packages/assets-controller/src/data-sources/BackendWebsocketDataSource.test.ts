@@ -603,7 +603,7 @@ describe('BackendWebsocketDataSource', () => {
     await Promise.all([firstSubscribe, secondSubscribe]);
 
     expect(wsSubscribeMock).toHaveBeenCalledTimes(2);
-    expect(wsSubscribeMock.mock.calls[1][0].channels).toEqual([
+    expect(wsSubscribeMock.mock.calls[1][0].channels).toStrictEqual([
       `account-activity.v1.eip155:0:${addressB.toLowerCase()}`,
     ]);
 
@@ -774,7 +774,7 @@ describe('BackendWebsocketDataSource', () => {
         },
       } as unknown as ApiPlatformClient,
       onActiveChainsUpdated: jest.fn(),
-      getAssetType: () => 'erc20',
+      getAssetType: (): 'erc20' => 'erc20',
       state: { activeChains: [CHAIN_MAINNET] },
     });
 
