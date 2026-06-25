@@ -126,14 +126,14 @@ export function isDirectMusdMoneyAccountQuote(
   return quote?.request.isDirectMusdMoneyAccount === true;
 }
 
- /**
-  * Submits the direct mUSD post-Ramp path after fiat settlement.
-  *
-  * @param options - Submit options.
-  * @param options.order - Completed fiat order.
-  * @param options.request - Strategy execute request.
-  * @returns Hash of the submitted direct mUSD transaction, if available.
-  */
+/**
+ * Submits the direct mUSD post-Ramp path after fiat settlement.
+ *
+ * @param options - Submit options.
+ * @param options.order - Completed fiat order.
+ * @param options.request - Strategy execute request.
+ * @returns Hash of the submitted direct mUSD transaction, if available.
+ */
 export async function submitDirectMusdAfterFiatCompletion({
   order,
   request,
@@ -169,19 +169,19 @@ export async function submitDirectMusdAfterFiatCompletion({
   }
 }
 
- /**
-  * Submits the direct mUSD Money Account vault batch after fiat settlement.
-  *
-  * @param options - Submit options.
-  * @param options.fromBlock - Optional Monad block baseline for CHOMP
-  *   idempotency scanning; sourced from the ramps settlement tx receipt via
-  *   {@link resolveSourceAmountRaw}. When omitted the CHOMP checks are skipped.
-  * @param options.request - Strategy execute request.
-  * @param options.sourceAmountRaw - Settled source amount in raw mUSD units.
-  * @param options.transaction - Original Money Account transaction.
-  * @returns Hash of the final submitted child transaction (or the CHOMP deposit
-  *   hash), if available.
-  */
+/**
+ * Submits the direct mUSD Money Account vault batch after fiat settlement.
+ *
+ * @param options - Submit options.
+ * @param options.fromBlock - Optional Monad block baseline for CHOMP
+ *   idempotency scanning; sourced from the ramps settlement tx receipt via
+ *   {@link resolveSourceAmountRaw}. When omitted the CHOMP checks are skipped.
+ * @param options.request - Strategy execute request.
+ * @param options.sourceAmountRaw - Settled source amount in raw mUSD units.
+ * @param options.transaction - Original Money Account transaction.
+ * @returns Hash of the final submitted child transaction (or the CHOMP deposit
+ *   hash), if available.
+ */
 export async function submitDirectMusdVaultDeposit({
   fromBlock,
   request,
