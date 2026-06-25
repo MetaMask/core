@@ -200,6 +200,24 @@ describe('daemon-entry', () => {
     expect(process.exitCode).toBeUndefined();
   });
 
+  it('scrubs the wallet secrets from the environment once captured', async () => {
+    mockCreateWallet.mockResolvedValue(createMockWallet());
+    mockStartRpcSocketServer.mockResolvedValue(createMockHandle());
+
+    await importDaemonEntry();
+
+    // The captured values still reach createWallet...
+    expect(mockCreateWallet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        password: 'pass',
+        srp: 'test test test test test test test test test test test ball',
+      }),
+    );
+    // ...but no longer linger in the long-lived daemon's environment.
+    expect(process.env.MM_WALLET_PASSWORD).toBeUndefined();
+    expect(process.env.MM_WALLET_SRP).toBeUndefined();
+  });
+
   it('uses MM_DAEMON_SOCKET_PATH override when set', async () => {
     process.env.MM_DAEMON_SOCKET_PATH = '/custom/sock';
 
