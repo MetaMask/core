@@ -11,14 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Stop persisting the countries catalog in `RampsController` state and refetch it on every app startup via `init()` ([#TBD](https://github.com/MetaMask/core/pull/TBD), [TRAM-3682](https://consensyssoftware.atlassian.net/browse/TRAM-3682))
-- Re-sync `userRegion` preset amounts from the countries catalog after each `getCountries()` call ([#TBD](https://github.com/MetaMask/core/pull/TBD), [TRAM-3682](https://consensyssoftware.atlassian.net/browse/TRAM-3682))
-
-## [15.0.0]
-
-### Changed
-
 - **BREAKING:** `RampsController.getProviders`, `RampsService.getProviders`, `RampsController.getPaymentMethods`, and `RampsService.getPaymentMethods` no longer accept a `fiat` query filter; region local fiat filtering is applied server-side when omitted ([#9245](https://github.com/MetaMask/core/pull/9245))
+- Stop persisting the countries catalog in `RampsController` state and refetch it on every app startup via `init()` ([#9261](https://github.com/MetaMask/core/pull/9261), [TRAM-3682](https://consensyssoftware.atlassian.net/browse/TRAM-3682))
+- Re-sync `userRegion` preset amounts from the countries catalog after each `getCountries()` call ([#9261](https://github.com/MetaMask/core/pull/9261), [TRAM-3682](https://consensyssoftware.atlassian.net/browse/TRAM-3682))
 - Bump `@metamask/controller-utils` from `^12.2.0` to `^12.3.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
 
 ## [14.3.0]
