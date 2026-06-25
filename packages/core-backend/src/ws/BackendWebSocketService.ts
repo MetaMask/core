@@ -1203,7 +1203,9 @@ export class BackendWebSocketService {
           ws.onmessage = (event: MessageEvent): void => {
             try {
               const rawData =
-                typeof event.data === 'string' ? event.data : String(event.data);
+                typeof event.data === 'string'
+                  ? event.data
+                  : String(event.data);
               const message = normalizeIncomingMessage(
                 this.#parseMessage(rawData),
               );
