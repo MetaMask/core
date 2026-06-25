@@ -10,13 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add CHOMP idempotency for direct mUSD vault deposits ([#9267](https://github.com/MetaMask/core/pull/9267))
-  - Before calling `addTransactionBatch` and again in the catch path, `submitDirectMusdVaultDeposit` scans recent Monad logs for a CHOMP auto-vault deposit that already transferred the required mUSD out of the Money Account; when found the on-chain CHOMP hash is returned directly, skipping or superseding the local batch submission.
 
 ### Fixed
 
 - Wait for keyring unlock before executing fiat post-ramp second leg ([#9267](https://github.com/MetaMask/core/pull/9267))
-  - `submitRelayAfterFiatCompletion` now checks `KeyringController:getState().isUnlocked` before proceeding; if the keyring is locked it waits indefinitely for `KeyringController:unlock` before continuing, preventing `Account does not support EIP-7702` errors when the wallet is locked during the fiat order completion callback.
-  - Added `KeyringControllerUnlockEvent` to `AllowedEvents` in `TransactionPayController`.
 
 ## [23.16.1]
 
