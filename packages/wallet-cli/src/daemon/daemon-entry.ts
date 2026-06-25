@@ -7,7 +7,7 @@ import { ensureOwnerOnlyDirectory } from './data-dir';
 import { getDaemonPaths } from './paths';
 import { startRpcSocketServer } from './rpc-socket-server';
 import type { RpcSocketServerHandle } from './rpc-socket-server';
-import type { DaemonStatusInfo, RpcHandlerMap } from './types';
+import type { DaemonStatusInfo, Logger, RpcHandlerMap } from './types';
 import { isErrorWithCode, isProcessAlive, readPidFile } from './utils';
 import { createWallet } from './wallet-factory';
 
@@ -18,9 +18,6 @@ main().catch((error: unknown) => {
   process.exitCode = 1;
 });
 
-/**
- * Main daemon entry point. Starts the daemon process and keeps it running.
- */
 async function main(): Promise<void> {
   const dataDir = process.env.MM_DAEMON_DATA_DIR;
   if (!dataDir) {
@@ -110,11 +107,16 @@ async function main(): Promise<void> {
           throw new Error('Expected params to be an array with an action name');
         }
         const [action, ...args] = params as [string, ...Json[]];
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- The messenger is strongly typed; we bypass it here to dispatch arbitrary action names from RPC.
-        const result = (constructedWallet.messenger as any).call(
-          action,
-          ...args,
-        );
+        // The messenger's `call` is typed to a literal action-name union; the
+        // daemon dispatches arbitrary action names from RPC. Cast to a
+        // string-keyed `call` (which preserves arity) rather than to `any`, so
+        // the only untyped value is the `unknown` result narrowed below.
+        type ArbitraryDispatch = {
+          call: (actionName: string, ...callArgs: Json[]) => unknown;
+        };
+        const result = (
+          constructedWallet.messenger as unknown as ArbitraryDispatch
+        ).call(action, ...args);
         return (result instanceof Promise ? await result : result) as Json;
       },
     };
@@ -144,8 +146,8 @@ async function main(): Promise<void> {
     throw error;
   }
 
-  // Capture the now-resolved bindings so the shutdown closures below have
-  // a stable, non-undefined reference (TS narrowing across closure escape).
+  // Stable non-undefined refs for the shutdown closures (TS won't narrow the
+  // outer `let`s across closure escape).
   const activeHandle = handle;
   const activeDispose = dispose;
 
@@ -185,11 +187,11 @@ async function main(): Promise<void> {
   }
 
   process.on('SIGTERM', () => {
-    /* istanbul ignore next */
+    /* istanbul ignore next -- `shutdown` logs each step internally; the catch only guards against an unhandled rejection from the signal handler. */
     shutdown('SIGTERM').catch(() => undefined);
   });
   process.on('SIGINT', () => {
-    /* istanbul ignore next */
+    /* istanbul ignore next -- `shutdown` logs each step internally; the catch only guards against an unhandled rejection from the signal handler. */
     shutdown('SIGINT').catch(() => undefined);
   });
 }
@@ -206,7 +208,7 @@ async function main(): Promise<void> {
 async function claimDaemonSlot(
   pidPath: string,
   socketPath: string,
-  log: (message: string) => void,
+  log: Logger,
 ): Promise<void> {
   const existingPid = await readPidFile(pidPath);
   const ping = await pingDaemon(socketPath);
@@ -277,12 +279,13 @@ async function removeOwnedPidFile(
 }
 
 /**
- * Create a simple file logger.
+ * Create a file logger that appends timestamped lines to `logPath`, falling
+ * back to stderr if the append fails.
  *
  * @param logPath - The log file path.
  * @returns A logging function.
  */
-function makeLogger(logPath: string): (message: string) => void {
+function makeLogger(logPath: string): Logger {
   return (message: string): void => {
     const line = `[${new Date().toISOString()}] ${message}\n`;
     appendFile(logPath, line).catch((error: unknown) => {

@@ -249,8 +249,27 @@ describe('createWallet', () => {
     await dispose();
   });
 
-  it('logs init steps that reject and tolerates those that resolve', async () => {
+  it('subscribes persistence, then initializes, then imports the SRP, in order', async () => {
+    const subscribeSpy = jest
+      .spyOn(persistenceModule, 'subscribeToChanges')
+      .mockReturnValue(() => undefined);
+
+    const { wallet, dispose } = await createWallet(CONFIG);
+
+    const initMock = wallet.init as jest.Mock;
+    expect(subscribeSpy.mock.invocationCallOrder[0]).toBeLessThan(
+      initMock.mock.invocationCallOrder[0],
+    );
+    expect(initMock.mock.invocationCallOrder[0]).toBeLessThan(
+      mockImportSrp.mock.invocationCallOrder[0],
+    );
+
+    await dispose();
+  });
+
+  it('logs each failed init step, then aborts startup and tears down', async () => {
     const log = jest.fn();
+    const closeSpy = jest.spyOn(KeyValueStore.prototype, 'close');
     MockWallet.mockImplementationOnce(makeMockWallet).mockImplementationOnce(
       () =>
         ({
@@ -262,16 +281,20 @@ describe('createWallet', () => {
         }) as unknown as Wallet,
     );
 
-    const { dispose } = await createWallet({ ...CONFIG, log });
-
-    expect(log).toHaveBeenCalledTimes(1);
+    await expect(createWallet({ ...CONFIG, log })).rejects.toThrow(
+      'Wallet initialization failed (1 step(s))',
+    );
     expect(log).toHaveBeenCalledWith(
       expect.stringContaining(
         'Wallet init step failed: Error: network init boom',
       ),
     );
-
-    await dispose();
+    // The SRP is not imported once init has failed, and the wallet/store are
+    // torn down rather than left open.
+    expect(mockImportSrp).not.toHaveBeenCalled();
+    const realWallet = MockWallet.mock.results[1]?.value as Wallet;
+    expect(realWallet.destroy).toHaveBeenCalledTimes(1);
+    expect(closeSpy).toHaveBeenCalled();
   });
 
   describe('dispose', () => {
@@ -431,6 +454,23 @@ describe('createWallet', () => {
       const closeSpy = jest.spyOn(KeyValueStore.prototype, 'close');
 
       await expect(createWallet(CONFIG)).rejects.toThrow(ctorError);
+      expect(closeSpy).toHaveBeenCalled();
+    });
+
+    it('destroys the wallet and closes the store when wallet.init rejects', async () => {
+      const failure = new Error('init threw');
+      MockWallet.mockImplementationOnce(makeMockWallet).mockImplementationOnce(
+        () =>
+          ({
+            ...makeMockWallet(),
+            init: jest.fn().mockRejectedValue(failure),
+          }) as unknown as Wallet,
+      );
+      const closeSpy = jest.spyOn(KeyValueStore.prototype, 'close');
+
+      await expect(createWallet(CONFIG)).rejects.toThrow(failure);
+      const realWallet = MockWallet.mock.results[1]?.value as Wallet;
+      expect(realWallet.destroy).toHaveBeenCalledTimes(1);
       expect(closeSpy).toHaveBeenCalled();
     });
 

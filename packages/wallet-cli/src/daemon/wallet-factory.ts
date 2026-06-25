@@ -11,18 +11,22 @@ import {
   importSecretRecoveryPhrase,
   Wallet,
 } from '@metamask/wallet';
-import type {
-  DefaultActions,
-  DefaultEvents,
-  RootMessenger,
-  WalletOptions,
-} from '@metamask/wallet';
+import type { WalletOptions } from '@metamask/wallet';
 import { rm } from 'node:fs/promises';
 
 import { KeyValueStore } from '../persistence/KeyValueStore';
 import { loadState, subscribeToChanges } from '../persistence/persistence';
+import type { Logger } from './types';
 
 const IN_MEMORY_DATABASE_PATH = ':memory:';
+
+export type CreateWalletConfig = {
+  databasePath: string;
+  password: string;
+  srp: string;
+  infuraProjectId: string;
+  log?: Logger;
+};
 
 export type CreateWalletResult = {
   wallet: Wallet;
@@ -58,6 +62,9 @@ export type CreateWalletResult = {
  * - `approvalController` — a no-op `showApprovalRequest` (the daemon is
  *   headless).
  *
+ * The optional `keyringController` slot is intentionally omitted so the
+ * controller's built-in defaults (e.g. the PBKDF2 encryptor) apply.
+ *
  * @param infuraProjectId - The Infura project ID for the `NetworkController`.
  * @returns The `instanceOptions` for the `Wallet` constructor.
  */
@@ -79,6 +86,8 @@ function buildInstanceOptions(
       clientConfigApiService: new ClientConfigApiService({
         fetch: globalThis.fetch,
         config: {
+          // TODO: switch to a CLI-specific `ClientType` once one exists; until
+          // then `Extension` buckets feature flags as an extension client.
           client: ClientType.Extension,
           distribution: DistributionType.Main,
           environment: EnvironmentType.Production,
@@ -110,7 +119,9 @@ function buildInstanceOptions(
  *
  * On any failure after the store is opened, the store is closed (and the wallet
  * destroyed, if constructed). On a first-run failure, the on-disk database is
- * also removed so a retry does not latch onto an orphaned partial vault.
+ * also removed so a retry does not latch onto an orphaned partial vault — this
+ * covers in-process failures only; a hard crash (SIGKILL/power loss) mid-import
+ * can still leave a vault on disk.
  *
  * @param config - Wallet configuration.
  * @param config.databasePath - Path to the SQLite database file (or
@@ -130,13 +141,7 @@ export async function createWallet({
   srp,
   infuraProjectId,
   log,
-}: {
-  databasePath: string;
-  password: string;
-  srp: string;
-  infuraProjectId: string;
-  log?: (message: string) => void;
-}): Promise<CreateWalletResult> {
+}: CreateWalletConfig): Promise<CreateWalletResult> {
   const logFn = log ?? ((message: string): void => console.error(message));
   const store = new KeyValueStore(databasePath);
   let wallet: Wallet | undefined;
@@ -151,10 +156,8 @@ export async function createWallet({
       state,
       instanceOptions: buildInstanceOptions(infuraProjectId),
     });
-    // `wallet.messenger` is typed `Readonly`, but persistence must register
-    // (and later remove) subscriptions on it.
     unsubscribe = subscribeToChanges(
-      wallet.messenger as RootMessenger<DefaultActions, DefaultEvents>,
+      wallet.messenger,
       wallet.controllerMetadata,
       store,
       logFn,
@@ -162,13 +165,22 @@ export async function createWallet({
 
     // Complete post-construction controller setup before serving requests —
     // e.g. `NetworkController.init` applies the selected network so a provider
-    // is available. `init` settles every step independently, so surface any
-    // that rejected rather than letting them pass silently.
+    // is available. `init` settles every step independently; a rejected step
+    // leaves the wallet only partially usable, so abort startup (the catch
+    // below tears down and, on first run, removes the partial database) rather
+    // than serving a degraded daemon.
     const initResults = await wallet.init();
-    for (const result of initResults) {
-      if (result.status === 'rejected') {
-        logFn(`Wallet init step failed: ${String(result.reason)}`);
-      }
+    const initFailures = initResults.filter(
+      (result): result is PromiseRejectedResult => result.status === 'rejected',
+    );
+    for (const failure of initFailures) {
+      logFn(`Wallet init step failed: ${String(failure.reason)}`);
+    }
+    if (initFailures.length > 0) {
+      const firstReason = String(initFailures[0].reason);
+      throw new Error(
+        `Wallet initialization failed (${initFailures.length} step(s)); refusing to serve a partially initialized wallet. First failure: ${firstReason}`,
+      );
     }
 
     if (wasFirstRun) {
@@ -227,7 +239,7 @@ export async function createWallet({
 async function loadPersistedState(
   store: KeyValueStore,
   infuraProjectId: string,
-  logFn: (message: string) => void,
+  logFn: Logger,
 ): Promise<Record<string, Record<string, Json>>> {
   const probe = new Wallet({
     instanceOptions: buildInstanceOptions(infuraProjectId),
@@ -242,9 +254,9 @@ async function loadPersistedState(
 }
 
 /**
- * Tear down a wallet and its store in persistence-safe order: stop the
- * subscription, destroy the wallet, then close the store. Each step is
- * best-effort; a failure is logged and the remaining steps still run.
+ * Persistence-safe teardown of a wallet and its store; see {@link
+ * CreateWalletResult.dispose} for the ordering rationale. Each step is
+ * best-effort, so a failure is logged and the remaining steps still run.
  *
  * @param unsubscribe - The persistence-subscription unsubscribe function, if
  * one was registered.
@@ -256,7 +268,7 @@ async function teardown(
   unsubscribe: (() => void) | undefined,
   wallet: Wallet | undefined,
   store: KeyValueStore,
-  logFn: (message: string) => void,
+  logFn: Logger,
 ): Promise<void> {
   if (unsubscribe) {
     try {
