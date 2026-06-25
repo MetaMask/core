@@ -47,7 +47,7 @@
     "@metamask/base-controller": "^9.1.0",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/utils": "^11.11.0",
-    "@metamask/wallet": "^4.0.0",
+    "@metamask/wallet": "^5.0.0",
     "@oclif/core": "^4.10.5",
     "better-sqlite3": "^12.9.0",
     "immer": "^9.0.6"
