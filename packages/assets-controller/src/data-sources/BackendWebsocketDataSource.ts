@@ -550,7 +550,10 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       if (existing) {
         // Check if accounts changed - if so, we need to re-subscribe to different channels
         const existingAddresses = existing.addresses ?? [];
-        const addressesChanged = haveAddressesChanged(addresses, existingAddresses);
+        const addressesChanged = haveAddressesChanged(
+          addresses,
+          existingAddresses,
+        );
 
         if (!addressesChanged) {
           // Only chains changed - update chains, request, and callback
@@ -791,10 +794,7 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     this.activeSubscriptions.delete(subscriptionId);
   }
 
-  #registerChannelCallbacks(
-    subscriptionId: string,
-    channels: string[],
-  ): void {
+  #registerChannelCallbacks(subscriptionId: string, channels: string[]): void {
     for (const channel of channels) {
       this.#unregisterChannelCallback(channel);
 

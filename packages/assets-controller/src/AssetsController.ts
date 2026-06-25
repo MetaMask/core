@@ -2177,7 +2177,9 @@ export class AssetsController extends BaseController<
     const filtered: Record<string, AssetBalance> = {};
 
     for (const [assetId, balance] of Object.entries(accountBalances)) {
-      const freshUntil = this.#wsBalanceFreshUntil.get(`${accountId}:${assetId}`);
+      const freshUntil = this.#wsBalanceFreshUntil.get(
+        `${accountId}:${assetId}`,
+      );
       if (freshUntil !== undefined && now < freshUntil) {
         continue;
       }

@@ -615,9 +615,9 @@ describe('BackendWebsocketDataSource', () => {
     const mockWsSubscription = createMockWsSubscription([channel]);
     const { controller, wsSubscribeMock, removeChannelCallbackMock } =
       setupController({
-      initialActiveChains: [CHAIN_MAINNET],
-      connectionState: WebSocketState.CONNECTED,
-    });
+        initialActiveChains: [CHAIN_MAINNET],
+        connectionState: WebSocketState.CONNECTED,
+      });
 
     wsSubscribeMock.mockResolvedValueOnce(mockWsSubscription);
 
@@ -640,14 +640,11 @@ describe('BackendWebsocketDataSource', () => {
     const channel = `account-activity.v1.eip155:0:${MOCK_ADDRESS.toLowerCase()}`;
     const mockWsSubscription = createMockWsSubscription([channel]);
     const onAssetsUpdate = jest.fn().mockResolvedValue(undefined);
-    const {
-      controller,
-      wsSubscribeMock,
-      addChannelCallbackMock,
-    } = setupController({
-      initialActiveChains: [CHAIN_MAINNET],
-      connectionState: WebSocketState.CONNECTED,
-    });
+    const { controller, wsSubscribeMock, addChannelCallbackMock } =
+      setupController({
+        initialActiveChains: [CHAIN_MAINNET],
+        connectionState: WebSocketState.CONNECTED,
+      });
 
     wsSubscribeMock.mockResolvedValueOnce(mockWsSubscription);
 
@@ -711,9 +708,11 @@ describe('BackendWebsocketDataSource', () => {
       notification: ServerNotificationMessage,
     ) => void = () => undefined;
 
-    const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>(
-      { namespace: MOCK_ANY_NAMESPACE },
-    );
+    const rootMessenger = new Messenger<
+      MockAnyNamespace,
+      AllActions,
+      AllEvents
+    >({ namespace: MOCK_ANY_NAMESPACE });
     const controllerMessenger = new Messenger<
       'BackendWebsocketDataSource',
       AllActions,
@@ -738,9 +737,7 @@ describe('BackendWebsocketDataSource', () => {
       'BackendWebSocketService:subscribe',
       ({ callback }) => {
         notificationCallback = callback;
-        return Promise.resolve(
-          createMockWsSubscription([channel]),
-        );
+        return Promise.resolve(createMockWsSubscription([channel]));
       },
     );
     rootMessenger.registerActionHandler(
