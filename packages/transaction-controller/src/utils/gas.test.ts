@@ -724,6 +724,84 @@ describe('gas', () => {
       });
     });
 
+    it('clamps the percentage-derived fallback to maxGasLimit when it exceeds the chain per-tx cap on error', async () => {
+      const maxGasLimit =
+        Math.floor(BLOCK_GAS_LIMIT_MOCK * FALLBACK_MULTIPLIER_35_PERCENT) - 1;
+
+      getGasEstimateFallbackMock.mockReturnValue({
+        percentage: DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK,
+        fixed: undefined,
+        maxGasLimit,
+      });
+
+      mockQuery({
+        getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+        estimateGasError: { message: 'TestError', errorKey: 'TestKey' },
+      });
+
+      const result = await estimateGas({
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        isSimulationEnabled: false,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        messenger: MESSENGER_MOCK,
+        txParams: TRANSACTION_META_MOCK.txParams,
+      });
+
+      expect(result.estimatedGas).toBe(toHex(maxGasLimit));
+    });
+
+    it('does not clamp the fallback when it is below maxGasLimit on error', async () => {
+      const fallbackGas = Math.floor(
+        BLOCK_GAS_LIMIT_MOCK * FALLBACK_MULTIPLIER_35_PERCENT,
+      );
+
+      getGasEstimateFallbackMock.mockReturnValue({
+        percentage: DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK,
+        fixed: undefined,
+        maxGasLimit: BLOCK_GAS_LIMIT_MOCK,
+      });
+
+      mockQuery({
+        getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+        estimateGasError: { message: 'TestError', errorKey: 'TestKey' },
+      });
+
+      const result = await estimateGas({
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        isSimulationEnabled: false,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        messenger: MESSENGER_MOCK,
+        txParams: TRANSACTION_META_MOCK.txParams,
+      });
+
+      expect(result.estimatedGas).toBe(toHex(fallbackGas));
+    });
+
+    it('clamps the fixed fallback to maxGasLimit when it exceeds the chain per-tx cap on error', async () => {
+      const maxGasLimit = FIXED_ESTIMATE_GAS_MOCK - 1;
+
+      getGasEstimateFallbackMock.mockReturnValue({
+        percentage: DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK,
+        fixed: FIXED_ESTIMATE_GAS_MOCK,
+        maxGasLimit,
+      });
+
+      mockQuery({
+        getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+        estimateGasError: { message: 'TestError', errorKey: 'TestKey' },
+      });
+
+      const result = await estimateGas({
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        isSimulationEnabled: false,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        messenger: MESSENGER_MOCK,
+        txParams: TRANSACTION_META_MOCK.txParams,
+      });
+
+      expect(result.estimatedGas).toBe(toHex(maxGasLimit));
+    });
+
     it('removes gas fee properties from estimate request', async () => {
       mockQuery({
         getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },

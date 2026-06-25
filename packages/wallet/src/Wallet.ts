@@ -124,6 +124,24 @@ export class Wallet {
   }
 
   /**
+   * Complete additional initialization of instantiated controllers or services after instantiating `Wallet`.
+   *
+   * @returns The results of all initialization calls.
+   */
+  init(): Promise<PromiseSettledResult<unknown>[]> {
+    return Promise.allSettled(
+      Object.values(this.#instances)
+        .filter(
+          (instance): instance is Extract<typeof instance, { init: unknown }> =>
+            // We do actually want to check the prototype here.
+            // eslint-disable-next-line no-restricted-syntax
+            'init' in instance && typeof instance.init === 'function',
+        )
+        .map(async (instance) => instance.init()),
+    );
+  }
+
+  /**
    * Destroy the wallet instance.
    */
   async destroy(): Promise<void> {

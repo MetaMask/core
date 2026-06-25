@@ -188,6 +188,17 @@ const MESSENGER_EXPOSED_METHODS = [
 /** Default polling interval hint for data sources (30 seconds) */
 const DEFAULT_POLLING_INTERVAL_MS = 30_000;
 
+/** Sources whose passive polling must not overwrite recent websocket balances. */
+const POLLING_BALANCE_SOURCES = new Set([
+  'AccountsApiDataSource',
+  'RpcDataSource',
+  'SnapDataSource',
+  'StakedBalanceDataSource',
+]);
+
+/** How long websocket balance updates block stale polling overwrites. */
+const WS_BALANCE_FRESHNESS_MS = 120_000;
+
 // ============================================================================
 // TRACE NAMES — used in Sentry spans (search these strings in Discover)
 // ============================================================================
@@ -525,6 +536,10 @@ function normalizeResponse(response: DataResponse): DataResponse {
     normalized.updateMode = response.updateMode;
   }
 
+  if (response.sourceId) {
+    normalized.sourceId = response.sourceId;
+  }
+
   return normalized;
 }
 
@@ -667,6 +682,9 @@ export class AssetsController extends BaseController<
 
   readonly #controllerMutex = new Mutex();
 
+  /** Serializes account-switch fetch + subscribe to prevent overlapping races. */
+  readonly #accountRefreshMutex = new Mutex();
+
   /**
    * Active balance subscriptions keyed by account ID.
    * Each account has one logical subscription that may span multiple data sources.
@@ -684,6 +702,12 @@ export class AssetsController extends BaseController<
    * re-subscriptions when the account set hasn't actually changed.
    */
   #lastKnownAccountIds: ReadonlySet<string> = new Set();
+
+  /**
+   * Per `accountId:assetId`, timestamp until which websocket balance updates
+   * should not be overwritten by polling/API fetches.
+   */
+  readonly #wsBalanceFreshUntil = new Map<string, number>();
 
   /**
    * Get the currently selected accounts from AccountTreeController.
@@ -1139,23 +1163,42 @@ export class AssetsController extends BaseController<
         return;
       }
 
+      const hasOverlap = [...currentIds].some((id) =>
+        this.#lastKnownAccountIds.has(id),
+      );
+      if (!hasOverlap && this.#lastKnownAccountIds.size > 0) {
+        return;
+      }
+
       log('Account tree changed with new accounts, re-subscribing', {
         previousCount: this.#lastKnownAccountIds.size,
         currentCount: currentIds.size,
       });
 
       this.#lastKnownAccountIds = currentIds;
-      this.#subscribeAssets();
       this.#ensureNativeBalancesDefaultZero();
       this.#ensureDefaultTrackedAssetsSeeded();
-      this.getAssets(accounts, {
-        chainIds: [...this.#enabledChains],
-        forceUpdate: true,
-      }).catch((error) => {
-        log('Failed to fetch assets after tree change', error);
+      this.#runAccountTreeRefresh(accounts).catch((error) => {
+        log('Failed to refresh assets after tree change', error);
       });
     } else {
       this.#start();
+    }
+  }
+
+  async #runAccountTreeRefresh(accounts: InternalAccount[]): Promise<void> {
+    const releaseLock = await this.#accountRefreshMutex.acquire();
+    try {
+      await this.getAssets(accounts, {
+        chainIds: [...this.#enabledChains],
+        forceUpdate: true,
+      });
+      this.#subscribeAssets();
+    } catch (error) {
+      log('Failed to fetch assets after tree change', error);
+      this.#subscribeAssets();
+    } finally {
+      releaseLock();
     }
   }
 
@@ -1204,25 +1247,11 @@ export class AssetsController extends BaseController<
     const removedChains = previous.filter((ch) => !activeChains.includes(ch));
 
     if (addedChains.length > 0 || removedChains.length > 0) {
-      // Refresh subscriptions to use updated data source availability
+      // Refresh subscriptions to use updated data source availability.
+      // No one-time fetch needed here — #handleEnabledNetworksChanged
+      // handles fetches when the user enables a network, and
+      // #subscribeAssets re-subscribes with the correct chain assignment.
       this.#subscribeAssets();
-    }
-
-    // If chains were added and we have selected accounts, do one-time fetch
-    if (addedChains.length > 0 && this.#getSelectedAccounts().length > 0) {
-      const addedEnabledChains = addedChains.filter((chain) =>
-        this.#enabledChains.has(chain),
-      );
-      if (addedEnabledChains.length > 0) {
-        log('Fetching balances for newly added chains', { addedEnabledChains });
-        this.getAssets(this.#getSelectedAccounts(), {
-          chainIds: addedEnabledChains,
-          forceUpdate: true,
-          updateMode: 'merge',
-        }).catch((error) => {
-          log('Failed to fetch balance for added chains', { error });
-        });
-      }
     }
   }
 
@@ -1442,7 +1471,11 @@ export class AssetsController extends BaseController<
       // The fast pipeline only contains a subset of data sources (AccountsApi +
       // StakedBalance), so it must always merge to avoid wiping Snap/RPC
       // balances that the background pipeline hasn't yet replaced.
-      await this.#updateState({ ...response, updateMode: 'merge' });
+      await this.#updateState({
+        ...response,
+        updateMode: 'merge',
+        sourceId: 'getAssets:forceUpdate',
+      });
 
       // Background pipeline: snap and RPC run in parallel after the fast path
       // commits to state. Their balances are merged together before detection.
@@ -1468,7 +1501,11 @@ export class AssetsController extends BaseController<
         request,
       )
         .then(({ response: slowResponse }) =>
-          this.#updateState({ ...slowResponse, updateMode: 'merge' }),
+          this.#updateState({
+            ...slowResponse,
+            updateMode: 'merge',
+            sourceId: 'getAssets:forceUpdate',
+          }),
         )
         .catch((error) => log('Background pipeline failed', { error }));
 
@@ -1829,6 +1866,9 @@ export class AssetsController extends BaseController<
       return;
     }
 
+    // Currency changed — old cached prices are in the wrong currency.
+    this.#priceDataSource.invalidatePriceCache();
+
     this.getAssets(this.#getSelectedAccounts(), {
       forceUpdate: true,
       dataTypes: ['price'],
@@ -2124,9 +2164,57 @@ export class AssetsController extends BaseController<
     });
   }
 
+  #filterBalancesRespectingWsFreshness(
+    accountId: string,
+    accountBalances: Record<string, AssetBalance>,
+    sourceId?: string,
+  ): Record<string, AssetBalance> {
+    if (!sourceId || !POLLING_BALANCE_SOURCES.has(sourceId)) {
+      return accountBalances;
+    }
+
+    const now = Date.now();
+    const filtered: Record<string, AssetBalance> = {};
+
+    for (const [assetId, balance] of Object.entries(accountBalances)) {
+      const freshUntil = this.#wsBalanceFreshUntil.get(
+        `${accountId}:${assetId}`,
+      );
+      if (freshUntil !== undefined && now < freshUntil) {
+        continue;
+      }
+      filtered[assetId] = balance;
+    }
+
+    return filtered;
+  }
+
+  #markWsBalancesFresh(
+    assetsBalance: Record<string, Record<string, AssetBalance>>,
+  ): void {
+    const freshUntil = Date.now() + WS_BALANCE_FRESHNESS_MS;
+    for (const [accountId, balances] of Object.entries(assetsBalance)) {
+      for (const assetId of Object.keys(balances)) {
+        this.#wsBalanceFreshUntil.set(`${accountId}:${assetId}`, freshUntil);
+      }
+    }
+  }
+
+  #clearWsBalanceFreshness(
+    assetsBalance: Record<string, Record<string, AssetBalance>>,
+  ): void {
+    for (const [accountId, balances] of Object.entries(assetsBalance)) {
+      for (const assetId of Object.keys(balances)) {
+        this.#wsBalanceFreshUntil.delete(`${accountId}:${assetId}`);
+      }
+    }
+  }
+
   async #updateState(response: DataResponse): Promise<void> {
     const normalizedResponse = normalizeResponse(response);
     const mode: AssetsUpdateMode = normalizedResponse.updateMode ?? 'merge';
+
+    const assetsBalanceToApply = normalizedResponse.assetsBalance;
 
     const releaseLock = await this.#controllerMutex.acquire();
 
@@ -2210,10 +2298,16 @@ export class AssetsController extends BaseController<
           }
         }
 
-        if (normalizedResponse.assetsBalance) {
+        if (assetsBalanceToApply) {
           for (const [accountId, accountBalances] of Object.entries(
-            normalizedResponse.assetsBalance,
+            assetsBalanceToApply,
           )) {
+            const filteredAccountBalances =
+              this.#filterBalancesRespectingWsFreshness(
+                accountId,
+                accountBalances,
+                normalizedResponse.sourceId,
+              );
             const previousBalances =
               previousState.assetsBalance[accountId] ?? {};
             const customAssetIds =
@@ -2228,11 +2322,11 @@ export class AssetsController extends BaseController<
             // Merge: response overlays previous balances.
             const effective: Record<string, AssetBalance> =
               mode === 'merge'
-                ? { ...previousBalances, ...accountBalances }
+                ? { ...previousBalances, ...filteredAccountBalances }
                 : ((): Record<string, AssetBalance> => {
                     // Determine which chain namespaces this response covers.
                     const coveredChains = new Set(
-                      Object.keys(accountBalances).map(
+                      Object.keys(filteredAccountBalances).map(
                         (assetId) => assetId.split('/')[0],
                       ),
                     );
@@ -2249,7 +2343,7 @@ export class AssetsController extends BaseController<
                     }
 
                     // Apply the response (authoritative for covered chains).
-                    Object.assign(next, accountBalances);
+                    Object.assign(next, filteredAccountBalances);
 
                     // Preserve custom assets that the response omitted.
                     for (const customId of customAssetIds) {
@@ -2395,6 +2489,15 @@ export class AssetsController extends BaseController<
             assetIds,
           });
         }
+      }
+
+      // Authoritative fetch on account switch — drop WS freshness locks so API
+      // balances (e.g. receiver +1 USDC) replace stale values from a prior send.
+      if (
+        normalizedResponse.sourceId === 'getAssets:forceUpdate' &&
+        assetsBalanceToApply
+      ) {
+        this.#clearWsBalanceFreshness(assetsBalanceToApply);
       }
     } finally {
       releaseLock();
@@ -3032,17 +3135,23 @@ export class AssetsController extends BaseController<
 
     this.#lastKnownAccountIds = new Set(accounts.map((a) => a.id));
 
-    // Subscribe and fetch for the new account group
-    this.#subscribeAssets();
-    if (accounts.length > 0) {
-      await this.getAssets(accounts, {
-        chainIds: [...this.#enabledChains],
-        forceUpdate: true,
-      });
-    }
+    const releaseLock = await this.#accountRefreshMutex.acquire();
+    try {
+      if (accounts.length > 0) {
+        await this.getAssets(accounts, {
+          chainIds: [...this.#enabledChains],
+          forceUpdate: true,
+        });
+      }
 
-    this.#ensureNativeBalancesDefaultZero();
-    this.#ensureDefaultTrackedAssetsSeeded();
+      // Subscribe after fetch so WS notifications can recover state
+      this.#subscribeAssets();
+
+      this.#ensureNativeBalancesDefaultZero();
+      this.#ensureDefaultTrackedAssetsSeeded();
+    } finally {
+      releaseLock();
+    }
   }
 
   async #handleEnabledNetworksChanged(
@@ -3162,6 +3271,7 @@ export class AssetsController extends BaseController<
     request?: DataRequest,
   ): Promise<void> {
     const updateStart = performance.now();
+
     log('Assets updated from data source', {
       sourceId,
       hasBalance: Boolean(response.assetsBalance),
@@ -3213,7 +3323,14 @@ export class AssetsController extends BaseController<
       response,
     );
 
-    await this.#updateState(enrichedResponse);
+    await this.#updateState({ ...enrichedResponse, sourceId });
+
+    if (
+      sourceId === 'BackendWebsocketDataSource' &&
+      enrichedResponse.assetsBalance
+    ) {
+      this.#markWsBalancesFresh(enrichedResponse.assetsBalance);
+    }
 
     this.#emitTrace(TRACE_UPDATE_PIPELINE, {
       source: sourceId,

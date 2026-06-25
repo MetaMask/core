@@ -822,6 +822,7 @@ describe('PerpsController', () => {
         provider: mockProvider,
         params: undefined,
         context: expect.any(Object),
+        isMarketAllowed: expect.any(Function),
       });
     });
   });

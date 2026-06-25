@@ -54,6 +54,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/authenticated-user-storage`](packages/authenticated-user-storage)
 - [`@metamask/base-controller`](packages/base-controller)
 - [`@metamask/base-data-service`](packages/base-data-service)
+- [`@metamask/bitcoin-regtest-up`](packages/bitcoin-regtest-up)
 - [`@metamask/bridge-controller`](packages/bridge-controller)
 - [`@metamask/bridge-status-controller`](packages/bridge-status-controller)
 - [`@metamask/build-utils`](packages/build-utils)
@@ -80,9 +81,11 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/gas-fee-controller`](packages/gas-fee-controller)
 - [`@metamask/gator-permissions-controller`](packages/gator-permissions-controller)
 - [`@metamask/geolocation-controller`](packages/geolocation-controller)
+- [`@metamask/java-tron-up`](packages/java-tron-up)
 - [`@metamask/json-rpc-engine`](packages/json-rpc-engine)
 - [`@metamask/json-rpc-middleware-stream`](packages/json-rpc-middleware-stream)
 - [`@metamask/keyring-controller`](packages/keyring-controller)
+- [`@metamask/local-node-utils`](packages/local-node-utils)
 - [`@metamask/logging-controller`](packages/logging-controller)
 - [`@metamask/message-manager`](packages/message-manager)
 - [`@metamask/messenger`](packages/messenger)
@@ -119,6 +122,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/smart-transactions-controller`](packages/smart-transactions-controller)
 - [`@metamask/snap-account-service`](packages/snap-account-service)
 - [`@metamask/social-controllers`](packages/social-controllers)
+- [`@metamask/solana-test-validator-up`](packages/solana-test-validator-up)
 - [`@metamask/storage-service`](packages/storage-service)
 - [`@metamask/subscription-controller`](packages/subscription-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
@@ -149,6 +153,7 @@ linkStyle default opacity:0.5
   authenticated_user_storage(["@metamask/authenticated-user-storage"]);
   base_controller(["@metamask/base-controller"]);
   base_data_service(["@metamask/base-data-service"]);
+  bitcoin_regtest_up(["@metamask/bitcoin-regtest-up"]);
   bridge_controller(["@metamask/bridge-controller"]);
   bridge_status_controller(["@metamask/bridge-status-controller"]);
   build_utils(["@metamask/build-utils"]);
@@ -175,9 +180,11 @@ linkStyle default opacity:0.5
   gas_fee_controller(["@metamask/gas-fee-controller"]);
   gator_permissions_controller(["@metamask/gator-permissions-controller"]);
   geolocation_controller(["@metamask/geolocation-controller"]);
+  java_tron_up(["@metamask/java-tron-up"]);
   json_rpc_engine(["@metamask/json-rpc-engine"]);
   json_rpc_middleware_stream(["@metamask/json-rpc-middleware-stream"]);
   keyring_controller(["@metamask/keyring-controller"]);
+  local_node_utils(["@metamask/local-node-utils"]);
   logging_controller(["@metamask/logging-controller"]);
   message_manager(["@metamask/message-manager"]);
   messenger(["@metamask/messenger"]);
@@ -214,6 +221,7 @@ linkStyle default opacity:0.5
   smart_transactions_controller(["@metamask/smart-transactions-controller"]);
   snap_account_service(["@metamask/snap-account-service"]);
   social_controllers(["@metamask/social-controllers"]);
+  solana_test_validator_up(["@metamask/solana-test-validator-up"]);
   storage_service(["@metamask/storage-service"]);
   subscription_controller(["@metamask/subscription-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
@@ -288,6 +296,7 @@ linkStyle default opacity:0.5
   base_controller --> messenger;
   base_data_service --> controller_utils;
   base_data_service --> messenger;
+  bitcoin_regtest_up --> local_node_utils;
   bridge_controller --> accounts_controller;
   bridge_controller --> assets_controller;
   bridge_controller --> assets_controllers;
@@ -385,6 +394,7 @@ linkStyle default opacity:0.5
   geolocation_controller --> base_controller;
   geolocation_controller --> controller_utils;
   geolocation_controller --> messenger;
+  java_tron_up --> local_node_utils;
   json_rpc_engine --> messenger;
   json_rpc_middleware_stream --> json_rpc_engine;
   keyring_controller --> base_controller;
@@ -473,6 +483,7 @@ linkStyle default opacity:0.5
   perps_controller --> controller_utils;
   perps_controller --> messenger;
   perps_controller --> account_tree_controller;
+  perps_controller --> authenticated_user_storage;
   perps_controller --> geolocation_controller;
   perps_controller --> keyring_controller;
   perps_controller --> network_controller;
@@ -557,6 +568,7 @@ linkStyle default opacity:0.5
   social_controllers --> controller_utils;
   social_controllers --> messenger;
   social_controllers --> profile_sync_controller;
+  solana_test_validator_up --> local_node_utils;
   storage_service --> messenger;
   subscription_controller --> base_controller;
   subscription_controller --> controller_utils;
@@ -606,8 +618,13 @@ linkStyle default opacity:0.5
   wallet --> controller_utils;
   wallet --> keyring_controller;
   wallet --> messenger;
+  wallet --> network_controller;
   wallet --> remote_feature_flag_controller;
   wallet --> storage_service;
+  wallet_cli --> base_controller;
+  wallet_cli --> remote_feature_flag_controller;
+  wallet_cli --> storage_service;
+  wallet_cli --> wallet;
 ```
 
 <!-- end dependency graph -->

@@ -86,6 +86,18 @@ export enum MarketCategory {
 
 export type MarketType = `${MarketCategory}`;
 
+/**
+ * Metadata extracted from Terminal API for a single asset.
+ * Used downstream to enrich PerpsMarketData with name, keywords, tags, etc.
+ */
+export type TerminalAssetMetadata = {
+  name?: string;
+  keywords?: string[];
+  tags?: string[];
+  categories?: string[];
+  marketType?: MarketType;
+};
+
 // Market type filter for UI category badges
 export type MarketTypeFilter =
   | 'all'
@@ -147,6 +159,8 @@ export type TrackingData = {
 
   // Entry source for analytics (e.g., 'trending' for Trending page discovery)
   source?: string;
+  // Chart library active when the trade was initiated (e.g., lightweight, advanced)
+  chartLibrary?: string;
 
   // Pay with any token: true when user paid with a custom token (not Perps balance)
   tradeWithToken?: boolean;
@@ -476,6 +490,18 @@ export type PerpsMarketData = {
    * Indicates this market snapshot came from the last known good cache after live fetch failure.
    */
   isStale?: boolean;
+  /**
+   * Searchable keywords from Terminal API metadata (e.g., ['defi', 'layer-1'])
+   */
+  keywords?: string[];
+  /**
+   * Taxonomy tags from Terminal API metadata (e.g., ['top-100', 'gaming'])
+   */
+  tags?: string[];
+  /**
+   * Market categories from Terminal API metadata (e.g., ['crypto', 'meme'])
+   */
+  categories?: string[];
 };
 
 export type ToggleTestnetResult = {
@@ -665,6 +691,16 @@ export type PerpsControllerConfig = {
   fallbackHip3BlocklistMarkets?: string[];
 
   /**
+   * Override for the maximum allowed deviation of a market's price from its oracle
+   * (reference) price before it is reported as untradable (`PriceUpdate.isTradable`),
+   * as a decimal fraction (e.g. `0.95` = 95%). Protocol-agnostic: each provider applies
+   * its own default when omitted (HyperLiquid uses
+   * `HYPERLIQUID_CONFIG.OraclePriceDeviationLimit`, `0.95`). Lets a client tune the
+   * threshold without a package release.
+   */
+  fallbackPriceDeviationLimit?: number;
+
+  /**
    * Per-provider credentials and configuration.
    * Nested by provider name so each provider's settings are self-contained
    * and new protocols can be added without polluting the top-level config.
@@ -710,6 +746,21 @@ export type PriceUpdate = {
   funding?: number; // Current funding rate
   openInterest?: number; // Open interest in USD
   volume24h?: number; // 24h trading volume in USD
+  /**
+   * Whether the market is currently tradable. Defaults to `true`.
+   *
+   * Some markets — most often HIP-3 builder-deployed ones — become temporarily
+   * untradable when their market price drifts too far from the oracle price, in which
+   * case the protocol rejects orders (HyperLiquid: "Order price cannot be more than 95%
+   * away from the reference price"). Clients use this to proactively show a "trading
+   * unavailable" warning instead of letting the order fail on submission.
+   *
+   * Computed per provider/protocol from that protocol's own rules. It is `false` only
+   * when a provider determines the market is currently untradable; a provider that has no
+   * such rule, or cannot assess tradability yet (e.g. before the oracle price is cached),
+   * reports `true`. The value is always a concrete boolean — never `undefined`.
+   */
+  isTradable: boolean;
   providerId?: PerpsProviderType; // Multi-provider: price source (injected by aggregator)
 };
 
@@ -829,6 +880,7 @@ export type GetMarketsParams = {
   dex?: string; // HyperLiquid HIP-3: DEX name (empty string '' or undefined for main DEX). Other protocols: ignored.
   skipFilters?: boolean; // Skip market filtering (both allowlist and blocklist, default: false). When true, returns all markets without filtering.
   standalone?: boolean; // Lightweight mode: skip full initialization, only fetch market metadata (no wallet/WebSocket needed). Only main DEX markets returned. Use for discovery use cases like checking if a perps market exists.
+  useTerminalApi?: boolean; // When true, use Terminal API as market data source.
 };
 
 /**
@@ -843,6 +895,7 @@ export type GetMarketDataWithPricesParams = {
   sortBy?: SortField; // Sort results by this field
   direction?: SortDirection; // Sort direction (default: desc)
   limit?: number; // Maximum number of results to return
+  useTerminalApi?: boolean; // When true, use Terminal API as market data source.
 };
 
 export type SubscribePricesParams = {
@@ -1605,6 +1658,23 @@ export type PerpsRemoteFeatureFlagState = {
 };
 
 /**
+ * Injectable interface for the Terminal-market service.
+ *
+ * `MarketDataService` programs against this contract so the concrete
+ * `TerminalMarketService` class (which lives in `services/`) never leaks
+ * into the types barrel — callers can supply any implementation that
+ * satisfies the shape (production, stub, mock, etc.).
+ */
+export type PerpsTerminalMarketService = {
+  fetchMarkets(): Promise<{
+    markets: MarketInfo[];
+    metadata: Map<string, TerminalAssetMetadata>;
+  }>;
+  clearCache(): void;
+  logError(error: unknown, method: string): void;
+};
+
+/**
  * Platform dependencies for PerpsController and services.
  *
  * Architecture:
@@ -1653,6 +1723,26 @@ export type PerpsPlatformDependencies = {
     setItem(key: string, value: string): Promise<void>;
     removeItem(key: string): Promise<void>;
   };
+
+  // === Terminal API (market metadata source) ===
+  /**
+   * Full endpoint URL for the MetaMask Terminal API perpetuals endpoint.
+   * Each client build (dev/uat/prd) injects the correct environment URL
+   * (e.g. `https://terminal.api.cx.metamask.io/v1/perpetuals`).
+   * Never hardcoded in controller code — always provided by the platform.
+   * Optional: only required when Terminal API features (useTerminalApi) are enabled.
+   */
+  terminalApiUrl?: string;
+
+  /**
+   * Optional Terminal-market service instance for fetching structured market
+   * metadata from the MetaMask Terminal API.
+   *
+   * When provided, `MarketDataService` uses this service to attempt the
+   * Terminal API path before falling back to the provider.
+   * Clients that do not use the Terminal API can omit this field.
+   */
+  terminalMarketService?: PerpsTerminalMarketService;
 
   // === Rewards (DI — no RewardsController in Core yet) ===
   rewards: {

@@ -88,8 +88,9 @@ export const formatProviderLabel = ({
  * @param tokenSecurityTypeDestination - The security classification of the destination token,
  * supplied by the client (e.g. from token security/scanning data). Pass `null` when no
  * security data is available for the selected destination token.
- * @returns The analytics request params derived from the quote request, minus token symbols
- * which the caller provides separately.
+ * @returns The analytics request params derived from the quote request. Token symbols are
+ * omitted because the quote request only stores addresses; use
+ * {@link getQuotesReceivedProperties} when building a `QuotesReceived` payload.
  */
 export const getRequestParams = (
   {
@@ -178,6 +179,8 @@ export const getQuotesReceivedProperties = (
       ? formatProviderLabel(recommendedQuote.quote)
       : provider,
     provider,
+    token_symbol_source: activeQuote?.quote.srcAsset.symbol ?? '',
+    token_symbol_destination: activeQuote?.quote.destAsset.symbol ?? null,
     warnings,
     price_impact: Number(activeQuote?.quote.priceData?.priceImpact ?? 0),
     ...(hasSufficientGasForQuote !== undefined && {

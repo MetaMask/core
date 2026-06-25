@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [33.0.0]
+
 ### Added
 
 - Add defaults for policy and block tracker options ([#9002](https://github.com/MetaMask/core/pull/9002))
@@ -22,18 +24,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
-- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.2.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.3.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
+- **BREAKING:** Remove deprecated `NetworkControllerGetNetworkConfigurationByNetworkClientId` type ([#9185](https://github.com/MetaMask/core/pull/9185))
+  - Use `NetworkControllerGetNetworkConfigurationByNetworkClientIdAction` instead.
 - **BREAKING:** Automatically populate `isRpcFailoverEnabled` using `RemoteFeatureFlagController` ([#9013](https://github.com/MetaMask/core/pull/9013))
   - `NetworkController.init` must now be called to fully initialize the controller.
   - The constructor argument `isRpcFailoverEnabled` is no longer available.
   - `RemoteFeatureFlagController:stateChange` and `RemoteFeatureFlagController:getState` are now required.
 - Drop `async-mutex` dependency, which was no longer used in source ([#9064](https://github.com/MetaMask/core/pull/9064))
+- Consider all Infura HTTP errors as service failures except `400` and `429` ([#9123](https://github.com/MetaMask/core/pull/9123))
+- Only consider failover endpoints when using Infura ([#9125](https://github.com/MetaMask/core/pull/9125))
 
 ### Removed
 
 - **BREAKING:** Remove `initializeProvider` in favor of `init` ([#9034](https://github.com/MetaMask/core/pull/9034))
   - `init` does not call `lookupNetwork`, if this is required it must be called manually.
-- **BREAKING:** Remove `additionalDefaultNetworks` constructor option ([#9035](https://github.com/MetaMask/core/pull/9035))
+- **BREAKING:** Remove `additionalDefaultNetworks` constructor option ([#9035](https://github.com/MetaMask/core/pull/9035), [#9183](https://github.com/MetaMask/core/pull/9183))
+  - MegaETH v1 is no longer a default network.
 
 ### Fixed
 
@@ -1218,7 +1225,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@32.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@33.0.0...HEAD
+[33.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@32.0.0...@metamask/network-controller@33.0.0
 [32.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@31.1.0...@metamask/network-controller@32.0.0
 [31.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@31.0.0...@metamask/network-controller@31.1.0
 [31.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@30.1.0...@metamask/network-controller@31.0.0

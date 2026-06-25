@@ -1,5 +1,6 @@
 import { Interface } from '@ethersproject/abi';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
+import { NetworkClientType } from '@metamask/network-controller';
 import {
   TransactionStatus,
   TransactionType,
@@ -707,6 +708,10 @@ describe('getTransferredAmountFromTxHash', () => {
 
     receiptFindNetworkMock.mockReturnValue(NETWORK_CLIENT_ID_RECEIPT_MOCK);
     receiptGetNetworkMock.mockReturnValue({
+      configuration: {
+        chainId: CHAIN_ID_RECEIPT_MOCK,
+        type: NetworkClientType.Custom,
+      },
       provider: PROVIDER_RECEIPT_MOCK,
     } as never);
   });
@@ -1075,11 +1080,13 @@ describe('getTransferredAmountFromTxHash', () => {
         tokenAddress: ERC20_ADDRESS_RECEIPT_MOCK,
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       }),
-    ).rejects.toThrow('RPC error');
+    ).rejects.toThrow('RPC 0x1 Custom eth_getTransactionReceipt: RPC error');
   });
 
   it('propagates provider errors for native when both trace and getTransaction fail', async () => {
-    PROVIDER_RECEIPT_MOCK.request.mockRejectedValue(new Error('RPC error'));
+    PROVIDER_RECEIPT_MOCK.request
+      .mockRejectedValueOnce(new Error('RPC error'))
+      .mockRejectedValueOnce(new Error('RPC error'));
 
     await expect(
       getTransferredAmountFromTxHash({
@@ -1089,6 +1096,6 @@ describe('getTransferredAmountFromTxHash', () => {
         tokenAddress: NATIVE_TOKEN_ADDRESS,
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       }),
-    ).rejects.toThrow('RPC error');
+    ).rejects.toThrow('RPC 0x1 Custom eth_getTransactionByHash: RPC error');
   });
 });

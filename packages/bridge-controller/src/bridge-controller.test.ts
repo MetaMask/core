@@ -2896,6 +2896,25 @@ describe('BridgeController', function () {
     );
   });
 
+  describe('getLocation and setLocation', () => {
+    it('returns Unknown by default and updates after setLocation', async () => {
+      await withController(async ({ rootMessenger }) => {
+        expect(rootMessenger.call('BridgeController:getLocation')).toBe(
+          MetaMetricsSwapsEventSource.Unknown,
+        );
+
+        rootMessenger.call(
+          'BridgeController:setLocation',
+          MetaMetricsSwapsEventSource.TokenView,
+        );
+
+        expect(rootMessenger.call('BridgeController:getLocation')).toBe(
+          MetaMetricsSwapsEventSource.TokenView,
+        );
+      });
+    });
+  });
+
   describe('trackUnifiedSwapBridgeEvent client-side calls', () => {
     beforeEach(() => {
       jest.clearAllMocks();
@@ -3009,6 +3028,56 @@ describe('BridgeController', function () {
         );
         expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
 
+        expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
+      });
+    });
+
+    it('should track the FiatCryptoToggleClicked event', async () => {
+      await withController(async ({ rootMessenger, controller }) => {
+        jest.spyOn(console, 'warn').mockImplementationOnce(jest.fn());
+        await rootMessenger.call(
+          'BridgeController:updateBridgeQuoteRequestParams',
+          {
+            walletAddress: '0x123',
+          },
+          {
+            stx_enabled: false,
+            security_warnings: [],
+            token_symbol_source: 'ETH',
+            token_symbol_destination: 'USDC',
+            usd_amount_source: 100,
+            token_security_type_destination: null,
+            feature_id: FeatureId.QUICK_BUY_FOLLOW_TRADING,
+          },
+        );
+        rootMessenger.call(
+          'BridgeController:setInputPrimaryDenomination',
+          'fiat_value',
+        );
+        expect(controller.state.inputPrimaryDenomination).toBe('fiat_value');
+        jest.clearAllMocks();
+        rootMessenger.call(
+          'BridgeController:trackUnifiedSwapBridgeEvent',
+          UnifiedSwapBridgeEventName.FiatCryptoToggleClicked,
+          {
+            location: MetaMetricsSwapsEventSource.MainView,
+            previous_primary_denomination: 'token_amount',
+            new_primary_denomination: 'fiat_value',
+            token_symbol_source: 'ETH',
+            token_symbol_destination: 'USDC',
+            chain_id_source: formatChainIdToCaip(ChainId.ETH),
+            chain_id_destination: formatChainIdToCaip(ChainId.ETH),
+            token_address_source: formatAddressToAssetId('', ChainId.ETH),
+            token_address_destination: formatAddressToAssetId(
+              ETH_USDT_ADDRESS,
+              ChainId.ETH,
+            ),
+            token_security_type_destination: null,
+            swap_type: MetricsSwapType.SINGLE,
+            feature_id: FeatureId.QUICK_BUY_FOLLOW_TRADING,
+          },
+        );
+        expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
         expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
       });
     });
@@ -4342,6 +4411,7 @@ describe('BridgeController', function () {
             "assetExchangeRates": {},
             "batchSellTrades": null,
             "batchSellTradesLoadingStatus": null,
+            "inputPrimaryDenomination": "token_amount",
             "minimumBalanceForRentExemptionInLamports": "0",
             "quoteFetchError": null,
             "quoteRequest": [
@@ -4370,7 +4440,11 @@ describe('BridgeController', function () {
             bridgeController.metadata,
             'persist',
           ),
-        ).toMatchInlineSnapshot(`{}`);
+        ).toMatchInlineSnapshot(`
+          {
+            "inputPrimaryDenomination": "token_amount",
+          }
+        `);
       });
     });
 
@@ -4387,6 +4461,7 @@ describe('BridgeController', function () {
             "assetExchangeRates": {},
             "batchSellTrades": null,
             "batchSellTradesLoadingStatus": null,
+            "inputPrimaryDenomination": "token_amount",
             "minimumBalanceForRentExemptionInLamports": "0",
             "quoteFetchError": null,
             "quoteRequest": [
