@@ -11,10 +11,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
+- `SecretMetadata.compare` no longer uses `createdAt` (server-stamped TIMEUUID) for ordering; sort priority is now `PrimarySrp` tag first, then client-side timestamp ([#9247](https://github.com/MetaMask/core/pull/9247))
+- The password change flow now sorts secret data items before re-inserting them, passing the pre-sorted items to `changeEncKey` so the server stamps `createdAt` in creation order ([#9247](https://github.com/MetaMask/core/pull/9247))
 
 ### Fixed
 
-- Fix `InvalidPrimarySecretDataType` thrown for legacy accounts where client clock skew sorts a non-mnemonic item ahead of the primary SRP ([#9247](https://github.com/MetaMask/core/pull/9247))
+- Fix `InvalidPrimarySecretDataType` crash caused by `changeEncKey` re-inserting items without sorting, causing the server to stamp `createdAt` in arbitrary order on password change ([#9247](https://github.com/MetaMask/core/pull/9247))
 
 ## [10.0.2]
 
