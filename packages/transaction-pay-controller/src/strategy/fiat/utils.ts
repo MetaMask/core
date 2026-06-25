@@ -183,7 +183,7 @@ export type ResolvedSourceAmount = {
    * CHOMP idempotency log queries — it reuses the receipt already fetched for
    * the amount and requires no additional network request.
    */
-  chompFromBlock: Hex | undefined;
+  fromBlock: Hex | undefined;
 };
 
 /**
@@ -231,7 +231,7 @@ export async function resolveSourceAmountRaw({
           onChainAmount,
           blockNumber,
         });
-        return { amountRaw: onChainAmount, chompFromBlock: blockNumber };
+        return { amountRaw: onChainAmount, fromBlock: blockNumber };
       }
     } catch (error) {
       log(
@@ -258,7 +258,7 @@ export async function resolveSourceAmountRaw({
     decimals: tokenInfo.decimals,
   });
 
-  return { amountRaw, chompFromBlock: undefined };
+  return { amountRaw, fromBlock: undefined };
 }
 
 /**

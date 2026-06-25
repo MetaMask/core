@@ -20,7 +20,7 @@ import type {
 import { prefixError } from '../../utils/error-prefix';
 import { getFiatVaultDisabled } from '../../utils/feature-flags';
 import { getNetworkClientId } from '../../utils/provider';
-import { findRecentChompVaultDeposit } from './fiat-direct-musd-chomp';
+import { findRecentChompVaultDeposit } from './chomp';
 import { buildCaipAssetType, getTokenInfo } from '../../utils/token';
 import {
   collectTransactionIds,
@@ -153,7 +153,7 @@ export async function submitDirectMusdAfterFiatCompletion({
       transactionId: transaction.id,
     });
 
-    const { amountRaw: sourceAmountRaw, chompFromBlock } =
+    const { amountRaw: sourceAmountRaw, fromBlock } =
       await resolveSourceAmountRaw({
         messenger,
         order,
@@ -162,7 +162,7 @@ export async function submitDirectMusdAfterFiatCompletion({
       });
 
     return await submitDirectMusdVaultDeposit({
-      chompFromBlock,
+      fromBlock,
       request,
       sourceAmountRaw,
       transaction,
@@ -182,7 +182,7 @@ export async function submitDirectMusdAfterFiatCompletion({
  * transaction.
  *
  * @param options - Submit options.
- * @param options.chompFromBlock - Optional Monad block baseline for CHOMP
+ * @param options.fromBlock - Optional Monad block baseline for CHOMP
  *   idempotency scanning; sourced from the ramps settlement tx receipt via
  *   {@link resolveSourceAmountRaw}. When omitted the CHOMP checks are skipped.
  * @param options.request - Strategy execute request.
@@ -192,12 +192,12 @@ export async function submitDirectMusdAfterFiatCompletion({
  *   hash), if available.
  */
 export async function submitDirectMusdVaultDeposit({
-  chompFromBlock,
+  fromBlock,
   request,
   sourceAmountRaw,
   transaction,
 }: {
-  chompFromBlock?: Hex;
+  fromBlock?: Hex;
   request: PayStrategyExecuteRequest<FiatQuote>;
   sourceAmountRaw: string;
   transaction: PayStrategyExecuteRequest<FiatQuote>['transaction'];
@@ -271,31 +271,23 @@ export async function submitDirectMusdVaultDeposit({
 
   // CHOMP pre-check: skip addTransactionBatch entirely if CHOMP has already
   // auto-vaulted the funds during or before the checkout window.
-  if (chompFromBlock) {
-    try {
-      const chompHash = await findRecentChompVaultDeposit({
-        fromBlock: chompFromBlock,
-        messenger,
-        moneyAccountAddress,
-        sourceAmountRaw,
-      });
+  const preChompHash = await tryFindChompDeposit({
+    fromBlock,
+    messenger,
+    moneyAccountAddress,
+    sourceAmountRaw,
+    transactionId,
+  });
 
-      if (chompHash) {
-        log('CHOMP already vaulted funds; skipping addTransactionBatch', {
-          chompHash,
-          moneyAccountAddress,
-          sourceAmountRaw,
-          transactionId,
-        });
+  if (preChompHash) {
+    log('CHOMP already vaulted funds; skipping addTransactionBatch', {
+      chompHash: preChompHash,
+      moneyAccountAddress,
+      sourceAmountRaw,
+      transactionId,
+    });
 
-        return { transactionHash: chompHash };
-      }
-    } catch (chompError) {
-      log('CHOMP pre-check failed; proceeding with vault submit', {
-        chompError,
-        transactionId,
-      });
-    }
+    return { transactionHash: preChompHash };
   }
 
   const networkClientId = getNetworkClientId(
@@ -358,28 +350,23 @@ export async function submitDirectMusdVaultDeposit({
   } catch (error) {
     // CHOMP post-check: CHOMP may have won the race between pre-check and
     // submit. Return the CHOMP hash instead of surfacing a Vault-prefixed error.
-    if (chompFromBlock) {
-      try {
-        const chompHash = await findRecentChompVaultDeposit({
-          fromBlock: chompFromBlock,
-          messenger,
-          moneyAccountAddress,
-          sourceAmountRaw,
-        });
+    const postChompHash = await tryFindChompDeposit({
+      fromBlock,
+      messenger,
+      moneyAccountAddress,
+      sourceAmountRaw,
+      transactionId,
+    });
 
-        if (chompHash) {
-          log('CHOMP detected after addTransactionBatch failure; returning CHOMP hash', {
-            chompHash,
-            moneyAccountAddress,
-            sourceAmountRaw,
-            transactionId,
-          });
+    if (postChompHash) {
+      log('CHOMP detected after addTransactionBatch failure; returning CHOMP hash', {
+        chompHash: postChompHash,
+        moneyAccountAddress,
+        sourceAmountRaw,
+        transactionId,
+      });
 
-          return { transactionHash: chompHash };
-        }
-      } catch (chompError) {
-        log('CHOMP post-check failed', { chompError, transactionId });
-      }
+      return { transactionHash: postChompHash };
     }
 
     throw prefixError(error, VAULT_ERROR_PREFIX);
@@ -499,4 +486,51 @@ function getRampsProviderFee(fiatQuote: RampsQuote): BigNumber {
   return new BigNumber(fiatQuote.quote.providerFee ?? 0).plus(
     fiatQuote.quote.networkFee ?? 0,
   );
+}
+
+/**
+ * Checks for a recent CHOMP auto-vault deposit, swallowing any errors so the
+ * caller's normal flow is never interrupted by a detection failure.
+ *
+ * When `fromBlock` is `undefined` the check is skipped and `undefined` is
+ * returned immediately — no network request is made.
+ *
+ * @param options - Detection options.
+ * @param options.fromBlock - Starting block for the CHOMP log query. When
+ *   `undefined` the check is skipped.
+ * @param options.messenger - Controller messenger.
+ * @param options.moneyAccountAddress - Money Account that owns the mUSD.
+ * @param options.sourceAmountRaw - Minimum mUSD amount required for a match.
+ * @param options.transactionId - Parent transaction ID used for logging.
+ * @returns The matching CHOMP tx hash, or `undefined` if none is found or the
+ *   check fails.
+ */
+async function tryFindChompDeposit({
+  fromBlock,
+  messenger,
+  moneyAccountAddress,
+  sourceAmountRaw,
+  transactionId,
+}: {
+  fromBlock: Hex | undefined;
+  messenger: PayStrategyExecuteRequest<FiatQuote>['messenger'];
+  moneyAccountAddress: Hex;
+  sourceAmountRaw: string;
+  transactionId: string;
+}): Promise<Hex | undefined> {
+  if (!fromBlock) {
+    return undefined;
+  }
+
+  try {
+    return await findRecentChompVaultDeposit({
+      fromBlock,
+      messenger,
+      moneyAccountAddress,
+      sourceAmountRaw,
+    });
+  } catch (chompError) {
+    log('CHOMP check failed', { chompError, transactionId });
+    return undefined;
+  }
 }

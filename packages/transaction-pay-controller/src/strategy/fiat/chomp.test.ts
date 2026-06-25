@@ -3,7 +3,7 @@ import type { Hex } from '@metamask/utils';
 import { CHAIN_ID_MONAD, MUSD_MONAD_ADDRESS } from '../../constants';
 import type { TransactionPayControllerMessenger } from '../../types';
 import { rpcRequest } from '../../utils/provider';
-import { findRecentChompVaultDeposit } from './fiat-direct-musd-chomp';
+import { findRecentChompVaultDeposit } from './chomp';
 
 jest.mock('../../utils/provider');
 
@@ -50,7 +50,7 @@ function buildMessenger(): TransactionPayControllerMessenger {
   return {} as TransactionPayControllerMessenger;
 }
 
-describe('fiat-direct-musd-chomp', () => {
+describe('chomp', () => {
   const rpcRequestMock = jest.mocked(rpcRequest);
 
   beforeEach(() => {

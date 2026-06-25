@@ -6,7 +6,7 @@ import { projectLogger } from '../../logger';
 import type { TransactionPayControllerMessenger } from '../../types';
 import { rpcRequest } from '../../utils/provider';
 
-const log = createModuleLogger(projectLogger, 'fiat-direct-musd-chomp');
+const log = createModuleLogger(projectLogger, 'chomp');
 
 /** keccak256('Transfer(address,address,uint256)') */
 const ERC20_TRANSFER_TOPIC =

@@ -26,14 +26,14 @@ import {
   isDirectMusdMoneyAccountQuote,
   submitDirectMusdVaultDeposit,
 } from './fiat-direct-musd';
-import { findRecentChompVaultDeposit } from './fiat-direct-musd-chomp';
+import { findRecentChompVaultDeposit } from './chomp';
 import type { FiatQuote } from './types';
 
 jest.mock('../../utils/feature-flags');
 jest.mock('../../utils/provider');
 jest.mock('../../utils/token');
 jest.mock('../../utils/transaction');
-jest.mock('./fiat-direct-musd-chomp');
+jest.mock('./chomp');
 
 const TRANSACTION_ID_MOCK = 'tx-id';
 const MONEY_ACCOUNT_ADDRESS_MOCK =
@@ -620,7 +620,7 @@ describe('fiat-direct-musd', () => {
         const callMock = makeCallMock();
 
         const result = await submitDirectMusdVaultDeposit({
-          chompFromBlock: CHOMP_FROM_BLOCK,
+          fromBlock: CHOMP_FROM_BLOCK,
           request: getExecuteRequest({ callMock }),
           sourceAmountRaw: '5000000',
           transaction: TRANSACTION_MOCK,
@@ -657,7 +657,7 @@ describe('fiat-direct-musd', () => {
         });
 
         const result = await submitDirectMusdVaultDeposit({
-          chompFromBlock: CHOMP_FROM_BLOCK,
+          fromBlock: CHOMP_FROM_BLOCK,
           request: getExecuteRequest({ callMock }),
           sourceAmountRaw: '5000000',
           transaction: TRANSACTION_MOCK,
@@ -688,7 +688,7 @@ describe('fiat-direct-musd', () => {
 
         await expect(
           submitDirectMusdVaultDeposit({
-            chompFromBlock: CHOMP_FROM_BLOCK,
+            fromBlock: CHOMP_FROM_BLOCK,
             request: getExecuteRequest({ callMock }),
             sourceAmountRaw: '5000000',
             transaction: TRANSACTION_MOCK,
@@ -704,7 +704,7 @@ describe('fiat-direct-musd', () => {
         const callMock = makeCallMock();
 
         const result = await submitDirectMusdVaultDeposit({
-          chompFromBlock: CHOMP_FROM_BLOCK,
+          fromBlock: CHOMP_FROM_BLOCK,
           request: getExecuteRequest({ callMock }),
           sourceAmountRaw: '5000000',
           transaction: TRANSACTION_MOCK,
@@ -742,7 +742,7 @@ describe('fiat-direct-musd', () => {
 
         await expect(
           submitDirectMusdVaultDeposit({
-            chompFromBlock: CHOMP_FROM_BLOCK,
+            fromBlock: CHOMP_FROM_BLOCK,
             request: getExecuteRequest({ callMock }),
             sourceAmountRaw: '5000000',
             transaction: TRANSACTION_MOCK,
@@ -752,7 +752,7 @@ describe('fiat-direct-musd', () => {
         expect(findRecentChompVaultDepositMock).toHaveBeenCalledTimes(2);
       });
 
-      it('skips CHOMP checks when chompFromBlock is not provided', async () => {
+      it('skips CHOMP checks when fromBlock is not provided', async () => {
         const callMock = makeCallMock();
 
         const result = await submitDirectMusdVaultDeposit({

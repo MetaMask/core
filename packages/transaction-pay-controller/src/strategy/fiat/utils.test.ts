@@ -315,7 +315,7 @@ describe('Fiat Utils', () => {
       });
 
       expect(result.amountRaw).toBe('7000000');
-      expect(result.chompFromBlock).toBe('0x1a2b3c');
+      expect(result.fromBlock).toBe('0x1a2b3c');
     });
 
     it('falls back to cryptoAmount when txHash is missing', async () => {
@@ -327,7 +327,7 @@ describe('Fiat Utils', () => {
       });
 
       expect(result.amountRaw).toBe('1500000');
-      expect(result.chompFromBlock).toBeUndefined();
+      expect(result.fromBlock).toBeUndefined();
       expect(PROVIDER_MOCK.request).not.toHaveBeenCalled();
     });
 
@@ -342,7 +342,7 @@ describe('Fiat Utils', () => {
       });
 
       expect(result.amountRaw).toBe('1500000');
-      expect(result.chompFromBlock).toBeUndefined();
+      expect(result.fromBlock).toBeUndefined();
     });
 
     it('falls back to cryptoAmount when on-chain read throws', async () => {
@@ -356,7 +356,7 @@ describe('Fiat Utils', () => {
       });
 
       expect(result.amountRaw).toBe('1500000');
-      expect(result.chompFromBlock).toBeUndefined();
+      expect(result.fromBlock).toBeUndefined();
     });
 
     it('returns native amount from debug_traceTransaction', async () => {
@@ -374,7 +374,7 @@ describe('Fiat Utils', () => {
       });
 
       expect(result.amountRaw).toBe('2000000000000000000');
-      expect(result.chompFromBlock).toBeUndefined();
+      expect(result.fromBlock).toBeUndefined();
     });
 
     it('falls back to tx.value for native when trace is unsupported', async () => {
