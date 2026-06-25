@@ -126,6 +126,8 @@ export async function submitFiatQuotes(
   });
 
   try {
+    await waitForKeyringUnlock(messenger, transactionId);
+
     const result = await submitRelayAfterFiatCompletion({ order, request });
 
     if (result.transactionHash === undefined) {
@@ -312,4 +314,36 @@ function getWalletAddress({
   }
 
   return address as Hex;
+}
+
+function waitForKeyringUnlock(
+  messenger: TransactionPayControllerMessenger,
+  transactionId: string,
+): Promise<void> {
+  const { isUnlocked } = messenger.call('KeyringController:getState');
+
+  if (isUnlocked) {
+    return Promise.resolve();
+  }
+
+  log(
+    'KeyringController is locked; waiting for unlock before fiat submit second leg',
+    {
+      transactionId,
+    },
+  );
+
+  return new Promise((resolve) => {
+    const handler = (): void => {
+      messenger.unsubscribe('KeyringController:unlock', handler);
+
+      log('KeyringController unlocked; resuming fiat submit second leg', {
+        transactionId,
+      });
+
+      resolve();
+    };
+
+    messenger.subscribe('KeyringController:unlock', handler);
+  });
 }

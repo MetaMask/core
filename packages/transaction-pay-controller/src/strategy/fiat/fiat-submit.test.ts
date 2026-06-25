@@ -251,6 +251,10 @@ function getRequest({
       };
     }
 
+    if (action === 'KeyringController:getState') {
+      return { isUnlocked: true };
+    }
+
     if (action === 'TransactionPayController:getFiatOptions') {
       if (fiatOptionsError) {
         throw fiatOptionsError;
@@ -400,6 +404,93 @@ describe('submitFiatQuotes', () => {
     expect(result).toStrictEqual({ transactionHash: '0x1234' });
   });
 
+  it('waits for keyring unlock before submitting the post-ramp leg', async () => {
+    let unlockHandler: (() => void) | undefined;
+
+    const order = getFiatOrderMock({
+      cryptoAmount: '1.2345',
+      cryptoCurrency: {
+        assetId: FIAT_ASSET_CAIP_ID_MOCK,
+        chainId: 'eip155:137',
+        symbol: 'POL',
+      },
+      status: RampsOrderStatus.Completed,
+    });
+    resolveSourceAmountRawMock.mockResolvedValue('1234500000000000000');
+
+    const callMock = jest.fn((action: string) => {
+      if (action === 'TransactionPayController:getState') {
+        return {
+          transactionData: {
+            [TRANSACTION_ID_MOCK]: {
+              fiatPayment: { orderId: ORDER_ID_MOCK, rampsQuote: RAMPS_QUOTE_MOCK },
+              isLoading: false,
+              tokens: [],
+            },
+          },
+        };
+      }
+      if (action === 'KeyringController:getState') {
+        return { isUnlocked: false };
+      }
+      if (action === 'TransactionPayController:getFiatOptions') {
+        return undefined;
+      }
+      if (action === 'RampsController:getOrder') {
+        return order;
+      }
+      if (action === 'RemoteFeatureFlagController:getState') {
+        return { remoteFeatureFlags: {} };
+      }
+      throw new Error(`Unexpected action: ${action}`);
+    });
+
+    const subscribeMock = jest.fn((_event: string, handler: () => void) => {
+      unlockHandler = handler;
+    });
+
+    const unsubscribeMock = jest.fn();
+
+    const request: PayStrategyExecuteRequest<FiatQuote> = {
+      isSmartTransaction: () => false,
+      messenger: {
+        call: callMock,
+        subscribe: subscribeMock,
+        unsubscribe: unsubscribeMock,
+      } as unknown as PayStrategyExecuteRequest<FiatQuote>['messenger'],
+      quotes: [getFiatQuoteMock()],
+      transaction: TRANSACTION_MOCK,
+    };
+
+    const submitPromise = submitFiatQuotes(request);
+
+    // Flush microtasks until waitForKeyringUnlock subscribes (order polling
+    // resolves in one tick; submitRelayAfterFiatCompletion starts in the next)
+    for (let i = 0; i < 5; i++) {
+      // eslint-disable-next-line no-await-in-loop
+      await Promise.resolve();
+    }
+
+    // Relay must not have been called yet — still waiting for unlock
+    expect(submitRelayQuotesMock).not.toHaveBeenCalled();
+    expect(subscribeMock).toHaveBeenCalledWith(
+      'KeyringController:unlock',
+      expect.any(Function),
+    );
+
+    // Simulate the user unlocking the wallet
+    unlockHandler?.();
+
+    const result = await submitPromise;
+
+    expect(unsubscribeMock).toHaveBeenCalledWith(
+      'KeyringController:unlock',
+      expect.any(Function),
+    );
+    expect(submitRelayQuotesMock).toHaveBeenCalled();
+    expect(result).toStrictEqual({ transactionHash: '0x1234' });
+  });
+
   it('uses fiat test funding source instead of polling ramps order', async () => {
     const fiatOptions = { testFundingSource: FIAT_TEST_FUNDING_SOURCE_MOCK };
     const { callMock, request } = getRequest({ fiatOptions });
@@ -466,6 +557,9 @@ describe('submitFiatQuotes', () => {
             },
           },
         };
+      }
+      if (action === 'KeyringController:getState') {
+        return { isUnlocked: true };
       }
       if (action === 'TransactionPayController:getFiatOptions') {
         return undefined;
@@ -699,6 +793,10 @@ describe('submitFiatQuotes', () => {
         };
       }
 
+      if (action === 'KeyringController:getState') {
+        return { isUnlocked: true };
+      }
+
       if (action === 'TransactionPayController:getFiatOptions') {
         return undefined;
       }
@@ -758,6 +856,10 @@ describe('submitFiatQuotes', () => {
             },
           },
         };
+      }
+
+      if (action === 'KeyringController:getState') {
+        return { isUnlocked: true };
       }
 
       if (action === 'TransactionPayController:getFiatOptions') {
@@ -1169,6 +1271,10 @@ describe('submitFiatQuotes', () => {
           };
         }
 
+        if (action === 'KeyringController:getState') {
+          return { isUnlocked: true };
+        }
+
         if (action === 'TransactionPayController:getFiatOptions') {
           return undefined;
         }
@@ -1228,6 +1334,10 @@ describe('submitFiatQuotes', () => {
               },
             },
           };
+        }
+
+        if (action === 'KeyringController:getState') {
+          return { isUnlocked: true };
         }
 
         if (action === 'TransactionPayController:getFiatOptions') {
