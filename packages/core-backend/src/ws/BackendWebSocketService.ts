@@ -101,7 +101,7 @@ function normalizeIncomingMessage(message: WebSocketMessage): WebSocketMessage {
     return message;
   }
 
-  const nested = nestedData as Record<string, unknown>;
+  const nested = nestedData;
   if (typeof nested.channel !== 'string') {
     return message;
   }
@@ -120,8 +120,8 @@ function normalizeIncomingMessage(message: WebSocketMessage): WebSocketMessage {
       Date.now(),
     data:
       payload && typeof payload === 'object'
-        ? (payload as Record<string, unknown>)
-        : (nestedData as Record<string, unknown>),
+        ? payload
+        : nestedData,
   } as WebSocketMessage;
 }
 

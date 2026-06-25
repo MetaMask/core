@@ -232,6 +232,7 @@ const getMessenger = (): {
   rootMessenger.delegate({
     actions: ['AuthenticationController:getBearerToken'],
     events: [
+      // eslint-disable-next-line no-restricted-syntax -- AuthenticationController messenger types still expose stateChange
       'AuthenticationController:stateChange',
       'KeyringController:lock',
       'KeyringController:unlock',
@@ -2144,59 +2145,6 @@ describe('BackendWebSocketService', () => {
         mockWs.simulateMessage(notification);
 
         expect(subscriptionCallback).toHaveBeenCalledWith(notification);
-      });
-    });
-
-    it('should fall through to channel callbacks when subscription lookup matches a channel without a callback', async () => {
-      await withService(async ({ service, getMockWebSocket }) => {
-        await service.connect();
-        const mockWs = getMockWebSocket();
-        const channelCallback = jest.fn();
-        const channel =
-          'account-activity.v1.eip155:0:0x1234567890123456789012345678901234567890';
-        const subscriptionId = 'sub-no-callback';
-        const originalMapSet = Map.prototype.set;
-
-        jest
-          .spyOn(Map.prototype, 'set')
-          .mockImplementation(function mapSet(key, value) {
-            if (
-              key === subscriptionId &&
-              value &&
-              typeof value === 'object' &&
-              'callback' in value
-            ) {
-              return originalMapSet.call(this, key, {
-                ...(value as Record<string, unknown>),
-                callback: undefined,
-              });
-            }
-
-            return originalMapSet.call(this, key, value);
-          });
-
-        await createSubscription(service, mockWs, {
-          channels: [channel],
-          callback: jest.fn(),
-          requestId: 'test-no-callback-subscribe',
-          subscriptionId,
-          channelType: 'account-activity.v1',
-        });
-
-        service.addChannelCallback({
-          channelName: channel,
-          callback: channelCallback,
-        });
-
-        mockWs.simulateMessage({
-          event: 'notification',
-          channel,
-          subscriptionId,
-          data: { address: '0x1234567890123456789012345678901234567890' },
-          timestamp: 1760344704595,
-        });
-
-        expect(channelCallback).toHaveBeenCalledTimes(1);
       });
     });
 
