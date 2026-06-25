@@ -1277,6 +1277,11 @@
       "count": 2
     }
   },
+  "packages/multichain-account-service/src/providers/XlmAccountProvider.ts": {
+    "@typescript-eslint/naming-convention": {
+      "count": 2
+    }
+  },
   "packages/multichain-account-service/src/providers/utils.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 2
@@ -2208,12 +2213,12 @@
   },
   "packages/snap-account-service/src/SnapPlatformWatcher.test.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/snap-account-service/src/SnapPlatformWatcher.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/subscription-controller/src/SubscriptionController.test.ts": {

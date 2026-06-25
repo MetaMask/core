@@ -53,16 +53,45 @@ function fieldRank(
 }
 
 /**
- * Compute the best (lowest) relevance rank for a market against a search query,
- * considering both its ticker symbol and human-readable name.
+ * Rank an array of keyword strings against a normalized query.
+ * Returns the best (lowest) rank found across all keywords, or null.
  *
- * @param market - Market to score (uses `symbol` and `name`).
+ * @param keywords - Array of keyword strings; may be undefined.
+ * @param query - Already trimmed, lower-cased, non-empty query.
+ * @returns The best match tier across all keywords, or null when none match.
+ */
+function keywordsRank(
+  keywords: string[] | undefined,
+  query: string,
+): MarketMatchRank | null {
+  if (!keywords || keywords.length === 0) {
+    return null;
+  }
+  let best: MarketMatchRank | null = null;
+  for (const keyword of keywords) {
+    const rank = fieldRank(keyword, query);
+    if (rank === MarketMatchRank.Exact) {
+      return rank;
+    }
+    if (rank !== null && (best === null || rank < best)) {
+      best = rank;
+    }
+  }
+  return best;
+}
+
+/**
+ * Compute the best (lowest) relevance rank for a market against a search query,
+ * considering its ticker symbol, human-readable name, and optional keywords
+ * from Terminal API metadata.
+ *
+ * @param market - Market to score (uses `symbol`, `name`, and optional `keywords`).
  * @param searchQuery - User search text (trimmed/cased internally).
  * @returns The match rank, or null when the market does not match (or the query
  * is empty/whitespace).
  */
 export function getMarketMatchRank(
-  market: Pick<PerpsMarketData, 'symbol' | 'name'>,
+  market: Pick<PerpsMarketData, 'symbol' | 'name' | 'keywords'>,
   searchQuery: string,
 ): MarketMatchRank | null {
   if (!searchQuery?.trim()) {
@@ -72,6 +101,7 @@ export function getMarketMatchRank(
   const ranks = [
     fieldRank(market.symbol, query),
     fieldRank(market.name, query),
+    keywordsRank(market.keywords, query),
   ].filter((rank): rank is MarketMatchRank => rank !== null);
 
   return ranks.length > 0 ? Math.min(...ranks) : null;

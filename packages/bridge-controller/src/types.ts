@@ -87,6 +87,8 @@ export type NonEvmFees = {
   nonEvmFeesInNative?: string; // Non-EVM chain fees in native units (SOL for Solana, BTC for Bitcoin)
 };
 
+export type InputPrimaryDenomination = 'token_amount' | 'fiat_value';
+
 /**
  * The types of values for the token amount and its values when converted to the user's selected currency and USD
  */
@@ -263,6 +265,7 @@ export enum FeatureId {
   PERPS = 'perps',
   QUICK_BUY_FOLLOW_TRADING = 'quick_buy_follow_trading',
   QUICK_BUY_TOKEN_DETAILS = 'quick_buy_token_details',
+  QUICK_BUY_EXPLORE = 'quick_buy_explore',
   DAPP_SWAP = 'dapp_swap',
   BATCH_SELL = 'batch_sell',
   UNIFIED_SWAP_BRIDGE = 'unified_swap_bridge',
@@ -434,6 +437,12 @@ export type BridgeControllerState = {
    * reset. `null` when the client has no security data for the token.
    */
   tokenSecurityTypeDestination: string | null;
+  /**
+   * The denomination currently shown as the primary source amount input.
+   * This is persisted as a user preference so returning to the flow restores
+   * the last selected fiat/token display mode.
+   */
+  inputPrimaryDenomination: InputPrimaryDenomination;
   /**
    * Metadata about the completed quote stream, populated from the `complete` SSE event.
    * Set to null at the start of each fetch and updated when the complete event is received.

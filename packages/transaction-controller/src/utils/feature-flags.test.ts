@@ -36,6 +36,7 @@ const SIGNATURE_MOCK = '0xcba' as Hex;
 const DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK = 35;
 const GAS_ESTIMATE_FALLBACK_MOCK = 50;
 const FIXED_GAS_MOCK = 100000;
+const MAX_GAS_LIMIT_MOCK = 33554432;
 const GAS_BUFFER_MOCK = 1.1;
 const GAS_BUFFER_2_MOCK = 1.2;
 const GAS_BUFFER_3_MOCK = 1.3;
@@ -611,6 +612,7 @@ describe('Feature Flags Utils', () => {
               [CHAIN_ID_MOCK]: {
                 fixed: FIXED_GAS_MOCK,
                 percentage: GAS_ESTIMATE_FALLBACK_MOCK,
+                maxGasLimit: MAX_GAS_LIMIT_MOCK,
               },
             },
           },
@@ -622,6 +624,7 @@ describe('Feature Flags Utils', () => {
       ).toStrictEqual({
         fixed: FIXED_GAS_MOCK,
         percentage: GAS_ESTIMATE_FALLBACK_MOCK,
+        maxGasLimit: MAX_GAS_LIMIT_MOCK,
       });
     });
 
@@ -642,6 +645,55 @@ describe('Feature Flags Utils', () => {
       ).toStrictEqual({
         fixed: undefined,
         percentage: DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK,
+        maxGasLimit: undefined,
+      });
+    });
+
+    it('returns maxGasLimit from the default config when no chain-specific value is set', () => {
+      mockFeatureFlags({
+        [FeatureFlag.Transactions]: {
+          gasEstimateFallback: {
+            default: {
+              percentage: DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK,
+              maxGasLimit: MAX_GAS_LIMIT_MOCK,
+            },
+          },
+        },
+      });
+
+      expect(
+        getGasEstimateFallback(CHAIN_ID_MOCK, controllerMessenger),
+      ).toStrictEqual({
+        fixed: undefined,
+        percentage: DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK,
+        maxGasLimit: MAX_GAS_LIMIT_MOCK,
+      });
+    });
+
+    it('prefers the chain-specific maxGasLimit over the default', () => {
+      mockFeatureFlags({
+        [FeatureFlag.Transactions]: {
+          gasEstimateFallback: {
+            default: {
+              percentage: DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK,
+              maxGasLimit: MAX_GAS_LIMIT_MOCK * 2,
+            },
+            perChainConfig: {
+              [CHAIN_ID_MOCK]: {
+                percentage: GAS_ESTIMATE_FALLBACK_MOCK,
+                maxGasLimit: MAX_GAS_LIMIT_MOCK,
+              },
+            },
+          },
+        },
+      });
+
+      expect(
+        getGasEstimateFallback(CHAIN_ID_MOCK, controllerMessenger),
+      ).toStrictEqual({
+        fixed: undefined,
+        percentage: GAS_ESTIMATE_FALLBACK_MOCK,
+        maxGasLimit: MAX_GAS_LIMIT_MOCK,
       });
     });
   });
