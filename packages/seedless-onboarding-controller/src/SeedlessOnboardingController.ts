@@ -1643,39 +1643,18 @@ export class SeedlessOnboardingController<
         }),
       );
 
-      // Sort: PrimarySrp first, then by createdAt/timestamp (oldest first)
+      // Sort: PrimarySrp first, then by client timestamp (oldest first)
       results.sort((a, b) => SecretMetadata.compare(a, b, 'asc'));
 
-      // Find the primary SRP instead of assuming it is at index 0: legacy
-      // items have no `createdAt`, so ordering falls back to the client
-      // `timestamp`, which clock skew can sort a private key ahead of.
-      // A candidate is a mnemonic whose `dataType` is `PrimarySrp` or unset.
-      // `dataType` (a plaintext server field) is the only thing separating
-      // primary from imported SRP; legacy items lack it and the encrypted
-      // `SecretType` groups both, so among legacy mnemonics the primary is
-      // indistinguishable — we take the oldest (best-effort).
-      const primaryIndex = results.findIndex((item) => {
-        const isDataTypePrimary =
-          item.dataType === undefined ||
-          item.dataType === null ||
-          item.dataType === EncAccountDataType.PrimarySrp;
-        return (
-          isDataTypePrimary &&
-          SecretMetadata.matchesType(item, SecretType.Mnemonic)
-        );
-      });
-
-      // No recoverable primary SRP exists in the metadata store.
-      if (primaryIndex === -1) {
+      const firstIsPrimary =
+        SecretMetadata.matchesType(results[0], SecretType.Mnemonic) &&
+        (results[0].dataType === undefined ||
+          results[0].dataType === null ||
+          results[0].dataType === EncAccountDataType.PrimarySrp);
+      if (!firstIsPrimary) {
         throw new Error(
           SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
         );
-      }
-
-      // Ensure the primary SRP is first; callers rely on `results[0]` being it.
-      if (primaryIndex > 0) {
-        const [primary] = results.splice(primaryIndex, 1);
-        results.unshift(primary);
       }
 
       return results;
@@ -1723,6 +1702,23 @@ export class SeedlessOnboardingController<
         keyShareIndex: globalKeyIndex,
       } = await this.#recoverEncKey(oldPassword));
     }
+    // Sort before re-insert so the server stamps createdAt in creation order.
+    const rawItems = await this.toprfClient.fetchAllSecretDataItems({
+      decKey: encKey,
+      authKeyPair,
+    });
+    const existingDataItems = rawItems
+      .sort((a, b) =>
+        SecretMetadata.compare(
+          SecretMetadata.fromRawMetadata(a.data, { dataType: a.dataType }),
+          SecretMetadata.fromRawMetadata(b.data, { dataType: b.dataType }),
+          'asc',
+        ),
+      )
+      .map(({ data, dataType, version }) => {
+        return { data, dataType, version: dataType === undefined ? 'v1' : version };
+      });
+
     const result = await this.toprfClient.changeEncKey({
       nodeAuthTokens: this.state.nodeAuthTokens,
       authConnectionId,
@@ -1733,6 +1729,7 @@ export class SeedlessOnboardingController<
       oldAuthKeyPair: authKeyPair,
       newKeyShareIndex: globalKeyIndex,
       newPassword,
+      existingDataItems,
     });
     return result;
   }

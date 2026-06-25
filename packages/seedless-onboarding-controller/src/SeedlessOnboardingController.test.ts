@@ -454,6 +454,22 @@ function mockChangeEncKey(
   const pwEncKey = mockToprfEncryptor.derivePwEncKey(newPassword);
   const authKeyPair = mockToprfEncryptor.deriveAuthKeyPair(newPassword);
 
+  // #changeEncryptionKey fetches items before re-inserting to sort them first
+  jest.spyOn(toprfClient, 'fetchAllSecretDataItems').mockResolvedValue([
+    {
+      data: stringToBytes(
+        JSON.stringify({
+          data: bytesToBase64(MOCK_SEED_PHRASE),
+          timestamp: 1000,
+        }),
+      ),
+      itemId: 'srp-1',
+      version: 'v1' as const,
+      dataType: undefined,
+      createdAt: undefined,
+    },
+  ]);
+
   jest.spyOn(toprfClient, 'changeEncKey').mockResolvedValueOnce({
     encKey,
     pwEncKey,
@@ -3473,57 +3489,6 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
-    it('should promote the primary SRP to first when a legacy non-mnemonic sorts ahead of it (clock skew)', async () => {
-      await withController(
-        {
-          state: getMockInitialControllerState({
-            withMockAuthenticatedUser: true,
-          }),
-        },
-        async ({ controller, toprfClient }) => {
-          mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
-
-          // Legacy data (no dataType, no createdAt). An imported private key
-          // has the earliest client timestamp (e.g. due to clock skew on the
-          // device that imported it), so it sorts ahead of the primary SRP.
-          // The fetch must still recover by promoting the primary SRP, not
-          // throw InvalidPrimarySecretDataType.
-          const mockSecretDataGet = handleMockSecretDataGet({
-            status: 200,
-            body: createMockSecretDataGetResponse(
-              [
-                {
-                  data: new Uint8Array(Buffer.from('importedPk', 'utf-8')),
-                  timestamp: 100,
-                  type: SecretType.PrivateKey,
-                  itemId: 'imported-pk-id',
-                  // No dataType or createdAt (legacy)
-                },
-                {
-                  data: new Uint8Array(Buffer.from('primarySrp', 'utf-8')),
-                  timestamp: 200,
-                  type: SecretType.Mnemonic,
-                  itemId: 'primary-srp-id',
-                  // No dataType or createdAt (legacy)
-                },
-              ],
-              MOCK_PASSWORD,
-            ),
-          });
-
-          const secretData = await controller.fetchAllSecretData(MOCK_PASSWORD);
-
-          expect(mockSecretDataGet.isDone()).toBe(true);
-          expect(secretData).toHaveLength(2);
-          // Primary SRP (mnemonic) promoted to first despite later timestamp.
-          expect(secretData[0].type).toBe(SecretType.Mnemonic);
-          expect(secretData[0].data).toStrictEqual(stringToBytes('primarySrp'));
-          // The private key is preserved, not dropped.
-          expect(secretData[1].type).toBe(SecretType.PrivateKey);
-          expect(secretData[1].data).toStrictEqual(stringToBytes('importedPk'));
-        },
-      );
-    });
   });
 
   describe('submitPassword', () => {
@@ -4628,34 +4593,6 @@ describe('SeedlessOnboardingController', () => {
         expect(SecretMetadata.compare(earlier, later, 'desc')).toBeGreaterThan(
           0,
         );
-      });
-
-      it('should sort legacy items (null createdAt) before items with createdAt in asc order', () => {
-        const legacyItem = new SecretMetadata(MOCK_SEED_PHRASE, {
-          timestamp: 2000,
-          dataType: EncAccountDataType.ImportedSrp,
-          // no createdAt (legacy)
-        });
-        const newItem = new SecretMetadata(MOCK_SEED_PHRASE, {
-          timestamp: 1000,
-          dataType: EncAccountDataType.ImportedSrp,
-          createdAt: '00000001-0000-1000-8000-000000000001',
-        });
-
-        expect(SecretMetadata.compare(legacyItem, newItem, 'asc')).toBeLessThan(
-          0,
-        );
-        expect(
-          SecretMetadata.compare(newItem, legacyItem, 'asc'),
-        ).toBeGreaterThan(0);
-        // In desc order, legacy item comes after new item
-        expect(
-          SecretMetadata.compare(legacyItem, newItem, 'desc'),
-        ).toBeGreaterThan(0);
-        // In desc order, new item comes before legacy item
-        expect(
-          SecretMetadata.compare(newItem, legacyItem, 'desc'),
-        ).toBeLessThan(0);
       });
 
       it('should fall back to timestamp when both have null createdAt', () => {
@@ -6099,6 +6036,24 @@ describe('SeedlessOnboardingController', () => {
             // Mock the recover enc key
             mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
 
+            // #changeEncryptionKey fetches items before re-inserting to sort them first
+            jest
+              .spyOn(toprfClient, 'fetchAllSecretDataItems')
+              .mockResolvedValue([
+                {
+                  data: stringToBytes(
+                    JSON.stringify({
+                      data: bytesToBase64(MOCK_SEED_PHRASE),
+                      timestamp: 1000,
+                    }),
+                  ),
+                  itemId: 'srp-1',
+                  version: 'v1' as const,
+                  dataType: undefined,
+                  createdAt: undefined,
+                },
+              ]);
+
             // Mock changeEncKey to fail first with token expired error, then succeed
             const mockToprfEncryptor = createMockToprfEncryptor();
             const newEncKey =
@@ -6184,6 +6139,24 @@ describe('SeedlessOnboardingController', () => {
             // Mock the recover enc key
             mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
 
+            // #changeEncryptionKey fetches items before re-inserting to sort them first
+            jest
+              .spyOn(toprfClient, 'fetchAllSecretDataItems')
+              .mockResolvedValue([
+                {
+                  data: stringToBytes(
+                    JSON.stringify({
+                      data: bytesToBase64(MOCK_SEED_PHRASE),
+                      timestamp: 1000,
+                    }),
+                  ),
+                  itemId: 'srp-1',
+                  version: 'v1' as const,
+                  dataType: undefined,
+                  createdAt: undefined,
+                },
+              ]);
+
             // Mock changeEncKey to always fail with token expired error
             jest
               .spyOn(toprfClient, 'changeEncKey')
@@ -6245,6 +6218,24 @@ describe('SeedlessOnboardingController', () => {
 
             // Mock the recover enc key
             mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
+
+            // #changeEncryptionKey fetches items before re-inserting to sort them first
+            jest
+              .spyOn(toprfClient, 'fetchAllSecretDataItems')
+              .mockResolvedValue([
+                {
+                  data: stringToBytes(
+                    JSON.stringify({
+                      data: bytesToBase64(MOCK_SEED_PHRASE),
+                      timestamp: 1000,
+                    }),
+                  ),
+                  itemId: 'srp-1',
+                  version: 'v1' as const,
+                  dataType: undefined,
+                  createdAt: undefined,
+                },
+              ]);
 
             // Mock changeEncKey to fail with a non-token error
             jest
