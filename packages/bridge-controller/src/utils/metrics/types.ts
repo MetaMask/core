@@ -12,7 +12,7 @@ import type {
   BatchSellMetricsEventName,
   BatchSellMetricsLocation,
   BridgeControllerMetricsEventName,
-  MetaMetricsSwapsEventSource,
+  BridgeControllerMetricsLocation,
   MetricsActionType,
   MetricsSwapType,
   PollingStatus,
@@ -135,7 +135,7 @@ type OptionalLocationContextFromClient<T> = T extends {
   location: unknown;
 }
   ? object
-  : { location?: MetaMetricsSwapsEventSource };
+  : { location?: BridgeControllerMetricsLocation };
 
 /**
  * Properties that are required to be provided when trackUnifiedSwapBridgeEvent is called.
@@ -440,7 +440,7 @@ export type CrossChainSwapsEventProperties<
   | {
       feature_id: FeatureId;
       action_type: MetricsActionType;
-      location: MetaMetricsSwapsEventSource | BatchSellMetricsLocation;
+      location: BridgeControllerMetricsLocation;
       ab_tests?: Record<string, string>;
       active_ab_tests?: { key: string; value: string }[];
     }

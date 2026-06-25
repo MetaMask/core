@@ -2914,6 +2914,15 @@ describe('BridgeController', function () {
         expect(rootMessenger.call('BridgeController:getLocation')).toBe(
           MetaMetricsSwapsEventSource.TokenView,
         );
+
+        rootMessenger.call(
+          'BridgeController:setLocation',
+          BatchSellMetricsLocation.AssetPicker,
+        );
+
+        expect(rootMessenger.call('BridgeController:getLocation')).toBe(
+          BatchSellMetricsLocation.AssetPicker,
+        );
       });
     });
   });

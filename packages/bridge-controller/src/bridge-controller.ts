@@ -68,7 +68,10 @@ import {
   MetricsActionType,
   UnifiedSwapBridgeEventName,
 } from './utils/metrics/constants';
-import type { BridgeControllerMetricsEventName } from './utils/metrics/constants';
+import type {
+  BridgeControllerMetricsEventName,
+  BridgeControllerMetricsLocation,
+} from './utils/metrics/constants';
 import {
   formatProviderLabel,
   getAccountHardwareType,
@@ -227,7 +230,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    * Set via setLocation() before navigating to the swap/bridge flow.
    * Used as default for all subsequent internal events.
    */
-  #location: MetaMetricsSwapsEventSource = MetaMetricsSwapsEventSource.Unknown;
+  #location: BridgeControllerMetricsLocation = MetaMetricsSwapsEventSource.Unknown;
 
   readonly #clientId: BridgeClientId;
 
@@ -716,7 +719,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    *
    * @param location - The entry point from which the user initiated the flow
    */
-  setLocation = (location: MetaMetricsSwapsEventSource) => {
+  setLocation = (location: BridgeControllerMetricsLocation) => {
     this.#location = location;
   };
 
@@ -725,7 +728,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    *
    * @returns The entry point from which the user initiated the flow
    */
-  getLocation = (): MetaMetricsSwapsEventSource => {
+  getLocation = (): BridgeControllerMetricsLocation => {
     return this.#location;
   };
 

@@ -74,7 +74,12 @@ export enum BatchSellMetricsLocation {
   TradeMenu = 'trade_menu',
   Deeplink = 'deeplink',
   AssetPicker = 'asset_picker',
+  Unknown = 'Unknown',
 }
+
+export type BridgeControllerMetricsLocation =
+  | MetaMetricsSwapsEventSource
+  | BatchSellMetricsLocation;
 
 export enum InputAmountPreset {
   PERCENT_25 = '25%',

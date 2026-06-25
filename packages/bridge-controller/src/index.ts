@@ -12,6 +12,7 @@ export {
 } from './utils/metrics/constants';
 
 export type { BridgeControllerMetricsEventName } from './utils/metrics/constants';
+export type { BridgeControllerMetricsLocation } from './utils/metrics/constants';
 
 export type {
   AccountHardwareType,
