@@ -1805,6 +1805,69 @@ describe('BackendWebSocketService', () => {
       });
     });
 
+    it('should route account-activity notifications to wildcard channel callbacks', async () => {
+      await withService(async ({ service, getMockWebSocket }) => {
+        await service.connect();
+        const mockWs = getMockWebSocket();
+        const channelCallback = jest.fn();
+        const subscribedChannel =
+          'account-activity.v1.eip155:0:0x1234567890123456789012345678901234567890';
+        const notificationChannel =
+          'account-activity.v1.eip155:42161:0x1234567890123456789012345678901234567890';
+
+        service.addChannelCallback({
+          channelName: subscribedChannel,
+          callback: channelCallback,
+        });
+
+        const notification = {
+          event: 'notification',
+          channel: notificationChannel,
+          subscriptionId: 'stale-subscription-id',
+          data: { address: '0x1234567890123456789012345678901234567890' },
+          timestamp: 1760344704595,
+        };
+
+        mockWs.simulateMessage(notification);
+
+        expect(channelCallback).toHaveBeenCalledWith(notification);
+      });
+    });
+
+    it('should route account-activity notifications to subscriptions by channel when subscriptionId is stale', async () => {
+      await withService(async ({ service, getMockWebSocket }) => {
+        await service.connect();
+        const mockWs = getMockWebSocket();
+        const subscriptionCallback = jest.fn();
+        const subscribedChannel =
+          'account-activity.v1.eip155:0:0x1234567890123456789012345678901234567890';
+        const notificationChannel =
+          'account-activity.v1.eip155:42161:0x1234567890123456789012345678901234567890';
+
+        await createSubscription(service, mockWs, {
+          channels: [subscribedChannel],
+          callback: subscriptionCallback,
+          requestId: 'test-wildcard-subscribe',
+          subscriptionId: 'sub-123',
+          channelType: 'account-activity.v1',
+        });
+
+        subscriptionCallback.mockClear();
+
+        const notification = {
+          event: 'notification',
+          channel: notificationChannel,
+          subscriptionId: 'stale-server-subscription-id',
+          data: { address: '0x1234567890123456789012345678901234567890' },
+          timestamp: 1760344704595,
+        };
+
+        mockWs.simulateMessage(notification);
+
+        expect(subscriptionCallback).toHaveBeenCalledWith(notification);
+      });
+    });
+
     it('should handle sendRequest errors when sendMessage fails', async () => {
       await withService(async ({ service }) => {
         await service.connect();

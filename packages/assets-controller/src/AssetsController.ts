@@ -324,6 +324,7 @@ type AllowedEvents =
   | KeyringControllerUnlockEvent
   | PreferencesControllerStateChangeEvent
   | TransactionControllerUnapprovedTransactionAddedEvent
+  | TransactionControllerTransactionConfirmedEvent
   // RpcDataSource, StakedBalanceDataSource
   | NetworkControllerStateChangeEvent
   // AssetsController (default-asset seeding + cross-source asset refresh
@@ -331,7 +332,6 @@ type AllowedEvents =
   // NetworkController)
   | NetworkControllerNetworkAddedEvent
   | NetworkControllerNetworkRemovedEvent
-  | TransactionControllerTransactionConfirmedEvent
   // StakedBalanceDataSource
   | NetworkEnablementControllerEvents
   // SnapDataSource
@@ -1422,9 +1422,9 @@ export class AssetsController extends BaseController<
       // creation, RPC is slow on many chains). Results are committed to state
       // immediately so the UI can display balances without waiting for them.
       //
-      // Both the fast and background pipelines use 'merge' mode because neither
-      // alone represents the full set of data sources. Using 'full' in either
-      // would wipe balances from the sources handled by the other pipeline.
+      // Fast/slow pipelines use 'update' so partial API snapshots cannot wipe
+      // tokens missing from the response (e.g. USDC when only native balance
+      // is returned). Balances present in the response are still refreshed.
       const fastSources = this.#isBasicFunctionality()
         ? [
             createParallelBalanceMiddleware([
@@ -1447,10 +1447,7 @@ export class AssetsController extends BaseController<
         fastSources,
         request,
       );
-      // The fast pipeline only contains a subset of data sources (AccountsApi +
-      // StakedBalance), so it must always merge to avoid wiping Snap/RPC
-      // balances that the background pipeline hasn't yet replaced.
-      await this.#updateState({ ...response, updateMode: 'merge' });
+      await this.#updateState({ ...response, updateMode: 'update' });
 
       // Background pipeline: snap and RPC run in parallel after the fast path
       // commits to state. Their balances are merged together before detection.
@@ -1476,7 +1473,7 @@ export class AssetsController extends BaseController<
         request,
       )
         .then(({ response: slowResponse }) =>
-          this.#updateState({ ...slowResponse, updateMode: 'merge' }),
+          this.#updateState({ ...slowResponse, updateMode: 'update' }),
         )
         .catch((error) => log('Background pipeline failed', { error }));
 
@@ -2166,7 +2163,7 @@ export class AssetsController extends BaseController<
         >;
         const prices = state.assetsPrice as Record<string, AssetPrice>;
 
-        if (normalizedResponse.assetsInfo) {
+        if (normalizedResponse.assetsInfo && mode !== 'update') {
           for (const [key, value] of Object.entries(
             normalizedResponse.assetsInfo,
           )) {
@@ -2236,9 +2233,10 @@ export class AssetsController extends BaseController<
             //   balances for chains not in the response are preserved from
             //   previous state so unsupported chains (e.g. Ink on AccountsAPI)
             //   are never inadvertently reset to zero.
-            // Merge: response overlays previous balances.
+            // Merge / update: response overlays previous balances (update never
+            //   removes tokens missing from a partial snapshot).
             const effective: Record<string, AssetBalance> =
-              mode === 'merge'
+              mode === 'merge' || mode === 'update'
                 ? { ...previousBalances, ...accountBalances }
                 : ((): Record<string, AssetBalance> => {
                     // Determine which chain namespaces this response covers.
@@ -2323,8 +2321,8 @@ export class AssetsController extends BaseController<
           }
         }
 
-        // Update prices in state
-        if (normalizedResponse.assetsPrice) {
+        // Update prices in state (skipped for balance-only update mode)
+        if (normalizedResponse.assetsPrice && mode !== 'update') {
           for (const [key, value] of Object.entries(
             normalizedResponse.assetsPrice,
           )) {

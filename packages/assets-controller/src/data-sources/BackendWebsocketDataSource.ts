@@ -588,6 +588,18 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     }
 
     try {
+      // Register request/callback before awaiting server subscribe so notifications
+      // that arrive during the subscribe handshake are not dropped.
+      this.#subscriptionRequests.set(subscriptionId, subscriptionRequest);
+      this.activeSubscriptions.set(subscriptionId, {
+        cleanup: () => {
+          this.#teardownSubscription(subscriptionId).catch(() => undefined);
+        },
+        chains: chainsToSubscribe,
+        addresses,
+        onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
+      });
+
       // Create WebSocket subscription
       const wsSubscription = await this.#messenger.call(
         'BackendWebSocketService:subscribe',
@@ -600,20 +612,7 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
         },
       );
 
-      // Store WebSocket subscription and subscription state before optional
-      // channel callbacks — wsCallback routing works without them.
       this.#wsSubscriptions.set(subscriptionId, wsSubscription);
-
-      this.activeSubscriptions.set(subscriptionId, {
-        cleanup: () => {
-          this.#teardownSubscription(subscriptionId).catch(() => undefined);
-        },
-        chains: chainsToSubscribe,
-        addresses,
-        onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
-      });
-
-      this.#subscriptionRequests.set(subscriptionId, subscriptionRequest);
 
       try {
         this.#registerChannelCallbacks(subscriptionId, channels);
@@ -624,6 +623,8 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
         );
       }
     } catch (error) {
+      this.activeSubscriptions.delete(subscriptionId);
+      this.#subscriptionRequests.delete(subscriptionId);
       log('WebSocket subscription FAILED', {
         subscriptionId,
         error,
@@ -641,14 +642,19 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     subscriptionId: string,
   ): void {
     try {
-      const subscription = this.activeSubscriptions.get(subscriptionId);
-      const request = this.#subscriptionRequests.get(subscriptionId)?.request;
+      const activityMessage =
+        notification.data as unknown as AccountActivityMessage;
+
+      const storedSubscription = this.#subscriptionRequests.get(subscriptionId);
+      const request = storedSubscription?.request;
+      const onAssetsUpdate =
+        this.activeSubscriptions.get(subscriptionId)?.onAssetsUpdate ??
+        storedSubscription?.onAssetsUpdate;
+
       if (!request) {
         return;
       }
 
-      const activityMessage =
-        notification.data as unknown as AccountActivityMessage;
       const { address, tx, updates } = activityMessage;
 
       if (!address || !tx || !updates) {
@@ -674,10 +680,11 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       // Process all balance updates from the activity message
       const response = this.#processBalanceUpdates(updates, chainId, accountId);
 
-      if (Object.keys(response).length > 0 && subscription) {
-        Promise.resolve(subscription.onAssetsUpdate(response, request)).catch(
-          console.error,
-        );
+      const hasBalances =
+        Object.keys(response.assetsBalance?.[accountId] ?? {}).length > 0;
+
+      if (hasBalances && onAssetsUpdate) {
+        Promise.resolve(onAssetsUpdate(response, request)).catch(console.error);
       }
     } catch (error) {
       log('Error handling notification', error);

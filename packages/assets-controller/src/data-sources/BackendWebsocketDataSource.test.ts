@@ -667,7 +667,7 @@ describe('BackendWebsocketDataSource', () => {
 
     channelCallback(
       createMockNotification({
-        channel,
+        channel: `account-activity.v1.eip155:42161:${MOCK_ADDRESS.toLowerCase()}`,
         subscriptionId: 'stale-server-sub-id',
         data: {
           address: MOCK_ADDRESS,
