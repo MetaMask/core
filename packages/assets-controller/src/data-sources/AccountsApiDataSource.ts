@@ -342,7 +342,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
       );
 
       response.assetsBalance = assetsBalance;
-      response.updateMode = 'full';
+      response.updateMode = 'merge';
     } catch (error) {
       log('Fetch FAILED', { error, chains: chainsToFetch });
 

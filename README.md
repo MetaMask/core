@@ -85,6 +85,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/json-rpc-engine`](packages/json-rpc-engine)
 - [`@metamask/json-rpc-middleware-stream`](packages/json-rpc-middleware-stream)
 - [`@metamask/keyring-controller`](packages/keyring-controller)
+- [`@metamask/local-node-utils`](packages/local-node-utils)
 - [`@metamask/logging-controller`](packages/logging-controller)
 - [`@metamask/message-manager`](packages/message-manager)
 - [`@metamask/messenger`](packages/messenger)
@@ -183,6 +184,7 @@ linkStyle default opacity:0.5
   json_rpc_engine(["@metamask/json-rpc-engine"]);
   json_rpc_middleware_stream(["@metamask/json-rpc-middleware-stream"]);
   keyring_controller(["@metamask/keyring-controller"]);
+  local_node_utils(["@metamask/local-node-utils"]);
   logging_controller(["@metamask/logging-controller"]);
   message_manager(["@metamask/message-manager"]);
   messenger(["@metamask/messenger"]);
@@ -294,6 +296,7 @@ linkStyle default opacity:0.5
   base_controller --> messenger;
   base_data_service --> controller_utils;
   base_data_service --> messenger;
+  bitcoin_regtest_up --> local_node_utils;
   bridge_controller --> accounts_controller;
   bridge_controller --> assets_controller;
   bridge_controller --> assets_controllers;
@@ -391,6 +394,7 @@ linkStyle default opacity:0.5
   geolocation_controller --> base_controller;
   geolocation_controller --> controller_utils;
   geolocation_controller --> messenger;
+  java_tron_up --> local_node_utils;
   json_rpc_engine --> messenger;
   json_rpc_middleware_stream --> json_rpc_engine;
   keyring_controller --> base_controller;
@@ -479,6 +483,7 @@ linkStyle default opacity:0.5
   perps_controller --> controller_utils;
   perps_controller --> messenger;
   perps_controller --> account_tree_controller;
+  perps_controller --> authenticated_user_storage;
   perps_controller --> geolocation_controller;
   perps_controller --> keyring_controller;
   perps_controller --> network_controller;
@@ -563,6 +568,7 @@ linkStyle default opacity:0.5
   social_controllers --> controller_utils;
   social_controllers --> messenger;
   social_controllers --> profile_sync_controller;
+  solana_test_validator_up --> local_node_utils;
   storage_service --> messenger;
   subscription_controller --> base_controller;
   subscription_controller --> controller_utils;
@@ -612,6 +618,7 @@ linkStyle default opacity:0.5
   wallet --> controller_utils;
   wallet --> keyring_controller;
   wallet --> messenger;
+  wallet --> network_controller;
   wallet --> remote_feature_flag_controller;
   wallet --> storage_service;
   wallet_cli --> base_controller;

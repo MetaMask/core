@@ -286,12 +286,16 @@ export async function submitDirectMusdVaultDeposit({
 
   try {
     await messenger.call('TransactionController:addTransactionBatch', {
+      disableHook: true,
+      disableSequential: true,
+      disableUpgrade: true,
       from: moneyAccountAddress,
       isGasFeeSponsored: true,
       isInternal: true,
       networkClientId,
       origin: ORIGIN_METAMASK,
       requireApproval: false,
+      skipInitialGasEstimate: true,
       transactions: nestedTransactions.map((nestedTransaction, index) => ({
         params: {
           data: nestedTransaction.data,
@@ -306,9 +310,9 @@ export async function submitDirectMusdVaultDeposit({
     });
   } catch (error) {
     throw prefixError(error, VAULT_ERROR_PREFIX);
+  } finally {
+    end();
   }
-
-  end();
 
   log('Submitted direct mUSD vault deposit', {
     moneyAccountAddress,

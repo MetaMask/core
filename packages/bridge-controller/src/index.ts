@@ -71,6 +71,7 @@ export type {
   BridgeControllerFetchQuotesAction,
   BridgeControllerStopPollingForQuotesAction,
   BridgeControllerSetLocationAction,
+  BridgeControllerGetLocationAction,
   BridgeControllerSetInputPrimaryDenominationAction,
   BridgeControllerResetStateAction,
   BridgeControllerSetChainIntervalLengthAction,

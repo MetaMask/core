@@ -266,6 +266,7 @@ export enum FeatureId {
   PERPS = 'perps',
   QUICK_BUY_FOLLOW_TRADING = 'quick_buy_follow_trading',
   QUICK_BUY_TOKEN_DETAILS = 'quick_buy_token_details',
+  QUICK_BUY_EXPLORE = 'quick_buy_explore',
   DAPP_SWAP = 'dapp_swap',
   BATCH_SELL = 'batch_sell',
   UNIFIED_SWAP_BRIDGE = 'unified_swap_bridge',

@@ -83,6 +83,14 @@ const config: KnipConfig = {
       ignoreBinaries: ['anvil', 'sysctl'],
       ignoreDependencies: ['yargs-parser'],
     },
+    'packages/java-tron-up': {
+      // `sysctl` is an external system binary, not an npm package.
+      ignoreBinaries: ['sysctl'],
+    },
+    'packages/local-node-utils': {
+      // `sysctl` is an external system binary, not an npm package.
+      ignoreBinaries: ['sysctl'],
+    },
     'packages/gas-fee-controller': {
       ignoreDependencies: ['@metamask/ethjs-unit', 'jest-when'],
     },
