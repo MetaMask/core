@@ -1,4 +1,4 @@
-import { QuoteStatusUpdateWithRetryOutcomeType } from './constants';
+import { QuoteStatusFetchWithRetryOutcomeType } from './constants';
 import { QuoteStatusUpdateResponse } from './types';
 
 /**
@@ -16,7 +16,7 @@ export class QuoteStatusUpdateWithRetryOutcome {
   /**
    * Discriminant describing how the update attempt resolved.
    */
-  readonly type: QuoteStatusUpdateWithRetryOutcomeType;
+  readonly type: QuoteStatusFetchWithRetryOutcomeType;
 
   /**
    * Backend error response associated with the outcome, when one was returned
@@ -29,7 +29,7 @@ export class QuoteStatusUpdateWithRetryOutcome {
    * @param response - Optional backend error response associated with the outcome.
    */
   constructor(
-    outcome: QuoteStatusUpdateWithRetryOutcomeType,
+    outcome: QuoteStatusFetchWithRetryOutcomeType,
     response?: QuoteStatusUpdateResponse,
   ) {
     this.type = outcome;

@@ -8,10 +8,11 @@ import { BridgeClientId, BridgeStatusControllerMessenger } from '../types';
 import {
   QuoteStatusState,
   QuoteStatusUpdateBackendErrorType,
-  QuoteStatusUpdateBackendStatus,
-  QuoteStatusUpdateWithRetryOutcomeType,
+  QuoteStatusBackendStatus,
+  QuoteStatusFetchWithRetryOutcomeType,
 } from './constants';
 import { QuoteStatusApiService } from './quote-status-api-service';
+import { QuoteStatusGetWithRetryOutcome } from './quote-status-get-with-retry-outcome';
 import { QuoteStatusUpdateWithRetryOutcome } from './quote-status-update-with-retry-outcome';
 import { QuoteStatusUpdateManager } from './quotes-status-update-manager';
 import type {
@@ -90,6 +91,8 @@ function createTxMeta(
 describe('QuoteStatusUpdateManager', () => {
   let mockUpdate: jest.Mock;
 
+  let mockGetQuoteStatusWithRetry: jest.Mock;
+
   /**
    * Builds a manager with stubbed callbacks and the mocked API service.
    *
@@ -146,11 +149,19 @@ describe('QuoteStatusUpdateManager', () => {
       .fn()
       .mockResolvedValue(
         new QuoteStatusUpdateWithRetryOutcome(
-          QuoteStatusUpdateWithRetryOutcomeType.RetryableExhausted,
+          QuoteStatusFetchWithRetryOutcomeType.RetryableExhausted,
+        ),
+      );
+    mockGetQuoteStatusWithRetry = jest
+      .fn()
+      .mockResolvedValue(
+        new QuoteStatusGetWithRetryOutcome(
+          QuoteStatusFetchWithRetryOutcomeType.Accepted,
         ),
       );
     (QuoteStatusApiService as unknown as jest.Mock).mockImplementation(() => ({
       updateQuoteStatusWithRetry: mockUpdate,
+      getQuoteStatusWithRetry: mockGetQuoteStatusWithRetry,
     }));
   });
 
@@ -183,7 +194,7 @@ describe('QuoteStatusUpdateManager', () => {
           expect.objectContaining({
             quoteId: 'quote-1',
             srcTxHash: '0xabc',
-            newStatus: QuoteStatusUpdateBackendStatus.Submitted,
+            newStatus: QuoteStatusBackendStatus.Submitted,
           }),
           expect.anything(),
         );
@@ -230,7 +241,7 @@ describe('QuoteStatusUpdateManager', () => {
        *
        * @returns The list of reported backend statuses.
        */
-      function getReportedStatuses(): QuoteStatusUpdateBackendStatus[] {
+      function getReportedStatuses(): QuoteStatusBackendStatus[] {
         return mockUpdate.mock.calls.map(([payload]) => payload.newStatus);
       }
 
@@ -249,7 +260,7 @@ describe('QuoteStatusUpdateManager', () => {
 
         expect(onError).not.toHaveBeenCalled();
         expect(getReportedStatuses()).toContain(
-          QuoteStatusUpdateBackendStatus.FinalizedSuccess,
+          QuoteStatusBackendStatus.FinalizedSuccess,
         );
       });
 
@@ -267,7 +278,7 @@ describe('QuoteStatusUpdateManager', () => {
         await flush();
 
         expect(getReportedStatuses()).toContain(
-          QuoteStatusUpdateBackendStatus.FinalizedFailed,
+          QuoteStatusBackendStatus.FinalizedFailed,
         );
       });
 
@@ -285,7 +296,7 @@ describe('QuoteStatusUpdateManager', () => {
         await flush();
 
         expect(getReportedStatuses()).toContain(
-          QuoteStatusUpdateBackendStatus.FinalizedFailed,
+          QuoteStatusBackendStatus.FinalizedFailed,
         );
       });
 
@@ -310,7 +321,7 @@ describe('QuoteStatusUpdateManager', () => {
         await flush();
 
         expect(getReportedStatuses()).toContain(
-          QuoteStatusUpdateBackendStatus.FinalizedSuccess,
+          QuoteStatusBackendStatus.FinalizedSuccess,
         );
       });
 
@@ -326,7 +337,7 @@ describe('QuoteStatusUpdateManager', () => {
         await flush();
 
         expect(getReportedStatuses()).not.toContain(
-          QuoteStatusUpdateBackendStatus.FinalizedSuccess,
+          QuoteStatusBackendStatus.FinalizedSuccess,
         );
       });
 
@@ -344,7 +355,7 @@ describe('QuoteStatusUpdateManager', () => {
         await flush();
 
         expect(getReportedStatuses()).not.toContain(
-          QuoteStatusUpdateBackendStatus.FinalizedSuccess,
+          QuoteStatusBackendStatus.FinalizedSuccess,
         );
       });
 
@@ -368,7 +379,7 @@ describe('QuoteStatusUpdateManager', () => {
         await flush();
 
         expect(getReportedStatuses()).not.toContain(
-          QuoteStatusUpdateBackendStatus.FinalizedSuccess,
+          QuoteStatusBackendStatus.FinalizedSuccess,
         );
       });
 
@@ -388,10 +399,10 @@ describe('QuoteStatusUpdateManager', () => {
         expect(onError).not.toHaveBeenCalled();
         const reported = getReportedStatuses();
         expect(reported).not.toContain(
-          QuoteStatusUpdateBackendStatus.FinalizedSuccess,
+          QuoteStatusBackendStatus.FinalizedSuccess,
         );
         expect(reported).not.toContain(
-          QuoteStatusUpdateBackendStatus.FinalizedFailed,
+          QuoteStatusBackendStatus.FinalizedFailed,
         );
       });
 
@@ -415,9 +426,60 @@ describe('QuoteStatusUpdateManager', () => {
         // processInitial re-sends the finalized status, but reconciliation must
         // not transition it again based on the on-chain status.
         expect(getReportedStatuses()).not.toContain(
-          QuoteStatusUpdateBackendStatus.FinalizedFailed,
+          QuoteStatusBackendStatus.FinalizedFailed,
         );
       });
+    });
+  });
+
+  describe('enabled', () => {
+    it('returns true when the isEnabled predicate returns true', () => {
+      const { manager } = createManager({
+        isEnabled: jest.fn().mockReturnValue(true),
+      });
+
+      expect(manager.enabled).toBe(true);
+    });
+
+    it('returns false when the isEnabled predicate returns false', () => {
+      const { manager } = createManager({
+        isEnabled: jest.fn().mockReturnValue(false),
+      });
+
+      expect(manager.enabled).toBe(false);
+    });
+
+    it('returns false when no isEnabled predicate was provided', () => {
+      const { manager } = createManager({ isEnabled: undefined });
+
+      expect(manager.enabled).toBe(false);
+    });
+  });
+
+  describe('getStatus', () => {
+    it('returns null when the manager is disabled', () => {
+      const { manager } = createManager({
+        isEnabled: jest.fn().mockReturnValue(false),
+      });
+
+      expect(manager.getStatus('quote-1')).toBeNull();
+      expect(mockGetQuoteStatusWithRetry).not.toHaveBeenCalled();
+    });
+
+    it('delegates to the API service with retry options when enabled', async () => {
+      const expectedOutcome = new QuoteStatusGetWithRetryOutcome(
+        QuoteStatusFetchWithRetryOutcomeType.Accepted,
+      );
+      mockGetQuoteStatusWithRetry.mockResolvedValueOnce(expectedOutcome);
+      const { manager } = createManager();
+
+      const result = manager.getStatus('quote-1');
+
+      expect(mockGetQuoteStatusWithRetry).toHaveBeenCalledWith(
+        { quoteId: 'quote-1' },
+        { maxRetries: 2, delayMsBetweenRetries: 1000 },
+      );
+      expect(await result).toBe(expectedOutcome);
     });
   });
 
@@ -444,7 +506,7 @@ describe('QuoteStatusUpdateManager', () => {
         expect.objectContaining({
           quoteId: 'quote-1',
           srcTxHash: '0xabc',
-          newStatus: QuoteStatusUpdateBackendStatus.Submitted,
+          newStatus: QuoteStatusBackendStatus.Submitted,
         }),
         expect.anything(),
       );
@@ -453,7 +515,7 @@ describe('QuoteStatusUpdateManager', () => {
     it('stops re-sending the submitted status once it is accepted', async () => {
       mockUpdate.mockResolvedValueOnce(
         new QuoteStatusUpdateWithRetryOutcome(
-          QuoteStatusUpdateWithRetryOutcomeType.Accepted,
+          QuoteStatusFetchWithRetryOutcomeType.Accepted,
         ),
       );
       const { manager, onPersistUpdates } = createManager();
@@ -471,7 +533,7 @@ describe('QuoteStatusUpdateManager', () => {
     it('does not re-send an already-acknowledged submitted status on a repeat report', async () => {
       mockUpdate.mockResolvedValueOnce(
         new QuoteStatusUpdateWithRetryOutcome(
-          QuoteStatusUpdateWithRetryOutcomeType.Accepted,
+          QuoteStatusFetchWithRetryOutcomeType.Accepted,
         ),
       );
       const { manager } = createManager();
@@ -491,7 +553,7 @@ describe('QuoteStatusUpdateManager', () => {
     it('keeps the entry tracked after submission is accepted so it can be finalized', async () => {
       mockUpdate.mockResolvedValueOnce(
         new QuoteStatusUpdateWithRetryOutcome(
-          QuoteStatusUpdateWithRetryOutcomeType.Accepted,
+          QuoteStatusFetchWithRetryOutcomeType.Accepted,
         ),
       );
       const { manager, onError } = createManager();
@@ -508,7 +570,7 @@ describe('QuoteStatusUpdateManager', () => {
       expect(onError).not.toHaveBeenCalled();
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          newStatus: QuoteStatusUpdateBackendStatus.FinalizedSuccess,
+          newStatus: QuoteStatusBackendStatus.FinalizedSuccess,
         }),
         expect.anything(),
       );
@@ -517,7 +579,7 @@ describe('QuoteStatusUpdateManager', () => {
     it('rejects a new submission for a quote that already finalized', async () => {
       mockUpdate.mockResolvedValueOnce(
         new QuoteStatusUpdateWithRetryOutcome(
-          QuoteStatusUpdateWithRetryOutcomeType.Accepted,
+          QuoteStatusFetchWithRetryOutcomeType.Accepted,
         ),
       );
       const { manager } = createManager();
@@ -527,7 +589,7 @@ describe('QuoteStatusUpdateManager', () => {
       await flush();
       mockUpdate.mockResolvedValueOnce(
         new QuoteStatusUpdateWithRetryOutcome(
-          QuoteStatusUpdateWithRetryOutcomeType.Accepted,
+          QuoteStatusFetchWithRetryOutcomeType.Accepted,
         ),
       );
       manager.reportFinalised('tx-1', true);
@@ -593,7 +655,7 @@ describe('QuoteStatusUpdateManager', () => {
 
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          newStatus: QuoteStatusUpdateBackendStatus.FinalizedSuccess,
+          newStatus: QuoteStatusBackendStatus.FinalizedSuccess,
         }),
         expect.anything(),
       );
@@ -610,7 +672,7 @@ describe('QuoteStatusUpdateManager', () => {
 
       expect(mockUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
-          newStatus: QuoteStatusUpdateBackendStatus.FinalizedFailed,
+          newStatus: QuoteStatusBackendStatus.FinalizedFailed,
         }),
         expect.anything(),
       );
@@ -639,7 +701,7 @@ describe('QuoteStatusUpdateManager', () => {
 
       mockUpdate.mockResolvedValueOnce(
         new QuoteStatusUpdateWithRetryOutcome(
-          QuoteStatusUpdateWithRetryOutcomeType.Accepted,
+          QuoteStatusFetchWithRetryOutcomeType.Accepted,
         ),
       );
       manager.reportFinalised('tx-1', true);
@@ -718,12 +780,12 @@ describe('QuoteStatusUpdateManager', () => {
       mockUpdate
         .mockResolvedValueOnce(
           new QuoteStatusUpdateWithRetryOutcome(
-            QuoteStatusUpdateWithRetryOutcomeType.Interrupted,
+            QuoteStatusFetchWithRetryOutcomeType.Interrupted,
           ),
         )
         .mockResolvedValueOnce(
           new QuoteStatusUpdateWithRetryOutcome(
-            QuoteStatusUpdateWithRetryOutcomeType.Accepted,
+            QuoteStatusFetchWithRetryOutcomeType.Accepted,
           ),
         );
       const { manager } = createManager();
@@ -766,7 +828,7 @@ describe('QuoteStatusUpdateManager', () => {
 
       accepted.resolve(
         new QuoteStatusUpdateWithRetryOutcome(
-          QuoteStatusUpdateWithRetryOutcomeType.Accepted,
+          QuoteStatusFetchWithRetryOutcomeType.Accepted,
         ),
       );
       await flush();
@@ -794,7 +856,7 @@ describe('QuoteStatusUpdateManager', () => {
       // a newer (FinalizedSuccess) status, so it must be reprocessed.
       submittedAttempt.resolve(
         new QuoteStatusUpdateWithRetryOutcome(
-          QuoteStatusUpdateWithRetryOutcomeType.Accepted,
+          QuoteStatusFetchWithRetryOutcomeType.Accepted,
         ),
       );
       await flush();
@@ -803,7 +865,7 @@ describe('QuoteStatusUpdateManager', () => {
         ([payload]) => payload.newStatus,
       );
       expect(reportedStatuses).toContain(
-        QuoteStatusUpdateBackendStatus.FinalizedSuccess,
+        QuoteStatusBackendStatus.FinalizedSuccess,
       );
     });
 
@@ -814,7 +876,7 @@ describe('QuoteStatusUpdateManager', () => {
           submittedShouldProceed = options.retry;
           return Promise.resolve(
             new QuoteStatusUpdateWithRetryOutcome(
-              QuoteStatusUpdateWithRetryOutcomeType.RetryableExhausted,
+              QuoteStatusFetchWithRetryOutcomeType.RetryableExhausted,
             ),
           );
         },
@@ -838,7 +900,7 @@ describe('QuoteStatusUpdateManager', () => {
     it('retains the completed entry in the persisted snapshot', async () => {
       mockUpdate.mockResolvedValueOnce(
         new QuoteStatusUpdateWithRetryOutcome(
-          QuoteStatusUpdateWithRetryOutcomeType.Accepted,
+          QuoteStatusFetchWithRetryOutcomeType.Accepted,
         ),
       );
       const { manager, onPersistUpdates } = createManager();
@@ -847,7 +909,7 @@ describe('QuoteStatusUpdateManager', () => {
       await flush();
       mockUpdate.mockResolvedValueOnce(
         new QuoteStatusUpdateWithRetryOutcome(
-          QuoteStatusUpdateWithRetryOutcomeType.Accepted,
+          QuoteStatusFetchWithRetryOutcomeType.Accepted,
         ),
       );
       manager.reportFinalised('tx-1', true);
@@ -873,7 +935,7 @@ describe('QuoteStatusUpdateManager', () => {
     ): void {
       mockUpdate.mockResolvedValueOnce(
         new QuoteStatusUpdateWithRetryOutcome(
-          QuoteStatusUpdateWithRetryOutcomeType.NonRetryable,
+          QuoteStatusFetchWithRetryOutcomeType.NonRetryable,
           response,
         ),
       );
@@ -884,8 +946,8 @@ describe('QuoteStatusUpdateManager', () => {
         statusCode: 400,
         message: 'invalid transition',
         type: QuoteStatusUpdateBackendErrorType.InvalidStatusTransaction,
-        currentStatus: QuoteStatusUpdateBackendStatus.FinalizedSuccess,
-        newStatus: QuoteStatusUpdateBackendStatus.Submitted,
+        currentStatus: QuoteStatusBackendStatus.FinalizedSuccess,
+        newStatus: QuoteStatusBackendStatus.Submitted,
       } as QuoteStatusUpdateResponse);
       const { manager, onError } = createManager();
 
@@ -904,8 +966,8 @@ describe('QuoteStatusUpdateManager', () => {
         statusCode: 400,
         message: 'mismatch',
         type: QuoteStatusUpdateBackendErrorType.QuoteStatusOnChainMismatch,
-        currentStatus: QuoteStatusUpdateBackendStatus.FinalizedSuccess,
-        newStatus: QuoteStatusUpdateBackendStatus.Submitted,
+        currentStatus: QuoteStatusBackendStatus.FinalizedSuccess,
+        newStatus: QuoteStatusBackendStatus.Submitted,
       } as QuoteStatusUpdateResponse);
       const { manager } = createManager();
 
@@ -916,7 +978,7 @@ describe('QuoteStatusUpdateManager', () => {
         ([payload]) => payload.newStatus,
       );
       expect(reportedStatuses).toContain(
-        QuoteStatusUpdateBackendStatus.FinalizedSuccess,
+        QuoteStatusBackendStatus.FinalizedSuccess,
       );
     });
 
@@ -931,8 +993,8 @@ describe('QuoteStatusUpdateManager', () => {
         statusCode: 400,
         message: 'mismatch',
         type: QuoteStatusUpdateBackendErrorType.QuoteStatusOnChainMismatch,
-        currentStatus: QuoteStatusUpdateBackendStatus.FinalizedSuccess,
-        newStatus: QuoteStatusUpdateBackendStatus.FinalizedFailed,
+        currentStatus: QuoteStatusBackendStatus.FinalizedSuccess,
+        newStatus: QuoteStatusBackendStatus.FinalizedFailed,
       } as QuoteStatusUpdateResponse);
       onError.mockClear();
 
@@ -979,13 +1041,13 @@ describe('QuoteStatusUpdateManager', () => {
       // backend is already FinalizedSuccess.
       submittedAttempt.resolve(
         new QuoteStatusUpdateWithRetryOutcome(
-          QuoteStatusUpdateWithRetryOutcomeType.NonRetryable,
+          QuoteStatusFetchWithRetryOutcomeType.NonRetryable,
           {
             statusCode: 400,
             message: 'mismatch',
             type: QuoteStatusUpdateBackendErrorType.QuoteStatusOnChainMismatch,
-            currentStatus: QuoteStatusUpdateBackendStatus.FinalizedSuccess,
-            newStatus: QuoteStatusUpdateBackendStatus.Submitted,
+            currentStatus: QuoteStatusBackendStatus.FinalizedSuccess,
+            newStatus: QuoteStatusBackendStatus.Submitted,
           } as QuoteStatusUpdateResponse,
         ),
       );
@@ -1026,8 +1088,8 @@ describe('QuoteStatusUpdateManager', () => {
         statusCode: 400,
         message: 'mismatch',
         type: QuoteStatusUpdateBackendErrorType.QuoteStatusOnChainMismatch,
-        currentStatus: QuoteStatusUpdateBackendStatus.Submitted,
-        newStatus: QuoteStatusUpdateBackendStatus.Submitted,
+        currentStatus: QuoteStatusBackendStatus.Submitted,
+        newStatus: QuoteStatusBackendStatus.Submitted,
       } as QuoteStatusUpdateResponse);
       const { manager, onError } = createManager();
 
@@ -1045,8 +1107,8 @@ describe('QuoteStatusUpdateManager', () => {
         statusCode: 400,
         message: 'invalid transition',
         type: QuoteStatusUpdateBackendErrorType.InvalidStatusTransaction,
-        currentStatus: QuoteStatusUpdateBackendStatus.FinalizedFailed,
-        newStatus: QuoteStatusUpdateBackendStatus.Submitted,
+        currentStatus: QuoteStatusBackendStatus.FinalizedFailed,
+        newStatus: QuoteStatusBackendStatus.Submitted,
       } as QuoteStatusUpdateResponse);
       const { manager, onError } = createManager();
 
@@ -1065,7 +1127,7 @@ describe('QuoteStatusUpdateManager', () => {
     it('ignores an unrecognized retry outcome type', async () => {
       mockUpdate.mockResolvedValueOnce(
         new QuoteStatusUpdateWithRetryOutcome(
-          'unknown' as QuoteStatusUpdateWithRetryOutcomeType,
+          'unknown' as QuoteStatusFetchWithRetryOutcomeType,
         ),
       );
       const { manager, onError } = createManager();

@@ -3,18 +3,23 @@ import { getClientHeaders } from '@metamask/bridge-controller';
 import { BridgeClientId, BridgeStatusControllerMessenger } from '../types';
 import { getJwt } from '../utils/authentication';
 import {
-  QuoteStatusUpdateBackendStatus,
+  QuoteStatusBackendStatus,
   QuoteStatusUpdateRetryableBackendTypes,
-  QuoteStatusUpdateWithRetryOutcomeType,
+  QuoteStatusFetchWithRetryOutcomeType,
 } from './constants';
-import { QuoteStatusUpdateError } from './errors';
+import { QuoteStatusGetError, QuoteStatusUpdateError } from './errors';
+import { QuoteStatusGetWithRetryOutcome } from './quote-status-get-with-retry-outcome';
 import { QuoteStatusUpdateWithRetryOutcome } from './quote-status-update-with-retry-outcome';
 import {
   QuoteStatusApiServiceOptions,
+  QuoteStatusGetResponse,
   QuoteStatusUpdateResponse,
 } from './types';
 import { sleep } from './utils';
-import { validateQuoteStatusUpdateResponse } from './validators';
+import {
+  validateQuoteStatusGetResponse,
+  validateQuoteStatusUpdateResponse,
+} from './validators';
 
 /**
  * Service responsible for calling bridge quote status update APIs.
@@ -81,7 +86,7 @@ export class QuoteStatusApiService {
     data: {
       quoteId: string;
       srcTxHash: string;
-      newStatus: QuoteStatusUpdateBackendStatus;
+      newStatus: QuoteStatusBackendStatus;
     },
     signal?: AbortSignal,
   ): Promise<QuoteStatusUpdateResponse | null> {
@@ -130,6 +135,60 @@ export class QuoteStatusApiService {
     }
   }
 
+  async getQuoteStatus(
+    data: {
+      quoteId: string;
+    },
+    signal?: AbortSignal,
+  ): Promise<QuoteStatusGetResponse> {
+    const jwt = await getJwt(this.#messenger);
+
+    // This method uses `globalThis.fetch` and reads the raw
+    // `Response` (including JSON on non-2xx). Wrappers like `handleFetch` that
+    // throw on non-2xx would prevent typed error handling in callers.
+    const res = await globalThis.fetch(
+      `${this.#apiBaseUrl}/getQuoteStatus?quoteId=${data.quoteId}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-metamask-clientproduct': this.#clientProduct,
+          ...(this.#clientVersion
+            ? { 'x-metamask-clientversion': this.#clientVersion }
+            : {}),
+          ...getClientHeaders({
+            clientId: this.#clientId,
+            jwt,
+          }),
+        },
+        signal,
+      },
+    );
+
+    if (!res.ok) {
+      const error = new QuoteStatusGetError(
+        `request error to quote/updateStatus [${res.status}: ${res.statusText}]`,
+        { quoteId: data.quoteId },
+      );
+      this.#onError?.(error);
+      throw error;
+    }
+
+    try {
+      const responseData = await res.json();
+      validateQuoteStatusGetResponse(responseData);
+      return responseData;
+    } catch (error) {
+      this.#onError?.(
+        new QuoteStatusUpdateError(
+          'unexpected response shape from getQuoteStatus',
+          { quoteId: data.quoteId },
+        ),
+      );
+      throw error;
+    }
+  }
+
   /**
    * Updates a quote status, retrying on transient backend failures.
    *
@@ -163,7 +222,7 @@ export class QuoteStatusApiService {
     data: {
       quoteId: string;
       srcTxHash: string;
-      newStatus: QuoteStatusUpdateBackendStatus;
+      newStatus: QuoteStatusBackendStatus;
     },
     options: {
       maxRetries: number;
@@ -179,7 +238,7 @@ export class QuoteStatusApiService {
 
       if (signal?.aborted || options.retry?.() === false) {
         return new QuoteStatusUpdateWithRetryOutcome(
-          QuoteStatusUpdateWithRetryOutcomeType.Interrupted,
+          QuoteStatusFetchWithRetryOutcomeType.Interrupted,
         );
       }
 
@@ -188,20 +247,20 @@ export class QuoteStatusApiService {
 
         if (response === null) {
           return new QuoteStatusUpdateWithRetryOutcome(
-            QuoteStatusUpdateWithRetryOutcomeType.Accepted,
+            QuoteStatusFetchWithRetryOutcomeType.Accepted,
           );
         }
 
         if (!QuoteStatusUpdateRetryableBackendTypes.includes(response.type)) {
           return new QuoteStatusUpdateWithRetryOutcome(
-            QuoteStatusUpdateWithRetryOutcomeType.NonRetryable,
+            QuoteStatusFetchWithRetryOutcomeType.NonRetryable,
             response,
           );
         }
       } catch (error) {
         if (signal?.aborted) {
           return new QuoteStatusUpdateWithRetryOutcome(
-            QuoteStatusUpdateWithRetryOutcomeType.Interrupted,
+            QuoteStatusFetchWithRetryOutcomeType.Interrupted,
           );
         }
 
@@ -210,7 +269,49 @@ export class QuoteStatusApiService {
     }
 
     return new QuoteStatusUpdateWithRetryOutcome(
-      QuoteStatusUpdateWithRetryOutcomeType.RetryableExhausted,
+      QuoteStatusFetchWithRetryOutcomeType.RetryableExhausted,
+    );
+  }
+
+  async getQuoteStatusWithRetry(
+    data: {
+      quoteId: string;
+    },
+    options: {
+      maxRetries: number;
+      delayMsBetweenRetries: number;
+    },
+    signal?: AbortSignal,
+  ): Promise<QuoteStatusGetWithRetryOutcome> {
+    for (let attempt = 0; attempt <= options.maxRetries; attempt += 1) {
+      if (attempt > 0) {
+        await sleep(options.delayMsBetweenRetries);
+      }
+
+      if (signal?.aborted) {
+        return new QuoteStatusGetWithRetryOutcome(
+          QuoteStatusFetchWithRetryOutcomeType.Interrupted,
+        );
+      }
+
+      try {
+        const response = await this.getQuoteStatus(data, signal);
+
+        return new QuoteStatusGetWithRetryOutcome(
+          QuoteStatusFetchWithRetryOutcomeType.Accepted,
+          response,
+        );
+      } catch {
+        if (signal?.aborted) {
+          return new QuoteStatusGetWithRetryOutcome(
+            QuoteStatusFetchWithRetryOutcomeType.Interrupted,
+          );
+        }
+      }
+    }
+
+    return new QuoteStatusGetWithRetryOutcome(
+      QuoteStatusFetchWithRetryOutcomeType.RetryableExhausted,
     );
   }
 }

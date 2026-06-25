@@ -1,3 +1,4 @@
+import { StatusTypes } from '@metamask/bridge-controller';
 import {
   string,
   number,
@@ -5,21 +6,22 @@ import {
   union,
   type,
   assert,
+  optional,
 } from '@metamask/superstruct';
 
 import {
   BaseQuoteStatusUpdateErrorTypes,
   QuoteStatusUpdateBackendOnChainMismatchTypes,
-  QuoteStatusUpdateStatusBackendValues,
+  QuoteStatusBackendValues,
 } from './constants';
-import { QuoteStatusUpdateResponse } from './types';
+import { QuoteStatusGetResponse, QuoteStatusUpdateResponse } from './types';
 
 const QuoteStatusUpdateResponseWithCurrentStatusSchema = type({
   statusCode: number(),
   message: string(),
   type: enums(QuoteStatusUpdateBackendOnChainMismatchTypes),
-  currentStatus: enums(QuoteStatusUpdateStatusBackendValues),
-  newStatus: enums(QuoteStatusUpdateStatusBackendValues),
+  currentStatus: enums(QuoteStatusBackendValues),
+  newStatus: enums(QuoteStatusBackendValues),
 });
 
 const QuoteStatusUpdateResponseBaseSchema = type({
@@ -37,4 +39,32 @@ export function validateQuoteStatusUpdateResponse(
   data: unknown,
 ): asserts data is QuoteStatusUpdateResponse {
   assert(data, QuoteStatusUpdateResponseSchema);
+}
+
+/**
+ * **Note**: This struct is big and not all fields are used atm.
+ * For that reason we have decided to only include the fields we
+ * consume in production. In the future, once we need it to be strongly type,
+ * we will refactor.
+ */
+export const QuoteStatusGetResponseSchema = type({
+  /**
+   * Submitted transaction: StatusResponseDto with at least srcChain (chainId + txHash).
+   * Prefilled by updateQuoteStatus; replaced with full provider status by getQuoteStatus.
+   *
+   * **Note**: This struct is big and unused atm. For that
+   * reason we have decided to type it as any(). In the future,
+   * once we need it to be strongly type, we will refactor.
+   */
+  submittedTx: optional(
+    type({
+      status: enums(Object.values(StatusTypes)),
+    }),
+  ),
+});
+
+export function validateQuoteStatusGetResponse(
+  data: unknown,
+): asserts data is QuoteStatusGetResponse {
+  assert(data, QuoteStatusGetResponseSchema);
 }

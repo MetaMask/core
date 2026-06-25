@@ -652,31 +652,37 @@ function registerDefaultActionHandlers(
       }) as NetworkState,
   );
 
-  const mockProvider = provider ?? {
+  const mockProvider = {
     request: jest.fn().mockResolvedValue('0xreceipt1'),
     sendAsync: jest.fn(),
     send: jest.fn(),
+    ...(provider && provider !== 'undefined' ? provider : {}),
   };
 
   rootMessenger.registerActionHandler(
     'NetworkController:getNetworkClientById',
-    () => ({
-      configuration: {
-        chainId: numberToHex(srcChainId),
-      } as never,
-      provider: mockProvider,
-    }),
+    () =>
+      ({
+        configuration: {
+          chainId: numberToHex(srcChainId),
+        } as never,
+        provider: mockProvider as never,
+      }) as never,
   );
 
-  rootMessenger.registerActionHandler('TransactionController:getState', () => ({
-    transactions: [
-      {
-        id: txMetaId === 'undefined' ? undefined : txMetaId,
-        hash: txHash,
-        status,
-      },
-    ],
-  }));
+  rootMessenger.registerActionHandler(
+    'TransactionController:getState',
+    () =>
+      ({
+        transactions: [
+          {
+            id: txMetaId === 'undefined' ? undefined : txMetaId,
+            hash: txHash,
+            status,
+          } as TransactionMeta,
+        ],
+      }) as never,
+  );
 
   rootMessenger.registerActionHandler(
     'RemoteFeatureFlagController:getState',
@@ -1483,9 +1489,12 @@ describe('BridgeStatusController', () => {
         rootMessenger.unregisterActionHandler('TransactionController:getState');
         rootMessenger.registerActionHandler(
           'TransactionController:getState',
-          () => ({
-            transactions: [{ id: 'bridgeTxMetaId1', hash: undefined }],
-          }),
+          () =>
+            ({
+              transactions: [
+                { id: 'bridgeTxMetaId1', hash: undefined } as TransactionMeta,
+              ],
+            }) as never,
         );
 
         const fetchBridgeTxStatusSpy = jest.spyOn(
@@ -1632,9 +1641,9 @@ describe('BridgeStatusController', () => {
                       id: 'bridgeTxMetaId1',
                       hash: getStateCallCount === 0 ? undefined : '0xnewTxHash',
                       status,
-                    },
+                    } as TransactionMeta,
                   ],
-                };
+                } as never;
               },
             );
 
@@ -6341,7 +6350,7 @@ describe('BridgeStatusController', () => {
       await withController(
         {
           options: {
-            isQuoteStatusUpdateEnabled: () => true,
+            isQuoteStatusManagerEnabled: () => true,
             state: {
               txHistory: {
                 bridgeTxMetaId1: {
@@ -6407,7 +6416,7 @@ describe('BridgeStatusController', () => {
       await withController(
         {
           options: {
-            isQuoteStatusUpdateEnabled: () => true,
+            isQuoteStatusManagerEnabled: () => true,
             state: {
               txHistory: {
                 bridgeTxMetaId1: MockTxHistory.getPending().bridgeTxMetaId1,

@@ -44,7 +44,10 @@ import {
   QUOTE_STATUS_UPDATE_ENTRY_TTL,
   QUOTE_STATUS_UPDATE_RETRY_INTERVAL_MS,
 } from './quote-status-manager/constants';
-import { QuoteStatusUpdateError } from './quote-status-manager/errors';
+import {
+  QuoteStatusGetError,
+  QuoteStatusUpdateError,
+} from './quote-status-manager/errors';
 import { QuoteStatusUpdateManager } from './quote-status-manager/quotes-status-update-manager';
 import executeSubmitStrategy from './strategy';
 import { SubmitStep } from './strategy/types';
@@ -168,8 +171,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     addTransactionBatchFn,
     config,
     traceFn,
-    onQuoteStatusUpdateError,
-    isQuoteStatusUpdateEnabled,
+    onQuoteStatusManagerError,
+    isQuoteStatusManagerEnabled,
   }: {
     messenger: BridgeStatusControllerMessenger;
     state?: Partial<BridgeStatusControllerState>;
@@ -182,8 +185,10 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       customBridgeApiBaseUrl?: string;
     };
     traceFn?: TraceCallback;
-    onQuoteStatusUpdateError?: (error: QuoteStatusUpdateError) => void;
-    isQuoteStatusUpdateEnabled?: () => boolean;
+    onQuoteStatusManagerError?: (
+      error: QuoteStatusUpdateError | QuoteStatusGetError,
+    ) => void;
+    isQuoteStatusManagerEnabled?: () => boolean;
   }) {
     super({
       name: BRIDGE_STATUS_CONTROLLER_NAME,
@@ -223,8 +228,8 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       },
       entryTtlMs: QUOTE_STATUS_UPDATE_ENTRY_TTL,
       updateIntervalMs: QUOTE_STATUS_UPDATE_RETRY_INTERVAL_MS,
-      onError: onQuoteStatusUpdateError,
-      isEnabled: isQuoteStatusUpdateEnabled,
+      onError: onQuoteStatusManagerError,
+      isEnabled: isQuoteStatusManagerEnabled,
     });
 
     // Register action handlers
@@ -1606,3 +1611,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     });
   };
 }
+
+// TODO: implement feature flags
+// TODO: consume feature flags for main
+// TODO: wire up getStatus for regular swaps, ignore intend and batch sell
+// TODO: in case the feature is dissabled (aka return null from getStatus)
+//       route through the regular getTxStatus endpoint

@@ -1,5 +1,8 @@
 // Export custom error classes
-export { QuoteStatusUpdateError } from './quote-status-manager/errors';
+export {
+  QuoteStatusUpdateError,
+  QuoteStatusGetError,
+} from './quote-status-manager/errors';
 export { BaseQuoteStatusUpdateErrorTypes } from './quote-status-manager/constants';
 
 // Export constants

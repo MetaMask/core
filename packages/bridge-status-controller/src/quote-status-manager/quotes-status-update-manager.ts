@@ -10,12 +10,13 @@ import {
   QuoteStatusState,
   QuoteStatusStateToBackendStatus,
   QuoteStatusUpdateBackendErrorType,
-  QuoteStatusUpdateBackendStatus,
-  QuoteStatusUpdateWithRetryOutcomeType,
+  QuoteStatusBackendStatus,
+  QuoteStatusFetchWithRetryOutcomeType,
 } from './constants';
 import { QuoteStatusUpdateError } from './errors';
 import { QuoteStatusApiService } from './quote-status-api-service';
 import { QuoteStatusEntryStore } from './quote-status-entry-store';
+import { QuoteStatusGetWithRetryOutcome } from './quote-status-get-with-retry-outcome';
 import { QuoteStatusStateFsm } from './quote-status-state-fsm';
 import { QuoteStatusUpdateWithRetryOutcome } from './quote-status-update-with-retry-outcome';
 import { QuoteStatusPersistEntry, QuoteStatusRuntimeEntry } from './types';
@@ -119,6 +120,19 @@ export class QuoteStatusUpdateManager {
       entryTtlMs,
       initial: initialData,
     });
+  }
+
+  /**
+   * Whether quote-status tracking and backend sync are currently active.
+   *
+   * Reflects the latest value returned by the optional `isEnabled` predicate
+   * supplied at construction time. When no predicate was provided, this is
+   * always `false` and all public methods that gate on enablement no-op.
+   *
+   * @returns `true` when the `isEnabled` predicate returns a truthy value.
+   */
+  get enabled(): boolean {
+    return Boolean(this.#isEnabled?.());
   }
 
   /**
@@ -273,6 +287,33 @@ export class QuoteStatusUpdateManager {
         this.reportFinalised(entry.txMetaId, false);
       }
     }
+  }
+
+  /**
+   * Fetches the current quote status from the backend with automatic retries.
+   *
+   * Unlike {@link reportSubmitted} and {@link reportFinalised}, this is a
+   * read-only query and does not mutate tracked entries. Returns `null` when
+   * the manager is disabled ({@link enabled} is `false`).
+   *
+   * @param quoteId - Identifier of the quote whose status should be fetched.
+   * @returns A promise that resolves to the fetch outcome, or `null` when
+   * disabled.
+   */
+  getStatus(quoteId: string): Promise<QuoteStatusGetWithRetryOutcome> | null {
+    if (!this.#isEnabled?.()) {
+      return null;
+    }
+
+    return this.#quoteStatusApiService.getQuoteStatusWithRetry(
+      {
+        quoteId,
+      },
+      {
+        maxRetries: 2,
+        delayMsBetweenRetries: 1000,
+      },
+    );
   }
 
   /**
@@ -445,7 +486,7 @@ export class QuoteStatusUpdateManager {
       )
       .then((outcome) => {
         switch (outcome.type) {
-          case QuoteStatusUpdateWithRetryOutcomeType.Accepted: {
+          case QuoteStatusFetchWithRetryOutcomeType.Accepted: {
             const current = this.#quoteStatusEntryStore.get(
               QuoteStatusEntryStore.hash(entry),
             );
@@ -479,13 +520,13 @@ export class QuoteStatusUpdateManager {
             this.#stopRetryTimerIfIdle();
             return undefined;
           }
-          case QuoteStatusUpdateWithRetryOutcomeType.NonRetryable:
+          case QuoteStatusFetchWithRetryOutcomeType.NonRetryable:
             this.#handleNonRetryableUpdateStatusError(entry, outcome);
             return undefined;
-          case QuoteStatusUpdateWithRetryOutcomeType.Interrupted:
+          case QuoteStatusFetchWithRetryOutcomeType.Interrupted:
             this.#processEntry(entry);
             return undefined;
-          case QuoteStatusUpdateWithRetryOutcomeType.RetryableExhausted:
+          case QuoteStatusFetchWithRetryOutcomeType.RetryableExhausted:
             entry.lastAttemptAt = Date.now();
             this.#quoteStatusEntryStore.update(entry);
             return undefined;
@@ -561,11 +602,11 @@ export class QuoteStatusUpdateManager {
     const { response } = outcome;
 
     const backendFinalizedToState: Partial<
-      Record<QuoteStatusUpdateBackendStatus, QuoteStatusState>
+      Record<QuoteStatusBackendStatus, QuoteStatusState>
     > = {
-      [QuoteStatusUpdateBackendStatus.FinalizedSuccess]:
+      [QuoteStatusBackendStatus.FinalizedSuccess]:
         QuoteStatusState.FinalizedSuccess,
-      [QuoteStatusUpdateBackendStatus.FinalizedFailed]:
+      [QuoteStatusBackendStatus.FinalizedFailed]:
         QuoteStatusState.FinalizedFailed,
     };
 
@@ -575,10 +616,8 @@ export class QuoteStatusUpdateManager {
     if (
       response?.type ===
         QuoteStatusUpdateBackendErrorType.InvalidStatusTransaction &&
-      (response.currentStatus ===
-        QuoteStatusUpdateBackendStatus.FinalizedSuccess ||
-        response.currentStatus ===
-          QuoteStatusUpdateBackendStatus.FinalizedFailed)
+      (response.currentStatus === QuoteStatusBackendStatus.FinalizedSuccess ||
+        response.currentStatus === QuoteStatusBackendStatus.FinalizedFailed)
     ) {
       this.#markCompleted(
         entry,

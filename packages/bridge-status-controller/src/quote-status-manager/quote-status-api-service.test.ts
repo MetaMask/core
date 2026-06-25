@@ -1,37 +1,51 @@
+import { StatusTypes } from '@metamask/bridge-controller';
+
 import { BridgeClientId, BridgeStatusControllerMessenger } from '../types';
 import {
   QuoteStatusUpdateBackendErrorType,
-  QuoteStatusUpdateBackendStatus,
-  QuoteStatusUpdateWithRetryOutcomeType,
+  QuoteStatusBackendStatus,
+  QuoteStatusFetchWithRetryOutcomeType,
 } from './constants';
+import { QuoteStatusGetError } from './errors';
 import { QuoteStatusApiService } from './quote-status-api-service';
-import type { QuoteStatusApiServiceOptions } from './types';
+import type {
+  QuoteStatusApiServiceOptions,
+  QuoteStatusGetResponse,
+} from './types';
 
 const API_BASE_URL = 'https://bridge.api.test';
 
 const REQUEST_DATA = {
   quoteId: 'quote-1',
   srcTxHash: '0xabc',
-  newStatus: QuoteStatusUpdateBackendStatus.Submitted,
+  newStatus: QuoteStatusBackendStatus.Submitted,
 };
 
-/**
- * Builds a minimal fake `Response` for the mocked `fetch`.
- *
- * @param options - Response configuration.
- * @param options.ok - Whether the response represents a 2xx status.
- * @param options.body - Optional JSON body returned by `res.json()`.
- * @returns A fake response with `ok` and `json`.
- */
+const GET_REQUEST_DATA = {
+  quoteId: 'quote-1',
+};
+
+const GET_RESPONSE_BODY: QuoteStatusGetResponse = {
+  submittedTx: {
+    status: StatusTypes.SUBMITTED,
+  },
+};
+
 function createFetchResponse({
   ok,
   body,
+  status = ok ? 200 : 500,
+  statusText = ok ? 'OK' : 'Internal Server Error',
 }: {
   ok: boolean;
   body?: unknown;
+  status?: number;
+  statusText?: string;
 }): Response {
   return {
     ok,
+    status,
+    statusText,
     json: jest.fn().mockResolvedValue(body),
   } as unknown as Response;
 }
@@ -233,7 +247,7 @@ describe('QuoteStatusApiService', () => {
         RETRY_OPTIONS,
       );
 
-      expect(outcome.type).toBe(QuoteStatusUpdateWithRetryOutcomeType.Accepted);
+      expect(outcome.type).toBe(QuoteStatusFetchWithRetryOutcomeType.Accepted);
       expect(fetchSpy).toHaveBeenCalledTimes(1);
     });
 
@@ -254,7 +268,7 @@ describe('QuoteStatusApiService', () => {
       );
 
       expect(outcome.type).toBe(
-        QuoteStatusUpdateWithRetryOutcomeType.NonRetryable,
+        QuoteStatusFetchWithRetryOutcomeType.NonRetryable,
       );
       expect(outcome.response).toStrictEqual(errorBody);
       expect(fetchSpy).toHaveBeenCalledTimes(1);
@@ -277,7 +291,7 @@ describe('QuoteStatusApiService', () => {
       );
 
       expect(outcome.type).toBe(
-        QuoteStatusUpdateWithRetryOutcomeType.RetryableExhausted,
+        QuoteStatusFetchWithRetryOutcomeType.RetryableExhausted,
       );
       expect(fetchSpy).toHaveBeenCalledTimes(RETRY_OPTIONS.maxRetries + 1);
     });
@@ -300,7 +314,7 @@ describe('QuoteStatusApiService', () => {
         RETRY_OPTIONS,
       );
 
-      expect(outcome.type).toBe(QuoteStatusUpdateWithRetryOutcomeType.Accepted);
+      expect(outcome.type).toBe(QuoteStatusFetchWithRetryOutcomeType.Accepted);
       expect(fetchSpy).toHaveBeenCalledTimes(2);
     });
 
@@ -317,7 +331,7 @@ describe('QuoteStatusApiService', () => {
       );
 
       expect(outcome.type).toBe(
-        QuoteStatusUpdateWithRetryOutcomeType.Interrupted,
+        QuoteStatusFetchWithRetryOutcomeType.Interrupted,
       );
       expect(fetchSpy).not.toHaveBeenCalled();
     });
@@ -332,7 +346,7 @@ describe('QuoteStatusApiService', () => {
       });
 
       expect(outcome.type).toBe(
-        QuoteStatusUpdateWithRetryOutcomeType.Interrupted,
+        QuoteStatusFetchWithRetryOutcomeType.Interrupted,
       );
       expect(fetchSpy).not.toHaveBeenCalled();
     });
@@ -360,7 +374,7 @@ describe('QuoteStatusApiService', () => {
       });
 
       expect(outcome.type).toBe(
-        QuoteStatusUpdateWithRetryOutcomeType.Interrupted,
+        QuoteStatusFetchWithRetryOutcomeType.Interrupted,
       );
       expect(fetchSpy).toHaveBeenCalledTimes(1);
     });
@@ -380,7 +394,7 @@ describe('QuoteStatusApiService', () => {
       );
 
       expect(outcome.type).toBe(
-        QuoteStatusUpdateWithRetryOutcomeType.Interrupted,
+        QuoteStatusFetchWithRetryOutcomeType.Interrupted,
       );
     });
 
@@ -391,6 +405,289 @@ describe('QuoteStatusApiService', () => {
       await expect(
         service.updateQuoteStatusWithRetry(REQUEST_DATA, RETRY_OPTIONS),
       ).rejects.toThrow('network failure');
+    });
+  });
+
+  describe('getQuoteStatus', () => {
+    it('returns the validated response for a 2xx response', async () => {
+      fetchSpy.mockResolvedValue(
+        createFetchResponse({ ok: true, body: GET_RESPONSE_BODY }),
+      );
+      const { service } = createService();
+
+      const result = await service.getQuoteStatus(GET_REQUEST_DATA);
+
+      expect(result).toStrictEqual(GET_RESPONSE_BODY);
+    });
+
+    it('sends a GET request to the getQuoteStatus endpoint with the quoteId query param', async () => {
+      fetchSpy.mockResolvedValue(
+        createFetchResponse({ ok: true, body: GET_RESPONSE_BODY }),
+      );
+      const { service } = createService();
+
+      await service.getQuoteStatus(GET_REQUEST_DATA);
+
+      expect(fetchSpy).toHaveBeenCalledWith(
+        `${API_BASE_URL}/getQuoteStatus?quoteId=${GET_REQUEST_DATA.quoteId}`,
+        expect.objectContaining({ method: 'GET' }),
+      );
+    });
+
+    it('sends the client product, content type, and authorization headers', async () => {
+      fetchSpy.mockResolvedValue(
+        createFetchResponse({ ok: true, body: GET_RESPONSE_BODY }),
+      );
+      const { service } = createService();
+
+      await service.getQuoteStatus(GET_REQUEST_DATA);
+
+      const { headers } = fetchSpy.mock.calls[0][1];
+      expect(headers).toMatchObject({
+        'Content-Type': 'application/json',
+        'x-metamask-clientproduct': 'test-product',
+        'X-Client-Id': BridgeClientId.EXTENSION,
+        Authorization: 'Bearer test-jwt',
+      });
+    });
+
+    it('includes the client version header when configured', async () => {
+      fetchSpy.mockResolvedValue(
+        createFetchResponse({ ok: true, body: GET_RESPONSE_BODY }),
+      );
+      const { service } = createService({ clientVersion: '1.2.3' });
+
+      await service.getQuoteStatus(GET_REQUEST_DATA);
+
+      const { headers } = fetchSpy.mock.calls[0][1];
+      expect(headers).toMatchObject({ 'x-metamask-clientversion': '1.2.3' });
+    });
+
+    it('omits the client version header when not configured', async () => {
+      fetchSpy.mockResolvedValue(
+        createFetchResponse({ ok: true, body: GET_RESPONSE_BODY }),
+      );
+      const { service } = createService();
+
+      await service.getQuoteStatus(GET_REQUEST_DATA);
+
+      const { headers } = fetchSpy.mock.calls[0][1];
+      expect(headers).not.toHaveProperty('x-metamask-clientversion');
+    });
+
+    it('omits the authorization header when no JWT is available', async () => {
+      fetchSpy.mockResolvedValue(
+        createFetchResponse({ ok: true, body: GET_RESPONSE_BODY }),
+      );
+      const messenger = {
+        call: jest.fn().mockRejectedValue(new Error('no token')),
+      } as unknown as BridgeStatusControllerMessenger;
+      jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      const { service } = createService({ messenger });
+
+      await service.getQuoteStatus(GET_REQUEST_DATA);
+
+      const { headers } = fetchSpy.mock.calls[0][1];
+      expect(headers).not.toHaveProperty('Authorization');
+    });
+
+    it('forwards the abort signal to fetch', async () => {
+      fetchSpy.mockResolvedValue(
+        createFetchResponse({ ok: true, body: GET_RESPONSE_BODY }),
+      );
+      const { service } = createService();
+      const controller = new AbortController();
+
+      await service.getQuoteStatus(GET_REQUEST_DATA, controller.signal);
+
+      expect(fetchSpy.mock.calls[0][1].signal).toBe(controller.signal);
+    });
+
+    it('throws QuoteStatusGetError and notifies onError for a non-2xx response', async () => {
+      fetchSpy.mockResolvedValue(
+        createFetchResponse({
+          ok: false,
+          status: 404,
+          statusText: 'Not Found',
+        }),
+      );
+      const { service, onError } = createService();
+
+      await expect(service.getQuoteStatus(GET_REQUEST_DATA)).rejects.toThrow(
+        'request error to quote/updateStatus [404: Not Found]',
+      );
+      expect(onError).toHaveBeenCalledTimes(1);
+      const [error] = onError.mock.calls[0];
+      expect(error).toBeInstanceOf(QuoteStatusGetError);
+      expect(error.details).toStrictEqual({
+        quoteId: GET_REQUEST_DATA.quoteId,
+      });
+    });
+
+    it('throws and notifies onError when the success response shape is unexpected', async () => {
+      fetchSpy.mockResolvedValue(
+        createFetchResponse({
+          ok: true,
+          body: {
+            submittedTx: {
+              status: 'NOT_A_STATUS_TYPE',
+            },
+          },
+        }),
+      );
+      const { service, onError } = createService();
+
+      await expect(service.getQuoteStatus(GET_REQUEST_DATA)).rejects.toThrow(
+        'At path: submittedTx.status',
+      );
+      expect(onError).toHaveBeenCalledTimes(1);
+      const [error] = onError.mock.calls[0];
+      expect(error.message).toBe(
+        'unexpected response shape from getQuoteStatus',
+      );
+      expect(error.details).toStrictEqual({
+        quoteId: GET_REQUEST_DATA.quoteId,
+      });
+    });
+
+    it('throws on an unexpected success response shape when no onError callback is provided', async () => {
+      fetchSpy.mockResolvedValue(
+        createFetchResponse({
+          ok: true,
+          body: {
+            submittedTx: {
+              status: 'NOT_A_STATUS_TYPE',
+            },
+          },
+        }),
+      );
+      const { service } = createService({ onError: undefined });
+
+      await expect(service.getQuoteStatus(GET_REQUEST_DATA)).rejects.toThrow(
+        'At path: submittedTx.status',
+      );
+    });
+  });
+
+  describe('getQuoteStatusWithRetry', () => {
+    const RETRY_OPTIONS = { maxRetries: 2, delayMsBetweenRetries: 0 };
+
+    it('returns an Accepted outcome with the response when the fetch succeeds on the first attempt', async () => {
+      fetchSpy.mockResolvedValue(
+        createFetchResponse({ ok: true, body: GET_RESPONSE_BODY }),
+      );
+      const { service } = createService();
+
+      const outcome = await service.getQuoteStatusWithRetry(
+        GET_REQUEST_DATA,
+        RETRY_OPTIONS,
+      );
+
+      expect(outcome.type).toBe(QuoteStatusFetchWithRetryOutcomeType.Accepted);
+      expect(outcome.response).toStrictEqual(GET_RESPONSE_BODY);
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns RetryableExhausted after all attempts fail', async () => {
+      const { service } = createService();
+      const getQuoteStatusSpy = jest
+        .spyOn(service, 'getQuoteStatus')
+        .mockRejectedValue(
+          new QuoteStatusGetError('network error', {
+            quoteId: GET_REQUEST_DATA.quoteId,
+          }),
+        );
+
+      const outcome = await service.getQuoteStatusWithRetry(
+        GET_REQUEST_DATA,
+        RETRY_OPTIONS,
+      );
+
+      expect(outcome.type).toBe(
+        QuoteStatusFetchWithRetryOutcomeType.RetryableExhausted,
+      );
+      expect(getQuoteStatusSpy).toHaveBeenCalledTimes(
+        RETRY_OPTIONS.maxRetries + 1,
+      );
+    });
+
+    it('returns Accepted when failures are followed by a success', async () => {
+      const { service } = createService();
+      const getQuoteStatusSpy = jest
+        .spyOn(service, 'getQuoteStatus')
+        .mockRejectedValueOnce(
+          new QuoteStatusGetError('network error', {
+            quoteId: GET_REQUEST_DATA.quoteId,
+          }),
+        )
+        .mockResolvedValueOnce(GET_RESPONSE_BODY);
+
+      const outcome = await service.getQuoteStatusWithRetry(
+        GET_REQUEST_DATA,
+        RETRY_OPTIONS,
+      );
+
+      expect(outcome.type).toBe(QuoteStatusFetchWithRetryOutcomeType.Accepted);
+      expect(outcome.response).toStrictEqual(GET_RESPONSE_BODY);
+      expect(getQuoteStatusSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('returns Interrupted when the signal is already aborted', async () => {
+      fetchSpy.mockResolvedValue(
+        createFetchResponse({ ok: true, body: GET_RESPONSE_BODY }),
+      );
+      const { service } = createService();
+      const controller = new AbortController();
+      controller.abort();
+
+      const outcome = await service.getQuoteStatusWithRetry(
+        GET_REQUEST_DATA,
+        RETRY_OPTIONS,
+        controller.signal,
+      );
+
+      expect(outcome.type).toBe(
+        QuoteStatusFetchWithRetryOutcomeType.Interrupted,
+      );
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
+
+    it('returns Interrupted when getQuoteStatus rejects after the signal is aborted', async () => {
+      const controller = new AbortController();
+      fetchSpy.mockImplementation(async () => {
+        controller.abort();
+        throw new Error('aborted');
+      });
+      const { service } = createService();
+
+      const outcome = await service.getQuoteStatusWithRetry(
+        GET_REQUEST_DATA,
+        RETRY_OPTIONS,
+        controller.signal,
+      );
+
+      expect(outcome.type).toBe(
+        QuoteStatusFetchWithRetryOutcomeType.Interrupted,
+      );
+    });
+
+    it('forwards the abort signal to getQuoteStatus', async () => {
+      const { service } = createService();
+      const controller = new AbortController();
+      const getQuoteStatusSpy = jest
+        .spyOn(service, 'getQuoteStatus')
+        .mockResolvedValue(GET_RESPONSE_BODY);
+
+      await service.getQuoteStatusWithRetry(
+        GET_REQUEST_DATA,
+        RETRY_OPTIONS,
+        controller.signal,
+      );
+
+      expect(getQuoteStatusSpy).toHaveBeenCalledWith(
+        GET_REQUEST_DATA,
+        controller.signal,
+      );
     });
   });
 });

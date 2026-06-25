@@ -1,6 +1,6 @@
 import {
   QuoteStatusUpdateBackendErrorType,
-  QuoteStatusUpdateWithRetryOutcomeType,
+  QuoteStatusFetchWithRetryOutcomeType,
 } from './constants';
 import { QuoteStatusUpdateWithRetryOutcome } from './quote-status-update-with-retry-outcome';
 import type { QuoteStatusUpdateResponse } from './types';
@@ -8,15 +8,15 @@ import type { QuoteStatusUpdateResponse } from './types';
 describe('QuoteStatusUpdateWithRetryOutcome', () => {
   it('exposes the outcome type', () => {
     const outcome = new QuoteStatusUpdateWithRetryOutcome(
-      QuoteStatusUpdateWithRetryOutcomeType.Accepted,
+      QuoteStatusFetchWithRetryOutcomeType.Accepted,
     );
 
-    expect(outcome.type).toBe(QuoteStatusUpdateWithRetryOutcomeType.Accepted);
+    expect(outcome.type).toBe(QuoteStatusFetchWithRetryOutcomeType.Accepted);
   });
 
   it('leaves the response undefined when none is provided', () => {
     const outcome = new QuoteStatusUpdateWithRetryOutcome(
-      QuoteStatusUpdateWithRetryOutcomeType.RetryableExhausted,
+      QuoteStatusFetchWithRetryOutcomeType.RetryableExhausted,
     );
 
     expect(outcome.response).toBeUndefined();
@@ -30,12 +30,12 @@ describe('QuoteStatusUpdateWithRetryOutcome', () => {
     };
 
     const outcome = new QuoteStatusUpdateWithRetryOutcome(
-      QuoteStatusUpdateWithRetryOutcomeType.NonRetryable,
+      QuoteStatusFetchWithRetryOutcomeType.NonRetryable,
       response,
     );
 
     expect(outcome.type).toBe(
-      QuoteStatusUpdateWithRetryOutcomeType.NonRetryable,
+      QuoteStatusFetchWithRetryOutcomeType.NonRetryable,
     );
     expect(outcome.response).toStrictEqual(response);
   });

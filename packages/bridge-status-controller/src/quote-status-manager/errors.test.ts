@@ -1,5 +1,5 @@
 import { QuoteStatusUpdateBackendErrorType } from './constants';
-import { QuoteStatusUpdateError } from './errors';
+import { QuoteStatusGetError, QuoteStatusUpdateError } from './errors';
 
 describe('QuoteStatusUpdateError', () => {
   describe('constructor', () => {
@@ -68,6 +68,58 @@ describe('QuoteStatusUpdateError', () => {
     it('can be caught as an Error', () => {
       expect(() => {
         throw new QuoteStatusUpdateError('boom', { quoteId: 'quote-1' });
+      }).toThrow('boom');
+    });
+  });
+});
+
+describe('QuoteStatusGetError', () => {
+  describe('constructor', () => {
+    it('keeps the provided message as-is', () => {
+      const error = new QuoteStatusGetError('request failed', {
+        quoteId: 'quote-1',
+      });
+
+      expect(error.message).toBe('request failed');
+    });
+
+    it('preserves the structured details on the instance', () => {
+      const details = { quoteId: 'quote-1' };
+
+      const error = new QuoteStatusGetError('request failed', details);
+
+      expect(error.details).toStrictEqual(details);
+    });
+
+    it('sets the error name to the class name', () => {
+      const error = new QuoteStatusGetError('whatever', {
+        quoteId: 'quote-1',
+      });
+
+      expect(error.name).toBe('QuoteStatusGetError');
+    });
+  });
+
+  describe('prototype chain', () => {
+    it('is an instance of QuoteStatusGetError', () => {
+      const error = new QuoteStatusGetError('whatever', {
+        quoteId: 'quote-1',
+      });
+
+      expect(error).toBeInstanceOf(QuoteStatusGetError);
+    });
+
+    it('is an instance of Error', () => {
+      const error = new QuoteStatusGetError('whatever', {
+        quoteId: 'quote-1',
+      });
+
+      expect(error).toBeInstanceOf(Error);
+    });
+
+    it('can be caught as an Error', () => {
+      expect(() => {
+        throw new QuoteStatusGetError('boom', { quoteId: 'quote-1' });
       }).toThrow('boom');
     });
   });

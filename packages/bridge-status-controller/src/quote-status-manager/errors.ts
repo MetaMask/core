@@ -1,4 +1,7 @@
-import { QuoteStatusUpdateErrorDetails } from './types';
+import {
+  QuoteStatusGetErrorDetails,
+  QuoteStatusUpdateErrorDetails,
+} from './types';
 
 /**
  * Error thrown for quote status update failures.
@@ -22,5 +25,28 @@ export class QuoteStatusUpdateError extends Error {
     this.details = details;
     this.name = QuoteStatusUpdateError.name;
     Object.setPrototypeOf(this, QuoteStatusUpdateError.prototype);
+  }
+}
+
+/**
+ * Error thrown for quote status fetch failures.
+ *
+ * Structured details are preserved on the instance for downstream handling.
+ */
+export class QuoteStatusGetError extends Error {
+  readonly details?: QuoteStatusGetErrorDetails;
+
+  /**
+   * Creates a quote status fetch error with structured context.
+   *
+   * @param message - Human-readable error message.
+   * @param details - Structured metadata about the failed quote status fetch.
+   * @param details.quoteId - Unique quote identifier associated with the error.
+   */
+  constructor(message: string, details: QuoteStatusGetErrorDetails) {
+    super(message);
+    this.details = details;
+    this.name = QuoteStatusGetError.name;
+    Object.setPrototypeOf(this, QuoteStatusGetError.prototype);
   }
 }

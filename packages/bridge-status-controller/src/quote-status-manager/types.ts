@@ -6,9 +6,12 @@ import {
   QuoteStatusState,
   QuoteStatusUpdateBackendErrorType,
 } from './constants';
-import { QuoteStatusUpdateError } from './errors';
+import { QuoteStatusGetError, QuoteStatusUpdateError } from './errors';
 import { QuoteStatusStateFsm } from './quote-status-state-fsm';
-import { QuoteStatusUpdateResponseSchema } from './validators';
+import {
+  QuoteStatusGetResponseSchema,
+  QuoteStatusUpdateResponseSchema,
+} from './validators';
 
 /**
  * Persisted queue entry describing a single quote status update attempt.
@@ -78,6 +81,11 @@ export type QuoteStatusUpdateResponse = Infer<
 >;
 
 /**
+ * Validated non-`2xx` response payload from the quote get status API.
+ */
+export type QuoteStatusGetResponse = Infer<typeof QuoteStatusGetResponseSchema>;
+
+/**
  * Options required to create quote status API service instances.
  */
 export type QuoteStatusApiServiceOptions = {
@@ -109,7 +117,7 @@ export type QuoteStatusApiServiceOptions = {
   /**
    * Optional callback invoked when an unexpected error response shape is returned.
    */
-  onError?: (error: QuoteStatusUpdateError) => void;
+  onError?: (error: QuoteStatusUpdateError | QuoteStatusGetError) => void;
 };
 
 /**
@@ -125,6 +133,16 @@ export type QuoteStatusUpdateErrorDetails = {
    * Optional error type used to categorize known quote update failures.
    */
   errorType?: QuoteStatusUpdateBackendErrorType;
+};
+
+/**
+ * Context information attached to a {@link QuoteStatusGetError}.
+ */
+export type QuoteStatusGetErrorDetails = {
+  /**
+   * Unique quote identifier associated with the error.
+   */
+  quoteId: string;
 };
 
 /**

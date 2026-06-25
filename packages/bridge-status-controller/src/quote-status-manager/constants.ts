@@ -23,12 +23,14 @@ export const QUOTE_STATUS_UPDATE_ENTRY_TTL = 12 * 60 * 60 * 1000; // 12 hours
  * API. These are the values sent over the wire (and echoed back in error
  * responses).
  */
-export enum QuoteStatusUpdateBackendStatus {
+export enum QuoteStatusBackendStatus {
   /**
    * Quote was served to the client. Unused locally, kept for parity with the backend enum.
    */
   Served = 'SERVED',
-  /** User has submitted the source transaction. */
+  /**
+   * User has submitted the source transaction.
+   */
   Submitted = 'SUBMITTED',
   /**
    * Transaction finalized successfully on-chain.
@@ -85,11 +87,11 @@ export const BaseQuoteStatusUpdateErrorTypes = [
  * The full set of valid backend status values. Used by the response validator
  * to constrain the `currentStatus`/`newStatus` fields of error responses.
  */
-export const QuoteStatusUpdateStatusBackendValues = [
-  QuoteStatusUpdateBackendStatus.Served,
-  QuoteStatusUpdateBackendStatus.Submitted,
-  QuoteStatusUpdateBackendStatus.FinalizedSuccess,
-  QuoteStatusUpdateBackendStatus.FinalizedFailed,
+export const QuoteStatusBackendValues = [
+  QuoteStatusBackendStatus.Served,
+  QuoteStatusBackendStatus.Submitted,
+  QuoteStatusBackendStatus.FinalizedSuccess,
+  QuoteStatusBackendStatus.FinalizedFailed,
 ] as const;
 
 /**
@@ -136,11 +138,10 @@ export enum QuoteStatusState {
  * `null` mapping as the signal to remove the entry instead of calling the API.
  */
 export const QuoteStatusStateToBackendStatus = {
-  [QuoteStatusState.Submitted]: QuoteStatusUpdateBackendStatus.Submitted,
+  [QuoteStatusState.Submitted]: QuoteStatusBackendStatus.Submitted,
   [QuoteStatusState.FinalizedSuccess]:
-    QuoteStatusUpdateBackendStatus.FinalizedSuccess,
-  [QuoteStatusState.FinalizedFailed]:
-    QuoteStatusUpdateBackendStatus.FinalizedFailed,
+    QuoteStatusBackendStatus.FinalizedSuccess,
+  [QuoteStatusState.FinalizedFailed]: QuoteStatusBackendStatus.FinalizedFailed,
   [QuoteStatusState.Completed]: null,
   [QuoteStatusState.Expired]: null,
 };
@@ -172,10 +173,10 @@ export const AllowedQuoteStatusStateTransitions: Record<
 };
 
 /**
- * Outcome of a retrying status update (`updateQuoteStatusWithRetry`). Tells the
+ * Outcome of a retrying status fetch call. Tells the
  * manager how to proceed after an update attempt completes.
  */
-export enum QuoteStatusUpdateWithRetryOutcomeType {
+export enum QuoteStatusFetchWithRetryOutcomeType {
   /** The backend accepted the update (2xx); the entry can be finalized/removed. */
   Accepted = 'accepted',
   /** All retry attempts for a retryable error were used up; back off and try again later. */
