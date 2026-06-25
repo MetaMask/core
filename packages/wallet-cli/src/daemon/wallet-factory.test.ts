@@ -49,6 +49,7 @@ function makeMockWallet(): Wallet {
     },
     controllerMetadata: {},
     state: {},
+    init: jest.fn().mockResolvedValue([]),
     destroy: jest.fn().mockResolvedValue(undefined),
   } as unknown as Wallet;
 }
@@ -233,6 +234,41 @@ describe('createWallet', () => {
       expect.anything(),
       expect.anything(),
       log,
+    );
+
+    await dispose();
+  });
+
+  it('initializes the real wallet but not the throwaway metadata probe', async () => {
+    const { wallet, dispose } = await createWallet(CONFIG);
+
+    const probe = MockWallet.mock.results[0]?.value as Wallet;
+    expect(wallet.init).toHaveBeenCalledTimes(1);
+    expect(probe.init).not.toHaveBeenCalled();
+
+    await dispose();
+  });
+
+  it('logs init steps that reject and tolerates those that resolve', async () => {
+    const log = jest.fn();
+    MockWallet.mockImplementationOnce(makeMockWallet).mockImplementationOnce(
+      () =>
+        ({
+          ...makeMockWallet(),
+          init: jest.fn().mockResolvedValue([
+            { status: 'fulfilled', value: undefined },
+            { status: 'rejected', reason: new Error('network init boom') },
+          ]),
+        }) as unknown as Wallet,
+    );
+
+    const { dispose } = await createWallet({ ...CONFIG, log });
+
+    expect(log).toHaveBeenCalledTimes(1);
+    expect(log).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'Wallet init step failed: Error: network init boom',
+      ),
     );
 
     await dispose();

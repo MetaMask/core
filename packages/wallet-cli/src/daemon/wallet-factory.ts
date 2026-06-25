@@ -160,6 +160,17 @@ export async function createWallet({
       logFn,
     );
 
+    // Complete post-construction controller setup before serving requests —
+    // e.g. `NetworkController.init` applies the selected network so a provider
+    // is available. `init` settles every step independently, so surface any
+    // that rejected rather than letting them pass silently.
+    const initResults = await wallet.init();
+    for (const result of initResults) {
+      if (result.status === 'rejected') {
+        logFn(`Wallet init step failed: ${String(result.reason)}`);
+      }
+    }
+
     if (wasFirstRun) {
       await importSecretRecoveryPhrase(wallet, password, srp);
     }
