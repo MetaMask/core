@@ -19,6 +19,8 @@ jobs:
           is-high-risk-environment: false
           cache-node-modules: true
           node-version: ${{ matrix.node-version }}
+          # If you do not force setup here, "Fetch workspace package names" will fail silently on a cache hit
+          force-setup: true
       - name: Fetch workspace package names
         id: workspace-package-names
         run: |
