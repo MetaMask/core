@@ -1517,7 +1517,7 @@ export class NetworkController extends BaseController<
         toAnalyticsTrackingEvent(name, properties),
       );
     } catch (error) {
-      this.messenger.captureException?.(error);
+      this.messenger.captureException?.(error as Error);
     }
   }
 
