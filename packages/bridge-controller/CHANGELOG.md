@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/multichain-network-controller` from `^3.1.4` to `^3.2.0` ([#9264](https://github.com/MetaMask/core/pull/9264))
+
+## [77.0.0]
+
 ### Added
 
 - Added `getLocation()` method to `BridgeController` for reading the current swap/bridge entry point ([#9243](https://github.com/MetaMask/core/pull/9243))
@@ -36,6 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **BREAKING**: Add persisted input primary denomination state and `Unified SwapBridge Fiat Crypto Toggle Clicked` analytics event support ([#9147](https://github.com/MetaMask/core/pull/9147))
+- Add Stellar support for bridge token flows: `isStellarChainId`, `ChainId.STELLAR`, native XLM metadata, CAIP/decimal formatting aligned with Bridge API, and Stellar pubnet/testnet in `isNonEvmChainId` ([#8829](https://github.com/MetaMask/core/pull/8829))
+- Add `StellarTradeDataSchema`, `StellarTradeData`, and `isStellarTrade`; extend `extractTradeData` to read Stellar XDR from `{ xdrBase64 }` or `{ xdr }` objects ([#8829](https://github.com/MetaMask/core/pull/8829))
 
 ## [75.2.1]
 
@@ -1663,7 +1671,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@76.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.0.0...HEAD
+[77.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@76.1.0...@metamask/bridge-controller@77.0.0
 [76.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@76.0.0...@metamask/bridge-controller@76.1.0
 [76.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@75.2.1...@metamask/bridge-controller@76.0.0
 [75.2.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@75.2.0...@metamask/bridge-controller@75.2.1

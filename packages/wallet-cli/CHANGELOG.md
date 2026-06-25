@@ -15,6 +15,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/wallet` from `^3.0.0` to `^4.0.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/wallet` from `^3.0.0` to `^5.0.0` ([#9218](https://github.com/MetaMask/core/pull/9218), [#9263](https://github.com/MetaMask/core/pull/9263))
 
 [Unreleased]: https://github.com/MetaMask/core/
