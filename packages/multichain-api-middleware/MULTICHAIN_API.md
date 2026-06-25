@@ -60,7 +60,7 @@ For MetaMask's design rationale see
 is **historical**; it predates the current implementation and the upstream CAIP-25
 rewrite, so don't rely on it for current behavior.
 
-> ⚠️ **CAIP-25 moved; MetaMask did not (yet).** Upstream CAIP-25 was restructured
+> ⚠️ **CAIP-25 moved; MetaMask has not caught up (yet).** Upstream CAIP-25 was restructured
 > in July to August 2025 (single `scopes`, `properties`/`capabilities` renames, bare
 > accounts, chain-only scope keys). MetaMask still implements the **pre-rewrite**
 > shape (`requiredScopes`/`optionalScopes`, `sessionProperties`,
