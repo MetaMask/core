@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- `BackendWebSocketService` routes account-activity notifications when subscribed channels use chain wildcard `0` but the server sends a specific chain id, falls back to channel-based subscription lookup when `subscriptionId` is stale, and normalizes nested notification payloads ([#9265](https://github.com/MetaMask/core/pull/9265))
+- `BackendWebSocketService` routes account-activity notifications when subscribed channels use chain wildcard `0` but the server sends a specific chain id, falls back to channel-based subscription lookup when `subscriptionId` is stale, and normalizes nested notification payloads ([#9273](https://github.com/MetaMask/core/pull/9273))
 
 ## [6.3.3]
 
