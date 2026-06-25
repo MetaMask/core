@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fix stale token balances after transactions when switching accounts or when websocket subscriptions reconnect; `AssetsController` now fetches before re-subscribing on account switch, serializes overlapping refresh work, treats `getAssets({ forceUpdate: true })` as authoritative over recent websocket freshness guards, and prevents passive polling from overwriting websocket balances for 120 seconds ([#9265](https://github.com/MetaMask/core/pull/9265))
+- Fix stale token balances after transactions when switching accounts or when websocket subscriptions reconnect; `AssetsController` now fetches before re-subscribing on account switch and serializes overlapping refresh work ([#9265](https://github.com/MetaMask/core/pull/9265))
 - `AccountsApiDataSource` bypasses the TanStack Query balance cache when `forceUpdate` is true so forced refreshes return up-to-date balances instead of 60-second cached values ([#9265](https://github.com/MetaMask/core/pull/9265))
 - `BackendWebsocketDataSource` re-subscribes when subscribed accounts change (case-insensitive EVM address matching), serializes subscribe/unsubscribe to prevent races on account switch, and registers optional channel callbacks for more reliable notification delivery ([#9265](https://github.com/MetaMask/core/pull/9265))
 

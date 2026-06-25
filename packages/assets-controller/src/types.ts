@@ -371,13 +371,6 @@ export type DataResponse = {
    * Defaults to `'merge'` if omitted.
    */
   updateMode?: AssetsUpdateMode;
-  /**
-   * Set by AssetsController when applying updates. Data sources must
-   * not populate this field.
-   *
-   * @internal
-   */
-  sourceId?: string;
 };
 
 /**
