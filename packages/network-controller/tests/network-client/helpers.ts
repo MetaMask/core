@@ -16,6 +16,7 @@ import type {
   NetworkControllerOptions,
 } from '../../src/NetworkController';
 import type { RpcServiceOptions } from '../../src/rpc-service/rpc-service';
+import type { RpcFailoverMode } from '../../src/selectors';
 import type { NetworkClientConfiguration, Provider } from '../../src/types';
 import { NetworkClientType } from '../../src/types';
 import type { RootMessenger } from '../helpers';
@@ -333,8 +334,7 @@ export type MockOptions = {
   expectedHeaders?: Record<string, string>;
   messenger?: RootMessenger;
   networkClientId?: NetworkClientId;
-  isRpcFailoverEnabled?: boolean;
-  isRpcFailoverForced?: boolean;
+  rpcFailoverMode?: RpcFailoverMode;
 };
 
 export type MockCommunications = {
@@ -481,11 +481,8 @@ export async function waitForPromiseToBeFulfilledAfterRunningAllTimers<Type>(
  * @param options.getBlockTrackerOptions - Block tracker options factory.
  * @param options.messenger - The root messenger to use in tests.
  * @param options.networkClientId - The ID of the new network client.
- * @param options.isRpcFailoverEnabled - Whether or not the RPC failover
- * functionality is enabled.
- * @param options.isRpcFailoverForced - Whether or not to force all traffic for
- * Infura endpoints that have failover URLs to those failover URLs, bypassing
- * Infura entirely.
+ * @param options.rpcFailoverMode - The RPC failover mode to apply, defaults to
+ * `disabled`.
  * @param fn - A function which will be called with an object that allows
  * interaction with the network client.
  * @returns The return value of the given function.
@@ -505,8 +502,7 @@ export async function withNetworkClient<Type>(
     getBlockTrackerOptions = (): PollingBlockTrackerOptions => ({}),
     messenger = buildRootMessenger(),
     networkClientId = 'some-network-client-id',
-    isRpcFailoverEnabled = false,
-    isRpcFailoverForced = false,
+    rpcFailoverMode = 'disabled',
   }: MockOptions,
   fn: (client: MockNetworkClient) => Promise<Type>,
 ): Promise<Type> {
@@ -558,8 +554,7 @@ export async function withNetworkClient<Type>(
     getRpcServiceOptions,
     getBlockTrackerOptions,
     messenger: networkControllerMessenger,
-    isRpcFailoverEnabled,
-    isRpcFailoverForced,
+    rpcFailoverMode,
   });
   /* eslint-disable-next-line n/no-process-env */
   process.env.IN_TEST = inTest;

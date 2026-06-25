@@ -5,7 +5,7 @@ import {
 } from '../../tests/network-client/helpers';
 
 describe('createNetworkClient - RPC endpoint failover (forced)', () => {
-  describe('when isRpcFailoverForced is true and providerType is infura', () => {
+  describe('when rpcFailoverMode is forced and providerType is infura', () => {
     it('routes requests to the failover endpoint instead of Infura when failover URLs are provided', async () => {
       const failoverUrl = 'https://failover.example.com';
 
@@ -31,8 +31,7 @@ describe('createNetworkClient - RPC endpoint failover (forced)', () => {
             {
               providerType: 'infura',
               failoverRpcUrls: [failoverUrl],
-              isRpcFailoverForced: true,
-              isRpcFailoverEnabled: false,
+              rpcFailoverMode: 'forced',
               messenger,
               getRpcServiceOptions: () => ({
                 fetch,
@@ -69,8 +68,7 @@ describe('createNetworkClient - RPC endpoint failover (forced)', () => {
             {
               providerType: 'infura',
               failoverRpcUrls: [],
-              isRpcFailoverForced: true,
-              isRpcFailoverEnabled: false,
+              rpcFailoverMode: 'forced',
               messenger,
               getRpcServiceOptions: () => ({
                 fetch,
@@ -89,7 +87,7 @@ describe('createNetworkClient - RPC endpoint failover (forced)', () => {
     });
   });
 
-  describe('when isRpcFailoverForced is true and providerType is custom', () => {
+  describe('when rpcFailoverMode is forced and providerType is custom', () => {
     it('still routes requests to the custom primary endpoint, not the failover', async () => {
       const customRpcUrl = 'https://custom.example.com';
       const failoverUrl = 'https://failover.example.com';
@@ -116,8 +114,7 @@ describe('createNetworkClient - RPC endpoint failover (forced)', () => {
               providerType: 'custom',
               customRpcUrl,
               failoverRpcUrls: [failoverUrl],
-              isRpcFailoverForced: true,
-              isRpcFailoverEnabled: false,
+              rpcFailoverMode: 'forced',
               messenger,
               getRpcServiceOptions: () => ({
                 fetch,

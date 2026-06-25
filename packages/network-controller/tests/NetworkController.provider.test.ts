@@ -54,7 +54,7 @@ describe('NetworkController provider tests', () => {
 
     await withController(
       {
-        isRpcFailoverEnabled: true,
+        rpcFailoverMode: 'enabled',
         state: {
           networkConfigurationsByChainId: {
             '0x1337': buildCustomNetworkConfiguration({
@@ -137,7 +137,7 @@ describe('NetworkController provider tests', () => {
 
     await withController(
       {
-        isRpcFailoverEnabled: true,
+        rpcFailoverMode: 'enabled',
         state: {
           networkConfigurationsByChainId: {
             '0x1337': buildCustomNetworkConfiguration({
@@ -194,7 +194,7 @@ describe('NetworkController provider tests', () => {
 
     await withController(
       {
-        isRpcFailoverEnabled: true,
+        rpcFailoverMode: 'enabled',
         state: {
           networkConfigurationsByChainId: {
             '0x1337': buildCustomNetworkConfiguration({
@@ -281,7 +281,7 @@ describe('NetworkController provider tests', () => {
 
     await withController(
       {
-        isRpcFailoverEnabled: true,
+        rpcFailoverMode: 'enabled',
         state: {
           networkConfigurationsByChainId: {
             '0x1': buildInfuraNetworkConfiguration(InfuraNetworkType.mainnet, {
@@ -381,7 +381,7 @@ describe('NetworkController provider tests', () => {
 
     await withController(
       {
-        isRpcFailoverEnabled: true,
+        rpcFailoverMode: 'enabled',
         state: {
           networkConfigurationsByChainId: {
             '0x1': buildInfuraNetworkConfiguration(InfuraNetworkType.mainnet, {
@@ -488,7 +488,7 @@ describe('NetworkController provider tests', () => {
 
     await withController(
       {
-        isRpcFailoverEnabled: true,
+        rpcFailoverMode: 'enabled',
         state: {
           networkConfigurationsByChainId: {
             '0x1': buildInfuraNetworkConfiguration(InfuraNetworkType.mainnet, {
@@ -568,7 +568,7 @@ describe('NetworkController provider tests', () => {
 
     await withController(
       {
-        isRpcFailoverEnabled: true,
+        rpcFailoverMode: 'enabled',
         state: {
           networkConfigurationsByChainId: {
             '0x1': buildInfuraNetworkConfiguration(InfuraNetworkType.mainnet, {
@@ -671,7 +671,7 @@ describe('NetworkController provider tests', () => {
 
     await withController(
       {
-        isRpcFailoverEnabled: true,
+        rpcFailoverMode: 'enabled',
         state: {
           networkConfigurationsByChainId: {
             // The network offers both an Infura and a custom endpoint, with the
@@ -764,7 +764,7 @@ describe('NetworkController provider tests', () => {
 
     await withController(
       {
-        isRpcFailoverEnabled: true,
+        rpcFailoverMode: 'enabled',
         state: {
           networkConfigurationsByChainId: {
             '0x1337': buildCustomNetworkConfiguration({
@@ -893,7 +893,7 @@ describe('NetworkController provider tests', () => {
 
     await withController(
       {
-        isRpcFailoverEnabled: true,
+        rpcFailoverMode: 'enabled',
         state: {
           networkConfigurationsByChainId: {
             '0x1337': buildCustomNetworkConfiguration({

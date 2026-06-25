@@ -48,6 +48,7 @@ import {
   isTimeoutError,
 } from './rpc-service/rpc-service';
 import { RpcServiceChain } from './rpc-service/rpc-service-chain';
+import type { RpcFailoverMode } from './selectors';
 import type {
   BlockTracker,
   NetworkClientConfiguration,
@@ -130,14 +131,10 @@ type RpcApiMiddleware = JsonRpcMiddleware<
  * @param args.getBlockTrackerOptions - Factory for constructing block tracker
  * options. See {@link NetworkControllerOptions.getBlockTrackerOptions}.
  * @param args.messenger - The network controller messenger.
- * @param args.isRpcFailoverEnabled - Whether or not requests sent to the
- * primary RPC endpoint for this network should be automatically diverted to
- * provided failover endpoints if the primary is unavailable. This effectively
- * causes the `failoverRpcUrls` property of the network client configuration
- * to be honored or ignored.
- * @param args.isRpcFailoverForced - Whether or not to force all traffic for
- * Infura endpoints that have failover URLs to those failover URLs, bypassing
- * Infura entirely.
+ * @param args.rpcFailoverMode - The RPC failover mode to apply: `disabled`
+ * (failover off), `enabled` (divert to the configured failover URLs when the
+ * primary endpoint is unavailable), or `forced` (Infura endpoints that have
+ * failover URLs route all traffic to those URLs, bypassing Infura entirely).
  * @param args.logger - A `loglevel` logger.
  * @returns The network client.
  */
@@ -147,8 +144,7 @@ export function createNetworkClient({
   getRpcServiceOptions,
   getBlockTrackerOptions,
   messenger,
-  isRpcFailoverEnabled,
-  isRpcFailoverForced,
+  rpcFailoverMode,
   logger,
 }: {
   id: NetworkClientId;
@@ -160,8 +156,7 @@ export function createNetworkClient({
     rpcEndpointUrl: string,
   ) => Omit<PollingBlockTrackerOptions, 'provider'>;
   messenger: NetworkControllerMessenger;
-  isRpcFailoverEnabled: boolean;
-  isRpcFailoverForced: boolean;
+  rpcFailoverMode: RpcFailoverMode;
   logger?: Logger;
 }): NetworkClient {
   const primaryEndpointUrl =
@@ -174,8 +169,7 @@ export function createNetworkClient({
     configuration,
     getRpcServiceOptions,
     messenger,
-    isRpcFailoverEnabled,
-    isRpcFailoverForced,
+    rpcFailoverMode,
     logger,
   });
 
@@ -238,23 +232,20 @@ export function createNetworkClient({
  * @param args - The arguments.
  * @param args.primaryEndpointUrl - The primary endpoint URL for the network.
  * @param args.failoverRpcUrls - The configured failover URLs, if any.
- * @param args.isRpcFailoverEnabled - Whether requests to the primary endpoint
- * should automatically divert to the failover URLs when the primary is
- * unavailable.
- * @param args.isRpcFailoverForced - Whether to force all traffic for Infura
- * endpoints that have failover URLs to those failover URLs, bypassing Infura.
+ * @param args.rpcFailoverMode - The RPC failover mode to apply: `disabled`,
+ * `enabled` (divert to the failover URLs when the primary is unavailable), or
+ * `forced` (route all traffic for Infura endpoints with failover URLs to those
+ * URLs, bypassing Infura).
  * @returns The endpoints to use, each flagged as primary or failover.
  */
 function getAvailableEndpoints({
   primaryEndpointUrl,
   failoverRpcUrls,
-  isRpcFailoverEnabled,
-  isRpcFailoverForced,
+  rpcFailoverMode,
 }: {
   primaryEndpointUrl: string;
   failoverRpcUrls: string[] | undefined;
-  isRpcFailoverEnabled: boolean;
-  isRpcFailoverForced: boolean;
+  rpcFailoverMode: RpcFailoverMode;
 }): { url: string; isFailover: boolean }[] {
   const failoverEndpoints = (failoverRpcUrls ?? []).map((url) => ({
     url,
@@ -263,15 +254,19 @@ function getAvailableEndpoints({
   // We explicitly check the URL since some networks have been added with invalid configuration types in the past.
   const isInfura = new URL(primaryEndpointUrl).hostname.endsWith('.infura.io');
 
-  if (isRpcFailoverForced && isInfura && failoverEndpoints.length > 0) {
-    // Force flag is on for an Infura endpoint with failovers: bypass Infura
-    // entirely and route all traffic (including block polling) to failovers.
-    // The first failover becomes the positional primary of the chain, so
-    // availability/degraded events will report that failover URL as the
-    // primary endpoint (there is no Infura primary in this mode).
+  if (
+    rpcFailoverMode === 'forced' &&
+    isInfura &&
+    failoverEndpoints.length > 0
+  ) {
+    // Forced mode for an Infura endpoint with failovers: bypass Infura entirely
+    // and route all traffic (including block polling) to failovers. The first
+    // failover becomes the positional primary of the chain, so
+    // availability/degraded events will report that failover URL as the primary
+    // endpoint (there is no Infura primary in this mode).
     return failoverEndpoints;
   }
-  if (isRpcFailoverEnabled && isInfura) {
+  if (rpcFailoverMode === 'enabled' && isInfura) {
     return [
       { url: primaryEndpointUrl, isFailover: false },
       ...failoverEndpoints,
@@ -292,14 +287,10 @@ function getAvailableEndpoints({
  * @param args.getRpcServiceOptions - Factory for constructing RPC service
  * options. See {@link NetworkControllerOptions.getRpcServiceOptions}.
  * @param args.messenger - The network controller messenger.
- * @param args.isRpcFailoverEnabled - Whether or not requests sent to the
- * primary RPC endpoint for this network should be automatically diverted to
- * provided failover endpoints if the primary is unavailable. This effectively
- * causes the `failoverRpcUrls` property of the network client configuration
- * to be honored or ignored.
- * @param args.isRpcFailoverForced - Whether or not to force all traffic for
- * Infura endpoints that have failover URLs to those failover URLs, bypassing
- * Infura entirely.
+ * @param args.rpcFailoverMode - The RPC failover mode to apply: `disabled`
+ * (failover off), `enabled` (divert to the configured failover URLs when the
+ * primary endpoint is unavailable), or `forced` (Infura endpoints that have
+ * failover URLs route all traffic to those URLs, bypassing Infura entirely).
  * @param args.logger - A `loglevel` logger.
  * @returns The RPC service chain.
  */
@@ -309,8 +300,7 @@ function createRpcServiceChain({
   configuration,
   getRpcServiceOptions,
   messenger,
-  isRpcFailoverEnabled,
-  isRpcFailoverForced,
+  rpcFailoverMode,
   logger,
 }: {
   id: NetworkClientId;
@@ -320,15 +310,13 @@ function createRpcServiceChain({
     rpcEndpointUrl: string,
   ) => RpcServiceOptionsWithDefaults;
   messenger: NetworkControllerMessenger;
-  isRpcFailoverEnabled: boolean;
-  isRpcFailoverForced: boolean;
+  rpcFailoverMode: RpcFailoverMode;
   logger?: Logger;
 }): RpcServiceChain {
   const availableEndpoints = getAvailableEndpoints({
     primaryEndpointUrl,
     failoverRpcUrls: configuration.failoverRpcUrls,
-    isRpcFailoverEnabled,
-    isRpcFailoverForced,
+    rpcFailoverMode,
   });
 
   const isOffline = (): boolean => {

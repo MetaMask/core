@@ -9,6 +9,7 @@ import type {
   NetworkControllerMessenger,
 } from './NetworkController';
 import type { RpcServiceOptionsWithDefaults } from './rpc-service/rpc-service';
+import type { RpcFailoverMode } from './selectors';
 import type {
   BlockTracker,
   NetworkClientConfiguration,
@@ -47,10 +48,7 @@ export type AutoManagedNetworkClient<
   provider: ProxyWithAccessibleTarget<Provider>;
   blockTracker: ProxyWithAccessibleTarget<BlockTracker>;
   destroy: () => void;
-  enableRpcFailover: () => void;
-  disableRpcFailover: () => void;
-  enableForcedRpcFailover: () => void;
-  disableForcedRpcFailover: () => void;
+  setRpcFailoverMode: (rpcFailoverMode: RpcFailoverMode) => void;
 };
 
 /**
@@ -80,12 +78,10 @@ const UNINITIALIZED_TARGET = { __UNINITIALIZED__: true };
  * @param args.getBlockTrackerOptions - Factory for constructing block tracker
  * options. See {@link NetworkControllerOptions.getBlockTrackerOptions}.
  * @param args.messenger - The network controller messenger.
- * @param args.isRpcFailoverEnabled - Whether or not requests sent to the
- * primary RPC endpoint for this network should be automatically diverted to
- * provided failover endpoints if the primary is unavailable.
- * @param args.isRpcFailoverForced - Whether or not to force all traffic for
- * Infura endpoints that have failover URLs to those failover URLs, bypassing
- * Infura entirely.
+ * @param args.rpcFailoverMode - The RPC failover mode to apply: `disabled`,
+ * `enabled` (divert to the failover URLs when the primary is unavailable), or
+ * `forced` (route all traffic for Infura endpoints with failover URLs to those
+ * URLs, bypassing Infura).
  * @param args.logger - A `loglevel` logger.
  * @returns The auto-managed network client.
  */
@@ -100,8 +96,7 @@ export function createAutoManagedNetworkClient<
     'provider'
   > => ({}),
   messenger,
-  isRpcFailoverEnabled: givenIsRpcFailoverEnabled,
-  isRpcFailoverForced: givenIsRpcFailoverForced,
+  rpcFailoverMode: givenRpcFailoverMode,
   logger,
 }: {
   networkClientId: NetworkClientId;
@@ -113,12 +108,10 @@ export function createAutoManagedNetworkClient<
     rpcEndpointUrl: string,
   ) => Omit<PollingBlockTrackerOptions, 'provider'>;
   messenger: NetworkControllerMessenger;
-  isRpcFailoverEnabled: boolean;
-  isRpcFailoverForced: boolean;
+  rpcFailoverMode: RpcFailoverMode;
   logger?: Logger;
 }): AutoManagedNetworkClient<Configuration> {
-  let isRpcFailoverEnabled = givenIsRpcFailoverEnabled;
-  let isRpcFailoverForced = givenIsRpcFailoverForced;
+  let rpcFailoverMode = givenRpcFailoverMode;
   let networkClient: NetworkClient | undefined;
 
   const ensureNetworkClientCreated = (): NetworkClient => {
@@ -128,8 +121,7 @@ export function createAutoManagedNetworkClient<
       getRpcServiceOptions,
       getBlockTrackerOptions,
       messenger,
-      isRpcFailoverEnabled,
-      isRpcFailoverForced,
+      rpcFailoverMode,
       logger,
     });
 
@@ -243,26 +235,8 @@ export function createAutoManagedNetworkClient<
     networkClient?.destroy();
   };
 
-  const enableRpcFailover = (): void => {
-    isRpcFailoverEnabled = true;
-    destroy();
-    networkClient = undefined;
-  };
-
-  const disableRpcFailover = (): void => {
-    isRpcFailoverEnabled = false;
-    destroy();
-    networkClient = undefined;
-  };
-
-  const enableForcedRpcFailover = (): void => {
-    isRpcFailoverForced = true;
-    destroy();
-    networkClient = undefined;
-  };
-
-  const disableForcedRpcFailover = (): void => {
-    isRpcFailoverForced = false;
+  const setRpcFailoverMode = (newRpcFailoverMode: RpcFailoverMode): void => {
+    rpcFailoverMode = newRpcFailoverMode;
     destroy();
     networkClient = undefined;
   };
@@ -272,9 +246,6 @@ export function createAutoManagedNetworkClient<
     provider: providerProxy,
     blockTracker: blockTrackerProxy,
     destroy,
-    enableRpcFailover,
-    disableRpcFailover,
-    enableForcedRpcFailover,
-    disableForcedRpcFailover,
+    setRpcFailoverMode,
   };
 }
