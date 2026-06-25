@@ -462,6 +462,14 @@ export const TronTradeDataSchema = type({
   ),
 });
 
+/**
+ * Stellar bridge quote: unsigned transaction envelope as XDR (base64).
+ */
+export const StellarTradeDataSchema = union([
+  type({ xdrBase64: string() }),
+  type({ xdr: string() }),
+]);
+
 export const QuoteResponseSchema = type({
   quoteId: optional(string()),
   quote: QuoteSchema,
@@ -471,11 +479,12 @@ export const QuoteResponseSchema = type({
     TxDataSchema,
     BitcoinTradeDataSchema,
     TronTradeDataSchema,
+    StellarTradeDataSchema,
     string(),
   ]),
 });
 
-export const validateQuoteResponse = (
+export const validateQuoteResponseV1 = (
   data: unknown,
 ): data is Infer<typeof QuoteResponseSchema> => {
   assert(data, QuoteResponseSchema);

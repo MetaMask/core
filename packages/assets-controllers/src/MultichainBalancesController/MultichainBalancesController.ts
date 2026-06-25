@@ -150,12 +150,29 @@ export class MultichainBalancesController extends BaseController<
   MultichainBalancesControllerState,
   MultichainBalancesControllerMessenger
 > {
+  readonly #isDeprecated: () => boolean;
+
+  /**
+   * Creates a MultichainBalancesController instance.
+   *
+   * @param options - Constructor options.
+   * @param options.messenger - A reference to the messenger.
+   * @param options.state - The initial state.
+   * @param options.isDeprecated - Optional function that returns true to completely
+   * disable this controller (no requests, no state updates). When it returns
+   * `true`, `balances` is reset to `{}` at construction and at every entry point,
+   * so no stale balances remain in state. The function is evaluated dynamically
+   * on each entry point so it can be toggled at runtime. Intended for use when
+   * a higher-level controller (e.g. AssetsController) supersedes this one.
+   */
   constructor({
     messenger,
     state = {},
+    isDeprecated = (): boolean => false,
   }: {
     messenger: MultichainBalancesControllerMessenger;
     state?: Partial<MultichainBalancesControllerState>;
+    isDeprecated?: () => boolean;
   }) {
     super({
       messenger,
@@ -167,11 +184,17 @@ export class MultichainBalancesController extends BaseController<
       },
     });
 
-    // Fetch initial balances for all non-EVM accounts
-    for (const account of this.#listAccounts()) {
-      // Fetching the balance is asynchronous and we cannot use `await` here.
-      // eslint-disable-next-line no-void
-      void this.updateBalance(account.id);
+    this.#isDeprecated = isDeprecated;
+
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+    } else {
+      // Fetch initial balances for all non-EVM accounts
+      for (const account of this.#listAccounts()) {
+        // Fetching the balance is asynchronous and we cannot use `await` here.
+        // eslint-disable-next-line no-void
+        void this.updateBalance(account.id);
+      }
     }
 
     this.messenger.subscribe(
@@ -203,6 +226,23 @@ export class MultichainBalancesController extends BaseController<
   }
 
   /**
+   * Clears all persisted `balances` so that no stale balances remain in state.
+   *
+   * Called from every entry point when `isDeprecated()` is true so that a
+   * runtime toggle propagates to state immediately, even if the controller was
+   * originally constructed while it was enabled. The update is skipped when
+   * `balances` is already empty to avoid emitting redundant state changes.
+   */
+  #enforceDisabledState(): void {
+    if (Object.keys(this.state.balances).length === 0) {
+      return;
+    }
+    this.update((state) => {
+      state.balances = {};
+    });
+  }
+
+  /**
    * Reconciles cached balances after a multichain asset-list update event.
    *
    * The event payload is treated as a delta:
@@ -221,6 +261,11 @@ export class MultichainBalancesController extends BaseController<
       refreshed: CaipAssetType[];
     }[],
   ): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
     const { isUnlocked } = this.messenger.call('KeyringController:getState');
 
     if (!isUnlocked) {
@@ -309,6 +354,11 @@ export class MultichainBalancesController extends BaseController<
     accountId: string,
     assets: CaipAssetType[],
   ): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
     const { isUnlocked } = this.messenger.call('KeyringController:getState');
 
     if (!isUnlocked) {
@@ -427,6 +477,11 @@ export class MultichainBalancesController extends BaseController<
   #handleOnAccountBalancesUpdated(
     balanceUpdate: AccountBalancesUpdatedEventPayload,
   ): void {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
     this.update((state: Draft<MultichainBalancesControllerState>) => {
       for (const [accountId, assetBalances] of Object.entries(
         balanceUpdate.balances,
@@ -482,6 +537,11 @@ export class MultichainBalancesController extends BaseController<
    * @param accountId - The account ID being removed.
    */
   async #handleOnAccountRemoved(accountId: string): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
     if (accountId in this.state.balances) {
       this.update((state: Draft<MultichainBalancesControllerState>) => {
         delete state.balances[accountId];

@@ -57,6 +57,7 @@ import {
 } from '../../utils/token';
 import { isPredictWithdrawTransaction } from '../../utils/transaction';
 import { TOKEN_TRANSFER_FOUR_BYTE } from './constants';
+import { applyHyperliquidActivationFee } from './hyperliquid-activation';
 import { applyPolymarketDepositWalletOverrides } from './polymarket/withdraw';
 import { fetchRelayQuote } from './relay-api';
 import { getRelayMaxGasStationQuote } from './relay-max-gas-station';
@@ -75,6 +76,16 @@ const POST_QUOTE_GAS_BUFFER = 1.1;
 
 // Hardcoded gas allowance for the prepended payment override transaction(s).
 const PAYMENT_OVERRIDE_GAS = 75_000;
+const ZERO_AMOUNT = { fiat: '0', human: '0', raw: '0', usd: '0' };
+
+type RelayStepData = RelayTransactionStep['items'][0]['data'];
+
+type RelayGasResult = {
+  totalGasEstimate: number;
+  totalGasLimit: number;
+  gasLimits: number[];
+  is7702: boolean;
+};
 
 /**
  * Fetches Relay quotes.
@@ -90,19 +101,29 @@ export async function getRelayQuotes(
   log('Fetching quotes', requests);
 
   try {
-    const normalizedRequests = requests
-      .filter((singleRequest) => {
-        const hasTargetMinimum = singleRequest.targetAmountMinimum !== '0';
-        const isPostQuote = Boolean(singleRequest.isPostQuote);
-        const isExactInputRequest =
-          Boolean(singleRequest.isMaxAmount) &&
-          new BigNumber(singleRequest.sourceTokenAmount).gt(0);
+    const normalizedRequests = await Promise.all(
+      requests
+        .filter((singleRequest) => {
+          const hasTargetMinimum = singleRequest.targetAmountMinimum !== '0';
+          const isPostQuote = Boolean(singleRequest.isPostQuote);
+          const isExactInputRequest =
+            Boolean(singleRequest.isMaxAmount) &&
+            new BigNumber(singleRequest.sourceTokenAmount).gt(0);
 
-        return hasTargetMinimum || isPostQuote || isExactInputRequest;
-      })
-      .map((singleRequest) =>
-        normalizeRequest(singleRequest, request.transaction),
-      );
+          return hasTargetMinimum || isPostQuote || isExactInputRequest;
+        })
+        .map((singleRequest) =>
+          normalizeRequest(singleRequest, request.transaction),
+        )
+        .map((normalizedRequest) =>
+          applyHyperliquidActivationFee(
+            normalizedRequest,
+            request.messenger,
+            request.transaction.type,
+            request.signal,
+          ),
+        ),
+    );
 
     log('Normalized requests', normalizedRequests);
 
@@ -289,7 +310,7 @@ async function getSingleQuote(
       ...(useExecute
         ? { originGasOverhead: getRelayOriginGasOverhead(messenger) }
         : {}),
-      recipient: from,
+      recipient: request.recipient ?? from,
       slippageTolerance,
       tradeType: useExactInput ? 'EXACT_INPUT' : 'EXPECTED_OUTPUT',
       user: from,
@@ -461,14 +482,15 @@ async function processMoneyAccountPostQuote(
   }
 
   const fundingRecipient = recipient ?? request.from;
+  const rawAmount = transactionData?.tokens?.[0]?.amountRaw ?? '0';
 
   requestBody.authorizationList = normalizeAuthorizationList(authorizationList);
   requestBody.tradeType = 'EXACT_OUTPUT';
-  requestBody.amount = transactionData?.tokens?.[0]?.amountRaw ?? '0';
+  requestBody.amount = rawAmount;
   requestBody.txs = [
     {
       to: request.targetTokenAddress,
-      data: buildTokenTransferData(fundingRecipient, request.sourceTokenAmount),
+      data: buildTokenTransferData(fundingRecipient, rawAmount),
       value: '0x0',
     },
     ...overrideCalls.map((call) => ({
@@ -578,11 +600,17 @@ async function normalizeQuote(
   const appFeeUsd = new BigNumber(quote.fees?.app?.amountUsd ?? '0');
   const metaMaskFee = getFiatValueFromUsd(appFeeUsd, usdToFiatRate);
 
-  // Subtract app fee from provider fee since totalImpact.usd already includes it
-  const providerFeeUsd = calculateProviderFee(quote).minus(appFeeUsd);
-  const provider = subsidizedFeeUsd.gt(0)
-    ? { usd: '0', fiat: '0' }
-    : getFiatValueFromUsd(providerFeeUsd, usdToFiatRate);
+  // Subtract app fee from provider fee since totalImpact.usd already includes
+  // it. The relay provider fee is forced to zero when the quote is subsidized,
+  // but any reserved HyperLiquid activation fee is withheld from the source
+  // send regardless, so it must always be surfaced in the provider fee.
+  const activationFeeUsd = new BigNumber(
+    request.hyperliquidActivationFeeUsd ?? '0',
+  );
+  const providerFeeUsd = subsidizedFeeUsd.gt(0)
+    ? activationFeeUsd
+    : calculateProviderFee(quote).minus(appFeeUsd).plus(activationFeeUsd);
+  const provider = getFiatValueFromUsd(providerFeeUsd, usdToFiatRate);
 
   const {
     gasLimits,
@@ -748,11 +776,9 @@ async function calculateSourceNetworkCost(
   if (quote.metamask?.isExecute) {
     log('Zeroing network fees for execute flow');
 
-    const zeroAmount = { fiat: '0', human: '0', raw: '0', usd: '0' };
-
     return {
-      estimate: zeroAmount,
-      max: zeroAmount,
+      estimate: ZERO_AMOUNT,
+      max: ZERO_AMOUNT,
       gasLimits: [],
       is7702: false,
     };
@@ -763,13 +789,28 @@ async function calculateSourceNetworkCost(
   if (request.isHyperliquidSource) {
     log('Zeroing network fees for HyperLiquid withdrawal (gasless)');
 
-    const zeroAmount = { fiat: '0', human: '0', raw: '0', usd: '0' };
-
     return {
-      estimate: zeroAmount,
-      max: zeroAmount,
+      estimate: ZERO_AMOUNT,
+      max: ZERO_AMOUNT,
       gasLimits: [],
       is7702: false,
+    };
+  }
+
+  if (
+    transaction.isGasFeeSponsored &&
+    request.sourceChainId === transaction.chainId &&
+    request.targetChainId === transaction.chainId
+  ) {
+    log('Zeroing source network fees for sponsored same-chain Relay route');
+
+    // Gas limit is zero as sponsored transactions go through the EIP-7702
+    // gas station hook and do not require user-paid gas.
+    return {
+      estimate: ZERO_AMOUNT,
+      max: ZERO_AMOUNT,
+      gasLimits: [0],
+      is7702: true,
     };
   }
 
@@ -1018,8 +1059,6 @@ function toRelayQuoteGasTransaction(
   };
 }
 
-type RelayStepData = RelayTransactionStep['items'][0]['data'];
-
 function getOriginalTxGasParams(
   request: QuoteRequest,
   transaction: TransactionMeta,
@@ -1056,13 +1095,6 @@ function getOriginalTxGasParams(
     value: (txParams.value as string) ?? '0',
   };
 }
-
-type RelayGasResult = {
-  totalGasEstimate: number;
-  totalGasLimit: number;
-  gasLimits: number[];
-  is7702: boolean;
-};
 
 function combinePrependedGas(
   relayOnlyGas: RelayGasResult,

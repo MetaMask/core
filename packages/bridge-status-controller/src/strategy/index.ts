@@ -6,7 +6,9 @@ import {
   isBitcoinTrade,
   isEvmTxData,
   isNonEvmChainId,
+  isStellarTrade,
   isTronTrade,
+  StellarTradeData,
   Trade,
   TronTradeData,
   TxData,
@@ -20,7 +22,12 @@ import { submitNonEvmHandler } from './non-evm-strategy';
 import type { SubmitStrategyParams, SubmitStepResult } from './types';
 
 const validateParams = <
-  TxDataType extends BitcoinTradeData | TronTradeData | string | TxData,
+  TxDataType extends
+    | BitcoinTradeData
+    | StellarTradeData
+    | TronTradeData
+    | string
+    | TxData,
 >(
   params: SubmitStrategyParams<Trade>,
 ): params is SubmitStrategyParams<TxDataType> => {
@@ -38,6 +45,8 @@ const validateParams = <
       return txs.every((tx) => typeof tx === 'string');
     case ChainId.BTC:
       return txs.every(isBitcoinTrade);
+    case ChainId.STELLAR:
+      return txs.every((tx) => typeof tx === 'string' || isStellarTrade(tx));
     case ChainId.TRON:
       return txs.every(isTronTrade);
     default:

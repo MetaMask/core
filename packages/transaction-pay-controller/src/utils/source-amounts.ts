@@ -64,6 +64,8 @@ export function updateSourceAmounts(
     return;
   }
 
+  const { isQuoteRequired } = transactionData;
+
   const sourceAmounts = tokens
     .map((singleToken) =>
       calculateSourceAmount(
@@ -72,6 +74,7 @@ export function updateSourceAmounts(
         messenger,
         transactionId,
         isMaxAmount ?? false,
+        isQuoteRequired,
       ),
     )
     .filter(Boolean) as TransactionPaySourceAmount[];
@@ -144,6 +147,7 @@ function calculatePostQuoteSourceAmounts(
  * @param messenger - Controller messenger.
  * @param transactionId - ID of the transaction.
  * @param isMaxAmount - Whether the transaction is a maximum amount transaction.
+ * @param isQuoteRequired - When true, a quote is always fetched even when source and target tokens are identical.
  * @returns The source amount or undefined if calculation failed.
  */
 function calculateSourceAmount(
@@ -152,6 +156,7 @@ function calculateSourceAmount(
   messenger: TransactionPayControllerMessenger,
   transactionId: string,
   isMaxAmount: boolean,
+  isQuoteRequired?: boolean,
 ): TransactionPaySourceAmount | undefined {
   const paymentTokenFiatRate = getTokenFiatRate(
     messenger,
@@ -180,6 +185,7 @@ function calculateSourceAmount(
     token,
     strategy,
     parentTransactionType,
+    isQuoteRequired,
   );
 
   if (isSameToken(token, paymentToken) && !isAlwaysRequired) {
@@ -223,13 +229,19 @@ function calculateSourceAmount(
  * @param token - Target token.
  * @param strategy - Payment strategy.
  * @param parentTransactionType - Parent transaction type, if available.
+ * @param isQuoteRequired - When true, a quote is always fetched even when source and target tokens are identical.
  * @returns True if a quote is always required, false otherwise.
  */
 function isQuoteAlwaysRequired(
   token: TransactionPayRequiredToken,
   strategy: TransactionPayStrategy,
   parentTransactionType?: TransactionType,
+  isQuoteRequired?: boolean,
 ): boolean {
+  if (isQuoteRequired) {
+    return true;
+  }
+
   const isHyperliquidDeposit =
     token.chainId === CHAIN_ID_ARBITRUM &&
     token.address.toLowerCase() === ARBITRUM_USDC_ADDRESS.toLowerCase();

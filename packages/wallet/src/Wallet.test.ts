@@ -28,6 +28,9 @@ async function setupWallet(): Promise<Wallet> {
       connectivityController: {
         connectivityAdapter: new AlwaysOnlineAdapter(),
       },
+      networkController: {
+        infuraProjectId: 'fake-infura-project-id',
+      },
       storageService: {
         storage: new InMemoryStorageAdapter(),
       },
@@ -88,6 +91,9 @@ describe('Wallet', () => {
         keyringController: {
           encryptor: new MockEncryptor(),
         },
+        networkController: {
+          infuraProjectId: 'fake-infura-project-id',
+        },
         storageService: {
           storage: new InMemoryStorageAdapter(),
         },
@@ -134,6 +140,9 @@ describe('Wallet', () => {
         connectivityController: {
           connectivityAdapter: new AlwaysOnlineAdapter(),
         },
+        networkController: {
+          infuraProjectId: 'fake-infura-project-id',
+        },
         storageService: {
           storage: new InMemoryStorageAdapter(),
         },
@@ -174,6 +183,9 @@ describe('Wallet', () => {
         connectivityController: {
           connectivityAdapter: new AlwaysOnlineAdapter(),
         },
+        networkController: {
+          infuraProjectId: 'fake-infura-project-id',
+        },
         storageService: {
           storage: new InMemoryStorageAdapter(),
         },
@@ -185,6 +197,14 @@ describe('Wallet', () => {
       WithMeta: fakeMetadata,
     });
     expect(Object.keys(wallet.state)).toStrictEqual(['WithMeta', 'NoMeta']);
+  });
+
+  it('calls init on all instances and returns the results', async () => {
+    const wallet = await setupWallet();
+
+    const results = await wallet.init();
+
+    expect(results).toHaveLength(2);
   });
 
   it('disallows modifying the messenger', async () => {
@@ -249,6 +269,9 @@ describe('Wallet', () => {
           connectivityController: {
             connectivityAdapter: new AlwaysOnlineAdapter(),
           },
+          networkController: {
+            infuraProjectId: 'fake-infura-project-id',
+          },
           storageService: {
             storage: new InMemoryStorageAdapter(),
           },
@@ -285,6 +308,9 @@ describe('Wallet', () => {
         instanceOptions: {
           connectivityController: {
             connectivityAdapter: new AlwaysOnlineAdapter(),
+          },
+          networkController: {
+            infuraProjectId: 'fake-infura-project-id',
           },
           storageService: {
             storage: new InMemoryStorageAdapter(),
@@ -360,6 +386,9 @@ describe('Wallet', () => {
         instanceOptions: {
           connectivityController: {
             connectivityAdapter: new AlwaysOnlineAdapter(),
+          },
+          networkController: {
+            infuraProjectId: 'fake-infura-project-id',
           },
           keyringController: { encryptor: new MockEncryptor() },
           storageService: { storage: new InMemoryStorageAdapter() },

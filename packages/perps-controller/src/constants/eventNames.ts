@@ -62,6 +62,8 @@ export const PERPS_EVENT_PROPERTY = {
   INTERACTION_TYPE: 'interaction_type',
   TIME_SERIE_SELECTED: 'time_serie_selected',
   CANDLE_PERIOD: 'candle_period',
+  CHART_LIBRARY: 'chart_library',
+  ASSET_TYPE: 'asset_type',
 
   // Risk management properties
   STOP_LOSS_PRICE: 'stop_loss_price',
@@ -144,6 +146,15 @@ export const PERPS_EVENT_PROPERTY = {
   // Scroll tracking properties
   SECTION_VIEWED: 'section_viewed',
 
+  // Discovery analytics properties
+  SOURCE_SECTION: 'source_section',
+  RESULT_COUNT: 'result_count',
+  SECTION_NAME: 'section_name',
+  SECTION_INDEX: 'section_index',
+  SECTIONS_DISPLAYED: 'sections_displayed',
+  WATCHLIST_COUNT: 'watchlist_count',
+  WATCHLIST_MARKETS: 'watchlist_markets',
+
   // Order value (USD $ value of the order)
   ORDER_VALUE: 'order_value',
 
@@ -184,6 +195,14 @@ export const PERPS_EVENT_VALUE = {
   ORDER_TYPE_CAPITALIZED: {
     MARKET: 'market',
     LIMIT: 'limit',
+  },
+  CHART_LIBRARY: {
+    LIGHTWEIGHT: 'lightweight',
+    ADVANCED: 'advanced',
+  },
+  ASSET_TYPE: {
+    SPOT: 'spot',
+    PERP: 'perp',
   },
   INPUT_METHOD: {
     SLIDER: 'slider',
@@ -299,6 +318,43 @@ export const PERPS_EVENT_VALUE = {
     MARGIN_UPDATE_FAILED: 'margin_update_failed',
     UNKNOWN: 'unknown',
   },
+  SOURCE_SECTION: {
+    // Home sections
+    POSITIONS: 'positions',
+    ORDERS: 'orders',
+    WATCHLIST: 'watchlist',
+    WHATS_HAPPENING: 'whats_happening',
+    PRODUCTS: 'products',
+    TOP_GAINERS: 'top_gainers',
+    TOP_LOSERS: 'top_losers',
+    CRYPTO: 'crypto',
+    COMMODITY: 'commodity',
+    STOCK: 'stock',
+    FOREX: 'forex',
+    // Explore sections
+    PERPS_MOVERS: 'perps_movers',
+    PERPS_CRYPTO: 'perps_crypto',
+    PERPS_STOCKS_COMMODITIES: 'perps_stocks_commodities',
+    PERPS_MARKETS: 'perps_markets',
+    // Market list sections
+    ALL_MARKETS: 'all_markets',
+    NEW: 'new',
+    ACTIVE_SEARCH: 'active_search',
+  },
+  SECTION_NAME: {
+    BALANCE: 'balance',
+    POSITIONS: 'positions',
+    ORDERS: 'orders',
+    WATCHLIST: 'watchlist',
+    WHATS_HAPPENING: 'whats_happening',
+    PRODUCTS: 'products',
+    TOP_MOVERS: 'top_movers',
+    EXPLORE_CRYPTO: 'explore_crypto',
+    EXPLORE_COMMODITIES: 'explore_commodities',
+    EXPLORE_STOCKS: 'explore_stocks',
+    EXPLORE_FOREX: 'explore_forex',
+    RECENT_ACTIVITY: 'recent_activity',
+  },
   INTERACTION_TYPE: {
     TAP: 'tap',
     ZOOM: 'zoom',
@@ -338,6 +394,8 @@ export const PERPS_EVENT_VALUE = {
     SLIPPAGE_CONFIG_OPENED: 'slippage_config_opened',
     SLIPPAGE_CONFIG_CHANGED: 'slippage_config_changed',
     SLIPPAGE_LIMIT_BLOCKED_ORDER: 'slippage_limit_blocked_order',
+    // Discovery analytics
+    MARKET_LIST_FILTER: 'market_list_filter',
   },
   MAX_SLIPPAGE_SOURCE: {
     DEFAULT: 'default',
@@ -494,6 +552,9 @@ export const PERPS_EVENT_VALUE = {
     FOREX: 'forex',
     NEW: 'new',
     GIVE_FEEDBACK: 'give_feedback',
+    WATCHLIST: 'watchlist',
+    TOP_MOVERS: 'top_movers',
+    WHATS_HAPPENING: 'whats_happening',
   },
   BUTTON_LOCATION: {
     PERPS_HOME: 'perps_home',
@@ -509,5 +570,6 @@ export const PERPS_EVENT_VALUE = {
     PERP_MARKET_DETAILS: 'perp_market_details',
     ORDER_BOOK: 'order_book',
     FULL_SCREEN_CHART: 'full_screen_chart',
+    ASSET_DETAILS: 'asset_details',
   },
 } as const;

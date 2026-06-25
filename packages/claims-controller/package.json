@@ -54,11 +54,11 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^9.1.0",
-    "@metamask/controller-utils": "^12.2.0",
-    "@metamask/keyring-controller": "^27.0.0",
+    "@metamask/controller-utils": "^12.3.0",
+    "@metamask/keyring-controller": "^27.1.0",
     "@metamask/messenger": "^1.2.0",
-    "@metamask/profile-sync-controller": "^28.1.1",
-    "@metamask/utils": "^11.9.0"
+    "@metamask/profile-sync-controller": "^28.2.0",
+    "@metamask/utils": "^11.11.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",

@@ -54,10 +54,7 @@ import type {
 import { createAutoManagedNetworkClient } from './create-auto-managed-network-client';
 import type { DegradedEventType, RetryReason } from './create-network-client';
 import { projectLogger, createModuleLogger } from './logger';
-import type {
-  NetworkControllerGetNetworkConfigurationByNetworkClientIdAction,
-  NetworkControllerMethodActions,
-} from './NetworkController-method-action-types';
+import type { NetworkControllerMethodActions } from './NetworkController-method-action-types';
 import type { RpcServiceOptionsWithDefaults } from './rpc-service/rpc-service';
 import { getIsRpcFailoverEnabled } from './selectors';
 import { NetworkClientType } from './types';
@@ -709,12 +706,6 @@ export type NetworkControllerActions =
   | NetworkControllerMethodActions;
 
 /**
- * @deprecated Use {@link NetworkControllerGetNetworkConfigurationByNetworkClientIdAction} instead.
- */
-export type NetworkControllerGetNetworkConfigurationByNetworkClientId =
-  NetworkControllerGetNetworkConfigurationByNetworkClientIdAction;
-
-/**
  * All actions that {@link NetworkController} calls internally.
  */
 type AllowedActions =
@@ -739,6 +730,10 @@ export type NetworkControllerOptions = {
    * The API key for Infura, used to make requests to Infura.
    */
   infuraProjectId: string;
+  /**
+   * An optional map of available failover URLs for each chain ID.
+   */
+  failoverUrls?: Record<Hex, string[]>;
   /**
    * The desired state with which to initialize this controller.
    * Missing properties will be filled in with defaults. For instance, if not
@@ -845,9 +840,6 @@ function getDefaultCustomNetworkConfigurationsByChainId(): Record<
   // Because it is not always guaranteed that the custom networks are included in the
   // default networks.
   return {
-    [ChainId['megaeth-testnet']]: getCustomNetworkConfiguration(
-      CustomNetworkType['megaeth-testnet'],
-    ),
     [ChainId['megaeth-testnet-v2']]: getCustomNetworkConfiguration(
       CustomNetworkType['megaeth-testnet-v2'],
     ),
@@ -1256,6 +1248,8 @@ export class NetworkController extends BaseController<
 
   readonly #infuraProjectId: string;
 
+  readonly #failoverUrls?: Record<Hex, string[]>;
+
   #previouslySelectedNetworkClientId: string;
 
   #providerProxy: ProviderProxy | undefined;
@@ -1291,6 +1285,7 @@ export class NetworkController extends BaseController<
       messenger,
       state,
       infuraProjectId,
+      failoverUrls,
       log,
       getRpcServiceOptions,
       getBlockTrackerOptions,
@@ -1333,6 +1328,7 @@ export class NetworkController extends BaseController<
     });
 
     this.#infuraProjectId = infuraProjectId;
+    this.#failoverUrls = failoverUrls;
     this.#log = log;
     this.#getRpcServiceOptions = getRpcServiceOptions;
     this.#getBlockTrackerOptions = getBlockTrackerOptions;
@@ -2844,6 +2840,7 @@ export class NetworkController extends BaseController<
           ),
       );
 
+    const defaultFailoverUrls = this.#failoverUrls?.[networkFields.chainId];
     for (const addedRpcEndpoint of addedRpcEndpoints) {
       if (addedRpcEndpoint.type === RpcEndpointType.Infura) {
         autoManagedNetworkClientRegistry[NetworkClientType.Infura][
@@ -2854,7 +2851,8 @@ export class NetworkController extends BaseController<
             type: NetworkClientType.Infura,
             chainId: networkFields.chainId,
             network: addedRpcEndpoint.networkClientId,
-            failoverRpcUrls: addedRpcEndpoint.failoverUrls,
+            failoverRpcUrls:
+              defaultFailoverUrls ?? addedRpcEndpoint.failoverUrls,
             infuraProjectId: this.#infuraProjectId,
             ticker: networkFields.nativeCurrency,
           },
@@ -2872,7 +2870,8 @@ export class NetworkController extends BaseController<
           networkClientConfiguration: {
             type: NetworkClientType.Custom,
             chainId: networkFields.chainId,
-            failoverRpcUrls: addedRpcEndpoint.failoverUrls,
+            failoverRpcUrls:
+              defaultFailoverUrls ?? addedRpcEndpoint.failoverUrls,
             rpcUrl: addedRpcEndpoint.url,
             ticker: networkFields.nativeCurrency,
           },
@@ -3023,6 +3022,7 @@ export class NetworkController extends BaseController<
     const networkClientsWithIds = chainIds.flatMap((chainId) => {
       const networkConfiguration =
         this.state.networkConfigurationsByChainId[chainId];
+      const defaultFailoverUrls = this.#failoverUrls?.[chainId];
       return networkConfiguration.rpcEndpoints.map((rpcEndpoint) => {
         if (rpcEndpoint.type === RpcEndpointType.Infura) {
           const infuraNetworkName = deriveInfuraNetworkNameFromRpcEndpointUrl(
@@ -3035,7 +3035,8 @@ export class NetworkController extends BaseController<
               networkClientConfiguration: {
                 type: NetworkClientType.Infura,
                 network: infuraNetworkName,
-                failoverRpcUrls: rpcEndpoint.failoverUrls,
+                failoverRpcUrls:
+                  defaultFailoverUrls ?? rpcEndpoint.failoverUrls,
                 infuraProjectId: this.#infuraProjectId,
                 chainId: networkConfiguration.chainId,
                 ticker: networkConfiguration.nativeCurrency,
@@ -3055,7 +3056,7 @@ export class NetworkController extends BaseController<
             networkClientConfiguration: {
               type: NetworkClientType.Custom,
               chainId: networkConfiguration.chainId,
-              failoverRpcUrls: rpcEndpoint.failoverUrls,
+              failoverRpcUrls: defaultFailoverUrls ?? rpcEndpoint.failoverUrls,
               rpcUrl: rpcEndpoint.url,
               ticker: networkConfiguration.nativeCurrency,
             },

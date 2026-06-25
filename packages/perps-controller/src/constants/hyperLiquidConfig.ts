@@ -246,6 +246,13 @@ export const HYPERLIQUID_CONFIG = {
   // Exchange name used in predicted funding data
   // HyperLiquid uses 'HlPerp' as their perps exchange identifier
   ExchangeName: 'HlPerp',
+  // Maximum allowed deviation of the market (mid) price from the oracle (reference)
+  // price before HyperLiquid rejects orders. HyperLiquid enforces "Order price cannot
+  // be more than 95% away from the reference price", which makes markets — most often
+  // HIP-3 builder-deployed ones — temporarily untradable when the mid price drifts past
+  // this limit. Expressed as a decimal fraction (0.95 = 95%).
+  // Protocol rule, not a UI warning threshold (see VALIDATION_THRESHOLDS.PriceDeviation).
+  OraclePriceDeviationLimit: 0.95,
 } as const;
 
 /**
@@ -396,6 +403,182 @@ export const HIP3_ASSET_MARKET_TYPES: Record<string, MarketType> = {
   'xyz:GBP': MarketCategory.Forex,
   'xyz:DXY': MarketCategory.Forex,
 };
+
+/**
+ * Human-readable market names keyed by HyperLiquid asset symbol.
+ *
+ * HyperLiquid does NOT expose a human-readable name per market: the `meta`
+ * universe only returns the ticker (`BTC`, `xyz:TSLA`), and `perpDexs` only
+ * exposes a `fullName` for the DEX/venue, not the individual asset. This map is
+ * therefore maintained client-side so that clients (mobile, extension) can:
+ * - match markets by full name in search ("Bitcoin", "Apple", "Gold"), and
+ * - display the full name alongside / instead of the ticker.
+ *
+ * Keys follow the same convention as {@link HIP3_ASSET_MARKET_TYPES}: bare
+ * `SYMBOL` for main-DEX crypto and `dex:SYMBOL` for HIP-3 markets. Use
+ * {@link getHyperLiquidAssetName} to resolve a name with a safe fallback to the
+ * ticker for unmapped assets.
+ *
+ * This list is intentionally curated (not exhaustive): unmapped assets simply
+ * fall back to their ticker, which matches prior behavior. Add entries as needed.
+ */
+export const HYPERLIQUID_ASSET_NAMES: Record<string, string> = {
+  // Main DEX - Crypto majors
+  BTC: 'Bitcoin',
+  ETH: 'Ethereum',
+  SOL: 'Solana',
+  XRP: 'XRP',
+  BNB: 'BNB',
+  DOGE: 'Dogecoin',
+  ADA: 'Cardano',
+  AVAX: 'Avalanche',
+  LINK: 'Chainlink',
+  LTC: 'Litecoin',
+  DOT: 'Polkadot',
+  BCH: 'Bitcoin Cash',
+  TRX: 'TRON',
+  MATIC: 'Polygon',
+  ARB: 'Arbitrum',
+  OP: 'Optimism',
+  SUI: 'Sui',
+  APT: 'Aptos',
+  ATOM: 'Cosmos',
+  NEAR: 'NEAR Protocol',
+  INJ: 'Injective',
+  TIA: 'Celestia',
+  SEI: 'Sei',
+  UNI: 'Uniswap',
+  AAVE: 'Aave',
+  MKR: 'Maker',
+  CRV: 'Curve DAO',
+  LDO: 'Lido DAO',
+  PEPE: 'Pepe',
+  WIF: 'dogwifhat',
+  BONK: 'Bonk',
+  SHIB: 'Shiba Inu',
+  ETC: 'Ethereum Classic',
+  FIL: 'Filecoin',
+  HBAR: 'Hedera',
+  ICP: 'Internet Computer',
+  STX: 'Stacks',
+  RUNE: 'THORChain',
+  TON: 'Toncoin',
+  KAS: 'Kaspa',
+  FET: 'Fetch.ai',
+  ENA: 'Ethena',
+  JUP: 'Jupiter',
+  PYTH: 'Pyth Network',
+  JTO: 'Jito',
+  STRK: 'Starknet',
+  BLUR: 'Blur',
+  GMX: 'GMX',
+  DYDX: 'dYdX',
+  HYPE: 'Hyperliquid',
+
+  // xyz DEX - Stocks (US)
+  'xyz:TSLA': 'Tesla',
+  'xyz:NVDA': 'NVIDIA',
+  'xyz:INTC': 'Intel',
+  'xyz:MU': 'Micron Technology',
+  'xyz:CRCL': 'Circle',
+  'xyz:HOOD': 'Robinhood',
+  'xyz:SNDK': 'SanDisk',
+  'xyz:GOOGL': 'Alphabet (Google)',
+  'xyz:COIN': 'Coinbase',
+  'xyz:ORCL': 'Oracle',
+  'xyz:AMZN': 'Amazon',
+  'xyz:PLTR': 'Palantir',
+  'xyz:AAPL': 'Apple',
+  'xyz:META': 'Meta Platforms',
+  'xyz:AMD': 'AMD',
+  'xyz:MSFT': 'Microsoft',
+  'xyz:BABA': 'Alibaba',
+  'xyz:RIVN': 'Rivian',
+  'xyz:NFLX': 'Netflix',
+  'xyz:COST': 'Costco',
+  'xyz:LLY': 'Eli Lilly',
+  'xyz:TSM': 'Taiwan Semiconductor',
+  'xyz:MSTR': 'Strategy (MicroStrategy)',
+  'xyz:CRWV': 'CoreWeave',
+  'xyz:GME': 'GameStop',
+  'xyz:HIMS': 'Hims & Hers',
+  'xyz:USAR': 'USA Rare Earth',
+  'xyz:DKNG': 'DraftKings',
+  'xyz:RKLB': 'Rocket Lab',
+  'xyz:MRVL': 'Marvell',
+  'xyz:ZM': 'Zoom',
+  'xyz:EBAY': 'eBay',
+  'xyz:ARM': 'Arm Holdings',
+  'xyz:BX': 'Blackstone',
+  'xyz:LITE': 'Lumentum',
+
+  // xyz DEX - Stocks (Korea)
+  'xyz:SKHX': 'SK Hynix',
+  'xyz:SMSN': 'Samsung Electronics',
+  'xyz:HYUNDAI': 'Hyundai Motor',
+
+  // xyz DEX - Stocks (Japan)
+  'xyz:SOFTBANK': 'SoftBank Group',
+  'xyz:KIOXIA': 'Kioxia',
+
+  // xyz DEX - Pre-IPO
+  'xyz:SPCX': 'SpaceX',
+  'xyz:CBRS': 'Cerebras',
+  'xyz:IPOP': 'Quantinuum',
+
+  // xyz DEX - Indices
+  'xyz:SP500': 'S&P 500',
+  'xyz:JP225': 'Nikkei 225',
+  'xyz:KR200': 'KOSPI 200',
+  'xyz:VIX': 'CBOE Volatility Index',
+
+  // xyz DEX - ETFs
+  'xyz:EWY': 'iShares MSCI South Korea ETF',
+  'xyz:EWJ': 'iShares MSCI Japan ETF',
+  'xyz:EWT': 'iShares MSCI Taiwan ETF',
+  'xyz:EWZ': 'iShares MSCI Brazil ETF',
+  'xyz:URNM': 'Sprott Uranium Miners ETF',
+  'xyz:XLE': 'Energy Select Sector SPDR Fund',
+
+  // xyz DEX - Commodities
+  'xyz:GOLD': 'Gold',
+  'xyz:SILVER': 'Silver',
+  'xyz:CL': 'Crude Oil',
+  'xyz:WTIOIL': 'WTI Crude Oil',
+  'xyz:COPPER': 'Copper',
+  'xyz:ALUMINIUM': 'Aluminium',
+  'xyz:URANIUM': 'Uranium',
+  'xyz:NATGAS': 'Natural Gas',
+  'xyz:PLATINUM': 'Platinum',
+  'xyz:PALLADIUM': 'Palladium',
+  'xyz:BRENTOIL': 'Brent Crude Oil',
+
+  // xyz DEX - Forex
+  'xyz:EUR': 'Euro',
+  'xyz:JPY': 'Japanese Yen',
+  'xyz:GBP': 'British Pound',
+  'xyz:DXY': 'US Dollar Index',
+};
+
+/**
+ * Resolve the human-readable name for a HyperLiquid market.
+ *
+ * Falls back to the ticker symbol when the asset is not present in
+ * {@link HYPERLIQUID_ASSET_NAMES}, so callers always receive a displayable
+ * string and unmapped assets keep their prior behavior.
+ *
+ * @param symbol - HyperLiquid asset symbol (bare `SYMBOL` for main-DEX crypto,
+ * `dex:SYMBOL` for HIP-3 markets).
+ * @param names - Name map to look up against (defaults to the bundled
+ * {@link HYPERLIQUID_ASSET_NAMES}); injectable for testing/overrides.
+ * @returns The human-readable name, or the symbol itself when unmapped.
+ */
+export function getHyperLiquidAssetName(
+  symbol: string,
+  names: Record<string, string> = HYPERLIQUID_ASSET_NAMES,
+): string {
+  return names[symbol] ?? symbol;
+}
 
 /**
  * Testnet-specific HIP-3 DEX configuration

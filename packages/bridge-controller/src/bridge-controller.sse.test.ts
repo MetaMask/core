@@ -10,9 +10,9 @@ import type {
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 
 import { flushPromises } from '../../../tests/helpers';
-import mockBridgeQuotesErc20Erc20 from '../tests/mock-quotes-erc20-erc20.json';
-import mockBridgeQuotesNativeErc20Eth from '../tests/mock-quotes-native-erc20-eth.json';
-import mockBridgeQuotesNativeErc20 from '../tests/mock-quotes-native-erc20.json';
+import { mockBridgeQuotesErc20Erc20V1 } from '../tests/mock-quotes-erc20-erc20';
+import { mockBridgeQuotesNativeErc20V1 } from '../tests/mock-quotes-native-erc20';
+import { mockBridgeQuotesNativeErc20EthV1 } from '../tests/mock-quotes-native-erc20-eth';
 import {
   advanceToNthTimer,
   advanceToNthTimerThenFlush,
@@ -30,7 +30,7 @@ import {
   ETH_USDT_ADDRESS,
 } from './constants/bridge';
 import { ChainId, RequestStatus, FeatureId } from './types';
-import type { BridgeControllerMessenger, QuoteResponse, TxData } from './types';
+import type { BridgeControllerMessenger, TxData } from './types';
 import * as balanceUtils from './utils/balance';
 import { formatChainIdToDec } from './utils/caip-formatters';
 import * as featureFlagUtils from './utils/feature-flags';
@@ -242,9 +242,7 @@ describe('BridgeController SSE', function () {
         consoleLogSpy,
       }) => {
         mockFetchFn.mockImplementationOnce(async () => {
-          return mockSseEventSource(
-            mockBridgeQuotesNativeErc20 as QuoteResponse[],
-          );
+          return mockSseEventSource(mockBridgeQuotesNativeErc20V1);
         });
         await rootMessenger.call(
           'BridgeController:updateBridgeQuoteRequestParams',
@@ -319,7 +317,7 @@ describe('BridgeController SSE', function () {
               resetApproval: false,
             },
           ],
-          quotes: mockBridgeQuotesNativeErc20.map((quote) => ({
+          quotes: mockBridgeQuotesNativeErc20V1.map((quote) => ({
             ...quote,
             l1GasFeesInHexWei: '0x1',
             resetApproval: undefined,
@@ -374,7 +372,7 @@ describe('BridgeController SSE', function () {
           fetchBridgeQuotesSpy,
           consoleLogSpy,
         }) => {
-          const mockUSDTQuoteResponse = mockBridgeQuotesErc20Erc20.map(
+          const mockUSDTQuoteResponse = mockBridgeQuotesErc20Erc20V1.map(
             (quote) => ({
               ...quote,
               quote: {
@@ -386,7 +384,7 @@ describe('BridgeController SSE', function () {
             }),
           );
           mockFetchFn.mockImplementationOnce(async () => {
-            return mockSseEventSource(mockUSDTQuoteResponse as QuoteResponse[]);
+            return mockSseEventSource(mockUSDTQuoteResponse);
           });
 
           const contractMock = new ethersContractUtils.Contract(
@@ -538,7 +536,7 @@ describe('BridgeController SSE', function () {
             } as never;
           },
         );
-        const mockUSDTQuoteResponse = mockBridgeQuotesErc20Erc20.map(
+        const mockUSDTQuoteResponse = mockBridgeQuotesErc20Erc20V1.map(
           (quote) => ({
             ...quote,
             quote: {
@@ -549,7 +547,7 @@ describe('BridgeController SSE', function () {
           }),
         );
         mockFetchFn.mockImplementationOnce(async () => {
-          return mockSseEventSource(mockUSDTQuoteResponse as QuoteResponse[]);
+          return mockSseEventSource(mockUSDTQuoteResponse);
         });
 
         const contractMock = new ethersContractUtils.Contract(
@@ -683,13 +681,13 @@ describe('BridgeController SSE', function () {
       }) => {
         mockFetchFn.mockImplementationOnce(async () => {
           return mockSseEventSource(
-            mockBridgeQuotesNativeErc20 as QuoteResponse[],
+            mockBridgeQuotesNativeErc20V1,
             FIRST_FETCH_DELAY,
           );
         });
         mockFetchFn.mockImplementationOnce(async () => {
           return mockSseEventSourceWithMultipleDelays(
-            mockBridgeQuotesNativeErc20Eth as never,
+            mockBridgeQuotesNativeErc20EthV1,
             SECOND_FETCH_DELAY,
           );
         });
@@ -704,7 +702,7 @@ describe('BridgeController SSE', function () {
         jest.advanceTimersByTime(FIRST_FETCH_DELAY);
         await flushPromises();
         expect(bridgeController.state.quotes).toStrictEqual(
-          mockBridgeQuotesNativeErc20.map((quote) => ({
+          mockBridgeQuotesNativeErc20V1.map((quote) => ({
             ...quote,
             l1GasFeesInHexWei: '0x1',
             resetApproval: undefined,
@@ -729,7 +727,7 @@ describe('BridgeController SSE', function () {
               resetApproval: false,
             },
           ],
-          quotes: [mockBridgeQuotesNativeErc20Eth[0]].map((quote) => ({
+          quotes: [mockBridgeQuotesNativeErc20EthV1[0]].map((quote) => ({
             ...quote,
             resetApproval: undefined,
             featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
@@ -756,7 +754,7 @@ describe('BridgeController SSE', function () {
         await advanceToNthTimerThenFlush();
         expect(bridgeController.state).toStrictEqual({
           ...expectedState,
-          quotes: mockBridgeQuotesNativeErc20Eth.map((quote) => ({
+          quotes: mockBridgeQuotesNativeErc20EthV1.map((quote) => ({
             ...quote,
             resetApproval: undefined,
             featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
@@ -789,13 +787,13 @@ describe('BridgeController SSE', function () {
       }) => {
         mockFetchFn.mockImplementationOnce(async () => {
           return mockSseEventSource(
-            mockBridgeQuotesNativeErc20 as never,
+            mockBridgeQuotesNativeErc20V1,
             FIRST_FETCH_DELAY,
           );
         });
         mockFetchFn.mockImplementationOnce(async () => {
           return mockSseEventSourceWithMultipleDelays(
-            mockBridgeQuotesNativeErc20Eth as never,
+            mockBridgeQuotesNativeErc20EthV1,
             SECOND_FETCH_DELAY,
           );
         });
@@ -826,7 +824,7 @@ describe('BridgeController SSE', function () {
           FIRST_FETCH_DELAY,
         );
         expect(bridgeController.state.quotes).toStrictEqual(
-          mockBridgeQuotesNativeErc20Eth.map((quote) => ({
+          mockBridgeQuotesNativeErc20EthV1.map((quote) => ({
             ...quote,
             resetApproval: undefined,
             featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
@@ -859,13 +857,13 @@ describe('BridgeController SSE', function () {
           // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         ).toBeGreaterThan(t2!);
         expect(consoleLogSpy.mock.calls).toMatchInlineSnapshot(`
-        [
-          [
-            "Failed to stream bridge quotes",
-            "Network error",
-          ],
-        ]
-      `);
+                  [
+                    [
+                      "Failed to stream bridge quotes",
+                      "Network error",
+                    ],
+                  ]
+              `);
         expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
         expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(2);
         expect(trackMetaMetricsFn).toHaveBeenCalledTimes(8);
@@ -888,13 +886,13 @@ describe('BridgeController SSE', function () {
       }) => {
         mockFetchFn.mockImplementationOnce(async () => {
           return mockSseEventSource(
-            mockBridgeQuotesNativeErc20 as never,
+            mockBridgeQuotesNativeErc20V1,
             FIRST_FETCH_DELAY,
           );
         });
         mockFetchFn.mockImplementationOnce(async () => {
           return mockSseEventSourceWithMultipleDelays(
-            mockBridgeQuotesNativeErc20Eth as never,
+            mockBridgeQuotesNativeErc20EthV1,
             SECOND_FETCH_DELAY,
           );
         });
@@ -902,9 +900,9 @@ describe('BridgeController SSE', function () {
         mockFetchFn.mockImplementationOnce(async () => {
           return mockSseEventSourceWithMultipleDelays(
             [
-              ...(mockBridgeQuotesNativeErc20 as never[]),
-              ...(mockBridgeQuotesNativeErc20 as never),
-            ] as never,
+              ...mockBridgeQuotesNativeErc20V1,
+              ...mockBridgeQuotesNativeErc20V1,
+            ],
             THIRD_FETCH_DELAY,
           );
         });
@@ -998,7 +996,7 @@ describe('BridgeController SSE', function () {
           quotesInitialLoadTime: THIRD_FETCH_DELAY,
           quotes: [
             {
-              ...mockBridgeQuotesNativeErc20[0],
+              ...mockBridgeQuotesNativeErc20V1[0],
               l1GasFeesInHexWei: '0x1',
               resetApproval: undefined,
               featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
@@ -1033,8 +1031,8 @@ describe('BridgeController SSE', function () {
           quotesRefreshCount: 1,
           quotesLoadingStatus: RequestStatus.FETCHED,
           quotes: [
-            ...mockBridgeQuotesNativeErc20,
-            ...mockBridgeQuotesNativeErc20,
+            ...mockBridgeQuotesNativeErc20V1,
+            ...mockBridgeQuotesNativeErc20V1,
           ].map((quote) => ({
             ...quote,
             l1GasFeesInHexWei: '0x1',
@@ -1072,13 +1070,13 @@ describe('BridgeController SSE', function () {
       }) => {
         mockFetchFn.mockImplementationOnce(async () => {
           return mockSseEventSource(
-            mockBridgeQuotesNativeErc20 as QuoteResponse[],
+            mockBridgeQuotesNativeErc20V1,
             FIRST_FETCH_DELAY,
           );
         });
         mockFetchFn.mockImplementationOnce(async () => {
           return mockSseEventSourceWithMultipleDelays(
-            mockBridgeQuotesNativeErc20Eth as never[],
+            mockBridgeQuotesNativeErc20EthV1,
             SECOND_FETCH_DELAY,
           );
         });
@@ -1086,22 +1084,22 @@ describe('BridgeController SSE', function () {
         mockFetchFn.mockImplementationOnce(async () => {
           return mockSseEventSourceWithMultipleDelays(
             [
-              ...(mockBridgeQuotesNativeErc20 as never[]),
-              ...(mockBridgeQuotesNativeErc20 as never[]),
-            ] as never[],
+              ...mockBridgeQuotesNativeErc20V1,
+              ...mockBridgeQuotesNativeErc20V1,
+            ],
             THIRD_FETCH_DELAY,
           );
         });
         mockFetchFn.mockImplementationOnce(async () => {
-          const { quote, ...rest } = mockBridgeQuotesNativeErc20[0];
+          const { quote, ...rest } = mockBridgeQuotesNativeErc20V1[0];
           return mockSseEventSourceWithMultipleDelays(
             [
               {
-                ...mockBridgeQuotesNativeErc20Eth[1],
+                ...mockBridgeQuotesNativeErc20EthV1[1],
                 trade: { abc: '123' } as unknown as TxData,
-              } as never,
+              },
               '' as unknown as never,
-              mockBridgeQuotesNativeErc20Eth[0] as unknown as never,
+              mockBridgeQuotesNativeErc20EthV1[0],
               rest as unknown as never,
             ],
             FOURTH_FETCH_DELAY,
@@ -1180,14 +1178,15 @@ describe('BridgeController SSE', function () {
         // 2nd quote is received
         await advanceToNthTimerThenFlush(3);
         expect(bridgeController.state.quotes).toStrictEqual(
-          [...mockBridgeQuotesNativeErc20, ...mockBridgeQuotesNativeErc20].map(
-            (quote) => ({
-              ...quote,
-              featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
-              l1GasFeesInHexWei: '0x1',
-              resetApproval: undefined,
-            }),
-          ),
+          [
+            ...mockBridgeQuotesNativeErc20V1,
+            ...mockBridgeQuotesNativeErc20V1,
+          ].map((quote) => ({
+            ...quote,
+            featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
+            l1GasFeesInHexWei: '0x1',
+            resetApproval: undefined,
+          })),
         );
 
         // Wait for next polling interval
@@ -1211,7 +1210,7 @@ describe('BridgeController SSE', function () {
               resetApproval: false,
             },
           ],
-          quotes: [mockBridgeQuotesNativeErc20Eth[0]].map((quote) => ({
+          quotes: [mockBridgeQuotesNativeErc20EthV1[0]].map((quote) => ({
             ...quote,
             resetApproval: undefined,
             featureId: FeatureId.UNIFIED_SWAP_BRIDGE,
@@ -1237,22 +1236,24 @@ describe('BridgeController SSE', function () {
           t6!,
         );
         expect(consoleWarnSpy.mock.calls[0]).toMatchInlineSnapshot(`
-        [
-          "Quote validation failed",
           [
-            "lifi|trade",
-            "lifi|trade.chainId",
-            "lifi|trade.to",
-            "lifi|trade.from",
-            "lifi|trade.value",
-            "lifi|trade.data",
-            "lifi|trade.gasLimit",
-            "lifi|trade.unsignedPsbtBase64",
-            "lifi|trade.inputsToSign",
-            "lifi|trade.raw_data_hex",
-          ],
-        ]
-      `);
+            "Quote validation failed",
+            [
+              "lifi|trade",
+              "lifi|trade.chainId",
+              "lifi|trade.to",
+              "lifi|trade.from",
+              "lifi|trade.value",
+              "lifi|trade.data",
+              "lifi|trade.gasLimit",
+              "lifi|trade.unsignedPsbtBase64",
+              "lifi|trade.inputsToSign",
+              "lifi|trade.raw_data_hex",
+              "lifi|trade.xdrBase64",
+              "lifi|trade.xdr",
+            ],
+          ]
+        `);
         // Invalid quote
         jest.advanceTimersByTime(FOURTH_FETCH_DELAY * 3 - 1000);
         await flushPromises();
@@ -1267,21 +1268,21 @@ describe('BridgeController SSE', function () {
         );
         expect(consoleWarnSpy.mock.calls).toHaveLength(3);
         expect(consoleWarnSpy.mock.calls[1]).toMatchInlineSnapshot(`
-        [
-          "Quote validation failed",
-          [
-            "unknown|unknown",
-          ],
-        ]
-      `);
+                  [
+                    "Quote validation failed",
+                    [
+                      "unknown|unknown",
+                    ],
+                  ]
+              `);
         expect(consoleWarnSpy.mock.calls[2]).toMatchInlineSnapshot(`
-        [
-          "Quote validation failed",
-          [
-            "unknown|quote",
-          ],
-        ]
-      `);
+                  [
+                    "Quote validation failed",
+                    [
+                      "unknown|quote",
+                    ],
+                  ]
+              `);
 
         expect(consoleLogSpy).toHaveBeenCalledTimes(1);
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(5);
@@ -1402,11 +1403,11 @@ describe('BridgeController SSE', function () {
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(1);
         expect(consoleLogSpy).toHaveBeenCalledTimes(1);
         expect(consoleLogSpy.mock.calls[0]).toMatchInlineSnapshot(`
-        [
-          "Failed to stream bridge quotes",
-          [Error: Bridge-api error: timeout from server],
-        ]
-      `);
+                  [
+                    "Failed to stream bridge quotes",
+                    [Error: Bridge-api error: timeout from server],
+                  ]
+              `);
         expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
         expect(getLayer1GasFeeMock).toHaveBeenCalledTimes(0);
         // eslint-disable-next-line jest/no-restricted-matchers
@@ -1423,10 +1424,9 @@ describe('BridgeController SSE', function () {
         description: 'Token is a honeypot',
       };
       mockFetchFn.mockImplementationOnce(async () => {
-        return mockSseEventSourceWithWarnings(
-          mockBridgeQuotesNativeErc20 as QuoteResponse[],
-          [mockWarning],
-        );
+        return mockSseEventSourceWithWarnings(mockBridgeQuotesNativeErc20V1, [
+          mockWarning,
+        ]);
       });
 
       await bridgeController.updateBridgeQuoteRequestParams(
@@ -1456,10 +1456,9 @@ describe('BridgeController SSE', function () {
         description: 'Token is a honeypot',
       };
       mockFetchFn.mockImplementationOnce(async () => {
-        return mockSseEventSourceWithWarnings(
-          mockBridgeQuotesNativeErc20 as QuoteResponse[],
-          [mockWarning],
-        );
+        return mockSseEventSourceWithWarnings(mockBridgeQuotesNativeErc20V1, [
+          mockWarning,
+        ]);
       });
 
       await bridgeController.updateBridgeQuoteRequestParams(
@@ -1492,10 +1491,10 @@ describe('BridgeController SSE', function () {
         description: 'Duplicate warning',
       };
       mockFetchFn.mockImplementationOnce(async () => {
-        return mockSseEventSourceWithWarnings(
-          mockBridgeQuotesNativeErc20 as QuoteResponse[],
-          [mockWarning, duplicateWarning],
-        );
+        return mockSseEventSourceWithWarnings(mockBridgeQuotesNativeErc20V1, [
+          mockWarning,
+          duplicateWarning,
+        ]);
       });
 
       await bridgeController.updateBridgeQuoteRequestParams(
@@ -1525,10 +1524,10 @@ describe('BridgeController SSE', function () {
         description: 'Informational notice',
       };
       mockFetchFn.mockImplementationOnce(async () => {
-        return mockSseEventSourceWithWarnings(
-          mockBridgeQuotesNativeErc20 as QuoteResponse[],
-          [maliciousWarning, infoWarning],
-        );
+        return mockSseEventSourceWithWarnings(mockBridgeQuotesNativeErc20V1, [
+          maliciousWarning,
+          infoWarning,
+        ]);
       });
 
       await bridgeController.updateBridgeQuoteRequestParams(
@@ -1560,10 +1559,10 @@ describe('BridgeController SSE', function () {
         description: 'Possible fake token',
       };
       mockFetchFn.mockImplementationOnce(async () => {
-        return mockSseEventSourceWithWarnings(
-          mockBridgeQuotesNativeErc20 as QuoteResponse[],
-          [honeypotWarning, fakeTokenWarning],
-        );
+        return mockSseEventSourceWithWarnings(mockBridgeQuotesNativeErc20V1, [
+          honeypotWarning,
+          fakeTokenWarning,
+        ]);
       });
 
       await bridgeController.updateBridgeQuoteRequestParams(
@@ -1593,7 +1592,7 @@ describe('BridgeController SSE', function () {
       };
       mockFetchFn.mockImplementationOnce(async () => {
         return mockSseEventSourceWithComplete(
-          mockBridgeQuotesNativeErc20 as QuoteResponse[],
+          mockBridgeQuotesNativeErc20V1,
           [],
           mockComplete,
         );
@@ -1652,7 +1651,7 @@ describe('BridgeController SSE', function () {
       };
       mockFetchFn.mockImplementationOnce(async () => {
         return mockSseEventSourceWithComplete(
-          mockBridgeQuotesNativeErc20 as QuoteResponse[],
+          mockBridgeQuotesNativeErc20V1,
           [],
           mockComplete,
         );
@@ -1685,7 +1684,7 @@ describe('BridgeController SSE', function () {
       };
       mockFetchFn.mockImplementation(async () => {
         return mockSseEventSourceWithComplete(
-          mockBridgeQuotesNativeErc20 as QuoteResponse[],
+          mockBridgeQuotesNativeErc20V1,
           [],
           mockComplete,
         );

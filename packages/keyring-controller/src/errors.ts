@@ -134,6 +134,27 @@ export class KeyringControllerError extends Error {
 }
 
 /**
+ * Returns `true` if the error is a `KeyringControllerError`.
+ *
+ * Uses duck-typing on `error.name` rather than `instanceof` so that the check
+ * remains correct when multiple major versions of `@metamask/keyring-controller`
+ * coexist in the dependency tree (different versions produce different classes,
+ * so `instanceof` would return `false` for errors from another version).
+ *
+ * @param error - The value to check.
+ * @returns Whether the error is a `KeyringControllerError`.
+ */
+export function isKeyringControllerError(
+  error: unknown,
+): error is KeyringControllerError {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    (error as { name?: unknown }).name === 'KeyringControllerError'
+  );
+}
+
+/**
  * Returns `true` if the error is a `KeyringNotFound` error thrown by
  * `KeyringController:withKeyring`. Use this to distinguish a missing keyring
  * from other failures and apply fallback logic.
@@ -145,7 +166,7 @@ export function isKeyringNotFoundError(
   error: unknown,
 ): error is KeyringControllerError {
   return (
-    error instanceof KeyringControllerError &&
+    isKeyringControllerError(error) &&
     error.message === KeyringControllerErrorMessage.KeyringNotFound
   );
 }

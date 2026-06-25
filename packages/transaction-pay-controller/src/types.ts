@@ -138,6 +138,9 @@ export type TransactionConfig = {
   /** Overrides the payment source for the transaction. */
   paymentOverride?: PaymentOverride;
 
+  /** When true, a quote is always fetched even when the source and target tokens are identical. */
+  isQuoteRequired?: boolean;
+
   /**
    * Optional address to receive refunds if the quote provider transaction fails.
    * When set, overrides the default refund recipient (EOA) in the quote
@@ -248,6 +251,9 @@ export type TransactionPayControllerOptions = {
   /** Callback to convert a transaction into a redeem delegation. */
   getDelegationTransaction: GetDelegationTransactionCallback;
 
+  /** Optional fiat execution configuration. */
+  fiatOptions?: TransactionPayFiatOptions;
+
   /**
    * Optional callback invoked during quote execution when `paymentOverride` is defined.
    * Returns additional transactions to be submitted alongside the quote batch.
@@ -274,6 +280,15 @@ export type TransactionPayControllerOptions = {
 export type TransactionPayControllerState = {
   /** State relating to each transaction, keyed by transaction ID. */
   transactionData: Record<string, TransactionData>;
+};
+
+/** Optional fiat execution configuration. */
+export type TransactionPayFiatOptions = {
+  /** Test funding source used to bypass fiat on-ramp execution during local QA. */
+  testFundingSource?: Hex;
+
+  /** Optional human amount to transfer from the test funding source. */
+  testAmountOverride?: string;
 };
 
 /** State relating to a single transaction. */
@@ -311,6 +326,9 @@ export type TransactionData = {
 
   /** Overrides the payment source for the transaction. */
   paymentOverride?: PaymentOverride;
+
+  /** When true, a quote is always fetched even when the source and target tokens are identical. */
+  isQuoteRequired?: boolean;
 
   /**
    * Optional address to receive refunds if the quote provider transaction fails.
@@ -487,8 +505,14 @@ export type QuoteRequest = {
   /** Whether the source of funds is a Polymarket deposit wallet. */
   isPolymarketDepositWallet?: boolean;
 
+  /** Whether this quote is the direct mUSD-to-Money-Account fiat flow. */
+  isDirectMusdMoneyAccount?: boolean;
+
   /** Overrides the payment source for the transaction. */
   paymentOverride?: PaymentOverride;
+
+  /** Optional recipient address for Relay requests. When set, overrides the default `from` address. */
+  recipient?: Hex;
 
   /**
    * Optional address to receive refunds if the quote provider transaction fails.
@@ -520,6 +544,14 @@ export type QuoteRequest = {
 
   /** Address of the target token. */
   targetTokenAddress: Hex;
+
+  /**
+   * One-time HyperLiquid activation fee (USD) reserved from the source amount
+   * for an unactivated HyperCore account. The source amount sent to the
+   * provider is reduced by this amount so HyperLiquid retains enough balance
+   * for the fee, and the amount is surfaced as part of the provider fee.
+   */
+  hyperliquidActivationFeeUsd?: string;
 };
 
 /** Fees associated with a transaction pay quote. */

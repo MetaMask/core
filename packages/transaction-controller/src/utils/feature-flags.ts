@@ -34,6 +34,14 @@ type GasEstimateFallback = {
    * The percentage multiplier gas estimate fallback for a transaction.
    */
   percentage?: number;
+
+  /**
+   * The maximum gas limit the fallback can resolve to, representing the chain's
+   * per-transaction gas cap. Clamps the `fixed` or `percentage`-derived fallback
+   * so it can never exceed the gas limit the RPC will accept (e.g. ~33.5M on
+   * Polygon, whereas 35% of its ~140M block gas limit would otherwise be ~49M).
+   */
+  maxGasLimit?: number;
 };
 
 export type TransactionControllerFeatureFlags = {
@@ -369,6 +377,7 @@ export function getGasEstimateFallback(
 ): {
   fixed?: number;
   percentage: number;
+  maxGasLimit?: number;
 } {
   const featureFlags = getFeatureFlags(messenger);
 
@@ -384,7 +393,10 @@ export function getGasEstimateFallback(
 
   const fixed = chainFlags?.fixed ?? gasEstimateFallbackFlags?.default?.fixed;
 
-  return { fixed, percentage };
+  const maxGasLimit =
+    chainFlags?.maxGasLimit ?? gasEstimateFallbackFlags?.default?.maxGasLimit;
+
+  return { fixed, percentage, maxGasLimit };
 }
 
 /**

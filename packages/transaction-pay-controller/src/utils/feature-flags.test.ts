@@ -21,9 +21,13 @@ import {
   getFiatEnabledTypes,
   getFiatFeeReserveMultiplier,
   getFiatMaxRateDriftPercent,
+  getFiatOrderPollIntervalMs,
+  getFiatOrderPollTimeoutMs,
   DEFAULT_RELAY_EXECUTE_URL,
+  getDirectMoneyMusdEnabled,
   getServerPollingInterval,
   getServerPollingTimeout,
+  getFiatVaultDisabled,
   getRelayOriginGasOverhead,
   getRelayPollingInterval,
   getRelayPollingTimeout,
@@ -32,6 +36,8 @@ import {
   isRelayExecuteEnabled,
   getFeatureFlags,
   getGasBuffer,
+  getHyperliquidActivationFeeConfig,
+  DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD,
   getPayStrategiesConfig,
   getSlippage,
   getStrategy,
@@ -1655,6 +1661,288 @@ describe('Feature Flags Utils', () => {
       });
 
       expect(getFiatMaxRateDriftPercent(messenger)).toBe(10);
+    });
+  });
+
+  describe('getDirectMoneyMusdEnabled', () => {
+    it('returns false when feature flag is not set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {},
+      });
+
+      expect(getDirectMoneyMusdEnabled(messenger)).toBe(false);
+    });
+
+    it('returns false when confirmations_pay_fiat exists without direct mUSD flag', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {},
+        },
+      });
+
+      expect(getDirectMoneyMusdEnabled(messenger)).toBe(false);
+    });
+
+    it('returns true when direct mUSD flag is true', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { directMoneyMusdEnabled: true },
+        },
+      });
+
+      expect(getDirectMoneyMusdEnabled(messenger)).toBe(true);
+    });
+
+    it('returns false when direct mUSD flag is false', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { directMoneyMusdEnabled: false },
+        },
+      });
+
+      expect(getDirectMoneyMusdEnabled(messenger)).toBe(false);
+    });
+  });
+
+  describe('getFiatVaultDisabled', () => {
+    it('returns false when feature flag is not set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {},
+      });
+
+      expect(getFiatVaultDisabled(messenger)).toBe(false);
+    });
+
+    it('returns false when confirmations_pay_fiat exists without vault flag', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {},
+        },
+      });
+
+      expect(getFiatVaultDisabled(messenger)).toBe(false);
+    });
+
+    it('returns true when vault disabled flag is true', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { vaultDisabled: true },
+        },
+      });
+
+      expect(getFiatVaultDisabled(messenger)).toBe(true);
+    });
+
+    it('returns false when vault disabled flag is false', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { vaultDisabled: false },
+        },
+      });
+
+      expect(getFiatVaultDisabled(messenger)).toBe(false);
+    });
+  });
+
+  describe('getFiatOrderPollIntervalMs', () => {
+    it('returns 1000 when feature flag is not set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {},
+      });
+
+      expect(getFiatOrderPollIntervalMs(messenger)).toBe(1000);
+    });
+
+    it('returns the configured value from feature flag', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { orderPollIntervalMs: 5000 },
+        },
+      });
+
+      expect(getFiatOrderPollIntervalMs(messenger)).toBe(5000);
+    });
+
+    it('returns 1000 when value is zero', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { orderPollIntervalMs: 0 },
+        },
+      });
+
+      expect(getFiatOrderPollIntervalMs(messenger)).toBe(1000);
+    });
+
+    it('returns 1000 when value is negative', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { orderPollIntervalMs: -500 },
+        },
+      });
+
+      expect(getFiatOrderPollIntervalMs(messenger)).toBe(1000);
+    });
+  });
+
+  describe('getFiatOrderPollTimeoutMs', () => {
+    it('returns 600000 when feature flag is not set', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {},
+      });
+
+      expect(getFiatOrderPollTimeoutMs(messenger)).toBe(600000);
+    });
+
+    it('returns the configured value from feature flag', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { orderPollTimeoutMs: 300000 },
+        },
+      });
+
+      expect(getFiatOrderPollTimeoutMs(messenger)).toBe(300000);
+    });
+
+    it('returns 600000 when value is zero', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { orderPollTimeoutMs: 0 },
+        },
+      });
+
+      expect(getFiatOrderPollTimeoutMs(messenger)).toBe(600000);
+    });
+
+    it('returns 600000 when value is negative', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: { orderPollTimeoutMs: -1000 },
+        },
+      });
+
+      expect(getFiatOrderPollTimeoutMs(messenger)).toBe(600000);
+    });
+  });
+
+  describe('getHyperliquidActivationFeeConfig', () => {
+    const TRANSACTION_TYPE = 'perpsWithdraw';
+
+    it('returns disabled with the default fee when the flag is unset', () => {
+      expect(
+        getHyperliquidActivationFeeConfig(messenger, TRANSACTION_TYPE),
+      ).toStrictEqual({
+        enabled: false,
+        amountUsd: DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD,
+      });
+    });
+
+    it('reads the transaction-type override', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_post_quote: {
+            overrides: {
+              perpsWithdraw: {
+                hyperliquidActivationFee: { enabled: true, amountUsd: 2.5 },
+              },
+            },
+          },
+        },
+      });
+
+      expect(
+        getHyperliquidActivationFeeConfig(messenger, TRANSACTION_TYPE),
+      ).toStrictEqual({ enabled: true, amountUsd: 2.5 });
+    });
+
+    it('falls back to the default config when there is no override', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_post_quote: {
+            default: { hyperliquidActivationFee: { enabled: true } },
+          },
+        },
+      });
+
+      expect(
+        getHyperliquidActivationFeeConfig(messenger, TRANSACTION_TYPE),
+      ).toStrictEqual({
+        enabled: true,
+        amountUsd: DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD,
+      });
+    });
+
+    it('falls back to the default config when no transaction type is provided', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_post_quote: {
+            default: { hyperliquidActivationFee: { enabled: true } },
+          },
+        },
+      });
+
+      expect(getHyperliquidActivationFeeConfig(messenger)).toStrictEqual({
+        enabled: true,
+        amountUsd: DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD,
+      });
+    });
+
+    it('prefers the transaction-type override over the default', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_post_quote: {
+            default: { hyperliquidActivationFee: { enabled: false } },
+            overrides: {
+              perpsWithdraw: {
+                hyperliquidActivationFee: { enabled: true },
+              },
+            },
+          },
+        },
+      });
+
+      expect(
+        getHyperliquidActivationFeeConfig(messenger, TRANSACTION_TYPE).enabled,
+      ).toBe(true);
+    });
+
+    it('falls back to the default fee when the amount is not positive', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_post_quote: {
+            overrides: {
+              perpsWithdraw: {
+                hyperliquidActivationFee: { enabled: true, amountUsd: 0 },
+              },
+            },
+          },
+        },
+      });
+
+      expect(
+        getHyperliquidActivationFeeConfig(messenger, TRANSACTION_TYPE)
+          .amountUsd,
+      ).toBe(DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD);
     });
   });
 });
