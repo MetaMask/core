@@ -19,6 +19,8 @@ exports[`BridgeController SSE should publish validation failures 4`] = `
         "lifi|trade.unsignedPsbtBase64",
         "lifi|trade.inputsToSign",
         "lifi|trade.raw_data_hex",
+        "lifi|trade.xdrBase64",
+        "lifi|trade.xdr",
       ],
       "feature_id": "unified_swap_bridge",
       "location": "Unknown",
