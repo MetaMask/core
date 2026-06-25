@@ -1646,21 +1646,21 @@ export class SeedlessOnboardingController<
       // Sort: PrimarySrp first, then by client timestamp (oldest first)
       results.sort((a, b) => SecretMetadata.compare(a, b, 'asc'));
 
-      // Validate the first item is the primary SRP
-      const firstItem = results[0];
-      const isDataTypePrimary =
-        firstItem.dataType === undefined ||
-        firstItem.dataType === null ||
-        firstItem.dataType === EncAccountDataType.PrimarySrp;
-      const isMnemonic = SecretMetadata.matchesType(
-        firstItem,
-        SecretType.Mnemonic,
+      const primaryIndex = results.findIndex(
+        (result) =>
+          SecretMetadata.matchesType(result, SecretType.Mnemonic) &&
+          (result.dataType === undefined ||
+            result.dataType === null ||
+            result.dataType === EncAccountDataType.PrimarySrp),
       );
-
-      if (!isDataTypePrimary || !isMnemonic) {
+      if (primaryIndex === -1) {
         throw new Error(
           SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
         );
+      }
+      if (primaryIndex !== 0) {
+        const [primary] = results.splice(primaryIndex, 1);
+        results.unshift(primary);
       }
       return results;
     }

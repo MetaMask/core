@@ -3448,6 +3448,53 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
+    it('should promote the primary SRP to first when a legacy non-mnemonic sorts ahead of it (clock skew)', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+          }),
+        },
+        async ({ controller, toprfClient }) => {
+          mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
+
+          // Private key has older timestamp and sorts before the primary SRP
+          // (simulates clock skew on a legacy account with no dataType tags)
+          const mockSecretDataGet = handleMockSecretDataGet({
+            status: 200,
+            body: createMockSecretDataGetResponse(
+              [
+                {
+                  data: MOCK_PRIVATE_KEY,
+                  timestamp: 100,
+                  type: SecretType.PrivateKey,
+                  itemId: 'pk-id',
+                  // No dataType (legacy)
+                },
+                {
+                  data: MOCK_SEED_PHRASE,
+                  timestamp: 200,
+                  type: SecretType.Mnemonic,
+                  itemId: 'primary-srp-id',
+                  // No dataType (legacy)
+                },
+              ],
+              MOCK_PASSWORD,
+            ),
+          });
+
+          const secretData = await controller.fetchAllSecretData(MOCK_PASSWORD);
+
+          expect(mockSecretDataGet.isDone()).toBe(true);
+          expect(secretData).toHaveLength(2);
+          // Primary SRP promoted to first despite private key having older timestamp
+          expect(secretData[0].type).toBe(SecretType.Mnemonic);
+          expect(secretData[0].data).toStrictEqual(MOCK_SEED_PHRASE);
+          expect(secretData[1].type).toBe(SecretType.PrivateKey);
+        },
+      );
+    });
+
     it('should throw an error if the first item has non-primary dataType', async () => {
       await withController(
         {
