@@ -3519,7 +3519,6 @@ describe('SeedlessOnboardingController', () => {
         },
       );
     });
-
   });
 
   describe('submitPassword', () => {
@@ -6067,8 +6066,6 @@ describe('SeedlessOnboardingController', () => {
             // Mock the recover enc key
             mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
 
-
-
             // Mock changeEncKey to fail first with token expired error, then succeed
             const mockToprfEncryptor = createMockToprfEncryptor();
             const newEncKey =
@@ -6154,8 +6151,6 @@ describe('SeedlessOnboardingController', () => {
             // Mock the recover enc key
             mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
 
-
-
             // Mock changeEncKey to always fail with token expired error
             jest
               .spyOn(toprfClient, 'changeEncKey')
@@ -6217,8 +6212,6 @@ describe('SeedlessOnboardingController', () => {
 
             // Mock the recover enc key
             mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
-
-
 
             // Mock changeEncKey to fail with a non-token error
             jest
