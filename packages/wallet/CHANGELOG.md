@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [5.0.0]
 
-### Uncategorized
-
-- Revert "Release/1064.0.0 (#9228)" ([#9228](https://github.com/MetaMask/core/pull/9228))
-- Release/1064.0.0 ([#9228](https://github.com/MetaMask/core/pull/9228))
-
 ### Added
 
 - **BREAKING:** Add `NetworkController` initialization ([#9001](https://github.com/MetaMask/core/pull/9001))
