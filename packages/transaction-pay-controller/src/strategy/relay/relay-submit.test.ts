@@ -239,6 +239,22 @@ describe('Relay Submit Utils', () => {
       );
     });
 
+    it('passes sponsored gas options when parent sponsorship applies to same-chain quote', async () => {
+      request.transaction.chainId = CHAIN_ID_MOCK;
+      request.transaction.isGasFeeSponsored = true;
+      request.quotes[0].request.targetChainId = CHAIN_ID_MOCK;
+      request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          isGasFeeSponsored: true,
+        }),
+      );
+    });
+
     it('uses predictRelayDeposit type when parent transaction is predictDeposit', async () => {
       request.transaction = {
         ...request.transaction,
@@ -1176,25 +1192,6 @@ describe('Relay Submit Utils', () => {
         );
       });
 
-      it('sets gas to undefined when gasLimits entry is missing', async () => {
-        request.quotes[0].original.metamask.gasLimits = [];
-
-        await submitRelayQuotes(request);
-
-        expect(addTransactionBatchMock).toHaveBeenCalledWith(
-          expect.objectContaining({
-            transactions: expect.arrayContaining([
-              expect.objectContaining({
-                params: expect.objectContaining({
-                  gas: undefined,
-                }),
-                type: TransactionType.relayDeposit,
-              }),
-            ]),
-          }),
-        );
-      });
-
       it('does not activate 7702 mode with multiple post-quote gas limits', async () => {
         request.quotes[0].original.metamask.gasLimits = [21000, 21000];
 
@@ -1381,6 +1378,24 @@ describe('Relay Submit Utils', () => {
               }),
             }),
           ],
+        }),
+      );
+    });
+
+    it('passes sponsored gas options to same-chain batch submissions', async () => {
+      request.transaction.chainId = CHAIN_ID_MOCK;
+      request.transaction.isGasFeeSponsored = true;
+      request.quotes[0].request.targetChainId = CHAIN_ID_MOCK;
+      request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+      request.quotes[0].original.steps[0].items.push({
+        ...request.quotes[0].original.steps[0].items[0],
+      });
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isGasFeeSponsored: true,
         }),
       );
     });

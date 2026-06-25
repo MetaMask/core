@@ -296,6 +296,7 @@ linkStyle default opacity:0.5
   base_controller --> messenger;
   base_data_service --> controller_utils;
   base_data_service --> messenger;
+  bitcoin_regtest_up --> local_node_utils;
   bridge_controller --> accounts_controller;
   bridge_controller --> assets_controller;
   bridge_controller --> assets_controllers;
@@ -393,6 +394,7 @@ linkStyle default opacity:0.5
   geolocation_controller --> base_controller;
   geolocation_controller --> controller_utils;
   geolocation_controller --> messenger;
+  java_tron_up --> local_node_utils;
   json_rpc_engine --> messenger;
   json_rpc_middleware_stream --> json_rpc_engine;
   keyring_controller --> base_controller;
@@ -566,6 +568,7 @@ linkStyle default opacity:0.5
   social_controllers --> controller_utils;
   social_controllers --> messenger;
   social_controllers --> profile_sync_controller;
+  solana_test_validator_up --> local_node_utils;
   storage_service --> messenger;
   subscription_controller --> base_controller;
   subscription_controller --> controller_utils;
@@ -615,6 +618,7 @@ linkStyle default opacity:0.5
   wallet --> controller_utils;
   wallet --> keyring_controller;
   wallet --> messenger;
+  wallet --> network_controller;
   wallet --> remote_feature_flag_controller;
   wallet --> storage_service;
   wallet_cli --> base_controller;

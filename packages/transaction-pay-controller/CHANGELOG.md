@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.16.1]
+
+### Changed
+
+- Bump `@metamask/ramps-controller` from `^14.3.0` to `^15.0.0` ([#9260](https://github.com/MetaMask/core/pull/9260))
+
+## [23.16.0]
+
+### Added
+
+- Add opt-in HyperLiquid activation-fee handling for Pay withdrawals, gated by the `confirmations_pay_post_quote` feature flag's `hyperliquidActivationFee` config (resolved from `overrides.<transactionType>.hyperliquidActivationFee`, falling back to `default.hyperliquidActivationFee`; with `enabled` and optional `amountUsd` defaulting to `1`) ([#9238](https://github.com/MetaMask/core/pull/9238))
+  - When enabled and the HyperCore source account has not yet been activated, the one-time activation fee is reserved from the amount sent to HyperLiquid (so the `sendAsset` step retains enough balance to cover it) and surfaced as part of the provider fee, leaving the displayed withdrawal amount unchanged.
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^76.1.0` to `^77.0.0` ([#9256](https://github.com/MetaMask/core/pull/9256))
+- Bump `@metamask/bridge-status-controller` from `^72.3.0` to `^73.0.0` ([#9256](https://github.com/MetaMask/core/pull/9256))
+- Bump `@metamask/transaction-controller` from `^68.1.1` to `^68.2.0` ([#9253](https://github.com/MetaMask/core/pull/9253))
+
+## [23.15.0]
+
 ### Changed
 
 - Bump `@metamask/assets-controller` from `^9.0.2` to `^9.1.0` ([#9244](https://github.com/MetaMask/core/pull/9244))
@@ -17,6 +38,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Require EIP-7702 for direct mUSD vault deposits and ensure transaction ID collection always stops after the batch attempt ([#9240](https://github.com/MetaMask/core/pull/9240))
+- Inherit `isGasFeeSponsored` from the parent transaction into same-chain Relay source-network fees and submission options ([#9216](https://github.com/MetaMask/core/pull/9216))
+- Skip EIP-7702 upgrade check for direct mUSD vault deposits since the Money Account is always already upgraded on Monad ([#9250](https://github.com/MetaMask/core/pull/9250))
 
 ## [23.14.0]
 
@@ -1161,7 +1184,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.14.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.16.1...HEAD
+[23.16.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.16.0...@metamask/transaction-pay-controller@23.16.1
+[23.16.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.15.0...@metamask/transaction-pay-controller@23.16.0
+[23.15.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.14.0...@metamask/transaction-pay-controller@23.15.0
 [23.14.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.13.1...@metamask/transaction-pay-controller@23.14.0
 [23.13.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.13.0...@metamask/transaction-pay-controller@23.13.1
 [23.13.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.12.0...@metamask/transaction-pay-controller@23.13.0

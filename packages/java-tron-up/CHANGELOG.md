@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add the `@metamask/java-tron-up` package ([#9208](https://github.com/MetaMask/core/pull/9208)).
 
+### Changed
+
+- Adopt `@metamask/local-node-utils` for shared installer utilities ([#9235](https://github.com/MetaMask/core/pull/9235)).
+
 ### Fixed
 
 - Parse `.yarnrc.yml` as YAML when detecting Yarn global cache, matching

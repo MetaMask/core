@@ -710,9 +710,6 @@
   "packages/bridge-controller/src/utils/trade-utils.ts": {
     "no-restricted-globals": {
       "count": 1
-    },
-    "no-restricted-syntax": {
-      "count": 5
     }
   },
   "packages/bridge-controller/tests/mock-sse.ts": {
@@ -1273,6 +1270,11 @@
     }
   },
   "packages/multichain-account-service/src/providers/TrxAccountProvider.ts": {
+    "@typescript-eslint/naming-convention": {
+      "count": 2
+    }
+  },
+  "packages/multichain-account-service/src/providers/XlmAccountProvider.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 2
     }

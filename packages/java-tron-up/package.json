@@ -54,7 +54,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "yaml": "^2.3.4"
+    "@metamask/local-node-utils": "^0.0.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
