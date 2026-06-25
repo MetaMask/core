@@ -92,7 +92,7 @@ export type RampsControllerSetSelectedProviderAction = {
  * This should be called once at app startup to set up the initial region.
  *
  * Idempotent: subsequent calls return the same promise unless forceRefresh is set.
- * Skips getCountries when countries are already loaded; skips geolocation when
+ * Always refetches the countries catalog on startup. Skips geolocation when
  * userRegion already exists.
  *
  * @param options - Options for cache behavior. forceRefresh bypasses idempotency and re-runs the full flow.
