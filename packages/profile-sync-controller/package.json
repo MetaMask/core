@@ -121,7 +121,7 @@
     "siwe": "^2.3.2"
   },
   "devDependencies": {
-    "@lavamoat/allow-scripts": "^3.0.4",
+    "@lavamoat/allow-scripts": "^5.1.0",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^6.1.0",
     "@metamask/keyring-api": "^23.3.0",
@@ -146,7 +146,7 @@
     "webextension-polyfill": "^0.10.0 || ^0.11.0 || ^0.12.0"
   },
   "engines": {
-    "node": "^18.18 || >=20"
+    "node": "^22.14.0 || ^24 || >=26"
   },
   "lavamoat": {
     "allowScripts": {}

@@ -55,7 +55,7 @@
   },
   "dependencies": {
     "@metamask/utils": "^11.11.0",
-    "yargs": "^17.7.2"
+    "yargs": "^17.7.3"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
@@ -76,6 +76,6 @@
     "typescript": ">=5.0.0"
   },
   "engines": {
-    "node": "^18.18 || >=20"
+    "node": "^22.14.0 || ^24 || >=26"
   }
 }

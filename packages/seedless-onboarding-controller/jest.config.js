@@ -23,7 +23,4 @@ module.exports = merge(baseConfig, {
       statements: 100,
     },
   },
-
-  // These tests rely on the Crypto API
-  testEnvironment: '<rootDir>/jest.environment.js',
 });

@@ -74,7 +74,7 @@
     "klona": "^2.0.6"
   },
   "devDependencies": {
-    "@lavamoat/allow-scripts": "^3.0.4",
+    "@lavamoat/allow-scripts": "^5.1.0",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/auto-changelog": "^6.1.0",
     "@ts-bridge/cli": "^0.6.4",
@@ -86,7 +86,7 @@
     "typescript": "~5.3.3"
   },
   "engines": {
-    "node": "^18.18 || >=20"
+    "node": "^22.14.0 || ^24 || >=26"
   },
   "lavamoat": {
     "allowScripts": {
