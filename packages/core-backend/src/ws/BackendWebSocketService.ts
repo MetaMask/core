@@ -118,10 +118,7 @@ function normalizeIncomingMessage(message: WebSocketMessage): WebSocketMessage {
       topLevel.timestamp ??
       (typeof nested.timestamp === 'number' ? nested.timestamp : undefined) ??
       Date.now(),
-    data:
-      payload && typeof payload === 'object'
-        ? payload
-        : nestedData,
+    data: payload && typeof payload === 'object' ? payload : nestedData,
   } as WebSocketMessage;
 }
 
