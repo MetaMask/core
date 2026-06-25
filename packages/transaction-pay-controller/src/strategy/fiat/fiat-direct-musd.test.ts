@@ -20,13 +20,13 @@ import {
   updateTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
+import { findRecentChompVaultDeposit } from './chomp';
 import { DEFAULT_FIAT_CURRENCY, MUSD_MONAD_FIAT_ASSET } from './constants';
 import {
   getDirectMusdFiatQuote,
   isDirectMusdMoneyAccountQuote,
   submitDirectMusdVaultDeposit,
 } from './fiat-direct-musd';
-import { findRecentChompVaultDeposit } from './chomp';
 import type { FiatQuote } from './types';
 
 jest.mock('../../utils/feature-flags');
@@ -643,9 +643,7 @@ describe('fiat-direct-musd', () => {
         const callMock = jest.fn((action: string) => {
           if (action === 'TransactionPayController:getAmountData') {
             return Promise.resolve({
-              updates: [
-                { data: '0xnewApprove', nestedTransactionIndex: 0 },
-              ],
+              updates: [{ data: '0xnewApprove', nestedTransactionIndex: 0 }],
             });
           }
 
@@ -673,9 +671,7 @@ describe('fiat-direct-musd', () => {
         const callMock = jest.fn((action: string) => {
           if (action === 'TransactionPayController:getAmountData') {
             return Promise.resolve({
-              updates: [
-                { data: '0xnewApprove', nestedTransactionIndex: 0 },
-              ],
+              updates: [{ data: '0xnewApprove', nestedTransactionIndex: 0 }],
             });
           }
 
@@ -727,9 +723,7 @@ describe('fiat-direct-musd', () => {
         const callMock = jest.fn((action: string) => {
           if (action === 'TransactionPayController:getAmountData') {
             return Promise.resolve({
-              updates: [
-                { data: '0xnewApprove', nestedTransactionIndex: 0 },
-              ],
+              updates: [{ data: '0xnewApprove', nestedTransactionIndex: 0 }],
             });
           }
 

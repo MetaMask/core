@@ -342,7 +342,10 @@ describe('submitFiatQuotes', () => {
     );
     waitForTransactionConfirmedMock.mockResolvedValue();
     deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
-    resolveSourceAmountRawMock.mockResolvedValue({ amountRaw: '1000000000000000000', fromBlock: undefined });
+    resolveSourceAmountRawMock.mockResolvedValue({
+      amountRaw: '1000000000000000000',
+      fromBlock: undefined,
+    });
     fundFiatOrderFromTestSourceMock.mockResolvedValue(
       getFiatOrderMock({
         cryptoAmount: '1',
@@ -369,7 +372,10 @@ describe('submitFiatQuotes', () => {
       },
       status: RampsOrderStatus.Completed,
     });
-    resolveSourceAmountRawMock.mockResolvedValue({ amountRaw: '1234500000000000000', fromBlock: undefined });
+    resolveSourceAmountRawMock.mockResolvedValue({
+      amountRaw: '1234500000000000000',
+      fromBlock: undefined,
+    });
     const { callMock, request } = getRequest({ order });
 
     const result = await submitFiatQuotes(request);
@@ -416,7 +422,10 @@ describe('submitFiatQuotes', () => {
       },
       status: RampsOrderStatus.Completed,
     });
-    resolveSourceAmountRawMock.mockResolvedValue({ amountRaw: '1234500000000000000', fromBlock: undefined });
+    resolveSourceAmountRawMock.mockResolvedValue({
+      amountRaw: '1234500000000000000',
+      fromBlock: undefined,
+    });
 
     const callMock = jest.fn((action: string) => {
       if (action === 'TransactionPayController:getState') {
@@ -539,7 +548,10 @@ describe('submitFiatQuotes', () => {
       ],
     } as unknown as TransactionMeta;
 
-    resolveSourceAmountRawMock.mockResolvedValue({ amountRaw: '1234500000000000000', fromBlock: undefined });
+    resolveSourceAmountRawMock.mockResolvedValue({
+      amountRaw: '1234500000000000000',
+      fromBlock: undefined,
+    });
 
     const { callMock, request } = getRequest({
       transaction: nestedTransaction,

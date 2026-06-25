@@ -14,7 +14,8 @@ const CHOMP_TX_HASH =
 const FROM_BLOCK = '0x100' as Hex;
 const SOURCE_AMOUNT_RAW = '5000000'; // 5 mUSD (6 decimals)
 // uint256 hex for 5000000 (>= source amount)
-const TRANSFER_DATA_SUFFICIENT = '0x00000000000000000000000000000000000000000000000000000000004c4b40';
+const TRANSFER_DATA_SUFFICIENT =
+  '0x00000000000000000000000000000000000000000000000000000000004c4b40';
 // uint256 hex for 4999999 (< source amount)
 const TRANSFER_DATA_INSUFFICIENT =
   '0x00000000000000000000000000000000000000000000000000000000004c4b3f';
@@ -41,7 +42,11 @@ function buildMusdTransferLog(
   return {
     address: MUSD_MONAD_ADDRESS,
     data,
-    topics: [ERC20_TRANSFER_TOPIC, MONEY_ACCOUNT_PADDED, padAddress('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')],
+    topics: [
+      ERC20_TRANSFER_TOPIC,
+      MONEY_ACCOUNT_PADDED,
+      padAddress('0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'),
+    ],
     transactionHash: txHash,
   };
 }
@@ -122,11 +127,7 @@ describe('chomp', () => {
               address: MUSD_MONAD_ADDRESS,
               fromBlock: FROM_BLOCK,
               toBlock: 'latest',
-              topics: [
-                ERC20_TRANSFER_TOPIC,
-                MONEY_ACCOUNT_PADDED,
-                null,
-              ],
+              topics: [ERC20_TRANSFER_TOPIC, MONEY_ACCOUNT_PADDED, null],
             }),
           ],
         }),

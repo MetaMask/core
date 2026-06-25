@@ -20,7 +20,6 @@ import type {
 import { prefixError } from '../../utils/error-prefix';
 import { getFiatVaultDisabled } from '../../utils/feature-flags';
 import { getNetworkClientId } from '../../utils/provider';
-import { findRecentChompVaultDeposit } from './chomp';
 import { buildCaipAssetType, getTokenInfo } from '../../utils/token';
 import {
   collectTransactionIds,
@@ -28,6 +27,7 @@ import {
   updateTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
+import { findRecentChompVaultDeposit } from './chomp';
 import { MUSD_MONAD_FIAT_ASSET } from './constants';
 import type { FiatQuote } from './types';
 import {
