@@ -4243,6 +4243,120 @@ describe('SeedlessOnboardingController', () => {
       );
     });
 
+    it('should pass transformDataItems to changeEncKey that sorts secret data', async () => {
+      await withController(
+        {
+          state: getMockInitialControllerState({
+            withMockAuthenticatedUser: true,
+            withMockAuthPubKey: true,
+          }),
+        },
+        async ({ controller, toprfClient, baseMessenger }) => {
+          await mockCreateToprfKeyAndBackupSeedPhrase(
+            toprfClient,
+            controller,
+            baseMessenger,
+            MOCK_PASSWORD,
+            MOCK_SEED_PHRASE,
+            MOCK_KEYRING_ID,
+          );
+
+          mockFetchAuthPubKey(
+            toprfClient,
+            base64ToBytes(controller.state.authPubKey as string),
+          );
+
+          mockChangeEncKey(toprfClient, NEW_MOCK_PASSWORD);
+
+          const changeEncKeySpy = jest.spyOn(toprfClient, 'changeEncKey');
+
+          await baseMessenger.call(
+            'SeedlessOnboardingController:changePassword',
+            NEW_MOCK_PASSWORD,
+            MOCK_PASSWORD,
+          );
+
+          expect(changeEncKeySpy).toHaveBeenCalledWith(
+            expect.objectContaining({
+              transformDataItems: expect.any(Function),
+            }),
+          );
+
+          const { transformDataItems } = changeEncKeySpy.mock.calls[0][0];
+          expect(transformDataItems).toBeDefined();
+
+          const importedSrp2 = stringToBytes('imported-seed-phrase-2');
+          const importedSrp3 = stringToBytes('imported-seed-phrase-3');
+
+          const unsortedItems = [
+            {
+              data: new SecretMetadata(importedSrp3, {
+                dataType: EncAccountDataType.ImportedSrp,
+                timestamp: 30,
+              }).toBytes(),
+              dataType: EncAccountDataType.ImportedSrp,
+              version: 'v2' as const,
+              createdAt: '00000003-0000-1000-8000-000000000003',
+              itemId: 'srp-3',
+            },
+            {
+              data: new SecretMetadata(MOCK_SEED_PHRASE, {
+                dataType: EncAccountDataType.PrimarySrp,
+                timestamp: 10,
+              }).toBytes(),
+              dataType: EncAccountDataType.PrimarySrp,
+              version: 'v2' as const,
+              createdAt: '00000001-0000-1000-8000-000000000001',
+              itemId: 'srp-1',
+            },
+            {
+              data: new SecretMetadata(importedSrp2, {
+                dataType: EncAccountDataType.ImportedSrp,
+                timestamp: 20,
+              }).toBytes(),
+              dataType: EncAccountDataType.ImportedSrp,
+              version: 'v2' as const,
+              createdAt: '00000002-0000-1000-8000-000000000002',
+              itemId: 'srp-2',
+            },
+          ];
+
+          const transformed = transformDataItems?.(unsortedItems);
+
+          const parseSecretData = (raw: Uint8Array): Uint8Array =>
+            SecretMetadata.fromRawMetadata<Uint8Array>(raw, {}).data;
+
+          expect(transformed).toHaveLength(3);
+          expect(transformed?.[0].dataType).toBe(
+            EncAccountDataType.PrimarySrp,
+          );
+          expect(parseSecretData(transformed?.[0].data as Uint8Array)).toStrictEqual(
+            MOCK_SEED_PHRASE,
+          );
+          expect(parseSecretData(transformed?.[1].data as Uint8Array)).toStrictEqual(
+            importedSrp2,
+          );
+          expect(parseSecretData(transformed?.[2].data as Uint8Array)).toStrictEqual(
+            importedSrp3,
+          );
+          expect(transformed?.[0].version).toBe('v2');
+
+          const legacyItem = {
+            data: new SecretMetadata(MOCK_SEED_PHRASE, {
+              type: SecretType.Mnemonic,
+              timestamp: 10,
+            }).toBytes(),
+            dataType: undefined,
+            version: 'v2' as const,
+            itemId: 'legacy-srp',
+          };
+
+          const [legacyTransformed] = transformDataItems?.([legacyItem]) ?? [];
+          expect(legacyTransformed?.version).toBe('v1');
+        },
+      );
+    });
+
     it('should call recoverEncKey when keyIndex is missing', async () => {
       await withController(
         {
