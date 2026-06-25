@@ -1930,6 +1930,110 @@ describe('RampsController', () => {
       );
     });
 
+    it('leaves userRegion unchanged when the refreshed catalog is empty', async () => {
+      const userRegionCountry: Country = {
+        isoCode: 'CR',
+        id: '/regions/cr',
+        flag: '🇨🇷',
+        name: 'Costa Rica',
+        phone: {
+          prefix: '+506',
+          placeholder: '8312 3456',
+          template: 'XXXX XXXX',
+        },
+        currency: 'CRC',
+        supported: { buy: true, sell: true },
+        defaultAmount: 100,
+        quickAmounts: [20, 50, 100],
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: {
+                country: userRegionCountry,
+                state: null,
+                regionCode: 'cr',
+              },
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => [],
+          );
+
+          await rootMessenger.call('RampsController:getCountries');
+
+          expect(controller.state.countries.data).toStrictEqual([]);
+          expect(controller.state.userRegion?.country.defaultAmount).toBe(100);
+        },
+      );
+    });
+
+    it('leaves userRegion unchanged when its region is absent from the refreshed catalog', async () => {
+      const userRegionCountry: Country = {
+        isoCode: 'CR',
+        id: '/regions/cr',
+        flag: '🇨🇷',
+        name: 'Costa Rica',
+        phone: {
+          prefix: '+506',
+          placeholder: '8312 3456',
+          template: 'XXXX XXXX',
+        },
+        currency: 'CRC',
+        supported: { buy: true, sell: true },
+        defaultAmount: 100,
+        quickAmounts: [20, 50, 100],
+      };
+      const otherCountries: Country[] = [
+        {
+          isoCode: 'US',
+          id: '/regions/us',
+          flag: '🇺🇸',
+          name: 'United States',
+          phone: {
+            prefix: '+1',
+            placeholder: '201 555 0123',
+            template: 'XXX XXX XXXX',
+          },
+          currency: 'USD',
+          supported: { buy: true, sell: true },
+          defaultAmount: 100,
+          quickAmounts: [100, 300, 1000],
+        },
+      ];
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: {
+                country: userRegionCountry,
+                state: null,
+                regionCode: 'cr',
+              },
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => otherCountries,
+          );
+
+          await rootMessenger.call('RampsController:getCountries');
+
+          expect(controller.state.countries.data).toStrictEqual(otherCountries);
+          expect(controller.state.userRegion?.country.isoCode).toBe('CR');
+          expect(controller.state.userRegion?.country.defaultAmount).toBe(100);
+        },
+      );
+    });
+
     it('throws when updating resource field and resource is null', async () => {
       const stateWithNullCountries = {
         ...getDefaultRampsControllerState(),
