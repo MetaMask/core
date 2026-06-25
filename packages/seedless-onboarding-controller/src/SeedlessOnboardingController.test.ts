@@ -454,22 +454,6 @@ function mockChangeEncKey(
   const pwEncKey = mockToprfEncryptor.derivePwEncKey(newPassword);
   const authKeyPair = mockToprfEncryptor.deriveAuthKeyPair(newPassword);
 
-  // #changeEncryptionKey fetches items before re-inserting to sort them first
-  jest.spyOn(toprfClient, 'fetchAllSecretDataItems').mockResolvedValue([
-    {
-      data: stringToBytes(
-        JSON.stringify({
-          data: bytesToBase64(MOCK_SEED_PHRASE),
-          timestamp: 1000,
-        }),
-      ),
-      itemId: 'srp-1',
-      version: 'v1' as const,
-      dataType: undefined,
-      createdAt: undefined,
-    },
-  ]);
-
   jest.spyOn(toprfClient, 'changeEncKey').mockResolvedValueOnce({
     encKey,
     pwEncKey,
@@ -6083,23 +6067,7 @@ describe('SeedlessOnboardingController', () => {
             // Mock the recover enc key
             mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
 
-            // #changeEncryptionKey fetches items before re-inserting to sort them first
-            jest
-              .spyOn(toprfClient, 'fetchAllSecretDataItems')
-              .mockResolvedValue([
-                {
-                  data: stringToBytes(
-                    JSON.stringify({
-                      data: bytesToBase64(MOCK_SEED_PHRASE),
-                      timestamp: 1000,
-                    }),
-                  ),
-                  itemId: 'srp-1',
-                  version: 'v1' as const,
-                  dataType: undefined,
-                  createdAt: undefined,
-                },
-              ]);
+
 
             // Mock changeEncKey to fail first with token expired error, then succeed
             const mockToprfEncryptor = createMockToprfEncryptor();
@@ -6186,23 +6154,7 @@ describe('SeedlessOnboardingController', () => {
             // Mock the recover enc key
             mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
 
-            // #changeEncryptionKey fetches items before re-inserting to sort them first
-            jest
-              .spyOn(toprfClient, 'fetchAllSecretDataItems')
-              .mockResolvedValue([
-                {
-                  data: stringToBytes(
-                    JSON.stringify({
-                      data: bytesToBase64(MOCK_SEED_PHRASE),
-                      timestamp: 1000,
-                    }),
-                  ),
-                  itemId: 'srp-1',
-                  version: 'v1' as const,
-                  dataType: undefined,
-                  createdAt: undefined,
-                },
-              ]);
+
 
             // Mock changeEncKey to always fail with token expired error
             jest
@@ -6266,23 +6218,7 @@ describe('SeedlessOnboardingController', () => {
             // Mock the recover enc key
             mockRecoverEncKey(toprfClient, MOCK_PASSWORD);
 
-            // #changeEncryptionKey fetches items before re-inserting to sort them first
-            jest
-              .spyOn(toprfClient, 'fetchAllSecretDataItems')
-              .mockResolvedValue([
-                {
-                  data: stringToBytes(
-                    JSON.stringify({
-                      data: bytesToBase64(MOCK_SEED_PHRASE),
-                      timestamp: 1000,
-                    }),
-                  ),
-                  itemId: 'srp-1',
-                  version: 'v1' as const,
-                  dataType: undefined,
-                  createdAt: undefined,
-                },
-              ]);
+
 
             // Mock changeEncKey to fail with a non-token error
             jest

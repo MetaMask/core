@@ -1707,23 +1707,6 @@ export class SeedlessOnboardingController<
         keyShareIndex: globalKeyIndex,
       } = await this.#recoverEncKey(oldPassword));
     }
-    // Sort before re-insert so the server stamps createdAt in creation order.
-    const rawItems = await this.toprfClient.fetchAllSecretDataItems({
-      decKey: encKey,
-      authKeyPair,
-    });
-    const existingDataItems = rawItems
-      .sort((a, b) =>
-        SecretMetadata.compare(
-          SecretMetadata.fromRawMetadata(a.data, { dataType: a.dataType }),
-          SecretMetadata.fromRawMetadata(b.data, { dataType: b.dataType }),
-          'asc',
-        ),
-      )
-      .map(({ data, dataType, version }) => {
-        return { data, dataType, version: dataType === undefined ? 'v1' : version };
-      });
-
     const result = await this.toprfClient.changeEncKey({
       nodeAuthTokens: this.state.nodeAuthTokens,
       authConnectionId,
@@ -1734,7 +1717,20 @@ export class SeedlessOnboardingController<
       oldAuthKeyPair: authKeyPair,
       newKeyShareIndex: globalKeyIndex,
       newPassword,
-      existingDataItems,
+      transformDataItems: (items) =>
+        items
+          .sort((a, b) =>
+            SecretMetadata.compare(
+              SecretMetadata.fromRawMetadata(a.data, { dataType: a.dataType }),
+              SecretMetadata.fromRawMetadata(b.data, { dataType: b.dataType }),
+              'asc',
+            ),
+          )
+          .map(({ data, dataType, version }) => ({
+            data,
+            dataType,
+            version: dataType === undefined ? 'v1' : version,
+          })),
     });
     return result;
   }
