@@ -167,7 +167,7 @@ export class QuoteStatusApiService {
 
     if (!res.ok) {
       const error = new QuoteStatusGetError(
-        `request error to quote/updateStatus [${res.status}: ${res.statusText}]`,
+        `request error to getQuoteStatus [${res.status}: ${res.statusText}]`,
         { quoteId: data.quoteId },
       );
       this.#onError?.(error);
@@ -180,7 +180,7 @@ export class QuoteStatusApiService {
       return responseData;
     } catch (error) {
       this.#onError?.(
-        new QuoteStatusUpdateError(
+        new QuoteStatusGetError(
           'unexpected response shape from getQuoteStatus',
           { quoteId: data.quoteId },
         ),

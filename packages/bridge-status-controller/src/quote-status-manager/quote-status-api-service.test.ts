@@ -6,7 +6,7 @@ import {
   QuoteStatusBackendStatus,
   QuoteStatusFetchWithRetryOutcomeType,
 } from './constants';
-import { QuoteStatusGetError } from './errors';
+import { QuoteStatusGetError, QuoteStatusUpdateError } from './errors';
 import { QuoteStatusApiService } from './quote-status-api-service';
 import type {
   QuoteStatusApiServiceOptions,
@@ -217,6 +217,7 @@ describe('QuoteStatusApiService', () => {
       );
       expect(onError).toHaveBeenCalledTimes(1);
       const [error] = onError.mock.calls[0];
+      expect(error).toBeInstanceOf(QuoteStatusUpdateError);
       expect(error.message).toBe(
         'unexpected response shape from quote/updateStatus',
       );
@@ -514,11 +515,14 @@ describe('QuoteStatusApiService', () => {
       const { service, onError } = createService();
 
       await expect(service.getQuoteStatus(GET_REQUEST_DATA)).rejects.toThrow(
-        'request error to quote/updateStatus [404: Not Found]',
+        QuoteStatusGetError,
       );
       expect(onError).toHaveBeenCalledTimes(1);
       const [error] = onError.mock.calls[0];
       expect(error).toBeInstanceOf(QuoteStatusGetError);
+      expect(error.message).toBe(
+        'request error to getQuoteStatus [404: Not Found]',
+      );
       expect(error.details).toStrictEqual({
         quoteId: GET_REQUEST_DATA.quoteId,
       });
@@ -542,6 +546,7 @@ describe('QuoteStatusApiService', () => {
       );
       expect(onError).toHaveBeenCalledTimes(1);
       const [error] = onError.mock.calls[0];
+      expect(error).toBeInstanceOf(QuoteStatusGetError);
       expect(error.message).toBe(
         'unexpected response shape from getQuoteStatus',
       );
