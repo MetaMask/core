@@ -23,11 +23,10 @@ describe('createWallet (real Wallet, in-memory)', () => {
     try {
       expect(wallet.state.KeyringController?.isUnlocked).toBe(true);
 
-      // `listAccounts` resolves synchronously; awaiting a non-thenable trips
+      // `getState` resolves synchronously; awaiting a non-thenable trips
       // `@typescript-eslint/await-thenable`.
-      const accounts = wallet.messenger.call('AccountsController:listAccounts');
-      expect(accounts).toHaveLength(1);
-      expect(accounts[0]?.address).toMatch(/^0x[0-9a-fA-F]{40}$/u);
+      const { keyrings } = wallet.messenger.call('KeyringController:getState');
+      expect(keyrings[0]?.accounts[0]).toMatch(/^0x[0-9a-fA-F]{40}$/u);
     } finally {
       await dispose();
     }

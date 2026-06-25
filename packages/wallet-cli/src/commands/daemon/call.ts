@@ -10,9 +10,9 @@ export default class DaemonCall extends Command {
   static override description = 'Call a messenger action on the wallet daemon';
 
   static override examples = [
-    '<%= config.bin %> daemon call AccountsController:listAccounts',
+    '<%= config.bin %> daemon call KeyringController:getState',
     '<%= config.bin %> daemon call NetworkController:getState',
-    '<%= config.bin %> daemon call KeyringController:getState --timeout 10000',
+    '<%= config.bin %> daemon call ApprovalController:getState --timeout 10000',
   ];
 
   static override args = {
