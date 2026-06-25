@@ -2383,6 +2383,81 @@ describe('RampsController', () => {
         },
       );
     });
+
+    it('preserves a persisted userRegion when the startup catalog refresh is empty', async () => {
+      let getGeolocationCalled = false;
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => [],
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getGeolocation',
+            async () => {
+              getGeolocationCalled = true;
+              return 'us-ca';
+            },
+          );
+
+          expect(
+            await rootMessenger.call('RampsController:init'),
+          ).toBeUndefined();
+
+          // A transient empty catalog must not fall back to geolocation nor
+          // wipe the persisted region via setUserRegion's cleanup.
+          expect(getGeolocationCalled).toBe(false);
+          expect(controller.state.countries.data).toStrictEqual([]);
+          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
+        },
+      );
+    });
+
+    it('preserves a persisted userRegion when the startup catalog no longer lists the region', async () => {
+      const catalogWithoutUs: Country[] = [
+        {
+          isoCode: 'FR',
+          name: 'France',
+          flag: '🇫🇷',
+          currency: 'EUR',
+          phone: { prefix: '+33', placeholder: '', template: '' },
+          supported: { buy: true, sell: true },
+        },
+      ];
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => catalogWithoutUs,
+          );
+
+          expect(
+            await rootMessenger.call('RampsController:init'),
+          ).toBeUndefined();
+
+          // The region is absent from the refreshed catalog, but the previously
+          // valid region must be preserved rather than wiped.
+          expect(controller.state.countries.data).toStrictEqual(
+            catalogWithoutUs,
+          );
+          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
+        },
+      );
+    });
   });
 
   describe('setUserRegion', () => {

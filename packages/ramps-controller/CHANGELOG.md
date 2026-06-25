@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Stop persisting the countries catalog in `RampsController` state and refetch it on every app startup via `init()` ([#9261](https://github.com/MetaMask/core/pull/9261))
 - Re-sync `userRegion` preset amounts from the countries catalog after each `getCountries()` call ([#9261](https://github.com/MetaMask/core/pull/9261))
+- On startup, `init()` now preserves an already-persisted `userRegion` when the refreshed countries catalog is momentarily empty or no longer lists that region, instead of clearing it ([#9261](https://github.com/MetaMask/core/pull/9261))
 
 ## [15.0.0]
 

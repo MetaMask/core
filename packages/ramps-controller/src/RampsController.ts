@@ -1383,8 +1383,10 @@ export class RampsController extends BaseController<
    * This should be called once at app startup to set up the initial region.
    *
    * Idempotent: subsequent calls return the same promise unless forceRefresh is set.
-   * Always refetches the countries catalog on startup. Skips geolocation when
-   * userRegion already exists.
+   * Refetches the countries catalog on startup — the catalog is no longer
+   * persisted, so a cold start always re-fetches it — while honoring the
+   * caller's forceRefresh for the in-session request cache. Skips geolocation
+   * when userRegion already exists.
    *
    * @param options - Options for cache behavior. forceRefresh bypasses idempotency and re-runs the full flow.
    * @returns Promise that resolves when initialization is complete.
@@ -1412,18 +1414,34 @@ export class RampsController extends BaseController<
   }
 
   async #runInit(options?: ExecuteRequestOptions): Promise<void> {
-    await this.getCountries({ ...options, forceRefresh: true });
+    // The catalog is no longer persisted, so on a cold start countries is empty
+    // and this fetches regardless. Honor the caller's forceRefresh for the
+    // in-session request cache rather than hardcoding it.
+    await this.getCountries(options);
 
     // Always prefer the user's persisted region. Geolocation is only used to
     // seed the initial value; once the user (or a prior init) has set a region
     // we must respect that choice — even on forceRefresh.
-    let regionCode: string | undefined = this.state.userRegion?.regionCode;
-    regionCode ??= await this.messenger.call('RampsService:getGeolocation');
+    const persistedRegionCode = this.state.userRegion?.regionCode;
+    const regionCode =
+      persistedRegionCode ??
+      (await this.messenger.call('RampsService:getGeolocation'));
 
     if (!regionCode) {
       throw new Error(
         'Failed to fetch geolocation. Cannot initialize controller without valid region information.',
       );
+    }
+
+    // For an already-persisted region, getCountries() has already re-synced it
+    // from the fresh catalog (see #syncUserRegionFromCountriesCatalog). Calling
+    // setUserRegion here would re-validate against that catalog and, if it is
+    // momentarily empty or no longer lists the region (e.g. a transient/partial
+    // catalog response or a region with no current provider coverage), throw and
+    // wipe the persisted region via #cleanupState. Preserve the existing region
+    // instead; only resolve a brand-new region (from geolocation) strictly.
+    if (persistedRegionCode) {
+      return;
     }
 
     await this.setUserRegion(regionCode, options);
