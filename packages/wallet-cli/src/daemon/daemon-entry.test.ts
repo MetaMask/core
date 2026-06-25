@@ -1,15 +1,15 @@
-import { mkdirSync } from 'node:fs';
 import { appendFile, readFile, rm, writeFile } from 'node:fs/promises';
 
 import { pingDaemon } from './daemon-client';
+import { ensureOwnerOnlyDirectory } from './data-dir';
 import { getDaemonPaths } from './paths';
 import { startRpcSocketServer } from './rpc-socket-server';
 import type { RpcSocketServerHandle } from './rpc-socket-server';
 import { isProcessAlive } from './utils';
 import { createWallet } from './wallet-factory';
 
-jest.mock('node:fs');
 jest.mock('node:fs/promises');
+jest.mock('./data-dir');
 jest.mock('./daemon-client');
 jest.mock('./paths');
 jest.mock('./rpc-socket-server');
@@ -22,7 +22,7 @@ jest.mock('./utils', () => {
 });
 jest.mock('./wallet-factory');
 
-const mockMkdirSync = jest.mocked(mkdirSync);
+const mockEnsureOwnerOnlyDirectory = jest.mocked(ensureOwnerOnlyDirectory);
 const mockAppendFile = jest.mocked(appendFile);
 const mockReadFile = jest.mocked(readFile);
 const mockWriteFile = jest.mocked(writeFile);
@@ -105,6 +105,7 @@ describe('daemon-entry', () => {
     mockWriteFile.mockResolvedValue(undefined);
     mockRm.mockResolvedValue(undefined);
     mockAppendFile.mockResolvedValue(undefined);
+    mockEnsureOwnerOnlyDirectory.mockResolvedValue(undefined);
     mockPingDaemon.mockResolvedValue(ABSENT);
     mockIsProcessAlive.mockReturnValue(false);
   });
@@ -178,10 +179,7 @@ describe('daemon-entry', () => {
 
     await importDaemonEntry();
 
-    expect(mockMkdirSync).toHaveBeenCalledWith('/tmp/data', {
-      recursive: true,
-      mode: 0o700,
-    });
+    expect(mockEnsureOwnerOnlyDirectory).toHaveBeenCalledWith('/tmp/data');
     expect(mockCreateWallet).toHaveBeenCalledWith({
       databasePath: '/tmp/wallet.db',
       password: 'pass',

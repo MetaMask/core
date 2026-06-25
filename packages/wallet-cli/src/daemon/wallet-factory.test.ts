@@ -210,7 +210,7 @@ describe('createWallet', () => {
       wallet.messenger,
       wallet.controllerMetadata,
       expect.any(KeyValueStore),
-      undefined,
+      expect.any(Function),
     );
 
     await dispose();

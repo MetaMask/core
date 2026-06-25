@@ -1,9 +1,9 @@
 import type { Json } from '@metamask/utils';
 import type { Wallet } from '@metamask/wallet';
-import { mkdirSync } from 'node:fs';
-import { appendFile, chmod, readFile, rm, writeFile } from 'node:fs/promises';
+import { appendFile, readFile, rm, writeFile } from 'node:fs/promises';
 
 import { pingDaemon } from './daemon-client';
+import { ensureOwnerOnlyDirectory } from './data-dir';
 import { getDaemonPaths } from './paths';
 import { startRpcSocketServer } from './rpc-socket-server';
 import type { RpcSocketServerHandle } from './rpc-socket-server';
@@ -44,13 +44,7 @@ async function main(): Promise<void> {
     throw new Error('MM_WALLET_SRP environment variable is required');
   }
 
-  // 0o700: owner-only. The daemon exposes the full wallet messenger over
-  // the socket inside this directory, so anyone who can traverse the dir
-  // can also `connect()` to the socket. Restricting to the owning user is
-  // the only access-control boundary. We chmod after mkdir because the
-  // `mode` option is ignored when the directory already exists.
-  mkdirSync(dataDir, { recursive: true, mode: 0o700 });
-  await chmod(dataDir, 0o700);
+  await ensureOwnerOnlyDirectory(dataDir);
 
   const {
     socketPath: defaultSocketPath,

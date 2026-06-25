@@ -144,7 +144,7 @@ export async function createWallet({
       wallet.messenger as RootMessenger<DefaultActions, DefaultEvents>,
       wallet.controllerMetadata,
       store,
-      log,
+      logFn,
     );
 
     if (wasFirstRun) {
