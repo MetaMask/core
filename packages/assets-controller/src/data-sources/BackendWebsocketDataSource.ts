@@ -160,6 +160,43 @@ function buildAccountActivityChannel(
 }
 
 /**
+ * Normalize addresses for stable comparison when detecting account changes.
+ *
+ * @param address - Account address (hex or base58).
+ * @returns Normalized address for comparison.
+ */
+function normalizeAddressForComparison(address: string): string {
+  return address.startsWith('0x') ? address.toLowerCase() : address;
+}
+
+/**
+ * Check whether subscribed account addresses changed (case-insensitive for EVM).
+ *
+ * @param nextAddresses - Addresses from the incoming subscribe request.
+ * @param existingAddresses - Addresses from the active subscription.
+ * @returns True when the address sets differ.
+ */
+function haveAddressesChanged(
+  nextAddresses: string[],
+  existingAddresses: string[],
+): boolean {
+  if (nextAddresses.length !== existingAddresses.length) {
+    return true;
+  }
+
+  const normalizedNext = nextAddresses
+    .map(normalizeAddressForComparison)
+    .sort();
+  const normalizedExisting = existingAddresses
+    .map(normalizeAddressForComparison)
+    .sort();
+
+  return normalizedNext.some(
+    (address, index) => address !== normalizedExisting[index],
+  );
+}
+
+/**
  * Normalize API chain identifier to CAIP-2 ChainId.
  * Passes through strings already in CAIP-2 form (e.g. eip155:1, solana:5eykt...).
  * Converts bare decimals to eip155:decimal.
@@ -209,6 +246,8 @@ function toChainId(chainIdOrDecimal: number | string): ChainId {
  * - BackendWebSocketService:subscribe
  * - BackendWebSocketService:getConnectionInfo
  * - BackendWebSocketService:findSubscriptionsByChannelPrefix
+ * - BackendWebSocketService:addChannelCallback
+ * - BackendWebSocketService:removeChannelCallback
  */
 const DEFAULT_CHAINS_REFRESH_INTERVAL_MS = 20 * 60 * 1000; // 20 minutes
 
@@ -247,6 +286,12 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
 
   /** Store original subscription requests for reconnection */
   readonly #subscriptionRequests: Map<string, SubscriptionRequest> = new Map();
+
+  /** Channels with registered BackendWebSocketService channel callbacks */
+  readonly #registeredChannelCallbacks: Set<string> = new Set();
+
+  /** Serializes subscribe/unsubscribe so account switches cannot interleave. */
+  #subscribeLock: Promise<void> = Promise.resolve();
 
   constructor(options: BackendWebsocketDataSourceOptions) {
     super(CONTROLLER_NAME, {
@@ -448,6 +493,23 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
   // ============================================================================
 
   async subscribe(subscriptionRequest: SubscriptionRequest): Promise<void> {
+    const previousLock = this.#subscribeLock;
+    let releaseLock: () => void = () => undefined;
+    this.#subscribeLock = new Promise<void>((resolve) => {
+      releaseLock = resolve;
+    });
+
+    await previousLock;
+    try {
+      await this.#subscribeInternal(subscriptionRequest);
+    } finally {
+      releaseLock();
+    }
+  }
+
+  async #subscribeInternal(
+    subscriptionRequest: SubscriptionRequest,
+  ): Promise<void> {
     const { request, subscriptionId, isUpdate } = subscriptionRequest;
 
     // Filter to active chains only
@@ -473,7 +535,7 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
         this.#pendingSubscriptions.set(subscriptionId, subscriptionRequest);
         return;
       }
-    } catch {
+    } catch (error) {
       // Store anyway - will be processed when we can connect
       this.#pendingSubscriptions.set(subscriptionId, subscriptionRequest);
       return;
@@ -488,21 +550,21 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       if (existing) {
         // Check if accounts changed - if so, we need to re-subscribe to different channels
         const existingAddresses = existing.addresses ?? [];
-        const addressesChanged =
-          addresses.length !== existingAddresses.length ||
-          addresses.some((addr) => !existingAddresses.includes(addr));
+        const addressesChanged = haveAddressesChanged(addresses, existingAddresses);
 
         if (!addressesChanged) {
-          // Only chains changed - just update chains and return
+          // Only chains changed - update chains, request, and callback
           existing.chains = chainsToSubscribe;
+          existing.onAssetsUpdate = subscriptionRequest.onAssetsUpdate;
+          this.#subscriptionRequests.set(subscriptionId, subscriptionRequest);
           return;
         }
         // Accounts changed - fall through to re-subscribe with new channels
       }
     }
 
-    // Clean up existing subscription if any
-    await this.unsubscribe(subscriptionId);
+    // Clean up existing subscription if any (inline teardown — subscribe holds the lock)
+    await this.#teardownSubscription(subscriptionId);
 
     // Always subscribe to eip155 and solana account activity, plus any namespaces from requested chains
     const namespaces = getNamespacesForAccountActivity(chainsToSubscribe);
@@ -518,6 +580,10 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       }
     }
 
+    if (channels.length === 0) {
+      return;
+    }
+
     try {
       // Create WebSocket subscription
       const wsSubscription = await this.#messenger.call(
@@ -531,29 +597,29 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
         },
       );
 
-      // Store WebSocket subscription
+      // Store WebSocket subscription and subscription state before optional
+      // channel callbacks — wsCallback routing works without them.
       this.#wsSubscriptions.set(subscriptionId, wsSubscription);
 
-      // Store in abstract class tracking
       this.activeSubscriptions.set(subscriptionId, {
         cleanup: () => {
-          const wsSub = this.#wsSubscriptions.get(subscriptionId);
-          if (wsSub) {
-            wsSub.unsubscribe().catch((unsubErr: unknown) => {
-              log('Error unsubscribing', { subscriptionId, error: unsubErr });
-            });
-            this.#wsSubscriptions.delete(subscriptionId);
-          }
-          // Also clean up the stored request
-          this.#subscriptionRequests.delete(subscriptionId);
+          this.#teardownSubscription(subscriptionId).catch(() => undefined);
         },
         chains: chainsToSubscribe,
         addresses,
         onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
       });
 
-      // Store original request for reconnection
       this.#subscriptionRequests.set(subscriptionId, subscriptionRequest);
+
+      try {
+        this.#registerChannelCallbacks(subscriptionId, channels);
+      } catch (channelCallbackError) {
+        log(
+          'Channel callback registration failed; ws subscription still active',
+          { subscriptionId, error: channelCallbackError },
+        );
+      }
     } catch (error) {
       log('WebSocket subscription FAILED', {
         subscriptionId,
@@ -606,7 +672,7 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       const response = this.#processBalanceUpdates(updates, chainId, accountId);
 
       if (Object.keys(response).length > 0 && subscription) {
-        Promise.resolve(subscription.onAssetsUpdate(response)).catch(
+        Promise.resolve(subscription.onAssetsUpdate(response, request)).catch(
           console.error,
         );
       }
@@ -683,6 +749,93 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
   }
 
   // ============================================================================
+  // UNSUBSCRIBE
+  // ============================================================================
+
+  /**
+   * Unsubscribe and await server-side teardown so a re-subscribe does not race
+   * with stale subscription IDs on incoming notifications.
+   *
+   * @param subscriptionId - The ID of the subscription to cancel.
+   */
+  async unsubscribe(subscriptionId: string): Promise<void> {
+    const previousLock = this.#subscribeLock;
+    let releaseLock: () => void = () => undefined;
+    this.#subscribeLock = new Promise<void>((resolve) => {
+      releaseLock = resolve;
+    });
+
+    await previousLock;
+    try {
+      await this.#teardownSubscription(subscriptionId);
+    } finally {
+      releaseLock();
+    }
+  }
+
+  async #teardownSubscription(subscriptionId: string): Promise<void> {
+    const wsSub = this.#wsSubscriptions.get(subscriptionId);
+
+    if (wsSub) {
+      const channels = [...wsSub.channels];
+      try {
+        await wsSub.unsubscribe();
+      } catch (unsubErr: unknown) {
+        log('Error unsubscribing', { subscriptionId, error: unsubErr });
+      }
+      this.#wsSubscriptions.delete(subscriptionId);
+      this.#removeChannelCallbacks(channels);
+    }
+
+    this.#subscriptionRequests.delete(subscriptionId);
+    this.activeSubscriptions.delete(subscriptionId);
+  }
+
+  #registerChannelCallbacks(
+    subscriptionId: string,
+    channels: string[],
+  ): void {
+    for (const channel of channels) {
+      this.#unregisterChannelCallback(channel);
+
+      try {
+        this.#messenger.call('BackendWebSocketService:addChannelCallback', {
+          channelName: channel,
+          callback: (notification: ServerNotificationMessage) => {
+            this.#handleNotification(notification, subscriptionId);
+          },
+        });
+        this.#registeredChannelCallbacks.add(channel);
+      } catch {
+        // Channel callbacks are optional; ws subscription still works without them.
+      }
+    }
+  }
+
+  #unregisterChannelCallback(channel: string): void {
+    if (!this.#registeredChannelCallbacks.has(channel)) {
+      return;
+    }
+
+    try {
+      this.#messenger.call(
+        'BackendWebSocketService:removeChannelCallback',
+        channel,
+      );
+    } catch {
+      // Best-effort cleanup when the channel callback was never registered.
+    }
+
+    this.#registeredChannelCallbacks.delete(channel);
+  }
+
+  #removeChannelCallbacks(channels: string[]): void {
+    for (const channel of channels) {
+      this.#unregisterChannelCallback(channel);
+    }
+  }
+
+  // ============================================================================
   // CLEANUP
   // ============================================================================
 
@@ -692,22 +845,17 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       this.#chainsRefreshTimer = null;
     }
 
-    // Clean up WebSocket subscriptions
-    // Convert to array first to avoid modifying map during iteration
-    const subscriptions = [...this.#wsSubscriptions.values()];
-    for (const wsSub of subscriptions) {
-      try {
-        // Fire and forget - don't await in destroy
-        wsSub.unsubscribe().catch(() => {
-          // Ignore errors during cleanup
-        });
-      } catch {
-        // Ignore errors during cleanup
-      }
+    const subscriptionIds = [
+      ...new Set([
+        ...this.#wsSubscriptions.keys(),
+        ...this.activeSubscriptions.keys(),
+      ]),
+    ];
+    for (const subscriptionId of subscriptionIds) {
+      this.#teardownSubscription(subscriptionId).catch(() => undefined);
     }
-    this.#wsSubscriptions.clear();
 
-    // Clean up base class subscriptions
+    // Clean up base class subscriptions (no-op if already torn down)
     super.destroy();
   }
 }
