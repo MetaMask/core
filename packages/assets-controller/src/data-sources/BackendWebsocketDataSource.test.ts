@@ -1204,11 +1204,7 @@ describe('BackendWebsocketDataSource', () => {
     notificationCallback(notification);
     await new Promise(process.nextTick);
 
-    // No valid updates → response has only updateMode, no assetsBalance
-    expect(assetsUpdateHandler).toHaveBeenCalledWith(
-      { updateMode: 'merge' },
-      expect.objectContaining({ dataTypes: ['balance'] }),
-    );
+    expect(assetsUpdateHandler).not.toHaveBeenCalled();
 
     controller.destroy();
   });
