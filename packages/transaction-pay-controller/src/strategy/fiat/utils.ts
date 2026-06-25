@@ -171,18 +171,37 @@ export function validateOrderAsset({
 }
 
 /**
+ * Result from {@link resolveSourceAmountRaw}.
+ */
+export type ResolvedSourceAmount = {
+  /** Raw (atomic) source amount as a decimal string. */
+  amountRaw: string;
+  /**
+   * Block number of the ramps settlement transaction as a 0x-prefixed hex
+   * string. Populated when `order.txHash` is present and the on-chain receipt
+   * was successfully fetched (ERC-20 only). Use this as the `fromBlock` for
+   * CHOMP idempotency log queries — it reuses the receipt already fetched for
+   * the amount and requires no additional network request.
+   */
+  chompFromBlock: Hex | undefined;
+};
+
+/**
  * Resolves the raw source amount for a completed fiat order.
  *
  * Attempts to read the actual transferred amount from the on-chain transaction
  * identified by `order.txHash`. If the on-chain read fails or returns
  * no amount, falls back to computing the amount from `order.cryptoAmount`.
  *
+ * Also returns the receipt `blockNumber` from the ramps tx when available, so
+ * callers can use it as a CHOMP idempotency baseline without any extra request.
+ *
  * @param options - The resolution options.
  * @param options.messenger - Controller messenger for network access.
  * @param options.order - The completed on-ramp order.
  * @param options.fiatAsset - The fiat asset describing the expected token.
  * @param options.walletAddress - Recipient wallet address for on-chain lookup.
- * @returns The raw (atomic) source amount as a decimal string.
+ * @returns The raw (atomic) source amount and optional receipt block number.
  */
 export async function resolveSourceAmountRaw({
   messenger,
@@ -194,23 +213,25 @@ export async function resolveSourceAmountRaw({
   order: RampsOrder;
   fiatAsset: TransactionPayFiatAsset;
   walletAddress: Hex;
-}): Promise<string> {
+}): Promise<ResolvedSourceAmount> {
   if (order.txHash) {
     try {
-      const onChainAmount = await getTransferredAmountFromTxHash({
-        messenger,
-        txHash: order.txHash,
-        chainId: fiatAsset.chainId,
-        tokenAddress: fiatAsset.address,
-        walletAddress,
-      });
+      const { amountRaw: onChainAmount, blockNumber } =
+        await getTransferredAmountFromTxHash({
+          messenger,
+          txHash: order.txHash,
+          chainId: fiatAsset.chainId,
+          tokenAddress: fiatAsset.address,
+          walletAddress,
+        });
 
       if (onChainAmount) {
         log('Resolved source amount from on-chain transaction', {
           txHash: order.txHash,
           onChainAmount,
+          blockNumber,
         });
-        return onChainAmount;
+        return { amountRaw: onChainAmount, chompFromBlock: blockNumber };
       }
     } catch (error) {
       log(
@@ -232,10 +253,12 @@ export async function resolveSourceAmountRaw({
     );
   }
 
-  return getRawSourceAmountFromOrderCryptoAmount({
+  const amountRaw = getRawSourceAmountFromOrderCryptoAmount({
     cryptoAmount: order.cryptoAmount,
     decimals: tokenInfo.decimals,
   });
+
+  return { amountRaw, chompFromBlock: undefined };
 }
 
 /**

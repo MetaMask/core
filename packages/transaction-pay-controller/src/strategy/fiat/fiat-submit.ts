@@ -128,7 +128,10 @@ export async function submitFiatQuotes(
   try {
     await waitForKeyringUnlock(messenger, transactionId);
 
-    const result = await submitRelayAfterFiatCompletion({ order, request });
+    const result = await submitRelayAfterFiatCompletion({
+      order,
+      request,
+    });
 
     if (result.transactionHash === undefined) {
       throw new Error('Missing transaction hash');
@@ -248,7 +251,10 @@ async function submitRelayAfterFiatCompletion({
   const isDirectMusd = isDirectMusdMoneyAccountQuote(fiatQuote);
 
   if (isDirectMusd) {
-    return await submitDirectMusdAfterFiatCompletion({ order, request });
+    return await submitDirectMusdAfterFiatCompletion({
+      order,
+      request,
+    });
   }
 
   const fiatAsset = deriveFiatAssetForFiatPayment(transaction, messenger);
@@ -261,7 +267,7 @@ async function submitRelayAfterFiatCompletion({
 
   const baseRequest = fiatQuote.request;
 
-  const sourceAmountRaw = await resolveSourceAmountRaw({
+  const { amountRaw: sourceAmountRaw } = await resolveSourceAmountRaw({
     messenger,
     order,
     fiatAsset,

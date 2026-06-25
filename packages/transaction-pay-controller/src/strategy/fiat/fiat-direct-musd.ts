@@ -20,6 +20,7 @@ import type {
 import { prefixError } from '../../utils/error-prefix';
 import { getFiatVaultDisabled } from '../../utils/feature-flags';
 import { getNetworkClientId } from '../../utils/provider';
+import { findRecentChompVaultDeposit } from './fiat-direct-musd-chomp';
 import { buildCaipAssetType, getTokenInfo } from '../../utils/token';
 import {
   collectTransactionIds,
@@ -128,6 +129,9 @@ export function isDirectMusdMoneyAccountQuote(
 /**
  * Submits the direct mUSD post-Ramp path after fiat settlement.
  *
+ * Derives the CHOMP idempotency baseline block from the ramps settlement tx
+ * receipt (already fetched for the amount) — no additional network request.
+ *
  * @param options - Submit options.
  * @param options.order - Completed fiat order.
  * @param options.request - Strategy execute request.
@@ -149,14 +153,16 @@ export async function submitDirectMusdAfterFiatCompletion({
       transactionId: transaction.id,
     });
 
-    const sourceAmountRaw = await resolveSourceAmountRaw({
-      messenger,
-      order,
-      fiatAsset: MUSD_MONAD_FIAT_ASSET,
-      walletAddress: transaction.txParams.from as Hex,
-    });
+    const { amountRaw: sourceAmountRaw, chompFromBlock } =
+      await resolveSourceAmountRaw({
+        messenger,
+        order,
+        fiatAsset: MUSD_MONAD_FIAT_ASSET,
+        walletAddress: transaction.txParams.from as Hex,
+      });
 
     return await submitDirectMusdVaultDeposit({
+      chompFromBlock,
       request,
       sourceAmountRaw,
       transaction,
@@ -169,17 +175,29 @@ export async function submitDirectMusdAfterFiatCompletion({
 /**
  * Submits the direct mUSD Money Account vault batch after fiat settlement.
  *
+ * Before calling `addTransactionBatch` and again in the catch path, the
+ * function checks whether CHOMP has already auto-vaulted the funds by scanning
+ * recent Monad logs. When a valid CHOMP deposit is found in either location the
+ * function returns its on-chain hash without adding a local vault child
+ * transaction.
+ *
  * @param options - Submit options.
+ * @param options.chompFromBlock - Optional Monad block baseline for CHOMP
+ *   idempotency scanning; sourced from the ramps settlement tx receipt via
+ *   {@link resolveSourceAmountRaw}. When omitted the CHOMP checks are skipped.
  * @param options.request - Strategy execute request.
  * @param options.sourceAmountRaw - Settled source amount in raw mUSD units.
  * @param options.transaction - Original Money Account transaction.
- * @returns Hash of the final submitted child transaction, if available.
+ * @returns Hash of the final submitted child transaction (or the CHOMP deposit
+ *   hash), if available.
  */
 export async function submitDirectMusdVaultDeposit({
+  chompFromBlock,
   request,
   sourceAmountRaw,
   transaction,
 }: {
+  chompFromBlock?: Hex;
   request: PayStrategyExecuteRequest<FiatQuote>;
   sourceAmountRaw: string;
   transaction: PayStrategyExecuteRequest<FiatQuote>['transaction'];
@@ -251,6 +269,35 @@ export async function submitDirectMusdVaultDeposit({
     },
   );
 
+  // CHOMP pre-check: skip addTransactionBatch entirely if CHOMP has already
+  // auto-vaulted the funds during or before the checkout window.
+  if (chompFromBlock) {
+    try {
+      const chompHash = await findRecentChompVaultDeposit({
+        fromBlock: chompFromBlock,
+        messenger,
+        moneyAccountAddress,
+        sourceAmountRaw,
+      });
+
+      if (chompHash) {
+        log('CHOMP already vaulted funds; skipping addTransactionBatch', {
+          chompHash,
+          moneyAccountAddress,
+          sourceAmountRaw,
+          transactionId,
+        });
+
+        return { transactionHash: chompHash };
+      }
+    } catch (chompError) {
+      log('CHOMP pre-check failed; proceeding with vault submit', {
+        chompError,
+        transactionId,
+      });
+    }
+  }
+
   const networkClientId = getNetworkClientId(
     messenger,
     MUSD_MONAD_FIAT_ASSET.chainId,
@@ -309,6 +356,32 @@ export async function submitDirectMusdVaultDeposit({
       })),
     });
   } catch (error) {
+    // CHOMP post-check: CHOMP may have won the race between pre-check and
+    // submit. Return the CHOMP hash instead of surfacing a Vault-prefixed error.
+    if (chompFromBlock) {
+      try {
+        const chompHash = await findRecentChompVaultDeposit({
+          fromBlock: chompFromBlock,
+          messenger,
+          moneyAccountAddress,
+          sourceAmountRaw,
+        });
+
+        if (chompHash) {
+          log('CHOMP detected after addTransactionBatch failure; returning CHOMP hash', {
+            chompHash,
+            moneyAccountAddress,
+            sourceAmountRaw,
+            transactionId,
+          });
+
+          return { transactionHash: chompHash };
+        }
+      } catch (chompError) {
+        log('CHOMP post-check failed', { chompError, transactionId });
+      }
+    }
+
     throw prefixError(error, VAULT_ERROR_PREFIX);
   } finally {
     end();
