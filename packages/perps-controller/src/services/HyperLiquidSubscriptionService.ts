@@ -311,16 +311,20 @@ export class HyperLiquidSubscriptionService {
       oraclePrice?: number;
       lastUpdated: number;
       // Fast-stream price from activeAssetCtx (midPx preferred, markPx fallback).
-      // Populated only for symbols with includeMarketData subscriptions.
-      // Used in #createPriceUpdate to prefer this over the 5s-cadence allMids snapshot.
+      // Populated only for symbols with includeMarketData: true subscriptions.
+      // #notifyAllPriceSubscribers projects this onto the allMids baseline for
+      // focused (includeMarketData: true) subscribers only; list subscribers
+      // always receive the raw allMids price.
       activeAssetCtxPrice?: number;
-      // Timestamp of the last activeAssetCtx price update, used for staleness checks.
+      // Timestamp of the last activeAssetCtx price update.
+      // Used by #notifyAllPriceSubscribers and #projectPriceUpdate for staleness checks.
       priceLastUpdated?: number;
     }
   >();
 
-  // Stale threshold for activeAssetCtx price preference. If the last fast-stream
-  // price update is older than this, #createPriceUpdate falls back to allMids.
+  // Stale threshold for the fast-stream price preference. If the last
+  // activeAssetCtx price update is older than this, the allMids baseline is
+  // used for focused subscribers.
   static readonly #activeAssetCtxPriceTtlMs = 10_000;
 
   // Flag to suppress error logging during intentional disconnect
@@ -1619,11 +1623,32 @@ export class HyperLiquidSubscriptionService {
       }
     });
 
-    // Send cached data immediately if available
+    // Send cached data immediately if available, projecting the fast-stream
+    // price for focused subscribers and falling back to the allMids baseline
+    // for list subscribers.
     symbols.forEach((symbol) => {
       const cachedPrice = this.#cachedPriceData?.get(symbol);
       if (cachedPrice) {
-        callback([cachedPrice]);
+        const projected = includeMarketData
+          ? this.#projectPriceUpdate(symbol, cachedPrice)
+          : cachedPrice;
+        callback([projected]);
+      } else if (includeMarketData) {
+        // No allMids baseline yet; if a fresh fast-stream price is cached,
+        // send it immediately so focused screens are not blank on first render.
+        const marketData = this.#marketDataCache.get(symbol);
+        const now = Date.now();
+        const isFastPriceFresh =
+          marketData?.activeAssetCtxPrice !== undefined &&
+          marketData.priceLastUpdated !== undefined &&
+          now - marketData.priceLastUpdated <=
+            HyperLiquidSubscriptionService.#activeAssetCtxPriceTtlMs;
+        if (isFastPriceFresh) {
+          const fastPrice = (
+            marketData!.activeAssetCtxPrice as number
+          ).toString();
+          callback([this.#createPriceUpdate(symbol, fastPrice)]);
+        }
       }
     });
 
@@ -2851,23 +2876,7 @@ export class HyperLiquidSubscriptionService {
   #createPriceUpdate(symbol: string, price: string): PriceUpdate {
     const marketData = this.#marketDataCache.get(symbol);
     const orderBookData = this.#orderBookCache.get(symbol);
-
-    // Prefer the fast-stream price from activeAssetCtx over the passed-in
-    // allMids price when one is cached and fresh enough. This absorbs the
-    // upcoming 5s allMids push cadence on detail/ticket screens without
-    // affecting list/overview screens (which never populate activeAssetCtxPrice).
-    const now = Date.now();
-    const hasFreshActiveAssetCtxPrice =
-      marketData?.activeAssetCtxPrice !== undefined &&
-      marketData.priceLastUpdated !== undefined &&
-      now - marketData.priceLastUpdated <=
-        HyperLiquidSubscriptionService.#activeAssetCtxPriceTtlMs;
-
-    const effectivePrice = hasFreshActiveAssetCtxPrice
-      ? (marketData.activeAssetCtxPrice as number).toString()
-      : price;
-
-    const currentPrice = parseFloat(effectivePrice);
+    const currentPrice = parseFloat(price);
 
     let percentChange24h: string | undefined;
     if (marketData?.prevDayPx !== undefined) {
@@ -2883,8 +2892,8 @@ export class HyperLiquidSubscriptionService {
 
     const priceUpdate = {
       symbol,
-      price: effectivePrice,
-      timestamp: now,
+      price,
+      timestamp: Date.now(),
       percentChange24h,
       // Add mark price from activeAssetCtx
       markPrice: marketData?.oraclePrice
@@ -2916,6 +2925,41 @@ export class HyperLiquidSubscriptionService {
   }
 
   /**
+   * Project a base PriceUpdate (allMids baseline) onto the per-symbol fast-stream
+   * price for focused (`includeMarketData: true`) subscribers.
+   *
+   * Returns `base` unchanged when:
+   * - No `activeAssetCtxPrice` is cached for the symbol, OR
+   * - The cached price is older than `#activeAssetCtxPriceTtlMs` (10 s).
+   *
+   * Otherwise returns a shallow clone of `base` with `price` and `timestamp`
+   * overridden by the fresh fast-stream value. All other fields (funding,
+   * openInterest, isTradable, etc.) are inherited from the allMids baseline so
+   * cumulative metrics stay consistent.
+   */
+  #projectPriceUpdate(symbol: string, base: PriceUpdate): PriceUpdate {
+    const marketData = this.#marketDataCache.get(symbol);
+    if (
+      marketData?.activeAssetCtxPrice === undefined ||
+      marketData.priceLastUpdated === undefined
+    ) {
+      return base;
+    }
+    const now = Date.now();
+    if (
+      now - marketData.priceLastUpdated >
+      HyperLiquidSubscriptionService.#activeAssetCtxPriceTtlMs
+    ) {
+      return base;
+    }
+    return {
+      ...base,
+      price: marketData.activeAssetCtxPrice.toString(),
+      timestamp: now,
+    };
+  }
+
+  /**
    * Ensure global allMids subscription is active (singleton pattern)
    *
    * NOTE ON PUSH CADENCE: Hyperliquid throttles the main-DEX allMids stream to
@@ -2924,11 +2968,12 @@ export class HyperLiquidSubscriptionService {
    * view (trade detail, order ticket) feel noticeably stale.
    *
    * Mitigation: when a subscription is created with `includeMarketData: true`,
-   * #ensureActiveAssetSubscription also establishes a per-symbol activeAssetCtx
-   * WebSocket that ticks at a faster cadence. #createPriceUpdate prefers that
-   * fast-stream price over this allMids snapshot (with a 10s staleness gate via
-   * #ACTIVE_ASSET_CTX_PRICE_TTL_MS), so detail screens stay responsive. Screens
-   * that use only allMids (includeMarketData: false) are unaffected.
+   * #ensureActiveAssetSubscription establishes a per-symbol activeAssetCtx
+   * WebSocket that ticks at a faster cadence. #notifyAllPriceSubscribers
+   * projects the fast-stream price (with a 10 s staleness gate via
+   * #activeAssetCtxPriceTtlMs) for focused (includeMarketData: true) callbacks
+   * only; list/overview callbacks always receive the raw allMids baseline so
+   * the two subscriber types are guaranteed separate price sources.
    */
   #ensureGlobalAllMidsSubscription(): void {
     // Check both the subscription AND the promise to prevent race conditions
@@ -3101,8 +3146,8 @@ export class HyperLiquidSubscriptionService {
                 ? parseFloat(data.ctx.oraclePx.toString())
                 : undefined,
               lastUpdated: now,
-              // Store fast-stream price so #createPriceUpdate can prefer it over
-              // the 5s-cadence allMids snapshot on detail/ticket screens.
+              // Store fast-stream price for per-subscriber projection in
+              // #notifyAllPriceSubscribers. Used only for focused subscribers.
               activeAssetCtxPrice: ctxPrice
                 ? parseFloat(ctxPrice.toString())
                 : undefined,
@@ -3111,23 +3156,11 @@ export class HyperLiquidSubscriptionService {
 
             this.#marketDataCache.set(symbol, marketData);
 
-            // Drive a price update from the fast-stream price. Use the allMids
-            // fallback string if ctxPrice is absent so #createPriceUpdate still
-            // has something to work with. The preference logic inside
-            // #createPriceUpdate will pick up the cached activeAssetCtxPrice.
-            const fallbackPrice =
-              this.#cachedPriceData?.get(symbol)?.price ?? '0';
-            const priceForUpdate = ctxPrice
-              ? ctxPrice.toString()
-              : fallbackPrice;
-
-            // Notify unconditionally so the first activeAssetCtx tick surfaces a
-            // price even if no allMids tick has arrived yet.
-            this.#cachedPriceData ??= new Map<string, PriceUpdate>();
-            this.#cachedPriceData.set(
-              symbol,
-              this.#createPriceUpdate(symbol, priceForUpdate),
-            );
+            // Notify subscribers. #notifyAllPriceSubscribers projects the
+            // fast-stream price (now stored in #marketDataCache) for focused
+            // (includeMarketData: true) subscribers, while list subscribers
+            // continue to receive only the allMids baseline from #cachedPriceData.
+            // List subscribers are skipped until an allMids tick has arrived.
             this.#notifyAllPriceSubscribers();
           }
         },
@@ -3698,6 +3731,7 @@ export class HyperLiquidSubscriptionService {
       levels = 10,
       nSigFigs = 5,
       mantissa,
+      fast,
       callback,
       onError,
     } = params;
@@ -3724,14 +3758,17 @@ export class HyperLiquidSubscriptionService {
     let cancelled = false;
 
     subscriptionClient
-      .l2Book({ coin: symbol, nSigFigs, mantissa }, (data: L2BookResponse) => {
-        if (cancelled || data?.coin !== symbol || !data?.levels) {
-          return;
-        }
+      .l2Book(
+        { coin: symbol, nSigFigs, mantissa, fast },
+        (data: L2BookResponse) => {
+          if (cancelled || data?.coin !== symbol || !data?.levels) {
+            return;
+          }
 
-        const orderBookData = this.#processOrderBookData(data, levels);
-        callback(orderBookData);
-      })
+          const orderBookData = this.#processOrderBookData(data, levels);
+          callback(orderBookData);
+        },
+      )
       .then(async (sub) => {
         if (cancelled) {
           try {
@@ -3863,36 +3900,66 @@ export class HyperLiquidSubscriptionService {
   }
 
   /**
-   * Notify all price subscribers with their requested symbols from cache
-   * Optimized to batch updates per subscriber
+   * Notify all price subscribers with per-subscriber price projection.
+   *
+   * Price source selection per (symbol, callback):
+   * - **Focused** (`includeMarketData: true`) callbacks are identified by their
+   *   presence in `#marketDataSubscribers[symbol]`. When a fresh
+   *   `activeAssetCtxPrice` is cached (within the 10 s TTL), those callbacks
+   *   receive a clone of the allMids baseline with `price` and `timestamp`
+   *   overridden by the fast-stream value. If no fresh fast price exists they
+   *   fall back to the allMids baseline.
+   * - **List** (`includeMarketData: false`) callbacks always receive the raw
+   *   allMids baseline. They are skipped entirely until at least one allMids
+   *   tick has been cached for the symbol.
+   * - When no allMids baseline exists yet but a fresh `activeAssetCtxPrice` is
+   *   available, focused callbacks still receive an update so detail screens
+   *   stay responsive on first render.
    */
   #notifyAllPriceSubscribers(): void {
-    // If no price data exists yet, don't notify
-    if (!this.#cachedPriceData) {
-      return;
-    }
-
-    const priceData = this.#cachedPriceData;
-
-    // Group updates by subscriber to batch notifications
     const subscriberUpdates = new Map<
       (prices: PriceUpdate[]) => void,
       PriceUpdate[]
     >();
 
     this.#priceSubscribers.forEach((subscriberSet, symbol) => {
-      const priceUpdate = priceData.get(symbol);
-      if (priceUpdate) {
-        subscriberSet.forEach((callback) => {
+      const allMidsBase = this.#cachedPriceData?.get(symbol);
+      const marketData = this.#marketDataCache.get(symbol);
+
+      const now = Date.now();
+      const isFastPriceFresh =
+        marketData?.activeAssetCtxPrice !== undefined &&
+        marketData.priceLastUpdated !== undefined &&
+        now - marketData.priceLastUpdated <=
+          HyperLiquidSubscriptionService.#activeAssetCtxPriceTtlMs;
+
+      subscriberSet.forEach((callback) => {
+        const isFocused =
+          this.#marketDataSubscribers.get(symbol)?.has(callback) ?? false;
+
+        let priceUpdate: PriceUpdate | undefined;
+
+        if (isFocused && isFastPriceFresh) {
+          const fastPrice = (
+            marketData!.activeAssetCtxPrice as number
+          ).toString();
+          // Use allMids baseline as the structural base when available;
+          // fall back to a freshly computed PriceUpdate if allMids hasn't
+          // arrived yet so focused screens stay responsive on first render.
+          const base =
+            allMidsBase ?? this.#createPriceUpdate(symbol, fastPrice);
+          priceUpdate = { ...base, price: fastPrice, timestamp: now };
+        } else if (allMidsBase !== undefined) {
+          priceUpdate = allMidsBase;
+        }
+
+        if (priceUpdate !== undefined) {
           if (!subscriberUpdates.has(callback)) {
             subscriberUpdates.set(callback, []);
           }
-          const updates = subscriberUpdates.get(callback);
-          if (updates) {
-            updates.push(priceUpdate);
-          }
-        });
-      }
+          subscriberUpdates.get(callback)!.push(priceUpdate);
+        }
+      });
     });
 
     // Send batched updates to each subscriber

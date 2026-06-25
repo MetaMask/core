@@ -7919,7 +7919,7 @@ __metadata:
     "@metamask/transaction-controller": "npm:^68.2.0"
     "@metamask/utils": "npm:^11.11.0"
     "@myx-trade/sdk": "npm:^0.1.265"
-    "@nktkas/hyperliquid": "npm:^0.32.2"
+    "@nktkas/hyperliquid": "npm:^0.33.1"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
     "@types/uuid": "npm:^8.3.0"
@@ -9005,21 +9005,22 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@nktkas/hyperliquid@npm:^0.32.2":
-  version: 0.32.2
-  resolution: "@nktkas/hyperliquid@npm:0.32.2"
+"@nktkas/hyperliquid@npm:^0.33.1":
+  version: 0.33.1
+  resolution: "@nktkas/hyperliquid@npm:0.33.1"
   dependencies:
-    "@nktkas/rews": "npm:^2"
-    "@noble/hashes": "npm:^2"
-    valibot: "npm:1.3.1"
-  checksum: 10/58ffc50d51aa5842285697c45b2c8bc80a7e0a610b82220902f8f7acee2e58c4099dcc195ce1456130869c3e33c93d6445f02833a59997e8b937398991d8829e
+    "@nktkas/rews": "npm:^4.0.1"
+    "@noble/hashes": "npm:^2.2.0"
+    decimal.js: "npm:^10.6.0"
+    valibot: "npm:^1.4.1"
+  checksum: 10/8f6672d664dc4b4094906f8e156cf5b64095e04ce4b3bf47b5e9175bff69c6bc4b4d0c3d7559e8f436630619e810d5e2895a74088867175ff4c6f4da97fc6016
   languageName: node
   linkType: hard
 
-"@nktkas/rews@npm:^2":
-  version: 2.1.1
-  resolution: "@nktkas/rews@npm:2.1.1"
-  checksum: 10/34fa67f8f2a4321fdfd24c7e7e4c26510b1e09c64245a390d61490077030e0c64d3a43c0b5dc24ec5d35e679ebee90804e3ea7a3b3ed5c37de81887d1156db31
+"@nktkas/rews@npm:^4.0.1":
+  version: 4.0.1
+  resolution: "@nktkas/rews@npm:4.0.1"
+  checksum: 10/7c4434b9a717c4b955aa665f6d25dc3ae351e77f4cf78850379fdaab77f4e6505e99c6214f0a133a8050659624438a1e6c22c859b5395d81ad8fbc1ef3bdbffa
   languageName: node
   linkType: hard
 
@@ -9087,7 +9088,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@noble/hashes@npm:^2":
+"@noble/hashes@npm:^2.2.0":
   version: 2.2.0
   resolution: "@noble/hashes@npm:2.2.0"
   checksum: 10/b1b78bedc2a01394be047429f3d888905015fe8a09f1b7e43e0b5736b54133df62f73dcc73ede43af38e96e86156afb45b86973fdeaa95d9f0880333c3fc0907
@@ -14160,7 +14161,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"decimal.js@npm:^10.4.2":
+"decimal.js@npm:^10.4.2, decimal.js@npm:^10.6.0":
   version: 10.6.0
   resolution: "decimal.js@npm:10.6.0"
   checksum: 10/c0d45842d47c311d11b38ce7ccc911121953d4df3ebb1465d92b31970eb4f6738a065426a06094af59bee4b0d64e42e7c8984abd57b6767c64ea90cf90bb4a69
@@ -25034,15 +25035,15 @@ __metadata:
   languageName: node
   linkType: hard
 
-"valibot@npm:1.3.1":
-  version: 1.3.1
-  resolution: "valibot@npm:1.3.1"
+"valibot@npm:^1.4.1":
+  version: 1.4.1
+  resolution: "valibot@npm:1.4.1"
   peerDependencies:
     typescript: ">=5"
   peerDependenciesMeta:
     typescript:
       optional: true
-  checksum: 10/e14d085fa87fbf41f76d040cdcf17e31527f868c8b82f878bc488a5bc3bc81162406c605182fc720473ec6dcff05393b89fb4a921a4206d9f7b6f76e3c93cf34
+  checksum: 10/39092725e4045e332e3593e9b95253c1a3429033e13be1805597fb8d346ad20a727bef82971e3b9a1b7d631bb8ad65fff186ec55d430e16f25b6bbba151c4e80
   languageName: node
   linkType: hard
 
