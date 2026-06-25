@@ -16,7 +16,7 @@ jobs:
       pull-requests: read
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v2
+        uses: MetaMask/action-checkout-and-setup@node-modules-cache
         with:
           is-high-risk-environment: false
       - name: Run command

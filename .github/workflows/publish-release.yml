@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v3
+        uses: MetaMask/action-checkout-and-setup@node-modules-cache
         with:
           is-high-risk-environment: true
           ref: ${{ github.sha }}
@@ -43,7 +43,7 @@ jobs:
     needs: build
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v3
+        uses: MetaMask/action-checkout-and-setup@node-modules-cache
         with:
           is-high-risk-environment: true
           ref: ${{ github.sha }}
@@ -69,7 +69,7 @@ jobs:
       id-token: write
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v3
+        uses: MetaMask/action-checkout-and-setup@node-modules-cache
         with:
           is-high-risk-environment: true
           ref: ${{ github.sha }}
@@ -92,7 +92,7 @@ jobs:
     needs: publish-npm
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v3
+        uses: MetaMask/action-checkout-and-setup@node-modules-cache
         with:
           is-high-risk-environment: true
           ref: ${{ github.sha }}
