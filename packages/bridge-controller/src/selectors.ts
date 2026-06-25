@@ -148,14 +148,10 @@ const getEvmTokenExchangeRateForAddress = (
   evmTokenExchangeRates: EvmTokenExchangeRates | undefined,
   address: string,
 ): EvmTokenExchangeRate | null | undefined => {
-  try {
-    return isStrictHexString(address)
-      ? (evmTokenExchangeRates?.[getAddress(address)] ??
-          evmTokenExchangeRates?.[address.toLowerCase()])
-      : null;
-  } catch {
-    return null;
-  }
+  return isStrictHexString(address)
+    ? (evmTokenExchangeRates?.[getAddress(address)] ??
+        evmTokenExchangeRates?.[address.toLowerCase()])
+    : null;
 };
 
 /**
@@ -227,7 +223,16 @@ export const selectExchangeRateByAssetId = (
     return {};
   }
 
-  const address = formatAddressToCaipReference(assetId);
+  let address;
+  try {
+    address = formatAddressToCaipReference(assetId);
+  } catch (error) {
+    console.log(
+      `selectExchangeRateByAssetId: formatAddressToCaipReference thrown with assetId ${assetId}. Returning empty object.`,
+      error,
+    );
+    return {};
+  }
 
   // If the chain is an EVM chain, use the conversion rate from the currency rates controller
   if (isNativeAddress(address)) {

@@ -155,6 +155,14 @@ describe('CAIP Formatters', () => {
       ).toBe('0x1234567890123456789012345678901234567890');
     });
 
+    it('should extract address from standard CAIP-19 format when ERC20', () => {
+      expect(
+        formatAddressToCaipReference(
+          'eip155:5042/erc20:0x3600000000000000000000000000000000000000',
+        ),
+      ).toBe('0x3600000000000000000000000000000000000000');
+    });
+
     it('should handle Bitcoin addresses without prefix', () => {
       const btcAddress = 'bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh';
       expect(formatAddressToCaipReference(btcAddress)).toBe(btcAddress);
