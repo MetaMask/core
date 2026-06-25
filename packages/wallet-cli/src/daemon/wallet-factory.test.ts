@@ -30,6 +30,7 @@ const CONFIG = {
   databasePath: ':memory:',
   password: 'test-pass',
   srp: SRP,
+  infuraProjectId: 'test-infura-id',
 };
 
 /**
@@ -99,6 +100,9 @@ describe('createWallet', () => {
     expect(
       instanceOptions.connectivityController.connectivityAdapter,
     ).toBeInstanceOf(AlwaysOnlineAdapter);
+    expect(instanceOptions.networkController.infuraProjectId).toBe(
+      'test-infura-id',
+    );
     expect(
       instanceOptions.remoteFeatureFlagController.clientConfigApiService,
     ).toBeInstanceOf(ClientConfigApiService);

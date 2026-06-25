@@ -51,14 +51,19 @@ export type CreateWalletResult = {
  *   offloads durable data to it yet, so in-memory suffices.
  * - `connectivityController` — the `AlwaysOnlineAdapter` exported for
  *   node-like hosts that have no platform connectivity signal.
+ * - `networkController` — the Infura project ID used to reach Infura RPC
+ *   endpoints.
  * - `remoteFeatureFlagController` — a `ClientConfigApiService` fetching real
  *   flags over the network.
  * - `approvalController` — a no-op `showApprovalRequest` (the daemon is
  *   headless).
  *
+ * @param infuraProjectId - The Infura project ID for the `NetworkController`.
  * @returns The `instanceOptions` for the `Wallet` constructor.
  */
-function buildInstanceOptions(): WalletOptions['instanceOptions'] {
+function buildInstanceOptions(
+  infuraProjectId: string,
+): WalletOptions['instanceOptions'] {
   return {
     approvalController: {
       // TODO: surface approval requests over the daemon transport.
@@ -66,6 +71,9 @@ function buildInstanceOptions(): WalletOptions['instanceOptions'] {
     },
     connectivityController: {
       connectivityAdapter: new AlwaysOnlineAdapter(),
+    },
+    networkController: {
+      infuraProjectId,
     },
     remoteFeatureFlagController: {
       clientConfigApiService: new ClientConfigApiService({
@@ -82,8 +90,6 @@ function buildInstanceOptions(): WalletOptions['instanceOptions'] {
     storageService: {
       storage: new InMemoryStorageAdapter(),
     },
-    // TODO(#9001): add the `networkController` slot (fed by INFURA_PROJECT_ID)
-    // once it is wired on `@metamask/wallet`.
     // TODO(#8975): add the `transactionController` slot once it is wired.
   };
 }
@@ -111,6 +117,8 @@ function buildInstanceOptions(): WalletOptions['instanceOptions'] {
  * `':memory:'` for ephemeral use).
  * @param config.password - The wallet password.
  * @param config.srp - The secret recovery phrase (BIP-39 mnemonic).
+ * @param config.infuraProjectId - The Infura project ID for the
+ * `NetworkController`.
  * @param config.log - Optional logger for persistence-write and teardown
  * failures. Without it, failures fall back to `console.error` (which a detached
  * daemon's `stdio: 'ignore'` discards).
@@ -120,11 +128,13 @@ export async function createWallet({
   databasePath,
   password,
   srp,
+  infuraProjectId,
   log,
 }: {
   databasePath: string;
   password: string;
   srp: string;
+  infuraProjectId: string;
   log?: (message: string) => void;
 }): Promise<CreateWalletResult> {
   const logFn = log ?? ((message: string): void => console.error(message));
@@ -134,10 +144,13 @@ export async function createWallet({
   let wasFirstRun = false;
 
   try {
-    const state = await loadPersistedState(store, logFn);
+    const state = await loadPersistedState(store, infuraProjectId, logFn);
     wasFirstRun = !hasPersistedKeyring(state);
 
-    wallet = new Wallet({ state, instanceOptions: buildInstanceOptions() });
+    wallet = new Wallet({
+      state,
+      instanceOptions: buildInstanceOptions(infuraProjectId),
+    });
     // `wallet.messenger` is typed `Readonly`, but persistence must register
     // (and later remove) subscriptions on it.
     unsubscribe = subscribeToChanges(
@@ -194,15 +207,20 @@ export async function createWallet({
  * without constructing a `Wallet`.
  *
  * @param store - The key-value store to read from.
+ * @param infuraProjectId - The Infura project ID for the probe's
+ * `NetworkController`.
  * @param logFn - Logger for a probe-teardown failure.
  * @returns The filtered persisted state, suitable for the `Wallet` `state`
  * option.
  */
 async function loadPersistedState(
   store: KeyValueStore,
+  infuraProjectId: string,
   logFn: (message: string) => void,
 ): Promise<Record<string, Record<string, Json>>> {
-  const probe = new Wallet({ instanceOptions: buildInstanceOptions() });
+  const probe = new Wallet({
+    instanceOptions: buildInstanceOptions(infuraProjectId),
+  });
   try {
     return loadState(store, probe.controllerMetadata);
   } finally {

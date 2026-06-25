@@ -27,10 +27,8 @@ async function main(): Promise<void> {
     throw new Error('MM_DAEMON_DATA_DIR environment variable is required');
   }
 
-  // TODO(#9001): INFURA_PROJECT_ID is required by the spawn contract but not
-  // yet consumed — `NetworkController` is not wired on `@metamask/wallet`.
-  // Pass it into `createWallet`'s NetworkController slot once it lands.
-  if (!process.env.INFURA_PROJECT_ID) {
+  const infuraProjectId = process.env.INFURA_PROJECT_ID;
+  if (!infuraProjectId) {
     throw new Error('INFURA_PROJECT_ID environment variable is required');
   }
 
@@ -91,6 +89,7 @@ async function main(): Promise<void> {
       databasePath: dbPath,
       password,
       srp,
+      infuraProjectId,
       log,
     }));
 

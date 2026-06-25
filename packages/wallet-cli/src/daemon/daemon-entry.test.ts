@@ -184,6 +184,7 @@ describe('daemon-entry', () => {
       databasePath: '/tmp/wallet.db',
       password: 'pass',
       srp: 'test test test test test test test test test test test ball',
+      infuraProjectId: 'key',
       log: expect.any(Function),
     });
     expect(mockWriteFile).toHaveBeenCalledWith(
