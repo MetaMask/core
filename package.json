@@ -48,7 +48,7 @@
     "postinstall": "yarn skills:postinstall"
   },
   "devDependencies": {
-    "@lavamoat/allow-scripts": "^3.0.4",
+    "@lavamoat/allow-scripts": "^5.1.0",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
     "@metamask/create-release-branch": "^4.2.1",
     "@metamask/eslint-config": "^15.0.0",
