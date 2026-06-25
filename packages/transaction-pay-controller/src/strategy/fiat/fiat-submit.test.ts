@@ -423,7 +423,10 @@ describe('submitFiatQuotes', () => {
         return {
           transactionData: {
             [TRANSACTION_ID_MOCK]: {
-              fiatPayment: { orderId: ORDER_ID_MOCK, rampsQuote: RAMPS_QUOTE_MOCK },
+              fiatPayment: {
+                orderId: ORDER_ID_MOCK,
+                rampsQuote: RAMPS_QUOTE_MOCK,
+              },
               isLoading: false,
               tokens: [],
             },
