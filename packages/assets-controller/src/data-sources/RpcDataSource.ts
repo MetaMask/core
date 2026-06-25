@@ -523,7 +523,7 @@ export class RpcDataSource extends AbstractDataSource<
         [result.accountId]: newBalances,
       },
       assetsInfo,
-      updateMode: 'merge',
+      updateMode: 'update',
     };
 
     const request: DataRequest = {
@@ -603,7 +603,7 @@ export class RpcDataSource extends AbstractDataSource<
       assetsBalance: {
         [result.accountId]: newBalances,
       },
-      updateMode: 'merge',
+      updateMode: 'update',
     };
 
     const chainIdDecimal = parseInt(result.chainId, 16);
@@ -1138,6 +1138,8 @@ export class RpcDataSource extends AbstractDataSource<
     if (Object.keys(assetsInfo).length > 0) {
       response.assetsInfo = assetsInfo;
     }
+
+    response.updateMode = 'update';
 
     return response;
   }

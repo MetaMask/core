@@ -382,7 +382,9 @@ export type DataResponse = {
  *   Metadata and prices from the response are applied. Use for event-driven updates.
  * - **update**: Balance-only overlay — incoming balance amounts are patched in place;
  *   existing balances, metadata, and prices are never removed or overwritten.
- *   Use for force refresh when the API may return a partial chain snapshot.
+ *   Missing metadata and prices from the response are seeded so RPC-only chains
+ *   can render on first fetch. Use for force refresh when the API may return a
+ *   partial chain snapshot.
  */
 export type AssetsUpdateMode = 'full' | 'merge' | 'update';
 

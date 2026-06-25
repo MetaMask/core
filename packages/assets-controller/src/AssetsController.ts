@@ -2163,35 +2163,52 @@ export class AssetsController extends BaseController<
         >;
         const prices = state.assetsPrice as Record<string, AssetPrice>;
 
-        if (normalizedResponse.assetsInfo && mode !== 'update') {
-          for (const [key, value] of Object.entries(
-            normalizedResponse.assetsInfo,
-          )) {
-            if (
-              !isEqual(previousState.assetsInfo[key as Caip19AssetId], value)
-            ) {
+        if (normalizedResponse.assetsInfo) {
+          if (mode === 'update') {
+            // Balance-only refresh: patch amounts without overwriting metadata,
+            // but seed entries that are missing so RPC-only chains (e.g.
+            // Avalanche) can render native balances on first fetch.
+            for (const [key, value] of Object.entries(
+              normalizedResponse.assetsInfo,
+            )) {
+              if (metadata[key]) {
+                continue;
+              }
+              metadata[key] = value;
               changedMetadata.push(key);
             }
+          } else {
+            for (const [key, value] of Object.entries(
+              normalizedResponse.assetsInfo,
+            )) {
+              if (
+                !isEqual(previousState.assetsInfo[key as Caip19AssetId], value)
+              ) {
+                changedMetadata.push(key);
+              }
 
-            const existing = metadata[key] as FungibleAssetMetadata | undefined;
-            const incoming = value as FungibleAssetMetadata;
+              const existing = metadata[key] as
+                | FungibleAssetMetadata
+                | undefined;
+              const incoming = value as FungibleAssetMetadata;
 
-            // When the API returns no symbol or name for this token, it has no
-            // real knowledge of it (e.g. a user-deployed token not indexed by
-            // the API). Preserve richer metadata already in state (e.g. from
-            // pendingMetadata set by addCustomAsset) so that the correct
-            // decimals/symbol/name/image are not overwritten with empty values.
-            if (existing && !incoming.symbol && !incoming.name) {
-              metadata[key] = {
-                ...existing,
-                ...incoming,
-                symbol: existing.symbol,
-                name: existing.name,
-                decimals: existing.decimals ?? incoming.decimals,
-                image: existing.image ?? incoming.image,
-              };
-            } else {
-              metadata[key] = value;
+              // When the API returns no symbol or name for this token, it has no
+              // real knowledge of it (e.g. a user-deployed token not indexed by
+              // the API). Preserve richer metadata already in state (e.g. from
+              // pendingMetadata set by addCustomAsset) so that the correct
+              // decimals/symbol/name/image are not overwritten with empty values.
+              if (existing && !incoming.symbol && !incoming.name) {
+                metadata[key] = {
+                  ...existing,
+                  ...incoming,
+                  symbol: existing.symbol,
+                  name: existing.name,
+                  decimals: existing.decimals ?? incoming.decimals,
+                  image: existing.image ?? incoming.image,
+                };
+              } else {
+                metadata[key] = value;
+              }
             }
           }
         }
@@ -2321,12 +2338,24 @@ export class AssetsController extends BaseController<
           }
         }
 
-        // Update prices in state (skipped for balance-only update mode)
-        if (normalizedResponse.assetsPrice && mode !== 'update') {
-          for (const [key, value] of Object.entries(
-            normalizedResponse.assetsPrice,
-          )) {
-            prices[key] = value;
+        // Update prices in state. Update mode only seeds missing entries so
+        // balance-only refreshes do not clobber existing price data.
+        if (normalizedResponse.assetsPrice) {
+          if (mode === 'update') {
+            for (const [key, value] of Object.entries(
+              normalizedResponse.assetsPrice,
+            )) {
+              if (prices[key]) {
+                continue;
+              }
+              prices[key] = value;
+            }
+          } else {
+            for (const [key, value] of Object.entries(
+              normalizedResponse.assetsPrice,
+            )) {
+              prices[key] = value;
+            }
           }
         }
       });

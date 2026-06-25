@@ -1806,6 +1806,37 @@ describe('AssetsController', () => {
       });
     });
 
+    it('seeds missing metadata in update mode for RPC-only chains', async () => {
+      const avaxNative = 'eip155:43114/slip44:9005' as Caip19AssetId;
+
+      await withController({ state: {} }, async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            updateMode: 'update',
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [avaxNative]: { amount: '1.5' },
+              },
+            },
+            assetsInfo: {
+              [avaxNative]: {
+                type: 'native',
+                symbol: 'AVAX',
+                name: 'Avalanche',
+                decimals: 18,
+              },
+            },
+          },
+          'RpcDataSource',
+        );
+
+        expect(controller.state.assetsInfo[avaxNative]?.symbol).toBe('AVAX');
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[avaxNative],
+        ).toStrictEqual({ amount: '1.5' });
+      });
+    });
+
     it('updates balance amounts present in update mode response', async () => {
       const initialState: Partial<AssetsControllerState> = {
         assetsBalance: {
