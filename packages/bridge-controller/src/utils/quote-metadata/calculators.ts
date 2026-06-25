@@ -121,7 +121,7 @@ export const calcRelayerFee = (
     : undefined;
 
   // Subtract srcAmount and other fees from trade value if srcAsset is native
-  if (isNativeAddress(quote.srcAsset.assetId)) {
+  if (isNativeAddress(quote.srcAsset.assetId) && relayerFeeAmount?.gt(0)) {
     const sentAmountInNative = calcSentAmount(quote, {
       exchangeRate,
       usdExchangeRate,
