@@ -4327,18 +4327,16 @@ describe('SeedlessOnboardingController', () => {
             SecretMetadata.fromRawMetadata<Uint8Array>(raw, {}).data;
 
           expect(transformed).toHaveLength(3);
-          expect(transformed?.[0].dataType).toBe(
-            EncAccountDataType.PrimarySrp,
-          );
-          expect(parseSecretData(transformed?.[0].data as Uint8Array)).toStrictEqual(
-            MOCK_SEED_PHRASE,
-          );
-          expect(parseSecretData(transformed?.[1].data as Uint8Array)).toStrictEqual(
-            importedSrp2,
-          );
-          expect(parseSecretData(transformed?.[2].data as Uint8Array)).toStrictEqual(
-            importedSrp3,
-          );
+          expect(transformed?.[0].dataType).toBe(EncAccountDataType.PrimarySrp);
+          expect(
+            parseSecretData(transformed?.[0].data as Uint8Array),
+          ).toStrictEqual(MOCK_SEED_PHRASE);
+          expect(
+            parseSecretData(transformed?.[1].data as Uint8Array),
+          ).toStrictEqual(importedSrp2);
+          expect(
+            parseSecretData(transformed?.[2].data as Uint8Array),
+          ).toStrictEqual(importedSrp3);
           expect(transformed?.[0].version).toBe('v2');
 
           const legacyItem = {
