@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.0.0]
+
 ### Changed
 
 - **BREAKING:** `RampsController.getProviders`, `RampsService.getProviders`, `RampsController.getPaymentMethods`, and `RampsService.getPaymentMethods` no longer accept a `fiat` query filter; region local fiat filtering is applied server-side when omitted ([#9245](https://github.com/MetaMask/core/pull/9245))
@@ -395,7 +397,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@15.0.0...HEAD
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.3.0...@metamask/ramps-controller@15.0.0
 [14.3.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.2.0...@metamask/ramps-controller@14.3.0
 [14.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.1.1...@metamask/ramps-controller@14.2.0
 [14.1.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.1.0...@metamask/ramps-controller@14.1.1
