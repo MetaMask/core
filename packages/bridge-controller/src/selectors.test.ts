@@ -596,12 +596,12 @@ describe('Bridge Selectors', () => {
 
       const expectedQuoteMetadata = {
         adjustedReturn: {
-          usd: '13.099927',
-          valueInCurrency: '2597.985546',
+          usd: '2.099927',
+          valueInCurrency: '419.985546',
         },
         cost: {
-          usd: '-2.099927',
-          valueInCurrency: '-419.985546',
+          usd: '8.900073',
+          valueInCurrency: '1758.014454',
         },
         gasFee: {
           effective: {
@@ -638,14 +638,14 @@ describe('Bridge Selectors', () => {
           valueInCurrency: '420',
         },
         totalMaxNetworkFee: {
-          amount: '-1.0999854',
-          usd: '-10.999854',
-          valueInCurrency: '-2177.971092',
+          amount: '0.0000146',
+          usd: '0.000146',
+          valueInCurrency: '0.028908',
         },
         totalNetworkFee: {
-          amount: '-1.0999927',
-          usd: '-10.999927',
-          valueInCurrency: '-2177.985546',
+          amount: '0.0000073',
+          usd: '0.000073',
+          valueInCurrency: '0.014454',
         },
       };
 
@@ -656,7 +656,7 @@ describe('Bridge Selectors', () => {
       validateQuoteResponseV1(quoteResponseV1);
 
       expect(result.sortedQuotes[0]).toStrictEqual(quoteResponseV1);
-      expect(result.sortedQuotes[0].cost?.valueInCurrency).toBe('-419.985546');
+      expect(result.sortedQuotes[0].cost?.valueInCurrency).toBe('1758.014454');
     });
 
     it('should return metadata when quotes are empty', () => {
@@ -753,14 +753,14 @@ describe('Bridge Selectors', () => {
           valueInCurrency: null,
         },
         totalMaxNetworkFee: {
-          amount: '-1.0999854',
-          usd: '-1979.97372',
-          valueInCurrency: '-1979.97372',
+          amount: '0.0000146',
+          usd: '0.02628',
+          valueInCurrency: '0.02628',
         },
         totalNetworkFee: {
-          amount: '-1.0999927',
-          usd: '-1979.98686',
-          valueInCurrency: '-1979.98686',
+          amount: '0.0000073',
+          usd: '0.01314',
+          valueInCurrency: '0.01314',
         },
       };
 
@@ -848,14 +848,14 @@ describe('Bridge Selectors', () => {
           valueInCurrency: null,
         },
         totalMaxNetworkFee: {
-          amount: '-1.0999854',
-          usd: '-1979.97372',
-          valueInCurrency: '-1979.97372',
+          amount: '0.0000146',
+          usd: '0.02628',
+          valueInCurrency: '0.02628',
         },
         totalNetworkFee: {
-          amount: '-1.0999927',
-          usd: '-1979.98686',
-          valueInCurrency: '-1979.98686',
+          amount: '0.0000073',
+          usd: '0.01314',
+          valueInCurrency: '0.01314',
         },
       };
 
