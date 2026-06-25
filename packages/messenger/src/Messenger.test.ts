@@ -345,6 +345,70 @@ describe('Messenger', () => {
     });
   });
 
+  describe('getRegisteredActionTypes', () => {
+    it('returns an empty array when no actions are registered', () => {
+      type PingAction = { type: 'Fixture:ping'; handler: () => void };
+      const messenger = new Messenger<'Fixture', PingAction, never>({
+        namespace: 'Fixture',
+      });
+
+      expect(messenger.getRegisteredActionTypes()).toStrictEqual([]);
+    });
+
+    it('returns the types of registered actions', () => {
+      type MessageAction =
+        | { type: 'Fixture:concat'; handler: (message: string) => void }
+        | { type: 'Fixture:reset'; handler: (initialMessage: string) => void };
+      const messenger = new Messenger<'Fixture', MessageAction, never>({
+        namespace: 'Fixture',
+      });
+
+      messenger.registerActionHandler('Fixture:concat', () => undefined);
+      messenger.registerActionHandler('Fixture:reset', () => undefined);
+
+      expect(messenger.getRegisteredActionTypes()).toStrictEqual([
+        'Fixture:concat',
+        'Fixture:reset',
+      ]);
+    });
+
+    it('no longer includes an action type after it is unregistered', () => {
+      type MessageAction =
+        | { type: 'Fixture:concat'; handler: (message: string) => void }
+        | { type: 'Fixture:reset'; handler: (initialMessage: string) => void };
+      const messenger = new Messenger<'Fixture', MessageAction, never>({
+        namespace: 'Fixture',
+      });
+
+      messenger.registerActionHandler('Fixture:concat', () => undefined);
+      messenger.registerActionHandler('Fixture:reset', () => undefined);
+      messenger.unregisterActionHandler('Fixture:concat');
+
+      expect(messenger.getRegisteredActionTypes()).toStrictEqual([
+        'Fixture:reset',
+      ]);
+    });
+
+    it('includes actions delegated in from another messenger', () => {
+      type CountAction = {
+        type: 'Source:count';
+        handler: (increment: number) => void;
+      };
+      const sourceMessenger = new Messenger<'Source', CountAction, never>({
+        namespace: 'Source',
+      });
+      const messenger = new Messenger<'Destination', CountAction, never>({
+        namespace: 'Destination',
+      });
+      sourceMessenger.registerActionHandler('Source:count', () => undefined);
+      sourceMessenger.delegate({ actions: ['Source:count'], messenger });
+
+      expect(messenger.getRegisteredActionTypes()).toStrictEqual([
+        'Source:count',
+      ]);
+    });
+  });
+
   describe('publish and subscribe', () => {
     it('publishes event to subscriber', () => {
       type MessageEvent = { type: 'Fixture:message'; payload: [string] };

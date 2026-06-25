@@ -400,6 +400,22 @@ export class Messenger<
   }
 
   /**
+   * Get the types of all actions that this messenger can call directly.
+   *
+   * This includes actions registered on this messenger as well as actions that
+   * have been delegated into it from another messenger. It does not include
+   * actions this messenger has delegated out to other messengers.
+   *
+   * Note that this reflects the registrations on this specific messenger
+   * instance.
+   *
+   * @returns An array of every action type this messenger can call directly.
+   */
+  getRegisteredActionTypes(): string[] {
+    return [...this.#actions.keys()];
+  }
+
+  /**
    * Get the action handler for a given action type.
    *
    * This is a protected method to allow subclasses to override the way action
