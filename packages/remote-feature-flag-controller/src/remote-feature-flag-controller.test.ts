@@ -478,9 +478,9 @@ describe('RemoteFeatureFlagController', () => {
 
       // With MOCK_METRICS_ID + 'testFlagForThreshold' hashed:
       // Threshold = 0.380673, which falls in groupB range (0.3 < t <= 0.5)
-      expect(
-        controller.state.remoteFeatureFlags.testFlagForThreshold,
-      ).toBe('valueB');
+      expect(controller.state.remoteFeatureFlags.testFlagForThreshold).toBe(
+        'valueB',
+      );
       expect(controller.state.featureFlagThresholdGroups).toStrictEqual({});
     });
 

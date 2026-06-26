@@ -125,7 +125,6 @@ export function getDefaultRemoteFeatureFlagControllerState(): RemoteFeatureFlagC
   };
 }
 
-
 /**
  * The RemoteFeatureFlagController manages the retrieval and caching of remote feature flags.
  * It fetches feature flags from a remote API, caches them, and provides methods to access
@@ -282,8 +281,11 @@ export class RemoteFeatureFlagController extends BaseController<
    * @param remoteFeatureFlags - The new feature flags to cache.
    */
   async #updateCache(remoteFeatureFlags: FeatureFlags): Promise<void> {
-    const { processedFlags, thresholdCacheUpdates, featureFlagThresholdGroupUpdates } =
-      await this.#processRemoteFeatureFlags(remoteFeatureFlags);
+    const {
+      processedFlags,
+      thresholdCacheUpdates,
+      featureFlagThresholdGroupUpdates,
+    } = await this.#processRemoteFeatureFlags(remoteFeatureFlags);
 
     const metaMetricsId = this.#getMetaMetricsId();
     const currentFlagNames = Object.keys(remoteFeatureFlags);
@@ -419,7 +421,8 @@ export class RemoteFeatureFlagController extends BaseController<
         if (selectedGroup) {
           processedValue = selectedGroup.value;
           if (selectedGroup.thresholdName) {
-            featureFlagThresholdGroupUpdates[remoteFeatureFlagName] = selectedGroup.thresholdName;
+            featureFlagThresholdGroupUpdates[remoteFeatureFlagName] =
+              selectedGroup.thresholdName;
           }
         }
       }
