@@ -588,7 +588,10 @@ describe('MoneyAccountApiDataService', () => {
     it('is callable via messenger action', async () => {
       const { rootMessenger, service } = createService(Env.DEV);
 
-      await rootMessenger.call('MoneyAccountApiDataService:invalidateQueries');
+      const result = await rootMessenger.call(
+        'MoneyAccountApiDataService:invalidateQueries',
+      );
+      expect(result).toBeUndefined();
       service.destroy();
     });
   });

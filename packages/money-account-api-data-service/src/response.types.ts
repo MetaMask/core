@@ -7,6 +7,10 @@ import type {
   RateHistoryResponseStruct,
 } from './structs';
 
+// All types in this file mirror the external Money Account API's snake_case
+// JSON contract verbatim to maintain 1:1 parity with API responses.
+/* eslint-disable @typescript-eslint/naming-convention */
+
 /**
  * Data freshness indicator returned by all business endpoints.
  */

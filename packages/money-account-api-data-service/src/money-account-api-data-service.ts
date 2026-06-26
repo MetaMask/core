@@ -250,7 +250,7 @@ export class MoneyAccountApiDataService extends BaseDataService<
         address.toLowerCase(),
         options.vaultAddress.toLowerCase(),
         options.window,
-        ...(options.chainId !== undefined ? [options.chainId] : []),
+        ...(options.chainId === undefined ? [] : [options.chainId]),
       ],
       staleTime: DEFAULT_STALE_TIME_MS,
       queryFn: async () => {
@@ -385,7 +385,7 @@ export class MoneyAccountApiDataService extends BaseDataService<
       queryKey: [
         `${this.name}:fetchRateHistory`,
         vaultAddress.toLowerCase(),
-        ...(options?.chainId !== undefined ? [options.chainId] : [null]),
+        ...(options?.chainId === undefined ? [null] : [options.chainId]),
         ...(options?.from ? [options.from] : [null]),
         ...(options?.to ? [options.to] : [null]),
       ],
