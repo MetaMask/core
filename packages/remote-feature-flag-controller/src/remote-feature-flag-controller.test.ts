@@ -468,13 +468,11 @@ describe('RemoteFeatureFlagController', () => {
       // Threshold = 0.380673, which falls in groupB range (0.3 < t <= 0.5)
       expect(
         controller.state.remoteFeatureFlags.testFlagForThreshold,
-      ).toStrictEqual({
-        name: 'groupB',
-        value: 'valueB',
-      });
+      ).toBe('valueB');
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({});
     });
 
-    it('preserves selected legacy threshold object value wrappers', async () => {
+    it('returns selected threshold values directly without threshold group mapping when thresholdName is absent', async () => {
       const thresholdFlagValue = {
         enabled: true,
         minimumVersion: '13.10.0',
@@ -503,13 +501,11 @@ describe('RemoteFeatureFlagController', () => {
 
       expect(
         controller.state.remoteFeatureFlags.thresholdObjectFlag,
-      ).toStrictEqual({
-        name: 'enabled',
-        value: thresholdFlagValue,
-      });
+      ).toStrictEqual(thresholdFlagValue);
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({});
     });
 
-    it('returns selected threshold version 2 values without wrapper metadata', async () => {
+    it('uses thresholdName when provided for threshold group mapping', async () => {
       const thresholdFlagValue = {
         enabled: true,
         minimumVersion: '13.10.0',
@@ -540,9 +536,12 @@ describe('RemoteFeatureFlagController', () => {
       expect(
         controller.state.remoteFeatureFlags.thresholdObjectFlag,
       ).toStrictEqual(thresholdFlagValue);
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        thresholdObjectFlag: 'enabled',
+      });
     });
 
-    it('falls back to legacy threshold wrappers for unrecognized threshold versions', async () => {
+    it('returns selected threshold values for unrecognized threshold versions', async () => {
       const thresholdFlagValue = {
         enabled: true,
       };
@@ -570,10 +569,8 @@ describe('RemoteFeatureFlagController', () => {
 
       expect(
         controller.state.remoteFeatureFlags.thresholdObjectFlag,
-      ).toStrictEqual({
-        name: 'enabled',
-        value: thresholdFlagValue,
-      });
+      ).toStrictEqual(thresholdFlagValue);
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({});
     });
 
     it('preserves non-threshold feature flags unchanged', async () => {
@@ -637,9 +634,10 @@ describe('RemoteFeatureFlagController', () => {
       // Assert - User gets different groups because each flag uses unique seed
       const { featureA, featureB } = controller.state.remoteFeatureFlags;
       // featureA: hash(MOCK_METRICS_ID + 'featureA') → threshold 0.966682 → groupA2
-      expect(featureA).toStrictEqual({ name: 'groupA2', value: 'A2' });
+      expect(featureA).toBe('A2');
       // featureB: hash(MOCK_METRICS_ID + 'featureB') → threshold 0.398654 → groupB1
-      expect(featureB).toStrictEqual({ name: 'groupB1', value: 'B1' });
+      expect(featureB).toBe('B1');
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({});
       // Different groups proves independence!
     });
 
@@ -699,10 +697,10 @@ describe('RemoteFeatureFlagController', () => {
       );
 
       // Assert - Invalid item skipped, valid item selected
-      expect(controller.state.remoteFeatureFlags.mixedArray).toStrictEqual({
-        name: 'validGroup',
-        value: 'selectedValue',
-      });
+      expect(controller.state.remoteFeatureFlags.mixedArray).toBe(
+        'selectedValue',
+      );
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({});
     });
 
     it('assigns users to same group for same feature flag on multiple calls', async () => {
@@ -749,7 +747,8 @@ describe('RemoteFeatureFlagController', () => {
       // Assert - Same user always gets same group (deterministic)
       // testFlag: hash(MOCK_METRICS_ID + 'testFlag') → threshold 0.496587 → control
       expect(firstResult).toStrictEqual(secondResult);
-      expect(firstResult).toStrictEqual({ name: 'control', value: false });
+      expect(firstResult).toBe(false);
+      expect(controller1.state.featureFlagThresholdGroups).toStrictEqual({});
     });
   });
 
@@ -1061,9 +1060,10 @@ describe('RemoteFeatureFlagController', () => {
       // With MOCK_METRICS_ID + 'multiVersionABFlag' hashed:
       // Threshold = 0.094878, which falls in groupA range (t <= 0.3)
       expect(multiVersionABFlag).toStrictEqual({
-        name: 'groupA',
-        value: { feature: 'A', enabled: true },
+        feature: 'A',
+        enabled: true,
       });
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({});
       expect(regularFlag).toBe(true);
     });
   });
