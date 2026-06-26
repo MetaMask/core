@@ -1980,6 +1980,8 @@ describe('Bridge Selectors', () => {
           "90ae8e69-f03a-4cf6-bab7-ed4e3431eb37",
         ]
       `);
+      expect(recommendedQuotes.map((quote) => quote?.sentAmount.usd))
+        .toStrictEqual(['18', '140']);
     });
 
     it('should return metadata when quotes are empty', () => {
