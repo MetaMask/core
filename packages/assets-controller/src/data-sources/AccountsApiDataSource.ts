@@ -268,6 +268,8 @@ export class AccountsApiDataSource extends AbstractDataSource<
    * Re-fetch supported networks from the Accounts API and update `activeChains`
    * when the list changed. Used when the selected EVM network switches so
    * chain claiming is not stuck on an empty init-time list.
+   *
+   * @returns Resolves when supported networks have been re-fetched.
    */
   refreshActiveChains(): Promise<void> {
     return this.#refreshActiveChains();

@@ -3410,9 +3410,7 @@ export class AssetsController extends BaseController<
    *
    * @param networkState - NetworkController state after the switch.
    */
-  async #handleNetworkDidChange(
-    networkState: NetworkState,
-  ): Promise<void> {
+  async #handleNetworkDidChange(networkState: NetworkState): Promise<void> {
     if (!this.#uiOpen || !this.#keyringUnlocked || !this.#isEnabled()) {
       return;
     }

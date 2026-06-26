@@ -2447,7 +2447,10 @@ describe('AssetsController', () => {
       );
       (
         messenger as {
-          registerActionHandler: (a: string, h: (id: string) => unknown) => void;
+          registerActionHandler: (
+            a: string,
+            h: (id: string) => unknown,
+          ) => void;
         }
       ).registerActionHandler(
         'NetworkController:getNetworkClientById',

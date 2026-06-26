@@ -245,13 +245,15 @@ describe('AccountsApiDataSource', () => {
 
     await controller.refreshActiveChains();
 
-    expect(apiClient.accounts.fetchV2SupportedNetworks).toHaveBeenCalledTimes(1);
+    expect(apiClient.accounts.fetchV2SupportedNetworks).toHaveBeenCalledTimes(
+      1,
+    );
     expect(activeChainsUpdateHandler).toHaveBeenCalledWith(
       'AccountsApiDataSource',
       [CHAIN_MAINNET, CHAIN_POLYGON],
       [CHAIN_MAINNET],
     );
-    expect(controller.getActiveChainsSync()).toStrictEqual([
+    expect(await controller.getActiveChains()).toStrictEqual([
       CHAIN_MAINNET,
       CHAIN_POLYGON,
     ]);

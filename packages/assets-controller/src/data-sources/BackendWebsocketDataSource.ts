@@ -362,6 +362,8 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
    * Re-fetch supported networks and refresh `activeChains` when connected.
    * When disconnected, only `#supportedChains` is updated so reconnect can
    * reclaim chains. Called on EVM network switch from AssetsController.
+   *
+   * @returns Resolves when supported networks have been re-fetched.
    */
   refreshActiveChains(): Promise<void> {
     return this.#refreshActiveChains();
