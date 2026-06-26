@@ -1464,7 +1464,7 @@ export class AssetsController extends BaseController<
       forceUpdate?: boolean;
       dataTypes?: DataType[];
       assetsForPriceUpdate?: Caip19AssetId[];
-      /** When set to `'update'`, fetch result overlays existing state without removing tokens. Use for partial fetches (e.g. newly added chains). */
+      /** When set to `'merge'`, fetch result is merged with existing state instead of replacing. Use for partial fetches (e.g. newly added chains). */
       updateMode?: AssetsUpdateMode;
     },
   ): Promise<Record<AccountId, Record<Caip19AssetId, Asset>>> {
@@ -1787,7 +1787,7 @@ export class AssetsController extends BaseController<
       balances[accountId][normalizedAssetId] ??= { amount: '0' };
     });
 
-    // Fetch data for the newly added custom asset (update to preserve other chains)
+    // Fetch data for the newly added custom asset (merge to preserve other chains)
     const account = this.#getSelectedAccounts().find((a) => a.id === accountId);
     if (account) {
       const chainId = extractChainId(normalizedAssetId);
@@ -1796,7 +1796,7 @@ export class AssetsController extends BaseController<
         dataTypes: ['balance', 'metadata', 'price'],
         assetTypes: ['fungible'],
         forceUpdate: true,
-        updateMode: 'update',
+        updateMode: 'merge',
       });
     }
 
@@ -2251,7 +2251,7 @@ export class AssetsController extends BaseController<
 
   async #updateState(response: DataResponse): Promise<void> {
     const normalizedResponse = normalizeResponse(response);
-    const mode: AssetsUpdateMode = normalizedResponse.updateMode ?? 'update';
+    const mode: AssetsUpdateMode = normalizedResponse.updateMode ?? 'merge';
 
     const releaseLock = await this.#controllerMutex.acquire();
 
@@ -3270,12 +3270,12 @@ export class AssetsController extends BaseController<
     // Refresh subscriptions for new chain set
     this.#subscribeAssets();
 
-    // Do one-time fetch for newly enabled chains; update so we keep existing chain balances
+    // Do one-time fetch for newly enabled chains; merge so we keep existing chain balances
     if (addedChains.length > 0 && this.#getSelectedAccounts().length > 0) {
       await this.getAssets(this.#getSelectedAccounts(), {
         chainIds: addedChains,
         forceUpdate: true,
-        updateMode: 'update',
+        updateMode: 'merge',
       });
     }
 

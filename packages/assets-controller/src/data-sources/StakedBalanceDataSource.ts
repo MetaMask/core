@@ -445,7 +445,7 @@ export class StakedBalanceDataSource extends AbstractDataSource<
       const response: DataResponse = {
         assetsInfo,
         assetsBalance,
-        updateMode: 'update',
+        updateMode: 'merge',
       };
       for (const subscription of this.#activeSubscriptions.values()) {
         subscription
@@ -607,7 +607,7 @@ export class StakedBalanceDataSource extends AbstractDataSource<
           [assetId]: { amount: result.balance.amount },
         },
       },
-      updateMode: 'update',
+      updateMode: 'merge',
     };
 
     const request: DataRequest = {

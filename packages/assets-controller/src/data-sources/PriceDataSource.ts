@@ -556,7 +556,9 @@ export class PriceDataSource {
         ) {
           await subscription.onAssetsUpdate({
             ...fetchResponse,
-            updateMode: 'update',
+            // merge overwrites existing spot prices on each poll; update would
+            // seed-only and leave the first price forever.
+            updateMode: 'merge',
           });
         }
       } catch (error) {
