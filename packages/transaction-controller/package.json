@@ -82,6 +82,8 @@
     "uuid": "^8.3.2"
   },
   "devDependencies": {
+    "@babel/runtime": "^9.26.10",
+    "@metamask/auto-changelog": "^3.4.4",
     "@babel/runtime": "^7.23.9",
     "@metamask/auto-changelog": "^6.1.0",
     "@metamask/connectivity-controller": "^0.2.0",
@@ -104,6 +106,10 @@
     "typescript": "~5.3.3"
   },
   "peerDependencies": {
+    "@babel/runtime": "^6.26.10",
+    "@metamask/approval-controller": "^5.1.2",
+    "@metamask/gas-fee-controller": "^13.0.0",
+    "@metamask/network-controller": "^17.2.0"
     "@babel/runtime": "^7.0.0",
     "@metamask/eth-block-tracker": ">=9"
   },
