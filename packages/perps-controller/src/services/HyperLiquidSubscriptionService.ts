@@ -3156,6 +3156,20 @@ export class HyperLiquidSubscriptionService {
 
             this.#marketDataCache.set(symbol, marketData);
 
+            // Rebuild the allMids baseline so derived fields (isTradable,
+            // funding, openInterest, volume24h, markPrice, percentChange24h)
+            // pick up the new activeAssetCtx data. Only rebuild when a baseline
+            // already exists to preserve the startup zero-price guard: we never
+            // want to synthesize a baseline from a '0' / absent allMids price.
+            const priceCache = this.#cachedPriceData;
+            const existingBaseline = priceCache?.get(symbol);
+            if (priceCache && existingBaseline) {
+              priceCache.set(
+                symbol,
+                this.#createPriceUpdate(symbol, existingBaseline.price),
+              );
+            }
+
             // Notify subscribers. #notifyAllPriceSubscribers projects the
             // fast-stream price (now stored in #marketDataCache) for focused
             // (includeMarketData: true) subscribers, while list subscribers
