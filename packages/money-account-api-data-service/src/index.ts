@@ -1,7 +1,4 @@
-export {
-  getHistoryNextPageParam,
-  MoneyAccountApiDataService,
-} from './money-account-api-data-service';
+export { MoneyAccountApiDataService } from './money-account-api-data-service';
 export type {
   MoneyAccountApiDataServiceActions,
   MoneyAccountApiDataServiceEvents,

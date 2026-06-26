@@ -11,7 +11,6 @@ import { Env, MONEY_ACCOUNT_API_URL_MAP } from './constants';
 import { MoneyAccountApiResponseValidationError } from './errors';
 import type { MoneyAccountApiDataServiceMessenger } from './money-account-api-data-service';
 import {
-  getHistoryNextPageParam,
   MoneyAccountApiDataService,
   serviceName,
 } from './money-account-api-data-service';
@@ -617,25 +616,5 @@ describe('MoneyAccountApiResponseValidationError', () => {
     const error = new MoneyAccountApiResponseValidationError('custom message');
     expect(error.message).toBe('custom message');
     expect(error.name).toBe('MoneyAccountApiResponseValidationError');
-  });
-
-  it('preserves the cause when provided', () => {
-    const cause = new Error('struct failure');
-    const error = new MoneyAccountApiResponseValidationError('msg', { cause });
-    expect(error.cause).toBe(cause);
-  });
-});
-
-describe('getHistoryNextPageParam', () => {
-  it('returns next_cursor when present', () => {
-    expect(getHistoryNextPageParam(MOCK_HISTORY_RESPONSE)).toBe(
-      'eyJiIjoxMDAwMH0=',
-    );
-  });
-
-  it('returns null when there are no more pages', () => {
-    expect(
-      getHistoryNextPageParam({ ...MOCK_HISTORY_RESPONSE, next_cursor: null }),
-    ).toBeNull();
   });
 });

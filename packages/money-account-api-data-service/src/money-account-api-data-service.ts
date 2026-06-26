@@ -114,19 +114,6 @@ export type MoneyAccountApiDataServiceMessenger = Messenger<
 // === SERVICE DEFINITION ===
 
 /**
- * Extracts the pagination cursor from a history response for infinite query
- * navigation.
- *
- * @param lastPage - The most recently fetched history page.
- * @returns The cursor for the next page, or null if no more pages.
- */
-export function getHistoryNextPageParam(
-  lastPage: HistoryResponse,
-): string | null {
-  return lastPage.next_cursor;
-}
-
-/**
  * Data service responsible for fetching positions, interest, cash-flow
  * history, and vault rate history from the Money Account APY Tracking API.
  */
@@ -210,7 +197,6 @@ export class MoneyAccountApiDataService extends BaseDataService<
         if (error) {
           throw new MoneyAccountApiResponseValidationError(
             `Malformed response from positions endpoint: ${error.message}`,
-            { cause: error },
           );
         }
 
@@ -269,7 +255,6 @@ export class MoneyAccountApiDataService extends BaseDataService<
         if (error) {
           throw new MoneyAccountApiResponseValidationError(
             `Malformed response from interest endpoint: ${error.message}`,
-            { cause: error },
           );
         }
 
@@ -307,8 +292,6 @@ export class MoneyAccountApiDataService extends BaseDataService<
           options?.chainId ?? null,
           options?.limit ?? null,
         ],
-        initialPageParam: null as string | null,
-        getNextPageParam: getHistoryNextPageParam,
         staleTime: DEFAULT_STALE_TIME_MS,
         queryFn: async (context) => {
           const cursor = context.pageParam as string | null | undefined;
@@ -345,7 +328,6 @@ export class MoneyAccountApiDataService extends BaseDataService<
           if (error) {
             throw new MoneyAccountApiResponseValidationError(
               `Malformed response from history endpoint: ${error.message}`,
-              { cause: error },
             );
           }
 
@@ -406,7 +388,6 @@ export class MoneyAccountApiDataService extends BaseDataService<
         if (error) {
           throw new MoneyAccountApiResponseValidationError(
             `Malformed response from rate-history endpoint: ${error.message}`,
-            { cause: error },
           );
         }
 
