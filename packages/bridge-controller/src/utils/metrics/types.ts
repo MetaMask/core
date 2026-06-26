@@ -145,16 +145,15 @@ type BatchSellTokenPageEventProperties = BatchSellChainProperties &
 
 type BatchSellSourceTokenEventProperties = BatchSellChainProperties &
   BatchSellSourceTokenEventContext & {
-  source_token_count: number;
-};
+    source_token_count: number;
+  };
 
 type BatchSellQuotePageEventProperties = BatchSellChainProperties &
   BatchSellQuotePageEventContext & {
-  source_token_count: number;
-};
+    source_token_count: number;
+  };
 
-type BatchSellReviewModalSubmittedEventProperties =
-  BatchSellChainProperties &
+type BatchSellReviewModalSubmittedEventProperties = BatchSellChainProperties &
   BatchSellReviewModalSubmittedEventContext & {
     source_token_count: number;
   };

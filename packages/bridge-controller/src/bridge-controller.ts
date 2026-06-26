@@ -230,7 +230,8 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    * Set via setLocation() before navigating to the swap/bridge flow.
    * Used as default for all subsequent internal events.
    */
-  #location: BridgeControllerMetricsLocation = MetaMetricsSwapsEventSource.Unknown;
+  #location: BridgeControllerMetricsLocation =
+    MetaMetricsSwapsEventSource.Unknown;
 
   readonly #clientId: BridgeClientId;
 
@@ -282,9 +283,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     config?: {
       customBridgeApiBaseUrl?: string;
     };
-    trackMetaMetricsFn: <
-      EventName extends BridgeControllerMetricsEventName,
-    >(
+    trackMetaMetricsFn: <EventName extends BridgeControllerMetricsEventName>(
       eventName: EventName,
       properties: CrossChainSwapsEventProperties<EventName>,
     ) => void;
@@ -1186,11 +1185,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     const inputPrimaryDenominationProperties = {
       input_primary_denomination: this.state.inputPrimaryDenomination,
     };
-    const batchSellClientChainProperties =
-      propertiesFromClient as Pick<
-        RequiredEventContextFromClient[BatchSellMetricsEventName.BatchSellTokenPageViewed],
-        'chain_id_source' | 'chain_id_destination'
-      >;
+    const batchSellClientChainProperties = propertiesFromClient as Pick<
+      RequiredEventContextFromClient[BatchSellMetricsEventName.BatchSellTokenPageViewed],
+      'chain_id_source' | 'chain_id_destination'
+    >;
     const batchSellBaseProperties = {
       chain_id_source: batchSellClientChainProperties.chain_id_source,
       chain_id_destination: batchSellClientChainProperties.chain_id_destination,
@@ -1223,8 +1221,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           propertiesFromClient as RequiredEventContextFromClient[BatchSellMetricsEventName.BatchSellTokenPageContinueClicked];
         return {
           ...batchSellBaseProperties,
-          source_token_count:
-            propsFromClient.source_token_addresses.length,
+          source_token_count: propsFromClient.source_token_addresses.length,
           source_token_symbols: propsFromClient.source_token_symbols,
           source_token_addresses: propsFromClient.source_token_addresses,
         };
@@ -1238,12 +1235,9 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           source_token_count: propsFromClient.source_token_addresses.length,
           source_token_symbols: propsFromClient.source_token_symbols,
           source_token_addresses: propsFromClient.source_token_addresses,
-          destination_token_symbol:
-            propsFromClient.destination_token_symbol,
-          destination_token_address:
-            propsFromClient.destination_token_address,
-          usd_amount_source_tokens:
-            propsFromClient.usd_amount_source_tokens,
+          destination_token_symbol: propsFromClient.destination_token_symbol,
+          destination_token_address: propsFromClient.destination_token_address,
+          usd_amount_source_tokens: propsFromClient.usd_amount_source_tokens,
           usd_amount_source_total: propsFromClient.usd_amount_source_total,
           source_token_slippages: propsFromClient.source_token_slippages,
         };
@@ -1265,8 +1259,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
             reviewModalProperties.usd_amount_source_tokens,
           usd_amount_source_total:
             reviewModalProperties.usd_amount_source_total,
-          source_token_slippages:
-            reviewModalProperties.source_token_slippages,
+          source_token_slippages: reviewModalProperties.source_token_slippages,
           usd_quoted_gas: reviewModalProperties.usd_quoted_gas,
           usd_quoted_return: reviewModalProperties.usd_quoted_return,
         };
