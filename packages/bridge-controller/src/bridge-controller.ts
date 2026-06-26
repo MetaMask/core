@@ -1176,7 +1176,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       EventName
     >[EventName],
     quoteRequestIndex: number = 0,
-  ): CrossChainSwapsEventProperties<EventName> => {
+  ) => {
     const clientProps = propertiesFromClient as Record<string, unknown>;
     const baseProperties = {
       ...propertiesFromClient,
@@ -1186,10 +1186,15 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     const inputPrimaryDenominationProperties = {
       input_primary_denomination: this.state.inputPrimaryDenomination,
     };
-    const batchSellPageProperties = {
-      chain_id: formatChainIdToCaip(
-        this.state.quoteRequest[0]?.srcChainId ?? ChainId.ETH,
+    const batchSellQuoteRequest = this.state.quoteRequest[0];
+    const batchSellBaseProperties = {
+      chain_id_source: formatChainIdToCaip(
+        batchSellQuoteRequest?.srcChainId ?? ChainId.ETH,
       ),
+      chain_id_destination: batchSellQuoteRequest?.destChainId
+        ? formatChainIdToCaip(batchSellQuoteRequest.destChainId)
+        : null,
+      location: clientProps?.location ?? this.#location,
     };
     const quoteRequest = this.state.quoteRequest[quoteRequestIndex];
     switch (eventName) {
@@ -1212,22 +1217,58 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
           ...baseProperties,
         };
       case BatchSellMetricsEventName.BatchSellTokenPageViewed:
-      case BatchSellMetricsEventName.BatchSellTokenPageSubmitted:
+        return batchSellBaseProperties;
+      case BatchSellMetricsEventName.BatchSellTokenPageContinueClicked: {
+        const sourceTokenProperties =
+          propertiesFromClient as RequiredEventContextFromClient[BatchSellMetricsEventName.BatchSellTokenPageContinueClicked];
         return {
-          ...batchSellPageProperties,
-          ...baseProperties,
+          ...batchSellBaseProperties,
+          source_token_count:
+            sourceTokenProperties.source_token_addresses.length,
+          source_token_symbols: sourceTokenProperties.source_token_symbols,
+          source_token_addresses: sourceTokenProperties.source_token_addresses,
         };
+      }
       case BatchSellMetricsEventName.BatchSellQuotePageViewed:
-      case BatchSellMetricsEventName.BatchSellQuotesReviewed:
-      case BatchSellMetricsEventName.BatchSellQuotePageSubmitted: {
-        const selectedTokenAddressList =
-          (
-            propertiesFromClient as RequiredEventContextFromClient[BatchSellMetricsEventName.BatchSellQuotePageViewed]
-          ).selected_token_address_list;
+      case BatchSellMetricsEventName.BatchSellQuotePageReviewClicked: {
+        const quotePageProperties =
+          propertiesFromClient as RequiredEventContextFromClient[BatchSellMetricsEventName.BatchSellQuotePageViewed];
         return {
-          ...batchSellPageProperties,
-          selected_tokens_count: selectedTokenAddressList.length,
-          ...baseProperties,
+          ...batchSellBaseProperties,
+          source_token_count: quotePageProperties.source_token_addresses.length,
+          source_token_symbols: quotePageProperties.source_token_symbols,
+          source_token_addresses: quotePageProperties.source_token_addresses,
+          destination_token_symbol:
+            quotePageProperties.destination_token_symbol,
+          destination_token_address:
+            quotePageProperties.destination_token_address,
+          usd_amount_source_tokens:
+            quotePageProperties.usd_amount_source_tokens,
+          usd_amount_source_total: quotePageProperties.usd_amount_source_total,
+          source_token_slippages: quotePageProperties.source_token_slippages,
+        };
+      }
+      case BatchSellMetricsEventName.BatchSellReviewModalSubmitted: {
+        const reviewModalProperties =
+          propertiesFromClient as RequiredEventContextFromClient[BatchSellMetricsEventName.BatchSellReviewModalSubmitted];
+        return {
+          ...batchSellBaseProperties,
+          source_token_count:
+            reviewModalProperties.source_token_addresses.length,
+          source_token_symbols: reviewModalProperties.source_token_symbols,
+          source_token_addresses: reviewModalProperties.source_token_addresses,
+          destination_token_symbol:
+            reviewModalProperties.destination_token_symbol,
+          destination_token_address:
+            reviewModalProperties.destination_token_address,
+          usd_amount_source_tokens:
+            reviewModalProperties.usd_amount_source_tokens,
+          usd_amount_source_total:
+            reviewModalProperties.usd_amount_source_total,
+          source_token_slippages:
+            reviewModalProperties.source_token_slippages,
+          usd_quoted_gas: reviewModalProperties.usd_quoted_gas,
+          usd_quoted_return: reviewModalProperties.usd_quoted_return,
         };
       }
       case UnifiedSwapBridgeEventName.FiatCryptoToggleClicked:
@@ -1391,7 +1432,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
         quoteRequestIndex,
       );
 
-      this.#trackMetaMetricsFn(eventName, combinedPropertiesForEvent);
+      this.#trackMetaMetricsFn(
+        eventName,
+        combinedPropertiesForEvent as CrossChainSwapsEventProperties<EventName>,
+      );
     } catch (error) {
       console.error(
         `Error tracking cross-chain swaps MetaMetrics event ${eventName}`,

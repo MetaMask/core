@@ -29,10 +29,10 @@ export enum UnifiedSwapBridgeEventName {
 
 export enum BatchSellMetricsEventName {
   BatchSellTokenPageViewed = `${BATCH_SELL_EVENT_CATEGORY} Token Page Viewed`,
-  BatchSellTokenPageSubmitted = `${BATCH_SELL_EVENT_CATEGORY} Token Page Submitted`,
+  BatchSellTokenPageContinueClicked = `${BATCH_SELL_EVENT_CATEGORY} Token Page Continue Clicked`,
   BatchSellQuotePageViewed = `${BATCH_SELL_EVENT_CATEGORY} Quote Page Viewed`,
-  BatchSellQuotesReviewed = `${BATCH_SELL_EVENT_CATEGORY} Quotes Reviewed`,
-  BatchSellQuotePageSubmitted = `${BATCH_SELL_EVENT_CATEGORY} Quote Page Submitted`,
+  BatchSellQuotePageReviewClicked = `${BATCH_SELL_EVENT_CATEGORY} Quote Page Review Clicked`,
+  BatchSellReviewModalSubmitted = `${BATCH_SELL_EVENT_CATEGORY} Review Modal Submitted`,
 }
 
 export type BridgeControllerMetricsEventName =

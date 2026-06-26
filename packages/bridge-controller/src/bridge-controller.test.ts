@@ -3046,20 +3046,26 @@ describe('BridgeController', function () {
 
     it('should track Batch Sell token page events with default chain fallback', async () => {
       await withController(async ({ rootMessenger }) => {
+        const sourceTokenAddresses = [
+          'eip155:1/erc20:0x1111111111111111111111111111111111111111',
+          'eip155:1/erc20:0x2222222222222222222222222222222222222222',
+        ] satisfies CaipAssetType[];
+        const sourceTokenSymbols = ['LINK', 'UNI'];
+
         rootMessenger.call(
           'BridgeController:trackUnifiedSwapBridgeEvent',
           BatchSellMetricsEventName.BatchSellTokenPageViewed,
           {
             location: BatchSellMetricsLocation.TradeMenu,
-            feature_id: FeatureId.BATCH_SELL,
           },
         );
         rootMessenger.call(
           'BridgeController:trackUnifiedSwapBridgeEvent',
-          BatchSellMetricsEventName.BatchSellTokenPageSubmitted,
+          BatchSellMetricsEventName.BatchSellTokenPageContinueClicked,
           {
             location: BatchSellMetricsLocation.AssetPicker,
-            feature_id: FeatureId.BATCH_SELL,
+            source_token_symbols: sourceTokenSymbols,
+            source_token_addresses: sourceTokenAddresses,
           },
         );
 
@@ -3067,20 +3073,21 @@ describe('BridgeController', function () {
           1,
           BatchSellMetricsEventName.BatchSellTokenPageViewed,
           {
-            chain_id: formatChainIdToCaip(ChainId.ETH),
+            chain_id_source: formatChainIdToCaip(ChainId.ETH),
+            chain_id_destination: null,
             location: BatchSellMetricsLocation.TradeMenu,
-            feature_id: FeatureId.BATCH_SELL,
-            action_type: MetricsActionType.SWAPBRIDGE_V1,
           },
         );
         expect(trackMetaMetricsFn).toHaveBeenNthCalledWith(
           2,
-          BatchSellMetricsEventName.BatchSellTokenPageSubmitted,
+          BatchSellMetricsEventName.BatchSellTokenPageContinueClicked,
           {
-            chain_id: formatChainIdToCaip(ChainId.ETH),
+            chain_id_source: formatChainIdToCaip(ChainId.ETH),
+            chain_id_destination: null,
             location: BatchSellMetricsLocation.AssetPicker,
-            feature_id: FeatureId.BATCH_SELL,
-            action_type: MetricsActionType.SWAPBRIDGE_V1,
+            source_token_count: sourceTokenAddresses.length,
+            source_token_symbols: sourceTokenSymbols,
+            source_token_addresses: sourceTokenAddresses,
           },
         );
       });
@@ -3093,6 +3100,7 @@ describe('BridgeController', function () {
           {
             walletAddress: '0x123',
             srcChainId: ChainId.OPTIMISM,
+            destChainId: ChainId.OPTIMISM,
           },
           {
             stx_enabled: false,
@@ -3106,23 +3114,27 @@ describe('BridgeController', function () {
         );
         jest.clearAllMocks();
 
-        const selectedTokenAddressList = [
+        const sourceTokenAddresses = [
           'eip155:10/erc20:0x1111111111111111111111111111111111111111',
           'eip155:10/erc20:0x2222222222222222222222222222222222222222',
         ] satisfies CaipAssetType[];
+        const destinationTokenAddress =
+          'eip155:10/erc20:0x3333333333333333333333333333333333333333' satisfies CaipAssetType;
         const properties = {
-          selected_token_address_list: selectedTokenAddressList,
-          target_token_symbol: 'USDC',
           location: BatchSellMetricsLocation.Deeplink,
-          slider_percentages: [25, 75],
-          slippage_percentages: [0.5, 1],
-          feature_id: FeatureId.BATCH_SELL,
+          source_token_symbols: ['WETH', 'OP'],
+          source_token_addresses: sourceTokenAddresses,
+          destination_token_symbol: 'USDC',
+          destination_token_address: destinationTokenAddress,
+          usd_amount_source_tokens: [10, 20],
+          usd_amount_source_total: 30,
+          source_token_slippages: [0.5, 1],
         };
         const expectedProperties = {
-          chain_id: formatChainIdToCaip(ChainId.OPTIMISM),
-          selected_tokens_count: selectedTokenAddressList.length,
+          chain_id_source: formatChainIdToCaip(ChainId.OPTIMISM),
+          chain_id_destination: formatChainIdToCaip(ChainId.OPTIMISM),
+          source_token_count: sourceTokenAddresses.length,
           ...properties,
-          action_type: MetricsActionType.SWAPBRIDGE_V1,
         };
 
         rootMessenger.call(
@@ -3132,13 +3144,17 @@ describe('BridgeController', function () {
         );
         rootMessenger.call(
           'BridgeController:trackUnifiedSwapBridgeEvent',
-          BatchSellMetricsEventName.BatchSellQuotesReviewed,
+          BatchSellMetricsEventName.BatchSellQuotePageReviewClicked,
           properties,
         );
         rootMessenger.call(
           'BridgeController:trackUnifiedSwapBridgeEvent',
-          BatchSellMetricsEventName.BatchSellQuotePageSubmitted,
-          properties,
+          BatchSellMetricsEventName.BatchSellReviewModalSubmitted,
+          {
+            ...properties,
+            usd_quoted_gas: 1,
+            usd_quoted_return: 29,
+          },
         );
 
         expect(trackMetaMetricsFn).toHaveBeenNthCalledWith(
@@ -3148,13 +3164,17 @@ describe('BridgeController', function () {
         );
         expect(trackMetaMetricsFn).toHaveBeenNthCalledWith(
           2,
-          BatchSellMetricsEventName.BatchSellQuotesReviewed,
+          BatchSellMetricsEventName.BatchSellQuotePageReviewClicked,
           expectedProperties,
         );
         expect(trackMetaMetricsFn).toHaveBeenNthCalledWith(
           3,
-          BatchSellMetricsEventName.BatchSellQuotePageSubmitted,
-          expectedProperties,
+          BatchSellMetricsEventName.BatchSellReviewModalSubmitted,
+          {
+            ...expectedProperties,
+            usd_quoted_gas: 1,
+            usd_quoted_return: 29,
+          },
         );
       });
     });

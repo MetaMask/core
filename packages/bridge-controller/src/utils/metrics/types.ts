@@ -118,12 +118,46 @@ type BatchSellTokenPageEventContext = {
   location: BatchSellMetricsLocation;
 };
 
-type BatchSellQuotePageEventContext = BatchSellTokenPageEventContext & {
-  selected_token_address_list: CaipAssetType[];
-  target_token_symbol: string;
-  slider_percentages: number[];
-  slippage_percentages: number[];
+type BatchSellSourceTokenEventContext = BatchSellTokenPageEventContext & {
+  source_token_symbols: string[];
+  source_token_addresses: CaipAssetType[];
 };
+
+type BatchSellQuotePageEventContext = BatchSellSourceTokenEventContext & {
+  destination_token_symbol: string;
+  destination_token_address: CaipAssetType;
+  usd_amount_source_tokens: number[];
+  usd_amount_source_total: number;
+  source_token_slippages: number[];
+};
+
+type BatchSellReviewModalSubmittedEventContext =
+  BatchSellQuotePageEventContext &
+    Pick<TradeData, 'usd_quoted_gas' | 'usd_quoted_return'>;
+
+type BatchSellChainProperties = {
+  chain_id_source: CaipChainId;
+  chain_id_destination: CaipChainId | null;
+};
+
+type BatchSellTokenPageEventProperties = BatchSellChainProperties &
+  BatchSellTokenPageEventContext;
+
+type BatchSellSourceTokenEventProperties = BatchSellChainProperties &
+  BatchSellSourceTokenEventContext & {
+    source_token_count: number;
+  };
+
+type BatchSellQuotePageEventProperties = BatchSellChainProperties &
+  BatchSellQuotePageEventContext & {
+    source_token_count: number;
+  };
+
+type BatchSellReviewModalSubmittedEventProperties =
+  BatchSellChainProperties &
+    BatchSellReviewModalSubmittedEventContext & {
+      source_token_count: number;
+    };
 
 type SharedEventContextFromClient = {
   ab_tests?: Record<string, string>;
@@ -314,10 +348,10 @@ type RequiredEventContextFromClientBase = {
     asset_location: 'source' | 'destination';
   };
   [BatchSellMetricsEventName.BatchSellTokenPageViewed]: BatchSellTokenPageEventContext;
-  [BatchSellMetricsEventName.BatchSellTokenPageSubmitted]: BatchSellTokenPageEventContext;
+  [BatchSellMetricsEventName.BatchSellTokenPageContinueClicked]: BatchSellSourceTokenEventContext;
   [BatchSellMetricsEventName.BatchSellQuotePageViewed]: BatchSellQuotePageEventContext;
-  [BatchSellMetricsEventName.BatchSellQuotesReviewed]: BatchSellQuotePageEventContext;
-  [BatchSellMetricsEventName.BatchSellQuotePageSubmitted]: BatchSellQuotePageEventContext;
+  [BatchSellMetricsEventName.BatchSellQuotePageReviewClicked]: BatchSellQuotePageEventContext;
+  [BatchSellMetricsEventName.BatchSellReviewModalSubmitted]: BatchSellReviewModalSubmittedEventContext;
 };
 
 /**
@@ -330,9 +364,13 @@ type RequiredEventContextFromClientBase = {
  * Both are kept for a migration window and are treated as separate payloads.
  */
 export type RequiredEventContextFromClient = {
-  [K in keyof RequiredEventContextFromClientBase]: RequiredEventContextFromClientBase[K] &
-    OptionalLocationContextFromClient<RequiredEventContextFromClientBase[K]> &
-    SharedEventContextFromClient;
+  [K in keyof RequiredEventContextFromClientBase]: K extends BatchSellMetricsEventName
+    ? RequiredEventContextFromClientBase[K]
+    : RequiredEventContextFromClientBase[K] &
+        OptionalLocationContextFromClient<
+          RequiredEventContextFromClientBase[K]
+        > &
+        SharedEventContextFromClient;
 };
 
 /**
@@ -407,34 +445,14 @@ export type EventPropertiesFromControllerState = {
     > & {
       batch_id?: string;
     };
-  [BatchSellMetricsEventName.BatchSellTokenPageViewed]: {
-    chain_id: CaipChainId;
-  };
-  [BatchSellMetricsEventName.BatchSellTokenPageSubmitted]: {
-    chain_id: CaipChainId;
-  };
-  [BatchSellMetricsEventName.BatchSellQuotePageViewed]: {
-    chain_id: CaipChainId;
-    selected_tokens_count: number;
-  };
-  [BatchSellMetricsEventName.BatchSellQuotesReviewed]: {
-    chain_id: CaipChainId;
-    selected_tokens_count: number;
-  };
-  [BatchSellMetricsEventName.BatchSellQuotePageSubmitted]: {
-    chain_id: CaipChainId;
-    selected_tokens_count: number;
-  };
+  [BatchSellMetricsEventName.BatchSellTokenPageViewed]: BatchSellTokenPageEventProperties;
+  [BatchSellMetricsEventName.BatchSellTokenPageContinueClicked]: BatchSellSourceTokenEventProperties;
+  [BatchSellMetricsEventName.BatchSellQuotePageViewed]: BatchSellQuotePageEventProperties;
+  [BatchSellMetricsEventName.BatchSellQuotePageReviewClicked]: BatchSellQuotePageEventProperties;
+  [BatchSellMetricsEventName.BatchSellReviewModalSubmitted]: BatchSellReviewModalSubmittedEventProperties;
 };
 
-/**
- * trackUnifiedSwapBridgeEvent payload properties consist of required properties from the client
- * and properties from the bridge controller
- *
- * `ab_tests` will be deprecated in favor of `active_ab_tests` in the future.
- * `ab_tests` and `active_ab_tests` intentionally coexist during migration.
- */
-export type CrossChainSwapsEventProperties<
+type SharedCrossChainSwapsEventProperties<
   T extends BridgeControllerMetricsEventName,
 > =
   | {
@@ -446,3 +464,16 @@ export type CrossChainSwapsEventProperties<
     }
   | Pick<EventPropertiesFromControllerState, T>[T]
   | Pick<RequiredEventContextFromClient, T>[T];
+
+/**
+ * trackUnifiedSwapBridgeEvent payload properties consist of required properties from the client
+ * and properties from the bridge controller
+ *
+ * `ab_tests` will be deprecated in favor of `active_ab_tests` in the future.
+ * `ab_tests` and `active_ab_tests` intentionally coexist during migration.
+ */
+export type CrossChainSwapsEventProperties<
+  T extends BridgeControllerMetricsEventName,
+> = T extends BatchSellMetricsEventName
+  ? Pick<EventPropertiesFromControllerState, T>[T]
+  : SharedCrossChainSwapsEventProperties<T>;
