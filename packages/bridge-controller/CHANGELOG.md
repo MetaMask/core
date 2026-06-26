@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/multichain-network-controller` from `^3.1.4` to `^3.2.0` ([#9264](https://github.com/MetaMask/core/pull/9264))
 
+### Fixed
+
+- Fix Batch Sell-only `sentAmount.usd` metadata calculations to use each quote's source token exchange rate ([#9272](https://github.com/MetaMask/core/pull/9272))
+
 ## [77.0.0]
 
 ### Added
