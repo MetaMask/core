@@ -258,7 +258,6 @@ linkStyle default opacity:0.5
   approval_controller --> messenger;
   assets_controller --> account_tree_controller;
   assets_controller --> accounts_controller;
-  assets_controller --> assets_controllers;
   assets_controller --> base_controller;
   assets_controller --> client_controller;
   assets_controller --> controller_utils;
@@ -299,7 +298,6 @@ linkStyle default opacity:0.5
   bitcoin_regtest_up --> local_node_utils;
   bridge_controller --> accounts_controller;
   bridge_controller --> assets_controller;
-  bridge_controller --> assets_controllers;
   bridge_controller --> base_controller;
   bridge_controller --> controller_utils;
   bridge_controller --> gas_fee_controller;
@@ -589,7 +587,6 @@ linkStyle default opacity:0.5
   transaction_controller --> eth_block_tracker;
   transaction_controller --> eth_json_rpc_provider;
   transaction_pay_controller --> assets_controller;
-  transaction_pay_controller --> assets_controllers;
   transaction_pay_controller --> base_controller;
   transaction_pay_controller --> bridge_controller;
   transaction_pay_controller --> bridge_status_controller;
