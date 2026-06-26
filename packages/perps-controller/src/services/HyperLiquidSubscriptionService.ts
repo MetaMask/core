@@ -1636,15 +1636,8 @@ export class HyperLiquidSubscriptionService {
       } else if (includeMarketData) {
         // No allMids baseline yet; if a fresh fast-stream price is cached,
         // send it immediately so focused screens are not blank on first render.
-        const marketData = this.#marketDataCache.get(symbol);
-        const now = Date.now();
-        const isFastPriceFresh =
-          marketData?.activeAssetCtxPrice !== undefined &&
-          marketData.priceLastUpdated !== undefined &&
-          now - marketData.priceLastUpdated <=
-            HyperLiquidSubscriptionService.#activeAssetCtxPriceTtlMs;
-        if (isFastPriceFresh && marketData?.activeAssetCtxPrice !== undefined) {
-          const fastPrice = marketData.activeAssetCtxPrice.toString();
+        const fastPrice = this.#getFreshActiveAssetCtxPrice(symbol);
+        if (fastPrice !== undefined) {
           callback([this.#createPriceUpdate(symbol, fastPrice)]);
         }
       }
@@ -2923,37 +2916,50 @@ export class HyperLiquidSubscriptionService {
   }
 
   /**
-   * Project a base PriceUpdate (allMids baseline) onto the per-symbol fast-stream
-   * price for focused (`includeMarketData: true`) subscribers.
+   * Returns the fresh `activeAssetCtx` price string for a symbol, or
+   * `undefined` when no price is cached or the cached price is older than
+   * `#activeAssetCtxPriceTtlMs` (10 s).
    *
-   * Returns `base` unchanged when:
-   * - No `activeAssetCtxPrice` is cached for the symbol, OR
-   * - The cached price is older than `#activeAssetCtxPriceTtlMs` (10 s).
-   *
-   * Otherwise returns a shallow clone of `base` with `price` and `timestamp`
-   * overridden by the fresh fast-stream value. All other fields (funding,
-   * openInterest, isTradable, etc.) are inherited from the allMids baseline so
-   * cumulative metrics stay consistent.
+   * Single source of truth for the staleness check used by
+   * `#projectPriceUpdate`, `#notifyAllPriceSubscribers`, and the immediate
+   * emit in `subscribeToPrices`.
    */
-  #projectPriceUpdate(symbol: string, base: PriceUpdate): PriceUpdate {
+  #getFreshActiveAssetCtxPrice(symbol: string): string | undefined {
     const marketData = this.#marketDataCache.get(symbol);
     if (
       marketData?.activeAssetCtxPrice === undefined ||
       marketData.priceLastUpdated === undefined
     ) {
-      return base;
+      return undefined;
     }
-    const now = Date.now();
     if (
-      now - marketData.priceLastUpdated >
+      Date.now() - marketData.priceLastUpdated >
       HyperLiquidSubscriptionService.#activeAssetCtxPriceTtlMs
     ) {
+      return undefined;
+    }
+    return marketData.activeAssetCtxPrice.toString();
+  }
+
+  /**
+   * Project a base PriceUpdate (allMids baseline) onto the per-symbol fast-stream
+   * price for focused (`includeMarketData: true`) subscribers.
+   *
+   * Returns `base` unchanged when no fresh `activeAssetCtxPrice` is available
+   * (absent or older than the 10 s TTL). Otherwise returns a shallow clone of
+   * `base` with `price` and `timestamp` overridden by the fast-stream value.
+   * All other fields (funding, openInterest, isTradable, etc.) are inherited
+   * from the allMids baseline so cumulative metrics stay consistent.
+   */
+  #projectPriceUpdate(symbol: string, base: PriceUpdate): PriceUpdate {
+    const fastPrice = this.#getFreshActiveAssetCtxPrice(symbol);
+    if (fastPrice === undefined) {
       return base;
     }
     return {
       ...base,
-      price: marketData.activeAssetCtxPrice.toString(),
-      timestamp: now,
+      price: fastPrice,
+      timestamp: Date.now(),
     };
   }
 
@@ -3936,14 +3942,8 @@ export class HyperLiquidSubscriptionService {
 
     this.#priceSubscribers.forEach((subscriberSet, symbol) => {
       const allMidsBase = this.#cachedPriceData?.get(symbol);
-      const marketData = this.#marketDataCache.get(symbol);
-
+      const fastPrice = this.#getFreshActiveAssetCtxPrice(symbol);
       const now = Date.now();
-      const isFastPriceFresh =
-        marketData?.activeAssetCtxPrice !== undefined &&
-        marketData.priceLastUpdated !== undefined &&
-        now - marketData.priceLastUpdated <=
-          HyperLiquidSubscriptionService.#activeAssetCtxPriceTtlMs;
 
       subscriberSet.forEach((callback) => {
         const isFocused =
@@ -3951,8 +3951,7 @@ export class HyperLiquidSubscriptionService {
 
         let priceUpdate: PriceUpdate | undefined;
 
-        if (isFocused && isFastPriceFresh && marketData?.activeAssetCtxPrice !== undefined) {
-          const fastPrice = marketData.activeAssetCtxPrice.toString();
+        if (isFocused && fastPrice !== undefined) {
           // Use allMids baseline as the structural base when available;
           // fall back to a freshly computed PriceUpdate if allMids hasn't
           // arrived yet so focused screens stay responsive on first render.
