@@ -2923,6 +2923,9 @@ export class HyperLiquidSubscriptionService {
    * Single source of truth for the staleness check used by
    * `#projectPriceUpdate`, `#notifyAllPriceSubscribers`, and the immediate
    * emit in `subscribeToPrices`.
+   *
+   * @param symbol - The asset symbol to look up (e.g. `'BTC'`).
+   * @returns The price as a string when fresh, or `undefined` when absent/stale.
    */
   #getFreshActiveAssetCtxPrice(symbol: string): string | undefined {
     const marketData = this.#marketDataCache.get(symbol);
@@ -2950,6 +2953,10 @@ export class HyperLiquidSubscriptionService {
    * `base` with `price` and `timestamp` overridden by the fast-stream value.
    * All other fields (funding, openInterest, isTradable, etc.) are inherited
    * from the allMids baseline so cumulative metrics stay consistent.
+   *
+   * @param symbol - The asset symbol whose fast-stream price to look up.
+   * @param base - The allMids baseline `PriceUpdate` to project onto.
+   * @returns A `PriceUpdate` with the fast-stream price when fresh, or `base` unchanged.
    */
   #projectPriceUpdate(symbol: string, base: PriceUpdate): PriceUpdate {
     const fastPrice = this.#getFreshActiveAssetCtxPrice(symbol);
