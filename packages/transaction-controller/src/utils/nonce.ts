@@ -27,6 +27,7 @@ export async function getNextNonce(
   } = txMeta;
 
   if (isExternalSign) {
+    log('Skipping nonce as signed externally');
     return [undefined, undefined];
   }
 
@@ -68,27 +69,43 @@ export function getAndFormatTransactionsForNonceTracker(
 ): NonceTrackerTransaction[] {
   return transactions
     .filter(
-      ({ chainId, isTransfer, isUserOperation, status, txParams: { from } }) =>
+      ({
+        chainId,
+        isTransfer,
+        isUserOperation,
+        status,
+        txParams: { from, nonce },
+      }) =>
         !isTransfer &&
         !isUserOperation &&
         chainId === currentChainId &&
         transactionStatuses.includes(status) &&
-        from.toLowerCase() === fromAddress.toLowerCase(),
+        from.toLowerCase() === fromAddress.toLowerCase() &&
+        nonce,
     )
-    .map(({ status, txParams: { from, gas, value, nonce } }) => {
-      // the only value we care about is the nonce
-      // but we need to return the other values to satisfy the type
-      // TODO: refactor nonceTracker to not require this
-      /* istanbul ignore next */
-      return {
+    .flatMap(
+      ({
         status,
-        history: [{}],
-        txParams: {
-          from: from ?? '',
-          gas: gas ?? '',
-          value: value ?? '',
-          nonce: nonce ?? '',
-        },
-      };
-    });
+        txParams: { authorizationList, from, gas, value, nonce },
+      }) => {
+        const authorizationNonces = (authorizationList ?? [])
+          .map((authorization) => authorization.nonce)
+          .filter((authorizationNonce) => authorizationNonce !== undefined);
+
+        // the only value we care about is the nonce
+        // but we need to return the other values to satisfy the type
+        // TODO: refactor nonceTracker to not require this
+        /* istanbul ignore next */
+        return [nonce, ...authorizationNonces].map((currentNonce) => ({
+          status,
+          history: [{}],
+          txParams: {
+            from: from ?? '',
+            gas: gas ?? '',
+            value: value ?? '',
+            nonce: currentNonce ?? '',
+          },
+        }));
+      },
+    );
 }

@@ -1,4 +1,5 @@
 import { BaseController } from '@metamask/base-controller';
+import type { StateMetadata } from '@metamask/base-controller';
 import { Mutex } from 'async-mutex';
 import type { Draft } from 'immer';
 
@@ -25,23 +26,23 @@ export enum Cryptocurrency {
 
 const DEFAULT_INTERVAL = 180000;
 
-const metadata = {
+const metadata: StateMetadata<RatesControllerState> = {
   fiatCurrency: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   rates: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
   cryptocurrencies: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
     usedInUi: false,
   },
 };
@@ -72,7 +73,7 @@ export class RatesController extends BaseController<
 
   readonly #includeUsdRate;
 
-  #intervalLength: number;
+  readonly #intervalLength: number;
 
   #intervalId: NodeJS.Timeout | undefined;
 
@@ -119,8 +120,6 @@ export class RatesController extends BaseController<
    * // Execute criticalLogic within a lock.
    * const result = await this.#withLock(criticalLogic);
    */
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   async #withLock<R>(callback: () => R) {
     const releaseLock = await this.#mutex.acquire();
     try {
@@ -180,7 +179,7 @@ export class RatesController extends BaseController<
       return;
     }
 
-    this.messagingSystem.publish(`${name}:pollingStarted`);
+    this.messenger.publish(`${name}:pollingStarted`);
 
     await this.#updateRates();
 
@@ -199,11 +198,12 @@ export class RatesController extends BaseController<
 
     clearInterval(this.#intervalId);
     this.#intervalId = undefined;
-    this.messagingSystem.publish(`${name}:pollingStopped`);
+    this.messenger.publish(`${name}:pollingStopped`);
   }
 
   /**
    * Returns the current list of cryptocurrency.
+   *
    * @returns The cryptocurrency list.
    */
   getCryptocurrencyList(): Cryptocurrency[] {
@@ -213,6 +213,7 @@ export class RatesController extends BaseController<
 
   /**
    * Sets the list of supported cryptocurrencies.
+   *
    * @param cryptocurrencies - The list of supported cryptocurrencies.
    */
   async setCryptocurrencyList(
@@ -232,6 +233,7 @@ export class RatesController extends BaseController<
 
   /**
    * Sets the internal fiat currency and update rates accordingly.
+   *
    * @param fiatCurrency - The fiat currency.
    */
   async setFiatCurrency(fiatCurrency: string): Promise<void> {

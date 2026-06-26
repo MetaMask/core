@@ -8,7 +8,7 @@ import type {
   UpdateUserOperationRequest,
   UpdateUserOperationResponse,
 } from '../types';
-import { type PrepareUserOperationRequest } from '../types';
+import type { PrepareUserOperationRequest } from '../types';
 import type { UserOperationControllerMessenger } from '../UserOperationController';
 import { toEip155ChainId } from '../utils/chain-id';
 import { SnapSmartContractAccount } from './SnapSmartContractAccount';
@@ -74,6 +74,7 @@ const SIGN_USER_OPERATION_RESPONSE_MOCK: Awaited<
 
 /**
  * Creates a mock of the UserOperationControllerMessenger.
+ *
  * @returns The mock instance.
  */
 function createMessengerMock() {

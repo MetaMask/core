@@ -7,6 +7,253 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [24.2.0]
+
+### Added
+
+- Add `DEFAULT_AGENTIC_CLI_PREFERENCES` and initialize `agenticCli` when building fresh notification preferences via `NotificationServicesController` ([#8933](https://github.com/MetaMask/core/pull/8933))
+  - Re-export `DEFAULT_AGENTIC_CLI_PREFERENCES` from `@metamask/authenticated-user-storage`.
+
+### Changed
+
+- Agentic CLI notification delivery is gated by the Agentic backend using AUS `agenticCli` preferences; `NotificationServicesController` does not filter Agentic CLI notifications at fetch time (same as `perps` and `socialAI`) ([#8933](https://github.com/MetaMask/core/pull/8933))
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.1.1` to `^12.3.0` ([#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/profile-sync-controller` from `^28.1.1` to `^28.2.0` ([#9119](https://github.com/MetaMask/core/pull/9119))
+- Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
+- Bump `@metamask/authenticated-user-storage` from `^2.0.0` to `^2.1.0` ([#9220](https://github.com/MetaMask/core/pull/9220))
+
+## [24.1.3]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.1.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/keyring-controller` from `^26.0.0` to `^27.0.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
+## [24.1.2]
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^25.5.0` to `^26.0.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/profile-sync-controller` from `^28.1.0` to `^28.1.1` ([#8912](https://github.com/MetaMask/core/pull/8912))
+
+## [24.1.1]
+
+### Changed
+
+- Fetch feature announcements based on AUS `marketing.inAppNotificationsEnabled` preferences instead of the deprecated `isFeatureAnnouncementsEnabled` controller state. ([#8861](https://github.com/MetaMask/core/pull/8861))
+
+## [24.1.0]
+
+### Added
+
+- Add `registerPushNotifications` to `NotificationServicesControllerEnableNotificationsOptions` so clients can enable MetaMask notifications without registering push notifications. ([#8782](https://github.com/MetaMask/core/pull/8782))
+- Add optional mobile OS and app version metadata to push token registrations so clients can provide Firebase error attribution data. ([#8782](https://github.com/MetaMask/core/pull/8782))
+
+## [24.0.0]
+
+### Added
+
+- Add `productAnnouncementEnabled` to `NotificationServicesControllerEnableNotificationsOptions`. ([#8784](https://github.com/MetaMask/core/pull/8784))
+
+### Changed
+
+- **BREAKING:** Enrich notification settings using Authenticated User Storage. ([#8784](https://github.com/MetaMask/core/pull/8784))
+  - Replace Trigger API notification settings with AUS notification preferences as the source of truth.
+  - `NotificationServicesController` now requires AUS messenger actions for notification setup.
+  - When AUS has no stored preferences, `createOnChainTriggers` writes a complete preferences blob for `walletActivity`, `marketing`, `perps`, and `socialAI`.
+  - Wallet activity accounts are seeded from the current Trigger API config when at least one current account is already enabled; otherwise all current accounts are initialized as enabled for first-time notification setup.
+  - Marketing push notifications are initialized from `hasMarketingConsent`, while marketing in-app notifications are initialized from `productAnnouncementEnabled`.
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/profile-sync-controller` from `^28.0.2` to `^28.1.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
+- Bump `@metamask/authenticated-user-storage` from `^1.0.1` to `^2.0.0` ([#8802](https://github.com/MetaMask/core/pull/8802))
+
+### Removed
+
+- **BREAKING:** Remove unused `resetNotifications` option from `NotificationServicesControllerEnableNotificationsOptions`. ([#8784](https://github.com/MetaMask/core/pull/8784))
+
+## [23.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+- Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/keyring-controller` from `^25.2.0` to `^25.5.0` ([#8634](https://github.com/MetaMask/core/pull/8634), [#8665](https://github.com/MetaMask/core/pull/8665), [#8722](https://github.com/MetaMask/core/pull/8722))
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+
+## [23.1.0]
+
+### Added
+
+- Add backend push token links for newly added notification accounts using the existing device token, so account additions trigger additive `POST /api/v2/token` registration for both primary and imported SRPs ([#8449](https://github.com/MetaMask/core/pull/8449))
+  - Add the `NotificationServicesPushController:addPushNotificationLinks` messenger action and export the corresponding `NotificationServicesPushControllerAddPushNotificationLinksAction` type so clients can allow and type the new additive push-link flow.
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.2.0` ([#8363](https://github.com/MetaMask/core/pull/8363))
+- Bump `@metamask/profile-sync-controller` from `^28.0.1` to `^28.0.2` ([#8325](https://github.com/MetaMask/core/pull/8325))
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+
+## [23.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/keyring-controller` from `^25.1.0` to `^25.1.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/profile-sync-controller` from `^28.0.0` to `^28.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [23.0.0]
+
+### Added
+
+- Expose missing public `NotificationServicesController` methods through its messenger ([#8176](https://github.com/MetaMask/core/pull/8176))
+  - The following actions are now available:
+    - `NotificationServicesController:init`
+    - `NotificationServicesController:enablePushNotification`
+    - `NotificationServicesController:disablePushNotification`
+    - `NotificationServicesController:checkAccountsPresence`
+    - `NotificationServicesController:setFeatureAnnouncementsEnabled`
+    - `NotificationServicesController:createOnChainTriggers`
+    - `NotificationServicesController:enableMetamaskNotifications`
+    - `NotificationServicesController:disableAccounts`
+    - `NotificationServicesController:enableAccounts`
+    - `NotificationServicesController:fetchAndUpdateMetamaskNotifications`
+    - `NotificationServicesController:deleteNotificationById`
+    - `NotificationServicesController:markMetamaskNotificationsAsRead`
+    - `NotificationServicesController:sendPerpPlaceOrderNotification`
+  - Corresponding action types (e.g. `NotificationServicesControllerEnablePushNotificationAction`) are available as well.
+
+### Changed
+
+- **BREAKING:** Standardize names of `NotificationServicesController` and `NotificationServicesPushController` messenger action types ([#8176](https://github.com/MetaMask/core/pull/8176))
+  - All existing types for messenger actions have been renamed so they end in `Action` (e.g. `NotificationServicesControllerUpdateMetamaskNotificationsList` -> `NotificationServicesControllerUpdateMetamaskNotificationsListAction`). You will need to update imports appropriately.
+  - The `NotificationServicesPushController` action `NotificationServicesPushControllerSubscribeToNotificationsAction` has been renamed to `NotificationServicesPushControllerSubscribeToPushNotificationsAction` so it matches the method name.
+  - These changes only affect the types. The action type strings themselves have not changed, so you do not need to update the list of actions you pass when initializing `NotificationServicesController` and `NotificationServicesPushController` messengers.
+- Register notification accounts from all keyrings instead of only the first HD keyring, so notification setup now includes addresses from HD, hardware, imported, and snap keyrings ([#8108](https://github.com/MetaMask/core/pull/8108))
+- Add push token unlink support for account removal by deleting `/api/v2/token` links for `{ address, platform }` pairs when notification accounts are disabled (for example during SRP removal) ([#8108](https://github.com/MetaMask/core/pull/8108))
+
+## [22.1.0]
+
+### Changed
+
+- Debounce `KeyringController:stateChange` handler to reduce redundant notification subscription calls during rapid account syncing ([#7980](https://github.com/MetaMask/core/pull/7980))
+- Filter out Product Account announcements notifications older than 3 months ([#7884](https://github.com/MetaMask/core/pull/7884))
+- Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
+- Bump `@metamask/profile-sync-controller` from `^27.1.0` to `^28.0.0` ([#8162](https://github.com/MetaMask/core/pull/8162))
+
+## [22.0.0]
+
+### Changed
+
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7713](https://github.com/MetaMask/core/pull/7713), [#7849](https://github.com/MetaMask/core/pull/7849))
+  - The dependencies moved are:
+    - `@metamask/keyring-controller` (^25.1.0)
+    - `@metamask/profile-sync-controller` (^27.1.0)
+  - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
+    - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
+  - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
+- Modified background push utilities to handle more edgecases and not throw errors ([#7275](https://github.com/MetaMask/core/pull/7275))
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.18.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
+- Filter feature announcements older than 3 months ([#7884](https://github.com/MetaMask/core/pull/7884))
+- Move notifications networks metadata to backend ([#7840](https://github.com/MetaMask/core/pull/7840))
+
+### Removed
+
+- **BREAKING:** Removed the `"./notification-services/ui"` subpath export from `package.json` ([#7840](https://github.com/MetaMask/core/pull/7840))
+  - Consumers that import from `@metamask/notification-services-controller/notification-services/ui` must switch to network config provided by the backend.
+
+### Fixed
+
+- Remove non-actionable internal `log.error` calls for expected silent-failure notification paths, while preserving thrown errors where propagation is required ([#7885](https://github.com/MetaMask/core/pull/7885))
+- Fix `createOnChainTriggers` to preserve user preferences on notification re-subscriptions ([#7423](https://github.com/MetaMask/core/pull/7423))
+  - Previously, `isFeatureAnnouncementsEnabled` was unconditionally set to `true` on every re-subscription, overriding user preferences
+  - Now, existing preferences are preserved when `isNotificationServicesEnabled` is already `true`
+
+## [21.0.0]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/profile-sync-controller` from `^26.0.0` to `^27.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^24.0.0` to `^25.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Add optional `env` parameter to the `NotificationServicesController` and `NotificationServicesPushController`
+  to support different environments (`prd`, `uat`, `dev`). ([#7175](https://github.com/MetaMask/core/pull/7175))
+
+## [20.0.0]
+
+### Changed
+
+- **BREAKING:** Moved Notification API from v2 to v3 ([#7102](https://github.com/MetaMask/core/pull/7102))
+  - API Endpoint Changes: Updated from `/api/v2/notifications` to `/api/v3/notifications` for listing notifications and marking as read
+  - Request Format: The list notifications endpoint now expects `{ addresses: string[], locale?: string }` instead of `{ address: string }[]`
+  - Response Structure: Notifications now include a `notification_type` field ('on-chain' or 'platform') and nested payload structure
+    - On-chain notifications: data moved from root level to `payload.data`
+    - Platform notifications: new type with `template` containing localized content (`title`, `body`, `image_url`, `cta`)
+  - Type System Overhaul:
+    - `OnChainRawNotification` → `NormalisedAPINotification` (union of on-chain and platform)
+    - `UnprocessedOnChainRawNotification` → `UnprocessedRawNotification`
+    - Removed specific DeFi notification types (Aave, ENS, Lido rewards, etc.) - now will be handled generically
+    - Added `TRIGGER_TYPES.PLATFORM` for platform notifications
+  - Function Signatures:
+    - `getOnChainNotifications()` → `getAPINotifications()` with new `locale` parameter
+    - `getOnChainNotificationsConfigCached()` → `getNotificationsApiConfigCached()`
+    - `processOnChainNotification()` → `processAPINotifications()`
+  - Service Imports: Update imports from `onchain-notifications` to `api-notifications`
+  - Auto-expiry: Reduced from 90 days to 30 days for notification auto-expiry
+  - Locale Support: Added locale parameter to controller constructor for localized server notifications
+
+## [19.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6538](https://github.com/MetaMask/core/pull/6538))
+  - Previously, `NotificationServicesController` and `NotificationServicesPushController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6538](https://github.com/MetaMask/core/pull/6538))
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^23.0.0` to `^24.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/profile-sync-controller` from `^25.0.0` to `^26.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+### Removed
+
+- **BREAKING:** Remove package-level exports of `AllowedActions` and `AllowedEvents` from `NotificationServicesController` and `NotificationServicesPushController` ([#6538](https://github.com/MetaMask/core/pull/6538))
+
+## [18.3.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
+## [18.3.0]
+
+### Added
+
+- Add exported util `isVersionInBounds` to validate version number is in bounds ([#6793](https://github.com/MetaMask/core/pull/6793))
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.0` to `^8.4.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/controller-utils` from `^11.14.0` to `^11.14.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+
+## [18.2.0]
+
+### Added
+
+- Add max bound version segmentation for feature announcements ([#6773](https://github.com/MetaMask/core/pull/6773))
+  - Add `extensionMaximumVersionNumber` and `mobileMaximumVersionNumber` properties to feature announcements
+- Add optional `platformVersion` property to `NotificationServicesController` `FeatureAnnouncementEnv` type ([#6568](https://github.com/MetaMask/core/pull/6568))
+- Filtering logic to filter feature annonucements by version number ([#6568](https://github.com/MetaMask/core/pull/6568))
+- Add package `semver@^7.7.2` to handle semver version comparisons for announcement notification filtering ([#6568](https://github.com/MetaMask/core/pull/6568))
+- Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6583](https://github.com/MetaMask/core/pull/6583))
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.1` ([#6588](https://github.com/MetaMask/core/pull/6588), [#6708](https://github.com/MetaMask/core/pull/6708))
+- Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.0` ([#6632](https://github.com/MetaMask/core/pull/6632))
+
 ## [18.1.0]
 
 ### Added
@@ -102,20 +349,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** bump `@metamask/profile-sync-controller` peer dependency to `^18.0.0` ([#5996](https://github.com/MetaMask/core/pull/5996))
 - **BREAKING:** Migrated to notification v2 endpoints ([#5945](https://github.com/MetaMask/core/pull/5945))
-
   - `https://trigger.api.cx.metamask.io/api/v1` to `https://trigger.api.cx.metamask.io/api/v2` for managing out notification subscriptions
   - `https://notification.api.cx.metamask.io/api/v1` to `https://notification.api.cx.metamask.io/api/v2` for fetching notifications (in-app notifications)
   - `https://push.api.cx.metamask.io/v1` to `https://push.api.cx.metamask.io/v2` for subscribing push notifications
   - Renamed method `updateOnChainTriggersByAccount` to `enableAccounts` in `NotificationServicesController`
   - Renamed method `deleteOnChainTriggersByAccount` to `disableAccounts` in `NotificationServicesController`
   - Deprecated `updateTriggerPushNotifications` from `NotificationServicesPushController` and will be removed in a subsequent release.
-
 - Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
 
 ### Removed
 
 - **BREAKING:** Migrated to notification v2 endpoints ([#5945](https://github.com/MetaMask/core/pull/5945))
-
   - removed `NotificationServicesPushController:updateTriggerPushNotifications` action from `NotificationServicesController`
   - removed `UserStorageController:getStorageKey` action from `NotificationServicesController`
   - removed `UserStorageController:performGetStorage` action from `NotificationServicesController`
@@ -303,8 +547,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^18.0.0` to `^19.0.0` ([#4195](https://github.com/MetaMask/core/pull/4956))
-- **BREAKING:** Bump `@metamask/profile-sync-controller` peer dependency from `^1.0.0` to `^2.0.0` ([#4195](https://github.com/MetaMask/core/pull/4956))
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^18.0.0` to `^19.0.0` ([#4195](https://github.com/MetaMask/core/pull/4195))
+- **BREAKING:** Bump `@metamask/profile-sync-controller` peer dependency from `^1.0.0` to `^2.0.0` ([#4195](https://github.com/MetaMask/core/pull/4195))
 
 ## [0.13.0]
 
@@ -344,10 +588,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - update the types described in `types/on-chain-notification/schema` and `types/on-chain-notification/on-chain-notification` ([#4818](https://github.com/MetaMask/core/pull/4818))
-
   - adds new notifications: aave_v3_health_factor; ens_expiration; lido_staking_rewards; notional_loan_expiration; rocketpool_staking_rewards; spark_fi_health_factor
   - splits Wallet Notifications from Web 3 Notifications
-
 - updated and added new notification mocks ([#4818](https://github.com/MetaMask/core/pull/4818))
   - can be accessed through `@metamask/notification-services-controller/notification-services/mocks`
 
@@ -426,7 +668,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+- Remove chunk files. ([#4648](https://github.com/MetaMask/core/pull/4648))
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
@@ -519,7 +761,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - added catch statements in NotificationServicesController to silently fail push notifications ([#4536](https://github.com/MetaMask/core/pull/4536))
-
 - added checks to see feature announcement environments before fetching announcements ([#4530](https://github.com/MetaMask/core/pull/4530))
 
 ### Removed
@@ -531,11 +772,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - export `defaultState` for `NotificationServicesController` and `NotificationServicesPushController`. ([#4441](https://github.com/MetaMask/core/pull/4441))
-
 - export `NOTIFICATION_CHAINS_ID` which is a const-asserted version of `NOTIFICATION_CHAINS` ([#4441](https://github.com/MetaMask/core/pull/4441))
-
 - export `NOTIFICATION_NETWORK_CURRENCY_NAME` and `NOTIFICATION_NETWORK_CURRENCY_SYMBOL`. Allows consistent currency names and symbols for supported notification services ([#4441](https://github.com/MetaMask/core/pull/4441))
-
 - add `isPushIntegrated` as an optional env property in the `NotificationServicesController` constructor (defaults to true) ([#4441](https://github.com/MetaMask/core/pull/4441))
 
 ### Fixed
@@ -548,7 +786,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@18.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.2.0...HEAD
+[24.2.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.1.3...@metamask/notification-services-controller@24.2.0
+[24.1.3]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.1.2...@metamask/notification-services-controller@24.1.3
+[24.1.2]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.1.1...@metamask/notification-services-controller@24.1.2
+[24.1.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.1.0...@metamask/notification-services-controller@24.1.1
+[24.1.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.0.0...@metamask/notification-services-controller@24.1.0
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@23.1.1...@metamask/notification-services-controller@24.0.0
+[23.1.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@23.1.0...@metamask/notification-services-controller@23.1.1
+[23.1.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@23.0.1...@metamask/notification-services-controller@23.1.0
+[23.0.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@23.0.0...@metamask/notification-services-controller@23.0.1
+[23.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@22.1.0...@metamask/notification-services-controller@23.0.0
+[22.1.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@22.0.0...@metamask/notification-services-controller@22.1.0
+[22.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@21.0.0...@metamask/notification-services-controller@22.0.0
+[21.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@20.0.0...@metamask/notification-services-controller@21.0.0
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@19.0.0...@metamask/notification-services-controller@20.0.0
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@18.3.1...@metamask/notification-services-controller@19.0.0
+[18.3.1]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@18.3.0...@metamask/notification-services-controller@18.3.1
+[18.3.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@18.2.0...@metamask/notification-services-controller@18.3.0
+[18.2.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@18.1.0...@metamask/notification-services-controller@18.2.0
 [18.1.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@18.0.0...@metamask/notification-services-controller@18.1.0
 [18.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@17.0.0...@metamask/notification-services-controller@18.0.0
 [17.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@16.0.0...@metamask/notification-services-controller@17.0.0

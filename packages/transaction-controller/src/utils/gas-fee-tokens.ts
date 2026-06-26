@@ -1,23 +1,25 @@
+import type { NetworkClientId } from '@metamask/network-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
-import { ERROR_MESSAGE_NO_UPGRADE_CONTRACT } from './batch';
-import { ERROR_MESSGE_PUBLIC_KEY, doesChainSupportEIP7702 } from './eip7702';
-import { getEIP7702UpgradeContractAddress } from './feature-flags';
 import type {
   GasFeeToken,
   TransactionControllerMessenger,
   TransactionMeta,
 } from '..';
+import { simulateTransactions } from '../api/simulation-api';
 import type { SimulationRequestTransaction } from '../api/simulation-api';
-import {
-  simulateTransactions,
-  type SimulationResponse,
-  type SimulationResponseTransaction,
+import type {
+  SimulationResponse,
+  SimulationResponseTransaction,
 } from '../api/simulation-api';
 import { projectLogger } from '../logger';
 import type { GetSimulationConfig } from '../types';
+import { isNativeBalanceSufficientForGas } from './balance';
+import { ERROR_MESSAGE_NO_UPGRADE_CONTRACT } from './batch';
+import { ERROR_MESSGE_PUBLIC_KEY, doesChainSupportEIP7702 } from './eip7702';
+import { getEIP7702UpgradeContractAddress } from './feature-flags';
 
 const log = createModuleLogger(projectLogger, 'gas-fee-tokens');
 
@@ -51,7 +53,10 @@ export async function getGasFeeTokens({
   publicKeyEIP7702,
   transactionMeta,
   getSimulationConfig,
-}: GetGasFeeTokensRequest) {
+}: GetGasFeeTokensRequest): Promise<{
+  gasFeeTokens: GasFeeToken[];
+  isGasFeeSponsored: boolean;
+}> {
   const { delegationAddress, txParams } = transactionMeta;
   const { authorizationList: authorizationListRequest } = txParams;
   const data = txParams.data as Hex;
@@ -71,13 +76,13 @@ export async function getGasFeeTokens({
     | SimulationRequestTransaction['authorizationList']
     | undefined = authorizationListRequest?.map((authorization) => ({
     address: authorization.address,
-    from: from as Hex,
+    from,
   }));
 
   if (with7702 && !delegationAddress && !authorizationList) {
     authorizationList = buildAuthorizationList({
       chainId,
-      from: from as Hex,
+      from,
       messenger,
       publicKeyEIP7702,
     });
@@ -113,6 +118,93 @@ export async function getGasFeeTokens({
     log('Failed to gas fee tokens', error);
     return { gasFeeTokens: [], isGasFeeSponsored: false };
   }
+}
+
+/**
+ * Check and update gas fee token selection before publishing a transaction.
+ *
+ * @param request - Request object.
+ * @param request.messenger - The transaction controller messenger.
+ * @param request.networkClientId - The network client ID.
+ * @param request.fetchGasFeeTokens - Function to fetch gas fee tokens.
+ * @param request.transaction - Transaction metadata.
+ * @param request.updateTransaction - Function to update the transaction.
+ */
+export async function checkGasFeeTokenBeforePublish({
+  messenger,
+  networkClientId,
+  fetchGasFeeTokens,
+  transaction,
+  updateTransaction,
+}: {
+  messenger: TransactionControllerMessenger;
+  networkClientId: NetworkClientId;
+  fetchGasFeeTokens: (transaction: TransactionMeta) => Promise<GasFeeToken[]>;
+  transaction: TransactionMeta;
+  updateTransaction: (
+    transactionId: string,
+    fn: (tx: TransactionMeta) => void,
+  ) => void;
+}): Promise<void> {
+  const {
+    excludeNativeTokenForFee,
+    isGasFeeTokenIgnoredIfBalance,
+    selectedGasFeeToken,
+  } = transaction;
+
+  if (
+    !selectedGasFeeToken ||
+    (!isGasFeeTokenIgnoredIfBalance && !excludeNativeTokenForFee)
+  ) {
+    return;
+  }
+
+  log('Checking gas fee token before publish', { selectedGasFeeToken });
+
+  if (!excludeNativeTokenForFee) {
+    const hasNativeBalance = await isNativeBalanceSufficientForGas(
+      transaction,
+      messenger,
+      networkClientId,
+    );
+
+    if (hasNativeBalance) {
+      log(
+        'Ignoring gas fee token before publish due to sufficient native balance',
+      );
+
+      updateTransaction(transaction.id, (tx) => {
+        tx.isExternalSign = false;
+        tx.selectedGasFeeToken = undefined;
+      });
+
+      return;
+    }
+  }
+
+  const gasFeeTokens = await fetchGasFeeTokens({
+    ...transaction,
+    isExternalSign: true,
+  });
+
+  updateTransaction(transaction.id, (tx) => {
+    tx.gasFeeTokens = gasFeeTokens;
+    tx.isExternalSign = true;
+    tx.txParams.nonce = undefined;
+  });
+
+  log('Updated gas fee tokens before publish', gasFeeTokens);
+
+  if (
+    !gasFeeTokens?.some(
+      (token) =>
+        token.tokenAddress.toLowerCase() === selectedGasFeeToken.toLowerCase(),
+    )
+  ) {
+    throw new Error('Gas fee token not found and insufficient native balance');
+  }
+
+  log('Publishing with selected gas fee token', { selectedGasFeeToken });
 }
 
 /**
@@ -189,7 +281,7 @@ function buildAuthorizationList({
   return [
     {
       address: upgradeAddress,
-      from: from as Hex,
+      from,
     },
   ];
 }

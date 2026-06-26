@@ -36,6 +36,7 @@ const ESTIMATE_RESPONSE_HEX_MOCK: BundlerEstimateUserOperationGasResponse = {
 
 /**
  * Creates a mock bundler.
+ *
  * @returns The mock bundler.
  */
 function createBundlerMock() {

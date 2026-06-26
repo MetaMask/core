@@ -72,6 +72,7 @@ const MULTICALL_CONTRACT_BY_CHAINID = {
   '0xe9fe': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0xd3a0': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x84444': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Rootstock, bytecode OK and referenced as "RSK" in https://www.multicall3.com/deployments
   '0x1e': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x1f': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x2329': '0xcA11bde05977b3631167028862bE2a173976CA11',
@@ -121,6 +122,7 @@ const MULTICALL_CONTRACT_BY_CHAINID = {
   '0xdea8': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x3af': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x171': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // HyperEVM (999)
   '0x3e7': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x76adf1': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x3b9ac9ff': '0xcA11bde05977b3631167028862bE2a173976CA11',
@@ -177,6 +179,7 @@ const MULTICALL_CONTRACT_BY_CHAINID = {
   '0x45b': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x3d': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x41a6ace': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Etherlink mainnet, bytecode OK and referenced in https://www.multicall3.com/deployments
   '0xa729': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x1f47b': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x1b59': '0xca11bde05977b3631167028862be2a173976ca11',
@@ -246,6 +249,7 @@ const MULTICALL_CONTRACT_BY_CHAINID = {
   '0x46f': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x659': '0xca11bde05977b3631167028862be2a173976ca11',
   '0x139c968f9': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // BOB, bytecode OK and referenced in https://www.multicall3.com/deployments
   '0xed88': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0xd036': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x1f3': '0xcA11bde05977b3631167028862bE2a173976CA11',
@@ -259,6 +263,60 @@ const MULTICALL_CONTRACT_BY_CHAINID = {
   '0x1e0': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x2eb': '0xcA11bde05977b3631167028862bE2a173976CA11',
   '0x221': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Injective, contract found but not in multicall3 repo
+  '0x6f0': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Hemi, contract found but not in multicall3 repo
+  '0xa867': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Plasma, contract found but not in multicall3 repo
+  '0x2611': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Nonmia, contract found but not in multicall3 repo
+  '0xa6': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // XRPL, contract found but not in multicall3 repo
+  '0x15f900': '0x6B5eFbC0C82eBb26CA13a4F11836f36Fc6fdBC5D',
+  // Soneium, contract found but not in multicall3 repo
+  '0x74c': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Genesys, contract found but not in multicall3 repo
+  '0x407b': '0x90a2377F233E3461BACa6080d4837837d8762927',
+  // EDU (Animoca)
+  '0xa3c3': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Abstract
+  '0xab5': '0xF9cda624FBC7e059355ce98a31693d299FACd963',
+  // Berachain, contract found but not in multicall3 repo
+  '0x138de': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // MegaETH TESTNET
+  '0x18c6': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Apechain
+  '0x8173': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Matchain, contract found but not in multicall3 repo
+  '0x2ba': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Monad TESTNET
+  '0x279f': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Katana
+  '0xb67d2': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Lens, contract found but not in multicall3 repo
+  '0xe8': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Plume
+  '0x18232': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Monad Mainnet
+  '0x8f': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // XDC, contract found but not in multicall3 repo
+  '0x32': '0x0B1795ccA8E4eC4df02346a082df54D437F8D9aF',
+  // MegaETH TESTNET v2 (timothy chain ID 6343)
+  '0x18c7': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // MegaETH mainnet, contract found matching multicall3 bytecode
+  '0x10e6': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // MSU (contract they deployed by their team for us)
+  '0x10b3e': '0x99423C88EB5723A590b4C644426069042f137B9e',
+  // INK Mainnet
+  '0xdef1': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Stable (988)
+  '0x3dc': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Tempo Testnet Moderato (42431)
+  '0xa5bf': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Tempo Mainnet (4217)
+  '0x1079': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Arc (5042)
+  '0x13b2': '0xcA11bde05977b3631167028862bE2a173976CA11',
 } as Record<Hex, Hex>;
 
 const multicallAbi = [
@@ -342,9 +400,36 @@ export type Aggregate3Result = {
 // Constants for encoded strings and addresses
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 const BALANCE_OF_FUNCTION = 'balanceOf(address)';
+const OWNER_OF_FUNCTION = 'ownerOf(uint256)';
+const ERC1155_BALANCE_OF_FUNCTION = 'balanceOf(address,uint256)';
 const GET_ETH_BALANCE_FUNCTION = 'getEthBalance';
 const GET_SHARES_FUNCTION = 'getShares';
 const CONVERT_TO_ASSETS_FUNCTION = 'convertToAssets';
+
+// ERC-721 ownerOf ABI
+const ERC721_OWNER_OF_ABI = [
+  {
+    name: 'ownerOf',
+    type: 'function',
+    inputs: [{ name: 'tokenId', type: 'uint256' }],
+    outputs: [{ name: 'owner', type: 'address' }],
+    stateMutability: 'view',
+  },
+];
+
+// ERC-1155 balanceOf ABI
+const ERC1155_BALANCE_OF_ABI = [
+  {
+    name: 'balanceOf',
+    type: 'function',
+    inputs: [
+      { name: 'account', type: 'address' },
+      { name: 'id', type: 'uint256' },
+    ],
+    outputs: [{ name: 'balance', type: 'uint256' }],
+    stateMutability: 'view',
+  },
+];
 
 // ERC20 balanceOf ABI
 const ERC20_BALANCE_OF_ABI = [
@@ -759,10 +844,7 @@ const getStakedBalancesFallback = async (
 ): Promise<Record<string, BN>> => {
   const stakedBalanceMap: Record<string, BN> = {};
 
-  const stakingContractAddress =
-    STAKING_CONTRACT_ADDRESS_BY_CHAINID[
-      chainId as keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID
-    ];
+  const stakingContractAddress = STAKING_CONTRACT_ADDRESS_BY_CHAINID[chainId];
 
   if (!stakingContractAddress) {
     // No staking support for this chain
@@ -812,10 +894,7 @@ export const getStakedBalancesForAddresses = async (
   chainId: Hex,
   provider: Web3Provider,
 ): Promise<Record<string, BN>> => {
-  const stakingContractAddress =
-    STAKING_CONTRACT_ADDRESS_BY_CHAINID[
-      chainId as keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID
-    ];
+  const stakingContractAddress = STAKING_CONTRACT_ADDRESS_BY_CHAINID[chainId];
 
   if (!stakingContractAddress) {
     return {};
@@ -936,11 +1015,7 @@ export const getTokenBalancesForMultipleAddresses = async (
   );
 
   // Check if Multicall3 is supported on this chain
-  if (
-    !MULTICALL_CONTRACT_BY_CHAINID[
-      chainId as keyof typeof MULTICALL_CONTRACT_BY_CHAINID
-    ]
-  ) {
+  if (!MULTICALL_CONTRACT_BY_CHAINID[chainId]) {
     // Fallback to individual balance calls when Multicall3 is not supported
     const tokenBalances = await getTokenBalancesFallback(
       uniqueTokenAddresses,
@@ -1118,4 +1193,296 @@ export const getTokenBalancesForMultipleAddresses = async (
 
     return result;
   }
+};
+
+export type NftOwnershipQuery = {
+  nftAddress: string;
+  tokenId: string;
+  userAddress: string;
+  standard: string | null;
+};
+
+export type NftOwnershipResult = {
+  nftAddress: string;
+  tokenId: string;
+  isOwned: boolean | undefined;
+};
+
+type NftCallMeta = { nftIndex: number; callVariant: 'erc721' | 'erc1155' };
+
+const normalizeNftStandard = (
+  standard: string | null,
+): 'ERC721' | 'ERC1155' | null => {
+  if (!standard) {
+    return null;
+  }
+  const upper = standard.toUpperCase();
+  if (upper === 'ERC721') {
+    return 'ERC721';
+  }
+  if (upper === 'ERC1155') {
+    return 'ERC1155';
+  }
+  return null;
+};
+
+const getNftOwnershipViaMulticall = async (
+  nfts: NftOwnershipQuery[],
+  chainId: Hex,
+  provider: Web3Provider,
+): Promise<NftOwnershipResult[]> => {
+  const erc721Contract = new Contract(
+    ZERO_ADDRESS,
+    ERC721_OWNER_OF_ABI,
+    provider,
+  );
+  const erc1155Contract = new Contract(
+    ZERO_ADDRESS,
+    ERC1155_BALANCE_OF_ABI,
+    provider,
+  );
+
+  const calls: Aggregate3Call[] = [];
+  const meta: NftCallMeta[] = [];
+
+  // When the standard is known, emit only the relevant call to halve the number
+  // of multicall subcalls. When unknown (null), emit both — ERC-721 first so
+  // the `!== undefined` guard below replicates the original early-return
+  // behavior: once ERC-721 gives a definitive answer, ERC-1155 is skipped.
+  nfts.forEach(({ nftAddress, tokenId, userAddress, standard }, i) => {
+    const normalized = normalizeNftStandard(standard);
+    const tryErc721 = normalized !== 'ERC1155';
+    const tryErc1155 = normalized !== 'ERC721';
+
+    if (tryErc721) {
+      calls.push({
+        target: nftAddress,
+        allowFailure: true,
+        callData: erc721Contract.interface.encodeFunctionData(
+          OWNER_OF_FUNCTION,
+          [tokenId],
+        ),
+      });
+      meta.push({ nftIndex: i, callVariant: 'erc721' });
+    }
+
+    if (tryErc1155) {
+      calls.push({
+        target: nftAddress,
+        allowFailure: true,
+        callData: erc1155Contract.interface.encodeFunctionData(
+          ERC1155_BALANCE_OF_FUNCTION,
+          [userAddress, tokenId],
+        ),
+      });
+      meta.push({ nftIndex: i, callVariant: 'erc1155' });
+    }
+  });
+
+  const maxCallsPerBatch = 300;
+  const allReturnData: Aggregate3Result[] = [];
+  // Batches are processed serially and results are pushed in order, so
+  // allReturnData[i] always corresponds to meta[i]. Do NOT change this to
+  // parallel batching without also reworking the index correspondence.
+  await reduceInBatchesSerially<Aggregate3Call, void>({
+    values: calls,
+    batchSize: maxCallsPerBatch,
+    initialResult: undefined,
+    eachBatch: async (_, batch) => {
+      const batchResults = await aggregate3(batch, chainId, provider);
+      allReturnData.push(...batchResults);
+    },
+  });
+
+  const results: NftOwnershipResult[] = nfts.map(({ nftAddress, tokenId }) => ({
+    nftAddress,
+    tokenId,
+    isOwned: undefined,
+  }));
+
+  allReturnData.forEach(({ success, returnData: data }, i) => {
+    if (!success) {
+      return;
+    }
+    const { nftIndex, callVariant } = meta[i];
+    if (results[nftIndex].isOwned !== undefined) {
+      return;
+    }
+    try {
+      if (callVariant === 'erc721') {
+        const [owner] = erc721Contract.interface.decodeFunctionResult(
+          OWNER_OF_FUNCTION,
+          data,
+        );
+        results[nftIndex].isOwned =
+          owner.toLowerCase() === nfts[nftIndex].userAddress.toLowerCase();
+      } else {
+        const [balance] = erc1155Contract.interface.decodeFunctionResult(
+          ERC1155_BALANCE_OF_FUNCTION,
+          data,
+        );
+        results[nftIndex].isOwned = new BN(balance.toString()).gt(new BN(0));
+      }
+    } catch {
+      // Malformed return data from a non-standard contract; leave isOwned as undefined.
+    }
+  });
+
+  return results;
+};
+
+const MAX_PARALLEL_NFT_CALLS = 50;
+
+const getNftOwnershipIndividually = async (
+  nfts: NftOwnershipQuery[],
+  provider: Web3Provider,
+): Promise<NftOwnershipResult[]> => {
+  const erc721Iface = new Contract(ZERO_ADDRESS, ERC721_OWNER_OF_ABI, provider)
+    .interface;
+  const erc1155Iface = new Contract(
+    ZERO_ADDRESS,
+    ERC1155_BALANCE_OF_ABI,
+    provider,
+  ).interface;
+
+  return reduceInBatchesSerially<NftOwnershipQuery, NftOwnershipResult[]>({
+    values: nfts,
+    batchSize: MAX_PARALLEL_NFT_CALLS,
+    initialResult: [],
+    eachBatch: async (workingResult, batch) => {
+      const batchResults = await Promise.all(
+        batch.map(async ({ nftAddress, tokenId, userAddress, standard }) => {
+          let isOwned: boolean | undefined;
+          const normalized = normalizeNftStandard(standard);
+          const tryErc721 = normalized !== 'ERC1155';
+          const tryErc1155 = normalized !== 'ERC721';
+
+          if (tryErc721) {
+            try {
+              const callData = erc721Iface.encodeFunctionData(
+                OWNER_OF_FUNCTION,
+                [tokenId],
+              );
+              const raw = await provider.call({
+                to: nftAddress,
+                data: callData,
+              });
+              const [owner] = erc721Iface.decodeFunctionResult(
+                OWNER_OF_FUNCTION,
+                raw,
+              );
+              isOwned = owner.toLowerCase() === userAddress.toLowerCase();
+            } catch {
+              // ERC-721 unavailable; try ERC-1155 below if applicable.
+            }
+          }
+
+          if (isOwned === undefined && tryErc1155) {
+            try {
+              const callData = erc1155Iface.encodeFunctionData(
+                ERC1155_BALANCE_OF_FUNCTION,
+                [userAddress, tokenId],
+              );
+              const raw = await provider.call({
+                to: nftAddress,
+                data: callData,
+              });
+              const [balance] = erc1155Iface.decodeFunctionResult(
+                ERC1155_BALANCE_OF_FUNCTION,
+                raw,
+              );
+              isOwned = new BN(balance.toString()).gt(new BN(0));
+            } catch {
+              // ownership remains undefined
+            }
+          }
+
+          return { nftAddress, tokenId, isOwned };
+        }),
+      );
+      return [...workingResult, ...batchResults];
+    },
+  });
+};
+
+/**
+ * Check ownership for multiple NFTs, using Multicall3 when available to batch
+ * all calls into a single RPC request, falling back to individual calls otherwise.
+ *
+ * @param nfts - Array of NFT queries containing address, tokenId, owner address, and standard.
+ * @param chainId - The hexadecimal chain id.
+ * @param provider - An ethers rpc provider.
+ * @returns Promise resolving to array of ownership results. `isOwned` is `undefined`
+ * when ownership could not be determined (e.g. unsupported standard or RPC error).
+ */
+export const getNftOwnershipForMultipleNfts = async (
+  nfts: NftOwnershipQuery[],
+  chainId: Hex,
+  provider: Web3Provider,
+): Promise<NftOwnershipResult[]> => {
+  if (nfts.length === 0) {
+    return [];
+  }
+
+  const results: NftOwnershipResult[] = nfts.map(({ nftAddress, tokenId }) => ({
+    nftAddress,
+    tokenId,
+    isOwned: undefined,
+  }));
+
+  // Filter out NFTs whose standard is explicitly unrecognized (e.g.
+  // CryptoPunks with standard="UNKNOWN"). Such contracts use pre-Solidity-
+  // 0.4.10 bytecode that compiles unrecognized selectors to the INVALID
+  // opcode, which consumes ALL forwarded gas. Including them in a Multicall3
+  // aggregate3 batch causes the entire batch to revert, and calling them
+  // individually also always fails. They stay as isOwned=undefined.
+  //
+  // NFTs with `standard: null` (not yet categorized) are still included
+  // because they are likely valid ERC-721/ERC-1155 contracts.
+  const callable = nfts.reduce<{ nft: NftOwnershipQuery; index: number }[]>(
+    (acc, nft, index) => {
+      const hasExplicitNonStandard =
+        nft.standard !== null && normalizeNftStandard(nft.standard) === null;
+      if (!hasExplicitNonStandard) {
+        acc.push({ nft, index });
+      }
+      return acc;
+    },
+    [],
+  );
+
+  if (callable.length === 0) {
+    return results;
+  }
+
+  const multicallAddress = MULTICALL_CONTRACT_BY_CHAINID[chainId];
+
+  if (multicallAddress) {
+    try {
+      const batchResults = await getNftOwnershipViaMulticall(
+        callable.map(({ nft }) => nft),
+        chainId,
+        provider,
+      );
+      batchResults.forEach((result, batchIndex) => {
+        results[callable[batchIndex].index] = result;
+      });
+      return results;
+    } catch (error) {
+      console.warn(
+        'Multicall3 NFT ownership check failed, falling back to individual calls',
+        error,
+      );
+    }
+  }
+
+  const individualResults = await getNftOwnershipIndividually(
+    callable.map(({ nft }) => nft),
+    provider,
+  );
+  individualResults.forEach((result, batchIndex) => {
+    results[callable[batchIndex].index] = result;
+  });
+
+  return results;
 };

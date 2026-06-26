@@ -1,4 +1,8 @@
-import { AccountWalletType } from '@metamask/account-api';
+import {
+  AccountWalletType,
+  toMultichainAccountGroupId,
+  toMultichainAccountWalletId,
+} from '@metamask/account-api';
 import type { AccountWalletId } from '@metamask/account-api';
 
 import type { AccountGroupMultichainAccountObject } from '../../group';
@@ -22,6 +26,34 @@ export function getLocalEntropyWallets(
 }
 
 /**
+ * Gets the local group for a specific entropy wallet by its source ID and group index.
+ *
+ * @param context - The backup and sync context.
+ * @param entropySourceId - The entropy source ID.
+ * @param groupIndex - The group index.
+ * @returns The local group object if it exists, undefined otherwise.
+ */
+export const getLocalGroupForEntropyWallet = (
+  context: BackupAndSyncContext,
+  entropySourceId: string,
+  groupIndex: number,
+): AccountGroupMultichainAccountObject | undefined => {
+  const walletId = toMultichainAccountWalletId(entropySourceId);
+  const wallet = context.controller.state.accountTree.wallets[walletId];
+
+  if (wallet?.type !== AccountWalletType.Entropy) {
+    backupAndSyncLogger(
+      `Wallet ${walletId} not found or is not an entropy wallet`,
+    );
+    return undefined;
+  }
+
+  const groupId = toMultichainAccountGroupId(walletId, groupIndex);
+
+  return wallet.groups[groupId];
+};
+
+/**
  * Gets all groups for a specific entropy wallet.
  *
  * @param context - The backup and sync context.
@@ -33,7 +65,7 @@ export function getLocalGroupsForEntropyWallet(
   walletId: AccountWalletId,
 ): AccountGroupMultichainAccountObject[] {
   const wallet = context.controller.state.accountTree.wallets[walletId];
-  if (!wallet || wallet.type !== AccountWalletType.Entropy) {
+  if (wallet?.type !== AccountWalletType.Entropy) {
     backupAndSyncLogger(
       `Wallet ${walletId} not found or is not an entropy wallet`,
     );
@@ -50,7 +82,7 @@ export function getLocalGroupsForEntropyWallet(
 export type StateSnapshot = {
   accountGroupsMetadata: AccountTreeControllerState['accountGroupsMetadata'];
   accountWalletsMetadata: AccountTreeControllerState['accountWalletsMetadata'];
-  selectedAccountGroup: AccountTreeControllerState['accountTree']['selectedAccountGroup'];
+  selectedAccountGroup: AccountTreeControllerState['selectedAccountGroup'];
   accountTreeWallets: AccountTreeControllerState['accountTree']['wallets'];
 };
 
@@ -71,8 +103,7 @@ export function createStateSnapshot(
     accountWalletsMetadata: JSON.parse(
       JSON.stringify(context.controller.state.accountWalletsMetadata),
     ),
-    selectedAccountGroup:
-      context.controller.state.accountTree.selectedAccountGroup,
+    selectedAccountGroup: context.controller.state.selectedAccountGroup,
     accountTreeWallets: JSON.parse(
       JSON.stringify(context.controller.state.accountTree.wallets),
     ),
@@ -94,7 +125,7 @@ export function restoreStateFromSnapshot(
   context.controllerStateUpdateFn((state) => {
     state.accountGroupsMetadata = snapshot.accountGroupsMetadata;
     state.accountWalletsMetadata = snapshot.accountWalletsMetadata;
-    state.accountTree.selectedAccountGroup = snapshot.selectedAccountGroup;
+    state.selectedAccountGroup = snapshot.selectedAccountGroup;
     state.accountTree.wallets = snapshot.accountTreeWallets;
   });
 

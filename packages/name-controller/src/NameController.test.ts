@@ -25,6 +25,7 @@ const TIME_MOCK = 123;
 
 const MESSENGER_MOCK = {
   registerActionHandler: jest.fn(),
+  registerMethodActionHandlers: jest.fn(),
   registerInitialEventPayload: jest.fn(),
   publish: jest.fn(),
   // TODO: Replace `any` with type
@@ -2765,9 +2766,9 @@ describe('NameController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -2783,10 +2784,10 @@ describe('NameController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "nameSources": Object {},
-          "names": Object {
-            "ethereumAddress": Object {},
+        {
+          "nameSources": {},
+          "names": {
+            "ethereumAddress": {},
           },
         }
       `);
@@ -2805,10 +2806,10 @@ describe('NameController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "nameSources": Object {},
-          "names": Object {
-            "ethereumAddress": Object {},
+        {
+          "nameSources": {},
+          "names": {
+            "ethereumAddress": {},
           },
         }
       `);
@@ -2827,10 +2828,10 @@ describe('NameController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "nameSources": Object {},
-          "names": Object {
-            "ethereumAddress": Object {},
+        {
+          "nameSources": {},
+          "names": {
+            "ethereumAddress": {},
           },
         }
       `);

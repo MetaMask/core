@@ -1,17 +1,7 @@
-import type { RestrictedMessenger } from '@metamask/base-controller';
-import type { ControllerGetStateAction } from '@metamask/base-controller';
-import type { ControllerStateChangeEvent } from '@metamask/base-controller';
-import type { ExportableKeyEncryptor } from '@metamask/keyring-controller';
 import type { KeyPair, NodeAuthTokens } from '@metamask/toprf-secure-backup';
 import type { MutexInterface } from 'async-mutex';
 
-import type {
-  AuthConnection,
-  controllerName,
-  SecretMetadataVersion,
-  SecretType,
-  Web3AuthNetwork,
-} from './constants';
+import type { AuthConnection, SecretType } from './constants';
 
 /**
  * The backup state of the secret data.
@@ -180,46 +170,13 @@ export type SeedlessOnboardingControllerState =
        * Whether the user is authenticated with social login and TOPRF service.
        */
       isSeedlessOnboardingUserAuthenticated: boolean;
+
+      /**
+       * Tracks which seedless onboarding migrations have been applied.
+       * Used to prevent re-running migrations.
+       */
+      migrationVersion: number;
     };
-
-// Actions
-export type SeedlessOnboardingControllerGetStateAction =
-  ControllerGetStateAction<
-    typeof controllerName,
-    SeedlessOnboardingControllerState
-  >;
-export type SeedlessOnboardingControllerActions =
-  SeedlessOnboardingControllerGetStateAction;
-
-type AllowedActions = never;
-
-// Events
-export type SeedlessOnboardingControllerStateChangeEvent =
-  ControllerStateChangeEvent<
-    typeof controllerName,
-    SeedlessOnboardingControllerState
-  >;
-export type SeedlessOnboardingControllerEvents =
-  SeedlessOnboardingControllerStateChangeEvent;
-
-type AllowedEvents = never;
-
-// Messenger
-export type SeedlessOnboardingControllerMessenger = RestrictedMessenger<
-  typeof controllerName,
-  SeedlessOnboardingControllerActions | AllowedActions,
-  SeedlessOnboardingControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
->;
-
-/**
- * Encryptor interface for encrypting and decrypting seedless onboarding vault.
- */
-export type VaultEncryptor<EncryptionKey> = Omit<
-  ExportableKeyEncryptor<EncryptionKey>,
-  'encryptWithKey'
->;
 
 /**
  * Additional key deriver for the TOPRF client.
@@ -264,70 +221,6 @@ export type RenewRefreshToken = (params: {
 }>;
 
 /**
- * Seedless Onboarding Controller Options.
- *
- * @param messenger - The messenger to use for this controller.
- * @param state - The initial state to set on this controller.
- * @param encryptor - The encryptor to use for encrypting and decrypting seedless onboarding vault.
- */
-export type SeedlessOnboardingControllerOptions<EncryptionKey> = {
-  messenger: SeedlessOnboardingControllerMessenger;
-
-  /**
-   * Initial state to set on this controller.
-   */
-  state?: Partial<SeedlessOnboardingControllerState>;
-
-  /**
-   * Encryptor to use for encrypting and decrypting seedless onboarding vault.
-   *
-   * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
-   */
-  encryptor: VaultEncryptor<EncryptionKey>;
-
-  /**
-   * A function to get a new jwt token using refresh token.
-   */
-  refreshJWTToken: RefreshJWTToken;
-
-  /**
-   * A function to revoke the refresh token.
-   */
-  revokeRefreshToken: RevokeRefreshToken;
-
-  /**
-   * A function to renew the refresh token and get new revoke token.
-   */
-  renewRefreshToken: RenewRefreshToken;
-
-  /**
-   * Optional key derivation interface for the TOPRF client.
-   *
-   * If provided, it will be used as an additional step during
-   * key derivation. This can be used, for example, to inject a slow key
-   * derivation step to protect against local brute force attacks on the
-   * password.
-   *
-   * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
-   */
-  toprfKeyDeriver?: ToprfKeyDeriver;
-
-  /**
-   * Type of Web3Auth network to be used for the Seedless Onboarding flow.
-   *
-   * @default Web3AuthNetwork.Mainnet
-   */
-  network?: Web3AuthNetwork;
-
-  /**
-   * The TTL of the password outdated cache in milliseconds.
-   *
-   * @default PASSWORD_OUTDATED_CACHE_TTL_MS
-   */
-  passwordOutdatedCacheTTL?: number;
-};
-
-/**
  * A function executed within a mutually exclusive lock, with
  * a mutex releaser in its option bag.
  *
@@ -359,7 +252,7 @@ export type VaultData = {
    * The revoke token to revoke refresh token and get new refresh token and new revoke token.
    * The revoke token may no longer be available after a large number of password changes. In this case, re-authentication is advised.
    */
-  revokeToken?: string;
+  revokeToken: string;
   /**
    * The access token used for pairing with profile sync auth service and to access other services.
    */
@@ -377,33 +270,19 @@ export type DeserializedVaultData = Pick<
 
 export type SecretDataType = Uint8Array | string | number;
 
-/**
- * The constructor options for the seed phrase metadata.
- */
-export type SecretMetadataOptions = {
-  /**
-   * The timestamp when the seed phrase was created.
-   */
-  timestamp: number;
-  /**
-   * The type of the seed phrase.
-   */
-  type: SecretType;
-  /**
-   * The version of the seed phrase metadata.
-   */
-  version: SecretMetadataVersion;
-};
-
 export type DecodedNodeAuthToken = {
   /**
    * The expiration time of the token in seconds.
    */
   exp: number;
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- to match with the actual token
   temp_key_x: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- to match with the actual token
   temp_key_y: string;
   aud: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- to match with the actual token
   verifier_name: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- to match with the actual token
   verifier_id: string;
   scope: string;
   signature: string;

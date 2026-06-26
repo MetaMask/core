@@ -9,16 +9,14 @@ export const LOG_IGNORE_METHODS = [
   'wallet_watchAsset',
 ];
 
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
+// This enum should be called `LogMethodTypes`, with PascalCase members, but
+// to maintain backwards compatibility, the rule is disabled for now.
+/* eslint-disable @typescript-eslint/naming-convention */
 export enum LOG_METHOD_TYPES {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   restricted = 'restricted',
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   internal = 'internal',
 }
+/* eslint-enable @typescript-eslint/naming-convention */
 
 /**
  * The permission activity log size limit.

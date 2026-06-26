@@ -46,8 +46,8 @@ const createBaseMockState = (userCurrency = 'USD') => ({
           },
         },
       },
-      selectedAccountGroup: 'entropy:entropy-source-1/0',
     },
+    selectedAccountGroup: 'entropy:entropy-source-1/0',
     accountGroupsMetadata: {},
     accountWalletsMetadata: {},
   },
@@ -251,6 +251,11 @@ const createBaseMockState = (userCurrency = 'USD') => ({
   },
   MultichainAssetsRatesController: { conversionRates: {} },
   MultichainBalancesController: { balances: {} },
+  MultichainAssetsController: {
+    assetsMetadata: {},
+    accountsAssets: {},
+    allIgnoredAssets: {},
+  },
   CurrencyRateController: {
     currentCurrency: userCurrency,
     currencyRates: {
@@ -275,6 +280,7 @@ describe('calculateBalanceForAllWallets', () => {
       state.engine.backgroundState.TokenRatesController as any,
       state.engine.backgroundState.MultichainAssetsRatesController as any,
       state.engine.backgroundState.MultichainBalancesController as any,
+      state.engine.backgroundState.MultichainAssetsController as any,
       state.engine.backgroundState.TokensController as any,
       state.engine.backgroundState.CurrencyRateController as any,
       undefined,
@@ -295,6 +301,7 @@ describe('calculateBalanceForAllWallets', () => {
       state.engine.backgroundState.TokenRatesController as any,
       state.engine.backgroundState.MultichainAssetsRatesController as any,
       state.engine.backgroundState.MultichainBalancesController as any,
+      state.engine.backgroundState.MultichainAssetsController as any,
       state.engine.backgroundState.TokensController as any,
       state.engine.backgroundState.CurrencyRateController as any,
       undefined,
@@ -353,6 +360,7 @@ describe('calculateBalanceForAllWallets', () => {
       state.engine.backgroundState.TokenRatesController as any,
       state.engine.backgroundState.MultichainAssetsRatesController as any,
       state.engine.backgroundState.MultichainBalancesController as any,
+      state.engine.backgroundState.MultichainAssetsController as any,
       state.engine.backgroundState.TokensController as any,
       state.engine.backgroundState.CurrencyRateController as any,
       undefined,
@@ -373,6 +381,7 @@ describe('calculateBalanceForAllWallets', () => {
       state.engine.backgroundState.TokenRatesController as any,
       state.engine.backgroundState.MultichainAssetsRatesController as any,
       state.engine.backgroundState.MultichainBalancesController as any,
+      state.engine.backgroundState.MultichainAssetsController as any,
       state.engine.backgroundState.TokensController as any,
       state.engine.backgroundState.CurrencyRateController as any,
       enabledNetworkMap,
@@ -393,6 +402,7 @@ describe('calculateBalanceForAllWallets', () => {
       state.engine.backgroundState.TokenRatesController as any,
       state.engine.backgroundState.MultichainAssetsRatesController as any,
       state.engine.backgroundState.MultichainBalancesController as any,
+      state.engine.backgroundState.MultichainAssetsController as any,
       state.engine.backgroundState.TokensController as any,
       state.engine.backgroundState.CurrencyRateController as any,
       enabledNetworkMap,
@@ -413,6 +423,7 @@ describe('calculateBalanceForAllWallets', () => {
       state.engine.backgroundState.TokenRatesController as any,
       state.engine.backgroundState.MultichainAssetsRatesController as any,
       state.engine.backgroundState.MultichainBalancesController as any,
+      state.engine.backgroundState.MultichainAssetsController as any,
       state.engine.backgroundState.TokensController as any,
       state.engine.backgroundState.CurrencyRateController as any,
       undefined,
@@ -433,6 +444,7 @@ describe('calculateBalanceForAllWallets', () => {
       state.engine.backgroundState.TokenRatesController as any,
       state.engine.backgroundState.MultichainAssetsRatesController as any,
       state.engine.backgroundState.MultichainBalancesController as any,
+      state.engine.backgroundState.MultichainAssetsController as any,
       state.engine.backgroundState.TokensController as any,
       state.engine.backgroundState.CurrencyRateController as any,
       undefined,
@@ -506,11 +518,71 @@ describe('calculateBalanceForAllWallets', () => {
       state.engine.backgroundState.TokenRatesController as any,
       state.engine.backgroundState.MultichainAssetsRatesController as any,
       state.engine.backgroundState.MultichainBalancesController as any,
+      state.engine.backgroundState.MultichainAssetsController as any,
       state.engine.backgroundState.TokensController as any,
       state.engine.backgroundState.CurrencyRateController as any,
       enabledNetworkMap,
     );
     expect(result.totalBalanceInUserCurrency).toBeGreaterThanOrEqual(0);
+  });
+
+  it('skips non-EVM assets when conversion rate is missing', () => {
+    const state = createMobileMockState('USD');
+
+    // Add a non-EVM account
+    (
+      state.engine.backgroundState as any
+    ).AccountsController.internalAccounts.accounts['account-missing-rate'] = {
+      id: 'account-missing-rate',
+      address: 'NonEvmMissingRate',
+      type: 'solana:eoa',
+      scopes: ['solana:mainnet'],
+      methods: [],
+      options: {},
+      metadata: {
+        name: 'SolMissingRate',
+        keyring: { type: 'hd' },
+        importTime: 0,
+      },
+    };
+
+    // Add the account to a wallet group
+    (
+      state.engine.backgroundState as any
+    ).AccountTreeController.accountTree.wallets[
+      'entropy:entropy-source-1'
+    ].groups['entropy:entropy-source-1/0'].accounts.push(
+      'account-missing-rate',
+    );
+
+    // Set up balance for an asset without a corresponding conversion rate
+    (state.engine.backgroundState as any).MultichainBalancesController.balances[
+      'account-missing-rate'
+    ] = {
+      'solana:mainnet/asset:no-rate': { amount: '100', unit: 'NORATES' },
+    };
+
+    // Intentionally NOT setting a conversion rate for this asset
+    // This tests line 238 in balances.ts: if (!conversionRate) { return null; }
+
+    const result = calculateBalanceForAllWallets(
+      state.engine.backgroundState.AccountTreeController as any,
+      state.engine.backgroundState.AccountsController as any,
+      state.engine.backgroundState.TokenBalancesController as any,
+      state.engine.backgroundState.TokenRatesController as any,
+      state.engine.backgroundState.MultichainAssetsRatesController as any,
+      state.engine.backgroundState.MultichainBalancesController as any,
+      state.engine.backgroundState.MultichainAssetsController as any,
+      state.engine.backgroundState.TokensController as any,
+      state.engine.backgroundState.CurrencyRateController as any,
+      undefined,
+    );
+
+    // The calculation should complete successfully, excluding the asset with missing rate
+    expect(result.totalBalanceInUserCurrency).toBeGreaterThanOrEqual(0);
+    // The total should remain the same as without the missing-rate asset since it gets filtered out
+    expect(typeof result.totalBalanceInUserCurrency).toBe('number');
+    expect(Number.isFinite(result.totalBalanceInUserCurrency)).toBe(true);
   });
 
   it('includes native and staked balances in totals', () => {
@@ -523,6 +595,7 @@ describe('calculateBalanceForAllWallets', () => {
       state.engine.backgroundState.TokenRatesController as any,
       state.engine.backgroundState.MultichainAssetsRatesController as any,
       state.engine.backgroundState.MultichainBalancesController as any,
+      state.engine.backgroundState.MultichainAssetsController as any,
       state.engine.backgroundState.TokensController as any,
       state.engine.backgroundState.CurrencyRateController as any,
       undefined,
@@ -560,6 +633,7 @@ describe('calculateBalanceForAllWallets', () => {
       state.engine.backgroundState.TokenRatesController as any,
       state.engine.backgroundState.MultichainAssetsRatesController as any,
       state.engine.backgroundState.MultichainBalancesController as any,
+      state.engine.backgroundState.MultichainAssetsController as any,
       state.engine.backgroundState.TokensController as any,
       state.engine.backgroundState.CurrencyRateController as any,
       undefined,
@@ -587,6 +661,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
@@ -620,6 +695,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         enabledNetworkMap,
@@ -684,6 +760,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
@@ -722,6 +799,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
@@ -795,6 +873,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
@@ -822,6 +901,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
@@ -879,6 +959,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
@@ -904,6 +985,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
@@ -935,6 +1017,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
@@ -966,6 +1049,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
@@ -996,6 +1080,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
@@ -1029,6 +1114,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
@@ -1063,6 +1149,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
@@ -1114,6 +1201,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         enabledNetworkMap,
@@ -1162,6 +1250,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
@@ -1190,6 +1279,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
@@ -1210,6 +1300,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
@@ -1226,6 +1317,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
@@ -1270,6 +1362,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
@@ -1312,6 +1405,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
@@ -1342,6 +1436,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
@@ -1373,6 +1468,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
@@ -1400,6 +1496,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
@@ -1439,6 +1536,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
@@ -1477,6 +1575,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         enabledNetworkMap,
@@ -1527,6 +1626,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
@@ -1546,6 +1646,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
@@ -1567,6 +1668,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
@@ -1599,6 +1701,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
@@ -1623,6 +1726,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
@@ -1649,6 +1753,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
@@ -1677,6 +1782,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
@@ -1711,6 +1817,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,
@@ -1758,6 +1865,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         enabledNetworkMap,
@@ -1765,6 +1873,142 @@ describe('calculateBalanceForAllWallets', () => {
         '1d',
       );
       expect(res.currentTotalInUserCurrency).toBeGreaterThanOrEqual(0);
+    });
+
+    it('falls back to currencyRateState for native token when tokenRatesState has no market data', () => {
+      const state = createMobileMockState('USD');
+      const account = '0x1234567890123456789012345678901234567890';
+
+      (
+        state.engine.backgroundState as any
+      ).TokenBalancesController.tokenBalances[account]['0x2105'] = {
+        '0x0000000000000000000000000000000000000000': '0xde0b6b3a7640000', // 1 ETH in wei
+      };
+
+      (
+        state.engine.backgroundState as any
+      ).CurrencyRateController.currencyRates.BASE = {
+        conversionRate: 3000,
+        usdConversionRate: 3000,
+      };
+
+      const networkConfigurationsByChainId = {
+        '0x2105': { nativeCurrency: 'BASE' },
+      };
+
+      const res = calculateBalanceChangeForAccountGroup(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        undefined,
+        'entropy:entropy-source-1/0',
+        '1d',
+        networkConfigurationsByChainId,
+      );
+      expect(res.currentTotalInUserCurrency).toBeGreaterThanOrEqual(3000);
+    });
+
+    it('does not fall back for ERC-20 tokens when tokenRatesState has no market data', () => {
+      const state = createMobileMockState('USD');
+      const account = '0x1234567890123456789012345678901234567890';
+
+      (
+        state.engine.backgroundState as any
+      ).TokenBalancesController.tokenBalances[account]['0x2105'] = {
+        '0xabc0000000000000000000000000000000000001': '0xde0b6b3a7640000',
+      };
+
+      const networkConfigurationsByChainId = {
+        '0x2105': { nativeCurrency: 'BASE' },
+      };
+
+      const res = calculateBalanceChangeForAccountGroup(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        undefined,
+        'entropy:entropy-source-1/0',
+        '1d',
+        networkConfigurationsByChainId,
+      );
+      expect(res.currentTotalInUserCurrency).toBeGreaterThanOrEqual(0);
+    });
+
+    it('native fallback skips when networkConfigurationsByChainId is not provided', () => {
+      const state = createMobileMockState('USD');
+      const account = '0x1234567890123456789012345678901234567890';
+
+      (
+        state.engine.backgroundState as any
+      ).TokenBalancesController.tokenBalances[account]['0x2105'] = {
+        '0x0000000000000000000000000000000000000000': '0xde0b6b3a7640000',
+      };
+
+      const res = calculateBalanceChangeForAccountGroup(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        undefined,
+        'entropy:entropy-source-1/0',
+        '1d',
+      );
+      expect(res.currentTotalInUserCurrency).toBeGreaterThanOrEqual(0);
+    });
+
+    it('fallback works for calculateBalanceChangeForAllWallets', () => {
+      const state = createMobileMockState('USD');
+      const account = '0x1234567890123456789012345678901234567890';
+
+      (
+        state.engine.backgroundState as any
+      ).TokenBalancesController.tokenBalances[account]['0x2105'] = {
+        '0x0000000000000000000000000000000000000000': '0xde0b6b3a7640000',
+      };
+
+      (
+        state.engine.backgroundState as any
+      ).CurrencyRateController.currencyRates.BASE = {
+        conversionRate: 3000,
+        usdConversionRate: 3000,
+      };
+
+      const networkConfigurationsByChainId = {
+        '0x2105': { nativeCurrency: 'BASE' },
+      };
+
+      const res = calculateBalanceChangeForAllWallets(
+        state.engine.backgroundState.AccountTreeController as any,
+        state.engine.backgroundState.AccountsController as any,
+        state.engine.backgroundState.TokenBalancesController as any,
+        state.engine.backgroundState.TokenRatesController as any,
+        state.engine.backgroundState.MultichainAssetsRatesController as any,
+        state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
+        state.engine.backgroundState.TokensController as any,
+        state.engine.backgroundState.CurrencyRateController as any,
+        undefined,
+        '1d',
+        networkConfigurationsByChainId,
+      );
+      expect(res.currentTotalInUserCurrency).toBeGreaterThanOrEqual(3000);
     });
 
     it('non-EVM group path: skips NaN amount, NaN rate, and denom zero', () => {
@@ -1809,6 +2053,7 @@ describe('calculateBalanceForAllWallets', () => {
         state.engine.backgroundState.TokenRatesController as any,
         state.engine.backgroundState.MultichainAssetsRatesController as any,
         state.engine.backgroundState.MultichainBalancesController as any,
+        state.engine.backgroundState.MultichainAssetsController as any,
         state.engine.backgroundState.TokensController as any,
         state.engine.backgroundState.CurrencyRateController as any,
         undefined,

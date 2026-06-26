@@ -1,20 +1,25 @@
 {
   "name": "@metamask/base-controller",
-  "version": "8.3.0",
+  "version": "9.1.0",
   "description": "Provides scaffolding for controllers as well a communication system for all controllers",
   "keywords": [
-    "MetaMask",
-    "Ethereum"
+    "Ethereum",
+    "MetaMask"
   ],
   "homepage": "https://github.com/MetaMask/core/tree/main/packages/base-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
-  "license": "MIT",
+  "files": [
+    "dist/"
+  ],
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.cts",
   "exports": {
     ".": {
       "import": {
@@ -26,30 +31,18 @@
         "default": "./dist/index.cjs"
       }
     },
-    "./next": {
-      "import": {
-        "types": "./dist/next/index.d.mts",
-        "default": "./dist/next/index.mjs"
-      },
-      "require": {
-        "types": "./dist/next/index.d.cts",
-        "default": "./dist/next/index.cjs"
-      }
-    },
     "./package.json": "./package.json"
   },
-  "main": "./dist/index.cjs",
-  "types": "./dist/index.d.cts",
-  "files": [
-    "dist/",
-    "next.js"
-  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
+    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/base-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/base-controller",
-    "publish:preview": "yarn npm publish --tag preview",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -57,28 +50,22 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/messenger": "^0.2.0",
-    "@metamask/utils": "^11.4.2",
+    "@metamask/messenger": "^1.2.0",
+    "@metamask/utils": "^11.11.0",
     "immer": "^9.0.6"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/json-rpc-engine": "^10.0.3",
-    "@types/jest": "^27.4.1",
-    "@types/sinon": "^9.0.10",
+    "@metamask/auto-changelog": "^6.1.0",
+    "@ts-bridge/cli": "^0.6.4",
+    "@types/jest": "^29.5.14",
     "deepmerge": "^4.2.2",
-    "jest": "^27.5.1",
-    "sinon": "^9.2.4",
-    "ts-jest": "^27.1.4",
-    "typedoc": "^0.24.8",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.2.2"
+    "typescript": "~5.3.3"
   },
   "engines": {
     "node": "^18.18 || >=20"
-  },
-  "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org/"
   }
 }

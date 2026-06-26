@@ -1,23 +1,18 @@
 /* eslint-disable jest/no-export */
+import type { MockAnyNamespace } from '@metamask/messenger';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 import type { Draft, Patch } from 'immer';
-import * as sinon from 'sinon';
 
 import type {
+  ControllerActions,
+  ControllerEvents,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
+  ControllerStateChangedEvent,
   StatePropertyMetadata,
 } from './BaseController';
-import {
-  BaseController,
-  deriveStateFromMetadata,
-  getAnonymizedState,
-  getPersistentState,
-  isBaseController,
-} from './BaseController';
-import { Messenger } from './Messenger';
-import type { RestrictedMessenger } from './RestrictedMessenger';
-import { JsonRpcEngine } from '../../json-rpc-engine/src';
+import { BaseController, deriveStateFromMetadata } from './BaseController';
 
 export const countControllerName = 'CountController';
 
@@ -30,43 +25,42 @@ export type CountControllerAction = ControllerGetStateAction<
   CountControllerState
 >;
 
-export type CountControllerEvent = ControllerStateChangeEvent<
-  typeof countControllerName,
-  CountControllerState
->;
+export type CountControllerEvent =
+  | ControllerStateChangedEvent<
+      typeof countControllerName,
+      CountControllerState
+    >
+  | ControllerStateChangeEvent<
+      typeof countControllerName,
+      CountControllerState
+    >;
 
 export const countControllerStateMetadata = {
   count: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    usedInUi: true,
   },
 };
 
-type CountMessenger = RestrictedMessenger<
+type CountMessenger = Messenger<
   typeof countControllerName,
   CountControllerAction,
-  CountControllerEvent,
-  never,
-  never
+  CountControllerEvent
 >;
 
 /**
- * Constructs a restricted messenger for the Count controller.
+ * Constructs a messenger for the Count controller.
  *
- * @param messenger - The messenger.
- * @returns A restricted messenger for the Count controller.
+ * @returns A messenger for the Count controller.
  */
-export function getCountMessenger(
-  messenger?: Messenger<CountControllerAction, CountControllerEvent>,
-): CountMessenger {
-  if (!messenger) {
-    messenger = new Messenger<CountControllerAction, CountControllerEvent>();
-  }
-  return messenger.getRestricted({
-    name: countControllerName,
-    allowedActions: [],
-    allowedEvents: [],
-  });
+export function getCountMessenger(): CountMessenger {
+  return new Messenger<
+    typeof countControllerName,
+    CountControllerAction,
+    CountControllerEvent
+  >({ namespace: countControllerName });
 }
 
 export class CountController extends BaseController<
@@ -78,16 +72,19 @@ export class CountController extends BaseController<
     callback: (
       state: Draft<CountControllerState>,
     ) => void | CountControllerState,
-  ) {
-    const res = super.update(callback);
-    return res;
+  ): {
+    nextState: CountControllerState;
+    patches: Patch[];
+    inversePatches: Patch[];
+  } {
+    return super.update(callback);
   }
 
-  applyPatches(patches: Patch[]) {
+  applyPatches(patches: Patch[]): void {
     super.applyPatches(patches);
   }
 
-  destroy() {
+  destroy(): void {
     super.destroy();
   }
 }
@@ -109,46 +106,37 @@ type MessagesControllerAction = ControllerGetStateAction<
   MessagesControllerState
 >;
 
-type MessagesControllerEvent = ControllerStateChangeEvent<
+type MessagesControllerEvent = ControllerStateChangedEvent<
   typeof messagesControllerName,
   MessagesControllerState
 >;
 
 const messagesControllerStateMetadata = {
   messages: {
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    usedInUi: true,
   },
 };
 
-type MessagesMessenger = RestrictedMessenger<
+type MessagesMessenger = Messenger<
   typeof messagesControllerName,
   MessagesControllerAction,
-  MessagesControllerEvent,
-  never,
-  never
+  MessagesControllerEvent
 >;
 
 /**
- * Constructs a restricted messenger for the Messages controller.
+ * Constructs a messenger for the Messages controller.
  *
- * @param messenger - The messenger.
- * @returns A restricted messenger for the Messages controller.
+ * @returns A messenger for the Messages controller.
  */
-function getMessagesMessenger(
-  messenger?: Messenger<MessagesControllerAction, MessagesControllerEvent>,
-): MessagesMessenger {
-  if (!messenger) {
-    messenger = new Messenger<
-      MessagesControllerAction,
-      MessagesControllerEvent
-    >();
-  }
-  return messenger.getRestricted({
-    name: messagesControllerName,
-    allowedActions: [],
-    allowedEvents: [],
-  });
+function getMessagesMessenger(): MessagesMessenger {
+  return new Messenger<
+    typeof messagesControllerName,
+    MessagesControllerAction,
+    MessagesControllerEvent
+  >({ namespace: messagesControllerName });
 }
 
 class MessagesController extends BaseController<
@@ -160,46 +148,24 @@ class MessagesController extends BaseController<
     callback: (
       state: Draft<MessagesControllerState>,
     ) => void | MessagesControllerState,
-  ) {
-    const res = super.update(callback);
-    return res;
+  ): {
+    nextState: MessagesControllerState;
+    patches: Patch[];
+    inversePatches: Patch[];
+  } {
+    return super.update(callback);
   }
 
-  applyPatches(patches: Patch[]) {
+  applyPatches(patches: Patch[]): void {
     super.applyPatches(patches);
   }
 
-  destroy() {
+  destroy(): void {
     super.destroy();
   }
 }
 
-describe('isBaseController', () => {
-  it('should return true if passed a V2 controller', () => {
-    const messenger = new Messenger<
-      CountControllerAction,
-      CountControllerEvent
-    >();
-    const controller = new CountController({
-      messenger: getCountMessenger(messenger),
-      name: countControllerName,
-      state: { count: 0 },
-      metadata: countControllerStateMetadata,
-    });
-    expect(isBaseController(controller)).toBe(true);
-  });
-
-  it('should return false if passed a non-controller', () => {
-    const notController = new JsonRpcEngine();
-    expect(isBaseController(notController)).toBe(false);
-  });
-});
-
 describe('BaseController', () => {
-  afterEach(() => {
-    sinon.restore();
-  });
-
   it('should set initial state', () => {
     const controller = new CountController({
       messenger: getCountMessenger(),
@@ -212,12 +178,11 @@ describe('BaseController', () => {
   });
 
   it('should allow getting state via the getState action', () => {
-    const messenger = new Messenger<
-      CountControllerAction,
-      CountControllerEvent
-    >();
+    const messenger = getCountMessenger();
+
+    // eslint-disable-next-line no-new
     new CountController({
-      messenger: getCountMessenger(messenger),
+      messenger,
       name: countControllerName,
       state: { count: 0 },
       metadata: countControllerStateMetadata,
@@ -411,651 +376,449 @@ describe('BaseController', () => {
     expect(controller.state).toStrictEqual({ count: 0 });
   });
 
-  it('should inform subscribers of state changes as a result of applying patches', () => {
-    const messenger = new Messenger<never, CountControllerEvent>();
-    const controller = new CountController({
-      messenger: getCountMessenger(messenger),
-      name: 'CountController',
-      state: { count: 0 },
-      metadata: countControllerStateMetadata,
-    });
-    const listener1 = sinon.stub();
+  for (const eventName of [
+    'CountController:stateChanged',
+    'CountController:stateChange',
+  ] as const) {
+    const shortEventName = eventName.replace(/^(.+)(:.+)$/u, '$2');
 
-    messenger.subscribe('CountController:stateChange', listener1);
-    const { inversePatches } = controller.update(() => {
-      return { count: 1 };
-    });
+    it(`should inform subscribers of state changes via ${shortEventName} as a result of applying patches`, () => {
+      const messenger = getCountMessenger();
+      const controller = new CountController({
+        messenger,
+        name: 'CountController',
+        state: { count: 0 },
+        metadata: countControllerStateMetadata,
+      });
+      const listener1 = jest.fn();
 
-    controller.applyPatches(inversePatches);
+      messenger.subscribe(eventName, listener1);
+      const { inversePatches } = controller.update(() => {
+        return { count: 1 };
+      });
 
-    expect(listener1.callCount).toBe(2);
-    expect(listener1.firstCall.args).toStrictEqual([
-      { count: 1 },
-      [{ op: 'replace', path: [], value: { count: 1 } }],
-    ]);
+      controller.applyPatches(inversePatches);
 
-    expect(listener1.secondCall.args).toStrictEqual([
-      { count: 0 },
-      [{ op: 'replace', path: [], value: { count: 0 } }],
-    ]);
-  });
+      expect(listener1).toHaveBeenCalledTimes(2);
+      expect(listener1.mock.calls[0]).toStrictEqual([
+        { count: 1 },
+        [{ op: 'replace', path: [], value: { count: 1 } }],
+      ]);
 
-  it('should inform subscribers of state changes', () => {
-    const messenger = new Messenger<never, CountControllerEvent>();
-    const controller = new CountController({
-      messenger: getCountMessenger(messenger),
-      name: 'CountController',
-      state: { count: 0 },
-      metadata: countControllerStateMetadata,
-    });
-    const listener1 = sinon.stub();
-    const listener2 = sinon.stub();
-
-    messenger.subscribe('CountController:stateChange', listener1);
-    messenger.subscribe('CountController:stateChange', listener2);
-    controller.update(() => {
-      return { count: 1 };
+      expect(listener1.mock.calls[1]).toStrictEqual([
+        { count: 0 },
+        [{ op: 'replace', path: [], value: { count: 0 } }],
+      ]);
     });
 
-    expect(listener1.callCount).toBe(1);
-    expect(listener1.firstCall.args).toStrictEqual([
-      { count: 1 },
-      [{ op: 'replace', path: [], value: { count: 1 } }],
-    ]);
-    expect(listener2.callCount).toBe(1);
-    expect(listener2.firstCall.args).toStrictEqual([
-      { count: 1 },
-      [{ op: 'replace', path: [], value: { count: 1 } }],
-    ]);
-  });
+    it(`should inform subscribers of state changes via ${shortEventName}`, () => {
+      const messenger = getCountMessenger();
+      const controller = new CountController({
+        messenger,
+        name: 'CountController',
+        state: { count: 0 },
+        metadata: countControllerStateMetadata,
+      });
+      const listener1 = jest.fn();
+      const listener2 = jest.fn();
 
-  it('should notify a subscriber with a selector of state changes', () => {
-    const messenger = new Messenger<never, CountControllerEvent>();
-    const controller = new CountController({
-      messenger: getCountMessenger(messenger),
-      name: 'CountController',
-      state: { count: 0 },
-      metadata: countControllerStateMetadata,
-    });
-    const listener = sinon.stub();
-    messenger.subscribe(
-      'CountController:stateChange',
-      listener,
-      ({ count }) => {
-        // Selector rounds down to nearest multiple of 10
-        return Math.floor(count / 10);
-      },
-    );
+      messenger.subscribe(eventName, listener1);
+      messenger.subscribe(eventName, listener2);
+      controller.update(() => {
+        return { count: 1 };
+      });
 
-    controller.update(() => {
-      return { count: 10 };
+      expect(listener1).toHaveBeenCalledTimes(1);
+      expect(listener1.mock.calls[0]).toStrictEqual([
+        { count: 1 },
+        [{ op: 'replace', path: [], value: { count: 1 } }],
+      ]);
+      expect(listener2).toHaveBeenCalledTimes(1);
+      expect(listener2.mock.calls[0]).toStrictEqual([
+        { count: 1 },
+        [{ op: 'replace', path: [], value: { count: 1 } }],
+      ]);
     });
 
-    expect(listener.callCount).toBe(1);
-    expect(listener.firstCall.args).toStrictEqual([1, 0]);
-  });
+    it(`should notify a subscriber with a selector of state changes via ${shortEventName}`, () => {
+      const messenger = getCountMessenger();
+      const controller = new CountController({
+        messenger,
+        name: 'CountController',
+        state: { count: 0 },
+        metadata: countControllerStateMetadata,
+      });
+      const listener = jest.fn();
+      messenger.subscribe(
+        eventName,
+        listener,
+        ({ count }: CountControllerState) => {
+          // Selector rounds down to nearest multiple of 10
+          return Math.floor(count / 10);
+        },
+      );
 
-  it('should not inform a subscriber of state changes if the selected value is unchanged', () => {
-    const messenger = new Messenger<never, CountControllerEvent>();
-    const controller = new CountController({
-      messenger: getCountMessenger(messenger),
-      name: 'CountController',
-      state: { count: 0 },
-      metadata: countControllerStateMetadata,
-    });
-    const listener = sinon.stub();
-    messenger.subscribe(
-      'CountController:stateChange',
-      listener,
-      ({ count }) => {
-        // Selector rounds down to nearest multiple of 10
-        return Math.floor(count / 10);
-      },
-    );
+      controller.update(() => {
+        return { count: 10 };
+      });
 
-    controller.update(() => {
-      // Note that this rounds down to zero, so the selected value is still zero
-      return { count: 1 };
-    });
-
-    expect(listener.callCount).toBe(0);
-  });
-
-  it('should inform a subscriber of each state change once even after multiple subscriptions', () => {
-    const messenger = new Messenger<never, CountControllerEvent>();
-    const controller = new CountController({
-      messenger: getCountMessenger(messenger),
-      name: 'CountController',
-      state: { count: 0 },
-      metadata: countControllerStateMetadata,
-    });
-    const listener1 = sinon.stub();
-
-    messenger.subscribe('CountController:stateChange', listener1);
-    messenger.subscribe('CountController:stateChange', listener1);
-
-    controller.update(() => {
-      return { count: 1 };
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener.mock.calls[0]).toStrictEqual([1, 0]);
     });
 
-    expect(listener1.callCount).toBe(1);
-    expect(listener1.firstCall.args).toStrictEqual([
-      { count: 1 },
-      [{ op: 'replace', path: [], value: { count: 1 } }],
-    ]);
-  });
+    it(`should not inform a subscriber of state changes via ${shortEventName} if the selected value is unchanged`, () => {
+      const messenger = getCountMessenger();
+      const controller = new CountController({
+        messenger,
+        name: 'CountController',
+        state: { count: 0 },
+        metadata: countControllerStateMetadata,
+      });
+      const listener = jest.fn();
+      messenger.subscribe(
+        eventName,
+        listener,
+        ({ count }: CountControllerState) => {
+          // Selector rounds down to nearest multiple of 10
+          return Math.floor(count / 10);
+        },
+      );
 
-  it('should no longer inform a subscriber about state changes after unsubscribing', () => {
-    const messenger = new Messenger<never, CountControllerEvent>();
-    const controller = new CountController({
-      messenger: getCountMessenger(messenger),
-      name: 'CountController',
-      state: { count: 0 },
-      metadata: countControllerStateMetadata,
-    });
-    const listener1 = sinon.stub();
+      controller.update(() => {
+        // Note that this rounds down to zero, so the selected value is still zero
+        return { count: 1 };
+      });
 
-    messenger.subscribe('CountController:stateChange', listener1);
-    messenger.unsubscribe('CountController:stateChange', listener1);
-    controller.update(() => {
-      return { count: 1 };
-    });
-
-    expect(listener1.callCount).toBe(0);
-  });
-
-  it('should no longer inform a subscriber about state changes after unsubscribing once, even if they subscribed many times', () => {
-    const messenger = new Messenger<never, CountControllerEvent>();
-    const controller = new CountController({
-      messenger: getCountMessenger(messenger),
-      name: 'CountController',
-      state: { count: 0 },
-      metadata: countControllerStateMetadata,
-    });
-    const listener1 = sinon.stub();
-
-    messenger.subscribe('CountController:stateChange', listener1);
-    messenger.subscribe('CountController:stateChange', listener1);
-    messenger.unsubscribe('CountController:stateChange', listener1);
-    controller.update(() => {
-      return { count: 1 };
+      expect(listener).toHaveBeenCalledTimes(0);
     });
 
-    expect(listener1.callCount).toBe(0);
-  });
+    it(`should inform a subscriber of each state change via ${shortEventName} once even after multiple subscriptions`, () => {
+      const messenger = getCountMessenger();
+      const controller = new CountController({
+        messenger,
+        name: 'CountController',
+        state: { count: 0 },
+        metadata: countControllerStateMetadata,
+      });
+      const listener1 = jest.fn();
+
+      messenger.subscribe(eventName, listener1);
+      messenger.subscribe(eventName, listener1);
+
+      controller.update(() => {
+        return { count: 1 };
+      });
+
+      expect(listener1).toHaveBeenCalledTimes(1);
+      expect(listener1.mock.calls[0]).toStrictEqual([
+        { count: 1 },
+        [{ op: 'replace', path: [], value: { count: 1 } }],
+      ]);
+    });
+
+    it(`should no longer inform a subscriber about state changes via ${shortEventName} after unsubscribing`, () => {
+      const messenger = getCountMessenger();
+      const controller = new CountController({
+        messenger,
+        name: 'CountController',
+        state: { count: 0 },
+        metadata: countControllerStateMetadata,
+      });
+      const listener1 = jest.fn();
+
+      messenger.subscribe(eventName, listener1);
+      messenger.unsubscribe(eventName, listener1);
+      controller.update(() => {
+        return { count: 1 };
+      });
+
+      expect(listener1).toHaveBeenCalledTimes(0);
+    });
+
+    it(`should no longer inform a subscriber about state changes via ${shortEventName} after unsubscribing once, even if they subscribed many times`, () => {
+      const messenger = getCountMessenger();
+      const controller = new CountController({
+        messenger,
+        name: 'CountController',
+        state: { count: 0 },
+        metadata: countControllerStateMetadata,
+      });
+      const listener1 = jest.fn();
+
+      messenger.subscribe(eventName, listener1);
+      messenger.subscribe(eventName, listener1);
+      messenger.unsubscribe(eventName, listener1);
+      controller.update(() => {
+        return { count: 1 };
+      });
+
+      expect(listener1).toHaveBeenCalledTimes(0);
+    });
+
+    it(`should no longer update subscribers via ${shortEventName} after being destroyed`, () => {
+      const messenger = getCountMessenger();
+      const controller = new CountController({
+        messenger,
+        name: 'CountController',
+        state: { count: 0 },
+        metadata: countControllerStateMetadata,
+      });
+      const listener1 = jest.fn();
+      const listener2 = jest.fn();
+
+      messenger.subscribe(eventName, listener1);
+      messenger.subscribe(eventName, listener2);
+      controller.destroy();
+      controller.update(() => {
+        return { count: 1 };
+      });
+
+      expect(listener1).toHaveBeenCalledTimes(0);
+      expect(listener2).toHaveBeenCalledTimes(0);
+    });
+  }
 
   it('should throw when unsubscribing listener who was never subscribed', () => {
-    const messenger = new Messenger<never, CountControllerEvent>();
+    const messenger = getCountMessenger();
+
+    // eslint-disable-next-line no-new
     new CountController({
-      messenger: getCountMessenger(messenger),
+      messenger,
       name: 'CountController',
       state: { count: 0 },
       metadata: countControllerStateMetadata,
     });
-    const listener1 = sinon.stub();
+    const listener1 = jest.fn();
 
     expect(() => {
-      messenger.unsubscribe('CountController:stateChange', listener1);
-    }).toThrow('Subscription not found for event: CountController:stateChange');
-  });
-
-  it('should no longer update subscribers after being destroyed', () => {
-    const messenger = new Messenger<never, CountControllerEvent>();
-    const controller = new CountController({
-      messenger: getCountMessenger(messenger),
-      name: 'CountController',
-      state: { count: 0 },
-      metadata: countControllerStateMetadata,
-    });
-    const listener1 = sinon.stub();
-    const listener2 = sinon.stub();
-
-    messenger.subscribe('CountController:stateChange', listener1);
-    messenger.subscribe('CountController:stateChange', listener2);
-    controller.destroy();
-    controller.update(() => {
-      return { count: 1 };
-    });
-
-    expect(listener1.callCount).toBe(0);
-    expect(listener2.callCount).toBe(0);
-  });
-});
-
-describe('getAnonymizedState', () => {
-  afterEach(() => {
-    sinon.restore();
-  });
-
-  it('should return empty state', () => {
-    expect(getAnonymizedState({}, {})).toStrictEqual({});
-  });
-
-  it('should return empty state when no properties are anonymized', () => {
-    const anonymizedState = getAnonymizedState(
-      { count: 1 },
-      {
-        count: {
-          anonymous: false,
-          includeInStateLogs: false,
-          persist: false,
-          usedInUi: false,
-        },
-      },
+      messenger.unsubscribe('CountController:stateChanged', listener1);
+    }).toThrow(
+      'Subscription not found for event: CountController:stateChanged',
     );
-    expect(anonymizedState).toStrictEqual({});
   });
 
-  it('should return state that is already anonymized', () => {
-    const anonymizedState = getAnonymizedState(
-      {
-        password: 'secret password',
-        privateKey: '123',
-        network: 'mainnet',
-        tokens: ['DAI', 'USDC'],
-      },
-      {
-        password: {
-          anonymous: false,
-          includeInStateLogs: false,
-          persist: false,
-          usedInUi: false,
-        },
-        privateKey: {
-          anonymous: false,
-          includeInStateLogs: false,
-          persist: false,
-          usedInUi: false,
-        },
-        network: {
-          anonymous: true,
-          includeInStateLogs: false,
-          persist: false,
-          usedInUi: false,
-        },
-        tokens: {
-          anonymous: true,
-          includeInStateLogs: false,
-          persist: false,
-          usedInUi: false,
-        },
-      },
-    );
-    expect(anonymizedState).toStrictEqual({
-      network: 'mainnet',
-      tokens: ['DAI', 'USDC'],
-    });
-  });
+  describe('inter-controller communication', () => {
+    // These two contrived mock controllers are setup to test with.
+    // The 'VisitorController' records strings that represent visitors.
+    // The 'VisitorOverflowController' monitors the 'VisitorController' to ensure the number of
+    // visitors doesn't exceed the maximum capacity. If it does, it will clear out all visitors.
 
-  it('should use anonymizing function to anonymize state', () => {
-    const anonymizeTransactionHash = (hash: string) => {
-      return hash.split('').reverse().join('');
+    const visitorName = 'VisitorController';
+
+    type VisitorControllerState = {
+      visitors: string[];
+    };
+    type VisitorControllerClearAction = {
+      type: `${typeof visitorName}:clear`;
+      handler: () => void;
+    };
+    type VisitorExternalActions = VisitorOverflowUpdateMaxAction;
+    type VisitorControllerStateChangedEvent = ControllerStateChangedEvent<
+      typeof visitorName,
+      VisitorControllerState
+    >;
+    type VisitorControllerActions =
+      | VisitorControllerClearAction
+      | ControllerActions<typeof visitorName, VisitorControllerState>;
+    type VisitorExternalEvents = VisitorOverflowStateChangedEvent;
+    type VisitorControllerEvents = VisitorControllerStateChangedEvent;
+
+    const visitorControllerStateMetadata = {
+      visitors: {
+        includeInDebugSnapshot: true,
+        includeInStateLogs: true,
+        persist: true,
+        usedInUi: true,
+      },
     };
 
-    const anonymizedState = getAnonymizedState(
-      {
-        transactionHash: '0x1234',
-      },
-      {
-        transactionHash: {
-          anonymous: anonymizeTransactionHash,
-          includeInStateLogs: false,
-          persist: false,
-          usedInUi: false,
-        },
-      },
-    );
+    type VisitorMessenger = Messenger<
+      typeof visitorName,
+      VisitorControllerActions | VisitorExternalActions,
+      VisitorControllerEvents | VisitorExternalEvents
+    >;
+    class VisitorController extends BaseController<
+      typeof visitorName,
+      VisitorControllerState,
+      VisitorMessenger
+    > {
+      constructor(messenger: VisitorMessenger) {
+        super({
+          messenger,
+          metadata: visitorControllerStateMetadata,
+          name: visitorName,
+          state: { visitors: [] },
+        });
 
-    expect(anonymizedState).toStrictEqual({ transactionHash: '4321x0' });
-  });
+        messenger.registerActionHandler('VisitorController:clear', this.clear);
+      }
 
-  it('should allow returning a partial object from an anonymizing function', () => {
-    const anonymizeTxMeta = (txMeta: { hash: string; value: number }) => {
-      return { value: txMeta.value };
-    };
-
-    const anonymizedState = getAnonymizedState(
-      {
-        txMeta: {
-          hash: '0x123',
-          value: 10,
-        },
-      },
-      {
-        txMeta: {
-          anonymous: anonymizeTxMeta,
-          includeInStateLogs: false,
-          persist: false,
-          usedInUi: false,
-        },
-      },
-    );
-
-    expect(anonymizedState).toStrictEqual({ txMeta: { value: 10 } });
-  });
-
-  it('should allow returning a nested partial object from an anonymizing function', () => {
-    const anonymizeTxMeta = (txMeta: {
-      hash: string;
-      value: number;
-      history: { hash: string; value: number }[];
-    }) => {
-      return {
-        history: txMeta.history.map((entry) => {
-          return { value: entry.value };
-        }),
-        value: txMeta.value,
+      clear: () => void = () => {
+        this.update(() => {
+          return { visitors: [] };
+        });
       };
+
+      addVisitor(visitor: string): void {
+        this.update(({ visitors }) => {
+          return { visitors: [...visitors, visitor] };
+        });
+      }
+
+      destroy(): void {
+        super.destroy();
+      }
+    }
+
+    const visitorOverflowName = 'VisitorOverflowController';
+
+    type VisitorOverflowControllerState = {
+      maxVisitors: number;
+    };
+    type VisitorOverflowUpdateMaxAction = {
+      type: `${typeof visitorOverflowName}:updateMax`;
+      handler: (max: number) => void;
+    };
+    type VisitorOverflowExternalActions = VisitorControllerClearAction;
+    type VisitorOverflowControllerActions =
+      | VisitorOverflowUpdateMaxAction
+      | ControllerActions<
+          typeof visitorOverflowName,
+          VisitorOverflowControllerState
+        >;
+    type VisitorOverflowStateChangedEvent = ControllerEvents<
+      typeof visitorOverflowName,
+      VisitorOverflowControllerState
+    >;
+    type VisitorOverflowExternalEvents = VisitorControllerStateChangedEvent;
+    type VisitorOverflowControllerEvents = VisitorOverflowStateChangedEvent;
+
+    const visitorOverflowControllerMetadata = {
+      maxVisitors: {
+        includeInDebugSnapshot: true,
+        includeInStateLogs: true,
+        persist: false,
+        usedInUi: true,
+      },
     };
 
-    const anonymizedState = getAnonymizedState(
-      {
-        txMeta: {
-          hash: '0x123',
-          history: [
-            {
-              hash: '0x123',
-              value: 9,
-            },
-          ],
-          value: 10,
-        },
-      },
-      {
-        txMeta: {
-          anonymous: anonymizeTxMeta,
-          includeInStateLogs: false,
-          persist: false,
-          usedInUi: false,
-        },
-      },
-    );
+    type VisitorOverflowMessenger = Messenger<
+      typeof visitorOverflowName,
+      VisitorOverflowControllerActions | VisitorOverflowExternalActions,
+      VisitorOverflowControllerEvents | VisitorOverflowExternalEvents
+    >;
 
-    expect(anonymizedState).toStrictEqual({
-      txMeta: { history: [{ value: 9 }], value: 10 },
-    });
-  });
+    class VisitorOverflowController extends BaseController<
+      typeof visitorOverflowName,
+      VisitorOverflowControllerState,
+      VisitorOverflowMessenger
+    > {
+      constructor(messenger: VisitorOverflowMessenger) {
+        super({
+          messenger,
+          metadata: visitorOverflowControllerMetadata,
+          name: visitorOverflowName,
+          state: { maxVisitors: 5 },
+        });
 
-  it('should allow transforming types in an anonymizing function', () => {
-    const anonymizedState = getAnonymizedState(
-      {
-        count: '1',
-      },
-      {
-        count: {
-          anonymous: (count) => Number(count),
-          includeInStateLogs: false,
-          persist: false,
-          usedInUi: false,
-        },
-      },
-    );
+        messenger.registerActionHandler(
+          'VisitorOverflowController:updateMax',
+          this.updateMax,
+        );
 
-    expect(anonymizedState).toStrictEqual({ count: 1 });
-  });
+        messenger.subscribe('VisitorController:stateChanged', this.onVisit);
+      }
 
-  it('should suppress errors thrown when deriving state', () => {
-    const setTimeoutStub = sinon.stub(globalThis, 'setTimeout');
-    const persistentState = getAnonymizedState(
-      {
-        extraState: 'extraState',
-        privateKey: '123',
-        network: 'mainnet',
-      },
-      // @ts-expect-error Intentionally testing invalid state
-      {
-        privateKey: {
-          anonymous: true,
-          includeInStateLogs: true,
-          persist: true,
-          usedInUi: true,
-        },
-        network: {
-          anonymous: false,
-          includeInStateLogs: false,
-          persist: false,
-          usedInUi: false,
-        },
-      },
-    );
-    expect(persistentState).toStrictEqual({
-      privateKey: '123',
-    });
-    expect(setTimeoutStub.callCount).toBe(1);
-    const onTimeout = setTimeoutStub.firstCall.args[0];
-    expect(() => onTimeout()).toThrow(`No metadata found for 'extraState'`);
-  });
-});
-
-describe('getPersistentState', () => {
-  afterEach(() => {
-    sinon.restore();
-  });
-
-  it('should return empty state', () => {
-    expect(getPersistentState({}, {})).toStrictEqual({});
-  });
-
-  it('should return empty state when no properties are persistent', () => {
-    const persistentState = getPersistentState(
-      { count: 1 },
-      {
-        count: {
-          anonymous: false,
-          includeInStateLogs: false,
-          persist: false,
-          usedInUi: false,
-        },
-      },
-    );
-    expect(persistentState).toStrictEqual({});
-  });
-
-  it('should return persistent state', () => {
-    const persistentState = getPersistentState(
-      {
-        password: 'secret password',
-        privateKey: '123',
-        network: 'mainnet',
-        tokens: ['DAI', 'USDC'],
-      },
-      {
-        password: {
-          anonymous: false,
-          includeInStateLogs: false,
-          persist: true,
-          usedInUi: false,
-        },
-        privateKey: {
-          anonymous: false,
-          includeInStateLogs: false,
-          persist: true,
-          usedInUi: false,
-        },
-        network: {
-          anonymous: false,
-          includeInStateLogs: false,
-          persist: false,
-          usedInUi: false,
-        },
-        tokens: {
-          anonymous: false,
-          includeInStateLogs: false,
-          persist: false,
-          usedInUi: false,
-        },
-      },
-    );
-    expect(persistentState).toStrictEqual({
-      password: 'secret password',
-      privateKey: '123',
-    });
-  });
-
-  it('should use function to derive persistent state', () => {
-    const normalizeTransacitonHash = (hash: string) => {
-      return hash.toLowerCase();
-    };
-
-    const persistentState = getPersistentState(
-      {
-        transactionHash: '0X1234',
-      },
-      {
-        transactionHash: {
-          anonymous: false,
-          includeInStateLogs: false,
-          persist: normalizeTransacitonHash,
-          usedInUi: false,
-        },
-      },
-    );
-
-    expect(persistentState).toStrictEqual({ transactionHash: '0x1234' });
-  });
-
-  it('should allow returning a partial object from a persist function', () => {
-    const getPersistentTxMeta = (txMeta: { hash: string; value: number }) => {
-      return { value: txMeta.value };
-    };
-
-    const persistentState = getPersistentState(
-      {
-        txMeta: {
-          hash: '0x123',
-          value: 10,
-        },
-      },
-      {
-        txMeta: {
-          anonymous: false,
-          includeInStateLogs: false,
-          persist: getPersistentTxMeta,
-          usedInUi: false,
-        },
-      },
-    );
-
-    expect(persistentState).toStrictEqual({ txMeta: { value: 10 } });
-  });
-
-  it('should allow returning a nested partial object from a persist function', () => {
-    const getPersistentTxMeta = (txMeta: {
-      hash: string;
-      value: number;
-      history: { hash: string; value: number }[];
-    }) => {
-      return {
-        history: txMeta.history.map((entry) => {
-          return { value: entry.value };
-        }),
-        value: txMeta.value,
+      onVisit: ({ visitors }: VisitorControllerState) => void = ({
+        visitors,
+      }: VisitorControllerState) => {
+        if (visitors.length > this.state.maxVisitors) {
+          this.messenger.call('VisitorController:clear');
+        }
       };
-    };
 
-    const persistentState = getPersistentState(
-      {
-        txMeta: {
-          hash: '0x123',
-          history: [
-            {
-              hash: '0x123',
-              value: 9,
-            },
-          ],
-          value: 10,
-        },
-      },
-      {
-        txMeta: {
-          anonymous: false,
-          includeInStateLogs: false,
-          persist: getPersistentTxMeta,
-          usedInUi: false,
-        },
-      },
-    );
+      updateMax: (max: number) => void = (max: number) => {
+        this.update(() => {
+          return { maxVisitors: max };
+        });
+      };
 
-    expect(persistentState).toStrictEqual({
-      txMeta: { history: [{ value: 9 }], value: 10 },
+      destroy(): void {
+        super.destroy();
+      }
+    }
+
+    it('should allow messaging between controllers', () => {
+      // Construct root messenger
+      const rootMessenger = new Messenger<
+        MockAnyNamespace,
+        VisitorControllerActions | VisitorOverflowControllerActions,
+        VisitorControllerEvents | VisitorOverflowControllerEvents
+      >({ namespace: MOCK_ANY_NAMESPACE });
+      // Construct controller messengers, delegating to parent
+      const visitorControllerMessenger = new Messenger<
+        typeof visitorName,
+        VisitorControllerActions | VisitorOverflowUpdateMaxAction,
+        VisitorControllerEvents | VisitorOverflowStateChangedEvent,
+        typeof rootMessenger
+      >({ namespace: visitorName, parent: rootMessenger });
+      const visitorOverflowControllerMessenger = new Messenger<
+        typeof visitorOverflowName,
+        VisitorOverflowControllerActions | VisitorControllerClearAction,
+        VisitorOverflowControllerEvents | VisitorControllerStateChangedEvent,
+        typeof rootMessenger
+      >({ namespace: visitorOverflowName, parent: rootMessenger });
+      // Delegate external actions/events to controller messengers
+      rootMessenger.delegate({
+        actions: ['VisitorController:clear'],
+        events: ['VisitorController:stateChanged'],
+        messenger: visitorOverflowControllerMessenger,
+      });
+      rootMessenger.delegate({
+        actions: ['VisitorOverflowController:updateMax'],
+        events: ['VisitorOverflowController:stateChanged'],
+        messenger: visitorControllerMessenger,
+      });
+      // Construct controllers
+      const visitorController = new VisitorController(
+        visitorControllerMessenger,
+      );
+      const visitorOverflowController = new VisitorOverflowController(
+        visitorOverflowControllerMessenger,
+      );
+
+      rootMessenger.call('VisitorOverflowController:updateMax', 2);
+      visitorController.addVisitor('A');
+      visitorController.addVisitor('B');
+      visitorController.addVisitor('C'); // this should trigger an overflow
+
+      expect(visitorOverflowController.state.maxVisitors).toBe(2);
+      expect(visitorController.state.visitors).toHaveLength(0);
     });
-  });
-
-  it('should allow transforming types in a persist function', () => {
-    const persistentState = getPersistentState(
-      {
-        count: '1',
-      },
-      {
-        count: {
-          anonymous: false,
-          includeInStateLogs: false,
-          persist: (count) => Number(count),
-          usedInUi: false,
-        },
-      },
-    );
-
-    expect(persistentState).toStrictEqual({ count: 1 });
-  });
-
-  it('should suppress errors thrown when deriving state', () => {
-    const setTimeoutStub = sinon.stub(globalThis, 'setTimeout');
-    const persistentState = getPersistentState(
-      {
-        extraState: 'extraState',
-        privateKey: '123',
-        network: 'mainnet',
-      },
-      // @ts-expect-error Intentionally testing invalid state
-      {
-        privateKey: {
-          anonymous: false,
-          includeInStateLogs: false,
-          persist: true,
-          usedInUi: false,
-        },
-        network: {
-          anonymous: false,
-          includeInStateLogs: false,
-          persist: false,
-          usedInUi: true,
-        },
-      },
-    );
-    expect(persistentState).toStrictEqual({
-      privateKey: '123',
-    });
-    expect(setTimeoutStub.callCount).toBe(1);
-    const onTimeout = setTimeoutStub.firstCall.args[0];
-    expect(() => onTimeout()).toThrow(`No metadata found for 'extraState'`);
   });
 });
 
 describe('deriveStateFromMetadata', () => {
-  afterEach(() => {
-    sinon.restore();
-  });
-
   it('returns an empty object when deriving state for an unset property', () => {
     const derivedState = deriveStateFromMetadata(
       { count: 1 },
       {
         count: {
-          anonymous: false,
+          includeInDebugSnapshot: false,
           includeInStateLogs: false,
           persist: false,
-          // usedInUi is not set
+          usedInUi: false,
         },
       },
-      'usedInUi',
+      // @ts-expect-error Intentionally passing in fake unset property
+      'unset',
     );
 
     expect(derivedState).toStrictEqual({});
   });
 
   describe.each([
-    'anonymous',
+    'includeInDebugSnapshot',
     'includeInStateLogs',
     'persist',
     'usedInUi',
@@ -1069,7 +832,7 @@ describe('deriveStateFromMetadata', () => {
         { count: 1 },
         {
           count: {
-            anonymous: false,
+            includeInDebugSnapshot: false,
             includeInStateLogs: false,
             persist: false,
             usedInUi: false,
@@ -1092,28 +855,28 @@ describe('deriveStateFromMetadata', () => {
         },
         {
           password: {
-            anonymous: false,
+            includeInDebugSnapshot: false,
             includeInStateLogs: false,
             persist: false,
             usedInUi: false,
             [property]: true,
           },
           privateKey: {
-            anonymous: false,
+            includeInDebugSnapshot: false,
             includeInStateLogs: false,
             persist: false,
             usedInUi: false,
             [property]: true,
           },
           network: {
-            anonymous: false,
+            includeInDebugSnapshot: false,
             includeInStateLogs: false,
             persist: false,
             usedInUi: false,
             [property]: false,
           },
           tokens: {
-            anonymous: false,
+            includeInDebugSnapshot: false,
             includeInStateLogs: false,
             persist: false,
             usedInUi: false,
@@ -1131,7 +894,7 @@ describe('deriveStateFromMetadata', () => {
 
     if (property !== 'usedInUi') {
       it('should use function to derive state', () => {
-        const normalizeTransactionHash = (hash: string) => {
+        const normalizeTransactionHash = (hash: string): string => {
           return hash.toLowerCase();
         };
 
@@ -1141,7 +904,7 @@ describe('deriveStateFromMetadata', () => {
           },
           {
             transactionHash: {
-              anonymous: false,
+              includeInDebugSnapshot: false,
               includeInStateLogs: false,
               persist: false,
               usedInUi: false,
@@ -1155,7 +918,12 @@ describe('deriveStateFromMetadata', () => {
       });
 
       it('should allow returning a partial object from a deriver', () => {
-        const getDerivedTxMeta = (txMeta: { hash: string; value: number }) => {
+        const getDerivedTxMeta = (txMeta: {
+          hash: string;
+          value: number;
+        }): {
+          value: number;
+        } => {
           return { value: txMeta.value };
         };
 
@@ -1168,7 +936,7 @@ describe('deriveStateFromMetadata', () => {
           },
           {
             txMeta: {
-              anonymous: false,
+              includeInDebugSnapshot: false,
               includeInStateLogs: false,
               persist: false,
               usedInUi: false,
@@ -1186,7 +954,7 @@ describe('deriveStateFromMetadata', () => {
           hash: string;
           value: number;
           history: { hash: string; value: number }[];
-        }) => {
+        }): { history: { value: number }[]; value: number } => {
           return {
             history: txMeta.history.map((entry) => {
               return { value: entry.value };
@@ -1210,7 +978,7 @@ describe('deriveStateFromMetadata', () => {
           },
           {
             txMeta: {
-              anonymous: false,
+              includeInDebugSnapshot: false,
               includeInStateLogs: false,
               persist: false,
               usedInUi: false,
@@ -1232,7 +1000,7 @@ describe('deriveStateFromMetadata', () => {
           },
           {
             count: {
-              anonymous: false,
+              includeInDebugSnapshot: false,
               includeInStateLogs: false,
               persist: false,
               usedInUi: false,
@@ -1246,8 +1014,8 @@ describe('deriveStateFromMetadata', () => {
       });
     }
 
-    it('should suppress errors thrown when deriving state', () => {
-      const setTimeoutStub = sinon.stub(globalThis, 'setTimeout');
+    it('reports thrown error when deriving state', () => {
+      const captureException = jest.fn();
       const derivedState = deriveStateFromMetadata(
         {
           extraState: 'extraState',
@@ -1257,14 +1025,152 @@ describe('deriveStateFromMetadata', () => {
         // @ts-expect-error Intentionally testing invalid state
         {
           privateKey: {
-            anonymous: false,
+            includeInDebugSnapshot: false,
             includeInStateLogs: false,
             persist: false,
             usedInUi: false,
             [property]: true,
           },
           network: {
-            anonymous: false,
+            includeInDebugSnapshot: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: false,
+          },
+        },
+        property,
+        captureException,
+      );
+
+      expect(derivedState).toStrictEqual({
+        privateKey: '123',
+      });
+
+      expect(captureException).toHaveBeenCalledTimes(1);
+      expect(captureException).toHaveBeenCalledWith(
+        new Error(`No metadata found for 'extraState'`),
+      );
+    });
+
+    it('reports thrown non-error when deriving state, wrapping it in an error', () => {
+      const captureException = jest.fn();
+      const testException = 'Non-Error exception';
+      const derivedState = deriveStateFromMetadata(
+        {
+          extraState: 'extraState',
+          privateKey: '123',
+          network: 'mainnet',
+        },
+        {
+          extraState: {
+            includeInDebugSnapshot: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: () => {
+              // Intentionally throwing non-error to test handling
+              // eslint-disable-next-line @typescript-eslint/only-throw-error
+              throw testException;
+            },
+          },
+          privateKey: {
+            includeInDebugSnapshot: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: true,
+          },
+          network: {
+            includeInDebugSnapshot: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: false,
+          },
+        },
+        property,
+        captureException,
+      );
+
+      expect(derivedState).toStrictEqual({
+        privateKey: '123',
+      });
+
+      expect(captureException).toHaveBeenCalledTimes(1);
+      expect(captureException).toHaveBeenCalledWith(new Error(testException));
+    });
+
+    it('logs thrown error and captureException error to console if captureException throws', () => {
+      const consoleError = jest.fn();
+      const testError = new Error('Test error');
+      const captureException = jest.fn().mockImplementation(() => {
+        throw testError;
+      });
+      jest.spyOn(console, 'error').mockImplementation(consoleError);
+      const derivedState = deriveStateFromMetadata(
+        {
+          extraState: 'extraState',
+          privateKey: '123',
+          network: 'mainnet',
+        },
+        // @ts-expect-error Intentionally testing invalid state
+        {
+          privateKey: {
+            includeInDebugSnapshot: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: true,
+          },
+          network: {
+            includeInDebugSnapshot: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: false,
+          },
+        },
+        property,
+        captureException,
+      );
+
+      expect(derivedState).toStrictEqual({
+        privateKey: '123',
+      });
+
+      expect(consoleError).toHaveBeenCalledTimes(2);
+      expect(consoleError).toHaveBeenNthCalledWith(
+        1,
+        new Error(`Error thrown when calling 'captureException'`),
+        testError,
+      );
+      expect(consoleError).toHaveBeenNthCalledWith(
+        2,
+        new Error(`No metadata found for 'extraState'`),
+      );
+    });
+
+    it('logs thrown error to console when deriving state if no captureException function is given', () => {
+      const consoleError = jest.fn();
+      jest.spyOn(console, 'error').mockImplementation(consoleError);
+      const derivedState = deriveStateFromMetadata(
+        {
+          extraState: 'extraState',
+          privateKey: '123',
+          network: 'mainnet',
+        },
+        // @ts-expect-error Intentionally testing invalid state
+        {
+          privateKey: {
+            includeInDebugSnapshot: false,
+            includeInStateLogs: false,
+            persist: false,
+            usedInUi: false,
+            [property]: true,
+          },
+          network: {
+            includeInDebugSnapshot: false,
             includeInStateLogs: false,
             persist: false,
             usedInUi: false,
@@ -1278,9 +1184,10 @@ describe('deriveStateFromMetadata', () => {
         privateKey: '123',
       });
 
-      expect(setTimeoutStub.callCount).toBe(1);
-      const onTimeout = setTimeoutStub.firstCall.args[0];
-      expect(() => onTimeout()).toThrow(`No metadata found for 'extraState'`);
+      expect(consoleError).toHaveBeenCalledTimes(1);
+      expect(consoleError).toHaveBeenCalledWith(
+        new Error(`No metadata found for 'extraState'`),
+      );
     });
   });
 });

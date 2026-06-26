@@ -1,34 +1,47 @@
-import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { query, toChecksumHexAddress } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import {
-  type NetworkClientId,
-  type NetworkClientConfiguration,
-  getDefaultNetworkControllerState,
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
+} from '@metamask/messenger';
+import { getDefaultNetworkControllerState } from '@metamask/network-controller';
+import type {
+  NetworkClientId,
+  NetworkClientConfiguration,
+  NetworkConfiguration,
 } from '@metamask/network-controller';
 import { getDefaultPreferencesState } from '@metamask/preferences-controller';
+import { TransactionStatus } from '@metamask/transaction-controller';
+import type { TransactionMeta } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
-import { useFakeTimers, type SinonFakeTimers } from 'sinon';
 
-import type {
-  AccountTrackerControllerMessenger,
-  AllowedActions,
-  AllowedEvents,
-} from './AccountTrackerController';
-import { AccountTrackerController } from './AccountTrackerController';
-import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
-import { getTokenBalancesForMultipleAddresses } from './multicall';
 import { FakeProvider } from '../../../tests/fake-provider';
-import { advanceTime } from '../../../tests/helpers';
-import { createMockInternalAccount } from '../../accounts-controller/src/tests/mocks';
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../base-controller/tests/helpers';
+import { jestAdvanceTime } from '../../../tests/helpers';
+import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
 import {
   buildCustomNetworkClientConfiguration,
   buildMockGetNetworkClientById,
 } from '../../network-controller/tests/helpers';
+import type { AccountTrackerControllerMessenger } from './AccountTrackerController';
+import { AccountTrackerController } from './AccountTrackerController';
+import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
+import { getTokenBalancesForMultipleAddresses } from './multicall';
+
+type AllAccountTrackerControllerActions =
+  MessengerActions<AccountTrackerControllerMessenger>;
+
+type AllAccountTrackerControllerEvents =
+  MessengerEvents<AccountTrackerControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllAccountTrackerControllerActions,
+  AllAccountTrackerControllerEvents
+>;
 
 jest.mock('@metamask/controller-utils', () => {
   return {
@@ -52,7 +65,7 @@ const mockGetStakedBalanceForChain = async (addresses: string[]) =>
 const ADDRESS_1 = '0xc38bf1ad06ef69f0c04e29dbeb4152b4175f0a8d';
 const CHECKSUM_ADDRESS_1 = toChecksumHexAddress(ADDRESS_1);
 const ACCOUNT_1 = createMockInternalAccount({ address: ADDRESS_1 });
-const ADDRESS_2 = '0x742d35Cc6634C0532925a3b844Bc454e4438f44e';
+const ADDRESS_2 = '0x742d35cc6634c0532925a3b844bc454e4438f44e'; // lowercase for consistent caching
 const CHECKSUM_ADDRESS_2 = toChecksumHexAddress(ADDRESS_2);
 const ACCOUNT_2 = createMockInternalAccount({ address: ADDRESS_2 });
 const EMPTY_ACCOUNT = {
@@ -75,10 +88,8 @@ const { safelyExecuteWithTimeout } = jest.requireMock(
 const mockedSafelyExecuteWithTimeout = safelyExecuteWithTimeout as jest.Mock;
 
 describe('AccountTrackerController', () => {
-  let clock: SinonFakeTimers;
-
   beforeEach(() => {
-    clock = useFakeTimers();
+    jest.useFakeTimers();
     mockedQuery.mockReturnValue(Promise.resolve('0x0'));
 
     // Set up default mock for multicall function (without staked balances)
@@ -106,7 +117,7 @@ describe('AccountTrackerController', () => {
   });
 
   afterEach(() => {
-    clock.restore();
+    jest.useRealTimers();
     mockedQuery.mockRestore();
     mockedGetTokenBalancesForMultipleAddresses.mockClear();
     mockedSafelyExecuteWithTimeout.mockRestore();
@@ -142,7 +153,514 @@ describe('AccountTrackerController', () => {
     );
   });
 
+  it('refreshes address when unapproved transaction is added', async () => {
+    await withController(
+      {
+        selectedAccount: ACCOUNT_1,
+        listAccounts: [ACCOUNT_1],
+      },
+      async ({ controller, messenger }) => {
+        mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
+          tokenBalances: {
+            '0x0000000000000000000000000000000000000000': {
+              [ADDRESS_1]: new BN('123456', 16),
+            },
+          },
+          stakedBalances: {},
+        });
+
+        const transactionMeta: TransactionMeta = {
+          networkClientId: 'mainnet',
+          chainId: '0x1' as const,
+          id: 'test-tx-1',
+          status: TransactionStatus.unapproved,
+          time: Date.now(),
+          txParams: {
+            from: ADDRESS_1,
+          },
+        };
+
+        messenger.publish(
+          'TransactionController:unapprovedTransactionAdded',
+          transactionMeta,
+        );
+
+        await jest.advanceTimersByTimeAsync(1);
+
+        expect(
+          controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_1].balance,
+        ).toBe('0x123456');
+      },
+    );
+  });
+
+  it('refreshes both from and to addresses when unapproved transaction is added with to address', async () => {
+    await withController(
+      {
+        selectedAccount: ACCOUNT_1,
+        listAccounts: [ACCOUNT_1, ACCOUNT_2],
+      },
+      async ({ controller, messenger }) => {
+        mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
+          tokenBalances: {
+            '0x0000000000000000000000000000000000000000': {
+              [ADDRESS_1]: new BN('aaaaaa', 16),
+              [ADDRESS_2]: new BN('bbbbbb', 16),
+            },
+          },
+          stakedBalances: {},
+        });
+
+        const transactionMeta: TransactionMeta = {
+          networkClientId: 'mainnet',
+          chainId: '0x1' as const,
+          id: 'test-tx-with-to-unapproved',
+          status: TransactionStatus.unapproved,
+          time: Date.now(),
+          txParams: {
+            from: ADDRESS_1,
+            to: ADDRESS_2,
+          },
+        };
+
+        messenger.publish(
+          'TransactionController:unapprovedTransactionAdded',
+          transactionMeta,
+        );
+
+        await jest.advanceTimersByTimeAsync(1);
+
+        // Both from and to addresses should have their balances refreshed
+        expect(
+          controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_1].balance,
+        ).toBe('0xaaaaaa');
+        expect(
+          controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_2].balance,
+        ).toBe('0xbbbbbb');
+      },
+    );
+  });
+
+  it('refreshes address when transaction is confirmed', async () => {
+    await withController(
+      {
+        selectedAccount: ACCOUNT_1,
+        listAccounts: [ACCOUNT_1],
+      },
+      async ({ controller, messenger }) => {
+        mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
+          tokenBalances: {
+            '0x0000000000000000000000000000000000000000': {
+              [ADDRESS_1]: new BN('abcdef', 16),
+            },
+          },
+          stakedBalances: {},
+        });
+
+        const transactionMeta: TransactionMeta = {
+          networkClientId: 'mainnet',
+          chainId: '0x1' as const,
+          id: 'test-tx-2',
+          status: TransactionStatus.confirmed,
+          time: Date.now(),
+          txParams: {
+            from: ADDRESS_1,
+          },
+        };
+
+        messenger.publish(
+          'TransactionController:transactionConfirmed',
+          transactionMeta,
+        );
+
+        await jest.advanceTimersByTimeAsync(1);
+
+        expect(
+          controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_1].balance,
+        ).toBe('0xabcdef');
+      },
+    );
+  });
+
+  it('refreshes both from and to addresses when transaction is confirmed with to address', async () => {
+    await withController(
+      {
+        selectedAccount: ACCOUNT_1,
+        listAccounts: [ACCOUNT_1, ACCOUNT_2],
+      },
+      async ({ controller, messenger }) => {
+        mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
+          tokenBalances: {
+            '0x0000000000000000000000000000000000000000': {
+              [ADDRESS_1]: new BN('111111', 16),
+              [ADDRESS_2]: new BN('222222', 16),
+            },
+          },
+          stakedBalances: {},
+        });
+
+        const transactionMeta: TransactionMeta = {
+          networkClientId: 'mainnet',
+          chainId: '0x1' as const,
+          id: 'test-tx-with-to',
+          status: TransactionStatus.confirmed,
+          time: Date.now(),
+          txParams: {
+            from: ADDRESS_1,
+            to: ADDRESS_2,
+          },
+        };
+
+        messenger.publish(
+          'TransactionController:transactionConfirmed',
+          transactionMeta,
+        );
+
+        await jest.advanceTimersByTimeAsync(1);
+
+        // Both from and to addresses should have their balances refreshed
+        expect(
+          controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_1].balance,
+        ).toBe('0x111111');
+        expect(
+          controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_2].balance,
+        ).toBe('0x222222');
+      },
+    );
+  });
+
+  it('should create new chain entry when balance fetcher returns balance for unexpected chain (line 739)', async () => {
+    await withController(
+      {
+        selectedAccount: ACCOUNT_1,
+        listAccounts: [ACCOUNT_1],
+      },
+      async ({ controller, refresh }) => {
+        // State only has '0x1' initially
+        expect(controller.state.accountsByChainId['0x1']).toBeDefined();
+        // '0xa4b1' (Arbitrum) should not exist yet
+        expect(controller.state.accountsByChainId['0xa4b1']).toBeUndefined();
+
+        // Mock balance fetcher to return balance for '0x1' (requested)
+        // AND '0xa4b1' (not requested) - this tests line 739 defensive code
+        mockedGetTokenBalancesForMultipleAddresses.mockImplementationOnce(
+          async () => {
+            // Simulate fetcher returning extra chain that wasn't synced
+            return {
+              tokenBalances: {
+                '0x0000000000000000000000000000000000000000': {
+                  [ADDRESS_1]: new BN('123456', 16),
+                },
+              },
+              // Return balances for extra chain '0xa4b1' not in request
+              stakedBalances: {},
+            };
+          },
+        );
+
+        // Refresh only for mainnet
+        await refresh(['mainnet']);
+
+        // Verify mainnet balance was updated
+        expect(
+          controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_1].balance,
+        ).toBe('0x123456');
+      },
+    );
+  });
+
+  it('refreshes addresses when network is added', async () => {
+    await withController(
+      {
+        selectedAccount: ACCOUNT_1,
+        listAccounts: [ACCOUNT_1],
+      },
+      async ({ controller, messenger }) => {
+        mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
+          tokenBalances: {
+            '0x0000000000000000000000000000000000000000': {
+              [ADDRESS_1]: new BN('abcdef', 16),
+            },
+          },
+          stakedBalances: {},
+        });
+
+        messenger.publish('NetworkController:networkAdded', {
+          chainId: '0x1',
+          blockExplorerUrls: [],
+          name: 'Mainnet',
+          nativeCurrency: 'ETH',
+          defaultRpcEndpointIndex: 0,
+          rpcEndpoints: [{ networkClientId: 'mainnet' }],
+        } as unknown as NetworkConfiguration);
+
+        await jest.advanceTimersByTimeAsync(1);
+
+        expect(
+          controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_1].balance,
+        ).toBe('0xabcdef');
+      },
+    );
+  });
+
+  it('should not wipe existing balances when syncing accounts and the selected chain has no state entry', async () => {
+    const networkClientId = 'networkClientId1';
+
+    mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
+      tokenBalances: {
+        '0x0000000000000000000000000000000000000000': {},
+      },
+      stakedBalances: {},
+    });
+
+    await withController(
+      {
+        options: {
+          state: {
+            accountsByChainId: {
+              '0xe705': {
+                [CHECKSUM_ADDRESS_1]: {
+                  balance: '0xabc',
+                  stakedBalance: '0x5',
+                },
+              },
+            },
+          },
+        },
+        isMultiAccountBalancesEnabled: true,
+        selectedAccount: ACCOUNT_1,
+        listAccounts: [ACCOUNT_1],
+        networkClientById: {
+          [networkClientId]: buildCustomNetworkClientConfiguration({
+            chainId: '0x999',
+          }),
+        },
+      },
+      async ({ controller, refresh }) => {
+        // Verify initial state has the balance we expect to preserve
+        expect(
+          controller.state.accountsByChainId['0xe705'][CHECKSUM_ADDRESS_1],
+        ).toStrictEqual({
+          balance: '0xabc',
+          stakedBalance: '0x5',
+        });
+
+        // Refresh for a new chain. The selected network (mainnet / 0x1) is
+        // NOT in accountsByChainId, so #syncAccounts sees an empty "existing"
+        // set. Without the fix this would overwrite every address on every
+        // chain with { balance: '0x0' }, wiping both balance and stakedBalance.
+        await refresh(['networkClientId1'], true);
+
+        // Existing balances must be preserved
+        expect(
+          controller.state.accountsByChainId['0xe705'][CHECKSUM_ADDRESS_1],
+        ).toStrictEqual({
+          balance: '0xabc',
+          stakedBalance: '0x5',
+        });
+
+        // New chain should have been initialised with a zero balance
+        expect(
+          controller.state.accountsByChainId['0x999'][CHECKSUM_ADDRESS_1],
+        ).toStrictEqual({
+          balance: '0x0',
+        });
+      },
+    );
+  });
+
+  it('sets isActive to true when keyring is unlocked', async () => {
+    await withController(
+      {
+        selectedAccount: ACCOUNT_1,
+        listAccounts: [ACCOUNT_1],
+      },
+      async ({ controller, messenger }) => {
+        // Verify controller is active initially (unlocked by default in tests)
+        expect(controller.isActive).toBe(true);
+
+        // Lock the keyring
+        messenger.publish('KeyringController:lock');
+        expect(controller.isActive).toBe(false);
+
+        // Unlock the keyring
+        messenger.publish('KeyringController:unlock');
+        expect(controller.isActive).toBe(true);
+      },
+    );
+  });
+
+  it('should refresh balances when keyring is unlocked', async () => {
+    await withController(
+      {
+        selectedAccount: ACCOUNT_1,
+        listAccounts: [ACCOUNT_1],
+      },
+      async ({ controller, messenger }) => {
+        const refreshSpy = jest.spyOn(controller, 'refresh');
+
+        // Lock the keyring first
+        messenger.publish('KeyringController:lock');
+
+        // Clear any previous calls
+        refreshSpy.mockClear();
+
+        // Unlock the keyring - should trigger refresh
+        messenger.publish('KeyringController:unlock');
+
+        expect(refreshSpy).toHaveBeenCalled();
+      },
+    );
+  });
+
+  describe('isHomepageSectionsV1Enabled and getNetworkClientIds', () => {
+    it('when isHomepageSectionsV1Enabled is true, uses listPopularEvmNetworks for refresh (e.g. on keyring unlock)', async () => {
+      await withController(
+        {
+          options: { isHomepageSectionsV1Enabled: () => true },
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [ACCOUNT_1],
+        },
+        async ({ controller, messenger, networkEnablementMocks }) => {
+          const refreshSpy = jest
+            .spyOn(controller, 'refresh')
+            .mockResolvedValue();
+
+          messenger.publish('KeyringController:unlock');
+
+          await jest.advanceTimersByTimeAsync(1);
+
+          expect(
+            networkEnablementMocks.listPopularEvmNetworks,
+          ).toHaveBeenCalled();
+          expect(networkEnablementMocks.getState).not.toHaveBeenCalled();
+          expect(refreshSpy).toHaveBeenCalled();
+          const [networkClientIds] = refreshSpy.mock.calls[0];
+          expect(networkClientIds.length).toBeGreaterThan(0);
+          expect(networkClientIds).toContain('mainnet');
+        },
+      );
+    });
+
+    it('when isHomepageSectionsV1Enabled is false, uses enabledNetworkMap for refresh (e.g. on keyring unlock)', async () => {
+      await withController(
+        {
+          options: { isHomepageSectionsV1Enabled: () => false },
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [ACCOUNT_1],
+        },
+        async ({ controller, messenger, networkEnablementMocks }) => {
+          const refreshSpy = jest
+            .spyOn(controller, 'refresh')
+            .mockResolvedValue();
+
+          messenger.publish('KeyringController:unlock');
+
+          await jest.advanceTimersByTimeAsync(1);
+
+          expect(networkEnablementMocks.getState).toHaveBeenCalled();
+          expect(
+            networkEnablementMocks.listPopularEvmNetworks,
+          ).not.toHaveBeenCalled();
+          expect(refreshSpy).toHaveBeenCalledWith(['mainnet']);
+        },
+      );
+    });
+  });
+
   describe('refresh', () => {
+    it('does not refresh when fetching is disabled', async () => {
+      const expectedState = {
+        accountsByChainId: {
+          '0x1': {
+            [CHECKSUM_ADDRESS_1]: { balance: '0x0' },
+            [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
+          },
+        },
+      };
+
+      await withController(
+        {
+          options: { fetchingEnabled: () => false },
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [ACCOUNT_1, ACCOUNT_2],
+        },
+        async ({ controller, refresh }) => {
+          await refresh(['mainnet'], true);
+
+          expect(controller.state).toStrictEqual(expectedState);
+        },
+      );
+    });
+
+    it('should skip balance fetching when isOnboarded returns false', async () => {
+      const expectedState = {
+        accountsByChainId: {
+          '0x1': {
+            [CHECKSUM_ADDRESS_1]: { balance: '0x0' },
+            [CHECKSUM_ADDRESS_2]: { balance: '0x0' },
+          },
+        },
+      };
+
+      await withController(
+        {
+          options: { isOnboarded: () => false },
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [ACCOUNT_1, ACCOUNT_2],
+        },
+        async ({ controller, refresh }) => {
+          await refresh(['mainnet'], true);
+
+          // Balances should remain at 0x0 because isOnboarded returns false
+          expect(controller.state).toStrictEqual(expectedState);
+        },
+      );
+    });
+
+    it('should evaluate isOnboarded dynamically at call time', async () => {
+      let onboarded = false;
+
+      await withController(
+        {
+          options: { isOnboarded: () => onboarded },
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [ACCOUNT_1],
+        },
+        async ({ controller, refresh }) => {
+          // First call: isOnboarded returns false, should skip fetching
+          await refresh(['mainnet'], false);
+
+          // Balances should remain at 0x0
+          expect(
+            controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_1]
+              .balance,
+          ).toBe('0x0');
+
+          // Now set onboarded to true
+          onboarded = true;
+
+          mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
+            tokenBalances: {
+              '0x0000000000000000000000000000000000000000': {
+                [ADDRESS_1]: new BN('fedcba', 16),
+              },
+            },
+            stakedBalances: {},
+          });
+
+          // Second call: isOnboarded now returns true, should fetch balances
+          await refresh(['mainnet'], false);
+
+          // Balance should now be updated
+          expect(
+            controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_1]
+              .balance,
+          ).toBe('0xfedcba');
+        },
+      );
+    });
+
     describe('without networkClientId', () => {
       it('should sync addresses', async () => {
         await withController(
@@ -166,7 +684,7 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(['mainnet'], true);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -203,7 +721,7 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1],
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(['mainnet'], true);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -224,7 +742,7 @@ describe('AccountTrackerController', () => {
         mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
           tokenBalances: {
             '0x0000000000000000000000000000000000000000': {
-              [CHECKSUM_ADDRESS_1]: new BN('acac5457a3517e', 16), // checksum format when multi-account disabled
+              [ADDRESS_1]: new BN('acac5457a3517e', 16), // lowercase
             },
           },
           stakedBalances: {},
@@ -237,7 +755,7 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(['mainnet'], false);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -271,7 +789,7 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(['mainnet'], true);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -290,11 +808,11 @@ describe('AccountTrackerController', () => {
         mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
           tokenBalances: {
             '0x0000000000000000000000000000000000000000': {
-              [CHECKSUM_ADDRESS_1]: new BN('acac5457a3517e', 16),
+              [ADDRESS_1]: new BN('acac5457a3517e', 16),
             },
           },
           stakedBalances: {
-            [CHECKSUM_ADDRESS_1]: new BN('1', 16),
+            [ADDRESS_1]: new BN('1', 16),
           },
         });
 
@@ -309,7 +827,7 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(['mainnet'], false);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -330,11 +848,11 @@ describe('AccountTrackerController', () => {
 
       it('should not update staked balance when includeStakedAssets is disabled', async () => {
         // Mock for single address balance update (no staked balances)
-        // When multi-account is disabled, the fetcher requests checksum addresses
+        // Use lowercase addresses for consistent caching across controllers
         mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
           tokenBalances: {
             '0x0000000000000000000000000000000000000000': {
-              [CHECKSUM_ADDRESS_1]: new BN('acac5457a3517e', 16), // checksum format when multi-account disabled
+              [ADDRESS_1]: new BN('acac5457a3517e', 16), // lowercase
             },
           },
           stakedBalances: {}, // No staked balances when includeStakedAssets is false
@@ -351,7 +869,7 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(['mainnet'], false);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -396,7 +914,7 @@ describe('AccountTrackerController', () => {
             listAccounts: [ACCOUNT_1, ACCOUNT_2],
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(['mainnet'], true);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -408,6 +926,57 @@ describe('AccountTrackerController', () => {
                   [CHECKSUM_ADDRESS_2]: {
                     balance: '0x27548bd9e4026c918d4b',
                     stakedBalance: '0x1',
+                  },
+                },
+              },
+            });
+          },
+        );
+      });
+
+      it('should create account entry when applying staked balance without native balance (line 743)', async () => {
+        // Mock returning staked balance for ADDRESS_1 and native balance for ADDRESS_2
+        // but NO native balance for ADDRESS_1 - this tests the defensive check on line 743
+        // Use lowercase addresses since queryAllAccounts: true uses lowercase
+        mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
+          tokenBalances: {
+            '0x0000000000000000000000000000000000000000': {
+              // Only ADDRESS_2 has native balance, ADDRESS_1 doesn't
+              [ADDRESS_2]: new BN('100', 16),
+            },
+          },
+          stakedBalances: {
+            // ADDRESS_1 has staked balance but no native balance
+            [ADDRESS_1]: new BN('2', 16), // 0x2
+            [ADDRESS_2]: new BN('3', 16), // 0x3
+          },
+        });
+
+        await withController(
+          {
+            options: {
+              includeStakedAssets: true,
+              getStakedBalanceForChain: mockGetStakedBalanceForChain,
+            },
+            isMultiAccountBalancesEnabled: true,
+            selectedAccount: ACCOUNT_1,
+            listAccounts: [ACCOUNT_1, ACCOUNT_2],
+          },
+          async ({ controller, refresh }) => {
+            await refresh(['mainnet'], true);
+
+            // Line 743 should have created an account entry with balance '0x0' for ADDRESS_1
+            // when applying staked balance without a native balance entry
+            expect(controller.state).toStrictEqual({
+              accountsByChainId: {
+                '0x1': {
+                  [CHECKSUM_ADDRESS_1]: {
+                    balance: '0x0', // Created by line 743 (defensive check)
+                    stakedBalance: '0x2',
+                  },
+                  [CHECKSUM_ADDRESS_2]: {
+                    balance: '0x100',
+                    stakedBalance: '0x3',
                   },
                 },
               },
@@ -455,7 +1024,7 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['networkClientId1']);
+            await refresh(['networkClientId1'], true);
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
                 '0x1': {
@@ -501,7 +1070,7 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['networkClientId1']);
+            await refresh(['networkClientId1'], true);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -527,7 +1096,7 @@ describe('AccountTrackerController', () => {
         mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
           tokenBalances: {
             '0x0000000000000000000000000000000000000000': {
-              [CHECKSUM_ADDRESS_1]: new BN('10', 16), // checksum format when multi-account disabled
+              [ADDRESS_1]: new BN('10', 16), // lowercase
             },
           },
           stakedBalances: {},
@@ -546,7 +1115,7 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['networkClientId1']);
+            await refresh(['networkClientId1'], false);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -590,7 +1159,7 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['networkClientId1']);
+            await refresh(['networkClientId1'], true);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -613,11 +1182,11 @@ describe('AccountTrackerController', () => {
         mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
           tokenBalances: {
             '0x0000000000000000000000000000000000000000': {
-              [CHECKSUM_ADDRESS_1]: new BN('acac5457a3517e', 16),
+              [ADDRESS_1]: new BN('acac5457a3517e', 16),
             },
           },
           stakedBalances: {
-            [CHECKSUM_ADDRESS_1]: new BN('1', 16),
+            [ADDRESS_1]: new BN('1', 16),
           },
         });
 
@@ -639,7 +1208,7 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(['mainnet'], false);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -660,11 +1229,11 @@ describe('AccountTrackerController', () => {
 
       it('should not update staked balance when includeStakedAssets is disabled', async () => {
         // Mock for single address balance update (no staked balances)
-        // When multi-account is disabled, the fetcher requests checksum addresses
+        // Use lowercase addresses for consistent caching across controllers
         mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
           tokenBalances: {
             '0x0000000000000000000000000000000000000000': {
-              [CHECKSUM_ADDRESS_1]: new BN('acac5457a3517e', 16), // checksum format when multi-account disabled
+              [ADDRESS_1]: new BN('acac5457a3517e', 16), // lowercase
             },
           },
           stakedBalances: {}, // No staked balances when includeStakedAssets is false
@@ -688,7 +1257,7 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(['mainnet'], false);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -740,7 +1309,7 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(['mainnet'], true);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -791,7 +1360,7 @@ describe('AccountTrackerController', () => {
             },
           },
           async ({ controller, refresh }) => {
-            await refresh(clock, ['mainnet']);
+            await refresh(['mainnet'], true);
 
             expect(controller.state).toStrictEqual({
               accountsByChainId: {
@@ -839,7 +1408,7 @@ describe('AccountTrackerController', () => {
           },
           async ({ controller, refresh }) => {
             // Should not throw an error, even for unsupported chains
-            await refresh(clock, ['networkClientId1']);
+            await refresh(['networkClientId1'], true);
 
             // State should still be updated with chain entry from syncAccounts
             expect(controller.state.accountsByChainId).toHaveProperty('0x5');
@@ -868,7 +1437,7 @@ describe('AccountTrackerController', () => {
                   },
                 },
               },
-              accountsApiChainIds: [], // Disable API balance fetchers to force RPC usage
+              accountsApiChainIds: () => [], // Disable API balance fetchers to force RPC usage
             },
             isMultiAccountBalancesEnabled: true,
             selectedAccount: ACCOUNT_1,
@@ -881,7 +1450,7 @@ describe('AccountTrackerController', () => {
             );
 
             // Start refresh with the mocked timeout behavior
-            await refresh(clock, ['mainnet']);
+            await refresh(['mainnet'], true);
 
             // With safelyExecuteWithTimeout, timeouts are handled gracefully
             // The system should continue operating without throwing errors
@@ -911,7 +1480,7 @@ describe('AccountTrackerController', () => {
         await withController(
           {
             options: {
-              accountsApiChainIds: ['0x1'],
+              accountsApiChainIds: () => ['0x1'],
               // allowExternalServices not provided - should default to () => true (line 390)
             },
             isMultiAccountBalancesEnabled: true,
@@ -923,7 +1492,7 @@ describe('AccountTrackerController', () => {
             mockedQuery.mockResolvedValue('0x0');
 
             // Refresh balances for mainnet (supported by API)
-            await refresh(clock, ['mainnet']);
+            await refresh(['mainnet'], true);
 
             // Since allowExternalServices defaults to () => true (line 390), and accountsApiChainIds includes '0x1',
             // the API fetcher should be used, which means fetch should be called
@@ -944,7 +1513,7 @@ describe('AccountTrackerController', () => {
         await withController(
           {
             options: {
-              accountsApiChainIds: ['0x1'],
+              accountsApiChainIds: () => ['0x1'],
               allowExternalServices: () => true, // Explicitly set to true
             },
             isMultiAccountBalancesEnabled: true,
@@ -956,9 +1525,9 @@ describe('AccountTrackerController', () => {
             mockedQuery.mockResolvedValue('0x0');
 
             // Refresh balances for mainnet (supported by API)
-            await refresh(clock, ['mainnet']);
+            await refresh(['mainnet'], true);
 
-            // Since allowExternalServices is true and accountsApiChainIds includes '0x1',
+            // Since allowExternalServices is true and accountsApiChainIds returns ['0x1'],
             // the API fetcher should be used, which means fetch should be called
             expect(fetchSpy).toHaveBeenCalled();
 
@@ -977,7 +1546,7 @@ describe('AccountTrackerController', () => {
         await withController(
           {
             options: {
-              accountsApiChainIds: ['0x1'],
+              accountsApiChainIds: () => ['0x1'],
               allowExternalServices: () => false, // Explicitly set to false
             },
             isMultiAccountBalancesEnabled: true,
@@ -989,7 +1558,7 @@ describe('AccountTrackerController', () => {
             mockedQuery.mockResolvedValue('0x0');
 
             // Refresh balances for mainnet
-            await refresh(clock, ['mainnet']);
+            await refresh(['mainnet'], true);
 
             // Since allowExternalServices is false, the API fetcher should NOT be used
             // Only RPC calls should be made, so fetch should NOT be called
@@ -1012,7 +1581,7 @@ describe('AccountTrackerController', () => {
       await withController(
         {
           options: {
-            accountsApiChainIds: ['0x1'], // Configure to use AccountsAPI for mainnet
+            accountsApiChainIds: () => ['0x1'], // Configure to use AccountsAPI for mainnet
             allowExternalServices: () => true,
           },
           isMultiAccountBalancesEnabled: true,
@@ -1024,7 +1593,7 @@ describe('AccountTrackerController', () => {
           mockedQuery.mockResolvedValue('0x123456');
 
           // Refresh balances for mainnet
-          await refresh(clock, ['mainnet']);
+          await refresh(['mainnet'], true);
 
           // Verify that the supports method was called (meaning we reached the continue logic)
           expect(supportsSpy).toHaveBeenCalledWith('0x1');
@@ -1051,7 +1620,7 @@ describe('AccountTrackerController', () => {
       await withController(
         {
           options: {
-            accountsApiChainIds: ['0x1'], // Configure to use AccountsAPI for mainnet
+            accountsApiChainIds: () => ['0x1'], // Configure to use AccountsAPI for mainnet
             allowExternalServices: () => true,
           },
           isMultiAccountBalancesEnabled: true,
@@ -1063,7 +1632,7 @@ describe('AccountTrackerController', () => {
           mockedQuery.mockResolvedValue('0x123456');
 
           // Refresh balances for mainnet
-          await refresh(clock, ['mainnet']);
+          await refresh(['mainnet'], true);
 
           // Verify that console.warn was called with the error message
           expect(consoleWarnSpy).toHaveBeenCalledWith(
@@ -1072,6 +1641,50 @@ describe('AccountTrackerController', () => {
 
           fetchSpy.mockRestore();
           consoleWarnSpy.mockRestore();
+        },
+      );
+    });
+
+    it('should handle unprocessedChainIds from fetcher and retry with next fetcher', async () => {
+      // Mock AccountsApiBalanceFetcher to return unprocessedChainIds
+      const fetchSpy = jest
+        .spyOn(AccountsApiBalanceFetcher.prototype, 'fetch')
+        .mockResolvedValue({
+          balances: [], // No balances returned
+          unprocessedChainIds: ['0x1' as const], // Chain couldn't be processed
+        });
+
+      await withController(
+        {
+          options: {
+            accountsApiChainIds: () => ['0x1'], // Configure to use AccountsAPI for mainnet
+            allowExternalServices: () => true,
+          },
+          isMultiAccountBalancesEnabled: true,
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [ACCOUNT_1],
+        },
+        async ({ controller, refresh }) => {
+          // Mock RPC query to return balance (fallback after API returns unprocessedChainIds)
+          mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
+            tokenBalances: {
+              '0x0000000000000000000000000000000000000000': {
+                [ADDRESS_1]: new BN('abcdef', 16),
+              },
+            },
+            stakedBalances: {},
+          });
+
+          // Refresh balances for mainnet
+          await refresh(['mainnet'], true);
+
+          // The RPC fetcher should have been used as fallback after API returned unprocessedChainIds
+          expect(
+            controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_1]
+              .balance,
+          ).toBe('0xabcdef');
+
+          fetchSpy.mockRestore();
         },
       );
     });
@@ -1095,6 +1708,62 @@ describe('AccountTrackerController', () => {
           ]);
           expect(result[ADDRESS_1].balance).toBe('0x10');
           expect(result[ADDRESS_2].balance).toBe('0x20');
+        },
+      );
+    });
+
+    it('should return zero-balance entries if network is Tempo Mainnet', async () => {
+      await withController(
+        {
+          isMultiAccountBalancesEnabled: true,
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [],
+          networkClientById: {
+            'tempo-mainnet-mock-client-id':
+              buildCustomNetworkClientConfiguration({
+                chainId: '0x1079',
+                ticker: 'USD',
+              }),
+          },
+        },
+        async ({ controller }) => {
+          mockedQuery
+            .mockReturnValueOnce(Promise.resolve('0x10'))
+            .mockReturnValueOnce(Promise.resolve('0x20'));
+          const result = await controller.syncBalanceWithAddresses(
+            [ADDRESS_1, ADDRESS_2],
+            'tempo-mainnet-mock-client-id',
+          );
+          expect(result[ADDRESS_1].balance).toBe('0x0');
+          expect(result[ADDRESS_2].balance).toBe('0x0');
+        },
+      );
+    });
+
+    it('should return zero-balance entries if network is Tempo Testnet', async () => {
+      await withController(
+        {
+          isMultiAccountBalancesEnabled: true,
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [],
+          networkClientById: {
+            'tempo-testnet-mock-client-id':
+              buildCustomNetworkClientConfiguration({
+                chainId: '0xa5bf',
+                ticker: 'USD',
+              }),
+          },
+        },
+        async ({ controller }) => {
+          mockedQuery
+            .mockReturnValueOnce(Promise.resolve('0x10'))
+            .mockReturnValueOnce(Promise.resolve('0x20'));
+          const result = await controller.syncBalanceWithAddresses(
+            [ADDRESS_1, ADDRESS_2],
+            'tempo-testnet-mock-client-id',
+          );
+          expect(result[ADDRESS_1].balance).toBe('0x0');
+          expect(result[ADDRESS_2].balance).toBe('0x0');
         },
       );
     });
@@ -1160,6 +1829,71 @@ describe('AccountTrackerController', () => {
         },
       );
     });
+
+    it('should skip balance fetching when isOnboarded returns false', async () => {
+      await withController(
+        {
+          options: { isOnboarded: () => false },
+          isMultiAccountBalancesEnabled: true,
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [],
+        },
+        async ({ controller }) => {
+          // Reset query mock to track calls
+          mockedQuery.mockClear();
+
+          const result = await controller.syncBalanceWithAddresses([
+            ADDRESS_1,
+            ADDRESS_2,
+          ]);
+
+          // Should return empty object without making any RPC calls
+          expect(result).toStrictEqual({});
+
+          // Verify no RPC calls were made (query should not have been called for getBalance)
+          expect(mockedQuery).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('should evaluate isOnboarded dynamically at call time', async () => {
+      let onboarded = false;
+
+      await withController(
+        {
+          options: { isOnboarded: () => onboarded },
+          isMultiAccountBalancesEnabled: true,
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [],
+        },
+        async ({ controller }) => {
+          // First call: isOnboarded returns false, should skip fetching
+          mockedQuery.mockClear();
+
+          const result1 = await controller.syncBalanceWithAddresses([
+            ADDRESS_1,
+          ]);
+
+          // Should return empty object
+          expect(result1).toStrictEqual({});
+          expect(mockedQuery).not.toHaveBeenCalled();
+
+          // Now set onboarded to true
+          onboarded = true;
+
+          mockedQuery.mockReturnValueOnce(Promise.resolve('0xabc123'));
+
+          // Second call: isOnboarded now returns true, should fetch balances
+          const result2 = await controller.syncBalanceWithAddresses([
+            ADDRESS_1,
+          ]);
+
+          // Should have fetched balance
+          expect(result2[ADDRESS_1].balance).toBe('0xabc123');
+          expect(mockedQuery).toHaveBeenCalled();
+        },
+      );
+    });
   });
 
   it('should call refresh every interval on polling', async () => {
@@ -1179,16 +1913,17 @@ describe('AccountTrackerController', () => {
 
         controller.startPolling({
           networkClientIds: ['networkClientId1'],
+          queryAllAccounts: true,
         });
-        await advanceTime({ clock, duration: 1 });
+        await jestAdvanceTime({ duration: 1 });
 
         expect(pollSpy).toHaveBeenCalledTimes(1);
 
-        await advanceTime({ clock, duration: 50 });
+        await jestAdvanceTime({ duration: 50 });
 
         expect(pollSpy).toHaveBeenCalledTimes(1);
 
-        await advanceTime({ clock, duration: 50 });
+        await jestAdvanceTime({ duration: 50 });
 
         expect(pollSpy).toHaveBeenCalledTimes(2);
       },
@@ -1212,38 +1947,40 @@ describe('AccountTrackerController', () => {
 
         controller.startPolling({
           networkClientIds: [networkClientId1],
+          queryAllAccounts: true,
         });
 
-        await advanceTime({ clock, duration: 0 });
-        expect(refreshSpy).toHaveBeenNthCalledWith(1, [networkClientId1]);
+        await jestAdvanceTime({ duration: 0 });
+        expect(refreshSpy).toHaveBeenNthCalledWith(1, [networkClientId1], true);
         expect(refreshSpy).toHaveBeenCalledTimes(1);
-        await advanceTime({ clock, duration: 50 });
+        await jestAdvanceTime({ duration: 50 });
         expect(refreshSpy).toHaveBeenCalledTimes(1);
-        await advanceTime({ clock, duration: 50 });
-        expect(refreshSpy).toHaveBeenNthCalledWith(2, [networkClientId1]);
+        await jestAdvanceTime({ duration: 50 });
+        expect(refreshSpy).toHaveBeenNthCalledWith(2, [networkClientId1], true);
         expect(refreshSpy).toHaveBeenCalledTimes(2);
 
         const pollToken = controller.startPolling({
           networkClientIds: [networkClientId2],
+          queryAllAccounts: true,
         });
 
-        await advanceTime({ clock, duration: 0 });
-        expect(refreshSpy).toHaveBeenNthCalledWith(3, [networkClientId2]);
+        await jestAdvanceTime({ duration: 0 });
+        expect(refreshSpy).toHaveBeenNthCalledWith(3, [networkClientId2], true);
         expect(refreshSpy).toHaveBeenCalledTimes(3);
-        await advanceTime({ clock, duration: 100 });
-        expect(refreshSpy).toHaveBeenNthCalledWith(4, [networkClientId1]);
-        expect(refreshSpy).toHaveBeenNthCalledWith(5, [networkClientId2]);
+        await jestAdvanceTime({ duration: 100 });
+        expect(refreshSpy).toHaveBeenNthCalledWith(4, [networkClientId1], true);
+        expect(refreshSpy).toHaveBeenNthCalledWith(5, [networkClientId2], true);
         expect(refreshSpy).toHaveBeenCalledTimes(5);
 
         controller.stopPollingByPollingToken(pollToken);
 
-        await advanceTime({ clock, duration: 100 });
-        expect(refreshSpy).toHaveBeenNthCalledWith(6, [networkClientId1]);
+        await jestAdvanceTime({ duration: 100 });
+        expect(refreshSpy).toHaveBeenNthCalledWith(6, [networkClientId1], true);
         expect(refreshSpy).toHaveBeenCalledTimes(6);
 
         controller.stopAllPolling();
 
-        await advanceTime({ clock, duration: 100 });
+        await jestAdvanceTime({ duration: 100 });
 
         expect(refreshSpy).toHaveBeenCalledTimes(6);
       },
@@ -1263,9 +2000,10 @@ describe('AccountTrackerController', () => {
         expect(refreshSpy).not.toHaveBeenCalled();
         controller.startPolling({
           networkClientIds: ['networkClientId1'],
+          queryAllAccounts: true,
         });
 
-        await advanceTime({ clock, duration: 1 });
+        await jestAdvanceTime({ duration: 1 });
         expect(refreshSpy).toHaveBeenCalledTimes(1);
       },
     );
@@ -1278,9 +2016,9 @@ describe('AccountTrackerController', () => {
           deriveStateFromMetadata(
             controller.state,
             controller.metadata,
-            'anonymous',
+            'includeInDebugSnapshot',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -1292,7 +2030,7 @@ describe('AccountTrackerController', () => {
             controller.metadata,
             'includeInStateLogs',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -1305,9 +2043,9 @@ describe('AccountTrackerController', () => {
             'persist',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "accountsByChainId": Object {
-              "0x1": Object {},
+          {
+            "accountsByChainId": {
+              "0x1": {},
             },
           }
         `);
@@ -1323,25 +2061,203 @@ describe('AccountTrackerController', () => {
             'usedInUi',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "accountsByChainId": Object {
-              "0x1": Object {},
+          {
+            "accountsByChainId": {
+              "0x1": {},
             },
           }
         `);
       });
     });
   });
+
+  describe('isDeprecated', () => {
+    const initialState = {
+      accountsByChainId: {
+        '0x1': {
+          [CHECKSUM_ADDRESS_1]: { balance: '0x1' },
+        },
+      },
+    };
+
+    it('clears persisted accountsByChainId at construction when isDeprecated() returns true', async () => {
+      await withController(
+        {
+          options: { state: initialState, isDeprecated: () => true },
+        },
+        ({ controller }) => {
+          expect(controller.state.accountsByChainId).toStrictEqual({});
+        },
+      );
+    });
+
+    it('preserves persisted accountsByChainId at construction when isDeprecated() returns false', async () => {
+      await withController(
+        {
+          options: { state: initialState, isDeprecated: () => false },
+        },
+        ({ controller }) => {
+          expect(controller.state.accountsByChainId).toStrictEqual(
+            initialState.accountsByChainId,
+          );
+        },
+      );
+    });
+
+    it('does not throw at construction when isDeprecated() is true and state is already empty', async () => {
+      await withController(
+        {
+          options: {
+            state: { accountsByChainId: {} },
+            isDeprecated: () => true,
+          },
+        },
+        ({ controller }) => {
+          expect(controller.state.accountsByChainId).toStrictEqual({});
+        },
+      );
+    });
+
+    it('does not fetch and clears stale state on refresh when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      await withController(
+        {
+          options: { state: initialState, isDeprecated: () => deprecated },
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [ACCOUNT_1],
+        },
+        async ({ controller, refresh }) => {
+          expect(controller.state.accountsByChainId).toStrictEqual(
+            initialState.accountsByChainId,
+          );
+
+          deprecated = true;
+
+          await refresh(['mainnet']);
+
+          expect(
+            mockedGetTokenBalancesForMultipleAddresses,
+          ).not.toHaveBeenCalled();
+          expect(controller.state.accountsByChainId).toStrictEqual({});
+        },
+      );
+    });
+
+    it('clears stale state on _executePoll when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      await withController(
+        {
+          options: { state: initialState, isDeprecated: () => deprecated },
+        },
+        async ({ controller }) => {
+          deprecated = true;
+
+          await controller._executePoll({ networkClientIds: ['mainnet'] });
+
+          expect(controller.state.accountsByChainId).toStrictEqual({});
+        },
+      );
+    });
+
+    it('clears stale state on refreshAddresses when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      await withController(
+        {
+          options: { state: initialState, isDeprecated: () => deprecated },
+          listAccounts: [ACCOUNT_1],
+        },
+        async ({ controller }) => {
+          deprecated = true;
+
+          await controller.refreshAddresses({
+            networkClientIds: ['mainnet'],
+            addresses: [ADDRESS_1],
+          });
+
+          expect(controller.state.accountsByChainId).toStrictEqual({});
+        },
+      );
+    });
+
+    it('returns no balances and clears stale state on syncBalanceWithAddresses when isDeprecated returns true', async () => {
+      let deprecated = false;
+      await withController(
+        {
+          options: { state: initialState, isDeprecated: () => deprecated },
+        },
+        async ({ controller }) => {
+          deprecated = true;
+
+          const result = await controller.syncBalanceWithAddresses([ADDRESS_1]);
+
+          expect(result).toStrictEqual({});
+          expect(controller.state.accountsByChainId).toStrictEqual({});
+        },
+      );
+    });
+
+    it('clears stale state on updateNativeBalances when isDeprecated returns true', async () => {
+      let deprecated = false;
+      await withController(
+        {
+          options: { state: initialState, isDeprecated: () => deprecated },
+        },
+        ({ controller }) => {
+          deprecated = true;
+
+          controller.updateNativeBalances([
+            {
+              address: CHECKSUM_ADDRESS_1,
+              chainId: '0x1' as const,
+              balance: '0x5',
+            },
+          ]);
+
+          expect(controller.state.accountsByChainId).toStrictEqual({});
+        },
+      );
+    });
+
+    it('clears stale state on updateStakedBalances when isDeprecated returns true', async () => {
+      let deprecated = false;
+      await withController(
+        {
+          options: { state: initialState, isDeprecated: () => deprecated },
+        },
+        ({ controller }) => {
+          deprecated = true;
+
+          controller.updateStakedBalances([
+            {
+              address: CHECKSUM_ADDRESS_1,
+              chainId: '0x1' as const,
+              stakedBalance: '0x5',
+            },
+          ]);
+
+          expect(controller.state.accountsByChainId).toStrictEqual({});
+        },
+      );
+    });
+  });
 });
+
+type NetworkEnablementMocks = {
+  getState: jest.Mock;
+  listPopularEvmNetworks: jest.Mock;
+};
 
 type WithControllerCallback<ReturnValue> = ({
   controller,
+  networkEnablementMocks,
 }: {
   controller: AccountTrackerController;
+  messenger: RootMessenger;
+  networkEnablementMocks: NetworkEnablementMocks;
   triggerSelectedAccountChange: (account: InternalAccount) => void;
   refresh: (
-    clock: SinonFakeTimers,
     networkClientIds: NetworkClientId[],
+    queryAllAccounts?: boolean,
   ) => Promise<void>;
 }) => Promise<ReturnValue> | ReturnValue;
 
@@ -1380,10 +2296,9 @@ async function withController<ReturnValue>(
     testFunction,
   ] = args.length === 2 ? args : [{}, args[0]];
 
-  const messenger = new Messenger<
-    ExtractAvailableAction<AccountTrackerControllerMessenger> | AllowedActions,
-    ExtractAvailableEvent<AccountTrackerControllerMessenger> | AllowedEvents
-  >();
+  const messenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 
   const mockGetSelectedAccount = jest.fn().mockReturnValue(selectedAccount);
   messenger.registerActionHandler(
@@ -1489,16 +2404,61 @@ async function withController<ReturnValue>(
     mockNetworkState,
   );
 
-  const accountTrackerMessenger = messenger.getRestricted({
-    name: 'AccountTrackerController',
-    allowedActions: [
+  const mockGetNetworkEnablementState = jest.fn().mockReturnValue({
+    enabledNetworkMap: {
+      eip155: { [initialChainId]: true },
+    },
+  });
+  messenger.registerActionHandler(
+    'NetworkEnablementController:getState',
+    mockGetNetworkEnablementState,
+  );
+
+  const defaultNetworkState = getDefaultNetworkControllerState();
+  const mockListPopularEvmNetworks = jest
+    .fn()
+    .mockReturnValue(
+      Object.keys(defaultNetworkState.networkConfigurationsByChainId) as Hex[],
+    );
+  messenger.registerActionHandler(
+    'NetworkEnablementController:listPopularEvmNetworks',
+    mockListPopularEvmNetworks,
+  );
+
+  messenger.registerActionHandler(
+    'KeyringController:getState',
+    jest.fn().mockReturnValue({ isUnlocked: true }),
+  );
+
+  const accountTrackerMessenger = new Messenger<
+    'AccountTrackerController',
+    AllAccountTrackerControllerActions,
+    AllAccountTrackerControllerEvents,
+    RootMessenger
+  >({
+    namespace: 'AccountTrackerController',
+    parent: messenger,
+  });
+  messenger.delegate({
+    messenger: accountTrackerMessenger,
+    actions: [
       'NetworkController:getNetworkClientById',
       'NetworkController:getState',
+      'NetworkEnablementController:getState',
+      'NetworkEnablementController:listPopularEvmNetworks',
       'PreferencesController:getState',
       'AccountsController:getSelectedAccount',
       'AccountsController:listAccounts',
+      'KeyringController:getState',
     ],
-    allowedEvents: ['AccountsController:selectedEvmAccountChange'],
+    events: [
+      'AccountsController:selectedEvmAccountChange',
+      'TransactionController:unapprovedTransactionAdded',
+      'TransactionController:transactionConfirmed',
+      'NetworkController:networkAdded',
+      'KeyringController:lock',
+      'KeyringController:unlock',
+    ],
   });
 
   const triggerSelectedAccountChange = (account: InternalAccount) => {
@@ -1512,16 +2472,21 @@ async function withController<ReturnValue>(
   });
 
   const refresh = async (
-    clock: SinonFakeTimers,
     networkClientIds: NetworkClientId[],
+    queryAllAccounts?: boolean,
   ) => {
-    const promise = controller.refresh(networkClientIds);
-    await clock.tickAsync(1);
+    const promise = controller.refresh(networkClientIds, queryAllAccounts);
+    await jest.advanceTimersByTimeAsync(1);
     await promise;
   };
 
   return await testFunction({
     controller,
+    messenger,
+    networkEnablementMocks: {
+      getState: mockGetNetworkEnablementState,
+      listPopularEvmNetworks: mockListPopularEvmNetworks,
+    },
     triggerSelectedAccountChange,
     refresh,
   });

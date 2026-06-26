@@ -1,6 +1,8 @@
+export { encodeFunctionData } from './abi';
 export {
   BrokenCircuitError,
   CircuitState,
+  CockatielEventEmitter,
   ConstantBackoff,
   DEFAULT_CIRCUIT_BREAK_DURATION,
   DEFAULT_DEGRADED_THRESHOLD,
@@ -14,6 +16,7 @@ export {
 export type {
   CockatielEvent,
   CreateServicePolicyOptions,
+  CockatielFailureReason,
   ServicePolicy,
 } from './create-service-policy';
 export {
@@ -51,6 +54,8 @@ export {
   HOURS,
   DAY,
   DAYS,
+  NETWORKS_BYPASSING_VALIDATION,
+  CHAIN_IDS_WITH_NO_NATIVE_TOKEN,
 } from './constants';
 export type { NonEmptyArray } from './util';
 export {

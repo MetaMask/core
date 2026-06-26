@@ -1,38 +1,42 @@
-import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { InfuraNetworkType } from '@metamask/controller-utils';
-import type { AnyAccountType } from '@metamask/keyring-api';
 import {
   BtcScope,
   SolScope,
   EthAccountType,
   BtcAccountType,
   SolAccountType,
-  type KeyringAccountType,
-  type CaipChainId,
   EthScope,
   TrxAccountType,
 } from '@metamask/keyring-api';
+import type {
+  AnyAccountType,
+  KeyringAccountType,
+  CaipChainId,
+} from '@metamask/keyring-api';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
+} from '@metamask/messenger';
 import type {
   NetworkControllerGetStateAction,
   NetworkControllerSetActiveNetworkAction,
   NetworkControllerGetSelectedChainIdAction,
   NetworkControllerRemoveNetworkAction,
   NetworkControllerFindNetworkClientIdByChainIdAction,
+  NetworkState,
 } from '@metamask/network-controller';
-import { KnownCaipNamespace, type CaipAccountId } from '@metamask/utils';
+import { KnownCaipNamespace } from '@metamask/utils';
+import type { CaipAccountId } from '@metamask/utils';
 
-import { MultichainNetworkController } from './MultichainNetworkController';
 import { createMockInternalAccount } from '../../tests/utils';
-import { type ActiveNetworksResponse } from '../api/accounts-api';
+import type { ActiveNetworksResponse } from '../api/accounts-api';
 import { getDefaultMultichainNetworkControllerState } from '../constants';
 import type { AbstractMultichainNetworkService } from '../MultichainNetworkService/AbstractMultichainNetworkService';
-import {
-  type AllowedActions,
-  type AllowedEvents,
-  type MultichainNetworkControllerAllowedActions,
-  type MultichainNetworkControllerAllowedEvents,
-  MULTICHAIN_NETWORK_CONTROLLER_NAME,
-} from '../types';
+import type { MultichainNetworkControllerMessenger } from '../types';
+import { MultichainNetworkController } from './MultichainNetworkController';
 
 // We exclude the generic account type, since it's used for testing purposes.
 type TestKeyringAccountType = Exclude<
@@ -54,6 +58,32 @@ function createMockNetworkService(
       .fn<Promise<ActiveNetworksResponse>, [CaipAccountId[]]>()
       .mockResolvedValue(mockResponse),
   };
+}
+
+const controllerName = 'MultichainNetworkController';
+
+type AllMultichainNetworkControllerActions =
+  MessengerActions<MultichainNetworkControllerMessenger>;
+
+type AllMultichainNetworkControllerEvents =
+  MessengerEvents<MultichainNetworkControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllMultichainNetworkControllerActions,
+  AllMultichainNetworkControllerEvents,
+  RootMessenger
+>;
+
+/**
+ * Creates and returns a root messenger for testing
+ *
+ * @returns A messenger instance
+ */
+function getRootMessenger(): RootMessenger {
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 }
 
 /**
@@ -102,13 +132,37 @@ function setupController({
     Parameters<NetworkControllerFindNetworkClientIdByChainIdAction['handler']>
   >;
   mockNetworkService?: AbstractMultichainNetworkService;
-} = {}) {
-  const messenger = new Messenger<
-    MultichainNetworkControllerAllowedActions,
-    MultichainNetworkControllerAllowedEvents
-  >();
-
-  const publishSpy = jest.spyOn(messenger, 'publish');
+} = {}): {
+  messenger: RootMessenger;
+  controller: MultichainNetworkController;
+  mockGetNetworkState: jest.Mock<
+    NetworkState,
+    Parameters<NetworkControllerGetStateAction['handler']>
+  >;
+  mockSetActiveNetwork: jest.Mock<
+    ReturnType<NetworkControllerSetActiveNetworkAction['handler']>,
+    Parameters<NetworkControllerSetActiveNetworkAction['handler']>
+  >;
+  mockRemoveNetwork: jest.Mock<
+    ReturnType<NetworkControllerRemoveNetworkAction['handler']>,
+    Parameters<NetworkControllerRemoveNetworkAction['handler']>
+  >;
+  mockGetSelectedChainId: jest.Mock<
+    ReturnType<NetworkControllerGetSelectedChainIdAction['handler']>,
+    Parameters<NetworkControllerGetSelectedChainIdAction['handler']>
+  >;
+  mockFindNetworkClientIdByChainId: jest.Mock<
+    ReturnType<NetworkControllerFindNetworkClientIdByChainIdAction['handler']>,
+    Parameters<NetworkControllerFindNetworkClientIdByChainIdAction['handler']>
+  >;
+  publishSpy: jest.SpyInstance<
+    ReturnType<MultichainNetworkControllerMessenger['publish']>,
+    Parameters<MultichainNetworkControllerMessenger['publish']>
+  >;
+  triggerSelectedAccountChange: (accountType: TestKeyringAccountType) => void;
+  networkService: AbstractMultichainNetworkService;
+} {
+  const messenger = getRootMessenger();
 
   // Register action handlers
   const mockGetNetworkState =
@@ -168,13 +222,19 @@ function setupController({
     mockFindNetworkClientIdByChainId,
   );
 
-  const controllerMessenger = messenger.getRestricted<
-    typeof MULTICHAIN_NETWORK_CONTROLLER_NAME,
-    AllowedActions['type'],
-    AllowedEvents['type']
+  const controllerMessenger = new Messenger<
+    typeof controllerName,
+    AllMultichainNetworkControllerActions,
+    AllMultichainNetworkControllerEvents,
+    RootMessenger
   >({
-    name: MULTICHAIN_NETWORK_CONTROLLER_NAME,
-    allowedActions: [
+    namespace: controllerName,
+    parent: messenger,
+  });
+
+  messenger.delegate({
+    messenger: controllerMessenger,
+    actions: [
       'NetworkController:setActiveNetwork',
       'NetworkController:getState',
       'NetworkController:removeNetwork',
@@ -182,7 +242,7 @@ function setupController({
       'NetworkController:findNetworkClientIdByChainId',
       'AccountsController:listMultichainAccounts',
     ],
-    allowedEvents: ['AccountsController:selectedAccountChange'],
+    events: ['AccountsController:selectedAccountChange'],
   });
 
   const defaultNetworkService = createMockNetworkService();
@@ -199,7 +259,7 @@ function setupController({
 
   const triggerSelectedAccountChange = (
     accountType: TestKeyringAccountType,
-  ) => {
+  ): void => {
     const mockAccountAddressByAccountType: Record<
       TestKeyringAccountType,
       string
@@ -223,6 +283,8 @@ function setupController({
     });
     messenger.publish('AccountsController:selectedAccountChange', mockAccount);
   };
+
+  const publishSpy = jest.spyOn(controllerMessenger, 'publish');
 
   return {
     messenger,
@@ -662,80 +724,92 @@ describe('MultichainNetworkController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "isEvmSelected": true,
-          "multichainNetworkConfigurationsByChainId": Object {
-            "bip122:000000000019d6689c085ae165831e93": Object {
+          "multichainNetworkConfigurationsByChainId": {
+            "bip122:000000000019d6689c085ae165831e93": {
               "chainId": "bip122:000000000019d6689c085ae165831e93",
               "isEvm": false,
               "name": "Bitcoin",
               "nativeCurrency": "bip122:000000000019d6689c085ae165831e93/slip44:0",
             },
-            "bip122:000000000933ea01ad0ee984209779ba": Object {
+            "bip122:000000000933ea01ad0ee984209779ba": {
               "chainId": "bip122:000000000933ea01ad0ee984209779ba",
               "isEvm": false,
               "name": "Bitcoin Testnet",
               "nativeCurrency": "bip122:000000000933ea01ad0ee984209779ba/slip44:0",
             },
-            "bip122:00000000da84f2bafbbc53dee25a72ae": Object {
+            "bip122:00000000da84f2bafbbc53dee25a72ae": {
               "chainId": "bip122:00000000da84f2bafbbc53dee25a72ae",
               "isEvm": false,
               "name": "Bitcoin Testnet4",
               "nativeCurrency": "bip122:00000000da84f2bafbbc53dee25a72ae/slip44:0",
             },
-            "bip122:00000008819873e925422c1ff0f99f7c": Object {
+            "bip122:00000008819873e925422c1ff0f99f7c": {
               "chainId": "bip122:00000008819873e925422c1ff0f99f7c",
               "isEvm": false,
               "name": "Bitcoin Mutinynet",
               "nativeCurrency": "bip122:00000008819873e925422c1ff0f99f7c/slip44:0",
             },
-            "bip122:regtest": Object {
+            "bip122:regtest": {
               "chainId": "bip122:regtest",
               "isEvm": false,
               "name": "Bitcoin Regtest",
               "nativeCurrency": "bip122:regtest/slip44:0",
             },
-            "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z": Object {
+            "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z": {
               "chainId": "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z",
               "isEvm": false,
               "name": "Solana Testnet",
               "nativeCurrency": "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z/slip44:501",
             },
-            "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": Object {
+            "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": {
               "chainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
               "isEvm": false,
               "name": "Solana",
               "nativeCurrency": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501",
             },
-            "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": Object {
+            "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": {
               "chainId": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
               "isEvm": false,
               "name": "Solana Devnet",
               "nativeCurrency": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501",
             },
-            "tron:2494104990": Object {
+            "stellar:pubnet": {
+              "chainId": "stellar:pubnet",
+              "isEvm": false,
+              "name": "Stellar",
+              "nativeCurrency": "stellar:pubnet/slip44:148",
+            },
+            "stellar:testnet": {
+              "chainId": "stellar:testnet",
+              "isEvm": false,
+              "name": "Stellar Testnet",
+              "nativeCurrency": "stellar:testnet/slip44:148",
+            },
+            "tron:2494104990": {
               "chainId": "tron:2494104990",
               "isEvm": false,
               "name": "Tron Shasta",
               "nativeCurrency": "tron:2494104990/slip44:195",
             },
-            "tron:3448148188": Object {
+            "tron:3448148188": {
               "chainId": "tron:3448148188",
               "isEvm": false,
               "name": "Tron Nile",
               "nativeCurrency": "tron:3448148188/slip44:195",
             },
-            "tron:728126428": Object {
+            "tron:728126428": {
               "chainId": "tron:728126428",
               "isEvm": false,
               "name": "Tron",
               "nativeCurrency": "tron:728126428/slip44:195",
             },
           },
-          "networksWithTransactionActivity": Object {},
+          "networksWithTransactionActivity": {},
           "selectedMultichainNetworkChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
         }
       `);
@@ -751,77 +825,89 @@ describe('MultichainNetworkController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "isEvmSelected": true,
-          "multichainNetworkConfigurationsByChainId": Object {
-            "bip122:000000000019d6689c085ae165831e93": Object {
+          "multichainNetworkConfigurationsByChainId": {
+            "bip122:000000000019d6689c085ae165831e93": {
               "chainId": "bip122:000000000019d6689c085ae165831e93",
               "isEvm": false,
               "name": "Bitcoin",
               "nativeCurrency": "bip122:000000000019d6689c085ae165831e93/slip44:0",
             },
-            "bip122:000000000933ea01ad0ee984209779ba": Object {
+            "bip122:000000000933ea01ad0ee984209779ba": {
               "chainId": "bip122:000000000933ea01ad0ee984209779ba",
               "isEvm": false,
               "name": "Bitcoin Testnet",
               "nativeCurrency": "bip122:000000000933ea01ad0ee984209779ba/slip44:0",
             },
-            "bip122:00000000da84f2bafbbc53dee25a72ae": Object {
+            "bip122:00000000da84f2bafbbc53dee25a72ae": {
               "chainId": "bip122:00000000da84f2bafbbc53dee25a72ae",
               "isEvm": false,
               "name": "Bitcoin Testnet4",
               "nativeCurrency": "bip122:00000000da84f2bafbbc53dee25a72ae/slip44:0",
             },
-            "bip122:00000008819873e925422c1ff0f99f7c": Object {
+            "bip122:00000008819873e925422c1ff0f99f7c": {
               "chainId": "bip122:00000008819873e925422c1ff0f99f7c",
               "isEvm": false,
               "name": "Bitcoin Mutinynet",
               "nativeCurrency": "bip122:00000008819873e925422c1ff0f99f7c/slip44:0",
             },
-            "bip122:regtest": Object {
+            "bip122:regtest": {
               "chainId": "bip122:regtest",
               "isEvm": false,
               "name": "Bitcoin Regtest",
               "nativeCurrency": "bip122:regtest/slip44:0",
             },
-            "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z": Object {
+            "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z": {
               "chainId": "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z",
               "isEvm": false,
               "name": "Solana Testnet",
               "nativeCurrency": "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z/slip44:501",
             },
-            "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": Object {
+            "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": {
               "chainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
               "isEvm": false,
               "name": "Solana",
               "nativeCurrency": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501",
             },
-            "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": Object {
+            "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": {
               "chainId": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
               "isEvm": false,
               "name": "Solana Devnet",
               "nativeCurrency": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501",
             },
-            "tron:2494104990": Object {
+            "stellar:pubnet": {
+              "chainId": "stellar:pubnet",
+              "isEvm": false,
+              "name": "Stellar",
+              "nativeCurrency": "stellar:pubnet/slip44:148",
+            },
+            "stellar:testnet": {
+              "chainId": "stellar:testnet",
+              "isEvm": false,
+              "name": "Stellar Testnet",
+              "nativeCurrency": "stellar:testnet/slip44:148",
+            },
+            "tron:2494104990": {
               "chainId": "tron:2494104990",
               "isEvm": false,
               "name": "Tron Shasta",
               "nativeCurrency": "tron:2494104990/slip44:195",
             },
-            "tron:3448148188": Object {
+            "tron:3448148188": {
               "chainId": "tron:3448148188",
               "isEvm": false,
               "name": "Tron Nile",
               "nativeCurrency": "tron:3448148188/slip44:195",
             },
-            "tron:728126428": Object {
+            "tron:728126428": {
               "chainId": "tron:728126428",
               "isEvm": false,
               "name": "Tron",
               "nativeCurrency": "tron:728126428/slip44:195",
             },
           },
-          "networksWithTransactionActivity": Object {},
+          "networksWithTransactionActivity": {},
           "selectedMultichainNetworkChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
         }
       `);
@@ -837,77 +923,89 @@ describe('MultichainNetworkController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "isEvmSelected": true,
-          "multichainNetworkConfigurationsByChainId": Object {
-            "bip122:000000000019d6689c085ae165831e93": Object {
+          "multichainNetworkConfigurationsByChainId": {
+            "bip122:000000000019d6689c085ae165831e93": {
               "chainId": "bip122:000000000019d6689c085ae165831e93",
               "isEvm": false,
               "name": "Bitcoin",
               "nativeCurrency": "bip122:000000000019d6689c085ae165831e93/slip44:0",
             },
-            "bip122:000000000933ea01ad0ee984209779ba": Object {
+            "bip122:000000000933ea01ad0ee984209779ba": {
               "chainId": "bip122:000000000933ea01ad0ee984209779ba",
               "isEvm": false,
               "name": "Bitcoin Testnet",
               "nativeCurrency": "bip122:000000000933ea01ad0ee984209779ba/slip44:0",
             },
-            "bip122:00000000da84f2bafbbc53dee25a72ae": Object {
+            "bip122:00000000da84f2bafbbc53dee25a72ae": {
               "chainId": "bip122:00000000da84f2bafbbc53dee25a72ae",
               "isEvm": false,
               "name": "Bitcoin Testnet4",
               "nativeCurrency": "bip122:00000000da84f2bafbbc53dee25a72ae/slip44:0",
             },
-            "bip122:00000008819873e925422c1ff0f99f7c": Object {
+            "bip122:00000008819873e925422c1ff0f99f7c": {
               "chainId": "bip122:00000008819873e925422c1ff0f99f7c",
               "isEvm": false,
               "name": "Bitcoin Mutinynet",
               "nativeCurrency": "bip122:00000008819873e925422c1ff0f99f7c/slip44:0",
             },
-            "bip122:regtest": Object {
+            "bip122:regtest": {
               "chainId": "bip122:regtest",
               "isEvm": false,
               "name": "Bitcoin Regtest",
               "nativeCurrency": "bip122:regtest/slip44:0",
             },
-            "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z": Object {
+            "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z": {
               "chainId": "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z",
               "isEvm": false,
               "name": "Solana Testnet",
               "nativeCurrency": "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z/slip44:501",
             },
-            "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": Object {
+            "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": {
               "chainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
               "isEvm": false,
               "name": "Solana",
               "nativeCurrency": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501",
             },
-            "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": Object {
+            "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": {
               "chainId": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
               "isEvm": false,
               "name": "Solana Devnet",
               "nativeCurrency": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501",
             },
-            "tron:2494104990": Object {
+            "stellar:pubnet": {
+              "chainId": "stellar:pubnet",
+              "isEvm": false,
+              "name": "Stellar",
+              "nativeCurrency": "stellar:pubnet/slip44:148",
+            },
+            "stellar:testnet": {
+              "chainId": "stellar:testnet",
+              "isEvm": false,
+              "name": "Stellar Testnet",
+              "nativeCurrency": "stellar:testnet/slip44:148",
+            },
+            "tron:2494104990": {
               "chainId": "tron:2494104990",
               "isEvm": false,
               "name": "Tron Shasta",
               "nativeCurrency": "tron:2494104990/slip44:195",
             },
-            "tron:3448148188": Object {
+            "tron:3448148188": {
               "chainId": "tron:3448148188",
               "isEvm": false,
               "name": "Tron Nile",
               "nativeCurrency": "tron:3448148188/slip44:195",
             },
-            "tron:728126428": Object {
+            "tron:728126428": {
               "chainId": "tron:728126428",
               "isEvm": false,
               "name": "Tron",
               "nativeCurrency": "tron:728126428/slip44:195",
             },
           },
-          "networksWithTransactionActivity": Object {},
+          "networksWithTransactionActivity": {},
           "selectedMultichainNetworkChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
         }
       `);
@@ -923,77 +1021,89 @@ describe('MultichainNetworkController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
+        {
           "isEvmSelected": true,
-          "multichainNetworkConfigurationsByChainId": Object {
-            "bip122:000000000019d6689c085ae165831e93": Object {
+          "multichainNetworkConfigurationsByChainId": {
+            "bip122:000000000019d6689c085ae165831e93": {
               "chainId": "bip122:000000000019d6689c085ae165831e93",
               "isEvm": false,
               "name": "Bitcoin",
               "nativeCurrency": "bip122:000000000019d6689c085ae165831e93/slip44:0",
             },
-            "bip122:000000000933ea01ad0ee984209779ba": Object {
+            "bip122:000000000933ea01ad0ee984209779ba": {
               "chainId": "bip122:000000000933ea01ad0ee984209779ba",
               "isEvm": false,
               "name": "Bitcoin Testnet",
               "nativeCurrency": "bip122:000000000933ea01ad0ee984209779ba/slip44:0",
             },
-            "bip122:00000000da84f2bafbbc53dee25a72ae": Object {
+            "bip122:00000000da84f2bafbbc53dee25a72ae": {
               "chainId": "bip122:00000000da84f2bafbbc53dee25a72ae",
               "isEvm": false,
               "name": "Bitcoin Testnet4",
               "nativeCurrency": "bip122:00000000da84f2bafbbc53dee25a72ae/slip44:0",
             },
-            "bip122:00000008819873e925422c1ff0f99f7c": Object {
+            "bip122:00000008819873e925422c1ff0f99f7c": {
               "chainId": "bip122:00000008819873e925422c1ff0f99f7c",
               "isEvm": false,
               "name": "Bitcoin Mutinynet",
               "nativeCurrency": "bip122:00000008819873e925422c1ff0f99f7c/slip44:0",
             },
-            "bip122:regtest": Object {
+            "bip122:regtest": {
               "chainId": "bip122:regtest",
               "isEvm": false,
               "name": "Bitcoin Regtest",
               "nativeCurrency": "bip122:regtest/slip44:0",
             },
-            "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z": Object {
+            "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z": {
               "chainId": "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z",
               "isEvm": false,
               "name": "Solana Testnet",
               "nativeCurrency": "solana:4uhcVJyU9pJkvQyS88uRDiswHXSCkY3z/slip44:501",
             },
-            "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": Object {
+            "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp": {
               "chainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
               "isEvm": false,
               "name": "Solana",
               "nativeCurrency": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501",
             },
-            "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": Object {
+            "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1": {
               "chainId": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1",
               "isEvm": false,
               "name": "Solana Devnet",
               "nativeCurrency": "solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/slip44:501",
             },
-            "tron:2494104990": Object {
+            "stellar:pubnet": {
+              "chainId": "stellar:pubnet",
+              "isEvm": false,
+              "name": "Stellar",
+              "nativeCurrency": "stellar:pubnet/slip44:148",
+            },
+            "stellar:testnet": {
+              "chainId": "stellar:testnet",
+              "isEvm": false,
+              "name": "Stellar Testnet",
+              "nativeCurrency": "stellar:testnet/slip44:148",
+            },
+            "tron:2494104990": {
               "chainId": "tron:2494104990",
               "isEvm": false,
               "name": "Tron Shasta",
               "nativeCurrency": "tron:2494104990/slip44:195",
             },
-            "tron:3448148188": Object {
+            "tron:3448148188": {
               "chainId": "tron:3448148188",
               "isEvm": false,
               "name": "Tron Nile",
               "nativeCurrency": "tron:3448148188/slip44:195",
             },
-            "tron:728126428": Object {
+            "tron:728126428": {
               "chainId": "tron:728126428",
               "isEvm": false,
               "name": "Tron",
               "nativeCurrency": "tron:728126428/slip44:195",
             },
           },
-          "networksWithTransactionActivity": Object {},
+          "networksWithTransactionActivity": {},
           "selectedMultichainNetworkChainId": "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp",
         }
       `);

@@ -1,4 +1,5 @@
-import { EthMethod, type OriginalRequest } from '../types';
+import { EthMethod } from '../types';
+import type { OriginalRequest } from '../types';
 import { normalizeParam } from './normalize';
 
 export const DECODING_API_ERRORS = {
@@ -48,7 +49,7 @@ export async function decodeSignature(
   } catch (error: unknown) {
     return {
       error: {
-        message: (error as unknown as Error).message,
+        message: (error as Error).message,
         type: DECODING_API_ERRORS.DECODING_FAILED_WITH_ERROR,
       },
     };

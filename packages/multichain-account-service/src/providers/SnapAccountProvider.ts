@@ -1,56 +1,473 @@
-import { type Bip44Account } from '@metamask/account-api';
-import type { SnapKeyring } from '@metamask/eth-snap-keyring';
-import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
-import { KeyringTypes } from '@metamask/keyring-controller';
+import { assertIsBip44Account } from '@metamask/account-api';
+import type { Bip44Account } from '@metamask/account-api';
+import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
+import type { SnapKeyring as SnapKeyringV2 } from '@metamask/eth-snap-keyring/v2';
+import { isSnapKeyring } from '@metamask/eth-snap-keyring/v2';
+import {
+  AccountCreationType,
+  assertCreateAccountOptionIsSupported,
+} from '@metamask/keyring-api';
+import type {
+  CreateAccountBip44DeriveIndexOptions,
+  CreateAccountBip44DeriveIndexRangeOptions,
+  CreateAccountOptions,
+  EntropySourceId,
+  KeyringAccount,
+} from '@metamask/keyring-api';
+import type { KeyringMetadata } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import type { Json, SnapId } from '@metamask/snaps-sdk';
-import type { MultichainAccountServiceMessenger } from 'src/types';
+import { KeyringClient } from '@metamask/keyring-snap-client';
+import type { Json, JsonRpcRequest, SnapId } from '@metamask/snaps-sdk';
+import { HandlerType } from '@metamask/snaps-utils';
+import { Semaphore } from 'async-mutex';
 
+import {
+  toCreateAccountsV2DataTraces,
+  traceFallback,
+  TraceName,
+} from '../analytics';
+import { reportError } from '../errors';
+import { projectLogger as log, WARNING_PREFIX } from '../logger';
+import type { MultichainAccountServiceMessenger } from '../types';
 import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
+import { withTimeout } from './utils';
 
-export type RestrictedSnapKeyringCreateAccount = (
-  options: Record<string, Json>,
-) => Promise<KeyringAccount>;
+export type RestrictedSnapKeyring = {
+  createAccount: SnapKeyringV2['createAccount'];
+  createAccounts: SnapKeyringV2['createAccounts'];
+  deleteAccount: SnapKeyringV2['deleteAccount'];
+};
+
+export type SnapAccountProviderConfig = {
+  maxConcurrency?: number;
+  discovery: {
+    enabled?: boolean;
+    maxAttempts: number;
+    timeoutMs: number;
+    backOffMs: number;
+  };
+  createAccounts: {
+    /**
+     * Whether to enable account batching with `createAccounts` method. If `true`, accounts will
+     * be created in batch.
+     *
+     * NOTE: The Snap has to implement this optional method for batching support.
+     * Defaults to `false`.
+     */
+    batched: boolean;
+    /**
+     * Timeout for account creation operations.
+     *
+     * NOTE: The value might have to be adapted in case batching is enabled!
+     */
+    timeoutMs: number;
+  };
+  resyncAccounts?: {
+    /**
+     * Whether to automatically remove extra Snap accounts when the Snap has
+     * more accounts than MetaMask. If `false`, a warning is logged instead.
+     * Defaults to `true`.
+     */
+    autoRemoveExtraSnapAccounts?: boolean;
+  };
+};
 
 export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   readonly snapId: SnapId;
 
-  constructor(snapId: SnapId, messenger: MultichainAccountServiceMessenger) {
+  protected readonly config: SnapAccountProviderConfig;
+
+  readonly #client: KeyringClient;
+
+  readonly #queue?: Semaphore;
+
+  readonly #trace: TraceCallback;
+
+  constructor(
+    snapId: SnapId,
+    messenger: MultichainAccountServiceMessenger,
+    config: SnapAccountProviderConfig,
+    /* istanbul ignore next */
+    trace: TraceCallback = traceFallback,
+  ) {
     super(messenger);
 
     this.snapId = snapId;
+    this.#client = this.#getKeyringClientFromSnapId(snapId);
+
+    const maxConcurrency = config.maxConcurrency ?? Infinity;
+    this.config = {
+      ...config,
+      discovery: {
+        ...config.discovery,
+        enabled: config.discovery.enabled ?? true,
+      },
+      maxConcurrency,
+    };
+
+    // Create semaphore only if concurrency is limited
+    if (isFinite(maxConcurrency)) {
+      this.#queue = new Semaphore(maxConcurrency);
+    }
+
+    this.#trace = trace;
   }
 
-  protected async getRestrictedSnapAccountCreator(): Promise<RestrictedSnapKeyringCreateAccount> {
-    // NOTE: We're not supposed to make the keyring instance escape `withKeyring` but
-    // we have to use the `SnapKeyring` instance to be able to create Solana account
+  /**
+   * Ensures that the Snap is ready to be used.
+   *
+   * @returns A promise that resolves when the Snap is ready.
+   * @throws An error if the Snap could not become ready.
+   */
+  async ensureReady(): Promise<void> {
+    return this.messenger.call('SnapAccountService:ensureReady', this.snapId);
+  }
+
+  /**
+   * Wraps an async operation with concurrency limiting based on maxConcurrency config.
+   * If maxConcurrency is Infinity (the default), the operation runs immediately without throttling.
+   * Otherwise, it's queued through the semaphore to respect the concurrency limit.
+   *
+   * @param operation - The async operation to execute.
+   * @returns The result of the operation.
+   */
+  protected async withMaxConcurrency<Result>(
+    operation: () => Promise<Result>,
+  ): Promise<Result> {
+    if (this.#queue) {
+      return this.#queue.runExclusive(operation);
+    }
+    return operation();
+  }
+
+  protected async trace<ReturnType>(
+    request: TraceRequest,
+    fn: () => Promise<ReturnType>,
+  ): Promise<ReturnType> {
+    return this.#trace(request, fn);
+  }
+
+  async #getRestrictedSnapKeyring(): Promise<RestrictedSnapKeyring> {
+    // NOTE: We're not supposed to make the keyring instance escape `withKeyringV2` but
+    // we have to use the `SnapKeyringV2` instance to be able to create Solana account
     // without triggering UI confirmation.
     // Also, creating account that way won't invalidate the Snap keyring state. The
     // account will get created and persisted properly with the Snap account creation
     // flow "asynchronously" (with `notify:accountCreated`).
-    const createAccount = await this.withKeyring<
-      SnapKeyring,
-      SnapKeyring['createAccount']
-    >({ type: KeyringTypes.snap }, async ({ keyring }) =>
-      keyring.createAccount.bind(keyring),
-    );
+    const { createAccount, createAccounts } = await this.#withSnapKeyring<{
+      createAccount: SnapKeyringV2['createAccount'];
+      createAccounts: SnapKeyringV2['createAccounts'];
+    }>(async ({ keyring }) => ({
+      createAccount: keyring.createAccount.bind(keyring),
+      createAccounts: keyring.createAccounts.bind(keyring),
+    }));
 
-    return (options) =>
-      createAccount(this.snapId, options, {
-        displayAccountNameSuggestion: false,
-        displayConfirmation: false,
-        setSelectedAccount: false,
-      });
+    return {
+      createAccount: async (options) =>
+        // We use the "unguarded" account creation here (see explanation above).
+        await createAccount(options, {
+          displayAccountNameSuggestion: false,
+          displayConfirmation: false,
+          setSelectedAccount: false,
+        }),
+      createAccounts: async (options) => await createAccounts(options),
+      deleteAccount: async (id: string) =>
+        // Though, when removing account, we can use the normal flow.
+        await this.#withSnapKeyring(async ({ keyring }) => {
+          await keyring.deleteAccount(id);
+        }),
+    };
+  }
+
+  #getKeyringClientFromSnapId(snapId: string): KeyringClient {
+    return new KeyringClient({
+      send: async (request: JsonRpcRequest): Promise<Json> => {
+        const response = await this.messenger.call(
+          'SnapController:handleRequest',
+          {
+            snapId: snapId as SnapId,
+            origin: 'metamask',
+            handler: HandlerType.OnKeyringRequest,
+            request,
+          },
+        );
+        return response as Json;
+      },
+    });
+  }
+
+  async resyncAccounts(
+    accounts: Bip44Account<InternalAccount>[],
+  ): Promise<void> {
+    await this.withSnap(async ({ keyring }) => {
+      const localSnapAccounts = accounts.filter(
+        (account) => account.metadata.snap?.id === this.snapId,
+      );
+      const snapAccounts = new Set(
+        (await this.#client.listAccounts()).map((account) => account.id),
+      );
+
+      // NOTE: This should never happen, but if it does, we recover by deleting the
+      // extra accounts from the Snap to bring it back in sync with MetaMask.
+      if (localSnapAccounts.length < snapAccounts.size) {
+        const autoRemoveExtraSnapAccounts =
+          this.config.resyncAccounts?.autoRemoveExtraSnapAccounts ?? true;
+
+        if (autoRemoveExtraSnapAccounts) {
+          // Build a set of local account IDs for quick lookup
+          const localAccountIds = new Set(
+            localSnapAccounts.map((account) => account.id),
+          );
+
+          // Find and delete accounts that exist in Snap but not in MetaMask
+          await Promise.all(
+            [...snapAccounts].map(async (snapAccountId) => {
+              try {
+                if (!localAccountIds.has(snapAccountId)) {
+                  // This account exists in the Snap but not in MetaMask, delete it from
+                  // the Snap.
+                  await this.#client.deleteAccount(snapAccountId);
+                  // Update the local Set so subsequent checks use the correct size
+                  snapAccounts.delete(snapAccountId);
+                }
+              } catch (error) {
+                reportError(
+                  this.messenger,
+                  `Unable to delete de-synced Snap account: ${this.snapId}`,
+                  error,
+                  {
+                    provider: this.getName(),
+                    snapAccountId,
+                  },
+                );
+              }
+            }),
+          );
+        } else {
+          const message = `Snap "${this.snapId}" has de-synced accounts, Snap has more accounts than MetaMask! (${localSnapAccounts.length} < ${snapAccounts.size})`;
+          log(`${WARNING_PREFIX} ${message}`);
+          console.warn(message);
+          return;
+        }
+      }
+
+      // We want this part to be fast, so we only check for sizes, but we might need
+      // to make a real "diff" between the 2 states to not miss any de-sync.
+      if (localSnapAccounts.length > snapAccounts.size) {
+        // We always use the MetaMask list as the main reference here.
+        await Promise.all(
+          localSnapAccounts.map(async (account) => {
+            const { id: entropySource, groupIndex } = account.options.entropy;
+
+            try {
+              if (!snapAccounts.has(account.id)) {
+                // We still need to remove the accounts from the Snap keyring since we're
+                // about to create the same account again, which will use a new ID, but will
+                // keep using the same address, and the Snap keyring does not allow this.
+                await keyring.deleteAccount(account.id);
+                // The Snap has no account in its state for this one, we re-create it.
+                await this.createAccounts({
+                  type: AccountCreationType.Bip44DeriveIndex,
+                  entropySource,
+                  groupIndex,
+                });
+              }
+            } catch (error) {
+              reportError(this.messenger, 'Unable to re-sync accounts', error, {
+                provider: this.getName(),
+                groupIndex,
+              });
+            }
+          }),
+        );
+      }
+    });
+  }
+
+  async #withSnapKeyring<CallbackResult = void>(
+    operation: ({
+      keyring,
+      metadata,
+    }: {
+      keyring: SnapKeyringV2;
+      metadata: KeyringMetadata;
+    }) => Promise<CallbackResult>,
+  ): Promise<CallbackResult> {
+    return this.withKeyringV2<SnapKeyringV2, CallbackResult>(
+      {
+        filter: (keyring) =>
+          isSnapKeyring(keyring) && keyring.snapId === this.snapId,
+      },
+      (args) => operation(args),
+    );
+  }
+
+  protected async withSnap<CallbackResult = void>(
+    operation: (snap: {
+      client: KeyringClient;
+      keyring: RestrictedSnapKeyring;
+    }) => Promise<CallbackResult>,
+  ): Promise<CallbackResult> {
+    await this.ensureReady();
+
+    return await operation({
+      client: this.#client,
+      keyring: await this.#getRestrictedSnapKeyring(),
+    });
   }
 
   abstract isAccountCompatible(account: Bip44Account<InternalAccount>): boolean;
 
-  abstract createAccounts(options: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[]>;
+  protected abstract createAccountV1(
+    keyring: RestrictedSnapKeyring,
+    options: { entropySource: EntropySourceId; groupIndex: number },
+  ): Promise<KeyringAccount>;
 
-  abstract discoverAndCreateAccounts(options: {
+  protected toBip44Account(
+    account: KeyringAccount,
+    _options: { entropySource: EntropySourceId; groupIndex: number },
+  ): Bip44Account<KeyringAccount> {
+    assertIsBip44Account(account);
+    return account;
+  }
+
+  protected async createBip44Accounts(
+    keyring: RestrictedSnapKeyring,
+    options:
+      | CreateAccountBip44DeriveIndexOptions
+      | CreateAccountBip44DeriveIndexRangeOptions,
+  ): Promise<Bip44Account<KeyringAccount>[]> {
+    return this.withMaxConcurrency(async () => {
+      let groupIndexOffset = 0;
+      let snapAccounts: KeyringAccount[] = [];
+
+      const batched = this.config.createAccounts.batched ?? false;
+      const { entropySource } = options;
+
+      const createAccountV1 = async (
+        groupIndex: number,
+      ): Promise<KeyringAccount> =>
+        await withTimeout(
+          () =>
+            this.trace(
+              {
+                name: TraceName.ProviderCreateAccountV1,
+                data: {
+                  provider: this.getName(),
+                  groupIndex,
+                },
+              },
+              () =>
+                this.createAccountV1(keyring, { entropySource, groupIndex }),
+            ),
+          this.config.createAccounts.timeoutMs,
+        );
+      const createAccountsV2 = async (
+        optionsV2:
+          | CreateAccountBip44DeriveIndexOptions
+          | CreateAccountBip44DeriveIndexRangeOptions,
+      ): Promise<KeyringAccount[]> =>
+        await withTimeout(
+          () =>
+            this.trace(
+              {
+                name: TraceName.ProviderCreateAccounts,
+                data: {
+                  provider: this.getName(),
+                  ...toCreateAccountsV2DataTraces(optionsV2),
+                },
+              },
+              () => keyring.createAccounts(optionsV2),
+            ),
+          this.config.createAccounts.timeoutMs,
+        );
+
+      if (options.type === `${AccountCreationType.Bip44DeriveIndexRange}`) {
+        if (batched) {
+          // Batch account creations.
+          snapAccounts = await createAccountsV2(options);
+        } else {
+          const { range } = options;
+
+          // Create accounts one by one.
+          for (
+            let groupIndex = range.from;
+            groupIndex <= range.to;
+            groupIndex++
+          ) {
+            const snapAccount = await createAccountV1(groupIndex);
+
+            snapAccounts.push(snapAccount);
+          }
+        }
+
+        // Group indices are sequential, so we just need the starting index.
+        groupIndexOffset = options.range.from;
+      } else {
+        if (batched) {
+          // Create account using new v2-like flow (no async flow + no Snap keyring events).
+          snapAccounts = await createAccountsV2(options);
+        } else {
+          const { groupIndex } = options;
+
+          // Create account using the existing v1 flow.
+          const snapAccount = await createAccountV1(groupIndex);
+
+          snapAccounts = [snapAccount];
+        }
+
+        // For single account, there will only be 1 account, so we can use the
+        // provided group index directly.
+        groupIndexOffset = options.groupIndex;
+      }
+
+      return snapAccounts.map((snapAccount, index) => {
+        const groupIndex = groupIndexOffset + index;
+        const account = this.toBip44Account(snapAccount, {
+          entropySource,
+          groupIndex,
+        });
+
+        this.accounts.add(snapAccount.id);
+        return account;
+      });
+    });
+  }
+
+  async createAccounts(
+    options: CreateAccountOptions,
+  ): Promise<Bip44Account<KeyringAccount>[]> {
+    assertCreateAccountOptionIsSupported(options, [
+      `${AccountCreationType.Bip44DeriveIndex}`,
+      `${AccountCreationType.Bip44DeriveIndexRange}`,
+    ]);
+
+    return this.withSnap(async ({ keyring }) =>
+      this.createBip44Accounts(keyring, options),
+    );
+  }
+
+  /**
+   * Delete a snap account by id.
+   *
+   * Resolves the account's address from the tracked account, then forwards to
+   * the legacy `SnapKeyring.removeAccount(address)`. The Snap keyring takes
+   * care of notifying the snap to clean up its own state through the normal
+   * account-removal flow (same path used by `resyncAccounts`).
+   *
+   * @param id - The id of the account to delete.
+   */
+  async deleteAccount(id: Bip44Account<KeyringAccount>['id']): Promise<void> {
+    const account = this.getAccount(id);
+
+    await this.#withSnapKeyring(async ({ keyring }) => {
+      await keyring.deleteAccount(account.id);
+    });
+
+    this.accounts.delete(id);
+  }
+
+  abstract discoverAccounts(options: {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]>;

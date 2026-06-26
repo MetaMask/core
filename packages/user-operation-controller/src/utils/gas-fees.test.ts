@@ -1,10 +1,8 @@
 import { ORIGIN_METAMASK, query } from '@metamask/controller-utils';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
-import {
-  UserFeeLevel,
-  type TransactionParams,
-} from '@metamask/transaction-controller';
+import { UserFeeLevel } from '@metamask/transaction-controller';
+import type { TransactionParams } from '@metamask/transaction-controller';
 import { cloneDeep } from 'lodash';
 
 import type { UpdateGasFeesRequest } from './gas-fees';

@@ -1,5 +1,7 @@
+import type { Transaction } from '@metamask/core-backend';
 import type { BlockTracker } from '@metamask/network-controller';
-import { createModuleLogger, type Hex } from '@metamask/utils';
+import { createModuleLogger } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import { isEqual } from 'lodash';
 
 import { projectLogger } from '../logger';
@@ -8,6 +10,12 @@ import type { TransactionMeta } from '../types';
 import { getAcceleratedPollingParams } from '../utils/feature-flags';
 
 const log = createModuleLogger(projectLogger, 'transaction-poller');
+
+enum IntervalTrigger {
+  Accelerated = 'Accelerated',
+  BlockTracker = 'BlockTracker',
+  Websocket = 'Websocket',
+}
 
 /**
  * Helper class to orchestrate when to poll pending transactions.
@@ -52,13 +60,15 @@ export class TransactionPoller {
    *
    * @param listener - The listener to call on every interval.
    */
-  start(listener: (latestBlockNumber: string) => Promise<void>) {
+  start(listener: (latestBlockNumber: string) => Promise<void>): void {
     if (this.#running) {
       return;
     }
 
     this.#listener = listener;
     this.#running = true;
+
+    this.#subscribeToTransactionUpdates();
 
     this.#queue();
 
@@ -69,7 +79,7 @@ export class TransactionPoller {
    * Stop the poller.
    * Remove all timeouts and block tracker listeners.
    */
-  stop() {
+  stop(): void {
     if (!this.#running) {
       return;
     }
@@ -81,6 +91,7 @@ export class TransactionPoller {
 
     this.#stopTimeout();
     this.#stopBlockTracker();
+    this.#unsubscribeFromTransactionUpdates();
 
     log('Stopped');
   }
@@ -92,7 +103,7 @@ export class TransactionPoller {
    *
    * @param pendingTransactions - The pending transactions to poll.
    */
-  setPendingTransactions(pendingTransactions: TransactionMeta[]) {
+  setPendingTransactions(pendingTransactions: TransactionMeta[]): void {
     const currentPendingTransactionIds = (this.#pendingTransactions ?? []).map(
       (tx) => tx.id,
     );
@@ -120,7 +131,7 @@ export class TransactionPoller {
     }
   }
 
-  #queue() {
+  #queue(): void {
     if (!this.#running) {
       return;
     }
@@ -132,8 +143,8 @@ export class TransactionPoller {
 
     if (this.#acceleratedCount >= countMax) {
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      this.#blockTrackerListener = (latestBlockNumber) =>
-        this.#interval(false, latestBlockNumber);
+      this.#blockTrackerListener = (latestBlockNumber): Promise<void> =>
+        this.#interval(IntervalTrigger.BlockTracker, latestBlockNumber);
 
       this.#blockTracker.on('latest', this.#blockTrackerListener);
 
@@ -146,16 +157,27 @@ export class TransactionPoller {
 
     // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.#timeout = setTimeout(async () => {
-      await this.#interval(true);
+      await this.#interval(IntervalTrigger.Accelerated);
       this.#queue();
     }, intervalMs);
   }
 
-  async #interval(isAccelerated: boolean, latestBlockNumber?: string) {
-    if (isAccelerated) {
-      log('Accelerated interval', this.#acceleratedCount + 1);
-    } else {
-      log('Block tracker interval', latestBlockNumber);
+  async #interval(
+    trigger: IntervalTrigger,
+    latestBlockNumber?: string,
+  ): Promise<void> {
+    switch (trigger) {
+      case IntervalTrigger.Websocket:
+        log('AccountActivityService:transactionUpdated received');
+        break;
+      case IntervalTrigger.Accelerated:
+        log('Accelerated interval', this.#acceleratedCount + 1);
+        break;
+      case IntervalTrigger.BlockTracker:
+        log('Block tracker interval', latestBlockNumber);
+        break;
+      default:
+        break;
     }
 
     const latestBlockNumberFinal =
@@ -163,12 +185,12 @@ export class TransactionPoller {
 
     await this.#listener?.(latestBlockNumberFinal);
 
-    if (isAccelerated && this.#running) {
+    if (trigger === IntervalTrigger.Accelerated && this.#running) {
       this.#acceleratedCount += 1;
     }
   }
 
-  #stopTimeout() {
+  #stopTimeout(): void {
     if (!this.#timeout) {
       return;
     }
@@ -177,12 +199,51 @@ export class TransactionPoller {
     this.#timeout = undefined;
   }
 
-  #stopBlockTracker() {
+  #stopBlockTracker(): void {
     if (!this.#blockTrackerListener) {
       return;
     }
 
     this.#blockTracker.removeListener('latest', this.#blockTrackerListener);
     this.#blockTrackerListener = undefined;
+  }
+
+  readonly #transactionUpdatedHandler = (transaction: Transaction): void => {
+    if (!this.#running) {
+      return;
+    }
+
+    if (
+      transaction.status !== 'confirmed' &&
+      transaction.status !== 'dropped' &&
+      transaction.status !== 'failed'
+    ) {
+      return;
+    }
+
+    const isPendingTransaction = this.#pendingTransactions?.some(
+      (tx) => tx.hash?.toLowerCase() === transaction.id.toLowerCase(),
+    );
+    if (!isPendingTransaction) {
+      return;
+    }
+
+    this.#interval(IntervalTrigger.Websocket).catch(() => {
+      // Silently catch errors to prevent unhandled rejections
+    });
+  };
+
+  #subscribeToTransactionUpdates(): void {
+    this.#messenger.subscribe(
+      'AccountActivityService:transactionUpdated',
+      this.#transactionUpdatedHandler,
+    );
+  }
+
+  #unsubscribeFromTransactionUpdates(): void {
+    this.#messenger.unsubscribe(
+      'AccountActivityService:transactionUpdated',
+      this.#transactionUpdatedHandler,
+    );
   }
 }

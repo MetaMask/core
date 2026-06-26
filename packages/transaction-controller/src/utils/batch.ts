@@ -7,39 +7,26 @@ import {
   ORIGIN_METAMASK,
   toHex,
 } from '@metamask/controller-utils';
-import type EthQuery from '@metamask/eth-query';
 import type {
   FetchGasFeeEstimateOptions,
   GasFeeState,
 } from '@metamask/gas-fee-controller';
+import type { NetworkClientId } from '@metamask/network-controller';
 import { JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { bytesToHex, createModuleLogger } from '@metamask/utils';
 import type { WritableDraft } from 'immer/dist/internal.js';
 import { parse, v4 } from 'uuid';
 
-import {
-  ERROR_MESSGE_PUBLIC_KEY,
-  doesChainSupportEIP7702,
-  generateEIP7702BatchTransaction,
-  isAccountUpgradedToEIP7702,
-} from './eip7702';
-import {
-  getBatchSizeLimit,
-  getEIP7702SupportedChains,
-  getEIP7702UpgradeContractAddress,
-} from './feature-flags';
-import { simulateGasBatch } from './gas';
-import { validateBatchRequest } from './validation';
-import type { GetSimulationConfig, TransactionControllerState } from '..';
-import {
-  determineTransactionType,
-  GasFeeEstimateLevel,
-  TransactionStatus,
-  type BatchTransactionParams,
-  type TransactionController,
-  type TransactionControllerMessenger,
-  type TransactionMeta,
+import { GasFeeEstimateLevel, TransactionStatus } from '..';
+import type {
+  BatchTransactionParams,
+  GetSimulationConfig,
+  PublishBatchHookRequest,
+  TransactionController,
+  TransactionControllerMessenger,
+  TransactionControllerState,
+  TransactionMeta,
 } from '..';
 import { DefaultGasFeeFlow } from '../gas-flows/DefaultGasFeeFlow';
 import { updateTransactionGasEstimates } from '../helpers/GasFeePoller';
@@ -47,6 +34,7 @@ import type { PendingTransactionTracker } from '../helpers/PendingTransactionTra
 import { CollectPublishHook } from '../hooks/CollectPublishHook';
 import { SequentialPublishBatchHook } from '../hooks/SequentialPublishBatchHook';
 import { projectLogger } from '../logger';
+import { TransactionEnvelopeType, TransactionType } from '../types';
 import type {
   NestedTransactionMetadata,
   SecurityAlertResponse,
@@ -60,12 +48,23 @@ import type {
   IsAtomicBatchSupportedResultEntry,
   TransactionBatchMeta,
 } from '../types';
+import type { TransactionBatchResult, TransactionParams } from '../types';
 import {
-  TransactionEnvelopeType,
-  type TransactionBatchResult,
-  type TransactionParams,
-  TransactionType,
-} from '../types';
+  ERROR_MESSGE_PUBLIC_KEY,
+  doesAccountSupportEIP7702,
+  doesChainSupportEIP7702,
+  generateEIP7702BatchTransaction,
+  isAccountUpgradedToEIP7702,
+} from './eip7702';
+import {
+  getBatchSizeLimit,
+  getEIP7702SupportedChains,
+  getEIP7702UpgradeContractAddress,
+} from './feature-flags';
+import { simulateGasBatch } from './gas';
+import { getChainId } from './provider';
+import { determineTransactionType } from './transaction-type';
+import { validateBatchRequest } from './validation';
 
 type UpdateStateCallback = (
   callback: (
@@ -75,8 +74,7 @@ type UpdateStateCallback = (
 
 type AddTransactionBatchRequest = {
   addTransaction: TransactionController['addTransaction'];
-  getChainId: (networkClientId: string) => Hex;
-  getEthQuery: (networkClientId: string) => EthQuery;
+  estimateGas: TransactionController['estimateGas'];
   getGasFeeEstimates: (
     options: FetchGasFeeEstimateOptions,
   ) => Promise<GasFeeState>;
@@ -89,12 +87,10 @@ type AddTransactionBatchRequest = {
   isSimulationEnabled: () => boolean;
   messenger: TransactionControllerMessenger;
   publishBatchHook?: PublishBatchHook;
-  publishTransaction: (
-    _ethQuery: EthQuery,
-    transactionMeta: TransactionMeta,
-  ) => Promise<Hex>;
+  publishTransaction: (transactionMeta: TransactionMeta) => Promise<Hex>;
   publicKeyEIP7702?: Hex;
   request: TransactionBatchRequest;
+  requestId?: string;
   signTransaction: (
     transactionMeta: TransactionMeta,
   ) => Promise<string | undefined>;
@@ -108,7 +104,6 @@ type AddTransactionBatchRequest = {
 type IsAtomicBatchSupportedRequestInternal = {
   address: Hex;
   chainIds?: Hex[];
-  getEthQuery: (chainId: Hex) => EthQuery;
   messenger: TransactionControllerMessenger;
   publicKeyEIP7702?: Hex;
 };
@@ -132,17 +127,31 @@ export async function addTransactionBatch(
     messenger,
     request: transactionBatchRequest,
   } = request;
+
+  const { disableHook, disable7702, disableSequential } =
+    transactionBatchRequest;
+
   const sizeLimit = getBatchSizeLimit(messenger);
 
   validateBatchRequest({
     internalAccounts: getInternalAccounts(),
+    isInternal: transactionBatchRequest.isInternal,
     request: transactionBatchRequest,
     sizeLimit,
   });
 
   log('Adding', transactionBatchRequest);
 
-  if (!transactionBatchRequest.disable7702) {
+  const accountCanUse7702 = doesAccountSupportEIP7702(
+    messenger,
+    transactionBatchRequest.from,
+  );
+
+  if (disableHook && disableSequential && !disable7702 && !accountCanUse7702) {
+    throw rpcErrors.internal('Account does not support EIP-7702');
+  }
+
+  if (!disable7702 && accountCanUse7702) {
     try {
       return await addTransactionBatchWith7702(request);
     } catch (error: unknown) {
@@ -150,7 +159,7 @@ export async function addTransactionBatch(
         error instanceof JsonRpcError &&
         error.message === 'Chain does not support EIP-7702';
 
-      if (!isEIP7702NotSupportedError) {
+      if (!isEIP7702NotSupportedError || (disableHook && disableSequential)) {
         throw error;
       }
     }
@@ -168,13 +177,7 @@ export async function addTransactionBatch(
 export async function isAtomicBatchSupported(
   request: IsAtomicBatchSupportedRequestInternal,
 ): Promise<IsAtomicBatchSupportedResult> {
-  const {
-    address,
-    chainIds,
-    getEthQuery,
-    messenger,
-    publicKeyEIP7702: publicKey,
-  } = request;
+  const { address, chainIds, messenger, publicKeyEIP7702: publicKey } = request;
 
   if (!publicKey) {
     throw rpcErrors.internal(ERROR_MESSGE_PUBLIC_KEY);
@@ -190,7 +193,10 @@ export async function isAtomicBatchSupported(
     await Promise.all(
       filteredChainIds.map(async (chainId) => {
         try {
-          const ethQuery = getEthQuery(chainId);
+          const networkClientId = messenger.call(
+            'NetworkController:findNetworkClientIdByChainId',
+            chainId,
+          );
 
           const { isSupported, delegationAddress } =
             await isAccountUpgradedToEIP7702(
@@ -198,7 +204,7 @@ export async function isAtomicBatchSupported(
               chainId,
               publicKey,
               messenger,
-              ethQuery,
+              networkClientId,
             );
 
           const upgradeContractAddress = getEIP7702UpgradeContractAddress(
@@ -234,7 +240,7 @@ export async function isAtomicBatchSupported(
  *
  * @returns  A unique batch ID as a hexadecimal string.
  */
-function generateBatchId(): Hex {
+export function generateBatchId(): Hex {
   const idString = v4();
   const idBytes = new Uint8Array(parse(idString));
   return bytesToHex(idBytes);
@@ -245,26 +251,34 @@ function generateBatchId(): Hex {
  *
  * @param request - The batch request.
  * @param singleRequest - The request for a single transaction.
- * @param ethQuery - The EthQuery instance used to interact with the Ethereum blockchain.
+ * @param messenger - The transaction controller messenger.
+ * @param networkClientId - The network client ID.
  * @returns The metadata for the nested transaction.
  */
 async function getNestedTransactionMeta(
   request: TransactionBatchRequest,
   singleRequest: TransactionBatchSingleRequest,
-  ethQuery: EthQuery,
+  messenger: TransactionControllerMessenger,
+  networkClientId: NetworkClientId,
 ): Promise<NestedTransactionMetadata> {
   const { from } = request;
   const { params, type: requestedType } = singleRequest;
 
+  if (requestedType) {
+    return {
+      ...params,
+      type: requestedType,
+    };
+  }
+
   const { type: determinedType } = await determineTransactionType(
     { from, ...params },
-    ethQuery,
+    { messenger, networkClientId },
   );
 
-  const type = requestedType ?? determinedType;
   return {
     ...params,
-    type,
+    type: determinedType,
   };
 }
 
@@ -276,29 +290,38 @@ async function getNestedTransactionMeta(
  */
 async function addTransactionBatchWith7702(
   request: AddTransactionBatchRequest,
-) {
+): Promise<TransactionBatchResult> {
   const {
     addTransaction,
-    getChainId,
-    getTransaction,
     messenger,
     publicKeyEIP7702,
     request: userRequest,
   } = request;
 
   const {
+    atomic,
     batchId: batchIdOverride,
+    disableUpgrade,
     from,
+    gasFeeToken,
+    gasLimit7702,
+    isInternal,
     networkClientId,
     origin,
+    overwriteUpgrade,
+    requestId,
+    requiredAssets,
     requireApproval,
     securityAlertId,
+    skipInitialGasEstimate,
     transactions,
+    excludeNativeTokenForFee,
+    isGasFeeIncluded,
+    isGasFeeSponsored,
     validateSecurity,
   } = userRequest;
 
-  const chainId = getChainId(networkClientId);
-  const ethQuery = request.getEthQuery(networkClientId);
+  const chainId = getChainId({ messenger, networkClientId });
   const isChainSupported = doesChainSupportEIP7702(chainId, messenger);
 
   if (!isChainSupported) {
@@ -310,47 +333,56 @@ async function addTransactionBatchWith7702(
     throw rpcErrors.internal(ERROR_MESSGE_PUBLIC_KEY);
   }
 
-  const { delegationAddress, isSupported } = await isAccountUpgradedToEIP7702(
-    from,
-    chainId,
-    publicKeyEIP7702,
-    messenger,
-    ethQuery,
-  );
+  let requiresUpgrade = false;
 
-  log('Account', { delegationAddress, isSupported });
+  if (!disableUpgrade) {
+    const { delegationAddress, isSupported } = await isAccountUpgradedToEIP7702(
+      from,
+      chainId,
+      publicKeyEIP7702,
+      messenger,
+      networkClientId,
+    );
 
-  if (!isSupported && delegationAddress) {
-    log('Account upgraded to unsupported contract', from, delegationAddress);
-    throw rpcErrors.internal('Account upgraded to unsupported contract');
+    log('Account', { delegationAddress, isSupported });
+
+    if (!isSupported && delegationAddress && !overwriteUpgrade) {
+      log('Account upgraded to unsupported contract', from, delegationAddress);
+      throw rpcErrors.internal('Account upgraded to unsupported contract');
+    }
+
+    requiresUpgrade = !isSupported;
+
+    if (requiresUpgrade && delegationAddress) {
+      log('Overwriting authorization as already upgraded', {
+        current: delegationAddress,
+      });
+    }
   }
 
   const nestedTransactions = await Promise.all(
     transactions.map((tx) =>
-      getNestedTransactionMeta(userRequest, tx, ethQuery),
+      getNestedTransactionMeta(userRequest, tx, messenger, networkClientId),
     ),
   );
 
-  const existingTransaction = transactions.find((tx) => tx.existingTransaction);
-
-  const existingTransactionMeta = existingTransaction
-    ? getTransaction(existingTransaction.existingTransaction?.id as string)
-    : undefined;
-
-  const batchParams = generateEIP7702BatchTransaction(from, nestedTransactions);
+  const batchParams = generateEIP7702BatchTransaction(
+    from,
+    nestedTransactions,
+    {
+      atomic,
+    },
+  );
 
   const txParams: TransactionParams = {
-    from,
     ...batchParams,
+    from,
+    gas: gasLimit7702,
+    maxFeePerGas: nestedTransactions[0]?.maxFeePerGas,
+    maxPriorityFeePerGas: nestedTransactions[0]?.maxPriorityFeePerGas,
   };
 
-  const existingNonce = existingTransactionMeta?.txParams?.nonce;
-
-  if (existingNonce) {
-    txParams.nonce = existingNonce;
-  }
-
-  if (!isSupported) {
+  if (requiresUpgrade) {
     const upgradeContractAddress = getEIP7702UpgradeContractAddress(
       chainId,
       messenger,
@@ -394,24 +426,113 @@ async function addTransactionBatchWith7702(
     ? ({ securityAlertId } as SecurityAlertResponse)
     : undefined;
 
+  const existingTransaction = transactions.find(
+    (tx) => tx.existingTransaction,
+  )?.existingTransaction;
+
+  if (existingTransaction) {
+    await convertTransactionToEIP7702({
+      batchId,
+      existingTransaction,
+      nestedTransactions,
+      request,
+      txParams,
+    });
+
+    return { batchId };
+  }
+
   const { result } = await addTransaction(txParams, {
     batchId,
-    isGasFeeIncluded: userRequest.isGasFeeIncluded,
+    gasFeeToken,
+    excludeNativeTokenForFee,
+    isGasFeeIncluded,
+    isGasFeeSponsored,
+    isInternal,
     nestedTransactions,
     networkClientId,
     origin,
+    requestId,
     requireApproval,
+    requiredAssets,
     securityAlertResponse,
+    skipInitialGasEstimate,
     type: TransactionType.batch,
   });
 
   const transactionHash = await result;
 
-  existingTransaction?.existingTransaction?.onPublish?.({ transactionHash });
+  log('Batch transaction added', { batchId, transactionHash });
 
   return {
     batchId,
   };
+}
+
+/**
+ * Wait for a transaction to reach one of the specified statuses.
+ * Checks the current state first to avoid race conditions, then subscribes to
+ * state changes for ongoing updates.
+ *
+ * @param transactionId - The ID of the transaction to monitor.
+ * @param targetStatuses - The statuses that indicate success.
+ * @param request - The batch request containing messenger and getTransaction.
+ */
+function waitForTransactionStatus(
+  transactionId: string,
+  targetStatuses: TransactionStatus[],
+  request: Pick<AddTransactionBatchRequest, 'getTransaction' | 'messenger'>,
+): Promise<void> {
+  const { getTransaction, messenger } = request;
+  const failureStatuses = [
+    TransactionStatus.failed,
+    TransactionStatus.rejected,
+  ];
+
+  return new Promise<void>((resolve, reject) => {
+    const checkStatus = (
+      tx?: TransactionMeta,
+      unsubscribe?: () => void,
+    ): boolean => {
+      if (targetStatuses.includes(tx?.status as TransactionStatus)) {
+        unsubscribe?.();
+        resolve();
+        return true;
+      }
+
+      if (failureStatuses.includes(tx?.status as TransactionStatus)) {
+        unsubscribe?.();
+        reject(
+          new Error(
+            tx?.error?.message ?? `Transaction ${transactionId} ${tx?.status}`,
+          ),
+        );
+        return true;
+      }
+
+      return false;
+    };
+
+    const initialTx = getTransaction(transactionId);
+
+    if (checkStatus(initialTx)) {
+      return;
+    }
+
+    const handler = (tx?: TransactionMeta): void => {
+      const unsubscribe = (): void =>
+        messenger.unsubscribe('TransactionController:stateChange', handler);
+
+      checkStatus(tx, unsubscribe);
+    };
+
+    messenger.subscribe(
+      'TransactionController:stateChange', // eslint-disable-line no-restricted-syntax
+      handler,
+      (state: TransactionControllerState) =>
+        state.transactions.find((tx) => tx.id === transactionId),
+    );
+  });
 }
 
 /**
@@ -431,6 +552,7 @@ async function addTransactionBatchWithHook(
   } = request;
 
   const {
+    batchId: batchIdOverride,
     from,
     networkClientId,
     origin,
@@ -446,7 +568,6 @@ async function addTransactionBatchWithHook(
   const sequentialPublishBatchHook = new SequentialPublishBatchHook({
     publishTransaction: request.publishTransaction,
     getTransaction: request.getTransaction,
-    getEthQuery: request.getEthQuery,
     getPendingTransactionTracker: request.getPendingTransactionTracker,
   });
 
@@ -478,7 +599,7 @@ async function addTransactionBatchWithHook(
   }
 
   let txBatchMeta: TransactionBatchMeta | undefined;
-  const batchId = generateBatchId();
+  const batchId = batchIdOverride ?? generateBatchId();
 
   const nestedTransactions = requestedTransactions.map((tx) => ({
     ...tx,
@@ -517,6 +638,16 @@ async function addTransactionBatchWithHook(
 
       hookTransactions.push(hookTransaction);
       index += 1;
+
+      await waitForTransactionStatus(
+        String(hookTransaction.id),
+        [
+          TransactionStatus.signed,
+          TransactionStatus.submitted,
+          TransactionStatus.confirmed,
+        ],
+        request,
+      );
     }
 
     const { signedTransactions } = await collectHook.ready();
@@ -526,7 +657,11 @@ async function addTransactionBatchWithHook(
       signedTx: signedTransactions[i],
     }));
 
-    const hookParams = { from, networkClientId, transactions };
+    const hookParams: PublishBatchHookRequest = {
+      from,
+      networkClientId,
+      transactions,
+    };
 
     log('Calling publish batch hook', hookParams);
 
@@ -587,7 +722,9 @@ async function processTransactionWithHook(
   request: AddTransactionBatchRequest,
   txBatchMeta: TransactionBatchMeta | undefined,
   index: number,
-) {
+): Promise<
+  Omit<PublishBatchHookTransaction, 'signedTx'> & { type?: TransactionType }
+> {
   const { assetsFiatValues, existingTransaction, params, type } =
     nestedTransaction;
 
@@ -595,11 +732,10 @@ async function processTransactionWithHook(
     addTransaction,
     getTransaction,
     request: userRequest,
-    signTransaction,
     updateTransaction,
   } = request;
 
-  const { from, networkClientId, origin } = userRequest;
+  const { from, isInternal, networkClientId, origin } = userRequest;
 
   if (existingTransaction) {
     const { id, onPublish } = existingTransaction;
@@ -625,29 +761,20 @@ async function processTransactionWithHook(
     });
 
     if (newNonce) {
-      log('Re-signing existing transaction', {
-        currentNonce: currentNonceNum,
-        newNonce,
+      const signResult = await updateTransactionSignature({
+        transactionId: id,
+        request,
       });
 
-      const metadataToSign = getTransaction(id);
-
-      const newSignature = (await signTransaction(metadataToSign)) as
-        | Hex
-        | undefined;
-
-      if (!newSignature) {
-        throw new Error('Failed to resign transaction');
-      }
-
-      signedTransaction = newSignature;
-      transactionMeta = getTransaction(id);
-
-      log('New signature', signedTransaction);
+      signedTransaction = signResult.newSignature;
+      transactionMeta = signResult.transactionMeta;
     }
 
     publishHook(transactionMeta, signedTransaction)
-      .then(onPublish)
+      .then((hookResult) => {
+        onPublish?.(hookResult);
+        return undefined;
+      })
       .catch(() => {
         // Intentionally empty
       });
@@ -681,6 +808,7 @@ async function processTransactionWithHook(
       assetsFiatValues,
       batchId,
       disableGasBuffer: true,
+      isInternal,
       networkClientId,
       origin,
       publishHook,
@@ -740,7 +868,7 @@ async function requestApproval(
     'ApprovalController:addRequest',
     {
       id,
-      origin: origin || ORIGIN_METAMASK,
+      origin: origin ?? ORIGIN_METAMASK,
       requestData,
       expectsResult: true,
       type,
@@ -758,7 +886,7 @@ async function requestApproval(
 function addBatchMetadata(
   transactionBatchMeta: TransactionBatchMeta,
   update: UpdateStateCallback,
-) {
+): void {
   update((state) => {
     state.transactionBatches = [
       ...state.transactionBatches,
@@ -818,8 +946,6 @@ async function prepareApprovalData({
     messenger,
     request: userRequest,
     isSimulationEnabled,
-    getChainId,
-    getEthQuery,
     getGasFeeEstimates,
     getSimulationConfig,
     update,
@@ -827,12 +953,11 @@ async function prepareApprovalData({
 
   const {
     from,
+    isInternal,
     origin,
     networkClientId,
     transactions: nestedTransactions,
   } = userRequest;
-
-  const ethQuery = getEthQuery(networkClientId);
 
   if (!isSimulationEnabled()) {
     throw new Error(
@@ -840,9 +965,9 @@ async function prepareApprovalData({
     );
   }
   log('Preparing approval data for batch');
-  const chainId = getChainId(networkClientId);
+  const chainId = getChainId({ messenger, networkClientId });
 
-  const { gasLimit } = await simulateGasBatch({
+  const { totalGasLimit: gasLimit } = await simulateGasBatch({
     chainId,
     from,
     getSimulationConfig,
@@ -854,6 +979,7 @@ async function prepareApprovalData({
     from,
     gas: gasLimit,
     id: batchId,
+    isInternal,
     networkClientId,
     origin,
     transactions: nestedTransactions,
@@ -865,7 +991,6 @@ async function prepareApprovalData({
   });
 
   const gasFeeResponse = await defaultGasFeeFlow.getGasFees({
-    ethQuery,
     gasFeeControllerData,
     messenger,
     transactionMeta: {
@@ -884,4 +1009,124 @@ async function prepareApprovalData({
   addBatchMetadata(txBatchMeta, update);
 
   return txBatchMeta;
+}
+
+/**
+ * Convert an existing transaction to an EIP-7702 batch transaction.
+ *
+ * @param options - Options object.
+ * @param options.batchId - Batch ID for the transaction batch.
+ * @param options.existingTransaction - Existing transaction to be converted.
+ * @param options.nestedTransactions - Nested transactions to be included in the batch.
+ * @param options.request - Request object including the user request and necessary callbacks.
+ * @param options.txParams - Transaction parameters for the new EIP-7702 transaction.
+ * @param options.existingTransaction.id - ID of the existing transaction.
+ * @param options.existingTransaction.onPublish - Callback for when the transaction is published.
+ * @returns Promise that resolves after the publish callback has been invoked.
+ */
+async function convertTransactionToEIP7702({
+  batchId,
+  existingTransaction,
+  nestedTransactions,
+  request,
+  txParams,
+}: {
+  batchId: Hex;
+  request: AddTransactionBatchRequest;
+  existingTransaction: {
+    id: string;
+    onPublish?: ({
+      transactionHash,
+      newSignature,
+    }: {
+      transactionHash: string | undefined;
+      newSignature: Hex;
+    }) => void;
+  };
+  nestedTransactions: NestedTransactionMetadata[];
+  txParams: TransactionParams;
+}): Promise<void> {
+  const { getTransaction, estimateGas, updateTransaction } = request;
+  const existingTransactionMeta = getTransaction(existingTransaction.id);
+
+  if (!existingTransactionMeta) {
+    throw new Error('Existing transaction not found');
+  }
+
+  log('Converting existing transaction to 7702', { batchId, txParams });
+
+  const { networkClientId } = existingTransactionMeta;
+  const newGasResult = await estimateGas(txParams, networkClientId);
+
+  log('Estimated gas for converted EIP-7702 transaction', newGasResult);
+
+  updateTransaction(
+    { transactionId: existingTransactionMeta.id },
+    (transactionMeta) => {
+      transactionMeta.batchId = batchId;
+      transactionMeta.nestedTransactions = nestedTransactions;
+      transactionMeta.txParams = txParams;
+      transactionMeta.txParams.gas = newGasResult.gas;
+      transactionMeta.txParams.gasLimit = newGasResult.gas;
+      transactionMeta.txParams.maxFeePerGas =
+        existingTransactionMeta.txParams.maxFeePerGas;
+      transactionMeta.txParams.maxPriorityFeePerGas =
+        existingTransactionMeta.txParams.maxPriorityFeePerGas;
+      transactionMeta.txParams.nonce = existingTransactionMeta.txParams.nonce;
+      transactionMeta.txParams.type ??= TransactionEnvelopeType.feeMarket;
+    },
+  );
+
+  const { newSignature } = await updateTransactionSignature({
+    request,
+    transactionId: existingTransactionMeta.id,
+  });
+
+  existingTransaction.onPublish?.({
+    transactionHash: undefined,
+    newSignature,
+  });
+
+  log('Transaction updated to EIP-7702', { batchId, txParams, newSignature });
+}
+
+/**
+ * Update the signature of an existing transaction.
+ *
+ * @param options - Options object.
+ * @param options.request - The request object including the user request and necessary callbacks.
+ * @param options.transactionId - The ID of the transaction to update.
+ * @returns An object containing the new signature and updated transaction metadata.
+ */
+async function updateTransactionSignature({
+  request,
+  transactionId,
+}: {
+  request: AddTransactionBatchRequest;
+  transactionId: string;
+}): Promise<{
+  newSignature: Hex;
+  transactionMeta: TransactionMeta;
+}> {
+  const { getTransaction, signTransaction } = request;
+  const metadataToSign = getTransaction(transactionId);
+
+  log('Re-signing existing transaction', {
+    transactionId,
+    txParams: metadataToSign.txParams,
+  });
+
+  const newSignature = (await signTransaction(metadataToSign)) as
+    | Hex
+    | undefined;
+
+  if (!newSignature) {
+    throw new Error('Failed to re-sign transaction');
+  }
+
+  const transactionMeta = getTransaction(transactionId);
+
+  log('New signature', newSignature);
+
+  return { newSignature, transactionMeta };
 }

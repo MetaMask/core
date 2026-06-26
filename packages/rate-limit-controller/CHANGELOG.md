@@ -7,14 +7,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+
+## [7.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+
+## [7.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6503](https://github.com/MetaMask/core/pull/6503))
+  - Previously, `RateLimitController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6503](https://github.com/MetaMask/core/pull/6503))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [6.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
+## [6.1.0]
+
 ### Added
 
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6525](https://github.com/MetaMask/core/pull/6525))
 
 ### Changed
 
-- Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
-- Bump `@metamask/base-controller` from `^8.0.0` to `^8.3.0` ([#5722](https://github.com/MetaMask/core/pull/5722), [#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465))
+- Bump `@metamask/utils` from `^11.2.0` to `^11.8.1` ([#6054](https://github.com/MetaMask/core/pull/6054), [#6588](https://github.com/MetaMask/core/pull/6588), [#6708](https://github.com/MetaMask/core/pull/6708))
+- Bump `@metamask/base-controller` from `^8.0.0` to `^8.4.1` ([#5722](https://github.com/MetaMask/core/pull/5722), [#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632), [#6807](https://github.com/MetaMask/core/pull/6807))
 
 ## [6.0.3]
 
@@ -179,14 +210,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
-
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
-
     - Everything in `src/ratelimit`
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@6.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@7.0.1...HEAD
+[7.0.1]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@7.0.0...@metamask/rate-limit-controller@7.0.1
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@6.1.1...@metamask/rate-limit-controller@7.0.0
+[6.1.1]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@6.1.0...@metamask/rate-limit-controller@6.1.1
+[6.1.0]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@6.0.3...@metamask/rate-limit-controller@6.1.0
 [6.0.3]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@6.0.2...@metamask/rate-limit-controller@6.0.3
 [6.0.2]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@6.0.1...@metamask/rate-limit-controller@6.0.2
 [6.0.1]: https://github.com/MetaMask/core/compare/@metamask/rate-limit-controller@6.0.0...@metamask/rate-limit-controller@6.0.1

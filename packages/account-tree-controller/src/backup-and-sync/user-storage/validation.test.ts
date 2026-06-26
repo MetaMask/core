@@ -203,7 +203,6 @@ describe('BackupAndSync - UserStorage - Validation', () => {
       try {
         assertValidLegacyUserStorageAccount(multipleFailuresData);
       } catch (error) {
-        // eslint-disable-next-line jest/no-conditional-in-test
         errorMessage = error instanceof Error ? error.message : String(error);
       }
 

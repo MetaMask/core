@@ -1,50 +1,87 @@
-import { Messenger } from '@metamask/base-controller';
-
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
-  AllowedActions,
-  AllowedEvents,
-  MultichainAccountServiceActions,
-  MultichainAccountServiceEvents,
-  MultichainAccountServiceMessenger,
-} from '../types';
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
+} from '@metamask/messenger';
+
+import type { MultichainAccountServiceMessenger } from '../types';
+
+export type AllMultichainAccountServiceActions =
+  MessengerActions<MultichainAccountServiceMessenger>;
+
+export type AllMultichainAccountServiceEvents =
+  MessengerEvents<MultichainAccountServiceMessenger>;
+
+export type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllMultichainAccountServiceActions,
+  AllMultichainAccountServiceEvents
+>;
 
 /**
- * Creates a new root messenger instance for testing.
+ * Creates and returns a root messenger for testing
  *
- * @returns A new Messenger instance.
+ * @returns A messenger instance
  */
-export function getRootMessenger() {
-  return new Messenger<
-    MultichainAccountServiceActions | AllowedActions,
-    MultichainAccountServiceEvents | AllowedEvents
-  >();
+export function getRootMessenger(): RootMessenger {
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+    captureException: jest.fn(),
+  });
 }
 
 /**
  * Retrieves a restricted messenger for the MultichainAccountService.
  *
- * @param messenger - The root messenger instance. Defaults to a new Messenger created by getRootMessenger().
+ * @param rootMessenger - The root messenger instance. Defaults to a new Messenger created by getRootMessenger().
+ * @param extra - Extra messenger options.
+ * @param extra.actions - Extra actions to delegate.
+ * @param extra.events - Extra events to delegate.
  * @returns The restricted messenger for the MultichainAccountService.
  */
 export function getMultichainAccountServiceMessenger(
-  messenger: ReturnType<typeof getRootMessenger>,
+  rootMessenger: RootMessenger,
+  extra?: {
+    actions?: AllMultichainAccountServiceActions['type'][];
+    events?: AllMultichainAccountServiceEvents['type'][];
+  },
 ): MultichainAccountServiceMessenger {
-  return messenger.getRestricted({
-    name: 'MultichainAccountService',
-    allowedEvents: [
-      'KeyringController:stateChange',
-      'AccountsController:accountAdded',
-      'AccountsController:accountRemoved',
-    ],
-    allowedActions: [
+  const messenger = new Messenger<
+    'MultichainAccountService',
+    AllMultichainAccountServiceActions,
+    AllMultichainAccountServiceEvents,
+    RootMessenger
+  >({
+    namespace: 'MultichainAccountService',
+    parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    messenger,
+    actions: [
       'AccountsController:getAccount',
       'AccountsController:getAccountByAddress',
       'AccountsController:listMultichainAccounts',
       'SnapController:handleRequest',
       'KeyringController:withKeyring',
+      'KeyringController:withKeyringV2',
       'KeyringController:getState',
+      'KeyringController:getKeyringsByType',
+      'KeyringController:addNewKeyring',
       'NetworkController:findNetworkClientIdByChainId',
       'NetworkController:getNetworkClientById',
+      'KeyringController:createNewVaultAndKeychain',
+      'KeyringController:createNewVaultAndRestore',
+      'AccountsController:getAccounts',
+      'KeyringController:removeAccount',
+      'SnapAccountService:ensureReady',
+      ...(extra?.actions ?? []),
+    ],
+    events: [
+      'AccountsController:accountAdded',
+      'AccountsController:accountRemoved',
+      ...(extra?.events ?? []),
     ],
   });
+  return messenger;
 }

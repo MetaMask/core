@@ -1,5 +1,8 @@
 export type {
+  SampleGasPricesServiceInvalidateQueriesAction,
   SampleGasPricesServiceActions,
+  SampleGasPricesServiceCacheUpdatedEvent,
+  SampleGasPricesServiceGranularCacheUpdatedEvent,
   SampleGasPricesServiceEvents,
   SampleGasPricesServiceMessenger,
 } from './sample-gas-prices-service/sample-gas-prices-service';

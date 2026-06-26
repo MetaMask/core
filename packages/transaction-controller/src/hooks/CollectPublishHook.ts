@@ -51,7 +51,7 @@ export class CollectPublishHook {
    *
    * @param transactionHashes - The transaction hashes to pass to the original publish promises.
    */
-  success(transactionHashes: Hex[]) {
+  success(transactionHashes: Hex[]): void {
     log('Success', { transactionHashes });
 
     if (transactionHashes.length !== this.#transactionCount) {
@@ -66,7 +66,7 @@ export class CollectPublishHook {
     }
   }
 
-  error(error: unknown) {
+  error(error: unknown): void {
     log('Error', { error });
 
     for (const result of this.#results) {
@@ -95,7 +95,7 @@ export class CollectPublishHook {
       signedTransaction: signedTx as Hex,
     });
 
-    this.#results = sortBy(this.#results, (r) => r.nonce);
+    this.#results = sortBy(this.#results, (result) => result.nonce);
 
     if (this.#results.length === this.#transactionCount) {
       log('All transactions signed');

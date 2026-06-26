@@ -1,15 +1,11 @@
-/* eslint-enable @typescript-eslint/no-unused-vars */
 import type {
-  AcceptRequest as AcceptApprovalRequest,
-  AddApprovalRequest,
-  HasApprovalRequest,
-  RejectRequest as RejectApprovalRequest,
+  ApprovalControllerAcceptRequestAction,
+  ApprovalControllerAddRequestAction,
+  ApprovalControllerHasRequestAction,
+  ApprovalControllerRejectRequestAction,
 } from '@metamask/approval-controller';
 import type {
   StateMetadata,
-  RestrictedMessenger,
-  ActionConstraint,
-  EventConstraint,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
@@ -20,11 +16,17 @@ import {
   isPlainObject,
   isValidJson,
 } from '@metamask/controller-utils';
+import type {
+  Messenger,
+  ActionConstraint,
+  EventConstraint,
+} from '@metamask/messenger';
 import { JsonRpcError } from '@metamask/rpc-errors';
 import { hasProperty } from '@metamask/utils';
 import type { Json, Mutable } from '@metamask/utils';
 import deepFreeze from 'deep-freeze-strict';
-import { castDraft, produce as immerProduce, type Draft } from 'immer';
+import { castDraft, produce as immerProduce } from 'immer';
+import type { Draft } from 'immer';
 import { nanoid } from 'nanoid';
 
 import type {
@@ -91,8 +93,8 @@ import {
   hasSpecificationType,
   PermissionType,
 } from './Permission';
-import { getPermissionMiddlewareFactory } from './permission-middleware';
-import type { GetSubjectMetadata } from './SubjectMetadataController';
+import type { PermissionControllerMethodActions } from './PermissionController-method-action-types';
+import type { SubjectMetadataControllerGetSubjectMetadataAction } from './SubjectMetadataController-method-action-types';
 import { collectUniqueAndPairedCaveats, MethodNames } from './utils';
 
 /**
@@ -171,6 +173,31 @@ export type SideEffects = {
  */
 const controllerName = 'PermissionController';
 
+const MESSENGER_EXPOSED_METHODS = [
+  'clearState',
+  'executeRestrictedMethod',
+  'getEndowments',
+  'getSubjectNames',
+  'getPermissions',
+  'hasPermission',
+  'hasPermissions',
+  'hasUnrestrictedMethod',
+  'grantPermissions',
+  'grantPermissionsIncremental',
+  'requestPermissions',
+  'requestPermissionsIncremental',
+  'revokeAllPermissions',
+  'revokePermissionForAllSubjects',
+  'revokePermissions',
+  'updateCaveat',
+  'getCaveat',
+  'acceptPermissionsRequest',
+  'rejectPermissionsRequest',
+  'revokePermission',
+  'updatePermissionsByCaveat',
+  'getPermission',
+] as const;
+
 /**
  * Permissions associated with a {@link PermissionController} subject.
  */
@@ -218,11 +245,13 @@ export type PermissionControllerState<Permission> =
  * @template Permission - The controller's permission type union.
  * @returns The state metadata
  */
-function getStateMetadata<Permission extends PermissionConstraint>() {
+function getStateMetadata<
+  Permission extends PermissionConstraint,
+>(): StateMetadata<PermissionControllerState<Permission>> {
   return {
     subjects: {
       includeInStateLogs: true,
-      anonymous: true,
+      includeInDebugSnapshot: true,
       persist: true,
       usedInUi: true,
     },
@@ -235,20 +264,31 @@ function getStateMetadata<Permission extends PermissionConstraint>() {
  * @template Permission - The controller's permission type union.
  * @returns The default state of the controller
  */
-function getDefaultState<Permission extends PermissionConstraint>() {
+function getDefaultState<
+  Permission extends PermissionConstraint,
+>(): PermissionControllerState<Permission> {
   return { subjects: {} } as PermissionControllerState<Permission>;
 }
 
 /**
  * Gets the state of the {@link PermissionController}.
  */
-export type GetPermissionControllerState = ControllerGetStateAction<
+export type PermissionControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   PermissionControllerState<PermissionConstraint>
 >;
 
 /**
+ * Gets the state of the {@link PermissionController}.
+ *
+ * @deprecated Use `PermissionControllerGetStateAction` instead.
+ */
+export type GetPermissionControllerState = PermissionControllerGetStateAction;
+
+/**
  * Gets the names of all subjects from the {@link PermissionController}.
+ *
+ * @deprecated Use `PermissionControllerGetSubjectNamesAction` instead.
  */
 export type GetSubjects = {
   type: `${typeof controllerName}:getSubjectNames`;
@@ -256,7 +296,9 @@ export type GetSubjects = {
 };
 
 /**
- * Gets the permissions for specified subject
+ * Gets the permissions for specified subject.
+ *
+ * @deprecated Use `PermissionControllerGetPermissionsAction` instead.
  */
 export type GetPermissions = {
   type: `${typeof controllerName}:getPermissions`;
@@ -265,6 +307,8 @@ export type GetPermissions = {
 
 /**
  * Checks whether the specified subject has any permissions.
+ *
+ * @deprecated Use `PermissionControllerHasPermissionAction` instead.
  */
 export type HasPermissions = {
   type: `${typeof controllerName}:hasPermissions`;
@@ -273,6 +317,8 @@ export type HasPermissions = {
 
 /**
  * Checks whether the specified subject has a specific permission.
+ *
+ * @deprecated Use `PermissionControllerHasPermissionAction` instead.
  */
 export type HasPermission = {
   type: `${typeof controllerName}:hasPermission`;
@@ -280,7 +326,9 @@ export type HasPermission = {
 };
 
 /**
- * Directly grants given permissions for a specificed origin without requesting user approval
+ * Directly grants given permissions for a specified origin without requesting user approval.
+ *
+ * @deprecated Use `PermissionControllerGrantPermissionsAction` instead.
  */
 export type GrantPermissions = {
   type: `${typeof controllerName}:grantPermissions`;
@@ -288,7 +336,10 @@ export type GrantPermissions = {
 };
 
 /**
- * Directly grants given permissions for a specificed origin without requesting user approval
+ * Directly grants given permissions for a specified origin without requesting user approval.
+ *
+ * @deprecated Use `PermissionControllerGrantPermissionsIncrementalAction`
+ * instead.
  */
 export type GrantPermissionsIncremental = {
   type: `${typeof controllerName}:grantPermissionsIncremental`;
@@ -296,7 +347,9 @@ export type GrantPermissionsIncremental = {
 };
 
 /**
- * Requests given permissions for a specified origin
+ * Requests given permissions for a specified origin.
+ *
+ * @deprecated Use `PermissionControllerRequestPermissionsAction` instead.
  */
 export type RequestPermissions = {
   type: `${typeof controllerName}:requestPermissions`;
@@ -304,7 +357,9 @@ export type RequestPermissions = {
 };
 
 /**
- * Requests given permissions for a specified origin
+ * Requests given permissions for a specified origin.
+ *
+ * @deprecated Use `PermissionControllerRequestPermissionsAction` instead.
  */
 export type RequestPermissionsIncremental = {
   type: `${typeof controllerName}:requestPermissionsIncremental`;
@@ -313,6 +368,8 @@ export type RequestPermissionsIncremental = {
 
 /**
  * Removes the specified permissions for each origin.
+ *
+ * @deprecated Use `PermissionControllerRevokePermissionsAction` instead.
  */
 export type RevokePermissions = {
   type: `${typeof controllerName}:revokePermissions`;
@@ -320,7 +377,9 @@ export type RevokePermissions = {
 };
 
 /**
- * Removes all permissions for a given origin
+ * Removes all permissions for a given origin.
+ *
+ * @deprecated Use `PermissionControllerRevokeAllPermissionAction` instead.
  */
 export type RevokeAllPermissions = {
   type: `${typeof controllerName}:revokeAllPermissions`;
@@ -330,6 +389,9 @@ export type RevokeAllPermissions = {
 /**
  * Revokes all permissions corresponding to the specified target for all subjects.
  * Does nothing if no subjects or no such permission exists.
+ *
+ * @deprecated Use `PermissionControllerRevokePermissionForAllSubjectsAction`
+ * instead.
  */
 export type RevokePermissionForAllSubjects = {
   type: `${typeof controllerName}:revokePermissionForAllSubjects`;
@@ -338,6 +400,8 @@ export type RevokePermissionForAllSubjects = {
 
 /**
  * Updates a caveat value for a specified caveat type belonging to a specific target and origin.
+ *
+ * @deprecated Use `PermissionControllerUpdateCaveatAction` instead.
  */
 export type UpdateCaveat = {
   type: `${typeof controllerName}:updateCaveat`;
@@ -345,7 +409,19 @@ export type UpdateCaveat = {
 };
 
 /**
+ * Get a caveat value for a specified caveat type belonging to a specific target and origin.
+ *
+ * @deprecated Use `PermissionControllerGetCaveatAction` instead.
+ */
+export type GetCaveat = {
+  type: `${typeof controllerName}:getCaveat`;
+  handler: GenericPermissionController['getCaveat'];
+};
+
+/**
  * Clears all permissions from the {@link PermissionController}.
+ *
+ * @deprecated Use `PermissionControllerClearStateAction` instead.
  */
 export type ClearPermissions = {
   type: `${typeof controllerName}:clearPermissions`;
@@ -354,6 +430,8 @@ export type ClearPermissions = {
 
 /**
  * Gets the endowments for the given subject and permission.
+ *
+ * @deprecated Use `PermissionControllerGetEndowmentsAction` instead.
  */
 export type GetEndowments = {
   type: `${typeof controllerName}:getEndowments`;
@@ -364,21 +442,8 @@ export type GetEndowments = {
  * The {@link Messenger} actions of the {@link PermissionController}.
  */
 export type PermissionControllerActions =
-  | ClearPermissions
-  | GetEndowments
-  | GetPermissionControllerState
-  | GetSubjects
-  | GetPermissions
-  | HasPermission
-  | HasPermissions
-  | GrantPermissions
-  | GrantPermissionsIncremental
-  | RequestPermissions
-  | RequestPermissionsIncremental
-  | RevokeAllPermissions
-  | RevokePermissionForAllSubjects
-  | RevokePermissions
-  | UpdateCaveat;
+  | PermissionControllerGetStateAction
+  | PermissionControllerMethodActions;
 
 /**
  * The generic state change event of the {@link PermissionController}.
@@ -402,33 +467,25 @@ export type PermissionControllerEvents = PermissionControllerStateChange;
  * {@link PermissionController}.
  */
 type AllowedActions =
-  | AddApprovalRequest
-  | HasApprovalRequest
-  | AcceptApprovalRequest
-  | RejectApprovalRequest
-  | GetSubjectMetadata;
+  | ApprovalControllerAddRequestAction
+  | ApprovalControllerHasRequestAction
+  | ApprovalControllerAcceptRequestAction
+  | ApprovalControllerRejectRequestAction
+  | SubjectMetadataControllerGetSubjectMetadataAction;
 
 /**
  * The messenger of the {@link PermissionController}.
  */
-export type PermissionControllerMessenger = RestrictedMessenger<
+export type PermissionControllerMessenger = Messenger<
   typeof controllerName,
   PermissionControllerActions | AllowedActions,
-  PermissionControllerEvents,
-  AllowedActions['type'],
-  never
+  PermissionControllerEvents
 >;
 
 export type SideEffectMessenger<
   Actions extends ActionConstraint,
   Events extends EventConstraint,
-> = RestrictedMessenger<
-  typeof controllerName,
-  Actions | AllowedActions,
-  Events,
-  AllowedActions['type'] | Actions['type'],
-  Events['type']
->;
+> = Messenger<typeof controllerName, Actions | AllowedActions, Events>;
 
 /**
  * A generic {@link PermissionController}.
@@ -442,10 +499,10 @@ export type GenericPermissionController = PermissionController<
  * Describes the possible results of a {@link CaveatMutator} function.
  */
 export enum CaveatMutatorOperation {
-  Noop,
-  UpdateValue,
-  DeleteCaveat,
-  RevokePermission,
+  Noop = 0,
+  UpdateValue = 1,
+  DeleteCaveat = 2,
+  RevokePermission = 3,
 }
 
 /**
@@ -580,8 +637,10 @@ export type PermissionControllerOptions<
  * caveat specifications available to the controller.
  */
 export class PermissionController<
-  ControllerPermissionSpecification extends PermissionSpecificationConstraint,
-  ControllerCaveatSpecification extends CaveatSpecificationConstraint,
+  ControllerPermissionSpecification extends PermissionSpecificationConstraint =
+    PermissionSpecificationConstraint,
+  ControllerCaveatSpecification extends CaveatSpecificationConstraint =
+    CaveatSpecificationConstraint,
 > extends BaseController<
   typeof controllerName,
   PermissionControllerState<
@@ -592,15 +651,15 @@ export class PermissionController<
   >,
   PermissionControllerMessenger
 > {
-  private readonly _caveatSpecifications: Readonly<
+  readonly #caveatSpecifications: Readonly<
     CaveatSpecificationMap<ControllerCaveatSpecification>
   >;
 
-  private readonly _permissionSpecifications: Readonly<
+  readonly #permissionSpecifications: Readonly<
     PermissionSpecificationMap<ControllerPermissionSpecification>
   >;
 
-  private readonly _unrestrictedMethods: ReadonlySet<string>;
+  readonly #unrestrictedMethods: ReadonlySet<string>;
 
   /**
    * The names of all JSON-RPC methods that will be ignored by the controller.
@@ -608,20 +667,21 @@ export class PermissionController<
    * @returns The names of all unrestricted JSON-RPC methods
    */
   public get unrestrictedMethods(): ReadonlySet<string> {
-    return this._unrestrictedMethods;
+    return this.#unrestrictedMethods;
   }
 
   /**
-   * Returns a `json-rpc-engine` middleware function factory, so that the rules
-   * described by the state of this controller can be applied to incoming
-   * JSON-RPC requests.
+   * Checks whether the given method was declared as unrestricted at
+   * construction time. Methods unknown to the controller return `false` and
+   * would be treated as restricted by callers such as the permission
+   * middleware.
    *
-   * The middleware **must** be added in the correct place in the middleware
-   * stack in order for it to work. See the README for an example.
+   * @param method - The name of the method to check.
+   * @returns Whether the method is unrestricted.
    */
-  public createPermissionMiddleware: ReturnType<
-    typeof getPermissionMiddlewareFactory
-  >;
+  hasUnrestrictedMethod(method: string): boolean {
+    return this.#unrestrictedMethods.has(method);
+  }
 
   /**
    * Constructs the PermissionController.
@@ -675,26 +735,22 @@ export class PermissionController<
       },
     });
 
-    this._unrestrictedMethods = new Set(unrestrictedMethods);
-    this._caveatSpecifications = deepFreeze({ ...caveatSpecifications });
+    this.#unrestrictedMethods = new Set(unrestrictedMethods);
+    this.#caveatSpecifications = deepFreeze({ ...caveatSpecifications });
 
-    this.validatePermissionSpecifications(
+    this.#validatePermissionSpecifications(
       permissionSpecifications,
-      this._caveatSpecifications,
+      this.#caveatSpecifications,
     );
 
-    this._permissionSpecifications = deepFreeze({
+    this.#permissionSpecifications = deepFreeze({
       ...permissionSpecifications,
     });
 
-    this.registerMessageHandlers();
-    this.createPermissionMiddleware = getPermissionMiddlewareFactory({
-      executeRestrictedMethod: this._executeRestrictedMethod.bind(this),
-      getRestrictedMethod: this.getRestrictedMethod.bind(this),
-      isUnrestrictedMethod: this.unrestrictedMethods.has.bind(
-        this.unrestrictedMethods,
-      ),
-    });
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   /**
@@ -703,7 +759,7 @@ export class PermissionController<
    * @param targetName - The name of the permission specification to get.
    * @returns The permission specification with the specified target name.
    */
-  private getPermissionSpecification<
+  #getPermissionSpecification<
     TargetName extends ControllerPermissionSpecification['targetName'],
   >(
     targetName: TargetName,
@@ -711,7 +767,7 @@ export class PermissionController<
     ControllerPermissionSpecification,
     TargetName
   > {
-    return this._permissionSpecifications[targetName];
+    return this.#permissionSpecifications[targetName];
   }
 
   /**
@@ -720,10 +776,10 @@ export class PermissionController<
    * @param caveatType - The type of the caveat specification to get.
    * @returns The caveat specification with the specified type.
    */
-  private getCaveatSpecification<
+  #getCaveatSpecification<
     CaveatType extends ControllerCaveatSpecification['type'],
-  >(caveatType: CaveatType) {
-    return this._caveatSpecifications[caveatType];
+  >(caveatType: CaveatType): ControllerCaveatSpecification {
+    return this.#caveatSpecifications[caveatType];
   }
 
   /**
@@ -736,7 +792,7 @@ export class PermissionController<
   #expectGetCaveatMerger<
     CaveatType extends ControllerCaveatSpecification['type'],
   >(caveatType: CaveatType): CaveatValueMerger<Json> {
-    const { merger } = this.getCaveatSpecification(caveatType);
+    const { merger } = this.#getCaveatSpecification(caveatType);
 
     if (merger === undefined) {
       throw new CaveatMergerDoesNotExistError(caveatType);
@@ -754,10 +810,10 @@ export class PermissionController<
    * @param caveatSpecifications - The caveat specifications passed to this
    * controller.
    */
-  private validatePermissionSpecifications(
+  #validatePermissionSpecifications(
     permissionSpecifications: PermissionSpecificationMap<ControllerPermissionSpecification>,
     caveatSpecifications: CaveatSpecificationMap<ControllerCaveatSpecification>,
-  ) {
+  ): void {
     Object.entries<ControllerPermissionSpecification>(
       permissionSpecifications,
     ).forEach(
@@ -810,98 +866,6 @@ export class PermissionController<
   }
 
   /**
-   * Constructor helper for registering the controller's messaging system
-   * actions.
-   */
-  private registerMessageHandlers(): void {
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:clearPermissions` as const,
-      () => this.clearState(),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:getEndowments` as const,
-      (origin: string, targetName: string, requestData?: unknown) =>
-        this.getEndowments(origin, targetName, requestData),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:getSubjectNames` as const,
-      () => this.getSubjectNames(),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:getPermissions` as const,
-      (origin: OriginString) => this.getPermissions(origin),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:hasPermission` as const,
-      (origin: OriginString, targetName: string) =>
-        this.hasPermission(origin, targetName),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:hasPermissions` as const,
-      (origin: OriginString) => this.hasPermissions(origin),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:grantPermissions` as const,
-      this.grantPermissions.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:grantPermissionsIncremental` as const,
-      this.grantPermissionsIncremental.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:requestPermissions` as const,
-      (subject: PermissionSubjectMetadata, permissions: RequestedPermissions) =>
-        this.requestPermissions(subject, permissions),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:requestPermissionsIncremental` as const,
-      (subject: PermissionSubjectMetadata, permissions: RequestedPermissions) =>
-        this.requestPermissionsIncremental(subject, permissions),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:revokeAllPermissions` as const,
-      (origin: OriginString) => this.revokeAllPermissions(origin),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:revokePermissionForAllSubjects` as const,
-      (
-        target: ExtractPermission<
-          ControllerPermissionSpecification,
-          ControllerCaveatSpecification
-        >['parentCapability'],
-      ) => this.revokePermissionForAllSubjects(target),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:revokePermissions` as const,
-      this.revokePermissions.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:updateCaveat` as const,
-      (origin, target, caveatType, caveatValue) => {
-        this.updateCaveat(
-          origin,
-          target,
-          caveatType as ExtractAllowedCaveatTypes<ControllerPermissionSpecification>,
-          caveatValue,
-        );
-      },
-    );
-  }
-
-  /**
    * Clears the state of the controller.
    */
   clearState(): void {
@@ -926,32 +890,29 @@ export class PermissionController<
    * @template Type - The type of the permission specification to get.
    * @param permissionType - The type of the permission specification to get.
    * @param targetName - The name of the permission whose specification to get.
-   * @param requestingOrigin - The origin of the requesting subject, if any.
-   * Will be added to any thrown errors.
+   * @param requestingOrigin - The origin of the requesting subject. Will be
+   * added to any thrown errors.
    * @returns The specification object corresponding to the given type and
    * target name.
    */
-  private getTypedPermissionSpecification<Type extends PermissionType>(
+  #getTypedPermissionSpecification<Type extends PermissionType>(
     permissionType: Type,
     targetName: string,
-    requestingOrigin?: string,
+    requestingOrigin: string,
   ): ControllerPermissionSpecification & { permissionType: Type } {
     const failureError =
       permissionType === PermissionType.RestrictedMethod
-        ? methodNotFound(
-            targetName,
-            requestingOrigin ? { origin: requestingOrigin } : undefined,
-          )
+        ? methodNotFound(targetName, { origin: requestingOrigin })
         : new EndowmentPermissionDoesNotExistError(
             targetName,
             requestingOrigin,
           );
 
-    if (!this.targetExists(targetName)) {
+    if (!this.#targetExists(targetName)) {
       throw failureError;
     }
 
-    const specification = this.getPermissionSpecification(targetName);
+    const specification = this.#getPermissionSpecification(targetName);
     if (!hasSpecificationType(specification, permissionType)) {
       throw failureError;
     }
@@ -964,18 +925,17 @@ export class PermissionController<
    *
    * A JSON-RPC error is thrown if the method does not exist.
    *
-   * @see {@link PermissionController.executeRestrictedMethod} and
-   * {@link PermissionController.createPermissionMiddleware} for internal usage.
+   * @see {@link PermissionController.executeRestrictedMethod} for internal usage.
    * @param method - The name of the restricted method.
    * @param origin - The origin associated with the request for the restricted
-   * method, if any.
+   * method.
    * @returns The restricted method implementation.
    */
-  getRestrictedMethod(
+  #getRestrictedMethod(
     method: string,
-    origin?: string,
+    origin: string,
   ): RestrictedMethod<RestrictedMethodParameters, Json> {
-    return this.getTypedPermissionSpecification(
+    return this.#getTypedPermissionSpecification(
       PermissionType.RestrictedMethod,
       method,
       origin,
@@ -1062,7 +1022,7 @@ export class PermissionController<
   /**
    * Revokes all permissions from the specified origin.
    *
-   * Throws an error of the origin has no permissions.
+   * Throws an error if the origin has no permissions.
    *
    * @param origin - The origin whose permissions to revoke.
    */
@@ -1125,7 +1085,7 @@ export class PermissionController<
             throw new PermissionDoesNotExistError(origin, target);
           }
 
-          this.deletePermission(draftState.subjects, origin, target);
+          this.#deletePermission(draftState.subjects, origin, target);
         });
       });
     });
@@ -1152,7 +1112,7 @@ export class PermissionController<
         const { permissions } = subject;
 
         if (hasProperty(permissions as Record<string, unknown>, target)) {
-          this.deletePermission(draftState.subjects, origin, target);
+          this.#deletePermission(draftState.subjects, origin, target);
         }
       });
     });
@@ -1168,7 +1128,7 @@ export class PermissionController<
    * to delete.
    * @param target - The target name of the permission to delete.
    */
-  private deletePermission(
+  #deletePermission(
     subjects: Draft<PermissionControllerSubjects<PermissionConstraint>>,
     origin: OriginString,
     target: ExtractPermission<
@@ -1283,7 +1243,7 @@ export class PermissionController<
       throw new CaveatAlreadyExistsError(origin, target, caveatType);
     }
 
-    this.setCaveat(origin, target, caveatType, caveatValue);
+    this.#setCaveat(origin, target, caveatType, caveatValue);
   }
 
   /**
@@ -1325,7 +1285,7 @@ export class PermissionController<
       throw new CaveatDoesNotExistError(origin, target, caveatType);
     }
 
-    this.setCaveat(origin, target, caveatType, caveatValue);
+    this.#setCaveat(origin, target, caveatType, caveatValue);
   }
 
   /**
@@ -1346,7 +1306,7 @@ export class PermissionController<
    * @param caveatType - The type of the caveat to set.
    * @param caveatValue - The value of the caveat to set.
    */
-  private setCaveat<
+  #setCaveat<
     TargetName extends ExtractPermission<
       ControllerPermissionSpecification,
       ControllerCaveatSpecification
@@ -1380,7 +1340,7 @@ export class PermissionController<
         type: caveatType,
         value: caveatValue,
       };
-      this.validateCaveat(caveat, origin, target);
+      this.#validateCaveat(caveat, origin, target);
 
       let addedCaveat = false;
       if (permission.caveats) {
@@ -1407,7 +1367,7 @@ export class PermissionController<
       // Mutating a caveat does not warrant permission validation, but mutating
       // the caveat array does.
       if (addedCaveat) {
-        this.validateModifiedPermission(permission, origin, {
+        this.#validateModifiedPermission(permission, origin, {
           invokePermissionValidator: true,
           performCaveatValidation: false, // We just validated the caveat
         });
@@ -1477,7 +1437,7 @@ export class PermissionController<
               (targetCaveat as Mutable<CaveatConstraint, 'value'>).value =
                 mutatorResult.value;
 
-              this.validateCaveat(
+              this.#validateCaveat(
                 targetCaveat,
                 subject.origin,
                 permission.parentCapability,
@@ -1485,11 +1445,11 @@ export class PermissionController<
               break;
 
             case CaveatMutatorOperation.DeleteCaveat:
-              this.deleteCaveat(permission, targetCaveatType, subject.origin);
+              this.#deleteCaveat(permission, targetCaveatType, subject.origin);
               break;
 
             case CaveatMutatorOperation.RevokePermission:
-              this.deletePermission(
+              this.#deletePermission(
                 draftState.subjects,
                 subject.origin,
                 permission.parentCapability,
@@ -1536,7 +1496,7 @@ export class PermissionController<
         throw new CaveatDoesNotExistError(origin, target, caveatType);
       }
 
-      this.deleteCaveat(permission, caveatType, origin);
+      this.#deleteCaveat(permission, caveatType, origin);
     });
   }
 
@@ -1552,7 +1512,7 @@ export class PermissionController<
    * @param caveatType - The type of the caveat to delete.
    * @param origin - The origin the permission subject.
    */
-  private deleteCaveat<
+  #deleteCaveat<
     CaveatType extends ExtractCaveats<ControllerCaveatSpecification>['type'],
   >(
     permission: Draft<PermissionConstraint>,
@@ -1586,7 +1546,7 @@ export class PermissionController<
       permission.caveats.splice(caveatIndex, 1);
     }
 
-    this.validateModifiedPermission(permission, origin, {
+    this.#validateModifiedPermission(permission, origin, {
       invokePermissionValidator: true,
       performCaveatValidation: false, // No caveat object was mutated
     });
@@ -1596,28 +1556,28 @@ export class PermissionController<
    * Validates the specified modified permission. Should **always** be invoked
    * on a permission when its caveat array has been mutated.
    *
-   * Just like {@link PermissionController.validatePermission}, except that the
+   * Just like {@link PermissionController.#validatePermission}, except that the
    * corresponding target name and specification are retrieved first, and an
    * error is thrown if the target name does not exist.
    *
    * @param permission - The modified permission to validate.
    * @param origin - The origin associated with the permission.
-   * @param validationFlags - Validation flags. See {@link PermissionController.validatePermission}.
+   * @param validationFlags - Validation flags. See {@link PermissionController.#validatePermission}.
    */
-  private validateModifiedPermission(
+  #validateModifiedPermission(
     permission: Draft<PermissionConstraint>,
     origin: OriginString,
     validationFlags: PermissionValidationFlags,
   ): void {
     /* istanbul ignore if: this should be impossible */
-    if (!this.targetExists(permission.parentCapability)) {
+    if (!this.#targetExists(permission.parentCapability)) {
       throw new Error(
         `Fatal: Existing permission target "${permission.parentCapability}" has no specification.`,
       );
     }
 
-    this.validatePermission(
-      this.getPermissionSpecification(permission.parentCapability),
+    this.#validatePermission(
+      this.#getPermissionSpecification(permission.parentCapability),
       permission as PermissionConstraint,
       origin,
       validationFlags,
@@ -1631,10 +1591,10 @@ export class PermissionController<
    * @param target - The requested permission target.
    * @returns Whether the permission target exists.
    */
-  private targetExists(
+  #targetExists(
     target: string,
   ): target is ControllerPermissionSpecification['targetName'] {
-    return hasProperty(this._permissionSpecifications, target);
+    return hasProperty(this.#permissionSpecifications, target);
   }
 
   /**
@@ -1769,7 +1729,7 @@ export class PermissionController<
     for (const [requestedTarget, approvedPermission] of Object.entries(
       approvedPermissions,
     )) {
-      if (!this.targetExists(requestedTarget)) {
+      if (!this.#targetExists(requestedTarget)) {
         throw methodNotFound(requestedTarget);
       }
 
@@ -1790,10 +1750,10 @@ export class PermissionController<
         ControllerPermissionSpecification,
         ControllerCaveatSpecification
       >['parentCapability'];
-      const specification = this.getPermissionSpecification(targetName);
+      const specification = this.#getPermissionSpecification(targetName);
 
       // The requested caveats are validated here.
-      const caveats = this.constructCaveats(
+      const caveats = this.#constructCaveats(
         origin,
         targetName,
         approvedPermission.caveats,
@@ -1822,14 +1782,14 @@ export class PermissionController<
         )[0];
       }
 
-      this.validatePermission(specification, permission, origin, {
+      this.#validatePermission(specification, permission, origin, {
         invokePermissionValidator: true,
         performCaveatValidation: true,
       });
       permissions[targetName] = permission;
     }
 
-    this.setValidatedPermissions(origin, permissions);
+    this.#setValidatedPermissions(origin, permissions);
     return permissions;
   }
 
@@ -1851,10 +1811,10 @@ export class PermissionController<
    * @param validationOptions.invokePermissionValidator - Whether to invoke the
    * permission's consumer-specified validator function, if any.
    * @param validationOptions.performCaveatValidation - Whether to invoke
-   * {@link PermissionController.validateCaveat} on each of the permission's
+   * {@link PermissionController.#validateCaveat} on each of the permission's
    * caveats.
    */
-  private validatePermission(
+  #validatePermission(
     specification: PermissionSpecificationConstraint,
     permission: PermissionConstraint,
     origin: OriginString,
@@ -1869,7 +1829,7 @@ export class PermissionController<
       specification.subjectTypes?.length &&
       specification.subjectTypes.length > 0
     ) {
-      const metadata = this.messagingSystem.call(
+      const metadata = this.messenger.call(
         'SubjectMetadataController:getSubjectMetadata',
         origin,
       );
@@ -1895,7 +1855,7 @@ export class PermissionController<
       const seenCaveatTypes = new Set<string>();
       caveats?.forEach((caveat) => {
         if (performCaveatValidation) {
-          this.validateCaveat(caveat, origin, targetName);
+          this.#validateCaveat(caveat, origin, targetName);
         }
 
         if (!allowedCaveats?.includes(caveat.type)) {
@@ -1924,7 +1884,7 @@ export class PermissionController<
    * @param origin - The origin of the grantee subject.
    * @param permissions - The new permissions for the grantee subject.
    */
-  private setValidatedPermissions(
+  #setValidatedPermissions(
     origin: OriginString,
     permissions: Record<
       string,
@@ -1954,7 +1914,7 @@ export class PermissionController<
    * @param requestedCaveats - The requested caveats to construct.
    * @returns The constructed caveats.
    */
-  private constructCaveats(
+  #constructCaveats(
     origin: OriginString,
     target: ExtractPermission<
       ControllerPermissionSpecification,
@@ -1963,7 +1923,7 @@ export class PermissionController<
     requestedCaveats?: unknown[] | null,
   ): NonEmptyArray<ExtractCaveats<ControllerCaveatSpecification>> | undefined {
     const caveatArray = requestedCaveats?.map((requestedCaveat) => {
-      this.validateCaveat(requestedCaveat, origin, target);
+      this.#validateCaveat(requestedCaveat, origin, target);
 
       // Reassign so that we have a fresh object.
       const { type, value } = requestedCaveat as CaveatConstraint;
@@ -1988,11 +1948,7 @@ export class PermissionController<
    * permission.
    * @param target - The target name associated with the parent permission.
    */
-  private validateCaveat(
-    caveat: unknown,
-    origin: OriginString,
-    target: string,
-  ): void {
+  #validateCaveat(caveat: unknown, origin: OriginString, target: string): void {
     if (!isPlainObject(caveat)) {
       throw new InvalidCaveatError(caveat, origin, target);
     }
@@ -2005,7 +1961,7 @@ export class PermissionController<
       throw new InvalidCaveatTypeError(caveat, origin, target);
     }
 
-    const specification = this.getCaveatSpecification(caveat.type);
+    const specification = this.#getCaveatSpecification(caveat.type);
     if (!specification) {
       throw new UnrecognizedCaveatTypeError(caveat.type, origin, target);
     }
@@ -2070,7 +2026,7 @@ export class PermissionController<
   > {
     const { origin } = subject;
     const { id = nanoid(), preserveExistingPermissions = true } = options;
-    this.validateRequestedPermissions(origin, requestedPermissions);
+    this.#validateRequestedPermissions(origin, requestedPermissions);
 
     const metadata = {
       ...options.metadata,
@@ -2083,7 +2039,7 @@ export class PermissionController<
       permissions: requestedPermissions,
     };
 
-    const approvedRequest = await this.requestUserApproval(permissionsRequest);
+    const approvedRequest = await this.#requestUserApproval(permissionsRequest);
     return await this.#handleApprovedPermissions({
       subject,
       metadata,
@@ -2146,7 +2102,7 @@ export class PermissionController<
   > {
     const { origin } = subject;
     const { id = nanoid() } = options;
-    this.validateRequestedPermissions(origin, requestedPermissions);
+    this.#validateRequestedPermissions(origin, requestedPermissions);
 
     const currentPermissions = this.getPermissions(origin) ?? {};
     const [newPermissions, permissionDiffMap] =
@@ -2165,7 +2121,7 @@ export class PermissionController<
       // It does not spark joy to run this validation again after the merger operation.
       // But, optimizing this procedure is probably not worth it, especially considering
       // that the worst-case scenario for validation degrades to the below function call.
-      this.validateRequestedPermissions(origin, newPermissions);
+      this.#validateRequestedPermissions(origin, newPermissions);
     } catch (error) {
       if (error instanceof Error) {
         throw new InvalidMergedPermissionsError(
@@ -2193,7 +2149,7 @@ export class PermissionController<
       },
     };
 
-    const approvedRequest = await this.requestUserApproval(permissionsRequest);
+    const approvedRequest = await this.#requestUserApproval(permissionsRequest);
     return await this.#handleApprovedPermissions({
       subject,
       metadata,
@@ -2217,7 +2173,7 @@ export class PermissionController<
    * @param origin - The origin of the grantee subject.
    * @param requestedPermissions - The requested permissions.
    */
-  private validateRequestedPermissions(
+  #validateRequestedPermissions(
     origin: OriginString,
     requestedPermissions: unknown,
   ): void {
@@ -2238,7 +2194,7 @@ export class PermissionController<
     for (const targetName of Object.keys(requestedPermissions)) {
       const permission = requestedPermissions[targetName];
 
-      if (!this.targetExists(targetName)) {
+      if (!this.#targetExists(targetName)) {
         throw methodNotFound(targetName, { origin, requestedPermissions });
       }
 
@@ -2255,8 +2211,8 @@ export class PermissionController<
 
       // Here we validate the permission without invoking its validator, if any.
       // The validator will be invoked after the permission has been approved.
-      this.validatePermission(
-        this.getPermissionSpecification(targetName),
+      this.#validatePermission(
+        this.#getPermissionSpecification(targetName),
         // Typecast: The permission is still a "PlainObject" here.
         permission as PermissionConstraint,
         origin,
@@ -2350,7 +2306,9 @@ export class PermissionController<
     const { caveatPairs, leftUniqueCaveats, rightUniqueCaveats } =
       collectUniqueAndPairedCaveats(leftPermission, rightPermission);
 
-    const [mergedCaveats, caveatDiffMap] = caveatPairs.reduce(
+    const [mergedCaveats, caveatDiffMap] = caveatPairs.reduce<
+      [CaveatConstraint[], CaveatDiffMap<CaveatConstraint>]
+    >(
       ([caveats, diffMap], [leftCaveat, rightCaveat]) => {
         const [newCaveat, diff] = this.#mergeCaveat(leftCaveat, rightCaveat);
 
@@ -2363,7 +2321,7 @@ export class PermissionController<
 
         return [caveats, diffMap];
       },
-      [[], {}] as [CaveatConstraint[], CaveatDiffMap<CaveatConstraint>],
+      [[], {}],
     );
 
     const mergedRightUniqueCaveats = rightUniqueCaveats.map((caveat) => {
@@ -2436,15 +2394,17 @@ export class PermissionController<
 
   /**
    * Adds a request to the {@link ApprovalController} using the
-   * {@link AddApprovalRequest} action. Also validates the resulting approved
+   * {@link ApprovalControllerAddRequestAction} action. Also validates the resulting approved
    * permissions request, and throws an error if validation fails.
    *
    * @param permissionsRequest - The permissions request object.
    * @returns The approved permissions request object.
    */
-  private async requestUserApproval(permissionsRequest: PermissionsRequest) {
+  async #requestUserApproval(
+    permissionsRequest: PermissionsRequest,
+  ): Promise<PermissionsRequest> {
     const { origin, id } = permissionsRequest.metadata;
-    const approvedRequest = await this.messagingSystem.call(
+    const approvedRequest = await this.messenger.call(
       'ApprovalController:addRequest',
       {
         id,
@@ -2455,7 +2415,7 @@ export class PermissionController<
       true,
     );
 
-    this.validateApprovedPermissions(approvedRequest, { id, origin });
+    this.#validateApprovedPermissions(approvedRequest, { id, origin });
     return approvedRequest as PermissionsRequest;
   }
 
@@ -2489,9 +2449,9 @@ export class PermissionController<
       approvedRequest;
     const approvedMetadata: ApprovedPermissionsMetadata = { ...metadata };
 
-    const sideEffects = this.getSideEffects(approvedPermissions);
+    const sideEffects = this.#getSideEffects(approvedPermissions);
     if (Object.values(sideEffects.permittedHandlers).length > 0) {
-      const sideEffectsData = await this.executeSideEffects(
+      const sideEffectsData = await this.#executeSideEffects(
         sideEffects,
         approvedRequest,
       );
@@ -2519,11 +2479,11 @@ export class PermissionController<
    * @param permissions - The approved permissions.
    * @returns The {@link SideEffects} object containing the handlers arrays.
    */
-  private getSideEffects(permissions: RequestedPermissions) {
+  #getSideEffects(permissions: RequestedPermissions): SideEffects {
     return Object.keys(permissions).reduce<SideEffects>(
       (sideEffectList, targetName) => {
-        if (this.targetExists(targetName)) {
-          const specification = this.getPermissionSpecification(targetName);
+        if (this.#targetExists(targetName)) {
+          const specification = this.#getPermissionSpecification(targetName);
 
           if (specification.sideEffect) {
             sideEffectList.permittedHandlers[targetName] =
@@ -2543,20 +2503,20 @@ export class PermissionController<
 
   /**
    * Executes the side-effects of the approved permissions while handling the errors if any.
-   * It will pass an instance of the {@link messagingSystem} and the request data associated with the permission request to the handlers through its params.
+   * It will pass an instance of the {@link messenger} and the request data associated with the permission request to the handlers through its params.
    *
-   * @param sideEffects - the side-effect record created by {@link getSideEffects}
+   * @param sideEffects - the side-effect record created by {@link #getSideEffects}
    * @param requestData - the permissions requestData.
    * @returns the value returned by all the `onPermitted` handlers in an array.
    */
-  private async executeSideEffects(
+  async #executeSideEffects(
     sideEffects: SideEffects,
     requestData: PermissionsRequest,
-  ) {
+  ): Promise<unknown[]> {
     const { permittedHandlers, failureHandlers } = sideEffects;
     const params = {
       requestData,
-      messagingSystem: this.messagingSystem,
+      messenger: this.messenger,
     };
 
     const promiseResults = await Promise.allSettled(
@@ -2606,7 +2566,7 @@ export class PermissionController<
    * request must have the required `metadata` and `permissions` properties,
    * the `id` and `origin` of the `metadata` must match the original request
    * metadata, and the requested permissions must be valid per
-   * {@link PermissionController.validateRequestedPermissions}. Any extra
+   * {@link PermissionController.#validateRequestedPermissions}. Any extra
    * metadata properties are ignored.
    *
    * An error is thrown if validation fails.
@@ -2614,10 +2574,10 @@ export class PermissionController<
    * @param approvedRequest - The approved permissions request object.
    * @param originalMetadata - The original request metadata.
    */
-  private validateApprovedPermissions(
+  #validateApprovedPermissions(
     approvedRequest: unknown,
     originalMetadata: PermissionsRequestMetadata,
-  ) {
+  ): void {
     const { id, origin } = originalMetadata;
 
     if (
@@ -2650,7 +2610,7 @@ export class PermissionController<
     }
 
     try {
-      this.validateRequestedPermissions(origin, permissions);
+      this.#validateRequestedPermissions(origin, permissions);
     } catch (error) {
       if (error instanceof Error) {
         // Re-throw as an internal error; we should never receive invalid approved
@@ -2674,12 +2634,12 @@ export class PermissionController<
   async acceptPermissionsRequest(request: PermissionsRequest): Promise<void> {
     const { id } = request.metadata;
 
-    if (!this.hasApprovalRequest({ id })) {
+    if (!this.#hasApprovalRequest({ id })) {
       throw new PermissionsRequestNotFoundError(id);
     }
 
     if (Object.keys(request.permissions).length === 0) {
-      this._rejectPermissionsRequest(
+      this.#rejectPermissionsRequest(
         id,
         invalidParams({
           message: 'Must request at least one permission.',
@@ -2689,7 +2649,7 @@ export class PermissionController<
     }
 
     try {
-      await this.messagingSystem.call(
+      await this.messenger.call(
         'ApprovalController:acceptRequest',
         id,
         request,
@@ -2697,7 +2657,7 @@ export class PermissionController<
     } catch (error) {
       // If accepting unexpectedly fails, reject the request and re-throw the
       // error
-      this._rejectPermissionsRequest(id, error);
+      this.#rejectPermissionsRequest(id, error);
       throw error;
     }
   }
@@ -2709,11 +2669,11 @@ export class PermissionController<
    * @param id - The id of the request to be rejected.
    */
   async rejectPermissionsRequest(id: string): Promise<void> {
-    if (!this.hasApprovalRequest({ id })) {
+    if (!this.#hasApprovalRequest({ id })) {
       throw new PermissionsRequestNotFoundError(id);
     }
 
-    this._rejectPermissionsRequest(id, userRejectedRequest());
+    this.#rejectPermissionsRequest(id, userRejectedRequest());
   }
 
   /**
@@ -2722,12 +2682,12 @@ export class PermissionController<
    *
    * @see {@link PermissionController.acceptPermissionsRequest} and
    * {@link PermissionController.rejectPermissionsRequest} for usage.
-   * @param options - The {@link HasApprovalRequest} options.
+   * @param options - The {@link ApprovalControllerHasRequestAction} options.
    * @param options.id - The id of the approval request to check for.
    * @returns Whether the specified request exists.
    */
-  private hasApprovalRequest(options: { id: string }): boolean {
-    return this.messagingSystem.call('ApprovalController:hasRequest', options);
+  #hasApprovalRequest(options: { id: string }): boolean {
+    return this.messenger.call('ApprovalController:hasRequest', options);
   }
 
   /**
@@ -2741,12 +2701,8 @@ export class PermissionController<
    * @param error - The error associated with the rejection.
    * @returns Nothing
    */
-  private _rejectPermissionsRequest(id: string, error: unknown): void {
-    return this.messagingSystem.call(
-      'ApprovalController:rejectRequest',
-      id,
-      error,
-    );
+  #rejectPermissionsRequest(id: string, error: unknown): void {
+    return this.messenger.call('ApprovalController:rejectRequest', id, error);
   }
 
   /**
@@ -2773,7 +2729,7 @@ export class PermissionController<
       throw unauthorized({ data: { origin, targetName } });
     }
 
-    return this.getTypedPermissionSpecification(
+    return this.#getTypedPermissionSpecification(
       PermissionType.Endowment,
       targetName,
       origin,
@@ -2814,18 +2770,20 @@ export class PermissionController<
     params?: RestrictedMethodParameters,
   ): Promise<Json> {
     // Throws if the method does not exist
-    const methodImplementation = this.getRestrictedMethod(targetName, origin);
+    const methodImplementation = this.#getRestrictedMethod(targetName, origin);
 
-    const result = await this._executeRestrictedMethod(
+    const result = await this.#executeRestrictedMethod(
       methodImplementation,
       { origin },
       targetName,
       params,
     );
 
+    // This is impossible if the restricted method implementation is typed correctly,
+    // but we maintain it for backwards compatibility.
     if (result === undefined) {
       throw new Error(
-        `Internal request for method "${targetName}" as origin "${origin}" returned no result.`,
+        `Request for method "${targetName}" as origin "${origin}" returned no result.`,
       );
     }
 
@@ -2833,24 +2791,22 @@ export class PermissionController<
   }
 
   /**
-   * An internal method used in the controller's `json-rpc-engine` middleware
-   * and {@link PermissionController.executeRestrictedMethod}. Calls the
-   * specified restricted method implementation after decorating it with the
-   * caveats of its permission. Throws if the subject does not have the
+   * An internal method used in {@link PermissionController.executeRestrictedMethod}.
+   * Calls the specified restricted method implementation after decorating it
+   * with the caveats of its permission. Throws if the subject does not have the
    * requisite permission.
    *
    * ATTN: Parameter validation is the responsibility of the caller, or
    * the restricted method implementation in the case of `params`.
    *
-   * @see {@link PermissionController.executeRestrictedMethod} and
-   * {@link PermissionController.createPermissionMiddleware} for usage.
+   * @see {@link PermissionController.executeRestrictedMethod} for usage.
    * @param methodImplementation - The implementation of the method to call.
    * @param subject - Metadata about the subject that made the request.
    * @param method - The method name
    * @param params - Params needed for executing the restricted method
    * @returns The result of the restricted method implementation
    */
-  private _executeRestrictedMethod(
+  #executeRestrictedMethod(
     methodImplementation: RestrictedMethod<RestrictedMethodParameters, Json>,
     subject: PermissionSubjectMetadata,
     method: ExtractPermission<
@@ -2869,7 +2825,7 @@ export class PermissionController<
     return decorateWithCaveats(
       methodImplementation,
       permission,
-      this._caveatSpecifications,
+      this.#caveatSpecifications,
     )({ method, params, context: { origin } });
   }
 }

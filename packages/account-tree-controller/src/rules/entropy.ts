@@ -10,12 +10,14 @@ import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
 import type { AccountGroupObjectOf } from '../group';
-import { BaseRule, type Rule, type RuleResult } from '../rule';
+import { BaseRule } from '../rule';
+import type { Rule, RuleResult } from '../rule';
 import type { AccountWalletObjectOf } from '../wallet';
 
 export class EntropyRule
   extends BaseRule
-  implements Rule<AccountWalletType.Entropy, AccountGroupType.MultichainAccount>
+  implements
+    Rule<AccountWalletType.Entropy, AccountGroupType.MultichainAccount>
 {
   readonly walletType = AccountWalletType.Entropy;
 
@@ -73,6 +75,7 @@ export class EntropyRule
           },
           pinned: false,
           hidden: false,
+          lastSelected: 0,
         },
       },
     };
@@ -106,7 +109,9 @@ export class EntropyRule
     return '';
   }
 
-  getDefaultAccountGroupName(index: number): string {
-    return `Account ${index + 1}`;
+  getDefaultAccountGroupPrefix(
+    _wallet: AccountWalletObjectOf<AccountWalletType.Entropy>,
+  ): string {
+    return 'Account';
   }
 }

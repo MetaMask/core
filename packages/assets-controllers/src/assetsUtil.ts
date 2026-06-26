@@ -11,10 +11,16 @@ import {
   toCaipChainId,
 } from '@metamask/utils';
 import BN from 'bn.js';
+import { CID } from 'multiformats/cid';
 
 import type { Nft, NftMetadata } from './NftController';
+import { getNativeTokenAddress } from './token-prices-service';
 import type { AbstractTokenPricesService } from './token-prices-service';
-import { type ContractExchangeRates } from './TokenRatesController';
+import type { EvmAssetWithMarketData } from './token-prices-service/abstract-token-prices-service';
+import type {
+  ContractExchangeRates,
+  ContractMarketData,
+} from './TokenRatesController';
 
 /**
  * The maximum number of token addresses that should be sent to the Price API in
@@ -55,6 +61,7 @@ export function compareNftMetadata(newNftMetadata: NftMetadata, nft: Nft) {
 
 /**
  * Checks whether the existing nft object has all the keys of the new incoming nft metadata object
+ *
  * @param newNftMetadata - New nft metadata object
  * @param nft - Existing nft object to compare with
  * @returns Whether the existing nft object has all the new keys from the new Nft metadata object
@@ -128,8 +135,6 @@ export const formatIconUrlWithProxy = ({
   tokenAddress: string;
 }) => {
   const chainIdDecimal = convertHexToDecimal(chainId).toString();
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
   return `https://static.cx.metamask.io/api/v1/tokenIcons/${chainIdDecimal}/${tokenAddress.toLowerCase()}.png`;
 };
 
@@ -137,75 +142,36 @@ export const formatIconUrlWithProxy = ({
  * Networks where token detection is supported - Values are in hex format
  */
 export enum SupportedTokenDetectionNetworks {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  mainnet = '0x1', // decimal: 1
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  bsc = '0x38', // decimal: 56
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  polygon = '0x89', // decimal: 137
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  avax = '0xa86a', // decimal: 43114
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  aurora = '0x4e454152', // decimal: 1313161554
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  linea_goerli = '0xe704', // decimal: 59140
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  linea_mainnet = '0xe708', // decimal: 59144
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  arbitrum = '0xa4b1', // decimal: 42161
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  optimism = '0xa', // decimal: 10
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  base = '0x2105', // decimal: 8453
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  zksync = '0x144', // decimal: 324
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  cronos = '0x19', // decimal: 25
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  celo = '0xa4ec', // decimal: 42220
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  gnosis = '0x64', // decimal: 100
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  fantom = '0xfa', // decimal: 250
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  polygon_zkevm = '0x44d', // decimal: 1101
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  moonbeam = '0x504', // decimal: 1284
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  moonriver = '0x505', // decimal: 1285
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  sei = '0x531', // decimal: 1329
+  Mainnet = '0x1', // decimal: 1
+  Bsc = '0x38', // decimal: 56
+  Polygon = '0x89', // decimal: 137
+  Avax = '0xa86a', // decimal: 43114
+  Aurora = '0x4e454152', // decimal: 1313161554
+  LineaGoerli = '0xe704', // decimal: 59140
+  LineaMainnet = '0xe708', // decimal: 59144
+  Arbitrum = '0xa4b1', // decimal: 42161
+  Optimism = '0xa', // decimal: 10
+  Base = '0x2105', // decimal: 8453
+  Zksync = '0x144', // decimal: 324
+  Cronos = '0x19', // decimal: 25
+  Celo = '0xa4ec', // decimal: 42220
+  Gnosis = '0x64', // decimal: 100
+  Fantom = '0xfa', // decimal: 250
+  PolygonZkevm = '0x44d', // decimal: 1101
+  Moonbeam = '0x504', // decimal: 1284
+  Moonriver = '0x505', // decimal: 1285
+  Sei = '0x531', // decimal: 1329
+  MonadMainnet = '0x8f', // decimal: 143
+  Hyperevm = '0x3e7', // decimal: 999
+  Arc = '0x13b2', // decimal: 5042
 }
 
 /**
  * Networks where staked balance is supported - Values are in hex format
  */
 export enum SupportedStakedBalanceNetworks {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  mainnet = '0x1', // decimal: 1
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
-  hoodi = '0x88bb0', // decimal: 560048
+  Mainnet = '0x1', // decimal: 1
+  Hoodi = '0x88bb0', // decimal: 560048
 }
 
 /**
@@ -265,7 +231,6 @@ export async function getIpfsCIDv1AndPath(ipfsUrl: string): Promise<{
   const cid = index !== -1 ? url.substring(0, index) : url;
   const path = index !== -1 ? url.substring(index) : undefined;
 
-  const { CID } = await import('multiformats');
   // We want to ensure that the CID is v1 (https://docs.ipfs.io/concepts/content-addressing/#identifier-formats)
   // because most cid v0s appear to be incompatible with IPFS subdomains
   return {
@@ -380,6 +345,13 @@ export async function reduceInBatchesSerially<Value, Result>({
   return finalResult;
 }
 
+type FetchTokenContractExchangeRatesArgs = {
+  tokenPricesService: AbstractTokenPricesService;
+  nativeCurrency: string;
+  tokenAddresses: Hex[];
+  chainId: Hex;
+};
+
 /**
  * Retrieves token prices for a set of contract addresses in a specific currency and chainId.
  *
@@ -388,19 +360,27 @@ export async function reduceInBatchesSerially<Value, Result>({
  * @param args.nativeCurrency - The native currency to request price in.
  * @param args.tokenAddresses - The list of contract addresses.
  * @param args.chainId - The chainId of the tokens.
- * @returns The prices for the requested tokens.
+ * @param args.includeMarketData - When true, returns full market data (price,
+ * percentage changes, market cap, etc.) per token instead of just the price.
+ * @returns The prices (or full market data) for the requested tokens.
  */
+export async function fetchTokenContractExchangeRates(
+  args: FetchTokenContractExchangeRatesArgs & { includeMarketData: true },
+): Promise<ContractMarketData>;
+
+export async function fetchTokenContractExchangeRates(
+  args: FetchTokenContractExchangeRatesArgs & { includeMarketData?: false },
+): Promise<ContractExchangeRates>;
+
 export async function fetchTokenContractExchangeRates({
   tokenPricesService,
   nativeCurrency,
   tokenAddresses,
   chainId,
-}: {
-  tokenPricesService: AbstractTokenPricesService;
-  nativeCurrency: string;
-  tokenAddresses: Hex[];
-  chainId: Hex;
-}): Promise<ContractExchangeRates> {
+  includeMarketData = false,
+}: FetchTokenContractExchangeRatesArgs & {
+  includeMarketData?: boolean;
+}): Promise<ContractExchangeRates | ContractMarketData> {
   const isChainIdSupported =
     tokenPricesService.validateChainIdSupported(chainId);
   const isCurrencySupported =
@@ -412,17 +392,23 @@ export async function fetchTokenContractExchangeRates({
 
   const tokenPricesByTokenAddress = await reduceInBatchesSerially<
     Hex,
-    Awaited<ReturnType<AbstractTokenPricesService['fetchTokenPrices']>>
+    Record<Hex, EvmAssetWithMarketData>
   >({
-    values: [...tokenAddresses].sort(),
+    values: [...tokenAddresses, getNativeTokenAddress(chainId)].sort(),
     batchSize: TOKEN_PRICES_BATCH_SIZE,
     eachBatch: async (allTokenPricesByTokenAddress, batch) => {
-      const tokenPricesByTokenAddressForBatch =
+      const tokenPricesByTokenAddressForBatch = (
         await tokenPricesService.fetchTokenPrices({
-          tokenAddresses: batch,
-          chainId,
+          assets: batch.map((tokenAddress) => ({
+            chainId,
+            tokenAddress,
+          })),
           currency: nativeCurrency,
-        });
+        })
+      ).reduce<Record<Hex, EvmAssetWithMarketData>>((acc, tokenPrice) => {
+        acc[tokenPrice.tokenAddress] = tokenPrice;
+        return acc;
+      }, {});
 
       return {
         ...allTokenPricesByTokenAddress,
@@ -431,6 +417,25 @@ export async function fetchTokenContractExchangeRates({
     },
     initialResult: {},
   });
+
+  if (includeMarketData) {
+    return Object.entries(tokenPricesByTokenAddress).reduce<ContractMarketData>(
+      (obj, [tokenAddress, tokenPrice]) => {
+        if (tokenPrice) {
+          const checksummedAddress = toChecksumHexAddress(tokenAddress);
+          return {
+            ...obj,
+            [checksummedAddress]: {
+              ...tokenPrice,
+              tokenAddress: checksummedAddress,
+            },
+          };
+        }
+        return obj;
+      },
+      {},
+    );
+  }
 
   return Object.entries(tokenPricesByTokenAddress).reduce(
     (obj, [tokenAddress, tokenPrice]) => {
@@ -445,6 +450,7 @@ export async function fetchTokenContractExchangeRates({
 
 /**
  * Function to search for a specific value in a given map and return the key
+ *
  * @param map - map input to search value
  * @param value - the value to search for
  * @returns returns key that corresponds to the value

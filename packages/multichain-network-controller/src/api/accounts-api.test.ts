@@ -9,20 +9,20 @@ import {
   TrxAccountType,
 } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import {
-  type CaipAccountId,
-  type CaipChainId,
-  type CaipReference,
-  KnownCaipNamespace,
+import { KnownCaipNamespace } from '@metamask/utils';
+import type {
+  CaipAccountId,
+  CaipChainId,
+  CaipReference,
 } from '@metamask/utils';
 
 import {
-  type ActiveNetworksResponse,
   toAllowedCaipAccountIds,
   toActiveNetworksByAddress,
   buildActiveNetworksUrl,
   MULTICHAIN_ACCOUNTS_BASE_URL,
 } from './accounts-api';
+import type { ActiveNetworksResponse } from './accounts-api';
 
 const MOCK_ADDRESSES = {
   evm: '0x1234567890123456789012345678901234567890',

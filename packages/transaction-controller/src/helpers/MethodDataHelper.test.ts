@@ -1,9 +1,18 @@
 import { MethodRegistry } from 'eth-method-registry';
 
+import type {
+  MethodData,
+  TransactionControllerMessenger,
+} from '../TransactionController';
+import { getProvider } from '../utils/provider';
 import { MethodDataHelper } from './MethodDataHelper';
-import type { MethodData } from '../TransactionController';
 
 jest.mock('eth-method-registry');
+
+jest.mock('../utils/provider', () => ({
+  ...jest.requireActual('../utils/provider'),
+  getProvider: jest.fn(),
+}));
 
 const FOUR_BYTE_PREFIX_MOCK = '0x12345678';
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
@@ -22,7 +31,7 @@ const METHOD_DATA_MOCK: MethodData = {
  *
  * @returns The mocked MethodRegistry instance.
  */
-function createMethodRegistryMock() {
+function createMethodRegistryMock(): jest.Mocked<MethodRegistry> {
   return {
     lookup: jest.fn(),
     parse: jest.fn(),
@@ -31,16 +40,21 @@ function createMethodRegistryMock() {
 
 describe('MethodDataHelper', () => {
   const methodRegistryClassMock = jest.mocked(MethodRegistry);
+  const getProviderMock = jest.mocked(getProvider);
+  const messengerMock = {} as TransactionControllerMessenger;
 
   beforeEach(() => {
     jest.resetAllMocks();
+    getProviderMock.mockReturnValue({} as never);
   });
 
   describe('lookup', () => {
     it('returns method data from cache', async () => {
       const methodDataHelper = new MethodDataHelper({
-        getProvider: jest.fn(),
-        getState: () => ({ [FOUR_BYTE_PREFIX_MOCK]: METHOD_DATA_MOCK }),
+        messenger: messengerMock,
+        getState: (): Record<string, MethodData> => ({
+          [FOUR_BYTE_PREFIX_MOCK]: METHOD_DATA_MOCK,
+        }),
       });
 
       const result = await methodDataHelper.lookup(
@@ -61,8 +75,8 @@ describe('MethodDataHelper', () => {
       methodRegistryClassMock.mockReturnValueOnce(methodRegistryMock);
 
       const methodDataHelper = new MethodDataHelper({
-        getProvider: jest.fn(),
-        getState: () => ({}),
+        messenger: messengerMock,
+        getState: (): Record<string, MethodData> => ({}),
       });
 
       const result = await methodDataHelper.lookup(
@@ -80,8 +94,8 @@ describe('MethodDataHelper', () => {
       methodRegistryClassMock.mockReturnValueOnce(methodRegistryMock);
 
       const methodDataHelper = new MethodDataHelper({
-        getProvider: jest.fn(),
-        getState: () => ({}),
+        messenger: messengerMock,
+        getState: (): Record<string, MethodData> => ({}),
       });
 
       const result = await methodDataHelper.lookup(
@@ -96,16 +110,14 @@ describe('MethodDataHelper', () => {
     });
 
     it('creates registry instance for each unique network client ID', async () => {
-      const getProviderMock = jest.fn();
-
       const methodRegistryMock = createMethodRegistryMock();
       methodRegistryMock.lookup.mockResolvedValueOnce(undefined);
 
       methodRegistryClassMock.mockReturnValueOnce(methodRegistryMock);
 
       const methodDataHelper = new MethodDataHelper({
-        getProvider: getProviderMock,
-        getState: () => ({}),
+        messenger: messengerMock,
+        getState: (): Record<string, MethodData> => ({}),
       });
 
       await methodDataHelper.lookup(
@@ -125,6 +137,14 @@ describe('MethodDataHelper', () => {
 
       expect(methodRegistryClassMock).toHaveBeenCalledTimes(2);
       expect(getProviderMock).toHaveBeenCalledTimes(2);
+      expect(getProviderMock).toHaveBeenNthCalledWith(1, {
+        messenger: messengerMock,
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+      });
+      expect(getProviderMock).toHaveBeenNthCalledWith(2, {
+        messenger: messengerMock,
+        networkClientId: 'anotherNetworkClientId',
+      });
     });
 
     it('emits event when method data is fetched', async () => {
@@ -137,8 +157,8 @@ describe('MethodDataHelper', () => {
       methodRegistryClassMock.mockReturnValueOnce(methodRegistryMock);
 
       const methodDataHelper = new MethodDataHelper({
-        getProvider: jest.fn(),
-        getState: () => ({}),
+        messenger: messengerMock,
+        getState: (): Record<string, MethodData> => ({}),
       });
 
       const updateListener = jest.fn();

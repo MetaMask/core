@@ -7,15 +7,146 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.2.3]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.3.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/network-controller` from `^32.0.0` to `^33.0.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/polling-controller` from `^16.0.6` to `^16.0.7` ([#9218](https://github.com/MetaMask/core/pull/9218))
+
+## [26.2.2]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^31.0.0` to `^32.0.0` ([#8765](https://github.com/MetaMask/core/pull/8765), [#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/polling-controller` from `^16.0.5` to `^16.0.6` ([#8834](https://github.com/MetaMask/core/pull/8834))
+
+## [26.2.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/network-controller` from `^30.1.0` to `^31.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/polling-controller` from `^16.0.4` to `^16.0.5` ([#8755](https://github.com/MetaMask/core/pull/8755))
+
+## [26.2.0]
+
+### Added
+
+- Expose missing public `GasFeeController` methods through its messenger ([#8699](https://github.com/MetaMask/core/pull/8699))
+  - The following actions are now available:
+    - `GasFeeController:enableNonRPCGasFeeApis`
+    - `GasFeeController:disableNonRPCGasFeeApis`
+  - Corresponding action types are available as well.
+
+### Changed
+
+- Bump `@metamask/messenger` from `^1.1.0` to `^1.2.0` ([#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+- Add missing `@metamask/messenger` dependency ([#8318](https://github.com/MetaMask/core/pull/8318), [#8364](https://github.com/MetaMask/core/pull/8364))
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+- Bump `@metamask/network-controller` from `^30.0.1` to `^30.1.0` ([#8636](https://github.com/MetaMask/core/pull/8636))
+
+## [26.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/network-controller` from `^30.0.0` to `^30.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/polling-controller` from `^16.0.3` to `^16.0.4` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [26.1.0]
+
+### Added
+
+- Expose missing public `GasFeeController` methods through its messenger ([#8183](https://github.com/MetaMask/core/pull/8183))
+  - The following actions are now available:
+    - `GasFeeController:resetPolling`
+    - `GasFeeController:fetchGasFeeEstimates`
+    - `GasFeeController:getGasFeeEstimatesAndStartPolling`
+    - `GasFeeController:disconnectPoller`
+    - `GasFeeController:stopPolling`
+    - `GasFeeController:getTimeEstimate`
+  - Corresponding action types (e.g. `GasFeeControllerResetPollingAction`) are available as well.
+
+## [26.0.3]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^29.0.0` to `^30.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/polling-controller` from `^16.0.2` to `^16.0.3` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
+
+## [26.0.2]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^28.0.0` to `^29.0.0` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/polling-controller` from `^16.0.1` to `^16.0.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+
+## [26.0.1]
+
+### Changed
+
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7258](https://github.com/MetaMask/core/pull/7258), [#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583), [#7604](https://github.com/MetaMask/core/pull/7604))
+  - The dependencies moved are:
+    - `@metamask/network-controller` (^28.0.0)
+  - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
+    - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
+  - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.18.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
+- Bump `@metamask/polling-controller` from `^16.0.0` to `^16.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
+
+## [26.0.0]
+
+### Changed
+
+- Bump `@metamask/polling-controller` from `^15.0.0` to `^16.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/network-controller` from `^25.0.0` to `^26.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+
+### Fixed
+
+- Ensure `networksMetadata` never references old network client IDs ([#7047](https://github.com/MetaMask/core/pull/7047))
+
+## [25.0.0]
+
+### Added
+
+- Export `GasFeeMessenger` type ([#6386](https://github.com/MetaMask/core/pull/6386), [#6444](https://github.com/MetaMask/core/pull/6444))
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6386](https://github.com/MetaMask/core/pull/6386))
+  - Previously, `GasFeeController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Bump `@metamask/network-controller` from `^24.0.0` to `^25.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/polling-controller` from `^14.0.2` to `^15.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [24.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+- Bump `@metamask/network-controller` from `^24.2.2` to `^24.3.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
+- Bump `@metamask/polling-controller` from `^14.0.1` to `^14.0.2` ([#6940](https://github.com/MetaMask/core/pull/6940))
+
+## [24.1.0]
+
 ### Added
 
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6473](https://github.com/MetaMask/core/pull/6473))
 
 ### Changed
 
-- Bump `@metamask/base-controller` from `^8.0.1` to `^8.3.0` ([#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465))
-- Bump `@metamask/controller-utils` from `^11.10.0` to `^11.12.0` ([#6069](https://github.com/MetaMask/core/pull/6069), [#6303](https://github.com/MetaMask/core/pull/6303))
-- Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.4.1` ([#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632), [#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/controller-utils` from `^11.10.0` to `^11.14.1` ([#6069](https://github.com/MetaMask/core/pull/6069), [#6303](https://github.com/MetaMask/core/pull/6303), [#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629), [#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/utils` from `^11.2.0` to `^11.8.1` ([#6054](https://github.com/MetaMask/core/pull/6054), [#6588](https://github.com/MetaMask/core/pull/6588), [#6708](https://github.com/MetaMask/core/pull/6708))
+- Bump `@metamask/polling-controller` from `^14.0.0` to `^14.0.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
 
 ## [24.0.0]
 
@@ -39,10 +170,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/base-controller` from `^7.0.2` to `^8.0.0` ([#5079](https://github.com/MetaMask/core/pull/5079)), ([#5305](https://github.com/MetaMask/core/pull/5305))
-- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0` ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/base-controller` from `^7.0.2` to `^8.0.0` ([#5079](https://github.com/MetaMask/core/pull/5079), [#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0` ([#5135](https://github.com/MetaMask/core/pull/5135), [#5272](https://github.com/MetaMask/core/pull/5272))
 - Bump `@metamask/polling-controller` from `^12.0.2` to `^12.0.3` ([#5305](https://github.com/MetaMask/core/pull/5305))
-- Bump `@metamask/utils` from `^10.0.0` to `^11.1.0` ([#5080](https://github.com/MetaMask/core/pull/5080)), ([#5223](https://github.com/MetaMask/core/pull/5223))
+- Bump `@metamask/utils` from `^10.0.0` to `^11.1.0` ([#5080](https://github.com/MetaMask/core/pull/5080), [#5223](https://github.com/MetaMask/core/pull/5223))
 
 ## [22.0.2]
 
@@ -98,7 +229,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648))
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
@@ -182,11 +313,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add nonRPCGasFeeApisDisabled property to the gas fee controller, allowing the user to specify that they want to prevent network request to gas estimate services, and only want gas estimates to be based on rpc requests (eth_feeHistory and eth_gasPrice) to the provider. ([#4094](https://github.com/MetaMask/core.git/pull/4094))
+- Add nonRPCGasFeeApisDisabled property to the gas fee controller, allowing the user to specify that they want to prevent network request to gas estimate services, and only want gas estimates to be based on rpc requests (eth_feeHistory and eth_gasPrice) to the provider. ([#4094](https://github.com/MetaMask/core/pull/4094))
 
 ### Fixed
 
-- Fix GasFeeController incorrectly setting globally selected state, so that state is only updated if the gasFeeEstimate fetched is for the currently selected network ([#4214](https://github.com/MetaMask/core.git/pull/4214))
+- Fix GasFeeController incorrectly setting globally selected state, so that state is only updated if the gasFeeEstimate fetched is for the currently selected network ([#4214](https://github.com/MetaMask/core/pull/4214))
 
 ## [15.0.0]
 
@@ -423,14 +554,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
-
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
-
     - Everything in `src/gas`
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@24.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.2.3...HEAD
+[26.2.3]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.2.2...@metamask/gas-fee-controller@26.2.3
+[26.2.2]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.2.1...@metamask/gas-fee-controller@26.2.2
+[26.2.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.2.0...@metamask/gas-fee-controller@26.2.1
+[26.2.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.1.1...@metamask/gas-fee-controller@26.2.0
+[26.1.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.1.0...@metamask/gas-fee-controller@26.1.1
+[26.1.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.0.3...@metamask/gas-fee-controller@26.1.0
+[26.0.3]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.0.2...@metamask/gas-fee-controller@26.0.3
+[26.0.2]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.0.1...@metamask/gas-fee-controller@26.0.2
+[26.0.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@26.0.0...@metamask/gas-fee-controller@26.0.1
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@25.0.0...@metamask/gas-fee-controller@26.0.0
+[25.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@24.1.1...@metamask/gas-fee-controller@25.0.0
+[24.1.1]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@24.1.0...@metamask/gas-fee-controller@24.1.1
+[24.1.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@24.0.0...@metamask/gas-fee-controller@24.1.0
 [24.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@23.0.0...@metamask/gas-fee-controller@24.0.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@22.0.3...@metamask/gas-fee-controller@23.0.0
 [22.0.3]: https://github.com/MetaMask/core/compare/@metamask/gas-fee-controller@22.0.2...@metamask/gas-fee-controller@22.0.3

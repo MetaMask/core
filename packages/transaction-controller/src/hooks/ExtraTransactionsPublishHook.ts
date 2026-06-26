@@ -1,8 +1,5 @@
-import {
-  createDeferredPromise,
-  createModuleLogger,
-  type Hex,
-} from '@metamask/utils';
+import { createDeferredPromise, createModuleLogger } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import type { TransactionController } from '..';
 import { projectLogger } from '../logger';
@@ -26,12 +23,22 @@ const log = createModuleLogger(
 export class ExtraTransactionsPublishHook {
   readonly #addTransactionBatch: TransactionController['addTransactionBatch'];
 
+  readonly #getTransaction: (transactionId: string) => TransactionMeta;
+
+  readonly #originalPublishHook: PublishHook;
+
   constructor({
     addTransactionBatch,
+    getTransaction,
+    originalPublishHook,
   }: {
     addTransactionBatch: TransactionController['addTransactionBatch'];
+    getTransaction: (transactionId: string) => TransactionMeta;
+    originalPublishHook: PublishHook;
   }) {
     this.#addTransactionBatch = addTransactionBatch;
+    this.#getTransaction = getTransaction;
+    this.#originalPublishHook = originalPublishHook;
   }
 
   /**
@@ -50,7 +57,7 @@ export class ExtraTransactionsPublishHook {
     const {
       batchTransactions,
       batchTransactionsOptions,
-      id,
+      id: transactionId,
       networkClientId,
       txParams,
     } = transactionMeta;
@@ -69,7 +76,28 @@ export class ExtraTransactionsPublishHook {
     const signedTransaction = signedTx as Hex;
     const resultPromise = createDeferredPromise<PublishHookResult>();
 
-    const onPublish = ({ transactionHash }: { transactionHash?: string }) => {
+    const onPublish = ({
+      newSignature,
+      transactionHash,
+    }: {
+      newSignature?: Hex;
+      transactionHash?: string;
+    }): void => {
+      if (newSignature) {
+        const latestTransactionMeta = this.#getTransaction(transactionId);
+
+        log('Calling original publish hook with new signature', {
+          latestTransactionMeta,
+          newSignature,
+        });
+
+        this.#originalPublishHook(latestTransactionMeta, newSignature)
+          .then(resultPromise.resolve)
+          .catch(resultPromise.reject);
+
+        return;
+      }
+
       resultPromise.resolve({ transactionHash });
     };
 
@@ -84,7 +112,7 @@ export class ExtraTransactionsPublishHook {
 
     const mainTransaction: TransactionBatchSingleRequest = {
       existingTransaction: {
-        id,
+        id: transactionId,
         onPublish,
         signedTransaction,
       },
@@ -136,6 +164,7 @@ export class ExtraTransactionsPublishHook {
 
     await this.#addTransactionBatch({
       from,
+      isInternal: true,
       networkClientId,
       requireApproval: false,
       transactions,

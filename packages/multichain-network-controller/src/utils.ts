@@ -1,13 +1,12 @@
 import type { NetworkConfiguration } from '@metamask/network-controller';
 import {
-  type Hex,
-  type CaipChainId,
   KnownCaipNamespace,
   toCaipChainId,
   parseCaipChainId,
   hexToNumber,
   add0x,
 } from '@metamask/utils';
+import type { Hex, CaipChainId } from '@metamask/utils';
 
 import { AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS } from './constants';
 import type {
@@ -101,7 +100,7 @@ export const toMultichainNetworkConfiguration = (
     defaultRpcEndpointIndex,
     nativeCurrency,
     blockExplorerUrls,
-    defaultBlockExplorerUrlIndex,
+    defaultBlockExplorerUrlIndex = 0,
   } = network;
   return {
     chainId: toEvmCaipChainId(chainId),
@@ -109,7 +108,7 @@ export const toMultichainNetworkConfiguration = (
     name: name || rpcEndpoints[defaultRpcEndpointIndex].url,
     nativeCurrency,
     blockExplorerUrls,
-    defaultBlockExplorerUrlIndex: defaultBlockExplorerUrlIndex || 0,
+    defaultBlockExplorerUrlIndex,
   };
 };
 

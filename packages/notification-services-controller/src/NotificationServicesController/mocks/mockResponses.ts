@@ -1,13 +1,12 @@
-import { createMockFeatureAnnouncementAPIResult } from './mock-feature-announcements';
-import { createMockRawOnChainNotifications } from './mock-raw-notifications';
-import { FEATURE_ANNOUNCEMENT_API } from '../services/feature-announcements';
 import {
   NOTIFICATION_API_LIST_ENDPOINT,
   NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT,
-  TRIGGER_API_NOTIFICATIONS_ENDPOINT,
   TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT,
-} from '../services/onchain-notifications';
+} from '../services/api-notifications';
+import { FEATURE_ANNOUNCEMENT_API } from '../services/feature-announcements';
 import { PERPS_API_CREATE_ORDERS } from '../services/perp-notifications';
+import { createMockFeatureAnnouncementAPIResult } from './mock-feature-announcements';
+import { createMockRawOnChainNotifications } from './mock-raw-notifications';
 
 type MockResponse = {
   url: string;
@@ -17,7 +16,8 @@ type MockResponse = {
 
 export const CONTENTFUL_RESPONSE = createMockFeatureAnnouncementAPIResult();
 
-export const getMockFeatureAnnouncementResponse = () => {
+// Using `satisfies` to preserve narrow return types while ensuring type safety; explicit return types would widen to MockResponse
+export const getMockFeatureAnnouncementResponse = (): MockResponse => {
   return {
     url: FEATURE_ANNOUNCEMENT_API,
     requestMethod: 'GET',
@@ -25,17 +25,9 @@ export const getMockFeatureAnnouncementResponse = () => {
   } satisfies MockResponse;
 };
 
-export const getMockUpdateOnChainNotifications = () => {
+export const getMockOnChainNotificationsConfig = (): MockResponse => {
   return {
-    url: TRIGGER_API_NOTIFICATIONS_ENDPOINT,
-    requestMethod: 'POST',
-    response: null,
-  } satisfies MockResponse;
-};
-
-export const getMockOnChainNotificationsConfig = () => {
-  return {
-    url: TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT,
+    url: TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT(),
     requestMethod: 'POST',
     response: [{ address: '0xTestAddress', enabled: true }],
   } satisfies MockResponse;
@@ -44,23 +36,24 @@ export const getMockOnChainNotificationsConfig = () => {
 export const MOCK_RAW_ON_CHAIN_NOTIFICATIONS =
   createMockRawOnChainNotifications();
 
-export const getMockListNotificationsResponse = () => {
+// Using `satisfies` to preserve narrow return types while ensuring type safety; explicit return types would widen to MockResponse
+export const getMockListNotificationsResponse = (): MockResponse => {
   return {
-    url: NOTIFICATION_API_LIST_ENDPOINT,
+    url: NOTIFICATION_API_LIST_ENDPOINT(),
     requestMethod: 'POST',
     response: MOCK_RAW_ON_CHAIN_NOTIFICATIONS,
   } satisfies MockResponse;
 };
 
-export const getMockMarkNotificationsAsReadResponse = () => {
+export const getMockMarkNotificationsAsReadResponse = (): MockResponse => {
   return {
-    url: NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT,
+    url: NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT(),
     requestMethod: 'POST',
     response: null,
   } satisfies MockResponse;
 };
 
-export const getMockCreatePerpOrderNotification = () => {
+export const getMockCreatePerpOrderNotification = (): MockResponse => {
   return {
     url: PERPS_API_CREATE_ORDERS,
     requestMethod: 'POST',

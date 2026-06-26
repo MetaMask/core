@@ -1,0 +1,45 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./"
+  },
+  "references": [
+    {
+      "path": "../account-tree-controller"
+    },
+    {
+      "path": "../authenticated-user-storage"
+    },
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../bridge-controller"
+    },
+    {
+      "path": "../controller-utils"
+    },
+    {
+      "path": "../geolocation-controller"
+    },
+    {
+      "path": "../keyring-controller"
+    },
+    {
+      "path": "../messenger"
+    },
+    {
+      "path": "../network-controller"
+    },
+    {
+      "path": "../profile-sync-controller"
+    },
+    {
+      "path": "../remote-feature-flag-controller"
+    },
+    {
+      "path": "../transaction-controller"
+    }
+  ],
+  "include": ["../../types", "./src", "./tests"]
+}

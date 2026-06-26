@@ -82,11 +82,11 @@ function getErrorMessage(error: unknown): string {
  * JSON-RPC requests that are sent to a network.
  */
 class MockedNetwork {
-  #networkClientConfiguration: NetworkClientConfiguration;
+  readonly #networkClientConfiguration: NetworkClientConfiguration;
 
-  #requestMocks: JsonRpcRequestMock[];
+  readonly #requestMocks: JsonRpcRequestMock[];
 
-  #nockScope: nock.Scope;
+  readonly #nockScope: nock.Scope;
 
   readonly #rpcUrl: string;
 
@@ -110,9 +110,7 @@ class MockedNetwork {
     this.#requestMocks = mocks;
     const rpcUrl =
       networkClientConfiguration.type === 'infura'
-        ? // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
-          `https://${networkClientConfiguration.network}.infura.io`
+        ? `https://${networkClientConfiguration.network}.infura.io`
         : networkClientConfiguration.rpcUrl;
     this.#nockScope = nock(rpcUrl);
     this.#rpcUrl = rpcUrl;
@@ -121,7 +119,7 @@ class MockedNetwork {
   /**
    * Mocks all of the requests that have been specified via the constructor.
    */
-  enable() {
+  enable(): void {
     for (const requestMock of this.#requestMocks) {
       this.#mockRpcCall(requestMock);
     }
@@ -135,8 +133,6 @@ class MockedNetwork {
    * @returns The resulting Nock scope.
    */
   #mockRpcCall(requestMock: JsonRpcRequestMock): nock.Scope {
-    // eth-query always passes `params`, so even if we don't supply this
-    // property, assume that the `body` contains it
     const { method, params = [], ...rest } = requestMock.request;
 
     // RPC endpoints may end with a non-empty path segment, such as '/path'.
@@ -148,13 +144,35 @@ class MockedNetwork {
         ? `/v3/${this.#networkClientConfiguration.infuraProjectId}`
         : new RegExp(`^${new URL(this.#rpcUrl).pathname}$`, 'u');
 
-    let nockInterceptor = this.#nockScope.post(url, {
-      id: /\d*/u,
-      jsonrpc: '2.0',
-      method,
-      params,
-      ...rest,
-    });
+    let nockInterceptor = this.#nockScope.post(
+      url,
+      (requestBody: Record<string, unknown>) => {
+        if (
+          typeof requestBody !== 'object' ||
+          requestBody === null ||
+          !('jsonrpc' in requestBody) ||
+          !('method' in requestBody) ||
+          requestBody.jsonrpc !== '2.0' ||
+          requestBody.method !== method
+        ) {
+          return false;
+        }
+
+        if (
+          Object.entries(rest).some(([key, value]) => {
+            return JSON.stringify(requestBody[key]) !== JSON.stringify(value);
+          })
+        ) {
+          return false;
+        }
+
+        if (!('params' in requestBody) || requestBody.params === undefined) {
+          return params.length === 0;
+        }
+
+        return JSON.stringify(requestBody.params) === JSON.stringify(params);
+      },
+    );
 
     if (requestMock.delay !== undefined) {
       nockInterceptor = nockInterceptor.delay(requestMock.delay);

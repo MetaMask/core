@@ -7,13 +7,167 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0]
+
 ### Added
 
-- Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6525](https://github.com/MetaMask/core/pull/6525))
+- Add Stellar pubnet (`stellar:pubnet`) and Stellar testnet (`stellar:testnet`) to multichain network configurations (`AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS`), native asset CAIP-19 constants, metadata, tickers, decimal places, and `SupportedCaipChainId`; register testnet in `NON_EVM_TESTNET_IDS` ([#8831](https://github.com/MetaMask/core/pull/8831))
 
 ### Changed
 
-- Bump `@metamask/base-controller` from `^8.1.0` to `^8.3.0` ([#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465))
+- Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
+- Bump `@metamask/keyring-api` from `^23.1.0` to `^23.3.0` ([#9249](https://github.com/MetaMask/core/pull/9249))
+
+## [3.1.4]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.3.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/accounts-controller` from `^39.0.0` to `^39.0.2` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/network-controller` from `^32.0.0` to `^33.0.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+
+## [3.1.3]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^38.1.1` to `^39.0.0` ([#8912](https://github.com/MetaMask/core/pull/8912), [#8999](https://github.com/MetaMask/core/pull/8999))
+
+## [3.1.2]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^31.0.0` to `^32.0.0` ([#8765](https://github.com/MetaMask/core/pull/8765), [#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/accounts-controller` from `^38.1.0` to `^38.1.1` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+
+## [3.1.1]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^38.0.0` to `^38.1.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/network-controller` from `^30.1.0` to `^31.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+
+## [3.1.0]
+
+### Added
+
+- Export `MultichainNetworkControllerGetNetworksWithTransactionActivityByAccountsAction` ([#8391](https://github.com/MetaMask/core/pull/8391))
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^25.3.0` to `^25.4.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
+- Bump `@metamask/accounts-controller` from `^37.1.0` to `^38.0.0` ([#8325](https://github.com/MetaMask/core/pull/8325), [#8363](https://github.com/MetaMask/core/pull/8363), [#8665](https://github.com/MetaMask/core/pull/8665))
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+- Bump `@metamask/keyring-api` from `^21.6.0` to `^23.1.0` ([#8464](https://github.com/MetaMask/core/pull/8464), [#8647](https://github.com/MetaMask/core/pull/8647))
+- Bump `@metamask/keyring-internal-api` from `^10.0.0` to `^11.0.1` ([#8464](https://github.com/MetaMask/core/pull/8464), [#8584](https://github.com/MetaMask/core/pull/8584), [#8647](https://github.com/MetaMask/core/pull/8647))
+- Bump `@metamask/network-controller` from `^30.0.1` to `^30.1.0` ([#8636](https://github.com/MetaMask/core/pull/8636))
+
+## [3.0.6]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^37.0.0` to `^37.1.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/network-controller` from `^30.0.0` to `^30.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/keyring-api` from `^21.5.0` to `^21.6.0` ([#8259](https://github.com/MetaMask/core/pull/8259))
+
+## [3.0.5]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^36.0.1` to `^37.0.0` ([#8140](https://github.com/MetaMask/core/pull/8140))
+
+## [3.0.4]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^36.0.0` to `^36.0.1` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/network-controller` from `^29.0.0` to `^30.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
+
+## [3.0.3]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^35.0.2` to `^36.0.0` ([#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/keyring-api` from `^21.0.0` to `^21.5.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+- Bump `@metamask/keyring-internal-api` from `^9.0.0` to `^10.0.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+
+## [3.0.2]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^35.0.1` to `^35.0.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/network-controller` from `^28.0.0` to `^29.0.0` ([#7642](https://github.com/MetaMask/core/pull/7642))
+
+## [3.0.1]
+
+### Changed
+
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7258](https://github.com/MetaMask/core/pull/7258), [#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583), [#7604](https://github.com/MetaMask/core/pull/7604))
+  - The dependencies moved are:
+    - `@metamask/accounts-controller` (^35.0.1)
+    - `@metamask/network-controller` (^28.0.0)
+  - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
+    - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
+  - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.18.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
+
+## [3.0.0]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/network-controller` from `^25.0.0` to `^26.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/accounts-controller` from `^34.0.0` to `^35.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+
+## [2.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6543](https://github.com/MetaMask/core/pull/6543))
+  - Previously, `MultichainNetworkController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6543](https://github.com/MetaMask/core/pull/6543))
+- **BREAKING:** Bump `@metamask/accounts-controller` from `^33.0.0` to `^34.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/network-controller` from `^24.0.0` to `^25.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [1.0.2]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+- Bump `@metamask/network-controller` from `^24.2.2` to `^24.3.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
+
+## [1.0.1]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
+- Bump `@metamask/base-controller` from `^8.4.0` to `^8.4.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/controller-utils` from `^11.14.0` to `^11.14.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+
+## [1.0.0]
+
+### Added
+
+- Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6525](https://github.com/MetaMask/core/pull/6525))
+- Add Solana Devnet support to multichain network controller ([#6670](https://github.com/MetaMask/core/pull/6670))
+
+### Changed
+
+- Bump package version to v1.0 to mark stabilization ([#6676](https://github.com/MetaMask/core/pull/6676))
+- Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
+- Bump `@metamask/base-controller` from `^8.1.0` to `^8.4.0` ([#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632))
+- Bump `@metamask/keyring-api` from `^20.1.0` to `^21.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
+- Bump `@metamask/keyring-internal-api` from `^8.1.0` to `^9.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
 ## [0.12.0]
 
@@ -154,7 +308,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Handle both EVM and non-EVM network and account switching for the associated network.
   - Act as a proxy for the `NetworkController` (for EVM network changes).
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@0.12.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.2.0...HEAD
+[3.2.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.1.4...@metamask/multichain-network-controller@3.2.0
+[3.1.4]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.1.3...@metamask/multichain-network-controller@3.1.4
+[3.1.3]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.1.2...@metamask/multichain-network-controller@3.1.3
+[3.1.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.1.1...@metamask/multichain-network-controller@3.1.2
+[3.1.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.1.0...@metamask/multichain-network-controller@3.1.1
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.0.6...@metamask/multichain-network-controller@3.1.0
+[3.0.6]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.0.5...@metamask/multichain-network-controller@3.0.6
+[3.0.5]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.0.4...@metamask/multichain-network-controller@3.0.5
+[3.0.4]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.0.3...@metamask/multichain-network-controller@3.0.4
+[3.0.3]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.0.2...@metamask/multichain-network-controller@3.0.3
+[3.0.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.0.1...@metamask/multichain-network-controller@3.0.2
+[3.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.0.0...@metamask/multichain-network-controller@3.0.1
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@2.0.0...@metamask/multichain-network-controller@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@1.0.2...@metamask/multichain-network-controller@2.0.0
+[1.0.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@1.0.1...@metamask/multichain-network-controller@1.0.2
+[1.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@1.0.0...@metamask/multichain-network-controller@1.0.1
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@0.12.0...@metamask/multichain-network-controller@1.0.0
 [0.12.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@0.11.1...@metamask/multichain-network-controller@0.12.0
 [0.11.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@0.11.0...@metamask/multichain-network-controller@0.11.1
 [0.11.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@0.10.0...@metamask/multichain-network-controller@0.11.0

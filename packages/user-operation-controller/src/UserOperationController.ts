@@ -1,34 +1,35 @@
 import type {
   AcceptResultCallbacks,
-  AddApprovalRequest,
+  ApprovalControllerAddRequestAction,
   AddResult,
 } from '@metamask/approval-controller';
-import type { RestrictedMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+} from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
-import EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type {
   KeyringControllerPrepareUserOperationAction,
   KeyringControllerPatchUserOperationAction,
   KeyringControllerSignUserOperationAction,
 } from '@metamask/keyring-controller';
+import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
   Provider,
 } from '@metamask/network-controller';
 import { errorCodes } from '@metamask/rpc-errors';
-import {
-  determineTransactionType,
-  type TransactionMeta,
-  type TransactionParams,
-  type TransactionType,
+import { TransactionType } from '@metamask/transaction-controller';
+import type {
+  TransactionMeta,
+  TransactionParams,
 } from '@metamask/transaction-controller';
 import { add0x } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
-import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
 import { v1 as random } from 'uuid';
 
@@ -43,6 +44,7 @@ import type {
   UserOperationMetadata,
 } from './types';
 import { UserOperationStatus } from './types';
+import type { UserOperationControllerMethodActions } from './UserOperationController-method-action-types';
 import { updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 import { getTransactionMetadata } from './utils/transaction';
@@ -56,11 +58,17 @@ import {
 
 const controllerName = 'UserOperationController';
 
+const MESSENGER_EXPOSED_METHODS = [
+  'addUserOperation',
+  'addUserOperationFromTransaction',
+  'startPollingByNetworkClientId',
+] as const;
+
 const stateMetadata = {
   userOperations: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
 };
@@ -79,22 +87,16 @@ type Events = {
 };
 
 export type UserOperationControllerEventEmitter = EventEmitter & {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   on<T extends keyof Events>(
     eventName: T,
     listener: (...args: Events[T]) => void,
   ): UserOperationControllerEventEmitter;
 
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   once<T extends keyof Events>(
     eventName: T,
     listener: (...args: Events[T]) => void,
   ): UserOperationControllerEventEmitter;
 
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/naming-convention
   emit<T extends keyof Events>(eventName: T, ...args: Events[T]): boolean;
 };
 
@@ -102,32 +104,31 @@ export type UserOperationControllerState = {
   userOperations: Record<string, UserOperationMetadata>;
 };
 
-export type GetUserOperationState = {
-  type: `${typeof controllerName}:getState`;
-  handler: () => UserOperationControllerState;
-};
+export type GetUserOperationState = ControllerGetStateAction<
+  typeof controllerName,
+  UserOperationControllerState
+>;
 
-export type UserOperationStateChange = {
-  type: `${typeof controllerName}:stateChange`;
-  payload: [UserOperationControllerState, Patch[]];
-};
+export type UserOperationStateChange = ControllerStateChangeEvent<
+  typeof controllerName,
+  UserOperationControllerState
+>;
 
 export type UserOperationControllerActions =
   | GetUserOperationState
+  | UserOperationControllerMethodActions
   | NetworkControllerGetNetworkClientByIdAction
-  | AddApprovalRequest
+  | ApprovalControllerAddRequestAction
   | KeyringControllerPrepareUserOperationAction
   | KeyringControllerPatchUserOperationAction
   | KeyringControllerSignUserOperationAction;
 
 export type UserOperationControllerEvents = UserOperationStateChange;
 
-export type UserOperationControllerMessenger = RestrictedMessenger<
+export type UserOperationControllerMessenger = Messenger<
   typeof controllerName,
   UserOperationControllerActions,
-  UserOperationControllerEvents,
-  UserOperationControllerActions['type'],
-  UserOperationControllerEvents['type']
+  UserOperationControllerEvents
 >;
 
 export type UserOperationControllerOptions = {
@@ -204,11 +205,11 @@ export class UserOperationController extends BaseController<
 > {
   hub: UserOperationControllerEventEmitter;
 
-  #entrypoint: string;
+  readonly #entrypoint: string;
 
-  #getGasFeeEstimates: () => Promise<GasFeeState>;
+  readonly #getGasFeeEstimates: () => Promise<GasFeeState>;
 
-  #pendingUserOperationTracker: PendingUserOperationTracker;
+  readonly #pendingUserOperationTracker: PendingUserOperationTracker;
 
   /**
    * Construct a UserOperationController instance.
@@ -233,6 +234,11 @@ export class UserOperationController extends BaseController<
     });
 
     this.hub = new EventEmitter() as UserOperationControllerEventEmitter;
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
 
     this.#entrypoint = entrypoint;
     this.#getGasFeeEstimates = getGasFeeEstimates;
@@ -308,6 +314,12 @@ export class UserOperationController extends BaseController<
     return await this.#addUserOperation(request, { ...options, transaction });
   }
 
+  /**
+   * Starts polling for pending user operations on the given network.
+   *
+   * @param networkClientId - The ID of the network client to poll.
+   * @returns The polling token that can be used to stop polling.
+   */
   startPollingByNetworkClientId(networkClientId: string): string {
     return this.#pendingUserOperationTracker.startPolling({
       networkClientId,
@@ -339,7 +351,7 @@ export class UserOperationController extends BaseController<
 
     const smartContractAccount =
       requestSmartContractAccount ??
-      new SnapSmartContractAccount(this.messagingSystem);
+      new SnapSmartContractAccount(this.messenger);
 
     const cache: UserOperationCache = {
       chainId,
@@ -495,7 +507,6 @@ export class UserOperationController extends BaseController<
 
     const transactionType = await this.#getTransactionType(
       transaction,
-      provider,
       options,
     );
 
@@ -710,8 +721,6 @@ export class UserOperationController extends BaseController<
       (metadata) => {
         log('In listener...');
         this.hub.emit('user-operation-confirmed', metadata);
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         this.hub.emit(`${metadata.id}:confirmed`, metadata);
       },
     );
@@ -720,8 +729,6 @@ export class UserOperationController extends BaseController<
       'user-operation-failed',
       (metadata, error) => {
         this.hub.emit('user-operation-failed', metadata, error);
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         this.hub.emit(`${metadata.id}:failed`, metadata, error);
       },
     );
@@ -739,7 +746,7 @@ export class UserOperationController extends BaseController<
     const type = ApprovalType.Transaction;
     const requestData = { txId: id };
 
-    return (await this.messagingSystem.call(
+    return (await this.messenger.call(
       'ApprovalController:addRequest',
       {
         id,
@@ -754,7 +761,6 @@ export class UserOperationController extends BaseController<
 
   async #getTransactionType(
     transaction: TransactionParams | undefined,
-    provider: Provider,
     options: AddUserOperationOptions,
   ): Promise<TransactionType | undefined> {
     if (!transaction) {
@@ -765,16 +771,13 @@ export class UserOperationController extends BaseController<
       return options.type;
     }
 
-    const ethQuery = new EthQuery(provider);
-    const result = determineTransactionType(transaction, ethQuery);
-
-    return (await result).type;
+    return TransactionType.contractInteraction;
   }
 
   async #getProvider(
     networkClientId: string,
   ): Promise<{ provider: Provider; chainId: string }> {
-    const { provider, configuration } = this.messagingSystem.call(
+    const { provider, configuration } = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     );

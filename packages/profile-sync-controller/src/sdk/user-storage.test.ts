@@ -1,5 +1,10 @@
+import nock from 'nock';
 import type { UserStorageGenericFeatureKey } from 'src/shared/storage-schema';
 
+import encryption, { createSHA256Hash } from '../shared/encryption';
+import { SHARED_SALT } from '../shared/encryption/constants';
+import { Env } from '../shared/env';
+import { USER_STORAGE_FEATURE_NAMES } from '../shared/storage-schema';
 import { arrangeAuthAPIs } from './__fixtures__/auth';
 import { arrangeAuth, typedMockFn } from './__fixtures__/test-utils';
 import {
@@ -10,19 +15,17 @@ import {
   handleMockUserStorageDelete,
   handleMockUserStorageBatchDelete,
 } from './__fixtures__/userstorage';
-import { type IBaseAuth } from './authentication-jwt-bearer/types';
+import type { IBaseAuth } from './authentication-jwt-bearer/types';
 import { NotFoundError, UserStorageError } from './errors';
 import {
   MOCK_NOTIFICATIONS_DATA,
   MOCK_STORAGE_KEY,
   MOCK_STORAGE_RESPONSE,
+  MOCK_STORAGE_URL,
+  MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES,
 } from './mocks/userstorage';
 import type { StorageOptions } from './user-storage';
 import { STORAGE_URL, UserStorage } from './user-storage';
-import encryption, { createSHA256Hash } from '../shared/encryption';
-import { SHARED_SALT } from '../shared/encryption/constants';
-import { Env } from '../shared/env';
-import { USER_STORAGE_FEATURE_NAMES } from '../shared/storage-schema';
 
 const MOCK_SRP = '0x6265617665726275696c642e6f7267';
 const MOCK_ADDRESS = '0x68757d15a4d8d1421c17003512AFce15D3f3FaDa';
@@ -110,7 +113,6 @@ describe('User Storage', () => {
     const mockPut = handleMockUserStoragePut(
       undefined,
       async (_, requestBody) => {
-        // eslint-disable-next-line jest/no-conditional-in-test
         if (typeof requestBody === 'string') {
           return;
         }
@@ -152,6 +154,314 @@ describe('User Storage', () => {
     expect(responseAllFeatureEntries).toStrictEqual([data]);
   });
 
+  it('sends x-profile-id header on getAllFeatureItems when paired', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    jest.spyOn(auth, 'getUserProfile').mockResolvedValue({
+      profileId: 'alias-profile-id',
+      canonicalProfileId: 'canonical-profile-id',
+      identifierId: 'id-1',
+      metaMetricsId: 'mm-1',
+    });
+
+    let capturedProfileHeader: string | undefined;
+    const mockGetAll = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES)
+      .persist()
+      .get('')
+      .reply(function () {
+        // eslint-disable-next-line no-invalid-this
+        capturedProfileHeader = this.req.getHeader('x-profile-id')?.toString();
+        return [200, JSON.stringify([])];
+      });
+
+    await userStorage.getAllFeatureItems(
+      USER_STORAGE_FEATURE_NAMES.notifications,
+    );
+
+    expect(mockGetAll.isDone()).toBe(true);
+    expect(capturedProfileHeader).toBe('alias-profile-id');
+  });
+
+  it('does not send x-profile-id header on getAllFeatureItems when unpaired', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    jest.spyOn(auth, 'getUserProfile').mockResolvedValue({
+      profileId: 'same-profile-id',
+      canonicalProfileId: 'same-profile-id',
+      identifierId: 'id-1',
+      metaMetricsId: 'mm-1',
+    });
+
+    let capturedProfileHeader: string | undefined;
+    const mockGetAll = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES)
+      .persist()
+      .get('')
+      .reply(function () {
+        // eslint-disable-next-line no-invalid-this
+        capturedProfileHeader = this.req.getHeader('x-profile-id')?.toString();
+        return [200, JSON.stringify([])];
+      });
+
+    await userStorage.getAllFeatureItems(
+      USER_STORAGE_FEATURE_NAMES.notifications,
+    );
+
+    expect(mockGetAll.isDone()).toBe(true);
+    expect(capturedProfileHeader).toBeUndefined();
+  });
+
+  it('skips x-profile-id header when useCanonicalScope is true', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    jest.spyOn(auth, 'getUserProfile').mockResolvedValue({
+      profileId: 'alias-profile-id',
+      canonicalProfileId: 'canonical-profile-id',
+      identifierId: 'id-1',
+      metaMetricsId: 'mm-1',
+    });
+
+    let capturedProfileHeader: string | undefined;
+    const mockGetAll = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES)
+      .persist()
+      .get('')
+      .reply(function () {
+        // eslint-disable-next-line no-invalid-this
+        capturedProfileHeader = this.req.getHeader('x-profile-id')?.toString();
+        return [200, JSON.stringify([])];
+      });
+
+    await userStorage.getAllFeatureItems(
+      USER_STORAGE_FEATURE_NAMES.notifications,
+      { useCanonicalScope: true },
+    );
+
+    expect(mockGetAll.isDone()).toBe(true);
+    expect(capturedProfileHeader).toBeUndefined();
+  });
+
+  it('sends x-profile-id header on setItem when paired', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    jest.spyOn(auth, 'getUserProfile').mockResolvedValue({
+      profileId: 'alias-profile-id',
+      canonicalProfileId: 'canonical-profile-id',
+      identifierId: 'id-1',
+      metaMetricsId: 'mm-1',
+    });
+
+    let capturedProfileHeader: string | undefined;
+    const mockPut = nock(MOCK_STORAGE_URL)
+      .persist()
+      .put(/.*/u)
+      .reply(function () {
+        // eslint-disable-next-line no-invalid-this
+        capturedProfileHeader = this.req.getHeader('x-profile-id')?.toString();
+        return [200];
+      });
+
+    await userStorage.setItem(
+      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+      'data',
+    );
+
+    expect(mockPut.isDone()).toBe(true);
+    expect(capturedProfileHeader).toBe('alias-profile-id');
+  });
+
+  it('does not send x-profile-id header on setItem when unpaired', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    jest.spyOn(auth, 'getUserProfile').mockResolvedValue({
+      profileId: 'same-profile-id',
+      canonicalProfileId: 'same-profile-id',
+      identifierId: 'id-1',
+      metaMetricsId: 'mm-1',
+    });
+
+    let capturedProfileHeader: string | undefined;
+    const mockPut = nock(MOCK_STORAGE_URL)
+      .persist()
+      .put(/.*/u)
+      .reply(function () {
+        // eslint-disable-next-line no-invalid-this
+        capturedProfileHeader = this.req.getHeader('x-profile-id')?.toString();
+        return [200];
+      });
+
+    await userStorage.setItem(
+      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+      'data',
+    );
+
+    expect(mockPut.isDone()).toBe(true);
+    expect(capturedProfileHeader).toBeUndefined();
+  });
+
+  it('skips x-profile-id header on setItem when useCanonicalScope is true', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    jest.spyOn(auth, 'getUserProfile').mockResolvedValue({
+      profileId: 'alias-profile-id',
+      canonicalProfileId: 'canonical-profile-id',
+      identifierId: 'id-1',
+      metaMetricsId: 'mm-1',
+    });
+
+    let capturedProfileHeader: string | undefined;
+    const mockPut = nock(MOCK_STORAGE_URL)
+      .persist()
+      .put(/.*/u)
+      .reply(function () {
+        // eslint-disable-next-line no-invalid-this
+        capturedProfileHeader = this.req.getHeader('x-profile-id')?.toString();
+        return [200];
+      });
+
+    await userStorage.setItem(
+      `${USER_STORAGE_FEATURE_NAMES.notifications}.notification_settings`,
+      'data',
+      { useCanonicalScope: true },
+    );
+
+    expect(mockPut.isDone()).toBe(true);
+    expect(capturedProfileHeader).toBeUndefined();
+  });
+
+  it('sends x-profile-id header on batchSetItems when paired', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    jest.spyOn(auth, 'getUserProfile').mockResolvedValue({
+      profileId: 'alias-profile-id',
+      canonicalProfileId: 'canonical-profile-id',
+      identifierId: 'id-1',
+      metaMetricsId: 'mm-1',
+    });
+
+    let capturedProfileHeader: string | undefined;
+    const mockPut = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES)
+      .persist()
+      .put('')
+      .reply(function () {
+        // eslint-disable-next-line no-invalid-this
+        capturedProfileHeader = this.req.getHeader('x-profile-id')?.toString();
+        return [200];
+      });
+
+    await userStorage.batchSetItems(USER_STORAGE_FEATURE_NAMES.notifications, [
+      ['notification_settings', 'data'],
+    ]);
+
+    expect(mockPut.isDone()).toBe(true);
+    expect(capturedProfileHeader).toBe('alias-profile-id');
+  });
+
+  it('does not send x-profile-id header on batchSetItems when unpaired', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    jest.spyOn(auth, 'getUserProfile').mockResolvedValue({
+      profileId: 'same-profile-id',
+      canonicalProfileId: 'same-profile-id',
+      identifierId: 'id-1',
+      metaMetricsId: 'mm-1',
+    });
+
+    let capturedProfileHeader: string | undefined;
+    const mockPut = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES)
+      .persist()
+      .put('')
+      .reply(function () {
+        // eslint-disable-next-line no-invalid-this
+        capturedProfileHeader = this.req.getHeader('x-profile-id')?.toString();
+        return [200];
+      });
+
+    await userStorage.batchSetItems(USER_STORAGE_FEATURE_NAMES.notifications, [
+      ['notification_settings', 'data'],
+    ]);
+
+    expect(mockPut.isDone()).toBe(true);
+    expect(capturedProfileHeader).toBeUndefined();
+  });
+
+  it('skips x-profile-id header on batchSetItems when useCanonicalScope is true', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    jest.spyOn(auth, 'getUserProfile').mockResolvedValue({
+      profileId: 'alias-profile-id',
+      canonicalProfileId: 'canonical-profile-id',
+      identifierId: 'id-1',
+      metaMetricsId: 'mm-1',
+    });
+
+    let capturedProfileHeader: string | undefined;
+    const mockPut = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES)
+      .persist()
+      .put('')
+      .reply(function () {
+        // eslint-disable-next-line no-invalid-this
+        capturedProfileHeader = this.req.getHeader('x-profile-id')?.toString();
+        return [200];
+      });
+
+    await userStorage.batchSetItems(
+      USER_STORAGE_FEATURE_NAMES.notifications,
+      [['notification_settings', 'data']],
+      { useCanonicalScope: true },
+    );
+
+    expect(mockPut.isDone()).toBe(true);
+    expect(capturedProfileHeader).toBeUndefined();
+  });
+
+  it('re-encryption upload in getAllFeatureItems sends x-profile-id when paired', async () => {
+    const { auth } = arrangeAuth('SRP', MOCK_SRP);
+    const { userStorage } = arrangeUserStorage(auth);
+
+    jest.spyOn(auth, 'getUserProfile').mockResolvedValue({
+      profileId: 'alias-profile-id',
+      canonicalProfileId: 'canonical-profile-id',
+      identifierId: 'id-1',
+      metaMetricsId: 'mm-1',
+    });
+
+    // Entry encrypted with a random salt — triggers re-encryption re-upload
+    const randomSaltEntry = {
+      HashedKey: 'entry1',
+      Data: '{"v":"1","t":"scrypt","d":"HIu+WgFBCtKo6rEGy0R8h8t/JgXhzC2a3AF6epahGY2h6GibXDKxSBf6ppxM099Gmg==","o":{"N":131072,"r":8,"p":1,"dkLen":16},"saltLen":16}',
+    };
+
+    nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES)
+      .persist()
+      .get('')
+      .reply(200, JSON.stringify([randomSaltEntry]));
+
+    let capturedReuploadHeader: string | undefined;
+    const mockPut = nock(MOCK_STORAGE_URL_ALL_FEATURE_ENTRIES)
+      .persist()
+      .put('')
+      .reply(function () {
+        // eslint-disable-next-line no-invalid-this
+        capturedReuploadHeader = this.req.getHeader('x-profile-id')?.toString();
+        return [200];
+      });
+
+    await userStorage.getAllFeatureItems(
+      USER_STORAGE_FEATURE_NAMES.notifications,
+    );
+
+    expect(mockPut.isDone()).toBe(true);
+    expect(capturedReuploadHeader).toBe('alias-profile-id');
+  });
+
   it('re-encrypts data if received entries were encrypted with random salts, and saves it back to user storage', async () => {
     // This corresponds to [['entry1', 'data1'], ['entry2', 'data2'], ['HASHED_KEY', '{ "hello": "world" }']]
     // Each entry has been encrypted with a random salt, except for the last entry
@@ -179,7 +489,6 @@ describe('User Storage', () => {
     const mockPut = handleMockUserStoragePut(
       undefined,
       async (_, requestBody) => {
-        // eslint-disable-next-line jest/no-conditional-in-test
         if (typeof requestBody === 'string') {
           return;
         }
@@ -225,7 +534,6 @@ describe('User Storage', () => {
     const mockPut = handleMockUserStoragePut(
       undefined,
       async (_, requestBody) => {
-        // eslint-disable-next-line jest/no-conditional-in-test
         if (typeof requestBody === 'string') {
           return;
         }
@@ -371,7 +679,6 @@ describe('User Storage', () => {
     const mockPut = handleMockUserStorageBatchDelete(
       undefined,
       async (_, requestBody) => {
-        // eslint-disable-next-line jest/no-conditional-in-test
         if (typeof requestBody === 'string') {
           return;
         }

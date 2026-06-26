@@ -2,17 +2,6 @@ import { NetworkType } from '@metamask/controller-utils';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { BN } from 'bn.js';
 
-import {
-  type ResimulateHelperOptions,
-  ResimulateHelper,
-  BLOCK_TIME_ADDITIONAL_SECONDS,
-  BLOCKAID_RESULT_TYPE_MALICIOUS,
-  hasSimulationDataChanged,
-  RESIMULATE_PARAMS,
-  shouldResimulate,
-  VALUE_COMPARISON_PERCENT_THRESHOLD,
-  RESIMULATE_INTERVAL_MS,
-} from './ResimulateHelper';
 import { CHAIN_IDS } from '../constants';
 import type {
   TransactionMeta,
@@ -22,6 +11,17 @@ import type {
 } from '../types';
 import { TransactionStatus, SimulationTokenStandard } from '../types';
 import { getPercentageChange } from '../utils/utils';
+import {
+  ResimulateHelper,
+  BLOCK_TIME_ADDITIONAL_SECONDS,
+  BLOCKAID_RESULT_TYPE_MALICIOUS,
+  hasSimulationDataChanged,
+  RESIMULATE_PARAMS,
+  shouldResimulate,
+  VALUE_COMPARISON_PERCENT_THRESHOLD,
+  RESIMULATE_INTERVAL_MS,
+} from './ResimulateHelper';
+import type { ResimulateHelperOptions } from './ResimulateHelper';
 
 const CURRENT_TIME_MOCK = 1234567890;
 const CURRENT_TIME_SECONDS_MOCK = 1234567;
@@ -94,7 +94,7 @@ describe('ResimulateHelper', () => {
   /**
    * Triggers onStateChange callback
    */
-  function triggerStateChange() {
+  function triggerStateChange(): void {
     onTransactionsUpdateMock.mock.calls[0][0]();
   }
 
@@ -103,7 +103,7 @@ describe('ResimulateHelper', () => {
    *
    * @param transactions - Transactions to be returned
    */
-  function mockGetTransactionsOnce(transactions: TransactionMeta[]) {
+  function mockGetTransactionsOnce(transactions: TransactionMeta[]): void {
     getTransactionsMock.mockReturnValueOnce(
       transactions as unknown as ResimulateHelperOptions['getTransactions'],
     );
@@ -115,6 +115,7 @@ describe('ResimulateHelper', () => {
     onTransactionsUpdateMock = jest.fn();
     simulateTransactionMock = jest.fn().mockResolvedValue(undefined);
 
+    // eslint-disable-next-line no-new
     new ResimulateHelper({
       getTransactions: getTransactionsMock,
       onTransactionsUpdate: onTransactionsUpdateMock,

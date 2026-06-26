@@ -1,21 +1,28 @@
 {
   "name": "@metamask/notification-services-controller",
-  "version": "18.1.0",
+  "version": "24.2.0",
   "description": "Manages New MetaMask decentralized Notification system",
   "keywords": [
-    "MetaMask",
-    "Ethereum"
+    "Ethereum",
+    "MetaMask"
   ],
   "homepage": "https://github.com/MetaMask/core/tree/main/packages/notification-services-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
-  "license": "MIT",
+  "files": [
+    "dist/",
+    "notification-services/",
+    "push-services/"
+  ],
   "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.cts",
   "exports": {
     ".": {
       "import": {
@@ -35,16 +42,6 @@
       "require": {
         "types": "./dist/NotificationServicesController/index.d.cts",
         "default": "./dist/NotificationServicesController/index.cjs"
-      }
-    },
-    "./notification-services/ui": {
-      "import": {
-        "types": "./dist/NotificationServicesController/ui/index.d.mts",
-        "default": "./dist/NotificationServicesController/ui/index.mjs"
-      },
-      "require": {
-        "types": "./dist/NotificationServicesController/ui/index.d.cts",
-        "default": "./dist/NotificationServicesController/ui/index.cjs"
       }
     },
     "./notification-services/mocks": {
@@ -89,19 +86,18 @@
     },
     "./package.json": "./package.json"
   },
-  "main": "./dist/index.cjs",
-  "types": "./dist/index.d.cts",
-  "files": [
-    "dist/",
-    "notification-services/",
-    "push-services/"
-  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
+    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/notification-services-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/notification-services-controller",
-    "publish:preview": "yarn npm publish --tag preview",
+    "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --check",
+    "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -110,41 +106,41 @@
   },
   "dependencies": {
     "@contentful/rich-text-html-renderer": "^16.5.2",
-    "@metamask/base-controller": "^8.3.0",
-    "@metamask/controller-utils": "^11.12.0",
-    "@metamask/utils": "^11.4.2",
+    "@metamask/authenticated-user-storage": "^2.1.0",
+    "@metamask/base-controller": "^9.1.0",
+    "@metamask/controller-utils": "^12.3.0",
+    "@metamask/keyring-controller": "^27.1.0",
+    "@metamask/messenger": "^1.2.0",
+    "@metamask/profile-sync-controller": "^28.2.0",
+    "@metamask/utils": "^11.11.0",
     "bignumber.js": "^9.1.2",
     "firebase": "^11.2.0",
+    "lodash": "^4.17.21",
     "loglevel": "^1.8.1",
+    "semver": "^7.6.3",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
     "@lavamoat/preinstall-always-fail": "^2.1.0",
-    "@metamask/auto-changelog": "^3.4.4",
-    "@metamask/keyring-controller": "^23.0.0",
-    "@metamask/profile-sync-controller": "^25.0.0",
-    "@types/jest": "^27.4.1",
+    "@metamask/auto-changelog": "^6.1.0",
+    "@ts-bridge/cli": "^0.6.4",
+    "@types/jest": "^29.5.14",
+    "@types/lodash": "^4.14.191",
     "@types/readable-stream": "^2.3.0",
+    "@types/semver": "^7",
     "contentful": "^10.15.0",
     "deepmerge": "^4.2.2",
-    "jest": "^27.5.1",
-    "jest-environment-jsdom": "^27.5.1",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0",
     "nock": "^13.3.1",
-    "ts-jest": "^27.1.4",
-    "typedoc": "^0.24.8",
+    "ts-jest": "^29.2.5",
+    "tsx": "^4.20.5",
+    "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.2.2"
-  },
-  "peerDependencies": {
-    "@metamask/keyring-controller": "^23.0.0",
-    "@metamask/profile-sync-controller": "^25.0.0"
+    "typescript": "~5.3.3"
   },
   "engines": {
     "node": "^18.18 || >=20"
-  },
-  "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org/"
   }
 }

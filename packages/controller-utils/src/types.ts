@@ -9,16 +9,50 @@ export const InfuraNetworkType = {
   'linea-sepolia': 'linea-sepolia',
   'linea-mainnet': 'linea-mainnet',
   'base-mainnet': 'base-mainnet',
+  'arbitrum-mainnet': 'arbitrum-mainnet',
+  'bsc-mainnet': 'bsc-mainnet',
+  'optimism-mainnet': 'optimism-mainnet',
+  'polygon-mainnet': 'polygon-mainnet',
+  'sei-mainnet': 'sei-mainnet',
+  'monad-mainnet': 'monad-mainnet',
+  'megaeth-mainnet': 'megaeth-mainnet',
+  'avalanche-mainnet': 'avalanche-mainnet',
+  'zksync-mainnet': 'zksync-mainnet',
 } as const;
 
 export type InfuraNetworkType =
   (typeof InfuraNetworkType)[keyof typeof InfuraNetworkType];
 
 /**
+ * The default set of Infura networks to include in the wallet.
+ *
+ * This is a subset of the full list of {@link InfuraNetworkType}, and can be used to determine
+ * which Infura networks to enable by default.
+ */
+export const DEFAULT_INFURA_NETWORKS = [
+  InfuraNetworkType.mainnet,
+  InfuraNetworkType.goerli,
+  InfuraNetworkType.sepolia,
+  InfuraNetworkType['linea-goerli'],
+  InfuraNetworkType['linea-sepolia'],
+  InfuraNetworkType['linea-mainnet'],
+  InfuraNetworkType['base-mainnet'],
+  InfuraNetworkType['arbitrum-mainnet'],
+  InfuraNetworkType['bsc-mainnet'],
+  InfuraNetworkType['optimism-mainnet'],
+  InfuraNetworkType['polygon-mainnet'],
+  InfuraNetworkType['monad-mainnet'],
+] as const satisfies InfuraNetworkType[];
+
+/**
  * Custom network types that are not part of Infura.
  */
 export const CustomNetworkType = {
+  /**
+   * @deprecated `megaeth-testnet` is migrated to `megaeth-testnet-v2`.
+   */
   'megaeth-testnet': 'megaeth-testnet',
+  'megaeth-testnet-v2': 'megaeth-testnet-v2',
   'monad-testnet': 'monad-testnet',
 } as const;
 export type CustomNetworkType =
@@ -77,9 +111,22 @@ export enum BuiltInNetworkName {
   LineaSepolia = 'linea-sepolia',
   LineaMainnet = 'linea-mainnet',
   Aurora = 'aurora',
+  /**
+   * @deprecated `MegaETHTestnet` is migrated to `MegaETHTestnetV2`.
+   */
   MegaETHTestnet = 'megaeth-testnet',
+  MegaETHTestnetV2 = 'megaeth-testnet-v2',
   MonadTestnet = 'monad-testnet',
   BaseMainnet = 'base-mainnet',
+  ArbitrumOne = 'arbitrum-mainnet',
+  BscMainnet = 'bsc-mainnet',
+  OptimismMainnet = 'optimism-mainnet',
+  PolygonMainnet = 'polygon-mainnet',
+  SeiMainnet = 'sei-mainnet',
+  MegaETHMainnet = 'megaeth-mainnet',
+  MonadMainnet = 'monad-mainnet',
+  AvalancheMainnet = 'avalanche-mainnet',
+  ZksyncMainnet = 'zksync-mainnet',
 }
 
 /**
@@ -95,12 +142,26 @@ export const ChainId = {
   [BuiltInNetworkName.LineaGoerli]: '0xe704', // toHex(59140)
   [BuiltInNetworkName.LineaSepolia]: '0xe705', // toHex(59141)
   [BuiltInNetworkName.LineaMainnet]: '0xe708', // toHex(59144)
+  /**
+   * @deprecated `MegaETHTestnet` is migrated to `MegaETHTestnetV2`.
+   */
   [BuiltInNetworkName.MegaETHTestnet]: '0x18c6', // toHex(6342)
+  [BuiltInNetworkName.MegaETHTestnetV2]: '0x18c7', // toHex(6343)
   [BuiltInNetworkName.MonadTestnet]: '0x279f', // toHex(10143)
   [BuiltInNetworkName.BaseMainnet]: '0x2105', // toHex(8453)
+  [BuiltInNetworkName.ArbitrumOne]: '0xa4b1', // toHex(42161)
+  [BuiltInNetworkName.BscMainnet]: '0x38', // toHex(56)
+  [BuiltInNetworkName.OptimismMainnet]: '0xa', // toHex(10)
+  [BuiltInNetworkName.PolygonMainnet]: '0x89', // toHex(137)
+  [BuiltInNetworkName.SeiMainnet]: '0x531', // toHex(1329)
+  [BuiltInNetworkName.MegaETHMainnet]: '0x10e6', // toHex(4326)
+  [BuiltInNetworkName.MonadMainnet]: '0x8f', // toHex(143)
+  [BuiltInNetworkName.AvalancheMainnet]: '0xa86a', // toHex(43114)
+  [BuiltInNetworkName.ZksyncMainnet]: '0x144', // toHex(324)
 } as const;
 export type ChainId = (typeof ChainId)[keyof typeof ChainId];
 
+/* eslint-disable @typescript-eslint/naming-convention */
 export enum NetworksTicker {
   mainnet = 'ETH',
   goerli = 'GoerliETH',
@@ -110,12 +171,32 @@ export enum NetworksTicker {
   'linea-sepolia' = 'LineaETH',
   // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
   'linea-mainnet' = 'ETH',
+  /**
+   * @deprecated `megaeth-testnet` is migrated to `megaeth-testnet-v2`.
+   */
   'megaeth-testnet' = 'MegaETH',
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
+  'megaeth-testnet-v2' = 'MegaETH',
   'monad-testnet' = 'MON',
   // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
   'base-mainnet' = 'ETH',
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
+  'arbitrum-mainnet' = 'ETH',
+  'bsc-mainnet' = 'BNB',
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
+  'optimism-mainnet' = 'ETH',
+  'polygon-mainnet' = 'POL',
+  'sei-mainnet' = 'SEI',
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
+  'megaeth-mainnet' = 'ETH',
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
+  'monad-mainnet' = 'MON',
+  'avalanche-mainnet' = 'AVAX',
+  // eslint-disable-next-line @typescript-eslint/no-duplicate-enum-values
+  'zksync-mainnet' = 'ETH',
   rpc = '',
 }
+/* eslint-enable @typescript-eslint/naming-convention */
 
 export const BlockExplorerUrl = {
   [BuiltInNetworkName.Mainnet]: 'https://etherscan.io',
@@ -124,23 +205,50 @@ export const BlockExplorerUrl = {
   [BuiltInNetworkName.LineaGoerli]: 'https://goerli.lineascan.build',
   [BuiltInNetworkName.LineaSepolia]: 'https://sepolia.lineascan.build',
   [BuiltInNetworkName.LineaMainnet]: 'https://lineascan.build',
+  /**
+   * @deprecated `MegaETHTestnet` is migrated to `MegaETHTestnetV2`.
+   */
   [BuiltInNetworkName.MegaETHTestnet]: 'https://megaexplorer.xyz',
+  [BuiltInNetworkName.MegaETHTestnetV2]:
+    'https://megaeth-testnet-v2.blockscout.com',
   [BuiltInNetworkName.MonadTestnet]: 'https://testnet.monadexplorer.com',
   [BuiltInNetworkName.BaseMainnet]: 'https://basescan.org',
+  [BuiltInNetworkName.ArbitrumOne]: 'https://arbiscan.io',
+  [BuiltInNetworkName.BscMainnet]: 'https://bscscan.com',
+  [BuiltInNetworkName.OptimismMainnet]: 'https://optimistic.etherscan.io',
+  [BuiltInNetworkName.PolygonMainnet]: 'https://polygonscan.com',
+  [BuiltInNetworkName.SeiMainnet]: 'https://seiscan.io',
+  [BuiltInNetworkName.MegaETHMainnet]: 'https://megaeth.blockscout.com',
+  [BuiltInNetworkName.MonadMainnet]: 'https://monadscan.com',
+  [BuiltInNetworkName.AvalancheMainnet]: 'https://snowtrace.io',
+  [BuiltInNetworkName.ZksyncMainnet]: 'https://explorer.zksync.io',
 } as const satisfies Record<BuiltInNetworkType, string>;
 export type BlockExplorerUrl =
   (typeof BlockExplorerUrl)[keyof typeof BlockExplorerUrl];
 
 export const NetworkNickname = {
-  [BuiltInNetworkName.Mainnet]: 'Ethereum Mainnet',
+  [BuiltInNetworkName.Mainnet]: 'Ethereum',
   [BuiltInNetworkName.Goerli]: 'Goerli',
   [BuiltInNetworkName.Sepolia]: 'Sepolia',
   [BuiltInNetworkName.LineaGoerli]: 'Linea Goerli',
   [BuiltInNetworkName.LineaSepolia]: 'Linea Sepolia',
   [BuiltInNetworkName.LineaMainnet]: 'Linea',
+  /**
+   * @deprecated `MegaETHTestnet` is migrated to `MegaETHTestnetV2`.
+   */
   [BuiltInNetworkName.MegaETHTestnet]: 'Mega Testnet',
+  [BuiltInNetworkName.MegaETHTestnetV2]: 'MegaETH Testnet',
   [BuiltInNetworkName.MonadTestnet]: 'Monad Testnet',
-  [BuiltInNetworkName.BaseMainnet]: 'Base Mainnet',
+  [BuiltInNetworkName.BaseMainnet]: 'Base',
+  [BuiltInNetworkName.ArbitrumOne]: 'Arbitrum',
+  [BuiltInNetworkName.BscMainnet]: 'BNB Chain',
+  [BuiltInNetworkName.OptimismMainnet]: 'OP',
+  [BuiltInNetworkName.PolygonMainnet]: 'Polygon',
+  [BuiltInNetworkName.SeiMainnet]: 'Sei Mainnet',
+  [BuiltInNetworkName.MegaETHMainnet]: 'MegaETH Mainnet',
+  [BuiltInNetworkName.MonadMainnet]: 'Monad',
+  [BuiltInNetworkName.AvalancheMainnet]: 'Avalanche Mainnet',
+  [BuiltInNetworkName.ZksyncMainnet]: 'ZKsync Era',
 } as const satisfies Record<BuiltInNetworkType, string>;
 export type NetworkNickname =
   (typeof NetworkNickname)[keyof typeof NetworkNickname];
@@ -187,6 +295,7 @@ export type TraceCallback = <ReturnType>(
   /**
    * Callback to trace.
    * Thrown errors will not be caught, but the trace will still be recorded.
+   *
    * @param context - The context in which the operation is running.
    */
   fn?: (context?: TraceContext) => ReturnType,

@@ -2,6 +2,26 @@ import { SeedlessOnboardingControllerErrorMessage } from './constants';
 import type { AuthenticatedUserDetails, VaultData } from './types';
 
 /**
+ * Assert that the provided password is a valid non-empty string.
+ *
+ * @param password - The password to check.
+ * @throws If the password is not a valid string.
+ */
+export function assertIsValidPassword(
+  password: unknown,
+): asserts password is string {
+  if (typeof password !== 'string') {
+    throw new Error(SeedlessOnboardingControllerErrorMessage.WrongPasswordType);
+  }
+
+  if (!password?.length) {
+    throw new Error(
+      SeedlessOnboardingControllerErrorMessage.InvalidEmptyPassword,
+    );
+  }
+}
+
+/**
  * Check if the provided value is a valid authenticated user.
  *
  * @param value - The value to check.
@@ -89,14 +109,20 @@ export function assertIsValidVaultData(
     !('toprfPwEncryptionKey' in value) || // toprfPwEncryptionKey is not defined
     typeof value.toprfPwEncryptionKey !== 'string' || // toprfPwEncryptionKey is not a string
     !('toprfAuthKeyPair' in value) || // toprfAuthKeyPair is not defined
-    typeof value.toprfAuthKeyPair !== 'string' || // toprfAuthKeyPair is not a string
-    // revoke token exists but is not a string and is not undefined
-    ('revokeToken' in value &&
-      typeof value.revokeToken !== 'string' &&
-      value.revokeToken !== undefined) ||
-    !('accessToken' in value) || // accessToken is not defined
-    typeof value.accessToken !== 'string' // accessToken is not a string
+    typeof value.toprfAuthKeyPair !== 'string' // toprfAuthKeyPair is not a string
   ) {
     throw new Error(SeedlessOnboardingControllerErrorMessage.InvalidVaultData);
+  }
+
+  if (!('revokeToken' in value) || typeof value.revokeToken !== 'string') {
+    throw new Error(
+      SeedlessOnboardingControllerErrorMessage.InvalidRevokeToken,
+    );
+  }
+
+  if (!('accessToken' in value) || typeof value.accessToken !== 'string') {
+    throw new Error(
+      SeedlessOnboardingControllerErrorMessage.InvalidAccessToken,
+    );
   }
 }

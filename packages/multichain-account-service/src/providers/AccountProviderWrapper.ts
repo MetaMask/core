@@ -1,8 +1,14 @@
 import type { Bip44Account } from '@metamask/account-api';
-import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
+import type {
+  CreateAccountOptions,
+  EntropySourceId,
+  KeyringAccount,
+} from '@metamask/keyring-api';
+import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
 import type { MultichainAccountServiceMessenger } from '../types';
+import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
 
 /**
  * A simple wrapper that adds disable functionality to any BaseBip44AccountProvider.
@@ -25,6 +31,36 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
     return this.provider.getName();
   }
 
+  get capabilities(): KeyringCapabilities {
+    return this.provider.capabilities;
+  }
+
+  /**
+   * Forward initialization to the wrapped provider to ensure both
+   * instances share the same visible account IDs.
+   *
+   * @param accounts - Account IDs to initialize with.
+   */
+  override init(accounts: Bip44Account<KeyringAccount>['id'][]): void {
+    this.provider.init(accounts);
+  }
+
+  /**
+   * Returns the underlying (unwrapped) provider.
+   *
+   * Most callers should go through the wrapper's public surface so that the
+   * `disabled` gating is respected. This escape hatch is reserved for
+   * cleanup flows (e.g. wallet removal) that must see the wrapped
+   * provider's accounts regardless of enabled state, so that snap-backed
+   * accounts created while the provider was enabled can still be deleted
+   * after it has been disabled.
+   *
+   * @returns The wrapped provider instance.
+   */
+  unwrap(): BaseBip44AccountProvider {
+    return this.provider;
+  }
+
   /**
    * Set the enabled state for this provider.
    *
@@ -32,6 +68,29 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
    */
   setEnabled(enabled: boolean): void {
     this.isEnabled = enabled;
+  }
+
+  /**
+   * Check if the provider is disabled.
+   *
+   * @returns True if the provider is disabled, false otherwise.
+   */
+  isDisabled(): boolean {
+    return !this.isEnabled;
+  }
+
+  /**
+   * Override resyncAccounts to not execute it when disabled.
+   *
+   * @param accounts - List of local accounts.
+   */
+  override async resyncAccounts(
+    accounts: Bip44Account<InternalAccount>[],
+  ): Promise<void> {
+    if (!this.isEnabled) {
+      return;
+    }
+    await this.provider.resyncAccounts(accounts);
   }
 
   /**
@@ -63,6 +122,26 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
   }
 
   /**
+   * Returns true immediately when disabled (a disabled provider is considered
+   * aligned by definition). Delegates to the wrapped provider otherwise.
+   *
+   * @param context - The entropy source and group index to check.
+   * @param context.entropySource - The entropy source to check against.
+   * @param context.groupIndex - The group index to check against.
+   * @param accountIds - Account IDs pre-filtered by the caller.
+   * @returns Whether the provider is aligned for the given context.
+   */
+  override isAligned(
+    context: { entropySource: EntropySourceId; groupIndex: number },
+    accountIds: Bip44Account<KeyringAccount>['id'][],
+  ): boolean {
+    if (!this.isEnabled) {
+      return true;
+    }
+    return this.provider.isAligned(context, accountIds);
+  }
+
+  /**
    * Implement abstract method: Check if account is compatible.
    * Delegates directly to wrapped provider - no runtime checks needed!
    *
@@ -77,18 +156,28 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
    * Implement abstract method: Create accounts, returns empty array when disabled.
    *
    * @param options - Account creation options.
-   * @param options.entropySource - The entropy source to use.
-   * @param options.groupIndex - The group index to use.
    * @returns Promise resolving to created accounts, or empty array if disabled.
    */
-  async createAccounts(options: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[]> {
+  async createAccounts(
+    options: CreateAccountOptions,
+  ): Promise<Bip44Account<KeyringAccount>[]> {
     if (!this.isEnabled) {
       return [];
     }
     return this.provider.createAccounts(options);
+  }
+
+  /**
+   * Forwards to the wrapped provider unconditionally, because deletion must run even
+   * when the wrapper is disabled, so that wallet-removal flows can clean up
+   * snap-backed accounts that were created while the provider was previously
+   * enabled.
+   *
+   * @param id - The id of the account to delete.
+   * @returns A promise that resolves when the account is deleted.
+   */
+  async deleteAccount(id: Bip44Account<KeyringAccount>['id']): Promise<void> {
+    return this.provider.deleteAccount(id);
   }
 
   /**
@@ -99,14 +188,14 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
    * @param options.groupIndex - The group index to use.
    * @returns Promise resolving to discovered accounts, or empty array if disabled.
    */
-  async discoverAndCreateAccounts(options: {
+  async discoverAccounts(options: {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
     if (!this.isEnabled) {
       return [];
     }
-    return this.provider.discoverAndCreateAccounts(options);
+    return this.provider.discoverAccounts(options);
   }
 }
 

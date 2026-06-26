@@ -1,0 +1,253 @@
+name: Check release
+description: Check for conflicts in packages being released in this PR.
+
+inputs:
+  commit-starts-with:
+    description: "Validate that the release commit starts with a string in this comma-separated list. Use '[version]' to refer to the current release version."
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Checkout and setup environment
+      uses: MetaMask/action-checkout-and-setup@v3
+      with:
+        is-high-risk-environment: false
+        skip-install: true
+
+    - name: Get merge base
+      id: merge-base
+      shell: bash
+      env:
+        BASE_REF: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
+      run: |
+        set -euo pipefail
+
+        # Strip invalid prefix from `github.event.merge_group.base_ref`
+        # It comes prefixed with `refs/heads/`, but the branch is not checked out in this context
+        # We need to express it as a remote branch
+        PREFIXED_REF_REGEX='refs/heads/(.+)'
+        if [[ "$BASE_REF" =~ $PREFIXED_REF_REGEX ]]; then
+          BASE_REF="${BASH_REMATCH[1]}"
+        fi
+
+        MERGE_BASE=$(git merge-base HEAD "refs/remotes/origin/$BASE_REF")
+        echo "MERGE_BASE=$MERGE_BASE" >> "$GITHUB_OUTPUT"
+
+    - name: Check that root package.json is bumped for release PRs
+      shell: bash
+      env:
+        MERGE_BASE: ${{ steps.merge-base.outputs.MERGE_BASE }}
+      run: |
+        set -euo pipefail
+
+        mapfile -t PACKAGES < <(yarn workspaces list --json --no-private | jq --raw-output '.location + "/package.json"')
+        ANY_PACKAGE_BUMPED=false
+
+        for package in "${PACKAGES[@]}"; do
+          if ! PACKAGE_JSON_AT_BASE=$(git show "$MERGE_BASE:$package" 2>/dev/null); then
+            # Package didn't exist at the merge base; it's newly added, not a
+            # version bump.
+            continue
+          fi
+          CURRENT_VERSION=$(echo "$PACKAGE_JSON_AT_BASE" | jq -r .version)
+          NEW_VERSION=$(jq -r .version "$package")
+
+          if [ "$NEW_VERSION" != "$CURRENT_VERSION" ]; then
+            ANY_PACKAGE_BUMPED=true
+            package_name=$(jq -r ".name" "$package")
+            echo "📦 Package \`$package_name\` has a version bump (\`$CURRENT_VERSION\` -> \`$NEW_VERSION\`)"
+          fi
+        done
+
+        if [ "$ANY_PACKAGE_BUMPED" = "true" ]; then
+          CURRENT_ROOT_VERSION=$(git show "$MERGE_BASE:package.json" | jq -r .version)
+          NEW_ROOT_VERSION=$(jq -r .version package.json)
+
+          if [ "$NEW_ROOT_VERSION" = "$CURRENT_ROOT_VERSION" ]; then
+            echo "::error::This pull request is a release (one or more packages have a version bump), but the root package.json version was not bumped. Please bump the root package.json version."
+            exit 1
+          else
+            echo "✅ Root package.json is bumped (\`$CURRENT_ROOT_VERSION\` -> \`$NEW_ROOT_VERSION\`)"
+          fi
+        else
+          echo "✅ No package version bumps detected; skipping root package.json check."
+        fi
+
+    - name: Check if the commit or pull request is a release
+      id: is-release
+      uses: MetaMask/action-is-release@v2
+      with:
+        commit-starts-with: ${{ inputs.commit-starts-with }}
+        commit-message: ${{ github.event.pull_request.title }}
+        before: ${{ steps.merge-base.outputs.MERGE_BASE }}
+        skip-checkout: true
+
+    - name: Get pull request number
+      id: pr-number
+      if: steps.is-release.outputs.IS_RELEASE == 'true'
+      shell: bash
+      env:
+        EVENT_NAME: ${{ github.event_name }}
+        PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
+        MERGE_GROUP_HEAD_REF: ${{ github.event.merge_group.head_ref }}
+      run: |
+        if [ "$EVENT_NAME" = "pull_request" ]; then
+          echo "PR_NUMBER=$PULL_REQUEST_NUMBER" >> "$GITHUB_OUTPUT"
+        elif [ "$EVENT_NAME" = "merge_group" ]; then
+          PR_NUMBER_REGEX='/pr-([0-9]+)-'
+          if [[ "$MERGE_GROUP_HEAD_REF" =~ $PR_NUMBER_REGEX ]]; then
+            echo "PR_NUMBER=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Could not extract PR number from merge group head ref: $MERGE_GROUP_HEAD_REF."
+            exit 1
+          fi
+        fi
+
+    - name: Get target reference
+      id: get-target
+      if: steps.is-release.outputs.IS_RELEASE == 'true'
+      shell: bash
+      env:
+        EVENT_NAME: ${{ github.event_name }}
+      run: |
+        if [ "$EVENT_NAME" = "pull_request" ]; then
+          echo "TARGET=$(git merge-base HEAD refs/remotes/origin/main)" >> "$GITHUB_OUTPUT"
+        elif [ "$EVENT_NAME" = "merge_group" ]; then
+          echo "TARGET=$(git rev-parse HEAD^)" >> "$GITHUB_OUTPUT"
+        else
+          echo "::error::This action only supports \`pull_request\` and \`merge_group\` events."
+          exit 1
+        fi
+
+    - name: Check commits for changes in released packages
+      id: check-release
+      if: steps.is-release.outputs.IS_RELEASE == 'true'
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+        PULL_REQUEST: ${{ steps.pr-number.outputs.PR_NUMBER }}
+        TARGET: ${{ steps.get-target.outputs.TARGET }}
+      run: |
+        set -euo pipefail
+
+        mapfile -t PACKAGES < <(find packages -maxdepth 2 -name "package.json" -not -path "*/node_modules/*")
+        RELEASED_PACKAGES=()
+
+        # Get all packages being released in this PR
+        MERGE_BASE=$(git merge-base HEAD refs/remotes/origin/main)
+        for package in "${PACKAGES[@]}"; do
+          MAIN_VERSION=$(git show "$MERGE_BASE:$package" | jq -r .version)
+          HEAD_VERSION=$(jq -r .version "$package")
+
+          if [ "$HEAD_VERSION" != "$MAIN_VERSION" ]; then
+            package_name=$(jq -r ".name" "$package")
+            echo "📦 Package \`$package_name\` is being released (version \`$MAIN_VERSION\` -> \`$HEAD_VERSION\`)"
+            RELEASED_PACKAGES+=("$package")
+          fi
+        done
+
+        # Fetch the pull request branch to compare changes.
+        PULL_REQUEST_BRANCH=$(gh pr view "$PULL_REQUEST" --json headRefName --template "{{ .headRefName }}")
+        echo "🔍 Checking for release conflicts with files changed ahead of PR branch \`$PULL_REQUEST_BRANCH\`..."
+        git fetch origin "$PULL_REQUEST_BRANCH"
+
+        # Get all files changed ahead of this PR.
+        BEFORE=$(git merge-base "refs/remotes/origin/main" "refs/remotes/origin/$PULL_REQUEST_BRANCH")
+        git diff --name-only "$BEFORE..$TARGET" > changed-files.txt
+
+        CONFLICTS=()
+        for package in "${RELEASED_PACKAGES[@]}"; do
+          package_directory=$(dirname "$package")
+          if grep -q "^$package_directory/" changed-files.txt; then
+            CONFLICTS+=("$package_directory")
+          fi
+        done
+
+        if [ ${#CONFLICTS[@]} -ne 0 ]; then
+          mapfile -t CONFLICTS < <(printf "%s\n" "${CONFLICTS[@]}" | sort -u)
+        fi
+
+        if [ ${#CONFLICTS[@]} -ne 0 ]; then
+          PACKAGE_NAMES=()
+
+          for conflict in "${CONFLICTS[@]}"; do
+            package_name=$(jq -r ".name" "$conflict/package.json")
+            PACKAGE_NAMES+=("$package_name")
+            echo "::error::Release conflict detected in \`$package_name\`. This package is being released in this PR, but files in the package were also modified ahead of this PR. Please ensure that all changes are included in the release."
+          done
+
+          PACKAGE_NAMES_JSON=$(printf '%s\n' "${PACKAGE_NAMES[@]}" | jq -R . | jq -s -c .)
+          echo "package-names=$PACKAGE_NAMES_JSON" >> "$GITHUB_OUTPUT"
+          echo "has-conflicts=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "✅ No release conflicts detected."
+        fi
+
+    - name: Hide previous comments
+      if: steps.is-release.outputs.IS_RELEASE == 'true'
+      uses: actions/github-script@v8
+      env:
+        PR_NUMBER: ${{ steps.pr-number.outputs.PR_NUMBER }}
+      with:
+        script: |
+          const comments = await github.paginate(github.rest.issues.listComments, {
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: process.env.PR_NUMBER,
+          });
+
+          for (const comment of comments) {
+            if (comment.body.includes('<!-- Pull request release conflict comment -->')) {
+              await github.graphql(`
+                mutation($commentId: ID!, $classifier: ReportedContentClassifiers!) {
+                  minimizeComment(input: {subjectId: $commentId, classifier: $classifier}) {
+                    minimizedComment {
+                      isMinimized
+                    }
+                  }
+                }
+              `, {
+                commentId: comment.node_id,
+                classifier: 'OUTDATED',
+              });
+            }
+          }
+
+    - name: Reply on pull request
+      if: steps.check-release.outputs.has-conflicts == 'true'
+      uses: actions/github-script@v8
+      env:
+        PACKAGE_NAMES: ${{ steps.check-release.outputs.package-names }}
+        PR_NUMBER: ${{ steps.pr-number.outputs.PR_NUMBER }}
+      with:
+        script: |
+          const packageNames = JSON.parse(process.env.PACKAGE_NAMES);
+          const packageList = packageNames.map(name => `- \`${name}\``).join('\n');
+
+          const mergeQueueNote = context.eventName === 'merge_group' ? ' while this pull request was in the merge queue' : '';
+
+          const body = `
+            ## Release conflict detected
+
+            The following packages are being released in this pull request, but files in these packages were also modified ahead of this pull request${mergeQueueNote}:
+
+            ${packageList}
+
+            Please ensure that all changes are included in the release by updating this pull request, and adjusting the changelogs and version bumps as necessary.
+
+            <!-- Pull request release conflict comment -->
+          `;
+
+          await github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: process.env.PR_NUMBER,
+            body: body.split('\n').map(line => line.trim()).join('\n'),
+          });
+
+    - name: Fail if conflicts found
+      if: steps.check-release.outputs.has-conflicts == 'true'
+      shell: bash
+      run: |
+        exit 1

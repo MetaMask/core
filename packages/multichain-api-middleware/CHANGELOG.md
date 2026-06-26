@@ -9,12 +9,195 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/chain-agnostic-permission` from `1.0.0` to `1.1.1` ([#6241](https://github.com/MetaMask/core/pull/6241), [#6345](https://github.com/MetaMask/core/pull/6241))
-- Bump `@metamask/controller-utils` from `^11.10.0` to `^11.12.0` ([#6069](https://github.com/MetaMask/core/pull/6069), [#6303](https://github.com/MetaMask/core/pull/6303))
-- Bump `@metamask/network-controller` from `^24.0.0` to `^24.1.0` ([#6148](https://github.com/MetaMask/core/pull/6148), [#6303](https://github.com/MetaMask/core/pull/6303))
 - Update `wallet_createSession` and `wallet_revokeSession` handlers to use `Caip25Errors` instead of creating `JsonRpcError` directly ([#6109](https://github.com/MetaMask/core/pull/6109))
-- Bump `@metamask/controller-utils` from `^11.10.0` to `^11.11.0` ([#6069](https://github.com/MetaMask/core/pull/6069))
+- Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
+
+## [3.1.5]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.1` to `^39.0.2` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/controller-utils` from `^12.2.0` to `^12.3.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/network-controller` from `^32.0.0` to `^33.0.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+
+## [3.1.4]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.2.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083))
+- Bump `@metamask/accounts-controller` from `^39.0.0` to `^39.0.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/api-specs` from `^0.14.0` to `^0.15.0` ([#9096](https://github.com/MetaMask/core/pull/9096))
+- Bump `@metamask/chain-agnostic-permission` from `^1.6.1` to `^1.6.2` ([#9103](https://github.com/MetaMask/core/pull/9103))
+
+## [3.1.3]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^38.1.1` to `^39.0.0` ([#8912](https://github.com/MetaMask/core/pull/8912), [#8999](https://github.com/MetaMask/core/pull/8999))
+
+## [3.1.2]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^31.0.0` to `^32.0.0` ([#8765](https://github.com/MetaMask/core/pull/8765), [#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/accounts-controller` from `^38.1.0` to `^38.1.1` ([#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+
+## [3.1.1]
+
+### Changed
+
+- Bump `@metamask/json-rpc-engine` from `^10.4.0` to `^10.5.0` ([#8753](https://github.com/MetaMask/core/pull/8753))
+- Bump `@metamask/accounts-controller` from `^38.0.0` to `^38.1.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/chain-agnostic-permission` from `^1.6.0` to `^1.6.1` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/network-controller` from `^30.1.0` to `^31.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/permission-controller` from `^13.1.0` to `^13.1.1` ([#8755](https://github.com/MetaMask/core/pull/8755))
+
+## [3.1.0]
+
+### Changed
+
+- Bump `@metamask/chain-agnostic-permission` from `^1.5.0` to `^1.6.0` ([#8749](https://github.com/MetaMask/core/pull/8749))
+- Bump `@metamask/multichain-transactions-controller` from `^7.0.4` to `^7.1.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
+- Bump `@metamask/accounts-controller` from `^37.2.0` to `^38.0.0` ([#8665](https://github.com/MetaMask/core/pull/8665))
+- Bump `@metamask/permission-controller` from `^13.0.0` to `^13.1.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
+- Bump `@metamask/json-rpc-engine` from `^10.3.0` to `^10.4.0` ([#8746](https://github.com/MetaMask/core/pull/8746))
+
+## [3.0.0]
+
+### Added
+
+- Add `MethodHandlerHooks` type, the intersection of all method handler hook types ([#8583](https://github.com/MetaMask/core/pull/8583))
+  - Consumers can use this to type the hooks object passed to `createMethodMiddleware` without restating each handler's hooks individually.
+
+### Changed
+
+- **BREAKING:** Consolidate method handlers into a single `methodHandlers` export ([#8583](https://github.com/MetaMask/core/pull/8583))
+  - The individual handler exports have been removed. They can still be accessed as properties on the `methodHandlers` export.
+  - The new handlers follow the format expected by `createMethodMiddleware` from `@metamask/json-rpc-engine@10.3.0`.
+  - The hook types have been updated to cohere with their corresponding MetaMask controller methods.
+- **BREAKING:** Make `trackSessionCreatedEvent` hook required in `wallet_createSession` handler ([#8583](https://github.com/MetaMask/core/pull/8583))
+  - If the hook is not required, `null` can be passed instead.
+- Bump `@metamask/json-rpc-engine` from `^10.2.3` to `^10.3.0` ([#8317](https://github.com/MetaMask/core/pull/8317), [#8661](https://github.com/MetaMask/core/pull/8661))
+- Bump `@metamask/network-controller` from `^30.0.0` to `^30.1.0` ([#8317](https://github.com/MetaMask/core/pull/8317), [#8636](https://github.com/MetaMask/core/pull/8636))
+- Bump `@metamask/permission-controller` from `^12.2.1` to `^13.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317), [#8661](https://github.com/MetaMask/core/pull/8661))
+- Bump `@metamask/multichain-transactions-controller` from `^7.0.3` to `^7.0.4` ([#8325](https://github.com/MetaMask/core/pull/8325))
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+
+### Fixed
+
+- `wallet_invokeMethod` fails early with an `invalidParams` error when the `params` object is not an object ([#8583](https://github.com/MetaMask/core/pull/8583))
+  - Previously it would fail with a less specific error.
+- `wallet_revokeSession` now returns `true` when no active session exists and specific scopes are requested, consistent with its full-revoke behavior ([#8583](https://github.com/MetaMask/core/pull/8583))
+  - Previously it would return an internal error.
+
+## [2.0.0]
+
+### Added
+
+- **BREAKING:** Add required `sortAccountIdsByLastSelected` hook to `wallet_getSession`, `wallet_createSession`, and `wallet_invokeMethod` handlers to enable custom account ordering in session scopes ([#8255](https://github.com/MetaMask/core/pull/8255))
+
+### Changed
+
+- Bump `@metamask/chain-agnostic-permission` from `^1.4.0` to `^1.5.0` ([#8290](https://github.com/MetaMask/core/pull/8290))
+- Bump `@metamask/permission-controller` from `^12.2.0` to `^12.2.1` ([#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/json-rpc-engine` from `^10.2.2` to `^10.2.3` ([#8078](https://github.com/MetaMask/core/pull/8078))
+
+## [1.2.7]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^29.0.0` to `^30.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/json-rpc-engine` from `^10.2.1` to `^10.2.2` ([#7856](https://github.com/MetaMask/core/pull/7856))
+- Bump `@metamask/multichain-transactions-controller` from `7.0.0` to `7.0.1` ([#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
+
+## [1.2.6]
+
+### Changed
+
+- Bump `@metamask/json-rpc-engine` from `^10.2.0` to `^10.2.1` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Bump `@metamask/network-controller` from `^27.0.0` to `^29.0.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583), [#7604](https://github.com/MetaMask/core/pull/7604), [#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.18.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
+- Bump `@metamask/permission-controller` from `^12.1.1` to `^12.2.0` ([#7559](https://github.com/MetaMask/core/pull/7559))
+- Bump `@metamask/chain-agnostic-permission` from `^1.3.0` to `^1.4.0` ([#7567](https://github.com/MetaMask/core/pull/7567))
+
+### Fixed
+
+- Fix `wallet_revokeSession` to handle cases where `params` is not provided ([#7551](https://github.com/MetaMask/core/pull/7551))
+
+## [1.2.5]
+
+### Changed
+
+- Bump `@metamask/permission-controller` from `^12.1.0` to `^12.1.1` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/network-controller` from `^26.0.0` to `^27.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202), [#7258](https://github.com/MetaMask/core/pull/7258))
+- Bump `@metamask/json-rpc-engine` from `^10.1.1` to `^10.2.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/chain-agnostic-permission` from `^1.2.2` to `^1.3.0` ([#7322](https://github.com/MetaMask/core/pull/7322))
+
+## [1.2.4]
+
+### Changed
+
+- Bump `@metamask/permission-controller` from `^12.0.0` to `^12.1.0` ([#6988](https://github.com/MetaMask/core/pull/6988))
+
+### Fixed
+
+- Fix `wallet_revokeSession` error handling ([#6987](https://github.com/MetaMask/core/pull/6987))
+  - This was broken in a different way in v1.2.3. Fixed by the update to `@metamask/permission-controller@12.1.0`.
+
+## [1.2.3]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^24.3.1` to `^25.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/permission-controller` from `^11.1.1` to `^12.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/chain-agnostic-permission` from `^1.2.1` to `^1.2.2` ([#6986](https://github.com/MetaMask/core/pull/6986))
+
+### Fixed
+
+- Fix `wallet_revokeSession` error handling in case where different versions of `@metamask/permission-controller` are used ([#6985](https://github.com/MetaMask/core/pull/6985))
+
+## [1.2.2]
+
+### Changed
+
+- Bump `@metamask/chain-agnostic-permission` from `^1.2.0` to `^1.2.1` ([#6940](https://github.com/MetaMask/core/pull/6940))
+- Bump `@metamask/network-controller` from `^24.2.1` to `^24.3.1` ([#6845](https://github.com/MetaMask/core/pull/6845), [#6883](https://github.com/MetaMask/core/pull/6883), [#6940](https://github.com/MetaMask/core/pull/6940))
+- Bump `@metamask/permission-controller` from `^11.1.0` to `^11.1.1` ([#6940](https://github.com/MetaMask/core/pull/6940))
+
+## [1.2.1]
+
+### Changed
+
+- Bump `@metamask/chain-agnostic-permission` from `^1.1.1` to `^1.2.0` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/controller-utils` from `^11.14.0` to `^11.14.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/json-rpc-engine` from `^10.1.0` to `^10.1.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/network-controller` from `^24.2.0` to `^24.2.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/permission-controller` from `^11.0.6` to `^11.1.0` ([#6807](https://github.com/MetaMask/core/pull/6807))
+
+## [1.2.0]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
+- `wallet_invokeMethod` no longer fails with unauthorized error if the `isMultichainOrigin` property is false on the requesting origin's CAIP-25 Permission ([#6703](https://github.com/MetaMask/core/pull/6703))
+
+## [1.1.0]
+
+### Changed
+
+- Add partial permission revoke into `wallet_revokeSession` ([#6668](https://github.com/MetaMask/core/pull/6668))
+- Bump `@metamask/chain-agnostic-permission` from `1.0.0` to `1.1.1` ([#6241](https://github.com/MetaMask/core/pull/6241), [#6345](https://github.com/MetaMask/core/pull/6345))
+- Bump `@metamask/controller-utils` from `^11.10.0` to `^11.14.0` ([#6069](https://github.com/MetaMask/core/pull/6069), [#6303](https://github.com/MetaMask/core/pull/6303), [#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
+- Bump `@metamask/network-controller` from `^24.0.0` to `^24.2.0` ([#6148](https://github.com/MetaMask/core/pull/6148), [#6303](https://github.com/MetaMask/core/pull/6303), [#6678](https://github.com/MetaMask/core/pull/6678))
 - Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+- Bump `@metamask/json-rpc-engine` from `^10.0.3` to `^10.1.0` ([#6678](https://github.com/MetaMask/core/pull/6678))
 
 ## [1.0.0]
 
@@ -41,7 +224,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/chain-agnostic-permission` to `^0.7.0` ([#5715](https://github.com/MetaMask/core/pull/5715),[#5760](https://github.com/MetaMask/core/pull/5760), [#5818](https://github.com/MetaMask/core/pull/5818))
+- Bump `@metamask/chain-agnostic-permission` to `^0.7.0` ([#5715](https://github.com/MetaMask/core/pull/5715), [#5760](https://github.com/MetaMask/core/pull/5760), [#5818](https://github.com/MetaMask/core/pull/5818))
 - Bump `@metamask/api-specs` to `^0.14.0` ([#5817](https://github.com/MetaMask/core/pull/5817))
 - Bump `@metamask/controller-utils` to `^11.9.0` ([#5765](https://github.com/MetaMask/core/pull/5765), [#5812](https://github.com/MetaMask/core/pull/5812))
 - Bump `@metamask/network-controller` to `^23.5.0` ([#5765](https://github.com/MetaMask/core/pull/5765), [#5812](https://github.com/MetaMask/core/pull/5812))
@@ -75,7 +258,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.1.5...HEAD
+[3.1.5]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.1.4...@metamask/multichain-api-middleware@3.1.5
+[3.1.4]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.1.3...@metamask/multichain-api-middleware@3.1.4
+[3.1.3]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.1.2...@metamask/multichain-api-middleware@3.1.3
+[3.1.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.1.1...@metamask/multichain-api-middleware@3.1.2
+[3.1.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.1.0...@metamask/multichain-api-middleware@3.1.1
+[3.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.0.0...@metamask/multichain-api-middleware@3.1.0
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@2.0.0...@metamask/multichain-api-middleware@3.0.0
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.7...@metamask/multichain-api-middleware@2.0.0
+[1.2.7]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.6...@metamask/multichain-api-middleware@1.2.7
+[1.2.6]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.5...@metamask/multichain-api-middleware@1.2.6
+[1.2.5]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.4...@metamask/multichain-api-middleware@1.2.5
+[1.2.4]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.3...@metamask/multichain-api-middleware@1.2.4
+[1.2.3]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.2...@metamask/multichain-api-middleware@1.2.3
+[1.2.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.1...@metamask/multichain-api-middleware@1.2.2
+[1.2.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.2.0...@metamask/multichain-api-middleware@1.2.1
+[1.2.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.1.0...@metamask/multichain-api-middleware@1.2.0
+[1.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@1.0.0...@metamask/multichain-api-middleware@1.1.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@0.4.0...@metamask/multichain-api-middleware@1.0.0
 [0.4.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@0.3.0...@metamask/multichain-api-middleware@0.4.0
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@0.2.0...@metamask/multichain-api-middleware@0.3.0

@@ -1,45 +1,51 @@
 import { AccountGroupType, select, selectOne } from '@metamask/account-api';
-import {
-  toMultichainAccountGroupId,
-  type MultichainAccountGroupId,
-  type MultichainAccountGroup as MultichainAccountGroupDefinition,
+import { toMultichainAccountGroupId } from '@metamask/account-api';
+import type {
+  MultichainAccountGroupId,
+  MultichainAccountGroup as MultichainAccountGroupDefinition,
 } from '@metamask/account-api';
 import type { Bip44Account } from '@metamask/account-api';
 import type { AccountSelector } from '@metamask/account-api';
-import { type KeyringAccount } from '@metamask/keyring-api';
+import type { KeyringAccount } from '@metamask/keyring-api';
 
+import type { Logger } from './logger';
+import { projectLogger as log, createModuleLogger } from './logger';
+import type { ServiceState, StateKeys } from './MultichainAccountService';
 import type { MultichainAccountWallet } from './MultichainAccountWallet';
-import type { NamedAccountProvider } from './providers';
+import type { Bip44AccountProvider } from './providers';
 import type { MultichainAccountServiceMessenger } from './types';
+
+export type GroupState =
+  ServiceState[StateKeys['entropySource']][StateKeys['groupIndex']];
 
 /**
  * A multichain account group that holds multiple accounts.
  */
 export class MultichainAccountGroup<
   Account extends Bip44Account<KeyringAccount>,
-> implements MultichainAccountGroupDefinition<Account>
-{
+> implements MultichainAccountGroupDefinition<Account> {
   readonly #id: MultichainAccountGroupId;
 
   readonly #wallet: MultichainAccountWallet<Account>;
 
   readonly #groupIndex: number;
 
-  readonly #providers: NamedAccountProvider<Account>[];
+  readonly #providers: Bip44AccountProvider<Account>[];
 
   readonly #providerToAccounts: Map<
-    NamedAccountProvider<Account>,
+    Bip44AccountProvider<Account>,
     Account['id'][]
   >;
 
   readonly #accountToProvider: Map<
     Account['id'],
-    NamedAccountProvider<Account>
+    Bip44AccountProvider<Account>
   >;
 
   readonly #messenger: MultichainAccountServiceMessenger;
 
-  // eslint-disable-next-line @typescript-eslint/prefer-readonly
+  readonly #log: Logger;
+
   #initialized = false;
 
   constructor({
@@ -50,7 +56,7 @@ export class MultichainAccountGroup<
   }: {
     groupIndex: number;
     wallet: MultichainAccountWallet<Account>;
-    providers: NamedAccountProvider<Account>[];
+    providers: Bip44AccountProvider<Account>[];
     messenger: MultichainAccountServiceMessenger;
   }) {
     this.#id = toMultichainAccountGroupId(wallet.id, groupIndex);
@@ -61,42 +67,65 @@ export class MultichainAccountGroup<
     this.#providerToAccounts = new Map();
     this.#accountToProvider = new Map();
 
-    this.sync();
+    this.#log = createModuleLogger(log, `[${this.#id}]`);
+  }
+
+  /**
+   * Clear the account to provider state for a given provider.
+   *
+   * @param provider - The provider to clear the account to provider state for.
+   */
+  #clearAccountToProviderState(provider: Bip44AccountProvider<Account>): void {
+    this.#accountToProvider.forEach((accountProvider, id) => {
+      if (accountProvider === provider) {
+        this.#accountToProvider.delete(id);
+      }
+    });
+  }
+
+  /**
+   * Update the internal representation of accounts with the given group state.
+   *
+   * @param groupState - The group state.
+   */
+  #setState(groupState: GroupState): void {
+    for (const provider of this.#providers) {
+      const accountIds = groupState[provider.getName()];
+
+      if (accountIds) {
+        this.#clearAccountToProviderState(provider);
+        this.#providerToAccounts.set(provider, accountIds);
+
+        for (const accountId of accountIds) {
+          this.#accountToProvider.set(accountId, provider);
+        }
+      }
+    }
+  }
+
+  /**
+   * Initialize the multichain account group and construct the internal representation of accounts.
+   *
+   * @param groupState - The group state.
+   */
+  init(groupState: GroupState): void {
+    this.#log('Initializing group state...');
+    this.#setState(groupState);
+    this.#log('Finished initializing group state...');
+
     this.#initialized = true;
   }
 
   /**
-   * Force multichain account synchronization.
+   * Update the group state.
    *
-   * This can be used if account providers got new accounts that the multichain
-   * account doesn't know about.
+   * @param groupState - The group state.
    */
-  sync(): void {
-    // Clear reverse mapping and re-construct it entirely based on the refreshed
-    // list of accounts from each providers.
-    this.#accountToProvider.clear();
+  update(groupState: GroupState): void {
+    this.#log('Updating group state...');
+    this.#setState(groupState);
+    this.#log('Finished updating group state...');
 
-    for (const provider of this.#providers) {
-      // Filter account only for that index.
-      const accounts = [];
-      for (const account of provider.getAccounts()) {
-        if (
-          account.options.entropy.id === this.wallet.entropySource &&
-          account.options.entropy.groupIndex === this.groupIndex
-        ) {
-          // We only use IDs to always fetch the latest version of accounts.
-          accounts.push(account.id);
-        }
-      }
-      this.#providerToAccounts.set(provider, accounts);
-
-      // Reverse-mapping for fast indexing.
-      for (const id of accounts) {
-        this.#accountToProvider.set(id, provider);
-      }
-    }
-
-    // Emit update event when group is synced (only if initialized)
     if (this.#initialized) {
       this.#messenger.publish(
         'MultichainAccountService:multichainAccountGroupUpdated',
@@ -176,6 +205,15 @@ export class MultichainAccountGroup<
   }
 
   /**
+   * Gets the account IDs for this multichain account.
+   *
+   * @returns The account IDs.
+   */
+  getAccountIds(): Account['id'][] {
+    return [...this.#accountToProvider.keys()];
+  }
+
+  /**
    * Gets the account for a given account ID.
    *
    * @param id - Account ID.
@@ -189,6 +227,7 @@ export class MultichainAccountGroup<
     if (!provider) {
       return undefined;
     }
+
     return provider.getAccount(id);
   }
 
@@ -214,28 +253,23 @@ export class MultichainAccountGroup<
   }
 
   /**
-   * Align the multichain account group.
+   * Check whether every provider has an aligned account in this group.
    *
-   * This will create accounts for providers that don't have any accounts yet.
+   * A group is aligned when every registered provider reports that the
+   * account IDs it contributed to this group are non-empty and owned by it.
+   * Disabled {@link AccountProviderWrapper} instances always report `true`.
+   *
+   * @returns `true` when all providers are aligned for this group.
    */
-  async align(): Promise<void> {
-    const results = await Promise.allSettled(
-      this.#providers.map((provider) => {
-        const accounts = this.#providerToAccounts.get(provider);
-        if (!accounts || accounts.length === 0) {
-          return provider.createAccounts({
-            entropySource: this.wallet.entropySource,
-            groupIndex: this.groupIndex,
-          });
-        }
-        return Promise.resolve();
-      }),
+  isAligned(): boolean {
+    return this.#providers.every((provider) =>
+      provider.isAligned(
+        {
+          entropySource: this.#wallet.entropySource,
+          groupIndex: this.#groupIndex,
+        },
+        this.#providerToAccounts.get(provider) ?? [],
+      ),
     );
-
-    if (results.some((result) => result.status === 'rejected')) {
-      console.warn(
-        `Failed to fully align multichain account group for entropy ID: ${this.wallet.entropySource} and group index: ${this.groupIndex}, some accounts might be missing`,
-      );
-    }
   }
 }

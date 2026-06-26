@@ -1,16 +1,19 @@
-import { createModuleLogger, type Hex } from '@metamask/utils';
+import { createModuleLogger } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
-import { isValidSignature } from './signature';
-import { padHexToEvenLength } from './utils';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
+import { isValidSignature } from './signature';
+import { padHexToEvenLength } from './utils';
 
 const DEFAULT_BATCH_SIZE_LIMIT = 10;
 const DEFAULT_ACCELERATED_POLLING_COUNT_MAX = 10;
 const DEFAULT_ACCELERATED_POLLING_INTERVAL_MS = 3 * 1000;
+const DEFAULT_BLOCK_TIME = 12 * 1000;
 const DEFAULT_GAS_ESTIMATE_FALLBACK_BLOCK_PERCENT = 35;
 const DEFAULT_GAS_ESTIMATE_BUFFER = 1;
-const DEFAULT_INCOMING_TRANSACTIONS_POLLING_INTERVAL_MS = 1000 * 60 * 4; // 4 Minutes
+const DEFAULT_SUBMIT_HISTORY_LIMIT = 100;
+const DEFAULT_TRANSACTION_HISTORY_LIMIT = 40;
 
 /**
  * Feature flags supporting the transaction controller.
@@ -18,7 +21,6 @@ const DEFAULT_INCOMING_TRANSACTIONS_POLLING_INTERVAL_MS = 1000 * 60 * 4; // 4 Mi
 export enum FeatureFlag {
   EIP7702 = 'confirmations_eip_7702',
   GasBuffer = 'confirmations_gas_buffer',
-  IncomingTransactions = 'confirmations_incoming_transactions',
   Transactions = 'confirmations_transactions',
 }
 
@@ -32,6 +34,14 @@ type GasEstimateFallback = {
    * The percentage multiplier gas estimate fallback for a transaction.
    */
   percentage?: number;
+
+  /**
+   * The maximum gas limit the fallback can resolve to, representing the chain's
+   * per-transaction gas cap. Clamps the `fixed` or `percentage`-derived fallback
+   * so it can never exceed the gas limit the RPC will accept (e.g. ~33.5M on
+   * Polygon, whereas 35% of its ~140M block gas limit would otherwise be ~49M).
+   */
+  maxGasLimit?: number;
 };
 
 export type TransactionControllerFeatureFlags = {
@@ -96,16 +106,16 @@ export type TransactionControllerFeatureFlags = {
     };
   };
 
-  /** Incoming transaction configuration. */
-  [FeatureFlag.IncomingTransactions]?: {
-    /** Interval between requests to accounts API to retrieve incoming transactions. */
-    pollingIntervalMs?: number;
-  };
-
   /** Miscellaneous feature flags to support the transaction controller. */
   [FeatureFlag.Transactions]?: {
     /** Maximum number of transactions that can be in an external batch. */
     batchSizeLimit?: number;
+
+    /** Maximum number of entries in the submit history. */
+    submitHistoryLimit?: number;
+
+    /** Maximum number of transactions stored in state. */
+    transactionHistoryLimit?: number;
 
     /**
      * Accelerated polling is used to speed up the polling process for
@@ -115,6 +125,11 @@ export type TransactionControllerFeatureFlags = {
       /** Accelerated polling parameters on a per-chain basis. */
       perChainConfig?: {
         [chainId: Hex]: {
+          /**
+           * Block time in milliseconds.
+           */
+          blockTime?: number;
+
           /**
            * Maximum number of polling requests that can be made in a row, before
            * the normal polling resumes.
@@ -153,6 +168,23 @@ export type TransactionControllerFeatureFlags = {
        * This value is used when no specific gas estimate fallback is found for a chain ID.
        */
       default?: GasEstimateFallback;
+    };
+
+    /**
+     * Number of attempts to wait before automatically marking a transaction as failed
+     * if it has no receipt status and hash is not found on the network.
+     */
+    timeoutAttempts?: {
+      /** Automatic fail threshold on a per-chain basis. */
+      perChainConfig?: {
+        [chainId: Hex]: number;
+      };
+
+      /**
+       * Default automatic fail threshold.
+       * This value is used when no specific threshold is found for a chain ID.
+       */
+      default?: number;
     };
   };
 };
@@ -237,6 +269,45 @@ export function getBatchSizeLimit(
 }
 
 /**
+ * Retrieves the submit history limit.
+ * Defaults to 100 if not set.
+ *
+ * @param messenger - The controller messenger instance.
+ * @returns The submit history limit.
+ */
+export function getSubmitHistoryLimit(
+  messenger: TransactionControllerMessenger,
+): number {
+  const featureFlags = getFeatureFlags(messenger);
+  return (
+    featureFlags?.[FeatureFlag.Transactions]?.submitHistoryLimit ??
+    DEFAULT_SUBMIT_HISTORY_LIMIT
+  );
+}
+
+/**
+ * Retrieves the transaction history limit.
+ * Defaults to 40 if not set.
+ *
+ * @param messenger - The controller messenger instance.
+ * @returns The transaction history limit.
+ */
+export function getTransactionHistoryLimit(
+  messenger: TransactionControllerMessenger,
+): number | undefined {
+  const featureFlags = getFeatureFlags(messenger);
+
+  if (!featureFlags) {
+    return undefined;
+  }
+
+  return (
+    featureFlags[FeatureFlag.Transactions]?.transactionHistoryLimit ??
+    DEFAULT_TRANSACTION_HISTORY_LIMIT
+  );
+}
+
+/**
  * Retrieves the accelerated polling parameters for a given chain ID.
  *
  * @param chainId - The chain ID.
@@ -246,23 +317,27 @@ export function getBatchSizeLimit(
 export function getAcceleratedPollingParams(
   chainId: Hex,
   messenger: TransactionControllerMessenger,
-): { countMax: number; intervalMs: number } {
+): { blockTime: number; countMax: number; intervalMs: number } {
   const featureFlags = getFeatureFlags(messenger);
 
   const acceleratedPollingParams =
     featureFlags?.[FeatureFlag.Transactions]?.acceleratedPolling;
 
   const countMax =
-    acceleratedPollingParams?.perChainConfig?.[chainId]?.countMax ||
-    acceleratedPollingParams?.defaultCountMax ||
+    acceleratedPollingParams?.perChainConfig?.[chainId]?.countMax ??
+    acceleratedPollingParams?.defaultCountMax ??
     DEFAULT_ACCELERATED_POLLING_COUNT_MAX;
 
   const intervalMs =
-    acceleratedPollingParams?.perChainConfig?.[chainId]?.intervalMs ||
-    acceleratedPollingParams?.defaultIntervalMs ||
+    acceleratedPollingParams?.perChainConfig?.[chainId]?.intervalMs ??
+    acceleratedPollingParams?.defaultIntervalMs ??
     DEFAULT_ACCELERATED_POLLING_INTERVAL_MS;
 
-  return { countMax, intervalMs };
+  const blockTime =
+    acceleratedPollingParams?.perChainConfig?.[chainId]?.blockTime ??
+    DEFAULT_BLOCK_TIME;
+
+  return { blockTime, countMax, intervalMs };
 }
 
 /**
@@ -280,10 +355,10 @@ export function getGasFeeRandomisation(
   const featureFlags = getFeatureFlags(messenger);
 
   const gasFeeRandomisation =
-    featureFlags?.[FeatureFlag.Transactions]?.gasFeeRandomisation || {};
+    featureFlags?.[FeatureFlag.Transactions]?.gasFeeRandomisation ?? {};
 
   return {
-    randomisedGasFeeDigits: gasFeeRandomisation.randomisedGasFeeDigits || {},
+    randomisedGasFeeDigits: gasFeeRandomisation.randomisedGasFeeDigits ?? {},
     preservedNumberOfDigits: gasFeeRandomisation.preservedNumberOfDigits,
   };
 }
@@ -302,6 +377,7 @@ export function getGasEstimateFallback(
 ): {
   fixed?: number;
   percentage: number;
+  maxGasLimit?: number;
 } {
   const featureFlags = getFeatureFlags(messenger);
 
@@ -317,7 +393,10 @@ export function getGasEstimateFallback(
 
   const fixed = chainFlags?.fixed ?? gasEstimateFallbackFlags?.default?.fixed;
 
-  return { fixed, percentage };
+  const maxGasLimit =
+    chainFlags?.maxGasLimit ?? gasEstimateFallbackFlags?.default?.maxGasLimit;
+
+  return { fixed, percentage, maxGasLimit };
 }
 
 /**
@@ -326,19 +405,19 @@ export function getGasEstimateFallback(
  * @param request - The request object.
  * @param request.chainId - The chain ID.
  * @param request.isCustomRPC - Whether the network RPC is added by the user.
- * @param request.isUpgradeWithDataToSelf - Whether the transaction is an EIP-7702 upgrade with data to self.
+ * @param request.isUpgradeWithData - Whether the transaction is an EIP-7702 upgrade combined with a call.
  * @param request.messenger - The controller messenger instance.
  * @returns The gas buffers.
  */
 export function getGasEstimateBuffer({
   chainId,
   isCustomRPC,
-  isUpgradeWithDataToSelf,
+  isUpgradeWithData,
   messenger,
 }: {
   chainId: Hex;
   isCustomRPC: boolean;
-  isUpgradeWithDataToSelf: boolean;
+  isUpgradeWithData: boolean;
   messenger: TransactionControllerMessenger;
 }): number {
   const featureFlags = getFeatureFlags(messenger);
@@ -350,9 +429,7 @@ export function getGasEstimateBuffer({
     ? undefined
     : gasBufferFlags?.included;
 
-  const upgradeBuffer = isUpgradeWithDataToSelf
-    ? chainFlags?.eip7702
-    : undefined;
+  const upgradeBuffer = isUpgradeWithData ? chainFlags?.eip7702 : undefined;
 
   return (
     upgradeBuffer ??
@@ -366,19 +443,25 @@ export function getGasEstimateBuffer({
 
 /**
  * Retrieves the incoming transactions polling interval.
- * Defaults to 4 minutes if not set.
+ * Retrieves the number of attempts to wait before automatically marking a transaction as dropped
+ * if it has no receipt status.
  *
+ * @param chainId - The chain ID.
  * @param messenger - The controller messenger instance.
- * @returns The incoming transactions polling interval in milliseconds.
+ * @returns The threshold number of attempts, or undefined if the feature is disabled.
  */
-export function getIncomingTransactionsPollingInterval(
+export function getTimeoutAttempts(
+  chainId: Hex,
   messenger: TransactionControllerMessenger,
-): number {
+): number | undefined {
   const featureFlags = getFeatureFlags(messenger);
 
+  const timeoutAttemptsFlags =
+    featureFlags?.[FeatureFlag.Transactions]?.timeoutAttempts;
+
   return (
-    featureFlags?.[FeatureFlag.IncomingTransactions]?.pollingIntervalMs ??
-    DEFAULT_INCOMING_TRANSACTIONS_POLLING_INTERVAL_MS
+    timeoutAttemptsFlags?.perChainConfig?.[chainId] ??
+    timeoutAttemptsFlags?.default
   );
 }
 
@@ -390,12 +473,17 @@ export function getIncomingTransactionsPollingInterval(
  */
 function getFeatureFlags(
   messenger: TransactionControllerMessenger,
-): TransactionControllerFeatureFlags {
-  const featureFlags = messenger.call(
-    'RemoteFeatureFlagController:getState',
-  ).remoteFeatureFlags;
+): TransactionControllerFeatureFlags | undefined {
+  try {
+    const featureFlags = messenger.call(
+      'RemoteFeatureFlagController:getState',
+    ).remoteFeatureFlags;
 
-  log('Retrieved feature flags', featureFlags);
+    log('Retrieved feature flags', featureFlags);
 
-  return featureFlags as TransactionControllerFeatureFlags;
+    return featureFlags as TransactionControllerFeatureFlags;
+  } catch {
+    log('RemoteFeatureFlagController not available');
+    return undefined;
+  }
 }

@@ -7,15 +7,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.3.0` ([#8774](https://github.com/MetaMask/core/pull/8774), [#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
+
+## [9.1.2]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^12.0.0` ([#8344](https://github.com/MetaMask/core/pull/8344), [#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+
+## [9.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [9.1.0]
+
+### Added
+
+- Expose missing public `NameController` methods through its messenger ([#8183](https://github.com/MetaMask/core/pull/8183))
+  - The following actions are now available:
+    - `NameController:setName`
+    - `NameController:updateProposedNames`
+  - Corresponding action types (e.g. `NameControllerSetNameAction`) are available as well.
+
+### Changed
+
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.19.0` ([#7202](https://github.com/MetaMask/core/pull/7202), [#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583), [#7995](https://github.com/MetaMask/core/pull/7995))
+
+## [9.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6541](https://github.com/MetaMask/core/pull/6541))
+  - Previously, `NameController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6541](https://github.com/MetaMask/core/pull/6541))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [8.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
+## [8.1.0]
+
 ### Added
 
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6473](https://github.com/MetaMask/core/pull/6473))
 
 ### Changed
 
-- Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
-- Bump `@metamask/base-controller` from `^8.0.0` to `^8.3.0` ([#5722](https://github.com/MetaMask/core/pull/5722), [#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465))
-- Bump `@metamask/controller-utils` from `^11.5.0` to `^11.12.0` ([#5439](https://github.com/MetaMask/core/pull/5439), [#5583](https://github.com/MetaMask/core/pull/5583), [#5765](https://github.com/MetaMask/core/pull/5765), [#5812](https://github.com/MetaMask/core/pull/5812), [#5935](https://github.com/MetaMask/core/pull/5935), [#6069](https://github.com/MetaMask/core/pull/6069), [#6303](https://github.com/MetaMask/core/pull/6303))
+- Bump `@metamask/utils` from `^11.2.0` to `^11.8.1` ([#6054](https://github.com/MetaMask/core/pull/6054)[#6588](https://github.com/MetaMask/core/pull/6588), [#6708](https://github.com/MetaMask/core/pull/6708))
+- Bump `@metamask/base-controller` from `^8.0.0` to `^8.4.1` ([#5722](https://github.com/MetaMask/core/pull/5722), [#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632), [#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/controller-utils` from `^11.5.0` to `^11.14.1` ([#5439](https://github.com/MetaMask/core/pull/5439), [#5583](https://github.com/MetaMask/core/pull/5583), [#5765](https://github.com/MetaMask/core/pull/5765), [#5812](https://github.com/MetaMask/core/pull/5812), [#5935](https://github.com/MetaMask/core/pull/5935), [#6069](https://github.com/MetaMask/core/pull/6069), [#6303](https://github.com/MetaMask/core/pull/6303), [#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629), [#6807](https://github.com/MetaMask/core/pull/6807))
 
 ## [8.0.3]
 
@@ -172,7 +224,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1647](https://github.com/MetaMask/core/pull/1647))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/name-controller@8.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/name-controller@9.1.2...HEAD
+[9.1.2]: https://github.com/MetaMask/core/compare/@metamask/name-controller@9.1.1...@metamask/name-controller@9.1.2
+[9.1.1]: https://github.com/MetaMask/core/compare/@metamask/name-controller@9.1.0...@metamask/name-controller@9.1.1
+[9.1.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@9.0.0...@metamask/name-controller@9.1.0
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@8.1.1...@metamask/name-controller@9.0.0
+[8.1.1]: https://github.com/MetaMask/core/compare/@metamask/name-controller@8.1.0...@metamask/name-controller@8.1.1
+[8.1.0]: https://github.com/MetaMask/core/compare/@metamask/name-controller@8.0.3...@metamask/name-controller@8.1.0
 [8.0.3]: https://github.com/MetaMask/core/compare/@metamask/name-controller@8.0.2...@metamask/name-controller@8.0.3
 [8.0.2]: https://github.com/MetaMask/core/compare/@metamask/name-controller@8.0.1...@metamask/name-controller@8.0.2
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/name-controller@8.0.0...@metamask/name-controller@8.0.1

@@ -1,6 +1,8 @@
 import { AddressZero } from '@ethersproject/constants';
-import { BtcScope, SolScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope, TrxScope, XlmScope } from '@metamask/keyring-api';
 
+import { CHAIN_IDS } from '../constants/chains';
+import { ChainId } from '../types';
 import {
   formatChainIdToCaip,
   formatChainIdToDec,
@@ -8,8 +10,6 @@ import {
   formatAddressToCaipReference,
   formatAddressToAssetId,
 } from './caip-formatters';
-import { CHAIN_IDS } from '../constants/chains';
-import { ChainId } from '../types';
 
 describe('CAIP Formatters', () => {
   describe('formatChainIdToCaip', () => {
@@ -36,6 +36,17 @@ describe('CAIP Formatters', () => {
       expect(formatChainIdToCaip('20000000000001')).toBe(BtcScope.Mainnet);
     });
 
+    it('should convert Tron chainId to TrxScope.Mainnet', () => {
+      expect(formatChainIdToCaip(ChainId.TRON)).toBe(TrxScope.Mainnet);
+      expect(formatChainIdToCaip(TrxScope.Mainnet)).toBe(TrxScope.Mainnet);
+    });
+
+    it('should convert Stellar chainId to XlmScope', () => {
+      expect(formatChainIdToCaip(ChainId.STELLAR)).toBe(XlmScope.Pubnet);
+      expect(formatChainIdToCaip(XlmScope.Pubnet)).toBe(XlmScope.Pubnet);
+      expect(formatChainIdToCaip(XlmScope.Testnet)).toBe(XlmScope.Testnet);
+    });
+
     it('should convert number to CAIP format', () => {
       expect(formatChainIdToCaip(1)).toBe('eip155:1');
     });
@@ -57,6 +68,16 @@ describe('CAIP Formatters', () => {
     it('should handle Bitcoin numeric chainId', () => {
       expect(formatChainIdToDec(20000000000001)).toBe(20000000000001);
       expect(formatChainIdToDec('20000000000001')).toBe(20000000000001);
+    });
+
+    it('should handle Tron mainnet', () => {
+      expect(formatChainIdToDec(TrxScope.Mainnet)).toBe(ChainId.TRON);
+    });
+
+    it('should handle Stellar mainnet', () => {
+      expect(formatChainIdToDec(XlmScope.Pubnet)).toBe(ChainId.STELLAR);
+      expect(formatChainIdToDec(XlmScope.Testnet)).toBe(ChainId.STELLAR);
+      expect(formatChainIdToDec(ChainId.STELLAR)).toBe(ChainId.STELLAR);
     });
 
     it('should parse CAIP chainId to decimal', () => {
@@ -255,6 +276,17 @@ describe('CAIP Formatters', () => {
       // Test with Avalanche
       expect(formatAddressToAssetId(tokenAddress, CHAIN_IDS.AVALANCHE)).toBe(
         `eip155:43114/erc20:${tokenAddress}`,
+      );
+    });
+
+    it('should return undefined when chainId is not provided', () => {
+      expect(formatAddressToAssetId('invalid-address')).toBeUndefined();
+    });
+
+    it('should handle Tron addresses', () => {
+      const tokenAddress = 'TJ1234567890123456789012345678901234567890';
+      expect(formatAddressToAssetId(tokenAddress, ChainId.TRON)).toBe(
+        'tron:728126428/trc20:TJ1234567890123456789012345678901234567890',
       );
     });
   });

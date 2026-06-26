@@ -1,6 +1,8 @@
 import { errorCodes, rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 
+import { CUSTOM_RPC_ERRORS } from '../../src/rpc-service/rpc-service';
+import { NetworkClientType } from '../../src/types';
 import type { MockRequest, ProviderType } from './helpers';
 import {
   buildMockParams,
@@ -10,8 +12,6 @@ import {
   withNetworkClient,
 } from './helpers';
 import { testsForRpcFailoverBehavior } from './rpc-failover';
-import { CUSTOM_RPC_ERRORS } from '../../src/rpc-service/rpc-service';
-import { NetworkClientType } from '../../src/types';
 
 type TestsForRpcMethodSupportingBlockParam = {
   providerType: ProviderType;
@@ -40,7 +40,7 @@ export function testsForRpcMethodSupportingBlockParam(
     numberOfParameters,
     providerType,
   }: TestsForRpcMethodSupportingBlockParam,
-) {
+): void {
   describe.each([
     ['given no block tag', undefined],
     ['given a block tag of "latest"', 'latest'],
@@ -181,14 +181,13 @@ export function testsForRpcMethodSupportingBlockParam(
               pollingInterval,
             }),
           },
-          async ({ blockTracker, makeRpcCall, clock }) => {
+          async ({ blockTracker, makeRpcCall }) => {
             const waitForTwoBlocks = new Promise<void>((resolve) => {
               let numberOfBlocks = 0;
 
               // Start the block tracker
               blockTracker.on('latest', () => {
                 numberOfBlocks += 1;
-                // eslint-disable-next-line jest/no-conditional-in-test
                 if (numberOfBlocks === 2) {
                   resolve();
                 }
@@ -198,7 +197,7 @@ export function testsForRpcMethodSupportingBlockParam(
             const firstResult = await makeRpcCall(requests[0]);
             // Proceed to the next iteration of the block tracker so that a new
             // block is fetched and the current block is updated.
-            await clock.tickAsync(pollingInterval);
+            await jest.advanceTimersByTimeAsync(pollingInterval);
             await waitForTwoBlocks;
             const secondResult = await makeRpcCall(requests[1]);
             return [firstResult, secondResult];
@@ -209,9 +208,7 @@ export function testsForRpcMethodSupportingBlockParam(
       });
     });
 
-    for (const emptyValue of [null, undefined, '\u003cnil\u003e']) {
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+    for (const emptyValue of [null, '\u003cnil\u003e']) {
       it(`does not retry an empty response of "${emptyValue}"`, async () => {
         const request = {
           method,
@@ -248,8 +245,6 @@ export function testsForRpcMethodSupportingBlockParam(
         });
       });
 
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
       it(`does not reuse the result of a previous request if it was "${emptyValue}"`, async () => {
         const requests = [
           { method, params: buildMockParams({ blockParamIndex, blockParam }) },
@@ -352,7 +347,7 @@ export function testsForRpcMethodSupportingBlockParam(
             const firstResult = await resultPromises[0];
             // The inflight cache middleware uses setTimeout to run the
             // handlers, so run them now
-            client.clock.runAll();
+            jest.runAllTimers();
             const remainingResults = await Promise.all(resultPromises.slice(1));
             return [firstResult, ...remainingResults];
           },
@@ -408,8 +403,6 @@ export function testsForRpcMethodSupportingBlockParam(
           },
         );
 
-        // This is not ideal, but we can refactor this later.
-        // eslint-disable-next-line jest/no-conditional-in-test
         if (providerType === NetworkClientType.Infura) {
           // This is not ideal, but we can refactor this later.
           // eslint-disable-next-line jest/no-conditional-expect
@@ -559,7 +552,7 @@ export function testsForRpcMethodSupportingBlockParam(
           code: errorCodes.rpc.resourceUnavailable,
         });
 
-        it('retries the request up to 5 times until there is a 200 response', async () => {
+        it('retries the request up to 4 times until there is a 200 response', async () => {
           await withMockedCommunications({ providerType }, async (comms) => {
             const request = {
               method,
@@ -589,7 +582,7 @@ export function testsForRpcMethodSupportingBlockParam(
                 error: 'some error',
                 httpStatus,
               },
-              times: 4,
+              times: 3,
             });
             comms.mockRpcCall({
               request: buildRequestWithReplacedBlockParam(
@@ -604,10 +597,9 @@ export function testsForRpcMethodSupportingBlockParam(
             });
             const result = await withNetworkClient(
               { providerType },
-              async ({ makeRpcCall, clock }) => {
+              async ({ makeRpcCall }) => {
                 return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                   makeRpcCall(request),
-                  clock,
                 );
               },
             );
@@ -647,10 +639,9 @@ export function testsForRpcMethodSupportingBlockParam(
             });
             const promiseForResult = withNetworkClient(
               { providerType },
-              async ({ makeRpcCall, clock }) => {
+              async ({ makeRpcCall }) => {
                 return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                   makeRpcCall(request),
-                  clock,
                 );
               },
             );
@@ -694,7 +685,7 @@ export function testsForRpcMethodSupportingBlockParam(
         // still used by Node.
         error.code = errorCode;
 
-        it('retries the request up to 5 times until it is successful', async () => {
+        it('retries the request up to 4 times until it is successful', async () => {
           await withMockedCommunications({ providerType }, async (comms) => {
             const request = {
               method,
@@ -721,7 +712,7 @@ export function testsForRpcMethodSupportingBlockParam(
                 '0x100',
               ),
               error,
-              times: 4,
+              times: 3,
             });
             comms.mockRpcCall({
               request: buildRequestWithReplacedBlockParam(
@@ -737,10 +728,9 @@ export function testsForRpcMethodSupportingBlockParam(
 
             const result = await withNetworkClient(
               { providerType },
-              async ({ makeRpcCall, clock }) => {
+              async ({ makeRpcCall }) => {
                 return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                   makeRpcCall(request),
-                  clock,
                 );
               },
             );
@@ -778,10 +768,9 @@ export function testsForRpcMethodSupportingBlockParam(
 
             const promiseForResult = withNetworkClient(
               { providerType },
-              async ({ makeRpcCall, clock }) => {
+              async ({ makeRpcCall }) => {
                 return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                   makeRpcCall(request),
-                  clock,
                 );
               },
             );
@@ -818,7 +807,7 @@ export function testsForRpcMethodSupportingBlockParam(
         code: errorCodes.rpc.parse,
       });
 
-      it('retries the request up to 5 times until it responds with valid JSON', async () => {
+      it('retries the request up to 4 times until it responds with valid JSON', async () => {
         await withMockedCommunications({ providerType }, async (comms) => {
           const request = {
             method,
@@ -847,7 +836,7 @@ export function testsForRpcMethodSupportingBlockParam(
             response: {
               body: 'invalid JSON',
             },
-            times: 4,
+            times: 3,
           });
           comms.mockRpcCall({
             request: buildRequestWithReplacedBlockParam(
@@ -862,10 +851,9 @@ export function testsForRpcMethodSupportingBlockParam(
           });
           const result = await withNetworkClient(
             { providerType },
-            async ({ makeRpcCall, clock }) => {
+            async ({ makeRpcCall }) => {
               return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                 makeRpcCall(request),
-                clock,
               );
             },
           );
@@ -905,10 +893,9 @@ export function testsForRpcMethodSupportingBlockParam(
 
           const promiseForResult = withNetworkClient(
             { providerType },
-            async ({ makeRpcCall, clock }) => {
+            async ({ makeRpcCall }) => {
               return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                 makeRpcCall(request),
-                clock,
               );
             },
           );
@@ -945,7 +932,7 @@ export function testsForRpcMethodSupportingBlockParam(
     describe('if making the request throws a connection error', () => {
       const error = new TypeError('Failed to fetch');
 
-      it('retries the request up to 5 times until there is no connection error', async () => {
+      it('retries the request up to 4 times until there is no connection error', async () => {
         await withMockedCommunications({ providerType }, async (comms) => {
           const request = {
             method,
@@ -972,7 +959,7 @@ export function testsForRpcMethodSupportingBlockParam(
               '0x100',
             ),
             error,
-            times: 4,
+            times: 3,
           });
           comms.mockRpcCall({
             request: buildRequestWithReplacedBlockParam(
@@ -988,10 +975,9 @@ export function testsForRpcMethodSupportingBlockParam(
 
           const result = await withNetworkClient(
             { providerType },
-            async ({ makeRpcCall, clock }) => {
+            async ({ makeRpcCall }) => {
               return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                 makeRpcCall(request),
-                clock,
               );
             },
           );
@@ -1028,10 +1014,9 @@ export function testsForRpcMethodSupportingBlockParam(
           });
           const promiseForResult = withNetworkClient(
             { providerType },
-            async ({ makeRpcCall, clock }) => {
+            async ({ makeRpcCall }) => {
               return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                 makeRpcCall(request),
-                clock,
               );
             },
           );
@@ -1067,8 +1052,6 @@ export function testsForRpcMethodSupportingBlockParam(
     ['given a block tag of "earliest"', 'earliest', 'earliest'],
     ['given a block number', 'block number', '0x100'],
   ])('%s', (_desc, blockParamType, blockParam) => {
-    // This lint rule gets confused by `describe.each`
-    // eslint-disable-next-line jest/no-identical-title
     it('does not hit the RPC endpoint more than once for identical requests', async () => {
       const requests = [
         {
@@ -1172,7 +1155,7 @@ export function testsForRpcMethodSupportingBlockParam(
         // first block tracker request occurs because of the first RPC
         // request. The second block tracker request, however, does not
         // occur because of the second RPC request, but rather because we
-        // call `clock.runAll()` below.
+        // call `jest.runAllTimers()` below.
         comms.mockNextBlockTrackerRequest({ blockNumber: '0x1' });
         comms.mockRpcCall({
           request: requests[0],
@@ -1190,7 +1173,7 @@ export function testsForRpcMethodSupportingBlockParam(
             const firstResult = await client.makeRpcCall(requests[0]);
             // Proceed to the next iteration of the block tracker so that a
             // new block is fetched and the current block is updated.
-            client.clock.runAll();
+            jest.runAllTimers();
             const secondResult = await client.makeRpcCall(requests[1]);
             return [firstResult, secondResult];
           },
@@ -1233,9 +1216,7 @@ export function testsForRpcMethodSupportingBlockParam(
         });
       });
 
-      for (const emptyValue of [null, undefined, '\u003cnil\u003e']) {
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+      for (const emptyValue of [null, '\u003cnil\u003e']) {
         it(`does not retry an empty response of "${emptyValue}"`, async () => {
           const request = {
             method,
@@ -1262,8 +1243,6 @@ export function testsForRpcMethodSupportingBlockParam(
           });
         });
 
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         it(`does not reuse the result of a previous request if it was "${emptyValue}"`, async () => {
           const requests = [
             {
@@ -1370,10 +1349,8 @@ export function testsForRpcMethodSupportingBlockParam(
             });
           });
 
-          for (const emptyValue of [null, undefined, '\u003cnil\u003e']) {
+          for (const emptyValue of [null, '\u003cnil\u003e']) {
             if (providerType === 'infura') {
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
               it(`retries up to 10 times if a "${emptyValue}" response is returned, returning successful non-empty response if there is one on the 10th try`, async () => {
                 const request = {
                   method,
@@ -1401,10 +1378,9 @@ export function testsForRpcMethodSupportingBlockParam(
 
                     const result = await withNetworkClient(
                       { providerType },
-                      ({ makeRpcCall, clock }) =>
+                      ({ makeRpcCall }) =>
                         waitForPromiseToBeFulfilledAfterRunningAllTimers(
                           makeRpcCall(request),
-                          clock,
                         ),
                     );
 
@@ -1413,8 +1389,6 @@ export function testsForRpcMethodSupportingBlockParam(
                 );
               });
 
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
               it(`retries up to 10 times if a "${emptyValue}" response is returned, failing after the 10th try`, async () => {
                 const request = {
                   method,
@@ -1439,10 +1413,9 @@ export function testsForRpcMethodSupportingBlockParam(
 
                     const promiseForResult = withNetworkClient(
                       { providerType },
-                      ({ makeRpcCall, clock }) =>
+                      ({ makeRpcCall }) =>
                         waitForPromiseToBeFulfilledAfterRunningAllTimers(
                           makeRpcCall(request),
-                          clock,
                         ),
                     );
 
@@ -1453,8 +1426,6 @@ export function testsForRpcMethodSupportingBlockParam(
                 );
               });
             } else {
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
               it(`does not retry an empty response of "${emptyValue}"`, async () => {
                 const request = {
                   method,
@@ -1490,8 +1461,6 @@ export function testsForRpcMethodSupportingBlockParam(
                 );
               });
 
-              // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-              // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
               it(`does not reuse the result of a previous request if it was "${emptyValue}"`, async () => {
                 const requests = [
                   {
@@ -1573,9 +1542,7 @@ export function testsForRpcMethodSupportingBlockParam(
           });
         });
 
-        for (const emptyValue of [null, undefined, '\u003cnil\u003e']) {
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+        for (const emptyValue of [null, '\u003cnil\u003e']) {
           it(`does not retry an empty response of "${emptyValue}"`, async () => {
             const request = {
               method,
@@ -1606,8 +1573,6 @@ export function testsForRpcMethodSupportingBlockParam(
             });
           });
 
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           it(`does not reuse the result of a previous request if it was "${emptyValue}"`, async () => {
             const requests = [
               {

@@ -3,9 +3,11 @@ import * as allExports from '.';
 describe('@metamask/controller-utils', () => {
   it('has expected JavaScript exports', () => {
     expect(Object.keys(allExports)).toMatchInlineSnapshot(`
-      Array [
+      [
+        "encodeFunctionData",
         "BrokenCircuitError",
         "CircuitState",
+        "CockatielEventEmitter",
         "ConstantBackoff",
         "DEFAULT_CIRCUIT_BREAK_DURATION",
         "DEFAULT_DEGRADED_THRESHOLD",
@@ -49,6 +51,8 @@ describe('@metamask/controller-utils', () => {
         "HOURS",
         "DAY",
         "DAYS",
+        "NETWORKS_BYPASSING_VALIDATION",
+        "CHAIN_IDS_WITH_NO_NATIVE_TOKEN",
         "BNToHex",
         "convertHexToDecimal",
         "fetchWithErrorHandling",
@@ -78,6 +82,7 @@ describe('@metamask/controller-utils', () => {
         "weiHexToGweiDec",
         "isEqualCaseInsensitive",
         "InfuraNetworkType",
+        "DEFAULT_INFURA_NETWORKS",
         "CustomNetworkType",
         "NetworkType",
         "isNetworkType",

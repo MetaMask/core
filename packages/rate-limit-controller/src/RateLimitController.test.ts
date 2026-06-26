@@ -1,12 +1,15 @@
-import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
-
+import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
-  RateLimitControllerActions,
-  RateLimitControllerEvents,
-} from './RateLimitController';
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
+} from '@metamask/messenger';
+
+import type { RateLimitMessenger } from './RateLimitController';
 import { RateLimitController } from './RateLimitController';
 
-const name = 'RateLimitController';
+const controllerName = 'RateLimitController';
 
 const implementations = {
   apiWithoutCustomLimit: {
@@ -21,29 +24,48 @@ const implementations = {
 
 type RateLimitedApis = typeof implementations;
 
+type AllRateLimitControllerActions = MessengerActions<
+  RateLimitMessenger<RateLimitedApis>
+>;
+
+type AllRateLimitControllerEvents = MessengerEvents<
+  RateLimitMessenger<RateLimitedApis>
+>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllRateLimitControllerActions,
+  AllRateLimitControllerEvents
+>;
+
 /**
- * Constructs an unrestricted messenger.
+ * Creates and returns a root messenger for testing
  *
- * @returns An unrestricted messenger.
+ * @returns A messenger instance
  */
-function getUnrestrictedMessenger() {
-  return new Messenger<
-    RateLimitControllerActions<RateLimitedApis>,
-    RateLimitControllerEvents<RateLimitedApis>
-  >();
+function getRootMessenger(): RootMessenger {
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 }
 
 /**
- * Constructs a restricted messenger.
+ * Constructs a messenger for the RateLimitController.
  *
- * @param messenger - An optional unrestricted messenger
- * @returns A restricted messenger.
+ * @param rootMessenger - An optional root messenger
+ * @returns A messenger for the RateLimitController.
  */
-function getRestrictedMessenger(messenger = getUnrestrictedMessenger()) {
-  return messenger.getRestricted({
-    name,
-    allowedActions: [],
-    allowedEvents: [],
+function getMessenger(
+  rootMessenger = getRootMessenger(),
+): RateLimitMessenger<RateLimitedApis> {
+  return new Messenger<
+    typeof controllerName,
+    AllRateLimitControllerActions,
+    AllRateLimitControllerEvents,
+    RootMessenger
+  >({
+    namespace: controllerName,
+    parent: rootMessenger,
   });
 }
 
@@ -62,17 +84,18 @@ describe('RateLimitController', () => {
   });
 
   it('action: RateLimitController:call', async () => {
-    const unrestricted = getUnrestrictedMessenger();
-    const messenger = getRestrictedMessenger(unrestricted);
+    const rootMessenger = getRootMessenger();
+    const messenger = getMessenger(rootMessenger);
 
     // Registers action handlers
+    // eslint-disable-next-line no-new
     new RateLimitController({
       implementations,
       messenger,
     });
 
     expect(
-      await unrestricted.call(
+      await rootMessenger.call(
         'RateLimitController:call',
         origin,
         'apiWithoutCustomLimit',
@@ -88,7 +111,7 @@ describe('RateLimitController', () => {
   });
 
   it('uses apiWithoutCustomLimit method', async () => {
-    const messenger = getRestrictedMessenger();
+    const messenger = getMessenger();
 
     const controller = new RateLimitController({
       implementations,
@@ -105,7 +128,7 @@ describe('RateLimitController', () => {
   });
 
   it('returns false if rate-limited', async () => {
-    const messenger = getRestrictedMessenger();
+    const messenger = getMessenger();
     const controller = new RateLimitController({
       implementations,
       messenger,
@@ -154,7 +177,7 @@ describe('RateLimitController', () => {
   });
 
   it('rate limit is reset after timeout', async () => {
-    const messenger = getRestrictedMessenger();
+    const messenger = getMessenger();
     const controller = new RateLimitController({
       implementations,
       messenger,
@@ -198,7 +221,7 @@ describe('RateLimitController', () => {
   });
 
   it('timeout is only applied once per window', async () => {
-    const messenger = getRestrictedMessenger();
+    const messenger = getMessenger();
     const controller = new RateLimitController({
       implementations,
       messenger,
@@ -225,22 +248,22 @@ describe('RateLimitController', () => {
     it('includes expected state in debug snapshots', () => {
       const controller = new RateLimitController({
         implementations,
-        messenger: getRestrictedMessenger(),
+        messenger: getMessenger(),
       });
 
       expect(
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
       const controller = new RateLimitController({
         implementations,
-        messenger: getRestrictedMessenger(),
+        messenger: getMessenger(),
       });
 
       expect(
@@ -249,13 +272,13 @@ describe('RateLimitController', () => {
           controller.metadata,
           'includeInStateLogs',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('persists expected state', () => {
       const controller = new RateLimitController({
         implementations,
-        messenger: getRestrictedMessenger(),
+        messenger: getMessenger(),
       });
 
       expect(
@@ -264,13 +287,13 @@ describe('RateLimitController', () => {
           controller.metadata,
           'persist',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('exposes expected state to UI', () => {
       const controller = new RateLimitController({
         implementations,
-        messenger: getRestrictedMessenger(),
+        messenger: getMessenger(),
       });
 
       expect(
@@ -279,7 +302,7 @@ describe('RateLimitController', () => {
           controller.metadata,
           'usedInUi',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
   });
 });

@@ -1,11 +1,13 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
+  StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
 import { v1 as random } from 'uuid';
 
+import type { LoggingControllerMethodActions } from './LoggingController-method-action-types';
 import type { Log } from './logTypes';
 
 /**
@@ -32,20 +34,16 @@ export type LoggingControllerState = {
 
 const name = 'LoggingController';
 
-/**
- * An action to add log messages to the controller state.
- */
-export type AddLog = {
-  type: `${typeof name}:add`;
-  handler: LoggingController['add'];
-};
+const MESSENGER_EXPOSED_METHODS = ['add', 'clear'] as const;
 
 export type LoggingControllerGetStateAction = ControllerGetStateAction<
   typeof name,
   LoggingControllerState
 >;
 
-export type LoggingControllerActions = LoggingControllerGetStateAction | AddLog;
+export type LoggingControllerActions =
+  | LoggingControllerGetStateAction
+  | LoggingControllerMethodActions;
 
 export type LoggingControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof name,
@@ -54,19 +52,17 @@ export type LoggingControllerStateChangeEvent = ControllerStateChangeEvent<
 
 export type LoggingControllerEvents = LoggingControllerStateChangeEvent;
 
-export type LoggingControllerMessenger = RestrictedMessenger<
+export type LoggingControllerMessenger = Messenger<
   typeof name,
   LoggingControllerActions,
-  LoggingControllerEvents,
-  never,
-  never
+  LoggingControllerEvents
 >;
 
-const metadata = {
+const metadata: StateMetadata<LoggingControllerState> = {
   logs: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: false,
   },
 };
@@ -107,9 +103,9 @@ export class LoggingController extends BaseController<
       },
     });
 
-    this.messagingSystem.registerActionHandler(
-      `${name}:add` as const,
-      (log: Log) => this.add(log),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 

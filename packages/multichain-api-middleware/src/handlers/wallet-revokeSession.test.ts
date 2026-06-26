@@ -1,4 +1,5 @@
 import {
+  Caip25CaveatType,
   Caip25EndowmentPermissionName,
   Caip25Errors,
 } from '@metamask/chain-agnostic-permission';
@@ -8,9 +9,12 @@ import {
 } from '@metamask/permission-controller';
 import type { JsonRpcRequest } from '@metamask/utils';
 
-import { walletRevokeSession } from './wallet-revokeSession';
+import { walletRevokeSessionHandler } from './wallet-revokeSession';
 
-const baseRequest: JsonRpcRequest & { origin: string } = {
+const baseRequest: JsonRpcRequest & {
+  origin: string;
+  params: { scopes?: string[] };
+} = {
   origin: 'http://test.com',
   params: {},
   jsonrpc: '2.0' as const,
@@ -22,14 +26,23 @@ const createMockedHandler = () => {
   const next = jest.fn();
   const end = jest.fn();
   const revokePermissionForOrigin = jest.fn();
+  const updateCaveat = jest.fn();
+  const getCaveatForOrigin = jest.fn();
   const response = {
     result: true,
     id: 1,
     jsonrpc: '2.0' as const,
   };
-  const handler = (request: JsonRpcRequest & { origin: string }) =>
-    walletRevokeSession.implementation(request, response, next, end, {
+  const handler = (
+    request: JsonRpcRequest & {
+      origin: string;
+      params: { scopes?: string[] };
+    },
+  ) =>
+    walletRevokeSessionHandler.implementation(request, response, next, end, {
       revokePermissionForOrigin,
+      updateCaveat,
+      getCaveatForOrigin,
     });
 
   return {
@@ -37,15 +50,135 @@ const createMockedHandler = () => {
     response,
     end,
     revokePermissionForOrigin,
+    updateCaveat,
+    getCaveatForOrigin,
     handler,
   };
 };
 
 describe('wallet_revokeSession', () => {
-  it('revokes the the CAIP-25 endowment permission', async () => {
+  it('revokes the CAIP-25 endowment permission', async () => {
     const { handler, revokePermissionForOrigin } = createMockedHandler();
 
     await handler(baseRequest);
+    expect(revokePermissionForOrigin).toHaveBeenCalledWith(
+      Caip25EndowmentPermissionName,
+    );
+  });
+
+  it('revokes the CAIP-25 endowment permission when params is not specified', async () => {
+    const { handler, revokePermissionForOrigin, response } =
+      createMockedHandler();
+    const requestWithoutParams = {
+      origin: 'http://test.com',
+      jsonrpc: '2.0' as const,
+      id: 1,
+      method: 'wallet_revokeSession',
+    } as JsonRpcRequest & {
+      origin: string;
+      params: { scopes?: string[] };
+    };
+
+    await handler(requestWithoutParams);
+    expect(revokePermissionForOrigin).toHaveBeenCalledWith(
+      Caip25EndowmentPermissionName,
+    );
+    expect(response.result).toBe(true);
+  });
+
+  it('returns true without revoking if there is no active session and scopes are specified', async () => {
+    const {
+      handler,
+      getCaveatForOrigin,
+      revokePermissionForOrigin,
+      updateCaveat,
+      response,
+    } = createMockedHandler();
+    getCaveatForOrigin.mockReturnValue(undefined);
+
+    await handler({ ...baseRequest, params: { scopes: ['eip155:1'] } });
+
+    expect(revokePermissionForOrigin).not.toHaveBeenCalled();
+    expect(updateCaveat).not.toHaveBeenCalled();
+    expect(response.result).toBe(true);
+  });
+
+  it('partially revokes the CAIP-25 endowment permission if `scopes` param is passed in', async () => {
+    const { handler, getCaveatForOrigin, updateCaveat } = createMockedHandler();
+    getCaveatForOrigin.mockImplementation(() => ({
+      value: {
+        optionalScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdeadbeef'],
+          },
+          'eip155:5': {
+            accounts: ['eip155:5:0xdeadbeef'],
+          },
+          'eip155:10': {
+            accounts: ['eip155:10:0xdeadbeef'],
+          },
+        },
+        requiredScopes: {},
+      },
+    }));
+
+    await handler({ ...baseRequest, params: { scopes: ['eip155:1'] } });
+    expect(updateCaveat).toHaveBeenCalledWith(
+      Caip25EndowmentPermissionName,
+      Caip25CaveatType,
+      {
+        optionalScopes: {
+          'eip155:5': { accounts: ['eip155:5:0xdeadbeef'] },
+          'eip155:10': { accounts: ['eip155:10:0xdeadbeef'] },
+        },
+        requiredScopes: {},
+      },
+    );
+  });
+
+  it('not call `updateCaveat` if `scopes` param is passed in with non existing permitted scope', async () => {
+    const { handler, getCaveatForOrigin, updateCaveat } = createMockedHandler();
+    getCaveatForOrigin.mockImplementation(() => ({
+      value: {
+        optionalScopes: {
+          'eip155:1': {
+            accounts: [],
+          },
+        },
+        requiredScopes: {},
+      },
+    }));
+
+    await handler({ ...baseRequest, params: { scopes: ['eip155:5'] } });
+    expect(updateCaveat).not.toHaveBeenCalled();
+  });
+
+  it('fully revokes permission when all accounts are removed after scope removal', async () => {
+    const {
+      handler,
+      getCaveatForOrigin,
+      updateCaveat,
+      revokePermissionForOrigin,
+    } = createMockedHandler();
+    getCaveatForOrigin.mockImplementation(() => ({
+      value: {
+        optionalScopes: {
+          'eip155:1': {
+            accounts: ['eip155:1:0xdeadbeef'],
+          },
+          'eip155:5': {
+            accounts: ['eip155:5:0xdeadbeef'],
+          },
+        },
+        requiredScopes: {},
+      },
+    }));
+
+    await handler({
+      ...baseRequest,
+      params: { scopes: ['eip155:1', 'eip155:5'] },
+    });
+    expect(updateCaveat).not.toHaveBeenCalled();
     expect(revokePermissionForOrigin).toHaveBeenCalledWith(
       Caip25EndowmentPermissionName,
     );
@@ -80,6 +213,19 @@ describe('wallet_revokeSession', () => {
     const { handler, revokePermissionForOrigin, end } = createMockedHandler();
     revokePermissionForOrigin.mockImplementation(() => {
       throw new Error('revoke failed');
+    });
+
+    await handler(baseRequest);
+    expect(end).toHaveBeenCalledWith(
+      Caip25Errors.unknownErrorOrNoScopesAuthorized(),
+    );
+  });
+
+  it('throws an internal RPC error if a non-error is thrown', async () => {
+    const { handler, revokePermissionForOrigin, end } = createMockedHandler();
+    revokePermissionForOrigin.mockImplementation(() => {
+      // eslint-disable-next-line @typescript-eslint/only-throw-error
+      throw 'revoke failed';
     });
 
     await handler(baseRequest);

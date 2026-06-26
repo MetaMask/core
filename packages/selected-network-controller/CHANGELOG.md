@@ -7,10 +7,137 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [26.1.4]
+
 ### Changed
 
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/network-controller` from `^32.0.0` to `^33.0.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+
+## [26.1.3]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^31.0.0` to `^32.0.0` ([#8765](https://github.com/MetaMask/core/pull/8765), [#8774](https://github.com/MetaMask/core/pull/8774))
+
+## [26.1.2]
+
+### Changed
+
+- Bump `@metamask/permission-controller` from `^13.0.0` to `^13.1.1` ([#8722](https://github.com/MetaMask/core/pull/8722), [#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/json-rpc-engine` from `^10.3.0` to `^10.5.0` ([#8746](https://github.com/MetaMask/core/pull/8746), [#8753](https://github.com/MetaMask/core/pull/8753))
+- Bump `@metamask/network-controller` from `^30.1.0` to `^31.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+
+## [26.1.1]
+
+### Changed
+
+- Bump `@metamask/permission-controller` from `^12.3.0` to `^13.0.0` ([#8661](https://github.com/MetaMask/core/pull/8661))
+- Bump `@metamask/json-rpc-engine` from `^10.2.4` to `^10.3.0` ([#8661](https://github.com/MetaMask/core/pull/8661))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+- Bump `@metamask/network-controller` from `^30.0.1` to `^30.1.0` ([#8636](https://github.com/MetaMask/core/pull/8636))
+
+## [26.1.0]
+
+### Added
+
+- Expose missing public `SelectedNetworkController` methods through its messenger ([#8201](https://github.com/MetaMask/core/pull/8201))
+  - The following actions are now available:
+    - `SelectedNetworkController:getProviderAndBlockTracker`
+  - Corresponding action types
+    (e.g. `SelectedNetworkControllerGetProviderAndBlockTrackerAction`) are
+    available as well.
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/network-controller` from `^30.0.0` to `^30.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/permission-controller` from `^12.2.0` to `^12.3.0` ([#8225](https://github.com/MetaMask/core/pull/8225), [#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/json-rpc-engine` from `^10.2.2` to `^10.2.4` ([#8078](https://github.com/MetaMask/core/pull/8078), [#8317](https://github.com/MetaMask/core/pull/8317))
+
+### Deprecated
+
+- Deprecate `SelectedNetworkControllerGetSelectedNetworkStateAction` type in favor of `SelectedNetworkControllerGetStateAction` ([#8201](https://github.com/MetaMask/core/pull/8201))
+  - The old types is still exported but is now marked as deprecated and will
+    be removed in a future release.
+
+## [26.0.3]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^29.0.0` to `^30.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/json-rpc-engine` from `^10.2.1` to `^10.2.2` ([#7856](https://github.com/MetaMask/core/pull/7856))
+
+## [26.0.2]
+
+### Changed
+
+- Bump `@metamask/json-rpc-engine` from `^10.2.0` to `^10.2.1` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/network-controller` from `^28.0.0` to `^29.0.0` ([#7642](https://github.com/MetaMask/core/pull/7642))
+
+## [26.0.1]
+
+### Changed
+
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Bump `@metamask/permission-controller` from `^12.1.1` to `^12.2.0` ([#7559](https://github.com/MetaMask/core/pull/7559))
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7258](https://github.com/MetaMask/core/pull/7258), [#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583), [#7604](https://github.com/MetaMask/core/pull/7604))
+  - The dependencies moved are:
+    - `@metamask/network-controller` (^28.0.0)
+    - `@metamask/permission-controller` (^12.1.1)
+  - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
+    - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
+  - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
+
+## [26.0.0]
+
+### Changed
+
+- Bump `@metamask/json-rpc-engine` from `^10.1.1` to `^10.2.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/network-controller` from `^25.0.0` to `^26.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Use `InternalProvider` instead of `SafeEventEmitterProvider` ([#6796](https://github.com/MetaMask/core/pull/6796))
+  - The controller expects a network client with an `InternalProvider` instead of a `SafeEventEmitterProvider`.
+
+## [25.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6500](https://github.com/MetaMask/core/pull/6500))
+  - Previously, `SelectedNetworkController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6500](https://github.com/MetaMask/core/pull/6500))
+- **BREAKING:** Bump `@metamask/network-controller` from `^24.0.0` to `^25.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/permission-controller` from `^11.0.0` to `^12.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [24.0.2]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+- Bump `@metamask/network-controller` from `^24.2.2` to `^24.3.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
+
+## [24.0.1]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
+- Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.1` ([#6632](https://github.com/MetaMask/core/pull/6632), [#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/json-rpc-engine` from `^10.0.3` to `^10.1.1` ([#6678](https://github.com/MetaMask/core/pull/6678), [#6807](https://github.com/MetaMask/core/pull/6807))
+
+## [24.0.0]
+
+### Added
+
+- Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6526](https://github.com/MetaMask/core/pull/6526))
+
+### Changed
+
+- The `SelectedNetworkController` constructor no longer expects a `useRequestPreference` boolean nor an `onPreferencesStateChange` listener. Removal of these parameters means that `domains` state will always be added for sites that are granted permissions. ([#6430](https://github.com/MetaMask/core/pull/6430))
 - Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
 - Bump `@metamask/base-controller` from `^8.0.1` to `^8.3.0` ([#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465))
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
 
 ## [23.0.0]
 
@@ -52,7 +179,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.1` ([#5079](https://github.com/MetaMask/core/pull/5079)), [#5135](https://github.com/MetaMask/core/pull/5135))
+- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.1`, [#5135](https://github.com/MetaMask/core/pull/5135)) ([#5079](https://github.com/MetaMask/core/pull/5079))
 - Bump `@metamask/json-rpc-engine` from `^10.0.1` to `^10.0.2` ([#5082](https://github.com/MetaMask/core/pull/5082))
 - Bump `@metamask/utils` from `^10.0.0` to `^11.0.1` ([#5080](https://github.com/MetaMask/core/pull/5080))
   - This upgrade is not a breaking change because this package does not use `generateRandomMnemonic`.
@@ -113,7 +240,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+- Remove chunk files. ([#4648](https://github.com/MetaMask/core/pull/4648))
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
@@ -259,20 +386,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** `setNetworkClientIdForDomain` now throws an error if passed `metamask` for the domain param ([#3908](https://github.com/MetaMask/core/pull/3908)).
-- **BREAKING:** `setNetworkClientIdForDomain` now fails and throws an error if the passed in `domain` is not currently permissioned in the `PermissionsController` ([#3908](https://github.com/MetaMask/core/pull/3908)).
-- **BREAKING:** the `domains` state now no longer contains a `metamask` domain key. Consumers should instead use the `selectedNetworkClientId` from the `NetworkController` to get the selected network for the `metamask` domain ([#3908](https://github.com/MetaMask/core/pull/3908)).
-- **BREAKING:** `getProviderAndBlockTracker` now throws an error if called with any domain while the `perDomainNetwork` flag is false. Consumers should instead use the `provider` and `blockTracker` from the `NetworkController` when the `perDomainNetwork` flag is false ([#3908](https://github.com/MetaMask/core/pull/3908)).
-- **BREAKING:** `getProviderAndBlockTracker` now throws an error if called with a domain that does not have a networkClientId set ([#3908](https://github.com/MetaMask/core/pull/3908)).
-- **BREAKING:** `getNetworkClientIdForDomain` now returns the `selectedNetworkClientId` for the globally selected network if the `perDomainNetwork` flag is false or if the domain is not in the `domains` state ([#3908](https://github.com/MetaMask/core/pull/3908)).
+- **BREAKING:** `setNetworkClientIdForDomain` now throws an error if passed `metamask` for the domain param. ([#3908](https://github.com/MetaMask/core/pull/3908))
+- **BREAKING:** `setNetworkClientIdForDomain` now fails and throws an error if the passed in `domain` is not currently permissioned in the `PermissionsController`. ([#3908](https://github.com/MetaMask/core/pull/3908))
+- **BREAKING:** the `domains` state now no longer contains a `metamask` domain key. Consumers should instead use the `selectedNetworkClientId` from the `NetworkController` to get the selected network for the `metamask` domain. ([#3908](https://github.com/MetaMask/core/pull/3908))
+- **BREAKING:** `getProviderAndBlockTracker` now throws an error if called with any domain while the `perDomainNetwork` flag is false. Consumers should instead use the `provider` and `blockTracker` from the `NetworkController` when the `perDomainNetwork` flag is false. ([#3908](https://github.com/MetaMask/core/pull/3908))
+- **BREAKING:** `getProviderAndBlockTracker` now throws an error if called with a domain that does not have a networkClientId set. ([#3908](https://github.com/MetaMask/core/pull/3908))
+- **BREAKING:** `getNetworkClientIdForDomain` now returns the `selectedNetworkClientId` for the globally selected network if the `perDomainNetwork` flag is false or if the domain is not in the `domains` state. ([#3908](https://github.com/MetaMask/core/pull/3908))
 
 ### Removed
 
-- **BREAKING:** Remove logic in `selectedNetworkMiddleware` to set a default `networkClientId` for the requesting origin in the `SelectedNetworkController` when not already set. Now if `networkClientId` is not already set for the requesting origin, the middleware will not set a default `networkClientId` for that origin in the `SelectedNetworkController` but will continue to add the `selectedNetworkClientId` from the `NetworkController` to the `networkClientId` property on the request object ([#3908](https://github.com/MetaMask/core/pull/3908)).
+- **BREAKING:** Remove logic in `selectedNetworkMiddleware` to set a default `networkClientId` for the requesting origin in the `SelectedNetworkController` when not already set. Now if `networkClientId` is not already set for the requesting origin, the middleware will not set a default `networkClientId` for that origin in the `SelectedNetworkController` but will continue to add the `selectedNetworkClientId` from the `NetworkController` to the `networkClientId` property on the request object. ([#3908](https://github.com/MetaMask/core/pull/3908))
 
 ### Fixed
 
-- The `SelectedNetworkController` now listens for `networkConfiguration` removal events on the `NetworkController` and updates domains pointed at a removed `networkClientId` to the `selectedNetworkClientId` ([#3926](https://github.com/MetaMask/core/pull/3926)).
+- The `SelectedNetworkController` now listens for `networkConfiguration` removal events on the `NetworkController` and updates domains pointed at a removed `networkClientId` to the `selectedNetworkClientId`. ([#3926](https://github.com/MetaMask/core/pull/3926))
 
 ## [7.0.1]
 
@@ -302,14 +429,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `SelectedNetworkMiddlewareJsonRpcRequest` type ([#1970](https://github.com/MetaMask/core/pull/1970)).
-- Add `setPerDomainNetwork` method to reset proxies when flag toggled ([#3593](https://github.com/MetaMask/core/pull/3593)).
-- Add `state` as a constructor argument ([#3585](https://github.com/MetaMask/core/pull/3585)).
+- Add `SelectedNetworkMiddlewareJsonRpcRequest` type. ([#1970](https://github.com/MetaMask/core/pull/1970))
+- Add `setPerDomainNetwork` method to reset proxies when flag toggled. ([#3593](https://github.com/MetaMask/core/pull/3593))
+- Add `state` as a constructor argument. ([#3585](https://github.com/MetaMask/core/pull/3585))
 
 ### Changed
 
-- **BREAKING:** Rename `SelectedNetworkControllerAction` to `SelectedNetworkControllerActions` and `SelectedNetworkControllerEvent` to `SelectedNetworkControllerEvents` for consistency with corresponding type exports from other controllers ([#1970](https://github.com/MetaMask/core/pull/1970)).
-- **BREAKING:** `createSelectedNetworkMiddleware` return type is constrained to satisfy `JsonRpcMiddleware<JsonRpcParams, Json>`, and its `req` parameter is constrained to satisfy `SelectedNetworkMiddlewareJsonRpcRequest` ([#1970](https://github.com/MetaMask/core/pull/1970)).
+- **BREAKING:** Rename `SelectedNetworkControllerAction` to `SelectedNetworkControllerActions` and `SelectedNetworkControllerEvent` to `SelectedNetworkControllerEvents` for consistency with corresponding type exports from other controllers. ([#1970](https://github.com/MetaMask/core/pull/1970))
+- **BREAKING:** `createSelectedNetworkMiddleware` return type is constrained to satisfy `JsonRpcMiddleware<JsonRpcParams, Json>`, and its `req` parameter is constrained to satisfy `SelectedNetworkMiddlewareJsonRpcRequest`. ([#1970](https://github.com/MetaMask/core/pull/1970))
 
 ## [4.0.0]
 
@@ -373,7 +500,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#1643](https://github.com/MetaMask/core/pull/1643))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@23.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.1.4...HEAD
+[26.1.4]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.1.3...@metamask/selected-network-controller@26.1.4
+[26.1.3]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.1.2...@metamask/selected-network-controller@26.1.3
+[26.1.2]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.1.1...@metamask/selected-network-controller@26.1.2
+[26.1.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.1.0...@metamask/selected-network-controller@26.1.1
+[26.1.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.0.3...@metamask/selected-network-controller@26.1.0
+[26.0.3]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.0.2...@metamask/selected-network-controller@26.0.3
+[26.0.2]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.0.1...@metamask/selected-network-controller@26.0.2
+[26.0.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@26.0.0...@metamask/selected-network-controller@26.0.1
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@25.0.0...@metamask/selected-network-controller@26.0.0
+[25.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@24.0.2...@metamask/selected-network-controller@25.0.0
+[24.0.2]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@24.0.1...@metamask/selected-network-controller@24.0.2
+[24.0.1]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@24.0.0...@metamask/selected-network-controller@24.0.1
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@23.0.0...@metamask/selected-network-controller@24.0.0
 [23.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@22.1.0...@metamask/selected-network-controller@23.0.0
 [22.1.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@22.0.0...@metamask/selected-network-controller@22.1.0
 [22.0.0]: https://github.com/MetaMask/core/compare/@metamask/selected-network-controller@21.0.1...@metamask/selected-network-controller@22.0.0

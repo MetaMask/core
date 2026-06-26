@@ -50,6 +50,9 @@ export type TypeFeatureAnnouncementFields = {
     // Min Versions
     extensionMinimumVersionNumber?: EntryFieldTypes.Text;
     mobileMinimumVersionNumber?: EntryFieldTypes.Text;
+    // Max Versions
+    extensionMaximumVersionNumber?: EntryFieldTypes.Text;
+    mobileMaximumVersionNumber?: EntryFieldTypes.Text;
   };
   contentTypeId: 'productAnnouncement';
 };

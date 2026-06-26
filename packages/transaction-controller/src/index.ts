@@ -3,9 +3,7 @@ export type {
   Result,
   TransactionControllerActions,
   TransactionControllerEvents,
-  TransactionControllerEstimateGasAction,
   TransactionControllerGetStateAction,
-  TransactionControllerIncomingTransactionsReceivedEvent,
   TransactionControllerPostTransactionBalanceUpdatedEvent,
   TransactionControllerSpeedupTransactionAddedEvent,
   TransactionControllerState,
@@ -22,18 +20,50 @@ export type {
   TransactionControllerTransactionStatusUpdatedEvent,
   TransactionControllerTransactionSubmittedEvent,
   TransactionControllerUnapprovedTransactionAddedEvent,
-  TransactionControllerUpdateCustodialTransactionAction,
   TransactionControllerMessenger,
   TransactionControllerOptions,
 } from './TransactionController';
+export type {
+  TransactionControllerAddTransactionAction,
+  TransactionControllerAddTransactionBatchAction,
+  TransactionControllerConfirmExternalTransactionAction,
+  TransactionControllerEmulateNewTransactionAction,
+  TransactionControllerEmulateTransactionUpdateAction,
+  TransactionControllerEstimateGasAction,
+  TransactionControllerEstimateGasBatchAction,
+  TransactionControllerGetGasFeeTokensAction,
+  TransactionControllerGetNonceLockAction,
+  TransactionControllerGetTransactionsAction,
+  TransactionControllerUpdateCustodialTransactionAction,
+  TransactionControllerUpdateTransactionAction,
+  TransactionControllerHandleMethodDataAction,
+  TransactionControllerIsAtomicBatchSupportedAction,
+  TransactionControllerStopTransactionAction,
+  TransactionControllerSpeedUpTransactionAction,
+  TransactionControllerEstimateGasBufferedAction,
+  TransactionControllerUpdateEditableParamsAction,
+  TransactionControllerSetTransactionActiveAction,
+  TransactionControllerApproveTransactionsWithSameNonceAction,
+  TransactionControllerEstimateGasFeeAction,
+  TransactionControllerGetLayer1GasFeeAction,
+  TransactionControllerClearUnapprovedTransactionsAction,
+  TransactionControllerAbortTransactionSigningAction,
+  TransactionControllerUpdateAtomicBatchDataAction,
+  TransactionControllerWipeTransactionsAction,
+  TransactionControllerUpdateSecurityAlertResponseAction,
+  TransactionControllerUpdateTransactionGasFeesAction,
+  TransactionControllerUpdatePreviousGasParamsAction,
+  TransactionControllerUpdateSelectedGasFeeTokenAction,
+  TransactionControllerUpdateRequiredTransactionIdsAction,
+} from './TransactionController-method-action-types';
 export {
   CANCEL_RATE,
   SPEED_UP_RATE,
   TransactionController,
 } from './TransactionController';
 export type {
+  AddTransactionOptions,
   AfterAddHook,
-  AfterSimulateHook,
   Authorization,
   AuthorizationList,
   BatchTransaction,
@@ -48,6 +78,7 @@ export type {
   GasFeeToken,
   GasPriceGasFeeEstimates,
   GasPriceValue,
+  GetGasFeeTokensRequest,
   GetSimulationConfig,
   InferTransactionTypeResult,
   IsAtomicBatchSupportedRequest,
@@ -63,9 +94,9 @@ export type {
   PublishBatchHookTransaction,
   PublishHook,
   PublishHookResult,
+  RequiredAsset,
   SavedGasFees,
   SecurityAlertResponse,
-  SecurityProviderRequest,
   SendFlowHistoryEntry,
   SimulationBalanceChange,
   SimulationData,
@@ -75,6 +106,7 @@ export type {
   TransactionBatchMeta,
   TransactionBatchRequest,
   TransactionBatchResult,
+  TransactionBatchSingleRequest,
   TransactionError,
   TransactionHistory,
   TransactionHistoryEntry,
@@ -95,16 +127,17 @@ export {
   UserFeeLevel,
   WalletDevice,
 } from './types';
-export {
-  DISPLAYED_TRANSACTION_HISTORY_PATHS,
-  MAX_TRANSACTION_HISTORY_LENGTH,
-} from './utils/history';
-export { determineTransactionType } from './utils/transaction-type';
 export { mergeGasFeeEstimates } from './utils/gas-flow';
+export { decodeAuthorizationSignature } from './utils/eip7702';
 export {
   isEIP1559Transaction,
   normalizeTransactionParams,
 } from './utils/utils';
 export { CHAIN_IDS } from './constants';
-export { SUPPORTED_CHAIN_IDS as INCOMING_TRANSACTIONS_SUPPORTED_CHAIN_IDS } from './helpers/AccountsApiRemoteTransactionSource';
 export { HARDFORK } from './utils/prepare';
+export { getAccountAddressRelationship } from './api/accounts-api';
+export type {
+  GetAccountAddressRelationshipRequest,
+  AccountAddressRelationshipResult,
+} from './api/accounts-api';
+export { generateBatchId } from './utils/batch';

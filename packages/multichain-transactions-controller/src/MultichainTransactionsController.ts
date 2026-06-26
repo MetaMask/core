@@ -4,32 +4,31 @@ import type {
   AccountsControllerListMultichainAccountsAction,
   AccountsControllerAccountTransactionsUpdatedEvent,
 } from '@metamask/accounts-controller';
-import {
-  BaseController,
-  type ControllerGetStateAction,
-  type ControllerStateChangeEvent,
-  type RestrictedMessenger,
+import { BaseController } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
-import {
-  isEvmAccountType,
-  type Transaction,
-  type AccountTransactionsUpdatedEventPayload,
-  TransactionStatus,
+import { isEvmAccountType, TransactionStatus } from '@metamask/keyring-api';
+import type {
+  Transaction,
+  AccountTransactionsUpdatedEventPayload,
 } from '@metamask/keyring-api';
 import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
-import type { HandleSnapRequest } from '@metamask/snaps-controllers';
+import type { Messenger } from '@metamask/messenger';
+import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
-import {
-  type CaipChainId,
-  type Json,
-  type JsonRpcRequest,
-} from '@metamask/utils';
+import type { CaipChainId, Json, JsonRpcRequest } from '@metamask/utils';
 import type { Draft } from 'immer';
 
+import type { MultichainTransactionsControllerMethodActions } from './MultichainTransactionsController-method-action-types';
+
 const controllerName = 'MultichainTransactionsController';
+
+const MESSENGER_EXPOSED_METHODS = ['updateTransactionsForAccount'] as const;
 
 /**
  * PaginationOptions
@@ -103,7 +102,8 @@ export type MultichainTransactionsControllerStateChange =
  * Actions exposed by the {@link MultichainTransactionsController}.
  */
 export type MultichainTransactionsControllerActions =
-  MultichainTransactionsControllerGetStateAction;
+  | MultichainTransactionsControllerGetStateAction
+  | MultichainTransactionsControllerMethodActions;
 
 /**
  * Events emitted by {@link MultichainTransactionsController}.
@@ -116,26 +116,24 @@ export type MultichainTransactionsControllerEvents =
 /**
  * Messenger type for the MultichainTransactionsController.
  */
-export type MultichainTransactionsControllerMessenger = RestrictedMessenger<
+export type MultichainTransactionsControllerMessenger = Messenger<
   typeof controllerName,
   MultichainTransactionsControllerActions | AllowedActions,
-  MultichainTransactionsControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  MultichainTransactionsControllerEvents | AllowedEvents
 >;
 
 /**
  * Actions that this controller is allowed to call.
  */
-export type AllowedActions =
-  | HandleSnapRequest
+type AllowedActions =
+  | AccountsControllerListMultichainAccountsAction
   | KeyringControllerGetStateAction
-  | AccountsControllerListMultichainAccountsAction;
+  | SnapControllerHandleRequestAction;
 
 /**
  * Events that this controller is allowed to subscribe.
  */
-export type AllowedEvents =
+type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent
   | AccountsControllerAccountTransactionsUpdatedEvent;
@@ -151,7 +149,7 @@ const multichainTransactionsControllerMetadata = {
   nonEvmTransactions: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
 };
@@ -191,6 +189,11 @@ export class MultichainTransactionsController extends BaseController<
       },
     });
 
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+
     // Fetch initial transactions for all non-EVM accounts
     for (const account of this.#listAccounts()) {
       this.updateTransactionsForAccount(account.id).catch((error) => {
@@ -201,15 +204,15 @@ export class MultichainTransactionsController extends BaseController<
       });
     }
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'AccountsController:accountAdded',
       (account: InternalAccount) => this.#handleOnAccountAdded(account),
     );
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'AccountsController:accountRemoved',
       (accountId: string) => this.#handleOnAccountRemoved(accountId),
     );
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'AccountsController:accountTransactionsUpdated',
       (transactionsUpdate: AccountTransactionsUpdatedEventPayload) =>
         this.#handleOnAccountTransactionsUpdated(transactionsUpdate),
@@ -222,9 +225,7 @@ export class MultichainTransactionsController extends BaseController<
    * @returns A list of multichain accounts.
    */
   #listMultichainAccounts(): InternalAccount[] {
-    return this.messagingSystem.call(
-      'AccountsController:listMultichainAccounts',
-    );
+    return this.messenger.call('AccountsController:listMultichainAccounts');
   }
 
   /**
@@ -266,9 +267,7 @@ export class MultichainTransactionsController extends BaseController<
    * @param accountId - The ID of the account to get transactions for.
    */
   async updateTransactionsForAccount(accountId: string) {
-    const { isUnlocked } = this.messagingSystem.call(
-      'KeyringController:getState',
-    );
+    const { isUnlocked } = this.messenger.call('KeyringController:getState');
 
     if (!isUnlocked) {
       return;
@@ -373,14 +372,14 @@ export class MultichainTransactionsController extends BaseController<
    */
   #publishTransactionUpdateEvent(updatedTransaction: Transaction) {
     if (updatedTransaction.status === TransactionStatus.Confirmed) {
-      this.messagingSystem.publish(
+      this.messenger.publish(
         'MultichainTransactionsController:transactionConfirmed',
         updatedTransaction,
       );
     }
 
     if (updatedTransaction.status === TransactionStatus.Submitted) {
-      this.messagingSystem.publish(
+      this.messenger.publish(
         'MultichainTransactionsController:transactionSubmitted',
         updatedTransaction,
       );
@@ -481,7 +480,7 @@ export class MultichainTransactionsController extends BaseController<
   #getClient(snapId: string): KeyringClient {
     return new KeyringClient({
       send: async (request: JsonRpcRequest) =>
-        (await this.messagingSystem.call('SnapController:handleRequest', {
+        (await this.messenger.call('SnapController:handleRequest', {
           snapId: snapId as SnapId,
           origin: 'metamask',
           handler: HandlerType.OnKeyringRequest,

@@ -1,4 +1,5 @@
-import { request as httpRequest, type IncomingMessage } from 'node:http';
+import { request as httpRequest } from 'node:http';
+import type { IncomingMessage } from 'node:http';
 import { request as httpsRequest } from 'node:https';
 import { Stream } from 'node:stream';
 import { pipeline } from 'node:stream/promises';

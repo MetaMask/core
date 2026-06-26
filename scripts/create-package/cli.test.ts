@@ -11,7 +11,7 @@ jest.mock('./utils');
  * @param args - The arguments to include in the mock argv array.
  * @returns The mock argv array.
  */
-function getMockArgv(...args: string[]) {
+function getMockArgv(...args: string[]): string[] {
   return ['/mock/path', '/mock/entry/path', ...args];
 }
 
@@ -23,10 +23,16 @@ function getMockArgv(...args: string[]) {
  * @param description - The package description.
  * @returns The parsed argv object.
  */
-function getParsedArgv(name: string, description: string) {
+function getParsedArgv(
+  name: string,
+  description: string,
+): {
+  _: [];
+  $0: 'create-package';
+  name: `@metamask/${string}`;
+  description: string;
+} {
   return {
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     _: [],
     $0: 'create-package',
     name: `@metamask/${name}`,

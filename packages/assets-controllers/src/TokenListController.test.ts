@@ -1,4 +1,4 @@
-import { deriveStateFromMetadata, Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   ChainId,
   NetworkType,
@@ -6,16 +6,18 @@ import {
   toHex,
   InfuraNetworkType,
 } from '@metamask/controller-utils';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
+} from '@metamask/messenger';
 import type { NetworkState } from '@metamask/network-controller';
+import { StorageGetResult } from '@metamask/storage-service';
 import type { Hex } from '@metamask/utils';
 import nock from 'nock';
-import * as sinon from 'sinon';
 
-import { advanceTime } from '../../../tests/helpers';
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../base-controller/tests/helpers';
+import { jestAdvanceTime } from '../../../tests/helpers';
 import {
   buildCustomNetworkClientConfiguration,
   buildInfuraNetworkClientConfiguration,
@@ -26,10 +28,11 @@ import type {
   TokenListMap,
   TokenListState,
   TokenListControllerMessenger,
+  DataCache,
 } from './TokenListController';
 import { TokenListController } from './TokenListController';
 
-const name = 'TokenListController';
+const namespace = 'TokenListController';
 const timestamp = Date.now();
 
 const sampleMainnetTokenList = [
@@ -100,13 +103,11 @@ const sampleMainnetTokenList = [
   },
 ];
 
-const sampleMainnetTokensChainsCache = sampleMainnetTokenList.reduce(
-  (output, current) => {
+const sampleMainnetTokensChainsCache =
+  sampleMainnetTokenList.reduce<TokenListMap>((output, current) => {
     output[current.address] = current;
     return output;
-  },
-  {} as TokenListMap,
-);
+  }, {});
 
 const sampleBinanceTokenList = [
   {
@@ -144,13 +145,11 @@ const sampleBinanceTokenList = [
   },
 ];
 
-const sampleBinanceTokensChainsCache = sampleBinanceTokenList.reduce(
-  (output, current) => {
+const sampleBinanceTokensChainsCache =
+  sampleBinanceTokenList.reduce<TokenListMap>((output, current) => {
     output[current.address] = current;
     return output;
-  },
-  {} as TokenListMap,
-);
+  }, {});
 
 const sampleSingleChainState = {
   tokenList: {
@@ -313,13 +312,11 @@ const sampleSepoliaTokenList = [
   },
 ];
 
-const sampleSepoliaTokensChainCache = sampleSepoliaTokenList.reduce(
-  (output, current) => {
+const sampleSepoliaTokensChainCache =
+  sampleSepoliaTokenList.reduce<TokenListMap>((output, current) => {
     output[current.address] = current;
     return output;
-  },
-  {} as TokenListMap,
-);
+  }, {});
 
 const sampleTwoChainState = {
   tokenList: {
@@ -400,7 +397,6 @@ const existingState = {
       data: sampleMainnetTokensChainsCache,
     },
   },
-  preventPollingOnNetworkRestart: false,
 };
 
 const outdatedExistingState = {
@@ -434,7 +430,6 @@ const outdatedExistingState = {
       data: sampleMainnetTokensChainsCache,
     },
   },
-  preventPollingOnNetworkRestart: false,
 };
 
 const expiredCacheExistingState: TokenListState = {
@@ -467,30 +462,106 @@ const expiredCacheExistingState: TokenListState = {
       },
     },
   },
-  preventPollingOnNetworkRestart: false,
 };
 
-type MainMessenger = Messenger<
-  ExtractAvailableAction<TokenListControllerMessenger>,
-  ExtractAvailableEvent<TokenListControllerMessenger>
+type AllTokenListControllerActions =
+  MessengerActions<TokenListControllerMessenger>;
+
+type AllTokenListControllerEvents =
+  MessengerEvents<TokenListControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllTokenListControllerActions,
+  AllTokenListControllerEvents
 >;
 
-const getMessenger = (): MainMessenger => {
-  return new Messenger();
+// Mock storage for StorageService
+const mockStorage = new Map<string, unknown>();
+
+const getMessenger = (): RootMessenger => {
+  const messenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+
+  // Register StorageService mock handlers
+  messenger.registerActionHandler(
+    'StorageService:getItem',
+    async (
+      controllerNamespace: string,
+      key: string,
+    ): Promise<StorageGetResult> => {
+      const storageKey = `${controllerNamespace}:${key}`;
+      const value = mockStorage.get(storageKey);
+      const result = (value ? { result: value } : {}) as StorageGetResult;
+      return result;
+    },
+  );
+
+  messenger.registerActionHandler(
+    'StorageService:setItem',
+    async (
+      controllerNamespace: string,
+      key: string,
+      value: unknown,
+    ): Promise<void> => {
+      const storageKey = `${controllerNamespace}:${key}`;
+      mockStorage.set(storageKey, value);
+    },
+  );
+
+  messenger.registerActionHandler(
+    'StorageService:getAllKeys',
+    async (controllerNamespace: string): Promise<string[]> => {
+      const keys: string[] = [];
+      const prefix = `${controllerNamespace}:`;
+      mockStorage.forEach((_value, key) => {
+        // Only include keys for this namespace
+        if (key.startsWith(prefix)) {
+          const keyWithoutNamespace = key.substring(prefix.length);
+          keys.push(keyWithoutNamespace);
+        }
+      });
+      return keys;
+    },
+  );
+
+  return messenger;
 };
 
-const getRestrictedMessenger = (messenger: MainMessenger) => {
-  return messenger.getRestricted({
-    name,
-    allowedActions: ['NetworkController:getNetworkClientById'],
-    allowedEvents: ['NetworkController:stateChange'],
+const getRestrictedMessenger = (
+  messenger: RootMessenger,
+): TokenListControllerMessenger => {
+  const tokenListControllerMessenger = new Messenger<
+    typeof namespace,
+    AllTokenListControllerActions,
+    AllTokenListControllerEvents,
+    RootMessenger
+  >({
+    namespace,
+    parent: messenger,
   });
+  messenger.delegate({
+    messenger: tokenListControllerMessenger,
+    actions: [
+      'NetworkController:getNetworkClientById',
+      'StorageService:getItem',
+      'StorageService:setItem',
+      'StorageService:getAllKeys',
+    ],
+    events: ['NetworkController:stateChange'],
+  });
+  return tokenListControllerMessenger;
 };
 
 describe('TokenListController', () => {
+  beforeEach(() => {
+    // Clear mock storage between tests
+    mockStorage.clear();
+  });
+
   afterEach(() => {
     jest.clearAllTimers();
-    sinon.restore();
   });
 
   it('should set default state', async () => {
@@ -498,13 +569,11 @@ describe('TokenListController', () => {
     const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
       messenger: restrictedMessenger,
     });
 
     expect(controller.state).toStrictEqual({
       tokensChainsCache: {},
-      preventPollingOnNetworkRestart: false,
     });
 
     controller.destroy();
@@ -516,7 +585,6 @@ describe('TokenListController', () => {
     const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
       messenger: restrictedMessenger,
       state: existingState,
     });
@@ -551,27 +619,10 @@ describe('TokenListController', () => {
           data: sampleMainnetTokensChainsCache,
         },
       },
-      preventPollingOnNetworkRestart: false,
     });
 
     controller.destroy();
     messenger.clearEventSubscriptions('NetworkController:stateChange');
-  });
-
-  it('should initiate without preventPollingOnNetworkRestart', async () => {
-    const messenger = getMessenger();
-    const restrictedMessenger = getRestrictedMessenger(messenger);
-    const controller = new TokenListController({
-      chainId: ChainId.mainnet,
-      messenger: restrictedMessenger,
-    });
-
-    expect(controller.state).toStrictEqual({
-      tokensChainsCache: {},
-      preventPollingOnNetworkRestart: false,
-    });
-
-    controller.destroy();
   });
 
   it('should not poll before being started', async () => {
@@ -579,7 +630,6 @@ describe('TokenListController', () => {
     const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
       interval: 100,
       messenger: restrictedMessenger,
     });
@@ -612,8 +662,9 @@ describe('TokenListController', () => {
     let onNetworkStateChangeCallback!: (state: NetworkState) => void;
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
-      onNetworkStateChange: (cb) => (onNetworkStateChangeCallback = cb),
-      preventPollingOnNetworkRestart: false,
+      onNetworkStateChange: (callback): void => {
+        onNetworkStateChangeCallback = callback;
+      },
       interval: 100,
       messenger: restrictedMessenger,
     });
@@ -707,41 +758,37 @@ describe('TokenListController', () => {
   });
 
   it('should poll and update rate in the right interval', async () => {
-    const tokenListMock = sinon.stub(
-      TokenListController.prototype,
-      'fetchTokenList',
-    );
+    const tokenListMock = jest
+      .spyOn(TokenListController.prototype, 'fetchTokenList')
+      .mockImplementation();
 
     const messenger = getMessenger();
     const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
       interval: 100,
       messenger: restrictedMessenger,
     });
     await controller.start();
 
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 1));
-    expect(tokenListMock.called).toBe(true);
-    expect(tokenListMock.calledTwice).toBe(false);
+    expect(tokenListMock).toHaveBeenCalled();
+    expect(tokenListMock).toHaveBeenCalledTimes(1);
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
-    expect(tokenListMock.calledTwice).toBe(true);
+    expect(tokenListMock).toHaveBeenCalledTimes(2);
 
     controller.destroy();
   });
 
   it('should not poll after being stopped', async () => {
-    const tokenListMock = sinon.stub(
-      TokenListController.prototype,
-      'fetchTokenList',
-    );
+    const tokenListMock = jest
+      .spyOn(TokenListController.prototype, 'fetchTokenList')
+      .mockImplementation();
 
     const messenger = getMessenger();
     const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
       interval: 100,
       messenger: restrictedMessenger,
     });
@@ -749,27 +796,25 @@ describe('TokenListController', () => {
     controller.stop();
 
     // called once upon initial start
-    expect(tokenListMock.called).toBe(true);
-    expect(tokenListMock.calledTwice).toBe(false);
+    expect(tokenListMock).toHaveBeenCalled();
+    expect(tokenListMock).toHaveBeenCalledTimes(1);
 
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
-    expect(tokenListMock.calledTwice).toBe(false);
+    expect(tokenListMock).toHaveBeenCalledTimes(1);
 
     controller.destroy();
   });
 
   it('should poll correctly after being started, stopped, and started again', async () => {
-    const tokenListMock = sinon.stub(
-      TokenListController.prototype,
-      'fetchTokenList',
-    );
+    const tokenListMock = jest
+      .spyOn(TokenListController.prototype, 'fetchTokenList')
+      .mockImplementation();
 
     const messenger = getMessenger();
     const restrictedMessenger = getRestrictedMessenger(messenger);
 
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
       interval: 100,
       messenger: restrictedMessenger,
     });
@@ -777,29 +822,27 @@ describe('TokenListController', () => {
     controller.stop();
 
     // called once upon initial start
-    expect(tokenListMock.called).toBe(true);
-    expect(tokenListMock.calledTwice).toBe(false);
+    expect(tokenListMock).toHaveBeenCalled();
+    expect(tokenListMock).toHaveBeenCalledTimes(1);
 
     await controller.start();
 
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 1));
-    expect(tokenListMock.calledTwice).toBe(true);
+    expect(tokenListMock).toHaveBeenCalledTimes(2);
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
-    expect(tokenListMock.calledThrice).toBe(true);
+    expect(tokenListMock).toHaveBeenCalledTimes(3);
     controller.destroy();
   });
 
   it('should call fetchTokenList on network that supports token detection', async () => {
-    const tokenListMock = sinon.stub(
-      TokenListController.prototype,
-      'fetchTokenList',
-    );
+    const tokenListMock = jest
+      .spyOn(TokenListController.prototype, 'fetchTokenList')
+      .mockImplementation();
 
     const messenger = getMessenger();
     const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
       interval: 100,
       messenger: restrictedMessenger,
     });
@@ -807,21 +850,19 @@ describe('TokenListController', () => {
     controller.stop();
 
     // called once upon initial start
-    expect(tokenListMock.called).toBe(true);
+    expect(tokenListMock).toHaveBeenCalled();
     controller.destroy();
   });
 
   it('should not call fetchTokenList on network that does not support token detection', async () => {
-    const tokenListMock = sinon.stub(
-      TokenListController.prototype,
-      'fetchTokenList',
-    );
+    const tokenListMock = jest
+      .spyOn(TokenListController.prototype, 'fetchTokenList')
+      .mockImplementation();
 
     const messenger = getMessenger();
     const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.sepolia,
-      preventPollingOnNetworkRestart: false,
       interval: 100,
       messenger: restrictedMessenger,
     });
@@ -829,10 +870,9 @@ describe('TokenListController', () => {
     controller.stop();
 
     // called once upon initial start
-    expect(tokenListMock.called).toBe(false);
+    expect(tokenListMock).not.toHaveBeenCalled();
 
     controller.destroy();
-    tokenListMock.restore();
   });
 
   it('should update tokensChainsCache from api', async () => {
@@ -845,7 +885,6 @@ describe('TokenListController', () => {
     const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
       messenger: restrictedMessenger,
       interval: 750,
     });
@@ -885,7 +924,6 @@ describe('TokenListController', () => {
     const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
       messenger: restrictedMessenger,
       interval: 100,
       state: existingState,
@@ -908,7 +946,6 @@ describe('TokenListController', () => {
     const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
       messenger: restrictedMessenger,
       state: outdatedExistingState,
     });
@@ -933,7 +970,6 @@ describe('TokenListController', () => {
     const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
       messenger: restrictedMessenger,
       state: expiredCacheExistingState,
     });
@@ -983,7 +1019,6 @@ describe('TokenListController', () => {
     const restrictedMessenger = getRestrictedMessenger(messenger);
     const controller = new TokenListController({
       chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
       messenger: restrictedMessenger,
       state: existingState,
       interval: 100,
@@ -1044,91 +1079,92 @@ describe('TokenListController', () => {
     controller.destroy();
   });
 
-  it('should clear the tokenList and tokensChainsCache', async () => {
-    const messenger = getMessenger();
-    const restrictedMessenger = getRestrictedMessenger(messenger);
-    const controller = new TokenListController({
-      chainId: ChainId.mainnet,
-      preventPollingOnNetworkRestart: false,
-      messenger: restrictedMessenger,
-      state: existingState,
+  describe('_executePoll', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
     });
-    expect(controller.state).toStrictEqual(existingState);
-    controller.clearingTokenListData();
 
-    expect(controller.state.tokensChainsCache).toStrictEqual({});
-
-    controller.destroy();
-  });
-
-  it('should update preventPollingOnNetworkRestart and restart the polling on network restart', async () => {
-    nock(tokenService.TOKEN_END_POINT_API)
-      .get(getTokensPath(ChainId.mainnet))
-      .reply(200, sampleMainnetTokenList)
-      .get(getTokensPath(ChainId.sepolia))
-      .reply(200, {
-        error: `ChainId ${convertHexToDecimal(
-          ChainId.sepolia,
-        )} is not supported`,
-      })
-      .get(getTokensPath(toHex(56)))
-      .reply(200, sampleBinanceTokenList)
-      .persist();
-
-    const selectedCustomNetworkClientId = 'selectedCustomNetworkClientId';
-    const messenger = getMessenger();
-    const getNetworkClientById = buildMockGetNetworkClientById({
-      [InfuraNetworkType.mainnet]: buildInfuraNetworkClientConfiguration(
-        InfuraNetworkType.mainnet,
-      ),
-      [selectedCustomNetworkClientId]: buildCustomNetworkClientConfiguration({
-        chainId: toHex(56),
-      }),
+    afterEach(() => {
+      jest.useRealTimers();
     });
-    messenger.registerActionHandler(
-      'NetworkController:getNetworkClientById',
-      getNetworkClientById,
-    );
-    const restrictedMessenger = getRestrictedMessenger(messenger);
-    const controller = new TokenListController({
-      chainId: ChainId.sepolia,
-      preventPollingOnNetworkRestart: true,
-      messenger: restrictedMessenger,
-      interval: 100,
-    });
-    await controller.start();
-    messenger.publish(
-      'NetworkController:stateChange',
-      {
-        selectedNetworkClientId: InfuraNetworkType.mainnet,
-        networkConfigurationsByChainId: {},
-        networksMetadata: {},
-        // @ts-expect-error This property isn't used and will get removed later.
-        providerConfig: {},
-      },
-      [],
-    );
 
-    expect(controller.state).toStrictEqual({
-      tokensChainsCache: {},
-      preventPollingOnNetworkRestart: true,
+    const arrange = ({
+      initializationDelayMs = 50,
+    }: {
+      initializationDelayMs?: number;
+    } = {}): {
+      controller: TokenListController;
+      fetchTokenListByChainIdSpy: jest.SpyInstance;
+      resolveMockWaitForInit: () => Promise<void>;
+    } => {
+      const messenger = getMessenger();
+
+      // Mock getAllKeys that takes time to resolve
+      messenger.unregisterActionHandler('StorageService:getAllKeys');
+      messenger.registerActionHandler(
+        'StorageService:getAllKeys',
+        () =>
+          new Promise<string[]>((resolve) => {
+            setTimeout(() => resolve([]), initializationDelayMs);
+          }),
+      );
+
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+      const fetchTokenListByChainIdSpy = jest
+        .spyOn(tokenService, 'fetchTokenListByChainId')
+        .mockResolvedValue(sampleMainnetTokenList);
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+      });
+
+      const resolveMockWaitForInit = async (): Promise<void> => {
+        await jestAdvanceTime({ duration: 50 });
+      };
+
+      return {
+        controller,
+        fetchTokenListByChainIdSpy,
+        resolveMockWaitForInit,
+      };
+    };
+
+    it('waits for initialize to finish before polling', async () => {
+      const { controller, fetchTokenListByChainIdSpy, resolveMockWaitForInit } =
+        arrange();
+
+      const initializePromise = controller.initialize();
+      const pollPromise = controller._executePoll({
+        chainId: ChainId.mainnet,
+      });
+
+      expect(fetchTokenListByChainIdSpy).not.toHaveBeenCalled();
+
+      await resolveMockWaitForInit();
+      await initializePromise;
+      await pollPromise;
+
+      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
     });
-    controller.updatePreventPollingOnNetworkRestart(false);
-    expect(controller.state).toStrictEqual({
-      tokensChainsCache: {},
-      preventPollingOnNetworkRestart: false,
+
+    it('polls normally when initialization is not in progress', async () => {
+      const { controller, fetchTokenListByChainIdSpy } = arrange({
+        initializationDelayMs: 0,
+      });
+
+      await controller._executePoll({ chainId: ChainId.mainnet });
+      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('startPolling', () => {
-    let clock: sinon.SinonFakeTimers;
     const pollingIntervalTime = 1000;
     beforeEach(() => {
-      clock = sinon.useFakeTimers();
+      jest.useFakeTimers();
     });
 
     afterEach(() => {
-      clock.restore();
+      jest.useRealTimers();
     });
 
     it('should call fetchTokenListByChainId with the correct chainId', async () => {
@@ -1154,14 +1190,13 @@ describe('TokenListController', () => {
       const restrictedMessenger = getRestrictedMessenger(messenger);
       const controller = new TokenListController({
         chainId: ChainId.mainnet,
-        preventPollingOnNetworkRestart: false,
         messenger: restrictedMessenger,
         state: expiredCacheExistingState,
         interval: pollingIntervalTime,
       });
 
       controller.startPolling({ chainId: ChainId.sepolia });
-      await advanceTime({ clock, duration: 0 });
+      await jestAdvanceTime({ duration: 0 });
 
       expect(fetchTokenListByChainIdSpy.mock.calls[0]).toStrictEqual(
         expect.arrayContaining([ChainId.sepolia]),
@@ -1171,7 +1206,6 @@ describe('TokenListController', () => {
     it('should update tokenList state and tokensChainsCache', async () => {
       const startingState: TokenListState = {
         tokensChainsCache: {},
-        preventPollingOnNetworkRestart: false,
       };
 
       const fetchTokenListByChainIdSpy = jest
@@ -1214,7 +1248,6 @@ describe('TokenListController', () => {
       const restrictedMessenger = getRestrictedMessenger(messenger);
       const controller = new TokenListController({
         chainId: ChainId.sepolia,
-        preventPollingOnNetworkRestart: false,
         messenger: restrictedMessenger,
         state: startingState,
         interval: pollingIntervalTime,
@@ -1228,7 +1261,7 @@ describe('TokenListController', () => {
       });
 
       // wait a polling interval
-      await advanceTime({ clock, duration: pollingIntervalTime });
+      await jestAdvanceTime({ duration: pollingIntervalTime });
 
       expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
 
@@ -1244,7 +1277,7 @@ describe('TokenListController', () => {
       controller.startPolling({
         chainId: '0x38',
       });
-      await advanceTime({ clock, duration: pollingIntervalTime });
+      await jestAdvanceTime({ duration: pollingIntervalTime });
 
       // expect fetchTokenListByChain to be called for binance, but not for sepolia
       // because the cache for the recently fetched sepolia token list is still valid
@@ -1276,12 +1309,11 @@ describe('TokenListController', () => {
         deriveStateFromMetadata(
           controller.state,
           controller.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "preventPollingOnNetworkRestart": false,
-          "tokensChainsCache": Object {},
+        {
+          "tokensChainsCache": {},
         }
       `);
     });
@@ -1298,7 +1330,7 @@ describe('TokenListController', () => {
           controller.metadata,
           'includeInStateLogs',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('persists expected state', () => {
@@ -1313,12 +1345,7 @@ describe('TokenListController', () => {
           controller.metadata,
           'persist',
         ),
-      ).toMatchInlineSnapshot(`
-        Object {
-          "preventPollingOnNetworkRestart": false,
-          "tokensChainsCache": Object {},
-        }
-      `);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('exposes expected state to UI', () => {
@@ -1334,10 +1361,1132 @@ describe('TokenListController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "tokensChainsCache": Object {},
+        {
+          "tokensChainsCache": {},
         }
       `);
+    });
+  });
+
+  describe('StorageService migration', () => {
+    // State changes after construction trigger debounced persistence
+    it('should persist state changes to StorageService via debounced subscription', async () => {
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+      });
+
+      // Initialize the controller
+      await controller.initialize();
+
+      // Fetch tokens to trigger state change (which triggers persistence)
+      nock(tokenService.TOKEN_END_POINT_API)
+        .get(getTokensPath(ChainId.mainnet))
+        .reply(200, sampleMainnetTokenList);
+
+      await controller.fetchTokenList(ChainId.mainnet);
+
+      // Wait for debounced persistence to complete (500ms + buffer)
+      await new Promise((resolve) => setTimeout(resolve, 600));
+
+      const chainStorageKey = `tokensChainsCache:${ChainId.mainnet}`;
+      const { result } = await messenger.call(
+        'StorageService:getItem',
+        'TokenListController',
+        chainStorageKey,
+      );
+
+      expect(result).toBeDefined();
+      const resultCache = result as DataCache;
+      expect(resultCache.data).toBeDefined();
+      expect(resultCache.timestamp).toBeDefined();
+
+      controller.destroy();
+    });
+
+    it('should not overwrite StorageService if it already has data', async () => {
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      // Pre-populate StorageService with existing data (per-chain file)
+      const existingChainData: DataCache = {
+        data: sampleMainnetTokensChainsCache,
+        timestamp: Date.now(),
+      };
+      const chainStorageKey = `tokensChainsCache:${ChainId.mainnet}`;
+      await messenger.call(
+        'StorageService:setItem',
+        'TokenListController',
+        chainStorageKey,
+        existingChainData,
+      );
+
+      // Initialize with different state data
+      const stateWithDifferentData = {
+        tokensChainsCache: {
+          [ChainId.mainnet]: {
+            data: sampleMainnetTokensChainsCache,
+            timestamp: Date.now(),
+          },
+        },
+      };
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        state: stateWithDifferentData,
+      });
+
+      // Initialize the controller to trigger storage migration logic
+      await controller.initialize();
+
+      // Verify StorageService still has original data (not overwritten)
+      const { result } = await messenger.call(
+        'StorageService:getItem',
+        'TokenListController',
+        chainStorageKey,
+      );
+
+      expect(result).toStrictEqual(existingChainData);
+      const resultCache = result as DataCache;
+      expect(resultCache.data).toStrictEqual(existingChainData.data);
+
+      controller.destroy();
+    });
+
+    it('should not migrate when state has empty tokensChainsCache', async () => {
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        state: { tokensChainsCache: {} },
+      });
+
+      // Initialize the controller to trigger migration logic
+      await controller.initialize();
+
+      // Verify nothing was saved to StorageService (check no per-chain files)
+      const allKeys = await messenger.call(
+        'StorageService:getAllKeys',
+        'TokenListController',
+      );
+      const cacheKeys = allKeys.filter((key) =>
+        key.startsWith('tokensChainsCache:'),
+      );
+
+      expect(cacheKeys).toHaveLength(0);
+
+      controller.destroy();
+    });
+
+    it('should save and load tokensChainsCache from StorageService', async () => {
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      // Create controller and fetch tokens (which saves to storage)
+      const controller1 = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+      });
+      await controller1.initialize();
+
+      nock(tokenService.TOKEN_END_POINT_API)
+        .get(getTokensPath(ChainId.mainnet))
+        .reply(200, sampleMainnetTokenList);
+
+      await controller1.fetchTokenList(ChainId.mainnet);
+      const savedCache = controller1.state.tokensChainsCache;
+
+      // Wait for debounced persistence to complete (500ms + buffer)
+      await new Promise((resolve) => setTimeout(resolve, 600));
+
+      controller1.destroy();
+
+      // Verify data is in StorageService (per-chain file)
+      const chainStorageKey = `tokensChainsCache:${ChainId.mainnet}`;
+      const { result } = await messenger.call(
+        'StorageService:getItem',
+        'TokenListController',
+        chainStorageKey,
+      );
+
+      expect(result).toBeDefined();
+      expect(result).toStrictEqual(savedCache[ChainId.mainnet]);
+    });
+
+    it('should save tokensChainsCache to StorageService when fetching tokens', async () => {
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      nock(tokenService.TOKEN_END_POINT_API)
+        .get(getTokensPath(ChainId.mainnet))
+        .reply(200, sampleMainnetTokenList);
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+      });
+      await controller.initialize();
+
+      await controller.fetchTokenList(ChainId.mainnet);
+
+      // Wait for debounced persistence to complete (500ms + buffer)
+      await new Promise((resolve) => setTimeout(resolve, 600));
+
+      // Verify data was saved to StorageService (per-chain file)
+      const chainStorageKey = `tokensChainsCache:${ChainId.mainnet}`;
+      const { result } = await messenger.call(
+        'StorageService:getItem',
+        'TokenListController',
+        chainStorageKey,
+      );
+
+      expect(result).toBeDefined();
+      const resultCache = result as DataCache;
+      expect(resultCache.data).toBeDefined();
+      expect(resultCache.timestamp).toBeDefined();
+
+      controller.destroy();
+    });
+
+    it('should not save to StorageService before initialization', async () => {
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      // Create controller and fetch tokens
+      const controller1 = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+      });
+      // skip initialization
+
+      nock(tokenService.TOKEN_END_POINT_API)
+        .get(getTokensPath(ChainId.mainnet))
+        .reply(200, sampleMainnetTokenList);
+
+      await controller1.fetchTokenList(ChainId.mainnet);
+      expect(
+        controller1.state.tokensChainsCache[ChainId.mainnet],
+      ).toBeDefined();
+
+      // Wait for debounced persistence to complete (500ms + buffer)
+      await new Promise((resolve) => setTimeout(resolve, 600));
+
+      controller1.destroy();
+
+      // Verify data is in StorageService (per-chain file)
+      const chainStorageKey = `tokensChainsCache:${ChainId.mainnet}`;
+      const { result } = await messenger.call(
+        'StorageService:getItem',
+        'TokenListController',
+        chainStorageKey,
+      );
+
+      expect(result).toBeUndefined();
+    });
+
+    it('should save data updated before initialization to StorageService', async () => {
+      // Setup stale mainnet data in storage
+      const validChainData: DataCache = {
+        data: sampleMainnetTokensChainsCache,
+        timestamp: 1,
+      };
+      mockStorage.set(
+        `TokenListController:tokensChainsCache:${ChainId.mainnet}`,
+        validChainData,
+      );
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      // Create controller with delayed initialization, and fetch tokens
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+      });
+
+      nock(tokenService.TOKEN_END_POINT_API)
+        .get(getTokensPath(ChainId.mainnet))
+        .reply(200, sampleMainnetTokenList);
+      nock(tokenService.TOKEN_END_POINT_API)
+        .get(getTokensPath(toHex(56)))
+        .reply(200, sampleBinanceTokenList);
+
+      await controller.fetchTokenList(ChainId.mainnet);
+      await controller.fetchTokenList(toHex(56));
+      const savedCache = controller.state.tokensChainsCache;
+      expect(savedCache[ChainId.mainnet]).toBeDefined();
+      expect(savedCache[toHex(56)]).toBeDefined();
+      await controller.initialize();
+
+      // Wait for debounced persistence to complete (500ms + buffer)
+      await new Promise((resolve) => setTimeout(resolve, 600));
+
+      controller.destroy();
+
+      // Verify data is in StorageService (per-chain file)
+      const mainnetStorageKey = `tokensChainsCache:${ChainId.mainnet}`;
+      const { result: mainnetResult } = await messenger.call(
+        'StorageService:getItem',
+        'TokenListController',
+        mainnetStorageKey,
+      );
+      const binanceStorageKey = `tokensChainsCache:${toHex(56)}`;
+      const { result: binanceResult } = await messenger.call(
+        'StorageService:getItem',
+        'TokenListController',
+        binanceStorageKey,
+      );
+
+      // Confirm fresh results overwrite stale
+      expect(mainnetResult).toBeDefined();
+      expect(mainnetResult).toStrictEqual(savedCache[ChainId.mainnet]);
+      // Confirm results not in storage previously are persisted
+      expect(binanceResult).toBeDefined();
+      expect(binanceResult).toStrictEqual(savedCache[toHex(56)]);
+    });
+
+    it('should handle errors when loading individual chain cache files', async () => {
+      // Pre-populate storage with two chains
+      const validChainData: DataCache = {
+        data: sampleMainnetTokensChainsCache,
+        timestamp: Date.now(),
+      };
+      const binanceChainData: DataCache = {
+        data: sampleBinanceTokensChainsCache,
+        timestamp: Date.now(),
+      };
+
+      mockStorage.set(
+        `TokenListController:tokensChainsCache:${ChainId.mainnet}`,
+        validChainData,
+      );
+      mockStorage.set(
+        `TokenListController:tokensChainsCache:${ChainId.goerli}`,
+        binanceChainData,
+      );
+
+      // Create messenger with getItem that returns error for goerli
+      const messengerWithErrors = getMessenger();
+
+      // Register getItem handler that returns error for goerli
+      messengerWithErrors.unregisterActionHandler('StorageService:getItem');
+      messengerWithErrors.registerActionHandler(
+        'StorageService:getItem',
+        async (
+          controllerNamespace: string,
+          key: string,
+        ): Promise<StorageGetResult> => {
+          if (key === `tokensChainsCache:${ChainId.goerli}`) {
+            return {
+              error: 'Failed to load chain data',
+            } as unknown as StorageGetResult;
+          }
+          const storageKey = `${controllerNamespace}:${key}`;
+          const value = mockStorage.get(storageKey);
+          return (value ? { result: value } : {}) as StorageGetResult;
+        },
+      );
+
+      // Register other handlers normally
+      messengerWithErrors.unregisterActionHandler('StorageService:setItem');
+      messengerWithErrors.registerActionHandler(
+        'StorageService:setItem',
+        async (
+          controllerNamespace: string,
+          key: string,
+          value: unknown,
+        ): Promise<void> => {
+          const storageKey = `${controllerNamespace}:${key}`;
+          mockStorage.set(storageKey, value);
+        },
+      );
+
+      messengerWithErrors.unregisterActionHandler('StorageService:getAllKeys');
+      messengerWithErrors.registerActionHandler(
+        'StorageService:getAllKeys',
+        async (controllerNamespace: string): Promise<string[]> => {
+          const keys: string[] = [];
+          const prefix = `${controllerNamespace}:`;
+          mockStorage.forEach((_value, key) => {
+            // Only include keys for this namespace
+            if (key.startsWith(prefix)) {
+              const keyWithoutNamespace = key.substring(prefix.length);
+              keys.push(keyWithoutNamespace);
+            }
+          });
+          return keys;
+        },
+      );
+
+      const restrictedMessenger = getRestrictedMessenger(messengerWithErrors);
+
+      // Mock console.error to verify it's called for the error case
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+      });
+
+      // Initialize the controller to load from storage
+      await controller.initialize();
+
+      // Verify that mainnet chain loaded successfully
+      expect(controller.state.tokensChainsCache[ChainId.mainnet]).toBeDefined();
+      expect(
+        controller.state.tokensChainsCache[ChainId.mainnet].data,
+      ).toStrictEqual(sampleMainnetTokensChainsCache);
+
+      // Verify that goerli chain is not in the cache (due to error)
+      expect(
+        controller.state.tokensChainsCache[ChainId.goerli],
+      ).toBeUndefined();
+
+      // Verify console.error was called with the error
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        `TokenListController: Error loading cache for ${ChainId.goerli}:`,
+        'Failed to load chain data',
+      );
+
+      consoleErrorSpy.mockRestore();
+      controller.destroy();
+    });
+
+    it('should handle StorageService errors when saving cache', async () => {
+      // Create a messenger with setItem that throws errors
+      const messengerWithErrors = getMessenger();
+
+      // Register all handlers, but make setItem throw
+      messengerWithErrors.unregisterActionHandler('StorageService:setItem');
+      messengerWithErrors.registerActionHandler(
+        'StorageService:setItem',
+        () => {
+          throw new Error('Storage write failed');
+        },
+      );
+
+      const restrictedMessenger = getRestrictedMessenger(messengerWithErrors);
+
+      // Mock console.error to verify it's called for save errors
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+      });
+
+      // Initialize the controller
+      await controller.initialize();
+
+      // Try to fetch tokens - this should trigger save which will fail
+      nock(tokenService.TOKEN_END_POINT_API)
+        .get(getTokensPath(ChainId.mainnet))
+        .reply(200, sampleMainnetTokenList);
+
+      await controller.fetchTokenList(ChainId.mainnet);
+
+      // Wait for debounced persistence to attempt (and fail)
+      await new Promise((resolve) => setTimeout(resolve, 600));
+
+      // Verify console.error was called with the save error
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        `TokenListController: Failed to save cache for ${ChainId.mainnet}:`,
+        expect.any(Error),
+      );
+
+      // Verify state was still updated even though save failed
+      expect(controller.state.tokensChainsCache[ChainId.mainnet]).toBeDefined();
+
+      consoleErrorSpy.mockRestore();
+      controller.destroy();
+    });
+
+    it('should handle errors during debounced persistence', async () => {
+      // Create messenger where setItem throws to cause persistence to fail
+      const messengerWithErrors = getMessenger();
+
+      // Register setItem to throw error
+      messengerWithErrors.unregisterActionHandler('StorageService:setItem');
+      messengerWithErrors.registerActionHandler(
+        'StorageService:setItem',
+        () => {
+          throw new Error('Failed to save to storage');
+        },
+      );
+
+      const restrictedMessenger = getRestrictedMessenger(messengerWithErrors);
+
+      // Mock console.error to verify it's called for persistence errors
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+      });
+
+      // Initialize the controller
+      await controller.initialize();
+
+      // Fetch tokens to trigger state change (which triggers persistence)
+      nock(tokenService.TOKEN_END_POINT_API)
+        .get(getTokensPath(ChainId.mainnet))
+        .reply(200, sampleMainnetTokenList);
+
+      await controller.fetchTokenList(ChainId.mainnet);
+
+      // Wait for debounced persistence to attempt (and fail)
+      await new Promise((resolve) => setTimeout(resolve, 600));
+
+      // Verify console.error was called with the save error (from #saveChainCacheToStorage)
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        `TokenListController: Failed to save cache for ${ChainId.mainnet}:`,
+        expect.any(Error),
+      );
+
+      consoleErrorSpy.mockRestore();
+      controller.destroy();
+    });
+
+    it('should only load cache from storage once even when fetchTokenList is called multiple times', async () => {
+      // Pre-populate storage with cached data
+      const chainData: DataCache = {
+        data: sampleMainnetTokensChainsCache,
+        timestamp: Date.now(),
+      };
+      mockStorage.set(
+        `TokenListController:tokensChainsCache:${ChainId.mainnet}`,
+        chainData,
+      );
+
+      // Track how many times getItem is called
+      let getItemCallCount = 0;
+      let getAllKeysCallCount = 0;
+
+      const trackingMessenger = getMessenger();
+
+      trackingMessenger.unregisterActionHandler('StorageService:getItem');
+      trackingMessenger.registerActionHandler(
+        'StorageService:getItem',
+        async (
+          controllerNamespace: string,
+          key: string,
+        ): Promise<StorageGetResult> => {
+          getItemCallCount += 1;
+          const storageKey = `${controllerNamespace}:${key}`;
+          const value = mockStorage.get(storageKey);
+          return (value ? { result: value } : {}) as StorageGetResult;
+        },
+      );
+
+      trackingMessenger.unregisterActionHandler('StorageService:getAllKeys');
+      trackingMessenger.registerActionHandler(
+        'StorageService:getAllKeys',
+        async (controllerNamespace: string): Promise<string[]> => {
+          getAllKeysCallCount += 1;
+          const keys: string[] = [];
+          const prefix = `${controllerNamespace}:`;
+          mockStorage.forEach((_value, key) => {
+            if (key.startsWith(prefix)) {
+              const keyWithoutNamespace = key.substring(prefix.length);
+              keys.push(keyWithoutNamespace);
+            }
+          });
+          return keys;
+        },
+      );
+
+      const restrictedMessenger = getRestrictedMessenger(trackingMessenger);
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+      });
+
+      // Initialize the controller
+      await controller.initialize();
+
+      // Record call counts after initialization
+      const getItemCallsAfterInit = getItemCallCount;
+      const getAllKeysCallsAfterInit = getAllKeysCallCount;
+
+      // getAllKeys should be called once during init (for loading cache)
+      expect(getAllKeysCallsAfterInit).toBe(1);
+      // getItem should be called once for the cached chain during load
+      expect(getItemCallsAfterInit).toBe(1);
+
+      // Now call fetchTokenList multiple times
+      nock(tokenService.TOKEN_END_POINT_API)
+        .get(getTokensPath(ChainId.mainnet))
+        .reply(200, sampleMainnetTokenList)
+        .persist();
+
+      await controller.fetchTokenList(ChainId.mainnet);
+      await controller.fetchTokenList(ChainId.mainnet);
+      await controller.fetchTokenList(ChainId.mainnet);
+
+      // Verify getAllKeys was NOT called again after initialization
+      // (getItem may be called for other reasons, but getAllKeys is only used in load/migrate)
+      expect(getAllKeysCallCount).toBe(getAllKeysCallsAfterInit);
+
+      controller.destroy();
+    });
+
+    it('should NOT re-persist data loaded from storage during initialization', async () => {
+      // Pre-populate storage with cached data
+      const chainData: DataCache = {
+        data: sampleMainnetTokensChainsCache,
+        timestamp: Date.now(),
+      };
+      mockStorage.set(
+        `TokenListController:tokensChainsCache:${ChainId.mainnet}`,
+        chainData,
+      );
+
+      // Track how many times setItem is called
+      let setItemCallCount = 0;
+
+      const trackingMessenger = getMessenger();
+
+      trackingMessenger.unregisterActionHandler('StorageService:setItem');
+      trackingMessenger.registerActionHandler(
+        'StorageService:setItem',
+        async (
+          controllerNamespace: string,
+          key: string,
+          value: unknown,
+        ): Promise<void> => {
+          setItemCallCount += 1;
+          const storageKey = `${controllerNamespace}:${key}`;
+          mockStorage.set(storageKey, value);
+        },
+      );
+
+      trackingMessenger.unregisterActionHandler('StorageService:getAllKeys');
+      trackingMessenger.registerActionHandler(
+        'StorageService:getAllKeys',
+        async (controllerNamespace: string): Promise<string[]> => {
+          const keys: string[] = [];
+          const prefix = `${controllerNamespace}:`;
+          mockStorage.forEach((_value, key) => {
+            if (key.startsWith(prefix)) {
+              const keyWithoutNamespace = key.substring(prefix.length);
+              keys.push(keyWithoutNamespace);
+            }
+          });
+          return keys;
+        },
+      );
+
+      const restrictedMessenger = getRestrictedMessenger(trackingMessenger);
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+      });
+
+      // Initialize the controller - this should load from storage
+      await controller.initialize();
+
+      // Verify data was loaded correctly
+      expect(controller.state.tokensChainsCache[ChainId.mainnet]).toBeDefined();
+      expect(
+        controller.state.tokensChainsCache[ChainId.mainnet].data,
+      ).toStrictEqual(sampleMainnetTokensChainsCache);
+
+      // Wait longer than the debounce delay (500ms) to ensure any scheduled
+      // persistence would have executed
+      await new Promise((resolve) => setTimeout(resolve, 600));
+
+      // Verify setItem was NOT called - loaded data should not be re-persisted
+      expect(setItemCallCount).toBe(0);
+
+      controller.destroy();
+    });
+
+    it('should persist initial state chains when storage has different chains', async () => {
+      // Pre-populate storage with data for chain B (different from initial state)
+      const chainBData: DataCache = {
+        data: sampleBinanceTokensChainsCache,
+        timestamp: Date.now() - 1000, // Older timestamp
+      };
+      mockStorage.set(
+        `TokenListController:tokensChainsCache:${ChainId['bsc-mainnet']}`,
+        chainBData,
+      );
+
+      // Track setItem calls and which chains are persisted
+      const persistedChains: string[] = [];
+
+      const trackingMessenger = getMessenger();
+
+      trackingMessenger.unregisterActionHandler('StorageService:setItem');
+      trackingMessenger.registerActionHandler(
+        'StorageService:setItem',
+        async (
+          controllerNamespace: string,
+          key: string,
+          value: unknown,
+        ): Promise<void> => {
+          persistedChains.push(key);
+          const storageKey = `${controllerNamespace}:${key}`;
+          mockStorage.set(storageKey, value);
+        },
+      );
+
+      trackingMessenger.unregisterActionHandler('StorageService:getAllKeys');
+      trackingMessenger.registerActionHandler(
+        'StorageService:getAllKeys',
+        async (controllerNamespace: string): Promise<string[]> => {
+          const keys: string[] = [];
+          const prefix = `${controllerNamespace}:`;
+          mockStorage.forEach((_value, key) => {
+            if (key.startsWith(prefix)) {
+              const keyWithoutNamespace = key.substring(prefix.length);
+              keys.push(keyWithoutNamespace);
+            }
+          });
+          return keys;
+        },
+      );
+
+      const restrictedMessenger = getRestrictedMessenger(trackingMessenger);
+
+      // Create initial state with chain A (mainnet) - NOT in storage
+      const chainAData: DataCache = {
+        data: sampleMainnetTokensChainsCache,
+        timestamp: Date.now(),
+      };
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        state: {
+          tokensChainsCache: {
+            [ChainId.mainnet]: chainAData,
+          },
+        },
+      });
+
+      // Initialize - this should load chain B from storage AND schedule chain A for persistence
+      await controller.initialize();
+
+      // Verify both chains are in state
+      expect(controller.state.tokensChainsCache[ChainId.mainnet]).toBeDefined();
+      expect(
+        controller.state.tokensChainsCache[ChainId['bsc-mainnet']],
+      ).toBeDefined();
+
+      // Wait for debounced persistence to complete (500ms + buffer)
+      await new Promise((resolve) => setTimeout(resolve, 600));
+
+      // Verify chain A (mainnet) was persisted since it was in initial state but not in storage
+      expect(persistedChains).toContain(`tokensChainsCache:${ChainId.mainnet}`);
+
+      // Verify chain B (bsc-mainnet) was NOT re-persisted since it was loaded from storage
+      expect(persistedChains).not.toContain(
+        `tokensChainsCache:${ChainId['bsc-mainnet']}`,
+      );
+
+      controller.destroy();
+    });
+  });
+  describe('isDeprecated', () => {
+    it('resets tokensChainsCache to {} at construction when isDeprecated() returns true', () => {
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        state: existingState,
+        isDeprecated: (): boolean => true,
+      });
+
+      expect(controller.state.tokensChainsCache).toStrictEqual({});
+
+      controller.destroy();
+    });
+
+    it('preserves initial state when isDeprecated() returns false', () => {
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        state: existingState,
+        isDeprecated: (): boolean => false,
+      });
+
+      expect(
+        controller.state.tokensChainsCache[ChainId.mainnet].data,
+      ).toStrictEqual(sampleMainnetTokensChainsCache);
+
+      controller.destroy();
+    });
+
+    it('overwrites all persisted cache keys with empty data on initialize() when disabled', async () => {
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      // Pre-populate StorageService with cached data for two chains
+      const persistedMainnet: DataCache = {
+        timestamp: 123,
+        data: sampleMainnetTokensChainsCache,
+      };
+      const persistedBinance: DataCache = {
+        timestamp: 456,
+        data: sampleBinanceTokensChainsCache,
+      };
+      await messenger.call(
+        'StorageService:setItem',
+        'TokenListController',
+        `tokensChainsCache:${ChainId.mainnet}`,
+        persistedMainnet,
+      );
+      await messenger.call(
+        'StorageService:setItem',
+        'TokenListController',
+        `tokensChainsCache:${toHex(56)}`,
+        persistedBinance,
+      );
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        isDeprecated: (): boolean => true,
+      });
+
+      await controller.initialize();
+
+      const { result: mainnetResult } = await messenger.call(
+        'StorageService:getItem',
+        'TokenListController',
+        `tokensChainsCache:${ChainId.mainnet}`,
+      );
+      const { result: binanceResult } = await messenger.call(
+        'StorageService:getItem',
+        'TokenListController',
+        `tokensChainsCache:${toHex(56)}`,
+      );
+
+      expect(mainnetResult).toStrictEqual({ data: {}, timestamp: 0 });
+      expect(binanceResult).toStrictEqual({ data: {}, timestamp: 0 });
+      expect(controller.state.tokensChainsCache).toStrictEqual({});
+
+      controller.destroy();
+    });
+
+    it('does not load persisted cache into state on initialize() when disabled', async () => {
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      await messenger.call(
+        'StorageService:setItem',
+        'TokenListController',
+        `tokensChainsCache:${ChainId.mainnet}`,
+        { timestamp: 123, data: sampleMainnetTokensChainsCache },
+      );
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        isDeprecated: (): boolean => true,
+      });
+
+      await controller.initialize();
+
+      expect(controller.state.tokensChainsCache).toStrictEqual({});
+
+      controller.destroy();
+    });
+
+    it('returns early from start() without fetching when disabled, and resets state', async () => {
+      const fetchTokenListMock = jest
+        .spyOn(TokenListController.prototype, 'fetchTokenList')
+        .mockImplementation();
+
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        state: existingState,
+        isDeprecated: (): boolean => true,
+      });
+
+      await controller.start();
+
+      expect(fetchTokenListMock).not.toHaveBeenCalled();
+      expect(controller.state.tokensChainsCache).toStrictEqual({});
+
+      controller.destroy();
+      fetchTokenListMock.mockRestore();
+    });
+
+    it('returns early from _executePoll() without fetching when disabled, and resets state', async () => {
+      const fetchTokenListByChainIdSpy = jest
+        .spyOn(tokenService, 'fetchTokenListByChainId')
+        .mockResolvedValue(sampleMainnetTokenList);
+
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        state: existingState,
+        isDeprecated: (): boolean => true,
+      });
+
+      await controller._executePoll({ chainId: ChainId.mainnet });
+
+      expect(fetchTokenListByChainIdSpy).not.toHaveBeenCalled();
+      expect(controller.state.tokensChainsCache).toStrictEqual({});
+
+      controller.destroy();
+      fetchTokenListByChainIdSpy.mockRestore();
+    });
+
+    it('re-evaluates isDeprecated() on each polling entry so it can be toggled at runtime', async () => {
+      let disabled = false;
+      const fetchTokenListByChainIdSpy = jest
+        .spyOn(tokenService, 'fetchTokenListByChainId')
+        .mockResolvedValue(sampleMainnetTokenList);
+
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        isDeprecated: (): boolean => disabled,
+      });
+      await controller.initialize();
+
+      // First poll: enabled — should fetch and populate state
+      await controller._executePoll({ chainId: ChainId.mainnet });
+      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
+      expect(controller.state.tokensChainsCache[ChainId.mainnet]).toBeDefined();
+
+      // Toggle to disabled and poll again — should skip fetch and clear state
+      disabled = true;
+      await controller._executePoll({ chainId: ChainId.mainnet });
+      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
+      expect(controller.state.tokensChainsCache).toStrictEqual({});
+
+      controller.destroy();
+      fetchTokenListByChainIdSpy.mockRestore();
+    });
+
+    it('skips the HTTP call and state write when fetchTokenList() is called directly while disabled', async () => {
+      const fetchTokenListByChainIdSpy = jest
+        .spyOn(tokenService, 'fetchTokenListByChainId')
+        .mockResolvedValue(sampleMainnetTokenList);
+
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        state: existingState,
+        isDeprecated: (): boolean => true,
+      });
+
+      await controller.fetchTokenList(ChainId.mainnet);
+
+      expect(fetchTokenListByChainIdSpy).not.toHaveBeenCalled();
+      expect(controller.state.tokensChainsCache).toStrictEqual({});
+
+      controller.destroy();
+      fetchTokenListByChainIdSpy.mockRestore();
+    });
+
+    it('stops fetching when isDeprecated toggles to true after polling already started', async () => {
+      let disabled = false;
+      const fetchTokenListByChainIdSpy = jest
+        .spyOn(tokenService, 'fetchTokenListByChainId')
+        .mockResolvedValue(sampleMainnetTokenList);
+
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        isDeprecated: (): boolean => disabled,
+      });
+
+      // First call: enabled — should fetch and write state
+      await controller.fetchTokenList(ChainId.mainnet);
+      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
+      expect(controller.state.tokensChainsCache[ChainId.mainnet]).toBeDefined();
+
+      // Toggle to disabled — a subsequent fetchTokenList must not hit the API
+      // and must clear the existing in-memory data.
+      disabled = true;
+      await controller.fetchTokenList(ChainId.mainnet);
+      expect(fetchTokenListByChainIdSpy).toHaveBeenCalledTimes(1);
+      expect(controller.state.tokensChainsCache).toStrictEqual({});
+
+      controller.destroy();
+      fetchTokenListByChainIdSpy.mockRestore();
+    });
+
+    it('returns early from restart() without fetching when disabled, and resets state', async () => {
+      const fetchTokenListMock = jest
+        .spyOn(TokenListController.prototype, 'fetchTokenList')
+        .mockImplementation();
+
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        state: existingState,
+        isDeprecated: (): boolean => true,
+      });
+
+      await controller.restart();
+
+      expect(fetchTokenListMock).not.toHaveBeenCalled();
+      expect(controller.state.tokensChainsCache).toStrictEqual({});
+
+      controller.destroy();
+      fetchTokenListMock.mockRestore();
+    });
+
+    it('clears persisted storage at runtime when isDeprecated toggles to true after initialize ran enabled', async () => {
+      let disabled = false;
+
+      // Pre-populate storage as if a prior session had fetched mainnet tokens.
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+      await messenger.call(
+        'StorageService:setItem',
+        'TokenListController',
+        `tokensChainsCache:${ChainId.mainnet}`,
+        { timestamp: 123, data: sampleMainnetTokensChainsCache },
+      );
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        isDeprecated: (): boolean => disabled,
+      });
+      // initialize() runs enabled — loads from storage and wires the persistence subscription.
+      await controller.initialize();
+      expect(controller.state.tokensChainsCache[ChainId.mainnet]).toBeDefined();
+
+      // Toggle disabled and hit any fetching entry point.
+      disabled = true;
+      await controller.fetchTokenList(ChainId.mainnet);
+
+      // In-memory cleared AND persisted entry overwritten with the empty placeholder.
+      expect(controller.state.tokensChainsCache).toStrictEqual({});
+      const { result } = await messenger.call(
+        'StorageService:getItem',
+        'TokenListController',
+        `tokensChainsCache:${ChainId.mainnet}`,
+      );
+      expect(result).toStrictEqual({ data: {}, timestamp: 0 });
+
+      controller.destroy();
+    });
+
+    it('does not let a pending debounced persist write old data after isDeprecated toggles to true', async () => {
+      const fetchTokenListByChainIdSpy = jest
+        .spyOn(tokenService, 'fetchTokenListByChainId')
+        .mockResolvedValue(sampleMainnetTokenList);
+
+      let disabled = false;
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      // Pre-populate storage so we can verify the disabled path overwrites it.
+      await messenger.call(
+        'StorageService:setItem',
+        'TokenListController',
+        `tokensChainsCache:${ChainId.mainnet}`,
+        { timestamp: 999, data: sampleMainnetTokensChainsCache },
+      );
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        isDeprecated: (): boolean => disabled,
+      });
+      await controller.initialize();
+
+      // Enabled fetch — populates state and schedules a debounced persist (500ms).
+      await controller.fetchTokenList(ChainId.mainnet);
+      expect(controller.state.tokensChainsCache[ChainId.mainnet]).toBeDefined();
+
+      // Flip disabled BEFORE the debounce timer fires, then hit a polling entry.
+      disabled = true;
+      await controller.fetchTokenList(ChainId.mainnet);
+
+      // Wait well past the 500ms debounce window — any stale persist would
+      // have fired by now.
+      await new Promise((resolve) => setTimeout(resolve, 700));
+
+      // Storage entry must be the empty placeholder — not the stale fetched data.
+      const { result } = await messenger.call(
+        'StorageService:getItem',
+        'TokenListController',
+        `tokensChainsCache:${ChainId.mainnet}`,
+      );
+      expect(result).toStrictEqual({ data: {}, timestamp: 0 });
+      expect(controller.state.tokensChainsCache).toStrictEqual({});
+
+      controller.destroy();
+      fetchTokenListByChainIdSpy.mockRestore();
+    });
+  });
+
+  describe('deprecated methods', () => {
+    it('should restart polling when restart() is called', async () => {
+      const messenger = getMessenger();
+      const restrictedMessenger = getRestrictedMessenger(messenger);
+
+      const controller = new TokenListController({
+        chainId: ChainId.mainnet,
+        messenger: restrictedMessenger,
+        interval: 100,
+      });
+
+      nock(tokenService.TOKEN_END_POINT_API)
+        .get(getTokensPath(ChainId.mainnet))
+        .reply(200, sampleMainnetTokenList)
+        .persist();
+
+      // Start initial polling
+      await controller.start();
+
+      // Wait for first fetch
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
+      const initialCache = { ...controller.state.tokensChainsCache };
+      expect(initialCache[ChainId.mainnet]).toBeDefined();
+
+      // Restart polling
+      await controller.restart();
+
+      // Wait for another fetch
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
+      // Verify polling continued
+      expect(controller.state.tokensChainsCache[ChainId.mainnet]).toBeDefined();
+
+      controller.destroy();
     });
   });
 });
@@ -1348,10 +2497,8 @@ describe('TokenListController', () => {
  * @param chainId - The chain ID.
  * @returns The constructed path.
  */
-function getTokensPath(chainId: Hex) {
-  // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-  // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+function getTokensPath(chainId: Hex): string {
   return `/tokens/${convertHexToDecimal(
     chainId,
-  )}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false`;
+  )}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`;
 }

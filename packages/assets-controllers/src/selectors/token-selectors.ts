@@ -2,15 +2,15 @@ import type { AccountGroupId } from '@metamask/account-api';
 import type { AccountTreeControllerState } from '@metamask/account-tree-controller';
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import { convertHexToDecimal } from '@metamask/controller-utils';
+import { TrxScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkState } from '@metamask/network-controller';
-import { hexToBigInt, parseCaipAssetType, type Hex } from '@metamask/utils';
-import { createSelector } from 'reselect';
+import { hexToBigInt, parseCaipAssetType } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
+import { createSelector, weakMapMemoize } from 'reselect';
+import { TokenRwaData } from 'src/token-service';
 
-import {
-  parseBalanceWithDecimals,
-  stringifyBalanceWithDecimals,
-} from './stringify-balance';
+import { shouldIncludeNativeToken } from '../constants';
 import type { CurrencyRateState } from '../CurrencyRateController';
 import type { MultichainAssetsControllerState } from '../MultichainAssetsController';
 import type { MultichainAssetsRatesControllerState } from '../MultichainAssetsRatesController';
@@ -19,20 +19,41 @@ import { getNativeTokenAddress } from '../token-prices-service/codefi-v2';
 import type { TokenBalancesControllerState } from '../TokenBalancesController';
 import type { Token, TokenRatesControllerState } from '../TokenRatesController';
 import type { TokensControllerState } from '../TokensController';
+import {
+  parseBalanceWithDecimals,
+  stringifyBalanceWithDecimals,
+} from './stringify-balance';
 
-type AssetsByAccountGroup = {
+// Asset Tron Filters
+export const TRON_RESOURCE = {
+  ENERGY: 'energy',
+  BANDWIDTH: 'bandwidth',
+  MAX_ENERGY: 'max-energy',
+  MAX_BANDWIDTH: 'max-bandwidth',
+  STRX_ENERGY: 'strx-energy',
+  STRX_BANDWIDTH: 'strx-bandwidth',
+  TRX_READY_FOR_WITHDRAWAL: 'trx-ready-for-withdrawal',
+  TRX_STAKING_REWARDS: 'trx-staking-rewards',
+  TRX_IN_LOCK_PERIOD: 'trx-in-lock-period',
+} as const;
+
+export type TronResourceSymbol =
+  (typeof TRON_RESOURCE)[keyof typeof TRON_RESOURCE];
+
+export const TRON_RESOURCE_SYMBOLS = Object.values(
+  TRON_RESOURCE,
+) as readonly TronResourceSymbol[];
+
+export const TRON_RESOURCE_SYMBOLS_SET: ReadonlySet<TronResourceSymbol> =
+  new Set(TRON_RESOURCE_SYMBOLS);
+
+export type AssetsByAccountGroup = {
   [accountGroupId: AccountGroupId]: AccountGroupAssets;
 };
 
 export type AccountGroupAssets = {
   [network: string]: Asset[];
 };
-
-// If this gets out of hand with other chains, we should probably have a permanent object that defines them
-const MULTICHAIN_NATIVE_ASSET_IDS = [
-  `bip122:000000000019d6689c085ae165831e93/slip44:0`,
-  `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501`,
-];
 
 type EvmAccountType = Extract<InternalAccount['type'], `eip155:${string}`>;
 type MultichainAccountType = Exclude<
@@ -42,13 +63,13 @@ type MultichainAccountType = Exclude<
 
 export type Asset = (
   | {
-      type: EvmAccountType;
+      accountType: EvmAccountType;
       assetId: Hex; // This is also the address for EVM tokens
       address: Hex;
       chainId: Hex;
     }
   | {
-      type: MultichainAccountType;
+      accountType: MultichainAccountType;
       assetId: `${string}:${string}/${string}:${string}`;
       chainId: `${string}:${string}`;
     }
@@ -68,10 +89,12 @@ export type Asset = (
         conversionRate: number;
       }
     | undefined;
+  rwaData?: TokenRwaData;
 };
 
 export type AssetListState = {
   accountTree: AccountTreeControllerState['accountTree'];
+  selectedAccountGroup: AccountTreeControllerState['selectedAccountGroup'];
   internalAccounts: AccountsControllerState['internalAccounts'];
   allTokens: TokensControllerState['allTokens'];
   allIgnoredTokens: TokensControllerState['allIgnoredTokens'];
@@ -79,6 +102,7 @@ export type AssetListState = {
   marketData: TokenRatesControllerState['marketData'];
   currencyRates: CurrencyRateState['currencyRates'];
   accountsAssets: MultichainAssetsControllerState['accountsAssets'];
+  allIgnoredAssets: MultichainAssetsControllerState['allIgnoredAssets'];
   assetsMetadata: MultichainAssetsControllerState['assetsMetadata'];
   balances: MultichainBalancesControllerState['balances'];
   conversionRates: MultichainAssetsRatesControllerState['conversionRates'];
@@ -115,6 +139,10 @@ const selectAccountsToGroupIdMap = createAssetListSelector(
       for (const { id: accountGroupId, accounts } of Object.values(groups)) {
         for (const accountId of accounts) {
           const internalAccount = internalAccounts.accounts[accountId];
+
+          if (!internalAccount) {
+            continue;
+          }
 
           accountsMap[
             // TODO: We would not need internalAccounts if evmTokens state had the accountId
@@ -153,6 +181,10 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
     for (const [chainId, chainAccounts] of Object.entries(
       accountsByChainId,
     ) as [Hex, Record<Hex, { balance: Hex | null }>][]) {
+      // Skip native tokens on Tempo networks
+      if (!shouldIncludeNativeToken(chainId)) {
+        continue;
+      }
       for (const [accountAddress, accountBalance] of Object.entries(
         chainAccounts,
       )) {
@@ -189,10 +221,11 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
           currencyRates,
           chainId,
           nativeToken.address,
+          nativeCurrency, // Pass native currency symbol for fallback when market data is missing
         );
 
         groupChainAssets.push({
-          type: type as EvmAccountType,
+          accountType: type as EvmAccountType,
           assetId: nativeToken.address,
           isNative: true,
           address: nativeToken.address,
@@ -286,7 +319,7 @@ const selectAllEvmAssets = createAssetListSelector(
           );
 
           groupChainAssets.push({
-            type: type as EvmAccountType,
+            accountType: type as EvmAccountType,
             assetId: tokenAddress,
             isNative: false,
             address: tokenAddress,
@@ -308,6 +341,7 @@ const selectAllEvmAssets = createAssetListSelector(
                 }
               : undefined,
             chainId,
+            ...(token.rwaData && { rwaData: token.rwaData }),
           });
         }
       }
@@ -321,6 +355,7 @@ const selectAllMultichainAssets = createAssetListSelector(
   [
     selectAccountsToGroupIdMap,
     (state) => state.accountsAssets,
+    (state) => state.allIgnoredAssets,
     (state) => state.assetsMetadata,
     (state) => state.balances,
     (state) => state.conversionRates,
@@ -329,6 +364,7 @@ const selectAllMultichainAssets = createAssetListSelector(
   (
     accountsMap,
     multichainTokens,
+    ignoredMultichainAssets,
     multichainAssetsMetadata,
     multichainBalances,
     multichainConversionRates,
@@ -357,6 +393,10 @@ const selectAllMultichainAssets = createAssetListSelector(
 
         const { accountGroupId, type } = account;
 
+        if (ignoredMultichainAssets?.[accountId]?.includes(assetId)) {
+          continue;
+        }
+
         groupAssets[accountGroupId] ??= {};
         groupAssets[accountGroupId][chainId] ??= [];
         const groupChainAssets = groupAssets[accountGroupId][chainId];
@@ -368,7 +408,7 @@ const selectAllMultichainAssets = createAssetListSelector(
             }
           | undefined = multichainBalances[accountId]?.[assetId];
 
-        const decimals = assetMetadata.units.find(
+        const decimals = assetMetadata.units?.find(
           (unit) =>
             unit.name === assetMetadata.name &&
             unit.symbol === assetMetadata.symbol,
@@ -392,9 +432,9 @@ const selectAllMultichainAssets = createAssetListSelector(
 
         // TODO: We shouldn't have to rely on fallbacks for name and symbol, they should not be optional
         groupChainAssets.push({
-          type: type as MultichainAccountType,
+          accountType: type as MultichainAccountType,
           assetId,
-          isNative: MULTICHAIN_NATIVE_ASSET_IDS.includes(assetId),
+          isNative: caipAsset.assetNamespace === 'slip44',
           image: assetMetadata.iconUrl,
           name: assetMetadata.name ?? assetMetadata.symbol ?? asset,
           symbol: assetMetadata.symbol ?? asset,
@@ -418,7 +458,7 @@ const selectAllMultichainAssets = createAssetListSelector(
   },
 );
 
-const selectAllAssets = createAssetListSelector(
+export const selectAllAssets = createAssetListSelector(
   [
     selectAllEvmAssets,
     selectAllMultichainAssets,
@@ -437,14 +477,65 @@ const selectAllAssets = createAssetListSelector(
   },
 );
 
+export type SelectAccountGroupAssetOpts = {
+  filterTronStakedTokens: boolean;
+};
+
+const defaultSelectAccountGroupAssetOpts: SelectAccountGroupAssetOpts = {
+  filterTronStakedTokens: true,
+};
+
+const filterTronStakedTokens = (assetsByAccountGroup: AccountGroupAssets) => {
+  const newAssetsByAccountGroup = { ...assetsByAccountGroup };
+
+  Object.values(TrxScope).forEach((tronChainId) => {
+    if (!newAssetsByAccountGroup[tronChainId]) {
+      return;
+    }
+
+    newAssetsByAccountGroup[tronChainId] = newAssetsByAccountGroup[
+      tronChainId
+    ].filter((asset: Asset) => {
+      if (
+        asset.chainId.startsWith('tron:') &&
+        TRON_RESOURCE_SYMBOLS_SET.has(
+          asset.symbol?.toLowerCase() as TronResourceSymbol,
+        )
+      ) {
+        return false;
+      }
+      return true;
+    });
+  });
+
+  return newAssetsByAccountGroup;
+};
+
 export const selectAssetsBySelectedAccountGroup = createAssetListSelector(
-  [selectAllAssets, (state) => state.accountTree],
-  (groupAssets, accountTree) => {
-    const { selectedAccountGroup } = accountTree;
+  [
+    selectAllAssets,
+    (state) => state.selectedAccountGroup,
+    (
+      _state,
+      opts: SelectAccountGroupAssetOpts = defaultSelectAccountGroupAssetOpts,
+    ) => opts,
+  ],
+  (groupAssets, selectedAccountGroup, opts) => {
     if (!selectedAccountGroup) {
       return {};
     }
-    return groupAssets[selectedAccountGroup] || {};
+
+    let result = groupAssets[selectedAccountGroup] || {};
+
+    if (opts.filterTronStakedTokens) {
+      result = filterTronStakedTokens(result);
+    }
+
+    return result;
+  },
+  {
+    memoize: weakMapMemoize,
+    argsMemoize: weakMapMemoize,
   },
 );
 
@@ -486,6 +577,7 @@ function mergeAssets(
  * @param currencyRates - The currency rates for the token
  * @param chainId - The chain id of the token
  * @param tokenAddress - The address of the token
+ * @param nativeCurrencySymbol - The native currency symbol (e.g., 'ETH', 'BNB') - used for fallback when market data is missing for native tokens
  * @returns The price and currency of the token in the current currency. Returns undefined if the asset is not found in the market data or currency rates.
  */
 function getFiatBalanceForEvmToken(
@@ -495,8 +587,28 @@ function getFiatBalanceForEvmToken(
   currencyRates: CurrencyRateState['currencyRates'],
   chainId: Hex,
   tokenAddress: Hex,
+  nativeCurrencySymbol?: string,
 ) {
   const tokenMarketData = marketData[chainId]?.[tokenAddress];
+
+  // For native tokens: if no market data exists, use price=1 and look up currency rate directly
+  // This is because native tokens are priced in themselves (1 ETH = 1 ETH)
+  if (!tokenMarketData && nativeCurrencySymbol) {
+    const currencyRate = currencyRates[nativeCurrencySymbol];
+
+    if (!currencyRate?.conversionRate) {
+      return undefined;
+    }
+
+    const fiatBalance =
+      (convertHexToDecimal(rawBalance) / 10 ** decimals) *
+      currencyRate.conversionRate;
+
+    return {
+      balance: fiatBalance,
+      conversionRate: currencyRate.conversionRate,
+    };
+  }
 
   if (!tokenMarketData) {
     return undefined;

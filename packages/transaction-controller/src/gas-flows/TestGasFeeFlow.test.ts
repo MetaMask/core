@@ -1,5 +1,6 @@
+import { GasFeeEstimateType } from '../types';
+import type { GasFeeFlowRequest } from '../types';
 import { TestGasFeeFlow } from './TestGasFeeFlow';
-import { GasFeeEstimateType, type GasFeeFlowRequest } from '../types';
 
 describe('TestGasFeeFlow', () => {
   describe('matchesTransaction', () => {

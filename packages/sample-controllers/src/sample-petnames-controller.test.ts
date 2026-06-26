@@ -1,12 +1,14 @@
-import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
+} from '@metamask/messenger';
 
+import { PROTOTYPE_POLLUTION_BLOCKLIST } from '../../controller-utils/src/util';
 import type { SamplePetnamesControllerMessenger } from './sample-petnames-controller';
 import { SamplePetnamesController } from './sample-petnames-controller';
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../base-controller/tests/helpers';
-import { PROTOTYPE_POLLUTION_BLOCKLIST } from '../../controller-utils/src/util';
 
 describe('SamplePetnamesController', () => {
   describe('constructor', () => {
@@ -31,8 +33,8 @@ describe('SamplePetnamesController', () => {
     it('fills in missing initial state with defaults', async () => {
       await withController(({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
-          Object {
-            "namesByChainIdAndAddress": Object {},
+          {
+            "namesByChainIdAndAddress": {},
           }
         `);
       });
@@ -197,9 +199,9 @@ describe('SamplePetnamesController', () => {
           deriveStateFromMetadata(
             controller.state,
             controller.metadata,
-            'anonymous',
+            'includeInDebugSnapshot',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -212,8 +214,8 @@ describe('SamplePetnamesController', () => {
             'includeInStateLogs',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "namesByChainIdAndAddress": Object {},
+          {
+            "namesByChainIdAndAddress": {},
           }
         `);
       });
@@ -228,8 +230,8 @@ describe('SamplePetnamesController', () => {
             'persist',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "namesByChainIdAndAddress": Object {},
+          {
+            "namesByChainIdAndAddress": {},
           }
         `);
       });
@@ -244,8 +246,8 @@ describe('SamplePetnamesController', () => {
             'usedInUi',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "namesByChainIdAndAddress": Object {},
+          {
+            "namesByChainIdAndAddress": {},
           }
         `);
       });
@@ -258,8 +260,9 @@ describe('SamplePetnamesController', () => {
  * required by the controller under test.
  */
 type RootMessenger = Messenger<
-  ExtractAvailableAction<SamplePetnamesControllerMessenger>,
-  ExtractAvailableEvent<SamplePetnamesControllerMessenger>
+  MockAnyNamespace,
+  MessengerActions<SamplePetnamesControllerMessenger>,
+  MessengerEvents<SamplePetnamesControllerMessenger>
 >;
 
 /**
@@ -285,7 +288,7 @@ type WithControllerOptions = {
  * @returns The root messenger.
  */
 function getRootMessenger(): RootMessenger {
-  return new Messenger();
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
 }
 
 /**
@@ -298,10 +301,9 @@ function getRootMessenger(): RootMessenger {
 function getMessenger(
   rootMessenger: RootMessenger,
 ): SamplePetnamesControllerMessenger {
-  return rootMessenger.getRestricted({
-    name: 'SamplePetnamesController',
-    allowedActions: [],
-    allowedEvents: [],
+  return new Messenger({
+    namespace: 'SamplePetnamesController',
+    parent: rootMessenger,
   });
 }
 

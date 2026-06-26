@@ -9,7 +9,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/base-controller` from `^8.0.0` to `^8.3.0` ([#5722](https://github.com/MetaMask/core/pull/5722), [#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+
+## [8.1.0]
+
+### Added
+
+- Expose `AnnouncementController` methods through its messenger ([#8206](https://github.com/MetaMask/core/pull/8206))
+  - The following actions are now available:
+    - `AnnouncementController:resetViewed`
+    - `AnnouncementController:updateViewed`
+  - Corresponding action types (e.g. `AnnouncementControllerResetViewedAction`) are available as well.
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [8.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6384](https://github.com/MetaMask/core/pull/6384))
+  - Previously, `AnnouncementController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6384](https://github.com/MetaMask/core/pull/6384))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [7.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
+## [7.1.0]
+
+### Added
+
+- Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6524](https://github.com/MetaMask/core/pull/6524))
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.0.0` to `^8.4.1` ([#5722](https://github.com/MetaMask/core/pull/5722), [#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632), [#6807](https://github.com/MetaMask/core/pull/6807))
 
 ## [7.0.3]
 
@@ -173,14 +214,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
-
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
-
     - Everything in `src/announcement`
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@7.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@8.1.0...HEAD
+[8.1.0]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@8.0.0...@metamask/announcement-controller@8.1.0
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@7.1.1...@metamask/announcement-controller@8.0.0
+[7.1.1]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@7.1.0...@metamask/announcement-controller@7.1.1
+[7.1.0]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@7.0.3...@metamask/announcement-controller@7.1.0
 [7.0.3]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@7.0.2...@metamask/announcement-controller@7.0.3
 [7.0.2]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@7.0.1...@metamask/announcement-controller@7.0.2
 [7.0.1]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@7.0.0...@metamask/announcement-controller@7.0.1

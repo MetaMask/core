@@ -1,17 +1,17 @@
 import { Interface } from '@ethersproject/abi';
-import { ORIGIN_METAMASK, isValidHexAddress } from '@metamask/controller-utils';
+import { isValidHexAddress } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { JsonRpcError, providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { isStrictHexString, remove0x } from '@metamask/utils';
 
-import { isEIP1559Transaction } from './utils';
-import type { Authorization, TransactionBatchRequest } from '../types';
-import {
-  TransactionEnvelopeType,
-  TransactionType,
-  type TransactionParams,
+import { TransactionEnvelopeType, TransactionType } from '../types';
+import type {
+  Authorization,
+  TransactionBatchRequest,
+  TransactionParams,
 } from '../types';
+import { isEIP1559Transaction } from './utils';
 
 export enum ErrorCode {
   DuplicateBundleId = 5720,
@@ -38,6 +38,7 @@ type GasFieldsToValidate =
  * @param options.data - The data included in the transaction.
  * @param options.from - The address from which the transaction is initiated.
  * @param options.internalAccounts - The internal accounts added to the wallet.
+ * @param options.isInternal - Whether the transaction was added by trusted internal MetaMask code.
  * @param options.origin - The origin or source of the transaction.
  * @param options.permittedAddresses - The permitted accounts for the given origin.
  * @param options.selectedAddress - The currently selected Ethereum address in the wallet.
@@ -49,6 +50,7 @@ export async function validateTransactionOrigin({
   data,
   from,
   internalAccounts,
+  isInternal,
   origin,
   permittedAddresses,
   txParams,
@@ -57,14 +59,13 @@ export async function validateTransactionOrigin({
   data?: string;
   from: string;
   internalAccounts?: string[];
+  isInternal?: boolean;
   origin?: string;
   permittedAddresses?: string[];
   selectedAddress?: string;
   txParams: TransactionParams;
   type?: TransactionType;
-}) {
-  const isInternal = !origin || origin === ORIGIN_METAMASK;
-
+}): Promise<void> {
   if (isInternal) {
     return;
   }
@@ -111,7 +112,7 @@ export function validateTxParams(
   txParams: TransactionParams,
   isEIP1559Compatible = true,
   chainId?: Hex,
-) {
+): void {
   validateEnvelopeType(txParams.type);
   validateEIP1559Compatibility(txParams, isEIP1559Compatible);
   validateParamFrom(txParams.from);
@@ -129,7 +130,7 @@ export function validateTxParams(
  * @param type - The transaction envelope type to validate.
  * @throws Throws invalid params if the type is not a valid transaction envelope type.
  */
-function validateEnvelopeType(type: string | undefined) {
+function validateEnvelopeType(type: string | undefined): void {
   if (
     type &&
     !Object.values(TransactionEnvelopeType).includes(
@@ -154,7 +155,7 @@ function validateEnvelopeType(type: string | undefined) {
 function validateEIP1559Compatibility(
   txParams: TransactionParams,
   isEIP1559Compatible: boolean,
-) {
+): void {
   if (isEIP1559Transaction(txParams) && !isEIP1559Compatible) {
     throw rpcErrors.invalidParams(
       'Invalid transaction params: params specify an EIP-1559 transaction but the current network does not support EIP-1559',
@@ -173,7 +174,7 @@ function validateEIP1559Compatibility(
  * - If the value contains a decimal point (.), it is considered invalid.
  * - If the value is not a finite number, is NaN, or is not a safe integer, it is considered invalid.
  */
-function validateParamValue(value?: string) {
+function validateParamValue(value?: string): void {
   if (value !== undefined) {
     if (value.includes('-')) {
       throw rpcErrors.invalidParams(
@@ -205,16 +206,31 @@ function validateParamValue(value?: string) {
  *
  * @param txParams - The transaction parameters object to validate.
  * @throws Throws an error if the recipient address is invalid:
- * - If the recipient address is an empty string ('0x') or undefined and the transaction contains data,
- * the "to" field is removed from the transaction parameters.
- * - If the recipient address is not a valid hexadecimal Ethereum address, an error is thrown.
+ * - If the recipient address is missing (empty string, '0x', or undefined) and the
+ * transaction does not contain real bytecode (data must be longer than `0x`),
+ * an error is thrown. This prevents accidental contract deployments with empty
+ * `to` and empty `data` from locking funds.
+ * - If the recipient address is missing and the transaction contains real
+ * bytecode (data longer than `0x`), the "to" field is removed from the
+ * transaction parameters (legitimate contract deployment).
+ * - If the recipient address is not a valid hexadecimal Ethereum address, an
+ * error is thrown.
  */
-function validateParamRecipient(txParams: TransactionParams) {
-  if (txParams.to === '0x' || txParams.to === undefined) {
-    if (txParams.data) {
+function validateParamRecipient(txParams: TransactionParams): void {
+  const isMissingRecipient =
+    txParams.to === '0x' || txParams.to === '' || txParams.to === undefined;
+
+  if (isMissingRecipient) {
+    const hasRealBytecode = Boolean(
+      txParams.data && txParams.data !== '0x' && txParams.data.length > 2,
+    );
+
+    if (hasRealBytecode) {
       delete txParams.to;
     } else {
-      throw rpcErrors.invalidParams(`Invalid "to" address.`);
+      throw rpcErrors.invalidParams(
+        `Invalid "to" address: must be specified for transactions without contract deployment bytecode.`,
+      );
     }
   } else if (txParams.to !== undefined && !isValidHexAddress(txParams.to)) {
     throw rpcErrors.invalidParams(`Invalid "to" address.`);
@@ -230,7 +246,7 @@ function validateParamRecipient(txParams: TransactionParams) {
  * the "to" field is removed from the transaction parameters.
  * - If the recipient address is not a valid hexadecimal Ethereum address, an error is thrown.
  */
-function validateParamFrom(from: string) {
+function validateParamFrom(from: string): void {
   if (!from || typeof from !== 'string') {
     throw rpcErrors.invalidParams(
       `Invalid "from" address ${from}: not a string.`,
@@ -247,7 +263,7 @@ function validateParamFrom(from: string) {
  * @param to - The to property to validate.
  * @throws Throws an error if the recipient address is invalid.
  */
-export function validateParamTo(to?: string) {
+export function validateParamTo(to?: string): void {
   if (!to || typeof to !== 'string') {
     throw rpcErrors.invalidParams(`Invalid "to" address`);
   }
@@ -258,27 +274,30 @@ export function validateParamTo(to?: string) {
  *
  * @param options - Options bag.
  * @param options.internalAccounts - The internal accounts added to the wallet.
+ * @param options.isInternal - Whether the batch was added by trusted internal MetaMask code.
  * @param options.request - The batch request object.
  * @param options.sizeLimit - The maximum number of calls allowed in a batch request.
  */
 export function validateBatchRequest({
   internalAccounts,
+  isInternal,
   request,
   sizeLimit,
 }: {
   internalAccounts: string[];
+  isInternal?: boolean;
   request: TransactionBatchRequest;
   sizeLimit: number;
-}) {
-  const { origin } = request;
-  const isExternal = origin && origin !== ORIGIN_METAMASK;
+}): void {
+  if (isInternal) {
+    return;
+  }
 
   const internalAccountsNormalized = internalAccounts.map((account) =>
     account.toLowerCase(),
   );
 
   if (
-    isExternal &&
     request.transactions.some((nestedTransaction) => {
       const normalizedCallTo =
         nestedTransaction.params.to?.toLowerCase() as string;
@@ -298,7 +317,7 @@ export function validateBatchRequest({
     );
   }
 
-  if (isExternal && request.transactions.length > sizeLimit) {
+  if (request.transactions.length > sizeLimit) {
     throw new JsonRpcError(
       ErrorCode.BundleTooLarge,
       `Batch size cannot exceed ${sizeLimit}. got: ${request.transactions.length}`,
@@ -312,7 +331,7 @@ export function validateBatchRequest({
  * @param value - The input data to validate.
  * @throws Throws invalid params if the input data is invalid.
  */
-function validateParamData(value?: string) {
+function validateParamData(value?: string): void {
   if (value) {
     const ERC20Interface = new Interface(abiERC20);
     try {
@@ -335,7 +354,10 @@ function validateParamData(value?: string) {
  * @param chainIdParams - The chain ID to validate.
  * @param chainIdNetworkClient - The chain ID of the network client.
  */
-function validateParamChainId(chainIdParams?: Hex, chainIdNetworkClient?: Hex) {
+function validateParamChainId(
+  chainIdParams?: Hex,
+  chainIdNetworkClient?: Hex,
+): void {
   if (
     chainIdParams &&
     chainIdNetworkClient &&
@@ -352,7 +374,7 @@ function validateParamChainId(chainIdParams?: Hex, chainIdNetworkClient?: Hex) {
  *
  * @param txParams - The transaction parameters to validate.
  */
-function validateGasFeeParams(txParams: TransactionParams) {
+function validateGasFeeParams(txParams: TransactionParams): void {
   if (txParams.gasPrice) {
     ensureProperTransactionEnvelopeTypeProvided(txParams, 'gasPrice');
     ensureMutuallyExclusiveFieldsNotProvided(
@@ -413,7 +435,7 @@ function validateGasFeeParams(txParams: TransactionParams) {
 function ensureProperTransactionEnvelopeTypeProvided(
   txParams: TransactionParams,
   field: keyof TransactionParams,
-) {
+): void {
   const type = txParams.type as TransactionEnvelopeType | undefined;
 
   switch (field) {
@@ -426,12 +448,7 @@ function ensureProperTransactionEnvelopeTypeProvided(
       break;
     case 'maxFeePerGas':
     case 'maxPriorityFeePerGas':
-      if (
-        type &&
-        !TRANSACTION_ENVELOPE_TYPES_FEE_MARKET.includes(
-          type as TransactionEnvelopeType,
-        )
-      ) {
+      if (type && !TRANSACTION_ENVELOPE_TYPES_FEE_MARKET.includes(type)) {
         throw rpcErrors.invalidParams(
           `Invalid transaction envelope type: specified type "${type}" but including maxFeePerGas and maxPriorityFeePerGas requires type: "${TRANSACTION_ENVELOPE_TYPES_FEE_MARKET.join(', ')}"`,
         );
@@ -439,12 +456,7 @@ function ensureProperTransactionEnvelopeTypeProvided(
       break;
     case 'gasPrice':
     default:
-      if (
-        type &&
-        TRANSACTION_ENVELOPE_TYPES_FEE_MARKET.includes(
-          type as TransactionEnvelopeType,
-        )
-      ) {
+      if (type && TRANSACTION_ENVELOPE_TYPES_FEE_MARKET.includes(type)) {
         throw rpcErrors.invalidParams(
           `Invalid transaction envelope type: specified type "${type}" but included a gasPrice instead of maxFeePerGas and maxPriorityFeePerGas`,
         );
@@ -466,7 +478,7 @@ function ensureMutuallyExclusiveFieldsNotProvided(
   txParams: TransactionParams,
   fieldBeingValidated: GasFieldsToValidate,
   mutuallyExclusiveField: GasFieldsToValidate,
-) {
+): void {
   if (typeof txParams[mutuallyExclusiveField] !== 'undefined') {
     throw rpcErrors.invalidParams(
       `Invalid transaction params: specified ${fieldBeingValidated} but also included ${mutuallyExclusiveField}, these cannot be mixed`,
@@ -482,7 +494,10 @@ function ensureMutuallyExclusiveFieldsNotProvided(
  * @param field - The current field being validated
  * @throws {rpcErrors.invalidParams} Throws if field is not a valid hexadecimal
  */
-function ensureFieldIsValidHex<T>(data: T, field: keyof T) {
+function ensureFieldIsValidHex<DataType>(
+  data: DataType,
+  field: keyof DataType,
+): void {
   const value = data[field];
   if (typeof value !== 'string' || !isStrictHexString(value)) {
     throw rpcErrors.invalidParams(
@@ -498,7 +513,7 @@ function ensureFieldIsValidHex<T>(data: T, field: keyof T) {
  *
  * @param txParams - The transaction parameters containing the authorization list to validate.
  */
-function validateAuthorizationList(txParams: TransactionParams) {
+function validateAuthorizationList(txParams: TransactionParams): void {
   const { authorizationList } = txParams;
 
   if (!authorizationList) {
@@ -523,7 +538,7 @@ function validateAuthorizationList(txParams: TransactionParams) {
  *
  * @param authorization - The authorization object to validate.
  */
-function validateAuthorization(authorization: Authorization) {
+function validateAuthorization(authorization: Authorization): void {
   ensureFieldIsValidHex(authorization, 'address');
   validateHexLength(authorization.address, 20, 'address');
 
@@ -553,7 +568,7 @@ function validateHexLength(
   value: string,
   lengthBytes: number,
   fieldName: string,
-) {
+): void {
   const actualLengthBytes = remove0x(value).length / 2;
 
   if (actualLengthBytes !== lengthBytes) {

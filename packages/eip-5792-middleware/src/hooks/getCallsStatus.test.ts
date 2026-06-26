@@ -1,13 +1,14 @@
-import { Messenger } from '@metamask/base-controller';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type { MessengerActions, MockAnyNamespace } from '@metamask/messenger';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import type {
   TransactionControllerGetStateAction,
   TransactionControllerState,
 } from '@metamask/transaction-controller';
 
-import { getCallsStatus } from './getCallsStatus';
 import { GetCallsStatusCode } from '../constants';
 import type { EIP5792Messenger } from '../types';
+import { getCallsStatus } from './getCallsStatus';
 
 const CHAIN_ID_MOCK = '0x123';
 const BATCH_ID_MOCK = '0xf3472db2a4134607a17213b7e9ca26e3';
@@ -37,22 +38,40 @@ const TRANSACTION_META_MOCK = {
   },
 };
 
+type AllActions = MessengerActions<EIP5792Messenger>;
+
+type RootMessenger = Messenger<MockAnyNamespace, AllActions>;
+
 describe('EIP-5792', () => {
   const getTransactionControllerStateMock: jest.MockedFn<
     TransactionControllerGetStateAction['handler']
   > = jest.fn();
 
-  let messenger: EIP5792Messenger;
+  let rootMessenger: RootMessenger;
+
+  let messenger: Messenger<'EIP5792', AllActions, never, RootMessenger>;
 
   beforeEach(() => {
     jest.resetAllMocks();
 
-    messenger = new Messenger();
+    rootMessenger = new Messenger<MockAnyNamespace, AllActions>({
+      namespace: MOCK_ANY_NAMESPACE,
+    });
 
-    messenger.registerActionHandler(
+    rootMessenger.registerActionHandler(
       'TransactionController:getState',
       getTransactionControllerStateMock,
     );
+
+    messenger = new Messenger({
+      namespace: 'EIP5792',
+      parent: rootMessenger,
+    });
+
+    rootMessenger.delegate({
+      messenger,
+      actions: ['TransactionController:getState'],
+    });
   });
 
   describe('getCallsStatus', () => {

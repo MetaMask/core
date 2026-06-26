@@ -5,6 +5,7 @@ export const CHAIN_IDS = {
   BASE_TESTNET: '0x14a33',
   BSC: '0x38',
   BSC_TESTNET: '0x61',
+  HYPEREVM: '0x3e7',
   OPTIMISM: '0xa',
   OPTIMISM_TESTNET: '0x1a4',
   OPBNB: '0xcc',
@@ -23,6 +24,7 @@ export const CHAIN_IDS = {
   MOONBEAM: '0x504',
   MOONBEAM_TESTNET: '0x507',
   MOONRIVER: '0x505',
+  MONAD: '0x8f',
   GNOSIS: '0x64',
   ARBITRUM: '0xa4b1',
   ZKSYNC_ERA: '0x144',
@@ -31,6 +33,8 @@ export const CHAIN_IDS = {
   SCROLL_SEPOLIA: '0x8274f',
   MEGAETH_TESTNET: '0x18c6',
   SEI: '0x531',
+  MANTLE: '0x1388',
+  MANTLE_SEPOLIA: '0x138b',
 } as const;
 
 /** Extract of the Wrapped ERC-20 ABI required for simulation. */

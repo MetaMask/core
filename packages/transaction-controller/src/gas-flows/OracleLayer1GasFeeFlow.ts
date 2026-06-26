@@ -1,7 +1,9 @@
 import { Contract } from '@ethersproject/contracts';
-import { Web3Provider, type ExternalProvider } from '@ethersproject/providers';
+import { Web3Provider } from '@ethersproject/providers';
+import type { ExternalProvider } from '@ethersproject/providers';
 import type { Hex } from '@metamask/utils';
-import { createModuleLogger } from '@metamask/utils';
+import { add0x, createModuleLogger } from '@metamask/utils';
+import BN from 'bn.js';
 
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
@@ -12,33 +14,88 @@ import type {
   TransactionMeta,
 } from '../types';
 import { prepareTransaction } from '../utils/prepare';
+import { padHexToEvenLength, toBN } from '../utils/utils';
 
 const log = createModuleLogger(projectLogger, 'oracle-layer1-gas-fee-flow');
+
+const ZERO = new BN(0);
 
 const DUMMY_KEY =
   'abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789';
 
 const GAS_PRICE_ORACLE_ABI = [
   {
-    inputs: [{ internalType: 'bytes', name: '_data', type: 'bytes' }],
+    inputs: [
+      {
+        internalType: 'bytes',
+        name: '_data',
+        type: 'bytes',
+      },
+    ],
     name: 'getL1Fee',
-    outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+    outputs: [
+      {
+        internalType: 'uint256',
+        name: '',
+        type: 'uint256',
+      },
+    ],
+    stateMutability: 'view',
+    type: 'function',
+  },
+  // only available post Isthmus
+  {
+    inputs: [
+      {
+        internalType: 'uint256',
+        name: '_gasUsed',
+        type: 'uint256',
+      },
+    ],
+    name: 'getOperatorFee',
+    outputs: [
+      {
+        internalType: 'uint256',
+        name: '',
+        type: 'uint256',
+      },
+    ],
     stateMutability: 'view',
     type: 'function',
   },
 ];
 
+// Default OP Stack gas price oracle address used across supported networks
+const DEFAULT_GAS_PRICE_ORACLE_ADDRESS =
+  '0x420000000000000000000000000000000000000F' as Hex;
+
 /**
  * Layer 1 gas fee flow that obtains gas fee estimate using an oracle smart contract.
  */
 export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
-  readonly #oracleAddress: Hex;
+  /**
+   * Resolves the oracle address for the given chain. Subclasses can override
+   * this method to provide chain-specific oracle addresses. By default, this
+   * returns the standard OP Stack gas price oracle address.
+   *
+   * @param _chainId - The chain ID to resolve the oracle address for.
+   * @returns The oracle address for the given chain.
+   */
+  protected getOracleAddressForChain(_chainId: Hex): Hex {
+    return DEFAULT_GAS_PRICE_ORACLE_ADDRESS;
+  }
 
-  readonly #signTransaction: boolean;
-
-  constructor(oracleAddress: Hex, signTransaction?: boolean) {
-    this.#oracleAddress = oracleAddress;
-    this.#signTransaction = signTransaction ?? false;
+  /**
+   * Whether to sign the transaction with a dummy key prior to calling the
+   * oracle contract. Some oracle contracts require a signed payload even for
+   * read-only methods.
+   *
+   * Subclasses can override to enable signing when needed. Defaults to false.
+   *
+   * @returns Whether the transaction should be signed prior to the oracle call.
+   */
+  protected shouldSignTransaction(): boolean {
+    return false;
   }
 
   abstract matchesTransaction({
@@ -47,13 +104,52 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
   }: {
     transactionMeta: TransactionMeta;
     messenger: TransactionControllerMessenger;
-  }): boolean;
+  }): Promise<boolean>;
+
+  /**
+   * Transforms the raw oracle L1 fee before it is combined with the operator
+   * fee. Subclasses can override this to apply chain-specific conversions
+   * (e.g. currency conversion via an on-chain exchange rate).
+   *
+   * Defaults to returning the fee unchanged.
+   *
+   * @param oracleFee - The raw L1 fee returned by the oracle contract.
+   * @param _request - The original fee flow request (provider + transaction).
+   * @returns The transformed fee.
+   */
+  protected async transformOracleFee(
+    oracleFee: BN,
+    _request: Layer1GasFeeFlowRequest,
+  ): Promise<BN> {
+    return oracleFee;
+  }
 
   async getLayer1Fee(
     request: Layer1GasFeeFlowRequest,
   ): Promise<Layer1GasFeeFlowResponse> {
     try {
-      return await this.#getOracleLayer1GasFee(request);
+      const { provider, transactionMeta } = request;
+
+      const contract = this.#getGasPriceOracleContract(
+        provider,
+        transactionMeta.chainId,
+      );
+
+      const oracleFee = await this.#getOracleLayer1GasFee(
+        contract,
+        transactionMeta,
+      );
+      const transformedFee = await this.transformOracleFee(oracleFee, request);
+      const operatorFee = await this.#getOperatorLayer1GasFee(
+        contract,
+        transactionMeta,
+      );
+
+      return {
+        layer1Fee: add0x(
+          padHexToEvenLength(transformedFee.add(operatorFee).toString(16)),
+        ),
+      };
     } catch (error) {
       log('Failed to get oracle layer 1 gas fee', error);
       throw new Error(`Failed to get oracle layer 1 gas fee`);
@@ -61,20 +157,12 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
   }
 
   async #getOracleLayer1GasFee(
-    request: Layer1GasFeeFlowRequest,
-  ): Promise<Layer1GasFeeFlowResponse> {
-    const { provider, transactionMeta } = request;
-
-    const contract = new Contract(
-      this.#oracleAddress,
-      GAS_PRICE_ORACLE_ABI,
-      // Network controller provider type is incompatible with ethers provider
-      new Web3Provider(provider as unknown as ExternalProvider),
-    );
-
+    contract: Contract,
+    transactionMeta: TransactionMeta,
+  ): Promise<BN> {
     const serializedTransaction = this.#buildUnserializedTransaction(
       transactionMeta,
-      this.#signTransaction,
+      this.shouldSignTransaction(),
     ).serialize();
 
     const result = await contract.getL1Fee(serializedTransaction);
@@ -83,23 +171,62 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
       throw new Error('No value returned from oracle contract');
     }
 
-    return {
-      layer1Fee: result.toHexString(),
-    };
+    return toBN(result);
+  }
+
+  /**
+   * Returns the gas value to pass to the operator-fee oracle, or undefined
+   * to skip the operator-fee call entirely. Defaults to the simulated
+   * `gasUsed` on the transaction. Subclasses can override to supply a
+   * fallback (e.g. estimated gas limit) when `gasUsed` is unavailable.
+   *
+   * @param transactionMeta - The transaction metadata.
+   * @returns The gas value, or undefined to skip the operator-fee call.
+   */
+  protected getOperatorFeeGas(
+    transactionMeta: TransactionMeta,
+  ): string | undefined {
+    return transactionMeta.gasUsed;
+  }
+
+  async #getOperatorLayer1GasFee(
+    contract: Contract,
+    transactionMeta: TransactionMeta,
+  ): Promise<BN> {
+    const gas = this.getOperatorFeeGas(transactionMeta);
+
+    if (!gas) {
+      return ZERO;
+    }
+
+    try {
+      const result = await contract.getOperatorFee(gas);
+
+      if (result === undefined) {
+        return ZERO;
+      }
+
+      return toBN(result);
+    } catch (error) {
+      log('Failed to get operator layer 1 gas fee', error);
+      return ZERO;
+    }
   }
 
   #buildUnserializedTransaction(
     transactionMeta: TransactionMeta,
     sign: boolean,
-  ) {
+  ): ReturnType<typeof prepareTransaction> {
     const txParams = this.#buildTransactionParams(transactionMeta);
     const { chainId } = transactionMeta;
 
     let unserializedTransaction = prepareTransaction(chainId, txParams);
 
     if (sign) {
+      // eslint-disable-next-line no-restricted-globals
       const keyBuffer = Buffer.from(DUMMY_KEY, 'hex');
-      unserializedTransaction = unserializedTransaction.sign(keyBuffer);
+      const keyBytes = Uint8Array.from(keyBuffer);
+      unserializedTransaction = unserializedTransaction.sign(keyBytes);
     }
 
     return unserializedTransaction;
@@ -112,5 +239,17 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
       ...transactionMeta.txParams,
       gasLimit: transactionMeta.txParams.gas,
     };
+  }
+
+  #getGasPriceOracleContract(
+    provider: Layer1GasFeeFlowRequest['provider'],
+    chainId: Hex,
+  ): Contract {
+    return new Contract(
+      this.getOracleAddressForChain(chainId),
+      GAS_PRICE_ORACLE_ABI,
+      // Network controller provider type is incompatible with ethers provider
+      new Web3Provider(provider as unknown as ExternalProvider),
+    );
   }
 }

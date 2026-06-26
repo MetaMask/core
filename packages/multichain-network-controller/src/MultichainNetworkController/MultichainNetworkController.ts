@@ -2,24 +2,25 @@ import { BaseController } from '@metamask/base-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { NetworkClientId } from '@metamask/network-controller';
-import { type CaipChainId, isCaipChainId } from '@metamask/utils';
+import { isCaipChainId } from '@metamask/utils';
+import type { CaipChainId } from '@metamask/utils';
 
 import {
-  type ActiveNetworksByAddress,
   toAllowedCaipAccountIds,
   toActiveNetworksByAddress,
 } from '../api/accounts-api';
+import type { ActiveNetworksByAddress } from '../api/accounts-api';
 import {
   AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS,
   MULTICHAIN_NETWORK_CONTROLLER_METADATA,
   getDefaultMultichainNetworkControllerState,
 } from '../constants';
 import type { AbstractMultichainNetworkService } from '../MultichainNetworkService/AbstractMultichainNetworkService';
-import {
-  MULTICHAIN_NETWORK_CONTROLLER_NAME,
-  type MultichainNetworkControllerState,
-  type MultichainNetworkControllerMessenger,
-  type SupportedCaipChainId,
+import { MULTICHAIN_NETWORK_CONTROLLER_NAME } from '../types';
+import type {
+  MultichainNetworkControllerState,
+  MultichainNetworkControllerMessenger,
+  SupportedCaipChainId,
 } from '../types';
 import {
   checkIfSupportedCaipChainId,
@@ -27,6 +28,11 @@ import {
   convertEvmCaipToHexChainId,
   isEvmCaipChainId,
 } from '../utils';
+
+const MESSENGER_EXPOSED_METHODS = [
+  'setActiveNetwork',
+  'getNetworksWithTransactionActivityByAccounts',
+] as const;
 
 /**
  * The MultichainNetworkController is responsible for fetching and caching account
@@ -76,7 +82,7 @@ export class MultichainNetworkController extends BaseController<
    * @param id - The client ID of the EVM network to set active.
    */
   async #setActiveEvmNetwork(id: NetworkClientId): Promise<void> {
-    const { selectedNetworkClientId } = this.messagingSystem.call(
+    const { selectedNetworkClientId } = this.messenger.call(
       'NetworkController:getState',
     );
 
@@ -97,12 +103,12 @@ export class MultichainNetworkController extends BaseController<
 
     // Only notify the network controller if the selected evm network is different
     if (shouldNotifyNetworkChange) {
-      await this.messagingSystem.call('NetworkController:setActiveNetwork', id);
+      await this.messenger.call('NetworkController:setActiveNetwork', id);
     }
 
     // Only publish the networkDidChange event if either the EVM network is different or we're switching between EVM and non-EVM networks
     if (shouldSetEvmActive || shouldNotifyNetworkChange) {
-      this.messagingSystem.publish(
+      this.messenger.publish(
         'MultichainNetworkController:networkDidChange',
         id,
       );
@@ -129,10 +135,7 @@ export class MultichainNetworkController extends BaseController<
     });
 
     // Notify listeners that the network changed
-    this.messagingSystem.publish(
-      'MultichainNetworkController:networkDidChange',
-      id,
-    );
+    this.messenger.publish('MultichainNetworkController:networkDidChange', id);
   }
 
   /**
@@ -164,7 +167,7 @@ export class MultichainNetworkController extends BaseController<
   async getNetworksWithTransactionActivityByAccounts(): Promise<ActiveNetworksByAddress> {
     // TODO: We are filtering out non-EVN accounts for now
     // Support for non-EVM networks will be added in the coming weeks
-    const evmAccounts = this.messagingSystem
+    const evmAccounts = this.messenger
       .call('AccountsController:listMultichainAccounts')
       .filter((account) => isEvmAccountType(account.type));
 
@@ -196,7 +199,7 @@ export class MultichainNetworkController extends BaseController<
    */
   async #removeEvmNetwork(chainId: CaipChainId): Promise<void> {
     const hexChainId = convertEvmCaipToHexChainId(chainId);
-    const selectedChainId = this.messagingSystem.call(
+    const selectedChainId = this.messenger.call(
       'NetworkController:getSelectedChainId',
     );
 
@@ -209,18 +212,15 @@ export class MultichainNetworkController extends BaseController<
       // If a non-EVM network is selected, we can delete the currently EVM selected network, but
       // we automatically switch to EVM mainnet.
       const ethereumMainnetHexChainId = '0x1'; // TODO: Should probably be a constant.
-      const clientId = this.messagingSystem.call(
+      const clientId = this.messenger.call(
         'NetworkController:findNetworkClientIdByChainId',
         ethereumMainnetHexChainId,
       );
 
-      await this.messagingSystem.call(
-        'NetworkController:setActiveNetwork',
-        clientId,
-      );
+      await this.messenger.call('NetworkController:setActiveNetwork', clientId);
     }
 
-    this.messagingSystem.call('NetworkController:removeNetwork', hexChainId);
+    this.messenger.call('NetworkController:removeNetwork', hexChainId);
   }
 
   /**
@@ -254,7 +254,7 @@ export class MultichainNetworkController extends BaseController<
    *
    * @param account - The account that was changed
    */
-  #handleOnSelectedAccountChange(account: InternalAccount) {
+  #handleOnSelectedAccountChange(account: InternalAccount): void {
     const { type: accountType, scopes } = account;
     const isEvmAccount = isEvmAccountType(accountType);
 
@@ -295,9 +295,9 @@ export class MultichainNetworkController extends BaseController<
   /**
    * Subscribes to message events.
    */
-  #subscribeToMessageEvents() {
+  #subscribeToMessageEvents(): void {
     // Handle network switch when account is changed
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'AccountsController:selectedAccountChange',
       (account) => this.#handleOnSelectedAccountChange(account),
     );
@@ -306,14 +306,10 @@ export class MultichainNetworkController extends BaseController<
   /**
    * Registers message handlers.
    */
-  #registerMessageHandlers() {
-    this.messagingSystem.registerActionHandler(
-      'MultichainNetworkController:setActiveNetwork',
-      this.setActiveNetwork.bind(this),
-    );
-    this.messagingSystem.registerActionHandler(
-      'MultichainNetworkController:getNetworksWithTransactionActivityByAccounts',
-      this.getNetworksWithTransactionActivityByAccounts.bind(this),
+  #registerMessageHandlers(): void {
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 }

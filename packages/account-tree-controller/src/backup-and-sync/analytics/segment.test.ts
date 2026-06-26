@@ -1,9 +1,8 @@
-import {
-  BackupAndSyncAnalyticsEvent,
-  formatAnalyticsEvent,
-  type BackupAndSyncAnalyticsAction,
-  type BackupAndSyncEmitAnalyticsEventParams,
-  type BackupAndSyncAnalyticsEventPayload,
+import { BackupAndSyncAnalyticsEvent, formatAnalyticsEvent } from './segment';
+import type {
+  BackupAndSyncAnalyticsAction,
+  BackupAndSyncEmitAnalyticsEventParams,
+  BackupAndSyncAnalyticsEventPayload,
 } from './segment';
 
 describe('BackupAndSyncAnalytics - Segment', () => {

@@ -1,9 +1,8 @@
-import EthQuery from '@metamask/eth-query';
 import type {
   FetchGasFeeEstimateOptions,
   GasFeeState,
 } from '@metamask/gas-fee-controller';
-import type { NetworkClientId, Provider } from '@metamask/network-controller';
+import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
@@ -17,10 +16,7 @@ import type {
   GasFeeEstimates,
   GasFeeFlow,
   GasFeeFlowRequest,
-  GasPriceGasFeeEstimates,
-  FeeMarketGasFeeEstimates,
   Layer1GasFeeFlow,
-  LegacyGasFeeEstimates,
   TransactionMeta,
   TransactionParams,
   TransactionBatchMeta,
@@ -33,6 +29,7 @@ import {
 } from '../types';
 import { getGasFeeFlow } from '../utils/gas-flow';
 import { getTransactionLayer1GasFee } from '../utils/layer1-gas-fee-flow';
+import { getNetworkClientId } from '../utils/provider';
 
 const log = createModuleLogger(projectLogger, 'gas-fee-poller');
 
@@ -44,17 +41,11 @@ const INTERVAL_MILLISECONDS = 10000;
 export class GasFeePoller {
   hub: EventEmitter = new EventEmitter();
 
-  readonly #findNetworkClientIdByChainId: (
-    chainId: Hex,
-  ) => NetworkClientId | undefined;
-
   readonly #gasFeeFlows: GasFeeFlow[];
 
   readonly #getGasFeeControllerEstimates: (
     options: FetchGasFeeEstimateOptions,
   ) => Promise<GasFeeState>;
-
-  readonly #getProvider: (networkClientId: NetworkClientId) => Provider;
 
   readonly #getTransactions: () => TransactionMeta[];
 
@@ -72,10 +63,8 @@ export class GasFeePoller {
    * Constructs a new instance of the GasFeePoller.
    *
    * @param options - The options for this instance.
-   * @param options.findNetworkClientIdByChainId - Callback to find the network client ID by chain ID.
    * @param options.gasFeeFlows - The gas fee flows to use to obtain suitable gas fees.
    * @param options.getGasFeeControllerEstimates - Callback to obtain the default fee estimates.
-   * @param options.getProvider - Callback to obtain a provider instance.
    * @param options.getTransactions - Callback to obtain the transaction data.
    * @param options.getTransactionBatches - Callback to obtain the transaction batch data.
    * @param options.layer1GasFeeFlows - The layer 1 gas fee flows to use to obtain suitable layer 1 gas fees.
@@ -83,33 +72,27 @@ export class GasFeePoller {
    * @param options.onStateChange - Callback to register a listener for controller state changes.
    */
   constructor({
-    findNetworkClientIdByChainId,
     gasFeeFlows,
     getGasFeeControllerEstimates,
-    getProvider,
     getTransactions,
     getTransactionBatches,
     layer1GasFeeFlows,
     messenger,
     onStateChange,
   }: {
-    findNetworkClientIdByChainId: (chainId: Hex) => NetworkClientId | undefined;
     gasFeeFlows: GasFeeFlow[];
     getGasFeeControllerEstimates: (
       options: FetchGasFeeEstimateOptions,
     ) => Promise<GasFeeState>;
-    getProvider: (networkClientId: NetworkClientId) => Provider;
     getTransactions: () => TransactionMeta[];
     getTransactionBatches: () => TransactionBatchMeta[];
     layer1GasFeeFlows: Layer1GasFeeFlow[];
     messenger: TransactionControllerMessenger;
     onStateChange: (listener: () => void) => void;
   }) {
-    this.#findNetworkClientIdByChainId = findNetworkClientIdByChainId;
     this.#gasFeeFlows = gasFeeFlows;
     this.#layer1GasFeeFlows = layer1GasFeeFlows;
     this.#getGasFeeControllerEstimates = getGasFeeControllerEstimates;
-    this.#getProvider = getProvider;
     this.#getTransactions = getTransactions;
     this.#getTransactionBatches = getTransactionBatches;
     this.#messenger = messenger;
@@ -130,7 +113,7 @@ export class GasFeePoller {
     });
   }
 
-  #start() {
+  #start(): void {
     if (this.#running) {
       return;
     }
@@ -144,7 +127,7 @@ export class GasFeePoller {
     log('Started polling');
   }
 
-  #stop() {
+  #stop(): void {
     if (!this.#running) {
       return;
     }
@@ -157,7 +140,7 @@ export class GasFeePoller {
     log('Stopped polling');
   }
 
-  async #onTimeout() {
+  async #onTimeout(): Promise<void> {
     await this.#updateUnapprovedTransactions();
     await this.#updateUnapprovedTransactionBatches();
 
@@ -165,7 +148,7 @@ export class GasFeePoller {
     this.#timeout = setTimeout(() => this.#onTimeout(), INTERVAL_MILLISECONDS);
   }
 
-  async #updateUnapprovedTransactions() {
+  async #updateUnapprovedTransactions(): Promise<void> {
     const unapprovedTransactions = this.#getUnapprovedTransactions();
 
     if (!unapprovedTransactions.length) {
@@ -193,7 +176,7 @@ export class GasFeePoller {
     );
   }
 
-  async #updateUnapprovedTransactionBatches() {
+  async #updateUnapprovedTransactionBatches(): Promise<void> {
     const unapprovedTransactionBatches =
       this.#getUnapprovedTransactionBatches();
 
@@ -231,7 +214,7 @@ export class GasFeePoller {
   async #updateUnapprovedTransaction(
     transactionMeta: TransactionMeta,
     gasFeeControllerData: GasFeeState,
-  ) {
+  ): Promise<void> {
     const { id } = transactionMeta;
 
     const [gasFeeEstimatesResponse, layer1GasFee] = await Promise.all([
@@ -257,15 +240,11 @@ export class GasFeePoller {
   async #updateUnapprovedTransactionBatch(
     txBatchMeta: TransactionBatchMeta,
     gasFeeControllerData: GasFeeState,
-  ) {
+  ): Promise<void> {
     const { id } = txBatchMeta;
 
-    const ethQuery = new EthQuery(
-      this.#getProvider(txBatchMeta.networkClientId),
-    );
     const defaultGasFeeFlow = new DefaultGasFeeFlow();
     const request: GasFeeFlowRequest = {
-      ethQuery,
       gasFeeControllerData,
       messenger: this.#messenger,
       transactionMeta: {
@@ -307,9 +286,6 @@ export class GasFeePoller {
     | { gasFeeEstimates?: GasFeeEstimates; gasFeeEstimatesLoaded: boolean }
     | undefined
   > {
-    const { networkClientId } = transactionMeta;
-
-    const ethQuery = new EthQuery(this.#getProvider(networkClientId));
     const gasFeeFlow = getGasFeeFlow(
       transactionMeta,
       this.#gasFeeFlows,
@@ -325,7 +301,6 @@ export class GasFeePoller {
     }
 
     const request: GasFeeFlowRequest = {
-      ethQuery,
       gasFeeControllerData,
       messenger: this.#messenger,
       transactionMeta,
@@ -357,13 +332,9 @@ export class GasFeePoller {
   async #updateTransactionLayer1GasFee(
     transactionMeta: TransactionMeta,
   ): Promise<Hex | undefined> {
-    const { networkClientId } = transactionMeta;
-    const provider = this.#getProvider(networkClientId);
-
     const layer1GasFee = await getTransactionLayer1GasFee({
       layer1GasFeeFlows: this.#layer1GasFeeFlows,
       messenger: this.#messenger,
-      provider,
       transactionMeta,
     });
 
@@ -374,13 +345,13 @@ export class GasFeePoller {
     return layer1GasFee;
   }
 
-  #getUnapprovedTransactions() {
+  #getUnapprovedTransactions(): TransactionMeta[] {
     return this.#getTransactions().filter(
       (tx) => tx.status === TransactionStatus.unapproved,
     );
   }
 
-  #getUnapprovedTransactionBatches() {
+  #getUnapprovedTransactionBatches(): TransactionBatchMeta[] {
     return this.#getTransactionBatches().filter(
       (batch) => batch.status === TransactionStatus.unapproved,
     );
@@ -401,7 +372,7 @@ export class GasFeePoller {
 
       const networkClientId =
         transactionNetworkClientId ??
-        (this.#findNetworkClientIdByChainId(chainId) as string);
+        getNetworkClientId({ messenger: this.#messenger, chainId });
 
       networkClientIdsByChainId.set(chainId, networkClientId);
     }
@@ -528,8 +499,7 @@ function updateGasFeeParameters(
   if (isEIP1559Compatible) {
     // Handle EIP-1559 compatible transactions
     if (gasEstimateType === GasFeeEstimateType.FeeMarket) {
-      const feeMarketGasFeeEstimates =
-        gasFeeEstimates as FeeMarketGasFeeEstimates;
+      const feeMarketGasFeeEstimates = gasFeeEstimates;
       txParams.maxFeePerGas =
         feeMarketGasFeeEstimates[userFeeLevel]?.maxFeePerGas;
       txParams.maxPriorityFeePerGas =
@@ -537,14 +507,13 @@ function updateGasFeeParameters(
     }
 
     if (gasEstimateType === GasFeeEstimateType.GasPrice) {
-      const gasPriceGasFeeEstimates =
-        gasFeeEstimates as GasPriceGasFeeEstimates;
+      const gasPriceGasFeeEstimates = gasFeeEstimates;
       txParams.maxFeePerGas = gasPriceGasFeeEstimates.gasPrice;
       txParams.maxPriorityFeePerGas = gasPriceGasFeeEstimates.gasPrice;
     }
 
     if (gasEstimateType === GasFeeEstimateType.Legacy) {
-      const legacyGasFeeEstimates = gasFeeEstimates as LegacyGasFeeEstimates;
+      const legacyGasFeeEstimates = gasFeeEstimates;
       const gasPrice = legacyGasFeeEstimates[userFeeLevel];
       txParams.maxFeePerGas = gasPrice;
       txParams.maxPriorityFeePerGas = gasPrice;
@@ -555,19 +524,17 @@ function updateGasFeeParameters(
   } else {
     // Handle non-EIP-1559 transactions
     if (gasEstimateType === GasFeeEstimateType.FeeMarket) {
-      const feeMarketGasFeeEstimates =
-        gasFeeEstimates as FeeMarketGasFeeEstimates;
+      const feeMarketGasFeeEstimates = gasFeeEstimates;
       txParams.gasPrice = feeMarketGasFeeEstimates[userFeeLevel]?.maxFeePerGas;
     }
 
     if (gasEstimateType === GasFeeEstimateType.GasPrice) {
-      const gasPriceGasFeeEstimates =
-        gasFeeEstimates as GasPriceGasFeeEstimates;
+      const gasPriceGasFeeEstimates = gasFeeEstimates;
       txParams.gasPrice = gasPriceGasFeeEstimates.gasPrice;
     }
 
     if (gasEstimateType === GasFeeEstimateType.Legacy) {
-      const legacyGasFeeEstimates = gasFeeEstimates as LegacyGasFeeEstimates;
+      const legacyGasFeeEstimates = gasFeeEstimates;
       txParams.gasPrice = legacyGasFeeEstimates[userFeeLevel];
     }
 

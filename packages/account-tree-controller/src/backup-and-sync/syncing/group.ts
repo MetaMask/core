@@ -1,58 +1,98 @@
-import { compareAndSyncMetadata } from './metadata';
+import { toMultichainAccountWalletId } from '@metamask/account-api';
+
 import type { AccountGroupMultichainAccountObject } from '../../group';
 import { backupAndSyncLogger } from '../../logger';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import type { BackupAndSyncAnalyticsAction } from '../analytics';
 import { BackupAndSyncAnalyticsEvent } from '../analytics';
 import type { ProfileId } from '../authentication';
-import {
-  UserStorageSyncedWalletGroupSchema,
-  type BackupAndSyncContext,
-  type UserStorageSyncedWalletGroup,
+import { UserStorageSyncedWalletGroupSchema } from '../types';
+import type {
+  BackupAndSyncContext,
+  UserStorageSyncedWalletGroup,
 } from '../types';
 import {
   pushGroupToUserStorage,
   pushGroupToUserStorageBatch,
 } from '../user-storage/network-operations';
 import { getLocalGroupsForEntropyWallet } from '../utils';
+import { toErrorMessage } from '../utils/errors';
+import { compareAndSyncMetadata } from './metadata';
 
 /**
- * Creates a multichain account group.
+ * Creates multiple multichain account groups in batch (from 0 to maxGroupIndex).
+ * This is an optimized version that creates all groups in one operation instead of
+ * creating them sequentially.
  *
  * @param context - The sync context containing controller and messenger.
  * @param entropySourceId - The entropy source ID.
- * @param groupIndex - The group index.
+ * @param maxGroupIndex - Number of account groups to create in batch.
  * @param profileId - The profile ID for analytics.
- * @param analyticsAction - The analytics action to log.
+ * @param analyticsAction - The analytics action to log for each created group.
+ * @returns Array of created group IDs.
  */
-export const createMultichainAccountGroup = async (
+export const createMultichainAccountGroupsBatch = async (
   context: BackupAndSyncContext,
   entropySourceId: string,
-  groupIndex: number,
+  maxGroupIndex: number,
   profileId: ProfileId,
   analyticsAction: BackupAndSyncAnalyticsAction,
-) => {
+): Promise<void> => {
+  const numberOfAccountGroupsToCreate = maxGroupIndex + 1; // maxGroupIndex is zero-based, so we add 1 to get the count.
+  backupAndSyncLogger(
+    `Creating ${numberOfAccountGroupsToCreate} account groups (batch) for entropy source: ${entropySourceId}`,
+  );
+
+  // Capture the set of group indices that already exist before the batch call,
+  // so we can correctly identify newly created groups after the call completes.
+  const walletId = toMultichainAccountWalletId(entropySourceId);
+  const existingGroupIndices = new Set(
+    getLocalGroupsForEntropyWallet(context, walletId).map(
+      (group) => group.metadata.entropy.groupIndex,
+    ),
+  );
+
   try {
-    // This will be idempotent so we can create the group even if it already exists
-    await context.messenger.call(
-      'MultichainAccountService:createMultichainAccountGroup',
+    // Call the batched creation method (this is idempotent).
+    const groups = await context.messenger.call(
+      'MultichainAccountService:createMultichainAccountGroups',
       {
         entropySource: entropySourceId,
-        groupIndex,
+        fromGroupIndex: 0,
+        toGroupIndex: maxGroupIndex,
       },
     );
 
-    context.emitAnalyticsEventFn({
-      action: analyticsAction,
-      profileId,
-    });
+    // Contains all groups (existing + newly created).
+    for (const group of groups) {
+      // TODO: A group should not be null here, but EVM provider might fail to create some groups sometimes, which means
+      // we can end up having an "empty group" for some time.
+      if (group) {
+        const didGroupAlreadyExist = existingGroupIndices.has(group.groupIndex);
+
+        if (!didGroupAlreadyExist) {
+          context.emitAnalyticsEventFn({
+            action: analyticsAction,
+            profileId,
+          });
+        }
+      }
+    }
+
+    backupAndSyncLogger(`Successfully created ${groups.length} groups (batch)`);
   } catch (error) {
+    // This can happen if the Snap Keyring is not ready yet when invoking
+    // `MultichainAccountService:createMultichainAccountGroups`.
+    // Since `MultichainAccountService:createMultichainAccountGroups` will at
+    // least create the EVM account and the account group before throwing, we can safely
+    // ignore this error and swallow it.
+    // Any missing Snap accounts will be added later with alignment.
+
     backupAndSyncLogger(
-      `Failed to create group ${groupIndex} for entropy ${entropySourceId}:`,
+      `Failed to create account groups batch:`,
       // istanbul ignore next
-      error instanceof Error ? error.message : String(error),
+      toErrorMessage(error),
     );
-    throw error;
   }
 };
 
@@ -70,35 +110,20 @@ export async function createLocalGroupsFromUserStorage(
   entropySourceId: string,
   profileId: ProfileId,
 ): Promise<void> {
-  const numberOfAccountGroupsToCreate = Math.max(
-    ...groupsFromUserStorage.map((g) => g.groupIndex),
+  const maxGroupIndex = Math.max(
+    ...groupsFromUserStorage.map((group) => group.groupIndex),
   );
 
-  for (
-    let groupIndex = 0;
-    groupIndex <= numberOfAccountGroupsToCreate;
-    groupIndex++
-  ) {
-    try {
-      // Creating multichain account group is idempotent, so we can safely
-      // re-create every groups starting from 0.
-      await createMultichainAccountGroup(
-        context,
-        entropySourceId,
-        groupIndex,
-        profileId,
-        BackupAndSyncAnalyticsEvent.GroupAdded,
-      );
-    } catch {
-      // This can happen if the Snap Keyring is not ready yet when invoking
-      // `MultichainAccountService:createMultichainAccountGroup`.
-      // Since `MultichainAccountService:createMultichainAccountGroup` will at
-      // least create the EVM account and the account group before throwing, we can safely
-      // ignore this error and continue.
-      // Any missing Snap accounts will be added later with alignment.
-      continue;
-    }
-  }
+  // Creating multichain account group is idempotent, so we can safely
+  // re-create every groups starting from 0.
+  // Use batch creation for better performance.
+  await createMultichainAccountGroupsBatch(
+    context,
+    entropySourceId,
+    maxGroupIndex,
+    profileId,
+    BackupAndSyncAnalyticsEvent.GroupAdded,
+  );
 }
 
 /**
@@ -138,7 +163,7 @@ async function syncGroupMetadataAndCheckIfPushNeeded(
     validateUserStorageValue: (value) =>
       UserStorageSyncedWalletGroupSchema.schema.name.schema.value.is(value),
     applyLocalUpdate: (name: string) => {
-      context.controller.setAccountGroupName(localGroup.id, name);
+      context.controller.setAccountGroupName(localGroup.id, name, true);
     },
     analytics: {
       action: BackupAndSyncAnalyticsEvent.GroupRenamed,

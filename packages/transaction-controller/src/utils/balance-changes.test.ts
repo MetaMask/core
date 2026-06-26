@@ -1,31 +1,29 @@
 import type { LogDescription } from '@ethersproject/abi';
 import { Interface } from '@ethersproject/abi';
-import { query } from '@metamask/controller-utils';
-import type EthQuery from '@metamask/eth-query';
-import { type Hex } from '@metamask/utils';
+import type { NetworkClientId } from '@metamask/network-controller';
+import type { Hex } from '@metamask/utils';
 
-import type { GetBalanceChangesRequest } from './balance-changes';
-import { getBalanceChanges, SupportedToken } from './balance-changes';
+import { simulateTransactions } from '../api/simulation-api';
 import type {
   SimulationResponseLog,
   SimulationResponseTransaction,
 } from '../api/simulation-api';
-import {
-  simulateTransactions,
-  type SimulationResponse,
-} from '../api/simulation-api';
+import type { SimulationResponse } from '../api/simulation-api';
 import {
   SimulationInvalidResponseError,
   SimulationRevertedError,
 } from '../errors';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type { GetSimulationConfig } from '../types';
 import { SimulationErrorCode, SimulationTokenStandard } from '../types';
+import type { GetBalanceChangesRequest } from './balance-changes';
+import { getBalanceChanges, SupportedToken } from './balance-changes';
+import { rpcRequest } from './provider';
 
 jest.mock('../api/simulation-api');
 
-jest.mock('@metamask/controller-utils', () => ({
-  ...jest.requireActual('@metamask/controller-utils'),
-  query: jest.fn(),
+jest.mock('./provider', () => ({
+  rpcRequest: jest.fn(),
 }));
 
 // Utility function to encode addresses and values to 32-byte ABI format
@@ -59,11 +57,13 @@ const ERROR_MESSAGE_MOCK = 'Test Error';
 const USER_ADDRESS_WITH_LEADING_ZERO =
   '0x0012333333333333333333333333333333333333' as Hex;
 
+const MESSENGER_MOCK = {} as unknown as TransactionControllerMessenger;
+const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId' as NetworkClientId;
+
 const REQUEST_MOCK: GetBalanceChangesRequest = {
   chainId: '0x1',
-  ethQuery: {
-    sendAsync: jest.fn(),
-  } as EthQuery,
+  messenger: MESSENGER_MOCK,
+  networkClientId: NETWORK_CLIENT_ID_MOCK,
   getSimulationConfig: jest.fn(),
   txParams: {
     data: '0x123',
@@ -81,7 +81,7 @@ const PARSED_ERC20_TRANSFER_EVENT_MOCK = {
   args: [
     USER_ADDRESS_MOCK,
     OTHER_ADDRESS_MOCK,
-    { toHexString: () => VALUE_MOCK },
+    { toHexString: (): Hex => VALUE_MOCK },
   ],
 } as unknown as LogDescription;
 
@@ -91,7 +91,7 @@ const PARSED_ERC721_TRANSFER_EVENT_MOCK = {
   args: [
     OTHER_ADDRESS_MOCK,
     USER_ADDRESS_MOCK,
-    { toHexString: () => TOKEN_ID_MOCK },
+    { toHexString: (): Hex => TOKEN_ID_MOCK },
   ],
 } as unknown as LogDescription;
 
@@ -102,8 +102,8 @@ const PARSED_ERC1155_TRANSFER_SINGLE_EVENT_MOCK = {
     OTHER_ADDRESS_MOCK,
     OTHER_ADDRESS_MOCK,
     USER_ADDRESS_MOCK,
-    { toHexString: () => TOKEN_ID_MOCK },
-    { toHexString: () => VALUE_MOCK },
+    { toHexString: (): Hex => TOKEN_ID_MOCK },
+    { toHexString: (): Hex => VALUE_MOCK },
   ],
 } as unknown as LogDescription;
 
@@ -114,15 +114,15 @@ const PARSED_ERC1155_TRANSFER_BATCH_EVENT_MOCK = {
     OTHER_ADDRESS_MOCK,
     OTHER_ADDRESS_MOCK,
     USER_ADDRESS_MOCK,
-    [{ toHexString: () => TOKEN_ID_MOCK }],
-    [{ toHexString: () => VALUE_MOCK }],
+    [{ toHexString: (): Hex => TOKEN_ID_MOCK }],
+    [{ toHexString: (): Hex => VALUE_MOCK }],
   ],
 } as unknown as LogDescription;
 
 const PARSED_WRAPPED_ERC20_DEPOSIT_EVENT_MOCK = {
   name: 'Deposit',
   contractAddress: CONTRACT_ADDRESS_1_MOCK,
-  args: [USER_ADDRESS_MOCK, { toHexString: () => VALUE_MOCK }],
+  args: [USER_ADDRESS_MOCK, { toHexString: (): Hex => VALUE_MOCK }],
 } as unknown as LogDescription;
 
 const defaultResponseTx: SimulationResponseTransaction = {
@@ -163,7 +163,7 @@ const RESPONSE_NESTED_LOGS_MOCK: SimulationResponse = {
  * @param contractAddress - The contract address.
  * @returns The raw log mock.
  */
-function createLogMock(contractAddress: string) {
+function createLogMock(contractAddress: string): SimulationResponseLog {
   return {
     address: contractAddress,
   } as unknown as SimulationResponseLog;
@@ -199,7 +199,7 @@ function createNativeBalanceResponse(
   previousBalance: string,
   newBalance: string,
   gasCost: number = 0,
-) {
+): SimulationResponse {
   return {
     transactions: [
       {
@@ -229,7 +229,7 @@ function createNativeBalanceResponse(
 function createBalanceOfResponse(
   previousBalances: string[],
   newBalances: string[],
-) {
+): SimulationResponse {
   return {
     transactions: [
       ...previousBalances.map((previousBalance) => ({
@@ -267,7 +267,7 @@ function mockParseLog({
   erc1155?: LogDescription;
   erc20Wrapped?: LogDescription;
   erc721Legacy?: LogDescription;
-}) {
+}): void {
   const parseLogMock = jest.spyOn(Interface.prototype, 'parseLog');
 
   for (const value of [erc20, erc721, erc1155, erc20Wrapped, erc721Legacy]) {
@@ -282,14 +282,14 @@ function mockParseLog({
   }
 }
 
-describe('Simulation Utils', () => {
+describe('Balance Change Utils', () => {
   const simulateTransactionsMock = jest.mocked(simulateTransactions);
-  const queryMock = jest.mocked(query);
+  const rpcRequestMock = jest.mocked(rpcRequest);
 
   beforeEach(() => {
     jest.resetAllMocks();
     jest.spyOn(Interface.prototype, 'encodeFunctionData').mockReturnValue('');
-    queryMock.mockResolvedValue('0xFFFFFFFFFFFF');
+    rpcRequestMock.mockResolvedValue('0xFFFFFFFFFFFF');
   });
 
   describe('getBalanceChanges', () => {
@@ -308,6 +308,7 @@ describe('Simulation Utils', () => {
 
           expect(result).toStrictEqual({
             simulationData: {
+              callTraceErrors: [],
               nativeBalanceChange: {
                 difference: DIFFERENCE_MOCK,
                 isDecrease,
@@ -317,6 +318,7 @@ describe('Simulation Utils', () => {
               tokenBalanceChanges: [],
             },
             gasUsed: undefined,
+            simulationRevert: undefined,
           });
         },
       );
@@ -330,10 +332,12 @@ describe('Simulation Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: [],
             nativeBalanceChange: undefined,
             tokenBalanceChanges: [],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -346,6 +350,7 @@ describe('Simulation Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: [],
             nativeBalanceChange: {
               difference: '0x7',
               isDecrease: false,
@@ -355,6 +360,7 @@ describe('Simulation Utils', () => {
             tokenBalanceChanges: [],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
     });
@@ -390,7 +396,7 @@ describe('Simulation Utils', () => {
             args: [
               OTHER_ADDRESS_MOCK,
               USER_ADDRESS_WITH_LEADING_ZERO,
-              { toHexString: () => TOKEN_ID_MOCK },
+              { toHexString: (): Hex => TOKEN_ID_MOCK },
             ],
           },
           tokenType: SupportedToken.ERC721,
@@ -467,6 +473,7 @@ describe('Simulation Utils', () => {
 
           expect(result).toStrictEqual({
             simulationData: {
+              callTraceErrors: [],
               nativeBalanceChange: undefined,
               tokenBalanceChanges: [
                 {
@@ -481,6 +488,7 @@ describe('Simulation Utils', () => {
               ],
             },
             gasUsed: undefined,
+            simulationRevert: undefined,
           });
         },
       );
@@ -517,6 +525,7 @@ describe('Simulation Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: [],
             nativeBalanceChange: undefined,
             tokenBalanceChanges: [
               {
@@ -549,6 +558,7 @@ describe('Simulation Utils', () => {
             ],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -576,6 +586,7 @@ describe('Simulation Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: [],
             nativeBalanceChange: undefined,
             tokenBalanceChanges: [
               {
@@ -590,6 +601,7 @@ describe('Simulation Utils', () => {
             ],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -623,6 +635,7 @@ describe('Simulation Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: [],
             nativeBalanceChange: undefined,
             tokenBalanceChanges: [
               {
@@ -646,6 +659,7 @@ describe('Simulation Utils', () => {
             ],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -734,6 +748,7 @@ describe('Simulation Utils', () => {
         );
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: [],
             nativeBalanceChange: undefined,
             tokenBalanceChanges: [
               {
@@ -757,6 +772,7 @@ describe('Simulation Utils', () => {
             ],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -775,10 +791,12 @@ describe('Simulation Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: [],
             nativeBalanceChange: undefined,
             tokenBalanceChanges: [],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -789,7 +807,7 @@ describe('Simulation Utils', () => {
             args: [
               OTHER_ADDRESS_MOCK,
               OTHER_ADDRESS_MOCK,
-              { toHexString: () => VALUE_MOCK },
+              { toHexString: (): Hex => VALUE_MOCK },
             ],
           },
         });
@@ -802,10 +820,12 @@ describe('Simulation Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: [],
             nativeBalanceChange: undefined,
             tokenBalanceChanges: [],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -826,10 +846,12 @@ describe('Simulation Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: [],
             nativeBalanceChange: undefined,
             tokenBalanceChanges: [],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -846,6 +868,7 @@ describe('Simulation Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: [],
             nativeBalanceChange: undefined,
             tokenBalanceChanges: [
               {
@@ -860,6 +883,7 @@ describe('Simulation Utils', () => {
             ],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -871,7 +895,7 @@ describe('Simulation Utils', () => {
 
         // Contract returns 64 extra zeros in raw output of balanceOf.
         // Abi decoding should ignore them.
-        const encodeOutputWith64ExtraZeros = (value: string) =>
+        const encodeOutputWith64ExtraZeros = (value: string): Hex =>
           (encodeTo32ByteHex(value) + ''.padStart(64, '0')) as Hex;
         const RAW_BALANCE_BEFORE = encodeOutputWith64ExtraZeros(
           DECODED_BALANCE_BEFORE,
@@ -904,6 +928,7 @@ describe('Simulation Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: [],
             nativeBalanceChange: undefined,
             tokenBalanceChanges: [
               {
@@ -918,7 +943,192 @@ describe('Simulation Utils', () => {
             ],
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
+      });
+    });
+
+    describe('returns call trace errors', () => {
+      it('from root call trace', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              ...defaultResponseTx,
+              callTrace: {
+                calls: [],
+                logs: [],
+                error: 'Root error',
+              },
+            },
+          ],
+          sponsorship: {
+            isSponsored: false,
+            error: null,
+          },
+        });
+
+        const result = await getBalanceChanges(REQUEST_MOCK);
+
+        expect(result).toStrictEqual({
+          simulationData: {
+            callTraceErrors: ['Root error'],
+            nativeBalanceChange: undefined,
+            tokenBalanceChanges: [],
+          },
+          gasUsed: undefined,
+          simulationRevert: undefined,
+        });
+      });
+
+      it('from nested call traces', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              ...defaultResponseTx,
+              callTrace: {
+                calls: [
+                  {
+                    calls: [
+                      {
+                        calls: [],
+                        logs: [],
+                        error: 'Deeply nested error',
+                      },
+                    ],
+                    logs: [],
+                    error: 'Nested error',
+                  },
+                ],
+                logs: [],
+                error: 'Root error',
+              },
+            },
+          ],
+          sponsorship: {
+            isSponsored: false,
+            error: null,
+          },
+        });
+
+        const result = await getBalanceChanges(REQUEST_MOCK);
+
+        expect(result).toStrictEqual({
+          simulationData: {
+            callTraceErrors: [
+              'Root error',
+              'Nested error',
+              'Deeply nested error',
+            ],
+            nativeBalanceChange: undefined,
+            tokenBalanceChanges: [],
+          },
+          gasUsed: undefined,
+          simulationRevert: undefined,
+        });
+      });
+
+      it('as empty array when no errors in call trace', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce(
+          createNativeBalanceResponse(BALANCE_1_MOCK, BALANCE_2_MOCK),
+        );
+
+        const result = await getBalanceChanges(REQUEST_MOCK);
+
+        expect(result.simulationData.callTraceErrors).toStrictEqual([]);
+      });
+
+      it('in error response when call trace errors exist', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              ...defaultResponseTx,
+              error: 'Transaction failed',
+              callTrace: {
+                calls: [],
+                logs: [],
+                error: 'Call trace error',
+              },
+            },
+          ],
+          sponsorship: {
+            isSponsored: false,
+            error: null,
+          },
+        });
+
+        const result = await getBalanceChanges(REQUEST_MOCK);
+
+        expect(result).toStrictEqual({
+          simulationData: {
+            callTraceErrors: ['Call trace error'],
+            tokenBalanceChanges: [],
+            error: {
+              code: undefined,
+              message: 'Transaction failed',
+            },
+          },
+          gasUsed: undefined,
+          simulationRevert: undefined,
+        });
+      });
+
+      it('returns simulationRevert with decoded message and raw data when output is set', async () => {
+        const data =
+          '0x08c379a00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002645524332303a207472616e7366657220616d6f756e7420657863656564732062616c616e63650000000000000000000000000000000000000000000000000000';
+
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              ...defaultResponseTx,
+              error: 'execution reverted',
+              callTrace: {
+                calls: [],
+                logs: [],
+                error: 'execution reverted',
+                output: data as Hex,
+              },
+            },
+          ],
+          sponsorship: {
+            isSponsored: false,
+            error: null,
+          },
+        });
+
+        const result = await getBalanceChanges(REQUEST_MOCK);
+
+        expect(result.simulationRevert).toStrictEqual({
+          message: 'ERC20: transfer amount exceeds balance',
+          data,
+        });
+      });
+
+      it('returns simulationRevert from root frame only, ignoring nested errors', async () => {
+        simulateTransactionsMock.mockResolvedValueOnce({
+          transactions: [
+            {
+              ...defaultResponseTx,
+              callTrace: {
+                calls: [
+                  {
+                    calls: [],
+                    logs: [],
+                    error: 'execution reverted: nested caught error',
+                  },
+                ],
+                logs: [],
+              },
+            },
+          ],
+          sponsorship: {
+            isSponsored: false,
+            error: null,
+          },
+        });
+
+        const result = await getBalanceChanges(REQUEST_MOCK);
+
+        expect(result.simulationRevert).toBeUndefined();
       });
     });
 
@@ -933,6 +1143,7 @@ describe('Simulation Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: undefined,
             tokenBalanceChanges: [],
             error: {
               code: ERROR_CODE_MOCK,
@@ -940,6 +1151,7 @@ describe('Simulation Utils', () => {
             },
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -952,6 +1164,7 @@ describe('Simulation Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: undefined,
             tokenBalanceChanges: [],
             error: {
               code: ERROR_CODE_MOCK,
@@ -959,6 +1172,7 @@ describe('Simulation Utils', () => {
             },
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -975,6 +1189,7 @@ describe('Simulation Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: [],
             tokenBalanceChanges: [],
             error: {
               code: SimulationErrorCode.InvalidResponse,
@@ -982,6 +1197,7 @@ describe('Simulation Utils', () => {
             },
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -1003,6 +1219,7 @@ describe('Simulation Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: [],
             tokenBalanceChanges: [],
             error: {
               code: SimulationErrorCode.Reverted,
@@ -1010,6 +1227,7 @@ describe('Simulation Utils', () => {
             },
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -1031,6 +1249,7 @@ describe('Simulation Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: [],
             tokenBalanceChanges: [],
             error: {
               code: undefined,
@@ -1038,6 +1257,7 @@ describe('Simulation Utils', () => {
             },
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
 
@@ -1051,6 +1271,7 @@ describe('Simulation Utils', () => {
 
         expect(result).toStrictEqual({
           simulationData: {
+            callTraceErrors: undefined,
             tokenBalanceChanges: [],
             error: {
               code: SimulationErrorCode.Reverted,
@@ -1058,6 +1279,7 @@ describe('Simulation Utils', () => {
             },
           },
           gasUsed: undefined,
+          simulationRevert: undefined,
         });
       });
     });
@@ -1100,7 +1322,7 @@ describe('Simulation Utils', () => {
 
     describe('overrides balance in API request if insufficient balance due to', () => {
       it('gas fee', async () => {
-        queryMock.mockResolvedValue('0x7d182d');
+        rpcRequestMock.mockResolvedValue('0x7d182d');
 
         await getBalanceChanges({
           ...REQUEST_MOCK,
@@ -1124,7 +1346,7 @@ describe('Simulation Utils', () => {
       });
 
       it('legacy gas fee', async () => {
-        queryMock.mockResolvedValue('0xc1f3d');
+        rpcRequestMock.mockResolvedValue('0xc1f3d');
 
         await getBalanceChanges({
           ...REQUEST_MOCK,
@@ -1151,7 +1373,7 @@ describe('Simulation Utils', () => {
       });
 
       it('value', async () => {
-        queryMock.mockResolvedValue('0x122');
+        rpcRequestMock.mockResolvedValue('0x122');
 
         await getBalanceChanges({
           ...REQUEST_MOCK,
@@ -1176,7 +1398,7 @@ describe('Simulation Utils', () => {
       });
 
       it('nested transaction value', async () => {
-        queryMock.mockResolvedValue('0x332');
+        rpcRequestMock.mockResolvedValue('0x332');
 
         await getBalanceChanges({
           ...REQUEST_MOCK,

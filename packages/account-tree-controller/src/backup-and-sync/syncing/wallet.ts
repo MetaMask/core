@@ -1,14 +1,11 @@
-import { compareAndSyncMetadata } from './metadata';
 import { backupAndSyncLogger } from '../../logger';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import { BackupAndSyncAnalyticsEvent } from '../analytics';
 import type { ProfileId } from '../authentication';
-import {
-  UserStorageSyncedWalletSchema,
-  type BackupAndSyncContext,
-  type UserStorageSyncedWallet,
-} from '../types';
+import { UserStorageSyncedWalletSchema } from '../types';
+import type { BackupAndSyncContext, UserStorageSyncedWallet } from '../types';
 import { pushWalletToUserStorage } from '../user-storage/network-operations';
+import { compareAndSyncMetadata } from './metadata';
 
 /**
  * Syncs wallet metadata fields and determines if the wallet needs to be pushed to user storage.
@@ -28,7 +25,10 @@ export async function syncWalletMetadataAndCheckIfPushNeeded(
   const walletPersistedMetadata =
     context.controller.state.accountWalletsMetadata[localWallet.id];
 
-  if (!walletFromUserStorage) {
+  if (
+    !walletFromUserStorage ||
+    Object.keys(walletFromUserStorage).length === 0
+  ) {
     backupAndSyncLogger(
       `Wallet ${localWallet.id} did not exist in user storage, pushing to user storage...`,
     );
@@ -54,6 +54,15 @@ export async function syncWalletMetadataAndCheckIfPushNeeded(
   });
 
   shouldPushWallet ||= shouldPushForName;
+
+  // Avoid re-triggering legacy-syncing (in case this field is missing on the remote
+  // wallet object).
+  const shouldPushForMissingLegacyField = !Object.prototype.hasOwnProperty.call(
+    walletFromUserStorage,
+    'isLegacyAccountSyncingDisabled',
+  );
+
+  shouldPushWallet ||= shouldPushForMissingLegacyField;
 
   return shouldPushWallet;
 }

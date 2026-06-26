@@ -7,7 +7,7 @@
   "references": [
     { "path": "../network-controller" },
     { "path": "../transaction-controller" },
-    { "path": "../base-controller" },
+    { "path": "../messenger" },
     { "path": "../accounts-controller" },
     { "path": "../preferences-controller" },
     { "path": "../keyring-controller" }

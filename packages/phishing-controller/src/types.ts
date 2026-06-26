@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 /**
  * Represents the result of checking a domain.
  */
@@ -122,3 +123,255 @@ export enum RecommendedAction {
    */
   Verified = 'VERIFIED',
 }
+
+/**
+ * Request for bulk token scan
+ */
+export type BulkTokenScanRequest = {
+  chainId: string;
+  tokens: string[];
+};
+
+/**
+ * Result type of a token scan
+ */
+export enum TokenScanResultType {
+  Benign = 'Benign',
+  Warning = 'Warning',
+  Malicious = 'Malicious',
+  Spam = 'Spam',
+}
+
+/**
+ * Result of a token scan
+ */
+export type TokenScanResult = {
+  result_type: TokenScanResultType;
+  chain: string;
+  address: string;
+};
+
+/**
+ * Response for bulk token scan requests
+ */
+export type BulkTokenScanResponse = Record<string, TokenScanResult>;
+
+/**
+ * Token data stored in cache (excludes chain and address which are in the key)
+ * For now, we only cache the result type, but we could add more data if needed in the future
+ */
+export type TokenScanCacheData = Omit<TokenScanResult, 'chain' | 'address'>;
+
+/**
+ * API response from the bulk token scanning endpoint
+ */
+export type TokenScanApiResponse = {
+  results: Record<
+    string,
+    {
+      result_type: TokenScanResultType;
+      chain?: string;
+      address?: string;
+    }
+  >;
+};
+
+export const DEFAULT_CHAIN_ID_TO_NAME = {
+  '0x1': 'ethereum',
+  '0x89': 'polygon',
+  '0x38': 'bsc',
+  '0xa4b1': 'arbitrum',
+  '0xa86a': 'avalanche',
+  '0x2105': 'base',
+  '0xa': 'optimism',
+  '0x76adf1': 'zora',
+  '0xe708': 'linea',
+  '0x27bc86aa': 'degen',
+  '0x144': 'zksync',
+  '0x82750': 'scroll',
+  '0x13e31': 'blast',
+  '0x74c': 'soneium',
+  '0x79a': 'soneium-minato',
+  '0x14a34': 'base-sepolia',
+  '0xab5': 'abstract',
+  '0x849ea': 'zero-network',
+  '0x138de': 'berachain',
+  '0x82': 'unichain',
+  '0x7e4': 'ronin',
+  '0x127': 'hedera',
+  '0x12c': 'zksync-sepolia',
+  '0xaa36a7': 'ethereum-sepolia',
+  '0xa869': 'avalanche-fuji',
+  '0x343b': 'immutable-zkevm',
+  '0x34a1': 'immutable-zkevm-testnet',
+  '0x64': 'gnosis',
+  '0x1e0': 'worldchain',
+  '0x8173': 'apechain',
+  '0x138c5': 'berachain-bartio',
+  '0xdef1': 'ink',
+  '0xba5ed': 'ink-sepolia',
+  '0x2b74': 'abstract-testnet',
+  '0x531': 'sei',
+  '0x2eb': 'flow-evm',
+  '0x8f': 'monad',
+  '0x3e7': 'hyperevm',
+  solana: 'solana',
+} as const;
+
+export type ChainIdToNameMap = typeof DEFAULT_CHAIN_ID_TO_NAME;
+
+/**
+ * Result type of an address scan
+ */
+export enum AddressScanResultType {
+  /**
+   * Address is benign/safe
+   */
+  Benign = 'Benign',
+  /**
+   * Address has warning indicators
+   */
+  Warning = 'Warning',
+  /**
+   * Address is malicious
+   */
+  Malicious = 'Malicious',
+  /**
+   * Error occurred during scan
+   */
+  ErrorResult = 'ErrorResult',
+}
+
+/**
+ * Result of an address security scan
+ */
+export type AddressScanResult = {
+  /**
+   * The result type indicating the security assessment
+   */
+  result_type: AddressScanResultType;
+  /**
+   * Additional label or description for the result
+   */
+  label: string;
+};
+
+/**
+ * Address data stored in cache (minimal data needed)
+ */
+export type AddressScanCacheData = {
+  result_type: AddressScanResultType;
+  label: string;
+};
+
+/**
+ * Similar address match metadata for address poisoning detection.
+ */
+export type SimilarAddressMatch = {
+  /**
+   * The known recipient address that resembles the candidate address.
+   */
+  knownAddress: string;
+  /**
+   * Number of matching characters at the start of the address body.
+   */
+  prefixMatchLength: number;
+  /**
+   * Number of matching characters at the end of the address body.
+   */
+  suffixMatchLength: number;
+  /**
+   * Combined similarity score used to rank matches.
+   */
+  poisoningScore: number;
+  /**
+   * Character positions where the candidate and known addresses differ.
+   * Indices are based on the full hex string, including the `0x` prefix.
+   */
+  diffIndices: number[];
+};
+
+/**
+ * Thresholds for address poisoning similarity detection.
+ */
+export type SimilarityOptions = {
+  /**
+   * Minimum required prefix match length.
+   */
+  prefixLen?: number;
+  /**
+   * Minimum required suffix match length.
+   */
+  suffixLen?: number;
+};
+
+export const APPROVAL_SUPPORTED_CHAINS = [
+  'ethereum',
+  'polygon',
+  'bsc',
+  'avalanche',
+  'arbitrum',
+  'base',
+  'linea',
+  'optimism',
+] as const;
+
+export type ApprovalSupportedChain = (typeof APPROVAL_SUPPORTED_CHAINS)[number];
+
+export enum ApprovalResultType {
+  Malicious = 'Malicious',
+  Warning = 'Warning',
+  Benign = 'Benign',
+  ErrorResult = 'Error',
+}
+
+export enum ApprovalFeatureType {
+  Malicious = 'Malicious',
+  Warning = 'Warning',
+  Benign = 'Benign',
+  Info = 'Info',
+}
+
+export type ApprovalFeature = {
+  feature_id: string;
+  type: ApprovalFeatureType;
+  description: string;
+};
+
+export type Allowance = {
+  value?: string;
+  usd_price?: string;
+};
+
+export type ApprovalAsset = {
+  address: string;
+  symbol: string;
+  name: string;
+  decimals: number;
+  logo_url?: string;
+  type?: string;
+};
+
+export type Exposure = {
+  usd_price?: string;
+  value: string;
+  raw_value: string;
+};
+
+export type Spender = {
+  address: string;
+  label?: string;
+  features?: ApprovalFeature[];
+};
+
+export type Approval = {
+  allowance: Allowance;
+  asset: ApprovalAsset;
+  exposure: Exposure;
+  spender: Spender;
+  verdict: ApprovalResultType;
+};
+
+export type ApprovalsResponse = {
+  approvals: Approval[];
+};

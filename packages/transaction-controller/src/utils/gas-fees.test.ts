@@ -1,13 +1,14 @@
-import { ORIGIN_METAMASK, query } from '@metamask/controller-utils';
+import type { NetworkClientId } from '@metamask/network-controller';
 
-import type { UpdateGasFeesRequest } from './gas-fees';
-import { gweiDecimalToWeiDecimal, updateGasFees } from './gas-fees';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type { GasFeeFlow, GasFeeFlowResponse } from '../types';
 import { GasFeeEstimateType, TransactionType, UserFeeLevel } from '../types';
+import type { UpdateGasFeesRequest } from './gas-fees';
+import { gweiDecimalToWeiDecimal, updateGasFees } from './gas-fees';
+import { rpcRequest } from './provider';
 
-jest.mock('@metamask/controller-utils', () => ({
-  ...jest.requireActual('@metamask/controller-utils'),
-  query: jest.fn(),
+jest.mock('./provider', () => ({
+  rpcRequest: jest.fn(),
 }));
 
 // eslint-disable-next-line jest/prefer-spy-on
@@ -17,10 +18,13 @@ const GAS_MOCK = 123;
 const GAS_HEX_MOCK = toHex(GAS_MOCK);
 const GAS_HEX_WEI_MOCK = toHex(GAS_MOCK * 1e9);
 const ORIGIN_MOCK = 'test.com';
+const MESSENGER_MOCK = {} as unknown as TransactionControllerMessenger;
+const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId' as NetworkClientId;
 
 const UPDATE_GAS_FEES_REQUEST_MOCK = {
   eip1559: true,
-  ethQuery: {},
+  messenger: MESSENGER_MOCK,
+  networkClientId: NETWORK_CLIENT_ID_MOCK,
   txMeta: {
     txParams: {},
   },
@@ -58,7 +62,7 @@ const FLOW_RESPONSE_GAS_PRICE_MOCK = {
  * @param value - The number to convert.
  * @returns The hex string.
  */
-function toHex(value: number) {
+function toHex(value: number): string {
   return `0x${value.toString(16)}`;
 }
 
@@ -76,7 +80,7 @@ function createGasFeeFlowMock(): jest.Mocked<GasFeeFlow> {
 
 describe('gas-fees', () => {
   let updateGasFeeRequest: jest.Mocked<UpdateGasFeesRequest>;
-  const queryMock = jest.mocked(query);
+  const rpcRequestMock = jest.mocked(rpcRequest);
   let gasFeeFlowMock: jest.Mocked<GasFeeFlow>;
 
   /**
@@ -84,7 +88,7 @@ describe('gas-fees', () => {
    *
    * @param response - The response to return.
    */
-  function mockGasFeeFlowMockResponse(response: GasFeeFlowResponse) {
+  function mockGasFeeFlowMockResponse(response: GasFeeFlowResponse): void {
     gasFeeFlowMock.getGasFees.mockResolvedValue(response);
   }
 
@@ -286,7 +290,7 @@ describe('gas-fees', () => {
           new Error('TestError'),
         );
 
-        queryMock.mockResolvedValueOnce(GAS_MOCK);
+        rpcRequestMock.mockResolvedValueOnce(GAS_HEX_MOCK);
 
         await updateGasFees(updateGasFeeRequest);
 
@@ -400,7 +404,7 @@ describe('gas-fees', () => {
           new Error('TestError'),
         );
 
-        queryMock.mockResolvedValueOnce(GAS_MOCK);
+        rpcRequestMock.mockResolvedValueOnce(GAS_HEX_MOCK);
 
         await updateGasFees(updateGasFeeRequest);
 
@@ -475,7 +479,7 @@ describe('gas-fees', () => {
             new Error('TestError'),
           );
 
-          queryMock.mockResolvedValueOnce(GAS_MOCK);
+          rpcRequestMock.mockResolvedValueOnce(GAS_HEX_MOCK);
 
           await updateGasFees(updateGasFeeRequest);
 
@@ -501,9 +505,9 @@ describe('gas-fees', () => {
         );
       });
 
-      it('to custom if request gas price but no request maxFeePerGas or maxPriorityFeePerGas and origin is metamask', async () => {
+      it('to custom if request gas price but no request maxFeePerGas or maxPriorityFeePerGas and isInternal', async () => {
         updateGasFeeRequest.txMeta.txParams.gasPrice = GAS_HEX_MOCK;
-        updateGasFeeRequest.txMeta.origin = ORIGIN_METAMASK;
+        updateGasFeeRequest.txMeta.isInternal = true;
 
         await updateGasFees(updateGasFeeRequest);
 
@@ -512,7 +516,7 @@ describe('gas-fees', () => {
         );
       });
 
-      it('to medium if request gas price but no request maxFeePerGas or maxPriorityFeePerGas and origin not metamask', async () => {
+      it('to dappSuggested if request gas price but no request maxFeePerGas or maxPriorityFeePerGas and not isInternal', async () => {
         updateGasFeeRequest.txMeta.txParams.gasPrice = GAS_HEX_MOCK;
         updateGasFeeRequest.txMeta.origin = ORIGIN_MOCK;
 
@@ -533,8 +537,8 @@ describe('gas-fees', () => {
         );
       });
 
-      it('to medium if origin is metamask', async () => {
-        updateGasFeeRequest.txMeta.origin = ORIGIN_METAMASK;
+      it('to medium if isInternal', async () => {
+        updateGasFeeRequest.txMeta.isInternal = true;
 
         await updateGasFees(updateGasFeeRequest);
 
@@ -543,7 +547,7 @@ describe('gas-fees', () => {
         );
       });
 
-      it('to dappSuggested if origin is not metamask', async () => {
+      it('to dappSuggested if not isInternal', async () => {
         updateGasFeeRequest.txMeta.origin = ORIGIN_MOCK;
 
         await updateGasFees(updateGasFeeRequest);

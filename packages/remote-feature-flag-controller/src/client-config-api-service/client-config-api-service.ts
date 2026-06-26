@@ -5,8 +5,8 @@ import {
   DEFAULT_MAX_RETRIES,
 } from '@metamask/controller-utils';
 import type { ServicePolicy } from '@metamask/controller-utils';
+import type { IDisposable } from 'cockatiel';
 
-import type { AbstractClientConfigApiService } from './abstract-client-config-api-service';
 import { BASE_URL } from '../constants';
 import type {
   FeatureFlags,
@@ -16,20 +16,21 @@ import type {
   ServiceResponse,
   ApiDataResponse,
 } from '../remote-feature-flag-controller-types';
+import type { AbstractClientConfigApiService } from './abstract-client-config-api-service';
 
 /**
  * This service is responsible for fetching feature flags from the ClientConfig API.
  */
 export class ClientConfigApiService implements AbstractClientConfigApiService {
-  #fetch: typeof fetch;
+  readonly #fetch: typeof fetch;
 
   readonly #policy: ServicePolicy;
 
-  #client: ClientType;
+  readonly #client: ClientType;
 
-  #distribution: DistributionType;
+  readonly #distribution: DistributionType;
 
-  #environment: EnvironmentType;
+  readonly #environment: EnvironmentType;
 
   /**
    * Constructs a new ClientConfigApiService object.
@@ -154,7 +155,7 @@ export class ClientConfigApiService implements AbstractClientConfigApiService {
    * takes.
    * @returns What {@link ServicePolicy.onBreak} returns.
    */
-  onBreak(...args: Parameters<ServicePolicy['onBreak']>) {
+  onBreak(...args: Parameters<ServicePolicy['onBreak']>): IDisposable {
     return this.#policy.onBreak(...args);
   }
 
@@ -165,13 +166,14 @@ export class ClientConfigApiService implements AbstractClientConfigApiService {
    * takes.
    * @returns What {@link ServicePolicy.onDegraded} returns.
    */
-  onDegraded(...args: Parameters<ServicePolicy['onDegraded']>) {
+  onDegraded(...args: Parameters<ServicePolicy['onDegraded']>): IDisposable {
     return this.#policy.onDegraded(...args);
   }
 
   /**
    * Fetches feature flags from the API with specific client, distribution, and environment parameters.
    * Provides structured error handling, including fallback to cached data if available.
+   *
    * @returns An object of feature flags and their boolean values or a structured error object.
    */
   public async fetchRemoteFeatureFlags(): Promise<ServiceResponse> {
@@ -193,7 +195,7 @@ export class ClientConfigApiService implements AbstractClientConfigApiService {
       throw new Error('Feature flags api did not return an array');
     }
 
-    const remoteFeatureFlags = this.flattenFeatureFlags(data);
+    const remoteFeatureFlags = this.#flattenFeatureFlags(data);
 
     return {
       remoteFeatureFlags,
@@ -203,13 +205,14 @@ export class ClientConfigApiService implements AbstractClientConfigApiService {
 
   /**
    * Flattens an array of feature flag objects into a single feature flags object.
+   *
    * @param responseData - Array of objects containing feature flag key-value pairs
    * @returns A single object containing all feature flags merged together
    * @example
    * // Input: [{ flag1: true }, { flag2: [] }]
    * // Output: { flag1: true, flag2: [] }
    */
-  private flattenFeatureFlags(responseData: ApiDataResponse): FeatureFlags {
+  #flattenFeatureFlags(responseData: ApiDataResponse): FeatureFlags {
     return responseData.reduce((acc, curr) => {
       return { ...acc, ...curr };
     }, {});

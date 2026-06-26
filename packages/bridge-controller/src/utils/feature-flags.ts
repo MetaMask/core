@@ -1,9 +1,12 @@
 import type { RemoteFeatureFlagControllerState } from '@metamask/remote-feature-flag-controller';
 
+import {
+  DEFAULT_CHAIN_RANKING,
+  DEFAULT_FEATURE_FLAG_CONFIG,
+} from '../constants/bridge';
+import type { FeatureFlagsPlatformConfig, ChainConfiguration } from '../types';
 import { formatChainIdToCaip } from './caip-formatters';
 import { validateFeatureFlagsResponse } from './validators';
-import { DEFAULT_FEATURE_FLAG_CONFIG } from '../constants/bridge';
-import type { FeatureFlagsPlatformConfig, ChainConfiguration } from '../types';
 
 export const formatFeatureFlags = (
   bridgeFeatureFlags: FeatureFlagsPlatformConfig,
@@ -27,7 +30,18 @@ export const processFeatureFlags = (
   bridgeFeatureFlags: unknown,
 ): FeatureFlagsPlatformConfig => {
   if (validateFeatureFlagsResponse(bridgeFeatureFlags)) {
-    return formatFeatureFlags(bridgeFeatureFlags);
+    const formattedFlags = formatFeatureFlags(bridgeFeatureFlags);
+    // If chainRanking is undefined or empty, use the default chainRanking
+    if (
+      !formattedFlags.chainRanking ||
+      formattedFlags.chainRanking.length === 0
+    ) {
+      return {
+        ...formattedFlags,
+        chainRanking: [...DEFAULT_CHAIN_RANKING],
+      };
+    }
+    return formattedFlags;
   }
   return DEFAULT_FEATURE_FLAG_CONFIG;
 };
@@ -64,3 +78,33 @@ export function getBridgeFeatureFlags<
 
   return processFeatureFlags(rawMobileFlags || rawBridgeConfig);
 }
+
+/**
+ * Checks if the client version is greater than or equal to the minimum required version
+ *
+ * @param clientVersion - The client version
+ * @param minRequiredVersion - The minimum required version
+ * @returns True if the client version is greater than or equal to the minimum required version, false otherwise
+ */
+export const hasMinimumRequiredVersion = (
+  clientVersion: string,
+  minRequiredVersion: string,
+) => {
+  const [clientMajor, clientMinor, clientPatch] = clientVersion
+    .split('.')
+    .map(Number);
+  const [minRequiredMajor, minRequiredMinor, minRequiredPatch] =
+    minRequiredVersion.split('.').map(Number);
+
+  if (clientMajor > minRequiredMajor) {
+    return true;
+  }
+  if (clientMajor === minRequiredMajor && clientMinor > minRequiredMinor) {
+    return true;
+  }
+  return (
+    clientMajor === minRequiredMajor &&
+    clientMinor === minRequiredMinor &&
+    clientPatch >= minRequiredPatch
+  );
+};

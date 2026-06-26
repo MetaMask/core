@@ -3,9 +3,13 @@ export { BridgeController } from './bridge-controller';
 export {
   UnifiedSwapBridgeEventName,
   UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY,
+  InputAmountPreset,
+  MetaMetricsSwapsEventSource,
+  PollingStatus,
 } from './utils/metrics/constants';
 
 export type {
+  AccountHardwareType,
   RequiredEventContextFromClient,
   CrossChainSwapsEventProperties,
   TradeData,
@@ -13,40 +17,69 @@ export type {
   RequestMetadata,
   TxStatusData,
   QuoteFetchData,
+  QuoteWarning,
+  InputPrimaryDenominationData,
 } from './utils/metrics/types';
 
 export {
+  getAccountHardwareType,
   formatProviderLabel,
   getRequestParams,
   getSwapType,
   isHardwareWallet,
   isCustomSlippage,
+  getQuotesReceivedProperties,
 } from './utils/metrics/properties';
 
 export type {
   ChainConfiguration,
   L1GasFees,
-  SolanaFees,
+  NonEvmFees,
   QuoteMetadata,
   GasMultiplierByChainId,
   FeatureFlagResponse,
   BridgeAsset,
   GenericQuoteRequest,
   Protocol,
+  BatchSellTradesResponse,
+  GaslessProperties,
+  SimulatedGasFeeLimits,
   TokenAmountValues,
   Step,
   RefuelData,
   Quote,
-  QuoteResponse,
+  QuoteResponseV1 as QuoteResponse,
   FeeData,
   TxData,
+  Intent,
+  IntentOrderLike,
+  BitcoinTradeData,
+  StellarTradeData,
+  TronTradeData,
   BridgeControllerState,
+  InputPrimaryDenomination,
   BridgeControllerAction,
   BridgeControllerActions,
   BridgeControllerEvents,
   BridgeControllerMessenger,
   FeatureFlagsPlatformConfig,
+  TxFeeGasLimits,
 } from './types';
+
+export type {
+  BridgeControllerUpdateBridgeQuoteRequestParamsAction,
+  BridgeControllerFetchQuotesAction,
+  BridgeControllerStopPollingForQuotesAction,
+  BridgeControllerSetLocationAction,
+  BridgeControllerGetLocationAction,
+  BridgeControllerSetInputPrimaryDenominationAction,
+  BridgeControllerResetStateAction,
+  BridgeControllerSetChainIntervalLengthAction,
+  BridgeControllerTrackUnifiedSwapBridgeEventAction,
+  BridgeControllerUpdateBatchSellTradesAction,
+} from './bridge-controller-method-action-types';
+
+export { AbortReason } from './utils/metrics/constants';
 
 export { StatusTypes } from './types';
 
@@ -55,15 +88,21 @@ export {
   SortOrder,
   ChainId,
   RequestStatus,
-  BridgeUserAction,
-  BridgeBackgroundAction,
+  FeatureId,
+  type TokenFeature,
+  type QuoteStreamCompleteData,
+  type BridgeControllerGetStateAction,
+  type BridgeControllerStateChangeEvent,
 } from './types';
 
 export {
   FeeType,
   ActionTypes,
   BridgeAssetSchema,
-  FeatureId,
+  TokenFeatureType,
+  validateQuoteStreamComplete,
+  QuoteStreamCompleteReason,
+  BatchSellTransactionType,
 } from './utils/validators';
 
 export {
@@ -73,7 +112,6 @@ export {
   BRIDGE_QUOTE_MAX_ETA_SECONDS,
   BRIDGE_QUOTE_MAX_RETURN_DIFFERENCE_PERCENTAGE,
   BRIDGE_PREFERRED_GAS_ESTIMATE,
-  BRIDGE_DEFAULT_SLIPPAGE,
   BRIDGE_MM_FEE_RATE,
   REFRESH_INTERVAL_MS,
   DEFAULT_MAX_REFRESH_COUNT,
@@ -96,16 +134,23 @@ export {
   SWAPS_CHAINID_DEFAULT_TOKEN_MAP,
 } from './constants/tokens';
 
-export { SWAPS_API_V2_BASE_URL } from './constants/swaps';
+export {
+  SWAPS_API_V2_BASE_URL,
+  SWAPS_CONTRACT_ADDRESSES,
+  SWAPS_WRAPPED_TOKENS_ADDRESSES,
+  ALLOWED_CONTRACT_ADDRESSES,
+} from './constants/swaps';
 
 export { MetricsActionType, MetricsSwapType } from './utils/metrics/constants';
 
 export {
-  getEthUsdtResetData,
   isEthUsdt,
   isNativeAddress,
   isSolanaChainId,
   isBitcoinChainId,
+  isTronChainId,
+  isStellarChainId,
+  isNonEvmChainId,
   getNativeAssetForChainId,
   getDefaultBridgeControllerState,
   isCrossChain,
@@ -113,13 +158,14 @@ export {
 
 export {
   isValidQuoteRequest,
+  isValidBatchSellQuoteRequest,
   formatEtaInMinutes,
   calcSlippagePercentage,
 } from './utils/quote';
 
 export { calcLatestSrcBalance } from './utils/balance';
 
-export { fetchBridgeTokens } from './utils/fetch';
+export { fetchBridgeTokens, getClientHeaders } from './utils/fetch';
 
 export {
   formatChainIdToCaip,
@@ -129,14 +175,36 @@ export {
 } from './utils/caip-formatters';
 
 export {
+  extractTradeData,
+  isBitcoinTrade,
+  isStellarTrade,
+  isTronTrade,
+  isEvmTxData,
+  type Trade,
+} from './utils/trade-utils';
+
+export {
   selectBridgeQuotes,
+  selectBatchSellQuotes,
+  selectBatchSellTrades,
+  selectDefaultSlippagePercentage,
   type BridgeAppState,
-  selectExchangeRateByChainIdAndAddress,
+  selectExchangeRateByAssetId,
   selectIsQuoteExpired,
   selectBridgeFeatureFlags,
   selectMinimumBalanceForRentExemptionInSOL,
+  selectTokenWarnings,
 } from './selectors';
 
 export { DEFAULT_FEATURE_FLAG_CONFIG } from './constants/bridge';
 
 export { getBridgeFeatureFlags } from './utils/feature-flags';
+
+export { BRIDGE_DEFAULT_SLIPPAGE } from './utils/slippage';
+
+export {
+  isValidSwapsContractAddress,
+  getSwapsContractAddress,
+  fetchTokens,
+  type SwapsToken,
+} from './utils/swaps';

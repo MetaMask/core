@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/naming-convention */
+
 import type { AccessList } from '@ethereumjs/tx';
 import type { AccountsController } from '@metamask/accounts-controller';
-import type EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type { NetworkClientId, Provider } from '@metamask/network-controller';
 import type { Hex, Json } from '@metamask/utils';
@@ -40,7 +41,7 @@ export type TransactionMeta = {
   assetsFiatValues?: AssetsFiatValues;
 
   /**
-   * Unique ID to prevent duplicate requests.
+   * @deprecated No longer used for deduplication. Persisted for state consistency only.
    */
   actionId?: string;
 
@@ -228,6 +229,11 @@ export type TransactionMeta = {
    */
   isGasFeeSponsored?: boolean;
 
+  /**
+   * Whether the transaction has no lifecycle and is not signed or published.
+   */
+  isStateOnly?: boolean;
+
   /** Alternate EIP-1559 gas fee estimates for multiple priority levels. */
   gasFeeEstimates?: GasFeeEstimates;
 
@@ -250,7 +256,7 @@ export type TransactionMeta = {
   hash?: string;
 
   /**
-   * A history of mutations to TransactionMeta.
+   * @deprecated A history of mutations to TransactionMeta.
    */
   history?: TransactionHistory;
 
@@ -267,6 +273,19 @@ export type TransactionMeta = {
 
   /** Whether MetaMask will be compensated for the gas fee by the transaction. */
   isGasFeeIncluded?: boolean;
+
+  /** Whether the `selectedGasFeeToken` is only used if the user has insufficient native balance. */
+  isGasFeeTokenIgnoredIfBalance?: boolean;
+
+  /**
+   * When set to `true` and if gasFeeToken is set, use gasFeeToken regardless of user native balance.
+   * Unless true, gasFeeToken is only taken as a suggestion and native balance will be used in batch 7702 transactions
+   * This was first implemented for Tempo, since Tempo doesn't have the notion of native token at all
+   */
+  excludeNativeTokenForFee?: boolean;
+
+  /** Whether the intent of the transaction was achieved via an alternate route or chain. */
+  isIntentComplete?: boolean;
 
   /**
    * Whether the transaction is an incoming token transfer.
@@ -305,6 +324,9 @@ export type TransactionMeta = {
    * Origin this transaction was sent from.
    */
   origin?: string;
+
+  /** Whether the transaction was added by trusted internal MetaMask code. */
+  isInternal?: boolean;
 
   /**
    * The original dapp proposed token approval amount before edit by user.
@@ -377,6 +399,16 @@ export type TransactionMeta = {
   replacedById?: string;
 
   /**
+   * ID of JSON-RPC request from DAPP.
+   */
+  requestId?: string;
+
+  /**
+   * Assets required by the transaction.
+   */
+  requiredAssets?: RequiredAsset[];
+
+  /**
    * IDs of any transactions that must be confirmed before this one is submitted.
    * Unlike a transaction batch, these transactions can be on alternate chains.
    */
@@ -386,6 +418,9 @@ export type TransactionMeta = {
    * The number of times that the transaction submit has been retried.
    */
   retryCount?: number;
+
+  /** Decoded revert information from each lifecycle source. */
+  revert?: RevertData;
 
   /**
    * The transaction's 's' value as a hex string.
@@ -411,7 +446,7 @@ export type TransactionMeta = {
   selectedGasFeeToken?: Hex;
 
   /**
-   * An array of entries that describe the user's journey through the send flow.
+   * @deprecated An array of entries that describe the user's journey through the send flow.
    * This is purely attached to state logs for troubleshooting and support.
    */
   sendFlowHistory?: SendFlowHistoryEntry[];
@@ -584,6 +619,14 @@ export type TransactionBatchMeta = {
    */
   origin?: string;
 
+  /** Whether the batch was added by trusted internal MetaMask code. */
+  isInternal?: boolean;
+
+  /**
+   * ID of the JSON-RPC request from DAPP.
+   */
+  requestId?: string;
+
   /** Current status of the transaction. */
   status: TransactionStatus;
 
@@ -593,6 +636,7 @@ export type TransactionBatchMeta = {
   transactions?: NestedTransactionMetadata[];
 };
 
+/** @deprecated An entry in the send flow history. */
 export type SendFlowHistoryEntry = {
   /**
    * String to indicate user interaction information.
@@ -747,14 +791,114 @@ export enum TransactionType {
   lendingWithdraw = 'lendingWithdraw',
 
   /**
+   * A transaction that deposits funds into a money account.
+   */
+  moneyAccountDeposit = 'moneyAccountDeposit',
+
+  /**
+   * A transaction that withdraws funds from a money account.
+   */
+  moneyAccountWithdraw = 'moneyAccountWithdraw',
+
+  /**
+   * A transaction that claims yield from a mUSD contract.
+   */
+  musdClaim = 'musdClaim',
+
+  /**
+   * A transaction that converts tokens to mUSD.
+   */
+  musdConversion = 'musdConversion',
+
+  /**
+   * Deposit funds for a Relay quote when the parent transaction is an mUSD conversion.
+   */
+  musdRelayDeposit = 'musdRelayDeposit',
+
+  /**
+   * Deposit funds for Across quote via Perps.
+   */
+  perpsAcrossDeposit = 'perpsAcrossDeposit',
+
+  /**
    * Deposit funds to be available for trading via Perps.
    */
   perpsDeposit = 'perpsDeposit',
 
   /**
+   * Deposit funds and place an order for trading via Perps.
+   * Supports paying with any token, not just native assets.
+   */
+  perpsDepositAndOrder = 'perpsDepositAndOrder',
+
+  /**
+   * Deposit funds for a Relay quote when the parent transaction is a Perps deposit.
+   */
+  perpsRelayDeposit = 'perpsRelayDeposit',
+
+  /**
+   * Withdraw funds from Perps.
+   */
+  perpsWithdraw = 'perpsWithdraw',
+
+  /**
    * A transaction for personal sign.
    */
   personalSign = 'personal_sign',
+
+  /**
+   * Deposit funds for Across quote via Predict.
+   */
+  predictAcrossDeposit = 'predictAcrossDeposit',
+
+  /**
+   * Withdraw funds for Across quote via Predict.
+   */
+  predictAcrossWithdraw = 'predictAcrossWithdraw',
+
+  /**
+   * Buy a position via Predict.
+   *
+   * @deprecated Not used.
+   */
+  predictBuy = 'predictBuy',
+
+  /**
+   * Claim winnings from a position via Predict.
+   */
+  predictClaim = 'predictClaim',
+
+  /**
+   * Deposit funds to be available for use via Predict.
+   */
+  predictDeposit = 'predictDeposit',
+
+  /**
+   * Deposit funds and place an order via Predict.
+   */
+  predictDepositAndOrder = 'predictDepositAndOrder',
+
+  /**
+   * Sell a position via Predict.
+   *
+   * @deprecated Not used.
+   */
+  predictSell = 'predictSell',
+
+  /**
+   * Withdraw funds from Predict.
+   */
+  predictWithdraw = 'predictWithdraw',
+
+  /**
+   * Deposit funds for a Relay quote when the parent transaction is a Predict deposit.
+   */
+  predictRelayDeposit = 'predictRelayDeposit',
+
+  /**
+   * Deposit funds for Relay quote.
+   */
+  relayDeposit = 'relayDeposit',
 
   /**
    * When a transaction is failed it can be retried by
@@ -855,6 +999,16 @@ export enum TransactionType {
    * Increase the allowance by a given increment
    */
   tokenMethodIncreaseAllowance = 'increaseAllowance',
+
+  /**
+   * A token approval transaction subscribing to the shield insurance service
+   */
+  shieldSubscriptionApprove = 'shieldSubscriptionApprove',
+
+  /**
+   * A transaction that sets a spending limit delegation for the MetaMask Card.
+   */
+  cardDelegation = 'cardDelegation',
 }
 
 export enum TransactionContainerType {
@@ -1050,6 +1204,12 @@ export interface RemoteTransactionSourceRequest {
   address: Hex;
 
   /**
+   * Optional array of chain IDs to fetch transactions for.
+   * If not provided, defaults to all supported chains.
+   */
+  chainIds?: Hex[];
+
+  /**
    * Whether to also include incoming token transfers.
    */
   includeTokenTransfers: boolean;
@@ -1067,7 +1227,6 @@ export interface RemoteTransactionSourceRequest {
 
 /**
  * An object capable of fetching transaction data from a remote source.
- * Used by the IncomingTransactionHelper to retrieve remote transaction data.
  */
 // This interface was created before this ESLint rule was added.
 // Convert to a `type` in a future major version.
@@ -1116,7 +1275,7 @@ type ExtendedHistoryOperation = JsonCompatibleOperation & {
 };
 
 /**
- * A transaction history entry that includes the ExtendedHistoryOperation as the first element.
+ * @deprecated A transaction history entry that includes the ExtendedHistoryOperation as the first element.
  */
 export type TransactionHistoryEntry = [
   ExtendedHistoryOperation,
@@ -1124,7 +1283,7 @@ export type TransactionHistoryEntry = [
 ];
 
 /**
- * A transaction history that includes the transaction meta as the first element.
+ * @deprecated A transaction history that includes the transaction meta as the first element.
  * And the rest of the elements are the operation arrays that were applied to the transaction meta.
  */
 export type TransactionHistory = [
@@ -1147,16 +1306,6 @@ export type InferTransactionTypeResult = {
    */
   type: TransactionType;
 };
-
-/**
- * A function for verifying a transaction, whether it is malicious or not.
- */
-export type SecurityProviderRequest = (
-  requestData: TransactionMeta,
-  messageType: string,
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-) => Promise<any>;
 
 /**
  * Specifies the shape of the base transaction parameters.
@@ -1331,9 +1480,6 @@ export type GasFeeEstimates =
 
 /** Request to a gas fee flow to obtain gas fee estimates. */
 export type GasFeeFlowRequest = {
-  /** An EthQuery instance to enable queries to the associated RPC provider. */
-  ethQuery: EthQuery;
-
   /** Gas fee controller data matching the chain ID of the transaction. */
   gasFeeControllerData: GasFeeState;
 
@@ -1400,7 +1546,7 @@ export type Layer1GasFeeFlow = {
    * @param args - The arguments for the matcher function.
    * @param args.transactionMeta - The transaction metadata.
    * @param args.messenger - The messenger instance.
-   * @returns Whether the gas fee flow supports the transaction.
+   * @returns A promise that resolves to whether the gas fee flow supports the transaction.
    */
   matchesTransaction({
     transactionMeta,
@@ -1408,7 +1554,7 @@ export type Layer1GasFeeFlow = {
   }: {
     transactionMeta: TransactionMeta;
     messenger: TransactionControllerMessenger;
-  }): boolean;
+  }): Promise<boolean>;
 
   /**
    * Get layer 1 gas fee estimates for a specific transaction.
@@ -1477,6 +1623,9 @@ export type SimulationError = {
 
 /** Simulation data for a transaction. */
 export type SimulationData = {
+  /** Error messages extracted from call traces, if any. */
+  callTraceErrors?: string[];
+
   /** Error data if the simulation failed or the transaction reverted. */
   error?: SimulationError;
 
@@ -1649,6 +1798,9 @@ export type TransactionBatchSingleRequest = {
 
     /** Optional callback to be invoked once the transaction is published. */
     onPublish?: (request: {
+      /** Updated signature for the transaction, if applicable. */
+      newSignature?: Hex;
+
       /** Hash of the transaction on the network. */
       transactionHash?: string;
     }) => void;
@@ -1669,6 +1821,14 @@ export type TransactionBatchSingleRequest = {
  * Currently only atomic batches are supported via EIP-7702.
  */
 export type TransactionBatchRequest = {
+  /**
+   * Whether the EIP-7702 batch transaction should be executed atomically.
+   * When `true` (default), all calls in the batch either succeed or revert together.
+   * When `false`, calls are independent — individual calls can fail without
+   * reverting the entire batch.
+   */
+  atomic?: boolean;
+
   batchId?: Hex;
 
   /** Whether to disable batch transaction processing via an EIP-7702 upgraded account. */
@@ -1680,11 +1840,28 @@ export type TransactionBatchRequest = {
   /** Whether to disable batch transaction via sequential transactions. */
   disableSequential?: boolean;
 
+  /** Whether to disable upgrading the account to an EIP-7702. */
+  disableUpgrade?: boolean;
+
   /** Address of the account to submit the transaction batch. */
   from: Hex;
 
+  /** Address of an ERC-20 token to pay for the gas fee, if the user has insufficient native balance. */
+  gasFeeToken?: Hex;
+
+  /** When set to `true` and if gasFeeToken is set, use gasFeeToken regardless of user native balance. */
+  /** Unless true, gasFeeToken is only taken as a suggestion and native balance will be used in batch 7702 transactions */
+  /** This was first implemented for Tempo, since Tempo doesn't have the notion of native token at all */
+  excludeNativeTokenForFee?: boolean;
+
+  /** Gas limit for the transaction batch if submitted via EIP-7702. */
+  gasLimit7702?: Hex;
+
   /** Whether MetaMask will be compensated for the gas fee by the transaction. */
   isGasFeeIncluded?: boolean;
+
+  /** Whether MetaMask will sponsor the gas fee for the transaction. */
+  isGasFeeSponsored?: boolean;
 
   /** ID of the network client to submit the transaction. */
   networkClientId: NetworkClientId;
@@ -1692,11 +1869,26 @@ export type TransactionBatchRequest = {
   /** Origin of the request, such as a dApp hostname or `ORIGIN_METAMASK` if internal. */
   origin?: string;
 
+  /** Whether the batch was added by trusted internal MetaMask code. */
+  isInternal?: boolean;
+
+  /** Whether to overwrite existing EIP-7702 delegation with MetaMask contract. */
+  overwriteUpgrade?: boolean;
+
+  /** ID of the JSON-RPC request from DAPP. */
+  requestId?: string;
+
   /** Whether an approval request should be created to require confirmation from the user. */
   requireApproval?: boolean;
 
+  /** Assets required by the batch transaction. */
+  requiredAssets?: RequiredAsset[];
+
   /** Security alert ID to persist on the transaction. */
   securityAlertId?: string;
+
+  /** Whether to skip the initial gas calculation and rely only on the polling. */
+  skipInitialGasEstimate?: boolean;
 
   /** Transactions to be submitted as part of the batch. */
   transactions: TransactionBatchSingleRequest[];
@@ -1927,20 +2119,6 @@ export type AfterAddHook = (request: {
 }>;
 
 /**
- * Custom logic to be executed after a transaction is simulated.
- * Can optionally update the transaction by returning the `updateTransaction` callback.
- */
-export type AfterSimulateHook = (request: {
-  transactionMeta: TransactionMeta;
-}) => Promise<
-  | {
-      skipSimulation?: boolean;
-      updateTransaction?: (transaction: TransactionMeta) => void;
-    }
-  | undefined
->;
-
-/**
  * Custom logic to be executed before a transaction is signed.
  * Can optionally update the transaction by returning the `updateTransaction` callback.
  */
@@ -1976,8 +2154,28 @@ export type MetamaskPayMetadata = {
   /** Chain ID of the payment token. */
   chainId?: Hex;
 
+  /** Fiat on-ramp metadata (order ID and provider). */
+  fiat?: {
+    /** Order ID (normalized format: /providers/{provider}/orders/{id}). */
+    orderId: string;
+    /** Provider code (e.g. "transak-native"). */
+    provider: string;
+  };
+
+  /**
+   * Whether this is a post-quote transaction (e.g., withdrawal flow).
+   * When true, the token represents the destination rather than source.
+   */
+  isPostQuote?: boolean;
+
   /** Total network fee in fiat currency, including the original and bridge transactions. */
   networkFeeFiat?: string;
+
+  /** Source chain transaction hash if no local transaction. */
+  sourceHash?: Hex;
+
+  /** Total amount of target token provided in fiat currency. */
+  targetFiat?: string;
 
   /** Address of the payment token that the transaction funds were sourced from. */
   tokenAddress?: Hex;
@@ -1989,7 +2187,169 @@ export type MetamaskPayMetadata = {
 /**
  * Parameters for the transaction simulation API.
  */
-export type GetSimulationConfig = (url: string) => Promise<{
+export type GetSimulationConfig = (
+  url: string,
+  opts?: {
+    txMeta?: TransactionMeta;
+  },
+) => Promise<{
   newUrl?: string;
   authorization?: string;
 }>;
+
+/**
+ * Options for adding a transaction.
+ */
+export type AddTransactionOptions = {
+  /**
+   * @deprecated No longer used for deduplication. Persisted for state consistency only.
+   */
+  actionId?: string;
+
+  /** Fiat values of the assets being sent and received. */
+  assetsFiatValues?: AssetsFiatValues;
+
+  /** Custom ID for the batch this transaction belongs to. */
+  batchId?: Hex;
+
+  /** Enum to indicate what device confirmed the transaction. */
+  deviceConfirmedOn?: WalletDevice;
+
+  /** Whether to disable the gas estimation buffer. */
+  disableGasBuffer?: boolean;
+
+  /** Address of an ERC-20 token to pay for the gas fee, if the user has insufficient native balance. */
+  gasFeeToken?: Hex;
+
+  /** Whether MetaMask will be compensated for the gas fee by the transaction. */
+  isGasFeeIncluded?: boolean;
+
+  /** Whether MetaMask will sponsor the gas fee for the transaction. */
+  isGasFeeSponsored?: boolean;
+
+  /** When set to `true` and if gasFeeToken is set, use gasFeeToken regardless of user native balance. */
+  /** Unless true, gasFeeToken is only taken as a suggestion and native balance will be used in batch 7702 transactions */
+  /** This was first implemented for Tempo, since Tempo doesn't have the notion of native token at all */
+  excludeNativeTokenForFee?: boolean;
+
+  /**
+   * Whether the transaction has no lifecycle and is not signed or published.
+   *
+   * @deprecated If absolutely necessary, update state instead via `TranasctionController:emulateTransactionUpdate`.
+   */
+  isStateOnly?: boolean;
+
+  /** RPC method that requested the transaction. */
+  method?: string;
+
+  /** Params for any nested transactions encoded in the data. */
+  nestedTransactions?: NestedTransactionMetadata[];
+
+  /** ID of the network client for this transaction. */
+  networkClientId: NetworkClientId;
+
+  /** Origin of the transaction request, such as a dApp hostname. */
+  origin?: string;
+
+  /** Whether the transaction was added by trusted internal MetaMask code. */
+  isInternal?: boolean;
+
+  /** Custom logic to publish the transaction. */
+  publishHook?: PublishHook;
+
+  /** ID of JSON-RPC request from DAPP.  */
+  requestId?: string;
+
+  /** Assets required by the transaction. */
+  requiredAssets?: RequiredAsset[];
+
+  /** Whether the transaction requires approval by the user, defaults to true unless explicitly disabled. */
+  requireApproval?: boolean | undefined;
+
+  /** Response from security validator. */
+  securityAlertResponse?: SecurityAlertResponse;
+
+  /** Entries to add to the `sendFlowHistory`. */
+  sendFlowHistory?: SendFlowHistoryEntry[];
+
+  /** Whether to skip the initial gas calculation and rely only on the polling. */
+  skipInitialGasEstimate?: boolean;
+
+  /**
+   * Options for swaps transactions.
+   *
+   * @deprecated Usage is pending removal as only used by legacy features.
+   */
+  swaps?: {
+    /** Whether the transaction has an approval transaction. */
+    hasApproveTx?: boolean;
+
+    /** Metadata for swap transaction. */
+    meta?: Partial<TransactionMeta>;
+  };
+
+  /** Parent context for any new traces. */
+  traceContext?: unknown;
+
+  /** Type of transaction to add, such as 'cancel' or 'swap'. */
+  type?: TransactionType;
+};
+
+/**
+ * Request to get gas fee tokens.
+ */
+export type GetGasFeeTokensRequest = {
+  /** ID of the chain. */
+  chainId: Hex;
+
+  /** Data of the transaction. */
+  data?: Hex;
+
+  /** Address of the sender. */
+  from: Hex;
+
+  /** Address of the recipient. */
+  to: Hex;
+
+  /** Value of the transaction. */
+  value?: Hex;
+};
+
+/**
+ * An asset required by a transaction.
+ */
+export type RequiredAsset = {
+  /** Contract address of the asset. */
+  address: Hex;
+
+  /** Amount of the asset required. */
+  amount: Hex;
+
+  /** Token standard of the asset (e.g., 'erc20'). */
+  standard: string;
+};
+
+/**
+ * Decoded revert from a single lifecycle source.
+ */
+export type Revert = {
+  /** Decoded human-readable revert reason. */
+  message?: string;
+
+  /** Raw revert data hex returned by the EVM. */
+  data?: Hex;
+};
+
+/**
+ * Revert information across each stage where a transaction can fail.
+ */
+export type RevertData = {
+  /** Revert from pre-confirmation gas estimation. */
+  gas?: Revert;
+
+  /** Revert from the simulation API's root call frame. */
+  simulation?: Revert;
+
+  /** Revert from on-chain failure, via receipt replay. */
+  receipt?: Revert;
+};

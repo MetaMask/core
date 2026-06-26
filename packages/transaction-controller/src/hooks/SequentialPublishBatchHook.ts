@@ -1,26 +1,21 @@
-import type EthQuery from '@metamask/eth-query';
 import { rpcErrors } from '@metamask/rpc-errors';
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
 import type { PendingTransactionTracker } from '../helpers/PendingTransactionTracker';
 import { projectLogger } from '../logger';
-import {
-  type PublishBatchHook,
-  type PublishBatchHookRequest,
-  type PublishBatchHookResult,
-  type TransactionMeta,
+import type {
+  PublishBatchHook,
+  PublishBatchHookRequest,
+  PublishBatchHookResult,
+  TransactionMeta,
 } from '../types';
 
 const log = createModuleLogger(projectLogger, 'sequential-publish-batch-hook');
 
 type SequentialPublishBatchHookOptions = {
-  publishTransaction: (
-    ethQuery: EthQuery,
-    transactionMeta: TransactionMeta,
-  ) => Promise<Hex>;
+  publishTransaction: (transactionMeta: TransactionMeta) => Promise<Hex>;
   getTransaction: (id: string) => TransactionMeta;
-  getEthQuery: (networkClientId: string) => EthQuery;
   getPendingTransactionTracker: (
     networkClientId: string,
   ) => PendingTransactionTracker;
@@ -32,13 +27,10 @@ type SequentialPublishBatchHookOptions = {
  */
 export class SequentialPublishBatchHook {
   readonly #publishTransaction: (
-    ethQuery: EthQuery,
     transactionMeta: TransactionMeta,
   ) => Promise<Hex>;
 
   readonly #getTransaction: (id: string) => TransactionMeta;
-
-  readonly #getEthQuery: (networkClientId: string) => EthQuery;
 
   readonly #getPendingTransactionTracker: (
     networkClientId: string,
@@ -56,11 +48,9 @@ export class SequentialPublishBatchHook {
     publishTransaction,
     getTransaction,
     getPendingTransactionTracker,
-    getEthQuery,
   }: SequentialPublishBatchHookOptions) {
     this.#publishTransaction = publishTransaction;
     this.#getTransaction = getTransaction;
-    this.#getEthQuery = getEthQuery;
     this.#getPendingTransactionTracker = getPendingTransactionTracker;
   }
 
@@ -86,10 +76,7 @@ export class SequentialPublishBatchHook {
       try {
         const transactionMeta = this.#getTransaction(String(transaction.id));
 
-        const transactionHash = await this.#publishTransaction(
-          this.#getEthQuery(networkClientId),
-          transactionMeta,
-        );
+        const transactionHash = await this.#publishTransaction(transactionMeta);
         log('Transaction published', { transactionHash });
 
         const transactionUpdated = {

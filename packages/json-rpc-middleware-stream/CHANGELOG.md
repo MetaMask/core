@@ -9,7 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
+- Bump `@metamask/utils` from `^11.8.1` to `^11.11.0` ([#7511](https://github.com/MetaMask/core/pull/7511), [#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/json-rpc-engine` from `^10.1.1` to `^10.5.0` ([#7202](https://github.com/MetaMask/core/pull/7202), [#7642](https://github.com/MetaMask/core/pull/7642), [#7856](https://github.com/MetaMask/core/pull/7856), [#8078](https://github.com/MetaMask/core/pull/8078), [#8317](https://github.com/MetaMask/core/pull/8317), [#8661](https://github.com/MetaMask/core/pull/8661), [#8746](https://github.com/MetaMask/core/pull/8746), [#8753](https://github.com/MetaMask/core/pull/8753))
+
+## [8.0.8]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.2.0` to `^11.8.1` ([#6054](https://github.com/MetaMask/core/pull/6054), [#6588](https://github.com/MetaMask/core/pull/6588), [#6708](https://github.com/MetaMask/core/pull/6708))
+- Bump `@metamask/json-rpc-engine` from `^10.0.3` to `^10.1.1` ([#6678](https://github.com/MetaMask/core/pull/6678), [#6807](https://github.com/MetaMask/core/pull/6807))
 
 ## [8.0.7]
 
@@ -201,7 +209,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - TypeScript typings ([#11](https://github.com/MetaMask/json-rpc-middleware-stream/pull/11))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.7...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.8...HEAD
+[8.0.8]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.7...@metamask/json-rpc-middleware-stream@8.0.8
 [8.0.7]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.6...@metamask/json-rpc-middleware-stream@8.0.7
 [8.0.6]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.5...@metamask/json-rpc-middleware-stream@8.0.6
 [8.0.5]: https://github.com/MetaMask/core/compare/@metamask/json-rpc-middleware-stream@8.0.4...@metamask/json-rpc-middleware-stream@8.0.5

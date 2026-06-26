@@ -26,8 +26,9 @@ export type BlockTrackerPollingInput = {
  * @param Base - The base class to mix onto.
  * @returns The composed class.
  */
-// TODO: Either fix this lint violation or explain why it's necessary to ignore.
-// eslint-disable-next-line @typescript-eslint/naming-convention
+// This is a function that's used as class, and the return type is inferred from
+// the class defined inside the function scope, so this can't be easily typed.
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type, @typescript-eslint/naming-convention
 function BlockTrackerPollingControllerMixin<
   TBase extends Constructor,
   PollingInput extends BlockTrackerPollingInput,
@@ -42,7 +43,7 @@ function BlockTrackerPollingControllerMixin<
       networkClientId: NetworkClientId,
     ): NetworkClient | undefined;
 
-    _startPolling(input: PollingInput) {
+    _startPolling(input: PollingInput): void {
       const key = getKey(input);
 
       if (this.#activeListeners[key]) {
@@ -58,14 +59,12 @@ function BlockTrackerPollingControllerMixin<
         this.#activeListeners[key] = updateOnNewBlock;
       } else {
         throw new Error(
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           `Unable to retrieve blockTracker for networkClientId ${input.networkClientId}`,
         );
       }
     }
 
-    _stopPollingByPollingTokenSetId(key: PollingTokenSetId) {
+    _stopPollingByPollingTokenSetId(key: PollingTokenSetId): void {
       const { networkClientId } = JSON.parse(key);
       const networkClient = this._getNetworkClientById(
         networkClientId as NetworkClientId,
@@ -90,10 +89,16 @@ class Empty {}
 
 export const BlockTrackerPollingControllerOnly = <
   PollingInput extends BlockTrackerPollingInput,
+  // The return type is inferred from the class defined inside the function
+  // scope, so this can't be easily typed.
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 >() => BlockTrackerPollingControllerMixin<typeof Empty, PollingInput>(Empty);
 
 export const BlockTrackerPollingController = <
   PollingInput extends BlockTrackerPollingInput,
+  // The return type is inferred from the class defined inside the function
+  // scope, so this can't be easily typed.
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
 >() =>
   BlockTrackerPollingControllerMixin<typeof BaseController, PollingInput>(
     BaseController,

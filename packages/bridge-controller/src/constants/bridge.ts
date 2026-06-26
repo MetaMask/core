@@ -1,9 +1,12 @@
 import { AddressZero } from '@ethersproject/constants';
-import { BtcScope, SolScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope, TrxScope, XlmScope } from '@metamask/keyring-api';
 import type { Hex } from '@metamask/utils';
 
+import type {
+  BridgeControllerState,
+  FeatureFlagsPlatformConfig,
+} from '../types';
 import { CHAIN_IDS } from './chains';
-import type { BridgeControllerState } from '../types';
 
 export const ALLOWED_BRIDGE_CHAIN_IDS = [
   CHAIN_IDS.MAINNET,
@@ -16,8 +19,14 @@ export const ALLOWED_BRIDGE_CHAIN_IDS = [
   CHAIN_IDS.LINEA_MAINNET,
   CHAIN_IDS.BASE,
   CHAIN_IDS.SEI,
+  CHAIN_IDS.MONAD,
+  CHAIN_IDS.HYPEREVM,
+  CHAIN_IDS.MEGAETH,
+  CHAIN_IDS.ARC,
   SolScope.Mainnet,
   BtcScope.Mainnet,
+  TrxScope.Mainnet,
+  XlmScope.Pubnet,
 ] as const;
 
 export type AllowedBridgeChainIds = (typeof ALLOWED_BRIDGE_CHAIN_IDS)[number];
@@ -37,25 +46,48 @@ export const BRIDGE_QUOTE_MAX_ETA_SECONDS = 60 * 60; // 1 hour
 export const BRIDGE_QUOTE_MAX_RETURN_DIFFERENCE_PERCENTAGE = 0.5; // if a quote returns in x times less return than the best quote, ignore it
 
 export const BRIDGE_PREFERRED_GAS_ESTIMATE = 'medium';
-export const BRIDGE_DEFAULT_SLIPPAGE = 0.5;
 export const BRIDGE_MM_FEE_RATE = 0.875;
 export const REFRESH_INTERVAL_MS = 30 * 1000;
 export const DEFAULT_MAX_REFRESH_COUNT = 5;
 
 export const BRIDGE_CONTROLLER_NAME = 'BridgeController';
 
-export const DEFAULT_FEATURE_FLAG_CONFIG = {
+export const DEFAULT_CHAIN_RANKING = [
+  { chainId: 'eip155:1', name: 'Ethereum' },
+  { chainId: 'eip155:56', name: 'BNB' },
+  { chainId: 'bip122:000000000019d6689c085ae165831e93', name: 'BTC' },
+  { chainId: 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp', name: 'Solana' },
+  { chainId: 'tron:728126428', name: 'Tron' },
+  { chainId: 'stellar:pubnet', name: 'Stellar' },
+  { chainId: 'eip155:8453', name: 'Base' },
+  { chainId: 'eip155:42161', name: 'Arbitrum' },
+  { chainId: 'eip155:59144', name: 'Linea' },
+  { chainId: 'eip155:137', name: 'Polygon' },
+  { chainId: 'eip155:43114', name: 'Avalanche' },
+  { chainId: 'eip155:10', name: 'Optimism' },
+  { chainId: 'eip155:143', name: 'Monad' },
+  { chainId: 'eip155:1329', name: 'Sei' },
+  { chainId: 'eip155:999', name: 'HyperEVM' },
+  { chainId: 'eip155:4326', name: 'MegaETH' },
+  { chainId: 'eip155:5042', name: 'Arc' },
+  { chainId: 'eip155:324', name: 'zkSync' },
+] as const;
+
+export const DEFAULT_FEATURE_FLAG_CONFIG: FeatureFlagsPlatformConfig = {
   minimumVersion: '0.0.0',
   refreshRate: REFRESH_INTERVAL_MS,
   maxRefreshCount: DEFAULT_MAX_REFRESH_COUNT,
   support: false,
   chains: {},
+  chainRanking: [...DEFAULT_CHAIN_RANKING],
 };
 
 export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState = {
-  quoteRequest: {
-    srcTokenAddress: AddressZero,
-  },
+  quoteRequest: [
+    {
+      srcTokenAddress: AddressZero,
+    },
+  ],
   quotesInitialLoadTime: null,
   quotes: [],
   quotesLastFetched: null,
@@ -64,6 +96,12 @@ export const DEFAULT_BRIDGE_CONTROLLER_STATE: BridgeControllerState = {
   quotesRefreshCount: 0,
   assetExchangeRates: {},
   minimumBalanceForRentExemptionInLamports: '0',
+  tokenWarnings: [],
+  tokenSecurityTypeDestination: null,
+  inputPrimaryDenomination: 'token_amount',
+  quoteStreamComplete: null,
+  batchSellTrades: null,
+  batchSellTradesLoadingStatus: null,
 };
 
 export const METABRIDGE_CHAIN_TO_ADDRESS_MAP: Record<Hex, string> = {

@@ -1,12 +1,12 @@
+import type { AccountWalletEntropyObject } from '../../wallet';
+import { BackupAndSyncAnalyticsEvent } from '../analytics';
+import type { BackupAndSyncContext, UserStorageSyncedWallet } from '../types';
+import { pushWalletToUserStorage } from '../user-storage/network-operations';
 import { compareAndSyncMetadata } from './metadata';
 import {
   syncWalletMetadataAndCheckIfPushNeeded,
   syncWalletMetadata,
 } from './wallet';
-import type { AccountWalletEntropyObject } from '../../wallet';
-import { BackupAndSyncAnalyticsEvent } from '../analytics';
-import type { BackupAndSyncContext, UserStorageSyncedWallet } from '../types';
-import { pushWalletToUserStorage } from '../user-storage/network-operations';
 
 jest.mock('./metadata');
 jest.mock('../user-storage/network-operations');
@@ -39,7 +39,11 @@ describe('BackupAndSync - Syncing - Wallet', () => {
     } as unknown as AccountWalletEntropyObject;
 
     mockWalletFromUserStorage = {
-      name: { value: 'Remote Wallet', lastUpdatedAt: 2000 },
+      name: {
+        value: 'Remote Wallet',
+        lastUpdatedAt: 2000,
+      },
+      isLegacyAccountSyncingDisabled: true,
     } as unknown as UserStorageSyncedWallet;
   });
 
@@ -127,7 +131,6 @@ describe('BackupAndSync - Syncing - Wallet', () => {
       );
 
       expect(applyLocalUpdate).toBeDefined();
-      /* eslint-disable jest/no-conditional-in-test */
       /* eslint-disable jest/no-conditional-expect */
       if (applyLocalUpdate) {
         await applyLocalUpdate('New Name');
@@ -135,7 +138,6 @@ describe('BackupAndSync - Syncing - Wallet', () => {
           mockContext.controller.setAccountWalletName,
         ).toHaveBeenCalledWith(mockLocalWallet.id, 'New Name');
       }
-      /* eslint-enable jest/no-conditional-in-test */
       /* eslint-enable jest/no-conditional-expect */
     });
 
@@ -165,7 +167,6 @@ describe('BackupAndSync - Syncing - Wallet', () => {
       );
 
       expect(validateUserStorageValue).toBeDefined();
-      /* eslint-disable jest/no-conditional-in-test */
       /* eslint-disable jest/no-conditional-expect */
       if (validateUserStorageValue) {
         expect(validateUserStorageValue('valid string')).toBe(true);
@@ -173,7 +174,6 @@ describe('BackupAndSync - Syncing - Wallet', () => {
         expect(validateUserStorageValue(null)).toBe(false);
         expect(validateUserStorageValue(undefined)).toBe(false);
       }
-      /* eslint-enable jest/no-conditional-in-test */
       /* eslint-enable jest/no-conditional-expect */
     });
   });
@@ -190,6 +190,56 @@ describe('BackupAndSync - Syncing - Wallet', () => {
         mockContext,
         mockLocalWallet,
         mockWalletFromUserStorage,
+        'test-profile',
+      );
+
+      expect(mockPushWalletToUserStorage).toHaveBeenCalledWith(
+        mockContext,
+        mockLocalWallet,
+      );
+    });
+
+    it('pushes to user storage when wallet does not exist in user storage', async () => {
+      mockCompareAndSyncMetadata.mockResolvedValue(false);
+
+      await syncWalletMetadata(
+        mockContext,
+        mockLocalWallet,
+        null,
+        'test-profile',
+      );
+
+      expect(mockPushWalletToUserStorage).toHaveBeenCalledWith(
+        mockContext,
+        mockLocalWallet,
+      );
+    });
+
+    it('pushes to user storage when wallet is an empty object in user storage', async () => {
+      mockCompareAndSyncMetadata.mockResolvedValue(false);
+
+      await syncWalletMetadata(
+        mockContext,
+        mockLocalWallet,
+        {},
+        'test-profile',
+      );
+
+      expect(mockPushWalletToUserStorage).toHaveBeenCalledWith(
+        mockContext,
+        mockLocalWallet,
+      );
+    });
+
+    it('pushes to user storage when wallet is missing the `isLegacyAccountSyncingDisabled` field', async () => {
+      mockCompareAndSyncMetadata.mockResolvedValue(false);
+
+      await syncWalletMetadata(
+        mockContext,
+        mockLocalWallet,
+        {
+          name: { value: 'Remote Wallet', lastUpdatedAt: 2000 },
+        }, // No legacy field
         'test-profile',
       );
 

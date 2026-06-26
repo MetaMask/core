@@ -46,6 +46,7 @@ describe('Bundler', () => {
 
       /**
        * Mock fetch to return a JSON response.
+       *
        * @param jsonResponse - The JSON response to return.
        */
       function mockJsonResponse(jsonResponse: Record<string, unknown>) {

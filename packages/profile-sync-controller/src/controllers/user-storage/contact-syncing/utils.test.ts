@@ -5,8 +5,8 @@ import type { UserStorageContactEntry } from './types';
 import {
   mapAddressBookEntryToUserStorageEntry,
   mapUserStorageEntryToAddressBookEntry,
-  type SyncAddressBookEntry,
 } from './utils';
+import type { SyncAddressBookEntry } from './utils';
 
 describe('user-storage/contact-syncing/utils', () => {
   // Use checksum address format for consistent testing

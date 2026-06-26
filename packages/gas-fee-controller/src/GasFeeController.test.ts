@@ -1,21 +1,23 @@
-import { deriveStateFromMetadata, Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   ChainId,
   convertHexToDecimal,
   toHex,
 } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
+} from '@metamask/messenger';
 import { NetworkController, NetworkStatus } from '@metamask/network-controller';
 import type {
-  NetworkControllerGetEIP1559CompatibilityAction,
-  NetworkControllerGetNetworkClientByIdAction,
-  NetworkControllerGetStateAction,
-  NetworkControllerNetworkDidChangeEvent,
+  NetworkControllerMessenger,
   NetworkState,
 } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import nock from 'nock';
-import * as sinon from 'sinon';
 
 import {
   buildCustomNetworkConfiguration,
@@ -30,12 +32,11 @@ import {
 } from './gas-util';
 import { GAS_ESTIMATE_TYPES, GasFeeController } from './GasFeeController';
 import type {
+  GasFeeMessenger,
   GasFeeState,
-  GasFeeStateChange,
   GasFeeStateEthGasPrice,
   GasFeeStateFeeMarket,
   GasFeeStateLegacy,
-  GetGasFeeState,
 } from './GasFeeController';
 
 jest.mock('./determineGasFeeCalculations');
@@ -48,44 +49,75 @@ const mockedDetermineGasFeeCalculations =
 
 const name = 'GasFeeController';
 
-type MainMessenger = Messenger<
-  | GetGasFeeState
-  | NetworkControllerGetStateAction
-  | NetworkControllerGetNetworkClientByIdAction
-  | NetworkControllerGetEIP1559CompatibilityAction,
-  GasFeeStateChange | NetworkControllerNetworkDidChangeEvent
->;
+type AllGasFeeControllerActions = MessengerActions<GasFeeMessenger>;
+type AllGasFeeControllerEvents = MessengerEvents<GasFeeMessenger>;
 
-const getMessenger = (): MainMessenger => {
-  return new Messenger();
+type AllNetworkControllerActions = MessengerActions<NetworkControllerMessenger>;
+type AllNetworkControllerEvents = MessengerEvents<NetworkControllerMessenger>;
+
+type AllActions = AllGasFeeControllerActions | AllNetworkControllerActions;
+type AllEvents = AllGasFeeControllerEvents | AllNetworkControllerEvents;
+
+type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
+
+const getRootMessenger = (): RootMessenger => {
+  const rootMessenger = new Messenger<
+    MockAnyNamespace,
+    MessengerActions<NetworkControllerMessenger>,
+    MessengerEvents<NetworkControllerMessenger>
+  >({ namespace: MOCK_ANY_NAMESPACE });
+
+  rootMessenger.registerActionHandler(
+    'RemoteFeatureFlagController:getState',
+    () => ({
+      remoteFeatureFlags: {
+        walletFrameworkRpcFailoverEnabled: false,
+      },
+      cacheTimestamp: 0,
+    }),
+  );
+
+  return rootMessenger;
 };
 
 const setupNetworkController = async ({
-  unrestrictedMessenger,
+  rootMessenger,
   state,
-  clock,
   initializeProvider = true,
 }: {
-  unrestrictedMessenger: MainMessenger;
+  rootMessenger: RootMessenger;
   state: Partial<NetworkState>;
-  clock: sinon.SinonFakeTimers;
   initializeProvider?: boolean;
 }) => {
-  const restrictedMessenger = unrestrictedMessenger.getRestricted({
-    name: 'NetworkController',
-    allowedActions: [],
-    allowedEvents: [],
+  const networkControllerMessenger = new Messenger<
+    'NetworkController',
+    MessengerActions<NetworkControllerMessenger>,
+    MessengerEvents<NetworkControllerMessenger>,
+    typeof rootMessenger
+  >({
+    namespace: 'NetworkController',
+    parent: rootMessenger,
+    captureException: jest.fn(),
+  });
+
+  rootMessenger.delegate({
+    messenger: networkControllerMessenger,
+    actions: [
+      'ConnectivityController:getState',
+      'RemoteFeatureFlagController:getState',
+    ],
   });
 
   const infuraProjectId = '123';
 
   const networkController = new NetworkController({
-    messenger: restrictedMessenger,
+    messenger: networkControllerMessenger,
     state,
     infuraProjectId,
     getRpcServiceOptions: () => ({
       fetch,
       btoa,
+      isOffline: (): boolean => false,
     }),
   });
 
@@ -106,27 +138,35 @@ const setupNetworkController = async ({
   if (initializeProvider) {
     // Call this without awaiting to simulate what the extension or mobile app
     // might do
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    networkController.initializeProvider();
+    networkController.init();
     // Ensure that the request for eth_getBlockByNumber made by the PollingBlockTracker
     // inside the NetworkController goes through
-    await clock.nextAsync();
+    await jest.advanceTimersToNextTimerAsync();
   }
 
   return networkController;
 };
 
-const getRestrictedMessenger = (messenger: MainMessenger) => {
-  return messenger.getRestricted({
-    name,
-    allowedActions: [
+const getGasFeeControllerMessenger = (rootMessenger: RootMessenger) => {
+  const gasFeeControllerMessenger = new Messenger<
+    'GasFeeController',
+    AllGasFeeControllerActions,
+    AllGasFeeControllerEvents,
+    typeof rootMessenger
+  >({
+    namespace: 'GasFeeController',
+    parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    messenger: gasFeeControllerMessenger,
+    actions: [
       'NetworkController:getState',
       'NetworkController:getNetworkClientById',
       'NetworkController:getEIP1559Compatibility',
     ],
-    allowedEvents: ['NetworkController:networkDidChange'],
+    events: ['NetworkController:networkDidChange'],
   });
+  return gasFeeControllerMessenger;
 };
 
 /**
@@ -229,7 +269,6 @@ function buildMockGasFeeStateEthGasPrice({
 }
 
 describe('GasFeeController', () => {
-  let clock: sinon.SinonFakeTimers;
   let gasFeeController: GasFeeController;
   let networkController: NetworkController;
 
@@ -274,7 +313,6 @@ describe('GasFeeController', () => {
     getIsEIP1559Compatible?: jest.Mock<Promise<boolean>>;
     getCurrentNetworkLegacyGasAPICompatibility?: jest.Mock<boolean>;
     legacyAPIEndpoint?: string;
-    // eslint-disable-next-line @typescript-eslint/naming-convention
     EIP1559APIEndpoint?: string;
     clientId?: string;
     networkControllerState?: Partial<NetworkState>;
@@ -282,14 +320,13 @@ describe('GasFeeController', () => {
     interval?: number;
     initializeNetworkProvider?: boolean;
   } = {}) {
-    const messenger = getMessenger();
+    const rootMessenger = getRootMessenger();
     networkController = await setupNetworkController({
-      unrestrictedMessenger: messenger,
+      rootMessenger,
       state: networkControllerState,
-      clock,
       initializeProvider: initializeNetworkProvider,
     });
-    const restrictedMessenger = getRestrictedMessenger(messenger);
+    const restrictedMessenger = getGasFeeControllerMessenger(rootMessenger);
     gasFeeController = new GasFeeController({
       getProvider: jest.fn(),
       getChainId,
@@ -306,7 +343,7 @@ describe('GasFeeController', () => {
   }
 
   beforeEach(() => {
-    clock = sinon.useFakeTimers();
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
     mockedDetermineGasFeeCalculations.mockResolvedValue(
       buildMockGasFeeStateFeeMarket(),
     );
@@ -318,7 +355,7 @@ describe('GasFeeController', () => {
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     blockTracker?.destroy();
-    sinon.restore();
+    jest.useRealTimers();
   });
 
   describe('constructor', () => {
@@ -407,8 +444,10 @@ describe('GasFeeController', () => {
         });
 
         it('should continue updating the state with all estimate data (including new time estimates because of a subsequent call to determineGasFeeCalculations) on a set interval', async () => {
+          const pollingInterval = 10000;
+          await setupGasFeeController({ interval: pollingInterval });
           await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
-          await clock.nextAsync();
+          await jest.advanceTimersByTimeAsync(pollingInterval);
 
           expect(gasFeeController.state).toMatchObject(
             mockDetermineGasFeeCalculationsReturnValues[1],
@@ -475,7 +514,7 @@ describe('GasFeeController', () => {
           await gasFeeController.getGasFeeEstimatesAndStartPolling(
             'some-previously-unseen-token',
           );
-          await clock.tickAsync(pollingInterval);
+          await jest.advanceTimersByTimeAsync(pollingInterval);
 
           expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(2);
         });
@@ -498,8 +537,8 @@ describe('GasFeeController', () => {
 
         await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
         await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
-        await clock.tickAsync(pollingInterval);
-        await clock.tickAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
 
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(3);
       });
@@ -523,8 +562,8 @@ describe('GasFeeController', () => {
         const pollToken =
           await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
         await gasFeeController.getGasFeeEstimatesAndStartPolling(pollToken);
-        await clock.tickAsync(pollingInterval);
-        await clock.tickAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
 
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(4);
       });
@@ -556,8 +595,8 @@ describe('GasFeeController', () => {
         await gasFeeController.getGasFeeEstimatesAndStartPolling(
           'some-previously-unseen-token-2',
         );
-        await clock.tickAsync(pollingInterval);
-        await clock.tickAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
 
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(3);
       });
@@ -606,12 +645,12 @@ describe('GasFeeController', () => {
           await setupGasFeeController({ interval: pollingInterval });
           const pollToken =
             await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
-          await clock.tickAsync(pollingInterval);
+          await jest.advanceTimersByTimeAsync(pollingInterval);
           expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(2);
 
           gasFeeController.disconnectPoller(pollToken);
 
-          await clock.tickAsync(pollingInterval);
+          await jest.advanceTimersByTimeAsync(pollingInterval);
           expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(2);
         });
 
@@ -620,13 +659,13 @@ describe('GasFeeController', () => {
           await setupGasFeeController({ interval: pollingInterval });
           const pollToken =
             await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
-          await clock.tickAsync(pollingInterval);
+          await jest.advanceTimersByTimeAsync(pollingInterval);
           expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(2);
 
           gasFeeController.disconnectPoller(pollToken);
 
           await gasFeeController.getGasFeeEstimatesAndStartPolling(pollToken);
-          await clock.tickAsync(pollingInterval);
+          await jest.advanceTimersByTimeAsync(pollingInterval);
           expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(4);
         });
       });
@@ -636,12 +675,12 @@ describe('GasFeeController', () => {
           const pollingInterval = 10000;
           await setupGasFeeController({ interval: pollingInterval });
           await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
-          await clock.tickAsync(pollingInterval);
+          await jest.advanceTimersByTimeAsync(pollingInterval);
           expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(2);
 
           gasFeeController.disconnectPoller('some-previously-unseen-token');
 
-          await clock.tickAsync(pollingInterval);
+          await jest.advanceTimersByTimeAsync(pollingInterval);
           expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(3);
         });
       });
@@ -655,12 +694,12 @@ describe('GasFeeController', () => {
         const pollToken1 =
           await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
         await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
-        await clock.tickAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(1);
 
         gasFeeController.disconnectPoller(pollToken1);
 
-        await clock.tickAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(2);
       });
     });
@@ -681,12 +720,12 @@ describe('GasFeeController', () => {
         const pollingInterval = 10000;
         await setupGasFeeController({ interval: pollingInterval });
         await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
-        await clock.tickAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(2);
 
         gasFeeController.stopPolling();
 
-        await clock.tickAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(2);
       });
 
@@ -695,13 +734,13 @@ describe('GasFeeController', () => {
         await setupGasFeeController({ interval: pollingInterval });
         const pollToken =
           await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
-        await clock.tickAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(2);
 
         gasFeeController.stopPolling();
 
         await gasFeeController.getGasFeeEstimatesAndStartPolling(pollToken);
-        await clock.tickAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(4);
       });
 
@@ -727,12 +766,12 @@ describe('GasFeeController', () => {
         const pollToken =
           await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
         await gasFeeController.getGasFeeEstimatesAndStartPolling(pollToken);
-        await clock.tickAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(3);
 
         gasFeeController.stopPolling();
 
-        await clock.tickAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(3);
       });
 
@@ -742,13 +781,13 @@ describe('GasFeeController', () => {
         const pollToken =
           await gasFeeController.getGasFeeEstimatesAndStartPolling(undefined);
         await gasFeeController.getGasFeeEstimatesAndStartPolling(pollToken);
-        await clock.tickAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(3);
 
         gasFeeController.stopPolling();
 
         await gasFeeController.getGasFeeEstimatesAndStartPolling(pollToken);
-        await clock.tickAsync(pollingInterval);
+        await jest.advanceTimersByTimeAsync(pollingInterval);
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(5);
       });
     });
@@ -1066,14 +1105,10 @@ describe('GasFeeController', () => {
           isEIP1559Compatible: true,
           isLegacyGasAPICompatible: false,
           fetchGasEstimates,
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
             ChainId.sepolia,
           )}`,
           fetchLegacyGasPriceEstimates,
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           fetchLegacyGasPriceEstimatesUrl: `https://some-legacy-endpoint/${convertHexToDecimal(
             ChainId.sepolia,
           )}`,
@@ -1177,8 +1212,6 @@ describe('GasFeeController', () => {
 
         expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
           expect.objectContaining({
-            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-            // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
             fetchGasEstimatesUrl: `http://eip-1559.endpoint/${convertHexToDecimal(
               ChainId.sepolia,
             )}`,
@@ -1221,25 +1254,21 @@ describe('GasFeeController', () => {
       gasFeeController.startPolling({
         networkClientId: 'linea-sepolia',
       });
-      await clock.tickAsync(0);
+      await jest.advanceTimersByTimeAsync(0);
       expect(mockedDetermineGasFeeCalculations).toHaveBeenNthCalledWith(
         1,
         expect.objectContaining({
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
             ChainId['linea-sepolia'],
           )}`,
         }),
       );
-      await clock.tickAsync(pollingInterval / 2);
+      await jest.advanceTimersByTimeAsync(pollingInterval / 2);
       expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledTimes(1);
-      await clock.tickAsync(pollingInterval / 2);
+      await jest.advanceTimersByTimeAsync(pollingInterval / 2);
       expect(mockedDetermineGasFeeCalculations).toHaveBeenNthCalledWith(
         2,
         expect.objectContaining({
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
             ChainId['linea-sepolia'],
           )}`,
@@ -1254,11 +1283,9 @@ describe('GasFeeController', () => {
       gasFeeController.startPolling({
         networkClientId: 'sepolia',
       });
-      await clock.tickAsync(pollingInterval);
+      await jest.advanceTimersByTimeAsync(pollingInterval);
       expect(mockedDetermineGasFeeCalculations).toHaveBeenCalledWith(
         expect.objectContaining({
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
           fetchGasEstimatesUrl: `https://some-eip-1559-endpoint/${convertHexToDecimal(
             ChainId.sepolia,
           )}`,
@@ -1277,9 +1304,9 @@ describe('GasFeeController', () => {
         deriveStateFromMetadata(
           gasFeeController.state,
           gasFeeController.metadata,
-          'anonymous',
+          'includeInDebugSnapshot',
         ),
-      ).toMatchInlineSnapshot(`Object {}`);
+      ).toMatchInlineSnapshot(`{}`);
     });
 
     it('includes expected state in state logs', () => {
@@ -1290,11 +1317,11 @@ describe('GasFeeController', () => {
           'includeInStateLogs',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "estimatedGasFeeTimeBounds": Object {},
+        {
+          "estimatedGasFeeTimeBounds": {},
           "gasEstimateType": "none",
-          "gasFeeEstimates": Object {},
-          "gasFeeEstimatesByChainId": Object {},
+          "gasFeeEstimates": {},
+          "gasFeeEstimatesByChainId": {},
           "nonRPCGasFeeApisDisabled": false,
         }
       `);
@@ -1308,11 +1335,11 @@ describe('GasFeeController', () => {
           'persist',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "estimatedGasFeeTimeBounds": Object {},
+        {
+          "estimatedGasFeeTimeBounds": {},
           "gasEstimateType": "none",
-          "gasFeeEstimates": Object {},
-          "gasFeeEstimatesByChainId": Object {},
+          "gasFeeEstimates": {},
+          "gasFeeEstimatesByChainId": {},
           "nonRPCGasFeeApisDisabled": false,
         }
       `);
@@ -1326,11 +1353,11 @@ describe('GasFeeController', () => {
           'usedInUi',
         ),
       ).toMatchInlineSnapshot(`
-        Object {
-          "estimatedGasFeeTimeBounds": Object {},
+        {
+          "estimatedGasFeeTimeBounds": {},
           "gasEstimateType": "none",
-          "gasFeeEstimates": Object {},
-          "gasFeeEstimatesByChainId": Object {},
+          "gasFeeEstimates": {},
+          "gasFeeEstimatesByChainId": {},
         }
       `);
     });

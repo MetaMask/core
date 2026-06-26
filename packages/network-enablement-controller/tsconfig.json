@@ -9,7 +9,8 @@
     { "path": "../network-controller" },
     { "path": "../multichain-network-controller" },
     { "path": "../controller-utils" },
-    { "path": "../transaction-controller" }
+    { "path": "../transaction-controller" },
+    { "path": "../messenger" }
   ],
   "include": ["../../types", "./src"]
 }

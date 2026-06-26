@@ -1,11 +1,13 @@
-import { BN } from 'bn.js';
+import { Hex } from '@metamask/utils';
+import BN from 'bn.js';
 
-import * as util from './utils';
 import type {
   FeeMarketEIP1559Values,
   GasPriceValue,
   TransactionParams,
 } from '../types';
+import { TransactionStatus } from '../types';
+import * as util from './utils';
 
 const MAX_FEE_PER_GAS = 'maxFeePerGas';
 const MAX_PRIORITY_FEE_PER_GAS = 'maxPriorityFeePerGas';
@@ -272,6 +274,157 @@ describe('utils', () => {
 
     it('supports negative new value', () => {
       expect(util.getPercentageChange(new BN(2), new BN(-1))).toBe(150);
+    });
+  });
+
+  describe('bnFromHex', () => {
+    it('parses hex with 0x prefix', () => {
+      const result = util.bnFromHex('0x1a');
+      expect(result.eq(new BN(26))).toBe(true);
+    });
+
+    it('parses hex without prefix', () => {
+      const result = util.bnFromHex('1a');
+      expect(result.eq(new BN(26))).toBe(true);
+    });
+
+    it('parses uppercase 0X prefix', () => {
+      const result = util.bnFromHex('0XFF');
+      expect(result.eq(new BN(255))).toBe(true);
+    });
+
+    it('returns zero for empty data with 0x', () => {
+      const result = util.bnFromHex('0x');
+      expect(result.isZero()).toBe(true);
+    });
+
+    it('returns zero for empty string', () => {
+      const result = util.bnFromHex('');
+      expect(result.isZero()).toBe(true);
+    });
+
+    it('throws for invalid hex', () => {
+      expect(() => util.bnFromHex('0xzz')).toThrow(Error);
+    });
+  });
+
+  describe('toBN', () => {
+    it('returns the same BN instance', () => {
+      const input = new BN(123);
+      const result = util.toBN(input);
+      expect(result).toBe(input);
+    });
+
+    it('converts ethers-like BigNumber with toHexString', () => {
+      const bigNumberLike = { toHexString: (): Hex => '0x2a' };
+      const result = util.toBN(bigNumberLike);
+      expect(result.eq(new BN(42))).toBe(true);
+    });
+
+    it('converts object with _hex property', () => {
+      const hexLike = { _hex: '0x2a' };
+      const result = util.toBN(hexLike);
+      expect(result.eq(new BN(42))).toBe(true);
+    });
+
+    it('converts hex string values', () => {
+      expect(util.toBN('0x10').eq(new BN(16))).toBe(true);
+      expect(util.toBN('10').eq(new BN(16))).toBe(true);
+    });
+
+    it('converts bigint values', () => {
+      const result = util.toBN(123n);
+      expect(result.eq(new BN(123))).toBe(true);
+    });
+
+    it('converts number values', () => {
+      const result = util.toBN(456);
+      expect(result.eq(new BN(456))).toBe(true);
+    });
+
+    it('throws for unsupported types', () => {
+      expect(() => util.toBN(true as unknown)).toThrow(
+        'Unexpected value returned from oracle contract',
+      );
+      expect(() => util.toBN(null as unknown)).toThrow(
+        'Unexpected value returned from oracle contract',
+      );
+      expect(() => util.toBN(undefined as unknown)).toThrow(
+        'Unexpected value returned from oracle contract',
+      );
+      expect(() => util.toBN({} as unknown)).toThrow(
+        'Unexpected value returned from oracle contract',
+      );
+    });
+  });
+
+  describe('caip2ToHex', () => {
+    it('converts eip155:1 to 0x1', () => {
+      expect(util.caip2ToHex('eip155:1')).toBe('0x1');
+    });
+
+    it('converts eip155:137 to 0x89', () => {
+      expect(util.caip2ToHex('eip155:137')).toBe('0x89');
+    });
+
+    it('converts eip155:8453 to 0x2105', () => {
+      expect(util.caip2ToHex('eip155:8453')).toBe('0x2105');
+    });
+
+    it('returns undefined for invalid format', () => {
+      expect(util.caip2ToHex('invalid')).toBeUndefined();
+    });
+
+    it('returns undefined for malformed CAIP-2 format', () => {
+      expect(util.caip2ToHex('not:valid:format')).toBeUndefined();
+    });
+  });
+
+  describe('validateIfTransactionUnapprovedOrSubmitted', () => {
+    const fnName = 'testFn';
+
+    it('does not throw when transaction status is unapproved', () => {
+      expect(() =>
+        util.validateIfTransactionUnapprovedOrSubmitted(
+          { status: TransactionStatus.unapproved },
+          fnName,
+        ),
+      ).not.toThrow();
+    });
+
+    it('does not throw when transaction status is submitted', () => {
+      expect(() =>
+        util.validateIfTransactionUnapprovedOrSubmitted(
+          { status: TransactionStatus.submitted },
+          fnName,
+        ),
+      ).not.toThrow();
+    });
+
+    it('throws when transactionMeta is undefined', () => {
+      expect(() =>
+        util.validateIfTransactionUnapprovedOrSubmitted(undefined, fnName),
+      ).toThrow(
+        `TransactionsController: Can only call ${fnName} on an unapproved or submitted transaction.\n      Current tx status: undefined`,
+      );
+    });
+
+    it('throws when transaction status is not unapproved or submitted', () => {
+      const status = TransactionStatus.failed;
+      expect(() =>
+        util.validateIfTransactionUnapprovedOrSubmitted({ status }, fnName),
+      ).toThrow(
+        `TransactionsController: Can only call ${fnName} on an unapproved or submitted transaction.\n      Current tx status: ${status}`,
+      );
+    });
+
+    it('throws when transaction status is confirmed', () => {
+      const status = TransactionStatus.confirmed;
+      expect(() =>
+        util.validateIfTransactionUnapprovedOrSubmitted({ status }, fnName),
+      ).toThrow(
+        `TransactionsController: Can only call ${fnName} on an unapproved or submitted transaction.\n      Current tx status: ${status}`,
+      );
     });
   });
 });

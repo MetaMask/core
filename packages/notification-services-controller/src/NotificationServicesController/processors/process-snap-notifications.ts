@@ -1,6 +1,6 @@
 import { v4 as uuid } from 'uuid';
 
-import { type INotification } from '../types';
+import type { INotification } from '../types';
 import type { RawSnapNotification } from '../types/snaps';
 
 /**

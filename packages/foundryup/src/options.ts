@@ -2,15 +2,13 @@ import { platform } from 'node:os';
 import { argv, stdout } from 'node:process';
 import yargs from 'yargs/yargs';
 
-import {
-  type Checksums,
-  type ParsedOptions,
-  type ArchitecturesTuple,
-  type BinariesTuple,
-  type PlatformsTuple,
-  Architecture,
-  Binary,
-  Platform,
+import { Architecture, Binary, Platform } from './types';
+import type {
+  Checksums,
+  ParsedOptions,
+  ArchitecturesTuple,
+  BinariesTuple,
+  PlatformsTuple,
 } from './types';
 import { normalizeSystemArchitecture } from './utils';
 
@@ -155,7 +153,7 @@ function getOptions(
       alias: 'a',
       description: 'Specify the architecture',
       // if `defaultArch` is not a supported Architecture yargs will throw an error
-      default: defaultArch as Architecture,
+      default: defaultArch,
       choices: Object.values(Architecture) as ArchitecturesTuple,
     },
     platform: {

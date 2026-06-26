@@ -7,15 +7,18 @@ import {
 describe('KnownRpcMethods', () => {
   it('should match the snapshot', () => {
     expect(KnownRpcMethods).toMatchInlineSnapshot(`
-      Object {
-        "bip122": Array [],
-        "eip155": Array [
+      {
+        "bip122": [],
+        "eip155": [
           "personal_sign",
           "eth_signTypedData_v4",
           "wallet_watchAsset",
           "wallet_sendCalls",
           "wallet_getCallsStatus",
           "wallet_getCapabilities",
+          "wallet_requestExecutionPermissions",
+          "wallet_getGrantedExecutionPermissions",
+          "wallet_getSupportedExecutionPermissions",
           "eth_sendTransaction",
           "eth_decrypt",
           "eth_getEncryptionPublicKey",
@@ -53,7 +56,8 @@ describe('KnownRpcMethods', () => {
           "eth_syncing",
           "eth_uninstallFilter",
         ],
-        "solana": Array [],
+        "solana": [],
+        "tron": [],
       }
     `);
   });
@@ -62,8 +66,11 @@ describe('KnownRpcMethods', () => {
 describe('KnownSessionProperties', () => {
   it('should match the snapshot', () => {
     expect(KnownSessionProperties).toMatchInlineSnapshot(`
-      Object {
+      {
+        "Bip122AccountChangedNotifications": "bip122_accountChanged_notifications",
+        "Eip1193Compatible": "eip1193-compatible",
         "SolanaAccountChangedNotifications": "solana_accountChanged_notifications",
+        "TronAccountChangedNotifications": "tron_accountChanged_notifications",
       }
     `);
   });
@@ -71,8 +78,15 @@ describe('KnownSessionProperties', () => {
 
 describe('isKnownSessionPropertyValue', () => {
   it('should return true for known session property values', () => {
+    expect(isKnownSessionPropertyValue('eip1193-compatible')).toBe(true);
     expect(
       isKnownSessionPropertyValue('solana_accountChanged_notifications'),
+    ).toBe(true);
+    expect(
+      isKnownSessionPropertyValue('tron_accountChanged_notifications'),
+    ).toBe(true);
+    expect(
+      isKnownSessionPropertyValue('bip122_accountChanged_notifications'),
     ).toBe(true);
   });
   it('should return false for unknown session property values', () => {

@@ -1,8 +1,5 @@
-import type {
-  ActionConstraint,
-  EventConstraint,
-} from '@metamask/base-controller';
 import type { NonEmptyArray } from '@metamask/controller-utils';
+import type { ActionConstraint, EventConstraint } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 import { nanoid } from 'nanoid';
 
@@ -117,8 +114,8 @@ export type ValidPermission<
 type ExtractArrayMembers<ArrayType> = ArrayType extends []
   ? never
   : ArrayType extends unknown[] | readonly unknown[]
-  ? ArrayType[number]
-  : never;
+    ? ArrayType[number]
+    : never;
 
 /**
  * A utility type for extracting the allowed caveat types for a particular
@@ -317,7 +314,7 @@ export type SideEffectParams<
   Events extends EventConstraint,
 > = {
   requestData: PermissionsRequest;
-  messagingSystem: SideEffectMessenger<Actions, Events>;
+  messenger: SideEffectMessenger<Actions, Events>;
 };
 
 /**
@@ -487,15 +484,19 @@ export type PermissionSpecificationConstraint =
  * Options for {@link PermissionSpecificationBuilder} functions.
  */
 type PermissionSpecificationBuilderOptions<
-  FactoryHooks extends Record<string, unknown>,
   MethodHooks extends Record<string, unknown>,
-  ValidatorHooks extends Record<string, unknown>,
+  SpecMessenger = unknown,
 > = {
   targetName?: string;
   allowedCaveats?: Readonly<NonEmptyArray<string>> | null;
-  factoryHooks?: FactoryHooks;
   methodHooks?: MethodHooks;
-  validatorHooks?: ValidatorHooks;
+  /**
+   * A messenger scoped to this permission specification. The messenger is
+   * expected to have exactly the actions declared by the spec's `actionNames`
+   * delegated to it; {@link createRestrictedMethodMessenger} is the canonical
+   * way to construct it.
+   */
+  messenger?: SpecMessenger;
 };
 
 /**
@@ -507,8 +508,6 @@ type PermissionSpecificationBuilderOptions<
 export type PermissionSpecificationBuilder<
   Type extends PermissionType,
   Options extends PermissionSpecificationBuilderOptions<
-    Record<string, unknown>,
-    Record<string, unknown>,
     Record<string, unknown>
   >,
   Specification extends PermissionSpecificationConstraint & {
@@ -516,33 +515,14 @@ export type PermissionSpecificationBuilder<
   },
 > = (options: Options) => Specification;
 
-/**
- * A restricted method permission export object, containing the
- * {@link PermissionSpecificationBuilder} function and "hook name" objects.
- */
-export type PermissionSpecificationBuilderExportConstraint = {
-  targetName: string;
-  specificationBuilder: PermissionSpecificationBuilder<
-    PermissionType,
-    PermissionSpecificationBuilderOptions<
-      Record<string, unknown>,
-      Record<string, unknown>,
-      Record<string, unknown>
-    >,
-    PermissionSpecificationConstraint
-  >;
-  factoryHookNames?: Record<string, true>;
-  methodHookNames?: Record<string, true>;
-  validatorHookNames?: Record<string, true>;
-};
-
 type ValidRestrictedMethodSpecification<
   Specification extends RestrictedMethodSpecificationConstraint,
-> = Specification['methodImplementation'] extends ValidRestrictedMethod<
-  Specification['methodImplementation']
->
-  ? Specification
-  : never;
+> =
+  Specification['methodImplementation'] extends ValidRestrictedMethod<
+    Specification['methodImplementation']
+  >
+    ? Specification
+    : never;
 
 /**
  * Constraint for {@link PermissionSpecificationConstraint} objects that
@@ -556,10 +536,10 @@ export type ValidPermissionSpecification<
   ? Specification['permissionType'] extends PermissionType.Endowment
     ? Specification
     : Specification['permissionType'] extends PermissionType.RestrictedMethod
-    ? ValidRestrictedMethodSpecification<
-        Extract<Specification, RestrictedMethodSpecificationConstraint>
-      >
-    : never
+      ? ValidRestrictedMethodSpecification<
+          Extract<Specification, RestrictedMethodSpecificationConstraint>
+        >
+      : never
   : never;
 
 /**

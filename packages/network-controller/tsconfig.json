@@ -7,9 +7,13 @@
   "references": [
     { "path": "../base-controller" },
     { "path": "../controller-utils" },
+    { "path": "../connectivity-controller" },
+    { "path": "../eth-block-tracker" },
+    { "path": "../eth-json-rpc-middleware" },
     { "path": "../eth-json-rpc-provider" },
     { "path": "../json-rpc-engine" },
-    { "path": "../error-reporting-service" }
+    { "path": "../messenger" },
+    { "path": "../remote-feature-flag-controller" }
   ],
   "include": ["../../types", "../../tests", "./src", "./tests"]
 }

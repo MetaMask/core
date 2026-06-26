@@ -17,6 +17,7 @@ export const CaipReferenceRegexes: Record<NonWalletKnownCaipNamespace, RegExp> =
     eip155: /^(0|[1-9][0-9]*)$/u,
     bip122: /.*/u,
     solana: /.*/u,
+    tron: /.*/u,
   };
 
 /**
@@ -66,6 +67,7 @@ export const KnownRpcMethods: Record<NonWalletKnownCaipNamespace, string[]> = {
   eip155: Eip155Methods,
   bip122: [],
   solana: [],
+  tron: [],
 };
 
 /**
@@ -78,6 +80,7 @@ export const KnownWalletNamespaceRpcMethods: Record<
   eip155: WalletEip155Methods,
   bip122: [],
   solana: [],
+  tron: [],
 };
 
 /**
@@ -88,13 +91,17 @@ export const KnownNotifications: Record<NonWalletKnownCaipNamespace, string[]> =
     eip155: ['eth_subscription'],
     bip122: [],
     solana: [],
+    tron: [],
   };
 
 /**
  * Session properties for known CAIP namespaces.
  */
 export enum KnownSessionProperties {
+  Eip1193Compatible = 'eip1193-compatible',
   SolanaAccountChangedNotifications = 'solana_accountChanged_notifications',
+  TronAccountChangedNotifications = 'tron_accountChanged_notifications',
+  Bip122AccountChangedNotifications = 'bip122_accountChanged_notifications',
 }
 
 /**

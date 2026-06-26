@@ -1,8 +1,5 @@
-import {
-  type RateLimitErrorData,
-  TOPRFError,
-  TOPRFErrorCode,
-} from '@metamask/toprf-secure-backup';
+import { TOPRFError, TOPRFErrorCode } from '@metamask/toprf-secure-backup';
+import type { RateLimitErrorData } from '@metamask/toprf-secure-backup';
 
 import { SeedlessOnboardingControllerErrorMessage } from './constants';
 import type { RecoveryErrorData } from './types';
@@ -136,5 +133,89 @@ export class RecoveryError extends Error {
       SeedlessOnboardingControllerErrorMessage.LoginFailedError,
     );
     return new RecoveryError(errorMessage, recoveryErrorData);
+  }
+}
+
+/**
+ * Generic error class for SeedlessOnboardingController operations.
+ *
+ * Use this when you need to wrap an underlying error with additional context,
+ * or when none of the more specific error classes (PasswordSyncError, RecoveryError) apply.
+ *
+ * @example
+ * ```typescript
+ * throw new SeedlessOnboardingError(
+ *   SeedlessOnboardingControllerErrorMessage.FailedToEncryptAndStoreSecretData,
+ *   { details: 'Encryption failed during backup', cause: originalError }
+ * );
+ * ```
+ */
+export class SeedlessOnboardingError extends Error {
+  /**
+   * Additional context about the error beyond the message.
+   * Use this for human-readable details that help with debugging.
+   */
+  public details: string | undefined;
+
+  /**
+   * The underlying error that caused this error.
+   */
+  public cause: Error | undefined;
+
+  constructor(
+    message: string | SeedlessOnboardingControllerErrorMessage,
+    options?: { details?: string; cause?: unknown },
+  ) {
+    super(message);
+    this.name = 'SeedlessOnboardingControllerError';
+    this.details = options?.details;
+    if (options?.cause) {
+      if (options.cause instanceof Error) {
+        this.cause = options.cause;
+      } else {
+        let causeMessage: string;
+        if (typeof options.cause === 'string') {
+          causeMessage = options.cause;
+        } else {
+          try {
+            causeMessage = JSON.stringify(options.cause);
+          } catch {
+            causeMessage = 'Unknown error';
+          }
+        }
+        this.cause = new Error(causeMessage);
+      }
+    }
+  }
+
+  /**
+   * Serializes the cause error for JSON output.
+   *
+   * @returns A JSON-serializable representation of the cause.
+   */
+  #serializeCause(): Record<string, unknown> | undefined {
+    if (this.cause instanceof SeedlessOnboardingError) {
+      return this.cause.toJSON();
+    }
+    if (this.cause instanceof Error) {
+      return { name: this.cause.name, message: this.cause.message };
+    }
+    return undefined;
+  }
+
+  /**
+   * Serializes the error for logging/transmission.
+   * Ensures custom properties are included in JSON output.
+   *
+   * @returns A JSON-serializable representation of the error.
+   */
+  toJSON(): Record<string, unknown> {
+    return {
+      name: this.name,
+      message: this.message,
+      details: this.details,
+      cause: this.#serializeCause(),
+      stack: this.stack,
+    };
   }
 }

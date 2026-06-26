@@ -1,10 +1,12 @@
 import type { Json } from '@metamask/utils';
+import { sha256, bytesToHex } from '@metamask/utils';
 import { validate as uuidValidate, version as uuidVersion } from 'uuid';
 
 import type { FeatureFlagScopeValue } from '../remote-feature-flag-controller-types';
 
 /**
  * Converts a UUID string to a BigInt by removing dashes and converting to hexadecimal.
+ *
  * @param uuid - The UUID string to convert
  * @returns The UUID as a BigInt value
  */
@@ -19,9 +21,47 @@ const MAX_UUID_V4_BIGINT = uuidStringToBigInt(MAX_UUID_V4);
 const UUID_V4_VALUE_RANGE_BIGINT = MAX_UUID_V4_BIGINT - MIN_UUID_V4_BIGINT;
 
 /**
+ * Calculates a deterministic threshold value between 0 and 1 for A/B testing.
+ * This function hashes the user's MetaMetrics ID combined with the feature flag name
+ * to ensure consistent group assignment across sessions while varying across different flags.
+ *
+ * @param metaMetricsId - The user's MetaMetrics ID (must be non-empty)
+ * @param featureFlagName - The feature flag name to create unique threshold per flag
+ * @returns A promise that resolves to a number between 0 and 1
+ * @throws Error if metaMetricsId is empty
+ */
+export async function calculateThresholdForFlag(
+  metaMetricsId: string,
+  featureFlagName: string,
+): Promise<number> {
+  if (!metaMetricsId) {
+    throw new Error('MetaMetrics ID cannot be empty');
+  }
+
+  if (!featureFlagName) {
+    throw new Error('Feature flag name cannot be empty');
+  }
+
+  const seed = metaMetricsId + featureFlagName;
+
+  // Hash the combined seed
+  const encoder = new TextEncoder();
+  const hashBuffer = await sha256(encoder.encode(seed));
+
+  // Convert hash bytes directly to 0-1 range
+  const hash = bytesToHex(hashBuffer);
+  const hashBigInt = BigInt(hash);
+  const maxValue = BigInt(`0x${'f'.repeat(64)}`);
+
+  // Use BigInt division first, then convert to number to maintain precision
+  return Number((hashBigInt * BigInt(1_000_000)) / maxValue) / 1_000_000;
+}
+
+/**
  * Generates a deterministic random number between 0 and 1 based on a metaMetricsId.
  * This is useful for A/B testing and feature flag rollouts where we want
  * consistent group assignment for the same user.
+ *
  * @param metaMetricsId - The unique identifier used to generate the deterministic random number. Must be either:
  * - A UUIDv4 string (e.g., '123e4567-e89b-12d3-a456-426614174000'
  * - A hex string with '0x' prefix (e.g., '0x86bacb9b2bf9a7e8d2b147eadb95ac9aaa26842327cd24afc8bd4b3c1d136420')

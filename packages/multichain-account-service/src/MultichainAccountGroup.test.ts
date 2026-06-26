@@ -1,16 +1,17 @@
-/* eslint-disable jsdoc/require-jsdoc */
 import type { Bip44Account } from '@metamask/account-api';
 import {
   AccountGroupType,
+  isBip44Account,
   toMultichainAccountGroupId,
   toMultichainAccountWalletId,
 } from '@metamask/account-api';
 import { EthScope, SolScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
+import type { GroupState } from './MultichainAccountGroup';
 import { MultichainAccountGroup } from './MultichainAccountGroup';
 import { MultichainAccountWallet } from './MultichainAccountWallet';
-import type { MockAccountProvider } from './tests';
+import type { RootMessenger, MockAccountProvider } from './tests';
 import {
   MOCK_SNAP_ACCOUNT_2,
   MOCK_WALLET_1_BTC_P2TR_ACCOUNT,
@@ -18,13 +19,15 @@ import {
   MOCK_WALLET_1_ENTROPY_SOURCE,
   MOCK_WALLET_1_EVM_ACCOUNT,
   MOCK_WALLET_1_SOL_ACCOUNT,
-  setupAccountProvider,
+  setupBip44AccountProvider,
   getMultichainAccountServiceMessenger,
   getRootMessenger,
 } from './tests';
+import type { MultichainAccountServiceMessenger } from './types';
 
 function setup({
   groupIndex = 0,
+  messenger = getRootMessenger(),
   accounts = [
     [MOCK_WALLET_1_EVM_ACCOUNT],
     [
@@ -34,32 +37,54 @@ function setup({
       MOCK_SNAP_ACCOUNT_2, // Non-BIP-44 account.
     ],
   ],
-}: { groupIndex?: number; accounts?: InternalAccount[][] } = {}): {
+}: {
+  groupIndex?: number;
+  messenger?: RootMessenger;
+  accounts?: InternalAccount[][];
+} = {}): {
   wallet: MultichainAccountWallet<Bip44Account<InternalAccount>>;
   group: MultichainAccountGroup<Bip44Account<InternalAccount>>;
   providers: MockAccountProvider[];
+  messenger: MultichainAccountServiceMessenger;
 } {
-  const providers = accounts.map((providerAccounts) => {
-    return setupAccountProvider({ accounts: providerAccounts });
+  const providers = accounts.map((providerAccounts, idx) => {
+    return setupBip44AccountProvider({
+      name: `Provider ${idx + 1}`,
+      accounts: providerAccounts,
+    });
   });
 
+  const serviceMessenger = getMultichainAccountServiceMessenger(messenger);
+
   const wallet = new MultichainAccountWallet<Bip44Account<InternalAccount>>({
-    providers,
     entropySource: MOCK_WALLET_1_ENTROPY_SOURCE,
-    messenger: getMultichainAccountServiceMessenger(getRootMessenger()),
+    messenger: serviceMessenger,
+    providers,
   });
 
   const group = new MultichainAccountGroup({
     wallet,
     groupIndex,
     providers,
-    messenger: getMultichainAccountServiceMessenger(getRootMessenger()),
+    messenger: serviceMessenger,
   });
 
-  return { wallet, group, providers };
+  // Initialize group state from provided accounts so that constructor tests
+  // observe accounts immediately
+  const groupState = providers.reduce<GroupState>((state, provider, idx) => {
+    const ids = accounts[idx].filter(isBip44Account).map((a) => a.id);
+    if (ids.length > 0) {
+      state[provider.getName()] = ids;
+    }
+    return state;
+  }, {});
+
+  group.init(groupState);
+
+  return { wallet, group, providers, messenger: serviceMessenger };
 }
 
-describe('MultichainAccount', () => {
+describe('MultichainAccountGroup', () => {
   describe('constructor', () => {
     it('constructs a multichain account group', async () => {
       const accounts = [
@@ -80,6 +105,10 @@ describe('MultichainAccount', () => {
       expect(group.type).toBe(AccountGroupType.MultichainAccount);
       expect(group.groupIndex).toBe(groupIndex);
       expect(group.wallet).toStrictEqual(wallet);
+      expect(group.hasAccounts()).toBe(true);
+      expect(group.getAccountIds()).toStrictEqual(
+        expectedAccounts.map((a) => a.id),
+      );
       expect(group.getAccounts()).toHaveLength(expectedAccounts.length);
       expect(group.getAccounts()).toStrictEqual(expectedAccounts);
     });
@@ -151,61 +180,43 @@ describe('MultichainAccount', () => {
     });
   });
 
-  describe('align', () => {
-    it('creates missing accounts only for providers with no accounts', async () => {
-      const groupIndex = 0;
-      const { group, providers, wallet } = setup({
-        groupIndex,
-        accounts: [
-          [MOCK_WALLET_1_EVM_ACCOUNT], // provider[0] already has group 0
-          [], // provider[1] missing group 0
-        ],
-      });
-
-      await group.align();
-
-      expect(providers[0].createAccounts).not.toHaveBeenCalled();
-      expect(providers[1].createAccounts).toHaveBeenCalledWith({
-        entropySource: wallet.entropySource,
-        groupIndex,
-      });
-    });
-
-    it('does nothing when already aligned', async () => {
-      const groupIndex = 0;
-      const { group, providers } = setup({
-        groupIndex,
+  describe('isAligned', () => {
+    it('returns true when every provider has at least one account in the group', () => {
+      const { group } = setup({
         accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], [MOCK_WALLET_1_SOL_ACCOUNT]],
       });
 
-      await group.align();
-
-      expect(providers[0].createAccounts).not.toHaveBeenCalled();
-      expect(providers[1].createAccounts).not.toHaveBeenCalled();
+      expect(group.isAligned()).toBe(true);
     });
 
-    it('warns if provider alignment fails', async () => {
-      const groupIndex = 0;
-      const { group, providers, wallet } = setup({
-        groupIndex,
-        accounts: [[MOCK_WALLET_1_EVM_ACCOUNT], []],
+    it('returns false when at least one provider has no accounts in the group', () => {
+      const { group } = setup({
+        accounts: [
+          [MOCK_WALLET_1_EVM_ACCOUNT],
+          [], // second provider has no accounts for this group
+        ],
       });
 
-      const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
-      providers[1].createAccounts.mockRejectedValueOnce(
-        new Error('Unable to create accounts'),
-      );
+      expect(group.isAligned()).toBe(false);
+    });
 
-      await group.align();
+    it('returns true for a group with no providers', () => {
+      const { group } = setup({ accounts: [] });
 
-      expect(providers[0].createAccounts).not.toHaveBeenCalled();
-      expect(providers[1].createAccounts).toHaveBeenCalledWith({
-        entropySource: wallet.entropySource,
-        groupIndex,
+      expect(group.isAligned()).toBe(true);
+    });
+
+    it('returns true when a provider mock is configured to return true despite having no accounts (simulates disabled wrapper)', () => {
+      const { group, providers } = setup({
+        accounts: [
+          [MOCK_WALLET_1_EVM_ACCOUNT],
+          [], // second provider has no accounts
+        ],
       });
-      expect(consoleSpy).toHaveBeenCalledWith(
-        `Failed to fully align multichain account group for entropy ID: ${wallet.entropySource} and group index: ${groupIndex}, some accounts might be missing`,
-      );
+      // Simulate a disabled AccountProviderWrapper, which always returns true.
+      providers[1].isAligned.mockReturnValue(true);
+
+      expect(group.isAligned()).toBe(true);
     });
   });
 });

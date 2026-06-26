@@ -17,18 +17,31 @@ or
 ```typescript
 import { GatorPermissionsController } from '@metamask/gator-permissions-controller';
 
-// Create the controller
+// Create the controller with required config
 const gatorPermissionsController = new GatorPermissionsController({
   messenger: yourMessenger,
+  config: {
+    supportedPermissionTypes: [
+      'native-token-stream',
+      'native-token-periodic',
+      'erc20-token-stream',
+      'erc20-token-periodic',
+      'erc20-token-revocation',
+    ],
+    // Optional: override the default gator permissions provider Snap id
+    // gatorPermissionsProviderSnapId: 'npm:@metamask/gator-permissions-snap',
+  },
 });
-
-// Enable the feature (requires authentication)
-gatorPermissionsController.enableGatorPermissions();
 ```
 
 ### Fetch from Profile Sync
 
 ```typescript
+// Fetch all permissions
+const permissions =
+  await gatorPermissionsController.fetchAndUpdateGatorPermissions();
+
+// Fetch permissions and update internal state
 const permissions =
   await gatorPermissionsController.fetchAndUpdateGatorPermissions();
 ```

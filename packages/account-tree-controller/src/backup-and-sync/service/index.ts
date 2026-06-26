@@ -2,7 +2,6 @@ import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
 import { AccountWalletType } from '@metamask/account-api';
 import type { UserStorageController } from '@metamask/profile-sync-controller';
 
-import { AtomicSyncQueue } from './atomic-sync-queue';
 import { backupAndSyncLogger } from '../../logger';
 import type { AccountTreeControllerState } from '../../types';
 import type { AccountWalletEntropyObject } from '../../wallet';
@@ -32,8 +31,10 @@ import {
   restoreStateFromSnapshot,
   getLocalEntropyWallets,
   getLocalGroupsForEntropyWallet,
+  toErrorMessage,
 } from '../utils';
 import type { StateSnapshot } from '../utils';
+import { AtomicSyncQueue } from './atomic-sync-queue';
 
 /**
  * Service responsible for managing all backup and sync operations.
@@ -162,20 +163,15 @@ export class BackupAndSyncService {
 
   /**
    * Enqueues a single wallet sync operation (fire-and-forget).
+   * If the first full sync has not yet occurred, it does nothing.
    *
    * @param walletId - The wallet ID to sync.
    */
   enqueueSingleWalletSync(walletId: AccountWalletId): void {
-    if (!this.isBackupAndSyncEnabled) {
+    if (!this.isBackupAndSyncEnabled || !this.hasSyncedAtLeastOnce) {
       return;
     }
 
-    if (!this.hasSyncedAtLeastOnce) {
-      // Run big sync
-      // eslint-disable-next-line no-void
-      void this.performFullSync();
-      return;
-    }
     // eslint-disable-next-line no-void
     void this.#atomicSyncQueue.enqueue(() =>
       this.#performSingleWalletSyncInner(walletId),
@@ -184,18 +180,21 @@ export class BackupAndSyncService {
 
   /**
    * Enqueues a single group sync operation (fire-and-forget).
+   * If the first full sync has not yet occurred, it does nothing.
    *
    * @param groupId - The group ID to sync.
    */
   enqueueSingleGroupSync(groupId: AccountGroupId): void {
-    if (!this.isBackupAndSyncEnabled) {
-      return;
-    }
-
-    if (!this.hasSyncedAtLeastOnce) {
-      // Run big sync
-      // eslint-disable-next-line no-void
-      void this.performFullSync();
+    if (
+      !this.isBackupAndSyncEnabled ||
+      !this.hasSyncedAtLeastOnce ||
+      // This prevents rate limiting scenarios where full syncs trigger group creations
+      // that in turn enqueue the same single group syncs that the full sync just did.
+      // This can very rarely lead to inconsistencies, but will be fixed on the next full sync.
+      // TODO: let's improve this in the future by tracking the updates done in the full sync and
+      // comparing against that.
+      this.isInProgress
+    ) {
       return;
     }
 
@@ -347,12 +346,14 @@ export class BackupAndSyncService {
               );
             }
           } catch (error) {
-            const errorMessage =
-              error instanceof Error ? error.message : String(error);
-            const errorString = `Legacy syncing failed for wallet ${wallet.id}: ${errorMessage}`;
+            const errorMessage = toErrorMessage(error);
 
-            backupAndSyncLogger(errorString);
-            throw new Error(errorString);
+            backupAndSyncLogger(
+              `Legacy syncing failed for wallet ${wallet.id}: ${errorMessage}`,
+            );
+            throw new Error(
+              `Legacy syncing failed for wallet: ${errorMessage}`,
+            );
           }
 
           // 3. Execute multichain account syncing
@@ -402,8 +403,7 @@ export class BackupAndSyncService {
               walletProfileId,
             );
           } catch (error) {
-            const errorMessage =
-              error instanceof Error ? error.message : String(error);
+            const errorMessage = toErrorMessage(error);
             const errorString = `Error during multichain account syncing for wallet ${wallet.id}: ${errorMessage}`;
 
             backupAndSyncLogger(errorString);

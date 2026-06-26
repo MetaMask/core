@@ -1,4 +1,4 @@
-import { BtcScope, SolScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope, TrxScope, XlmScope } from '@metamask/keyring-api';
 
 import type { AllowedBridgeChainIds } from './bridge';
 import { CHAIN_IDS } from './chains';
@@ -26,7 +26,8 @@ export type SwapsTokenObject = {
   iconUrl: string;
 };
 
-const DEFAULT_TOKEN_ADDRESS = '0x0000000000000000000000000000000000000000';
+export const DEFAULT_TOKEN_ADDRESS =
+  '0x0000000000000000000000000000000000000000';
 
 const CURRENCY_SYMBOLS = {
   ARBITRUM: 'ETH',
@@ -54,6 +55,12 @@ const CURRENCY_SYMBOLS = {
   SOL: 'SOL',
   SEI: 'SEI',
   BTC: 'BTC',
+  TRX: 'TRX',
+  MON: 'MON',
+  HYPE: 'HYPE',
+  MEGAETH: 'ETH',
+  XLM: 'XLM',
+  ARC: 'USDC',
 } as const;
 
 const ETH_SWAPS_TOKEN_OBJECT = {
@@ -156,11 +163,54 @@ const SEI_SWAPS_TOKEN_OBJECT = {
   iconUrl: '',
 } as const;
 
-const SWAPS_TESTNET_CHAIN_ID = '0x539';
+const TRX_SWAPS_TOKEN_OBJECT = {
+  symbol: CURRENCY_SYMBOLS.TRX,
+  name: 'Tron',
+  address: DEFAULT_TOKEN_ADDRESS,
+  decimals: 6,
+  iconUrl: '',
+} as const;
+
+const XLM_SWAPS_TOKEN_OBJECT = {
+  symbol: CURRENCY_SYMBOLS.XLM,
+  name: 'Stellar Lumens',
+  address: DEFAULT_TOKEN_ADDRESS,
+  decimals: 7,
+  iconUrl: '',
+} as const;
+
+const MONAD_SWAPS_TOKEN_OBJECT = {
+  symbol: CURRENCY_SYMBOLS.MON,
+  name: 'Mon',
+  address: DEFAULT_TOKEN_ADDRESS,
+  decimals: 18,
+  iconUrl: '',
+} as const;
+
+const HYPEREVM_SWAPS_TOKEN_OBJECT = {
+  symbol: CURRENCY_SYMBOLS.HYPE,
+  name: 'Hyperliquid',
+  address: DEFAULT_TOKEN_ADDRESS,
+  decimals: 18,
+  iconUrl: '',
+} as const;
+
+const MEGAETH_SWAPS_TOKEN_OBJECT = {
+  ...ETH_SWAPS_TOKEN_OBJECT,
+} as const;
+
+// Leaving for code consistency but we won't display it in the asset picker
+const ARC_SWAPS_TOKEN_OBJECT = {
+  symbol: 'USDC-native',
+  name: 'USDC-native',
+  address: '0x0000000000000000000000000000000000000000',
+  decimals: 18,
+  iconUrl: '',
+} as const;
 
 export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
   [CHAIN_IDS.MAINNET]: ETH_SWAPS_TOKEN_OBJECT,
-  [SWAPS_TESTNET_CHAIN_ID]: TEST_ETH_SWAPS_TOKEN_OBJECT,
+  [CHAIN_IDS.LOCALHOST]: TEST_ETH_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.BSC]: BNB_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.POLYGON]: MATIC_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.GOERLI]: GOERLI_SWAPS_TOKEN_OBJECT,
@@ -172,14 +222,21 @@ export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
   [CHAIN_IDS.LINEA_MAINNET]: LINEA_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.BASE]: BASE_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.SEI]: SEI_SWAPS_TOKEN_OBJECT,
+  [CHAIN_IDS.MONAD]: MONAD_SWAPS_TOKEN_OBJECT,
+  [CHAIN_IDS.HYPEREVM]: HYPEREVM_SWAPS_TOKEN_OBJECT,
+  [CHAIN_IDS.MEGAETH]: MEGAETH_SWAPS_TOKEN_OBJECT,
+  [CHAIN_IDS.ARC]: ARC_SWAPS_TOKEN_OBJECT,
   [SolScope.Mainnet]: SOLANA_SWAPS_TOKEN_OBJECT,
+  [SolScope.Devnet]: SOLANA_SWAPS_TOKEN_OBJECT,
   [BtcScope.Mainnet]: BTC_SWAPS_TOKEN_OBJECT,
+  [TrxScope.Mainnet]: TRX_SWAPS_TOKEN_OBJECT,
+  [XlmScope.Pubnet]: XLM_SWAPS_TOKEN_OBJECT,
 } as const;
 
 export type SupportedSwapsNativeCurrencySymbols =
   (typeof SWAPS_CHAINID_DEFAULT_TOKEN_MAP)[
     | AllowedBridgeChainIds
-    | typeof SWAPS_TESTNET_CHAIN_ID]['symbol'];
+    | typeof CHAIN_IDS.LOCALHOST]['symbol'];
 
 /**
  * A map of native currency symbols to their SLIP-44 representation
@@ -194,7 +251,13 @@ export const SYMBOL_TO_SLIP44_MAP: Record<
   ETH: 'slip44:60',
   POL: 'slip44:966',
   BNB: 'slip44:714',
-  AVAX: 'slip44:9000',
+  AVAX: 'slip44:9005',
   TESTETH: 'slip44:60',
   SEI: 'slip44:19000118',
+  TRX: 'slip44:195',
+  XLM: 'slip44:148',
+  MON: 'slip44:268435779',
+  HYPE: 'slip44:2457',
+  // It won't be displayed - hidden on UI client side
+  'USDC-native': 'erc20:0x0000000000000000000000000000000000000000',
 };

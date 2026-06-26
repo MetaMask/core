@@ -1,4 +1,3 @@
-import type { NetworkClientId } from '@metamask/network-controller';
 import type {
   PermissionSpecificationBuilder,
   EndowmentGetterParams,
@@ -11,14 +10,18 @@ import {
   CaveatMutatorOperation,
   PermissionType,
 } from '@metamask/permission-controller';
-import type { CaipAccountId, CaipChainId, Json } from '@metamask/utils';
 import {
   hasProperty,
   KnownCaipNamespace,
   parseCaipAccountId,
   isObject,
-  type Hex,
-  type NonEmptyArray,
+} from '@metamask/utils';
+import type {
+  CaipAccountId,
+  CaipChainId,
+  Json,
+  Hex,
+  NonEmptyArray,
 } from '@metamask/utils';
 import { cloneDeep, isEqual, pick } from 'lodash';
 
@@ -32,17 +35,18 @@ import {
   setPermittedEthChainIds,
 } from './operators/caip-permission-operator-permittedChains';
 import { assertIsInternalScopesObject } from './scope/assert';
+import { KnownSessionProperties } from './scope/constants';
 import {
   isSupportedAccount,
   isSupportedScopeString,
   isSupportedSessionProperty,
 } from './scope/supported';
 import { mergeInternalScopes } from './scope/transform';
-import {
-  parseScopeString,
-  type ExternalScopeString,
-  type InternalScopeObject,
-  type InternalScopesObject,
+import { parseScopeString } from './scope/types';
+import type {
+  ExternalScopeString,
+  InternalScopeObject,
+  InternalScopesObject,
 } from './scope/types';
 
 /**
@@ -81,7 +85,7 @@ export const createCaip25Caveat = (value: Caip25CaveatValue) => {
 };
 
 type Caip25EndowmentCaveatSpecificationBuilderOptions = {
-  findNetworkClientIdByChainId: (chainId: Hex) => NetworkClientId;
+  findNetworkClientIdByChainId: (chainId: Hex) => string;
   listAccounts: () => { type: string; address: Hex }[];
   isNonEvmScopeSupported: (scope: CaipChainId) => boolean;
   getNonEvmAccountAddresses: (scope: CaipChainId) => string[];
@@ -629,7 +633,9 @@ export const getCaip25PermissionFromLegacyPermissions =
           accounts: [],
         },
       },
-      sessionProperties: {},
+      sessionProperties: {
+        [KnownSessionProperties.Eip1193Compatible]: true,
+      },
       isMultichainOrigin: false,
     };
 

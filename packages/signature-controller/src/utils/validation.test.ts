@@ -3,17 +3,17 @@ import { convertHexToDecimal, toHex } from '@metamask/controller-utils';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import type { Hex } from '@metamask/utils';
 
-import {
-  PRIMARY_TYPE_DELEGATION,
-  validatePersonalSignatureRequest,
-  validateTypedSignatureRequest,
-} from './validation';
 import type {
   MessageParams,
   MessageParamsPersonal,
   MessageParamsTyped,
   OriginalRequest,
 } from '../types';
+import {
+  PRIMARY_TYPE_DELEGATION,
+  validatePersonalSignatureRequest,
+  validateTypedSignatureRequest,
+} from './validation';
 
 const CHAIN_ID_MOCK = '0x1';
 const ORIGIN_MOCK = 'test.com';
@@ -234,8 +234,6 @@ describe('Validation Utils', () => {
               version,
             }),
           ).toThrow(
-            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-
             `Provided chainId "${convertHexToDecimal(
               CHAIN_ID_MOCK,
               // TODO: Either fix this lint violation or explain why it's necessary to ignore.

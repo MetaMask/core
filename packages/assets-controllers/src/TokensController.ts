@@ -6,11 +6,11 @@ import type {
   AccountsControllerListAccountsAction,
   AccountsControllerSelectedEvmAccountChangeEvent,
 } from '@metamask/accounts-controller';
-import type { AddApprovalRequest } from '@metamask/approval-controller';
+import type { ApprovalControllerAddRequestAction } from '@metamask/approval-controller';
 import type {
-  RestrictedMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
+  StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import contractsMap from '@metamask/contract-metadata';
@@ -27,6 +27,7 @@ import {
 } from '@metamask/controller-utils';
 import type { KeyringControllerAccountRemovedEvent } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { Messenger } from '@metamask/messenger';
 import { abiERC721 } from '@metamask/metamask-eth-abis';
 import type {
   NetworkClientId,
@@ -37,7 +38,8 @@ import type {
   Provider,
 } from '@metamask/network-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
-import { isStrictHexString, type Hex } from '@metamask/utils';
+import { isStrictHexString } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
@@ -49,17 +51,18 @@ import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standar
 import {
   fetchTokenMetadata,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
+  TokenRwaData,
 } from './token-service';
-import type {
-  TokenListStateChange,
-  TokenListToken,
-} from './TokenListController';
+import type { TokenListMap, TokenListToken } from './TokenListController';
+import type { TokenListService } from './TokenListService';
 import type { Token } from './TokenRatesController';
+import type { TokensControllerMethodActions } from './TokensController-method-action-types';
 
 /**
  * @type SuggestedAssetMeta
  *
  * Suggested asset by EIP747 meta data
+ *
  * @property id - Generated UUID associated with this suggested asset
  * @property time - Timestamp associated with this this suggested asset
  * @property type - Type type this suggested asset
@@ -72,12 +75,28 @@ type SuggestedAssetMeta = {
   type: string;
   asset: Token;
   interactingAddress: string;
+  origin?: string;
+  pageMeta?: Record<string, Json>;
+};
+
+type WatchAssetRequestMetadata = {
+  origin?: string;
+  pageMeta?: Record<string, Json>;
+};
+
+const getNonEmptyString = (
+  ...candidates: (string | undefined)[]
+): string | undefined => {
+  return candidates.find(
+    (candidate) => typeof candidate === 'string' && candidate.trim() !== '',
+  );
 };
 
 /**
  * @type TokensControllerState
  *
  * Assets controller state
+ *
  * @property allTokens - Object containing tokens by network and account
  * @property allIgnoredTokens - Object containing hidden/ignored tokens by network and account
  * @property allDetectedTokens - Object containing tokens detected with non-zero balances
@@ -88,54 +107,43 @@ export type TokensControllerState = {
   allDetectedTokens: { [chainId: Hex]: { [key: string]: Token[] } };
 };
 
-const metadata = {
+const metadata: StateMetadata<TokensControllerState> = {
   allTokens: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   allIgnoredTokens: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
   allDetectedTokens: {
     includeInStateLogs: false,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
 };
 
 const controllerName = 'TokensController';
 
-export type TokensControllerActions =
-  | TokensControllerGetStateAction
-  | TokensControllerAddDetectedTokensAction
-  | TokensControllerAddTokensAction;
-
 export type TokensControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   TokensControllerState
 >;
 
-export type TokensControllerAddDetectedTokensAction = {
-  type: `${typeof controllerName}:addDetectedTokens`;
-  handler: TokensController['addDetectedTokens'];
-};
-
-export type TokensControllerAddTokensAction = {
-  type: `${typeof controllerName}:addTokens`;
-  handler: TokensController['addTokens'];
-};
+export type TokensControllerActions =
+  | TokensControllerGetStateAction
+  | TokensControllerMethodActions;
 
 /**
  * The external actions available to the {@link TokensController}.
  */
 export type AllowedActions =
-  | AddApprovalRequest
+  | ApprovalControllerAddRequestAction
   | NetworkControllerGetNetworkClientByIdAction
   | AccountsControllerGetAccountAction
   | AccountsControllerGetSelectedAccountAction
@@ -151,19 +159,16 @@ export type TokensControllerEvents = TokensControllerStateChangeEvent;
 export type AllowedEvents =
   | NetworkControllerStateChangeEvent
   | NetworkControllerNetworkDidChangeEvent
-  | TokenListStateChange
   | AccountsControllerSelectedEvmAccountChangeEvent
   | KeyringControllerAccountRemovedEvent;
 
 /**
  * The messenger of the {@link TokensController}.
  */
-export type TokensControllerMessenger = RestrictedMessenger<
+export type TokensControllerMessenger = Messenger<
   typeof controllerName,
   TokensControllerActions | AllowedActions,
-  TokensControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  TokensControllerEvents | AllowedEvents
 >;
 
 export const getDefaultTokensState = (): TokensControllerState => {
@@ -173,6 +178,17 @@ export const getDefaultTokensState = (): TokensControllerState => {
     allDetectedTokens: {},
   };
 };
+
+const MESSENGER_EXPOSED_METHODS = [
+  'addDetectedTokens',
+  'addTokens',
+  'addToken',
+  'ignoreTokens',
+  'updateTokenType',
+  'watchAsset',
+  'clearIgnoredTokens',
+  'resetState',
+] as const;
 
 /**
  * Controller that stores assets and exposes convenience methods
@@ -186,27 +202,42 @@ export class TokensController extends BaseController<
 
   #selectedAccountId: string;
 
-  #provider: Provider;
+  readonly #provider: Provider;
 
   readonly #abortController: AbortController;
 
+  readonly #isDeprecated: () => boolean;
+
   /**
    * Tokens controller options
+   *
    * @param options - Constructor options.
    * @param options.chainId - The chain ID of the current network.
    * @param options.provider - Network provider.
    * @param options.state - Initial state to set on this controller.
    * @param options.messenger - The messenger.
+   * @param options.tokenListService - Shared service for fetching token metadata per chain.
+   * @param options.isDeprecated - Optional function that returns true to completely
+   * disable this controller (no requests, no state updates). When it returns
+   * `true`, `allTokens`, `allIgnoredTokens`, and `allDetectedTokens` are reset to
+   * `{}` at construction and at every entry point, so no stale token data remains
+   * in state. The function is evaluated dynamically on each entry point so it can
+   * be toggled at runtime. Intended for use when a higher-level controller
+   * (e.g. AssetsController) supersedes this one.
    */
   constructor({
     provider,
     state,
     messenger,
+    tokenListService,
+    isDeprecated = (): boolean => false,
   }: {
     chainId: Hex;
     provider: Provider;
     state?: Partial<TokensControllerState>;
     messenger: TokensControllerMessenger;
+    tokenListService: TokenListService;
+    isDeprecated?: () => boolean;
   }) {
     super({
       name: controllerName,
@@ -219,74 +250,123 @@ export class TokensController extends BaseController<
     });
 
     this.#provider = provider;
+    this.#isDeprecated = isDeprecated;
 
     this.#selectedAccountId = this.#getSelectedAccount().id;
 
     this.#abortController = new AbortController();
 
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:addDetectedTokens` as const,
-      this.addDetectedTokens.bind(this),
-    );
+    messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
 
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:addTokens` as const,
-      this.addTokens.bind(this),
-    );
-
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'AccountsController:selectedEvmAccountChange',
       this.#onSelectedAccountChange.bind(this),
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'NetworkController:stateChange',
       this.#onNetworkStateChange.bind(this),
     );
 
-    this.messagingSystem.subscribe(
+    this.messenger.subscribe(
       'KeyringController:accountRemoved',
       (accountAddress: string) => this.#handleOnAccountRemoved(accountAddress),
     );
 
-    this.messagingSystem.subscribe(
-      'TokenListController:stateChange',
-      ({ tokensChainsCache }) => {
-        const { allTokens } = this.state;
-        const selectedAddress = this.#getSelectedAddress();
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+    } else {
+      // Enrich persisted tokens with name/rwaData from the token list once at init.
+      this.#enrichTokensFromTokenList(tokenListService).catch(() => {
+        // Tokens remain usable without metadata enrichment
+      });
+    }
+  }
 
-        // Deep clone the `allTokens` object to ensure mutability
-        const updatedAllTokens = cloneDeep(allTokens);
+  /**
+   * Clears all persisted token state so that no stale data remains.
+   *
+   * Called from every entry point when `isDeprecated()` is true so that a
+   * runtime toggle propagates to state immediately, even if the controller was
+   * originally constructed while it was enabled. The update is skipped when
+   * all three maps are already empty to avoid emitting redundant state changes.
+   */
+  #enforceDisabledState(): void {
+    const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
+    if (
+      Object.keys(allTokens).length === 0 &&
+      Object.keys(allIgnoredTokens).length === 0 &&
+      Object.keys(allDetectedTokens).length === 0
+    ) {
+      return;
+    }
+    this.update((state) => {
+      state.allTokens = {};
+      state.allIgnoredTokens = {};
+      state.allDetectedTokens = {};
+    });
+  }
 
-        for (const [chainId, chainCache] of Object.entries(tokensChainsCache)) {
-          const chainData = chainCache?.data || {};
+  async #enrichTokensFromTokenList(
+    tokenListService: TokenListService,
+  ): Promise<void> {
+    const chainIds = Object.keys(this.state.allTokens) as Hex[];
+    if (chainIds.length === 0) {
+      return;
+    }
 
-          if (updatedAllTokens[chainId as Hex]) {
-            if (updatedAllTokens[chainId as Hex][selectedAddress]) {
-              const tokens = updatedAllTokens[chainId as Hex][selectedAddress];
+    // Fetch all chain data concurrently before touching state so the async gap
+    // is as short as possible and we never hold a stale T0 snapshot while
+    // awaiting individual chain requests.
+    // Promise.allSettled ensures a transient error on one chain does not
+    // prevent other chains from being enriched.
+    const results = await Promise.allSettled(
+      chainIds.map(async (chainId) => {
+        const data = await tokenListService.fetchTokensByChainId(chainId);
+        return [chainId, data] as const;
+      }),
+    );
+    const chainDataMap = Object.fromEntries(
+      results
+        .filter(
+          (
+            result,
+          ): result is PromiseFulfilledResult<readonly [Hex, TokenListMap]> =>
+            result.status === 'fulfilled',
+        )
+        .map((result) => result.value),
+    );
 
-              for (const [, token] of Object.entries(tokens)) {
-                const cachedToken = chainData[token.address];
-                if (cachedToken && cachedToken.name && !token.name) {
-                  token.name = cachedToken.name; // Update the token name
-                }
-              }
-            }
+    // Read selectedAddress inside the updater so it reflects the live account
+    // at the moment the state write happens, not a snapshot taken before the
+    // async fetch gap above.
+    this.update((state) => {
+      const selectedAddress = this.#getSelectedAddress();
+      for (const chainId of chainIds) {
+        const chainData = chainDataMap[chainId];
+        const tokens = state.allTokens[chainId]?.[selectedAddress];
+        if (!tokens || !chainData) {
+          continue;
+        }
+        for (const token of tokens) {
+          const cachedToken = chainData[token.address.toLowerCase()];
+          if (cachedToken?.name && !token.name) {
+            token.name = cachedToken.name;
+          }
+          if (cachedToken?.rwaData) {
+            token.rwaData = cachedToken.rwaData;
           }
         }
-
-        // Update the state with the modified tokens
-        this.update(() => {
-          return {
-            ...this.state,
-            allTokens: updatedAllTokens,
-          };
-        });
-      },
-    );
+      }
+    });
   }
 
   #handleOnAccountRemoved(accountAddress: string) {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
     const isEthAddress =
       isStrictHexString(accountAddress.toLowerCase()) &&
       isValidHexAddress(accountAddress);
@@ -327,10 +407,16 @@ export class TokensController extends BaseController<
 
   /**
    * Handles the event when the network state changes.
+   *
    * @param _ - The network state.
    * @param patches - An array of patch operations performed on the network state.
    */
   #onNetworkStateChange(_: NetworkState, patches: Patch[]) {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
     // Remove state for deleted networks
     for (const patch of patches) {
       if (
@@ -397,6 +483,7 @@ export class TokensController extends BaseController<
    * @param options.image - Image of the token.
    * @param options.interactingAddress - The address of the account to add a token to.
    * @param options.networkClientId - Network Client ID.
+   * @param options.rwaData - Optional RWA data for the token.
    * @returns Current token list.
    */
   async addToken({
@@ -407,6 +494,7 @@ export class TokensController extends BaseController<
     image,
     interactingAddress,
     networkClientId,
+    rwaData,
   }: {
     address: string;
     symbol: string;
@@ -415,11 +503,17 @@ export class TokensController extends BaseController<
     image?: string;
     interactingAddress?: string;
     networkClientId: NetworkClientId;
+    rwaData?: TokenRwaData;
   }): Promise<Token[]> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return [];
+    }
+
     const releaseLock = await this.#mutex.acquire();
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
 
-    const chainIdToUse = this.messagingSystem.call(
+    const chainIdToUse = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     ).configuration.chainId;
@@ -429,11 +523,11 @@ export class TokensController extends BaseController<
 
     try {
       address = toChecksumHexAddress(address);
-      const tokens = allTokens[chainIdToUse]?.[accountAddress] || [];
+      const tokens = allTokens[chainIdToUse]?.[accountAddress] ?? [];
       const ignoredTokens =
-        allIgnoredTokens[chainIdToUse]?.[accountAddress] || [];
+        allIgnoredTokens[chainIdToUse]?.[accountAddress] ?? [];
       const detectedTokens =
-        allDetectedTokens[chainIdToUse]?.[accountAddress] || [];
+        allDetectedTokens[chainIdToUse]?.[accountAddress] ?? [];
       const newTokens: Token[] = [...tokens];
       const [isERC721, tokenMetadata] = await Promise.all([
         this.#detectIsERC721(address, networkClientId),
@@ -445,14 +539,16 @@ export class TokensController extends BaseController<
         symbol,
         decimals,
         image:
-          image ||
-          formatIconUrlWithProxy({
-            chainId: chainIdToUse,
-            tokenAddress: address,
-          }),
+          image && image.trim() !== ''
+            ? image
+            : formatIconUrlWithProxy({
+                chainId: chainIdToUse,
+                tokenAddress: address,
+              }),
         isERC721,
-        aggregators: formatAggregatorNames(tokenMetadata?.aggregators || []),
+        aggregators: formatAggregatorNames(tokenMetadata?.aggregators ?? []),
         name,
+        ...(rwaData !== undefined && { rwaData }),
       };
       const previousIndex = newTokens.findIndex(
         (token) => token.address.toLowerCase() === address.toLowerCase(),
@@ -501,30 +597,32 @@ export class TokensController extends BaseController<
    * @param networkClientId - Optional network client ID used to determine interacting chain ID.
    */
   async addTokens(tokensToImport: Token[], networkClientId: NetworkClientId) {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
     const releaseLock = await this.#mutex.acquire();
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
     const importedTokensMap: { [key: string]: true } = {};
 
-    const interactingChainId = this.messagingSystem.call(
+    const interactingChainId = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     ).configuration.chainId;
 
     // Used later to dedupe imported tokens
     const newTokensMap = [
-      ...(allTokens[interactingChainId]?.[this.#getSelectedAccount().address] ||
+      ...(allTokens[interactingChainId]?.[this.#getSelectedAccount().address] ??
         []),
       ...tokensToImport,
-    ].reduce(
-      (output, token) => {
-        output[token.address] = token;
-        return output;
-      },
-      {} as { [address: string]: Token },
-    );
+    ].reduce<{ [address: string]: Token }>((output, token) => {
+      output[toChecksumHexAddress(token.address)] = token;
+      return output;
+    }, {});
     try {
       tokensToImport.forEach((tokenToAdd) => {
-        const { address, symbol, decimals, image, aggregators, name } =
+        const { address, symbol, decimals, image, aggregators, name, rwaData } =
           tokenToAdd;
         const checksumAddress = toChecksumHexAddress(address);
         const formattedToken: Token = {
@@ -534,8 +632,9 @@ export class TokensController extends BaseController<
           image,
           aggregators,
           name,
+          ...(rwaData && { rwaData }),
         };
-        newTokensMap[address] = formattedToken;
+        newTokensMap[checksumAddress] = formattedToken;
         importedTokensMap[address.toLowerCase()] = true;
         return formattedToken;
       });
@@ -543,7 +642,9 @@ export class TokensController extends BaseController<
 
       const newIgnoredTokens = allIgnoredTokens[interactingChainId]?.[
         this.#getSelectedAddress()
-      ]?.filter((tokenAddress) => !newTokensMap[tokenAddress.toLowerCase()]);
+      ]?.filter(
+        (tokenAddress) => !newTokensMap[toChecksumHexAddress(tokenAddress)],
+      );
 
       const detectedTokensForGivenChain = interactingChainId
         ? allDetectedTokens?.[interactingChainId]?.[this.#getSelectedAddress()]
@@ -581,7 +682,12 @@ export class TokensController extends BaseController<
     tokenAddressesToIgnore: string[],
     networkClientId: NetworkClientId,
   ) {
-    const interactingChainId = this.messagingSystem.call(
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
+    const interactingChainId = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     ).configuration.chainId;
@@ -589,14 +695,14 @@ export class TokensController extends BaseController<
     const { allTokens, allDetectedTokens, allIgnoredTokens } = this.state;
     const ignoredTokensMap: { [key: string]: true } = {};
     const ignoredTokens =
-      allIgnoredTokens[interactingChainId]?.[this.#getSelectedAddress()] || [];
+      allIgnoredTokens[interactingChainId]?.[this.#getSelectedAddress()] ?? [];
     let newIgnoredTokens: string[] = [...ignoredTokens];
 
     const tokens =
-      allTokens[interactingChainId]?.[this.#getSelectedAddress()] || [];
+      allTokens[interactingChainId]?.[this.#getSelectedAddress()] ?? [];
 
     const detectedTokens =
-      allDetectedTokens[interactingChainId]?.[this.#getSelectedAddress()] || [];
+      allDetectedTokens[interactingChainId]?.[this.#getSelectedAddress()] ?? [];
 
     const checksummedTokenAddresses = tokenAddressesToIgnore.map((address) => {
       const checksumAddress = toChecksumHexAddress(address);
@@ -638,6 +744,11 @@ export class TokensController extends BaseController<
     incomingDetectedTokens: Token[],
     detectionDetails: { selectedAddress?: string; chainId: Hex },
   ) {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
     const releaseLock = await this.#mutex.acquire();
 
     const { chainId } = detectionDetails;
@@ -661,6 +772,7 @@ export class TokensController extends BaseController<
           aggregators,
           isERC721,
           name,
+          rwaData,
         } = tokenToAdd;
         const checksumAddress = toChecksumHexAddress(address);
         const newEntry: Token = {
@@ -671,6 +783,7 @@ export class TokensController extends BaseController<
           isERC721,
           aggregators,
           name,
+          ...(rwaData && { rwaData }),
         };
 
         const previousImportedIndex = newTokens.findIndex(
@@ -714,9 +827,9 @@ export class TokensController extends BaseController<
       // Re-point `tokens` and `detectedTokens` to keep them referencing the current chain/account.
       const selectedAddress = this.#getSelectedAddress();
 
-      newTokens = newAllTokens?.[chainId]?.[selectedAddress] || [];
+      newTokens = newAllTokens?.[chainId]?.[selectedAddress] ?? [];
       newDetectedTokens =
-        newAllDetectedTokens?.[chainId]?.[selectedAddress] || [];
+        newAllDetectedTokens?.[chainId]?.[selectedAddress] ?? [];
 
       this.update((state) => {
         state.allTokens = newAllTokens;
@@ -738,8 +851,13 @@ export class TokensController extends BaseController<
   async updateTokenType(
     tokenAddress: string,
     networkClientId: NetworkClientId,
-  ) {
-    const chainIdToUse = this.messagingSystem.call(
+  ): Promise<Token> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      throw new Error('TokensController is deprecated');
+    }
+
+    const chainIdToUse = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     ).configuration.chainId;
@@ -798,7 +916,7 @@ export class TokensController extends BaseController<
   #getProvider(networkClientId?: NetworkClientId): Web3Provider {
     return new Web3Provider(
       networkClientId
-        ? this.messagingSystem.call(
+        ? this.messenger.call(
             'NetworkController:getNetworkClientById',
             networkClientId,
           ).provider
@@ -829,6 +947,9 @@ export class TokensController extends BaseController<
    * @param options.type - The asset type.
    * @param options.interactingAddress - The address of the account that is requesting to watch the asset.
    * @param options.networkClientId - Network Client ID.
+   * @param options.origin - The origin to set on the approval request.
+   * @param options.pageMeta - The metadata for the page initiating the request.
+   * @param options.requestMetadata - Metadata for the request, including pageMeta and origin.
    * @returns A promise that resolves if the asset was watched successfully, and rejects otherwise.
    */
   async watchAsset({
@@ -836,12 +957,23 @@ export class TokensController extends BaseController<
     type,
     interactingAddress,
     networkClientId,
+    origin,
+    pageMeta,
+    requestMetadata,
   }: {
     asset: Token;
     type: string;
     interactingAddress?: string;
     networkClientId: NetworkClientId;
+    origin?: string;
+    pageMeta?: Record<string, Json>;
+    requestMetadata?: WatchAssetRequestMetadata;
   }): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
     if (type !== ERC20) {
       throw new Error(`Asset of type ${type} not supported`);
     }
@@ -861,8 +993,6 @@ export class TokensController extends BaseController<
 
     if (await this.#detectIsERC721(asset.address, networkClientId)) {
       throw rpcErrors.invalidParams(
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Contract ${asset.address} must match type ${type}, but was detected as ${ERC721}`,
       );
     }
@@ -875,8 +1005,6 @@ export class TokensController extends BaseController<
     );
     if (isErc1155) {
       throw rpcErrors.invalidParams(
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Contract ${asset.address} must match type ${type}, but was detected as ${ERC1155}`,
       );
     }
@@ -904,8 +1032,6 @@ export class TokensController extends BaseController<
       asset.symbol.toUpperCase() !== contractSymbol.toUpperCase()
     ) {
       throw rpcErrors.invalidParams(
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `The symbol in the request (${asset.symbol}) does not match the symbol in the contract (${contractSymbol})`,
       );
     }
@@ -935,8 +1061,6 @@ export class TokensController extends BaseController<
       String(asset.decimals) !== contractDecimals
     ) {
       throw rpcErrors.invalidParams(
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `The decimals in the request (${asset.decimals}) do not match the decimals in the contract (${contractDecimals})`,
       );
     }
@@ -945,8 +1069,6 @@ export class TokensController extends BaseController<
     const decimalsNum = parseInt(decimalsStr as unknown as string, 10);
     if (!Number.isInteger(decimalsNum) || decimalsNum > 36 || decimalsNum < 0) {
       throw rpcErrors.invalidParams(
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Invalid decimals "${decimalsStr}": must be an integer 0 <= 36`,
       );
     }
@@ -958,11 +1080,13 @@ export class TokensController extends BaseController<
       time: Date.now(),
       type,
       interactingAddress: selectedAddress,
+      origin: getNonEmptyString(requestMetadata?.origin, origin),
+      pageMeta: requestMetadata?.pageMeta ?? pageMeta,
     };
 
     await this.#requestApproval(suggestedAssetMeta);
 
-    const { address, symbol, decimals, name, image } = asset;
+    const { address, symbol, decimals, name, image, rwaData } = asset;
     await this.addToken({
       address,
       symbol,
@@ -971,6 +1095,7 @@ export class TokensController extends BaseController<
       image,
       interactingAddress: suggestedAssetMeta.interactingAddress,
       networkClientId,
+      rwaData,
     });
   }
 
@@ -1076,44 +1201,60 @@ export class TokensController extends BaseController<
    * Removes all tokens from the ignored list.
    */
   clearIgnoredTokens() {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
     this.update((state) => {
       state.allIgnoredTokens = {};
     });
   }
 
   async #requestApproval(suggestedAssetMeta: SuggestedAssetMeta) {
-    return this.messagingSystem.call(
+    const requestData: Record<string, Json> = {
+      id: suggestedAssetMeta.id,
+      interactingAddress: suggestedAssetMeta.interactingAddress,
+      asset: {
+        address: suggestedAssetMeta.asset.address,
+        decimals: suggestedAssetMeta.asset.decimals,
+        symbol: suggestedAssetMeta.asset.symbol,
+        image:
+          suggestedAssetMeta.asset.image &&
+          suggestedAssetMeta.asset.image.trim() !== ''
+            ? suggestedAssetMeta.asset.image
+            : null,
+      },
+    };
+    if (suggestedAssetMeta.pageMeta) {
+      requestData.metadata = {
+        pageMeta: suggestedAssetMeta.pageMeta,
+      };
+    }
+
+    return this.messenger.call(
       'ApprovalController:addRequest',
       {
         id: suggestedAssetMeta.id,
-        origin: ORIGIN_METAMASK,
+        origin: getNonEmptyString(suggestedAssetMeta.origin) ?? ORIGIN_METAMASK,
         type: ApprovalType.WatchAsset,
-        requestData: {
-          id: suggestedAssetMeta.id,
-          interactingAddress: suggestedAssetMeta.interactingAddress,
-          asset: {
-            address: suggestedAssetMeta.asset.address,
-            decimals: suggestedAssetMeta.asset.decimals,
-            symbol: suggestedAssetMeta.asset.symbol,
-            image: suggestedAssetMeta.asset.image || null,
-          },
-        },
+        requestData,
       },
       true,
     );
   }
 
   #getSelectedAccount() {
-    return this.messagingSystem.call('AccountsController:getSelectedAccount');
+    return this.messenger.call('AccountsController:getSelectedAccount');
   }
 
   #getSelectedAddress() {
     // If the address is not defined (or empty), we fallback to the currently selected account's address
-    const account = this.messagingSystem.call(
+    const account = this.messenger.call(
       'AccountsController:getAccount',
       this.#selectedAccountId,
     );
-    return account?.address || '';
+    return account?.address ?? '';
   }
 
   /**

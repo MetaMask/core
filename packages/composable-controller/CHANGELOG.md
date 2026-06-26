@@ -7,13 +7,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/json-rpc-engine` from `^10.2.4` to `^10.3.0` ([#8661](https://github.com/MetaMask/core/pull/8661))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+
+## [12.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [12.0.0]
+
+### Changed
+
+- **BREAKING:** Migrate `ComposableController` to new `Messenger` from `@metamask/messenger` ([#6710](https://github.com/MetaMask/core/pull/6710))
+  - Previously, the controller accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6710](https://github.com/MetaMask/core/pull/6710))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+### Fixed
+
+- Resolve incompatibility of `ChildControllerStateChangeEvents` type with `BaseController` (when used in the `Events` type argument of `ComposableControllerMessenger`) by removing unnecessary nested logic from definition ([#6904](https://github.com/MetaMask/core/pull/6904))
+  - Also update generic parameter names `ControllerName` and `ControllerState` to `ChildControllerName`, `ChildControllerState` for reduced ambiguity.
+
+## [11.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
+## [11.1.0]
+
 ### Added
 
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6525](https://github.com/MetaMask/core/pull/6525))
 
 ### Changed
 
-- Bump `@metamask/base-controller` from `^8.0.0` to `^8.3.0` ([#5722](https://github.com/MetaMask/core/pull/5722), [#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465))
+- Bump `@metamask/base-controller` from `^8.0.0` to `^8.4.1` ([#5722](https://github.com/MetaMask/core/pull/5722), [#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632),[#6807](https://github.com/MetaMask/core/pull/6807))
 
 ## [11.0.0]
 
@@ -221,15 +256,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
-
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
-
     - `src/ComposableController.ts`
     - `src/ComposableController.test.ts`
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@11.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@12.0.1...HEAD
+[12.0.1]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@12.0.0...@metamask/composable-controller@12.0.1
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@11.1.1...@metamask/composable-controller@12.0.0
+[11.1.1]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@11.1.0...@metamask/composable-controller@11.1.1
+[11.1.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@11.0.0...@metamask/composable-controller@11.1.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@10.0.0...@metamask/composable-controller@11.0.0
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@9.0.1...@metamask/composable-controller@10.0.0
 [9.0.1]: https://github.com/MetaMask/core/compare/@metamask/composable-controller@9.0.0...@metamask/composable-controller@9.0.1

@@ -1,20 +1,25 @@
 import type {
-  RestrictedMessenger,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import log from 'loglevel';
 
+import type { Types } from '../NotificationServicesController';
+import type { NotificationServicesPushControllerMethodActions } from './NotificationServicesPushController-method-action-types';
+import type { ENV } from './services/endpoints';
+import type { RegToken } from './services/services';
 import {
   activatePushNotifications,
+  deleteLinksAPI,
   deactivatePushNotifications,
+  updateLinksAPI,
 } from './services/services';
 import type { PushNotificationEnv } from './types';
 import type { PushService } from './types/push-service-interface';
-import type { Types } from '../NotificationServicesController';
 
 const controllerName = 'NotificationServicesPushController';
 
@@ -24,39 +29,27 @@ export type NotificationServicesPushControllerState = {
   isUpdatingFCMToken: boolean;
 };
 
+const MESSENGER_EXPOSED_METHODS = [
+  'subscribeToPushNotifications',
+  'enablePushNotifications',
+  'addPushNotificationLinks',
+  'disablePushNotifications',
+  'updateTriggerPushNotifications',
+  'deletePushNotificationLinks',
+] as const;
+
 export type NotificationServicesPushControllerGetStateAction =
   ControllerGetStateAction<
     typeof controllerName,
     NotificationServicesPushControllerState
   >;
 
-export type NotificationServicesPushControllerEnablePushNotificationsAction = {
-  type: `${typeof controllerName}:enablePushNotifications`;
-  handler: NotificationServicesPushController['enablePushNotifications'];
-};
-export type NotificationServicesPushControllerDisablePushNotificationsAction = {
-  type: `${typeof controllerName}:disablePushNotifications`;
-  handler: NotificationServicesPushController['disablePushNotifications'];
-};
-export type NotificationServicesPushControllerUpdateTriggerPushNotificationsAction =
-  {
-    type: `${typeof controllerName}:updateTriggerPushNotifications`;
-    handler: NotificationServicesPushController['updateTriggerPushNotifications'];
-  };
-export type NotificationServicesPushControllerSubscribeToNotificationsAction = {
-  type: `${typeof controllerName}:subscribeToPushNotifications`;
-  handler: NotificationServicesPushController['subscribeToPushNotifications'];
-};
-
 export type Actions =
   | NotificationServicesPushControllerGetStateAction
-  | NotificationServicesPushControllerEnablePushNotificationsAction
-  | NotificationServicesPushControllerDisablePushNotificationsAction
-  | NotificationServicesPushControllerUpdateTriggerPushNotificationsAction
-  | NotificationServicesPushControllerSubscribeToNotificationsAction;
+  | NotificationServicesPushControllerMethodActions;
 
-export type AllowedActions =
-  AuthenticationController.AuthenticationControllerGetBearerToken;
+type AllowedActions =
+  AuthenticationController.AuthenticationControllerGetBearerTokenAction;
 
 export type NotificationServicesPushControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -79,14 +72,10 @@ export type Events =
   | NotificationServicesPushControllerOnNewNotificationEvent
   | NotificationServicesPushControllerPushNotificationClickedEvent;
 
-export type AllowedEvents = never;
-
-export type NotificationServicesPushControllerMessenger = RestrictedMessenger<
+export type NotificationServicesPushControllerMessenger = Messenger<
   typeof controllerName,
   Actions | AllowedActions,
-  Events | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  Events
 >;
 
 export const defaultState: NotificationServicesPushControllerState = {
@@ -96,16 +85,22 @@ export const defaultState: NotificationServicesPushControllerState = {
 };
 const metadata: StateMetadata<NotificationServicesPushControllerState> = {
   isPushEnabled: {
+    includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
   },
   fcmToken: {
+    includeInStateLogs: false,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
   },
   isUpdatingFCMToken: {
+    includeInStateLogs: false,
     persist: false,
-    anonymous: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
   },
 };
 
@@ -127,6 +122,11 @@ export type ControllerConfig = {
   getLocale?: () => string;
 
   /**
+   * App or extension version to include when registering push tokens.
+   */
+  appVersion?: string;
+
+  /**
    * Global switch to determine to use push notifications
    * Allows us to control Builds on extension (MV2 vs MV3)
    */
@@ -138,18 +138,30 @@ export type ControllerConfig = {
   platform: 'extension' | 'mobile';
 
   /**
+   * Mobile operating system to include when registering push tokens.
+   */
+  os?: 'android' | 'ios';
+
+  /**
    * Push Service Interface
    * - create reg token
    * - delete reg token
    * - subscribe to push notifications
    */
   pushService: PushService;
+
+  env?: ENV;
 };
 
 type StateCommand =
   | { type: 'enable'; fcmToken: string }
   | { type: 'disable' }
   | { type: 'update'; fcmToken: string };
+
+type RegistrationTokenMetadata = Pick<
+  RegToken,
+  'appVersion' | 'locale' | 'os' | 'platform'
+>;
 
 /**
  * Manages push notifications for the application, including enabling, disabling, and updating triggers for push notifications.
@@ -158,7 +170,7 @@ type StateCommand =
  * managing the FCM token, and communicating with the server to register or unregister the device for push notifications.
  * Additionally, it provides functionality to update the server with new UUIDs that should trigger push notifications.
  */
-export default class NotificationServicesPushController extends BaseController<
+export class NotificationServicesPushController extends BaseController<
   typeof controllerName,
   NotificationServicesPushControllerState,
   NotificationServicesPushControllerMessenger
@@ -191,27 +203,12 @@ export default class NotificationServicesPushController extends BaseController<
     this.#env = env ?? defaultPushEnv;
     this.#config = config;
 
-    this.#registerMessageHandlers();
-    this.#clearLoadingStates();
-  }
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
 
-  #registerMessageHandlers(): void {
-    this.messagingSystem.registerActionHandler(
-      'NotificationServicesPushController:enablePushNotifications',
-      this.enablePushNotifications.bind(this),
-    );
-    this.messagingSystem.registerActionHandler(
-      'NotificationServicesPushController:disablePushNotifications',
-      this.disablePushNotifications.bind(this),
-    );
-    this.messagingSystem.registerActionHandler(
-      'NotificationServicesPushController:updateTriggerPushNotifications',
-      this.updateTriggerPushNotifications.bind(this),
-    );
-    this.messagingSystem.registerActionHandler(
-      'NotificationServicesPushController:subscribeToPushNotifications',
-      this.subscribeToPushNotifications.bind(this),
-    );
+    this.#clearLoadingStates();
   }
 
   #clearLoadingStates(): void {
@@ -220,21 +217,18 @@ export default class NotificationServicesPushController extends BaseController<
     });
   }
 
-  async #getAndAssertBearerToken() {
-    const bearerToken = await this.messagingSystem.call(
+  async #getAndAssertBearerToken(): Promise<string> {
+    const bearerToken = await this.messenger.call(
       'AuthenticationController:getBearerToken',
     );
     if (!bearerToken) {
-      log.error(
-        'Failed to enable push notifications: BearerToken token is missing.',
-      );
       throw new Error('BearerToken token is missing');
     }
 
     return bearerToken;
   }
 
-  #updatePushState(command: StateCommand) {
+  #updatePushState(command: StateCommand): void {
     if (command.type === 'enable') {
       this.update((state) => {
         state.isPushEnabled = true;
@@ -261,7 +255,24 @@ export default class NotificationServicesPushController extends BaseController<
     }
   }
 
-  public async subscribeToPushNotifications() {
+  #getRegistrationTokenMetadata(): RegistrationTokenMetadata {
+    const tokenMetadata: RegistrationTokenMetadata = {
+      platform: this.#config.platform,
+      locale: this.#config.getLocale?.() ?? 'en',
+    };
+
+    if (this.#config.os) {
+      tokenMetadata.os = this.#config.os;
+    }
+
+    if (this.#config.appVersion) {
+      tokenMetadata.appVersion = this.#config.appVersion;
+    }
+
+    return tokenMetadata;
+  }
+
+  public async subscribeToPushNotifications(): Promise<void> {
     if (!this.#config.isPushFeatureEnabled) {
       return;
     }
@@ -291,7 +302,7 @@ export default class NotificationServicesPushController extends BaseController<
    *
    * @param addresses - An array of addresses to enable push notifications for.
    */
-  public async enablePushNotifications(addresses: string[]) {
+  public async enablePushNotifications(addresses: string[]): Promise<void> {
     if (!this.#config.isPushFeatureEnabled) {
       return;
     }
@@ -315,10 +326,10 @@ export default class NotificationServicesPushController extends BaseController<
           env: this.#env,
           createRegToken: this.#config.pushService.createRegToken,
           regToken: {
-            platform: this.#config.platform,
-            locale: this.#config.getLocale?.() ?? 'en',
+            ...this.#getRegistrationTokenMetadata(),
             oldToken: this.state.fcmToken,
           },
+          controllerEnv: this.#config.env ?? 'prd',
         });
 
         if (fcmToken) {
@@ -345,7 +356,7 @@ export default class NotificationServicesPushController extends BaseController<
    * Disables push notifications for the application.
    * This removes the registration token on this device, and ensures we unsubscribe from any listeners
    */
-  public async disablePushNotifications() {
+  public async disablePushNotifications(): Promise<void> {
     if (!this.#config.isPushFeatureEnabled) {
       return;
     }
@@ -381,6 +392,72 @@ export default class NotificationServicesPushController extends BaseController<
   }
 
   /**
+   * Adds backend push notification links for the given addresses using the current FCM token.
+   * This is used when accounts are added after push notifications have already been enabled,
+   * so backend can link the existing device token to the newly added addresses.
+   *
+   * @param addresses - Addresses that should be linked to push notifications.
+   * @returns Whether the add request succeeded.
+   */
+  public async addPushNotificationLinks(addresses: string[]): Promise<boolean> {
+    if (
+      !this.#config.isPushFeatureEnabled ||
+      addresses.length === 0 ||
+      !this.state.fcmToken
+    ) {
+      return false;
+    }
+
+    try {
+      const bearerToken = await this.#getAndAssertBearerToken();
+      return await updateLinksAPI({
+        bearerToken,
+        addresses,
+        regToken: {
+          token: this.state.fcmToken,
+          ...this.#getRegistrationTokenMetadata(),
+        },
+        env: this.#config.env ?? 'prd',
+      });
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Deletes backend push notification links for the given addresses on the current platform.
+   * This is used when accounts are removed (for example SRP removal), so backend can remove
+   * all associated FCM tokens for those address/platform pairs.
+   *
+   * @param addresses - Addresses that should be unlinked from push notifications.
+   * @returns Whether the delete request succeeded.
+   */
+  public async deletePushNotificationLinks(
+    addresses: string[],
+  ): Promise<boolean> {
+    if (
+      !this.#config.isPushFeatureEnabled ||
+      addresses.length === 0 ||
+      !this.state.fcmToken
+    ) {
+      return false;
+    }
+
+    try {
+      const bearerToken = await this.#getAndAssertBearerToken();
+      return await deleteLinksAPI({
+        bearerToken,
+        addresses,
+        platform: this.#config.platform,
+        token: this.state.fcmToken,
+        env: this.#config.env ?? 'prd',
+      });
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Updates the triggers for push notifications.
    * This method is responsible for updating the server with the new set of addresses that should trigger push notifications.
    * It uses the current FCM token and a BearerToken for authentication.
@@ -388,7 +465,9 @@ export default class NotificationServicesPushController extends BaseController<
    * @param addresses - An array of addresses that should trigger push notifications.
    * @deprecated - this is not used anymore and will most likely be removed
    */
-  public async updateTriggerPushNotifications(addresses: string[]) {
+  public async updateTriggerPushNotifications(
+    addresses: string[],
+  ): Promise<void> {
     if (!this.#config.isPushFeatureEnabled) {
       return;
     }
@@ -405,10 +484,10 @@ export default class NotificationServicesPushController extends BaseController<
         env: this.#env,
         createRegToken: this.#config.pushService.createRegToken,
         regToken: {
-          platform: this.#config.platform,
-          locale: this.#config.getLocale?.() ?? 'en',
+          ...this.#getRegistrationTokenMetadata(),
           oldToken: this.state.fcmToken,
         },
+        controllerEnv: this.#config.env ?? 'prd',
       });
 
       // update the state with the new FCM token

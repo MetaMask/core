@@ -1,11 +1,14 @@
+import type { TRIGGER_TYPES } from '../constants/notification-schema';
+import { createMockFeatureAnnouncementRaw } from '../mocks/mock-feature-announcements';
+import {
+  createMockNotificationEthSent,
+  createMockPlatformNotification,
+} from '../mocks/mock-raw-notifications';
+import { createMockSnapNotification } from '../mocks/mock-snap-notification';
 import {
   processNotification,
   safeProcessNotification,
 } from './process-notifications';
-import type { TRIGGER_TYPES } from '../constants/notification-schema';
-import { createMockFeatureAnnouncementRaw } from '../mocks/mock-feature-announcements';
-import { createMockNotificationEthSent } from '../mocks/mock-raw-notifications';
-import { createMockSnapNotification } from '../mocks/mock-snap-notification';
 
 describe('process-notifications - processNotification()', () => {
   // More thorough tests are found in the specific process
@@ -17,6 +20,12 @@ describe('process-notifications - processNotification()', () => {
   // More thorough tests are found in the specific process
   it('maps On Chain Notification to shared Notification Type', () => {
     const result = processNotification(createMockNotificationEthSent());
+    expect(result).toBeDefined();
+  });
+
+  // More thorough tests are found in the specific process
+  it('maps Platform Notification to a shared Notification Type', () => {
+    const result = processNotification(createMockPlatformNotification());
     expect(result).toBeDefined();
   });
 

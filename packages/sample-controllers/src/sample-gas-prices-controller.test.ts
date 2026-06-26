@@ -1,12 +1,14 @@
-import { Messenger, deriveStateFromMetadata } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
+} from '@metamask/messenger';
 import { SampleGasPricesController } from '@metamask/sample-controllers';
 import type { SampleGasPricesControllerMessenger } from '@metamask/sample-controllers';
 
 import { flushPromises } from '../../../tests/helpers';
-import type {
-  ExtractAvailableAction,
-  ExtractAvailableEvent,
-} from '../../base-controller/tests/helpers';
 import { buildMockGetNetworkClientById } from '../../network-controller/tests/helpers';
 
 describe('SampleGasPricesController', () => {
@@ -34,8 +36,8 @@ describe('SampleGasPricesController', () => {
     it('fills in missing initial state with defaults', async () => {
       await withController(({ controller }) => {
         expect(controller.state).toMatchInlineSnapshot(`
-          Object {
-            "gasPricesByChainId": Object {},
+          {
+            "gasPricesByChainId": {},
           }
         `);
       });
@@ -57,7 +59,6 @@ describe('SampleGasPricesController', () => {
         rootMessenger.registerActionHandler(
           'SampleGasPricesService:fetchGasPrices',
           async (givenChainId) => {
-            // eslint-disable-next-line jest/no-conditional-in-test
             if (givenChainId === chainId) {
               return {
                 low: 5,
@@ -106,7 +107,6 @@ describe('SampleGasPricesController', () => {
         let i = 0;
         const delays = [5000, 1000];
         const fetchGasPrices = jest.fn(async (givenChainId) => {
-          // eslint-disable-next-line jest/no-conditional-in-test
           if (givenChainId === chainId) {
             jest.advanceTimersByTime(delays[i]);
             i += 1;
@@ -160,7 +160,6 @@ describe('SampleGasPricesController', () => {
       await withController(async ({ rootMessenger }) => {
         const chainId = '0x42';
         const fetchGasPrices = jest.fn(async (givenChainId) => {
-          // eslint-disable-next-line jest/no-conditional-in-test
           if (givenChainId === chainId) {
             return {
               low: 5,
@@ -202,6 +201,52 @@ describe('SampleGasPricesController', () => {
         expect(fetchGasPrices).toHaveBeenCalledTimes(1);
       });
     });
+
+    it('calls `messenger.captureException` if fetching gas prices fails', async () => {
+      await withController(async ({ rootMessenger }) => {
+        const chainId = '0x42';
+
+        const fetchGasPrices = jest.fn(async (givenChainId) => {
+          if (givenChainId === chainId) {
+            throw new Error('Failed to fetch gas prices');
+          }
+
+          throw new Error(`Unrecognized chain ID '${givenChainId}'`);
+        });
+
+        const captureException = jest.spyOn(rootMessenger, 'captureException');
+        rootMessenger.registerActionHandler(
+          'SampleGasPricesService:fetchGasPrices',
+          fetchGasPrices,
+        );
+
+        rootMessenger.registerActionHandler(
+          'NetworkController:getNetworkClientById',
+          buildMockGetNetworkClientById({
+            // @ts-expect-error We are not supplying a complete NetworkClient.
+            'AAAA-AAAA-AAAA-AAAA': {
+              chainId,
+            },
+          }),
+        );
+
+        rootMessenger.publish(
+          'NetworkController:stateChange',
+          // @ts-expect-error We are not supplying a complete NetworkState.
+          { selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA' },
+          [],
+        );
+
+        await flushPromises();
+
+        expect(captureException).toHaveBeenCalledTimes(1);
+        expect(captureException).toHaveBeenCalledWith(
+          expect.objectContaining({
+            message: 'Failed to fetch gas prices',
+          }),
+        );
+      });
+    });
   });
 
   describe('SampleGasPricesController:updateGasPrices', () => {
@@ -219,7 +264,6 @@ describe('SampleGasPricesController', () => {
         rootMessenger.registerActionHandler(
           'SampleGasPricesService:fetchGasPrices',
           async (givenChainId) => {
-            // eslint-disable-next-line jest/no-conditional-in-test
             if (givenChainId === chainId) {
               return {
                 low: 5,
@@ -265,7 +309,6 @@ describe('SampleGasPricesController', () => {
         rootMessenger.registerActionHandler(
           'SampleGasPricesService:fetchGasPrices',
           async (givenChainId) => {
-            // eslint-disable-next-line jest/no-conditional-in-test
             if (givenChainId === chainId) {
               return {
                 low: 5,
@@ -301,9 +344,9 @@ describe('SampleGasPricesController', () => {
           deriveStateFromMetadata(
             controller.state,
             controller.metadata,
-            'anonymous',
+            'includeInDebugSnapshot',
           ),
-        ).toMatchInlineSnapshot(`Object {}`);
+        ).toMatchInlineSnapshot(`{}`);
       });
     });
 
@@ -316,8 +359,8 @@ describe('SampleGasPricesController', () => {
             'includeInStateLogs',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "gasPricesByChainId": Object {},
+          {
+            "gasPricesByChainId": {},
           }
         `);
       });
@@ -332,8 +375,8 @@ describe('SampleGasPricesController', () => {
             'persist',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "gasPricesByChainId": Object {},
+          {
+            "gasPricesByChainId": {},
           }
         `);
       });
@@ -348,8 +391,8 @@ describe('SampleGasPricesController', () => {
             'usedInUi',
           ),
         ).toMatchInlineSnapshot(`
-          Object {
-            "gasPricesByChainId": Object {},
+          {
+            "gasPricesByChainId": {},
           }
         `);
       });
@@ -362,8 +405,9 @@ describe('SampleGasPricesController', () => {
  * required by the controller under test.
  */
 type RootMessenger = Messenger<
-  ExtractAvailableAction<SampleGasPricesControllerMessenger>,
-  ExtractAvailableEvent<SampleGasPricesControllerMessenger>
+  MockAnyNamespace,
+  MessengerActions<SampleGasPricesControllerMessenger>,
+  MessengerEvents<SampleGasPricesControllerMessenger>
 >;
 
 /**
@@ -389,7 +433,10 @@ type WithControllerOptions = {
  * @returns The root messenger.
  */
 function getRootMessenger(): RootMessenger {
-  return new Messenger();
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+    captureException: jest.fn(),
+  });
 }
 
 /**
@@ -402,14 +449,19 @@ function getRootMessenger(): RootMessenger {
 function getMessenger(
   rootMessenger: RootMessenger,
 ): SampleGasPricesControllerMessenger {
-  return rootMessenger.getRestricted({
-    name: 'SampleGasPricesController',
-    allowedActions: [
-      'SampleGasPricesService:fetchGasPrices',
-      'NetworkController:getNetworkClientById',
-    ],
-    allowedEvents: ['NetworkController:stateChange'],
+  const messenger: SampleGasPricesControllerMessenger = new Messenger({
+    namespace: 'SampleGasPricesController',
+    parent: rootMessenger,
   });
+  rootMessenger.delegate({
+    actions: [
+      'NetworkController:getNetworkClientById',
+      'SampleGasPricesService:fetchGasPrices',
+    ],
+    events: ['NetworkController:stateChange'],
+    messenger,
+  });
+  return messenger;
 }
 
 /**

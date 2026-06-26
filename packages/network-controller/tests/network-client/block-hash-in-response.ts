@@ -1,5 +1,7 @@
 import { errorCodes, rpcErrors } from '@metamask/rpc-errors';
 
+import { CUSTOM_RPC_ERRORS } from '../../src/rpc-service/rpc-service';
+import { NetworkClientType } from '../../src/types';
 import type { ProviderType } from './helpers';
 import {
   waitForPromiseToBeFulfilledAfterRunningAllTimers,
@@ -7,8 +9,6 @@ import {
   withNetworkClient,
 } from './helpers';
 import { testsForRpcFailoverBehavior } from './rpc-failover';
-import { CUSTOM_RPC_ERRORS } from '../../src/rpc-service/rpc-service';
-import { NetworkClientType } from '../../src/types';
 
 type TestsForRpcMethodThatCheckForBlockHashInResponseOptions = {
   providerType: ProviderType;
@@ -33,7 +33,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
     numberOfParameters,
     providerType,
   }: TestsForRpcMethodThatCheckForBlockHashInResponseOptions,
-) {
+): void {
   it('does not hit the RPC endpoint more than once for identical requests and it has a valid blockHash', async () => {
     const requests = [{ method }, { method }];
     const mockResult = { blockHash: '0x1' };
@@ -81,14 +81,13 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
             pollingInterval,
           }),
         },
-        async ({ blockTracker, makeRpcCall, clock }) => {
+        async ({ blockTracker, makeRpcCall }) => {
           const waitForTwoBlocks = new Promise<void>((resolve) => {
             let numberOfBlocks = 0;
 
             // Start the block tracker
             blockTracker.on('latest', () => {
               numberOfBlocks += 1;
-              // eslint-disable-next-line jest/no-conditional-in-test
               if (numberOfBlocks === 2) {
                 resolve();
               }
@@ -98,7 +97,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
           const firstResult = await makeRpcCall(requests[0]);
           // Proceed to the next iteration of the block tracker so that a new
           // block is fetched and the current block is updated.
-          await clock.tickAsync(pollingInterval);
+          await jest.advanceTimersByTimeAsync(pollingInterval);
           await waitForTwoBlocks;
           const secondResult = await makeRpcCall(requests[1]);
           return [firstResult, secondResult];
@@ -203,9 +202,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
     });
   });
 
-  for (const emptyValue of [null, undefined, '\u003cnil\u003e']) {
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+  for (const emptyValue of [null, '\u003cnil\u003e']) {
     it(`does not retry an empty response of "${emptyValue}"`, async () => {
       const request = { method };
       const mockResult = emptyValue;
@@ -229,8 +226,6 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
       });
     });
 
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     it(`does not reuse the result of a previous request if it was "${emptyValue}"`, async () => {
       const requests = [{ method }, { method }];
       const mockResults = [emptyValue, { blockHash: '0x100' }];
@@ -331,8 +326,6 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
         },
       );
 
-      // This is not ideal, but we can refactor this later.
-      // eslint-disable-next-line jest/no-conditional-in-test
       if (providerType === NetworkClientType.Infura) {
         // This is not ideal, but we can refactor this later.
         // eslint-disable-next-line jest/no-conditional-expect
@@ -453,7 +446,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
         code: errorCodes.rpc.resourceUnavailable,
       });
 
-      it('retries the request up to 5 times until there is a 200 response', async () => {
+      it('retries the request up to 4 times until there is a 200 response', async () => {
         await withMockedCommunications({ providerType }, async (comms) => {
           const request = { method };
 
@@ -469,7 +462,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
               error: 'Some error',
               httpStatus,
             },
-            times: 4,
+            times: 3,
           });
           comms.mockRpcCall({
             request,
@@ -480,10 +473,9 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
           });
           const result = await withNetworkClient(
             { providerType },
-            async ({ makeRpcCall, clock }) => {
+            async ({ makeRpcCall }) => {
               return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                 makeRpcCall(request),
-                clock,
               );
             },
           );
@@ -511,10 +503,9 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
           comms.mockNextBlockTrackerRequest();
           const promiseForResult = withNetworkClient(
             { providerType },
-            async ({ makeRpcCall, clock }) => {
+            async ({ makeRpcCall }) => {
               return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                 makeRpcCall(request),
-                clock,
               );
             },
           );
@@ -555,7 +546,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
       // still used by Node.
       error.code = errorCode;
 
-      it('retries the request up to 5 times until it is successful', async () => {
+      it('retries the request up to 4 times until it is successful', async () => {
         await withMockedCommunications({ providerType }, async (comms) => {
           const request = { method };
 
@@ -568,7 +559,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
           comms.mockRpcCall({
             request,
             error,
-            times: 4,
+            times: 3,
           });
           comms.mockRpcCall({
             request,
@@ -580,10 +571,9 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
 
           const result = await withNetworkClient(
             { providerType },
-            async ({ makeRpcCall, clock }) => {
+            async ({ makeRpcCall }) => {
               return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                 makeRpcCall(request),
-                clock,
               );
             },
           );
@@ -607,10 +597,9 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
           });
           const promiseForResult = withNetworkClient(
             { providerType },
-            async ({ makeRpcCall, clock }) => {
+            async ({ makeRpcCall }) => {
               return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                 makeRpcCall(request),
-                clock,
               );
             },
           );
@@ -644,7 +633,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
       code: errorCodes.rpc.parse,
     });
 
-    it('retries the request up to 5 times until it responds with valid JSON', async () => {
+    it('retries the request up to 4 times until it responds with valid JSON', async () => {
       await withMockedCommunications({ providerType }, async (comms) => {
         const request = { method };
 
@@ -659,7 +648,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
           response: {
             body: 'invalid JSON',
           },
-          times: 4,
+          times: 3,
         });
         comms.mockRpcCall({
           request,
@@ -737,7 +726,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
   describe('if making the request throws a connection error', () => {
     const error = new TypeError('Failed to fetch');
 
-    it('retries the request up to 5 times until there is no connection error', async () => {
+    it('retries the request up to 4 times until there is no connection error', async () => {
       await withMockedCommunications({ providerType }, async (comms) => {
         const request = { method };
 
@@ -750,7 +739,7 @@ export function testsForRpcMethodsThatCheckForBlockHashInResponse(
         comms.mockRpcCall({
           request,
           error,
-          times: 4,
+          times: 3,
         });
         comms.mockRpcCall({
           request,

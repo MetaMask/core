@@ -1,7 +1,6 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import {
@@ -11,7 +10,10 @@ import {
   toChecksumHexAddress,
   toHex,
 } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
+
+import type { AddressBookControllerMethodActions } from './AddressBookController-method-action-types';
 
 /**
  * ContactEntry representation
@@ -73,6 +75,8 @@ export const controllerName = 'AddressBookController';
  */
 const WALLET_ACCOUNTS_CHAIN_ID = '*';
 
+const MESSENGER_EXPOSED_METHODS = ['list', 'set', 'delete', 'clear'] as const;
+
 /**
  * The action that can be performed to get the state of the {@link AddressBookController}.
  */
@@ -80,30 +84,6 @@ export type AddressBookControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   AddressBookControllerState
 >;
-
-/**
- * The action that can be performed to list contacts from the {@link AddressBookController}.
- */
-export type AddressBookControllerListAction = {
-  type: `${typeof controllerName}:list`;
-  handler: AddressBookController['list'];
-};
-
-/**
- * The action that can be performed to set a contact in the {@link AddressBookController}.
- */
-export type AddressBookControllerSetAction = {
-  type: `${typeof controllerName}:set`;
-  handler: AddressBookController['set'];
-};
-
-/**
- * The action that can be performed to delete a contact from the {@link AddressBookController}.
- */
-export type AddressBookControllerDeleteAction = {
-  type: `${typeof controllerName}:delete`;
-  handler: AddressBookController['delete'];
-};
 
 /**
  * Event emitted when a contact is added or updated
@@ -126,9 +106,7 @@ export type AddressBookControllerContactDeletedEvent = {
  */
 export type AddressBookControllerActions =
   | AddressBookControllerGetStateAction
-  | AddressBookControllerListAction
-  | AddressBookControllerSetAction
-  | AddressBookControllerDeleteAction;
+  | AddressBookControllerMethodActions;
 
 /**
  * The event that {@link AddressBookController} can emit.
@@ -150,7 +128,7 @@ const addressBookControllerMetadata = {
   addressBook: {
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
     usedInUi: true,
   },
 };
@@ -170,12 +148,10 @@ export const getDefaultAddressBookControllerState =
 /**
  * The messenger of the {@link AddressBookController} for communication.
  */
-export type AddressBookControllerMessenger = RestrictedMessenger<
+export type AddressBookControllerMessenger = Messenger<
   typeof controllerName,
   AddressBookControllerActions,
-  AddressBookControllerEvents,
-  never,
-  never
+  AddressBookControllerEvents
 >;
 
 /**
@@ -208,7 +184,10 @@ export class AddressBookController extends BaseController<
       state: mergedState,
     });
 
-    this.#registerMessageHandlers();
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   /**
@@ -251,8 +230,7 @@ export class AddressBookController extends BaseController<
     if (
       ![chainId, address].every((key) => isSafeDynamicKey(key)) ||
       !isValidHexAddress(address) ||
-      !this.state.addressBook[chainId] ||
-      !this.state.addressBook[chainId][address]
+      !this.state.addressBook[chainId]?.[address]
     ) {
       return false;
     }
@@ -275,7 +253,7 @@ export class AddressBookController extends BaseController<
     // These entries with chainId='*' are the wallet's own accounts (internal MetaMask accounts),
     // not user-created contacts. They don't need to trigger sync events.
     if (String(chainId) !== WALLET_ACCOUNTS_CHAIN_ID) {
-      this.messagingSystem.publish(
+      this.messenger.publish(
         'AddressBookController:contactDeleted',
         deletedEntry,
       );
@@ -335,31 +313,10 @@ export class AddressBookController extends BaseController<
     // These entries with chainId='*' are the wallet's own accounts (internal MetaMask accounts),
     // not user-created contacts. They don't need to trigger sync events.
     if (String(chainId) !== WALLET_ACCOUNTS_CHAIN_ID) {
-      this.messagingSystem.publish(
-        'AddressBookController:contactUpdated',
-        entry,
-      );
+      this.messenger.publish('AddressBookController:contactUpdated', entry);
     }
 
     return true;
-  }
-
-  /**
-   * Registers message handlers for the AddressBookController.
-   */
-  #registerMessageHandlers() {
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:list`,
-      this.list.bind(this),
-    );
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:set`,
-      this.set.bind(this),
-    );
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:delete`,
-      this.delete.bind(this),
-    );
   }
 }
 

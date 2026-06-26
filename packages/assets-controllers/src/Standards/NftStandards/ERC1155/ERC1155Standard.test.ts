@@ -330,4 +330,95 @@ describe('ERC1155Standard', () => {
       );
     });
   });
+
+  describe('getDetails optional parameters', () => {
+    it('should return details without tokenURI when no tokenId is provided', async () => {
+      // Mock successful ERC1155 interface check
+      jest
+        .spyOn(erc1155Standard, 'contractSupportsBase1155Interface')
+        .mockResolvedValue(true);
+      jest.spyOn(erc1155Standard, 'getAssetSymbol').mockResolvedValue('TEST');
+      jest
+        .spyOn(erc1155Standard, 'getAssetName')
+        .mockResolvedValue('Test Token');
+
+      const ipfsGateway = 'https://ipfs.gateway.com';
+      const details = await erc1155Standard.getDetails(
+        ERC1155_ADDRESS,
+        ipfsGateway,
+        // No tokenId parameter to test the optional parameter behavior
+      );
+
+      expect(details.standard).toBe('ERC1155');
+      expect(details.tokenURI).toBeUndefined(); // Should be undefined when no tokenId
+      expect(details.symbol).toBe('TEST');
+      expect(details.name).toBe('Test Token');
+
+      // Restore original methods
+      jest.restoreAllMocks();
+    });
+
+    it('should convert IPFS URIs to gateway URLs', async () => {
+      // Mock successful ERC1155 interface check
+      jest
+        .spyOn(erc1155Standard, 'contractSupportsBase1155Interface')
+        .mockResolvedValue(true);
+      jest.spyOn(erc1155Standard, 'getAssetSymbol').mockResolvedValue('TEST');
+      jest
+        .spyOn(erc1155Standard, 'getAssetName')
+        .mockResolvedValue('Test Token');
+      // Mock getTokenURI to return IPFS URI
+      jest
+        .spyOn(erc1155Standard, 'getTokenURI')
+        .mockResolvedValue(
+          'ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG',
+        );
+
+      const ipfsGateway = 'https://ipfs.gateway.com';
+      const details = await erc1155Standard.getDetails(
+        ERC1155_ADDRESS,
+        ipfsGateway,
+        SAMPLE_TOKEN_ID,
+      );
+
+      expect(details.standard).toBe('ERC1155');
+      expect(details.tokenURI).toContain('ipfs.gateway.com'); // Should be converted from IPFS URI
+
+      // Restore original methods
+      jest.restoreAllMocks();
+    });
+
+    it('should handle metadata fetching with network errors', async () => {
+      // Mock successful ERC1155 interface check
+      jest
+        .spyOn(erc1155Standard, 'contractSupportsBase1155Interface')
+        .mockResolvedValue(true);
+      jest.spyOn(erc1155Standard, 'getAssetSymbol').mockResolvedValue('TEST');
+      jest
+        .spyOn(erc1155Standard, 'getAssetName')
+        .mockResolvedValue('Test Token');
+      jest
+        .spyOn(erc1155Standard, 'getTokenURI')
+        .mockResolvedValue('https://example.com/metadata.json');
+
+      // Mock fetch to fail - this tests the catch block in getDetails
+      nock('https://example.com')
+        .get('/metadata.json')
+        .replyWithError('Network error');
+
+      const ipfsGateway = 'https://ipfs.gateway.com';
+      const details = await erc1155Standard.getDetails(
+        ERC1155_ADDRESS,
+        ipfsGateway,
+        SAMPLE_TOKEN_ID,
+      );
+
+      expect(details.standard).toBe('ERC1155');
+      expect(details.tokenURI).toBe('https://example.com/metadata.json');
+      expect(details.image).toBeUndefined(); // Should be undefined due to fetch error
+
+      // Restore original methods
+      jest.restoreAllMocks();
+    });
+  });
 });

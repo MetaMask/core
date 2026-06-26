@@ -40,6 +40,7 @@ type ReturnHandlerCallback = Parameters<JsonRpcEngineReturnHandler>[0];
  * The return handler will always be called. Its resolution of the promise
  * enables the control flow described above.
  *
+ * @deprecated Use `JsonRpcEngineV2` and its corresponding types instead.
  * @param asyncMiddleware - The asynchronous middleware function to wrap.
  * @returns The wrapped asynchronous middleware function, ready to be consumed
  * by JsonRpcEngine.
@@ -64,7 +65,7 @@ export function createAsyncMiddleware<
     let nextWasCalled = false;
 
     // This will be called by the consumer's async middleware.
-    const asyncNext = async () => {
+    const asyncNext = async (): Promise<void> => {
       nextWasCalled = true;
 
       // We pass a return handler to next(). When it is called by the engine,

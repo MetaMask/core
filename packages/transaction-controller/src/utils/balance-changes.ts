@@ -1,9 +1,10 @@
 import type { Fragment, LogDescription, Result } from '@ethersproject/abi';
 import { Interface } from '@ethersproject/abi';
-import { hexToBN, query, toHex } from '@metamask/controller-utils';
-import type EthQuery from '@metamask/eth-query';
+import { hexToBN, toHex } from '@metamask/controller-utils';
 import { abiERC20, abiERC721, abiERC1155 } from '@metamask/metamask-eth-abis';
-import { createModuleLogger, type Hex } from '@metamask/utils';
+import type { NetworkClientId } from '@metamask/network-controller';
+import { createModuleLogger } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 
 import { simulateTransactions } from '../api/simulation-api';
@@ -25,7 +26,9 @@ import {
   SimulationRevertedError,
 } from '../errors';
 import { projectLogger } from '../logger';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
+  Revert,
   SimulationBalanceChange,
   SimulationData,
   SimulationTokenBalanceChange,
@@ -35,12 +38,16 @@ import type {
   GetSimulationConfig,
 } from '../types';
 import { SimulationTokenStandard } from '../types';
+import { getNativeBalance } from './balance';
+import { decodeRevert } from './revert-reason';
 
 export enum SupportedToken {
   ERC20 = 'erc20',
   ERC721 = 'erc721',
   ERC1155 = 'erc1155',
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   ERC20_WRAPPED = 'erc20Wrapped',
+  // eslint-disable-next-line @typescript-eslint/naming-convention
   ERC721_LEGACY = 'erc721Legacy',
 }
 
@@ -49,7 +56,8 @@ type ABI = Fragment[];
 export type GetBalanceChangesRequest = {
   blockTime?: number;
   chainId: Hex;
-  ethQuery: EthQuery;
+  messenger: TransactionControllerMessenger;
+  networkClientId: NetworkClientId;
   getSimulationConfig: GetSimulationConfig;
   nestedTransactions?: NestedTransactionMetadata[];
   txParams: TransactionParams;
@@ -114,8 +122,15 @@ type BalanceTransactionMap = Map<SimulationToken, SimulationRequestTransaction>;
  */
 export async function getBalanceChanges(
   request: GetBalanceChangesRequest,
-): Promise<{ simulationData: SimulationData; gasUsed?: Hex }> {
+): Promise<{
+  simulationData: SimulationData;
+  gasUsed?: Hex;
+  simulationRevert?: Revert;
+}> {
   log('Request', request);
+
+  let callTraceErrors: string[] | undefined;
+  let simulationRevert: Revert | undefined;
 
   try {
     const response = await baseRequest({
@@ -126,7 +141,10 @@ export async function getBalanceChanges(
       },
     });
 
-    const transactionError = response.transactions?.[0]?.error;
+    const transactionResponse = response.transactions?.[0];
+    callTraceErrors = extractCallTraceErrors(transactionResponse?.callTrace);
+    simulationRevert = extractRootRevert(transactionResponse?.callTrace);
+    const transactionError = transactionResponse?.error;
 
     if (transactionError) {
       throw new SimulationError(transactionError);
@@ -139,13 +157,14 @@ export async function getBalanceChanges(
 
     const tokenBalanceChanges = await getTokenBalanceChanges(request, events);
 
-    const gasUsed = response.transactions?.[0]?.gasUsed;
+    const gasUsed = transactionResponse?.gasUsed;
     const simulationData = {
+      callTraceErrors,
       nativeBalanceChange,
       tokenBalanceChanges,
     };
 
-    return { simulationData, gasUsed };
+    return { simulationData, gasUsed, simulationRevert };
   } catch (error) {
     log('Failed to get balance changes', error, request);
 
@@ -163,6 +182,7 @@ export async function getBalanceChanges(
 
     return {
       simulationData: {
+        callTraceErrors,
         tokenBalanceChanges: [],
         error: {
           code,
@@ -170,6 +190,7 @@ export async function getBalanceChanges(
         },
       },
       gasUsed: undefined,
+      simulationRevert,
     };
   }
 }
@@ -235,7 +256,9 @@ function getEvents(response: SimulationResponse): ParsedEvent[] {
       }
 
       /* istanbul ignore next */
-      const inputs = event.abi.find((e) => e.name === event.name)?.inputs;
+      const inputs = event.abi.find(
+        (eventAbi) => eventAbi.name === event.name,
+      )?.inputs;
 
       /* istanbul ignore if */
       if (!inputs) {
@@ -260,7 +283,7 @@ function getEvents(response: SimulationResponse): ParsedEvent[] {
         abi: event.abi,
       };
     })
-    .filter((e) => e !== undefined) as ParsedEvent[];
+    .filter((parsedEvent) => parsedEvent !== undefined) as ParsedEvent[];
 }
 
 /**
@@ -597,9 +620,7 @@ function parseLog(
         abi,
         standard,
       };
-      // Not used
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    } catch (e) {
+    } catch {
       continue;
     }
   }
@@ -626,6 +647,45 @@ function extractLogs(
     ...logs,
     ...nestedCalls.map((nestedCall) => extractLogs(nestedCall)).flat(),
   ];
+}
+
+/**
+ * Extract all error messages from a call trace tree.
+ *
+ * @param call - The root call trace.
+ * @returns An array of error messages.
+ */
+function extractCallTraceErrors(call?: SimulationResponseCallTrace): string[] {
+  if (!call) {
+    return [];
+  }
+
+  const errors = call.error ? [call.error] : [];
+  const nestedCalls = call.calls ?? [];
+  const nestedErrors = nestedCalls.flatMap((nestedCall) =>
+    extractCallTraceErrors(nestedCall),
+  );
+
+  return [...errors, ...nestedErrors];
+}
+
+/**
+ * Build a `Revert` from the root call trace frame. Reads only the raw
+ * `output` hex and decodes it locally; the upstream `error` message string
+ * is never parsed. Only the root frame's output is considered, since
+ * nested frame errors may have been caught and recovered by their callers.
+ *
+ * @param call - The root call trace frame.
+ * @returns A `Revert` if the root frame reverted with output data,
+ * otherwise `undefined`.
+ */
+function extractRootRevert(
+  call?: SimulationResponseCallTrace,
+): Revert | undefined {
+  if (!call?.error) {
+    return undefined;
+  }
+  return decodeRevert(call.output, 'simulation');
 }
 
 /**
@@ -698,8 +758,14 @@ async function baseRequest({
   before?: SimulationRequestTransaction[];
   after?: SimulationRequestTransaction[];
 }): Promise<SimulationResponse> {
-  const { blockTime, chainId, ethQuery, getSimulationConfig, txParams } =
-    request;
+  const {
+    blockTime,
+    chainId,
+    messenger,
+    networkClientId,
+    getSimulationConfig,
+    txParams,
+  } = request;
   const { authorizationList } = txParams;
   const from = txParams.from as Hex;
 
@@ -726,11 +792,12 @@ async function baseRequest({
 
   log('Required balance', requiredBalanceHex);
 
-  const currentBalanceHex = (await query(ethQuery, 'getBalance', [
+  const { balanceRaw } = await getNativeBalance(
     from,
-    'latest',
-  ])) as Hex;
-
+    messenger,
+    networkClientId,
+  );
+  const currentBalanceHex = toHex(balanceRaw);
   const currentBalanceBN = hexToBN(currentBalanceHex);
 
   log('Current balance', currentBalanceHex);

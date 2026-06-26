@@ -7,13 +7,190 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^68.1.1` to `^68.2.0` ([#9253](https://github.com/MetaMask/core/pull/9253))
+
+## [41.2.5]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.1.1` to `^12.3.0` ([#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/transaction-controller` from `^67.0.0` to `^68.1.1` ([#9066](https://github.com/MetaMask/core/pull/9066), [#9089](https://github.com/MetaMask/core/pull/9089), [#9177](https://github.com/MetaMask/core/pull/9177), [#9203](https://github.com/MetaMask/core/pull/9203), [#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
+- Bump `@metamask/gas-fee-controller` from `^26.2.2` to `^26.2.3` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/network-controller` from `^32.0.0` to `^33.0.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/polling-controller` from `^16.0.6` to `^16.0.7` ([#9218](https://github.com/MetaMask/core/pull/9218))
+
+## [41.2.4]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^66.0.0` to `^67.0.0` ([#8999](https://github.com/MetaMask/core/pull/8999), [#9021](https://github.com/MetaMask/core/pull/9021), [#9027](https://github.com/MetaMask/core/pull/9027))
+- Bump `@metamask/approval-controller` from `^9.0.1` to `^9.0.2` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.1.1` ([#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/keyring-controller` from `^26.0.0` to `^27.0.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
+## [41.2.3]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^65.3.0` to `^66.0.0` ([#8796](https://github.com/MetaMask/core/pull/8796), [#8848](https://github.com/MetaMask/core/pull/8848))
+- Bump `@metamask/gas-fee-controller` from `^26.2.1` to `^26.2.2` ([#8834](https://github.com/MetaMask/core/pull/8834))
+- Bump `@metamask/polling-controller` from `^16.0.5` to `^16.0.6` ([#8834](https://github.com/MetaMask/core/pull/8834))
+- Bump `@metamask/keyring-controller` from `^25.5.0` to `^26.0.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
+
+## [41.2.2]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^31.0.0` to `^32.0.0` ([#8765](https://github.com/MetaMask/core/pull/8765), [#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+
+## [41.2.1]
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.5.0` ([#8363](https://github.com/MetaMask/core/pull/8363), [#8634](https://github.com/MetaMask/core/pull/8634), [#8665](https://github.com/MetaMask/core/pull/8665), [#8722](https://github.com/MetaMask/core/pull/8722))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/transaction-controller` from `^64.0.0` to `^65.3.0` ([#8432](https://github.com/MetaMask/core/pull/8432), [#8447](https://github.com/MetaMask/core/pull/8447), [#8482](https://github.com/MetaMask/core/pull/8482), [#8585](https://github.com/MetaMask/core/pull/8585), [#8613](https://github.com/MetaMask/core/pull/8613), [#8691](https://github.com/MetaMask/core/pull/8691), [#8722](https://github.com/MetaMask/core/pull/8722), [#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+- Bump `@metamask/network-controller` from `^30.0.1` to `^31.0.0` ([#8636](https://github.com/MetaMask/core/pull/8636), [#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/gas-fee-controller` from `^26.1.1` to `^26.2.1` ([#8722](https://github.com/MetaMask/core/pull/8722), [#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/polling-controller` from `^16.0.4` to `^16.0.5` ([#8755](https://github.com/MetaMask/core/pull/8755))
+
+## [41.2.0]
+
+### Changed
+
+- Hardcode user operation transaction type to `contractInteraction` instead of calling `determineTransactionType` ([#8273](https://github.com/MetaMask/core/pull/8273))
+- Bump `@metamask/transaction-controller` from `^63.3.1` to `^64.0.0` ([#8359](https://github.com/MetaMask/core/pull/8359))
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+
+## [41.1.1]
+
+### Changed
+
+- Bump `@metamask/approval-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/gas-fee-controller` from `^26.1.0` to `^26.1.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/keyring-controller` from `^25.1.0` to `^25.1.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/network-controller` from `^30.0.0` to `^30.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/polling-controller` from `^16.0.3` to `^16.0.4` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/transaction-controller` from `^63.0.0` to `^63.3.1` ([#8272](https://github.com/MetaMask/core/pull/8272), [#8301](https://github.com/MetaMask/core/pull/8301), [#8313](https://github.com/MetaMask/core/pull/8313), [#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [41.1.0]
+
+### Added
+
+- Expose missing public `UserOperationController` methods through its messenger ([#8183](https://github.com/MetaMask/core/pull/8183))
+  - The following actions are now available:
+    - `UserOperationController:addUserOperation`
+    - `UserOperationController:addUserOperationFromTransaction`
+    - `UserOperationController:startPollingByNetworkClientId`
+  - Corresponding action types (e.g. `UserOperationControllerAddUserOperationAction`) are available as well.
+
+### Changed
+
+- Bump `@metamask/approval-controller` from `^8.0.0` to `^9.0.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/gas-fee-controller` from `^26.0.3` to `^26.1.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/transaction-controller` from `^62.17.1` to `^63.0.0` ([#8005](https://github.com/MetaMask/core/pull/8005), [#8031](https://github.com/MetaMask/core/pull/8031), [#8104](https://github.com/MetaMask/core/pull/8104), [#8140](https://github.com/MetaMask/core/pull/8140), [#8217](https://github.com/MetaMask/core/pull/8217), [#8225](https://github.com/MetaMask/core/pull/8225))
+
+## [41.0.3]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^62.9.2` to `^62.17.1` ([#7737](https://github.com/MetaMask/core/pull/7737), [#7760](https://github.com/MetaMask/core/pull/7760), [#7775](https://github.com/MetaMask/core/pull/7775), [#7802](https://github.com/MetaMask/core/pull/7802), [#7832](https://github.com/MetaMask/core/pull/7832), [#7854](https://github.com/MetaMask/core/pull/7854), [#7872](https://github.com/MetaMask/core/pull/7872), [#7897](https://github.com/MetaMask/core/pull/7897), [#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/gas-fee-controller` from `^26.0.2` to `^26.0.3` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/network-controller` from `^29.0.0` to `^30.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/polling-controller` from `^16.0.2` to `^16.0.3` ([#7996](https://github.com/MetaMask/core/pull/7996))
+- Bump `@metamask/keyring-controller` from `^25.0.0` to `^25.1.0` ([#7713](https://github.com/MetaMask/core/pull/7713))
+- Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
+
+## [41.0.2]
+
+### Changed
+
+- Bump `@metamask/gas-fee-controller` from `^26.0.1` to `^26.0.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/network-controller` from `^28.0.0` to `^29.0.0` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/polling-controller` from `^16.0.1` to `^16.0.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/transaction-controller` from `^62.9.1` to `^62.9.2` ([#7642](https://github.com/MetaMask/core/pull/7642))
+
+## [41.0.1]
+
+### Changed
+
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7220](https://github.com/MetaMask/core/pull/7220), [#7236](https://github.com/MetaMask/core/pull/7236), [#7257](https://github.com/MetaMask/core/pull/7257), [#7258](https://github.com/MetaMask/core/pull/7258), [#7289](https://github.com/MetaMask/core/pull/7289), [#7325](https://github.com/MetaMask/core/pull/7325), [#7430](https://github.com/MetaMask/core/pull/7430), [#7494](https://github.com/MetaMask/core/pull/7494), [#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583), [#7596](https://github.com/MetaMask/core/pull/7596), [#7602](https://github.com/MetaMask/core/pull/7602), [#7604](https://github.com/MetaMask/core/pull/7604))
+  - The dependencies moved are:
+    - `@metamask/approval-controller` (^8.0.0)
+    - `@metamask/gas-fee-controller` (^26.0.1)
+    - `@metamask/keyring-controller` (^25.0.0)
+    - `@metamask/network-controller` (^28.0.0)
+    - `@metamask/transaction-controller` (^62.9.1)
+  - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
+    - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
+  - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.18.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
+- Bump `@metamask/polling-controller` from `^16.0.0` to `^16.0.1` ([#7604](https://github.com/MetaMask/core/pull/7604))
+
+## [41.0.0]
+
+### Changed
+
+- Bump `@metamask/polling-controller` from `^15.0.0` to `^16.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/transaction-controller` from `^61.0.0` to `^62.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/network-controller` from `^25.0.0` to `^26.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^24.0.0` to `^25.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/gas-fee-controller` from `^25.0.0` to `^26.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+
+## [40.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6494](https://github.com/MetaMask/core/pull/6494))
+  - Previously, `UserOperationController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6494](https://github.com/MetaMask/core/pull/6494))
+- **BREAKING:** Bump `@metamask/approval-controller` from `^7.0.0` to `^8.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/gas-fee-controller` from `^24.0.0` to `^25.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^23.0.0` to `^24.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/network-controller` from `^24.0.0` to `^25.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- **BREAKING:** Bump `@metamask/transaction-controller` from `^60.0.0` to `^61.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/polling-controller` from `^14.0.2` to `^15.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [39.2.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+- Bump `@metamask/polling-controller` from `^14.0.1` to `^14.0.2` ([#6940](https://github.com/MetaMask/core/pull/6940))
+
+## [39.2.0]
+
+### Changed
+
+- Bump `@metamask/eth-block-tracker` from `^13.0.0` to `^14.0.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
+- Bump `@metamask/network-controller` from `^24.2.2` to `^24.3.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
+- Bump `@metamask/transaction-controller` from `^60.7.0` to `^60.8.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
+- Update dependencies that indirectly use v4 of `eth-json-rpc-provider` ([#6811](https://github.com/MetaMask/core/pull/6811))
+
+## [39.1.0]
+
 ### Added
 
 - Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6473](https://github.com/MetaMask/core/pull/6473))
 
 ### Changed
 
-- Bump `@metamask/base-controller` from `^8.1.0` to `^8.3.0` ([#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465))
+- Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.1` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629), [#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/base-controller` from `^8.1.0` to `^8.4.1` ([#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632), [#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.1` ([#6588](https://github.com/MetaMask/core/pull/6588), [#6708](https://github.com/MetaMask/core/pull/6708))
+- Bump `@metamask/polling-controller` from `^14.0.0` to `^14.0.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
 
 ## [39.0.0]
 
@@ -28,7 +205,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump peer dependency `@metamask/transaction-controller` to `^59.0.0` ([#6171](https://github.com/MetaMask/core/pull/6171)), ([#6027](https://github.com/MetaMask/core/pull/6027))
+- **BREAKING:** Bump peer dependency `@metamask/transaction-controller` to `^59.0.0`, ([#6171](https://github.com/MetaMask/core/pull/6171), [#6027](https://github.com/MetaMask/core/pull/6027))
 - Bump `@metamask/controller-utils` from `^11.10.0` to `^11.11.0` ([#6069](https://github.com/MetaMask/core/pull/6069))
 - Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
 
@@ -189,8 +366,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^18.0.0` to `^19.0.0` ([#4195](https://github.com/MetaMask/core/pull/4956))
-- **BREAKING:** Bump `@metamask/transaction-controller` peer dependency from `^39.0.0` to `^40.0.0` ([#4195](https://github.com/MetaMask/core/pull/4956))
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^18.0.0` to `^19.0.0` ([#4195](https://github.com/MetaMask/core/pull/4195))
+- **BREAKING:** Bump `@metamask/transaction-controller` peer dependency from `^39.0.0` to `^40.0.0` ([#4195](https://github.com/MetaMask/core/pull/4195))
 
 ## [18.0.0]
 
@@ -222,7 +399,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `PendingUserOperationTracker` now uses a new polling interface that accepts the generic parameter `PollingInput` ([#4752](https://github.com/MetaMask/core/pull/4752))
 - **BREAKING:** The inherited `AbstractPollingController` method `startPollingByNetworkClientId` has been renamed to `startPolling` ([#4752](https://github.com/MetaMask/core/pull/4752))
 - **BREAKING:** The inherited `AbstractPollingController` method `onPollingComplete` now returns the entire input object of type `PollingInput`, instead of a network client id ([#4752](https://github.com/MetaMask/core/pull/4752))
-- Bump `@metamask/transaction-controller` from `^37.1.0` to `^37.3.0` ([#4754](https://github.com/MetaMask/core/pull/4754),[#4805](https://github.com/MetaMask/core/pull/4805))
+- Bump `@metamask/transaction-controller` from `^37.1.0` to `^37.3.0` ([#4754](https://github.com/MetaMask/core/pull/4754), [#4805](https://github.com/MetaMask/core/pull/4805))
 - Bump `@metamask/approval-controller` from `^7.0.4` to `^7.1.0` ([#4734](https://github.com/MetaMask/core/pull/4734))
 - Bump `@metamask/keyring-controller` from `^17.2.1` to `^17.2.2` ([#4734](https://github.com/MetaMask/core/pull/4734))
 - Bump `@metamask/transaction-controller` from `^37.0.0` to `^37.1.0` ([#4734](https://github.com/MetaMask/core/pull/4734))
@@ -239,7 +416,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+- Remove chunk files. ([#4648](https://github.com/MetaMask/core/pull/4648))
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
@@ -250,8 +427,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Bump devDependency and peerDependency `@metamask/network-controller` from `^20.0.0` to `^21.0.0` ([#4618](https://github.com/MetaMask/core/pull/4618), [#4651](https://github.com/MetaMask/core/pull/4651))
-- **BREAKING:** Bump devDependency and peerDependency `@metamask/transaction-controller` from `^35.0.0` to `^36.0.0` ( [#4651](https://github.com/MetaMask/core/pull/4651))
-- **BREAKING:** Bump devDependency and peerDependency `@metamask/gas-fee-controller` from `^19.0.0` to `^20.0.0` ( [#4651](https://github.com/MetaMask/core/pull/4651))
+- **BREAKING:** Bump devDependency and peerDependency `@metamask/transaction-controller` from `^35.0.0` to `^36.0.0` ([#4651](https://github.com/MetaMask/core/pull/4651))
+- **BREAKING:** Bump devDependency and peerDependency `@metamask/gas-fee-controller` from `^19.0.0` to `^20.0.0` ([#4651](https://github.com/MetaMask/core/pull/4651))
 - Bump `@metamask/base-controller` from `^6.0.2` to `^7.0.0` ([#4625](https://github.com/MetaMask/core/pull/4625), [#4643](https://github.com/MetaMask/core/pull/4643))
 - Bump `@metamask/controller-utils` from `^11.0.2` to `^11.2.0` ([#4639](https://github.com/MetaMask/core/pull/4639), [#4651](https://github.com/MetaMask/core/pull/4651))
 - Bump `@metamask/polling-controller` from `^9.0.1` to `^10.0.0` ([#4651](https://github.com/MetaMask/core/pull/4651))
@@ -453,7 +630,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#3749](https://github.com/MetaMask/core/pull/3749))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@39.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.5...HEAD
+[41.2.5]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.4...@metamask/user-operation-controller@41.2.5
+[41.2.4]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.3...@metamask/user-operation-controller@41.2.4
+[41.2.3]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.2...@metamask/user-operation-controller@41.2.3
+[41.2.2]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.1...@metamask/user-operation-controller@41.2.2
+[41.2.1]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.0...@metamask/user-operation-controller@41.2.1
+[41.2.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.1.1...@metamask/user-operation-controller@41.2.0
+[41.1.1]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.1.0...@metamask/user-operation-controller@41.1.1
+[41.1.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.0.3...@metamask/user-operation-controller@41.1.0
+[41.0.3]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.0.2...@metamask/user-operation-controller@41.0.3
+[41.0.2]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.0.1...@metamask/user-operation-controller@41.0.2
+[41.0.1]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.0.0...@metamask/user-operation-controller@41.0.1
+[41.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@40.0.0...@metamask/user-operation-controller@41.0.0
+[40.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@39.2.1...@metamask/user-operation-controller@40.0.0
+[39.2.1]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@39.2.0...@metamask/user-operation-controller@39.2.1
+[39.2.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@39.1.0...@metamask/user-operation-controller@39.2.0
+[39.1.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@39.0.0...@metamask/user-operation-controller@39.1.0
 [39.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@38.0.0...@metamask/user-operation-controller@39.0.0
 [38.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@37.0.0...@metamask/user-operation-controller@38.0.0
 [37.0.0]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@36.0.0...@metamask/user-operation-controller@37.0.0

@@ -1,9 +1,12 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
+  StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
+
+import type { AnnouncementControllerMethodActions } from './AnnouncementController-method-action-types';
 
 type ViewedAnnouncement = {
   [id: number]: boolean;
@@ -39,7 +42,8 @@ export type AnnouncementControllerState = {
 };
 
 export type AnnouncementControllerActions =
-  AnnouncementControllerGetStateAction;
+  | AnnouncementControllerGetStateAction
+  | AnnouncementControllerMethodActions;
 export type AnnouncementControllerEvents =
   AnnouncementControllerStateChangeEvent;
 
@@ -55,23 +59,25 @@ export type AnnouncementControllerStateChangeEvent = ControllerStateChangeEvent<
 
 const controllerName = 'AnnouncementController';
 
+const MESSENGER_EXPOSED_METHODS = ['resetViewed', 'updateViewed'] as const;
+
 const defaultState = {
   announcements: {},
 };
 
-const metadata = {
+const metadata: StateMetadata<AnnouncementControllerState> = {
   announcements: {
+    includeInStateLogs: true,
     persist: true,
-    anonymous: true,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
   },
 };
 
-export type AnnouncementControllerMessenger = RestrictedMessenger<
+export type AnnouncementControllerMessenger = Messenger<
   typeof controllerName,
   AnnouncementControllerActions,
-  AnnouncementControllerEvents,
-  never,
-  never
+  AnnouncementControllerEvents
 >;
 
 /**
@@ -101,6 +107,10 @@ export class AnnouncementController extends BaseController<
   }) {
     const mergedState = { ...defaultState, ...state };
     super({ messenger, metadata, name: controllerName, state: mergedState });
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
     this.#addAnnouncements(allAnnouncements);
   }
 

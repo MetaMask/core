@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./"
+  },
+  "references": [
+    {
+      "path": "../eth-json-rpc-provider"
+    },
+    {
+      "path": "../json-rpc-engine"
+    }
+  ],
+  "include": ["../../types", "./src", "./tests"]
+}

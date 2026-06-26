@@ -1,5 +1,7 @@
 import { errorCodes, rpcErrors } from '@metamask/rpc-errors';
 
+import { CUSTOM_RPC_ERRORS } from '../../src/rpc-service/rpc-service';
+import { NetworkClientType } from '../../src/types';
 import type { ProviderType } from './helpers';
 import {
   waitForPromiseToBeFulfilledAfterRunningAllTimers,
@@ -7,8 +9,6 @@ import {
   withNetworkClient,
 } from './helpers';
 import { testsForRpcFailoverBehavior } from './rpc-failover';
-import { CUSTOM_RPC_ERRORS } from '../../src/rpc-service/rpc-service';
-import { NetworkClientType } from '../../src/types';
 
 type TestsForRpcMethodAssumingNoBlockParamOptions = {
   providerType: ProviderType;
@@ -33,7 +33,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
     numberOfParameters,
     providerType,
   }: TestsForRpcMethodAssumingNoBlockParamOptions,
-) {
+): void {
   it('does not hit the RPC endpoint more than once for identical requests', async () => {
     const requests = [{ method }, { method }];
     const mockResults = ['first result', 'second result'];
@@ -121,14 +121,13 @@ export function testsForRpcMethodAssumingNoBlockParam(
             pollingInterval,
           }),
         },
-        async ({ blockTracker, makeRpcCall, clock }) => {
+        async ({ blockTracker, makeRpcCall }) => {
           const waitForTwoBlocks = new Promise<void>((resolve) => {
             let numberOfBlocks = 0;
 
             // Start the block tracker
             blockTracker.on('latest', () => {
               numberOfBlocks += 1;
-              // eslint-disable-next-line jest/no-conditional-in-test
               if (numberOfBlocks === 2) {
                 resolve();
               }
@@ -138,7 +137,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
           const firstResult = await makeRpcCall(requests[0]);
           // Proceed to the next iteration of the block tracker so that a new
           // block is fetched and the current block is updated.
-          await clock.tickAsync(pollingInterval);
+          await jest.advanceTimersByTimeAsync(pollingInterval);
           await waitForTwoBlocks;
           const secondResult = await makeRpcCall(requests[1]);
           return [firstResult, secondResult];
@@ -149,9 +148,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
     });
   });
 
-  for (const emptyValue of [null, undefined, '\u003cnil\u003e']) {
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+  for (const emptyValue of [null, '\u003cnil\u003e']) {
     it(`does not retry an empty response of "${emptyValue}"`, async () => {
       const request = { method };
       const mockResult = emptyValue;
@@ -175,8 +172,6 @@ export function testsForRpcMethodAssumingNoBlockParam(
       });
     });
 
-    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
     it(`does not reuse the result of a previous request if it was "${emptyValue}"`, async () => {
       const requests = [{ method }, { method }];
       const mockResults = [emptyValue, 'some result'];
@@ -241,7 +236,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
           const firstResult = await resultPromises[0];
           // The inflight cache middleware uses setTimeout to run the handlers,
           // so run them now
-          client.clock.runAll();
+          jest.runAllTimers();
           const remainingResults = await Promise.all(resultPromises.slice(1));
           return [firstResult, ...remainingResults];
         },
@@ -287,8 +282,6 @@ export function testsForRpcMethodAssumingNoBlockParam(
         },
       );
 
-      // This is not ideal, but we can refactor this later.
-      // eslint-disable-next-line jest/no-conditional-in-test
       if (providerType === NetworkClientType.Infura) {
         // This is not ideal, but we can refactor this later.
         // eslint-disable-next-line jest/no-conditional-expect
@@ -406,7 +399,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
         code: errorCodes.rpc.resourceUnavailable,
       });
 
-      it('retries the request up to 5 times until there is a 200 response', async () => {
+      it('retries the request up to 4 times until there is a 200 response', async () => {
         await withMockedCommunications({ providerType }, async (comms) => {
           const request = { method };
 
@@ -422,7 +415,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
               error: 'Some error',
               httpStatus,
             },
-            times: 4,
+            times: 3,
           });
           comms.mockRpcCall({
             request,
@@ -433,10 +426,9 @@ export function testsForRpcMethodAssumingNoBlockParam(
           });
           const result = await withNetworkClient(
             { providerType },
-            async ({ makeRpcCall, clock }) => {
+            async ({ makeRpcCall }) => {
               return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                 makeRpcCall(request),
-                clock,
               );
             },
           );
@@ -464,10 +456,9 @@ export function testsForRpcMethodAssumingNoBlockParam(
           comms.mockNextBlockTrackerRequest();
           const promiseForResult = withNetworkClient(
             { providerType },
-            async ({ makeRpcCall, clock }) => {
+            async ({ makeRpcCall }) => {
               return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                 makeRpcCall(request),
-                clock,
               );
             },
           );
@@ -508,7 +499,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
       // still used by Node.
       error.code = errorCode;
 
-      it('retries the request up to 5 times until it is successful', async () => {
+      it('retries the request up to 4 times until it is successful', async () => {
         await withMockedCommunications({ providerType }, async (comms) => {
           const request = { method };
 
@@ -521,7 +512,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
           comms.mockRpcCall({
             request,
             error,
-            times: 4,
+            times: 3,
           });
           comms.mockRpcCall({
             request,
@@ -533,10 +524,9 @@ export function testsForRpcMethodAssumingNoBlockParam(
 
           const result = await withNetworkClient(
             { providerType },
-            async ({ makeRpcCall, clock }) => {
+            async ({ makeRpcCall }) => {
               return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                 makeRpcCall(request),
-                clock,
               );
             },
           );
@@ -560,10 +550,9 @@ export function testsForRpcMethodAssumingNoBlockParam(
           });
           const promiseForResult = withNetworkClient(
             { providerType },
-            async ({ makeRpcCall, clock }) => {
+            async ({ makeRpcCall }) => {
               return await waitForPromiseToBeFulfilledAfterRunningAllTimers(
                 makeRpcCall(request),
-                clock,
               );
             },
           );
@@ -597,7 +586,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
       code: errorCodes.rpc.parse,
     });
 
-    it('retries the request up to 5 times until it responds with valid JSON', async () => {
+    it('retries the request up to 4 times until it responds with valid JSON', async () => {
       await withMockedCommunications({ providerType }, async (comms) => {
         const request = { method };
 
@@ -612,7 +601,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
           response: {
             body: 'invalid JSON',
           },
-          times: 4,
+          times: 3,
         });
         comms.mockRpcCall({
           request,
@@ -690,7 +679,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
   describe('if making the request throws a connection error', () => {
     const error = new TypeError('Failed to fetch');
 
-    it('retries the request up to 5 times until there is no connection error', async () => {
+    it('retries the request up to 4 times until there is no connection error', async () => {
       await withMockedCommunications({ providerType }, async (comms) => {
         const request = { method };
 
@@ -703,7 +692,7 @@ export function testsForRpcMethodAssumingNoBlockParam(
         comms.mockRpcCall({
           request,
           error,
-          times: 4,
+          times: 3,
         });
         comms.mockRpcCall({
           request,

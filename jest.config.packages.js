@@ -78,17 +78,19 @@ module.exports = {
 
   // A map from regular expressions to module names or to arrays of module names that allow to stub out resources with a single module
   // Here we ensure that Jest resolves `@metamask/*` imports to the uncompiled source code for packages that live in this repo.
-  // NOTE: This must be synchronized with the `paths` option in `tsconfig.packages.json`.
+  // NOTE: This must be synchronized with the `paths` option in `tsconfig.base.json`.
   moduleNameMapper: {
-    '^@metamask/base-controller/next': [
-      '<rootDir>/../base-controller/src/next',
+    '^@metamask/json-rpc-engine/v2$': [
+      '<rootDir>/../json-rpc-engine/src/v2/index.ts',
     ],
+    '^@metamask/utils/node$': require.resolve('@metamask/utils/node'),
     '^@metamask/(.+)$': [
       '<rootDir>/../$1/src',
       // Some @metamask/* packages we are referencing aren't in this monorepo,
       // so in that case use their published versions
       '<rootDir>/../../node_modules/@metamask/$1',
     ],
+    '^uuid$': require.resolve('uuid'),
   },
 
   // An array of regexp pattern strings, matched against all module paths before considered 'visible' to the module loader
@@ -187,9 +189,6 @@ module.exports = {
 
   // This option sets the URL for the jsdom environment. It is reflected in properties such as location.href
   // testURL: "http://localhost",
-
-  // Setting this value to "fake" allows the use of fake timers for functions such as "setTimeout"
-  // timers: "real",
 
   // A map from regular expressions to paths to transformers
   // transform: undefined,

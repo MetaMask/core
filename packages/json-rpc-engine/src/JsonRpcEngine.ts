@@ -15,18 +15,32 @@ import {
   isJsonRpcRequest,
 } from '@metamask/utils';
 
+import { stringify } from './v2/utils';
+
 export type JsonRpcEngineCallbackError = Error | SerializedJsonRpcError | null;
 
+/**
+ * @deprecated Use `JsonRpcEngineV2` and its corresponding types instead.
+ */
 export type JsonRpcEngineReturnHandler = (
   done: (error?: unknown) => void,
 ) => void;
 
+/**
+ * @deprecated Use `JsonRpcEngineV2` and its corresponding types instead.
+ */
 export type JsonRpcEngineNextCallback = (
   returnHandlerCallback?: JsonRpcEngineReturnHandler,
 ) => void;
 
+/**
+ * @deprecated Use `JsonRpcEngineV2` and its corresponding types instead.
+ */
 export type JsonRpcEngineEndCallback = (error?: unknown) => void;
 
+/**
+ * @deprecated Use `JsonRpcEngineV2` and its corresponding types instead.
+ */
 export type JsonRpcMiddleware<
   Params extends JsonRpcParams,
   Result extends Json,
@@ -43,6 +57,9 @@ export type JsonRpcMiddleware<
 const DESTROYED_ERROR_MESSAGE =
   'This engine is destroyed and can no longer be used.';
 
+/**
+ * @deprecated Use `JsonRpcEngineV2` and its corresponding types instead.
+ */
 export type JsonRpcNotificationHandler<Params extends JsonRpcParams> = (
   notification: JsonRpcNotification<Params>,
 ) => void | Promise<void>;
@@ -62,7 +79,10 @@ type JsonRpcEngineArgs = {
 
 /**
  * A JSON-RPC request and response processor.
+ *
  * Give it a stack of middleware, pass it requests, and get back responses.
+ *
+ * @deprecated Use `JsonRpcEngineV2` instead.
  */
 export class JsonRpcEngine extends SafeEventEmitter {
   /**
@@ -96,7 +116,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
   /**
    * Throws an error if this engine is destroyed.
    */
-  #assertIsNotDestroyed() {
+  #assertIsNotDestroyed(): void {
     if (this.#isDestroyed) {
       throw new Error(DESTROYED_ERROR_MESSAGE);
     }
@@ -208,7 +228,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
       | JsonRpcRequest
       | JsonRpcNotification,
     callback?: (error: unknown, response: never) => void,
-  ) {
+  ): Promise<JsonRpcResponse[]> | Promise<JsonRpcResponse | void> {
     this.#assertIsNotDestroyed();
 
     if (callback && typeof callback !== 'function') {
@@ -361,6 +381,8 @@ export class JsonRpcEngine extends SafeEventEmitter {
         // For notifications, the response will be `undefined`, and any caught
         // errors are unexpected and should be surfaced to the caller.
         if (error && res === undefined) {
+          // We are not going to change this behavior.
+          // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
           reject(error);
         } else {
           // Excepting notifications, there will always be a response, and it will
@@ -450,9 +472,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
     if (error) {
       // Ensure no result is present on an errored response
       delete res.result;
-      if (!res.error) {
-        res.error = serializeError(error);
-      }
+      res.error ??= serializeError(error);
     }
 
     return callback(error, res as JsonRpcResponse);
@@ -550,7 +570,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
   ): Promise<[unknown, boolean]> {
     return new Promise((resolve) => {
       const end: JsonRpcEngineEndCallback = (error) => {
-        const parsedError = error || response.error;
+        const parsedError = error ?? response.error;
         if (parsedError) {
           response.error = serializeError(parsedError);
         }
@@ -570,7 +590,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
                 new JsonRpcError(
                   errorCodes.rpc.internal,
                   `JsonRpcEngine: "next" return handlers must be functions. ` +
-                    `Received "${typeof returnHandler}" for request:\n${jsonify(
+                    `Received "${typeof returnHandler}" for request:\n${stringify(
                       request,
                     )}`,
                   { request },
@@ -604,6 +624,8 @@ export class JsonRpcEngine extends SafeEventEmitter {
   ): Promise<void> {
     for (const handler of handlers) {
       await new Promise<void>((resolve, reject) => {
+        // We are not going to change this behavior.
+        // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
         handler((error) => (error ? reject(error) : resolve()));
       });
     }
@@ -626,7 +648,7 @@ export class JsonRpcEngine extends SafeEventEmitter {
     if (!hasProperty(response, 'result') && !hasProperty(response, 'error')) {
       throw new JsonRpcError(
         errorCodes.rpc.internal,
-        `JsonRpcEngine: Response has no error or result for request:\n${jsonify(
+        `JsonRpcEngine: Response has no error or result for request:\n${stringify(
           request,
         )}`,
         { request },
@@ -636,19 +658,9 @@ export class JsonRpcEngine extends SafeEventEmitter {
     if (!isComplete) {
       throw new JsonRpcError(
         errorCodes.rpc.internal,
-        `JsonRpcEngine: Nothing ended request:\n${jsonify(request)}`,
+        `JsonRpcEngine: Nothing ended request:\n${stringify(request)}`,
         { request },
       );
     }
   }
-}
-
-/**
- * JSON-stringifies a request object.
- *
- * @param request - The request object to JSON-stringify.
- * @returns The JSON-stringified request object.
- */
-function jsonify(request: JsonRpcRequest): string {
-  return JSON.stringify(request, null, 2);
 }

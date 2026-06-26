@@ -1,4 +1,5 @@
-import { EthMethod, type OriginalRequest } from '../types';
+import { EthMethod } from '../types';
+import type { OriginalRequest } from '../types';
 import { decodeSignature } from './decoding-api';
 
 const PERMIT_REQUEST_MOCK = {
@@ -40,6 +41,7 @@ describe('Decoding api', () => {
 
   /**
    * Mock a JSON response from fetch.
+   *
    * @param jsonResponse - The response body to return.
    */
   function mockFetchResponse(jsonResponse: unknown) {

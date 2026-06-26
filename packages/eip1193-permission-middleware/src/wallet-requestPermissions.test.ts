@@ -2,10 +2,8 @@ import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
 } from '@metamask/chain-agnostic-permission';
-import {
-  invalidParams,
-  type RequestedPermissions,
-} from '@metamask/permission-controller';
+import { invalidParams } from '@metamask/permission-controller';
+import type { RequestedPermissions } from '@metamask/permission-controller';
 import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
 
 import { CaveatTypes, EndowmentTypes, RestrictedMethods } from './types';

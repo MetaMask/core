@@ -1,11 +1,11 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedMessenger,
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { isSafeDynamicKey } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
 import type { SamplePetnamesControllerMethodActions } from './sample-petnames-controller-method-action-types';
@@ -17,7 +17,7 @@ import type { SamplePetnamesControllerMethodActions } from './sample-petnames-co
  * controller's actions and events and to namespace the controller's state data
  * when composed with other controllers.
  */
-export const controllerName = 'SamplePetnamesController';
+const CONTROLLER_NAME = 'SamplePetnamesController';
 
 // === STATE ===
 
@@ -41,9 +41,9 @@ export type SamplePetnamesControllerState = {
  */
 const samplePetnamesControllerMetadata = {
   namesByChainIdAndAddress: {
+    includeInDebugSnapshot: false,
     includeInStateLogs: true,
     persist: true,
-    anonymous: false,
     usedInUi: true,
   },
 } satisfies StateMetadata<SamplePetnamesControllerState>;
@@ -70,7 +70,7 @@ const MESSENGER_EXPOSED_METHODS = ['assignPetname'] as const;
  * Retrieves the state of the {@link SamplePetnamesController}.
  */
 export type SamplePetnamesControllerGetStateAction = ControllerGetStateAction<
-  typeof controllerName,
+  typeof CONTROLLER_NAME,
   SamplePetnamesControllerState
 >;
 
@@ -91,7 +91,7 @@ type AllowedActions = never;
  */
 export type SamplePetnamesControllerStateChangeEvent =
   ControllerStateChangeEvent<
-    typeof controllerName,
+    typeof CONTROLLER_NAME,
     SamplePetnamesControllerState
   >;
 
@@ -111,12 +111,10 @@ type AllowedEvents = never;
  * The messenger restricted to actions and events accessed by
  * {@link SamplePetnamesController}.
  */
-export type SamplePetnamesControllerMessenger = RestrictedMessenger<
-  typeof controllerName,
+export type SamplePetnamesControllerMessenger = Messenger<
+  typeof CONTROLLER_NAME,
   SamplePetnamesControllerActions | AllowedActions,
-  SamplePetnamesControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  SamplePetnamesControllerEvents | AllowedEvents
 >;
 
 // === CONTROLLER DEFINITION ===
@@ -128,27 +126,32 @@ export type SamplePetnamesControllerMessenger = RestrictedMessenger<
  * @example
  *
  * ``` ts
- * import { Messenger } from '@metamask/base-controller';
+ * import { Messenger } from '@metamask/messenger';
  * import type {
  *   SamplePetnamesControllerActions,
  *   SamplePetnamesControllerEvents,
  * } from '@metamask/sample-controllers';
  *
- * const globalMessenger = new Messenger<
+ * const rootMessenger = new Messenger<
+ *  'Root',
  *  SamplePetnamesControllerActions,
  *  SamplePetnamesControllerEvents
- * >();
- * const samplePetnamesMessenger = globalMessenger.getRestricted({
- *   name: 'SamplePetnamesController',
- *   allowedActions: [],
- *   allowedEvents: [],
+ * >({ namespace: 'Root' });
+ * const samplePetnamesMessenger = new Messenger<
+ *  'SamplePetnamesController',
+ *  SamplePetnamesControllerActions,
+ *  SamplePetnamesControllerEvents,
+ *  typeof rootMessenger,
+ * >({
+ *  namespace: 'SamplePetnamesController',
+ *  parent: rootMessenger,
  * });
  * // Instantiate the controller to register its actions on the messenger
  * new SamplePetnamesController({
  *   messenger: samplePetnamesMessenger,
  * });
  *
- * globalMessenger.call(
+ * rootMessenger.call(
  *   'SamplePetnamesController:assignPetname',
  *   [
  *     '0x1',
@@ -156,7 +159,7 @@ export type SamplePetnamesControllerMessenger = RestrictedMessenger<
  *     'Primary Account',
  *   ],
  * );
- * const samplePetnamesControllerState = await globalMessenger.call(
+ * const samplePetnamesControllerState = await rootMessenger.call(
  *   'SamplePetnamesController:getState',
  * );
  * samplePetnamesControllerState.namesByChainIdAndAddress
@@ -164,7 +167,7 @@ export type SamplePetnamesControllerMessenger = RestrictedMessenger<
  * ```
  */
 export class SamplePetnamesController extends BaseController<
-  typeof controllerName,
+  typeof CONTROLLER_NAME,
   SamplePetnamesControllerState,
   SamplePetnamesControllerMessenger
 > {
@@ -186,14 +189,14 @@ export class SamplePetnamesController extends BaseController<
     super({
       messenger,
       metadata: samplePetnamesControllerMetadata,
-      name: controllerName,
+      name: CONTROLLER_NAME,
       state: {
         ...getDefaultPetnamesControllerState(),
         ...state,
       },
     });
 
-    this.messagingSystem.registerMethodActionHandlers(
+    this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
@@ -207,7 +210,7 @@ export class SamplePetnamesController extends BaseController<
    * @param address - The account address to name.
    * @param name - The name to assign to the address.
    */
-  assignPetname(chainId: Hex, address: Hex, name: string) {
+  assignPetname(chainId: Hex, address: Hex, name: string): void {
     if (!isSafeDynamicKey(chainId)) {
       throw new Error('Invalid chain ID');
     }

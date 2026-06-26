@@ -1,9 +1,16 @@
-import { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
-import { JsonRpcEngine } from '@metamask/json-rpc-engine';
+import { InternalProvider } from '@metamask/eth-json-rpc-provider';
+import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
+import type {
+  JsonRpcMiddleware,
+  MiddlewareContext,
+  ResultConstraint,
+} from '@metamask/json-rpc-engine/v2';
+import type { Provider } from '@metamask/network-controller';
 import type {
   Json,
   JsonRpcId,
   JsonRpcParams,
+  JsonRpcRequest,
   JsonRpcResponse,
   JsonRpcVersion2,
 } from '@metamask/utils';
@@ -91,23 +98,35 @@ type FakeProviderEngineOptions = {
   stubs?: FakeProviderStub[];
 };
 
+type Context = MiddlewareContext<
+  { origin: string; skipCache: boolean } & Record<string, unknown>
+>;
+type Middleware = JsonRpcMiddleware<
+  JsonRpcRequest,
+  ResultConstraint<JsonRpcRequest>,
+  Context
+>;
+
 /**
  * An implementation of the provider that NetworkController exposes, which is
- * actually an instance of SafeEventEmitterProvider (from the
+ * actually an instance of InternalProvider (from the
  * `@metamask/eth-json-rpc-provider` package). Hence it supports the same
- * interface as SafeEventEmitterProvider, except that fake responses for any RPC
+ * interface as InternalProvider, except that fake responses for any RPC
  * methods that are accessed can be supplied via an API that is more succinct
  * than using Jest's mocking API.
  */
 // NOTE: We shouldn't need to extend from the "real" provider here, but
-// we'd need a `SafeEventEmitterProvider` _interface_ and that doesn't exist (at
+// we'd need a `InternalProvider` _interface_ and that doesn't exist (at
 // least not yet).
-export class FakeProvider extends SafeEventEmitterProvider {
+export class FakeProvider
+  extends InternalProvider<Context>
+  implements Provider
+{
   calledStubs: FakeProviderStub[];
 
-  #originalStubs: FakeProviderStub[];
+  readonly #originalStubs: FakeProviderStub[];
 
-  #stubs: FakeProviderStub[];
+  readonly #stubs: FakeProviderStub[];
 
   /**
    * Makes a new instance of the fake provider.
@@ -117,7 +136,15 @@ export class FakeProvider extends SafeEventEmitterProvider {
    * of specific invocations of `request` matching a `method`.
    */
   constructor({ stubs = [] }: FakeProviderEngineOptions = {}) {
-    super({ engine: new JsonRpcEngine() });
+    super({
+      engine: JsonRpcEngineV2.create<Middleware>({
+        middleware: [
+          (): never => {
+            throw new Error('FakeProvider received unstubbed method call');
+          },
+        ],
+      }),
+    });
     this.#originalStubs = stubs;
     this.#stubs = this.#originalStubs.slice();
     this.calledStubs = [];
@@ -129,6 +156,8 @@ export class FakeProvider extends SafeEventEmitterProvider {
     return new Promise((resolve, reject) => {
       this.#handleSend(payload, (error, providerRes) => {
         if (error) {
+          // Error is `unknown`.
+          // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors
           reject(error);
         } else {
           resolve(providerRes.result);
@@ -142,7 +171,7 @@ export class FakeProvider extends SafeEventEmitterProvider {
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: (error: unknown, providerRes?: any) => void,
-  ) => {
+  ): void => {
     return this.#handleSend(payload, callback);
   };
 
@@ -151,7 +180,7 @@ export class FakeProvider extends SafeEventEmitterProvider {
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: (error: unknown, providerRes?: any) => void,
-  ) => {
+  ): void => {
     return this.#handleSend(req, callback);
   };
 
@@ -160,7 +189,7 @@ export class FakeProvider extends SafeEventEmitterProvider {
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     callback: (error: unknown, providerRes?: any) => void,
-  ) {
+  ): void {
     if (Array.isArray(req)) {
       throw new Error("Arrays aren't supported");
     }
@@ -193,9 +222,7 @@ export class FakeProvider extends SafeEventEmitterProvider {
 
       throw new Error(message);
     } else {
-      // We are already checking that this stub exists above.
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-      const stub = this.#stubs[index]!;
+      const stub = this.#stubs[index];
 
       if (stub.discardAfterMatching !== false) {
         this.#stubs.splice(index, 1);
@@ -219,10 +246,8 @@ export class FakeProvider extends SafeEventEmitterProvider {
 
   async #handleRequest(
     stub: FakeProviderStub,
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    callback: (error: unknown, response?: JsonRpcResponse<any>) => void,
-  ) {
+    callback: (error: unknown, response?: JsonRpcResponse) => void,
+  ): Promise<void> {
     if (stub.beforeCompleting) {
       await stub.beforeCompleting();
     }

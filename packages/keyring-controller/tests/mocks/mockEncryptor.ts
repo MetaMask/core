@@ -1,5 +1,4 @@
 // Omitting jsdoc because mock is only internal and simple enough.
-/* eslint-disable jsdoc/require-jsdoc */
 
 import type {
   DetailedDecryptResult,
@@ -9,7 +8,7 @@ import type {
 import type { Json } from '@metamask/utils';
 import { isEqual } from 'lodash';
 
-import type { ExportableKeyEncryptor } from '../../src/KeyringController';
+import type { Encryptor } from '../../src/KeyringController';
 
 export const PASSWORD = 'password123';
 export const SALT = 'salt';
@@ -17,19 +16,23 @@ export const MOCK_ENCRYPTION_KEY = JSON.stringify({
   password: PASSWORD,
   salt: SALT,
 });
+export const MOCK_KEY = Buffer.alloc(32);
 
 export const DECRYPTION_ERROR = 'Decryption failed.';
 
-function deriveKey(password: string, salt: string) {
+function deriveKey(
+  password: string,
+  salt: string,
+): { password: string; salt: string } {
   return {
     password,
     salt,
   };
 }
 
-export default class MockEncryptor implements ExportableKeyEncryptor {
+export default class MockEncryptor implements Encryptor<unknown> {
   async encrypt(password: string, dataObj: Json): Promise<string> {
-    const salt = generateSalt();
+    const salt = this.generateSalt();
     const key = deriveKey(password, salt);
     const result = await this.encryptWithKey(key, dataObj);
     return JSON.stringify({
@@ -39,9 +42,9 @@ export default class MockEncryptor implements ExportableKeyEncryptor {
   }
 
   async decrypt(password: string, text: string): Promise<Json> {
-    const { salt } = JSON.parse(text);
-    const key = deriveKey(password, salt);
-    return await this.decryptWithKey(key, text);
+    const payload = JSON.parse(text);
+    const key = deriveKey(password, payload.salt);
+    return await this.decryptWithKey(key, payload);
   }
 
   async encryptWithDetail(
@@ -49,7 +52,7 @@ export default class MockEncryptor implements ExportableKeyEncryptor {
     dataObj: Json,
     salt?: string,
   ): Promise<DetailedEncryptionResult> {
-    const _salt = salt ?? generateSalt();
+    const _salt = salt ?? this.generateSalt();
     const key = deriveKey(password, _salt);
     const result = await this.encryptWithKey(key, dataObj);
     return {
@@ -65,11 +68,11 @@ export default class MockEncryptor implements ExportableKeyEncryptor {
     password: string,
     text: string,
   ): Promise<DetailedDecryptResult> {
-    const { salt } = JSON.parse(text);
-    const key = deriveKey(password, salt);
+    const payload = JSON.parse(text);
+    const key = deriveKey(password, payload.salt);
     return {
-      vault: await this.decryptWithKey(key, text),
-      salt,
+      vault: await this.decryptWithKey(key, payload),
+      salt: payload.salt,
       exportedKeyString: JSON.stringify(key),
     };
   }
@@ -85,7 +88,10 @@ export default class MockEncryptor implements ExportableKeyEncryptor {
     };
   }
 
-  async decryptWithKey(key: unknown, ciphertext: string): Promise<Json> {
+  async decryptWithKey(
+    key: unknown,
+    ciphertext: EncryptionResult,
+  ): Promise<Json> {
     // This conditional assignment is required because sometimes the keyring
     // controller passes in the parsed object instead of the string.
     const ciphertextObj =
@@ -97,27 +103,37 @@ export default class MockEncryptor implements ExportableKeyEncryptor {
     return data.value;
   }
 
-  async importKey(key: string) {
+  async keyFromPassword(_password: string, _salt: string): Promise<string> {
+    return JSON.parse(MOCK_ENCRYPTION_KEY);
+  }
+
+  async importKey(key: string): Promise<string> {
     return JSON.parse(key);
   }
 
-  async updateVault(_vault: string, _password: string) {
+  async exportKey(key: unknown): Promise<string> {
+    return JSON.stringify(key);
+  }
+
+  async updateVault(_vault: string, _password: string): Promise<string> {
     return _vault;
   }
 
-  isVaultUpdated(_vault: string) {
+  generateSalt(): string {
+    return SALT;
+  }
+
+  isVaultUpdated(_vault: string): boolean {
     return true;
+  }
+
+  asEncryptor(): Encryptor {
+    // This mock is not using the right crypto types, but that's ok for the tests.
+    return this as unknown as Encryptor;
   }
 }
 
-function generateSalt() {
-  // Generate random salt.
-
-  // return crypto.randomUUID();
-  return SALT; // TODO some tests rely on fixed salt, but wouldn't it be better to generate random value here?
-}
-
-function generateIV() {
+function generateIV(): string {
   // Generate random salt.
 
   // return crypto.randomUUID();

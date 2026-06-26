@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import {
   convertHexToDecimal,
   toHex,
@@ -5,7 +6,6 @@ import {
 } from '@metamask/controller-utils';
 import { BigNumber } from 'bignumber.js';
 
-import { isNativeAddress, isSolanaChainId } from './bridge';
 import type {
   BridgeAsset,
   ExchangeRate,
@@ -13,9 +13,12 @@ import type {
   L1GasFees,
   Quote,
   QuoteMetadata,
-  QuoteResponse,
-  SolanaFees,
+  QuoteResponseV1,
+  NonEvmFees,
+  TxData,
 } from '../types';
+import { FeatureId } from '../types';
+import { isNativeAddress, isNonEvmChainId } from './bridge';
 
 export const isValidQuoteRequest = (
   partialRequest: Partial<GenericQuoteRequest>,
@@ -31,12 +34,18 @@ export const isValidQuoteRequest = (
   if (requireAmount) {
     stringFields.push('srcTokenAmount');
   }
-  // If bridging and one of the chains is solana, require the dest wallet address
+  // If bridging between different chain types or different non-EVM chains, require dest wallet address
+  // Cases that need destWalletAddress:
+  // 1. EVM -> non-EVM
+  // 2. non-EVM -> EVM
+  // 3. non-EVM -> different non-EVM (e.g., SOL -> BTC)
+  // Only same-chain swaps don't need destWalletAddress
   if (
     partialRequest.destChainId &&
     partialRequest.srcChainId &&
-    isSolanaChainId(partialRequest.destChainId) ===
-      !isSolanaChainId(partialRequest.srcChainId)
+    partialRequest.destChainId !== partialRequest.srcChainId && // Different chains
+    (isNonEvmChainId(partialRequest.destChainId) ||
+      isNonEvmChainId(partialRequest.srcChainId)) // At least one is non-EVM
   ) {
     stringFields.push('destWalletAddress');
     if (!partialRequest.destWalletAddress) {
@@ -74,13 +83,19 @@ export const isValidQuoteRequest = (
   );
 };
 
+export const isValidBatchSellQuoteRequest = (
+  quoteRequests: Partial<GenericQuoteRequest>[],
+  requireAmount = true,
+): quoteRequests is GenericQuoteRequest[] =>
+  quoteRequests.every((req) => isValidQuoteRequest(req, requireAmount));
+
 /**
  * Generates a pseudo-unique string that identifies each quote by aggregator, bridge, and steps
  *
  * @param quote - The quote to generate an identifier for
  * @returns A pseudo-unique string that identifies the quote
  */
-export const getQuoteIdentifier = (quote: QuoteResponse['quote']) =>
+export const getQuoteIdentifier = (quote: QuoteResponseV1['quote']) =>
   `${quote.bridgeId}-${quote.bridges[0]}-${quote.steps.length}`;
 
 const calcTokenAmount = (value: string | BigNumber, decimals: number) => {
@@ -88,20 +103,20 @@ const calcTokenAmount = (value: string | BigNumber, decimals: number) => {
   return new BigNumber(value).div(divisor);
 };
 
-export const calcSolanaTotalNetworkFee = (
-  bridgeQuote: QuoteResponse & SolanaFees,
+export const calcNonEvmTotalNetworkFee = (
+  bridgeQuote: QuoteResponseV1 & NonEvmFees,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
-  const { solanaFeesInLamports } = bridgeQuote;
-  const solanaFeeInNative = calcTokenAmount(solanaFeesInLamports ?? '0', 9);
+  const { nonEvmFeesInNative } = bridgeQuote;
+  // Fees are now stored directly in native units (SOL, BTC) without conversion
+  const feeInNative = new BigNumber(nonEvmFeesInNative ?? '0');
+
   return {
-    amount: solanaFeeInNative.toString(),
+    amount: feeInNative.toString(),
     valueInCurrency: exchangeRate
-      ? solanaFeeInNative.times(exchangeRate).toString()
+      ? feeInNative.times(exchangeRate).toString()
       : null,
-    usd: usdExchangeRate
-      ? solanaFeeInNative.times(usdExchangeRate).toString()
-      : null,
+    usd: usdExchangeRate ? feeInNative.times(usdExchangeRate).toString() : null,
   };
 };
 
@@ -126,17 +141,24 @@ export const calcToAmount = (
 };
 
 export const calcSentAmount = (
-  { srcTokenAmount, srcAsset, feeData }: Quote,
+  { srcTokenAmount, srcAsset, feeData, intent }: Quote,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
-  // Find all fees that will be taken from the src token
-  const srcTokenFees = Object.values(feeData).filter(
-    (fee) => fee && fee.amount && fee.asset?.assetId === srcAsset.assetId,
-  );
-  const sentAmount = srcTokenFees.reduce(
-    (acc, { amount }) => acc.plus(amount),
-    new BigNumber(srcTokenAmount),
-  );
+  // For intent-based swaps (e.g. CoW Protocol), srcTokenAmount is the total
+  // fixed commitment the user makes to the protocol — the protocol fee is
+  // already baked in. Adding feeData fees on top would double-count them.
+  // For conventional swaps, srcTokenAmount is the net routing amount (fees
+  // excluded), so the src-token fees must be added to get the wallet deduction.
+  const sentAmount = intent
+    ? new BigNumber(srcTokenAmount)
+    : Object.values(feeData)
+        .filter(
+          (fee) => fee && fee.amount && fee.asset?.assetId === srcAsset.assetId,
+        )
+        .reduce(
+          (acc, { amount }) => acc.plus(amount),
+          new BigNumber(srcTokenAmount),
+        );
   const normalizedSentAmount = calcTokenAmount(sentAmount, srcAsset.decimals);
   return {
     amount: normalizedSentAmount.toString(),
@@ -149,10 +171,30 @@ export const calcSentAmount = (
   };
 };
 
-export const calcRelayerFee = (
-  { quote, trade }: QuoteResponse,
+export const calcBatchFees = (
+  amount: string,
+  asset: BridgeAsset,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
+  const normalizedAmount = calcTokenAmount(amount, asset.decimals);
+
+  return {
+    amount: normalizedAmount.toString(),
+    valueInCurrency: exchangeRate
+      ? normalizedAmount.times(exchangeRate).toString()
+      : null,
+    usd: usdExchangeRate
+      ? normalizedAmount.times(usdExchangeRate).toString()
+      : null,
+    asset,
+  };
+};
+
+export const calcRelayerFee = (
+  quoteResponse: QuoteResponseV1<TxData, TxData>,
+  { exchangeRate, usdExchangeRate }: ExchangeRate,
+) => {
+  const { quote, trade } = quoteResponse;
   const relayerFeeAmount = new BigNumber(
     convertHexToDecimal(trade.value || '0x0'),
   );
@@ -178,31 +220,28 @@ export const calcRelayerFee = (
 
 const calcTotalGasFee = ({
   approvalGasLimit,
+  resetApprovalGasLimit,
   tradeGasLimit,
   l1GasFeesInHexWei,
   feePerGasInDecGwei,
-  priorityFeePerGasInDecGwei,
   nativeToDisplayCurrencyExchangeRate,
   nativeToUsdExchangeRate,
 }: {
   approvalGasLimit?: number | null;
+  resetApprovalGasLimit?: number | null;
   tradeGasLimit?: number | null;
   l1GasFeesInHexWei?: string | null;
-  feePerGasInDecGwei: string;
-  priorityFeePerGasInDecGwei: string;
+  feePerGasInDecGwei?: string;
   nativeToDisplayCurrencyExchangeRate?: string;
   nativeToUsdExchangeRate?: string;
 }) => {
-  const totalGasLimitInDec = new BigNumber(
-    tradeGasLimit?.toString() ?? '0',
-  ).plus(approvalGasLimit?.toString() ?? '0');
+  const totalGasLimitInDec = new BigNumber(tradeGasLimit?.toString() ?? '0')
+    .plus(approvalGasLimit?.toString() ?? '0')
+    .plus(resetApprovalGasLimit?.toString() ?? '0');
 
-  const totalFeePerGasInDecGwei = new BigNumber(feePerGasInDecGwei).plus(
-    priorityFeePerGasInDecGwei,
-  );
   const l1GasFeesInDecGWei = weiHexToGweiDec(toHex(l1GasFeesInHexWei ?? '0'));
   const gasFeesInDecGwei = totalGasLimitInDec
-    .times(totalFeePerGasInDecGwei)
+    .times(feePerGasInDecGwei ?? '0')
     .plus(l1GasFeesInDecGWei);
   const gasFeesInDecEth = gasFeesInDecGwei.times(new BigNumber(10).pow(-9));
 
@@ -221,17 +260,15 @@ const calcTotalGasFee = ({
 };
 
 export const calcEstimatedAndMaxTotalGasFee = ({
-  bridgeQuote: { approval, trade, l1GasFeesInHexWei },
-  estimatedBaseFeeInDecGwei,
+  bridgeQuote: { approval, trade, l1GasFeesInHexWei, resetApproval },
+  feePerGasInDecGwei,
   maxFeePerGasInDecGwei,
-  maxPriorityFeePerGasInDecGwei,
   exchangeRate: nativeToDisplayCurrencyExchangeRate,
   usdExchangeRate: nativeToUsdExchangeRate,
 }: {
-  bridgeQuote: QuoteResponse & L1GasFees;
-  estimatedBaseFeeInDecGwei: string;
-  maxFeePerGasInDecGwei: string;
-  maxPriorityFeePerGasInDecGwei: string;
+  bridgeQuote: QuoteResponseV1<TxData, TxData> & L1GasFees;
+  maxFeePerGasInDecGwei?: string;
+  feePerGasInDecGwei?: string;
 } & ExchangeRate): QuoteMetadata['gasFee'] => {
   // Estimated gas fees spent after receiving refunds, this is shown to the user
   const {
@@ -241,10 +278,11 @@ export const calcEstimatedAndMaxTotalGasFee = ({
   } = calcTotalGasFee({
     // Fallback to gasLimit if effectiveGas is not available
     approvalGasLimit: approval?.effectiveGas ?? approval?.gasLimit,
+    resetApprovalGasLimit:
+      resetApproval?.effectiveGas ?? resetApproval?.gasLimit,
     tradeGasLimit: trade?.effectiveGas ?? trade?.gasLimit,
     l1GasFeesInHexWei,
-    feePerGasInDecGwei: estimatedBaseFeeInDecGwei,
-    priorityFeePerGasInDecGwei: maxPriorityFeePerGasInDecGwei,
+    feePerGasInDecGwei,
     nativeToDisplayCurrencyExchangeRate,
     nativeToUsdExchangeRate,
   });
@@ -252,10 +290,10 @@ export const calcEstimatedAndMaxTotalGasFee = ({
   // Estimated total gas fee, including refunded fees (medium)
   const { amount, valueInCurrency, usd } = calcTotalGasFee({
     approvalGasLimit: approval?.gasLimit,
+    resetApprovalGasLimit: resetApproval?.gasLimit,
     tradeGasLimit: trade?.gasLimit,
     l1GasFeesInHexWei,
-    feePerGasInDecGwei: estimatedBaseFeeInDecGwei,
-    priorityFeePerGasInDecGwei: maxPriorityFeePerGasInDecGwei,
+    feePerGasInDecGwei,
     nativeToDisplayCurrencyExchangeRate,
     nativeToUsdExchangeRate,
   });
@@ -267,10 +305,10 @@ export const calcEstimatedAndMaxTotalGasFee = ({
     usd: usdMax,
   } = calcTotalGasFee({
     approvalGasLimit: approval?.gasLimit,
+    resetApprovalGasLimit: resetApproval?.gasLimit,
     tradeGasLimit: trade?.gasLimit,
     l1GasFeesInHexWei,
     feePerGasInDecGwei: maxFeePerGasInDecGwei,
-    priorityFeePerGasInDecGwei: maxPriorityFeePerGasInDecGwei,
     nativeToDisplayCurrencyExchangeRate,
     nativeToUsdExchangeRate,
   });
@@ -298,14 +336,12 @@ export const calcEstimatedAndMaxTotalGasFee = ({
  * Calculates the total estimated network fees for the bridge transaction
  *
  * @param gasFee - The gas fee for the bridge transaction
- * @param gasFee.effective - The fee to display to the user. If not available, this is equal to the gasLimit (total)
+ * @param gasFee.total - The fee to display to the user. If not available, this is equal to the gasLimit (total)
  * @param relayerFee - The relayer fee paid to bridge providers
  * @returns The total estimated network fee for the bridge transaction, including the relayer fee paid to bridge providers
  */
 export const calcTotalEstimatedNetworkFee = (
-  {
-    effective: gasFeeToDisplay,
-  }: ReturnType<typeof calcEstimatedAndMaxTotalGasFee>,
+  { total: gasFeeToDisplay }: ReturnType<typeof calcEstimatedAndMaxTotalGasFee>,
   relayerFee: ReturnType<typeof calcRelayerFee>,
 ) => {
   return {
@@ -314,12 +350,12 @@ export const calcTotalEstimatedNetworkFee = (
       .toString(),
     valueInCurrency: gasFeeToDisplay?.valueInCurrency
       ? new BigNumber(gasFeeToDisplay.valueInCurrency)
-          .plus(relayerFee.valueInCurrency || '0')
+          .plus(relayerFee.valueInCurrency ?? '0')
           .toString()
       : null,
     usd: gasFeeToDisplay?.usd
       ? new BigNumber(gasFeeToDisplay.usd)
-          .plus(relayerFee.usd || '0')
+          .plus(relayerFee.usd ?? '0')
           .toString()
       : null,
   };
@@ -333,11 +369,11 @@ export const calcTotalMaxNetworkFee = (
     amount: new BigNumber(gasFee.max.amount).plus(relayerFee.amount).toString(),
     valueInCurrency: gasFee.max.valueInCurrency
       ? new BigNumber(gasFee.max.valueInCurrency)
-          .plus(relayerFee.valueInCurrency || '0')
+          .plus(relayerFee.valueInCurrency ?? '0')
           .toString()
       : null,
     usd: gasFee.max.usd
-      ? new BigNumber(gasFee.max.usd).plus(relayerFee.usd || '0').toString()
+      ? new BigNumber(gasFee.max.usd).plus(relayerFee.usd ?? '0').toString()
       : null,
   };
 };
@@ -458,4 +494,19 @@ export const formatEtaInMinutes = (
     return `< 1`;
   }
   return (estimatedProcessingTimeInSeconds / 60).toFixed();
+};
+
+export const sortQuotes = (
+  quotes: QuoteResponseV1[],
+  featureId: FeatureId | null,
+) => {
+  // Sort perps quotes by increasing estimated processing time (fastest first)
+  if (featureId === FeatureId.PERPS) {
+    return quotes.sort((a, b) => {
+      return (
+        a.estimatedProcessingTimeInSeconds - b.estimatedProcessingTimeInSeconds
+      );
+    });
+  }
+  return quotes;
 };

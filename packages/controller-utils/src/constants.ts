@@ -50,6 +50,7 @@ export const TESTNET_TICKER_SYMBOLS = {
   LINEA_GOERLI: 'LineaETH',
   LINEA_SEPOLIA: 'LineaETH',
   MEGAETH_TESTNET: 'MegaETH',
+  MEGAETH_TESTNET_V2: 'MegaETH',
 };
 
 /**
@@ -60,7 +61,11 @@ export const BUILT_IN_CUSTOM_NETWORKS_RPC = {
    * @deprecated Please use `megaeth-testnet` instead.
    */
   MEGAETH_TESTNET: 'https://carrot.megaeth.com/rpc',
+  /**
+   * @deprecated Please use `megaeth-testnet-v2` instead.
+   */
   'megaeth-testnet': 'https://carrot.megaeth.com/rpc',
+  'megaeth-testnet-v2': 'https://carrot.megaeth.com/rpc',
   'monad-testnet': 'https://testnet-rpc.monad.xyz',
 };
 
@@ -117,6 +122,13 @@ export const BUILT_IN_NETWORKS = {
       blockExplorerUrl: BlockExplorerUrl['megaeth-testnet'],
     },
   },
+  [NetworkType['megaeth-testnet-v2']]: {
+    chainId: ChainId['megaeth-testnet-v2'],
+    ticker: NetworksTicker['megaeth-testnet-v2'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['megaeth-testnet-v2'],
+    },
+  },
   [NetworkType['monad-testnet']]: {
     chainId: ChainId['monad-testnet'],
     ticker: NetworksTicker['monad-testnet'],
@@ -131,6 +143,69 @@ export const BUILT_IN_NETWORKS = {
       blockExplorerUrl: BlockExplorerUrl['base-mainnet'],
     },
   },
+  [NetworkType['arbitrum-mainnet']]: {
+    chainId: ChainId['arbitrum-mainnet'],
+    ticker: NetworksTicker['arbitrum-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['arbitrum-mainnet'],
+    },
+  },
+  [NetworkType['bsc-mainnet']]: {
+    chainId: ChainId['bsc-mainnet'],
+    ticker: NetworksTicker['bsc-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['bsc-mainnet'],
+    },
+  },
+  [NetworkType['optimism-mainnet']]: {
+    chainId: ChainId['optimism-mainnet'],
+    ticker: NetworksTicker['optimism-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['optimism-mainnet'],
+    },
+  },
+  [NetworkType['polygon-mainnet']]: {
+    chainId: ChainId['polygon-mainnet'],
+    ticker: NetworksTicker['polygon-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['polygon-mainnet'],
+    },
+  },
+  [NetworkType['sei-mainnet']]: {
+    chainId: ChainId['sei-mainnet'],
+    ticker: NetworksTicker['sei-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['sei-mainnet'],
+    },
+  },
+  [NetworkType['monad-mainnet']]: {
+    chainId: ChainId['monad-mainnet'],
+    ticker: NetworksTicker['monad-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['monad-mainnet'],
+    },
+  },
+  [NetworkType['zksync-mainnet']]: {
+    chainId: ChainId['zksync-mainnet'],
+    ticker: NetworksTicker['zksync-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['zksync-mainnet'],
+    },
+  },
+  [NetworkType['megaeth-mainnet']]: {
+    chainId: ChainId['megaeth-mainnet'],
+    ticker: NetworksTicker['megaeth-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['megaeth-mainnet'],
+    },
+  },
+  [NetworkType['avalanche-mainnet']]: {
+    chainId: ChainId['avalanche-mainnet'],
+    ticker: NetworksTicker['avalanche-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['avalanche-mainnet'],
+    },
+  },
   [NetworkType.rpc]: {
     chainId: undefined,
     blockExplorerUrl: undefined,
@@ -138,6 +213,22 @@ export const BUILT_IN_NETWORKS = {
     rpcPrefs: undefined,
   },
 } as const;
+
+/**
+ * When a user adds a custom network to MetaMask, we perform some basic
+ * validations on the network. For instance, usually a network cannot share the
+ * same chain as another. In some cases, however, we want to allow networks that
+ * would normally be invalid. This mapping contains networks that should bypass
+ * validation.
+ */
+export const NETWORKS_BYPASSING_VALIDATION = {
+  // HyperEVM uses the same chain ID as Wanchain
+  '0x3e7': {
+    name: 'HyperEVM',
+    symbol: 'HYPE',
+    rpcUrl: 'https://rpc.hyperliquid.xyz',
+  },
+};
 
 // APIs
 export const OPENSEA_PROXY_URL =
@@ -235,3 +326,14 @@ export const DAY = HOURS * 24;
  * The number of milliseconds in a day.
  */
 export const DAYS = DAY;
+
+/**
+ * Special "EVM-ish" chains with no native tokens.
+ * Created for Tempo, but can be extended to others.
+ * - For hidding the native token from the token list and Send list.
+ * - For excluding the native token from the total wallet value calculation.
+ */
+export const CHAIN_IDS_WITH_NO_NATIVE_TOKEN = [
+  'eip155:42431', // Tempo Testnet
+  'eip155:4217', // Tempo Mainnet
+] as const;

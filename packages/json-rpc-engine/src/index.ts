@@ -1,8 +1,16 @@
+export { asV2Middleware } from './asV2Middleware';
 export type {
   AsyncJsonRpcEngineNextCallback,
   AsyncJsonrpcMiddleware,
 } from './createAsyncMiddleware';
 export { createAsyncMiddleware } from './createAsyncMiddleware';
+export type {
+  CreateMethodMiddlewareOptions,
+  MethodHandler,
+  MethodHandlerImplementation,
+} from './createMethodMiddleware';
+export { createMethodMiddleware } from './createMethodMiddleware';
+export { createOriginMiddleware } from './createOriginMiddleware';
 export { createScaffoldMiddleware } from './createScaffoldMiddleware';
 export { getUniqueId } from './getUniqueId';
 export { createIdRemapMiddleware } from './idRemapMiddleware';

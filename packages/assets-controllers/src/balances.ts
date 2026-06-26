@@ -1,4 +1,5 @@
-import type { AccountGroupId, AccountWalletId } from '@metamask/account-api';
+import { parseAccountGroupId } from '@metamask/account-api';
+import type { AccountGroupId } from '@metamask/account-api';
 import type { AccountTreeControllerState } from '@metamask/account-tree-controller';
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 import { isEvmAccountType } from '@metamask/keyring-api';
@@ -14,6 +15,7 @@ import {
 
 import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
 import type { CurrencyRateState } from './CurrencyRateController';
+import type { MultichainAssetsControllerState } from './MultichainAssetsController';
 import type { MultichainAssetsRatesControllerState } from './MultichainAssetsRatesController';
 import type { MultichainBalancesControllerState } from './MultichainBalancesController';
 import { getNativeTokenAddress } from './token-prices-service/codefi-v2';
@@ -78,16 +80,12 @@ const isChainEnabledByMap = (
   return Boolean(map[namespace]?.[id]);
 };
 
-const getWalletIdFromGroupId = (groupId: string): AccountWalletId => {
-  return groupId.split('/')[0] as AccountWalletId;
-};
-
 const getInternalAccountsForGroup = (
   accountTreeState: AccountTreeControllerState,
   accountsState: AccountsControllerState,
   groupId: string,
 ): InternalAccount[] => {
-  const walletId = getWalletIdFromGroupId(groupId);
+  const walletId = parseAccountGroupId(groupId).wallet.id;
   const wallet = accountTreeState.accountTree.wallets[walletId];
   if (!wallet) {
     return [];
@@ -107,6 +105,14 @@ const isNonNaNNumber = (value: unknown): value is number =>
   typeof value === 'number' && !Number.isNaN(value);
 
 /**
+ * Minimal network config shape needed to derive native currency by chain.
+ * Compatible with NetworkController's networkConfigurationsByChainId entries.
+ */
+export type NetworkConfigurationNativeCurrency = {
+  nativeCurrency: string;
+};
+
+/**
  * Combined function that gets valid token balances with calculation data
  *
  * @param account - Internal account.
@@ -115,6 +121,7 @@ const isNonNaNNumber = (value: unknown): value is number =>
  * @param tokenRatesState - Token rates state.
  * @param currencyRateState - Currency rate state.
  * @param isEvmChainEnabled - Predicate to check EVM chain enablement.
+ * @param networkConfigurationsByChainId - Network configurations keyed by chain ID, used to look up native currency for fallback pricing.
  * @returns token calculation data
  */
 function getEvmTokenBalances(
@@ -124,6 +131,10 @@ function getEvmTokenBalances(
   tokenRatesState: TokenRatesControllerState,
   currencyRateState: CurrencyRateState,
   isEvmChainEnabled: (chainId: Hex) => boolean,
+  networkConfigurationsByChainId?: Record<
+    Hex,
+    NetworkConfigurationNativeCurrency
+  >,
 ) {
   const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000' as Hex;
   const accountBalances =
@@ -142,9 +153,7 @@ function getEvmTokenBalances(
       const { chainId, tokenAddress, balance } = tokenBalance;
 
       const stakingContractAddress =
-        STAKING_CONTRACT_ADDRESS_BY_CHAINID[
-          chainId as keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID
-        ];
+        STAKING_CONTRACT_ADDRESS_BY_CHAINID[chainId];
       const isNative = tokenAddress === ZERO_ADDRESS;
       const isStakedNative = stakingContractAddress
         ? tokenAddress.toLowerCase() === stakingContractAddress.toLowerCase()
@@ -163,10 +172,37 @@ function getEvmTokenBalances(
       // Get market data
       const marketDataAddress =
         isNative || isStakedNative
-          ? getNativeTokenAddress(chainId as Hex)
-          : (tokenAddress as Hex);
+          ? getNativeTokenAddress(chainId)
+          : tokenAddress;
       const tokenMarketData =
         tokenRatesState?.marketData?.[chainId]?.[marketDataAddress];
+
+      // For native/staked-native tokens, fall back to currencyRateState when
+      // tokenRatesState has no market data for the chain.
+      if (!tokenMarketData?.price && (isNative || isStakedNative)) {
+        const nativeCurrency =
+          networkConfigurationsByChainId?.[chainId]?.nativeCurrency;
+        const fallbackRate = nativeCurrency
+          ? currencyRateState.currencyRates[nativeCurrency]?.conversionRate
+          : undefined;
+        if (!fallbackRate) {
+          return null;
+        }
+
+        const decimalBalance = parseInt(balance, 16);
+        if (!isNonNaNNumber(decimalBalance)) {
+          return null;
+        }
+
+        const userCurrencyValue =
+          (decimalBalance / Math.pow(10, 18)) * fallbackRate;
+
+        return {
+          userCurrencyValue,
+          tokenMarketData: tokenMarketData ?? null,
+        };
+      }
+
       if (!tokenMarketData?.price) {
         return null;
       }
@@ -185,9 +221,7 @@ function getEvmTokenBalances(
         const accountTokens =
           tokensState?.allTokens?.[chainId]?.[account.address];
         const token = accountTokens?.find((t) => t.address === tokenAddress);
-        decimals = isNonNaNNumber(token?.decimals)
-          ? (token?.decimals as number)
-          : 18;
+        decimals = isNonNaNNumber(token?.decimals) ? token?.decimals : 18;
       }
       const decimalBalance = parseInt(balance, 16);
       if (!isNonNaNNumber(decimalBalance)) {
@@ -212,6 +246,7 @@ function getEvmTokenBalances(
  *
  * @param account - Internal account.
  * @param multichainBalancesState - Multichain balances state.
+ * @param multichainAssetsState - Multichain assets state (for ignored assets).
  * @param multichainRatesState - Multichain rates state.
  * @param isAssetChainEnabled - Predicate to check asset chain enablement.
  * @returns token calculation data
@@ -219,13 +254,20 @@ function getEvmTokenBalances(
 function getNonEvmAssetBalances(
   account: InternalAccount,
   multichainBalancesState: MultichainBalancesControllerState,
+  multichainAssetsState: MultichainAssetsControllerState,
   multichainRatesState: MultichainAssetsRatesControllerState,
   isAssetChainEnabled: (assetId: CaipAssetType) => boolean,
 ) {
   const accountBalances = multichainBalancesState.balances[account.id] ?? {};
+  const ignoredAssets =
+    multichainAssetsState.allIgnoredAssets[account.id] || [];
 
   return Object.entries(accountBalances)
-    .filter(([assetId]) => isAssetChainEnabled(assetId as CaipAssetType))
+    .filter(
+      ([assetId]) =>
+        isAssetChainEnabled(assetId as CaipAssetType) &&
+        !ignoredAssets.includes(assetId as CaipAssetType),
+    )
     .map(([assetId, balanceData]) => {
       const balanceAmount = parseFloat(balanceData.amount);
       if (Number.isNaN(balanceAmount)) {
@@ -263,6 +305,7 @@ function getNonEvmAssetBalances(
  * @param tokenRatesState - Token rates state.
  * @param currencyRateState - Currency rate state.
  * @param isEvmChainEnabled - Predicate to check EVM chain enablement.
+ * @param networkConfigurationsByChainId - Network configurations keyed by chain ID for fallback pricing.
  * @returns Total value in user currency.
  */
 function sumEvmAccountBalanceInUserCurrency(
@@ -272,6 +315,10 @@ function sumEvmAccountBalanceInUserCurrency(
   tokenRatesState: TokenRatesControllerState,
   currencyRateState: CurrencyRateState,
   isEvmChainEnabled: (chainId: Hex) => boolean,
+  networkConfigurationsByChainId?: Record<
+    Hex,
+    NetworkConfigurationNativeCurrency
+  >,
 ): number {
   const tokenBalances = getEvmTokenBalances(
     account,
@@ -280,6 +327,7 @@ function sumEvmAccountBalanceInUserCurrency(
     tokenRatesState,
     currencyRateState,
     isEvmChainEnabled,
+    networkConfigurationsByChainId,
   );
   return tokenBalances.reduce((a, b) => a + b.userCurrencyValue, 0);
 }
@@ -289,6 +337,7 @@ function sumEvmAccountBalanceInUserCurrency(
  *
  * @param account - Internal account.
  * @param multichainBalancesState - Multichain balances state.
+ * @param multichainAssetsState - Multichain assets state (for ignored assets).
  * @param multichainRatesState - Multichain rates state.
  * @param isAssetChainEnabled - Predicate to check asset chain enablement.
  * @returns Total value in user currency.
@@ -296,12 +345,14 @@ function sumEvmAccountBalanceInUserCurrency(
 function sumNonEvmAccountBalanceInUserCurrency(
   account: InternalAccount,
   multichainBalancesState: MultichainBalancesControllerState,
+  multichainAssetsState: MultichainAssetsControllerState,
   multichainRatesState: MultichainAssetsRatesControllerState,
   isAssetChainEnabled: (assetId: CaipAssetType) => boolean,
 ): number {
   const assetBalances = getNonEvmAssetBalances(
     account,
     multichainBalancesState,
+    multichainAssetsState,
     multichainRatesState,
     isAssetChainEnabled,
   );
@@ -319,9 +370,11 @@ function sumNonEvmAccountBalanceInUserCurrency(
  * @param tokenRatesState - TokenRatesController state
  * @param multichainRatesState - MultichainAssetsRatesController state
  * @param multichainBalancesState - MultichainBalancesController state
+ * @param multichainAssetsState - MultichainAssetsController state
  * @param tokensState - TokensController state
  * @param currencyRateState - CurrencyRateController state
  * @param enabledNetworkMap - Map of enabled networks keyed by namespace
+ * @param networkConfigurationsByChainId - Network configurations by chain ID.
  * @returns Aggregated balances for all wallets
  */
 export function calculateBalanceForAllWallets(
@@ -331,9 +384,14 @@ export function calculateBalanceForAllWallets(
   tokenRatesState: TokenRatesControllerState,
   multichainRatesState: MultichainAssetsRatesControllerState,
   multichainBalancesState: MultichainBalancesControllerState,
+  multichainAssetsState: MultichainAssetsControllerState,
   tokensState: TokensControllerState,
   currencyRateState: CurrencyRateState,
   enabledNetworkMap: Record<string, Record<string, boolean>> | undefined,
+  networkConfigurationsByChainId?: Record<
+    Hex,
+    NetworkConfigurationNativeCurrency
+  >,
 ): AllWalletsBalance {
   const isEvmChainEnabled = (chainId: Hex): boolean =>
     isChainEnabledByMap(enabledNetworkMap, chainId);
@@ -350,11 +408,13 @@ export function calculateBalanceForAllWallets(
         tokenRatesState,
         currencyRateState,
         isEvmChainEnabled,
+        networkConfigurationsByChainId,
       ),
     nonEvm: (account: InternalAccount) =>
       sumNonEvmAccountBalanceInUserCurrency(
         account,
         multichainBalancesState,
+        multichainAssetsState,
         multichainRatesState,
         isAssetChainEnabled,
       ),
@@ -463,10 +523,12 @@ export function calculateBalanceForAllWallets(
  * @param tokenRatesState - TokenRatesController state.
  * @param multichainRatesState - MultichainAssetsRatesController state.
  * @param multichainBalancesState - MultichainBalancesController state.
+ * @param multichainAssetsState - MultichainAssetsController state.
  * @param tokensState - TokensController state.
  * @param currencyRateState - CurrencyRateController state.
  * @param enabledNetworkMap - Map of enabled networks keyed by namespace.
  * @param period - Period to compute change for ('1d' | '7d' | '30d').
+ * @param networkConfigurationsByChainId - Optional network configurations to derive native currency fallback pricing.
  * @returns Aggregated change details for the requested period.
  */
 export function calculateBalanceChangeForAllWallets(
@@ -476,10 +538,15 @@ export function calculateBalanceChangeForAllWallets(
   tokenRatesState: TokenRatesControllerState,
   multichainRatesState: MultichainAssetsRatesControllerState,
   multichainBalancesState: MultichainBalancesControllerState,
+  multichainAssetsState: MultichainAssetsControllerState,
   tokensState: TokensControllerState,
   currencyRateState: CurrencyRateState,
   enabledNetworkMap: Record<string, Record<string, boolean>> | undefined,
   period: BalanceChangePeriod,
+  networkConfigurationsByChainId?: Record<
+    Hex,
+    NetworkConfigurationNativeCurrency
+  >,
 ): BalanceChangeResult {
   const isEvmChainEnabled = (chainId: Hex): boolean =>
     isChainEnabledByMap(enabledNetworkMap, chainId);
@@ -499,12 +566,14 @@ export function calculateBalanceChangeForAllWallets(
         tokenRatesState,
         currencyRateState,
         isEvmChainEnabled,
+        networkConfigurationsByChainId,
       ),
     nonEvm: (account: InternalAccount) =>
       sumNonEvmAccountChangeForPeriod(
         account,
         period,
         multichainBalancesState,
+        multichainAssetsState,
         multichainRatesState,
         isAssetChainEnabled,
       ),
@@ -583,6 +652,7 @@ export function calculateBalanceChangeForAllWallets(
  * @param tokenRatesState - Token rates controller state.
  * @param currencyRateState - Currency rate controller state.
  * @param isEvmChainEnabled - Predicate that returns true if the EVM chain is enabled.
+ * @param networkConfigurationsByChainId - Network configurations keyed by chain ID for fallback pricing.
  * @returns Object with current and previous totals in user currency.
  */
 function sumEvmAccountChangeForPeriod(
@@ -593,6 +663,10 @@ function sumEvmAccountChangeForPeriod(
   tokenRatesState: TokenRatesControllerState,
   currencyRateState: CurrencyRateState,
   isEvmChainEnabled: (chainId: Hex) => boolean,
+  networkConfigurationsByChainId?: Record<
+    Hex,
+    NetworkConfigurationNativeCurrency
+  >,
 ): { current: number; previous: number } {
   const tokenBalances = getEvmTokenBalances(
     account,
@@ -601,12 +675,22 @@ function sumEvmAccountChangeForPeriod(
     tokenRatesState,
     currencyRateState,
     isEvmChainEnabled,
+    networkConfigurationsByChainId,
   );
 
   const tokenChanges = tokenBalances
     .map((token) => {
-      const percentRaw = token.tokenMarketData[evmRatePropertiesRecord[period]];
+      const percentRaw =
+        token.tokenMarketData?.[evmRatePropertiesRecord[period]];
       if (!isNonNaNNumber(percentRaw)) {
+        // Fallback tokens (no market data) still contribute their current value
+        // but are treated as having 0% change.
+        if (token.tokenMarketData === null) {
+          return {
+            current: token.userCurrencyValue,
+            previous: token.userCurrencyValue,
+          };
+        }
         return null;
       }
 
@@ -638,6 +722,7 @@ function sumEvmAccountChangeForPeriod(
  * @param account - Internal account to aggregate.
  * @param period - Change period ('1d' | '7d' | '30d').
  * @param multichainBalancesState - Multichain balances controller state.
+ * @param multichainAssetsState - Multichain assets controller state.
  * @param multichainRatesState - Multichain assets rates controller state.
  * @param isAssetChainEnabled - Predicate that returns true if the asset's chain is enabled.
  * @returns Object with current and previous totals in user currency.
@@ -646,12 +731,14 @@ function sumNonEvmAccountChangeForPeriod(
   account: InternalAccount,
   period: BalanceChangePeriod,
   multichainBalancesState: MultichainBalancesControllerState,
+  multichainAssetsState: MultichainAssetsControllerState,
   multichainRatesState: MultichainAssetsRatesControllerState,
   isAssetChainEnabled: (assetId: CaipAssetType) => boolean,
 ): { current: number; previous: number } {
   const assetBalances = getNonEvmAssetBalances(
     account,
     multichainBalancesState,
+    multichainAssetsState,
     multichainRatesState,
     isAssetChainEnabled,
   );
@@ -698,11 +785,13 @@ function sumNonEvmAccountChangeForPeriod(
  * @param tokenRatesState - TokenRatesController state.
  * @param multichainRatesState - MultichainAssetsRatesController state.
  * @param multichainBalancesState - MultichainBalancesController state.
+ * @param multichainAssetsState - MultichainAssetsController state.
  * @param tokensState - TokensController state.
  * @param currencyRateState - CurrencyRateController state.
  * @param enabledNetworkMap - Map of enabled networks keyed by namespace.
  * @param groupId - Account group ID to compute change for.
  * @param period - Change period ('1d' | '7d' | '30d').
+ * @param networkConfigurationsByChainId - Optional network configurations to derive native currency fallback pricing.
  * @returns Change result including current, previous, delta, percent, and period.
  */
 export function calculateBalanceChangeForAccountGroup(
@@ -712,11 +801,16 @@ export function calculateBalanceChangeForAccountGroup(
   tokenRatesState: TokenRatesControllerState,
   multichainRatesState: MultichainAssetsRatesControllerState,
   multichainBalancesState: MultichainBalancesControllerState,
+  multichainAssetsState: MultichainAssetsControllerState,
   tokensState: TokensControllerState,
   currencyRateState: CurrencyRateState,
   enabledNetworkMap: Record<string, Record<string, boolean>> | undefined,
   groupId: string,
   period: BalanceChangePeriod,
+  networkConfigurationsByChainId?: Record<
+    Hex,
+    NetworkConfigurationNativeCurrency
+  >,
 ): BalanceChangeResult {
   const isEvmChainEnabled = (chainId: Hex): boolean =>
     isChainEnabledByMap(enabledNetworkMap, chainId);
@@ -736,12 +830,14 @@ export function calculateBalanceChangeForAccountGroup(
         tokenRatesState,
         currencyRateState,
         isEvmChainEnabled,
+        networkConfigurationsByChainId,
       ),
     nonEvm: (account: InternalAccount) =>
       sumNonEvmAccountChangeForPeriod(
         account,
         period,
         multichainBalancesState,
+        multichainAssetsState,
         multichainRatesState,
         isAssetChainEnabled,
       ),

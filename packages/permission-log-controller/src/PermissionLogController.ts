@@ -1,14 +1,16 @@
-import {
-  BaseController,
-  type RestrictedMessenger,
+import { BaseController } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import type { JsonRpcMiddleware } from '@metamask/json-rpc-engine';
-import {
-  type Json,
-  type JsonRpcRequest,
-  type JsonRpcParams,
-  type PendingJsonRpcResponse,
-  hasProperty,
+import type { Messenger } from '@metamask/messenger';
+import { hasProperty } from '@metamask/utils';
+import type {
+  Json,
+  JsonRpcRequest,
+  JsonRpcParams,
+  PendingJsonRpcResponse,
 } from '@metamask/utils';
 
 import {
@@ -18,6 +20,7 @@ import {
   WALLET_PREFIX,
   CAVEAT_TYPES,
 } from './enums';
+import type { PermissionLogControllerMethodActions } from './PermissionLogController-method-action-types';
 
 export type JsonRpcRequestWithOrigin<
   Params extends JsonRpcParams = JsonRpcParams,
@@ -56,6 +59,7 @@ export type PermissionHistory = Record<string, PermissionEntry>;
 /**
  *
  * Permission log controller state
+ *
  * @property permissionHistory - permission history
  * @property permissionActivityLog - permission activity logs
  */
@@ -70,12 +74,25 @@ export type PermissionLogControllerOptions = {
   messenger: PermissionLogControllerMessenger;
 };
 
-export type PermissionLogControllerMessenger = RestrictedMessenger<
+export type PermissionLogControllerGetStateAction = ControllerGetStateAction<
   typeof name,
-  never,
-  never,
-  never,
-  never
+  PermissionLogControllerState
+>;
+
+export type PermissionLogControllerActions =
+  | PermissionLogControllerGetStateAction
+  | PermissionLogControllerMethodActions;
+
+export type PermissionLogControllerStateChangeEvent =
+  ControllerStateChangeEvent<typeof name, PermissionLogControllerState>;
+
+export type PermissionLogControllerEvents =
+  PermissionLogControllerStateChangeEvent;
+
+export type PermissionLogControllerMessenger = Messenger<
+  typeof name,
+  PermissionLogControllerActions,
+  PermissionLogControllerEvents
 >;
 
 const defaultState: PermissionLogControllerState = {
@@ -84,6 +101,11 @@ const defaultState: PermissionLogControllerState = {
 };
 
 const name = 'PermissionLogController';
+
+const MESSENGER_EXPOSED_METHODS = [
+  'updateAccountsHistory',
+  'createMiddleware',
+] as const;
 
 /**
  * Controller with middleware for logging requests and responses to restricted
@@ -94,7 +116,7 @@ export class PermissionLogController extends BaseController<
   PermissionLogControllerState,
   PermissionLogControllerMessenger
 > {
-  #restrictedMethods: Set<string>;
+  readonly #restrictedMethods: Set<string>;
 
   constructor({
     messenger,
@@ -108,19 +130,23 @@ export class PermissionLogController extends BaseController<
         permissionHistory: {
           includeInStateLogs: true,
           persist: true,
-          anonymous: false,
+          includeInDebugSnapshot: false,
           usedInUi: true,
         },
         permissionActivityLog: {
           includeInStateLogs: true,
           persist: false,
-          anonymous: false,
+          includeInDebugSnapshot: false,
           usedInUi: false,
         },
       },
       state: { ...defaultState, ...state },
     });
     this.#restrictedMethods = restrictedMethods;
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   /**
@@ -132,13 +158,11 @@ export class PermissionLogController extends BaseController<
    * @param origin - The origin that the accounts are exposed to.
    * @param accounts - The accounts.
    */
-  updateAccountsHistory(origin: string, accounts: string[]) {
+  updateAccountsHistory(origin: string, accounts: string[]): void {
     if (accounts.length === 0) {
       return;
     }
     const newEntries = {
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/naming-convention
       eth_accounts: {
         accounts: this.#getAccountToTimeMap(accounts, Date.now()),
       },
@@ -173,7 +197,7 @@ export class PermissionLogController extends BaseController<
         const requestedMethods = this.#getRequestedMethods(req);
 
         // Call next with a return handler for capturing the response
-        next((cb) => {
+        next((callback) => {
           const time = Date.now();
           this.#logResponse(activityEntry, res, time);
 
@@ -186,7 +210,7 @@ export class PermissionLogController extends BaseController<
               isEthRequestAccounts,
             );
           }
-          cb();
+          callback();
         });
         return;
       }
@@ -258,7 +282,7 @@ export class PermissionLogController extends BaseController<
     entry: PermissionActivityLog,
     response: PendingJsonRpcResponse,
     time: number,
-  ) {
+  ): void {
     if (!entry || !response) {
       return;
     }
@@ -297,7 +321,7 @@ export class PermissionLogController extends BaseController<
     result: Json,
     time: number,
     isEthRequestAccounts: boolean,
-  ) {
+  ): void {
     let newEntries: PermissionEntry;
 
     if (isEthRequestAccounts) {
@@ -305,8 +329,6 @@ export class PermissionLogController extends BaseController<
       // a set of accounts if the RPC method is "eth_requestAccounts".
       const accounts = result as string[];
       newEntries = {
-        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-        // eslint-disable-next-line @typescript-eslint/naming-convention
         eth_accounts: {
           accounts: this.#getAccountToTimeMap(accounts, time),
           lastApproved: time,
@@ -359,7 +381,7 @@ export class PermissionLogController extends BaseController<
    * @param origin - The requesting origin.
    * @param newEntries - The new entries to commit.
    */
-  #commitNewHistory(origin: string, newEntries: PermissionEntry) {
+  #commitNewHistory(origin: string, newEntries: PermissionEntry): void {
     const { permissionHistory } = this.state;
 
     // a simple merge updates most permissions

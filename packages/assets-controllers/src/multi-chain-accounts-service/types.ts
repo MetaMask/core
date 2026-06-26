@@ -44,5 +44,6 @@ export type GetBalancesResponse = {
     accountAddress?: string;
   }[];
   /** networks that failed to process, if no network is processed, returns HTTP 422  */
-  unprocessedNetworks: number[];
+  /** V4 API returns CAIP chain IDs like 'eip155:1329', V2 API returns decimal numbers */
+  unprocessedNetworks: (number | string)[];
 };

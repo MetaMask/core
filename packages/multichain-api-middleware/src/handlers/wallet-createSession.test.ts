@@ -1,8 +1,10 @@
+import type {
+  Caip25Authorization,
+  NormalizedScopesObject,
+} from '@metamask/chain-agnostic-permission';
 import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
-  type Caip25Authorization,
-  type NormalizedScopesObject,
   KnownSessionProperties,
   Caip25Errors,
 } from '@metamask/chain-agnostic-permission';
@@ -16,7 +18,7 @@ import type {
   JsonRpcSuccess,
 } from '@metamask/utils';
 
-import { walletCreateSession } from './wallet-createSession';
+import { walletCreateSessionHandler } from './wallet-createSession';
 
 jest.mock('@metamask/chain-agnostic-permission', () => ({
   ...jest.requireActual('@metamask/chain-agnostic-permission'),
@@ -53,7 +55,7 @@ const baseRequest = {
   },
 };
 
-const createMockedHandler = () => {
+const createMockedHandler = (trackSessionEvents: boolean = true) => {
   const next = jest.fn();
   const end = jest.fn();
   const requestPermissionsForOrigin = jest.fn().mockResolvedValue([
@@ -82,7 +84,9 @@ const createMockedHandler = () => {
     },
   ]);
   const findNetworkClientIdByChainId = jest.fn().mockReturnValue('mainnet');
-  const trackSessionCreatedEvent = jest.fn().mockImplementation(undefined);
+  const trackSessionCreatedEvent = trackSessionEvents
+    ? jest.fn().mockImplementation(undefined)
+    : null;
   const listAccounts = jest.fn().mockReturnValue([]);
   const getNonEvmSupportedMethods = jest.fn().mockReturnValue([]);
   const isNonEvmScopeSupported = jest.fn().mockReturnValue(false);
@@ -94,16 +98,18 @@ const createMockedHandler = () => {
     sessionProperties?: Record<string, Json>;
   }>;
   const getNonEvmAccountAddresses = jest.fn().mockReturnValue([]);
+  const sortAccountIdsByLastSelected = jest.fn((accounts) => accounts);
   const handler = (
     request: JsonRpcRequest<Caip25Authorization> & { origin: string },
   ) =>
-    walletCreateSession.implementation(request, response, next, end, {
+    walletCreateSessionHandler.implementation(request, response, next, end, {
       findNetworkClientIdByChainId,
       requestPermissionsForOrigin,
       listAccounts,
       getNonEvmSupportedMethods,
       isNonEvmScopeSupported,
       getNonEvmAccountAddresses,
+      sortAccountIdsByLastSelected,
       trackSessionCreatedEvent,
     });
 
@@ -118,6 +124,7 @@ const createMockedHandler = () => {
     getNonEvmSupportedMethods,
     isNonEvmScopeSupported,
     getNonEvmAccountAddresses,
+    sortAccountIdsByLastSelected,
     handler,
   };
 };
@@ -709,9 +716,17 @@ describe('wallet_createSession', () => {
     );
   });
 
-  it('calls trackSessionCreatedEvent hook if defined', async () => {
+  it('ignores trackSessionCreatedEvent hook if it is null', async () => {
+    const { handler, trackSessionCreatedEvent } = createMockedHandler(false);
+    await handler(baseRequest);
+
+    expect(trackSessionCreatedEvent).toBeNull();
+  });
+  it('calls trackSessionCreatedEvent hook if not null', async () => {
     const { handler, trackSessionCreatedEvent } = createMockedHandler();
-    trackSessionCreatedEvent.mockImplementation(() => {
+    expect(trackSessionCreatedEvent).not.toBeNull();
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    trackSessionCreatedEvent!.mockImplementation(() => {
       // mock implementation
     });
     await handler(baseRequest);
@@ -840,8 +855,7 @@ describe('wallet_createSession', () => {
                   },
                 },
                 sessionProperties: {
-                  [KnownSessionProperties.SolanaAccountChangedNotifications]:
-                    true,
+                  [KnownSessionProperties.SolanaAccountChangedNotifications]: true,
                 },
               },
             },
@@ -1098,8 +1112,7 @@ describe('wallet_createSession', () => {
                   },
                   isMultichainOrigin: true,
                   sessionProperties: {
-                    [KnownSessionProperties.SolanaAccountChangedNotifications]:
-                      true,
+                    [KnownSessionProperties.SolanaAccountChangedNotifications]: true,
                   },
                 },
               },
@@ -1166,8 +1179,7 @@ describe('wallet_createSession', () => {
                   },
                   isMultichainOrigin: true,
                   sessionProperties: {
-                    [KnownSessionProperties.SolanaAccountChangedNotifications]:
-                      true,
+                    [KnownSessionProperties.SolanaAccountChangedNotifications]: true,
                   },
                 },
               },
@@ -1227,8 +1239,7 @@ describe('wallet_createSession', () => {
                   },
                   isMultichainOrigin: true,
                   sessionProperties: {
-                    [KnownSessionProperties.SolanaAccountChangedNotifications]:
-                      true,
+                    [KnownSessionProperties.SolanaAccountChangedNotifications]: true,
                   },
                 },
               },

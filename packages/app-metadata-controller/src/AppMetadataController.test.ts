@@ -1,9 +1,15 @@
-import { Messenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type { MockAnyNamespace } from '@metamask/messenger';
 
 import {
   AppMetadataController,
   getDefaultAppMetadataControllerState,
-  type AppMetadataControllerOptions,
+} from './AppMetadataController';
+import type {
+  AppMetadataControllerOptions,
+  AppMetadataControllerActions,
+  AppMetadataControllerEvents,
 } from './AppMetadataController';
 
 describe('AppMetadataController', () => {
@@ -120,6 +126,77 @@ describe('AppMetadataController', () => {
       );
     });
   });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      withController(({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'includeInDebugSnapshot',
+          ),
+        ).toMatchInlineSnapshot(`
+          {
+            "currentAppVersion": "",
+            "currentMigrationVersion": 0,
+            "previousAppVersion": "",
+            "previousMigrationVersion": 0,
+          }
+        `);
+      });
+    });
+
+    it('includes expected state in state logs', () => {
+      withController(({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'includeInStateLogs',
+          ),
+        ).toMatchInlineSnapshot(`
+          {
+            "currentAppVersion": "",
+            "currentMigrationVersion": 0,
+            "previousAppVersion": "",
+            "previousMigrationVersion": 0,
+          }
+        `);
+      });
+    });
+
+    it('persists expected state', () => {
+      withController(({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'persist',
+          ),
+        ).toMatchInlineSnapshot(`
+          {
+            "currentAppVersion": "",
+            "currentMigrationVersion": 0,
+            "previousAppVersion": "",
+            "previousMigrationVersion": 0,
+          }
+        `);
+      });
+    });
+
+    it('exposes expected state to UI', () => {
+      withController(({ controller }) => {
+        expect(
+          deriveStateFromMetadata(
+            controller.state,
+            controller.metadata,
+            'usedInUi',
+          ),
+        ).toMatchInlineSnapshot(`{}`);
+      });
+    });
+  });
 });
 
 type WithControllerOptions = Partial<AppMetadataControllerOptions>;
@@ -148,12 +225,20 @@ function withController<ReturnValue>(
 ): ReturnValue {
   const [options = {}, fn] = args.length === 2 ? args : [{}, args[0]];
 
-  const messenger = new Messenger<never, never>();
+  const rootMessenger = new Messenger<
+    MockAnyNamespace,
+    AppMetadataControllerActions,
+    AppMetadataControllerEvents
+  >({ namespace: MOCK_ANY_NAMESPACE });
 
-  const appMetadataControllerMessenger = messenger.getRestricted({
-    name: 'AppMetadataController',
-    allowedActions: [],
-    allowedEvents: [],
+  const appMetadataControllerMessenger = new Messenger<
+    'AppMetadataController',
+    AppMetadataControllerActions,
+    AppMetadataControllerEvents,
+    typeof rootMessenger
+  >({
+    namespace: 'AppMetadataController',
+    parent: rootMessenger,
   });
 
   return fn({

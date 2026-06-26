@@ -1,13 +1,12 @@
 import {
-  type CaipChainId,
   hasProperty,
   isCaipAccountId,
   isCaipChainId,
   isCaipNamespace,
   isCaipReference,
   KnownCaipNamespace,
-  type Hex,
 } from '@metamask/utils';
+import type { CaipChainId, Hex } from '@metamask/utils';
 
 import { Caip25Errors } from './errors';
 import {
@@ -253,7 +252,6 @@ export function assertIsInternalScopeString(
     typeof scopeString !== 'string' ||
     // `InternalScopeString` is defined as either `KnownCaipNamespace.Wallet` or
     // `CaipChainId`, so our conditions intentionally match the type.
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
     (scopeString !== KnownCaipNamespace.Wallet && !isCaipChainId(scopeString))
   ) {
     throw new Error('scopeString is not a valid InternalScopeString');

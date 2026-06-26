@@ -14,11 +14,14 @@
       "path": "../accounts-controller"
     },
     {
+      "path": "../messenger"
+    },
+    {
       "path": "../multichain-account-service"
     },
     {
       "path": "../profile-sync-controller"
     }
   ],
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "./src", "./tests"]
 }
