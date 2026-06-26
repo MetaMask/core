@@ -3002,6 +3002,104 @@ describe('HyperLiquidSubscriptionService', () => {
 
       unsubscribe();
     });
+
+    it('keeps projecting the fast price after an assetCtxs batch update (does not clobber the fast-stream cache)', async () => {
+      let allMidsCallback: ((data: any) => void) | undefined;
+      let activeAssetCallback: ((data: any) => void) | undefined;
+      let assetCtxsCallback: ((data: any) => void) | undefined;
+
+      // Pre-populate meta so #createAssetCtxsSubscription maps ctxs -> symbols
+      // from cache and the assetCtxs handler fires for 'BTC'.
+      service.setDexMetaCache('', { universe: [{ name: 'BTC' }] } as any);
+
+      mockSubscriptionClient.allMids.mockImplementation(
+        (paramsOrCallback: any, maybeCallback?: any) => {
+          allMidsCallback =
+            typeof paramsOrCallback === 'function'
+              ? paramsOrCallback
+              : maybeCallback;
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      mockSubscriptionClient.activeAssetCtx.mockImplementation(
+        (params: any, callback: any) => {
+          activeAssetCallback = callback;
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      mockSubscriptionClient.assetCtxs.mockImplementation(
+        (_params: any, callback: any) => {
+          assetCtxsCallback = callback;
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      const focusedCallback = jest.fn();
+      const unsubscribe = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: focusedCallback,
+        includeMarketData: true,
+      });
+
+      await jest.runAllTimersAsync();
+
+      // allMids establishes the baseline, then activeAssetCtx provides the fast price
+      allMidsCallback?.({ mids: { BTC: '50000' } });
+      await jest.runAllTimersAsync();
+
+      activeAssetCallback?.({
+        coin: 'BTC',
+        ctx: {
+          prevDayPx: '49000',
+          funding: '0.01',
+          openInterest: '1000000',
+          dayNtlVlm: '50000000',
+          oraclePx: '50100',
+          midPx: '50500',
+        },
+      });
+      await jest.runAllTimersAsync();
+
+      focusedCallback.mockClear();
+
+      // assetCtxs batch update fires for BTC with a DIFFERENT price. Before the
+      // fix this rebuilt the #marketDataCache entry without the fast-stream
+      // fields, so #getFreshActiveAssetCtxPrice returned undefined and the
+      // focused subscriber fell back to the assetCtxs/allMids baseline (50200).
+      assetCtxsCallback?.({
+        ctxs: [
+          {
+            prevDayPx: '49000',
+            funding: '0.01',
+            openInterest: '1000000',
+            dayNtlVlm: '50000000',
+            oraclePx: '50100',
+            midPx: '50200',
+          },
+        ],
+      });
+      await jest.runAllTimersAsync();
+
+      // The focused subscriber must still see the fast-stream price (50500),
+      // not the slower batch baseline (50200).
+      const lastCall =
+        focusedCallback.mock.calls[focusedCallback.mock.calls.length - 1][0];
+      expect(lastCall).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ symbol: 'BTC', price: '50500' }),
+        ]),
+      );
+
+      unsubscribe();
+    });
   });
 
   describe('Market tradability (isTradable)', () => {
