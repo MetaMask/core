@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- fix: unreleased code in wrong version ([#9285](https://github.com/MetaMask/core/pull/9285))
+- feat(bridge-controller): add bridge support [STELLAR] ([#8829](https://github.com/MetaMask/core/pull/8829))
+
 ### Added
 
 - Add Stellar support to bridge transaction submission and status tracking: thread `StellarTradeData` through the non-EVM submit strategies and include source and destination asset IDs in the snap client transaction request ([#9170](https://github.com/MetaMask/core/pull/9170))
