@@ -44,6 +44,7 @@ import type {
   StepSchema,
   TokenFeatureSchema,
   QuoteStreamCompleteSchema,
+  StellarTradeDataSchema,
   TronTradeDataSchema,
   TxDataSchema,
   BatchSellTradesResponseSchema,
@@ -86,6 +87,8 @@ export type L1GasFees = {
 export type NonEvmFees = {
   nonEvmFeesInNative?: string; // Non-EVM chain fees in native units (SOL for Solana, BTC for Bitcoin)
 };
+
+export type InputPrimaryDenomination = 'token_amount' | 'fiat_value';
 
 /**
  * The types of values for the token amount and its values when converted to the user's selected currency and USD
@@ -263,6 +266,7 @@ export enum FeatureId {
   PERPS = 'perps',
   QUICK_BUY_FOLLOW_TRADING = 'quick_buy_follow_trading',
   QUICK_BUY_TOKEN_DETAILS = 'quick_buy_token_details',
+  QUICK_BUY_EXPLORE = 'quick_buy_explore',
   DAPP_SWAP = 'dapp_swap',
   BATCH_SELL = 'batch_sell',
   UNIFIED_SWAP_BRIDGE = 'unified_swap_bridge',
@@ -296,13 +300,20 @@ export type IntentOrderLike = Intent['order'];
 export type BitcoinTradeData = Infer<typeof BitcoinTradeDataSchema>;
 
 export type TronTradeData = Infer<typeof TronTradeDataSchema>;
+
+export type StellarTradeData = Infer<typeof StellarTradeDataSchema>;
 /**
  * This is the type for the quote response from the bridge-api
  * TxDataType can be overriden to be a string when the quote is non-evm
  * ApprovalType can be overriden when you know the specific approval type (e.g., TxData for EVM-only contexts)
  */
 export type QuoteResponseV1<
-  TxDataType = TxData | string | BitcoinTradeData | TronTradeData,
+  TxDataType =
+    | TxData
+    | string
+    | BitcoinTradeData
+    | TronTradeData
+    | StellarTradeData,
   ApprovalType = TxData | TronTradeData,
 > = Infer<typeof QuoteResponseSchema> & {
   trade: TxDataType;
@@ -364,6 +375,8 @@ export enum ChainId {
   LINEA = 59144,
   SOLANA = 1151111081099710,
   BTC = 20000000000001,
+  /** Internal bridge / token-list id for Stellar pubnet (Token API chain: stellar:pubnet). */
+  STELLAR = 20000000000002,
   TRON = 728126428,
   SEI = 1329,
   MONAD = 143,
@@ -434,6 +447,12 @@ export type BridgeControllerState = {
    * reset. `null` when the client has no security data for the token.
    */
   tokenSecurityTypeDestination: string | null;
+  /**
+   * The denomination currently shown as the primary source amount input.
+   * This is persisted as a user preference so returning to the flow restores
+   * the last selected fiat/token display mode.
+   */
+  inputPrimaryDenomination: InputPrimaryDenomination;
   /**
    * Metadata about the completed quote stream, populated from the `complete` SSE event.
    * Set to null at the start of each fetch and updated when the complete event is received.

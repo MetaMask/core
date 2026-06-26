@@ -630,6 +630,48 @@ describe('Batch Utils', () => {
       ).toBe(TransactionType.bridgeApproval);
     });
 
+    it('throws if EIP-7702 is required but the account does not support it', async () => {
+      const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+
+      doesAccountSupportEIP7702Mock.mockReturnValueOnce(false);
+
+      await expect(
+        addTransactionBatch({
+          ...request,
+          publishBatchHook,
+          request: {
+            ...request.request,
+            disableHook: true,
+            disableSequential: true,
+          },
+        }),
+      ).rejects.toThrow('Account does not support EIP-7702');
+
+      expect(addTransactionMock).not.toHaveBeenCalled();
+      expect(publishBatchHook).not.toHaveBeenCalled();
+    });
+
+    it('throws if EIP-7702 is required but the chain does not support it', async () => {
+      const publishBatchHook: jest.MockedFn<PublishBatchHook> = jest.fn();
+
+      doesChainSupportEIP7702Mock.mockReturnValueOnce(false);
+
+      await expect(
+        addTransactionBatch({
+          ...request,
+          publishBatchHook,
+          request: {
+            ...request.request,
+            disableHook: true,
+            disableSequential: true,
+          },
+        }),
+      ).rejects.toThrow('Chain does not support EIP-7702');
+
+      expect(addTransactionMock).not.toHaveBeenCalled();
+      expect(publishBatchHook).not.toHaveBeenCalled();
+    });
+
     it('returns provided batch ID', async () => {
       isAccountUpgradedToEIP7702Mock.mockResolvedValueOnce({
         delegationAddress: undefined,

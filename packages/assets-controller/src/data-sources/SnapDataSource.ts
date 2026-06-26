@@ -445,13 +445,13 @@ export class SnapDataSource extends AbstractDataSource<
       return {};
     }
     if (!request?.accountsWithSupportedChains?.length) {
-      return { assetsBalance: {}, assetsInfo: {}, updateMode: 'full' };
+      return { assetsBalance: {}, assetsInfo: {}, updateMode: 'merge' };
     }
 
     const results: DataResponse = {
       assetsBalance: {},
       assetsInfo: {},
-      updateMode: 'full',
+      updateMode: 'merge',
     };
 
     // Fetch balances for each account using its snap ID from metadata
