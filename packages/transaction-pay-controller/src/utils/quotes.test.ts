@@ -754,6 +754,23 @@ describe('Quotes Utils', () => {
       );
     });
 
+    it('preserves the externally signed flag when no quotes are returned but gas is sponsored', async () => {
+      getQuotesMock.mockResolvedValue([]);
+
+      await run();
+
+      const transactionMetaMock = {
+        isExternalSign: true,
+        isGasFeeSponsored: true,
+      } as TransactionMeta;
+
+      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+
+      expect(transactionMetaMock).toMatchObject(
+        expect.objectContaining({ isExternalSign: true }),
+      );
+    });
+
     it('updates metrics in metadata', async () => {
       await run();
 
