@@ -1,11 +1,7 @@
 export type {
-  ComposableControllerState,
+  ComposableControllerStateConstraint,
   ComposableControllerStateChangeEvent,
   ComposableControllerEvents,
   ComposableControllerMessenger,
 } from './ComposableController';
-export {
-  ComposableController,
-  isBaseController,
-  isBaseControllerV1,
-} from './ComposableController';
+export { ComposableController } from './ComposableController';

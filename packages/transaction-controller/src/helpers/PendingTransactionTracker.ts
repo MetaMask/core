@@ -1,15 +1,24 @@
-import { query } from '@metamask/controller-utils';
-import type EthQuery from '@metamask/eth-query';
 import type {
   BlockTracker,
   NetworkClientId,
 } from '@metamask/network-controller';
+import type { Json } from '@metamask/utils';
+// This package purposefully relies on Node's EventEmitter module.
+// eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
-import { cloneDeep, merge } from 'lodash';
+import { cloneDeep } from 'lodash';
 
 import { createModuleLogger, projectLogger } from '../logger';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type { TransactionMeta, TransactionReceipt } from '../types';
 import { TransactionStatus, TransactionType } from '../types';
+import {
+  getAcceleratedPollingParams,
+  getTimeoutAttempts,
+} from '../utils/feature-flags';
+import { getChainId, rpcRequest } from '../utils/provider';
+import { extractRevert, OnChainFailureError } from '../utils/revert-reason';
+import { TransactionPoller } from './TransactionPoller';
 
 /**
  * We wait this many blocks before emitting a 'transaction-dropped' event
@@ -19,16 +28,6 @@ const DROPPED_BLOCK_COUNT = 3;
 
 const RECEIPT_STATUS_SUCCESS = '0x1';
 const RECEIPT_STATUS_FAILURE = '0x0';
-const MAX_RETRY_BLOCK_DISTANCE = 50;
-
-const KNOWN_TRANSACTION_ERRORS = [
-  'replacement transaction underpriced',
-  'known transaction',
-  'gas price too low to replace',
-  'transaction with the same hash was already imported',
-  'gateway timeout',
-  'nonce too low',
-];
 
 const log = createModuleLogger(projectLogger, 'pending-transactions');
 
@@ -48,170 +47,199 @@ type Events = {
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface PendingTransactionTrackerEventEmitter extends EventEmitter {
-  on<T extends keyof Events>(
-    eventName: T,
-    listener: (...args: Events[T]) => void,
+  on<EventName extends keyof Events>(
+    eventName: EventName,
+    listener: (...args: Events[EventName]) => void,
   ): this;
 
-  emit<T extends keyof Events>(eventName: T, ...args: Events[T]): boolean;
+  emit<EventName extends keyof Events>(
+    eventName: EventName,
+    ...args: Events[EventName]
+  ): boolean;
 }
 
 export class PendingTransactionTracker {
   hub: PendingTransactionTrackerEventEmitter;
 
-  #approveTransaction: (transactionId: string) => Promise<void>;
+  readonly #beforeCheckPendingTransaction: (
+    transactionMeta: TransactionMeta,
+  ) => Promise<boolean>;
 
-  #blockTracker: BlockTracker;
+  readonly #droppedBlockCountByHash: Map<string, number>;
 
-  #droppedBlockCountByHash: Map<string, number>;
+  readonly #isTimeoutEnabled: (transactionMeta: TransactionMeta) => boolean;
 
-  #getChainId: () => string;
+  readonly #getGlobalLock: () => Promise<() => void>;
 
-  #getEthQuery: (networkClientId?: NetworkClientId) => EthQuery;
+  readonly #chainId: string;
 
-  #getTransactions: () => TransactionMeta[];
+  readonly #networkClientId: NetworkClientId;
 
-  #isResubmitEnabled: boolean;
+  readonly #getTransactions: () => TransactionMeta[];
+
+  readonly #lastSeenTimestampByHash: Map<string, number>;
 
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  #listener: any;
+  readonly #listener: any;
 
-  #getGlobalLock: () => Promise<() => void>;
+  readonly #log: debug.Debugger;
 
-  #publishTransaction: (ethQuery: EthQuery, rawTx: string) => Promise<string>;
+  readonly #messenger: TransactionControllerMessenger;
 
   #running: boolean;
 
-  #beforeCheckPendingTransaction: (transactionMeta: TransactionMeta) => boolean;
+  readonly #transactionPoller: TransactionPoller;
 
-  #beforePublish: (transactionMeta: TransactionMeta) => boolean;
+  #transactionToForcePoll: TransactionMeta | undefined;
 
   constructor({
-    approveTransaction,
     blockTracker,
-    getChainId,
-    getEthQuery,
-    getTransactions,
-    isResubmitEnabled,
     getGlobalLock,
-    publishTransaction,
+    getTransactions,
+    isTimeoutEnabled,
     hooks,
+    messenger,
+    networkClientId,
   }: {
-    approveTransaction: (transactionId: string) => Promise<void>;
     blockTracker: BlockTracker;
-    getChainId: () => string;
-    getEthQuery: (networkClientId?: NetworkClientId) => EthQuery;
-    getTransactions: () => TransactionMeta[];
-    isResubmitEnabled?: boolean;
     getGlobalLock: () => Promise<() => void>;
-    publishTransaction: (ethQuery: EthQuery, rawTx: string) => Promise<string>;
+    getTransactions: () => TransactionMeta[];
     hooks?: {
       beforeCheckPendingTransaction?: (
         transactionMeta: TransactionMeta,
-      ) => boolean;
-      beforePublish?: (transactionMeta: TransactionMeta) => boolean;
+      ) => Promise<boolean>;
     };
+    isTimeoutEnabled: (transactionMeta: TransactionMeta) => boolean;
+    messenger: TransactionControllerMessenger;
+    networkClientId: NetworkClientId;
   }) {
     this.hub = new EventEmitter() as PendingTransactionTrackerEventEmitter;
 
-    this.#approveTransaction = approveTransaction;
-    this.#blockTracker = blockTracker;
+    const chainId = getChainId({ messenger, networkClientId });
+
+    this.#chainId = chainId;
     this.#droppedBlockCountByHash = new Map();
-    this.#getChainId = getChainId;
-    this.#getEthQuery = getEthQuery;
-    this.#getTransactions = getTransactions;
-    this.#isResubmitEnabled = isResubmitEnabled ?? true;
-    this.#listener = this.#onLatestBlock.bind(this);
     this.#getGlobalLock = getGlobalLock;
-    this.#publishTransaction = publishTransaction;
+    this.#networkClientId = networkClientId;
+    this.#getTransactions = getTransactions;
+    this.#lastSeenTimestampByHash = new Map();
+    this.#listener = this.#onLatestBlock.bind(this);
+    this.#messenger = messenger;
     this.#running = false;
-    this.#beforePublish = hooks?.beforePublish ?? (() => true);
+    this.#transactionToForcePoll = undefined;
+
+    this.#transactionPoller = new TransactionPoller({
+      blockTracker,
+      chainId,
+      messenger,
+    });
+
     this.#beforeCheckPendingTransaction =
-      hooks?.beforeCheckPendingTransaction ?? (() => true);
+      hooks?.beforeCheckPendingTransaction ??
+      /* istanbul ignore next */
+      ((): Promise<boolean> => Promise.resolve(true));
+
+    this.#isTimeoutEnabled = isTimeoutEnabled;
+
+    this.#log = createModuleLogger(log, `${chainId}:${networkClientId}`);
   }
 
-  startIfPendingTransactions = () => {
+  startIfPendingTransactions = (): void => {
     const pendingTransactions = this.#getPendingTransactions();
 
     if (pendingTransactions.length) {
-      this.#start();
+      this.#start(pendingTransactions);
     } else {
       this.stop();
     }
   };
 
   /**
+   * Adds a transaction to the polling mechanism for monitoring its status.
+   *
+   * This method forcefully adds a single transaction to the list of transactions
+   * being polled, ensuring that its status is checked, event emitted but no update is performed.
+   * It overrides the default behavior by prioritizing the given transaction for polling.
+   *
+   * @param transactionMeta - The transaction metadata to be added for polling.
+   *
+   * The transaction will now be monitored for updates, such as confirmation or failure.
+   */
+  addTransactionToPoll(transactionMeta: TransactionMeta): void {
+    this.#start([transactionMeta]);
+    this.#transactionToForcePoll = transactionMeta;
+  }
+
+  /**
    * Force checks the network if the given transaction is confirmed and updates it's status.
    *
    * @param txMeta - The transaction to check
    */
-  async forceCheckTransaction(txMeta: TransactionMeta) {
+  async forceCheckTransaction(txMeta: TransactionMeta): Promise<void> {
     const releaseLock = await this.#getGlobalLock();
 
     try {
       await this.#checkTransaction(txMeta);
     } catch (error) {
       /* istanbul ignore next */
-      log('Failed to check transaction', error);
+      this.#log('Failed to check transaction', error);
     } finally {
       releaseLock();
     }
   }
 
-  #start() {
+  #start(pendingTransactions: TransactionMeta[]): void {
+    this.#transactionPoller.setPendingTransactions(pendingTransactions);
+
     if (this.#running) {
       return;
     }
 
-    this.#blockTracker.on('latest', this.#listener);
+    this.#transactionPoller.start(this.#listener);
     this.#running = true;
 
-    log('Started polling');
+    this.#log('Started polling');
   }
 
-  stop() {
+  stop(): void {
     if (!this.#running) {
       return;
     }
 
-    this.#blockTracker.removeListener('latest', this.#listener);
+    this.#transactionPoller.stop();
     this.#running = false;
 
-    log('Stopped polling');
+    this.#log('Stopped polling');
   }
 
-  async #onLatestBlock(latestBlockNumber: string) {
+  async #onLatestBlock(_latestBlockNumber: string): Promise<void> {
     const releaseLock = await this.#getGlobalLock();
 
     try {
       await this.#checkTransactions();
     } catch (error) {
       /* istanbul ignore next */
-      log('Failed to check transactions', error);
+      this.#log('Failed to check transactions', error);
     } finally {
       releaseLock();
     }
-
-    try {
-      await this.#resubmitTransactions(latestBlockNumber);
-    } catch (error) {
-      /* istanbul ignore next */
-      log('Failed to resubmit transactions', error);
-    }
   }
 
-  async #checkTransactions() {
-    log('Checking transactions');
+  async #checkTransactions(): Promise<void> {
+    this.#log('Checking transactions');
 
-    const pendingTransactions = this.#getPendingTransactions();
+    const pendingTransactions: TransactionMeta[] = [
+      ...this.#getPendingTransactions(),
+      ...(this.#transactionToForcePoll ? [this.#transactionToForcePoll] : []),
+    ];
 
     if (!pendingTransactions.length) {
-      log('No pending transactions to check');
+      this.#log('No pending transactions to check');
       return;
     }
 
-    log('Found pending transactions to check', {
+    this.#log('Found pending transactions to check', {
       count: pendingTransactions.length,
       ids: pendingTransactions.map((tx) => tx.id),
     });
@@ -221,120 +249,32 @@ export class PendingTransactionTracker {
     );
   }
 
-  async #resubmitTransactions(latestBlockNumber: string) {
-    if (!this.#isResubmitEnabled || !this.#running) {
-      return;
-    }
-
-    log('Resubmitting transactions');
-
-    const pendingTransactions = this.#getPendingTransactions();
-
-    if (!pendingTransactions.length) {
-      log('No pending transactions to resubmit');
-      return;
-    }
-
-    log('Found pending transactions to resubmit', {
-      count: pendingTransactions.length,
-      ids: pendingTransactions.map((tx) => tx.id),
-    });
-
-    for (const txMeta of pendingTransactions) {
-      try {
-        await this.#resubmitTransaction(txMeta, latestBlockNumber);
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } catch (error: any) {
-        /* istanbul ignore next */
-        const errorMessage =
-          error.value?.message?.toLowerCase() || error.message.toLowerCase();
-
-        if (this.#isKnownTransactionError(errorMessage)) {
-          log('Ignoring known transaction error', errorMessage);
-          return;
-        }
-
-        this.#warnTransaction(
-          txMeta,
-          error.message,
-          'There was an error when resubmitting this transaction.',
-        );
-      }
-    }
-  }
-
-  #isKnownTransactionError(errorMessage: string) {
-    return KNOWN_TRANSACTION_ERRORS.some((knownError) =>
-      errorMessage.includes(knownError),
-    );
-  }
-
-  async #resubmitTransaction(
-    txMeta: TransactionMeta,
-    latestBlockNumber: string,
-  ) {
-    if (!this.#isResubmitDue(txMeta, latestBlockNumber)) {
-      return;
-    }
-
-    const { rawTx } = txMeta;
-
-    if (!this.#beforePublish(txMeta)) {
-      return;
-    }
-
-    if (!rawTx?.length) {
-      log('Approving transaction as no raw value');
-      await this.#approveTransaction(txMeta.id);
-      return;
-    }
-
-    const ethQuery = this.#getEthQuery(txMeta.networkClientId);
-    await this.#publishTransaction(ethQuery, rawTx);
-
-    const retryCount = (txMeta.retryCount ?? 0) + 1;
-
-    this.#updateTransaction(
-      merge({}, txMeta, { retryCount }),
-      'PendingTransactionTracker:transaction-retry - Retry count increased',
-    );
-  }
-
-  #isResubmitDue(txMeta: TransactionMeta, latestBlockNumber: string): boolean {
-    const txMetaWithFirstRetryBlockNumber = cloneDeep(txMeta);
-
-    if (!txMetaWithFirstRetryBlockNumber.firstRetryBlockNumber) {
-      txMetaWithFirstRetryBlockNumber.firstRetryBlockNumber = latestBlockNumber;
-
-      this.#updateTransaction(
-        txMetaWithFirstRetryBlockNumber,
-        'PendingTransactionTracker:#isResubmitDue - First retry block number set',
-      );
-    }
-
-    const { firstRetryBlockNumber } = txMetaWithFirstRetryBlockNumber;
-
-    const blocksSinceFirstRetry =
-      Number.parseInt(latestBlockNumber, 16) -
-      Number.parseInt(firstRetryBlockNumber, 16);
-
-    const retryCount = txMeta.retryCount || 0;
-
-    // Exponential backoff to limit retries at publishing
-    // Capped at ~15 minutes between retries
-    const requiredBlocksSinceFirstRetry = Math.min(
-      MAX_RETRY_BLOCK_DISTANCE,
-      Math.pow(2, retryCount),
-    );
-
-    return blocksSinceFirstRetry >= requiredBlocksSinceFirstRetry;
-  }
-
-  async #checkTransaction(txMeta: TransactionMeta) {
+  #cleanTransaction(txMeta: TransactionMeta): void {
     const { hash, id } = txMeta;
 
-    if (!hash && this.#beforeCheckPendingTransaction(txMeta)) {
+    if (this.#transactionToForcePoll?.id === id) {
+      this.#transactionToForcePoll = undefined;
+    }
+
+    if (hash) {
+      this.#lastSeenTimestampByHash.delete(hash);
+    }
+  }
+
+  async #checkTransaction(txMeta: TransactionMeta): Promise<void> {
+    const {
+      hash,
+      id,
+      isIntentComplete,
+      txParams: { from },
+    } = txMeta;
+
+    if (isIntentComplete) {
+      await this.#onTransactionConfirmed(txMeta);
+      return;
+    }
+
+    if (!hash && (await this.#beforeCheckPendingTransaction(txMeta))) {
       const error = new Error(
         'We had an error while submitting this transaction, please try again.',
       );
@@ -347,7 +287,7 @@ export class PendingTransactionTracker {
     }
 
     if (this.#isNonceTaken(txMeta)) {
-      log('Nonce already taken', id);
+      this.#log('Nonce already taken', id);
       this.#dropTransaction(txMeta);
       return;
     }
@@ -358,17 +298,25 @@ export class PendingTransactionTracker {
       const isFailure = receipt?.status === RECEIPT_STATUS_FAILURE;
 
       if (isFailure) {
-        log('Transaction receipt has failed status');
+        this.#log('Transaction receipt has failed status', {
+          id: txMeta.id,
+          hash: txMeta.hash,
+          chainId: txMeta.chainId,
+          blockNumber: receipt.blockNumber,
+        });
 
-        this.#failTransaction(
-          txMeta,
-          new Error('Transaction dropped or replaced'),
-        );
+        const revert = await extractRevert({
+          messenger: this.#messenger,
+          networkClientId: txMeta.networkClientId,
+          txParams: txMeta.txParams,
+        });
+
+        this.#failTransaction(txMeta, new OnChainFailureError(revert));
 
         return;
       }
 
-      const { blockNumber, blockHash } = receipt || {};
+      const { blockNumber, blockHash } = receipt ?? {};
 
       if (isSuccess && blockNumber && blockHash) {
         await this.#onTransactionConfirmed(txMeta, {
@@ -379,47 +327,66 @@ export class PendingTransactionTracker {
 
         return;
       }
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
-      log('Failed to check transaction', id, error);
+
+      this.#log('No receipt status', { hash, receipt });
+
+      const nextNonceHex = await this.#getNetworkTransactionCount(from);
+      const nextNonce = parseInt(nextNonceHex, 16);
+
+      // Check if transaction should be failed due to no receipt
+      if (!receipt && (await this.#isTransactionTimeout(txMeta, nextNonce))) {
+        return;
+      }
+
+      if (await this.#isTransactionDropped(txMeta, nextNonce)) {
+        this.#dropTransaction(txMeta);
+      }
+    } catch (error) {
+      this.#log('Failed to check transaction', id, error);
 
       this.#warnTransaction(
         txMeta,
-        error.message,
+        (error as { message: string }).message,
         'There was a problem loading this transaction.',
       );
-
-      return;
-    }
-
-    if (await this.#isTransactionDropped(txMeta)) {
-      this.#dropTransaction(txMeta);
     }
   }
 
   async #onTransactionConfirmed(
     txMeta: TransactionMeta,
-    receipt: SuccessfulTransactionReceipt,
-  ) {
+    receipt?: SuccessfulTransactionReceipt,
+  ): Promise<void> {
     const { id } = txMeta;
-    const { blockHash } = receipt;
+    const { blockHash } = receipt ?? {};
 
-    log('Transaction confirmed', id);
+    this.#log('Transaction confirmed', id);
 
-    const { baseFeePerGas, timestamp: blockTimestamp } =
-      await this.#getBlockByHash(blockHash, false);
+    const isForcePollTransaction = this.#transactionToForcePoll?.id === id;
+
+    this.#cleanTransaction(txMeta);
+
+    if (isForcePollTransaction) {
+      this.hub.emit('transaction-confirmed', txMeta);
+      return;
+    }
 
     const updatedTxMeta = cloneDeep(txMeta);
-    updatedTxMeta.baseFeePerGas = baseFeePerGas;
-    updatedTxMeta.blockTimestamp = blockTimestamp;
+
+    if (receipt && blockHash) {
+      const { baseFeePerGas, timestamp: blockTimestamp } =
+        await this.#getBlockByHash(blockHash, false);
+
+      updatedTxMeta.baseFeePerGas = baseFeePerGas;
+      updatedTxMeta.blockTimestamp = blockTimestamp;
+      updatedTxMeta.txParams = {
+        ...updatedTxMeta.txParams,
+        gasUsed: receipt.gasUsed,
+      };
+      updatedTxMeta.txReceipt = receipt;
+      updatedTxMeta.verifiedOnBlockchain = true;
+    }
+
     updatedTxMeta.status = TransactionStatus.confirmed;
-    updatedTxMeta.txParams = {
-      ...updatedTxMeta.txParams,
-      gasUsed: receipt.gasUsed,
-    };
-    updatedTxMeta.txReceipt = receipt;
-    updatedTxMeta.verifiedOnBlockchain = true;
 
     this.#updateTransaction(
       updatedTxMeta,
@@ -429,11 +396,119 @@ export class PendingTransactionTracker {
     this.hub.emit('transaction-confirmed', updatedTxMeta);
   }
 
-  async #isTransactionDropped(txMeta: TransactionMeta) {
+  async #isTransactionTimeout(
+    txMeta: TransactionMeta,
+    nextNonce: number,
+  ): Promise<boolean> {
+    const {
+      chainId,
+      hash,
+      id: transactionId,
+      submittedTime,
+      txParams: { nonce },
+    } = txMeta;
+
+    if (!hash || !nonce) {
+      return false;
+    }
+
+    if (!this.#isTimeoutEnabled(txMeta)) {
+      this.#log('Timeout disabled for transaction', txMeta);
+      return false;
+    }
+
+    const threshold = getTimeoutAttempts(chainId, this.#messenger);
+
+    // Feature is disabled if threshold is undefined or zero
+    if (threshold === undefined || threshold === 0) {
+      this.#log('Timeout disabled due to threshold', { chainId, threshold });
+      return false;
+    }
+
+    // Skip timeout if this transaction's nonce is a queued transaction with a future nonce
+    const nonceNumber = parseInt(nonce, 16);
+
+    if (nonceNumber > nextNonce) {
+      this.#log('Skipping timeout as queued transaction', {
+        transactionNonce: nonceNumber,
+        nextNonce,
+      });
+      return false;
+    }
+
+    try {
+      // Check if transaction exists on the network
+      const transaction = await this.#getTransactionByHash(hash);
+
+      // If transaction exists, record the timestamp
+      if (transaction !== null) {
+        const currentTimestamp = Date.now();
+
+        this.#log(
+          'Transaction found on network, recording timestamp',
+          transactionId,
+        );
+
+        this.#lastSeenTimestampByHash.set(hash, currentTimestamp);
+        return false;
+      }
+
+      const lastSeenTimestamp =
+        this.#lastSeenTimestampByHash.get(hash) ?? submittedTime;
+
+      if (lastSeenTimestamp === undefined) {
+        this.#log(
+          'Transaction not yet seen on network and has no submitted time, skipping timeout check',
+          transactionId,
+        );
+
+        return false;
+      }
+
+      const { blockTime } = getAcceleratedPollingParams(
+        chainId,
+        this.#messenger,
+      );
+
+      const currentTimestamp = Date.now();
+      const durationSinceLastSeen = currentTimestamp - lastSeenTimestamp;
+      const timeoutDuration = blockTime * threshold;
+
+      this.#log('Checking timeout duration', {
+        transactionId,
+        durationSinceLastSeen,
+        timeoutDuration,
+        threshold,
+        blockTime,
+      });
+
+      if (durationSinceLastSeen < timeoutDuration) {
+        return false;
+      }
+
+      this.#log('Hit timeout duration threshold', transactionId);
+      this.#lastSeenTimestampByHash.delete(hash);
+
+      this.#failTransaction(
+        txMeta,
+        new Error('Transaction not found on network after timeout'),
+      );
+
+      return true;
+    } catch (error) {
+      this.#log('Failed to check transaction by hash', transactionId, error);
+      return false;
+    }
+  }
+
+  async #isTransactionDropped(
+    txMeta: TransactionMeta,
+    nextNonce: number,
+  ): Promise<boolean> {
     const {
       hash,
       id,
-      txParams: { nonce, from },
+      txParams: { nonce },
     } = txMeta;
 
     /* istanbul ignore next */
@@ -441,11 +516,9 @@ export class PendingTransactionTracker {
       return false;
     }
 
-    const networkNextNonceHex = await this.#getNetworkTransactionCount(from);
-    const networkNextNonceNumber = parseInt(networkNextNonceHex, 16);
     const nonceNumber = parseInt(nonce, 16);
 
-    if (nonceNumber >= networkNextNonceNumber) {
+    if (nonceNumber >= nextNonce) {
       return false;
     }
 
@@ -457,12 +530,12 @@ export class PendingTransactionTracker {
     }
 
     if (droppedBlockCount < DROPPED_BLOCK_COUNT) {
-      log('Incrementing dropped block count', { id, droppedBlockCount });
+      this.#log('Incrementing dropped block count', { id, droppedBlockCount });
       this.#droppedBlockCountByHash.set(hash, droppedBlockCount + 1);
       return false;
     }
 
-    log('Hit dropped block count', id);
+    this.#log('Hit dropped block count', id);
 
     this.#droppedBlockCountByHash.delete(hash);
     return true;
@@ -471,26 +544,33 @@ export class PendingTransactionTracker {
   #isNonceTaken(txMeta: TransactionMeta): boolean {
     const { id, txParams } = txMeta;
 
-    return this.#getCurrentChainTransactions().some(
+    return this.#getChainTransactions().some(
       (tx) =>
         tx.id !== id &&
         tx.txParams.from === txParams.from &&
         tx.status === TransactionStatus.confirmed &&
+        tx.txParams.nonce &&
         tx.txParams.nonce === txParams.nonce &&
-        tx.type !== TransactionType.incoming,
+        tx.type !== TransactionType.incoming &&
+        tx.isTransfer === undefined,
     );
   }
 
   #getPendingTransactions(): TransactionMeta[] {
-    return this.#getCurrentChainTransactions().filter(
+    return this.#getNetworkClientTransactions().filter(
       (tx) =>
         tx.status === TransactionStatus.submitted &&
         !tx.verifiedOnBlockchain &&
-        !tx.isUserOperation,
+        !tx.isUserOperation &&
+        !tx.isStateOnly,
     );
   }
 
-  #warnTransaction(txMeta: TransactionMeta, error: string, message: string) {
+  #warnTransaction(
+    txMeta: TransactionMeta,
+    error: string,
+    message: string,
+  ): void {
     this.#updateTransaction(
       {
         ...txMeta,
@@ -500,24 +580,40 @@ export class PendingTransactionTracker {
     );
   }
 
-  #failTransaction(txMeta: TransactionMeta, error: Error) {
-    log('Transaction failed', txMeta.id, error);
+  #failTransaction(txMeta: TransactionMeta, error: Error): void {
+    this.#log('Transaction failed', txMeta.id, error);
+    this.#cleanTransaction(txMeta);
     this.hub.emit('transaction-failed', txMeta, error);
   }
 
-  #dropTransaction(txMeta: TransactionMeta) {
-    log('Transaction dropped', txMeta.id);
+  #dropTransaction(txMeta: TransactionMeta): void {
+    this.#log('Transaction dropped', txMeta.id);
+    this.#cleanTransaction(txMeta);
     this.hub.emit('transaction-dropped', txMeta);
   }
 
-  #updateTransaction(txMeta: TransactionMeta, note: string) {
+  #updateTransaction(txMeta: TransactionMeta, note: string): void {
     this.hub.emit('transaction-updated', txMeta, note);
   }
 
   async #getTransactionReceipt(
     txHash?: string,
   ): Promise<TransactionReceipt | undefined> {
-    return await query(this.#getEthQuery(), 'getTransactionReceipt', [txHash]);
+    return (await rpcRequest({
+      messenger: this.#messenger,
+      networkClientId: this.#networkClientId,
+      method: 'eth_getTransactionReceipt',
+      params: [txHash as string],
+    })) as TransactionReceipt | undefined;
+  }
+
+  async #getTransactionByHash(txHash?: string): Promise<Json> {
+    return (await rpcRequest({
+      messenger: this.#messenger,
+      networkClientId: this.#networkClientId,
+      method: 'eth_getTransactionByHash',
+      params: [txHash as string],
+    })) as Json;
   }
 
   async #getBlockByHash(
@@ -526,21 +622,31 @@ export class PendingTransactionTracker {
     // TODO: Replace `any` with type
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ): Promise<any> {
-    return await query(this.#getEthQuery(), 'getBlockByHash', [
-      blockHash,
-      includeTransactionDetails,
-    ]);
+    return await rpcRequest({
+      messenger: this.#messenger,
+      networkClientId: this.#networkClientId,
+      method: 'eth_getBlockByHash',
+      params: [blockHash, includeTransactionDetails],
+    });
   }
 
   async #getNetworkTransactionCount(address: string): Promise<string> {
-    return await query(this.#getEthQuery(), 'getTransactionCount', [address]);
+    return (await rpcRequest({
+      messenger: this.#messenger,
+      networkClientId: this.#networkClientId,
+      method: 'eth_getTransactionCount',
+      params: [address, 'latest'],
+    })) as string;
   }
 
-  #getCurrentChainTransactions(): TransactionMeta[] {
-    const currentChainId = this.#getChainId();
+  #getChainTransactions(): TransactionMeta[] {
+    return this.#getTransactions().filter((tx) => tx.chainId === this.#chainId);
+  }
 
+  #getNetworkClientTransactions(): TransactionMeta[] {
+    const networkClientId = this.#networkClientId;
     return this.#getTransactions().filter(
-      (tx) => tx.chainId === currentChainId,
+      (tx) => tx.networkClientId === networkClientId,
     );
   }
 }

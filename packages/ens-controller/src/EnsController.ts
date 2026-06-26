@@ -1,27 +1,44 @@
-import type {
-  ExternalProvider,
-  JsonRpcFetchFunc,
-} from '@ethersproject/providers';
 import { Web3Provider } from '@ethersproject/providers';
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type {
+  StateMetadata,
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+} from '@metamask/base-controller';
 import type { ChainId } from '@metamask/controller-utils';
 import {
   normalizeEnsName,
   isValidHexAddress,
+  isSafeDynamicKey,
   toChecksumHexAddress,
   CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP,
   convertHexToDecimal,
   toHex,
 } from '@metamask/controller-utils';
-import type { NetworkState } from '@metamask/network-controller';
+import type { Messenger } from '@metamask/messenger';
+import type {
+  NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetStateAction,
+  NetworkState,
+} from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { createProjectLogger } from '@metamask/utils';
-import { toASCII } from 'punycode/';
+import { toASCII } from 'punycode/punycode.js';
+
+import type { EnsControllerMethodActions } from './EnsController-method-action-types';
 
 const log = createProjectLogger('ens-controller');
 
 const name = 'EnsController';
+
+const MESSENGER_EXPOSED_METHODS = [
+  'clear',
+  'delete',
+  'get',
+  'resetState',
+  'reverseResolveAddress',
+  'set',
+] as const;
 
 // Map of chainIDs and ENS registry contract addresses
 export const DEFAULT_ENS_NETWORK_MAP: Record<number, Hex> = {
@@ -43,6 +60,7 @@ export const DEFAULT_ENS_NETWORK_MAP: Record<number, Hex> = {
  * @type EnsEntry
  *
  * ENS entry representation
+ *
  * @property chainId - Id of the associated chain
  * @property ensName - The ENS name
  * @property address - Hex address with the ENS name, or null
@@ -57,6 +75,7 @@ export type EnsEntry = {
  * @type EnsControllerState
  *
  * ENS controller state
+ *
  * @property ensEntries - Object of ENS entry objects
  */
 export type EnsControllerState = {
@@ -68,17 +87,43 @@ export type EnsControllerState = {
   ensResolutionsByAddress: { [key: string]: string };
 };
 
-export type EnsControllerMessenger = RestrictedControllerMessenger<
+export type EnsControllerGetStateAction = ControllerGetStateAction<
   typeof name,
-  never,
-  never,
-  never,
-  never
+  EnsControllerState
 >;
 
-const metadata = {
-  ensEntries: { persist: true, anonymous: false },
-  ensResolutionsByAddress: { persist: true, anonymous: false },
+export type EnsControllerActions =
+  | EnsControllerGetStateAction
+  | EnsControllerMethodActions;
+
+export type EnsControllerEvents = ControllerStateChangeEvent<
+  typeof name,
+  EnsControllerState
+>;
+
+export type AllowedActions =
+  | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerGetStateAction;
+
+export type EnsControllerMessenger = Messenger<
+  typeof name,
+  EnsControllerActions | AllowedActions,
+  EnsControllerEvents
+>;
+
+const metadata: StateMetadata<EnsControllerState> = {
+  ensEntries: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  ensResolutionsByAddress: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
 const defaultState = {
@@ -107,22 +152,19 @@ export class EnsController extends BaseController<
    * @param options.registriesByChainId - Map between chain IDs and ENS contract addresses.
    * @param options.messenger - A reference to the messaging system.
    * @param options.state - Initial state to set on this controller.
-   * @param options.provider - Provider instance.
    * @param options.onNetworkDidChange - Allows subscribing to network controller networkDidChange events.
    */
   constructor({
     registriesByChainId = DEFAULT_ENS_NETWORK_MAP,
     messenger,
     state = {},
-    provider,
     onNetworkDidChange,
   }: {
     registriesByChainId?: Record<number, Hex>;
     messenger: EnsControllerMessenger;
     state?: Partial<EnsControllerState>;
-    provider?: ExternalProvider | JsonRpcFetchFunc;
     onNetworkDidChange?: (
-      listener: (networkState: Pick<NetworkState, 'providerConfig'>) => void,
+      listener: (networkState: NetworkState) => void,
     ) => void;
   }) {
     super({
@@ -147,21 +189,17 @@ export class EnsController extends BaseController<
       },
     });
 
-    if (provider && onNetworkDidChange) {
-      onNetworkDidChange((networkState) => {
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+
+    this.#setDefaultEthProvider(registriesByChainId);
+
+    if (onNetworkDidChange) {
+      onNetworkDidChange(({ selectedNetworkClientId }) => {
         this.resetState();
-        const currentChainId = networkState.providerConfig.chainId;
-        if (this.#getChainEnsSupport(currentChainId)) {
-          this.#ethProvider = new Web3Provider(provider, {
-            chainId: convertHexToDecimal(currentChainId),
-            name: CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP[
-              currentChainId as ChainId
-            ],
-            ensAddress: registriesByChainId[parseInt(currentChainId, 16)],
-          });
-        } else {
-          this.#ethProvider = null;
-        }
+        this.#setEthProvider(selectedNetworkClientId, registriesByChainId);
       });
     }
   }
@@ -194,9 +232,9 @@ export class EnsController extends BaseController<
   delete(chainId: Hex, ensName: string): boolean {
     const normalizedEnsName = normalizeEnsName(ensName);
     if (
+      !isSafeDynamicKey(chainId) ||
       !normalizedEnsName ||
-      !this.state.ensEntries[chainId] ||
-      !this.state.ensEntries[chainId][normalizedEnsName]
+      !this.state.ensEntries[chainId]?.[normalizedEnsName]
     ) {
       return false;
     }
@@ -258,10 +296,7 @@ export class EnsController extends BaseController<
     const normalizedAddress = address ? toChecksumHexAddress(address) : null;
     const subState = this.state.ensEntries[chainId];
 
-    if (
-      subState?.[normalizedEnsName] &&
-      subState[normalizedEnsName].address === normalizedAddress
-    ) {
+    if (subState?.[normalizedEnsName]?.address === normalizedAddress) {
       return false;
     }
 
@@ -279,6 +314,39 @@ export class EnsController extends BaseController<
       };
     });
     return true;
+  }
+
+  #setDefaultEthProvider(registriesByChainId?: Record<number, Hex>) {
+    const { selectedNetworkClientId } = this.messenger.call(
+      'NetworkController:getState',
+    );
+    this.#setEthProvider(selectedNetworkClientId, registriesByChainId);
+  }
+
+  #setEthProvider(
+    selectedNetworkClientId: string,
+    registriesByChainId?: Record<number, Hex>,
+  ) {
+    const {
+      configuration: { chainId: currentChainId },
+      provider,
+    } = this.messenger.call(
+      'NetworkController:getNetworkClientById',
+      selectedNetworkClientId,
+    );
+
+    if (
+      registriesByChainId?.[parseInt(currentChainId, 16)] &&
+      this.#getChainEnsSupport(currentChainId)
+    ) {
+      this.#ethProvider = new Web3Provider(provider, {
+        chainId: convertHexToDecimal(currentChainId),
+        name: CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP[currentChainId as ChainId],
+        ensAddress: registriesByChainId[parseInt(currentChainId, 16)],
+      });
+    } else {
+      this.#ethProvider = null;
+    }
   }
 
   /**

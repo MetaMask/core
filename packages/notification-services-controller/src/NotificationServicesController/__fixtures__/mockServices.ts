@@ -1,0 +1,77 @@
+import nock from 'nock';
+
+import {
+  getMockOnChainNotificationsConfig,
+  getMockFeatureAnnouncementResponse,
+  getMockListNotificationsResponse,
+  getMockMarkNotificationsAsReadResponse,
+  getMockCreatePerpOrderNotification,
+} from '../mocks/mockResponses';
+
+type MockReply = {
+  status: nock.StatusCode;
+  body?: nock.Body;
+};
+
+export const mockFetchFeatureAnnouncementNotifications = (
+  mockReply?: MockReply,
+): nock.Scope => {
+  const mockResponse = getMockFeatureAnnouncementResponse();
+  const reply = mockReply ?? { status: 200, body: mockResponse.response };
+  const mockEndpoint = nock(mockResponse.url)
+    .get('')
+    .query(true)
+    .reply(reply.status, reply.body);
+
+  return mockEndpoint;
+};
+
+export const mockGetOnChainNotificationsConfig = (
+  mockReply?: MockReply,
+): nock.Scope => {
+  const mockResponse = getMockOnChainNotificationsConfig();
+  const reply = mockReply ?? { status: 200, body: mockResponse.response };
+
+  const mockEndpoint = nock(mockResponse.url)
+    .post('')
+    .reply(reply.status, reply.body);
+
+  return mockEndpoint;
+};
+
+export const mockGetAPINotifications = (mockReply?: MockReply): nock.Scope => {
+  const mockResponse = getMockListNotificationsResponse();
+  const reply = mockReply ?? { status: 200, body: mockResponse.response };
+
+  const mockEndpoint = nock(mockResponse.url)
+    .post('')
+    .query(true)
+    .reply(reply.status, reply.body);
+
+  return mockEndpoint;
+};
+
+export const mockMarkNotificationsAsRead = (
+  mockReply?: MockReply,
+): nock.Scope => {
+  const mockResponse = getMockMarkNotificationsAsReadResponse();
+  const reply = mockReply ?? { status: 200 };
+
+  const mockEndpoint = nock(mockResponse.url)
+    .post('')
+    .reply(reply.status, reply.body);
+
+  return mockEndpoint;
+};
+
+export const mockCreatePerpNotification = (
+  mockReply?: MockReply,
+): nock.Scope => {
+  const mockResponse = getMockCreatePerpOrderNotification();
+  const reply = mockReply ?? { status: 201 };
+  const mockEndpoint = nock(mockResponse.url)
+    .persist()
+    .post('')
+    .reply(reply.status);
+  return mockEndpoint;
+};

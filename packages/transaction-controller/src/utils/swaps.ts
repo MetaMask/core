@@ -1,5 +1,4 @@
-import { query } from '@metamask/controller-utils';
-import type EthQuery from '@metamask/eth-query';
+import type { NetworkClientId } from '@metamask/network-controller';
 import { merge, pickBy } from 'lodash';
 
 import { CHAIN_IDS } from '../constants';
@@ -7,6 +6,7 @@ import { createModuleLogger, projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type { TransactionMeta } from '../types';
 import { TransactionType } from '../types';
+import { rpcRequest } from './provider';
 import { validateIfTransactionUnapproved } from './utils';
 
 const log = createModuleLogger(projectLogger, 'swaps');
@@ -94,6 +94,24 @@ const ZKSYNC_ERA_SWAPS_TOKEN_OBJECT: SwapsTokenObject = {
   ...ETH_SWAPS_TOKEN_OBJECT,
 } as const;
 
+const SEI_SWAPS_TOKEN_OBJECT: SwapsTokenObject = {
+  name: 'Sei',
+  address: DEFAULT_TOKEN_ADDRESS,
+  decimals: 18,
+} as const;
+
+const MONAD_SWAPS_TOKEN_OBJECT: SwapsTokenObject = {
+  name: 'Mon',
+  address: DEFAULT_TOKEN_ADDRESS,
+  decimals: 18,
+} as const;
+
+const HYPEREVM_SWAPS_TOKEN_OBJECT: SwapsTokenObject = {
+  name: 'Hyperliquid',
+  address: DEFAULT_TOKEN_ADDRESS,
+  decimals: 18,
+} as const;
+
 export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
   [CHAIN_IDS.MAINNET]: ETH_SWAPS_TOKEN_OBJECT,
   [SWAPS_TESTNET_CHAIN_ID]: TEST_ETH_SWAPS_TOKEN_OBJECT,
@@ -104,10 +122,14 @@ export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
   [CHAIN_IDS.OPTIMISM]: OPTIMISM_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.ARBITRUM]: ARBITRUM_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.ZKSYNC_ERA]: ZKSYNC_ERA_SWAPS_TOKEN_OBJECT,
+  [CHAIN_IDS.SEI]: SEI_SWAPS_TOKEN_OBJECT,
+  [CHAIN_IDS.MONAD]: MONAD_SWAPS_TOKEN_OBJECT,
+  [CHAIN_IDS.HYPEREVM]: HYPEREVM_SWAPS_TOKEN_OBJECT,
 } as const;
 
 export const SWAP_TRANSACTION_TYPES = [
   TransactionType.swap,
+  TransactionType.swapAndSend,
   TransactionType.swapApproval,
 ];
 
@@ -182,6 +204,16 @@ export function updateSwapsTransaction(
     });
   }
 
+  if (transactionType === TransactionType.swapAndSend) {
+    updatedTransactionMeta = updateSwapAndSendTransaction(
+      transactionMeta,
+      swapsMeta,
+    );
+    messenger.publish('TransactionController:transactionNewSwapAndSend', {
+      transactionMeta: updatedTransactionMeta,
+    });
+  }
+
   if (transactionType === TransactionType.swap) {
     updatedTransactionMeta = updateSwapTransaction(transactionMeta, swapsMeta);
     messenger.publish('TransactionController:transactionNewSwap', {
@@ -197,18 +229,22 @@ export function updateSwapsTransaction(
  *
  * @param transactionMeta - Transaction meta object to update
  * @param updatePostTransactionBalanceRequest - Dependency bag
- * @param updatePostTransactionBalanceRequest.ethQuery - EthQuery object
+ * @param updatePostTransactionBalanceRequest.messenger - The TransactionController messenger
+ * @param updatePostTransactionBalanceRequest.networkClientId - The network client ID
  * @param updatePostTransactionBalanceRequest.getTransaction - Reading function for the latest transaction state
  * @param updatePostTransactionBalanceRequest.updateTransaction - Updating transaction function
+ * @returns Updated transaction metadata and approval transaction metadata if applicable.
  */
 export async function updatePostTransactionBalance(
   transactionMeta: TransactionMeta,
   {
-    ethQuery,
+    messenger,
+    networkClientId,
     getTransaction,
     updateTransaction,
   }: {
-    ethQuery: EthQuery;
+    messenger: TransactionControllerMessenger;
+    networkClientId: NetworkClientId;
     getTransaction: (transactionId: string) => TransactionMeta | undefined;
     updateTransaction: (transactionMeta: TransactionMeta, note: string) => void;
   },
@@ -225,9 +261,12 @@ export async function updatePostTransactionBalance(
   for (let i = 0; i < UPDATE_POST_TX_BALANCE_ATTEMPTS; i++) {
     log('Querying balance', { attempt: i });
 
-    const postTransactionBalance = await query(ethQuery, 'getBalance', [
-      transactionMeta.txParams.from,
-    ]);
+    const postTransactionBalance = (await rpcRequest({
+      messenger,
+      networkClientId,
+      method: 'eth_getBalance',
+      params: [transactionMeta.txParams.from, 'latest'],
+    })) as string;
 
     latestTransactionMeta = {
       ...(getTransaction(transactionId) ?? ({} as TransactionMeta)),
@@ -237,7 +276,7 @@ export async function updatePostTransactionBalance(
       ? getTransaction(latestTransactionMeta.approvalTxId)
       : undefined;
 
-    latestTransactionMeta.postTxBalance = postTransactionBalance.toString(16);
+    latestTransactionMeta.postTxBalance = postTransactionBalance;
 
     const isDefaultTokenAddress = isSwapsDefaultTokenAddress(
       transactionMeta.destinationTokenAddress as string,
@@ -328,6 +367,71 @@ function updateSwapTransaction(
 }
 
 /**
+ * Updates the transaction meta object with the swap information
+ *
+ * @param transactionMeta - Transaction meta object to update
+ * @param propsToUpdate - Properties to update
+ * @param propsToUpdate.approvalTxId - Transaction id of the approval transaction
+ * @param propsToUpdate.destinationTokenAddress - Address of the token to be received
+ * @param propsToUpdate.destinationTokenAmount - The raw amount of the destination token
+ * @param propsToUpdate.destinationTokenDecimals - Decimals of the token to be received
+ * @param propsToUpdate.destinationTokenSymbol - Symbol of the token to be received
+ * @param propsToUpdate.estimatedBaseFee - Estimated base fee of the transaction
+ * @param propsToUpdate.sourceTokenAddress - The address of the source token
+ * @param propsToUpdate.sourceTokenAmount - The raw amount of the source token
+ * @param propsToUpdate.sourceTokenDecimals - The decimals of the source token
+ * @param propsToUpdate.sourceTokenSymbol - Symbol of the token to be swapped
+ * @param propsToUpdate.swapAndSendRecipient - The recipient of the swap and send transaction
+ * @param propsToUpdate.swapMetaData - Metadata of the swap
+ * @param propsToUpdate.swapTokenValue - Value of the token to be swapped – possibly the same as sourceTokenAmount; included for consistency
+ * @param propsToUpdate.type - Type of the transaction
+ * @returns The updated transaction meta object.
+ */
+function updateSwapAndSendTransaction(
+  transactionMeta: TransactionMeta,
+  {
+    approvalTxId,
+    destinationTokenAddress,
+    destinationTokenAmount,
+    destinationTokenDecimals,
+    destinationTokenSymbol,
+    estimatedBaseFee,
+    sourceTokenAddress,
+    sourceTokenAmount,
+    sourceTokenDecimals,
+    sourceTokenSymbol,
+    swapAndSendRecipient,
+    swapMetaData,
+    swapTokenValue,
+    type,
+  }: Partial<TransactionMeta>,
+): TransactionMeta {
+  validateIfTransactionUnapproved(transactionMeta, 'updateSwapTransaction');
+
+  let swapTransaction = {
+    approvalTxId,
+    destinationTokenAddress,
+    destinationTokenAmount,
+    destinationTokenDecimals,
+    destinationTokenSymbol,
+    estimatedBaseFee,
+    sourceTokenAddress,
+    sourceTokenAmount,
+    sourceTokenDecimals,
+    sourceTokenSymbol,
+    swapAndSendRecipient,
+    swapMetaData,
+    swapTokenValue,
+    type,
+  };
+  // TODO: Replace `any` with type
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  swapTransaction = pickBy(swapTransaction) as any;
+
+  return merge({}, transactionMeta, swapTransaction);
+}
+
+/**
  * Updates the transaction meta object with the swap approval information
  *
  * @param transactionMeta - Transaction meta object to update
@@ -364,7 +468,7 @@ function updateSwapApprovalTransaction(
  * @param chainId - The hex encoded chain ID of the default swaps token to check
  * @returns Whether the address is the provided chain's default token address
  */
-function isSwapsDefaultTokenAddress(address: string, chainId: string) {
+function isSwapsDefaultTokenAddress(address: string, chainId: string): boolean {
   if (!address || !chainId) {
     return false;
   }
@@ -383,6 +487,6 @@ function isSwapsDefaultTokenAddress(address: string, chainId: string) {
  * @param ms - Number of milliseconds to sleep
  * @returns Promise that resolves after the provided number of milliseconds
  */
-function sleep(ms: number) {
+function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }

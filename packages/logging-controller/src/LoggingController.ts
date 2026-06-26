@@ -1,7 +1,13 @@
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+  StateMetadata,
+} from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
 import { v1 as random } from 'uuid';
 
+import type { LoggingControllerMethodActions } from './LoggingController-method-action-types';
 import type { Log } from './logTypes';
 
 /**
@@ -28,30 +34,37 @@ export type LoggingControllerState = {
 
 const name = 'LoggingController';
 
-/**
- * An action to add log messages to the controller state.
- */
-export type AddLog = {
-  type: `${typeof name}:add`;
-  handler: LoggingController['add'];
-};
+const MESSENGER_EXPOSED_METHODS = ['add', 'clear'] as const;
 
-/**
- * Currently only an alias, but the idea here is if future actions are needed
- * this can transition easily into a union type.
- */
-export type LoggingControllerActions = AddLog;
-
-export type LoggingControllerMessenger = RestrictedControllerMessenger<
+export type LoggingControllerGetStateAction = ControllerGetStateAction<
   typeof name,
-  LoggingControllerActions,
-  never,
-  never,
-  never
+  LoggingControllerState
 >;
 
-const metadata = {
-  logs: { persist: true, anonymous: false },
+export type LoggingControllerActions =
+  | LoggingControllerGetStateAction
+  | LoggingControllerMethodActions;
+
+export type LoggingControllerStateChangeEvent = ControllerStateChangeEvent<
+  typeof name,
+  LoggingControllerState
+>;
+
+export type LoggingControllerEvents = LoggingControllerStateChangeEvent;
+
+export type LoggingControllerMessenger = Messenger<
+  typeof name,
+  LoggingControllerActions,
+  LoggingControllerEvents
+>;
+
+const metadata: StateMetadata<LoggingControllerState> = {
+  logs: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: false,
+  },
 };
 
 const defaultState = {
@@ -70,7 +83,7 @@ export class LoggingController extends BaseController<
    * Creates a LoggingController instance.
    *
    * @param options - Constructor options
-   * @param options.messenger - An instance of the ControllerMessenger
+   * @param options.messenger - An instance of the Messenger
    * @param options.state - Initial state to set on this controller.
    */
   constructor({
@@ -90,9 +103,9 @@ export class LoggingController extends BaseController<
       },
     });
 
-    this.messagingSystem.registerActionHandler(
-      `${name}:add` as const,
-      (log: Log) => this.add(log),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 

@@ -1,19 +1,18 @@
-import { ControllerMessenger } from '@metamask/base-controller';
-import { useFakeTimers } from 'sinon';
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type { MockAnyNamespace } from '@metamask/messenger';
+import { createDeferredPromise } from '@metamask/utils';
 
-import { advanceTime } from '../../../tests/helpers';
+import { jestAdvanceTime } from '../../../tests/helpers';
 import { StaticIntervalPollingController } from './StaticIntervalPollingController';
 
 const TICK_TIME = 5;
 
-const createExecutePollMock = () => {
-  const executePollMock = jest.fn().mockImplementation(async () => {
-    return true;
-  });
-  return executePollMock;
+type PollingInput = {
+  networkClientId: string;
+  address?: string;
 };
 
-class ChildBlockTrackerPollingController extends StaticIntervalPollingController<
+class ChildBlockTrackerPollingController extends StaticIntervalPollingController<PollingInput>()<
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   any,
@@ -24,21 +23,26 @@ class ChildBlockTrackerPollingController extends StaticIntervalPollingController
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   any
 > {
-  _executePoll = createExecutePollMock();
+  executePollPromises: {
+    reject: (error: unknown) => void;
+    resolve: () => void;
+  }[] = [];
+
+  _executePoll = jest.fn().mockImplementation(() => {
+    const { promise, reject, resolve } = createDeferredPromise({
+      suppressUnhandledRejection: true,
+    });
+    this.executePollPromises.push({ reject, resolve });
+    return promise;
+  });
 }
 
 describe('StaticIntervalPollingController', () => {
-  let clock: sinon.SinonFakeTimers;
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let mockMessenger: any;
-  // TODO: Replace `any` with type
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let controller: any;
+  let mockMessenger: Messenger<MockAnyNamespace, never, never>;
+  let controller: ChildBlockTrackerPollingController;
   beforeEach(() => {
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    mockMessenger = new ControllerMessenger<any, any>();
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+    mockMessenger = new Messenger({ namespace: MOCK_ANY_NAMESPACE });
     controller = new ChildBlockTrackerPollingController({
       messenger: mockMessenger,
       metadata: {},
@@ -46,118 +50,147 @@ describe('StaticIntervalPollingController', () => {
       state: { foo: 'bar' },
     });
     controller.setIntervalLength(TICK_TIME);
-    clock = useFakeTimers();
-  });
-  afterEach(() => {
-    clock.restore();
   });
 
-  describe('startPollingByNetworkClientId', () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  describe('startPolling', () => {
     it('should start polling if not already polling', async () => {
-      controller.startPollingByNetworkClientId('mainnet');
-      await advanceTime({ clock, duration: 0 });
+      controller.startPolling({ networkClientId: 'mainnet' });
+      await jestAdvanceTime({ duration: 0 });
       expect(controller._executePoll).toHaveBeenCalledTimes(1);
-      await advanceTime({ clock, duration: TICK_TIME });
+      controller.executePollPromises[0].resolve();
+      await jestAdvanceTime({ duration: TICK_TIME });
       expect(controller._executePoll).toHaveBeenCalledTimes(2);
       controller.stopAllPolling();
     });
 
     it('should call _executePoll immediately once and continue calling _executePoll on interval when called again with the same networkClientId', async () => {
-      controller.startPollingByNetworkClientId('mainnet');
-      await advanceTime({ clock, duration: 0 });
+      controller.startPolling({ networkClientId: 'mainnet' });
+      await jestAdvanceTime({ duration: 0 });
 
-      controller.startPollingByNetworkClientId('mainnet');
-      await advanceTime({ clock, duration: 0 });
+      controller.startPolling({ networkClientId: 'mainnet' });
+      await jestAdvanceTime({ duration: 0 });
 
       expect(controller._executePoll).toHaveBeenCalledTimes(1);
-      await advanceTime({ clock, duration: TICK_TIME * 2 });
+      controller.executePollPromises[0].resolve();
+      await jestAdvanceTime({ duration: TICK_TIME });
+      controller.executePollPromises[1].resolve();
+      await jestAdvanceTime({ duration: TICK_TIME });
+      controller.executePollPromises[2].resolve();
 
       expect(controller._executePoll).toHaveBeenCalledTimes(3);
       controller.stopAllPolling();
     });
+
     describe('multiple networkClientIds', () => {
       it('should poll for each networkClientId', async () => {
-        controller.startPollingByNetworkClientId('mainnet');
-        await advanceTime({ clock, duration: 0 });
+        controller.startPolling({
+          networkClientId: 'mainnet',
+        });
+        await jestAdvanceTime({ duration: 0 });
 
-        controller.startPollingByNetworkClientId('rinkeby');
-        await advanceTime({ clock, duration: 0 });
+        controller.startPolling({
+          networkClientId: 'rinkeby',
+        });
+        await jestAdvanceTime({ duration: 0 });
 
         expect(controller._executePoll.mock.calls).toMatchObject([
-          ['mainnet', {}],
-          ['rinkeby', {}],
+          [{ networkClientId: 'mainnet' }],
+          [{ networkClientId: 'rinkeby' }],
         ]);
-        await advanceTime({ clock, duration: TICK_TIME });
+
+        controller.executePollPromises[0].resolve();
+        controller.executePollPromises[1].resolve();
+        await jestAdvanceTime({ duration: TICK_TIME });
 
         expect(controller._executePoll.mock.calls).toMatchObject([
-          ['mainnet', {}],
-          ['rinkeby', {}],
-          ['mainnet', {}],
-          ['rinkeby', {}],
+          [{ networkClientId: 'mainnet' }],
+          [{ networkClientId: 'rinkeby' }],
+          [{ networkClientId: 'mainnet' }],
+          [{ networkClientId: 'rinkeby' }],
         ]);
-        await advanceTime({ clock, duration: TICK_TIME });
+
+        controller.executePollPromises[2].resolve();
+        controller.executePollPromises[3].resolve();
+        await jestAdvanceTime({ duration: TICK_TIME });
 
         expect(controller._executePoll.mock.calls).toMatchObject([
-          ['mainnet', {}],
-          ['rinkeby', {}],
-          ['mainnet', {}],
-          ['rinkeby', {}],
-          ['mainnet', {}],
-          ['rinkeby', {}],
+          [{ networkClientId: 'mainnet' }],
+          [{ networkClientId: 'rinkeby' }],
+          [{ networkClientId: 'mainnet' }],
+          [{ networkClientId: 'rinkeby' }],
+          [{ networkClientId: 'mainnet' }],
+          [{ networkClientId: 'rinkeby' }],
         ]);
         controller.stopAllPolling();
       });
 
       it('should poll multiple networkClientIds when setting interval length', async () => {
         controller.setIntervalLength(TICK_TIME * 2);
-        controller.startPollingByNetworkClientId('mainnet');
-        await advanceTime({ clock, duration: 0 });
+        controller.startPolling({
+          networkClientId: 'mainnet',
+        });
+        await jestAdvanceTime({ duration: 0 });
 
         expect(controller._executePoll.mock.calls).toMatchObject([
-          ['mainnet', {}],
+          [{ networkClientId: 'mainnet' }],
         ]);
-        await advanceTime({ clock, duration: TICK_TIME });
+        controller.executePollPromises[0].resolve();
+        await jestAdvanceTime({ duration: TICK_TIME });
 
-        controller.startPollingByNetworkClientId('sepolia');
-        await advanceTime({ clock, duration: 0 });
+        controller.startPolling({
+          networkClientId: 'sepolia',
+        });
+        await jestAdvanceTime({ duration: 0 });
 
         expect(controller._executePoll.mock.calls).toMatchObject([
-          ['mainnet', {}],
-          ['sepolia', {}],
+          [{ networkClientId: 'mainnet' }],
+          [{ networkClientId: 'sepolia' }],
         ]);
-        await advanceTime({ clock, duration: TICK_TIME });
+
+        controller.executePollPromises[1].resolve();
+        await jestAdvanceTime({ duration: TICK_TIME });
 
         expect(controller._executePoll.mock.calls).toMatchObject([
-          ['mainnet', {}],
-          ['sepolia', {}],
-          ['mainnet', {}],
+          [{ networkClientId: 'mainnet' }],
+          [{ networkClientId: 'sepolia' }],
+          [{ networkClientId: 'mainnet' }],
         ]);
-        await advanceTime({ clock, duration: TICK_TIME });
+
+        controller.executePollPromises[2].resolve();
+        await jestAdvanceTime({ duration: TICK_TIME });
 
         expect(controller._executePoll.mock.calls).toMatchObject([
-          ['mainnet', {}],
-          ['sepolia', {}],
-          ['mainnet', {}],
-          ['sepolia', {}],
+          [{ networkClientId: 'mainnet' }],
+          [{ networkClientId: 'sepolia' }],
+          [{ networkClientId: 'mainnet' }],
+          [{ networkClientId: 'sepolia' }],
         ]);
-        await advanceTime({ clock, duration: TICK_TIME });
+
+        controller.executePollPromises[3].resolve();
+        await jestAdvanceTime({ duration: TICK_TIME });
 
         expect(controller._executePoll.mock.calls).toMatchObject([
-          ['mainnet', {}],
-          ['sepolia', {}],
-          ['mainnet', {}],
-          ['sepolia', {}],
-          ['mainnet', {}],
+          [{ networkClientId: 'mainnet' }],
+          [{ networkClientId: 'sepolia' }],
+          [{ networkClientId: 'mainnet' }],
+          [{ networkClientId: 'sepolia' }],
+          [{ networkClientId: 'mainnet' }],
         ]);
-        await advanceTime({ clock, duration: TICK_TIME });
+
+        controller.executePollPromises[4].resolve();
+        await jestAdvanceTime({ duration: TICK_TIME });
 
         expect(controller._executePoll.mock.calls).toMatchObject([
-          ['mainnet', {}],
-          ['sepolia', {}],
-          ['mainnet', {}],
-          ['sepolia', {}],
-          ['mainnet', {}],
-          ['sepolia', {}],
+          [{ networkClientId: 'mainnet' }],
+          [{ networkClientId: 'sepolia' }],
+          [{ networkClientId: 'mainnet' }],
+          [{ networkClientId: 'sepolia' }],
+          [{ networkClientId: 'mainnet' }],
+          [{ networkClientId: 'sepolia' }],
         ]);
       });
     });
@@ -165,74 +198,112 @@ describe('StaticIntervalPollingController', () => {
 
   describe('stopPollingByPollingToken', () => {
     it('should stop polling when called with a valid polling that was the only active pollingToken for a given networkClient', async () => {
-      const pollingToken = controller.startPollingByNetworkClientId('mainnet');
-      await advanceTime({ clock, duration: 0 });
+      const pollingToken = controller.startPolling({
+        networkClientId: 'mainnet',
+      });
+      await jestAdvanceTime({ duration: 0 });
       expect(controller._executePoll).toHaveBeenCalledTimes(1);
-      await advanceTime({ clock, duration: TICK_TIME });
+      controller.executePollPromises[0].resolve();
+      await jestAdvanceTime({ duration: TICK_TIME });
       controller.stopPollingByPollingToken(pollingToken);
-      await advanceTime({ clock, duration: TICK_TIME });
+      await jestAdvanceTime({ duration: TICK_TIME });
       expect(controller._executePoll).toHaveBeenCalledTimes(2);
       controller.stopAllPolling();
     });
-    it('should not stop polling if called with one of multiple active polling tokens for a given networkClient', async () => {
-      const pollingToken1 = controller.startPollingByNetworkClientId('mainnet');
-      await advanceTime({ clock, duration: 0 });
 
-      controller.startPollingByNetworkClientId('mainnet');
+    it('should not stop polling if called with one of multiple active polling tokens for a given networkClient', async () => {
+      const pollingToken1 = controller.startPolling({
+        networkClientId: 'mainnet',
+      });
+      await jestAdvanceTime({ duration: 0 });
+
+      controller.startPolling({ networkClientId: 'mainnet' });
       expect(controller._executePoll).toHaveBeenCalledTimes(1);
-      await advanceTime({ clock, duration: TICK_TIME });
+      controller.executePollPromises[0].resolve();
+      await jestAdvanceTime({ duration: TICK_TIME });
       controller.stopPollingByPollingToken(pollingToken1);
-      await advanceTime({ clock, duration: TICK_TIME });
+      controller.executePollPromises[1].resolve();
+      await jestAdvanceTime({ duration: TICK_TIME });
       expect(controller._executePoll).toHaveBeenCalledTimes(3);
       controller.stopAllPolling();
     });
+
     it('should error if no pollingToken is passed', () => {
-      controller.startPollingByNetworkClientId('mainnet');
+      controller.startPolling({ networkClientId: 'mainnet' });
       expect(() => {
-        controller.stopPollingByPollingToken();
+        controller.stopPollingByPollingToken('');
       }).toThrow('pollingToken required');
       controller.stopAllPolling();
     });
 
     it('should start and stop polling sessions for different networkClientIds with the same options', async () => {
-      controller.setIntervalLength(TICK_TIME);
-      const pollToken1 = controller.startPollingByNetworkClientId('mainnet', {
+      const pollToken1 = controller.startPolling({
+        networkClientId: 'mainnet',
         address: '0x1',
       });
-      controller.startPollingByNetworkClientId('mainnet', { address: '0x2' });
-      await advanceTime({ clock, duration: 0 });
+      await jestAdvanceTime({ duration: 0 });
+      controller.startPolling({
+        networkClientId: 'mainnet',
+        address: '0x2',
+      });
+      await jestAdvanceTime({ duration: 0 });
 
-      controller.startPollingByNetworkClientId('sepolia', { address: '0x2' });
-      await advanceTime({ clock, duration: 0 });
+      controller.startPolling({
+        networkClientId: 'sepolia',
+        address: '0x2',
+      });
+      await jestAdvanceTime({ duration: 0 });
 
       expect(controller._executePoll.mock.calls).toMatchObject([
-        ['mainnet', { address: '0x1' }],
-        ['mainnet', { address: '0x2' }],
-        ['sepolia', { address: '0x2' }],
+        [{ networkClientId: 'mainnet', address: '0x1' }],
+        [{ networkClientId: 'mainnet', address: '0x2' }],
+        [{ networkClientId: 'sepolia', address: '0x2' }],
       ]);
-      await advanceTime({ clock, duration: TICK_TIME });
+
+      controller.executePollPromises[0].resolve();
+      controller.executePollPromises[1].resolve();
+      controller.executePollPromises[2].resolve();
+      await jestAdvanceTime({ duration: TICK_TIME });
 
       expect(controller._executePoll.mock.calls).toMatchObject([
-        ['mainnet', { address: '0x1' }],
-        ['mainnet', { address: '0x2' }],
-        ['sepolia', { address: '0x2' }],
-        ['mainnet', { address: '0x1' }],
-        ['mainnet', { address: '0x2' }],
-        ['sepolia', { address: '0x2' }],
+        [{ networkClientId: 'mainnet', address: '0x1' }],
+        [{ networkClientId: 'mainnet', address: '0x2' }],
+        [{ networkClientId: 'sepolia', address: '0x2' }],
+        [{ networkClientId: 'mainnet', address: '0x1' }],
+        [{ networkClientId: 'mainnet', address: '0x2' }],
+        [{ networkClientId: 'sepolia', address: '0x2' }],
       ]);
       controller.stopPollingByPollingToken(pollToken1);
-      await advanceTime({ clock, duration: TICK_TIME });
+      controller.executePollPromises[3].resolve();
+      controller.executePollPromises[4].resolve();
+      controller.executePollPromises[5].resolve();
+      await jestAdvanceTime({ duration: TICK_TIME });
 
       expect(controller._executePoll.mock.calls).toMatchObject([
-        ['mainnet', { address: '0x1' }],
-        ['mainnet', { address: '0x2' }],
-        ['sepolia', { address: '0x2' }],
-        ['mainnet', { address: '0x1' }],
-        ['mainnet', { address: '0x2' }],
-        ['sepolia', { address: '0x2' }],
-        ['mainnet', { address: '0x2' }],
-        ['sepolia', { address: '0x2' }],
+        [{ networkClientId: 'mainnet', address: '0x1' }],
+        [{ networkClientId: 'mainnet', address: '0x2' }],
+        [{ networkClientId: 'sepolia', address: '0x2' }],
+        [{ networkClientId: 'mainnet', address: '0x1' }],
+        [{ networkClientId: 'mainnet', address: '0x2' }],
+        [{ networkClientId: 'sepolia', address: '0x2' }],
+        [{ networkClientId: 'mainnet', address: '0x2' }],
+        [{ networkClientId: 'sepolia', address: '0x2' }],
       ]);
+    });
+
+    it('should stop polling session after current iteration if stop is requested while current iteration is still executing', async () => {
+      const pollingToken = controller.startPolling({
+        networkClientId: 'mainnet',
+      });
+      await jestAdvanceTime({ duration: 0 });
+      expect(controller._executePoll).toHaveBeenCalledTimes(1);
+      controller.stopPollingByPollingToken(pollingToken);
+      controller.executePollPromises[0].resolve();
+      await jestAdvanceTime({ duration: TICK_TIME });
+      expect(controller._executePoll).toHaveBeenCalledTimes(1);
+      await jestAdvanceTime({ duration: TICK_TIME });
+      expect(controller._executePoll).toHaveBeenCalledTimes(1);
+      controller.stopAllPolling();
     });
   });
 
@@ -241,11 +312,18 @@ describe('StaticIntervalPollingController', () => {
       // TODO: Replace `any` with type
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const pollingComplete: any = jest.fn();
-      controller.onPollingCompleteByNetworkClientId('mainnet', pollingComplete);
-      const pollingToken = controller.startPollingByNetworkClientId('mainnet');
+      controller.onPollingComplete(
+        { networkClientId: 'mainnet' },
+        pollingComplete,
+      );
+      const pollingToken = controller.startPolling({
+        networkClientId: 'mainnet',
+      });
       controller.stopPollingByPollingToken(pollingToken);
       expect(pollingComplete).toHaveBeenCalledTimes(1);
-      expect(pollingComplete).toHaveBeenCalledWith('mainnet:{}');
+      expect(pollingComplete).toHaveBeenCalledWith({
+        networkClientId: 'mainnet',
+      });
     });
   });
 });

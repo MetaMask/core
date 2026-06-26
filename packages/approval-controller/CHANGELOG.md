@@ -7,6 +7,177 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+
+## [9.0.2]
+
+### Changed
+
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+
+## [9.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [9.0.0]
+
+### Added
+
+- New `addRequest()` public method ([#8183](https://github.com/MetaMask/core/pull/8183))
+- Expose missing public `ApprovalController` methods through its messenger ([#8183](https://github.com/MetaMask/core/pull/8183))
+  - The following actions are now available:
+    - `ApprovalController:add`
+    - `ApprovalController:addAndShowApprovalRequest`
+    - `ApprovalController:get`
+    - `ApprovalController:getApprovalCount`
+    - `ApprovalController:getTotalApprovalCount`
+  - Corresponding action types (e.g. `ApprovalControllerAddAction`) are available as well.
+
+### Changed
+
+- **BREAKING:** Standardize names of `ApprovalController` methods ([#8183](https://github.com/MetaMask/core/pull/8183))
+  - All existing methods for handling requests have been renamed so they include `Request` (e.g. `clear()` -> `clearRequest()`). You will need to update usage appropriately.
+  - The error handling method `error()` has been renamed to include `show` (`error()` -> `showError()`). You will need to update usage appropriately.
+- **BREAKING:** Rename get-state action type: `GetApprovalsState` → `ApprovalControllerGetStateAction` ([#8183](https://github.com/MetaMask/core/pull/8183))
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+
+## [8.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6386](https://github.com/MetaMask/core/pull/6386))
+  - Previously, `ApprovalController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [7.2.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
+## [7.2.0]
+
+### Added
+
+- Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6473](https://github.com/MetaMask/core/pull/6473))
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.2.0` to `^11.8.1` ([#6054](https://github.com/MetaMask/core/pull/6054), [#6588](https://github.com/MetaMask/core/pull/6588), [#6708](https://github.com/MetaMask/core/pull/6708))
+- Bump `@metamask/base-controller` from `^8.0.0` to `^8.4.1` ([#5722](https://github.com/MetaMask/core/pull/5722), [#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632), [#6807](https://github.com/MetaMask/core/pull/6807))
+
+## [7.1.3]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.1.0` to `^8.0.0` ([#5135](https://github.com/MetaMask/core/pull/5135), [#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
+
+## [7.1.2]
+
+### Changed
+
+- Bump `nanoid` from `^3.1.31` to `^3.3.8` ([#5073](https://github.com/MetaMask/core/pull/5073))
+- Bump `@metamask/utils` from `^10.0.0` to `^11.0.1` ([#5080](https://github.com/MetaMask/core/pull/5080))
+- Bump `@metamask/rpc-errors` from `^7.0.0` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
+- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.0` ([#5079](https://github.com/MetaMask/core/pull/5079))
+
+## [7.1.1]
+
+### Changed
+
+- Bump `@metamask/utils` from `^9.1.0` to `^10.0.0` ([#4831](https://github.com/MetaMask/core/pull/4831))
+
+## [7.1.0]
+
+### Added
+
+- Add `deleteAfterResult` option to accept method to delay removal of approval request from state ([#4715](https://github.com/MetaMask/core/pull/4715))
+
+## [7.0.4]
+
+### Fixed
+
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files. ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+
+## [7.0.3]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^6.0.2` to `^7.0.0` ([#4625](https://github.com/MetaMask/core/pull/4625), [#4643](https://github.com/MetaMask/core/pull/4643))
+- Bump `typescript` from `~5.0.4` to `~5.2.2` ([#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
+
+## [7.0.2]
+
+### Changed
+
+- Bump TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/base-controller` from `^6.0.1` from `^6.0.2` ([#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/utils` from `^9.0.0` to `^9.1.0` ([#4529](https://github.com/MetaMask/core/pull/4529))
+
+## [7.0.1]
+
+### Changed
+
+- Bump `@metamask/rpc-errors` from `6.2.1` to `^6.3.1` ([#4516](https://github.com/MetaMask/core/pull/4516))
+- Bump `@metamask/utils` from `^8.3.0` to `^9.0.0` ([#4516](https://github.com/MetaMask/core/pull/4516))
+- Bump `@metamask/base-controller` to `^6.0.1` ([#4517](https://github.com/MetaMask/core/pull/4517))
+
+## [7.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- Bump `@metamask/base-controller` to `^6.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
+## [6.0.2]
+
+### Changed
+
+- Bump TypeScript version to `~4.9.5` ([#4084](https://github.com/MetaMask/core/pull/4084))
+- Bump `@metamask/base-controller` to `^5.0.2` ([#4232](https://github.com/MetaMask/core/pull/4232))
+
+## [6.0.1]
+
+### Fixed
+
+- Fix `types` field in `package.json` ([#4047](https://github.com/MetaMask/core/pull/4047))
+
+## [6.0.0]
+
+### Added
+
+- **BREAKING**: Add ESM build ([#3998](https://github.com/MetaMask/core/pull/3998))
+  - It's no longer possible to import files from `./dist` directly.
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+  - This version has a number of breaking changes. See the changelog for more.
+
+### Fixed
+
+- **BREAKING:** Narrow `ApprovalControllerMessenger` type parameters `AllowedAction` and `AllowedEvent` from `string` to `never` ([#4031](https://github.com/MetaMask/core/pull/4031))
+  - Allowlisting or using any external actions or events will now produce a type error.
+
 ## [5.1.3]
 
 ### Changed
@@ -156,14 +327,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
-
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
-
     - Everything in `src/approval`
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.1.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@9.0.2...HEAD
+[9.0.2]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@9.0.1...@metamask/approval-controller@9.0.2
+[9.0.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@9.0.0...@metamask/approval-controller@9.0.1
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@8.0.0...@metamask/approval-controller@9.0.0
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.2.1...@metamask/approval-controller@8.0.0
+[7.2.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.2.0...@metamask/approval-controller@7.2.1
+[7.2.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.1.3...@metamask/approval-controller@7.2.0
+[7.1.3]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.1.2...@metamask/approval-controller@7.1.3
+[7.1.2]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.1.1...@metamask/approval-controller@7.1.2
+[7.1.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.1.0...@metamask/approval-controller@7.1.1
+[7.1.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.0.4...@metamask/approval-controller@7.1.0
+[7.0.4]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.0.3...@metamask/approval-controller@7.0.4
+[7.0.3]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.0.2...@metamask/approval-controller@7.0.3
+[7.0.2]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.0.1...@metamask/approval-controller@7.0.2
+[7.0.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@7.0.0...@metamask/approval-controller@7.0.1
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@6.0.2...@metamask/approval-controller@7.0.0
+[6.0.2]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@6.0.1...@metamask/approval-controller@6.0.2
+[6.0.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@6.0.0...@metamask/approval-controller@6.0.1
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.1.3...@metamask/approval-controller@6.0.0
 [5.1.3]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.1.2...@metamask/approval-controller@5.1.3
 [5.1.2]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.1.1...@metamask/approval-controller@5.1.2
 [5.1.1]: https://github.com/MetaMask/core/compare/@metamask/approval-controller@5.1.0...@metamask/approval-controller@5.1.1

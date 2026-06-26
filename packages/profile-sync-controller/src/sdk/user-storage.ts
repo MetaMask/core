@@ -1,0 +1,641 @@
+import encryption, { createSHA256Hash } from '../shared/encryption';
+import { SHARED_SALT } from '../shared/encryption/constants';
+import type { Env } from '../shared/env';
+import { getEnvUrls } from '../shared/env';
+import type {
+  UserStorageGenericFeatureKey,
+  UserStorageGenericFeatureName,
+  UserStorageGenericPathWithFeatureAndKey,
+  UserStorageGenericPathWithFeatureOnly,
+} from '../shared/storage-schema';
+import { createEntryPath } from '../shared/storage-schema';
+import type { NativeScrypt } from '../shared/types/encryption';
+import type { IBaseAuth } from './authentication-jwt-bearer/types';
+import { NotFoundError, UserStorageError } from './errors';
+
+export const STORAGE_URL = (env: Env, encryptedPath: string) =>
+  `${getEnvUrls(env).userStorageApiUrl}/api/v1/userstorage/${encryptedPath}`;
+
+export type UserStorageConfig = {
+  env: Env;
+  auth: Pick<IBaseAuth, 'getAccessToken' | 'getUserProfile' | 'signMessage'>;
+};
+
+export type StorageOptions = {
+  getStorageKey: (
+    message: `metamask:${string}`,
+    entropySourceId?: string,
+  ) => Promise<string | null>;
+  setStorageKey: (
+    message: `metamask:${string}`,
+    val: string,
+    entropySourceId?: string,
+  ) => Promise<void>;
+};
+
+export type UserStorageOptions = {
+  storage?: StorageOptions;
+};
+
+export type GetUserStorageAllFeatureEntriesResponse = {
+  HashedKey: string;
+
+  Data: string;
+}[];
+
+export type UserStorageMethodOptions = {
+  nativeScryptCrypto?: NativeScrypt;
+  entropySourceId?: string;
+  /**
+   * When true, skip the `x-profile-id` header on feature-scoped requests,
+   * letting the server default to the JWT `sub` (canonical profile ID).
+   * Useful during canonical storage migration (ADR 0005) to read/verify
+   * data stored under the canonical key.
+   */
+  useCanonicalScope?: boolean;
+};
+
+type ErrorMessage = {
+  message: string;
+  error: string;
+};
+
+export class UserStorage {
+  protected config: UserStorageConfig;
+
+  public options: UserStorageOptions;
+
+  protected env: Env;
+
+  constructor(config: UserStorageConfig, options: UserStorageOptions) {
+    this.env = config.env;
+    this.config = config;
+    this.options = options;
+  }
+
+  async setItem(
+    path: UserStorageGenericPathWithFeatureAndKey,
+    value: string,
+    options?: UserStorageMethodOptions,
+  ): Promise<void> {
+    await this.#upsertUserStorage(path, value, options);
+  }
+
+  async batchSetItems(
+    path: UserStorageGenericFeatureName,
+    values: [UserStorageGenericFeatureKey, string][],
+    options?: UserStorageMethodOptions,
+  ) {
+    await this.#batchUpsertUserStorage(path, values, options);
+  }
+
+  async getItem(
+    path: UserStorageGenericPathWithFeatureAndKey,
+    options?: UserStorageMethodOptions,
+  ): Promise<string | null> {
+    return this.#getUserStorage(path, options);
+  }
+
+  async getAllFeatureItems(
+    path: UserStorageGenericFeatureName,
+    options?: UserStorageMethodOptions,
+  ): Promise<string[] | null> {
+    return this.#getUserStorageAllFeatureEntries(path, options);
+  }
+
+  async deleteItem(
+    path: UserStorageGenericPathWithFeatureAndKey,
+    options?: UserStorageMethodOptions,
+  ): Promise<void> {
+    return this.#deleteUserStorage(path, options);
+  }
+
+  async deleteAllFeatureItems(
+    path: UserStorageGenericFeatureName,
+    options?: UserStorageMethodOptions,
+  ): Promise<void> {
+    return this.#deleteUserStorageAllFeatureEntries(path, options);
+  }
+
+  async batchDeleteItems(
+    path: UserStorageGenericFeatureName,
+    values: UserStorageGenericFeatureKey[],
+    options?: UserStorageMethodOptions,
+  ) {
+    return this.#batchDeleteUserStorage(path, values, options);
+  }
+
+  async getStorageKey(entropySourceId?: string): Promise<string> {
+    const userProfile = await this.config.auth.getUserProfile(entropySourceId);
+    const message = `metamask:${userProfile.profileId}` as const;
+
+    const storageKey = await this.options.storage?.getStorageKey(
+      message,
+      entropySourceId,
+    );
+    if (storageKey) {
+      return storageKey;
+    }
+
+    const storageKeySignature = await this.config.auth.signMessage(
+      message,
+      entropySourceId,
+    );
+    const hashedStorageKeySignature = createSHA256Hash(storageKeySignature);
+    await this.options.storage?.setStorageKey(
+      message,
+      hashedStorageKeySignature,
+      entropySourceId,
+    );
+    return hashedStorageKeySignature;
+  }
+
+  async #upsertUserStorage(
+    path: UserStorageGenericPathWithFeatureAndKey,
+    data: string,
+    options?: UserStorageMethodOptions,
+  ): Promise<void> {
+    const entropySourceId = options?.entropySourceId;
+    try {
+      const headers = await this.#getAuthorizationHeader(entropySourceId);
+      const profileScopeHeader = await this.#getProfileScopeHeader(
+        entropySourceId,
+        options?.useCanonicalScope,
+      );
+      const storageKey = await this.getStorageKey(entropySourceId);
+      const encryptedData = await encryption.encryptString(
+        data,
+        storageKey,
+        options?.nativeScryptCrypto,
+      );
+      const encryptedPath = createEntryPath(path, storageKey);
+
+      const url = new URL(STORAGE_URL(this.env, encryptedPath));
+
+      const response = await fetch(url.toString(), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+          ...profileScopeHeader,
+        },
+        body: JSON.stringify({ data: encryptedData }),
+      });
+
+      if (!response.ok) {
+        const responseBody: ErrorMessage = await response.json().catch(() => ({
+          message: 'unknown',
+          error: 'unknown',
+        }));
+        throw new Error(
+          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+        );
+      }
+    } catch (e) {
+      /* istanbul ignore next */
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+      throw new UserStorageError(
+        `failed to upsert user storage for path '${path}'. ${errorMessage}`,
+      );
+    }
+  }
+
+  async #batchUpsertUserStorage(
+    path: UserStorageGenericPathWithFeatureOnly,
+    data: [string, string][],
+    options?: UserStorageMethodOptions,
+  ): Promise<void> {
+    const entropySourceId = options?.entropySourceId;
+    try {
+      if (!data.length) {
+        return;
+      }
+
+      const headers = await this.#getAuthorizationHeader(entropySourceId);
+      const profileScopeHeader = await this.#getProfileScopeHeader(
+        entropySourceId,
+        options?.useCanonicalScope,
+      );
+      const storageKey = await this.getStorageKey(entropySourceId);
+
+      const encryptedData = await Promise.all(
+        data.map(async (d) => {
+          return [
+            this.#createEntryKey(d[0], storageKey),
+            await encryption.encryptString(
+              d[1],
+              storageKey,
+              options?.nativeScryptCrypto,
+            ),
+          ];
+        }),
+      );
+
+      const url = new URL(STORAGE_URL(this.env, path));
+
+      const response = await fetch(url.toString(), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+          ...profileScopeHeader,
+        },
+        body: JSON.stringify({ data: Object.fromEntries(encryptedData) }),
+      });
+
+      if (!response.ok) {
+        const responseBody: ErrorMessage = await response.json().catch(() => ({
+          message: 'unknown',
+          error: 'unknown',
+        }));
+        throw new Error(
+          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+        );
+      }
+    } catch (e) {
+      /* istanbul ignore next */
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+      throw new UserStorageError(
+        `failed to batch upsert user storage for path '${path}'. ${errorMessage}`,
+      );
+    }
+  }
+
+  async #batchUpsertUserStorageWithAlreadyHashedAndEncryptedEntries(
+    path: UserStorageGenericPathWithFeatureOnly,
+    encryptedData: [string, string][],
+    entropySourceId?: string,
+    useCanonicalScope?: boolean,
+  ): Promise<void> {
+    try {
+      const headers = await this.#getAuthorizationHeader(entropySourceId);
+      const profileScopeHeader = await this.#getProfileScopeHeader(
+        entropySourceId,
+        useCanonicalScope,
+      );
+
+      const url = new URL(STORAGE_URL(this.env, path));
+
+      const response = await fetch(url.toString(), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+          ...profileScopeHeader,
+        },
+        body: JSON.stringify({ data: Object.fromEntries(encryptedData) }),
+      });
+
+      // istanbul ignore next
+      if (!response.ok) {
+        const responseBody: ErrorMessage = await response.json().catch(() => ({
+          message: 'unknown',
+          error: 'unknown',
+        }));
+        throw new Error(
+          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+        );
+      }
+    } catch (e) {
+      /* istanbul ignore next */
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+      // istanbul ignore next
+      throw new UserStorageError(
+        `failed to batch upsert user storage for path '${path}'. ${errorMessage}`,
+      );
+    }
+  }
+
+  async #getUserStorage(
+    path: UserStorageGenericPathWithFeatureAndKey,
+    options?: UserStorageMethodOptions,
+  ): Promise<string | null> {
+    const entropySourceId = options?.entropySourceId;
+    try {
+      const headers = await this.#getAuthorizationHeader(entropySourceId);
+      const storageKey = await this.getStorageKey(entropySourceId);
+      const encryptedPath = createEntryPath(path, storageKey);
+
+      const url = new URL(STORAGE_URL(this.env, encryptedPath));
+
+      const response = await fetch(url.toString(), {
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+      });
+
+      if (response.status === 404) {
+        return null;
+      }
+
+      if (!response.ok) {
+        const responseBody = (await response.json()) as ErrorMessage;
+        throw new Error(
+          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+        );
+      }
+
+      const userStorage = await response.json();
+      const encryptedData = userStorage?.Data ?? null;
+
+      if (!encryptedData) {
+        return null;
+      }
+
+      const decryptedData = await encryption.decryptString(
+        encryptedData,
+        storageKey,
+        options?.nativeScryptCrypto,
+      );
+
+      // Re-encrypt the entry if it was encrypted with a random salt
+      const salt = encryption.getSalt(encryptedData);
+      if (salt.toString() !== SHARED_SALT.toString()) {
+        await this.#upsertUserStorage(path, decryptedData, options);
+      }
+
+      return decryptedData;
+    } catch (e) {
+      /* istanbul ignore next */
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+
+      throw new UserStorageError(
+        `failed to get user storage for path '${path}'. ${errorMessage}`,
+      );
+    }
+  }
+
+  async #getUserStorageAllFeatureEntries(
+    path: UserStorageGenericPathWithFeatureOnly,
+    options?: UserStorageMethodOptions,
+  ): Promise<string[] | null> {
+    const entropySourceId = options?.entropySourceId;
+    try {
+      const headers = await this.#getAuthorizationHeader(entropySourceId);
+      const profileScopeHeader = await this.#getProfileScopeHeader(
+        entropySourceId,
+        options?.useCanonicalScope,
+      );
+      const storageKey = await this.getStorageKey(entropySourceId);
+
+      const url = new URL(STORAGE_URL(this.env, path));
+
+      const response = await fetch(url.toString(), {
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+          ...profileScopeHeader,
+        },
+      });
+
+      if (response.status === 404) {
+        return null;
+      }
+
+      if (!response.ok) {
+        const responseBody = (await response.json()) as ErrorMessage;
+        throw new Error(
+          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+        );
+      }
+
+      const userStorage: GetUserStorageAllFeatureEntriesResponse | null =
+        await response.json();
+
+      if (!Array.isArray(userStorage)) {
+        return null;
+      }
+
+      const decryptedData: string[] = [];
+      const reEncryptedEntries: [string, string][] = [];
+
+      for (const entry of userStorage) {
+        if (!entry.Data) {
+          continue;
+        }
+
+        try {
+          const data = await encryption.decryptString(
+            entry.Data,
+            storageKey,
+            options?.nativeScryptCrypto,
+          );
+          decryptedData.push(data);
+
+          // Re-encrypt the entry was encrypted with a random salt
+          const salt = encryption.getSalt(entry.Data);
+          if (salt.toString() !== SHARED_SALT.toString()) {
+            reEncryptedEntries.push([
+              entry.HashedKey,
+              await encryption.encryptString(
+                data,
+                storageKey,
+                options?.nativeScryptCrypto,
+              ),
+            ]);
+          }
+        } catch {
+          // do nothing
+        }
+      }
+
+      // Re-upload the re-encrypted entries
+      if (reEncryptedEntries.length) {
+        await this.#batchUpsertUserStorageWithAlreadyHashedAndEncryptedEntries(
+          path,
+          reEncryptedEntries,
+          entropySourceId,
+          options?.useCanonicalScope,
+        );
+      }
+
+      return decryptedData;
+    } catch (e) {
+      /* istanbul ignore next */
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+
+      throw new UserStorageError(
+        `failed to get user storage for path '${path}'. ${errorMessage}`,
+      );
+    }
+  }
+
+  async #deleteUserStorage(
+    path: UserStorageGenericPathWithFeatureAndKey,
+    options?: UserStorageMethodOptions,
+  ): Promise<void> {
+    const entropySourceId = options?.entropySourceId;
+    try {
+      const headers = await this.#getAuthorizationHeader(entropySourceId);
+      const storageKey = await this.getStorageKey(entropySourceId);
+      const encryptedPath = createEntryPath(path, storageKey);
+
+      const url = new URL(STORAGE_URL(this.env, encryptedPath));
+
+      const response = await fetch(url.toString(), {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+      });
+
+      if (response.status === 404) {
+        throw new NotFoundError(
+          `feature/key set not found for path '${path}'.`,
+        );
+      }
+
+      if (!response.ok) {
+        const responseBody = (await response.json()) as ErrorMessage;
+        throw new Error(
+          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+        );
+      }
+    } catch (e) {
+      if (e instanceof NotFoundError) {
+        throw e;
+      }
+
+      /* istanbul ignore next */
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+
+      throw new UserStorageError(
+        `failed to delete user storage for path '${path}'. ${errorMessage}`,
+      );
+    }
+  }
+
+  async #deleteUserStorageAllFeatureEntries(
+    path: UserStorageGenericPathWithFeatureOnly,
+    options?: UserStorageMethodOptions,
+  ): Promise<void> {
+    try {
+      const entropySourceId = options?.entropySourceId;
+      const headers = await this.#getAuthorizationHeader(entropySourceId);
+      const profileScopeHeader = await this.#getProfileScopeHeader(
+        entropySourceId,
+        options?.useCanonicalScope,
+      );
+
+      const url = new URL(STORAGE_URL(this.env, path));
+
+      const response = await fetch(url.toString(), {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+          ...profileScopeHeader,
+        },
+      });
+
+      if (response.status === 404) {
+        throw new NotFoundError(`feature not found for path '${path}'.`);
+      }
+
+      if (!response.ok) {
+        const responseBody = (await response.json()) as ErrorMessage;
+        throw new Error(
+          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+        );
+      }
+    } catch (e) {
+      if (e instanceof NotFoundError) {
+        throw e;
+      }
+
+      /* istanbul ignore next */
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+
+      throw new UserStorageError(
+        `failed to delete user storage for path '${path}'. ${errorMessage}`,
+      );
+    }
+  }
+
+  async #batchDeleteUserStorage(
+    path: UserStorageGenericPathWithFeatureOnly,
+    keysToDelete: string[],
+    options?: UserStorageMethodOptions,
+  ): Promise<void> {
+    try {
+      if (!keysToDelete.length) {
+        return;
+      }
+
+      const entropySourceId = options?.entropySourceId;
+      const headers = await this.#getAuthorizationHeader(entropySourceId);
+      const storageKey = await this.getStorageKey(entropySourceId);
+
+      const rawEntryKeys = keysToDelete.map((d) =>
+        this.#createEntryKey(d, storageKey),
+      );
+
+      const url = new URL(STORAGE_URL(this.env, path));
+
+      const response = await fetch(url.toString(), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          ...headers,
+        },
+
+        body: JSON.stringify({ batch_delete: rawEntryKeys }),
+      });
+
+      if (!response.ok) {
+        const responseBody: ErrorMessage = await response.json().catch(() => ({
+          message: 'unknown',
+          error: 'unknown',
+        }));
+        throw new Error(
+          `HTTP error message: ${responseBody.message}, error: ${responseBody.error}`,
+        );
+      }
+    } catch (e) {
+      /* istanbul ignore next */
+      const errorMessage =
+        e instanceof Error ? e.message : JSON.stringify(e ?? '');
+      throw new UserStorageError(
+        `failed to batch delete user storage for path '${path}'. ${errorMessage}`,
+      );
+    }
+  }
+
+  #createEntryKey(key: string, storageKey: string): string {
+    return createSHA256Hash(key + storageKey);
+  }
+
+  async #getAuthorizationHeader(
+    entropySourceId?: string,
+  ): Promise<{ Authorization: string }> {
+    const accessToken = await this.config.auth.getAccessToken(entropySourceId);
+    return { Authorization: `Bearer ${accessToken}` };
+  }
+
+  async #getProfileScopeHeader(
+    entropySourceId?: string,
+    useCanonicalScope?: boolean,
+  ): Promise<Record<string, string>> {
+    if (useCanonicalScope) {
+      return {};
+    }
+    const profile = await this.config.auth.getUserProfile(entropySourceId);
+    if (profile.profileId !== profile.canonicalProfileId) {
+      // After SRP pairing the JWT `sub` is the canonical profile id, but
+      // user storage data is still keyed by the original per-SRP profileId.
+      // The `x-profile-id` header tells the backend to scope reads/writes to
+      // that alias partition until ADR 0005 migrates storage keys to canonical.
+      return { 'x-profile-id': profile.profileId };
+    }
+    return {};
+  }
+}

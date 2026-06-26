@@ -12,10 +12,6 @@ const TOKEN_NAME_MOCK = 'TestTokenName';
 describe('TokenNameProvider', () => {
   const handleFetchMock = jest.mocked(handleFetch);
 
-  beforeEach(() => {
-    jest.resetAllMocks();
-  });
-
   describe('getMetadata', () => {
     it('returns the provider metadata', () => {
       const metadata = new TokenNameProvider().getMetadata();
@@ -51,7 +47,7 @@ describe('TokenNameProvider', () => {
 
       expect(handleFetchMock).toHaveBeenCalledTimes(1);
       expect(handleFetchMock).toHaveBeenCalledWith(
-        `https://token-api.metaswap.codefi.network/token/${CHAIN_ID_MOCK}?address=${VALUE_MOCK}`,
+        `https://token.api.cx.metamask.io/token/${CHAIN_ID_MOCK}?address=${VALUE_MOCK}`,
       );
     });
 

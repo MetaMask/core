@@ -7,6 +7,122 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+
+## [8.1.0]
+
+### Added
+
+- Expose `AnnouncementController` methods through its messenger ([#8206](https://github.com/MetaMask/core/pull/8206))
+  - The following actions are now available:
+    - `AnnouncementController:resetViewed`
+    - `AnnouncementController:updateViewed`
+  - Corresponding action types (e.g. `AnnouncementControllerResetViewedAction`) are available as well.
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [8.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6384](https://github.com/MetaMask/core/pull/6384))
+  - Previously, `AnnouncementController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6384](https://github.com/MetaMask/core/pull/6384))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [7.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
+## [7.1.0]
+
+### Added
+
+- Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6524](https://github.com/MetaMask/core/pull/6524))
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.0.0` to `^8.4.1` ([#5722](https://github.com/MetaMask/core/pull/5722), [#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632), [#6807](https://github.com/MetaMask/core/pull/6807))
+
+## [7.0.3]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.2` to `^8.0.0` ([#5079](https://github.com/MetaMask/core/pull/5079)), ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5305](https://github.com/MetaMask/core/pull/5305))
+
+## [7.0.2]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.1` to `^7.0.2` ([#4862](https://github.com/MetaMask/core/pull/4862))
+
+## [7.0.1]
+
+### Changed
+
+- Bump TypeScript from `~4.9.5` to `~5.2.2` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645), [#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
+
+### Fixed
+
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+
+## [7.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- Bump `@metamask/base-controller` to `^6.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
+## [6.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` to `^5.0.2` ([#4232](https://github.com/MetaMask/core/pull/4232))
+
+## [6.1.0]
+
+### Added
+
+- Add `resetViewed` method to `AnnouncementController` to reset the `isShown` status for all announcements ([#4088](https://github.com/MetaMask/core/pull/4088))
+
+## [6.0.1]
+
+### Fixed
+
+- Fix `types` field in `package.json` ([#4047](https://github.com/MetaMask/core/pull/4047))
+
+## [6.0.0]
+
+### Added
+
+- **BREAKING**: Add ESM build ([#3998](https://github.com/MetaMask/core/pull/3998))
+  - It's no longer possible to import files from `./dist` directly.
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+  - This version has a number of breaking changes. See the changelog for more.
+
 ## [5.0.2]
 
 ### Changed
@@ -98,14 +214,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
-
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
-
     - Everything in `src/announcement`
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@5.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@8.1.0...HEAD
+[8.1.0]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@8.0.0...@metamask/announcement-controller@8.1.0
+[8.0.0]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@7.1.1...@metamask/announcement-controller@8.0.0
+[7.1.1]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@7.1.0...@metamask/announcement-controller@7.1.1
+[7.1.0]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@7.0.3...@metamask/announcement-controller@7.1.0
+[7.0.3]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@7.0.2...@metamask/announcement-controller@7.0.3
+[7.0.2]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@7.0.1...@metamask/announcement-controller@7.0.2
+[7.0.1]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@7.0.0...@metamask/announcement-controller@7.0.1
+[7.0.0]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@6.1.1...@metamask/announcement-controller@7.0.0
+[6.1.1]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@6.1.0...@metamask/announcement-controller@6.1.1
+[6.1.0]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@6.0.1...@metamask/announcement-controller@6.1.0
+[6.0.1]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@6.0.0...@metamask/announcement-controller@6.0.1
+[6.0.0]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@5.0.2...@metamask/announcement-controller@6.0.0
 [5.0.2]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@5.0.1...@metamask/announcement-controller@5.0.2
 [5.0.1]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@5.0.0...@metamask/announcement-controller@5.0.1
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/announcement-controller@4.0.3...@metamask/announcement-controller@5.0.0

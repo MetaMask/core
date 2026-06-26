@@ -14,7 +14,7 @@ const LABEL = 'Blockchain (Token Name)';
 const log = createModuleLogger(projectLogger, 'token');
 
 export class TokenNameProvider implements NameProvider {
-  #isEnabled: () => boolean;
+  readonly #isEnabled: () => boolean;
 
   constructor({ isEnabled }: { isEnabled?: () => boolean } = {}) {
     this.#isEnabled = isEnabled || (() => true);
@@ -43,7 +43,7 @@ export class TokenNameProvider implements NameProvider {
     }
 
     const { value, variation: chainId } = request;
-    const url = `https://token-api.metaswap.codefi.network/token/${chainId}?address=${value}`;
+    const url = `https://token.api.cx.metamask.io/token/${chainId}?address=${value}`;
 
     log('Sending request', url);
 

@@ -1,23 +1,33 @@
+// import { BigNumber } from '@ethersproject/bignumber';
+import type { BigNumber } from '@ethersproject/bignumber';
 import { Contract } from '@ethersproject/contracts';
 import { Web3Provider } from '@ethersproject/providers';
-import type { BaseConfig, BaseState } from '@metamask/base-controller';
-import { BaseControllerV1 } from '@metamask/base-controller';
 import { IPFS_DEFAULT_GATEWAY_URL } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkClientId,
-  NetworkState,
-  NetworkController,
+  NetworkControllerGetNetworkClientByIdAction,
+  NetworkControllerGetNetworkConfigurationByNetworkClientIdAction,
+  NetworkControllerGetSelectedNetworkClientAction,
+  NetworkControllerGetStateAction,
+  NetworkControllerNetworkDidChangeEvent,
   Provider,
 } from '@metamask/network-controller';
-import type { PreferencesState } from '@metamask/preferences-controller';
+import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
 import type { Hex } from '@metamask/utils';
 import type BN from 'bn.js';
 import abiSingleCallBalancesContract from 'single-call-balance-checker-abi';
 
-import { SupportedTokenDetectionNetworks } from './assetsUtil';
+import type { AssetsContractControllerMethodActions } from './AssetsContractController-method-action-types';
+import {
+  SupportedStakedBalanceNetworks,
+  SupportedTokenDetectionNetworks,
+} from './assetsUtil';
+import type { Call } from './multicall';
+import { multicallOrFallback } from './multicall';
 import { ERC20Standard } from './Standards/ERC20Standard';
-import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 import { ERC721Standard } from './Standards/NftStandards/ERC721/ERC721Standard';
+import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
 
 /**
  * Check if token detection is enabled for certain networks
@@ -25,143 +35,203 @@ import { ERC721Standard } from './Standards/NftStandards/ERC721/ERC721Standard';
  * @param chainId - ChainID of network
  * @returns Whether the current network supports token detection
  */
-export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID: Record<Hex, string> = {
-  [SupportedTokenDetectionNetworks.mainnet]:
+export const SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID = {
+  [SupportedTokenDetectionNetworks.Mainnet]:
     '0xb1f8e55c7f64d203c1400b9d8555d050f94adf39',
-  [SupportedTokenDetectionNetworks.bsc]:
+  [SupportedTokenDetectionNetworks.Bsc]:
     '0x2352c63A83f9Fd126af8676146721Fa00924d7e4',
-  [SupportedTokenDetectionNetworks.polygon]:
+  [SupportedTokenDetectionNetworks.Polygon]:
     '0x2352c63A83f9Fd126af8676146721Fa00924d7e4',
-  [SupportedTokenDetectionNetworks.avax]:
+  [SupportedTokenDetectionNetworks.Avax]:
     '0xD023D153a0DFa485130ECFdE2FAA7e612EF94818',
-  [SupportedTokenDetectionNetworks.aurora]:
+  [SupportedTokenDetectionNetworks.Aurora]:
     '0x1286415D333855237f89Df27D388127181448538',
-  [SupportedTokenDetectionNetworks.linea_goerli]:
+  [SupportedTokenDetectionNetworks.LineaGoerli]:
     '0x10dAd7Ca3921471f616db788D9300DC97Db01783',
-  [SupportedTokenDetectionNetworks.linea_mainnet]:
+  [SupportedTokenDetectionNetworks.LineaMainnet]:
     '0xF62e6a41561b3650a69Bb03199C735e3E3328c0D',
-  [SupportedTokenDetectionNetworks.arbitrum]:
+  [SupportedTokenDetectionNetworks.Arbitrum]:
     '0x151E24A486D7258dd7C33Fb67E4bB01919B7B32c',
-  [SupportedTokenDetectionNetworks.optimism]:
+  [SupportedTokenDetectionNetworks.Optimism]:
     '0xB1c568e9C3E6bdaf755A60c7418C269eb11524FC',
-  [SupportedTokenDetectionNetworks.base]:
+  [SupportedTokenDetectionNetworks.Base]:
     '0x6AA75276052D96696134252587894ef5FFA520af',
-  [SupportedTokenDetectionNetworks.zksync]:
+  [SupportedTokenDetectionNetworks.Zksync]:
     '0x458fEd3144680a5b8bcfaa0F9594aa19B4Ea2D34',
-};
+  [SupportedTokenDetectionNetworks.Cronos]:
+    '0x768ca200f0fc702ac9ea502498c18f5eff176378',
+  [SupportedTokenDetectionNetworks.Celo]:
+    '0x6aa75276052d96696134252587894ef5ffa520af',
+  [SupportedTokenDetectionNetworks.Gnosis]:
+    '0x6aa75276052d96696134252587894ef5ffa520af',
+  [SupportedTokenDetectionNetworks.Fantom]:
+    '0x6aa75276052d96696134252587894ef5ffa520af',
+  [SupportedTokenDetectionNetworks.PolygonZkevm]:
+    '0x6aa75276052d96696134252587894ef5ffa520af',
+  [SupportedTokenDetectionNetworks.Moonbeam]:
+    '0x6aa75276052d96696134252587894ef5ffa520af',
+  [SupportedTokenDetectionNetworks.Moonriver]:
+    '0x6aa75276052d96696134252587894ef5ffa520af',
+} as const satisfies Record<Hex, string>;
+
+export const STAKING_CONTRACT_ADDRESS_BY_CHAINID = {
+  [SupportedStakedBalanceNetworks.Mainnet]:
+    '0x4fef9d741011476750a243ac70b9789a63dd47df',
+  [SupportedStakedBalanceNetworks.Hoodi]:
+    '0xe96ac18cfe5a7af8fe1fe7bc37ff110d88bc67ff',
+} as Record<Hex, string>;
 
 export const MISSING_PROVIDER_ERROR =
   'AssetsContractController failed to set the provider correctly. A provider must be set for this method to be available';
 
 /**
- * @type AssetsContractConfig
- *
- * Assets Contract controller configuration
- * @property provider - Provider used to create a new web3 instance
- */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface AssetsContractConfig extends BaseConfig {
-  provider: Provider | undefined;
-  ipfsGateway: string;
-  chainId: Hex;
-}
-
-/**
- * @type BalanceMap
+ * BalanceMap
  *
  * Key value object containing the balance for each tokenAddress
- * @property [tokenAddress] - Address of the token
+ *
+ * [tokenAddress] - Address of the token
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface BalanceMap {
+export type BalanceMap = {
   [tokenAddress: string]: BN;
-}
+};
+
+/**
+ * The name of the {@link AssetsContractController}
+ */
+const name = 'AssetsContractController';
+
+/**
+ * The union of all internal messenger actions available to the {@link AssetsContractControllerMessenger}.
+ */
+export type AssetsContractControllerActions =
+  AssetsContractControllerMethodActions;
+
+/**
+ * The union of all internal messenger events available to the {@link AssetsContractControllerMessenger}.
+ */
+export type AssetsContractControllerEvents = never;
+
+/**
+ * The union of all external messenger actions that must be allowed by the {@link AssetsContractControllerMessenger}.
+ */
+export type AllowedActions =
+  | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerGetNetworkConfigurationByNetworkClientIdAction
+  | NetworkControllerGetSelectedNetworkClientAction
+  | NetworkControllerGetStateAction;
+
+/**
+ * The union of all external messenger event that must be allowed by the {@link AssetsContractControllerMessenger}.
+ */
+export type AllowedEvents =
+  | PreferencesControllerStateChangeEvent
+  | NetworkControllerNetworkDidChangeEvent;
+
+/**
+ * The messenger of the {@link AssetsContractController}.
+ */
+export type AssetsContractControllerMessenger = Messenger<
+  typeof name,
+  AssetsContractControllerActions | AllowedActions,
+  AssetsContractControllerEvents | AllowedEvents
+>;
+
+export type StakedBalance = string | undefined;
+
+const MESSENGER_EXPOSED_METHODS = [
+  'getERC20Standard',
+  'getERC721Standard',
+  'getERC1155Standard',
+  'getERC20BalanceOf',
+  'getERC20TokenDecimals',
+  'getERC20TokenName',
+  'getERC721NftTokenId',
+  'getERC721TokenURI',
+  'getERC721AssetName',
+  'getERC721AssetSymbol',
+  'getERC721OwnerOf',
+  'getERC1155TokenURI',
+  'getERC1155BalanceOf',
+  'transferSingleERC1155',
+  'getTokenStandardAndDetails',
+  'getBalancesInSingleCall',
+  'getStakedBalanceForChain',
+] as const;
 
 /**
  * Controller that interacts with contracts on mainnet through web3
  */
-export class AssetsContractController extends BaseControllerV1<
-  AssetsContractConfig,
-  BaseState
-> {
-  private _provider?: Provider;
+export class AssetsContractController {
+  readonly name: typeof name = name;
 
-  /**
-   * Name of this controller used during composition
-   */
-  override name = 'AssetsContractController';
+  protected messenger: AssetsContractControllerMessenger;
 
-  private readonly getNetworkClientById: NetworkController['getNetworkClientById'];
+  #provider: Provider | undefined;
+
+  #ipfsGateway: string;
+
+  #chainId: Hex;
 
   /**
    * Creates a AssetsContractController instance.
    *
    * @param options - The controller options.
+   * @param options.messenger - The messenger.
    * @param options.chainId - The chain ID of the current network.
-   * @param options.onPreferencesStateChange - Allows subscribing to preference controller state changes.
-   * @param options.onNetworkDidChange - Allows subscribing to network controller networkDidChange events.
-   * @param options.getNetworkClientById - Gets the network client with the given id from the NetworkController.
-   * @param config - Initial options used to configure this controller.
-   * @param state - Initial state to set on this controller.
    */
-  constructor(
-    {
-      chainId: initialChainId,
-      onPreferencesStateChange,
-      onNetworkDidChange,
-      getNetworkClientById,
-    }: {
-      chainId: Hex;
-      onPreferencesStateChange: (
-        listener: (preferencesState: PreferencesState) => void,
-      ) => void;
-      onNetworkDidChange: (
-        listener: (networkState: NetworkState) => void,
-      ) => void;
-      getNetworkClientById: NetworkController['getNetworkClientById'];
-    },
-    config?: Partial<AssetsContractConfig>,
-    state?: Partial<BaseState>,
-  ) {
-    super(config, state);
-    this.defaultConfig = {
-      provider: undefined,
-      ipfsGateway: IPFS_DEFAULT_GATEWAY_URL,
-      chainId: initialChainId,
-    };
-    this.initialize();
-    this.getNetworkClientById = getNetworkClientById;
+  constructor({
+    messenger,
+    chainId: initialChainId,
+  }: {
+    messenger: AssetsContractControllerMessenger;
+    chainId: Hex;
+  }) {
+    this.messenger = messenger;
+    this.#provider = undefined;
+    this.#ipfsGateway = IPFS_DEFAULT_GATEWAY_URL;
+    this.#chainId = initialChainId;
 
-    onPreferencesStateChange(({ ipfsGateway }) => {
-      this.configure({ ipfsGateway });
-    });
+    messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
+    this.#registerEventSubscriptions();
+  }
 
-    onNetworkDidChange((networkState) => {
-      if (this.config.chainId !== networkState.providerConfig.chainId) {
-        this.configure({
-          chainId: networkState.providerConfig.chainId,
-        });
-      }
-    });
+  #registerEventSubscriptions() {
+    this.messenger.subscribe(
+      `PreferencesController:stateChange`,
+      ({ ipfsGateway }) => {
+        this.#ipfsGateway = ipfsGateway;
+      },
+    );
+
+    this.messenger.subscribe(
+      `NetworkController:networkDidChange`,
+      ({ selectedNetworkClientId }) => {
+        const chainId = this.#getCorrectChainId(selectedNetworkClientId);
+
+        if (this.#chainId !== chainId) {
+          this.#chainId = chainId;
+          // @ts-expect-error TODO: remove this annotation once the `Eip1193Provider` class is released
+          this.#provider = this.#getCorrectProvider();
+        }
+      },
+    );
   }
 
   /**
    * Sets a new provider.
    *
-   * TODO: Replace this wth a method.
-   *
-   * @property provider - Provider used to create a new underlying Web3 instance
+   * @param provider - Provider used to create a new underlying Web3 instance
    */
-  set provider(provider: Provider) {
-    this._provider = provider;
+  setProvider(provider: Provider | undefined) {
+    this.#provider = provider;
   }
 
-  get provider() {
-    throw new Error('Property only used for setting');
+  get ipfsGateway() {
+    return this.#ipfsGateway;
+  }
+
+  get chainId() {
+    return this.#chainId;
   }
 
   /**
@@ -170,16 +240,19 @@ export class AssetsContractController extends BaseControllerV1<
    * @param networkClientId - Network Client ID.
    * @returns Web3Provider instance.
    */
-  getProvider(networkClientId?: NetworkClientId): Web3Provider {
+  #getCorrectProvider(networkClientId?: NetworkClientId): Web3Provider {
     const provider = networkClientId
-      ? this.getNetworkClientById(networkClientId).provider
-      : this._provider;
+      ? this.messenger.call(
+          `NetworkController:getNetworkClientById`,
+          networkClientId,
+        ).provider
+      : (this.messenger.call('NetworkController:getSelectedNetworkClient')
+          ?.provider ?? this.#provider);
 
     if (provider === undefined) {
       throw new Error(MISSING_PROVIDER_ERROR);
     }
 
-    // @ts-expect-error TODO: remove this annotation once the `Eip1193Provider` class is released
     return new Web3Provider(provider);
   }
 
@@ -189,10 +262,24 @@ export class AssetsContractController extends BaseControllerV1<
    * @param networkClientId - Network Client ID used to get the provider.
    * @returns Hex chain ID.
    */
-  getChainId(networkClientId?: NetworkClientId): Hex {
-    return networkClientId
-      ? this.getNetworkClientById(networkClientId).configuration.chainId
-      : this.config.chainId;
+  #getCorrectChainId(networkClientId?: NetworkClientId): Hex {
+    if (networkClientId) {
+      const networkClientConfiguration = this.messenger.call(
+        'NetworkController:getNetworkConfigurationByNetworkClientId',
+        networkClientId,
+      );
+      if (networkClientConfiguration) {
+        return networkClientConfiguration.chainId;
+      }
+    }
+    const { selectedNetworkClientId } = this.messenger.call(
+      'NetworkController:getState',
+    );
+    const networkClient = this.messenger.call(
+      'NetworkController:getNetworkClientById',
+      selectedNetworkClientId,
+    );
+    return networkClient.configuration?.chainId ?? this.#chainId;
   }
 
   /**
@@ -202,7 +289,7 @@ export class AssetsContractController extends BaseControllerV1<
    * @returns ERC20Standard instance.
    */
   getERC20Standard(networkClientId?: NetworkClientId): ERC20Standard {
-    const provider = this.getProvider(networkClientId);
+    const provider = this.#getCorrectProvider(networkClientId);
     return new ERC20Standard(provider);
   }
 
@@ -213,7 +300,7 @@ export class AssetsContractController extends BaseControllerV1<
    * @returns ERC721Standard instance.
    */
   getERC721Standard(networkClientId?: NetworkClientId): ERC721Standard {
-    const provider = this.getProvider(networkClientId);
+    const provider = this.#getCorrectProvider(networkClientId);
     return new ERC721Standard(provider);
   }
 
@@ -224,7 +311,7 @@ export class AssetsContractController extends BaseControllerV1<
    * @returns ERC1155Standard instance.
    */
   getERC1155Standard(networkClientId?: NetworkClientId): ERC1155Standard {
-    const provider = this.getProvider(networkClientId);
+    const provider = this.#getCorrectProvider(networkClientId);
     return new ERC1155Standard(provider);
   }
 
@@ -284,7 +371,7 @@ export class AssetsContractController extends BaseControllerV1<
    * @param networkClientId - Network Client ID to fetch the provider with.
    * @returns Promise resolving to token identifier for the 'index'th asset assigned to 'selectedAddress'.
    */
-  getERC721NftTokenId(
+  async getERC721NftTokenId(
     address: string,
     selectedAddress: string,
     index: number,
@@ -317,9 +404,7 @@ export class AssetsContractController extends BaseControllerV1<
     balance?: BN | undefined;
   }> {
     // Asserts provider is available
-    this.getProvider(networkClientId);
-
-    const { ipfsGateway } = this.config;
+    this.#getCorrectProvider(networkClientId);
 
     // ERC721
     try {
@@ -327,7 +412,7 @@ export class AssetsContractController extends BaseControllerV1<
       return {
         ...(await erc721Standard.getDetails(
           tokenAddress,
-          ipfsGateway,
+          this.#ipfsGateway,
           tokenId,
         )),
       };
@@ -341,7 +426,7 @@ export class AssetsContractController extends BaseControllerV1<
       return {
         ...(await erc1155Standard.getDetails(
           tokenAddress,
-          ipfsGateway,
+          this.#ipfsGateway,
           tokenId,
         )),
       };
@@ -505,9 +590,12 @@ export class AssetsContractController extends BaseControllerV1<
     tokensToDetect: string[],
     networkClientId?: NetworkClientId,
   ) {
-    const chainId = this.getChainId(networkClientId);
-    const provider = this.getProvider(networkClientId);
-    if (!(chainId in SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID)) {
+    const chainId = this.#getCorrectChainId(networkClientId);
+    const provider = this.#getCorrectProvider(networkClientId);
+    if (
+      !((id): id is keyof typeof SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID =>
+        id in SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID)(chainId)
+    ) {
       // Only fetch balance if contract address exists
       return {};
     }
@@ -531,6 +619,107 @@ export class AssetsContractController extends BaseControllerV1<
       });
     }
     return nonZeroBalances;
+  }
+
+  /**
+   * Get the staked ethereum balance for multiple addresses in a single call.
+   *
+   * @param addresses - The addresses to check staked ethereum balance for.
+   * @param networkClientId - Network Client ID to fetch the provider with.
+   * @returns The hex staked ethereum balance for address.
+   */
+  async getStakedBalanceForChain(
+    addresses: string[],
+    networkClientId?: NetworkClientId,
+  ): Promise<Record<string, StakedBalance>> {
+    const chainId = this.#getCorrectChainId(networkClientId);
+    const provider = this.#getCorrectProvider(networkClientId);
+
+    const balances = addresses.reduce<Record<string, StakedBalance>>(
+      (accumulator, address) => {
+        accumulator[address] = '0x00';
+        return accumulator;
+      },
+      {},
+    );
+
+    // Only fetch staked balance on supported networks
+    if (
+      ![
+        SupportedStakedBalanceNetworks.Mainnet,
+        SupportedStakedBalanceNetworks.Hoodi,
+      ].includes(chainId as SupportedStakedBalanceNetworks)
+    ) {
+      return {};
+    }
+    // Only fetch staked balance if contract address exists
+    if (
+      !((id): id is keyof typeof STAKING_CONTRACT_ADDRESS_BY_CHAINID =>
+        id in STAKING_CONTRACT_ADDRESS_BY_CHAINID)(chainId)
+    ) {
+      return {};
+    }
+
+    const contractAddress = STAKING_CONTRACT_ADDRESS_BY_CHAINID[chainId];
+    const abi = [
+      {
+        inputs: [{ internalType: 'address', name: 'account', type: 'address' }],
+        name: 'getShares',
+        outputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
+        stateMutability: 'view',
+        type: 'function',
+      },
+      {
+        inputs: [{ internalType: 'uint256', name: 'shares', type: 'uint256' }],
+        name: 'convertToAssets',
+        outputs: [{ internalType: 'uint256', name: 'assets', type: 'uint256' }],
+        stateMutability: 'view',
+        type: 'function',
+      },
+    ];
+
+    try {
+      const calls = addresses.map((address) => ({
+        contract: new Contract(contractAddress, abi, provider),
+        functionSignature: 'getShares(address)',
+        arguments: [address],
+      }));
+
+      const userShares = await multicallOrFallback(calls, chainId, provider);
+
+      const nonZeroCalls = userShares
+        .map((shares, index) => {
+          if (shares.success && (shares.value as BigNumber).gt(0)) {
+            return {
+              address: addresses[index],
+              call: {
+                contract: new Contract(contractAddress, abi, provider),
+                functionSignature: 'convertToAssets(uint256)',
+                arguments: [(shares.value as BigNumber).toString()],
+              },
+            };
+          }
+          return null;
+        })
+        .filter(Boolean) as { call: Call; address: string }[];
+
+      const nonZeroBalances = await multicallOrFallback(
+        nonZeroCalls.map((call) => call.call),
+        chainId,
+        provider,
+      );
+      nonZeroBalances.forEach((balance, index) => {
+        if (balance.success && balance.value) {
+          const { address } = nonZeroCalls[index];
+          balances[address] = (balance.value as BigNumber).toHexString();
+        }
+      });
+    } catch (error) {
+      // if we get an error, log and return the default value
+      console.error(error);
+    }
+
+    return balances;
   }
 }
 

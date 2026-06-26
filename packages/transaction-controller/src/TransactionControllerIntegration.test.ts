@@ -1,16 +1,26 @@
-import type { TypedTransaction } from '@ethereumjs/tx';
+import type { TypedTransaction, TypedTxData } from '@ethereumjs/tx';
+import type { AccountsControllerActions } from '@metamask/accounts-controller';
 import type {
   ApprovalControllerActions,
   ApprovalControllerEvents,
 } from '@metamask/approval-controller';
 import { ApprovalController } from '@metamask/approval-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
+import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
+import type { ConnectivityControllerGetStateAction } from '@metamask/connectivity-controller';
 import {
   ApprovalType,
   BUILT_IN_NETWORKS,
+  ChainId,
   InfuraNetworkType,
-  NetworkType,
 } from '@metamask/controller-utils';
+import type { GasFeeControllerFetchGasFeeEstimatesAction } from '@metamask/gas-fee-controller';
+import type { KeyringControllerSignTransactionAction } from '@metamask/keyring-controller';
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
+} from '@metamask/messenger';
 import {
   NetworkController,
   NetworkClientType,
@@ -19,21 +29,20 @@ import type {
   NetworkClientConfiguration,
   NetworkControllerActions,
   NetworkControllerEvents,
-  NetworkClientId,
+  NetworkControllerOptions,
 } from '@metamask/network-controller';
+import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import assert from 'assert';
-import nock from 'nock';
-import type { SinonFakeTimers } from 'sinon';
-import { useFakeTimers } from 'sinon';
+import { v4 as uuidV4 } from 'uuid';
 
-import { advanceTime } from '../../../tests/helpers';
+import { jestAdvanceTime } from '../../../tests/helpers';
 import { mockNetwork } from '../../../tests/mock-network';
 import {
-  ETHERSCAN_TRANSACTION_BASE_MOCK,
-  ETHERSCAN_TRANSACTION_RESPONSE_MOCK,
-  ETHERSCAN_TOKEN_TRANSACTION_MOCK,
-  ETHERSCAN_TRANSACTION_SUCCESS_MOCK,
-} from '../tests/EtherscanMocks';
+  buildAddNetworkFields,
+  buildCustomNetworkClientConfiguration,
+  buildUpdateNetworkCustomRpcEndpointFields,
+} from '../../network-controller/tests/helpers';
+import { getDefaultRemoteFeatureFlagControllerState } from '../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import {
   buildEthGasPriceRequestMock,
   buildEthBlockNumberRequestMock,
@@ -46,33 +55,90 @@ import {
   buildEthGetTransactionReceiptRequestMock,
 } from '../tests/JsonRpcRequestMocks';
 import type {
-  TransactionControllerActions,
-  TransactionControllerEvents,
+  TransactionControllerMessenger,
+  TransactionControllerOptions,
 } from './TransactionController';
 import { TransactionController } from './TransactionController';
-import type { TransactionMeta } from './types';
+import type { InternalAccount } from './types';
 import { TransactionStatus, TransactionType } from './types';
-import { getEtherscanApiHost } from './utils/etherscan';
-import * as etherscanUtils from './utils/etherscan';
 
-type UnrestrictedControllerMessenger = ControllerMessenger<
+jest.mock('uuid', () => {
+  const actual = jest.requireActual('uuid');
+
+  return {
+    ...actual,
+    v4: jest.fn(),
+  };
+});
+
+type AllTransactionControllerActions =
+  MessengerActions<TransactionControllerMessenger>;
+
+type AllTransactionControllerEvents =
+  MessengerEvents<TransactionControllerMessenger>;
+
+type AllActions =
+  | AllTransactionControllerActions
   | NetworkControllerActions
+  | ConnectivityControllerGetStateAction
   | ApprovalControllerActions
-  | TransactionControllerActions,
+  | AccountsControllerActions
+  | RemoteFeatureFlagControllerGetStateAction
+  | GasFeeControllerFetchGasFeeEstimatesAction
+  | KeyringControllerSignTransactionAction;
+
+type AllEvents =
+  | AllTransactionControllerEvents
   | NetworkControllerEvents
-  | ApprovalControllerEvents
-  | TransactionControllerEvents
->;
+  | ApprovalControllerEvents;
+
+type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
+
+const uuidV4Mock = jest.mocked(uuidV4);
+
+const createMockInternalAccount = ({
+  id = uuidV4(),
+  address = '0x2990079bcdee240329a520d2444386fc119da21a',
+  name = 'Account 1',
+  importTime = Date.now(),
+  lastSelected = Date.now(),
+}: {
+  id?: string;
+  address?: string;
+  name?: string;
+  importTime?: number;
+  lastSelected?: number;
+} = {}): InternalAccount => {
+  return {
+    id,
+    address,
+    options: {},
+    methods: [],
+    type: 'eip155:eoa',
+    scopes: ['eip155:0'],
+    metadata: {
+      name,
+      keyring: { type: 'HD Key Tree' },
+      importTime,
+      lastSelected,
+    },
+  };
+};
 
 const ACCOUNT_MOCK = '0x6bf137f335ea1b8f193b8f6ea92561a60d23a207';
+const INTERNAL_ACCOUNT_MOCK = createMockInternalAccount({
+  address: ACCOUNT_MOCK,
+});
+
 const ACCOUNT_2_MOCK = '0x08f137f335ea1b8f193b8f6ea92561a60d23a211';
 const ACCOUNT_3_MOCK = '0xe688b84b23f322a994a53dbf8e15fa82cdb71127';
 const infuraProjectId = 'fake-infura-project-id';
 
-const BLOCK_TRACKER_POLLING_INTERVAL = 20000;
+const BLOCK_TRACKER_POLLING_INTERVAL = 30000;
 
 /**
  * Builds the Infura network client configuration.
+ *
  * @param network - The Infura network type.
  * @returns The network client configuration.
  */
@@ -83,23 +149,28 @@ function buildInfuraNetworkClientConfiguration(
     type: NetworkClientType.Infura,
     network,
     chainId: BUILT_IN_NETWORKS[network].chainId,
+    failoverRpcUrls: [],
     infuraProjectId,
     ticker: BUILT_IN_NETWORKS[network].ticker,
   };
 }
 
-const customGoerliNetworkClientConfiguration = {
-  type: NetworkClientType.Custom,
-  chainId: BUILT_IN_NETWORKS[NetworkType.goerli].chainId,
-  ticker: BUILT_IN_NETWORKS[NetworkType.goerli].ticker,
-  rpcUrl: 'https://mock.rpc.url',
-} as const;
-
 const setupController = async (
   givenOptions: Partial<
     ConstructorParameters<typeof TransactionController>[0]
   > = {},
-) => {
+  mockData: {
+    selectedAccount?: InternalAccount;
+  } = {
+    selectedAccount: createMockInternalAccount({ address: '0xdeadbeef' }),
+  },
+): Promise<{
+  approvalController: ApprovalController;
+  messenger: Messenger<MockAnyNamespace, AllActions, AllEvents>;
+  mockGetSelectedAccount: jest.Mock;
+  networkController: NetworkController;
+  transactionController: TransactionController;
+}> => {
   // Mainnet network must be mocked for NetworkController instantiation
   mockNetwork({
     networkClientConfiguration: buildInfuraNetworkClientConfiguration(
@@ -111,93 +182,180 @@ const setupController = async (
     ],
   });
 
-  const unrestrictedMessenger: UnrestrictedControllerMessenger =
-    new ControllerMessenger();
-  const networkController = new NetworkController({
-    messenger: unrestrictedMessenger.getRestricted({
-      name: 'NetworkController',
-      allowedActions: [],
-      allowedEvents: [],
-    }),
-    trackMetaMetricsEvent: () => {
-      // noop
-    },
-    infuraProjectId,
+  const rootMessenger: RootMessenger = new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
   });
-  await networkController.initializeProvider();
+
+  rootMessenger.registerActionHandler(
+    'ConnectivityController:getState',
+    () => ({
+      connectivityStatus: CONNECTIVITY_STATUSES.Online,
+    }),
+  );
+
+  const remoteFeatureFlagControllerMessenger = new Messenger<
+    'RemoteFeatureFlagController',
+    RemoteFeatureFlagControllerGetStateAction,
+    never,
+    typeof rootMessenger
+  >({
+    namespace: 'RemoteFeatureFlagController',
+    parent: rootMessenger,
+  });
+
+  remoteFeatureFlagControllerMessenger.registerActionHandler(
+    'RemoteFeatureFlagController:getState',
+    () => getDefaultRemoteFeatureFlagControllerState(),
+  );
+
+  const networkControllerMessenger = new Messenger<
+    'NetworkController',
+    | NetworkControllerActions
+    | ConnectivityControllerGetStateAction
+    | RemoteFeatureFlagControllerGetStateAction,
+    NetworkControllerEvents,
+    typeof rootMessenger
+  >({
+    namespace: 'NetworkController',
+    parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    messenger: networkControllerMessenger,
+    actions: [
+      'ConnectivityController:getState',
+      'RemoteFeatureFlagController:getState',
+    ],
+  });
+  const networkController = new NetworkController({
+    messenger: networkControllerMessenger,
+    infuraProjectId,
+    getRpcServiceOptions: (): ReturnType<
+      NetworkControllerOptions['getRpcServiceOptions']
+    > => ({
+      fetch,
+      btoa,
+      isOffline: (): boolean => false,
+    }),
+  });
+  networkController.init();
+  await networkController.lookupNetwork();
   const { provider, blockTracker } =
     networkController.getProviderAndBlockTracker();
   assert(provider, 'Provider must be available');
   assert(blockTracker, 'Provider must be available');
 
+  const approvalControllerMessenger = new Messenger<
+    'ApprovalController',
+    ApprovalControllerActions,
+    ApprovalControllerEvents,
+    typeof rootMessenger
+  >({
+    namespace: 'ApprovalController',
+    parent: rootMessenger,
+  });
   const approvalController = new ApprovalController({
-    messenger: unrestrictedMessenger.getRestricted({
-      name: 'ApprovalController',
-      allowedActions: [],
-      allowedEvents: [],
-    }),
+    messenger: approvalControllerMessenger,
     showApprovalRequest: jest.fn(),
     typesExcludedFromRateLimiting: [ApprovalType.Transaction],
   });
 
-  const messenger = unrestrictedMessenger.getRestricted({
-    name: 'TransactionController',
-    allowedActions: [
+  const messenger = new Messenger<
+    'TransactionController',
+    MessengerActions<TransactionControllerMessenger>,
+    MessengerEvents<TransactionControllerMessenger>,
+    typeof rootMessenger
+  >({
+    namespace: 'TransactionController',
+    parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    messenger,
+    actions: [
+      'AccountsController:getSelectedAccount',
+      'AccountsController:getState',
       'ApprovalController:addRequest',
-      'NetworkController:getNetworkClientById',
+      'GasFeeController:fetchGasFeeEstimates',
+      'KeyringController:signTransaction',
       'NetworkController:findNetworkClientIdByChainId',
+      'NetworkController:getEIP1559Compatibility',
+      'NetworkController:getNetworkClientById',
+      'NetworkController:getNetworkClientRegistry',
+      'NetworkController:getState',
+      'RemoteFeatureFlagController:getState',
     ],
-    allowedEvents: ['NetworkController:stateChange'],
+    events: ['NetworkController:stateChange'],
   });
 
-  const options = {
-    blockTracker,
-    disableHistory: false,
-    disableSendFlowHistory: false,
+  const mockGetSelectedAccount = jest
+    .fn()
+    .mockReturnValue(mockData.selectedAccount);
+
+  const accountsControllerMessenger = new Messenger<
+    'AccountsController',
+    AccountsControllerActions,
+    never,
+    typeof rootMessenger
+  >({
+    namespace: 'AccountsController',
+    parent: rootMessenger,
+  });
+  accountsControllerMessenger.registerActionHandler(
+    'AccountsController:getSelectedAccount',
+    mockGetSelectedAccount,
+  );
+  accountsControllerMessenger.registerActionHandler(
+    'AccountsController:getState',
+    () => ({}) as never,
+  );
+
+  rootMessenger.registerActionHandler(
+    'GasFeeController:fetchGasFeeEstimates',
+    async () => ({}) as never,
+  );
+
+  rootMessenger.registerActionHandler(
+    'KeyringController:signTransaction',
+    async (transaction: TypedTransaction) =>
+      transaction.toJSON() as TypedTxData,
+  );
+
+  const options: TransactionControllerOptions = {
     disableSwaps: false,
-    getCurrentNetworkEIP1559Compatibility: async (
-      networkClientId?: NetworkClientId,
-    ) => {
-      return (
-        (await networkController.getEIP1559Compatibility(networkClientId)) ??
-        false
-      );
-    },
-    getNetworkState: () => networkController.state,
-    getNetworkClientRegistry:
-      networkController.getNetworkClientRegistry.bind(networkController),
+    isAutomaticGasFeeUpdateEnabled: () => true,
     getPermittedAccounts: async () => [ACCOUNT_MOCK],
-    getSelectedAddress: () => '0xdeadbeef',
     hooks: {},
-    isMultichainEnabled: false,
     messenger,
-    onNetworkStateChange: () => {
-      // noop
-    },
-    provider,
-    sign: async (transaction: TypedTransaction) => transaction,
-    transactionHistoryLimit: 40,
     ...givenOptions,
   };
 
   const transactionController = new TransactionController(options);
+
+  await jestAdvanceTime({ duration: 10 });
 
   return {
     transactionController,
     approvalController,
     networkController,
     messenger,
+    mockGetSelectedAccount,
   };
 };
 
 describe('TransactionController Integration', () => {
-  let clock: SinonFakeTimers;
+  let uuidCounter = 0;
+
   beforeEach(() => {
-    clock = useFakeTimers();
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
+
+    uuidV4Mock.mockImplementation(() => {
+      const uuid = `UUID-${uuidCounter}`;
+      uuidCounter += 1;
+      return uuid;
+    });
   });
 
   afterEach(() => {
-    clock.restore();
+    jest.useRealTimers();
   });
 
   describe('constructor', () => {
@@ -207,10 +365,10 @@ describe('TransactionController Integration', () => {
       transactionController.destroy();
     });
 
-    it('should submit all approved transactions in state', async () => {
+    it('should fail all approved transactions in state', async () => {
       mockNetwork({
         networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.goerli,
+          InfuraNetworkType['linea-sepolia'],
         ),
         mocks: [
           buildEthBlockNumberRequestMock('0x1'),
@@ -235,12 +393,11 @@ describe('TransactionController Integration', () => {
       });
 
       const { transactionController } = await setupController({
-        isMultichainEnabled: true,
         state: {
           transactions: [
             {
               actionId: undefined,
-              chainId: '0x5',
+              chainId: '0xe705',
               dappSuggestedGasFees: undefined,
               deviceConfirmedOn: undefined,
               id: 'ecfe8c60-ba27-11ee-8643-dfd28279a442',
@@ -260,7 +417,7 @@ describe('TransactionController Integration', () => {
               userEditedGasLimit: false,
               verifiedOnBlockchain: false,
               type: TransactionType.simpleSend,
-              networkClientId: 'goerli',
+              networkClientId: 'linea-sepolia',
               simulationFails: undefined,
               originalGasEstimate: '0x5208',
               defaultGasEstimates: {
@@ -271,7 +428,6 @@ describe('TransactionController Integration', () => {
                 estimateType: 'dappSuggested',
               },
               userFeeLevel: 'dappSuggested',
-              sendFlowHistory: [],
             },
             {
               actionId: undefined,
@@ -306,19 +462,20 @@ describe('TransactionController Integration', () => {
                 estimateType: 'dappSuggested',
               },
               userFeeLevel: 'dappSuggested',
-              sendFlowHistory: [],
             },
           ],
         },
       });
-      await advanceTime({ clock, duration: 1 });
+
+      await jestAdvanceTime({ duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       expect(transactionController.state.transactions).toMatchObject([
         expect.objectContaining({
-          status: 'submitted',
+          status: 'failed',
         }),
         expect.objectContaining({
-          status: 'submitted',
+          status: 'failed',
         }),
       ]);
       transactionController.destroy();
@@ -326,27 +483,27 @@ describe('TransactionController Integration', () => {
   });
 
   describe('multichain transaction lifecycle', () => {
-    describe('when a transaction is added with a networkClientId that does not match the globally selected network', () => {
+    describe('when a transaction is added with a networkClientId', () => {
       it('should add a new unapproved transaction', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.goerli,
+            InfuraNetworkType.sepolia,
           ),
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
+            buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
+            buildEthGasPriceRequestMock(),
             buildEthGasPriceRequestMock(),
           ],
         });
-        const { transactionController } = await setupController({
-          isMultichainEnabled: true,
-        });
+        const { transactionController } = await setupController();
         await transactionController.addTransaction(
           {
             from: ACCOUNT_MOCK,
             to: ACCOUNT_2_MOCK,
           },
-          { networkClientId: 'goerli' },
+          { networkClientId: 'sepolia' },
         );
         expect(transactionController.state.transactions).toHaveLength(1);
         expect(transactionController.state.transactions[0].status).toBe(
@@ -358,35 +515,38 @@ describe('TransactionController Integration', () => {
       it('should be able to get to submitted state', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.goerli,
+            InfuraNetworkType.sepolia,
           ),
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
             buildEthGetBlockByNumberRequestMock('0x1'),
             buildEthBlockNumberRequestMock('0x2'),
+            buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
+            buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
-              '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x02e583aa36a70101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x1',
             ),
           ],
         });
+
         const { transactionController, approvalController } =
-          await setupController({ isMultichainEnabled: true });
+          await setupController();
         const { result, transactionMeta } =
           await transactionController.addTransaction(
             {
               from: ACCOUNT_MOCK,
               to: ACCOUNT_2_MOCK,
             },
-            { networkClientId: 'goerli' },
+            { networkClientId: 'sepolia' },
           );
 
-        await approvalController.accept(transactionMeta.id);
-        await advanceTime({ clock, duration: 1 });
+        await approvalController.acceptRequest(transactionMeta.id);
+        await jestAdvanceTime({ duration: 1 });
 
         await result;
 
@@ -400,17 +560,19 @@ describe('TransactionController Integration', () => {
       it('should be able to get to confirmed state', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.goerli,
+            InfuraNetworkType.sepolia,
           ),
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
             buildEthGetBlockByNumberRequestMock('0x1'),
+            buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
+            buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
-              '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x02e583aa36a70101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x1',
             ),
             buildEthBlockNumberRequestMock('0x3'),
@@ -419,24 +581,24 @@ describe('TransactionController Integration', () => {
           ],
         });
         const { transactionController, approvalController } =
-          await setupController({ isMultichainEnabled: true });
+          await setupController();
         const { result, transactionMeta } =
           await transactionController.addTransaction(
             {
               from: ACCOUNT_MOCK,
               to: ACCOUNT_2_MOCK,
             },
-            { networkClientId: 'goerli' },
+            { networkClientId: 'sepolia' },
           );
 
-        await approvalController.accept(transactionMeta.id);
-        await advanceTime({ clock, duration: 1 });
+        await approvalController.acceptRequest(transactionMeta.id);
+        await jestAdvanceTime({ duration: 1 });
 
         await result;
         // blocktracker polling is 20s
-        await advanceTime({ clock, duration: BLOCK_TRACKER_POLLING_INTERVAL });
-        await advanceTime({ clock, duration: 1 });
-        await advanceTime({ clock, duration: 1 });
+        await jestAdvanceTime({ duration: BLOCK_TRACKER_POLLING_INTERVAL });
+        await jestAdvanceTime({ duration: 1 });
+        await jestAdvanceTime({ duration: 1 });
 
         expect(transactionController.state.transactions).toHaveLength(1);
         expect(transactionController.state.transactions[0].status).toBe(
@@ -448,17 +610,19 @@ describe('TransactionController Integration', () => {
       it('should be able to send and confirm transactions on different chains', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.goerli,
+            InfuraNetworkType['linea-sepolia'],
           ),
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
             buildEthGetBlockByNumberRequestMock('0x1'),
+            buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
+            buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
-              '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x02e482e7050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x1',
             ),
             buildEthBlockNumberRequestMock('0x3'),
@@ -473,8 +637,10 @@ describe('TransactionController Integration', () => {
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
             buildEthGetBlockByNumberRequestMock('0x1'),
+            buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
+            buildEthGasPriceRequestMock(),
             buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
@@ -487,13 +653,13 @@ describe('TransactionController Integration', () => {
           ],
         });
         const { transactionController, approvalController } =
-          await setupController({ isMultichainEnabled: true });
+          await setupController();
         const firstTransaction = await transactionController.addTransaction(
           {
             from: ACCOUNT_MOCK,
             to: ACCOUNT_2_MOCK,
           },
-          { networkClientId: 'goerli' },
+          { networkClientId: 'linea-sepolia' },
         );
         const secondTransaction = await transactionController.addTransaction(
           {
@@ -504,18 +670,20 @@ describe('TransactionController Integration', () => {
         );
 
         await Promise.all([
-          approvalController.accept(firstTransaction.transactionMeta.id),
-          approvalController.accept(secondTransaction.transactionMeta.id),
+          approvalController.acceptRequest(firstTransaction.transactionMeta.id),
+          approvalController.acceptRequest(
+            secondTransaction.transactionMeta.id,
+          ),
         ]);
-        await advanceTime({ clock, duration: 1 });
-        await advanceTime({ clock, duration: 1 });
+        await jestAdvanceTime({ duration: 1 });
+        await jestAdvanceTime({ duration: 1 });
 
         await Promise.all([firstTransaction.result, secondTransaction.result]);
 
         // blocktracker polling is 20s
-        await advanceTime({ clock, duration: BLOCK_TRACKER_POLLING_INTERVAL });
-        await advanceTime({ clock, duration: 1 });
-        await advanceTime({ clock, duration: 1 });
+        await jestAdvanceTime({ duration: BLOCK_TRACKER_POLLING_INTERVAL });
+        await jestAdvanceTime({ duration: 1 });
+        await jestAdvanceTime({ duration: 1 });
 
         expect(transactionController.state.transactions).toHaveLength(2);
         expect(transactionController.state.transactions[0].status).toBe(
@@ -529,24 +697,26 @@ describe('TransactionController Integration', () => {
         );
         expect(
           transactionController.state.transactions[1].networkClientId,
-        ).toBe('goerli');
+        ).toBe('linea-sepolia');
         transactionController.destroy();
       });
 
       it('should be able to cancel a transaction', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.goerli,
+            InfuraNetworkType.sepolia,
           ),
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
             buildEthGetBlockByNumberRequestMock('0x1'),
+            buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
+            buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
-              '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x02e583aa36a7010101825208946bf137f335ea1b8f193b8f6ea92561a60d23a2078080c0808080',
               '0x1',
             ),
             buildEthBlockNumberRequestMock('0x3'),
@@ -554,25 +724,25 @@ describe('TransactionController Integration', () => {
             buildEthGetBlockByHashRequestMock('0x1'),
             buildEthBlockNumberRequestMock('0x3'),
             buildEthSendRawTransactionRequestMock(
-              '0x02e205010101825208946bf137f335ea1b8f193b8f6ea92561a60d23a2078080c0808080',
+              '0x02e583aa36a70101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x2',
             ),
             buildEthGetTransactionReceiptRequestMock('0x2', '0x1', '0x3'),
           ],
         });
         const { transactionController, approvalController } =
-          await setupController({ isMultichainEnabled: true });
+          await setupController();
         const { result, transactionMeta } =
           await transactionController.addTransaction(
             {
               from: ACCOUNT_MOCK,
               to: ACCOUNT_2_MOCK,
             },
-            { networkClientId: 'goerli' },
+            { networkClientId: 'sepolia' },
           );
 
-        await approvalController.accept(transactionMeta.id);
-        await advanceTime({ clock, duration: 1 });
+        await approvalController.acceptRequest(transactionMeta.id);
+        await jestAdvanceTime({ duration: 1 });
 
         await result;
 
@@ -588,22 +758,24 @@ describe('TransactionController Integration', () => {
       it('should be able to confirm a cancelled transaction and drop the original transaction', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.goerli,
+            InfuraNetworkType.sepolia,
           ),
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
             buildEthGetBlockByNumberRequestMock('0x1'),
+            buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
+            buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
-              '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x02e583aa36a70101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x1',
             ),
             buildEthBlockNumberRequestMock('0x3'),
             buildEthSendRawTransactionRequestMock(
-              '0x02e205010101825208946bf137f335ea1b8f193b8f6ea92561a60d23a2078080c0808080',
+              '0x02e583aa36a7010101825208946bf137f335ea1b8f193b8f6ea92561a60d23a2078080c0808080',
               '0x2',
             ),
             {
@@ -619,36 +791,36 @@ describe('TransactionController Integration', () => {
             buildEthGetTransactionReceiptRequestMock('0x2', '0x2', '0x4'),
             buildEthGetBlockByHashRequestMock('0x2'),
             buildEthSendRawTransactionRequestMock(
-              '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x02e583aa36a70101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x1',
             ),
           ],
         });
         const { transactionController, approvalController } =
-          await setupController({ isMultichainEnabled: true });
+          await setupController();
         const { result, transactionMeta } =
           await transactionController.addTransaction(
             {
               from: ACCOUNT_MOCK,
               to: ACCOUNT_2_MOCK,
             },
-            { networkClientId: 'goerli' },
+            { networkClientId: 'sepolia' },
           );
 
-        await approvalController.accept(transactionMeta.id);
-        await advanceTime({ clock, duration: 1 });
+        await approvalController.acceptRequest(transactionMeta.id);
+        await jestAdvanceTime({ duration: 1 });
 
         await result;
 
         await transactionController.stopTransaction(transactionMeta.id);
 
         // blocktracker polling is 20s
-        await advanceTime({ clock, duration: BLOCK_TRACKER_POLLING_INTERVAL });
-        await advanceTime({ clock, duration: 1 });
-        await advanceTime({ clock, duration: 1 });
-        await advanceTime({ clock, duration: BLOCK_TRACKER_POLLING_INTERVAL });
-        await advanceTime({ clock, duration: 1 });
-        await advanceTime({ clock, duration: 1 });
+        await jestAdvanceTime({ duration: BLOCK_TRACKER_POLLING_INTERVAL });
+        await jestAdvanceTime({ duration: 1 });
+        await jestAdvanceTime({ duration: 1 });
+        await jestAdvanceTime({ duration: BLOCK_TRACKER_POLLING_INTERVAL });
+        await jestAdvanceTime({ duration: 1 });
+        await jestAdvanceTime({ duration: 1 });
 
         expect(transactionController.state.transactions).toHaveLength(2);
         expect(transactionController.state.transactions[0].status).toBe(
@@ -663,17 +835,19 @@ describe('TransactionController Integration', () => {
       it('should be able to get to speedup state and drop the original transaction', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.goerli,
+            InfuraNetworkType.sepolia,
           ),
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
             buildEthGetBlockByNumberRequestMock('0x1'),
+            buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
+            buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
-              '0x02e605018203e88203e88252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x02e983aa36a7018203e88203e88252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x1',
             ),
             buildEthBlockNumberRequestMock('0x3'),
@@ -682,7 +856,7 @@ describe('TransactionController Integration', () => {
               response: { result: null },
             },
             buildEthSendRawTransactionRequestMock(
-              '0x02e6050182044c82044c8252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x02e983aa36a70182044c82044c8252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x2',
             ),
             buildEthBlockNumberRequestMock('0x4'),
@@ -694,13 +868,13 @@ describe('TransactionController Integration', () => {
             buildEthGetTransactionReceiptRequestMock('0x2', '0x2', '0x4'),
             buildEthGetBlockByHashRequestMock('0x2'),
             buildEthSendRawTransactionRequestMock(
-              '0x02e605018203e88203e88252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x02e983aa36a7018203e88203e88252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x1',
             ),
           ],
         });
         const { transactionController, approvalController } =
-          await setupController({ isMultichainEnabled: true });
+          await setupController();
         const { result, transactionMeta } =
           await transactionController.addTransaction(
             {
@@ -708,23 +882,23 @@ describe('TransactionController Integration', () => {
               to: ACCOUNT_2_MOCK,
               maxFeePerGas: '0x3e8',
             },
-            { networkClientId: 'goerli' },
+            { networkClientId: 'sepolia' },
           );
 
-        await approvalController.accept(transactionMeta.id);
-        await advanceTime({ clock, duration: 1 });
+        await approvalController.acceptRequest(transactionMeta.id);
+        await jestAdvanceTime({ duration: 1 });
 
         await result;
 
         await transactionController.speedUpTransaction(transactionMeta.id);
 
         // blocktracker polling is 20s
-        await advanceTime({ clock, duration: BLOCK_TRACKER_POLLING_INTERVAL });
-        await advanceTime({ clock, duration: 1 });
-        await advanceTime({ clock, duration: 1 });
-        await advanceTime({ clock, duration: BLOCK_TRACKER_POLLING_INTERVAL });
-        await advanceTime({ clock, duration: 1 });
-        await advanceTime({ clock, duration: 1 });
+        await jestAdvanceTime({ duration: BLOCK_TRACKER_POLLING_INTERVAL });
+        await jestAdvanceTime({ duration: 1 });
+        await jestAdvanceTime({ duration: 1 });
+        await jestAdvanceTime({ duration: BLOCK_TRACKER_POLLING_INTERVAL });
+        await jestAdvanceTime({ duration: 1 });
+        await jestAdvanceTime({ duration: 1 });
 
         expect(transactionController.state.transactions).toHaveLength(2);
         expect(transactionController.state.transactions[0].status).toBe(
@@ -746,73 +920,103 @@ describe('TransactionController Integration', () => {
 
     describe('when transactions are added concurrently with different networkClientIds but on the same chainId', () => {
       it('should add each transaction with consecutive nonces', async () => {
+        const sepoliaNetworkClientConfiguration =
+          buildInfuraNetworkClientConfiguration(InfuraNetworkType.sepolia);
+
         mockNetwork({
-          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.goerli,
-          ),
+          networkClientConfiguration: sepoliaNetworkClientConfiguration,
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
             buildEthGetBlockByNumberRequestMock('0x1'),
+            buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
+            buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
-              '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x02e583aa36a70101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x1',
             ),
             buildEthBlockNumberRequestMock('0x3'),
-            buildEthGetTransactionReceiptRequestMock('0x1', '0x1', '0x3'),
+            buildEthGetTransactionReceiptRequestMock(
+              '0x1',
+              '0x1',
+              '0x3',
+              '0x2',
+            ),
             buildEthGetBlockByHashRequestMock('0x1'),
             buildEthBlockNumberRequestMock('0x3'),
           ],
         });
 
         mockNetwork({
-          networkClientConfiguration: customGoerliNetworkClientConfiguration,
+          networkClientConfiguration: buildCustomNetworkClientConfiguration({
+            rpcUrl: 'https://mock.rpc.url',
+            ticker: sepoliaNetworkClientConfiguration.ticker,
+          }),
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
             buildEthBlockNumberRequestMock('0x1'),
             buildEthGetBlockByNumberRequestMock('0x1'),
+            buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
+            buildEthGasPriceRequestMock(),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
-              '0x02e0050201018094e688b84b23f322a994a53dbf8e15fa82cdb711278080c0808080',
+              '0x02e383aa36a70201018094e688b84b23f322a994a53dbf8e15fa82cdb711278080c0808080',
               '0x1',
             ),
             buildEthBlockNumberRequestMock('0x3'),
-            buildEthGetTransactionReceiptRequestMock('0x1', '0x1', '0x3'),
+            buildEthGetTransactionReceiptRequestMock(
+              '0x1',
+              '0x1',
+              '0x3',
+              '0x2',
+            ),
             buildEthGetBlockByHashRequestMock('0x1'),
           ],
         });
 
         const { approvalController, networkController, transactionController } =
           await setupController({
-            isMultichainEnabled: true,
             getPermittedAccounts: async () => [ACCOUNT_MOCK],
-            getSelectedAddress: () => ACCOUNT_MOCK,
           });
-        const otherNetworkClientIdOnGoerli =
-          await networkController.upsertNetworkConfiguration(
-            {
-              rpcUrl: 'https://mock.rpc.url',
-              chainId: BUILT_IN_NETWORKS[NetworkType.goerli].chainId,
-              ticker: BUILT_IN_NETWORKS[NetworkType.goerli].ticker,
-            },
-            {
-              referrer: 'https://mock.referrer',
-              source: 'dapp',
+        const existingSepoliaNetworkConfiguration =
+          networkController.getNetworkConfigurationByChainId(ChainId.sepolia);
+        assert(
+          existingSepoliaNetworkConfiguration,
+          'Could not find network configuration for Sepolia',
+        );
+        const updatedSepoliaNetworkConfiguration =
+          await networkController.updateNetwork(ChainId.sepolia, {
+            ...existingSepoliaNetworkConfiguration,
+            rpcEndpoints: [
+              ...existingSepoliaNetworkConfiguration.rpcEndpoints,
+              buildUpdateNetworkCustomRpcEndpointFields({
+                url: 'https://mock.rpc.url',
+              }),
+            ],
+          });
+        const otherSepoliaRpcEndpoint =
+          updatedSepoliaNetworkConfiguration.rpcEndpoints.find(
+            (rpcEndpoint) => {
+              return rpcEndpoint.url === 'https://mock.rpc.url';
             },
           );
+        assert(
+          otherSepoliaRpcEndpoint,
+          'Could not find other Sepolia RPC endpoint',
+        );
 
         const addTx1 = await transactionController.addTransaction(
           {
             from: ACCOUNT_MOCK,
             to: ACCOUNT_2_MOCK,
           },
-          { networkClientId: 'goerli' },
+          { networkClientId: 'sepolia' },
         );
 
         const addTx2 = await transactionController.addTransaction(
@@ -821,15 +1025,16 @@ describe('TransactionController Integration', () => {
             to: ACCOUNT_3_MOCK,
           },
           {
-            networkClientId: otherNetworkClientIdOnGoerli,
+            networkClientId: otherSepoliaRpcEndpoint.networkClientId,
           },
         );
 
         await Promise.all([
-          approvalController.accept(addTx1.transactionMeta.id),
-          approvalController.accept(addTx2.transactionMeta.id),
+          approvalController.acceptRequest(addTx1.transactionMeta.id),
+          approvalController.acceptRequest(addTx2.transactionMeta.id),
         ]);
-        await advanceTime({ clock, duration: 1 });
+        await jestAdvanceTime({ duration: 1 });
+        await jestAdvanceTime({ duration: 1 });
 
         await Promise.all([addTx1.result, addTx2.result]);
 
@@ -845,46 +1050,50 @@ describe('TransactionController Integration', () => {
       it('should add each transaction with consecutive nonces', async () => {
         mockNetwork({
           networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.goerli,
+            InfuraNetworkType.sepolia,
           ),
           mocks: [
             buildEthBlockNumberRequestMock('0x1'),
             buildEthGetBlockByNumberRequestMock('0x1'),
+            buildEthGetCodeRequestMock(ACCOUNT_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
             buildEthGetCodeRequestMock(ACCOUNT_3_MOCK),
             buildEthEstimateGasRequestMock(ACCOUNT_MOCK, ACCOUNT_2_MOCK),
             buildEthGasPriceRequestMock(),
+            buildEthGasPriceRequestMock(),
+            buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK),
             buildEthSendRawTransactionRequestMock(
-              '0x02e2050101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
+              '0x02e583aa36a70101018252089408f137f335ea1b8f193b8f6ea92561a60d23a2118080c0808080',
               '0x1',
             ),
             buildEthBlockNumberRequestMock('0x3'),
             buildEthGetTransactionReceiptRequestMock('0x1', '0x1', '0x3'),
             buildEthGetBlockByHashRequestMock('0x1'),
             buildEthSendRawTransactionRequestMock(
-              '0x02e20502010182520894e688b84b23f322a994a53dbf8e15fa82cdb711278080c0808080',
+              '0x02e583aa36a702010182520894e688b84b23f322a994a53dbf8e15fa82cdb711278080c0808080',
               '0x2',
             ),
             buildEthGetTransactionReceiptRequestMock('0x2', '0x2', '0x4'),
           ],
         });
         const { approvalController, transactionController } =
-          await setupController({
-            isMultichainEnabled: true,
-            getPermittedAccounts: async () => [ACCOUNT_MOCK],
-            getSelectedAddress: () => ACCOUNT_MOCK,
-          });
+          await setupController(
+            {
+              getPermittedAccounts: async () => [ACCOUNT_MOCK],
+            },
+            { selectedAccount: INTERNAL_ACCOUNT_MOCK },
+          );
 
         const addTx1 = await transactionController.addTransaction(
           {
             from: ACCOUNT_MOCK,
             to: ACCOUNT_2_MOCK,
           },
-          { networkClientId: 'goerli' },
+          { networkClientId: 'sepolia' },
         );
 
-        await advanceTime({ clock, duration: 1 });
+        await jestAdvanceTime({ duration: 1 });
 
         const addTx2 = await transactionController.addTransaction(
           {
@@ -892,18 +1101,19 @@ describe('TransactionController Integration', () => {
             to: ACCOUNT_3_MOCK,
           },
           {
-            networkClientId: 'goerli',
+            networkClientId: 'sepolia',
           },
         );
 
-        await advanceTime({ clock, duration: 1 });
+        await jestAdvanceTime({ duration: 1 });
 
         await Promise.all([
-          approvalController.accept(addTx1.transactionMeta.id),
-          approvalController.accept(addTx2.transactionMeta.id),
+          approvalController.acceptRequest(addTx1.transactionMeta.id),
+          approvalController.acceptRequest(addTx2.transactionMeta.id),
         ]);
 
-        await advanceTime({ clock, duration: 1 });
+        await jestAdvanceTime({ duration: 1 });
+        await jestAdvanceTime({ duration: 1 });
 
         await Promise.all([addTx1.result, addTx2.result]);
 
@@ -916,737 +1126,115 @@ describe('TransactionController Integration', () => {
     });
   });
 
-  describe('when changing rpcUrl of networkClient', () => {
-    it('should start tracking when a new network is added', async () => {
-      mockNetwork({
-        networkClientConfiguration: customGoerliNetworkClientConfiguration,
-        mocks: [
-          buildEthBlockNumberRequestMock('0x1'),
-          buildEthBlockNumberRequestMock('0x1'),
-          buildEthGetBlockByNumberRequestMock('0x1'),
-          buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
-          buildEthGasPriceRequestMock(),
+  it('should start tracking when a new network is added', async () => {
+    mockNetwork({
+      networkClientConfiguration: buildInfuraNetworkClientConfiguration(
+        InfuraNetworkType.sepolia,
+      ),
+      mocks: [
+        buildEthBlockNumberRequestMock('0x1'),
+        buildEthBlockNumberRequestMock('0x1'),
+        buildEthGetBlockByNumberRequestMock('0x1'),
+        buildEthGetCodeRequestMock(ACCOUNT_MOCK),
+        buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
+        buildEthGasPriceRequestMock(),
+        buildEthGasPriceRequestMock(),
+      ],
+    });
+    mockNetwork({
+      networkClientConfiguration: buildCustomNetworkClientConfiguration({
+        rpcUrl: 'https://mock.rpc.url',
+      }),
+      mocks: [
+        buildEthBlockNumberRequestMock('0x1'),
+        buildEthBlockNumberRequestMock('0x1'),
+        buildEthGetBlockByNumberRequestMock('0x1'),
+        buildEthGetCodeRequestMock(ACCOUNT_MOCK),
+        buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
+        buildEthGasPriceRequestMock(),
+        buildEthGasPriceRequestMock(),
+      ],
+    });
+    const { networkController, transactionController } =
+      await setupController();
+
+    const existingSepoliaNetworkConfiguration =
+      networkController.getNetworkConfigurationByChainId(ChainId.sepolia);
+    assert(
+      existingSepoliaNetworkConfiguration,
+      'Could not find network configuration for Sepolia',
+    );
+    const updatedSepoliaNetworkConfiguration =
+      await networkController.updateNetwork(ChainId.sepolia, {
+        ...existingSepoliaNetworkConfiguration,
+        rpcEndpoints: [
+          ...existingSepoliaNetworkConfiguration.rpcEndpoints,
+          buildUpdateNetworkCustomRpcEndpointFields({
+            url: 'https://mock.rpc.url',
+          }),
         ],
       });
-      const { networkController, transactionController } =
-        await setupController({ isMultichainEnabled: true });
+    const otherSepoliaRpcEndpoint =
+      updatedSepoliaNetworkConfiguration.rpcEndpoints.find((rpcEndpoint) => {
+        return rpcEndpoint.url === 'https://mock.rpc.url';
+      });
+    assert(
+      otherSepoliaRpcEndpoint,
+      'Could not find other Sepolia RPC endpoint',
+    );
 
-      const otherNetworkClientIdOnGoerli =
-        await networkController.upsertNetworkConfiguration(
-          customGoerliNetworkClientConfiguration,
-          {
-            setActive: false,
-            referrer: 'https://mock.referrer',
-            source: 'dapp',
-          },
-        );
+    await transactionController.addTransaction(
+      {
+        from: ACCOUNT_MOCK,
+        to: ACCOUNT_3_MOCK,
+      },
+      {
+        networkClientId: otherSepoliaRpcEndpoint.networkClientId,
+      },
+    );
 
-      await transactionController.addTransaction(
-        {
-          from: ACCOUNT_MOCK,
-          to: ACCOUNT_3_MOCK,
-        },
-        {
-          networkClientId: otherNetworkClientIdOnGoerli,
-        },
-      );
-
-      expect(transactionController.state.transactions[0]).toStrictEqual(
-        expect.objectContaining({
-          networkClientId: otherNetworkClientIdOnGoerli,
-        }),
-      );
-      transactionController.destroy();
-    });
-    it('should stop tracking when a network is removed', async () => {
-      const { networkController, transactionController } =
-        await setupController();
-
-      const configurationId =
-        await networkController.upsertNetworkConfiguration(
-          customGoerliNetworkClientConfiguration,
-          {
-            setActive: false,
-            referrer: 'https://mock.referrer',
-            source: 'dapp',
-          },
-        );
-
-      networkController.removeNetworkConfiguration(configurationId);
-
-      await expect(
-        transactionController.addTransaction(
-          {
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_2_MOCK,
-          },
-          { networkClientId: configurationId },
-        ),
-      ).rejects.toThrow(
-        'The networkClientId for this transaction could not be found',
-      );
-
-      expect(transactionController).toBeDefined();
-      transactionController.destroy();
-    });
+    expect(transactionController.state.transactions[0]).toStrictEqual(
+      expect.objectContaining({
+        networkClientId: otherSepoliaRpcEndpoint.networkClientId,
+      }),
+    );
+    transactionController.destroy();
   });
 
-  describe('feature flag', () => {
-    it('should not allow transaction to be added with a networkClientId when feature flag is disabled', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          buildEthBlockNumberRequestMock('0x1'),
-          buildEthBlockNumberRequestMock('0x2'),
-          buildEthGetBlockByNumberRequestMock('0x1'),
-          buildEthGasPriceRequestMock(),
-          buildEthGetCodeRequestMock(ACCOUNT_2_MOCK),
-        ],
-      });
+  it('should stop tracking when a network is removed', async () => {
+    const { networkController, transactionController } =
+      await setupController();
 
-      const { networkController, transactionController } =
-        await setupController({
-          isMultichainEnabled: false,
-        });
+    const networkConfiguration = networkController.addNetwork(
+      buildAddNetworkFields(),
+    );
 
-      const configurationId =
-        await networkController.upsertNetworkConfiguration(
-          customGoerliNetworkClientConfiguration,
-          {
-            setActive: false,
-            referrer: 'https://mock.referrer',
-            source: 'dapp',
-          },
-        );
+    networkController.removeNetwork(networkConfiguration.chainId);
 
-      // add a transaction with the networkClientId of the newly added network
-      // and expect it to throw since the networkClientId won't be found in the trackingMap
-      await expect(
-        transactionController.addTransaction(
-          {
-            from: ACCOUNT_MOCK,
-            to: ACCOUNT_2_MOCK,
-          },
-          { networkClientId: configurationId },
-        ),
-      ).rejects.toThrow(
-        'The networkClientId for this transaction could not be found',
-      );
-
-      // adding a transaction without a networkClientId should work
-      expect(
-        await transactionController.addTransaction({
+    await expect(
+      transactionController.addTransaction(
+        {
           from: ACCOUNT_MOCK,
           to: ACCOUNT_2_MOCK,
-        }),
-      ).toBeDefined();
-      transactionController.destroy();
-    });
-    it('should not call getNetworkClientRegistry on networkController:stateChange when feature flag is disabled', async () => {
-      const getNetworkClientRegistrySpy = jest.fn().mockImplementation(() => {
-        return {
-          [NetworkType.goerli]: {
-            configuration: customGoerliNetworkClientConfiguration,
-          },
-        };
-      });
-
-      const { networkController, transactionController } =
-        await setupController({
-          isMultichainEnabled: false,
-          getNetworkClientRegistry: getNetworkClientRegistrySpy,
-        });
-
-      await networkController.upsertNetworkConfiguration(
-        customGoerliNetworkClientConfiguration,
-        {
-          setActive: false,
-          referrer: 'https://mock.referrer',
-          source: 'dapp',
         },
-      );
-
-      expect(getNetworkClientRegistrySpy).not.toHaveBeenCalled();
-      transactionController.destroy();
-    });
-    it('should call getNetworkClientRegistry on networkController:stateChange when feature flag is enabled', async () => {
-      const getNetworkClientRegistrySpy = jest.fn().mockImplementation(() => {
-        return {
-          [NetworkType.goerli]: {
-            configuration: BUILT_IN_NETWORKS[NetworkType.goerli],
-          },
-        };
-      });
-
-      const { networkController, transactionController } =
-        await setupController({
-          isMultichainEnabled: true,
-          getNetworkClientRegistry: getNetworkClientRegistrySpy,
-        });
-
-      await networkController.upsertNetworkConfiguration(
-        customGoerliNetworkClientConfiguration,
         {
-          setActive: false,
-          referrer: 'https://mock.referrer',
-          source: 'dapp',
+          networkClientId: networkConfiguration.rpcEndpoints[0].networkClientId,
         },
-      );
+      ),
+    ).rejects.toThrow(
+      `Network client not found - ${
+        networkConfiguration.rpcEndpoints[0].networkClientId
+      }`,
+    );
 
-      expect(getNetworkClientRegistrySpy).toHaveBeenCalled();
-      transactionController.destroy();
-    });
-    it('should call getNetworkClientRegistry on construction when feature flag is enabled', async () => {
-      const getNetworkClientRegistrySpy = jest.fn().mockImplementation(() => {
-        return {
-          [NetworkType.goerli]: {
-            configuration: BUILT_IN_NETWORKS[NetworkType.goerli],
-          },
-        };
-      });
-
-      await setupController({
-        isMultichainEnabled: true,
-        getNetworkClientRegistry: getNetworkClientRegistrySpy,
-      });
-
-      expect(getNetworkClientRegistrySpy).toHaveBeenCalled();
-    });
-  });
-
-  describe('startIncomingTransactionPolling', () => {
-    // TODO(JL): IncomingTransactionHelper doesn't populate networkClientId on the generated tx object. Should it?..
-    it('should add incoming transactions to state with the correct chainId for the given networkClientId on the next block', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          buildEthBlockNumberRequestMock('0x1'),
-          buildEthBlockNumberRequestMock('0x2'),
-        ],
-      });
-
-      const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
-
-      const { networkController, transactionController } =
-        await setupController({
-          getSelectedAddress: () => selectedAddress,
-          isMultichainEnabled: true,
-        });
-
-      const expectedLastFetchedBlockNumbers: Record<string, number> = {};
-      const expectedTransactions: Partial<TransactionMeta>[] = [];
-
-      const networkClients = networkController.getNetworkClientRegistry();
-      const networkClientIds = Object.keys(networkClients);
-      await Promise.all(
-        networkClientIds.map(async (networkClientId) => {
-          const config = networkClients[networkClientId].configuration;
-          mockNetwork({
-            networkClientConfiguration: config,
-            mocks: [
-              buildEthBlockNumberRequestMock('0x1'),
-              buildEthBlockNumberRequestMock('0x2'),
-            ],
-          });
-          nock(getEtherscanApiHost(config.chainId))
-            .get(
-              `/api?module=account&address=${selectedAddress}&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
-            )
-            .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
-
-          transactionController.startIncomingTransactionPolling([
-            networkClientId,
-          ]);
-
-          expectedLastFetchedBlockNumbers[
-            `${config.chainId}#${selectedAddress}#normal`
-          ] = parseInt(ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber, 10);
-          expectedTransactions.push({
-            blockNumber: ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber,
-            chainId: config.chainId,
-            type: TransactionType.incoming,
-            verifiedOnBlockchain: false,
-            status: TransactionStatus.confirmed,
-          });
-          expectedTransactions.push({
-            blockNumber: ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber,
-            chainId: config.chainId,
-            type: TransactionType.incoming,
-            verifiedOnBlockchain: false,
-            status: TransactionStatus.failed,
-          });
-        }),
-      );
-      await advanceTime({ clock, duration: BLOCK_TRACKER_POLLING_INTERVAL });
-
-      expect(transactionController.state.transactions).toHaveLength(
-        2 * networkClientIds.length,
-      );
-      expect(transactionController.state.transactions).toStrictEqual(
-        expect.arrayContaining(
-          expectedTransactions.map(expect.objectContaining),
-        ),
-      );
-      expect(transactionController.state.lastFetchedBlockNumbers).toStrictEqual(
-        expectedLastFetchedBlockNumbers,
-      );
-      transactionController.destroy();
-    });
-
-    it('should start the global incoming transaction helper when no networkClientIds provided', async () => {
-      const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
-
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          buildEthBlockNumberRequestMock('0x1'),
-          buildEthBlockNumberRequestMock('0x2'),
-        ],
-      });
-      nock(getEtherscanApiHost(BUILT_IN_NETWORKS[NetworkType.mainnet].chainId))
-        .get(
-          `/api?module=account&address=${selectedAddress}&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
-        )
-        .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
-
-      const { transactionController } = await setupController({
-        getSelectedAddress: () => selectedAddress,
-      });
-
-      transactionController.startIncomingTransactionPolling();
-
-      await advanceTime({ clock, duration: BLOCK_TRACKER_POLLING_INTERVAL });
-
-      expect(transactionController.state.transactions).toHaveLength(2);
-      expect(transactionController.state.transactions).toStrictEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            blockNumber: ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber,
-            chainId: '0x1',
-            type: TransactionType.incoming,
-            verifiedOnBlockchain: false,
-            status: TransactionStatus.confirmed,
-          }),
-          expect.objectContaining({
-            blockNumber: ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber,
-            chainId: '0x1',
-            type: TransactionType.incoming,
-            verifiedOnBlockchain: false,
-            status: TransactionStatus.failed,
-          }),
-        ]),
-      );
-      expect(transactionController.state.lastFetchedBlockNumbers).toStrictEqual(
-        {
-          [`0x1#${selectedAddress}#normal`]: parseInt(
-            ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber,
-            10,
-          ),
-        },
-      );
-      transactionController.destroy();
-    });
-
-    describe('when called with multiple networkClients which share the same chainId', () => {
-      it('should only call the etherscan API max every 5 seconds, alternating between the token and txlist endpoints', async () => {
-        const fetchEtherscanNativeTxFetchSpy = jest.spyOn(
-          etherscanUtils,
-          'fetchEtherscanTransactions',
-        );
-
-        const fetchEtherscanTokenTxFetchSpy = jest.spyOn(
-          etherscanUtils,
-          'fetchEtherscanTokenTransactions',
-        );
-
-        // mocking infura mainnet
-        mockNetwork({
-          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.mainnet,
-          ),
-          mocks: [
-            buildEthBlockNumberRequestMock('0x1'),
-            buildEthBlockNumberRequestMock('0x2'),
-          ],
-        });
-
-        // mocking infura goerli
-        mockNetwork({
-          networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-            InfuraNetworkType.goerli,
-          ),
-          mocks: [
-            buildEthBlockNumberRequestMock('0x1'),
-            buildEthBlockNumberRequestMock('0x2'),
-          ],
-        });
-
-        // mock the other goerli network client node requests
-        mockNetwork({
-          networkClientConfiguration: {
-            type: NetworkClientType.Custom,
-            chainId: BUILT_IN_NETWORKS[NetworkType.goerli].chainId,
-            ticker: BUILT_IN_NETWORKS[NetworkType.goerli].ticker,
-            rpcUrl: 'https://mock.rpc.url',
-          },
-          mocks: [
-            buildEthBlockNumberRequestMock('0x1'),
-            buildEthBlockNumberRequestMock('0x2'),
-            buildEthBlockNumberRequestMock('0x3'),
-            buildEthBlockNumberRequestMock('0x4'),
-          ],
-        });
-
-        const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
-
-        const { networkController, transactionController } =
-          await setupController({
-            getSelectedAddress: () => selectedAddress,
-            isMultichainEnabled: true,
-          });
-
-        const otherGoerliClientNetworkClientId =
-          await networkController.upsertNetworkConfiguration(
-            customGoerliNetworkClientConfiguration,
-            {
-              referrer: 'https://mock.referrer',
-              source: 'dapp',
-            },
-          );
-
-        // Etherscan API Mocks
-
-        // Non-token transactions
-        nock(getEtherscanApiHost(BUILT_IN_NETWORKS[NetworkType.goerli].chainId))
-          .get(
-            `/api?module=account&address=${ETHERSCAN_TRANSACTION_BASE_MOCK.to}&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
-          )
-          .reply(200, {
-            status: '1',
-            result: [{ ...ETHERSCAN_TRANSACTION_SUCCESS_MOCK, blockNumber: 1 }],
-          })
-          // block 2
-          .get(
-            `/api?module=account&address=${ETHERSCAN_TRANSACTION_BASE_MOCK.to}&startBlock=2&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
-          )
-          .reply(200, {
-            status: '1',
-            result: [{ ...ETHERSCAN_TRANSACTION_SUCCESS_MOCK, blockNumber: 2 }],
-          })
-          .persist();
-
-        // token transactions
-        nock(getEtherscanApiHost(BUILT_IN_NETWORKS[NetworkType.goerli].chainId))
-          .get(
-            `/api?module=account&address=${ETHERSCAN_TRANSACTION_BASE_MOCK.to}&offset=40&sort=desc&action=tokentx&tag=latest&page=1`,
-          )
-          .reply(200, {
-            status: '1',
-            result: [{ ...ETHERSCAN_TOKEN_TRANSACTION_MOCK, blockNumber: 1 }],
-          })
-          .get(
-            `/api?module=account&address=${ETHERSCAN_TRANSACTION_BASE_MOCK.to}&startBlock=2&offset=40&sort=desc&action=tokentx&tag=latest&page=1`,
-          )
-          .reply(200, {
-            status: '1',
-            result: [{ ...ETHERSCAN_TOKEN_TRANSACTION_MOCK, blockNumber: 2 }],
-          })
-          .persist();
-
-        // start polling with two clients which share the same chainId
-        transactionController.startIncomingTransactionPolling([
-          NetworkType.goerli,
-          otherGoerliClientNetworkClientId,
-        ]);
-        await advanceTime({ clock, duration: 1 });
-        expect(fetchEtherscanNativeTxFetchSpy).toHaveBeenCalledTimes(1);
-        expect(fetchEtherscanTokenTxFetchSpy).toHaveBeenCalledTimes(0);
-        await advanceTime({ clock, duration: 4999 });
-        // after 5 seconds we can call to the etherscan API again, this time to the token transactions endpoint
-        expect(fetchEtherscanNativeTxFetchSpy).toHaveBeenCalledTimes(1);
-        expect(fetchEtherscanTokenTxFetchSpy).toHaveBeenCalledTimes(1);
-        await advanceTime({ clock, duration: 5000 });
-        // after another 5 seconds there should be no new calls to the etherscan API
-        // since no new blocks events have occurred
-        expect(fetchEtherscanNativeTxFetchSpy).toHaveBeenCalledTimes(1);
-        expect(fetchEtherscanTokenTxFetchSpy).toHaveBeenCalledTimes(1);
-        // next block arrives after 20 seconds elapsed from first call
-        await advanceTime({ clock, duration: 10000 });
-        await advanceTime({ clock, duration: 1 }); // flushes extra promises/setTimeouts
-        // first the native transactions are fetched
-        expect(fetchEtherscanNativeTxFetchSpy).toHaveBeenCalledTimes(2);
-        expect(fetchEtherscanTokenTxFetchSpy).toHaveBeenCalledTimes(1);
-        await advanceTime({ clock, duration: 4000 });
-        // no new calls to the etherscan API since 5 seconds have not passed
-        expect(fetchEtherscanNativeTxFetchSpy).toHaveBeenCalledTimes(2);
-        expect(fetchEtherscanTokenTxFetchSpy).toHaveBeenCalledTimes(1);
-        await advanceTime({ clock, duration: 1000 }); // flushes extra promises/setTimeouts
-        // then once 5 seconds have passed since the previous call to the etherscan API
-        // we call the token transactions endpoint
-        expect(fetchEtherscanNativeTxFetchSpy).toHaveBeenCalledTimes(2);
-        expect(fetchEtherscanTokenTxFetchSpy).toHaveBeenCalledTimes(2);
-
-        transactionController.destroy();
-      });
-    });
-  });
-
-  describe('stopIncomingTransactionPolling', () => {
-    it('should not poll for new incoming transactions for the given networkClientId', async () => {
-      const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
-
-      const { networkController, transactionController } =
-        await setupController({
-          getSelectedAddress: () => selectedAddress,
-        });
-
-      const networkClients = networkController.getNetworkClientRegistry();
-      const networkClientIds = Object.keys(networkClients);
-      await Promise.all(
-        networkClientIds.map(async (networkClientId) => {
-          const config = networkClients[networkClientId].configuration;
-          mockNetwork({
-            networkClientConfiguration: config,
-            mocks: [
-              buildEthBlockNumberRequestMock('0x1'),
-              buildEthBlockNumberRequestMock('0x2'),
-            ],
-          });
-          nock(getEtherscanApiHost(config.chainId))
-            .get(
-              `/api?module=account&address=${selectedAddress}&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
-            )
-            .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
-
-          transactionController.startIncomingTransactionPolling([
-            networkClientId,
-          ]);
-
-          transactionController.stopIncomingTransactionPolling([
-            networkClientId,
-          ]);
-        }),
-      );
-      await advanceTime({ clock, duration: BLOCK_TRACKER_POLLING_INTERVAL });
-
-      expect(transactionController.state.transactions).toStrictEqual([]);
-      expect(transactionController.state.lastFetchedBlockNumbers).toStrictEqual(
-        {},
-      );
-      transactionController.destroy();
-    });
-
-    it('should stop the global incoming transaction helper when no networkClientIds provided', async () => {
-      const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
-
-      const { transactionController } = await setupController({
-        getSelectedAddress: () => selectedAddress,
-      });
-
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          buildEthBlockNumberRequestMock('0x1'),
-          buildEthBlockNumberRequestMock('0x2'),
-        ],
-      });
-      nock(getEtherscanApiHost(BUILT_IN_NETWORKS[NetworkType.mainnet].chainId))
-        .get(
-          `/api?module=account&address=${selectedAddress}&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
-        )
-        .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
-
-      transactionController.startIncomingTransactionPolling();
-
-      transactionController.stopIncomingTransactionPolling();
-      await advanceTime({ clock, duration: BLOCK_TRACKER_POLLING_INTERVAL });
-
-      expect(transactionController.state.transactions).toStrictEqual([]);
-      expect(transactionController.state.lastFetchedBlockNumbers).toStrictEqual(
-        {},
-      );
-      transactionController.destroy();
-    });
-  });
-
-  describe('stopAllIncomingTransactionPolling', () => {
-    it('should not poll for incoming transactions on any network client', async () => {
-      const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
-
-      const { networkController, transactionController } =
-        await setupController({
-          getSelectedAddress: () => selectedAddress,
-        });
-
-      const networkClients = networkController.getNetworkClientRegistry();
-      const networkClientIds = Object.keys(networkClients);
-      await Promise.all(
-        networkClientIds.map(async (networkClientId) => {
-          const config = networkClients[networkClientId].configuration;
-          mockNetwork({
-            networkClientConfiguration: config,
-            mocks: [
-              buildEthBlockNumberRequestMock('0x1'),
-              buildEthBlockNumberRequestMock('0x2'),
-            ],
-          });
-          nock(getEtherscanApiHost(config.chainId))
-            .get(
-              `/api?module=account&address=${selectedAddress}&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
-            )
-            .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
-
-          transactionController.startIncomingTransactionPolling([
-            networkClientId,
-          ]);
-        }),
-      );
-
-      transactionController.stopAllIncomingTransactionPolling();
-      await advanceTime({ clock, duration: BLOCK_TRACKER_POLLING_INTERVAL });
-
-      expect(transactionController.state.transactions).toStrictEqual([]);
-      expect(transactionController.state.lastFetchedBlockNumbers).toStrictEqual(
-        {},
-      );
-      transactionController.destroy();
-    });
-  });
-
-  describe('updateIncomingTransactions', () => {
-    it('should add incoming transactions to state with the correct chainId for the given networkClientId without waiting for the next block', async () => {
-      const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
-
-      const { networkController, transactionController } =
-        await setupController({
-          getSelectedAddress: () => selectedAddress,
-          isMultichainEnabled: true,
-        });
-
-      const expectedLastFetchedBlockNumbers: Record<string, number> = {};
-      const expectedTransactions: Partial<TransactionMeta>[] = [];
-
-      const networkClients = networkController.getNetworkClientRegistry();
-      const networkClientIds = Object.keys(networkClients);
-      await Promise.all(
-        networkClientIds.map(async (networkClientId) => {
-          const config = networkClients[networkClientId].configuration;
-          mockNetwork({
-            networkClientConfiguration: config,
-            mocks: [buildEthBlockNumberRequestMock('0x1')],
-          });
-          nock(getEtherscanApiHost(config.chainId))
-            .get(
-              `/api?module=account&address=${selectedAddress}&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
-            )
-            .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
-
-          transactionController.updateIncomingTransactions([networkClientId]);
-
-          expectedLastFetchedBlockNumbers[
-            `${config.chainId}#${selectedAddress}#normal`
-          ] = parseInt(ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber, 10);
-          expectedTransactions.push({
-            blockNumber: ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber,
-            chainId: config.chainId,
-            type: TransactionType.incoming,
-            verifiedOnBlockchain: false,
-            status: TransactionStatus.confirmed,
-          });
-          expectedTransactions.push({
-            blockNumber: ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber,
-            chainId: config.chainId,
-            type: TransactionType.incoming,
-            verifiedOnBlockchain: false,
-            status: TransactionStatus.failed,
-          });
-        }),
-      );
-
-      // we have to wait for the mutex to be released after the 5 second API rate limit timer
-      await advanceTime({ clock, duration: 1 });
-
-      expect(transactionController.state.transactions).toHaveLength(
-        2 * networkClientIds.length,
-      );
-      expect(transactionController.state.transactions).toStrictEqual(
-        expect.arrayContaining(
-          expectedTransactions.map(expect.objectContaining),
-        ),
-      );
-      expect(transactionController.state.lastFetchedBlockNumbers).toStrictEqual(
-        expectedLastFetchedBlockNumbers,
-      );
-      transactionController.destroy();
-    });
-
-    it('should update the incoming transactions for the gloablly selected network when no networkClientIds provided', async () => {
-      const selectedAddress = ETHERSCAN_TRANSACTION_BASE_MOCK.to;
-
-      const { transactionController } = await setupController({
-        getSelectedAddress: () => selectedAddress,
-      });
-
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [buildEthBlockNumberRequestMock('0x1')],
-      });
-      nock(getEtherscanApiHost(BUILT_IN_NETWORKS[NetworkType.mainnet].chainId))
-        .get(
-          `/api?module=account&address=${selectedAddress}&offset=40&sort=desc&action=txlist&tag=latest&page=1`,
-        )
-        .reply(200, ETHERSCAN_TRANSACTION_RESPONSE_MOCK);
-
-      transactionController.updateIncomingTransactions();
-
-      // we have to wait for the mutex to be released after the 5 second API rate limit timer
-      await advanceTime({ clock, duration: 1 });
-
-      expect(transactionController.state.transactions).toHaveLength(2);
-      expect(transactionController.state.transactions).toStrictEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            blockNumber: ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber,
-            chainId: '0x1',
-            type: TransactionType.incoming,
-            verifiedOnBlockchain: false,
-            status: TransactionStatus.confirmed,
-          }),
-          expect.objectContaining({
-            blockNumber: ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber,
-            chainId: '0x1',
-            type: TransactionType.incoming,
-            verifiedOnBlockchain: false,
-            status: TransactionStatus.failed,
-          }),
-        ]),
-      );
-      expect(transactionController.state.lastFetchedBlockNumbers).toStrictEqual(
-        {
-          [`0x1#${selectedAddress}#normal`]: parseInt(
-            ETHERSCAN_TRANSACTION_BASE_MOCK.blockNumber,
-            10,
-          ),
-        },
-      );
-      transactionController.destroy();
-    });
+    expect(transactionController).toBeDefined();
+    transactionController.destroy();
   });
 
   describe('getNonceLock', () => {
     it('should get the nonce lock from the nonceTracker for the given networkClientId', async () => {
       const { networkController, transactionController } =
-        await setupController({ isMultichainEnabled: true });
+        await setupController();
 
       const networkClients = networkController.getNetworkClientRegistry();
       const networkClientIds = Object.keys(networkClients);
@@ -1669,7 +1257,7 @@ describe('TransactionController Integration', () => {
             ACCOUNT_MOCK,
             networkClientId,
           );
-          await advanceTime({ clock, duration: 1 });
+          await jestAdvanceTime({ duration: 1 });
 
           const nonceLock = await nonceLockPromise;
 
@@ -1681,7 +1269,7 @@ describe('TransactionController Integration', () => {
 
     it('should block attempts to get the nonce lock for the same address from the nonceTracker for the networkClientId until the previous lock is released', async () => {
       const { networkController, transactionController } =
-        await setupController({ isMultichainEnabled: true });
+        await setupController();
 
       const networkClients = networkController.getNetworkClientRegistry();
       const networkClientIds = Object.keys(networkClients);
@@ -1704,7 +1292,7 @@ describe('TransactionController Integration', () => {
             ACCOUNT_MOCK,
             networkClientId,
           );
-          await advanceTime({ clock, duration: 1 });
+          await jestAdvanceTime({ duration: 1 });
 
           const firstNonceLock = await firstNonceLockPromise;
 
@@ -1714,9 +1302,11 @@ describe('TransactionController Integration', () => {
             ACCOUNT_MOCK,
             networkClientId,
           );
-          const delay = () =>
+          const delay = (): Promise<null> =>
+            // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+            // eslint-disable-next-line @typescript-eslint/no-misused-promises, no-async-promise-executor
             new Promise<null>(async (resolve) => {
-              await advanceTime({ clock, duration: 100 });
+              await jestAdvanceTime({ duration: 100 });
               resolve(null);
             });
 
@@ -1726,8 +1316,10 @@ describe('TransactionController Integration', () => {
           ]);
           expect(secondNonceLockIfAcquired).toBeNull();
 
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/await-thenable
           await firstNonceLock.releaseLock();
-          await advanceTime({ clock, duration: 1 });
+          await jestAdvanceTime({ duration: 1 });
 
           secondNonceLockIfAcquired = await Promise.race([
             secondNonceLockPromise,
@@ -1741,10 +1333,10 @@ describe('TransactionController Integration', () => {
 
     it('should block attempts to get the nonce lock for the same address from the nonceTracker for the different networkClientIds on the same chainId until the previous lock is released', async () => {
       const { networkController, transactionController } =
-        await setupController({ isMultichainEnabled: true });
+        await setupController();
       mockNetwork({
         networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.goerli,
+          InfuraNetworkType.sepolia,
         ),
         mocks: [
           buildEthBlockNumberRequestMock('0x1'),
@@ -1753,27 +1345,47 @@ describe('TransactionController Integration', () => {
       });
 
       mockNetwork({
-        networkClientConfiguration: customGoerliNetworkClientConfiguration,
+        networkClientConfiguration: {
+          ...buildInfuraNetworkClientConfiguration(InfuraNetworkType.sepolia),
+          rpcUrl: 'https://mock.rpc.url',
+          type: NetworkClientType.Custom,
+        },
         mocks: [
           buildEthBlockNumberRequestMock('0x1'),
           buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK, '0x1', '0xa'),
         ],
       });
 
-      const otherNetworkClientIdOnGoerli =
-        await networkController.upsertNetworkConfiguration(
-          customGoerliNetworkClientConfiguration,
-          {
-            referrer: 'https://mock.referrer',
-            source: 'dapp',
-          },
-        );
+      const existingSepoliaNetworkConfiguration =
+        networkController.getNetworkConfigurationByChainId(ChainId.sepolia);
+      assert(
+        existingSepoliaNetworkConfiguration,
+        'Could not find network configuration for Sepolia',
+      );
+      const updatedSepoliaNetworkConfiguration =
+        await networkController.updateNetwork(ChainId.sepolia, {
+          ...existingSepoliaNetworkConfiguration,
+          rpcEndpoints: [
+            ...existingSepoliaNetworkConfiguration.rpcEndpoints,
+            buildUpdateNetworkCustomRpcEndpointFields({
+              url: 'https://mock.rpc.url',
+            }),
+          ],
+        });
+      const otherSepoliaRpcEndpoint =
+        updatedSepoliaNetworkConfiguration.rpcEndpoints.find((rpcEndpoint) => {
+          return rpcEndpoint.url === 'https://mock.rpc.url';
+        });
+      assert(
+        otherSepoliaRpcEndpoint,
+        'Could not find other Sepolia RPC endpoint',
+      );
 
       const firstNonceLockPromise = transactionController.getNonceLock(
         ACCOUNT_MOCK,
-        'goerli',
+        'sepolia',
       );
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       const firstNonceLock = await firstNonceLockPromise;
 
@@ -1781,11 +1393,13 @@ describe('TransactionController Integration', () => {
 
       const secondNonceLockPromise = transactionController.getNonceLock(
         ACCOUNT_MOCK,
-        otherNetworkClientIdOnGoerli,
+        otherSepoliaRpcEndpoint.networkClientId,
       );
-      const delay = () =>
+      const delay = (): Promise<null> =>
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises, no-async-promise-executor
         new Promise<null>(async (resolve) => {
-          await advanceTime({ clock, duration: 100 });
+          await jestAdvanceTime({ duration: 100 });
           resolve(null);
         });
 
@@ -1795,8 +1409,10 @@ describe('TransactionController Integration', () => {
       ]);
       expect(secondNonceLockIfAcquired).toBeNull();
 
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/await-thenable
       await firstNonceLock.releaseLock();
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       secondNonceLockIfAcquired = await Promise.race([
         secondNonceLockPromise,
@@ -1808,13 +1424,11 @@ describe('TransactionController Integration', () => {
     });
 
     it('should not block attempts to get the nonce lock for the same addresses from the nonceTracker for different networkClientIds', async () => {
-      const { transactionController } = await setupController({
-        isMultichainEnabled: true,
-      });
+      const { transactionController } = await setupController();
 
       mockNetwork({
         networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.goerli,
+          InfuraNetworkType['linea-sepolia'],
         ),
         mocks: [
           buildEthBlockNumberRequestMock('0x1'),
@@ -1834,9 +1448,9 @@ describe('TransactionController Integration', () => {
 
       const firstNonceLockPromise = transactionController.getNonceLock(
         ACCOUNT_MOCK,
-        'goerli',
+        'linea-sepolia',
       );
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       const firstNonceLock = await firstNonceLockPromise;
 
@@ -1846,7 +1460,7 @@ describe('TransactionController Integration', () => {
         ACCOUNT_MOCK,
         'sepolia',
       );
-      await advanceTime({ clock, duration: 1 });
+      await jestAdvanceTime({ duration: 1 });
 
       const secondNonceLock = await secondNonceLockPromise;
 
@@ -1857,7 +1471,7 @@ describe('TransactionController Integration', () => {
 
     it('should not block attempts to get the nonce lock for different addresses from the nonceTracker for the networkClientId', async () => {
       const { networkController, transactionController } =
-        await setupController({ isMultichainEnabled: true });
+        await setupController();
 
       const networkClients = networkController.getNetworkClientRegistry();
       const networkClientIds = Object.keys(networkClients);
@@ -1885,7 +1499,7 @@ describe('TransactionController Integration', () => {
             ACCOUNT_MOCK,
             networkClientId,
           );
-          await advanceTime({ clock, duration: 1 });
+          await jestAdvanceTime({ duration: 1 });
 
           const firstNonceLock = await firstNonceLockPromise;
 
@@ -1895,113 +1509,13 @@ describe('TransactionController Integration', () => {
             ACCOUNT_2_MOCK,
             networkClientId,
           );
-          await advanceTime({ clock, duration: 1 });
+          await jestAdvanceTime({ duration: 1 });
 
           const secondNonceLock = await secondNonceLockPromise;
 
           expect(secondNonceLock.nextNonce).toBe(15);
         }),
       );
-      transactionController.destroy();
-    });
-
-    it('should get the nonce lock from the globally selected nonceTracker if no networkClientId is provided', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          buildEthBlockNumberRequestMock('0x1'),
-          buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK, '0x1', '0xa'),
-        ],
-      });
-
-      const { transactionController } = await setupController({});
-
-      const nonceLockPromise = transactionController.getNonceLock(ACCOUNT_MOCK);
-      await advanceTime({ clock, duration: 1 });
-
-      const nonceLock = await nonceLockPromise;
-
-      expect(nonceLock.nextNonce).toBe(10);
-      transactionController.destroy();
-    });
-
-    it('should block attempts to get the nonce lock from the globally selected NonceTracker for the same address until the previous lock is released', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          buildEthBlockNumberRequestMock('0x1'),
-          buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK, '0x1', '0xa'),
-        ],
-      });
-
-      const { transactionController } = await setupController({});
-
-      const firstNonceLockPromise =
-        transactionController.getNonceLock(ACCOUNT_MOCK);
-      await advanceTime({ clock, duration: 1 });
-
-      const firstNonceLock = await firstNonceLockPromise;
-
-      expect(firstNonceLock.nextNonce).toBe(10);
-
-      const secondNonceLockPromise =
-        transactionController.getNonceLock(ACCOUNT_MOCK);
-      const delay = () =>
-        new Promise<null>(async (resolve) => {
-          await advanceTime({ clock, duration: 100 });
-          resolve(null);
-        });
-
-      let secondNonceLockIfAcquired = await Promise.race([
-        secondNonceLockPromise,
-        delay(),
-      ]);
-      expect(secondNonceLockIfAcquired).toBeNull();
-
-      await firstNonceLock.releaseLock();
-
-      secondNonceLockIfAcquired = await Promise.race([
-        secondNonceLockPromise,
-        delay(),
-      ]);
-      expect(secondNonceLockIfAcquired?.nextNonce).toBe(10);
-      transactionController.destroy();
-    });
-
-    it('should not block attempts to get the nonce lock from the globally selected nonceTracker for different addresses', async () => {
-      mockNetwork({
-        networkClientConfiguration: buildInfuraNetworkClientConfiguration(
-          InfuraNetworkType.mainnet,
-        ),
-        mocks: [
-          buildEthBlockNumberRequestMock('0x1'),
-          buildEthGetTransactionCountRequestMock(ACCOUNT_MOCK, '0x1', '0xa'),
-          buildEthGetTransactionCountRequestMock(ACCOUNT_2_MOCK, '0x1', '0xf'),
-        ],
-      });
-
-      const { transactionController } = await setupController({});
-
-      const firstNonceLockPromise =
-        transactionController.getNonceLock(ACCOUNT_MOCK);
-      await advanceTime({ clock, duration: 1 });
-
-      const firstNonceLock = await firstNonceLockPromise;
-
-      expect(firstNonceLock.nextNonce).toBe(10);
-
-      const secondNonceLockPromise =
-        transactionController.getNonceLock(ACCOUNT_2_MOCK);
-      await advanceTime({ clock, duration: 1 });
-
-      const secondNonceLock = await secondNonceLockPromise;
-
-      expect(secondNonceLock.nextNonce).toBe(15);
-
       transactionController.destroy();
     });
   });

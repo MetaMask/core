@@ -1,261 +1,308 @@
-import { ORIGIN_METAMASK } from '@metamask/controller-utils';
-import {
-  SigningMethod,
-  SigningStage,
-  LogType,
-} from '@metamask/logging-controller';
-import type {
-  AbstractMessage,
-  OriginalRequest,
-} from '@metamask/message-manager';
-import {
-  MessageManager,
-  PersonalMessageManager,
-  TypedMessageManager,
-} from '@metamask/message-manager';
-import { EthereumProviderError } from '@metamask/rpc-errors';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
+import type { SIWEMessage } from '@metamask/controller-utils';
+import { detectSIWE, ORIGIN_METAMASK } from '@metamask/controller-utils';
+import { SignTypedDataVersion } from '@metamask/keyring-controller';
+import { LogType, SigningStage } from '@metamask/logging-controller';
+import { v1 } from 'uuid';
 
+import { flushPromises } from '../../../tests/helpers';
 import type {
   SignatureControllerMessenger,
   SignatureControllerOptions,
+  SignatureControllerState,
 } from './SignatureController';
 import { SignatureController } from './SignatureController';
+import type {
+  MessageParamsPersonal,
+  MessageParamsTyped,
+  OriginalRequest,
+  SignatureRequest,
+} from './types';
+import { SignatureRequestStatus, SignatureRequestType } from './types';
+import * as DecodingDataUtils from './utils/decoding-api';
+import {
+  normalizePersonalMessageParams,
+  normalizeTypedMessageParams,
+} from './utils/normalize';
+import { validateTypedSignatureRequest } from './utils/validation';
 
-jest.mock('@metamask/message-manager', () => ({
-  MessageManager: jest.fn(),
-  PersonalMessageManager: jest.fn(),
-  TypedMessageManager: jest.fn(),
+jest.mock('uuid');
+jest.mock('./utils/validation');
+jest.mock('./utils/normalize');
+
+jest.mock('@metamask/controller-utils', () => ({
+  ...jest.requireActual('@metamask/controller-utils'),
+  detectSIWE: jest.fn(),
 }));
 
-jest.mock('@metamask/controller-utils', () => {
-  const actual = jest.requireActual('@metamask/controller-utils');
-  return { ...actual, detectSIWE: jest.fn() };
-});
+const ID_MOCK = '123-456';
+const CHAIN_ID_MOCK = '0x1';
+const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
+const FROM_MOCK = '0x456DEF';
+const DATA_MOCK = '0xABC123';
+const SIGNATURE_HASH_MOCK = '0x123ABC';
+const ERROR_MESSAGE_MOCK = 'Test Error Message';
+const ERROR_CODE_MOCK = 1234;
+const ORIGIN_MOCK = 'testOrigin';
 
-class NoErrorThrownError extends Error {}
-const getError = async <TError>(call: () => unknown): Promise<TError> => {
-  try {
-    await call();
-    throw new NoErrorThrownError();
-  } catch (error: unknown) {
-    return error as TError;
-  }
+const PARAMS_MOCK = {
+  data: DATA_MOCK,
+  from: FROM_MOCK,
+  metamaskId: ID_MOCK,
+  origin: ORIGIN_MOCK,
+  version: SignTypedDataVersion.V1,
 };
 
-const messageIdMock = '123';
-const messageIdMock2 = '456';
-const versionMock = 'V1';
-
-const messageParamsWithoutIdMock = {
-  from: '0x123',
-  origin: 'http://test.com',
-  data: '0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF',
-  version: 'V1',
+const REQUEST_MOCK = {
+  networkClientId: NETWORK_CLIENT_ID_MOCK,
+  params: [],
 };
 
-const messageParamsMock = {
-  ...messageParamsWithoutIdMock,
-  metamaskId: messageIdMock,
+const SIGNATURE_REQUEST_MOCK: SignatureRequest = {
+  chainId: CHAIN_ID_MOCK,
+  id: ID_MOCK,
+  messageParams: PARAMS_MOCK,
+  networkClientId: NETWORK_CLIENT_ID_MOCK,
+  status: SignatureRequestStatus.Signed,
+  time: Date.now(),
+  type: SignatureRequestType.PersonalSign,
 };
 
-const messageParamsMock2 = {
-  from: '0x124',
-  origin: 'http://test4.com',
-  data: '0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFA',
-  metamaskId: messageIdMock,
+const PERMIT_PARAMS_MOCK = {
+  data: '{"types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Permit":[{"name":"owner","type":"address"},{"name":"spender","type":"address"},{"name":"value","type":"uint256"},{"name":"nonce","type":"uint256"},{"name":"deadline","type":"uint256"}]},"primaryType":"Permit","domain":{"name":"MyToken","version":"1","verifyingContract":"0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC","chainId":1},"message":{"owner":"0x975e73efb9ff52e23bac7f7e043a1ecd06d05477","spender":"0x5B38Da6a701c568545dCfcB03FcB875f56beddC4","value":3000,"nonce":0,"deadline":50000000000}}',
+  from: '0x975e73efb9ff52e23bac7f7e043a1ecd06d05477',
+  version: 'V4',
+  signatureMethod: 'eth_signTypedData_v4',
 };
 
-const messageMock = {
-  id: messageIdMock,
-  time: 123,
-  status: 'unapproved',
-  type: 'testType',
-  rawSig: undefined,
-  // TODO: Replace `any` with type
+const PERMIT_REQUEST_MOCK = {
+  method: 'eth_signTypedData_v4',
+  params: [
+    '0x975e73efb9ff52e23bac7f7e043a1ecd06d05477',
+    '{"types":{"EIP712Domain":[{"name":"name","type":"string"},{"name":"version","type":"string"},{"name":"chainId","type":"uint256"},{"name":"verifyingContract","type":"address"}],"Permit":[{"name":"owner","type":"address"},{"name":"spender","type":"address"},{"name":"value","type":"uint256"},{"name":"nonce","type":"uint256"},{"name":"deadline","type":"uint256"}]},"primaryType":"Permit","domain":{"name":"MyToken","version":"1","verifyingContract":"0xCcCCccccCCCCcCCCCCCcCcCccCcCCCcCcccccccC","chainId":1},"message":{"owner":"0x975e73efb9ff52e23bac7f7e043a1ecd06d05477","spender":"0x5B38Da6a701c568545dCfcB03FcB875f56beddC4","value":3000,"nonce":0,"deadline":50000000000}}',
+  ],
+  jsonrpc: '2.0',
+  id: 1680528590,
+  origin: 'https://metamask.github.io',
+  networkClientId: 'mainnet',
+  tabId: 1048807181,
+  traceContext: null,
+};
+
+const DELEGATION_PARAMS_MOCK = {
+  data: '{"types":{"EIP712Domain":[{"name":"chainId","type":"uint256"}],"Delegation":[{"name":"delegate","type":"address"},{"name":"delegator","type":"address"},{"name":"authority","type":"bytes"},{"name":"caveats","type":"bytes"}]},"primaryType":"Delegation","domain":{"chainId":1},"message":{"delegate":"0x5B38Da6a701c568545dCfcB03FcB875f56beddC4","delegator":"0x975e73efb9ff52e23bac7f7e043a1ecd06d05477","authority":"0x1234abcd","caveats":[]},"metadata":{"origin":"https://metamask.github.io","justification":"Testing delegation"}}',
+  from: '0x975e73efb9ff52e23bac7f7e043a1ecd06d05477',
+  version: 'V4',
+  signatureMethod: 'eth_signTypedData_v4',
+};
+
+const DELEGATION_REQUEST_MOCK = {
+  method: 'eth_signTypedData_v4',
+  params: [
+    '0x975e73efb9ff52e23bac7f7e043a1ecd06d05477',
+    DELEGATION_PARAMS_MOCK.data,
+  ],
+  jsonrpc: '2.0',
+  id: 1680528591,
+  origin: 'npm:@metamask/gator-permissions-snap',
+  networkClientId: 'mainnet',
+  tabId: 1048807182,
+  traceContext: null,
+};
+
+/**
+ * Create a mock messenger instance.
+ *
+ * @returns The mock messenger instance plus individual mock functions for each action.
+ */
+function createMessengerMock() {
+  const accountsControllerGetStateMock = jest.fn();
+  const approvalControllerAddRequestMock = jest.fn();
+  const keyringControllerSignPersonalMessageMock = jest.fn();
+  const keyringControllerSignTypedMessageMock = jest.fn();
+  const loggingControllerAddMock = jest.fn();
+  const networkControllerGetNetworkClientByIdMock = jest.fn();
+  const decodePermissionFromPermissionContextForOriginMock = jest.fn();
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-} as any as AbstractMessage;
+  const callMock = (method: string, ...args: any[]) => {
+    switch (method) {
+      case 'AccountsController:getState':
+        return accountsControllerGetStateMock(...args);
+      case 'ApprovalController:addRequest':
+        return approvalControllerAddRequestMock(...args);
+      case 'KeyringController:signPersonalMessage':
+        return keyringControllerSignPersonalMessageMock(...args);
+      case 'KeyringController:signTypedMessage':
+        return keyringControllerSignTypedMessageMock(...args);
+      case 'LoggingController:add':
+        return loggingControllerAddMock(...args);
+      case 'NetworkController:getNetworkClientById':
+        return networkControllerGetNetworkClientByIdMock(...args);
+      case 'GatorPermissionsController:decodePermissionFromPermissionContextForOrigin':
+        return decodePermissionFromPermissionContextForOriginMock(...args);
+      default:
+        throw new Error(`Messenger method not recognised: ${method}`);
+    }
+  };
 
-const coreMessageMock = {
-  ...messageMock,
-  messageParams: messageParamsMock,
-};
-
-const stateMessageMock = {
-  ...messageMock,
-  msgParams: messageParamsMock,
-};
-
-const requestMock = {
-  origin: 'http://test2.com',
-} as OriginalRequest;
-
-const createMessengerMock = () =>
-  ({
+  const messenger = {
     registerActionHandler: jest.fn(),
+    registerMethodActionHandlers: jest.fn(),
     registerInitialEventPayload: jest.fn(),
     publish: jest.fn(),
-    call: jest.fn(),
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any as jest.Mocked<SignatureControllerMessenger>);
+    call: callMock,
+  } as unknown as jest.Mocked<SignatureControllerMessenger>;
 
-const addUnapprovedMessageMock = jest.fn();
-const waitForFinishStatusMock = jest.fn();
-const approveMessageMock = jest.fn();
-
-// TODO: Replace `any` with type
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const createMessageManagerMock = <T>(prototype?: any): jest.Mocked<T> => {
-  const messageManagerMock = Object.create(prototype);
-
-  return Object.assign(messageManagerMock, {
-    getUnapprovedMessages: jest.fn(),
-    getUnapprovedMessagesCount: jest.fn(),
-    addUnapprovedMessage: addUnapprovedMessageMock,
-    waitForFinishStatus: waitForFinishStatusMock,
-    approveMessage: approveMessageMock,
-    setMessageStatusSigned: jest.fn(),
-    setMessageStatusErrored: jest.fn(),
-    setMessageStatusInProgress: jest.fn(),
-    rejectMessage: jest.fn(),
-    cancelAbstractMessage: jest.fn(),
-    subscribe: jest.fn(),
-    update: jest.fn(),
-    setMetadata: jest.fn(),
-    getAllMessages: jest.fn(),
-    hub: {
-      on: jest.fn(),
+  accountsControllerGetStateMock.mockReturnValue({
+    internalAccounts: {
+      accounts: [],
     },
-  }) as jest.Mocked<T>;
-};
+  });
+
+  approvalControllerAddRequestMock.mockResolvedValue({});
+  loggingControllerAddMock.mockResolvedValue({});
+
+  networkControllerGetNetworkClientByIdMock.mockReturnValue({
+    configuration: {
+      chainId: CHAIN_ID_MOCK,
+    },
+  });
+
+  decodePermissionFromPermissionContextForOriginMock.mockReturnValue({
+    kind: 'decoded-permission',
+  });
+
+  return {
+    accountsControllerGetStateMock,
+    approvalControllerAddRequestMock,
+    keyringControllerSignPersonalMessageMock,
+    keyringControllerSignTypedMessageMock,
+    loggingControllerAddMock,
+    decodePermissionFromPermissionContextForOriginMock,
+    messenger,
+  };
+}
+
+/**
+ * Create a new instance of the SignatureController.
+ *
+ * @param options - Optional overrides for the default options.
+ * @returns The controller instance plus individual mock functions for each action.
+ */
+function createController(options?: Partial<SignatureControllerOptions>) {
+  const messengerMocks = createMessengerMock();
+
+  const controller = new SignatureController({
+    messenger: messengerMocks.messenger,
+    ...options,
+  });
+
+  return { controller, ...messengerMocks };
+}
+
+/**
+ * Create a mock error.
+ *
+ * @returns The mock error instance.
+ */
+function createErrorMock(): Error {
+  const errorMock = new Error(ERROR_MESSAGE_MOCK);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (errorMock as any).code = ERROR_CODE_MOCK;
+  return errorMock;
+}
 
 describe('SignatureController', () => {
-  let signatureController: SignatureController;
-
-  const messageManagerConstructorMock = MessageManager as jest.MockedClass<
-    typeof MessageManager
-  >;
-  const personalMessageManagerConstructorMock =
-    PersonalMessageManager as jest.MockedClass<typeof PersonalMessageManager>;
-  const typedMessageManagerConstructorMock =
-    TypedMessageManager as jest.MockedClass<typeof TypedMessageManager>;
-  const messageManagerMock = createMessageManagerMock<MessageManager>(
-    MessageManager.prototype,
+  const normalizePersonalMessageParamsMock = jest.mocked(
+    normalizePersonalMessageParams,
   );
-  const personalMessageManagerMock =
-    createMessageManagerMock<PersonalMessageManager>(
-      PersonalMessageManager.prototype,
-    );
-  const typedMessageManagerMock = createMessageManagerMock<TypedMessageManager>(
-    TypedMessageManager.prototype,
+
+  const normalizeTypedMessageParamsMock = jest.mocked(
+    normalizeTypedMessageParams,
   );
-  const resultCallbacksMock = {
-    success: jest.fn(),
-    error: jest.fn(),
-  };
-  const messengerMock = createMessengerMock();
-  const getAllStateMock = jest.fn();
-  const securityProviderRequestMock = jest.fn();
-  const isEthSignEnabledMock = jest.fn();
-  const getCurrentChainIdMock = jest.fn();
-  const keyringErrorMessageMock = 'Keyring Error';
-  const keyringErrorMock = new Error(keyringErrorMessageMock);
 
-  const mockMessengerAction = (
-    action: string,
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    callback: (actionName: string, ...args: any[]) => any,
-  ) => {
-    messengerMock.call.mockImplementation((actionName, ...rest) => {
-      if (actionName === action) {
-        return callback(actionName, ...rest);
-      }
+  const validateTypedSignatureRequestMock = jest.mocked(
+    validateTypedSignatureRequest,
+  );
 
-      return Promise.resolve({
-        resultCallbacks: resultCallbacksMock,
-      });
-    });
-  };
+  const detectSIWEMock = jest.mocked(detectSIWE);
+  const uuidV1Mock = jest.mocked(v1);
 
   beforeEach(() => {
     jest.resetAllMocks();
-    jest.spyOn(console, 'info').mockImplementation(() => undefined);
 
-    addUnapprovedMessageMock.mockResolvedValue(messageIdMock);
-    approveMessageMock.mockResolvedValue(messageParamsWithoutIdMock);
-    messageManagerConstructorMock.mockReturnValue(messageManagerMock);
-    personalMessageManagerConstructorMock.mockReturnValue(
-      personalMessageManagerMock,
-    );
-    messengerMock.call.mockResolvedValue({
-      resultCallbacks: resultCallbacksMock,
-    });
-
-    typedMessageManagerConstructorMock.mockReturnValue(typedMessageManagerMock);
-
-    isEthSignEnabledMock.mockReturnValue(true);
-
-    signatureController = new SignatureController({
-      messenger: messengerMock,
-      getAllState: getAllStateMock,
-      securityProviderRequest: securityProviderRequestMock,
-      isEthSignEnabled: isEthSignEnabledMock,
-      getCurrentChainId: getCurrentChainIdMock,
-    } as SignatureControllerOptions);
-  });
-
-  describe('unapprovedMsgCount', () => {
-    it('returns value from message manager getter', () => {
-      messageManagerMock.getUnapprovedMessagesCount.mockReturnValueOnce(10);
-      expect(signatureController.unapprovedMsgCount).toBe(10);
-    });
+    normalizePersonalMessageParamsMock.mockImplementation((params) => params);
+    normalizeTypedMessageParamsMock.mockImplementation((params) => params);
+    uuidV1Mock.mockReturnValueOnce(ID_MOCK);
   });
 
   describe('unapprovedPersonalMessagesCount', () => {
-    it('returns value from personal message manager getter', () => {
-      personalMessageManagerMock.getUnapprovedMessagesCount.mockReturnValueOnce(
-        11,
-      );
-      expect(signatureController.unapprovedPersonalMessagesCount).toBe(11);
+    it('returns the number of unapproved personal messages in state', () => {
+      const { controller } = createController({
+        state: {
+          unapprovedPersonalMsgCount: 3,
+        } as SignatureControllerState,
+      });
+
+      expect(controller.unapprovedPersonalMessagesCount).toBe(3);
     });
   });
 
   describe('unapprovedTypedMessagesCount', () => {
-    it('returns value from typed message manager getter', () => {
-      typedMessageManagerMock.getUnapprovedMessagesCount.mockReturnValueOnce(
-        12,
-      );
-      expect(signatureController.unapprovedTypedMessagesCount).toBe(12);
+    it('returns the number of unapproved typed messages in state', () => {
+      const { controller } = createController({
+        state: {
+          unapprovedTypedMessagesCount: 3,
+        } as SignatureControllerState,
+      });
+
+      expect(controller.unapprovedTypedMessagesCount).toBe(3);
+    });
+  });
+
+  describe('messages', () => {
+    it('returns the signature requests in state', () => {
+      const { controller } = createController({
+        state: {
+          signatureRequests: {
+            [ID_MOCK]: SIGNATURE_REQUEST_MOCK,
+            '2': SIGNATURE_REQUEST_MOCK,
+          },
+        } as unknown as SignatureControllerState,
+      });
+
+      expect(controller.messages).toStrictEqual({
+        [ID_MOCK]: SIGNATURE_REQUEST_MOCK,
+        '2': SIGNATURE_REQUEST_MOCK,
+      });
     });
   });
 
   describe('resetState', () => {
-    it('sets state to initial state', () => {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      signatureController.update(() => ({
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        unapprovedMsgs: { [messageIdMock]: messageMock } as any,
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        unapprovedPersonalMsgs: { [messageIdMock]: messageMock } as any,
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        unapprovedTypedMessages: { [messageIdMock]: messageMock } as any,
-        unapprovedMsgCount: 1,
-        unapprovedPersonalMsgCount: 2,
-        unapprovedTypedMessagesCount: 3,
-      }));
+    it('resets the state to default state', () => {
+      const { controller } = createController({
+        state: {
+          signatureRequests: {
+            [ID_MOCK]: SIGNATURE_REQUEST_MOCK,
+          },
+          unapprovedPersonalMsgs: {
+            [ID_MOCK]: SIGNATURE_REQUEST_MOCK,
+          },
+          unapprovedTypedMessages: {
+            [ID_MOCK]: SIGNATURE_REQUEST_MOCK,
+          },
+          unapprovedPersonalMsgCount: 1,
+          unapprovedTypedMessagesCount: 1,
+        } as unknown as SignatureControllerState,
+      });
 
-      signatureController.resetState();
+      controller.resetState();
 
-      expect(signatureController.state).toStrictEqual({
-        unapprovedMsgs: {},
+      expect(controller.state).toStrictEqual({
+        signatureRequests: {},
         unapprovedPersonalMsgs: {},
         unapprovedTypedMessages: {},
-        unapprovedMsgCount: 0,
         unapprovedPersonalMsgCount: 0,
         unapprovedTypedMessagesCount: 0,
       });
@@ -263,820 +310,1286 @@ describe('SignatureController', () => {
   });
 
   describe('rejectUnapproved', () => {
-    beforeEach(() => {
-      const messages = {
-        [messageIdMock]: messageMock,
-        [messageIdMock2]: messageMock,
+    it('rejects all signature requests with unapproved status', () => {
+      const signatureRequests = {
+        '1': SIGNATURE_REQUEST_MOCK,
+        '2': {
+          ...SIGNATURE_REQUEST_MOCK,
+          id: '2',
+          status: SignatureRequestStatus.Unapproved,
+        },
+        '3': {
+          ...SIGNATURE_REQUEST_MOCK,
+          id: '3',
+          type: SignatureRequestType.TypedSign,
+          status: SignatureRequestStatus.Unapproved,
+        },
       };
 
-      messageManagerMock.getUnapprovedMessages.mockReturnValueOnce(
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        messages as any,
-      );
-      personalMessageManagerMock.getUnapprovedMessages.mockReturnValueOnce(
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        messages as any,
-      );
-      typedMessageManagerMock.getUnapprovedMessages.mockReturnValueOnce(
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        messages as any,
-      );
+      const { controller } = createController({
+        state: {
+          signatureRequests,
+        } as unknown as SignatureControllerState,
+      });
 
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      signatureController.update(() => ({
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        unapprovedMsgs: messages as any,
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        unapprovedPersonalMsgs: messages as any,
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        unapprovedTypedMessages: messages as any,
-      }));
+      controller.rejectUnapproved();
+
+      expect(controller.state.signatureRequests).toStrictEqual({
+        '1': signatureRequests['1'],
+        '2': {
+          ...signatureRequests['2'],
+          status: SignatureRequestStatus.Rejected,
+        },
+        '3': {
+          ...signatureRequests['3'],
+          status: SignatureRequestStatus.Rejected,
+        },
+      });
     });
 
-    it('rejects all messages in all message managers', () => {
-      signatureController.rejectUnapproved('Test Reason');
+    it('emits event if reason provided', () => {
+      const signatureRequests = {
+        '1': SIGNATURE_REQUEST_MOCK,
+        '2': {
+          ...SIGNATURE_REQUEST_MOCK,
+          id: '2',
+          status: SignatureRequestStatus.Unapproved,
+        },
+        '3': {
+          ...SIGNATURE_REQUEST_MOCK,
+          id: '3',
+          type: SignatureRequestType.TypedSign,
+          status: SignatureRequestStatus.Unapproved,
+        },
+      };
 
-      expect(messageManagerMock.rejectMessage).toHaveBeenCalledTimes(2);
-      expect(messageManagerMock.rejectMessage).toHaveBeenCalledWith(
-        messageIdMock,
-      );
-      expect(messageManagerMock.rejectMessage).toHaveBeenCalledWith(
-        messageIdMock2,
-      );
+      const listener = jest.fn();
 
-      expect(personalMessageManagerMock.rejectMessage).toHaveBeenCalledTimes(2);
-      expect(personalMessageManagerMock.rejectMessage).toHaveBeenCalledWith(
-        messageIdMock,
-      );
-      expect(personalMessageManagerMock.rejectMessage).toHaveBeenCalledWith(
-        messageIdMock2,
-      );
+      const { controller } = createController({
+        state: {
+          signatureRequests,
+        } as unknown as SignatureControllerState,
+      });
 
-      expect(typedMessageManagerMock.rejectMessage).toHaveBeenCalledTimes(2);
-      expect(typedMessageManagerMock.rejectMessage).toHaveBeenCalledWith(
-        messageIdMock,
-      );
-      expect(typedMessageManagerMock.rejectMessage).toHaveBeenCalledWith(
-        messageIdMock2,
-      );
-    });
+      controller.hub.on('cancelWithReason', listener);
 
-    it('fires event with reject reason', () => {
-      const listenerMock = jest.fn();
-      signatureController.hub.on('cancelWithReason', listenerMock);
+      controller.rejectUnapproved('Custom reason');
 
-      signatureController.rejectUnapproved('Test Reason');
+      expect(listener).toHaveBeenCalledTimes(2);
 
-      expect(listenerMock).toHaveBeenCalledTimes(6);
-      expect(listenerMock).toHaveBeenLastCalledWith({
-        reason: 'Test Reason',
-        message: messageMock,
+      expect(listener).toHaveBeenCalledWith({
+        metadata: signatureRequests['2'],
+        reason: 'Custom reason',
+      });
+
+      expect(listener).toHaveBeenCalledWith({
+        metadata: signatureRequests['3'],
+        reason: 'Custom reason',
       });
     });
   });
 
   describe('clearUnapproved', () => {
-    it('resets state in all message managers', () => {
-      signatureController.clearUnapproved();
-
-      const defaultState = {
-        unapprovedMessages: {},
-        unapprovedMessagesCount: 0,
+    it('deletes all signature requests with unapproved status', () => {
+      const signatureRequests = {
+        '1': SIGNATURE_REQUEST_MOCK,
+        '2': {
+          ...SIGNATURE_REQUEST_MOCK,
+          id: '2',
+          status: SignatureRequestStatus.Unapproved,
+        },
+        '3': {
+          ...SIGNATURE_REQUEST_MOCK,
+          id: '3',
+          type: SignatureRequestType.TypedSign,
+          status: SignatureRequestStatus.Unapproved,
+        },
       };
 
-      expect(messageManagerMock.update).toHaveBeenCalledTimes(1);
-      expect(messageManagerMock.update).toHaveBeenCalledWith(defaultState);
+      const { controller } = createController({
+        state: {
+          signatureRequests,
+        } as unknown as SignatureControllerState,
+      });
 
-      expect(personalMessageManagerMock.update).toHaveBeenCalledTimes(1);
-      expect(personalMessageManagerMock.update).toHaveBeenCalledWith(
-        defaultState,
-      );
+      controller.clearUnapproved();
 
-      expect(typedMessageManagerMock.update).toHaveBeenCalledTimes(1);
-      expect(typedMessageManagerMock.update).toHaveBeenCalledWith(defaultState);
+      expect(controller.state.signatureRequests).toStrictEqual({
+        '1': signatureRequests['1'],
+      });
     });
   });
 
-  describe('newUnsignedMessage', () => {
-    it('throws if eth_sign disabled', async () => {
-      isEthSignEnabledMock.mockReturnValueOnce(false);
-
-      await expect(
-        signatureController.newUnsignedMessage(messageParamsMock, requestMock),
-      ).rejects.toThrow(
-        'eth_sign has been disabled. You must enable it in the advanced settings',
-      );
-    });
-
-    it('throws if data has wrong length', async () => {
-      await expect(
-        signatureController.newUnsignedMessage(
-          { ...messageParamsMock, data: '0xFF' },
-          requestMock,
+  describe.each([
+    [
+      'newUnsignedPersonalMessage',
+      (
+        controller: SignatureController,
+        request: OriginalRequest,
+        params?: Partial<MessageParamsPersonal>,
+      ) =>
+        controller.newUnsignedPersonalMessage(
+          { ...PARAMS_MOCK, ...params },
+          request,
         ),
-      ).rejects.toThrow('eth_sign requires 32 byte message hash');
-    });
-
-    it('throws if data has wrong length and is unicode', async () => {
-      await expect(
-        signatureController.newUnsignedMessage(
-          { ...messageParamsMock, data: '1234' },
-          requestMock,
+      SignatureRequestType.PersonalSign,
+    ],
+    [
+      'newUnsignedTypedMessage',
+      (
+        controller: SignatureController,
+        request: OriginalRequest,
+        params?: Partial<MessageParamsTyped>,
+      ) =>
+        controller.newUnsignedTypedMessage(
+          { ...PARAMS_MOCK, ...params },
+          request,
+          SignTypedDataVersion.V1,
+          { parseJsonData: false },
         ),
-      ).rejects.toThrow('eth_sign requires 32 byte message hash');
+      SignatureRequestType.TypedSign,
+    ],
+  ])('%s', (_title: string, fn, type) => {
+    it('throws if rejected', async () => {
+      const { controller, approvalControllerAddRequestMock } =
+        createController();
+
+      const error = createErrorMock();
+
+      approvalControllerAddRequestMock.mockRejectedValueOnce(error);
+
+      await expect(
+        controller.newUnsignedPersonalMessage({ ...PARAMS_MOCK }, REQUEST_MOCK),
+      ).rejects.toMatchObject({
+        message: ERROR_MESSAGE_MOCK,
+        code: ERROR_CODE_MOCK,
+      });
     });
 
-    it('adds message to message manager', async () => {
-      // Satisfy one of fallback branches
-      const { origin: _origin, ...messageParamsWithoutOrigin } =
-        messageParamsMock;
+    it('invokes success callback if approved', async () => {
+      const resultCallbackSuccessMock = jest.fn();
 
-      await signatureController.newUnsignedMessage(
-        messageParamsWithoutOrigin,
-        requestMock,
+      const {
+        controller,
+        approvalControllerAddRequestMock,
+        keyringControllerSignPersonalMessageMock,
+        keyringControllerSignTypedMessageMock,
+      } = createController();
+
+      approvalControllerAddRequestMock.mockResolvedValueOnce({
+        resultCallbacks: {
+          success: resultCallbackSuccessMock,
+        },
+      });
+
+      keyringControllerSignPersonalMessageMock.mockResolvedValueOnce(
+        SIGNATURE_HASH_MOCK,
       );
 
-      expect(messageManagerMock.addUnapprovedMessage).toHaveBeenCalledTimes(1);
-      expect(messageManagerMock.addUnapprovedMessage).toHaveBeenCalledWith(
-        messageParamsWithoutOrigin,
-        requestMock,
-        undefined,
+      keyringControllerSignTypedMessageMock.mockResolvedValueOnce(
+        SIGNATURE_HASH_MOCK,
       );
 
-      expect(messengerMock.call).toHaveBeenCalledTimes(4);
-      expect(messengerMock.call).toHaveBeenNthCalledWith(
-        2,
-        'ApprovalController:addRequest',
+      await fn(controller, REQUEST_MOCK);
+
+      expect(resultCallbackSuccessMock).toHaveBeenCalledTimes(1);
+      expect(resultCallbackSuccessMock).toHaveBeenCalledWith(
+        SIGNATURE_HASH_MOCK,
+      );
+    });
+
+    it('emits finished event if approved', async () => {
+      const listener = jest.fn();
+
+      const { controller } = createController();
+
+      controller.hub.on(`${ID_MOCK}:finished`, listener);
+
+      await fn(controller, REQUEST_MOCK);
+
+      const state = controller.state.signatureRequests[ID_MOCK];
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledWith(state);
+    });
+
+    it('emits finished event if rejected', async () => {
+      const listener = jest.fn();
+
+      const { controller, approvalControllerAddRequestMock } =
+        createController();
+
+      controller.hub.on(`${ID_MOCK}:finished`, listener);
+
+      const errorMock = createErrorMock();
+
+      approvalControllerAddRequestMock.mockRejectedValueOnce(errorMock);
+
+      await fn(controller, REQUEST_MOCK).catch(() => {
+        // Ignore error
+      });
+
+      const state = controller.state.signatureRequests[ID_MOCK];
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledWith(state);
+    });
+
+    it('adds logs to logging controller if approved', async () => {
+      const { controller, loggingControllerAddMock } = createController();
+
+      await fn(controller, REQUEST_MOCK);
+
+      expect(loggingControllerAddMock).toHaveBeenCalledTimes(2);
+
+      expect(loggingControllerAddMock).toHaveBeenCalledWith({
+        type: LogType.EthSignLog,
+        data: {
+          signingMethod: expect.any(String),
+          stage: SigningStage.Proposed,
+          signingData: expect.any(Object),
+        },
+      });
+
+      expect(loggingControllerAddMock).toHaveBeenCalledWith({
+        type: LogType.EthSignLog,
+        data: {
+          signingMethod: expect.any(String),
+          stage: SigningStage.Signed,
+          signingData: expect.any(Object),
+        },
+      });
+    });
+
+    it('adds logs to logging controller if rejected', async () => {
+      const {
+        controller,
+        loggingControllerAddMock,
+        approvalControllerAddRequestMock,
+      } = createController();
+
+      const errorMock = createErrorMock();
+
+      approvalControllerAddRequestMock.mockRejectedValueOnce(errorMock);
+
+      await expect(fn(controller, REQUEST_MOCK)).rejects.toThrow(errorMock);
+
+      expect(loggingControllerAddMock).toHaveBeenCalledTimes(2);
+
+      expect(loggingControllerAddMock).toHaveBeenCalledWith({
+        type: LogType.EthSignLog,
+        data: {
+          signingMethod: expect.any(String),
+          stage: SigningStage.Proposed,
+          signingData: expect.any(Object),
+        },
+      });
+
+      expect(loggingControllerAddMock).toHaveBeenCalledWith({
+        type: LogType.EthSignLog,
+        data: {
+          signingMethod: expect.any(String),
+          stage: SigningStage.Rejected,
+          signingData: expect.any(Object),
+        },
+      });
+    });
+
+    it('populates origin from request if present', async () => {
+      const { controller } = createController();
+
+      await fn(controller, { ...REQUEST_MOCK, origin: 'test' });
+
+      expect(
+        controller.state.signatureRequests[ID_MOCK].messageParams.origin,
+      ).toBe('test');
+    });
+
+    it('populates origin from message params if no request', async () => {
+      const { controller } = createController();
+
+      await fn(controller, REQUEST_MOCK);
+
+      expect(
+        controller.state.signatureRequests[ID_MOCK].messageParams.origin,
+      ).toBe(ORIGIN_MOCK);
+    });
+
+    it('populates request ID from request', async () => {
+      const { controller } = createController();
+
+      await fn(controller, { ...REQUEST_MOCK, id: 123 });
+
+      expect(
+        controller.state.signatureRequests[ID_MOCK].messageParams.requestId,
+      ).toBe(123);
+    });
+
+    it('populates metamask ID using ID', async () => {
+      const { controller } = createController();
+
+      await fn(controller, REQUEST_MOCK);
+
+      expect(
+        controller.state.signatureRequests[ID_MOCK].messageParams.metamaskId,
+      ).toBe(ID_MOCK);
+    });
+
+    it('throws if no network client ID in request', async () => {
+      const { controller } = createController();
+
+      await expect(fn(controller, {} as OriginalRequest)).rejects.toThrow(
+        'Network client ID not found in request',
+      );
+    });
+
+    it('emits unapproved message event', async () => {
+      const listener = jest.fn();
+
+      const { controller } = createController();
+
+      controller.hub.on('unapprovedMessage', listener);
+
+      await fn(controller, REQUEST_MOCK);
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledWith({
+        messageParams: PARAMS_MOCK,
+        metamaskId: ID_MOCK,
+      });
+    });
+
+    it('emits signed event after sign', async () => {
+      const listener = jest.fn();
+
+      const {
+        controller,
+        keyringControllerSignPersonalMessageMock,
+        keyringControllerSignTypedMessageMock,
+      } = createController();
+
+      keyringControllerSignPersonalMessageMock.mockResolvedValueOnce(
+        SIGNATURE_HASH_MOCK,
+      );
+
+      keyringControllerSignTypedMessageMock.mockResolvedValueOnce(
+        SIGNATURE_HASH_MOCK,
+      );
+
+      controller.hub.on(`${type}:signed`, listener);
+
+      await fn(controller, REQUEST_MOCK);
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledWith({
+        signature: SIGNATURE_HASH_MOCK,
+        messageId: ID_MOCK,
+      });
+    });
+
+    it('emits sign error event if signing fails', async () => {
+      const errorMock = createErrorMock();
+
+      const listener = jest.fn();
+
+      const {
+        controller,
+        keyringControllerSignTypedMessageMock,
+        keyringControllerSignPersonalMessageMock,
+      } = createController();
+
+      controller.hub.on(`${ID_MOCK}:signError`, listener);
+
+      keyringControllerSignPersonalMessageMock.mockRejectedValueOnce(errorMock);
+      keyringControllerSignTypedMessageMock.mockRejectedValueOnce(errorMock);
+
+      await fn(controller, REQUEST_MOCK).catch(() => {
+        // Ignore error
+      });
+
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledWith({
+        error: errorMock,
+      });
+    });
+
+    it('invokes error callback if signing fails', async () => {
+      const resultCallbackErrorMock = jest.fn();
+
+      const errorMock = createErrorMock();
+
+      const {
+        controller,
+        approvalControllerAddRequestMock,
+        keyringControllerSignPersonalMessageMock,
+        keyringControllerSignTypedMessageMock,
+      } = createController();
+
+      approvalControllerAddRequestMock.mockResolvedValueOnce({
+        resultCallbacks: {
+          error: resultCallbackErrorMock,
+        },
+      });
+
+      keyringControllerSignPersonalMessageMock.mockRejectedValueOnce(errorMock);
+      keyringControllerSignTypedMessageMock.mockRejectedValueOnce(errorMock);
+
+      await expect(fn(controller, REQUEST_MOCK)).rejects.toThrow(
+        ERROR_MESSAGE_MOCK,
+      );
+
+      expect(resultCallbackErrorMock).toHaveBeenCalledTimes(1);
+      expect(resultCallbackErrorMock).toHaveBeenCalledWith(errorMock);
+    });
+
+    it('requests approval', async () => {
+      const { controller, approvalControllerAddRequestMock } =
+        createController();
+
+      await fn(controller, REQUEST_MOCK);
+
+      expect(approvalControllerAddRequestMock).toHaveBeenCalledTimes(1);
+      expect(approvalControllerAddRequestMock).toHaveBeenCalledWith(
         {
-          id: messageIdMock,
-          origin: ORIGIN_METAMASK,
-          type: 'eth_sign',
-          requestData: messageParamsWithoutOrigin,
           expectsResult: true,
+          id: ID_MOCK,
+          origin: ORIGIN_MOCK,
+          requestData: expect.objectContaining({
+            data: PARAMS_MOCK.data,
+            from: PARAMS_MOCK.from,
+          }),
+          type,
         },
         true,
       );
     });
 
-    it('throws if cannot get signature', async () => {
-      mockMessengerAction('KeyringController:signMessage', async () => {
-        throw keyringErrorMock;
-      });
-      const listenerMock = jest.fn();
-      signatureController.hub.on(`${messageIdMock}:signError`, listenerMock);
+    it('requests approval with internal origin if no origin provided', async () => {
+      const { controller, approvalControllerAddRequestMock } =
+        createController();
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const error: any = await getError(
-        async () =>
-          await signatureController.newUnsignedMessage(
-            messageParamsMock,
-            requestMock,
-          ),
-      );
+      await fn(controller, REQUEST_MOCK, { origin: undefined });
 
-      expect(listenerMock).toHaveBeenCalledTimes(1);
-      expect(listenerMock).toHaveBeenCalledWith({
-        error,
-      });
-      expect(messengerMock.call).toHaveBeenCalledTimes(3);
-      expect(error.message).toBe(keyringErrorMessageMock);
-      expect(messageManagerMock.rejectMessage).toHaveBeenCalledTimes(1);
-      expect(messageManagerMock.rejectMessage).toHaveBeenCalledWith(
-        messageIdMock,
+      expect(approvalControllerAddRequestMock).toHaveBeenCalledTimes(1);
+      expect(approvalControllerAddRequestMock).toHaveBeenCalledWith(
+        {
+          expectsResult: true,
+          id: ID_MOCK,
+          origin: ORIGIN_METAMASK,
+          requestData: expect.objectContaining({
+            data: PARAMS_MOCK.data,
+            from: PARAMS_MOCK.from,
+          }),
+          type,
+        },
+        true,
       );
     });
 
-    it('calls success callback once message is signed', async () => {
-      const { origin: _origin, ...messageParamsWithoutOrigin } =
-        messageParamsMock;
+    it('persists network client ID and chain ID in metadata', async () => {
+      const { controller } = createController();
 
-      await signatureController.newUnsignedMessage(
-        messageParamsWithoutOrigin,
-        requestMock,
+      await fn(controller, REQUEST_MOCK);
+
+      expect(controller.state.signatureRequests[ID_MOCK]).toStrictEqual(
+        expect.objectContaining({
+          chainId: CHAIN_ID_MOCK,
+          networkClientId: NETWORK_CLIENT_ID_MOCK,
+        }),
       );
-
-      expect(resultCallbacksMock.success).toHaveBeenCalledTimes(1);
     });
   });
 
   describe('newUnsignedPersonalMessage', () => {
-    it('adds message to personal message manager', async () => {
-      await signatureController.newUnsignedPersonalMessage(
-        messageParamsMock,
-        requestMock,
+    it('returns signature hash if approved', async () => {
+      const { controller, keyringControllerSignPersonalMessageMock } =
+        createController();
+
+      keyringControllerSignPersonalMessageMock.mockResolvedValueOnce(
+        SIGNATURE_HASH_MOCK,
       );
 
-      expect(
-        personalMessageManagerMock.addUnapprovedMessage,
-      ).toHaveBeenCalledTimes(1);
-
-      expect(
-        personalMessageManagerMock.addUnapprovedMessage,
-      ).toHaveBeenCalledWith(
-        expect.objectContaining(messageParamsMock),
-        requestMock,
-        undefined,
+      const result = await controller.newUnsignedPersonalMessage(
+        { ...PARAMS_MOCK },
+        REQUEST_MOCK,
       );
 
-      expect(messengerMock.call).toHaveBeenCalledTimes(4);
-      expect(messengerMock.call).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: messageIdMock,
-          origin: messageParamsMock.origin,
-          type: 'personal_sign',
-          requestData: messageParamsMock,
-          expectsResult: true,
-        },
-        true,
-      );
-      expect(messengerMock.call).toHaveBeenNthCalledWith(
-        3,
-        'KeyringController:signPersonalMessage',
-        messageParamsWithoutIdMock,
-      );
+      expect(result).toBe(SIGNATURE_HASH_MOCK);
     });
 
-    it('throws if approval rejected', async () => {
-      messengerMock.call
-        .mockResolvedValueOnce({}) // LoggerController:add
-        .mockRejectedValueOnce({}); // ApprovalController:addRequest
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const error: any = await getError(
-        async () =>
-          await signatureController.newUnsignedPersonalMessage(
-            messageParamsMock,
-            requestMock,
-          ),
-      );
-      expect(error instanceof EthereumProviderError).toBe(true);
-      expect(error.message).toBe('User rejected the request.');
-    });
+    it('adds SIWE data', async () => {
+      const { controller } = createController();
 
-    it('throws if cannot get signature', async () => {
-      mockMessengerAction('KeyringController:signPersonalMessage', async () => {
-        throw keyringErrorMock;
-      });
+      const siweMock = {
+        isSIWEMessage: true,
+        parsedMessage: { domain: 'test' },
+      } as SIWEMessage;
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const error: any = await getError(
-        async () =>
-          await signatureController.newUnsignedPersonalMessage(
-            messageParamsMock,
-            requestMock,
-          ),
+      detectSIWEMock.mockReturnValueOnce(siweMock);
+
+      await controller.newUnsignedPersonalMessage(
+        { ...PARAMS_MOCK },
+        REQUEST_MOCK,
       );
 
-      expect(messengerMock.call).toHaveBeenCalledTimes(3);
-      expect(error.message).toBe(keyringErrorMessageMock);
-      expect(messengerMock.call).toHaveBeenNthCalledWith(
-        3,
-        'KeyringController:signPersonalMessage',
-        messageParamsWithoutIdMock,
-      );
-      expect(personalMessageManagerMock.rejectMessage).toHaveBeenCalledTimes(1);
-      expect(personalMessageManagerMock.rejectMessage).toHaveBeenCalledWith(
-        messageIdMock,
-      );
-    });
+      const messageParams = controller.state.signatureRequests[ID_MOCK]
+        .messageParams as MessageParamsPersonal;
 
-    it('calls success callback once message is signed', async () => {
-      await signatureController.newUnsignedPersonalMessage(
-        messageParamsMock,
-        requestMock,
-      );
-
-      expect(resultCallbacksMock.success).toHaveBeenCalledTimes(1);
+      expect(messageParams.siwe).toStrictEqual(siweMock);
     });
   });
 
   describe('newUnsignedTypedMessage', () => {
-    it('adds message to typed message manager', async () => {
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore
-      signatureController.update(() => ({
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        unapprovedTypedMessages: { [messageIdMock]: stateMessageMock } as any,
-      }));
+    it('returns signature hash if approved', async () => {
+      const { controller, keyringControllerSignTypedMessageMock } =
+        createController();
 
-      await signatureController.newUnsignedTypedMessage(
-        messageParamsMock,
-        requestMock,
-        versionMock,
+      keyringControllerSignTypedMessageMock.mockResolvedValueOnce(
+        SIGNATURE_HASH_MOCK,
+      );
+
+      const result = await controller.newUnsignedTypedMessage(
+        PARAMS_MOCK,
+        REQUEST_MOCK,
+        SignTypedDataVersion.V1,
         { parseJsonData: false },
       );
 
-      expect(
-        typedMessageManagerMock.addUnapprovedMessage,
-      ).toHaveBeenCalledTimes(1);
-      expect(typedMessageManagerMock.addUnapprovedMessage).toHaveBeenCalledWith(
-        messageParamsMock,
-        requestMock,
-        versionMock,
+      expect(result).toBe(SIGNATURE_HASH_MOCK);
+    });
+
+    it.each([SignTypedDataVersion.V3, SignTypedDataVersion.V4])(
+      'supports data as string with version %s',
+      async (version) => {
+        const { controller, keyringControllerSignTypedMessageMock } =
+          createController();
+
+        keyringControllerSignTypedMessageMock.mockResolvedValueOnce(
+          SIGNATURE_HASH_MOCK,
+        );
+
+        const result = await controller.newUnsignedTypedMessage(
+          {
+            ...PARAMS_MOCK,
+            data: JSON.stringify({ test: 123 }),
+          },
+          REQUEST_MOCK,
+          version,
+          { parseJsonData: true },
+        );
+
+        expect(keyringControllerSignTypedMessageMock).toHaveBeenCalledWith(
+          {
+            ...PARAMS_MOCK,
+            data: { test: 123 },
+            version,
+          },
+          version,
+        );
+
+        expect(result).toBe(SIGNATURE_HASH_MOCK);
+      },
+    );
+
+    it('ignores parseJsonData if version is V1', async () => {
+      const { controller, keyringControllerSignTypedMessageMock } =
+        createController();
+
+      keyringControllerSignTypedMessageMock.mockResolvedValueOnce(
+        SIGNATURE_HASH_MOCK,
       );
 
-      expect(messengerMock.call).toHaveBeenCalledTimes(4);
-      expect(messengerMock.call).toHaveBeenNthCalledWith(
-        2,
-        'ApprovalController:addRequest',
+      const result = await controller.newUnsignedTypedMessage(
         {
-          id: messageIdMock,
-          origin: messageParamsMock.origin,
-          type: 'eth_signTypedData',
-          requestData: messageParamsMock,
-          expectsResult: true,
+          ...PARAMS_MOCK,
+          data: JSON.stringify({ test: 123 }),
         },
-        true,
-      );
-      expect(messengerMock.call).toHaveBeenNthCalledWith(
-        3,
-        'KeyringController:signTypedMessage',
-        messageParamsWithoutIdMock,
-        versionMock,
-      );
-    });
-
-    it('does not set as signed, messages with deferSetAsSigned', async () => {
-      const deferredMessageParams = {
-        ...messageParamsMock,
-        deferSetAsSigned: true,
-      };
-      typedMessageManagerMock.approveMessage.mockReset();
-      typedMessageManagerMock.approveMessage.mockResolvedValueOnce(
-        deferredMessageParams,
-      );
-
-      await signatureController.newUnsignedTypedMessage(
-        messageParamsMock,
-        requestMock,
-        versionMock,
-        { parseJsonData: false },
-      );
-
-      expect(
-        typedMessageManagerMock.setMessageStatusSigned,
-      ).not.toHaveBeenCalled();
-    });
-
-    it('parses JSON string in data if not V1', async () => {
-      const jsonData = { test: 'value' };
-
-      typedMessageManagerMock.approveMessage.mockReset();
-      typedMessageManagerMock.approveMessage.mockResolvedValueOnce({
-        ...messageParamsMock2,
-        deferSetAsSigned: false,
-        data: JSON.stringify(jsonData),
-      });
-
-      await signatureController.newUnsignedTypedMessage(
-        messageParamsMock,
-        requestMock,
-        'V2',
+        REQUEST_MOCK,
+        SignTypedDataVersion.V1,
         { parseJsonData: true },
       );
 
-      expect(messengerMock.call).toHaveBeenNthCalledWith(
-        3,
-        'KeyringController:signTypedMessage',
-        { ...messageParamsMock2, data: jsonData, deferSetAsSigned: false },
-        'V2',
+      expect(keyringControllerSignTypedMessageMock).toHaveBeenCalledWith(
+        {
+          ...PARAMS_MOCK,
+          data: JSON.stringify({ test: 123 }),
+        },
+        SignTypedDataVersion.V1,
+      );
+
+      expect(result).toBe(SIGNATURE_HASH_MOCK);
+    });
+
+    it('sets status to errored if signing fails', async () => {
+      const { controller, keyringControllerSignTypedMessageMock } =
+        createController();
+
+      const errorMock = createErrorMock();
+
+      keyringControllerSignTypedMessageMock.mockRejectedValueOnce(errorMock);
+
+      await expect(
+        controller.newUnsignedTypedMessage(
+          PARAMS_MOCK,
+          REQUEST_MOCK,
+          SignTypedDataVersion.V3,
+          { parseJsonData: false },
+        ),
+      ).rejects.toThrow(errorMock);
+
+      expect(controller.state.signatureRequests[ID_MOCK].status).toBe(
+        SignatureRequestStatus.Errored,
+      );
+      expect(controller.state.signatureRequests[ID_MOCK].error).toBe(
+        ERROR_MESSAGE_MOCK,
       );
     });
 
-    it('throws if approval rejected', async () => {
-      messengerMock.call
-        .mockResolvedValueOnce({}) // LoggerController:add
-        .mockRejectedValueOnce({}); // ApprovalController:addRequest
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const error: any = await getError(
-        async () =>
-          await signatureController.newUnsignedTypedMessage(
-            messageParamsMock,
-            requestMock,
-            versionMock,
-            { parseJsonData: true },
-          ),
-      );
-      expect(error instanceof EthereumProviderError).toBe(true);
-      expect(error.message).toBe('User rejected the request.');
-    });
+    it('populates version in params', async () => {
+      const { controller } = createController();
 
-    it('throws if cannot get signature', async () => {
-      mockMessengerAction('KeyringController:signTypedMessage', async () => {
-        throw keyringErrorMock;
-      });
-      typedMessageManagerMock.addUnapprovedMessage.mockResolvedValue(
-        messageIdMock,
-      );
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const error: any = await getError(
-        async () =>
-          await signatureController.newUnsignedTypedMessage(
-            messageParamsMock,
-            requestMock,
-            versionMock,
-            { parseJsonData: true },
-          ),
-      );
-      expect(error.message).toBe(keyringErrorMessageMock);
-      expect(
-        typedMessageManagerMock.setMessageStatusErrored,
-      ).toHaveBeenCalledTimes(1);
-      expect(
-        typedMessageManagerMock.setMessageStatusErrored,
-      ).toHaveBeenCalledWith(messageIdMock, keyringErrorMessageMock);
-    });
-
-    it('calls success callback once message is signed', async () => {
-      await signatureController.newUnsignedTypedMessage(
-        messageParamsMock,
-        requestMock,
-        versionMock,
+      await controller.newUnsignedTypedMessage(
+        PARAMS_MOCK,
+        REQUEST_MOCK,
+        SignTypedDataVersion.V3,
         { parseJsonData: false },
       );
 
-      expect(resultCallbacksMock.success).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('setPersonalMessageInProgress', () => {
-    it('calls the message manager', async () => {
-      signatureController.setPersonalMessageInProgress(
-        messageParamsMock.metamaskId,
-      );
-
       expect(
-        personalMessageManagerMock.setMessageStatusInProgress,
-      ).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('setTypedMessageInProgress', () => {
-    it('calls the message manager', async () => {
-      signatureController.setTypedMessageInProgress(
-        messageParamsMock.metamaskId,
-      );
-
-      expect(
-        typedMessageManagerMock.setMessageStatusInProgress,
-      ).toHaveBeenCalledTimes(1);
-    });
-  });
-
-  describe('trySetMessageMetadata', () => {
-    it('sets the metadata in a message manager', () => {
-      signatureController.setMessageMetadata(
-        messageParamsMock.metamaskId,
-        messageParamsMock.data,
-      );
-
-      expect(messageManagerMock.setMetadata).toHaveBeenCalledTimes(1);
-      expect(messageManagerMock.setMetadata).toHaveBeenCalledWith(
-        messageIdMock,
-        messageParamsWithoutIdMock.data,
-      );
-
-      expect(personalMessageManagerMock.setMetadata).not.toHaveBeenCalled();
-      expect(typedMessageManagerMock.setMetadata).not.toHaveBeenCalled();
+        (
+          controller.state.signatureRequests[ID_MOCK]
+            .messageParams as MessageParamsTyped
+        ).version,
+      ).toBe(SignTypedDataVersion.V3);
     });
 
-    it('should return false when an error occurs', () => {
-      jest.spyOn(messageManagerMock, 'setMetadata').mockImplementation(() => {
-        throw new Error('mocked error');
+    describe('delegations', () => {
+      it('invokes decodePermissionFromRequest to get execution permission', async () => {
+        const {
+          controller,
+          decodePermissionFromPermissionContextForOriginMock,
+        } = createController();
+
+        await controller.newUnsignedTypedMessage(
+          DELEGATION_PARAMS_MOCK,
+          DELEGATION_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        expect(
+          decodePermissionFromPermissionContextForOriginMock,
+        ).toHaveBeenCalledWith({
+          origin: 'npm:@metamask/gator-permissions-snap',
+          chainId: 1,
+          delegation: {
+            delegate: '0x5B38Da6a701c568545dCfcB03FcB875f56beddC4',
+            delegator: '0x975e73efb9ff52e23bac7f7e043a1ecd06d05477',
+            authority: '0x1234abcd',
+            caveats: [],
+          },
+          metadata: {
+            origin: 'https://metamask.github.io',
+            justification: 'Testing delegation',
+          },
+        });
       });
 
-      const result = signatureController.setMessageMetadata(
-        messageParamsMock.metamaskId,
-        messageParamsMock.data,
-      );
+      it('does not invoke decodePermissionFromRequest if version is not V4', async () => {
+        const {
+          controller,
+          decodePermissionFromPermissionContextForOriginMock,
+        } = createController();
 
-      expect(result).toBeUndefined();
-      expect(messageManagerMock.setMetadata).toHaveBeenCalledTimes(1);
-      expect(messageManagerMock.setMetadata).toHaveBeenCalledWith(
-        messageIdMock,
-        messageParamsWithoutIdMock.data,
-      );
+        await controller.newUnsignedTypedMessage(
+          DELEGATION_PARAMS_MOCK,
+          DELEGATION_REQUEST_MOCK,
+          SignTypedDataVersion.V3,
+          { parseJsonData: false },
+        );
+
+        expect(
+          decodePermissionFromPermissionContextForOriginMock,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('sets decodedPermission on the message state', async () => {
+        const { controller } = createController();
+
+        await controller.newUnsignedTypedMessage(
+          DELEGATION_PARAMS_MOCK,
+          DELEGATION_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        const { decodedPermission } =
+          controller.state.signatureRequests[ID_MOCK];
+
+        expect(decodedPermission).toStrictEqual({
+          kind: 'decoded-permission',
+        });
+      });
+
+      it('does not invoke decodePermissionFromRequest if data is not a delegation request', async () => {
+        const {
+          controller,
+          decodePermissionFromPermissionContextForOriginMock,
+        } = createController();
+
+        await controller.newUnsignedTypedMessage(
+          {
+            ...DELEGATION_PARAMS_MOCK,
+            data: '{primaryType:"not-a-delegation"}',
+          },
+          DELEGATION_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        expect(
+          decodePermissionFromPermissionContextForOriginMock,
+        ).not.toHaveBeenCalled();
+      });
+
+      it('does not set decodedPermission if data is not a delegation request', async () => {
+        const { controller } = createController();
+
+        await controller.newUnsignedTypedMessage(
+          {
+            ...DELEGATION_PARAMS_MOCK,
+            data: '{primaryType:"not-a-delegation"}',
+          },
+          DELEGATION_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        const { decodedPermission } =
+          controller.state.signatureRequests[ID_MOCK];
+
+        expect(decodedPermission).toBeUndefined();
+      });
+
+      it('does not set decodedPermission if decoding throws an error', async () => {
+        const {
+          controller,
+          decodePermissionFromPermissionContextForOriginMock,
+        } = createController();
+
+        decodePermissionFromPermissionContextForOriginMock.mockImplementation(
+          () => {
+            throw new Error('An error occurred');
+          },
+        );
+
+        await controller.newUnsignedTypedMessage(
+          DELEGATION_PARAMS_MOCK,
+          DELEGATION_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        const { decodedPermission } =
+          controller.state.signatureRequests[ID_MOCK];
+
+        expect(decodedPermission).toBeUndefined();
+      });
+
+      it('does not set decodedPermission if decoding returns undefined', async () => {
+        const {
+          controller,
+          decodePermissionFromPermissionContextForOriginMock,
+        } = createController();
+
+        decodePermissionFromPermissionContextForOriginMock.mockReturnValue(
+          undefined,
+        );
+
+        await controller.newUnsignedTypedMessage(
+          DELEGATION_PARAMS_MOCK,
+          DELEGATION_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        const { decodedPermission } =
+          controller.state.signatureRequests[ID_MOCK];
+
+        expect(decodedPermission).toBeUndefined();
+      });
+
+      it('does not set decodedPermission if metadata is invalid', async () => {
+        const { controller } = createController();
+
+        const delegationParamsMock = {
+          ...DELEGATION_PARAMS_MOCK,
+          data: {
+            ...JSON.parse(DELEGATION_PARAMS_MOCK.data),
+            metadata: {},
+          },
+        };
+
+        const delegationRequestMock = {
+          method: 'eth_signTypedData_v4',
+          params: [
+            '0x975e73efb9ff52e23bac7f7e043a1ecd06d05477',
+            delegationParamsMock.data,
+          ],
+          jsonrpc: '2.0',
+          id: 1680528591,
+          origin: 'npm:@metamask/gator-permissions-snap',
+          networkClientId: 'mainnet',
+          tabId: 1048807182,
+          traceContext: null,
+        };
+
+        await controller.newUnsignedTypedMessage(
+          delegationParamsMock,
+          delegationRequestMock,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        const { decodedPermission } =
+          controller.state.signatureRequests[ID_MOCK];
+
+        expect(decodedPermission).toBeUndefined();
+      });
+    });
+
+    describe('decodeSignature', () => {
+      it('invoke decodeSignature to get decoding data', async () => {
+        const MOCK_STATE_CHANGES = {
+          stateChanges: [
+            {
+              assetType: 'ERC20',
+              changeType: 'APPROVE',
+              address: '0x3fc91a3afd70395cd496c647d5a6cc9d4b2b7fad',
+              amount: '1461501637330902918203684832716283019655932542975',
+              contractAddress: '0x6b175474e89094c44da98b954eedeac495271d0f',
+            },
+          ],
+        };
+        const { controller } = createController({
+          decodingApiUrl: 'www.test.com',
+          isDecodeSignatureRequestEnabled: () => true,
+        });
+
+        jest
+          .spyOn(DecodingDataUtils, 'decodeSignature')
+          .mockResolvedValue(MOCK_STATE_CHANGES);
+
+        await controller.newUnsignedTypedMessage(
+          PERMIT_PARAMS_MOCK,
+          PERMIT_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingLoading,
+        ).toBe(false);
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingData,
+        ).toStrictEqual(MOCK_STATE_CHANGES);
+      });
+
+      it('does not invoke decodeSignature if decodingApiUrl is not defined', async () => {
+        const { controller } = createController({
+          decodingApiUrl: undefined,
+          isDecodeSignatureRequestEnabled: () => true,
+        });
+
+        await controller.newUnsignedTypedMessage(
+          PERMIT_PARAMS_MOCK,
+          PERMIT_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingLoading,
+        ).toBeUndefined();
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingData,
+        ).toBeUndefined();
+      });
+
+      it('does not invoke decodeSignature if featureFLag disableDecodingApi is true', async () => {
+        const { controller } = createController({
+          decodingApiUrl: 'www.test.com',
+          isDecodeSignatureRequestEnabled: () => false,
+        });
+
+        await controller.newUnsignedTypedMessage(
+          PERMIT_PARAMS_MOCK,
+          PERMIT_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingLoading,
+        ).toBeUndefined();
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingData,
+        ).toBeUndefined();
+      });
+
+      it('does not invoke decodeSignature if isDecodeSignatureRequestEnabled is not defined', async () => {
+        const { controller } = createController({
+          decodingApiUrl: 'www.test.com',
+          isDecodeSignatureRequestEnabled: undefined,
+        });
+
+        await controller.newUnsignedTypedMessage(
+          PERMIT_PARAMS_MOCK,
+          PERMIT_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingLoading,
+        ).toBeUndefined();
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingData,
+        ).toBeUndefined();
+      });
+
+      it('correctly set decoding data if decodeSignature fails', async () => {
+        const { controller } = createController({
+          decodingApiUrl: 'www.test.com',
+          isDecodeSignatureRequestEnabled: () => true,
+        });
+
+        jest
+          .spyOn(DecodingDataUtils, 'decodeSignature')
+          .mockRejectedValue(new Error('some error'));
+
+        await controller.newUnsignedTypedMessage(
+          PERMIT_PARAMS_MOCK,
+          PERMIT_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingLoading,
+        ).toBe(false);
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingData?.error?.type,
+        ).toStrictEqual(
+          DecodingDataUtils.DECODING_API_ERRORS.DECODING_FAILED_WITH_ERROR,
+        );
+      });
+
+      it('set decodingLoading to true while api request is in progress', async () => {
+        const { controller } = createController({
+          decodingApiUrl: 'www.test.com',
+          isDecodeSignatureRequestEnabled: () => true,
+        });
+
+        jest
+          .spyOn(DecodingDataUtils, 'decodeSignature')
+          .mockImplementation(() => {
+            return new Promise((resolve) => {
+              setTimeout(() => {
+                resolve({});
+              }, 300);
+            });
+          });
+
+        await controller.newUnsignedTypedMessage(
+          PERMIT_PARAMS_MOCK,
+          PERMIT_REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        expect(
+          controller.state.signatureRequests[ID_MOCK].decodingLoading,
+        ).toBe(true);
+      });
+
+      it('validates the request', async () => {
+        const { controller } = createController();
+
+        await controller.newUnsignedTypedMessage(
+          PARAMS_MOCK,
+          REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        expect(validateTypedSignatureRequestMock).toHaveBeenCalledTimes(1);
+      });
+
+      it('validates the request using EOA internal accounts', async () => {
+        const { controller, accountsControllerGetStateMock } =
+          createController();
+
+        accountsControllerGetStateMock.mockReturnValue({
+          internalAccounts: {
+            accounts: [
+              {
+                type: 'eip155:eoa',
+                address: '0x123',
+              },
+              {
+                type: 'invalid',
+                address: '0x321',
+              },
+              {
+                type: 'eip155:eoa',
+                address: '0xabc',
+              },
+            ],
+          },
+        });
+
+        await controller.newUnsignedTypedMessage(
+          PARAMS_MOCK,
+          REQUEST_MOCK,
+          SignTypedDataVersion.V4,
+          { parseJsonData: false },
+        );
+
+        expect(validateTypedSignatureRequestMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            internalAccounts: ['0x123', '0xabc'],
+          }),
+        );
+      });
     });
   });
 
   describe('setDeferredSignSuccess', () => {
-    it('sets a message status as signed in a message manager', () => {
-      signatureController.setDeferredSignSuccess(
-        messageParamsMock.metamaskId,
-        messageParamsMock.data,
+    it('sets the signature and status on the signature request', () => {
+      const { controller } = createController({
+        state: {
+          signatureRequests: {
+            [ID_MOCK]: {
+              ...SIGNATURE_REQUEST_MOCK,
+              status: SignatureRequestStatus.InProgress,
+            },
+          },
+        } as unknown as SignatureControllerState,
+      });
+
+      controller.setDeferredSignSuccess(ID_MOCK, SIGNATURE_HASH_MOCK);
+
+      expect(controller.state.signatureRequests[ID_MOCK].rawSig).toBe(
+        SIGNATURE_HASH_MOCK,
       );
 
-      expect(messageManagerMock.setMessageStatusSigned).toHaveBeenCalledTimes(
-        1,
+      expect(controller.state.signatureRequests[ID_MOCK].status).toBe(
+        SignatureRequestStatus.Signed,
       );
-      expect(messageManagerMock.setMessageStatusSigned).toHaveBeenCalledWith(
-        messageIdMock,
-        messageParamsWithoutIdMock.data,
-      );
+    });
+
+    it('resolves defered signature request', async () => {
+      const { controller } = createController();
+      let resolved = false;
+
+      jest.spyOn(DecodingDataUtils, 'decodeSignature').mockResolvedValue({});
+
+      const signaturePromise = controller
+        .newUnsignedPersonalMessage(
+          {
+            ...PARAMS_MOCK,
+            deferSetAsSigned: true,
+          },
+          REQUEST_MOCK,
+        )
+        .then((result) => {
+          resolved = true;
+          return result;
+        });
+
+      await flushPromises();
+
+      expect(resolved).toBe(false);
+
+      controller.setDeferredSignSuccess(ID_MOCK, SIGNATURE_HASH_MOCK);
+
+      await flushPromises();
+
+      expect(resolved).toBe(true);
+      expect(await signaturePromise).toBe(SIGNATURE_HASH_MOCK);
+    });
+
+    it('throws if signature request not found', () => {
+      const { controller } = createController();
+
+      expect(() => {
+        controller.setDeferredSignSuccess(ID_MOCK, SIGNATURE_HASH_MOCK);
+      }).toThrow(`Signature request with id ${ID_MOCK} not found`);
+    });
+  });
+
+  describe('setMessageMetadata', () => {
+    it('sets the metadata on the signature request', () => {
+      const { controller } = createController({
+        state: {
+          signatureRequests: {
+            [ID_MOCK]: SIGNATURE_REQUEST_MOCK,
+          },
+        } as unknown as SignatureControllerState,
+      });
+
+      controller.setMessageMetadata(ID_MOCK, { test: 123 });
 
       expect(
-        personalMessageManagerMock.setMessageStatusSigned,
-      ).not.toHaveBeenCalled();
+        controller.state.signatureRequests[ID_MOCK].metadata,
+      ).toStrictEqual({
+        test: 123,
+      });
+    });
+  });
+
+  describe('setDeferredSignError', () => {
+    it('sets the status on the signature request to rejected', () => {
+      const { controller } = createController({
+        state: {
+          signatureRequests: {
+            [ID_MOCK]: {
+              ...SIGNATURE_REQUEST_MOCK,
+              status: SignatureRequestStatus.InProgress,
+            },
+          },
+        } as unknown as SignatureControllerState,
+      });
+
+      controller.setDeferredSignError(ID_MOCK);
+
+      expect(controller.state.signatureRequests[ID_MOCK].status).toBe(
+        SignatureRequestStatus.Rejected,
+      );
+    });
+
+    it('rejects defered signature request', async () => {
+      const { controller } = createController();
+      let rejectedError;
+
+      jest.spyOn(DecodingDataUtils, 'decodeSignature').mockResolvedValue({});
+
+      controller
+        .newUnsignedPersonalMessage(
+          {
+            ...PARAMS_MOCK,
+            deferSetAsSigned: true,
+          },
+          REQUEST_MOCK,
+        )
+        .catch((error) => {
+          rejectedError = error;
+        });
+
+      await flushPromises();
+
+      expect(rejectedError).toBeUndefined();
+
+      controller.setDeferredSignError(ID_MOCK);
+
+      await flushPromises();
+
+      expect(rejectedError).toStrictEqual(
+        new Error(
+          'MetaMask personal_sign Signature: User denied message signature.',
+        ),
+      );
+    });
+  });
+
+  describe.each([
+    'setTypedMessageInProgress',
+    'setPersonalMessageInProgress',
+  ] as const)('%s', (fn) => {
+    it('sets the status on the signature request to in progress', () => {
+      const { controller } = createController({
+        state: {
+          signatureRequests: {
+            [ID_MOCK]: {
+              ...SIGNATURE_REQUEST_MOCK,
+              status: SignatureRequestStatus.Unapproved,
+            },
+          },
+        } as unknown as SignatureControllerState,
+      });
+
+      controller[fn](ID_MOCK);
+
+      expect(controller.state.signatureRequests[ID_MOCK].status).toBe(
+        SignatureRequestStatus.InProgress,
+      );
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const { controller } = createController();
+
       expect(
-        typedMessageManagerMock.setMessageStatusSigned,
-      ).not.toHaveBeenCalled();
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`{}`);
     });
 
-    it('should return false when an error occurs', () => {
-      jest
-        .spyOn(messageManagerMock, 'setMessageStatusSigned')
-        .mockImplementation(() => {
-          throw new Error('mocked error');
-        });
+    it('includes expected state in state logs', () => {
+      const { controller } = createController();
 
-      const result = signatureController.setDeferredSignSuccess(
-        messageParamsMock.metamaskId,
-        messageParamsMock.data,
-      );
-
-      expect(result).toBeUndefined();
-      expect(messageManagerMock.setMessageStatusSigned).toHaveBeenCalledTimes(
-        1,
-      );
-      expect(messageManagerMock.setMessageStatusSigned).toHaveBeenCalledWith(
-        messageIdMock,
-        messageParamsWithoutIdMock.data,
-      );
-    });
-  });
-
-  describe('trySetDeferredSignError', () => {
-    it('rejects a message by calling rejectMessage', () => {
-      signatureController.setDeferredSignError(messageParamsMock.metamaskId);
-
-      expect(messageManagerMock.rejectMessage).toHaveBeenCalledTimes(1);
-      expect(messageManagerMock.rejectMessage).toHaveBeenCalledWith(
-        messageIdMock,
-      );
-
-      expect(personalMessageManagerMock.rejectMessage).not.toHaveBeenCalled();
-      expect(typedMessageManagerMock.rejectMessage).not.toHaveBeenCalled();
-    });
-
-    it('rejects message on next message manager if first throws', () => {
-      jest.spyOn(messageManagerMock, 'rejectMessage').mockImplementation(() => {
-        throw new Error('mocked error');
-      });
-      jest
-        .spyOn(personalMessageManagerMock, 'rejectMessage')
-        .mockImplementation(() => {
-          throw new Error('mocked error');
-        });
-
-      expect(() =>
-        signatureController.setDeferredSignError(messageParamsMock.metamaskId),
-      ).not.toThrow();
-    });
-
-    it('should throw an error when tryForEachMessageManager fails', () => {
-      jest.spyOn(messageManagerMock, 'rejectMessage').mockImplementation(() => {
-        throw new Error('mocked error');
-      });
-      jest
-        .spyOn(personalMessageManagerMock, 'rejectMessage')
-        .mockImplementation(() => {
-          throw new Error('mocked error');
-        });
-      jest
-        .spyOn(typedMessageManagerMock, 'rejectMessage')
-        .mockImplementation(() => {
-          throw new Error('mocked error');
-        });
-
-      expect(() =>
-        signatureController.setDeferredSignError(messageParamsMock.metamaskId),
-      ).toThrow('Message not found');
-    });
-  });
-
-  describe('messages getter', () => {
-    const message = [
-      {
-        name: 'some message',
-        type: 'type',
-        value: 'value',
-        messageParams: {
-          data: [],
-          from: '0x0123',
-        },
-        time: 1,
-        status: '',
-        id: '1',
-      },
-    ];
-
-    it('returns all the messages from typed, personal and messageManager', () => {
-      typedMessageManagerMock.getAllMessages.mockReturnValueOnce(message);
-      personalMessageManagerMock.getAllMessages.mockReturnValueOnce([]);
-      messageManagerMock.getAllMessages.mockReturnValueOnce([]);
-      expect(signatureController.messages).toMatchObject({
-        '1': {
-          id: '1',
-          messageParams: {
-            data: [],
-            from: '0x0123',
-          },
-          name: 'some message',
-          status: '',
-          time: 1,
-          type: 'type',
-          value: 'value',
-        },
-      });
-    });
-  });
-
-  describe('message manager events', () => {
-    it.each([
-      ['message manager', messageManagerMock],
-      ['personal message manager', personalMessageManagerMock],
-      ['typed message manager', typedMessageManagerMock],
-    ])('bubbles update badge event from %s', (_, messageManager) => {
-      const mockListener = jest.fn();
-      const mockHub = messageManager.hub.on as jest.Mock;
-
-      signatureController.hub.on('updateBadge', mockListener);
-      mockHub.mock.calls[0][1]();
-
-      expect(mockListener).toHaveBeenCalledTimes(1);
-    });
-
-    // eslint-disable-next-line jest/expect-expect
-    it('does not throw if approval request promise throws', async () => {
-      const mockHub = messageManagerMock.hub.on as jest.Mock;
-
-      messengerMock.call.mockRejectedValueOnce('Test Error');
-
-      mockHub.mock.calls[1][1](messageParamsMock);
-    });
-
-    it('updates state on message manager state change', async () => {
-      await messageManagerMock.subscribe.mock.calls[0][0]({
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        unapprovedMessages: { [messageIdMock]: coreMessageMock as any },
-        unapprovedMessagesCount: 3,
-      });
-
-      expect(await signatureController.state).toStrictEqual({
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        unapprovedMsgs: { [messageIdMock]: stateMessageMock as any },
-        unapprovedPersonalMsgs: {},
-        unapprovedTypedMessages: {},
-        unapprovedMsgCount: 3,
-        unapprovedPersonalMsgCount: 0,
-        unapprovedTypedMessagesCount: 0,
-      });
-    });
-
-    it('updates state on personal message manager state change', async () => {
-      await personalMessageManagerMock.subscribe.mock.calls[0][0]({
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        unapprovedMessages: { [messageIdMock]: coreMessageMock as any },
-        unapprovedMessagesCount: 4,
-      });
-
-      expect(await signatureController.state).toStrictEqual({
-        unapprovedMsgs: {},
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        unapprovedPersonalMsgs: { [messageIdMock]: stateMessageMock as any },
-        unapprovedTypedMessages: {},
-        unapprovedMsgCount: 0,
-        unapprovedPersonalMsgCount: 4,
-        unapprovedTypedMessagesCount: 0,
-      });
-    });
-
-    it('updates state on typed message manager state change', async () => {
-      await typedMessageManagerMock.subscribe.mock.calls[0][0]({
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        unapprovedMessages: { [messageIdMock]: coreMessageMock as any },
-        unapprovedMessagesCount: 5,
-      });
-
-      expect(await signatureController.state).toStrictEqual({
-        unapprovedMsgs: {},
-        unapprovedPersonalMsgs: {},
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        unapprovedTypedMessages: { [messageIdMock]: stateMessageMock as any },
-        unapprovedMsgCount: 0,
-        unapprovedPersonalMsgCount: 0,
-        unapprovedTypedMessagesCount: 5,
-      });
-    });
-  });
-
-  describe('logging controller events', () => {
-    it('sends proposed sign log event after approval is shown', async () => {
-      const testVersion = 'V1';
-      await signatureController.newUnsignedTypedMessage(
-        messageParamsMock,
-        requestMock,
-        testVersion,
-        { parseJsonData: false },
-      );
-
-      expect(messengerMock.call).toHaveBeenNthCalledWith(
-        1,
-        'LoggingController:add',
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
         {
-          type: LogType.EthSignLog,
-          data: {
-            signingMethod: SigningMethod.EthSignTypedData,
-            stage: SigningStage.Proposed,
-            signingData: expect.objectContaining({
-              version: testVersion,
-              from: messageParamsMock.from,
-              data: messageParamsMock.data,
-              origin: messageParamsMock.origin,
-            }),
-          },
-        },
-      );
+          "signatureRequests": {},
+          "unapprovedPersonalMsgCount": 0,
+          "unapprovedPersonalMsgs": {},
+          "unapprovedTypedMessages": {},
+          "unapprovedTypedMessagesCount": 0,
+        }
+      `);
     });
 
-    it('sends rejected sign log event if approval is rejected', async () => {
-      const testVersion = 'V3';
-      messengerMock.call
-        .mockResolvedValueOnce({}) // LoggerController:add
-        .mockRejectedValueOnce({}); // ApprovalController:addRequest
-      await getError(
-        async () =>
-          await signatureController.newUnsignedTypedMessage(
-            messageParamsMock,
-            requestMock,
-            testVersion,
-            { parseJsonData: true },
-          ),
-      );
-      expect(messengerMock.call).toHaveBeenNthCalledWith(
-        3,
-        'LoggingController:add',
-        {
-          type: LogType.EthSignLog,
-          data: {
-            signingMethod: SigningMethod.EthSignTypedDataV3,
-            stage: SigningStage.Rejected,
-            signingData: expect.objectContaining({
-              version: testVersion,
-              from: messageParamsMock.from,
-              data: messageParamsMock.data,
-              origin: messageParamsMock.origin,
-            }),
-          },
-        },
-      );
+    it('persists expected state', () => {
+      const { controller } = createController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`{}`);
     });
 
-    it('sends signed log event if signature operation is complete', async () => {
-      const testVersion = 'V4';
-      await signatureController.newUnsignedTypedMessage(
-        messageParamsMock,
-        requestMock,
-        testVersion,
-        { parseJsonData: false },
-      );
+    it('exposes expected state to UI', () => {
+      const { controller } = createController();
 
-      expect(messengerMock.call).toHaveBeenNthCalledWith(
-        4,
-        'LoggingController:add',
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
         {
-          type: LogType.EthSignLog,
-          data: {
-            signingMethod: SigningMethod.EthSignTypedDataV4,
-            stage: SigningStage.Signed,
-            signingData: expect.objectContaining({
-              version: testVersion,
-              from: messageParamsMock.from,
-              data: messageParamsMock.data,
-              origin: messageParamsMock.origin,
-            }),
-          },
-        },
-      );
+          "signatureRequests": {},
+          "unapprovedPersonalMsgCount": 0,
+          "unapprovedPersonalMsgs": {},
+          "unapprovedTypedMessages": {},
+          "unapprovedTypedMessagesCount": 0,
+        }
+      `);
     });
   });
 });

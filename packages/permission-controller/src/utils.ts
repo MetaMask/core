@@ -1,27 +1,18 @@
 import type {
-  JsonRpcEngineEndCallback,
-  JsonRpcEngineNextCallback,
-} from '@metamask/json-rpc-engine';
-import type {
-  Json,
-  JsonRpcParams,
-  JsonRpcRequest,
-  PendingJsonRpcResponse,
-} from '@metamask/utils';
-
-import type {
+  CaveatConstraint,
   CaveatSpecificationConstraint,
   CaveatSpecificationMap,
 } from './Caveat';
 import type {
+  PermissionConstraint,
   PermissionSpecificationConstraint,
   PermissionSpecificationMap,
 } from './Permission';
 
 export enum MethodNames {
-  requestPermissions = 'wallet_requestPermissions',
-  getPermissions = 'wallet_getPermissions',
-  revokePermissions = 'wallet_revokePermissions',
+  RequestPermissions = 'wallet_requestPermissions',
+  GetPermissions = 'wallet_getPermissions',
+  RevokePermissions = 'wallet_revokePermissions',
 }
 
 /**
@@ -39,39 +30,46 @@ export type ExtractSpecifications<
 > = SpecificationsMap[keyof SpecificationsMap];
 
 /**
- * A middleware function for handling a permitted method.
+ * Given two permission objects, computes 3 sets:
+ * - The set of caveat pairs that are common to both permissions.
+ * - The set of caveats that are unique to the existing permission.
+ * - The set of caveats that are unique to the requested permission.
+ *
+ * Assumes that the caveat arrays of both permissions are valid.
+ *
+ * @param leftPermission - The left-hand permission.
+ * @param rightPermission - The right-hand permission.
+ * @returns The sets of caveat pairs and unique caveats.
  */
-export type HandlerMiddlewareFunction<
-  T,
-  U extends JsonRpcParams,
-  V extends Json,
-> = (
-  req: JsonRpcRequest<U>,
-  res: PendingJsonRpcResponse<V>,
-  next: JsonRpcEngineNextCallback,
-  end: JsonRpcEngineEndCallback,
-  hooks: T,
-) => void | Promise<void>;
+export function collectUniqueAndPairedCaveats(
+  leftPermission: Partial<PermissionConstraint> | undefined,
+  rightPermission: Partial<PermissionConstraint>,
+): {
+  caveatPairs: [CaveatConstraint, CaveatConstraint][];
+  leftUniqueCaveats: CaveatConstraint[];
+  rightUniqueCaveats: CaveatConstraint[];
+} {
+  const leftCaveats = leftPermission?.caveats?.slice() ?? [];
+  const rightCaveats = rightPermission.caveats?.slice() ?? [];
+  const leftUniqueCaveats: CaveatConstraint[] = [];
+  const caveatPairs: [CaveatConstraint, CaveatConstraint][] = [];
 
-/**
- * We use a mapped object type in order to create a type that requires the
- * presence of the names of all hooks for the given handler.
- * This can then be used to select only the necessary hooks whenever a method
- * is called for purposes of POLA.
- */
-export type HookNames<T> = {
-  [Property in keyof T]: true;
-};
+  leftCaveats.forEach((leftCaveat) => {
+    const rightCaveatIndex = rightCaveats.findIndex(
+      (rightCaveat) => rightCaveat.type === leftCaveat.type,
+    );
 
-/**
- * A handler for a permitted method.
- */
-export type PermittedHandlerExport<
-  T,
-  U extends JsonRpcParams,
-  V extends Json,
-> = {
-  implementation: HandlerMiddlewareFunction<T, U, V>;
-  hookNames: HookNames<T>;
-  methodNames: string[];
-};
+    if (rightCaveatIndex === -1) {
+      leftUniqueCaveats.push(leftCaveat);
+    } else {
+      caveatPairs.push([leftCaveat, rightCaveats[rightCaveatIndex]]);
+      rightCaveats.splice(rightCaveatIndex, 1);
+    }
+  });
+
+  return {
+    caveatPairs,
+    leftUniqueCaveats,
+    rightUniqueCaveats: [...rightCaveats],
+  };
+}

@@ -44,6 +44,7 @@ jest.mock('@metamask/controller-utils', () => ({
 
 /**
  * Creates a mock user operation messenger.
+ *
  * @returns The mock user operation messenger.
  */
 function createMessengerMock() {
@@ -55,6 +56,7 @@ function createMessengerMock() {
 
 /**
  * Creates a mock bundler.
+ *
  * @returns The mock bundler.
  */
 function createBundlerMock() {
@@ -70,31 +72,38 @@ describe('PendingUserOperationTracker', () => {
 
   /**
    * Simulate the scenario where a user operation is confirmed.
+   *
    * @param beforeCallback - An optional callback to execute before the scenario is run.
+   * @param overrideReceipt - An optional receipt to override the default mock receipt.
    */
   async function onConfirmedUserOperation(
     beforeCallback?: (
       pendingUserOperationTracker: PendingUserOperationTracker,
     ) => void,
+    overrideReceipt?: Partial<UserOperationReceipt> | undefined,
   ) {
     const pendingUserOperationTracker = new PendingUserOperationTracker({
       getUserOperations: () => [{ ...USER_OPERATION_METADATA_MOCK }],
       messenger: messengerMock,
     });
 
-    bundlerMock.getUserOperationReceipt.mockResolvedValueOnce(
-      USER_OPERATION_RECEIPT_MOCK,
-    );
+    bundlerMock.getUserOperationReceipt.mockResolvedValueOnce({
+      ...USER_OPERATION_RECEIPT_MOCK,
+      ...(overrideReceipt ?? {}),
+    });
 
     queryMock.mockResolvedValueOnce(BLOCK_MOCK);
 
     beforeCallback?.(pendingUserOperationTracker);
 
-    await pendingUserOperationTracker._executePoll(NETWORK_CLIENT_ID_MOCK, {});
+    await pendingUserOperationTracker._executePoll({
+      networkClientId: NETWORK_CLIENT_ID_MOCK,
+    });
   }
 
   /**
    * Simulate the scenario where a user operation fails.
+   *
    * @param beforeCallback - An optional callback to execute before the scenario is run.
    */
   async function onFailedUserOperation(
@@ -114,18 +123,21 @@ describe('PendingUserOperationTracker', () => {
 
     beforeCallback?.(pendingUserOperationTracker);
 
-    await pendingUserOperationTracker._executePoll(NETWORK_CLIENT_ID_MOCK, {});
+    await pendingUserOperationTracker._executePoll({
+      networkClientId: NETWORK_CLIENT_ID_MOCK,
+    });
   }
 
   beforeEach(() => {
-    jest.resetAllMocks();
     jest.spyOn(BundlerHelper, 'Bundler').mockReturnValue(bundlerMock);
 
     messengerMock.call.mockReturnValue({
       blockTracker: { getCurrentBlock: () => BLOCK_NUMBER_MOCK },
       configuration: { chainId: CHAIN_ID_MOCK },
       provider: {},
-    } as unknown as ReturnType<NetworkControllerGetNetworkClientByIdAction['handler']>);
+    } as unknown as ReturnType<
+      NetworkControllerGetNetworkClientByIdAction['handler']
+    >);
   });
 
   describe('_executePoll', () => {
@@ -145,10 +157,9 @@ describe('PendingUserOperationTracker', () => {
         messenger: messengerMock,
       });
 
-      await pendingUserOperationTracker._executePoll(
-        NETWORK_CLIENT_ID_MOCK,
-        {},
-      );
+      await pendingUserOperationTracker._executePoll({
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+      });
 
       expect(bundlerMock.getUserOperationReceipt).not.toHaveBeenCalled();
       expect(queryMock).not.toHaveBeenCalled();
@@ -171,10 +182,9 @@ describe('PendingUserOperationTracker', () => {
         messenger: messengerMock,
       });
 
-      await pendingUserOperationTracker._executePoll(
-        NETWORK_CLIENT_ID_MOCK,
-        {},
-      );
+      await pendingUserOperationTracker._executePoll({
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+      });
 
       expect(bundlerMock.getUserOperationReceipt).not.toHaveBeenCalled();
       expect(queryMock).not.toHaveBeenCalled();
@@ -195,10 +205,9 @@ describe('PendingUserOperationTracker', () => {
         new Error('Test Error'),
       );
 
-      await pendingUserOperationTracker._executePoll(
-        NETWORK_CLIENT_ID_MOCK,
-        {},
-      );
+      await pendingUserOperationTracker._executePoll({
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+      });
     });
 
     // eslint-disable-next-line jest/expect-expect
@@ -214,10 +223,9 @@ describe('PendingUserOperationTracker', () => {
 
       bundlerMock.getUserOperationReceipt.mockResolvedValueOnce(undefined);
 
-      await pendingUserOperationTracker._executePoll(
-        NETWORK_CLIENT_ID_MOCK,
-        {},
-      );
+      await pendingUserOperationTracker._executePoll({
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+      });
     });
 
     it('queries bundler using eth_getUserOperationReceipt RPC method', async () => {
@@ -230,10 +238,9 @@ describe('PendingUserOperationTracker', () => {
         messenger: messengerMock,
       });
 
-      await pendingUserOperationTracker._executePoll(
-        NETWORK_CLIENT_ID_MOCK,
-        {},
-      );
+      await pendingUserOperationTracker._executePoll({
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+      });
 
       expect(bundlerMock.getUserOperationReceipt).toHaveBeenCalledTimes(1);
       expect(bundlerMock.getUserOperationReceipt).toHaveBeenCalledWith(
@@ -286,6 +293,37 @@ describe('PendingUserOperationTracker', () => {
           status: UserOperationStatus.Confirmed,
           transactionHash: USER_OPERATION_RECEIPT_MOCK.receipt.transactionHash,
         });
+      });
+
+      it('normalizes given gas values', async () => {
+        const listener = jest.fn();
+
+        const actualGasCostInNumber = 5000;
+        const actualGasUsedInNumber = 3000;
+
+        const actualGasCostInHex = '0x1388';
+        const actualGasUsedInHex = '0xbb8';
+
+        await onConfirmedUserOperation(
+          (pendingUserOperationTracker: PendingUserOperationTracker) => {
+            pendingUserOperationTracker.hub.on(
+              'user-operation-confirmed',
+              listener,
+            );
+          },
+          {
+            actualGasCost: actualGasCostInNumber,
+            actualGasUsed: actualGasUsedInNumber,
+          },
+        );
+
+        expect(listener).toHaveBeenCalledTimes(1);
+        expect(listener).toHaveBeenCalledWith(
+          expect.objectContaining({
+            actualGasCost: actualGasCostInHex,
+            actualGasUsed: actualGasUsedInHex,
+          }),
+        );
       });
     });
 

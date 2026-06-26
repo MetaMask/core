@@ -1,21 +1,24 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type {
   JsonRpcEngineReturnHandler,
   JsonRpcEngineNextCallback,
 } from '@metamask/json-rpc-engine';
-import {
-  type PendingJsonRpcResponse,
-  type Json,
-  type JsonRpcRequest,
-  PendingJsonRpcResponseStruct,
-} from '@metamask/utils';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
+} from '@metamask/messenger';
+import { PendingJsonRpcResponseStruct } from '@metamask/utils';
+import type { PendingJsonRpcResponse, JsonRpcRequest } from '@metamask/utils';
 import { nanoid } from 'nanoid';
 
 import { LOG_LIMIT, LOG_METHOD_TYPES } from '../src/enums';
-import {
-  type Permission,
-  type PermissionLogControllerState,
-  PermissionLogController,
+import { PermissionLogController } from '../src/PermissionLogController';
+import type {
+  Permission,
+  PermissionLogControllerState,
+  PermissionLogControllerMessenger,
 } from '../src/PermissionLogController';
 import { constants, getters, noop } from './helpers';
 
@@ -34,21 +37,71 @@ class CustomError extends Error {
 
 const name = 'PermissionLogController';
 
+type AllPermissionLogControllerActions =
+  MessengerActions<PermissionLogControllerMessenger>;
+
+type AllPermissionLogControllerEvents =
+  MessengerEvents<PermissionLogControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllPermissionLogControllerActions,
+  AllPermissionLogControllerEvents
+>;
+
+/**
+ * Creates and returns a root messenger for testing
+ *
+ * @returns A messenger instance
+ */
+function getRootMessenger(): RootMessenger {
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+}
+
+type ControllerMessenger = Messenger<
+  typeof name,
+  AllPermissionLogControllerActions,
+  AllPermissionLogControllerEvents,
+  RootMessenger
+>;
+
+/**
+ * Creates a controller messenger for testing.
+ *
+ * @param rootMessenger - The root messenger to use.
+ * @returns A controller messenger.
+ */
+function getControllerMessenger(
+  rootMessenger: RootMessenger,
+): ControllerMessenger {
+  return new Messenger<
+    typeof name,
+    AllPermissionLogControllerActions,
+    AllPermissionLogControllerEvents,
+    RootMessenger
+  >({
+    namespace: name,
+    parent: rootMessenger,
+  });
+}
+
 const initController = ({
   restrictedMethods,
   state,
 }: {
   restrictedMethods: Set<string>;
   state?: Partial<PermissionLogControllerState>;
-}): PermissionLogController => {
-  const messenger = new ControllerMessenger().getRestricted({
-    name,
-  });
-  return new PermissionLogController({
+}): { controller: PermissionLogController; rootMessenger: RootMessenger } => {
+  const rootMessenger = getRootMessenger();
+  const messenger = getControllerMessenger(rootMessenger);
+  const controller = new PermissionLogController({
     messenger,
     restrictedMethods,
     state,
   });
+  return { controller, rootMessenger };
 };
 
 const mockNext =
@@ -60,12 +113,12 @@ const mockNext =
     handler?.(noop);
   };
 
-const initClock = () => {
-  jest.useFakeTimers('modern');
+const initClock = (): void => {
+  jest.useFakeTimers();
   jest.setSystemTime(new Date(1));
 };
 
-const tearDownClock = () => {
+const tearDownClock = (): void => {
   jest.useRealTimers();
 };
 
@@ -93,10 +146,12 @@ describe('PermissionLogController', () => {
       });
 
       it('records activity for a successful restricted method request', () => {
-        const controller = initController({
+        const { controller, rootMessenger } = initController({
           restrictedMethods: new Set(['test_method']),
         });
-        const logMiddleware = controller.createMiddleware();
+        const logMiddleware = rootMessenger.call(
+          'PermissionLogController:createMiddleware',
+        );
         const req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
         const res = {
           ...PendingJsonRpcResponseStruct.TYPE,
@@ -119,12 +174,14 @@ describe('PermissionLogController', () => {
       });
 
       it('records activity for a failed restricted method request', () => {
-        const controller = initController({
+        const { controller, rootMessenger } = initController({
           restrictedMethods: new Set(['eth_accounts']),
         });
-        const logMiddleware = controller.createMiddleware();
+        const logMiddleware = rootMessenger.call(
+          'PermissionLogController:createMiddleware',
+        );
         const req = RPC_REQUESTS.eth_accounts(SUBJECTS.b.origin);
-        const res: PendingJsonRpcResponse<Json> = {
+        const res: PendingJsonRpcResponse = {
           id: REQUEST_IDS.a,
           jsonrpc: '2.0',
           error: new CustomError('Unauthorized.', 1),
@@ -146,10 +203,12 @@ describe('PermissionLogController', () => {
       });
 
       it('records activity for a restricted method request with successful eth_requestAccounts', () => {
-        const controller = initController({
+        const { controller, rootMessenger } = initController({
           restrictedMethods: new Set([]),
         });
-        const logMiddleware = controller.createMiddleware();
+        const logMiddleware = rootMessenger.call(
+          'PermissionLogController:createMiddleware',
+        );
         const req = RPC_REQUESTS.eth_requestAccounts(SUBJECTS.c.origin);
         const res = {
           ...PendingJsonRpcResponseStruct.TYPE,
@@ -172,13 +231,15 @@ describe('PermissionLogController', () => {
       });
 
       it('handles a restricted method request without a response', () => {
-        const controller = initController({
+        const { controller, rootMessenger } = initController({
           restrictedMethods: new Set(['test_method']),
         });
-        const logMiddleware = controller.createMiddleware();
+        const logMiddleware = rootMessenger.call(
+          'PermissionLogController:createMiddleware',
+        );
         const req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
         // @ts-expect-error We are intentionally passing bad input.
-        const res: PendingJsonRpcResponse<Json> = null;
+        const res: PendingJsonRpcResponse = null;
 
         logMiddleware(req, res, mockNext(true), noop);
 
@@ -196,10 +257,12 @@ describe('PermissionLogController', () => {
       });
 
       it('ensures that "request" and "response" properties are not present in log entries', () => {
-        const controller = initController({
+        const { controller, rootMessenger } = initController({
           restrictedMethods: new Set([]),
         });
-        const logMiddleware = controller.createMiddleware();
+        const logMiddleware = rootMessenger.call(
+          'PermissionLogController:createMiddleware',
+        );
         const req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
         const res = {
           ...PendingJsonRpcResponseStruct.TYPE,
@@ -215,10 +278,12 @@ describe('PermissionLogController', () => {
       });
 
       it('handles responses added out of order', () => {
-        const controller = initController({
+        const { controller, rootMessenger } = initController({
           restrictedMethods: new Set(['test_method']),
         });
-        const logMiddleware = controller.createMiddleware();
+        const logMiddleware = rootMessenger.call(
+          'PermissionLogController:createMiddleware',
+        );
         const handlerArray: JsonRpcEngineReturnHandler[] = [];
         const req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
 
@@ -300,10 +365,12 @@ describe('PermissionLogController', () => {
       });
 
       it('handles a lack of response', () => {
-        const controller = initController({
+        const { controller, rootMessenger } = initController({
           restrictedMethods: new Set(['test_method']),
         });
-        const logMiddleware = controller.createMiddleware();
+        const logMiddleware = rootMessenger.call(
+          'PermissionLogController:createMiddleware',
+        );
         const req1 = {
           ...RPC_REQUESTS.test_method(SUBJECTS.a.origin),
           id: REQUEST_IDS.a,
@@ -371,10 +438,12 @@ describe('PermissionLogController', () => {
       });
 
       it('ignores activity for expected methods', () => {
-        const controller = initController({
+        const { controller, rootMessenger } = initController({
           restrictedMethods: new Set([]),
         });
-        const logMiddleware = controller.createMiddleware();
+        const logMiddleware = rootMessenger.call(
+          'PermissionLogController:createMiddleware',
+        );
         expect(controller.state.permissionActivityLog).toHaveLength(0);
 
         const res = {
@@ -396,10 +465,12 @@ describe('PermissionLogController', () => {
       });
 
       it('fills up the log to its limit without exceeding', () => {
-        const controller = initController({
+        const { controller, rootMessenger } = initController({
           restrictedMethods: new Set(['test_method']),
         });
-        const logMiddleware = controller.createMiddleware();
+        const logMiddleware = rootMessenger.call(
+          'PermissionLogController:createMiddleware',
+        );
         const req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
         const res = { ...PendingJsonRpcResponseStruct.TYPE, result: ['bar'] };
 
@@ -411,10 +482,12 @@ describe('PermissionLogController', () => {
       });
 
       it('removes the oldest log entry when a new one is added after reaching the limit', () => {
-        const controller = initController({
+        const { controller, rootMessenger } = initController({
           restrictedMethods: new Set(['test_method']),
         });
-        const logMiddleware = controller.createMiddleware();
+        const logMiddleware = rootMessenger.call(
+          'PermissionLogController:createMiddleware',
+        );
         const req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
         const res = { ...PendingJsonRpcResponseStruct.TYPE, result: ['bar'] };
 
@@ -440,10 +513,12 @@ describe('PermissionLogController', () => {
       });
 
       it('ensures the log does not exceed the limit when adding multiple entries', () => {
-        const controller = initController({
+        const { controller, rootMessenger } = initController({
           restrictedMethods: new Set(['test_method']),
         });
-        const logMiddleware = controller.createMiddleware();
+        const logMiddleware = rootMessenger.call(
+          'PermissionLogController:createMiddleware',
+        );
         const req = RPC_REQUESTS.test_method(SUBJECTS.a.origin);
         const res = { ...PendingJsonRpcResponseStruct.TYPE, result: ['bar'] };
 
@@ -465,10 +540,12 @@ describe('PermissionLogController', () => {
       });
 
       it('only updates history on responses', () => {
-        const controller = initController({
+        const { controller, rootMessenger } = initController({
           restrictedMethods: new Set([]),
         });
-        const logMiddleware = controller.createMiddleware();
+        const logMiddleware = rootMessenger.call(
+          'PermissionLogController:createMiddleware',
+        );
         const req = RPC_REQUESTS.requestPermission(
           SUBJECTS.a.origin,
           PERM_NAMES.test_method,
@@ -492,10 +569,12 @@ describe('PermissionLogController', () => {
       });
 
       it('ignores malformed permissions requests', () => {
-        const controller = initController({
+        const { controller, rootMessenger } = initController({
           restrictedMethods: new Set([]),
         });
-        const logMiddleware = controller.createMiddleware();
+        const logMiddleware = rootMessenger.call(
+          'PermissionLogController:createMiddleware',
+        );
         const req = RPC_REQUESTS.requestPermission(
           SUBJECTS.a.origin,
           PERM_NAMES.test_method,
@@ -520,10 +599,12 @@ describe('PermissionLogController', () => {
       });
 
       it('records and updates account history as expected', async () => {
-        const controller = initController({
+        const { controller, rootMessenger } = initController({
           restrictedMethods: new Set([]),
         });
-        const logMiddleware = controller.createMiddleware();
+        const logMiddleware = rootMessenger.call(
+          'PermissionLogController:createMiddleware',
+        );
         const req = RPC_REQUESTS.requestPermission(
           SUBJECTS.a.origin,
           PERM_NAMES.eth_accounts,
@@ -551,10 +632,12 @@ describe('PermissionLogController', () => {
       });
 
       it('handles eth_accounts response without caveats', async () => {
-        const controller = initController({
+        const { controller, rootMessenger } = initController({
           restrictedMethods: new Set([]),
         });
-        const logMiddleware = controller.createMiddleware();
+        const logMiddleware = rootMessenger.call(
+          'PermissionLogController:createMiddleware',
+        );
         const req = RPC_REQUESTS.requestPermission(
           SUBJECTS.a.origin,
           PERM_NAMES.eth_accounts,
@@ -573,10 +656,12 @@ describe('PermissionLogController', () => {
       });
 
       it('handles extra caveats for eth_accounts', async () => {
-        const controller = initController({
+        const { controller, rootMessenger } = initController({
           restrictedMethods: new Set([]),
         });
-        const logMiddleware = controller.createMiddleware();
+        const logMiddleware = rootMessenger.call(
+          'PermissionLogController:createMiddleware',
+        );
         const req = RPC_REQUESTS.requestPermission(
           SUBJECTS.a.origin,
           PERM_NAMES.eth_accounts,
@@ -598,10 +683,12 @@ describe('PermissionLogController', () => {
       // wallet_requestPermissions returns all permissions approved for the
       // requesting origin, including old ones
       it('handles unrequested permissions on the response', async () => {
-        const controller = initController({
+        const { controller, rootMessenger } = initController({
           restrictedMethods: new Set([]),
         });
-        const logMiddleware = controller.createMiddleware();
+        const logMiddleware = rootMessenger.call(
+          'PermissionLogController:createMiddleware',
+        );
         const req = RPC_REQUESTS.requestPermission(
           SUBJECTS.a.origin,
           PERM_NAMES.eth_accounts,
@@ -622,10 +709,12 @@ describe('PermissionLogController', () => {
       });
 
       it('does not update history if no new permissions are approved', async () => {
-        const controller = initController({
+        const { controller, rootMessenger } = initController({
           restrictedMethods: new Set([]),
         });
-        const logMiddleware = controller.createMiddleware();
+        const logMiddleware = rootMessenger.call(
+          'PermissionLogController:createMiddleware',
+        );
         let req = RPC_REQUESTS.requestPermission(
           SUBJECTS.a.origin,
           PERM_NAMES.test_method,
@@ -662,10 +751,12 @@ describe('PermissionLogController', () => {
       });
 
       it('records and updates history for multiple origins, regardless of response order', async () => {
-        const controller = initController({
+        const { controller, rootMessenger } = initController({
           restrictedMethods: new Set([]),
         });
-        const logMiddleware = controller.createMiddleware();
+        const logMiddleware = rootMessenger.call(
+          'PermissionLogController:createMiddleware',
+        );
 
         const round1: {
           req: JsonRpcRequest;
@@ -708,8 +799,8 @@ describe('PermissionLogController', () => {
         const handlers1: JsonRpcEngineReturnHandler[] = [];
 
         // make requests and process responses out of order
-        round1.forEach((x) => {
-          logMiddleware(x.req, x.res, getSavedMockNext(handlers1, false), noop);
+        round1.forEach(({ req, res }) => {
+          logMiddleware(req, res, getSavedMockNext(handlers1, false), noop);
         });
 
         for (const i of [1, 2, 0]) {
@@ -749,8 +840,8 @@ describe('PermissionLogController', () => {
           },
         ];
 
-        round2.forEach((x) => {
-          logMiddleware(x.req, x.res, mockNext(false), noop);
+        round2.forEach(({ req, res }) => {
+          logMiddleware(req, res, mockNext(false), noop);
         });
 
         expect(controller.state.permissionHistory).toStrictEqual(
@@ -770,17 +861,21 @@ describe('PermissionLogController', () => {
     });
 
     it('does nothing if the list of accounts is empty', () => {
-      const controller = initController({
+      const { controller, rootMessenger } = initController({
         restrictedMethods: new Set([]),
       });
 
-      controller.updateAccountsHistory('foo.com', []);
+      rootMessenger.call(
+        'PermissionLogController:updateAccountsHistory',
+        'foo.com',
+        [],
+      );
 
       expect(controller.state.permissionHistory).toStrictEqual({});
     });
 
     it('updates the account history', () => {
-      const controller = initController({
+      const { controller, rootMessenger } = initController({
         restrictedMethods: new Set(['eth_accounts']),
         state: {
           permissionHistory: {
@@ -797,7 +892,11 @@ describe('PermissionLogController', () => {
       });
 
       jest.advanceTimersByTime(1);
-      controller.updateAccountsHistory('foo.com', ['0x1', '0x2']);
+      rootMessenger.call(
+        'PermissionLogController:updateAccountsHistory',
+        'foo.com',
+        ['0x1', '0x2'],
+      );
 
       expect(controller.state.permissionHistory).toStrictEqual({
         'foo.com': {
@@ -810,6 +909,77 @@ describe('PermissionLogController', () => {
           },
         },
       });
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const { controller } = initController({
+        restrictedMethods: new Set(['test_method']),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`{}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const { controller } = initController({
+        restrictedMethods: new Set(['test_method']),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "permissionActivityLog": [],
+          "permissionHistory": {},
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const { controller } = initController({
+        restrictedMethods: new Set(['test_method']),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "permissionHistory": {},
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const { controller } = initController({
+        restrictedMethods: new Set(['test_method']),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "permissionHistory": {},
+        }
+      `);
     });
   });
 });

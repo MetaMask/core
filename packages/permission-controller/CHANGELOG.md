@@ -7,6 +7,323 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.2.0` ([#8774](https://github.com/MetaMask/core/pull/8774), [#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083))
+- Bump `@metamask/approval-controller` from `^9.0.1` to `^9.0.2` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
+## [13.1.1]
+
+### Changed
+
+- Bump `@metamask/json-rpc-engine` from `^10.3.0` to `^10.5.0` ([#8746](https://github.com/MetaMask/core/pull/8746), [#8753](https://github.com/MetaMask/core/pull/8753))
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+
+## [13.1.0]
+
+### Added
+
+- Expose missing public `PermissionController` methods through its messenger ([#8675](https://github.com/MetaMask/core/pull/8675))
+  - The following actions are now available:
+    - `PermissionController:acceptPermissionsRequest`,
+    - `PermissionController:rejectPermissionsRequest`,
+    - `PermissionController:revokePermission`,
+    - `PermissionController:updatePermissionsByCaveat`,
+    - `PermissionController:getPermission`
+  - Corresponding action types are available as well.
+
+## [13.0.0]
+
+### Added
+
+- Add `createPermissionMiddlewareV2`, a `JsonRpcEngineV2` variant of the standalone permission middleware factory ([#8532](https://github.com/MetaMask/core/pull/8532))
+- Add `messenger` option to permission specification builders, allowing restricted-method specs to receive a scoped messenger in place of `methodHooks` ([#8551](https://github.com/MetaMask/core/pull/8551))
+  - Use the `actionNames` field on the specification builder and `createRestrictedMethodMessenger` to construct the scoped messenger.
+
+### Changed
+
+- **BREAKING:** Decouple the permission middleware from `PermissionController` and expose it as a standalone function ([#8532](https://github.com/MetaMask/core/pull/8532))
+  - The standalone `createPermissionMiddleware` replaces the former `PermissionController.createPermissionMiddleware`; it is imported from `@metamask/permission-controller` and called with a messenger and subject metadata, and targets the legacy `JsonRpcEngine`.
+  - New integrations should prefer `createPermissionMiddlewareV2`, which targets `JsonRpcEngineV2`.
+  - `PermissionController.getRestrictedMethod` no longer serves a purpose, and is removed. Restricted methods should be invoked via the `:executeRestrictedMethod` action instead.
+- Bump `@metamask/json-rpc-engine` from `^10.2.4` to `^10.3.0` ([#8661](https://github.com/MetaMask/core/pull/8661))
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+
+### Deprecated
+
+- Deprecate `createPermissionMiddleware` in favor of `createPermissionMiddlewareV2`, which targets `JsonRpcEngineV2` ([#8532](https://github.com/MetaMask/core/pull/8532))
+
+### Removed
+
+- **BREAKING:** Remove `factoryHooks`, `validatorHooks`, and related fields from permission specification builders ([#8551](https://github.com/MetaMask/core/pull/8551))
+- **BREAKING:** Remove permitted method handlers and types ([#8583](https://github.com/MetaMask/core/pull/8583))
+  - The permitted method handlers were unused in practice. Replacement types for generic RPC method implementations are available in `@metamask/json-rpc-engine@10.3.0`.
+
+## [12.3.0]
+
+### Added
+
+- Expose missing public `PermissionController` methods through its messenger ([#8201](https://github.com/MetaMask/core/pull/8201))
+  - The following actions are now available:
+    - `PermissionController:clearState`
+  - Corresponding action types (e.g. `PermissionControllerClearStateAction`) are
+    available as well.
+- Expose missing public `SubjectMetadataController` methods through its messenger ([#8201](https://github.com/MetaMask/core/pull/8201))
+  - The following actions are now available:
+    - `SubjectMetadataController:clearState`
+    - `SubjectMetadataController:trimMetadataState`
+  - Corresponding action types
+    (e.g. `SubjectMetadataControllerClearStateAction`) are available as well.
+
+### Changed
+
+- Bump `@metamask/approval-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/json-rpc-engine` from `^10.2.3` to `^10.2.4` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
+### Deprecated
+
+- Deprecate action types in favor of `PermissionController...Action` and `SubjectMetadataController...Action` types ([#8201](https://github.com/MetaMask/core/pull/8201))
+  - For the `PermissionController`:
+    - `GetPermissionControllerState` is now `PermissionControllerGetStateAction`.
+    - `GetSubjects` is now `PermissionControllerGetSubjectsAction`.
+    - `GetPermissions` is now `PermissionControllerGetPermissionsAction`.
+    - `HasPermissions` is now `PermissionControllerHasPermissionsAction`.
+    - `HasPermission` is now `PermissionControllerHasPermissionAction`.
+    - `GrantPermissions` is now `PermissionControllerGrantPermissionsAction`.
+    - `GrantPermissionsIncremental` is now `PermissionControllerGrantPermissionsIncrementalAction`.
+    - `RequestPermissions` is now `PermissionControllerRequestPermissionsAction`.
+    - `RequestPermissionsIncremental` is now `PermissionControllerRequestPermissionsIncrementalAction`.
+    - `RevokePermissions` is now `PermissionControllerRevokePermissionsAction`.
+    - `RevokeAllPermissions` is now `PermissionControllerRevokeAllPermissionsAction`.
+    - `RevokePermissionForAllSubjects` is now `PermissionControllerRevokePermissionForAllSubjectsAction`.
+    - `UpdateCaveat` is now `PermissionControllerUpdateCaveatAction`.
+    - `GetCaveat` is now `PermissionControllerGetCaveatAction`.
+    - `ClearPermissions` is now `PermissionControllerClearPermissionsAction`.
+    - `GetEndowments` is now `PermissionControllerGetEndowmentsAction`.
+  - For the `SubjectMetadataController`:
+    - `GetSubjectMetadataControllerState` is now `SubjectMetadataControllerGetStateAction`.
+    - `GetSubjectMetadata` is now `SubjectMetadataControllerGetMetadataAction`.
+    - `AddSubjectMetadata` is now `SubjectMetadataControllerAddMetadataAction`.
+  - The old types are still exported but are now marked as deprecated and will
+    be removed in a future release.
+
+## [12.2.1]
+
+### Changed
+
+- Bump `@metamask/approval-controller` from `^8.0.0` to `^9.0.0` ([#8225](https://github.com/MetaMask/core/pull/8225))
+- Bump `@metamask/json-rpc-engine` from `^10.2.0` to `^10.2.3` ([#7642](https://github.com/MetaMask/core/pull/7642), [#7856](https://github.com/MetaMask/core/pull/7856), [#8078](https://github.com/MetaMask/core/pull/8078))
+- Bump `@metamask/controller-utils` from `^11.17.0` to `^11.19.0` ([#7583](https://github.com/MetaMask/core/pull/7583), [#7995](https://github.com/MetaMask/core/pull/7995))
+
+## [12.2.0]
+
+### Added
+
+- Add `PermissionController:getCaveat` action ([#7303](https://github.com/MetaMask/core/pull/7303))
+
+### Changed
+
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209))
+  - The dependencies moved are:
+    - `@metamask/approval-controller` (^8.0.0)
+  - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
+    - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
+  - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.17.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
+
+## [12.1.1]
+
+### Changed
+
+- Bump `@metamask/json-rpc-engine` from `^10.1.1` to `^10.2.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+
+## [12.1.0]
+
+### Added
+
+- Add `name` property to permission errors ([#6987](https://github.com/MetaMask/core/pull/6987))
+
+## [12.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6537](https://github.com/MetaMask/core/pull/6537))
+  - Previously, `PermissionController` and `SubjectMetadataController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6537](https://github.com/MetaMask/core/pull/6537))
+- **BREAKING:** Bump `@metamask/approval-controller` from `^7.0.0` to `^8.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [11.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
+## [11.1.0]
+
+### Added
+
+- Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6525](https://github.com/MetaMask/core/pull/6525))
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.1.0` to `^11.8.1` ([#5301](https://github.com/MetaMask/core/pull/5301), [#6054](https://github.com/MetaMask/core/pull/6054), [#6588](https://github.com/MetaMask/core/pull/6588), [#6708](https://github.com/MetaMask/core/pull/6708))
+- Bump `@metamask/base-controller` from `^8.0.0` to `^8.4.1` ([#5722](https://github.com/MetaMask/core/pull/5722), [#6284](https://github.com/MetaMask/core/pull/6284), [#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632), [#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/controller-utils` from `^11.5.0` to `^11.14.1` ([#5439](https://github.com/MetaMask/core/pull/5439), [#5583](https://github.com/MetaMask/core/pull/5583), [#5765](https://github.com/MetaMask/core/pull/5765), [#5812](https://github.com/MetaMask/core/pull/5812), [#5935](https://github.com/MetaMask/core/pull/5935), [#6069](https://github.com/MetaMask/core/pull/6069), [#6303](https://github.com/MetaMask/core/pull/6303), [#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629), [#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/json-rpc-engine` from `^10.0.3` to `^10.1.1` ([#6678](https://github.com/MetaMask/core/pull/6678), [#6807](https://github.com/MetaMask/core/pull/6807))
+
+## [11.0.6]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.1.1` to `^8.0.0` ([#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/controller-utils` from `^11.4.5` to `^11.5.0` ([#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/json-rpc-engine` from `^10.0.2` to `^10.0.3` ([#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
+
+## [11.0.5]
+
+### Changed
+
+- Remove redundant caveat validator calls ([#5062](https://github.com/MetaMask/core/pull/5062))
+  - In some cases, caveats were being validated multiple times or without the
+    possibility of being changed.
+  - The intended purpose of permission and caveat validators has also been
+    documented. See `ARCHITECTURE.md`.
+- Bump `nanoid` from `^3.1.31` to `^3.3.8` ([#5073](https://github.com/MetaMask/core/pull/5073))
+- Bump `@metamask/utils` from `^10.0.0` to `^11.0.1` ([#5080](https://github.com/MetaMask/core/pull/5080))
+- Bump `@metamask/rpc-errors` from `^7.0.0` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
+- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.1`, ([#5079](https://github.com/MetaMask/core/pull/5079), [#5135](https://github.com/MetaMask/core/pull/5135))
+
+## [11.0.4]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.4.1` to `^11.4.4`, [#4915](https://github.com/MetaMask/core/pull/4915), [#5012](https://github.com/MetaMask/core/pull/5012)) ([#4870](https://github.com/MetaMask/core/pull/4870))
+
+### Fixed
+
+- Correct ESM-compatible build so that imports of the following packages that re-export other modules via `export *` are no longer corrupted: ([#5011](https://github.com/MetaMask/core/pull/5011))
+  - `deep-freeze-strict`
+
+## [11.0.3]
+
+### Changed
+
+- Bump `@metamask/utils` from `^9.1.0` to `^10.0.0` ([#4831](https://github.com/MetaMask/core/pull/4831))
+
+## [11.0.2]
+
+### Fixed
+
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+
+## [11.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^6.0.3` to `^7.0.0` ([#4643](https://github.com/MetaMask/core/pull/4643))
+- Bump `@metamask/controller-utils` from `^11.0.2` to `^11.2.0` ([#4639](https://github.com/MetaMask/core/pull/4639), [#4651](https://github.com/MetaMask/core/pull/4651))
+- Bump `typescript` from `~5.0.4` to `~5.2.2` ([#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
+
+## [11.0.0]
+
+### Changed
+
+- **BREAKING:** Rename enum property names to match PascalCase instead of camelCase ([#4521](https://github.com/MetaMask/core/pull/4521))
+  - The affected enums are: `CaveatMutatorOperations`, `MethodNames`.
+- Bump TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/base-controller` from `^6.0.1` to `^6.0.2` ([#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/controller-utils` from `^11.0.1` to `^11.0.2` ([#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/json-rpc-engine` from `^9.0.1` to `^9.0.2` ([#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/utils` from `^9.0.0` to `^9.1.0` ([#4529](https://github.com/MetaMask/core/pull/4529))
+
+## [10.0.1]
+
+### Changed
+
+- Bump `@metamask/rpc-errors` from `6.2.1` to `^6.3.1` ([#4516](https://github.com/MetaMask/core/pull/4516))
+- Bump `@metamask/utils` from `^8.3.0` to `^9.0.0` ([#4516](https://github.com/MetaMask/core/pull/4516))
+- Bump `@metamask/base-controller` to `^9.0.1` ([#4517](https://github.com/MetaMask/core/pull/4517))
+- Bump `@metamask/controller-utils` to `^11.0.1` ([#4517](https://github.com/MetaMask/core/pull/4517))
+- Bump `@metamask/json-rpc-engine` to `^9.0.1` ([#4517](https://github.com/MetaMask/core/pull/4517))
+
+## [10.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- **BREAKING:** Bump peer dependency `@metamask/approval-controller` to `^7.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/base-controller` to `^6.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/controller-utils` to `^11.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/json-rpc-engine` to `^9.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
+## [9.1.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` to `^10.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+
+## [9.1.0]
+
+### Added
+
+- Add `requestPermissionsIncremental()` and caveat merger functions ([#4222](https://github.com/MetaMask/core/pull/4222))
+- Enable passing additional metadata during permission requests ([#4179](https://github.com/MetaMask/core/pull/4179))
+- Make permission request validation errors more informative ([#4172](https://github.com/MetaMask/core/pull/4172))
+
+## [9.0.2]
+
+### Fixed
+
+- Fix `SideEffectMessenger` type not respecting generic parameter types ([#4059](https://github.com/MetaMask/core/pull/4059))
+
+## [9.0.1]
+
+### Fixed
+
+- Fix `types` field in `package.json` ([#4047](https://github.com/MetaMask/core/pull/4047))
+
+## [9.0.0]
+
+### Added
+
+- **BREAKING**: Add ESM build ([#3998](https://github.com/MetaMask/core/pull/3998))
+  - It's no longer possible to import files from `./dist` directly.
+
+### Changed
+
+- **BREAKING:** Bump peer dependency on `@metamask/approval-controller` to `^6.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+  - This version has a number of breaking changes. See the changelog for more.
+- Bump `@metamask/controller-utils` to `^9.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- Bump `@metamask/json-rpc-engine` to `^8.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+
+### Fixed
+
+- **BREAKING:** Fix `SideEffectMessenger` so that it's defined with a `RestrictedControllerMessenger` that has access to `PermissionController` allowed actions ([#4031](https://github.com/MetaMask/core/pull/4031))
+  - The messenger's `Action` generic parameter is widened to include the `PermissionController` actions allowlist.
+  - The messenger's `AllowedAction` generic parameter is narrowed from `string` to the `PermissionController` actions allowlist.
+
 ## [8.0.1]
 
 ### Fixed
@@ -70,9 +387,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Remove `undefined` from RestrictedMethodParameters type union and from type parameter for RestrictedMethodOptions ([#1749])(https://github.com/MetaMask/core/pull/1749))
-- **BREAKING:** Update from `json-rpc-engine@^6.1.0` to `@metamask/json-rpc-engine@^7.1.1` ([#1749])(https://github.com/MetaMask/core/pull/1749))
-- Update from `eth-rpc-errors@^4.0.2` to `@metamask/rpc-errors@^6.0.0` ([#1749])(https://github.com/MetaMask/core/pull/1749))
+- **BREAKING:** Remove `undefined` from RestrictedMethodParameters type union and from type parameter for RestrictedMethodOptions ([#1749](https://github.com/MetaMask/core/pull/1749))
+- **BREAKING:** Update from `json-rpc-engine@^6.1.0` to `@metamask/json-rpc-engine@^7.1.1` ([#1749](https://github.com/MetaMask/core/pull/1749))
+- Update from `eth-rpc-errors@^4.0.2` to `@metamask/rpc-errors@^6.0.0` ([#1749](https://github.com/MetaMask/core/pull/1749))
 - Bump dependency on `@metamask/utils` to ^8.1.0 ([#1639](https://github.com/MetaMask/core/pull/1639))
 - Bump dependency and peer dependency on `@metamask/approval-controller` to ^4.0.0
 - Bump dependency on `@metamask/base-controller` to ^3.2.3
@@ -178,14 +495,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
-
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
-
     - Everything in `src/permissions`
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@8.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@13.1.1...HEAD
+[13.1.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@13.1.0...@metamask/permission-controller@13.1.1
+[13.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@13.0.0...@metamask/permission-controller@13.1.0
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@12.3.0...@metamask/permission-controller@13.0.0
+[12.3.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@12.2.1...@metamask/permission-controller@12.3.0
+[12.2.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@12.2.0...@metamask/permission-controller@12.2.1
+[12.2.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@12.1.1...@metamask/permission-controller@12.2.0
+[12.1.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@12.1.0...@metamask/permission-controller@12.1.1
+[12.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@12.0.0...@metamask/permission-controller@12.1.0
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.1.1...@metamask/permission-controller@12.0.0
+[11.1.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.1.0...@metamask/permission-controller@11.1.1
+[11.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.6...@metamask/permission-controller@11.1.0
+[11.0.6]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.5...@metamask/permission-controller@11.0.6
+[11.0.5]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.4...@metamask/permission-controller@11.0.5
+[11.0.4]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.3...@metamask/permission-controller@11.0.4
+[11.0.3]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.2...@metamask/permission-controller@11.0.3
+[11.0.2]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.1...@metamask/permission-controller@11.0.2
+[11.0.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@11.0.0...@metamask/permission-controller@11.0.1
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@10.0.1...@metamask/permission-controller@11.0.0
+[10.0.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@10.0.0...@metamask/permission-controller@10.0.1
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@9.1.1...@metamask/permission-controller@10.0.0
+[9.1.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@9.1.0...@metamask/permission-controller@9.1.1
+[9.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@9.0.2...@metamask/permission-controller@9.1.0
+[9.0.2]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@9.0.1...@metamask/permission-controller@9.0.2
+[9.0.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@9.0.0...@metamask/permission-controller@9.0.1
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@8.0.1...@metamask/permission-controller@9.0.0
 [8.0.1]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@8.0.0...@metamask/permission-controller@8.0.1
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@7.1.0...@metamask/permission-controller@8.0.0
 [7.1.0]: https://github.com/MetaMask/core/compare/@metamask/permission-controller@7.0.0...@metamask/permission-controller@7.1.0

@@ -1,12 +1,4 @@
-/* eslint-disable jsdoc/require-jsdoc */
-
-import {
-  ORIGIN_METAMASK,
-  gweiDecToWEIBN,
-  query,
-  toHex,
-} from '@metamask/controller-utils';
-import type EthQuery from '@metamask/eth-query';
+import { gweiDecToWEIBN, toHex } from '@metamask/controller-utils';
 import type {
   FetchGasFeeEstimateOptions,
   GasFeeState,
@@ -15,6 +7,7 @@ import type { Hex } from '@metamask/utils';
 import { add0x, createModuleLogger } from '@metamask/utils';
 
 import { projectLogger } from '../logger';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
   SavedGasFees,
   TransactionParams,
@@ -22,18 +15,19 @@ import type {
   TransactionType,
   GasFeeFlow,
 } from '../types';
-import { UserFeeLevel } from '../types';
+import { GasFeeEstimateType, UserFeeLevel } from '../types';
 import { getGasFeeFlow } from './gas-flow';
+import { rpcRequest } from './provider';
 import { SWAP_TRANSACTION_TYPES } from './swaps';
 
 export type UpdateGasFeesRequest = {
   eip1559: boolean;
-  ethQuery: EthQuery;
   gasFeeFlows: GasFeeFlow[];
   getGasFeeEstimates: (
     options: FetchGasFeeEstimateOptions,
   ) => Promise<GasFeeState>;
   getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
+  messenger: TransactionControllerMessenger;
   txMeta: TransactionMeta;
 };
 
@@ -51,7 +45,14 @@ type SuggestedGasFees = {
 
 const log = createModuleLogger(projectLogger, 'gas-fees');
 
-export async function updateGasFees(request: UpdateGasFeesRequest) {
+/**
+ * Update the gas fee properties of the provided transaction meta.
+ *
+ * @param request - The request object.
+ */
+export async function updateGasFees(
+  request: UpdateGasFeesRequest,
+): Promise<void> {
   const { txMeta } = request;
   const initialParams = { ...txMeta.txParams };
 
@@ -99,10 +100,39 @@ export async function updateGasFees(request: UpdateGasFeesRequest) {
   updateDefaultGasEstimates(txMeta);
 }
 
-export function gweiDecimalToWeiHex(value: string) {
+/**
+ * Convert GWEI from decimal string to WEI as hex string.
+ *
+ * @param value - The GWEI value as a decimal string.
+ * @returns The WEI value in hex.
+ */
+export function gweiDecimalToWeiHex(value: string): Hex {
   return toHex(gweiDecToWEIBN(value));
 }
 
+/**
+ * Converts a value from Gwei decimal representation to Wei decimal representation
+ *
+ * @param gweiDecimal - The value in Gwei as a string or number
+ * @returns The value in Wei as a string
+ *
+ * @example
+ * // Convert 1.5 Gwei to Wei
+ * gweiDecimalToWeiDecimal("1.5")
+ * // Returns "1500000000"
+ */
+export function gweiDecimalToWeiDecimal(gweiDecimal: string | number): string {
+  const weiValue = Number(gweiDecimal) * 1e9;
+
+  return weiValue.toString().split('.')[0];
+}
+
+/**
+ * Determine the maxFeePerGas value for the transaction.
+ *
+ * @param request - The request object.
+ * @returns The maxFeePerGas value.
+ */
 function getMaxFeePerGas(request: GetGasFeeRequest): string | undefined {
   const { savedGasFees, eip1559, initialParams, suggestedGasFees } = request;
 
@@ -111,7 +141,7 @@ function getMaxFeePerGas(request: GetGasFeeRequest): string | undefined {
   }
 
   if (savedGasFees) {
-    const maxFeePerGas = gweiDecimalToWeiHex(savedGasFees.maxBaseFee as string);
+    const maxFeePerGas = gweiDecimalToWeiHex(savedGasFees.maxBaseFee);
     log('Using maxFeePerGas from savedGasFees', maxFeePerGas);
     return maxFeePerGas;
   }
@@ -146,6 +176,12 @@ function getMaxFeePerGas(request: GetGasFeeRequest): string | undefined {
   return undefined;
 }
 
+/**
+ * Determine the maxPriorityFeePerGas value for the transaction.
+ *
+ * @param request - The request object.
+ * @returns The maxPriorityFeePerGas value.
+ */
 function getMaxPriorityFeePerGas(
   request: GetGasFeeRequest,
 ): string | undefined {
@@ -201,6 +237,12 @@ function getMaxPriorityFeePerGas(
   return undefined;
 }
 
+/**
+ * Determine the gasPrice value for the transaction.
+ *
+ * @param request - The request object.
+ * @returns The gasPrice value.
+ */
 function getGasPrice(request: GetGasFeeRequest): string | undefined {
   const { eip1559, initialParams, suggestedGasFees } = request;
 
@@ -227,13 +269,14 @@ function getGasPrice(request: GetGasFeeRequest): string | undefined {
   return undefined;
 }
 
+/**
+ * Determine the user fee level.
+ *
+ * @param request - The request object.
+ * @returns The user fee level.
+ */
 function getUserFeeLevel(request: GetGasFeeRequest): UserFeeLevel | undefined {
-  const { eip1559, initialParams, savedGasFees, suggestedGasFees, txMeta } =
-    request;
-
-  if (!eip1559) {
-    return undefined;
-  }
+  const { initialParams, savedGasFees, suggestedGasFees, txMeta } = request;
 
   if (savedGasFees) {
     return UserFeeLevel.CUSTOM;
@@ -244,7 +287,7 @@ function getUserFeeLevel(request: GetGasFeeRequest): UserFeeLevel | undefined {
     !initialParams.maxPriorityFeePerGas &&
     initialParams.gasPrice
   ) {
-    return txMeta.origin === ORIGIN_METAMASK
+    return txMeta.isInternal
       ? UserFeeLevel.CUSTOM
       : UserFeeLevel.DAPP_SUGGESTED;
   }
@@ -258,18 +301,28 @@ function getUserFeeLevel(request: GetGasFeeRequest): UserFeeLevel | undefined {
     return UserFeeLevel.MEDIUM;
   }
 
-  if (txMeta.origin === ORIGIN_METAMASK) {
+  if (
+    !initialParams.maxFeePerGas &&
+    !initialParams.maxPriorityFeePerGas &&
+    suggestedGasFees.gasPrice
+  ) {
+    return UserFeeLevel.MEDIUM;
+  }
+
+  if (txMeta.isInternal) {
     return UserFeeLevel.MEDIUM;
   }
 
   return UserFeeLevel.DAPP_SUGGESTED;
 }
 
-function updateDefaultGasEstimates(txMeta: TransactionMeta) {
-  if (!txMeta.defaultGasEstimates) {
-    txMeta.defaultGasEstimates = {};
-  }
-
+/**
+ * Update the default gas estimates for the provided transaction.
+ *
+ * @param txMeta - The transaction metadata.
+ */
+function updateDefaultGasEstimates(txMeta: TransactionMeta): void {
+  txMeta.defaultGasEstimates ??= {};
   txMeta.defaultGasEstimates.maxFeePerGas = txMeta.txParams.maxFeePerGas;
 
   txMeta.defaultGasEstimates.maxPriorityFeePerGas =
@@ -279,11 +332,18 @@ function updateDefaultGasEstimates(txMeta: TransactionMeta) {
   txMeta.defaultGasEstimates.estimateType = txMeta.userFeeLevel;
 }
 
+/**
+ * Retrieve the suggested gas fees using the gas fee flows.
+ *
+ * @param request - The request object.
+ * @returns The suggested gas fees.
+ */
 async function getSuggestedGasFees(
   request: UpdateGasFeesRequest,
 ): Promise<SuggestedGasFees> {
-  const { eip1559, ethQuery, gasFeeFlows, getGasFeeEstimates, txMeta } =
+  const { eip1559, gasFeeFlows, getGasFeeEstimates, messenger, txMeta } =
     request;
+  const { networkClientId } = txMeta;
 
   if (
     (!eip1559 && txMeta.txParams.gasPrice) ||
@@ -294,25 +354,50 @@ async function getSuggestedGasFees(
     return {};
   }
 
-  const gasFeeFlow = getGasFeeFlow(txMeta, gasFeeFlows) as GasFeeFlow;
+  const gasFeeFlow = getGasFeeFlow(
+    txMeta,
+    gasFeeFlows,
+    messenger,
+  ) as GasFeeFlow;
 
   try {
+    const gasFeeControllerData = await getGasFeeEstimates({ networkClientId });
+
     const response = await gasFeeFlow.getGasFees({
-      ethQuery,
-      getGasFeeControllerEstimates: getGasFeeEstimates,
+      gasFeeControllerData,
+      messenger,
       transactionMeta: txMeta,
     });
 
-    return response.estimates.medium;
+    const gasFeeEstimateType = response.estimates?.type;
+
+    switch (gasFeeEstimateType) {
+      case GasFeeEstimateType.FeeMarket:
+        return response.estimates.medium;
+      case GasFeeEstimateType.Legacy:
+        return {
+          gasPrice: response.estimates.medium,
+        };
+      case GasFeeEstimateType.GasPrice:
+        return { gasPrice: response.estimates.gasPrice };
+      default:
+        throw new Error(
+          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+          // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
+          `Unsupported gas fee estimate type returned from flow: ${gasFeeEstimateType}`,
+        );
+    }
   } catch (error) {
     log('Failed to get suggested gas fees', error);
   }
 
-  const gasPriceDecimal = (await query(ethQuery, 'gasPrice')) as number;
+  const gasPriceHex = (await rpcRequest({
+    messenger,
+    networkClientId,
+    method: 'eth_gasPrice',
+  })) as Hex | undefined;
 
-  const gasPrice = gasPriceDecimal
-    ? add0x(gasPriceDecimal.toString(16))
-    : undefined;
+  const gasPrice = gasPriceHex ? add0x(gasPriceHex) : undefined;
 
   return { gasPrice };
 }

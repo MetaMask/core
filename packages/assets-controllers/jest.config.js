@@ -14,13 +14,19 @@ module.exports = merge(baseConfig, {
   // The display name when running multiple projects
   displayName,
 
+  // An array of regexp pattern strings used to skip coverage collection
+  coveragePathIgnorePatterns: [
+    ...baseConfig.coveragePathIgnorePatterns,
+    '/__fixtures__/',
+  ],
+
   // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
     global: {
-      branches: 90.35,
-      functions: 96.74,
-      lines: 97.34,
-      statements: 97.36,
+      branches: 90.5,
+      functions: 98,
+      lines: 98,
+      statements: 98,
     },
   },
 

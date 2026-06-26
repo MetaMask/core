@@ -13,10 +13,6 @@ jest.mock('./utils', () => ({
 jest.useFakeTimers().setSystemTime(new Date('2023-01-02'));
 
 describe('create-package/commands', () => {
-  afterEach(() => {
-    jest.resetAllMocks();
-  });
-
   describe('createPackageHandler', () => {
     it('should create the expected package', async () => {
       (utils.readMonorepoFiles as jest.Mock).mockResolvedValue({

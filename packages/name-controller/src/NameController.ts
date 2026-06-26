@@ -1,10 +1,12 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import { isSafeDynamicKey } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
 
+import type { NameControllerMethodActions } from './NameController-method-action-types';
 import type {
   NameProvider,
   NameProviderRequest,
@@ -35,9 +37,21 @@ const DEFAULT_VARIATION = '';
 
 const controllerName = 'NameController';
 
+const MESSENGER_EXPOSED_METHODS = ['setName', 'updateProposedNames'] as const;
+
 const stateMetadata = {
-  names: { persist: true, anonymous: false },
-  nameSources: { persist: true, anonymous: false },
+  names: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  nameSources: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
 const getDefaultState = () => ({
@@ -80,16 +94,14 @@ export type NameStateChange = ControllerStateChangeEvent<
   NameControllerState
 >;
 
-export type NameControllerActions = GetNameState;
+export type NameControllerActions = GetNameState | NameControllerMethodActions;
 
 export type NameControllerEvents = NameStateChange;
 
-export type NameControllerMessenger = RestrictedControllerMessenger<
+export type NameControllerMessenger = Messenger<
   typeof controllerName,
   NameControllerActions,
-  NameControllerEvents,
-  never,
-  never
+  NameControllerEvents
 >;
 
 export type NameControllerOptions = {
@@ -128,15 +140,15 @@ export class NameController extends BaseController<
   NameControllerState,
   NameControllerMessenger
 > {
-  #providers: NameProvider[];
+  readonly #providers: NameProvider[];
 
-  #updateDelay: number;
+  readonly #updateDelay: number;
 
   /**
    * Construct a Name controller.
    *
    * @param options - Controller options.
-   * @param options.messenger - Restricted controller messenger for the name controller.
+   * @param options.messenger - Restricted messenger for the name controller.
    * @param options.providers - Array of name provider instances to propose names.
    * @param options.state - Initial state to set on the controller.
    * @param options.updateDelay - The delay in seconds before a new request to a source should be made.
@@ -153,6 +165,11 @@ export class NameController extends BaseController<
       messenger,
       state: { ...getDefaultState(), ...state },
     });
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
 
     this.#providers = providers;
     this.#updateDelay = updateDelay ?? DEFAULT_UPDATE_DELAY;
@@ -393,7 +410,9 @@ export class NameController extends BaseController<
   ): NameProviderSourceResult | undefined {
     const error = result?.error ?? responseError ?? undefined;
     const updateDelay = result?.updateDelay ?? undefined;
-    let proposedNames = error ? undefined : result?.proposedNames ?? undefined;
+    let proposedNames = error
+      ? undefined
+      : (result?.proposedNames ?? undefined);
 
     if (proposedNames) {
       proposedNames = proposedNames.filter(
@@ -440,6 +459,14 @@ export class NameController extends BaseController<
     const variationKey = variation ?? DEFAULT_VARIATION;
     const normalizedValue = this.#normalizeValue(value, type);
     const normalizedVariation = this.#normalizeVariation(variationKey, type);
+
+    if (
+      [normalizedValue, normalizedVariation].some(
+        (key) => !isSafeDynamicKey(key),
+      )
+    ) {
+      return;
+    }
 
     this.update((state) => {
       const typeEntries = state.names[type] || {};
@@ -608,7 +635,7 @@ export class NameController extends BaseController<
         variation !== FALLBACK_VARIATION)
     ) {
       errorMessages.push(
-        `Must specify a chain ID in hexidecimal format or the fallback, "${FALLBACK_VARIATION}", for variation when using '${type}' type.`,
+        `Must specify a chain ID in hexadecimal format or the fallback, "${FALLBACK_VARIATION}", for variation when using '${type}' type.`,
       );
     }
   }

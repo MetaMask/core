@@ -1,4 +1,8 @@
-import type { DataWithOptionalCause } from '@metamask/rpc-errors';
+import {
+  DataWithOptionalCause,
+  EthereumProviderError,
+  OptionalDataWithOptionalCause,
+} from '@metamask/rpc-errors';
 import {
   errorCodes,
   providerErrors,
@@ -6,7 +10,9 @@ import {
   JsonRpcError,
 } from '@metamask/rpc-errors';
 
+import type { CaveatConstraint } from './Caveat';
 import type { PermissionType } from './Permission';
+import type { PermissionDiffMap } from './PermissionController';
 
 type UnauthorizedArg = {
   data?: Record<string, unknown>;
@@ -19,7 +25,9 @@ type UnauthorizedArg = {
  * @param opts - Optional arguments that add extra context
  * @returns The built error
  */
-export function unauthorized(opts: UnauthorizedArg) {
+export function unauthorized(
+  opts: UnauthorizedArg,
+): EthereumProviderError<UnauthorizedArg> {
   return providerErrors.unauthorized({
     message:
       'Unauthorized to perform action. Try requesting the required permission(s) first. For more information, see: https://docs.metamask.io/guide/rpc-api.html#permissions',
@@ -34,7 +42,10 @@ export function unauthorized(opts: UnauthorizedArg) {
  * @param data - Optional data for context.
  * @returns The built error
  */
-export function methodNotFound(method: string, data?: DataWithOptionalCause) {
+export function methodNotFound(
+  method: string,
+  data?: DataWithOptionalCause,
+): JsonRpcError<OptionalDataWithOptionalCause> {
   const message = `The method "${method}" does not exist / is not available.`;
 
   const opts: Parameters<typeof rpcErrors.methodNotFound>[0] = { message };
@@ -55,7 +66,9 @@ type InvalidParamsArg = {
  * @param opts - Optional arguments that add extra context
  * @returns The built error
  */
-export function invalidParams(opts: InvalidParamsArg) {
+export function invalidParams(
+  opts: InvalidParamsArg,
+): JsonRpcError<DataWithOptionalCause> {
   return rpcErrors.invalidParams({
     data: opts.data,
     message: opts.message,
@@ -88,23 +101,58 @@ export function internalError<Data extends Record<string, unknown>>(
   return rpcErrors.internal({ message, data });
 }
 
-export class InvalidSubjectIdentifierError extends Error {
+class CustomError extends Error {
+  constructor(message?: string) {
+    super(message);
+    this.name = this.constructor.name;
+  }
+}
+
+export class InvalidSubjectIdentifierError extends CustomError {
   constructor(origin: unknown) {
     super(
       `Invalid subject identifier: "${
         typeof origin === 'string' ? origin : typeof origin
       }"`,
     );
+    this.name = this.constructor.name;
   }
 }
 
-export class UnrecognizedSubjectError extends Error {
+export class UnrecognizedSubjectError extends CustomError {
   constructor(origin: string) {
     super(`Unrecognized subject: "${origin}" has no permissions.`);
+    this.name = this.constructor.name;
   }
 }
 
-export class InvalidApprovedPermissionError extends Error {
+export class CaveatMergerDoesNotExistError extends CustomError {
+  constructor(caveatType: string) {
+    super(`Caveat value merger does not exist for type: "${caveatType}"`);
+  }
+}
+
+export class InvalidMergedPermissionsError extends Error {
+  public cause: Error;
+
+  public data: {
+    diff: PermissionDiffMap<string, CaveatConstraint>;
+  };
+
+  constructor(
+    origin: string,
+    cause: Error,
+    diff: PermissionDiffMap<string, CaveatConstraint>,
+  ) {
+    super(
+      `Invalid merged permissions for subject "${origin}":\n${cause.message}`,
+    );
+    this.cause = cause;
+    this.data = { diff };
+  }
+}
+
+export class InvalidApprovedPermissionError extends CustomError {
   public data: {
     origin: string;
     target: string;
@@ -122,24 +170,28 @@ export class InvalidApprovedPermissionError extends Error {
     this.data = { origin, target, approvedPermission };
   }
 }
-export class PermissionDoesNotExistError extends Error {
+export class PermissionDoesNotExistError extends CustomError {
   constructor(origin: string, target: string) {
     super(`Subject "${origin}" has no permission for "${target}".`);
   }
 }
 
-export class EndowmentPermissionDoesNotExistError extends Error {
+export class EndowmentPermissionDoesNotExistError extends CustomError {
   public data?: { origin: string };
 
   constructor(target: string, origin?: string) {
-    super(`Subject "${origin}" has no permission for "${target}".`);
+    super(
+      `${
+        origin ? `Subject "${origin}"` : 'Unknown subject'
+      } has no permission for "${target}".`,
+    );
     if (origin) {
       this.data = { origin };
     }
   }
 }
 
-export class UnrecognizedCaveatTypeError extends Error {
+export class UnrecognizedCaveatTypeError extends CustomError {
   public data: {
     caveatType: string;
     origin?: string;
@@ -163,7 +215,7 @@ export class UnrecognizedCaveatTypeError extends Error {
   }
 }
 
-export class InvalidCaveatsPropertyError extends Error {
+export class InvalidCaveatsPropertyError extends CustomError {
   public data: { origin: string; target: string; caveatsProperty: unknown };
 
   constructor(origin: string, target: string, caveatsProperty: unknown) {
@@ -174,7 +226,7 @@ export class InvalidCaveatsPropertyError extends Error {
   }
 }
 
-export class CaveatDoesNotExistError extends Error {
+export class CaveatDoesNotExistError extends CustomError {
   constructor(origin: string, target: string, caveatType: string) {
     super(
       `Permission for "${target}" of subject "${origin}" has no caveat of type "${caveatType}".`,
@@ -182,7 +234,7 @@ export class CaveatDoesNotExistError extends Error {
   }
 }
 
-export class CaveatAlreadyExistsError extends Error {
+export class CaveatAlreadyExistsError extends CustomError {
   constructor(origin: string, target: string, caveatType: string) {
     super(
       `Permission for "${target}" of subject "${origin}" already has a caveat of type "${caveatType}".`,
@@ -205,7 +257,7 @@ export class InvalidCaveatError extends JsonRpcError<
   }
 }
 
-export class InvalidCaveatTypeError extends Error {
+export class InvalidCaveatTypeError extends CustomError {
   public data: {
     caveat: Record<string, unknown>;
     origin: string;
@@ -218,7 +270,7 @@ export class InvalidCaveatTypeError extends Error {
   }
 }
 
-export class CaveatMissingValueError extends Error {
+export class CaveatMissingValueError extends CustomError {
   public data: {
     caveat: Record<string, unknown>;
     origin: string;
@@ -231,7 +283,7 @@ export class CaveatMissingValueError extends Error {
   }
 }
 
-export class CaveatInvalidJsonError extends Error {
+export class CaveatInvalidJsonError extends CustomError {
   public data: {
     caveat: Record<string, unknown>;
     origin: string;
@@ -244,7 +296,7 @@ export class CaveatInvalidJsonError extends Error {
   }
 }
 
-export class InvalidCaveatFieldsError extends Error {
+export class InvalidCaveatFieldsError extends CustomError {
   public data: {
     caveat: Record<string, unknown>;
     origin: string;
@@ -259,7 +311,7 @@ export class InvalidCaveatFieldsError extends Error {
   }
 }
 
-export class ForbiddenCaveatError extends Error {
+export class ForbiddenCaveatError extends CustomError {
   public data: {
     caveatType: string;
     origin: string;
@@ -274,7 +326,7 @@ export class ForbiddenCaveatError extends Error {
   }
 }
 
-export class DuplicateCaveatError extends Error {
+export class DuplicateCaveatError extends CustomError {
   public data: {
     caveatType: string;
     origin: string;
@@ -289,7 +341,21 @@ export class DuplicateCaveatError extends Error {
   }
 }
 
-export class CaveatSpecificationMismatchError extends Error {
+export class CaveatMergeTypeMismatchError extends CustomError {
+  public data: {
+    leftCaveatType: string;
+    rightCaveatType: string;
+  };
+
+  constructor(leftCaveatType: string, rightCaveatType: string) {
+    super(
+      `Cannot merge caveats of different types: "${leftCaveatType}" and "${rightCaveatType}".`,
+    );
+    this.data = { leftCaveatType, rightCaveatType };
+  }
+}
+
+export class CaveatSpecificationMismatchError extends CustomError {
   public data: {
     caveatSpec: Record<string, unknown>;
     permissionType: PermissionType;
@@ -306,7 +372,7 @@ export class CaveatSpecificationMismatchError extends Error {
   }
 }
 
-export class PermissionsRequestNotFoundError extends Error {
+export class PermissionsRequestNotFoundError extends CustomError {
   constructor(id: string) {
     super(`Permissions request with id "${id}" not found.`);
   }

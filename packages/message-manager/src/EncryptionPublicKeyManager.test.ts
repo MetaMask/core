@@ -1,4 +1,18 @@
 import { EncryptionPublicKeyManager } from './EncryptionPublicKeyManager';
+import type { EncryptionPublicKeyManagerMessenger } from './EncryptionPublicKeyManager';
+
+const mockMessenger = {
+  registerActionHandler: jest.fn(),
+  registerInitialEventPayload: jest.fn(),
+  publish: jest.fn(),
+  clearEventSubscriptions: jest.fn(),
+} as unknown as EncryptionPublicKeyManagerMessenger;
+
+const mockInitialOptions = {
+  additionalFinishStatuses: undefined,
+  messenger: mockMessenger,
+  securityProviderRequest: undefined,
+};
 
 describe('EncryptionPublicKeyManager', () => {
   let controller: EncryptionPublicKeyManager;
@@ -8,7 +22,7 @@ describe('EncryptionPublicKeyManager', () => {
   const rawSigMock = '231124fe67213512=';
 
   beforeEach(() => {
-    controller = new EncryptionPublicKeyManager();
+    controller = new EncryptionPublicKeyManager(mockInitialOptions);
   });
 
   it('sets default state', () => {
@@ -16,10 +30,6 @@ describe('EncryptionPublicKeyManager', () => {
       unapprovedMessages: {},
       unapprovedMessagesCount: 0,
     });
-  });
-
-  it('sets default config', () => {
-    expect(controller.config).toStrictEqual({});
   });
 
   it('adds a valid message', async () => {
@@ -48,12 +58,7 @@ describe('EncryptionPublicKeyManager', () => {
 
   describe('addUnapprovedMessageAsync', () => {
     beforeEach(() => {
-      controller = new EncryptionPublicKeyManager(
-        undefined,
-        undefined,
-        undefined,
-        ['received'],
-      );
+      controller = new EncryptionPublicKeyManager(mockInitialOptions);
 
       jest
         .spyOn(controller, 'addUnapprovedMessage')
@@ -70,7 +75,7 @@ describe('EncryptionPublicKeyManager', () => {
       });
 
       setTimeout(() => {
-        controller.hub.emit(`${messageIdMock}:finished`, {
+        controller.internalEvents.emit(`${messageIdMock}:finished`, {
           status: 'received',
           rawSig: rawSigMock,
         });
@@ -85,7 +90,7 @@ describe('EncryptionPublicKeyManager', () => {
       });
 
       setTimeout(() => {
-        controller.hub.emit(`${messageIdMock}:finished`, {
+        controller.internalEvents.emit(`${messageIdMock}:finished`, {
           status: 'rejected',
         });
       }, 100);
@@ -101,7 +106,7 @@ describe('EncryptionPublicKeyManager', () => {
       });
 
       setTimeout(() => {
-        controller.hub.emit(`${messageIdMock}:finished`, {
+        controller.internalEvents.emit(`${messageIdMock}:finished`, {
           status: 'unknown',
         });
       }, 100);
@@ -120,7 +125,7 @@ describe('EncryptionPublicKeyManager', () => {
     const messageParams = {
       from: fromMock,
     };
-    const originalRequest = { origin: 'origin' };
+    const originalRequest = { id: 111, origin: 'origin' };
     const messageId = await controller.addUnapprovedMessage(
       messageParams,
       originalRequest,
@@ -131,6 +136,7 @@ describe('EncryptionPublicKeyManager', () => {
       throw new Error('"message" is falsy');
     }
     expect(message.messageParams.from).toBe(messageParams.from);
+    expect(message.messageParams.requestId).toBe(originalRequest.id);
     expect(message.time).toBeDefined();
     expect(message.status).toBe(messageStatus);
     expect(message.type).toBe(messageType);

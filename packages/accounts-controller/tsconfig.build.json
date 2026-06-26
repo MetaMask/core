@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.packages.build.json",
   "compilerOptions": {
     "baseUrl": "./",
-    "outDir": "./dist/types",
+    "outDir": "./dist",
     "rootDir": "./src",
     "skipLibCheck": true
   },
@@ -10,7 +10,9 @@
     {
       "path": "../base-controller/tsconfig.build.json"
     },
-    { "path": "../keyring-controller/tsconfig.build.json" }
+    { "path": "../keyring-controller/tsconfig.build.json" },
+    { "path": "../network-controller/tsconfig.build.json" },
+    { "path": "../messenger/tsconfig.build.json" }
   ],
   "include": ["../../types", "./src"]
 }

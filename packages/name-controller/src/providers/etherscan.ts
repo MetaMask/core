@@ -40,11 +40,11 @@ type EtherscanGetSourceCodeResponse = {
 };
 
 export class EtherscanNameProvider implements NameProvider {
-  #isEnabled: () => boolean;
+  readonly #isEnabled: () => boolean;
 
   #lastRequestTime = 0;
 
-  #mutex = new Mutex();
+  readonly #mutex = new Mutex();
 
   constructor({ isEnabled }: { isEnabled?: () => boolean } = {}) {
     this.#isEnabled = isEnabled || (() => true);

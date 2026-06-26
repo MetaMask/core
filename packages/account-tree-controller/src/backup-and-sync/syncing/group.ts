@@ -1,0 +1,294 @@
+import { toMultichainAccountWalletId } from '@metamask/account-api';
+
+import type { AccountGroupMultichainAccountObject } from '../../group';
+import { backupAndSyncLogger } from '../../logger';
+import type { AccountWalletEntropyObject } from '../../wallet';
+import type { BackupAndSyncAnalyticsAction } from '../analytics';
+import { BackupAndSyncAnalyticsEvent } from '../analytics';
+import type { ProfileId } from '../authentication';
+import { UserStorageSyncedWalletGroupSchema } from '../types';
+import type {
+  BackupAndSyncContext,
+  UserStorageSyncedWalletGroup,
+} from '../types';
+import {
+  pushGroupToUserStorage,
+  pushGroupToUserStorageBatch,
+} from '../user-storage/network-operations';
+import { getLocalGroupsForEntropyWallet } from '../utils';
+import { toErrorMessage } from '../utils/errors';
+import { compareAndSyncMetadata } from './metadata';
+
+/**
+ * Creates multiple multichain account groups in batch (from 0 to maxGroupIndex).
+ * This is an optimized version that creates all groups in one operation instead of
+ * creating them sequentially.
+ *
+ * @param context - The sync context containing controller and messenger.
+ * @param entropySourceId - The entropy source ID.
+ * @param maxGroupIndex - Number of account groups to create in batch.
+ * @param profileId - The profile ID for analytics.
+ * @param analyticsAction - The analytics action to log for each created group.
+ * @returns Array of created group IDs.
+ */
+export const createMultichainAccountGroupsBatch = async (
+  context: BackupAndSyncContext,
+  entropySourceId: string,
+  maxGroupIndex: number,
+  profileId: ProfileId,
+  analyticsAction: BackupAndSyncAnalyticsAction,
+): Promise<void> => {
+  const numberOfAccountGroupsToCreate = maxGroupIndex + 1; // maxGroupIndex is zero-based, so we add 1 to get the count.
+  backupAndSyncLogger(
+    `Creating ${numberOfAccountGroupsToCreate} account groups (batch) for entropy source: ${entropySourceId}`,
+  );
+
+  // Capture the set of group indices that already exist before the batch call,
+  // so we can correctly identify newly created groups after the call completes.
+  const walletId = toMultichainAccountWalletId(entropySourceId);
+  const existingGroupIndices = new Set(
+    getLocalGroupsForEntropyWallet(context, walletId).map(
+      (group) => group.metadata.entropy.groupIndex,
+    ),
+  );
+
+  try {
+    // Call the batched creation method (this is idempotent).
+    const groups = await context.messenger.call(
+      'MultichainAccountService:createMultichainAccountGroups',
+      {
+        entropySource: entropySourceId,
+        fromGroupIndex: 0,
+        toGroupIndex: maxGroupIndex,
+      },
+    );
+
+    // Contains all groups (existing + newly created).
+    for (const group of groups) {
+      // TODO: A group should not be null here, but EVM provider might fail to create some groups sometimes, which means
+      // we can end up having an "empty group" for some time.
+      if (group) {
+        const didGroupAlreadyExist = existingGroupIndices.has(group.groupIndex);
+
+        if (!didGroupAlreadyExist) {
+          context.emitAnalyticsEventFn({
+            action: analyticsAction,
+            profileId,
+          });
+        }
+      }
+    }
+
+    backupAndSyncLogger(`Successfully created ${groups.length} groups (batch)`);
+  } catch (error) {
+    // This can happen if the Snap Keyring is not ready yet when invoking
+    // `MultichainAccountService:createMultichainAccountGroups`.
+    // Since `MultichainAccountService:createMultichainAccountGroups` will at
+    // least create the EVM account and the account group before throwing, we can safely
+    // ignore this error and swallow it.
+    // Any missing Snap accounts will be added later with alignment.
+
+    backupAndSyncLogger(
+      `Failed to create account groups batch:`,
+      // istanbul ignore next
+      toErrorMessage(error),
+    );
+  }
+};
+
+/**
+ * Creates local groups from user storage groups.
+ *
+ * @param context - The sync context containing controller and messenger.
+ * @param groupsFromUserStorage - Array of groups from user storage.
+ * @param entropySourceId - The entropy source ID.
+ * @param profileId - The profile ID for analytics.
+ */
+export async function createLocalGroupsFromUserStorage(
+  context: BackupAndSyncContext,
+  groupsFromUserStorage: UserStorageSyncedWalletGroup[],
+  entropySourceId: string,
+  profileId: ProfileId,
+): Promise<void> {
+  const maxGroupIndex = Math.max(
+    ...groupsFromUserStorage.map((group) => group.groupIndex),
+  );
+
+  // Creating multichain account group is idempotent, so we can safely
+  // re-create every groups starting from 0.
+  // Use batch creation for better performance.
+  await createMultichainAccountGroupsBatch(
+    context,
+    entropySourceId,
+    maxGroupIndex,
+    profileId,
+    BackupAndSyncAnalyticsEvent.GroupAdded,
+  );
+}
+
+/**
+ * Syncs group metadata fields and determines if the group needs to be pushed to user storage.
+ *
+ * @param context - The sync context containing controller and messenger.
+ * @param localGroup - The local group to sync.
+ * @param groupFromUserStorage - The group from user storage to compare against.
+ * @param profileId - The profile ID for analytics.
+ * @returns A promise that resolves to true if the group needs to be pushed to user storage.
+ */
+async function syncGroupMetadataAndCheckIfPushNeeded(
+  context: BackupAndSyncContext,
+  localGroup: AccountGroupMultichainAccountObject,
+  groupFromUserStorage: UserStorageSyncedWalletGroup | null | undefined,
+  profileId: ProfileId,
+): Promise<boolean> {
+  const groupPersistedMetadata =
+    context.controller.state.accountGroupsMetadata[localGroup.id];
+
+  if (!groupFromUserStorage) {
+    backupAndSyncLogger(
+      `Group ${localGroup.id} did not exist in user storage, pushing to user storage...`,
+    );
+
+    return true;
+  }
+
+  // Track if we need to push this group to user storage
+  let shouldPushGroup = false;
+
+  // Compare and sync name metadata
+  const shouldPushForName = await compareAndSyncMetadata({
+    context,
+    localMetadata: groupPersistedMetadata?.name,
+    userStorageMetadata: groupFromUserStorage.name,
+    validateUserStorageValue: (value) =>
+      UserStorageSyncedWalletGroupSchema.schema.name.schema.value.is(value),
+    applyLocalUpdate: (name: string) => {
+      context.controller.setAccountGroupName(localGroup.id, name, true);
+    },
+    analytics: {
+      action: BackupAndSyncAnalyticsEvent.GroupRenamed,
+      profileId,
+    },
+  });
+
+  shouldPushGroup ||= shouldPushForName;
+
+  // Compare and sync pinned metadata
+  const shouldPushForPinned = await compareAndSyncMetadata({
+    context,
+    localMetadata: groupPersistedMetadata?.pinned,
+    userStorageMetadata: groupFromUserStorage.pinned,
+    validateUserStorageValue: (value) =>
+      UserStorageSyncedWalletGroupSchema.schema.pinned.schema.value.is(value),
+    applyLocalUpdate: (pinned: boolean) => {
+      context.controller.setAccountGroupPinned(localGroup.id, pinned);
+    },
+    analytics: {
+      action: BackupAndSyncAnalyticsEvent.GroupPinnedStatusChanged,
+      profileId,
+    },
+  });
+
+  shouldPushGroup ||= shouldPushForPinned;
+
+  // Compare and sync hidden metadata
+  const shouldPushForHidden = await compareAndSyncMetadata({
+    context,
+    localMetadata: groupPersistedMetadata?.hidden,
+    userStorageMetadata: groupFromUserStorage.hidden,
+    validateUserStorageValue: (value) =>
+      UserStorageSyncedWalletGroupSchema.schema.hidden.schema.value.is(value),
+    applyLocalUpdate: (hidden: boolean) => {
+      context.controller.setAccountGroupHidden(localGroup.id, hidden);
+    },
+    analytics: {
+      action: BackupAndSyncAnalyticsEvent.GroupHiddenStatusChanged,
+      profileId,
+    },
+  });
+
+  shouldPushGroup ||= shouldPushForHidden;
+
+  return shouldPushGroup;
+}
+
+/**
+ * Syncs a single group's metadata between local and user storage.
+ *
+ * @param context - The sync context containing controller and messenger.
+ * @param localGroup - The local group to sync.
+ * @param groupFromUserStorage - The group from user storage to compare against (or null if it doesn't exist).
+ * @param entropySourceId - The entropy source ID.
+ * @param profileId - The profile ID for analytics.
+ */
+export async function syncGroupMetadata(
+  context: BackupAndSyncContext,
+  localGroup: AccountGroupMultichainAccountObject,
+  groupFromUserStorage: UserStorageSyncedWalletGroup | null,
+  entropySourceId: string,
+  profileId: ProfileId,
+): Promise<void> {
+  const shouldPushGroup = await syncGroupMetadataAndCheckIfPushNeeded(
+    context,
+    localGroup,
+    groupFromUserStorage,
+    profileId,
+  );
+
+  if (shouldPushGroup) {
+    await pushGroupToUserStorage(context, localGroup, entropySourceId);
+  }
+}
+
+/**
+ * Syncs group metadata between local and user storage.
+ *
+ * @param context - The sync context containing controller and messenger.
+ * @param wallet - The local wallet containing the groups.
+ * @param groupsFromUserStorage - Array of groups from user storage.
+ * @param entropySourceId - The entropy source ID.
+ * @param profileId - The profile ID for analytics.
+ */
+export async function syncGroupsMetadata(
+  context: BackupAndSyncContext,
+  wallet: AccountWalletEntropyObject,
+  groupsFromUserStorage: UserStorageSyncedWalletGroup[],
+  entropySourceId: string,
+  profileId: ProfileId,
+): Promise<void> {
+  const localSyncableGroupsToBePushedToUserStorage: AccountGroupMultichainAccountObject[] =
+    [];
+
+  const localSyncableGroups = getLocalGroupsForEntropyWallet(
+    context,
+    wallet.id,
+  );
+
+  for (const localSyncableGroup of localSyncableGroups) {
+    const groupFromUserStorage = groupsFromUserStorage.find(
+      (group) =>
+        group.groupIndex === localSyncableGroup.metadata.entropy.groupIndex,
+    );
+
+    const shouldPushGroup = await syncGroupMetadataAndCheckIfPushNeeded(
+      context,
+      localSyncableGroup,
+      groupFromUserStorage,
+      profileId,
+    );
+
+    // Add to push list if any metadata needs to be updated in user storage
+    if (shouldPushGroup) {
+      localSyncableGroupsToBePushedToUserStorage.push(localSyncableGroup);
+    }
+  }
+
+  // Push all groups that need to be updated to user storage
+  if (localSyncableGroupsToBePushedToUserStorage.length > 0) {
+    await pushGroupToUserStorageBatch(
+      context,
+      localSyncableGroupsToBePushedToUserStorage,
+      entropySourceId,
+    );
+  }
+}

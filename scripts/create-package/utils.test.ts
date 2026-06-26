@@ -1,7 +1,8 @@
+import * as commentJson from 'comment-json';
 import execa from 'execa';
 import fs from 'fs';
 import path from 'path';
-import prettier from 'prettier';
+import { format } from 'prettier';
 
 import { MonorepoFiles } from './constants';
 import * as fsUtils from './fs-utils';
@@ -14,6 +15,7 @@ jest.mock('fs', () => ({
     mkdir: jest.fn(),
     readFile: jest.fn(),
     writeFile: jest.fn(),
+    stat: jest.fn(),
   },
 }));
 
@@ -29,10 +31,6 @@ jest.mock('./fs-utils', () => ({
 }));
 
 describe('create-package/utils', () => {
-  afterEach(() => {
-    jest.resetAllMocks();
-  });
-
   describe('readMonorepoFiles', () => {
     const tsConfig = JSON.stringify({
       references: [{ path: '../packages/foo' }],
@@ -63,8 +61,8 @@ describe('create-package/utils', () => {
       const monorepoFileData = await readMonorepoFiles();
 
       expect(monorepoFileData).toStrictEqual({
-        tsConfig: JSON.parse(tsConfig),
-        tsConfigBuild: JSON.parse(tsConfigBuild),
+        tsConfig: commentJson.parse(tsConfig),
+        tsConfigBuild: commentJson.parse(tsConfigBuild),
         nodeVersions: '>=18.0.0',
       });
     });
@@ -90,7 +88,10 @@ describe('create-package/utils', () => {
         nodeVersions: '>=18.0.0',
       };
 
-      (fs.existsSync as jest.Mock).mockReturnValueOnce(false);
+      const mockError = new Error('Not found') as NodeJS.ErrnoException;
+      mockError.code = 'ENOENT';
+
+      jest.spyOn(fs.promises, 'stat').mockRejectedValue(mockError);
 
       (fsUtils.readAllFiles as jest.Mock).mockResolvedValueOnce({
         'src/index.ts': 'export default 42;',
@@ -101,7 +102,7 @@ describe('create-package/utils', () => {
         'mock3.file': 'PACKAGE_DESCRIPTION PACKAGE_DIRECTORY_NAME',
       });
 
-      (prettier.format as jest.Mock).mockImplementation((input) => input);
+      (format as jest.Mock).mockImplementation((input) => input);
 
       await finalizeAndWriteData(packageData, monorepoFileData);
 
@@ -125,18 +126,32 @@ describe('create-package/utils', () => {
 
       // Writing monorepo files
       expect(fs.promises.writeFile).toHaveBeenCalledTimes(2);
-      expect(prettier.format).toHaveBeenCalledTimes(2);
+      expect(format).toHaveBeenCalledTimes(2);
       expect(fs.promises.writeFile).toHaveBeenCalledWith(
         expect.stringMatching(/tsconfig\.json$/u),
-        JSON.stringify({
-          references: [{ path: './packages/bar' }, { path: './packages/foo' }],
-        }),
+        JSON.stringify(
+          {
+            references: [
+              { path: './packages/bar' },
+              { path: './packages/foo' },
+            ],
+          },
+          null,
+          2,
+        ),
       );
       expect(fs.promises.writeFile).toHaveBeenCalledWith(
         expect.stringMatching(/tsconfig\.build\.json$/u),
-        JSON.stringify({
-          references: [{ path: './packages/bar' }, { path: './packages/foo' }],
-        }),
+        JSON.stringify(
+          {
+            references: [
+              { path: './packages/bar' },
+              { path: './packages/foo/tsconfig.build.json' },
+            ],
+          },
+          null,
+          2,
+        ),
       );
 
       // Postprocessing
@@ -144,7 +159,7 @@ describe('create-package/utils', () => {
       expect(execa).toHaveBeenCalledWith('yarn', ['install'], {
         cwd: expect.any(String),
       });
-      expect(execa).toHaveBeenCalledWith('yarn', ['update-readme-content'], {
+      expect(execa).toHaveBeenCalledWith('yarn', ['readme-content:update'], {
         cwd: expect.any(String),
       });
     });
@@ -168,7 +183,7 @@ describe('create-package/utils', () => {
         nodeVersions: '20.0.0',
       };
 
-      (fs.existsSync as jest.Mock).mockReturnValueOnce(true);
+      (fs.promises.stat as jest.Mock).mockResolvedValue({});
 
       await expect(
         finalizeAndWriteData(packageData, monorepoFileData),
@@ -176,6 +191,35 @@ describe('create-package/utils', () => {
 
       expect(fs.promises.mkdir).not.toHaveBeenCalled();
       expect(fs.promises.writeFile).not.toHaveBeenCalled();
+    });
+
+    it('throws if fs.stat fails with an error other than ENOENT', async () => {
+      const mockError = new Error('Permission denied') as NodeJS.ErrnoException;
+      mockError.code = 'EACCES';
+
+      jest.spyOn(fs.promises, 'stat').mockRejectedValue(mockError);
+
+      const packageData: PackageData = {
+        name: '@metamask/foo',
+        description: 'A foo package.',
+        directoryName: 'foo',
+        nodeVersions: '20.0.0',
+        currentYear: '2023',
+      };
+
+      const monorepoFileData = {
+        tsConfig: {
+          references: [{ path: './packages/bar' }],
+        },
+        tsConfigBuild: {
+          references: [{ path: './packages/bar' }],
+        },
+        nodeVersions: '20.0.0',
+      };
+
+      await expect(
+        finalizeAndWriteData(packageData, monorepoFileData),
+      ).rejects.toThrow('Permission denied');
     });
   });
 });

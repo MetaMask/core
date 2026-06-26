@@ -87,11 +87,13 @@ export class ERC721Standard {
    */
   getTokenURI = async (address: string, tokenId: string): Promise<string> => {
     const contract = new Contract(address, abiERC721, this.provider);
-    const supportsMetadata = await this.contractSupportsMetadataInterface(
-      address,
-    );
+    const supportsMetadata =
+      await this.contractSupportsMetadataInterface(address);
     if (!supportsMetadata) {
-      throw new Error('Contract does not support ERC721 metadata interface.');
+      // Do not throw error here, supporting Metadata interface is optional even though majority of ERC721 nfts do support it.
+      // This change is made because of instances of NFTs that are ERC404( mixed ERC20 / ERC721 implementation).
+      // As of today, ERC404 is unofficial but some people use it, the contract does not support Metadata interface, but it has the tokenURI() fct.
+      console.warn('Contract does not support ERC721 metadata interface.');
     }
     return contract.tokenURI(tokenId);
   };
@@ -201,7 +203,7 @@ export class ERC721Standard {
         const object = await response.json();
         image = object?.image;
         if (image?.startsWith('ipfs://')) {
-          image = getFormattedIpfsUrl(ipfsGateway, image, true);
+          image = await getFormattedIpfsUrl(ipfsGateway, image, true);
         }
       } catch {
         // ignore

@@ -1,71 +1,74 @@
 import { weiHexToGweiDec } from '@metamask/controller-utils';
 import type {
   Eip1559GasFee,
+  EthGasPriceEstimate,
   GasFeeEstimates,
   LegacyGasPriceEstimate,
 } from '@metamask/gas-fee-controller';
-import {
-  GAS_ESTIMATE_TYPES,
-  type GasFeeState,
-} from '@metamask/gas-fee-controller';
+import type { GasFeeState } from '@metamask/gas-fee-controller';
 
-import {
-  type GasFeeEstimates as TransactionGasFeeEstimates,
-  type GasFeeFlow,
-  type TransactionMeta,
-  type GasFeeEstimatesForLevel,
-  GasFeeEstimateLevel,
+import type { TransactionControllerMessenger } from '../TransactionController';
+import { GasFeeEstimateLevel, GasFeeEstimateType } from '../types';
+import type {
+  FeeMarketGasFeeEstimates,
+  GasPriceGasFeeEstimates,
+  LegacyGasFeeEstimates,
 } from '../types';
+import type {
+  GasFeeFlow,
+  TransactionMeta,
+  FeeMarketGasFeeEstimateForLevel,
+} from '../types';
+
+type MergeGasFeeEstimatesRequest = {
+  gasFeeControllerEstimates:
+    | GasFeeEstimates
+    | LegacyGasPriceEstimate
+    | EthGasPriceEstimate;
+  transactionGasFeeEstimates:
+    | FeeMarketGasFeeEstimates
+    | LegacyGasFeeEstimates
+    | GasPriceGasFeeEstimates;
+};
 
 /**
  * Returns the first gas fee flow that matches the transaction.
  *
  * @param transactionMeta - The transaction metadata to find a gas fee flow for.
  * @param gasFeeFlows - The gas fee flows to search.
+ * @param messenger - The messenger instance.
  * @returns The first gas fee flow that matches the transaction, or undefined if none match.
  */
 export function getGasFeeFlow(
   transactionMeta: TransactionMeta,
   gasFeeFlows: GasFeeFlow[],
+  messenger: TransactionControllerMessenger,
 ): GasFeeFlow | undefined {
   return gasFeeFlows.find((gasFeeFlow) =>
-    gasFeeFlow.matchesTransaction(transactionMeta),
+    gasFeeFlow.matchesTransaction({ transactionMeta, messenger }),
   );
 }
 
-type FeeMarketMergeGasFeeEstimatesRequest = {
-  gasFeeControllerEstimateType: 'fee-market';
-  gasFeeControllerEstimates: GasFeeEstimates;
-  transactionGasFeeEstimates: TransactionGasFeeEstimates;
-};
-
-type LegacyMergeGasFeeEstimatesRequest = {
-  gasFeeControllerEstimateType: 'legacy';
-  gasFeeControllerEstimates: LegacyGasPriceEstimate;
-  transactionGasFeeEstimates: TransactionGasFeeEstimates;
-};
-
 /**
  * Merge the gas fee estimates from the gas fee controller with the gas fee estimates from a transaction.
+ *
  * @param request - Data required to merge gas fee estimates.
- * @param request.gasFeeControllerEstimateType - Gas fee estimate type from the gas fee controller.
  * @param request.gasFeeControllerEstimates - Gas fee estimates from the GasFeeController.
  * @param request.transactionGasFeeEstimates - Gas fee estimates from the transaction.
  * @returns The merged gas fee estimates.
  */
 export function mergeGasFeeEstimates({
-  gasFeeControllerEstimateType,
   gasFeeControllerEstimates,
   transactionGasFeeEstimates,
-}:
-  | FeeMarketMergeGasFeeEstimatesRequest
-  | LegacyMergeGasFeeEstimatesRequest): GasFeeState['gasFeeEstimates'] {
-  if (gasFeeControllerEstimateType === GAS_ESTIMATE_TYPES.FEE_MARKET) {
+}: MergeGasFeeEstimatesRequest): GasFeeState['gasFeeEstimates'] {
+  const transactionEstimateType = transactionGasFeeEstimates.type;
+
+  if (transactionEstimateType === GasFeeEstimateType.FeeMarket) {
     return Object.values(GasFeeEstimateLevel).reduce(
       (result, level) => ({
         ...result,
         [level]: mergeFeeMarketEstimate(
-          gasFeeControllerEstimates[level],
+          (gasFeeControllerEstimates as GasFeeEstimates)?.[level],
           transactionGasFeeEstimates[level],
         ),
       }),
@@ -73,14 +76,20 @@ export function mergeGasFeeEstimates({
     );
   }
 
-  if (gasFeeControllerEstimateType === GAS_ESTIMATE_TYPES.LEGACY) {
+  if (transactionEstimateType === GasFeeEstimateType.Legacy) {
     return Object.values(GasFeeEstimateLevel).reduce(
       (result, level) => ({
         ...result,
-        [level]: getLegacyEstimate(transactionGasFeeEstimates[level]),
+        [level]: getLegacyEstimate(transactionGasFeeEstimates, level),
       }),
       {} as LegacyGasPriceEstimate,
     );
+  }
+
+  if (transactionEstimateType === GasFeeEstimateType.GasPrice) {
+    return {
+      gasPrice: getGasPriceEstimate(transactionGasFeeEstimates),
+    };
   }
 
   return gasFeeControllerEstimates;
@@ -88,13 +97,14 @@ export function mergeGasFeeEstimates({
 
 /**
  * Merge a specific priority level of EIP-1559 gas fee estimates.
+ *
  * @param gasFeeControllerEstimate - The gas fee estimate from the gas fee controller.
  * @param transactionGasFeeEstimate - The gas fee estimate from the transaction.
  * @returns The merged gas fee estimate.
  */
 function mergeFeeMarketEstimate(
-  gasFeeControllerEstimate: Eip1559GasFee,
-  transactionGasFeeEstimate: GasFeeEstimatesForLevel,
+  gasFeeControllerEstimate: Eip1559GasFee | undefined,
+  transactionGasFeeEstimate: FeeMarketGasFeeEstimateForLevel,
 ): Eip1559GasFee {
   return {
     ...gasFeeControllerEstimate,
@@ -104,16 +114,31 @@ function mergeFeeMarketEstimate(
     suggestedMaxPriorityFeePerGas: weiHexToGweiDec(
       transactionGasFeeEstimate.maxPriorityFeePerGas,
     ),
-  };
+  } as Eip1559GasFee;
 }
 
 /**
  * Generate a specific priority level for a legacy gas fee estimate.
+ *
  * @param transactionGasFeeEstimate - The gas fee estimate from the transaction.
+ * @param level - The gas fee estimate level.
  * @returns The legacy gas fee estimate.
  */
 function getLegacyEstimate(
-  transactionGasFeeEstimate: GasFeeEstimatesForLevel,
+  transactionGasFeeEstimate: LegacyGasFeeEstimates,
+  level: GasFeeEstimateLevel,
 ): string {
-  return weiHexToGweiDec(transactionGasFeeEstimate.maxFeePerGas);
+  return weiHexToGweiDec(transactionGasFeeEstimate[level]);
+}
+
+/**
+ * Generate the value for a gas price gas fee estimate.
+ *
+ * @param transactionGasFeeEstimate - The gas fee estimate from the transaction.
+ * @returns The legacy gas fee estimate.
+ */
+function getGasPriceEstimate(
+  transactionGasFeeEstimate: GasPriceGasFeeEstimates,
+): string {
+  return weiHexToGweiDec(transactionGasFeeEstimate.gasPrice);
 }

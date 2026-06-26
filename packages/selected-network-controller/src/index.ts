@@ -1,14 +1,14 @@
 export type {
   SelectedNetworkControllerState,
   SelectedNetworkControllerStateChangeEvent,
+  SelectedNetworkControllerGetStateAction,
   SelectedNetworkControllerGetSelectedNetworkStateAction,
-  SelectedNetworkControllerGetNetworkClientIdForDomainAction,
-  SelectedNetworkControllerSetNetworkClientIdForDomainAction,
   SelectedNetworkControllerActions,
   SelectedNetworkControllerEvents,
   SelectedNetworkControllerMessenger,
   SelectedNetworkControllerOptions,
   NetworkProxy,
+  Domain,
 } from './SelectedNetworkController';
 export {
   SelectedNetworkControllerActionTypes,
@@ -16,5 +16,10 @@ export {
   SelectedNetworkController,
   METAMASK_DOMAIN,
 } from './SelectedNetworkController';
+export type {
+  SelectedNetworkControllerSetNetworkClientIdForDomainAction,
+  SelectedNetworkControllerGetNetworkClientIdForDomainAction,
+  SelectedNetworkControllerGetProviderAndBlockTrackerAction,
+} from './SelectedNetworkController-method-action-types';
 export type { SelectedNetworkMiddlewareJsonRpcRequest } from './SelectedNetworkMiddleware';
 export { createSelectedNetworkMiddleware } from './SelectedNetworkMiddleware';

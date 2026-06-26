@@ -1,0 +1,68 @@
+/**
+ * This file is auto generated.
+ * Do not edit manually.
+ */
+
+import type { AnalyticsController } from './AnalyticsController';
+
+/**
+ * Track an analytics event.
+ *
+ * Events are only tracked if analytics is enabled.
+ *
+ * @param event - Analytics event with properties and sensitive properties
+ * @param context - Optional platform-specific context forwarded to the platform adapter.
+ */
+export type AnalyticsControllerTrackEventAction = {
+  type: `AnalyticsController:trackEvent`;
+  handler: AnalyticsController['trackEvent'];
+};
+
+/**
+ * Identify a user for analytics.
+ *
+ * @param traits - User traits/properties
+ * @param context - Optional platform-specific context forwarded to the platform adapter.
+ */
+export type AnalyticsControllerIdentifyAction = {
+  type: `AnalyticsController:identify`;
+  handler: AnalyticsController['identify'];
+};
+
+/**
+ * Track a page or screen view.
+ *
+ * @param name - The identifier/name of the page or screen being viewed (e.g., "home", "settings", "wallet")
+ * @param properties - Optional properties associated with the view
+ * @param context - Optional platform-specific context forwarded to the platform adapter.
+ */
+export type AnalyticsControllerTrackViewAction = {
+  type: `AnalyticsController:trackView`;
+  handler: AnalyticsController['trackView'];
+};
+
+/**
+ * Opt in to analytics.
+ */
+export type AnalyticsControllerOptInAction = {
+  type: `AnalyticsController:optIn`;
+  handler: AnalyticsController['optIn'];
+};
+
+/**
+ * Opt out of analytics.
+ */
+export type AnalyticsControllerOptOutAction = {
+  type: `AnalyticsController:optOut`;
+  handler: AnalyticsController['optOut'];
+};
+
+/**
+ * Union of all AnalyticsController action types.
+ */
+export type AnalyticsControllerMethodActions =
+  | AnalyticsControllerTrackEventAction
+  | AnalyticsControllerIdentifyAction
+  | AnalyticsControllerTrackViewAction
+  | AnalyticsControllerOptInAction
+  | AnalyticsControllerOptOutAction;

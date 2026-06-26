@@ -1,5 +1,6 @@
+import * as commentJson from 'comment-json';
 import execa from 'execa';
-import { existsSync, promises as fs } from 'fs';
+import { promises as fs } from 'fs';
 import path from 'path';
 import { format as prettierFormat } from 'prettier';
 import type { Options as PrettierOptions } from 'prettier';
@@ -22,10 +23,9 @@ const allPlaceholdersRegex = new RegExp(
 
 // Our lint config really hates this, but it works.
 // eslint-disable-next-line
-const prettierRc = require(path.join(
-  REPO_ROOT,
-  '.prettierrc.js',
-)) as PrettierOptions;
+const prettierRc = require(
+  path.join(REPO_ROOT, '.prettierrc.js'),
+) as PrettierOptions;
 
 /**
  * The data necessary to create a new package.
@@ -76,8 +76,8 @@ export async function readMonorepoFiles(): Promise<MonorepoFileData> {
   ]);
 
   return {
-    tsConfig: JSON.parse(tsConfig) as Tsconfig,
-    tsConfigBuild: JSON.parse(tsConfigBuild) as Tsconfig,
+    tsConfig: commentJson.parse(tsConfig) as unknown as Tsconfig,
+    tsConfigBuild: commentJson.parse(tsConfigBuild) as unknown as Tsconfig,
     nodeVersions: (JSON.parse(packageJson) as PackageJson).engines.node,
   };
 }
@@ -92,10 +92,15 @@ export async function readMonorepoFiles(): Promise<MonorepoFileData> {
 export async function finalizeAndWriteData(
   packageData: PackageData,
   monorepoFileData: MonorepoFileData,
-) {
+): Promise<void> {
   const packagePath = path.join(PACKAGES_PATH, packageData.directoryName);
-  if (existsSync(packagePath)) {
+  try {
+    await fs.stat(packagePath);
     throw new Error(`The package directory already exists: ${packagePath}`);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw error;
+    }
   }
 
   console.log('Writing package and monorepo files...');
@@ -107,11 +112,11 @@ export async function finalizeAndWriteData(
   updateTsConfigs(packageData, monorepoFileData);
   await writeJsonFile(
     REPO_TS_CONFIG,
-    JSON.stringify(monorepoFileData.tsConfig),
+    commentJson.stringify(monorepoFileData.tsConfig, null, 2),
   );
   await writeJsonFile(
     REPO_TS_CONFIG_BUILD,
-    JSON.stringify(monorepoFileData.tsConfigBuild),
+    commentJson.stringify(monorepoFileData.tsConfigBuild, null, 2),
   );
 
   // Postprocess
@@ -120,8 +125,8 @@ export async function finalizeAndWriteData(
   await execa('yarn', ['install'], { cwd: REPO_ROOT });
 
   // Add the new package to the root readme content
-  console.log('Running "yarn update-readme-content"...');
-  await execa('yarn', ['update-readme-content'], { cwd: REPO_ROOT });
+  console.log('Running "yarn readme-content:update"...');
+  await execa('yarn', ['readme-content:update'], { cwd: REPO_ROOT });
 }
 
 /**
@@ -136,7 +141,7 @@ async function writeJsonFile(
 ): Promise<void> {
   await fs.writeFile(
     filePath,
-    prettierFormat(fileContent, { ...prettierRc, parser: 'json' }),
+    await prettierFormat(fileContent, { ...prettierRc, parser: 'json' }),
   );
 }
 
@@ -150,15 +155,19 @@ function updateTsConfigs(
   packageData: PackageData,
   monorepoFileData: MonorepoFileData,
 ): void {
-  [monorepoFileData.tsConfig, monorepoFileData.tsConfigBuild].forEach(
-    (config) => {
-      config.references.push({
-        path: `./${path.basename(PACKAGES_PATH)}/${packageData.directoryName}`,
-      });
+  const { tsConfig, tsConfigBuild } = monorepoFileData;
 
-      config.references.sort((a, b) => a.path.localeCompare(b.path));
-    },
-  );
+  tsConfig.references.push({
+    path: `./${path.basename(PACKAGES_PATH)}/${packageData.directoryName}`,
+  });
+  tsConfig.references.sort((a, b) => a.path.localeCompare(b.path));
+
+  tsConfigBuild.references.push({
+    path: `./${path.basename(PACKAGES_PATH)}/${
+      packageData.directoryName
+    }/tsconfig.build.json`,
+  });
+  tsConfigBuild.references.sort((a, b) => a.path.localeCompare(b.path));
 }
 
 /**

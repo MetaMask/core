@@ -1,30 +1,35 @@
-import type { BaseConfig, BaseState } from '@metamask/base-controller';
-import { BaseControllerV1 } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+} from '@metamask/base-controller';
+import { BaseController } from '@metamask/base-controller';
 import {
   normalizeEnsName,
   isValidHexAddress,
+  isSafeDynamicKey,
   toChecksumHexAddress,
   toHex,
 } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
-/**
- * @type ContactEntry
- *
- * ContactEntry representation
- * @property address - Hex address of a recipient account
- * @property name - Nickname associated with this address
- * @property importTime - Data time when an account as created/imported
- */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface ContactEntry {
-  address: string;
-  name: string;
-  importTime?: number;
-}
+import type { AddressBookControllerMethodActions } from './AddressBookController-method-action-types';
 
+/**
+ * ContactEntry representation
+ */
+export type ContactEntry = {
+  /** Hex address of a recipient account */
+  address: string;
+  /** Nickname associated with this address */
+  name: string;
+  /** Data time when an account as created/imported */
+  importTime?: number;
+};
+
+/**
+ * The type of address.
+ */
 export enum AddressType {
   externallyOwnedAccounts = 'EXTERNALLY_OWNED_ACCOUNTS',
   contractAccounts = 'CONTRACT_ACCOUNTS',
@@ -32,72 +37,185 @@ export enum AddressType {
 }
 
 /**
- * @type AddressBookEntry
- *
- * AddressBookEntry representation
- * @property address - Hex address of a recipient account
- * @property name - Nickname associated with this address
- * @property chainId - Chain id identifies the current chain
- * @property memo - User's note about address
- * @property isEns - is the entry an ENS name
- * @property addressType - is the type of this address
+ * AddressBookEntry represents a contact in the address book.
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface AddressBookEntry {
+export type AddressBookEntry = {
+  /** Hex address of a recipient account */
   address: string;
+  /** Nickname associated with this address */
   name: string;
+  /** Chain id identifies the current chain */
   chainId: Hex;
+  /** User's note about address */
   memo: string;
+  /** Indicates if the entry is an ENS name */
   isEns: boolean;
+  /** The type of this address */
   addressType?: AddressType;
-}
+  /** Timestamp of when this entry was last updated */
+  lastUpdatedAt?: number;
+};
 
 /**
- * @type AddressBookState
- *
- * Address book controller state
- * @property addressBook - Array of contact entry objects
+ * State for the AddressBookController.
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface AddressBookState extends BaseState {
+export type AddressBookControllerState = {
+  /** Map of chainId to address to contact entries */
   addressBook: { [chainId: Hex]: { [address: string]: AddressBookEntry } };
-}
+};
+
+/**
+ * The name of the {@link AddressBookController}.
+ */
+export const controllerName = 'AddressBookController';
+
+/**
+ * Special chainId used for wallet's own accounts (internal MetaMask accounts).
+ * These entries don't trigger sync events as they are not user-created contacts.
+ */
+const WALLET_ACCOUNTS_CHAIN_ID = '*';
+
+const MESSENGER_EXPOSED_METHODS = ['list', 'set', 'delete', 'clear'] as const;
+
+/**
+ * The action that can be performed to get the state of the {@link AddressBookController}.
+ */
+export type AddressBookControllerGetStateAction = ControllerGetStateAction<
+  typeof controllerName,
+  AddressBookControllerState
+>;
+
+/**
+ * Event emitted when a contact is added or updated
+ */
+export type AddressBookControllerContactUpdatedEvent = {
+  type: `${typeof controllerName}:contactUpdated`;
+  payload: [AddressBookEntry];
+};
+
+/**
+ * Event emitted when a contact is deleted
+ */
+export type AddressBookControllerContactDeletedEvent = {
+  type: `${typeof controllerName}:contactDeleted`;
+  payload: [AddressBookEntry];
+};
+
+/**
+ * The actions that can be performed using the {@link AddressBookController}.
+ */
+export type AddressBookControllerActions =
+  | AddressBookControllerGetStateAction
+  | AddressBookControllerMethodActions;
+
+/**
+ * The event that {@link AddressBookController} can emit.
+ */
+export type AddressBookControllerStateChangeEvent = ControllerStateChangeEvent<
+  typeof controllerName,
+  AddressBookControllerState
+>;
+
+/**
+ * The events that {@link AddressBookController} can emit.
+ */
+export type AddressBookControllerEvents =
+  | AddressBookControllerStateChangeEvent
+  | AddressBookControllerContactUpdatedEvent
+  | AddressBookControllerContactDeletedEvent;
+
+const addressBookControllerMetadata = {
+  addressBook: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+};
+
+/**
+ * Get the default {@link AddressBookController} state.
+ *
+ * @returns The default {@link AddressBookController} state.
+ */
+export const getDefaultAddressBookControllerState =
+  (): AddressBookControllerState => {
+    return {
+      addressBook: {},
+    };
+  };
+
+/**
+ * The messenger of the {@link AddressBookController} for communication.
+ */
+export type AddressBookControllerMessenger = Messenger<
+  typeof controllerName,
+  AddressBookControllerActions,
+  AddressBookControllerEvents
+>;
 
 /**
  * Controller that manages a list of recipient addresses associated with nicknames.
  */
-export class AddressBookController extends BaseControllerV1<
-  BaseConfig,
-  AddressBookState
+export class AddressBookController extends BaseController<
+  typeof controllerName,
+  AddressBookControllerState,
+  AddressBookControllerMessenger
 > {
-  /**
-   * Name of this controller used during composition
-   */
-  override name = 'AddressBookController';
-
   /**
    * Creates an AddressBookController instance.
    *
-   * @param config - Initial options used to configure this controller.
-   * @param state - Initial state to set on this controller.
+   * @param args - The {@link AddressBookController} arguments.
+   * @param args.messenger - The controller messenger instance for communication.
+   * @param args.state - Initial state to set on this controller.
    */
-  constructor(config?: Partial<BaseConfig>, state?: Partial<AddressBookState>) {
-    super(config, state);
+  constructor({
+    messenger,
+    state,
+  }: {
+    messenger: AddressBookControllerMessenger;
+    state?: Partial<AddressBookControllerState>;
+  }) {
+    const mergedState = { ...getDefaultAddressBookControllerState(), ...state };
+    super({
+      messenger,
+      metadata: addressBookControllerMetadata,
+      name: controllerName,
+      state: mergedState,
+    });
 
-    this.defaultState = { addressBook: {} };
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+  }
 
-    this.initialize();
+  /**
+   * Returns all address book entries as an array.
+   *
+   * @returns Array of all address book entries.
+   */
+  list(): AddressBookEntry[] {
+    const { addressBook } = this.state;
+
+    return Object.keys(addressBook).reduce<AddressBookEntry[]>(
+      (acc, chainId) => {
+        const chainIdHex = chainId as Hex;
+        const chainContacts = Object.values(addressBook[chainIdHex]);
+
+        return [...acc, ...chainContacts];
+      },
+      [],
+    );
   }
 
   /**
    * Remove all contract entries.
    */
   clear() {
-    this.update({ addressBook: {} });
+    this.update((state) => {
+      state.addressBook = {};
+    });
   }
 
   /**
@@ -110,21 +228,37 @@ export class AddressBookController extends BaseControllerV1<
   delete(chainId: Hex, address: string) {
     address = toChecksumHexAddress(address);
     if (
+      ![chainId, address].every((key) => isSafeDynamicKey(key)) ||
       !isValidHexAddress(address) ||
-      !this.state.addressBook[chainId] ||
-      !this.state.addressBook[chainId][address]
+      !this.state.addressBook[chainId]?.[address]
     ) {
       return false;
     }
 
-    const addressBook = Object.assign({}, this.state.addressBook);
-    delete addressBook[chainId][address];
+    const deletedEntry = { ...this.state.addressBook[chainId][address] };
 
-    if (Object.keys(addressBook[chainId]).length === 0) {
-      delete addressBook[chainId];
+    this.update((state) => {
+      const chainContacts = state.addressBook[chainId];
+      if (chainContacts?.[address]) {
+        delete chainContacts[address];
+
+        // Clean up empty chainId objects
+        if (Object.keys(chainContacts).length === 0) {
+          delete state.addressBook[chainId];
+        }
+      }
+    });
+
+    // Skip sending delete event for global contacts with chainId '*'
+    // These entries with chainId='*' are the wallet's own accounts (internal MetaMask accounts),
+    // not user-created contacts. They don't need to trigger sync events.
+    if (String(chainId) !== WALLET_ACCOUNTS_CHAIN_ID) {
+      this.messenger.publish(
+        'AddressBookController:contactDeleted',
+        deletedEntry,
+      );
     }
 
-    this.update({ addressBook });
     return true;
   }
 
@@ -157,23 +291,30 @@ export class AddressBookController extends BaseControllerV1<
       memo,
       name,
       addressType,
+      lastUpdatedAt: Date.now(),
     };
-
     const ensName = normalizeEnsName(name);
     if (ensName) {
       entry.name = ensName;
       entry.isEns = true;
     }
 
-    this.update({
-      addressBook: {
+    this.update((state) => {
+      state.addressBook = {
         ...this.state.addressBook,
         [chainId]: {
           ...this.state.addressBook[chainId],
           [address]: entry,
         },
-      },
+      };
     });
+
+    // Skip sending update event for global contacts with chainId '*'
+    // These entries with chainId='*' are the wallet's own accounts (internal MetaMask accounts),
+    // not user-created contacts. They don't need to trigger sync events.
+    if (String(chainId) !== WALLET_ACCOUNTS_CHAIN_ID) {
+      this.messenger.publish('AddressBookController:contactUpdated', entry);
+    }
 
     return true;
   }

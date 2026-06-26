@@ -7,6 +7,677 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [27.1.0]
+
+### Added
+
+- Add `isKeyringControllerError` predicate ([#9095](https://github.com/MetaMask/core/pull/9095))
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+
+### Fixed
+
+- Remove use of `instanceof` for `isKeyringNotFoundError` ([#9095](https://github.com/MetaMask/core/pull/9095))
+  - Using `instanceof` causes a lot of issue if we have 2 major `@metamask/keyring-controller` major versions in the dependency tree, `class KeyringControllerError` could be different classes and this, making the check to fail.
+
+## [27.0.0]
+
+### Changed
+
+- **BREAKING:** `exportSeedPhrase` and `exportAccount` now take `Credentials` (`{ password }` | `{ encryptionKey, encryptionSalt? }`) instead of a bare password string ([#8996](https://github.com/MetaMask/core/pull/8996))
+
+### Fixed
+
+- Automatically remove and destroy non-primary keyrings whose last account is removed during a `withKeyring` or `withKeyringV2` callback ([#8951](https://github.com/MetaMask/core/pull/8951))
+  - Previously, draining a keyring of all its accounts via these APIs left an empty keyring entry in `state.keyrings` and persisted it in the vault.
+  - Pre-existing empty keyrings (e.g. those created intentionally via `addNewKeyring` without subsequent account creation) are still preserved, matching the behavior of `removeAccount`.
+  - The primary keyring is never auto-removed, even if drained; this preserves the existing `removeAccount` invariant against losing the primary keyring.
+
+## [26.0.0]
+
+### Changed
+
+- **BREAKING:** Change `KeyringSelectorV2` type selectors for `withKeyringV2` and `withKeyringV2Unsafe` to use `KeyringType` (v2 variant) ([#8901](https://github.com/MetaMask/core/pull/8901))
+  - Use values such as `KeyringType.Hd` instead of legacy `KeyringTypes.hd`.
+- Deprecate `KeyringTypes` ([#8907](https://github.com/MetaMask/core/pull/8907))
+  - Use `KeyringTypes` from `@metamask/keyring-api/v2` if your keyring has a v2 builder.
+
+## [25.5.0]
+
+### Added
+
+- Expose missing public `KeyringController` methods through its messenger ([#8674](https://github.com/MetaMask/core/pull/8674))
+  - The following actions are now available:
+    - `KeyringController:changePassword`,
+    - `KeyringController:exportAccount`,
+    - `KeyringController:exportEncryptionKey`,
+    - `KeyringController:getAccountKeyringType`,
+    - `KeyringController:importAccountWithStrategy`,
+    - `KeyringController:setLocked`,
+    - `KeyringController:submitEncryptionKey`,
+    - `KeyringController:submitPassword`,
+    - `KeyringController:verifyPassword`,
+  - Corresponding action types are available as well.
+
+## [25.4.0]
+
+### Changed
+
+- Bump `@metamask/eth-hd-keyring` from `^14.1.0` to `^14.1.1` ([#8647](https://github.com/MetaMask/core/pull/8647))
+- Bump `@metamask/eth-simple-keyring` from `^12.0.1` to `^12.0.2` ([#8647](https://github.com/MetaMask/core/pull/8647))
+- Bump `@metamask/keyring-api` from `^23.0.1` to `^23.1.0` ([#8647](https://github.com/MetaMask/core/pull/8647))
+- Bump `@metamask/keyring-internal-api` from `^11.0.0` to `^11.0.1` ([#8647](https://github.com/MetaMask/core/pull/8647))
+
+## [25.3.0]
+
+### Added
+
+- Expose `KeyringController:exportSeedPhrase` method through `KeyringController` messenger ([#8587](https://github.com/MetaMask/core/pull/8587))
+- Expose `KeyringController:isUnlocked` method through `KeyringController` messenger ([#8573](https://github.com/MetaMask/core/pull/8573))
+  - Returns `true` when the vault is unlocked, `false` otherwise. Mirrors `state.isUnlocked` and the `isUnlocked()` instance method, allowing consumers to check lock status via the messenger without holding a controller reference.
+- Add `withController` action to run atomic operations on multiple keyrings (within a single transaction) ([#8416](https://github.com/MetaMask/core/pull/8416))
+  - This action uses a `RestrictedController` object that exposes `addNewKeyring` and `removeKeyring` methods to add and remove keyring during the transaction (atomic) call.
+- Expose `KeyringController:signTransaction` method through `KeyringController` messenger ([#8408](https://github.com/MetaMask/core/pull/8408))
+- Persist vault when keyring state changes during unlock ([#8415](https://github.com/MetaMask/core/pull/8415))
+  - If a keyring's serialized state differs after deserialization (e.g. a migration ran, or metadata was missing), the vault is now re-persisted so the change is not lost on the next unlock.
+- Added `KeyringV2` support ([#8390](https://github.com/MetaMask/core/pull/8390))
+  - The controller now maintains a list of `KeyringV2` instance in memory alongside previous `Keyring` instance.
+  - This new keyring interface is more generic and will become the new standard to interact with keyring (creating accounts, executing logic that involves accounts like signing, etc...).
+  - For now, most `KeyringV2` are wrappers (read adapters) around existing `Keyring` instance.
+- Added `withKeyringV2Unsafe` method and `KeyringController:withKeyringV2Unsafe` messenger action for lock-free read-only access to `KeyringV2` adapters ([#8390](https://github.com/MetaMask/core/pull/8390))
+  - Mirrors `withKeyringUnsafe` semantics: no mutex acquired, no persistence or rollback.
+  - Caller is responsible for ensuring the operation is read-only and accesses only immutable keyring data.
+- Added `withKeyringV2` method and `KeyringController:withKeyringV2` messenger action for atomic operations using the `KeyringV2` API ([#8390](https://github.com/MetaMask/core/pull/8390))
+  - Accepts a `KeyringSelectorV2` to select keyrings by `type`, `address`, `id`, or `filter`.
+  - Ships with default V2 builders for HD (`HdKeyringV2`) and Simple (`SimpleKeyringV2`) keyrings; additional builders can be registered via the `keyringV2Builders` constructor option.
+
+### Changed
+
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+- Bump `@metamask/eth-hd-keyring` from `^13.1.1` to `^14.0.1` ([#8464](https://github.com/MetaMask/core/pull/8464))
+- Bump `@metamask/eth-simple-keyring` from `^11.1.2` to `^12.0.1` ([#8464](https://github.com/MetaMask/core/pull/8464))
+- Bump `@metamask/keyring-api` from `^21.6.0` to `^23.0.1` ([#8464](https://github.com/MetaMask/core/pull/8464))
+- Bump `@metamask/keyring-internal-api` from `^10.0.0` to `^11.0.0` ([#8464](https://github.com/MetaMask/core/pull/8464), [#8584](https://github.com/MetaMask/core/pull/8584))
+
+## [25.2.0]
+
+### Added
+
+- Added `filter` selector variant to `withKeyring` ([#8348](https://github.com/MetaMask/core/pull/8348))
+  - `KeyringSelector` now accepts `{ filter: ({ keyring, metadata }) => boolean }`, which selects the first keyring for which the predicate returns `true`.
+- Add `isKeyringNotFoundError` ([#8351](https://github.com/MetaMask/core/pull/8351))
+  - This function can be used when trying to access a non-existing keyring using `withKeyring`.
+- Added `withKeyringUnsafe` action ([#8358](https://github.com/MetaMask/core/pull/8358))
+  - This new variant of `withKeyring` allows to fetch a keyring instance the same way.
+  - Mutations are not allowed and won't be replicated in the vault.
+  - Can be used to read immutable data safely.
+- Add `KeyringTypes.money` enum value ([#8360](https://github.com/MetaMask/core/pull/8360))
+
+## [25.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/keyring-api` from `^21.0.0` to `^21.6.0` ([#7857](https://github.com/MetaMask/core/pull/7857), [#8259](https://github.com/MetaMask/core/pull/8259))
+- Bump `@metamask/keyring-internal-api` from `^9.0.0` to `^10.0.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
+
+## [25.1.0]
+
+### Added
+
+- Added new `KeyringBuilder` type ([#7334](https://github.com/MetaMask/core/pull/7334))
+- Added an action to call `removeAccount` ([#7241](https://github.com/MetaMask/core/pull/7241))
+  - This action is meant to be consumed by the `MultichainAccountService` to encapsulate the act of removing a wallet when seed phrase backup fails in the clients.
+- Added new `KeyringControllerError` ([#7498](https://github.com/MetaMask/core/pull/7498))
+  - All controller's errors are now using this error type.
+  - Keyring instance operation errors are also now also wrapped with this error type.
+
+### Changed
+
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Prevent the accidental removal of unrelated empty keyrings when deleting an account ([#7670](https://github.com/MetaMask/core/pull/7670))
+  - Empty keyrings were removed during account deletion, regardless of which account was being targeted.
+
+### Fixed
+
+- Fixed a bug where `removeAccount` would not prevent deletion of the primary keyring because of missing address normalization ([#7670](https://github.com/MetaMask/core/pull/7670))
+
+## [25.0.0]
+
+### Added
+
+- Added optional `EncryptionKey`, `SupportedKeyDerivationOptions` and `EncryptionResult` type parameters to the `KeyringController`, `ExportableKeyEncryptor` and `KeyringControllerOptions` types ([#7127](https://github.com/MetaMask/core/pull/7127))
+  - This type parameter allows specifying the encryption key, key derivation options and encryption result types supported by the injected encryptor, defaulting to `@metamask/browser-passworder` types.
+
+### Changed
+
+- **BREAKING:** The `KeyringController` constructor options now require an encryptor ([#7127](https://github.com/MetaMask/core/pull/7127))
+  - The `encryptor` constructor option was previously optional and defaulted to an instance of `@metamask/browser-passworder`.
+- **BREAKING:** The `GenericEncryptor` and `ExportableKeyEncryptor` types have been merged into a single `Encryptor` type ([#7127](https://github.com/MetaMask/core/pull/7127))
+- **BREAKING:** The `Encryptor` type requires `exportKey`, `keyFromPassword` and `generateSalt` methods ([#7128](https://github.com/MetaMask/core/pull/7128))
+
+### Removed
+
+- **BREAKING:** The `cacheEncryptionKey` parameter has been removed from the `KeyringController` constructor options ([#7127](https://github.com/MetaMask/core/pull/7127))
+  - This parameter was previously used to enable encryption key in-memory caching, but it is no longer needed as the controller now always uses the latest encryption key.
+
+### Fixed
+
+- Fixed incorrect type for `decryptWithKey` method of `ExportableKeyEncryptor` (now `Encryptor`) ([#7127](https://github.com/MetaMask/core/pull/7127))
+
+## [24.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6370](https://github.com/MetaMask/core/pull/6370))
+  - Previously, `KeyringController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6370](https://github.com/MetaMask/core/pull/6370))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [23.2.0]
+
+### Added
+
+- Add actions for `createNewVaultAndKeychain` and `createNewVaultAndRestore` ([#6928](https://github.com/MetaMask/core/pull/6928))
+  - These actions are meant to to be consumed by the `MultichainAccountService` in its `createMultichainAccountWallet` method.
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
+## [23.1.1]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.1` ([#6588](https://github.com/MetaMask/core/pull/6588), [#6708](https://github.com/MetaMask/core/pull/6708))
+- Bump `@metamask/base-controller` from `^8.3.0` to `^8.4.1` ([#6632](https://github.com/MetaMask/core/pull/6632), [#6807](https://github.com/MetaMask/core/pull/6807))
+
+## [23.1.0]
+
+### Added
+
+- Add `KeyringController:addNewKeyring` action ([#6439](https://github.com/MetaMask/core/pull/6439))
+- Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6525](https://github.com/MetaMask/core/pull/6525))
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.1.0` to `^8.3.0` ([#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465))
+- Bump `@metamask/keyring-api` from `^20.1.0` to `^21.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
+- Bump `@metamask/keyring-internal-api` from `^8.1.0` to `^9.0.0` ([#6560](https://github.com/MetaMask/core/pull/6560))
+- Bump `@metamask/eth-hd-keyring` from `^12.0.0` to `13.0.0` ([#6566](https://github.com/MetaMask/core/pull/6566))
+- Bump `@metamask/eth-simple-keyring` from `^10.0.0` to `11.0.0` ([#6566](https://github.com/MetaMask/core/pull/6566))
+
+## [23.0.0]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
+- Bump accounts related packages ([#6309](https://github.com/MetaMask/core/pull/6309))
+  - Bump `@metamask/keyring-api` from `^20.0.0` to `^20.1.0`
+  - Bump `@metamask/keyring-internal-api` from `^8.0.0` to `^8.1.0`
+
+### Removed
+
+- **BREAKING:** Removed QR keyring methods ([#6031](https://github.com/MetaMask/core/pull/6031))
+  - The following methods have been removed:
+    - `cancelQRSignRequest`
+    - `cancelQRSynchronization`
+    - `connectQRHardware`
+    - `forgetQRDevice`
+    - `getOrAddQRKeyring`
+    - `getQRKeyring`
+    - `getQRKeyringState`
+    - `resetQRKeyringState`
+    - `restoreQRKeyring`
+    - `submitQRCryptoHDKey`
+    - `submitQRCryptoAccount`
+    - `submitQRSignature`
+    - `unlockQRHardwareWalletAccount`
+  - Consumers can use the `withKeyring` method to select a QR keyring and execute a callback with it as argument.
+- **BREAKING:** Removed `KeyringController:qrKeyringStateChange` event ([#6031](https://github.com/MetaMask/core/pull/6031))
+
+## [22.1.1]
+
+### Changed
+
+- Bump `@metamask/keyring-api` from `^18.0.0` to `^20.0.0` ([#6146](https://github.com/MetaMask/core/pull/6146), [#6248](https://github.com/MetaMask/core/pull/6248))
+- Bump `@metamask/keyring-internal-api` from `^6.2.0` to `^8.0.0` ([#6146](https://github.com/MetaMask/core/pull/6146), [#6248](https://github.com/MetaMask/core/pull/6248))
+- Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
+
+## [22.1.0]
+
+### Added
+
+- Add method `exportEncryptionKey` ([#5984](https://github.com/MetaMask/core/pull/5984))
+
+### Changed
+
+- Make salt optional with method `submitEncryptionKey` ([#5984](https://github.com/MetaMask/core/pull/5984))
+
+## [22.0.2]
+
+### Fixed
+
+- Fixed serialized keyring comparison when establishing whether a vault update is needed ([#5928](https://github.com/MetaMask/core/pull/5928))
+  - The vault update was being skipped when a keyring class returns an object shallow copy through `.serialize()`.
+
+## [22.0.1]
+
+### Changed
+
+- Bump `@metamask/keyring-api` dependency from `^17.4.0` to `^18.0.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
+- Bump `@metamask/keyring-internal-api` dependency from `^6.0.1` to `^6.2.0` ([#5871](https://github.com/MetaMask/core/pull/5871))
+
+## [22.0.0]
+
+### Changed
+
+- **BREAKING** `keyringsMetadata` has been removed from the controller state ([#5725](https://github.com/MetaMask/core/pull/5725))
+  - The metadata is now stored in each keyring object in the `state.keyrings` array.
+  - When updating to this version, we recommend removing the `keyringsMetadata` state and all state referencing a keyring ID with a migration. New metadata will be generated for each keyring automatically after the update.
+
+### Fixed
+
+- Keyrings with duplicate accounts are skipped as unsupported on unlock ([#5775](https://github.com/MetaMask/core/pull/5775))
+
+## [21.0.6]
+
+### Changed
+
+- Prevent emitting `:stateChange` from `withKeyring` unnecessarily ([#5732](https://github.com/MetaMask/core/pull/5732))
+
+## [21.0.5]
+
+### Changed
+
+- Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
+
+### Fixed
+
+- The vault encryption upgrade fails gracefully during login ([#5740](https://github.com/MetaMask/core/pull/5740))
+
+## [21.0.4]
+
+### Fixed
+
+- Ensure no duplicate accounts are persisted ([#5710](https://github.com/MetaMask/core/pull/5710))
+
+## [21.0.3]
+
+### Changed
+
+- `ExportableKeyEncryptor` is now a generic type with a type parameter `EncryptionKey` ([#5395](https://github.com/MetaMask/core/pull/5395))
+  - The type parameter defaults to `unknown`
+
+### Fixed
+
+- Fixed wrong error message thrown when using the wrong password ([#5627](https://github.com/MetaMask/core/pull/5627))
+
+## [21.0.2]
+
+### Changed
+
+- Bump `@metamask/keyring-api` from `^17.2.0` to `^17.4.0` ([#5565](https://github.com/MetaMask/core/pull/5565))
+- Bump `@metamask/keyring-internal-api` from `^6.0.0` to `^6.0.1` ([#5565](https://github.com/MetaMask/core/pull/5565))
+
+### Fixed
+
+- Ignore cached encryption key when the vault needs to upgrade its encryption parameters ([#5601](https://github.com/MetaMask/core/pull/5601))
+
+## [21.0.1]
+
+### Fixed
+
+- Fixed duplication of unsupported keyrings ([#5535](https://github.com/MetaMask/core/pull/5535))
+- Enforce keyrings metadata alignment when unlocking existing vault ([#5535](https://github.com/MetaMask/core/pull/5535))
+- Fixed frozen object mutation attempt when updating metadata ([#5535](https://github.com/MetaMask/core/pull/5535))
+
+## [21.0.0] [DEPRECATED]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-internal-api` from `^5.0.0` to `^6.0.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
+- **BREAKING:** Bump `@metamask/eth-simple-keyring` from `^9.0.0` to `^10.0.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
+- **BREAKING:** Bump `@metamask/eth-hd-keyring` from `^11.0.0` to `^12.0.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
+- **BREAKING:** Bump `@ethereumjs/util` from `^8.1.0` to `^9.1.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
+
+## [20.0.0] [DEPRECATED]
+
+### Changed
+
+- **BREAKING:** `addNewKeyring` method now returns `Promise<KeyringMetadata>` instead of `Promise<unknown>` ([#5372](https://github.com/MetaMask/core/pull/5372))
+  - Consumers can use the returned `KeyringMetadata.id` to access the created keyring instance via `withKeyring`.
+- **BREAKING:** `withKeyring` method now requires a callback argument of type `({ keyring: SelectedKeyring; metadata: KeyringMetadata }) => Promise<CallbackResult>` ([#5372](https://github.com/MetaMask/core/pull/5372))
+- Bump `@metamask/keyring-internal-api` from `^4.0.3` to `^5.0.0` ([#5405](https://github.com/MetaMask/core/pull/5405))
+- Bump `@metamask/eth-hd-keyring` from `^10.0.0` to `^11.0.0` ([#5405](https://github.com/MetaMask/core/pull/5405))
+- Bump `@metamask/eth-simple-keyring` from `^8.1.0` to `^9.0.0` ([#5405](https://github.com/MetaMask/core/pull/5405))
+
+## [19.2.2]
+
+### Fixed
+
+- Fixed duplication of unsupported keyrings ([#5535](https://github.com/MetaMask/core/pull/5535))
+- Enforce keyrings metadata alignment when unlocking existing vault ([#5535](https://github.com/MetaMask/core/pull/5535))
+- Fixed frozen object mutation attempt when updating metadata ([#5535](https://github.com/MetaMask/core/pull/5535))
+
+## [19.2.1] [DEPRECATED]
+
+### Changed
+
+- Bump `@metamask/keyring-api"` from `^17.0.0` to `^17.2.0` ([#5366](https://github.com/MetaMask/core/pull/5366))
+- Bump `@metamask/keyring-internal-api` from `^4.0.1` to `^4.0.3` ([#5356](https://github.com/MetaMask/core/pull/5356), [#5366](https://github.com/MetaMask/core/pull/5366))
+
+### Fixed
+
+- Ensure authorization contract address is provided ([#5353](https://github.com/MetaMask/core/pull/5353))
+
+## [19.2.0] [DEPRECATED]
+
+### Added
+
+- Add `signEip7702Authorization` to `KeyringController` ([#5301](https://github.com/MetaMask/core/pull/5301))
+- Add `KeyringController:withKeyring` action ([#5332](https://github.com/MetaMask/core/pull/5332))
+  - The action can be used to consume the `withKeyring` method of the `KeyringController` class
+- Support keyring metadata in KeyringController ([#5112](https://github.com/MetaMask/core/pull/5112))
+
+## [19.1.0]
+
+### Added
+
+- Add new keyring type for OneKey ([#5216](https://github.com/MetaMask/core/pull/5216))
+
+### Changed
+
+- A specific error message is thrown when any operation is attempted while the controller is locked ([#5172](https://github.com/MetaMask/core/pull/5172))
+
+## [19.0.7]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.1.1` to `^8.0.0` ([#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/message-manager` from `^12.0.0` to `^12.0.1` ([#5305](https://github.com/MetaMask/core/pull/5305))
+
+## [19.0.6]
+
+### Changed
+
+- Bump `@metamask/keyring-api"` from `^16.1.0` to `^17.0.0` ([#5280](https://github.com/MetaMask/core/pull/5280))
+- Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
+
+## [19.0.5]
+
+### Changed
+
+- Bump `@metamask/keyring-api` from `^14.0.0` to `^16.1.0` ([#5190](https://github.com/MetaMask/core/pull/5190), [#5208](https://github.com/MetaMask/core/pull/5208))
+
+## [19.0.4]
+
+### Changed
+
+- Bump `@metamask/keyring-api` from `^13.0.0` to `^14.0.0` ([#5177](https://github.com/MetaMask/core/pull/5177))
+- Bump `@metamask/keyring-internal-api` from `^2.0.0` to `^2.0.1` ([#5177](https://github.com/MetaMask/core/pull/5177))
+- Bump `@metamask/message-manager` from `^12.0.0` to `^11.0.3` ([#5169](https://github.com/MetaMask/core/pull/5169))
+
+## [19.0.3]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.1`, ([#5079](https://github.com/MetaMask/core/pull/5079), [#5135](https://github.com/MetaMask/core/pull/5135))
+- Bump `@metamask/keyring-api` from `^12.0.0` to `^13.0.0` ([#5066](https://github.com/MetaMask/core/pull/5066))
+- Bump `@metamask/keyring-internal-api` from `^1.0.0` to `^2.0.0` ([#5066](https://github.com/MetaMask/core/pull/5066), [#5136](https://github.com/MetaMask/core/pull/5136))
+- Bump `@metamask/utils` to `^11.0.1` ([#5080](https://github.com/MetaMask/core/pull/5080))
+- Bump `@metamask/rpc-errors` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
+
+### Fixed
+
+- Make `verifySeedPhrase` mutually exclusive ([#5077](https://github.com/MetaMask/core/pull/5077))
+
+## [19.0.2]
+
+### Changed
+
+- Remove use of `@metamask/keyring-api` ([#4695](https://github.com/MetaMask/core/pull/4695))
+  - `@metamask/providers` and `webextension-polyfill` peer depedencies are no longer required.
+- Use new `@metamask/keyring-internal-api@^1.0.0` ([#4695](https://github.com/MetaMask/core/pull/4695))
+  - This package has been split out from the Keyring API. Its types are compatible with the `@metamask/keyring-api` package used previously.
+- Bump `@metamask/message-manager` from `^11.0.2` to `^11.0.3` ([#5048](https://github.com/MetaMask/core/pull/5048))
+
+## [19.0.1]
+
+### Changed
+
+- Bump `@metamask/message-manager` from `^11.0.1` to `^11.0.2` ([#5012](https://github.com/MetaMask/core/pull/5012))
+
+### Fixed
+
+- Make implicit peer dependencies explicit ([#4974](https://github.com/MetaMask/core/pull/4974))
+  - Add the following packages as peer dependencies of this package to satisfy peer dependency requirements from other dependencies:
+    - `@metamask/providers` `^18.1.0` (required by `@metamask/keyring-api`)
+    - `webextension-polyfill` `^0.10.0 || ^0.11.0 || ^0.12.0` (required by `@metamask/providers`)
+  - These dependencies really should be present in projects that consume this package (e.g. MetaMask clients), and this change ensures that they now are.
+  - Furthermore, we are assuming that clients already use these dependencies, since otherwise it would be impossible to consume this package in its entirety or even create a working build. Hence, the addition of these peer dependencies is really a formality and should not be breaking.
+- Correct ESM-compatible build so that imports of the following packages that re-export other modules via `export *` are no longer corrupted: ([#5011](https://github.com/MetaMask/core/pull/5011))
+  - `@metamask/eth-hd-keyring`
+  - `@metamask/eth-simple-keyring`
+  - `@ethereumjs/util`
+  - `ethereumjs-wallet`
+
+## [19.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-api` from `^8.1.3` to `^10.1.0` ([#4948](https://github.com/MetaMask/core/pull/4948))
+  - If you are depending on `@metamask/providers` directly, you will need to upgrade to 18.1.0.
+
+## [18.0.0]
+
+### Removed
+
+- **BREAKING** Remove `addNewAccountWithoutUpdate` method ([#4845](https://github.com/MetaMask/core/pull/4845))
+
+## [17.3.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.1` to `^7.0.2` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/utils` from `^9.1.0` to `^10.0.0` ([#4831](https://github.com/MetaMask/core/pull/4831))
+- Bump `@metamask/eth-sig-util` from `^7.0.1` to `^8.0.0` ([#4830](https://github.com/MetaMask/core/pull/4830))
+
+## [17.3.0]
+
+### Changed
+
+- Bump `@metamask/message-manager` from `^10.1.1` to `^11.0.0` ([#4805](https://github.com/MetaMask/core/pull/4805))
+
+## [17.2.2]
+
+### Changed
+
+- Bump accounts related packages ([#4713](https://github.com/MetaMask/core/pull/4713), [#4728](https://github.com/MetaMask/core/pull/4728))
+  - Those packages are now built slightly differently and are part of the [accounts monorepo](https://github.com/MetaMask/accounts).
+  - Bump `@metamask/keyring-api` from `^8.1.0` to `^8.1.4`
+  - Bump `@metamask/eth-hd-keyring` from `^7.0.1` to `^7.0.4`
+  - Bump `@metamask/eth-simple-keyring` from `^6.0.1` to `^6.0.5`
+
+## [17.2.1]
+
+### Fixed
+
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+
+## [17.2.0]
+
+### Added
+
+- Add `KeyringController:addNewAccount` messenger action ([#4565](https://github.com/MetaMask/core/pull/4565))
+  - Add and export `KeyringControllerAddNewAccountAction` type.
+  - Widen `KeyringControllerActions` to include `KeyringControllerAddNewAccountAction` type.
+  - `KeyringControllerMessenger` must allow `KeyringControllerAddNewAccountAction` type.
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^6.0.2` to `^7.0.0` ([#4625](https://github.com/MetaMask/core/pull/4625), [#4643](https://github.com/MetaMask/core/pull/4643))
+- Bump `@metamask/keyring-api` from `^8.0.1` to `^8.1.0` ([#4594](https://github.com/MetaMask/core/pull/4594))
+- Bump `@metamask/message-manager` from `^10.0.2` to `^10.0.3` ([#4643](https://github.com/MetaMask/core/pull/4643))
+- Bump `typescript` from `~5.0.4` to `~5.2.2` ([#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
+
+## [17.1.2]
+
+### Changed
+
+- Upgrade TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/base-controller` from `^6.0.0` to `^6.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/keyring-api` from `^8.0.0` to `^8.0.1` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/utils` from `^9.0.0` to `^9.1.0` ([#4529](https://github.com/MetaMask/core/pull/4529))
+- Bump `@metamask/message-manager` from `^10.0.1` to `^10.0.2` ([#4548](https://github.com/MetaMask/core/pull/4548))
+
+## [17.1.1]
+
+### Changed
+
+- Bump `@metamask/utils` to `^9.0.0`, `@metamask/rpc-errors` to `^6.3.1` ([#4516](https://github.com/MetaMask/core/pull/4516))
+
+### Fixed
+
+- Clear encryption salt and key in `setLocked` and `#createNewVaultWithKeyring` to ensure that encryption key is always generated with the latest password ([#4514](https://github.com/MetaMask/core/pull/4514))
+
+## [17.1.0]
+
+### Added
+
+- Add support for overwriting built-in keyring builders for the Simple and HD keyring ([#4362](https://github.com/MetaMask/core/pull/4362))
+
+### Changed
+
+- Bump `@metamask/eth-snap-keyring` to `^4.3.1` ([#4405](https://github.com/MetaMask/core/pull/4405))
+- Bump `@metamask/keyring-api` to `^8.0.0` ([#4405](https://github.com/MetaMask/core/pull/4405))
+
+### Deprecated
+
+- Deprecate QR keyring methods ([#4365](https://github.com/MetaMask/core/pull/4365))
+  - `cancelQRSignRequest`
+  - `cancelQRSynchronization`
+  - `connectQRHardware`
+  - `forgetQRDevice`
+  - `getOrAddQRKeyring`
+  - `getQRKeyring`
+  - `getQRKeyringState`
+  - `resetQRKeyringState`
+  - `restoreQRKeyring`
+  - `submitQRCryptoHDKey`
+  - `submitQRCryptoAccount`
+  - `submitQRSignature`
+  - `unlockQRHardwareWalletAccount`
+
+## [17.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- Bump `@metamask/base-controller` to `^6.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/message-manager` to `^10.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
+## [16.1.0]
+
+### Added
+
+- Add `changePassword` method ([#4279](https://github.com/MetaMask/core/pull/4279))
+  - This method can be used to change the password used to encrypt the vault.
+- Add support for non-EVM account addresses to most methods ([#4282](https://github.com/MetaMask/core/pull/4282))
+  - Previously, all addresses were assumed to be Ethereum addresses and normalized, but now only Ethereum addresses are treated as such.
+  - Relax type of `account` argument on `removeAccount` from `Hex` to `string`
+
+### Changed
+
+- Bump `@metamask/keyring-api` to `^6.1.1` ([#4262](https://github.com/MetaMask/core/pull/4262))
+- Bump `@keystonehq/metamask-airgapped-keyring` to `^0.14.1` ([#4277](https://github.com/MetaMask/core/pull/4277))
+- Bump `async-mutex` to `^0.5.0` ([#4335](https://github.com/MetaMask/core/pull/4335))
+- Bump `@metamask/message-manager` to `^9.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+
+### Fixed
+
+- Fix QR keyrings so that they are not initialized with invalid state ([#4256](https://github.com/MetaMask/core/pull/4256))
+
+## [16.0.0]
+
+### Added
+
+- Added `withKeyring` method ([#4197](https://github.com/MetaMask/core/pull/4197))
+  - Consumers can now use `withKeyring` to atomically select a keyring by address or type and execute a callback with the it as argument.
+  - This method can be used instead of `getKeyringForAccount`, `getKeyringsByType` and `persistAllKeyrings`, as the vault will be updated automatically after the callback execution, or rolled back in case of errors
+
+### Changed
+
+- **BREAKING**: Change various `KeyringController` methods so they no longer return the controller state ([#4199](https://github.com/MetaMask/core/pull/4199))
+  - Changed `addNewAccount` return type to `Promise<string>`
+  - Changed `addNewAccountWithoutUpdate` return type to `Promise<string>`
+  - Changed `createNewVaultAndKeychain` return type to `Promise<void>`
+  - Changed `createNewVaultAndRestore` return type to `Promise<void>`
+  - Changed `importAccountWithStrategy` return type to `Promise<string>`
+  - Changed `removeAccount` return type to `Promise<void>`
+  - Changed `setLocked` return type to `Promise<void>`
+  - Changed `submitEncryptionKey` return type to `Promise<void>`
+  - Changed `submitPassword` return type to `Promise<void>`
+- Bump `@metamask/keyring-api` to `^6.0.0` ([#4193](https://github.com/MetaMask/core/pull/4193))
+- Bump `@metamask/base-controller` to `^5.0.2` ([#4232](https://github.com/MetaMask/core/pull/4232))
+- Bump `@metamask/message-manager` to `^8.0.2` ([#4234](https://github.com/MetaMask/core/pull/4234))
+
+### Fixed
+
+- Method calls that change controller state are now atomic ([#4192](https://github.com/MetaMask/core/pull/4192))
+  - Each method will roll back keyring instances in case of errors
+- Method calls that change controller state are now mutually exclusive ([#4182](https://github.com/MetaMask/core/pull/4182))
+- Check presence of `HDKeyring` when updating the vault ([#4168](https://github.com/MetaMask/core/pull/4168))
+- Update state in single call when persisting or unlocking ([#4154](https://github.com/MetaMask/core/pull/4154))
+
+## [15.0.0]
+
+### Changed
+
+- **BREAKING** use getAccounts on HD Keyring when calling addNewAccount ([#4158](https://github.com/MetaMask/core/pull/4158))
+- Pass CAIP-2 scope to execution context ([#4090](https://github.com/MetaMask/core/pull/4090))
+- Allow gas limits to be changed during #addPaymasterData ([#3942](https://github.com/MetaMask/core/pull/3942))
+
+## [14.0.1]
+
+### Fixed
+
+- Fix `types` field in `package.json` ([#4047](https://github.com/MetaMask/core/pull/4047))
+
+## [14.0.0]
+
+### Added
+
+- **BREAKING**: Add ESM build ([#3998](https://github.com/MetaMask/core/pull/3998))
+  - It's no longer possible to import files from `./dist` directly.
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+  - This version has a number of breaking changes. See the changelog for more.
+- Bump `@metamask/message-manager` to `^8.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+
+### Fixed
+
+- **BREAKING:** Narrow `KeyringControllerMessenger` type parameters `AllowedAction` and `AllowedEvent` from `string` to `never` ([#4031](https://github.com/MetaMask/core/pull/4031))
+  - Allowlisting or using any external actions or events will now produce a type error.
+
 ## [13.0.0]
 
 ### Added
@@ -290,7 +961,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `cancelQRSynchronization` method ([#1387](https://github.com/MetaMask/core.git/pull/1387))
+- Add `cancelQRSynchronization` method ([#1387](https://github.com/MetaMask/core/pull/1387))
 
 ## [5.0.0]
 
@@ -344,7 +1015,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:**: Bump eth-keyring-controller version to @metamask/eth-keyring-controller v10 ([#1072](https://github.com/MetaMask/core.git/pull/1072))
+- **BREAKING:**: Bump eth-keyring-controller version to @metamask/eth-keyring-controller v10 ([#1072](https://github.com/MetaMask/core/pull/1072))
   - `exportSeedPhrase` now returns a `Uint8Array` typed SRP (can be converted to a string using [this approach](https://github.com/MetaMask/eth-hd-keyring/blob/53b0570559595ba5b3fd8c80e900d847cd6dee3d/index.js#L40)). It was previously a Buffer.
   - The HD keyring included with the keyring controller has been updated from v4 to v6. See [the `eth-hd-keyring` changelog entries for v5 and v6](https://github.com/MetaMask/eth-hd-keyring/blob/main/CHANGELOG.md#600) for further details on breaking changes.
 
@@ -369,14 +1040,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
-
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
-
     - Everything in `src/keyring`
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@13.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@27.1.0...HEAD
+[27.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@27.0.0...@metamask/keyring-controller@27.1.0
+[27.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@26.0.0...@metamask/keyring-controller@27.0.0
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.5.0...@metamask/keyring-controller@26.0.0
+[25.5.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.4.0...@metamask/keyring-controller@25.5.0
+[25.4.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.3.0...@metamask/keyring-controller@25.4.0
+[25.3.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.2.0...@metamask/keyring-controller@25.3.0
+[25.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.1.1...@metamask/keyring-controller@25.2.0
+[25.1.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.1.0...@metamask/keyring-controller@25.1.1
+[25.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@25.0.0...@metamask/keyring-controller@25.1.0
+[25.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@24.0.0...@metamask/keyring-controller@25.0.0
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@23.2.0...@metamask/keyring-controller@24.0.0
+[23.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@23.1.1...@metamask/keyring-controller@23.2.0
+[23.1.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@23.1.0...@metamask/keyring-controller@23.1.1
+[23.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@23.0.0...@metamask/keyring-controller@23.1.0
+[23.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.1.1...@metamask/keyring-controller@23.0.0
+[22.1.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.1.0...@metamask/keyring-controller@22.1.1
+[22.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.0.2...@metamask/keyring-controller@22.1.0
+[22.0.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.0.1...@metamask/keyring-controller@22.0.2
+[22.0.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@22.0.0...@metamask/keyring-controller@22.0.1
+[22.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.6...@metamask/keyring-controller@22.0.0
+[21.0.6]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.5...@metamask/keyring-controller@21.0.6
+[21.0.5]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.4...@metamask/keyring-controller@21.0.5
+[21.0.4]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.3...@metamask/keyring-controller@21.0.4
+[21.0.3]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.2...@metamask/keyring-controller@21.0.3
+[21.0.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.1...@metamask/keyring-controller@21.0.2
+[21.0.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@21.0.0...@metamask/keyring-controller@21.0.1
+[21.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@20.0.0...@metamask/keyring-controller@21.0.0
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.2.2...@metamask/keyring-controller@20.0.0
+[19.2.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.2.1...@metamask/keyring-controller@19.2.2
+[19.2.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.2.0...@metamask/keyring-controller@19.2.1
+[19.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.1.0...@metamask/keyring-controller@19.2.0
+[19.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.7...@metamask/keyring-controller@19.1.0
+[19.0.7]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.6...@metamask/keyring-controller@19.0.7
+[19.0.6]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.5...@metamask/keyring-controller@19.0.6
+[19.0.5]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.4...@metamask/keyring-controller@19.0.5
+[19.0.4]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.3...@metamask/keyring-controller@19.0.4
+[19.0.3]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.2...@metamask/keyring-controller@19.0.3
+[19.0.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.1...@metamask/keyring-controller@19.0.2
+[19.0.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@19.0.0...@metamask/keyring-controller@19.0.1
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@18.0.0...@metamask/keyring-controller@19.0.0
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.3.1...@metamask/keyring-controller@18.0.0
+[17.3.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.3.0...@metamask/keyring-controller@17.3.1
+[17.3.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.2.2...@metamask/keyring-controller@17.3.0
+[17.2.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.2.1...@metamask/keyring-controller@17.2.2
+[17.2.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.2.0...@metamask/keyring-controller@17.2.1
+[17.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.1.2...@metamask/keyring-controller@17.2.0
+[17.1.2]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.1.1...@metamask/keyring-controller@17.1.2
+[17.1.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.1.0...@metamask/keyring-controller@17.1.1
+[17.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@17.0.0...@metamask/keyring-controller@17.1.0
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@16.1.0...@metamask/keyring-controller@17.0.0
+[16.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@16.0.0...@metamask/keyring-controller@16.1.0
+[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@15.0.0...@metamask/keyring-controller@16.0.0
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@14.0.1...@metamask/keyring-controller@15.0.0
+[14.0.1]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@14.0.0...@metamask/keyring-controller@14.0.1
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@13.0.0...@metamask/keyring-controller@14.0.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@12.2.0...@metamask/keyring-controller@13.0.0
 [12.2.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@12.1.0...@metamask/keyring-controller@12.2.0
 [12.1.0]: https://github.com/MetaMask/core/compare/@metamask/keyring-controller@12.0.0...@metamask/keyring-controller@12.1.0

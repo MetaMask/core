@@ -5,7 +5,10 @@ import { TransactionStatus } from '../types';
 import { validateConfirmedExternalTransaction } from './external-transactions';
 
 describe('validateConfirmedExternalTransaction', () => {
-  const mockTransactionMeta = (status: TransactionStatus, nonce: string) => {
+  const mockTransactionMeta = (
+    status: TransactionStatus,
+    nonce: string,
+  ): TransactionMeta => {
     const meta = {
       status,
       txParams: { nonce },

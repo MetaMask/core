@@ -1,7 +1,15 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import type { AddressBookControllerState } from '@metamask/address-book-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
+} from '@metamask/messenger';
+import { TransactionStatus } from '@metamask/transaction-controller';
+import type { TransactionControllerState } from '@metamask/transaction-controller';
 import { strict as assert } from 'assert';
-import nock from 'nock';
-import * as sinon from 'sinon';
+import nock, { cleanAll, isDone, pendingMocks } from 'nock';
 
 import {
   ListNames,
@@ -9,55 +17,278 @@ import {
   METAMASK_STALELIST_FILE,
   PhishingController,
   PHISHING_CONFIG_BASE_URL,
-  type PhishingControllerActions,
-  type PhishingControllerOptions,
+  CLIENT_SIDE_DETECION_BASE_URL,
+  C2_DOMAIN_BLOCKLIST_ENDPOINT,
+  PHISHING_DETECTION_BASE_URL,
+  PHISHING_DETECTION_SCAN_ENDPOINT,
+  PHISHING_DETECTION_BULK_SCAN_ENDPOINT,
+  SECURITY_ALERTS_BASE_URL,
+  ADDRESS_SCAN_ENDPOINT,
+  APPROVALS_ENDPOINT,
 } from './PhishingController';
+import type {
+  PhishingControllerOptions,
+  BulkPhishingDetectionScanResponse,
+  PhishingControllerMessenger,
+} from './PhishingController';
+import {
+  createMockStateChangePayload,
+  createMockTransaction,
+  formatHostnameToUrl,
+  TEST_ADDRESSES,
+} from './tests/utils';
+import type { PhishingDetectionScanResult, AddressScanResult } from './types';
+import {
+  PhishingDetectorResultType,
+  RecommendedAction,
+  AddressScanResultType,
+  ApprovalResultType,
+  ApprovalFeatureType,
+} from './types';
+import { getHostnameFromUrl } from './utils';
 
 const controllerName = 'PhishingController';
 
-/**
- * Constructs a restricted controller messenger.
- *
- * @returns A restricted controller messenger.
- */
-function getRestrictedMessenger() {
-  const controllerMessenger = new ControllerMessenger<
-    PhishingControllerActions,
-    never
-  >();
+type AllPhishingControllerActions =
+  MessengerActions<PhishingControllerMessenger>;
 
-  const messenger = controllerMessenger.getRestricted({
-    name: controllerName,
-  });
+type AllPhishingControllerEvents = MessengerEvents<PhishingControllerMessenger>;
 
-  return messenger;
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllPhishingControllerActions,
+  AllPhishingControllerEvents,
+  RootMessenger
+>;
+
+type SetupMessengerOptions = {
+  transactionControllerState?: TransactionControllerState;
+  addressBookControllerState?: AddressBookControllerState;
+};
+
+function getDefaultTransactionControllerState(): TransactionControllerState {
+  return {
+    transactions: [],
+    transactionBatches: [],
+    methodData: {},
+    lastFetchedBlockNumbers: {},
+    submitHistory: [],
+  };
+}
+
+function getDefaultAddressBookControllerState(): AddressBookControllerState {
+  return {
+    addressBook: {},
+  };
 }
 
 /**
- * Contruct a Phishing Controller with the given options if any.
- * @param options - The Phishing Controller options.
- * @returns The contstructed Phishing Controller.
+ * Creates and returns a root messenger for testing
+ *
+ * @returns A messenger instance
  */
-function getPhishingController(options?: Partial<PhishingControllerOptions>) {
-  return new PhishingController({
-    messenger: getRestrictedMessenger(),
+function getRootMessenger(): RootMessenger {
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
+}
+
+/**
+ * Constructs a messenger for use in PhishingController tests.
+ *
+ * @param options - Options for the test messenger.
+ * @param options.transactionControllerState - Initial transaction controller state.
+ * @param options.addressBookControllerState - Initial address book controller state.
+ * @returns A messenger and the root messenger.
+ */
+function setupMessenger(options: SetupMessengerOptions = {}): {
+  messenger: PhishingControllerMessenger;
+  rootMessenger: RootMessenger;
+  setTransactionControllerState: (state: TransactionControllerState) => void;
+  setAddressBookControllerState: (state: AddressBookControllerState) => void;
+} {
+  const {
+    transactionControllerState:
+      initialTransactionControllerState = getDefaultTransactionControllerState(),
+    addressBookControllerState:
+      initialAddressBookControllerState = getDefaultAddressBookControllerState(),
+  } = options;
+  const rootMessenger = getRootMessenger();
+  let transactionControllerState = initialTransactionControllerState;
+  let addressBookControllerState = initialAddressBookControllerState;
+
+  const messenger = new Messenger<
+    typeof controllerName,
+    AllPhishingControllerActions,
+    AllPhishingControllerEvents,
+    RootMessenger
+  >({
+    namespace: controllerName,
+    parent: rootMessenger,
+  });
+
+  rootMessenger.delegate({
+    actions: [
+      'AddressBookController:getState',
+      'TransactionController:getState',
+    ],
+    events: [
+      // eslint-disable-next-line no-restricted-syntax
+      'AddressBookController:stateChange',
+      // eslint-disable-next-line no-restricted-syntax
+      'TransactionController:stateChange',
+    ],
+    messenger,
+  });
+
+  rootMessenger.registerActionHandler(
+    'TransactionController:getState',
+    () => transactionControllerState,
+  );
+  rootMessenger.registerActionHandler(
+    'AddressBookController:getState',
+    () => addressBookControllerState,
+  );
+
+  return {
+    messenger,
+    rootMessenger,
+    setTransactionControllerState: (
+      state: TransactionControllerState,
+    ): void => {
+      transactionControllerState = state;
+    },
+    setAddressBookControllerState: (
+      state: AddressBookControllerState,
+    ): void => {
+      addressBookControllerState = state;
+    },
+  };
+}
+
+/**
+ * Construct a Phishing Controller with the given options if any.
+ *
+ * @param options - The Phishing Controller options.
+ * @returns The constructed Phishing Controller.
+ */
+function getPhishingController(options?: Partial<PhishingControllerOptions>): {
+  controller: PhishingController;
+  rootMessenger: RootMessenger;
+} {
+  const { messenger, rootMessenger } = setupMessenger();
+  const controller = new PhishingController({
+    messenger,
     ...options,
   });
+  return { controller, rootMessenger };
 }
 
 describe('PhishingController', () => {
   afterEach(() => {
-    sinon.restore();
+    jest.useRealTimers();
+    cleanAll();
   });
 
   it('should have no default phishing lists', () => {
-    const controller = getPhishingController();
+    const { controller } = getPhishingController();
     expect(controller.state.phishingLists).toStrictEqual([]);
   });
 
   it('should default to an empty whitelist', () => {
-    const controller = getPhishingController();
+    const { controller } = getPhishingController();
     expect(controller.state.whitelist).toStrictEqual([]);
+  });
+  it('should return false if the hostname is in the whitelist', async () => {
+    const whitelistedHostname = 'example.com';
+
+    const { rootMessenger } = getPhishingController();
+    rootMessenger.call(
+      'PhishingController:bypass',
+      formatHostnameToUrl(whitelistedHostname),
+    );
+    const result = rootMessenger.call(
+      'PhishingController:testOrigin',
+      whitelistedHostname,
+    );
+
+    expect(result).toMatchObject({
+      result: false,
+      type: PhishingDetectorResultType.All,
+    });
+  });
+  it('should return false if the URL is in the whitelist', async () => {
+    const whitelistedHostname = 'example.com';
+
+    const { rootMessenger } = getPhishingController();
+    rootMessenger.call(
+      'PhishingController:bypass',
+      formatHostnameToUrl(whitelistedHostname),
+    );
+    const result = rootMessenger.call(
+      'PhishingController:testOrigin',
+      `https://${whitelistedHostname}/path`,
+    );
+
+    expect(result).toMatchObject({
+      result: false,
+      type: PhishingDetectorResultType.All,
+    });
+  });
+
+  it('returns false if the URL is in the whitelistPaths', async () => {
+    const whitelistedURL = 'https://example.com/path';
+
+    const { rootMessenger } = getPhishingController();
+    rootMessenger.call('PhishingController:bypass', whitelistedURL);
+    const result = rootMessenger.call(
+      'PhishingController:testOrigin',
+      whitelistedURL,
+    );
+    expect(result).toMatchObject({
+      result: false,
+      type: PhishingDetectorResultType.All,
+    });
+  });
+
+  it('should return false if the URL is in the allowlist', async () => {
+    const allowlistedHostname = 'example.com';
+
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_STALELIST_FILE)
+      .reply(200, {
+        data: {
+          allowlist: [allowlistedHostname],
+          blocklist: [],
+          blocklistPaths: [],
+          fuzzylist: [],
+          tolerance: 0,
+          version: 0,
+          lastUpdated: 1,
+        },
+      })
+      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+      .reply(200, { data: [] });
+
+    nock(CLIENT_SIDE_DETECION_BASE_URL)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+      .reply(200, {
+        recentlyAdded: [],
+        recentlyRemoved: [],
+        lastFetchedAt: 1,
+      });
+
+    const { controller, rootMessenger } = getPhishingController();
+    await controller.updateStalelist();
+    const result = rootMessenger.call(
+      'PhishingController:testOrigin',
+      `https://${allowlistedHostname}/path`,
+    );
+
+    expect(result).toMatchObject({
+      result: false,
+      type: PhishingDetectorResultType.Allowlist,
+    });
   });
 
   it('does not call update stalelist or hotlist upon construction', async () => {
@@ -65,14 +296,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          eth_phishing_detect_config: {
-            blocklist: [],
-            fuzzylist: [],
-            allowlist: [],
-          },
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          blocklist: [],
+          blocklistPaths: [],
+          fuzzylist: [],
+          allowlist: [],
           tolerance: 0,
           version: 0,
         },
@@ -86,7 +313,7 @@ describe('PhishingController', () => {
   });
 
   it('should not re-request when an update is in progress', async () => {
-    const clock = sinon.useFakeTimers();
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
     const nockScope = nock(PHISHING_CONFIG_BASE_URL)
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .delay(500) // delay promise resolution to generate "pending" state that lasts long enough to test.
@@ -106,10 +333,25 @@ describe('PhishingController', () => {
         ],
       });
 
-    const controller = getPhishingController({
+    const { controller } = getPhishingController({
       hotlistRefreshInterval: 10,
+      state: {
+        phishingLists: [
+          {
+            allowlist: [],
+            blocklist: [],
+            c2DomainBlocklist: [],
+            blocklistPaths: {},
+            fuzzylist: [],
+            tolerance: 0,
+            lastUpdated: 1,
+            name: ListNames.MetaMask,
+            version: 0,
+          },
+        ],
+      },
     });
-    clock.tick(1000 * 10);
+    jest.advanceTimersByTime(1000 * 10);
     const pendingUpdate = controller.updateHotlist();
 
     expect(controller.isHotlistOutOfDate()).toBe(true);
@@ -128,14 +370,10 @@ describe('PhishingController', () => {
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
           data: {
-            eth_phishing_detect_config: {
-              blocklist: ['this-should-not-be-in-default-blocklist.com'],
-              fuzzylist: [],
-              allowlist: ['this-should-not-be-in-default-allowlist.com'],
-            },
-            phishfort_hotlist: {
-              blocklist: [],
-            },
+            blocklist: ['this-should-not-be-in-default-blocklist.com'],
+            blocklistPaths: [],
+            fuzzylist: [],
+            allowlist: ['this-should-not-be-in-default-allowlist.com'],
             tolerance: 0,
             version: 0,
             lastUpdated: 1,
@@ -157,85 +395,107 @@ describe('PhishingController', () => {
             },
           ],
         });
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, {
+          recentlyAdded: [],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
     });
 
     it('should not have stalelist be out of date immediately after maybeUpdateState is called', async () => {
-      const clock = sinon.useFakeTimers();
-      const controller = getPhishingController({
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      const { controller, rootMessenger } = getPhishingController({
         stalelistRefreshInterval: 10,
       });
-      clock.tick(1000 * 10);
+      jest.advanceTimersByTime(1000 * 10);
       expect(controller.isStalelistOutOfDate()).toBe(true);
-      await controller.maybeUpdateState();
+      await rootMessenger.call('PhishingController:maybeUpdateState');
       expect(controller.isStalelistOutOfDate()).toBe(false);
       expect(nockScope.isDone()).toBe(true);
     });
 
     it('should not be out of date after maybeUpdateStalelist is called but before refresh interval has passed', async () => {
-      const clock = sinon.useFakeTimers();
-      const controller = getPhishingController({
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      const { controller, rootMessenger } = getPhishingController({
         stalelistRefreshInterval: 10,
       });
-      clock.tick(1000 * 10);
+      jest.advanceTimersByTime(1000 * 10);
       expect(controller.isStalelistOutOfDate()).toBe(true);
-      await controller.maybeUpdateState();
-      clock.tick(1000 * 5);
+      await rootMessenger.call('PhishingController:maybeUpdateState');
+      jest.advanceTimersByTime(1000 * 5);
       expect(controller.isStalelistOutOfDate()).toBe(false);
       expect(nockScope.isDone()).toBe(true);
     });
 
     it('should still be out of date while update is in progress', async () => {
-      const clock = sinon.useFakeTimers();
-      const controller = getPhishingController({
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      const { controller, rootMessenger } = getPhishingController({
         stalelistRefreshInterval: 10,
       });
-      clock.tick(1000 * 10);
+      jest.advanceTimersByTime(1000 * 10);
       // do not wait
-      const maybeUpdatePhisingListPromise = controller.maybeUpdateState();
+      const maybeUpdatePhisingListPromise = rootMessenger.call(
+        'PhishingController:maybeUpdateState',
+      );
       expect(controller.isStalelistOutOfDate()).toBe(true);
       await maybeUpdatePhisingListPromise;
       expect(controller.isStalelistOutOfDate()).toBe(false);
-      clock.tick(1000 * 10);
+      jest.advanceTimersByTime(1000 * 10);
       expect(controller.isStalelistOutOfDate()).toBe(true);
       expect(nockScope.isDone()).toBe(true);
     });
 
     it('should call update only if it is out of date, otherwise it should not call update', async () => {
-      const clock = sinon.useFakeTimers();
-      const controller = getPhishingController({
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      const { controller, rootMessenger } = getPhishingController({
         stalelistRefreshInterval: 10,
       });
       expect(controller.isStalelistOutOfDate()).toBe(false);
-      await controller.maybeUpdateState();
+      await rootMessenger.call('PhishingController:maybeUpdateState');
       expect(
-        controller.test('this-should-not-be-in-default-blocklist.com'),
+        rootMessenger.call(
+          'PhishingController:testOrigin',
+          formatHostnameToUrl('this-should-not-be-in-default-blocklist.com'),
+        ),
       ).toMatchObject({
         result: false,
-        type: 'all',
+        type: PhishingDetectorResultType.All,
       });
 
       expect(
-        controller.test('this-should-not-be-in-default-allowlist.com'),
+        rootMessenger.call(
+          'PhishingController:testOrigin',
+          formatHostnameToUrl('this-should-not-be-in-default-allowlist.com'),
+        ),
       ).toMatchObject({
         result: false,
-        type: 'all',
+        type: PhishingDetectorResultType.All,
       });
 
-      clock.tick(1000 * 10);
-      await controller.maybeUpdateState();
+      jest.advanceTimersByTime(1000 * 10);
+      await rootMessenger.call('PhishingController:maybeUpdateState');
 
       expect(
-        controller.test('this-should-not-be-in-default-blocklist.com'),
+        rootMessenger.call(
+          'PhishingController:testOrigin',
+          formatHostnameToUrl('this-should-not-be-in-default-blocklist.com'),
+        ),
       ).toMatchObject({
         result: true,
-        type: 'blocklist',
+        type: PhishingDetectorResultType.Blocklist,
       });
 
       expect(
-        controller.test('this-should-not-be-in-default-allowlist.com'),
+        rootMessenger.call(
+          'PhishingController:testOrigin',
+          formatHostnameToUrl('this-should-not-be-in-default-allowlist.com'),
+        ),
       ).toMatchObject({
         result: false,
-        type: 'allowlist',
+        type: PhishingDetectorResultType.Allowlist,
       });
 
       expect(nockScope.isDone()).toBe(true);
@@ -259,22 +519,124 @@ describe('PhishingController', () => {
             },
           ],
         });
-      const clock = sinon.useFakeTimers(50);
-      const controller = getPhishingController({
+      jest.useFakeTimers({
+        doNotFake: ['nextTick', 'queueMicrotask'],
+        now: 50,
+      });
+      const { controller, rootMessenger } = getPhishingController({
         hotlistRefreshInterval: 10,
         stalelistRefreshInterval: 50,
       });
-      clock.tick(1000 * 10);
+      jest.advanceTimersByTime(1000 * 10);
       expect(controller.isHotlistOutOfDate()).toBe(true);
-      await controller.maybeUpdateState();
+      await rootMessenger.call('PhishingController:maybeUpdateState');
       expect(controller.isHotlistOutOfDate()).toBe(false);
+    });
+
+    it('should not have c2DomainBlocklist be out of date immediately after maybeUpdateState is called', async () => {
+      nockScope = nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .reply(200, {
+          recentlyAdded: [],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      const { controller, rootMessenger } = getPhishingController({
+        c2DomainBlocklistRefreshInterval: 10,
+      });
+      jest.advanceTimersByTime(1000 * 10);
+      expect(controller.isC2DomainBlocklistOutOfDate()).toBe(true);
+      await rootMessenger.call('PhishingController:maybeUpdateState');
+      expect(controller.isC2DomainBlocklistOutOfDate()).toBe(false);
+    });
+
+    it('replaces existing phishing lists with completely new list from phishing detection API', async () => {
+      const { messenger, rootMessenger } = setupMessenger();
+      const controller = new PhishingController({
+        messenger,
+        stalelistRefreshInterval: 10,
+        state: {
+          phishingLists: [
+            {
+              allowlist: ['initial-safe-site.com'],
+              blocklist: ['new-phishing-site.com'],
+              blocklistPaths: {},
+              c2DomainBlocklist: [],
+              fuzzylist: ['new-fuzzy-site.com'],
+              tolerance: 2,
+              version: 1,
+              lastUpdated: 1,
+              name: ListNames.MetaMask,
+            },
+          ],
+          whitelist: [],
+          whitelistPaths: {},
+          hotlistLastFetched: 0,
+          stalelistLastFetched: 0,
+          c2DomainBlocklistLastFetched: 0,
+          urlScanCache: {},
+        },
+      });
+
+      cleanAll();
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_STALELIST_FILE)
+        .reply(200, {
+          data: {
+            blocklist: [],
+            blocklistPaths: ['example.com/path'],
+            fuzzylist: ['new-fuzzy-site.com'],
+            allowlist: ['new-safe-site.com'],
+            tolerance: 2,
+            version: 2,
+            lastUpdated: 2,
+          },
+        })
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${2}`)
+        .reply(200, {
+          data: [],
+        });
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, {
+          recentlyAdded: [],
+          recentlyRemoved: [],
+          lastFetchedAt: 2,
+        });
+
+      // Force the stalelist to be out of date and trigger update
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      jest.advanceTimersByTime(1000 * 10);
+
+      await rootMessenger.call('PhishingController:maybeUpdateState');
+
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: ['new-safe-site.com'],
+          blocklist: [],
+          blocklistPaths: {
+            'example.com': {
+              path: {},
+            },
+          },
+          c2DomainBlocklist: [],
+          fuzzylist: ['new-fuzzy-site.com'],
+          tolerance: 2,
+          version: 2,
+          lastUpdated: 2,
+          name: ListNames.MetaMask,
+        },
+      ]);
+
+      jest.useRealTimers();
     });
   });
 
   describe('isStalelistOutOfDate', () => {
     it('should not be out of date upon construction', () => {
-      sinon.useFakeTimers();
-      const controller = getPhishingController({
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      const { controller } = getPhishingController({
         stalelistRefreshInterval: 10,
       });
 
@@ -282,31 +644,31 @@ describe('PhishingController', () => {
     });
 
     it('should not be out of date after some of the refresh interval has passed', () => {
-      const clock = sinon.useFakeTimers();
-      const controller = getPhishingController({
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      const { controller } = getPhishingController({
         stalelistRefreshInterval: 10,
       });
-      clock.tick(1000 * 5);
+      jest.advanceTimersByTime(1000 * 5);
 
       expect(controller.isStalelistOutOfDate()).toBe(false);
     });
 
     it('should be out of date after the refresh interval has passed', () => {
-      const clock = sinon.useFakeTimers();
-      const controller = getPhishingController({
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      const { controller } = getPhishingController({
         stalelistRefreshInterval: 10,
       });
-      clock.tick(1000 * 10);
+      jest.advanceTimersByTime(1000 * 10);
 
       expect(controller.isStalelistOutOfDate()).toBe(true);
     });
 
     it('should be out of date if the refresh interval has passed and an update is in progress', async () => {
-      const clock = sinon.useFakeTimers();
-      const controller = getPhishingController({
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      const { controller } = getPhishingController({
         stalelistRefreshInterval: 10,
       });
-      clock.tick(1000 * 10);
+      jest.advanceTimersByTime(1000 * 10);
       const pendingUpdate = controller.updateStalelist();
 
       expect(controller.isStalelistOutOfDate()).toBe(true);
@@ -316,8 +678,8 @@ describe('PhishingController', () => {
     });
 
     it('should not be out of date if the phishing lists were just updated', async () => {
-      sinon.useFakeTimers();
-      const controller = getPhishingController({
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      const { controller } = getPhishingController({
         stalelistRefreshInterval: 10,
       });
       await controller.updateStalelist();
@@ -326,23 +688,23 @@ describe('PhishingController', () => {
     });
 
     it('should not be out of date if the phishing lists were recently updated', async () => {
-      const clock = sinon.useFakeTimers();
-      const controller = getPhishingController({
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      const { controller } = getPhishingController({
         stalelistRefreshInterval: 10,
       });
       await controller.updateStalelist();
-      clock.tick(1000 * 5);
+      jest.advanceTimersByTime(1000 * 5);
 
       expect(controller.isStalelistOutOfDate()).toBe(false);
     });
 
     it('should be out of date if the time elapsed since the last update equals the refresh interval', async () => {
-      const clock = sinon.useFakeTimers();
-      const controller = getPhishingController({
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      const { controller } = getPhishingController({
         stalelistRefreshInterval: 10,
       });
       await controller.updateStalelist();
-      clock.tick(1000 * 10);
+      jest.advanceTimersByTime(1000 * 10);
 
       expect(controller.isStalelistOutOfDate()).toBe(true);
     });
@@ -350,8 +712,8 @@ describe('PhishingController', () => {
 
   describe('isHotlistOutOfDate', () => {
     it('should not be out of date upon construction', () => {
-      sinon.useFakeTimers();
-      const controller = getPhishingController({
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      const { controller } = getPhishingController({
         hotlistRefreshInterval: 10,
       });
 
@@ -359,31 +721,46 @@ describe('PhishingController', () => {
     });
 
     it('should not be out of date after some of the refresh interval has passed', () => {
-      const clock = sinon.useFakeTimers();
-      const controller = getPhishingController({
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      const { controller } = getPhishingController({
         hotlistRefreshInterval: 10,
       });
-      clock.tick(1000 * 5);
+      jest.advanceTimersByTime(1000 * 5);
 
       expect(controller.isHotlistOutOfDate()).toBe(false);
     });
 
     it('should be out of date after the refresh interval has passed', () => {
-      const clock = sinon.useFakeTimers();
-      const controller = getPhishingController({
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      const { controller } = getPhishingController({
         hotlistRefreshInterval: 10,
       });
-      clock.tick(1000 * 10);
+      jest.advanceTimersByTime(1000 * 10);
 
       expect(controller.isHotlistOutOfDate()).toBe(true);
     });
 
     it('should be out of date if the refresh interval has passed and an update is in progress', async () => {
-      const clock = sinon.useFakeTimers();
-      const controller = getPhishingController({
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      const { controller } = getPhishingController({
         hotlistRefreshInterval: 10,
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              blocklistPaths: {},
+              fuzzylist: [],
+              tolerance: 0,
+              lastUpdated: 1,
+              name: ListNames.MetaMask,
+              version: 0,
+            },
+          ],
+        },
       });
-      clock.tick(1000 * 10);
+      jest.advanceTimersByTime(1000 * 10);
       const pendingUpdate = controller.updateHotlist();
 
       expect(controller.isHotlistOutOfDate()).toBe(true);
@@ -393,8 +770,8 @@ describe('PhishingController', () => {
     });
 
     it('should not be out of date if the phishing lists were just updated', async () => {
-      sinon.useFakeTimers();
-      const controller = getPhishingController({
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      const { controller } = getPhishingController({
         hotlistRefreshInterval: 10,
       });
       await controller.updateHotlist();
@@ -403,44 +780,103 @@ describe('PhishingController', () => {
     });
 
     it('should not be out of date if the phishing lists were recently updated', async () => {
-      const clock = sinon.useFakeTimers();
-      const controller = getPhishingController({
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      const { controller } = getPhishingController({
         hotlistRefreshInterval: 10,
       });
       await controller.updateHotlist();
-      clock.tick(1000 * 5);
+      jest.advanceTimersByTime(1000 * 5);
 
       expect(controller.isHotlistOutOfDate()).toBe(false);
     });
 
     it('should be out of date if the time elapsed since the last update equals the refresh interval', async () => {
-      const clock = sinon.useFakeTimers();
-      const controller = getPhishingController({
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      const { controller } = getPhishingController({
         hotlistRefreshInterval: 10,
       });
       await controller.updateHotlist();
-      clock.tick(1000 * 10);
+      jest.advanceTimersByTime(1000 * 10);
 
       expect(controller.isHotlistOutOfDate()).toBe(true);
     });
   });
 
-  it('should be able to change the stalelistRefreshInterval', async () => {
-    sinon.useFakeTimers();
-    const controller = getPhishingController({ stalelistRefreshInterval: 10 });
-    controller.setStalelistRefreshInterval(0);
+  describe('isC2DomainBlocklistOutOfDate', () => {
+    it('should not be out of date upon construction', () => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      const { controller } = getPhishingController({
+        c2DomainBlocklistRefreshInterval: 10,
+      });
 
-    expect(controller.isStalelistOutOfDate()).toBe(true);
-  });
-
-  it('should be able to change the hotlistRefreshInterval', async () => {
-    sinon.useFakeTimers();
-    const controller = getPhishingController({
-      hotlistRefreshInterval: 10,
+      expect(controller.isC2DomainBlocklistOutOfDate()).toBe(false);
     });
-    controller.setHotlistRefreshInterval(0);
 
-    expect(controller.isHotlistOutOfDate()).toBe(true);
+    it('should not be out of date after some of the refresh interval has passed', () => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      const { controller } = getPhishingController({
+        c2DomainBlocklistRefreshInterval: 10,
+      });
+      jest.advanceTimersByTime(1000 * 5);
+
+      expect(controller.isC2DomainBlocklistOutOfDate()).toBe(false);
+    });
+
+    it('should be out of date after the refresh interval has passed', () => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      const { controller } = getPhishingController({
+        c2DomainBlocklistRefreshInterval: 10,
+      });
+      jest.advanceTimersByTime(1000 * 10);
+
+      expect(controller.isC2DomainBlocklistOutOfDate()).toBe(true);
+    });
+
+    it('should be out of date if the refresh interval has passed and an update is in progress', async () => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      const { controller } = getPhishingController({
+        c2DomainBlocklistRefreshInterval: 10,
+      });
+      jest.advanceTimersByTime(1000 * 10);
+      const pendingUpdate = controller.updateC2DomainBlocklist();
+
+      expect(controller.isC2DomainBlocklistOutOfDate()).toBe(true);
+
+      // Cleanup pending operations
+      await pendingUpdate;
+    });
+
+    it('should not be out of date if the C2 domain blocklist was just updated', async () => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      const { controller } = getPhishingController({
+        c2DomainBlocklistRefreshInterval: 10,
+      });
+      await controller.updateC2DomainBlocklist();
+
+      expect(controller.isC2DomainBlocklistOutOfDate()).toBe(false);
+    });
+
+    it('should not be out of date if the C2 domain blocklist was recently updated', async () => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      const { controller } = getPhishingController({
+        c2DomainBlocklistRefreshInterval: 10,
+      });
+      await controller.updateC2DomainBlocklist();
+      jest.advanceTimersByTime(1000 * 5);
+
+      expect(controller.isC2DomainBlocklistOutOfDate()).toBe(false);
+    });
+
+    it('should be out of date if the time elapsed since the last update equals the refresh interval', async () => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+      const { controller } = getPhishingController({
+        c2DomainBlocklistRefreshInterval: 10,
+      });
+      await controller.updateC2DomainBlocklist();
+      jest.advanceTimersByTime(1000 * 10);
+
+      expect(controller.isC2DomainBlocklistOutOfDate()).toBe(true);
+    });
   });
 
   it('should return negative result for safe domain from MetaMask config', async () => {
@@ -448,14 +884,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          eth_phishing_detect_config: {
-            allowlist: ['metamask.io'],
-            blocklist: [],
-            fuzzylist: [],
-          },
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: ['metamask.io'],
+          blocklist: [],
+          blocklistPaths: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -463,11 +895,25 @@ describe('PhishingController', () => {
       })
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
-    const controller = getPhishingController();
+
+    nock(CLIENT_SIDE_DETECION_BASE_URL)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+      .reply(200, {
+        recentlyAdded: [],
+        recentlyRemoved: [],
+        lastFetchedAt: 1,
+      });
+
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
-    expect(controller.test('metamask.io')).toMatchObject({
+    expect(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl('metamask.io'),
+      ),
+    ).toMatchObject({
       result: false,
-      type: 'allowlist',
+      type: PhishingDetectorResultType.Allowlist,
       name: ListNames.MetaMask,
     });
   });
@@ -477,14 +923,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: [],
-            fuzzylist: [],
-          },
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [],
+          blocklist: [],
+          blocklistPaths: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -493,11 +935,16 @@ describe('PhishingController', () => {
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
 
-    const controller = getPhishingController();
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
-    expect(controller.test('i❤.ws')).toMatchObject({
+    expect(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl('i❤.ws'),
+      ),
+    ).toMatchObject({
       result: false,
-      type: 'all',
+      type: PhishingDetectorResultType.All,
     });
   });
 
@@ -506,14 +953,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: [],
-            fuzzylist: [],
-          },
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [],
+          blocklist: [],
+          blocklistPaths: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -522,11 +965,16 @@ describe('PhishingController', () => {
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
 
-    const controller = getPhishingController();
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
-    expect(controller.test('xn--i-7iq.ws')).toMatchObject({
+    expect(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl('xn--i-7iq.ws'),
+      ),
+    ).toMatchObject({
       result: false,
-      type: 'all',
+      type: PhishingDetectorResultType.All,
     });
   });
 
@@ -535,14 +983,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: ['etnerscan.io'],
-            fuzzylist: [],
-          },
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [],
+          blocklist: ['etnerscan.io'],
+          blocklistPaths: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -551,11 +995,24 @@ describe('PhishingController', () => {
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
 
-    const controller = getPhishingController();
+    nock(CLIENT_SIDE_DETECION_BASE_URL)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+      .reply(200, {
+        recentlyAdded: [],
+        recentlyRemoved: [],
+        lastFetchedAt: 1,
+      });
+
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
-    expect(controller.test('etnerscan.io')).toMatchObject({
+    expect(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl('etnerscan.io'),
+      ),
+    ).toMatchObject({
       result: true,
-      type: 'blocklist',
+      type: PhishingDetectorResultType.Blocklist,
       name: ListNames.MetaMask,
     });
   });
@@ -565,14 +1022,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          eth_phishing_detect_config: {
-            blocklist: ['xn--myetherallet-4k5fwn.com'],
-            allowlist: [],
-            fuzzylist: [],
-          },
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          blocklist: ['xn--myetherallet-4k5fwn.com'],
+          blocklistPaths: [],
+          allowlist: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -580,11 +1033,25 @@ describe('PhishingController', () => {
       })
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
-    const controller = getPhishingController();
+
+    nock(CLIENT_SIDE_DETECION_BASE_URL)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+      .reply(200, {
+        recentlyAdded: [],
+        recentlyRemoved: [],
+        lastFetchedAt: 1,
+      });
+
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
-    expect(controller.test('myetherẉalletṭ.com')).toMatchObject({
+    expect(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl('myetherẉalletṭ.com'),
+      ),
+    ).toMatchObject({
       result: true,
-      type: 'blocklist',
+      type: PhishingDetectorResultType.Blocklist,
       name: ListNames.MetaMask,
     });
   });
@@ -594,14 +1061,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: ['xn--myetherallet-4k5fwn.com'],
-            fuzzylist: [],
-          },
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [],
+          blocklist: ['xn--myetherallet-4k5fwn.com'],
+          blocklistPaths: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -610,11 +1073,24 @@ describe('PhishingController', () => {
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
 
-    const controller = getPhishingController();
+    nock(CLIENT_SIDE_DETECION_BASE_URL)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+      .reply(200, {
+        recentlyAdded: [],
+        recentlyRemoved: [],
+        lastFetchedAt: 1,
+      });
+
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
-    expect(controller.test('xn--myetherallet-4k5fwn.com')).toMatchObject({
+    expect(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl('xn--myetherallet-4k5fwn.com'),
+      ),
+    ).toMatchObject({
       result: true,
-      type: 'blocklist',
+      type: PhishingDetectorResultType.Blocklist,
       name: ListNames.MetaMask,
     });
   });
@@ -624,14 +1100,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: [],
-            fuzzylist: [],
-          },
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [],
+          blocklist: [],
+          blocklistPaths: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -648,13 +1120,24 @@ describe('PhishingController', () => {
         ],
       });
 
-    const controller = getPhishingController();
+    nock(CLIENT_SIDE_DETECION_BASE_URL)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+      .reply(200, {
+        recentlyAdded: [],
+        recentlyRemoved: [],
+        lastFetchedAt: 1,
+      });
+
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
     expect(
-      controller.test('e4d600ab9141b7a9859511c77e63b9b3.com'),
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl('e4d600ab9141b7a9859511c77e63b9b3.com'),
+      ),
     ).toMatchObject({
       result: true,
-      type: 'blocklist',
+      type: PhishingDetectorResultType.Blocklist,
       name: ListNames.MetaMask,
     });
   });
@@ -664,14 +1147,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: [],
-            fuzzylist: [],
-          },
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [],
+          blocklist: [],
+          blocklistPaths: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -680,13 +1159,16 @@ describe('PhishingController', () => {
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(500);
 
-    const controller = getPhishingController();
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
     expect(
-      controller.test('e4d600ab9141b7a9859511c77e63b9b3.com'),
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl('e4d600ab9141b7a9859511c77e63b9b3.com'),
+      ),
     ).toMatchObject({
       result: false,
-      type: 'all',
+      type: PhishingDetectorResultType.All,
     });
   });
 
@@ -695,14 +1177,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          eth_phishing_detect_config: {
-            allowlist: ['opensea.io'],
-            blocklist: [],
-            fuzzylist: [],
-          },
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: ['opensea.io'],
+          blocklist: [],
+          blocklistPaths: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -710,11 +1188,25 @@ describe('PhishingController', () => {
       })
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
-    const controller = getPhishingController();
+
+    nock(CLIENT_SIDE_DETECION_BASE_URL)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+      .reply(200, {
+        recentlyAdded: [],
+        recentlyRemoved: [],
+        lastFetchedAt: 1,
+      });
+
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
-    expect(controller.test('opensea.io')).toMatchObject({
+    expect(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl('opensea.io'),
+      ),
+    ).toMatchObject({
       result: false,
-      type: 'allowlist',
+      type: PhishingDetectorResultType.Allowlist,
       name: ListNames.MetaMask,
     });
   });
@@ -724,14 +1216,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          eth_phishing_detect_config: {
-            allowlist: ['opensea.io'],
-            blocklist: [],
-            fuzzylist: ['opensea.io'],
-          },
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: ['opensea.io'],
+          blocklist: [],
+          blocklistPaths: [],
+          fuzzylist: ['opensea.io'],
           tolerance: 2,
           version: 0,
           lastUpdated: 1,
@@ -739,11 +1227,25 @@ describe('PhishingController', () => {
       })
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
-    const controller = getPhishingController();
+
+    nock(CLIENT_SIDE_DETECION_BASE_URL)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+      .reply(200, {
+        recentlyAdded: [],
+        recentlyRemoved: [],
+        lastFetchedAt: 1,
+      });
+
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
-    expect(controller.test('ohpensea.io')).toMatchObject({
+    expect(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl('ohpensea.io'),
+      ),
+    ).toMatchObject({
       result: true,
-      type: 'fuzzy',
+      type: PhishingDetectorResultType.Fuzzy,
       name: ListNames.MetaMask,
     });
   });
@@ -753,14 +1255,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          eth_phishing_detect_config: {
-            allowlist: ['opensea.io'],
-            blocklist: [],
-            fuzzylist: ['opensea.io'],
-          },
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: ['opensea.io'],
+          blocklist: [],
+          blocklistPaths: [],
+          fuzzylist: ['opensea.io'],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -768,13 +1266,16 @@ describe('PhishingController', () => {
       })
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
-    const controller = getPhishingController();
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
     expect(
-      controller.test('this-is-the-official-website-of-opensea.io'),
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl('this-is-the-official-website-of-opensea.io'),
+      ),
     ).toMatchObject({
       result: false,
-      type: 'all',
+      type: PhishingDetectorResultType.All,
     });
   });
 
@@ -783,14 +1284,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: ['electrum.mx'],
-            fuzzylist: [],
-          },
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [],
+          blocklist: ['electrum.mx'],
+          blocklistPaths: [],
+          fuzzylist: [],
           tolerance: 2,
           version: 0,
           lastUpdated: 1,
@@ -798,18 +1295,38 @@ describe('PhishingController', () => {
       })
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
-    const controller = getPhishingController();
+
+    nock(CLIENT_SIDE_DETECION_BASE_URL)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+      .reply(200, {
+        recentlyAdded: [],
+        recentlyRemoved: [],
+        lastFetchedAt: 1,
+      });
+
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
     const unsafeDomain = 'electrum.mx';
     assert.equal(
-      controller.test(unsafeDomain).result,
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl(unsafeDomain),
+      ).result,
       true,
       'Example unsafe domain seems to be safe',
     );
-    controller.bypass(unsafeDomain);
-    expect(controller.test(unsafeDomain)).toMatchObject({
+    rootMessenger.call(
+      'PhishingController:bypass',
+      formatHostnameToUrl(unsafeDomain),
+    );
+    expect(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl(unsafeDomain),
+      ),
+    ).toMatchObject({
       result: false,
-      type: 'all',
+      type: PhishingDetectorResultType.All,
     });
   });
 
@@ -818,14 +1335,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: ['electrum.mx'],
-            fuzzylist: [],
-          },
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [],
+          blocklist: ['electrum.mx'],
+          blocklistPaths: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -833,19 +1346,42 @@ describe('PhishingController', () => {
       })
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
-    const controller = getPhishingController();
+
+    nock(CLIENT_SIDE_DETECION_BASE_URL)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+      .reply(200, {
+        recentlyAdded: [],
+        recentlyRemoved: [],
+        lastFetchedAt: 1,
+      });
+
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
     const unsafeDomain = 'electrum.mx';
     assert.equal(
-      controller.test(unsafeDomain).result,
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl(unsafeDomain),
+      ).result,
       true,
       'Example unsafe domain seems to be safe',
     );
-    controller.bypass(unsafeDomain);
-    controller.bypass(unsafeDomain);
-    expect(controller.test(unsafeDomain)).toMatchObject({
+    rootMessenger.call(
+      'PhishingController:bypass',
+      formatHostnameToUrl(unsafeDomain),
+    );
+    rootMessenger.call(
+      'PhishingController:bypass',
+      formatHostnameToUrl(unsafeDomain),
+    );
+    expect(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl(unsafeDomain),
+      ),
+    ).toMatchObject({
       result: false,
-      type: 'all',
+      type: PhishingDetectorResultType.All,
     });
   });
 
@@ -854,14 +1390,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: ['xn--myetherallet-4k5fwn.com'],
-            fuzzylist: [],
-          },
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [],
+          blocklist: ['xn--myetherallet-4k5fwn.com'],
+          blocklistPaths: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -869,18 +1401,38 @@ describe('PhishingController', () => {
       })
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
-    const controller = getPhishingController();
+
+    nock(CLIENT_SIDE_DETECION_BASE_URL)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+      .reply(200, {
+        recentlyAdded: [],
+        recentlyRemoved: [],
+        lastFetchedAt: 1,
+      });
+
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
     const unsafeDomain = 'myetherẉalletṭ.com';
     assert.equal(
-      controller.test(unsafeDomain).result,
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl(unsafeDomain),
+      ).result,
       true,
       'Example unsafe domain seems to be safe',
     );
-    controller.bypass(unsafeDomain);
-    expect(controller.test(unsafeDomain)).toMatchObject({
+    rootMessenger.call(
+      'PhishingController:bypass',
+      formatHostnameToUrl(unsafeDomain),
+    );
+    expect(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl(unsafeDomain),
+      ),
+    ).toMatchObject({
       result: false,
-      type: 'all',
+      type: PhishingDetectorResultType.All,
     });
   });
 
@@ -889,14 +1441,10 @@ describe('PhishingController', () => {
       .get(METAMASK_STALELIST_FILE)
       .reply(200, {
         data: {
-          eth_phishing_detect_config: {
-            allowlist: [],
-            blocklist: ['xn--myetherallet-4k5fwn.com'],
-            fuzzylist: [],
-          },
-          phishfort_hotlist: {
-            blocklist: [],
-          },
+          allowlist: [],
+          blocklist: ['xn--myetherallet-4k5fwn.com'],
+          blocklistPaths: [],
+          fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
@@ -904,41 +1452,164 @@ describe('PhishingController', () => {
       })
       .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
       .reply(200, { data: [] });
-    const controller = getPhishingController();
+
+    nock(CLIENT_SIDE_DETECION_BASE_URL)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+      .reply(200, {
+        recentlyAdded: [],
+        recentlyRemoved: [],
+        lastFetchedAt: 1,
+      });
+
+    const { controller, rootMessenger } = getPhishingController();
     await controller.updateStalelist();
     const unsafeDomain = 'xn--myetherallet-4k5fwn.com';
     assert.equal(
-      controller.test(unsafeDomain).result,
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl(unsafeDomain),
+      ).result,
       true,
       'Example unsafe domain seems to be safe',
     );
-    controller.bypass(unsafeDomain);
-    expect(controller.test(unsafeDomain)).toMatchObject({
+    rootMessenger.call(
+      'PhishingController:bypass',
+      formatHostnameToUrl(unsafeDomain),
+    );
+    expect(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        formatHostnameToUrl(unsafeDomain),
+      ),
+    ).toMatchObject({
       result: false,
-      type: 'all',
+      type: PhishingDetectorResultType.All,
+    });
+  });
+
+  it('returns positive result for unsafe hostname+pathname from MetaMask config', async () => {
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_STALELIST_FILE)
+      .reply(200, {
+        data: {
+          allowlist: [],
+          blocklist: [],
+          blocklistPaths: ['example.com/path'],
+          fuzzylist: [],
+          tolerance: 0,
+          version: 0,
+          lastUpdated: 1,
+        },
+      })
+      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+      .reply(200, { data: [] });
+
+    nock(CLIENT_SIDE_DETECION_BASE_URL)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+      .reply(200, {
+        recentlyAdded: [],
+        recentlyRemoved: [],
+        lastFetchedAt: 1,
+      });
+
+    const { controller, rootMessenger } = getPhishingController();
+    await controller.updateStalelist();
+    expect(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        'https://example.com/path',
+      ),
+    ).toMatchObject({
+      result: true,
+      type: PhishingDetectorResultType.Blocklist,
+    });
+  });
+
+  it('returns negative result if the hostname+pathname is in the whitelistPaths', async () => {
+    const { rootMessenger } = getPhishingController({
+      state: {
+        phishingLists: [
+          {
+            allowlist: [],
+            blocklist: [],
+            c2DomainBlocklist: [],
+            blocklistPaths: {
+              'example.com': {
+                path: {},
+              },
+            },
+            fuzzylist: [],
+            tolerance: 0,
+            version: 0,
+            lastUpdated: 0,
+            name: ListNames.MetaMask,
+          },
+        ],
+      },
+    });
+    rootMessenger.call('PhishingController:bypass', 'https://example.com/path');
+    expect(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        'https://example.com/path',
+      ),
+    ).toMatchObject({
+      result: false,
+      type: PhishingDetectorResultType.All,
+    });
+  });
+
+  it('returns positive result even if the hostname+pathname contains percent encoding', async () => {
+    const { rootMessenger } = getPhishingController({
+      state: {
+        phishingLists: [
+          {
+            allowlist: [],
+            blocklist: [],
+            blocklistPaths: {
+              'example.com': {
+                path: {},
+              },
+            },
+            c2DomainBlocklist: [],
+            fuzzylist: [],
+            tolerance: 0,
+            version: 0,
+            lastUpdated: 0,
+            name: ListNames.MetaMask,
+          },
+        ],
+      },
+    });
+
+    expect(
+      rootMessenger.call(
+        'PhishingController:testOrigin',
+        'https://example.com/%70%61%74%68',
+      ),
+    ).toMatchObject({
+      result: true,
+      type: PhishingDetectorResultType.Blocklist,
     });
   });
 
   describe('updateStalelist', () => {
     it('should update lists with addition to hotlist', async () => {
-      sinon.useFakeTimers(2);
-      const exampleBlockedUrl = 'https://example-blocked-website.com';
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 2 });
+      const exampleBlockedUrl = 'example-blocked-website.com';
+      const exampleRequestBlockedHash =
+        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
       const exampleBlockedUrlOne =
         'https://another-example-blocked-website.com';
       nock(PHISHING_CONFIG_BASE_URL)
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
           data: {
-            eth_phishing_detect_config: {
-              allowlist: [],
-              blocklist: [exampleBlockedUrl],
-              fuzzylist: [],
-            },
-            phishfort_hotlist: {
-              blocklist: [],
-            },
-            tolerance: 0,
             allowlist: [],
+            blocklist: [exampleBlockedUrl],
+            blocklistPaths: [],
+            fuzzylist: [],
+            tolerance: 0,
             version: 0,
             lastUpdated: 1,
           },
@@ -954,47 +1625,46 @@ describe('PhishingController', () => {
           ],
         });
 
-      const controller = getPhishingController();
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, {
+          recentlyAdded: [exampleRequestBlockedHash],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const { controller } = getPhishingController();
       await controller.updateStalelist();
 
       expect(controller.state.phishingLists).toStrictEqual([
         {
           allowlist: [],
           blocklist: [exampleBlockedUrl, exampleBlockedUrlOne],
+          c2DomainBlocklist: [exampleRequestBlockedHash],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 0,
           lastUpdated: 2,
           name: ListNames.MetaMask,
           version: 0,
         },
-        {
-          allowlist: [],
-          blocklist: [],
-          fuzzylist: [],
-          tolerance: 0,
-          lastUpdated: 1,
-          name: ListNames.Phishfort,
-          version: 0,
-        },
       ]);
     });
 
     it('should update lists with removal diff from hotlist', async () => {
-      sinon.useFakeTimers(2);
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 2 });
       const exampleBlockedUrl = 'example-blocked-website.com';
+      const exampleRequestBlockedHash =
+        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
       const exampleBlockedUrlTwo = 'another-example-blocked-website.com';
       nock(PHISHING_CONFIG_BASE_URL)
         .get(METAMASK_STALELIST_FILE)
         .reply(200, {
           data: {
-            eth_phishing_detect_config: {
-              allowlist: [],
-              blocklist: [exampleBlockedUrl],
-              fuzzylist: [],
-            },
-            phishfort_hotlist: {
-              blocklist: [],
-            },
+            allowlist: [],
+            blocklist: [exampleBlockedUrl],
+            blocklistPaths: [],
+            fuzzylist: [],
             tolerance: 0,
             version: 0,
             lastUpdated: 1,
@@ -1017,27 +1687,74 @@ describe('PhishingController', () => {
           ],
         });
 
-      const controller = getPhishingController();
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, {
+          recentlyAdded: [exampleRequestBlockedHash],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const { controller } = getPhishingController();
       await controller.updateStalelist();
 
       expect(controller.state.phishingLists).toStrictEqual([
         {
           allowlist: [],
           blocklist: [exampleBlockedUrlTwo],
+          c2DomainBlocklist: [exampleRequestBlockedHash],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 2,
           name: ListNames.MetaMask,
         },
+      ]);
+    });
+
+    it('should correctly process blocklist entries with paths into blocklistPaths', async () => {
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_STALELIST_FILE)
+        .reply(200, {
+          data: {
+            allowlist: [],
+            blocklist: ['example.com'],
+            blocklistPaths: ['malicious.com/phishing'],
+            fuzzylist: [],
+            tolerance: 0,
+            version: 0,
+            lastUpdated: 1,
+          },
+        })
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .reply(200, { data: [] });
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, {
+          recentlyAdded: [],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const { controller } = getPhishingController();
+      await controller.updateStalelist();
+      expect(controller.state.phishingLists).toStrictEqual([
         {
-          blocklist: [],
           allowlist: [],
+          blocklist: ['example.com'],
+          c2DomainBlocklist: [],
+          blocklistPaths: {
+            'malicious.com': {
+              phishing: {},
+            },
+          },
           fuzzylist: [],
           tolerance: 0,
           version: 0,
           lastUpdated: 1,
-          name: ListNames.Phishfort,
+          name: ListNames.MetaMask,
         },
       ]);
     });
@@ -1049,12 +1766,14 @@ describe('PhishingController', () => {
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
         .reply(304);
 
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         state: {
           phishingLists: [
             {
               allowlist: [],
               blocklist: [],
+              c2DomainBlocklist: [],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1070,6 +1789,8 @@ describe('PhishingController', () => {
         {
           allowlist: [],
           blocklist: [],
+          c2DomainBlocklist: [],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 3,
           version: 1,
@@ -1086,12 +1807,18 @@ describe('PhishingController', () => {
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
         .reply(500);
 
-      const controller = getPhishingController({
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(500);
+
+      const { controller } = getPhishingController({
         state: {
           phishingLists: [
             {
               allowlist: [],
               blocklist: [],
+              c2DomainBlocklist: [],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1107,6 +1834,8 @@ describe('PhishingController', () => {
         {
           allowlist: [],
           blocklist: [],
+          c2DomainBlocklist: [],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 3,
           version: 1,
@@ -1123,27 +1852,29 @@ describe('PhishingController', () => {
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
         .replyWithError('network error');
 
-      const controller = getPhishingController();
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .replyWithError('network error');
+
+      const { controller } = getPhishingController();
 
       expect(await controller.updateStalelist()).toBeUndefined();
     });
 
     describe('an update is in progress', () => {
       it('should not fetch phishing lists again', async () => {
-        const clock = sinon.useFakeTimers();
+        jest.useFakeTimers({
+          doNotFake: ['nextTick', 'queueMicrotask'],
+          now: 0,
+        });
         const nockScope = nock(PHISHING_CONFIG_BASE_URL)
           .get(METAMASK_STALELIST_FILE)
           .delay(100)
           .reply(200, {
             data: {
-              eth_phishing_detect_config: {
-                allowlist: [],
-                blocklist: [],
-                fuzzylist: [],
-              },
-              phishfort_hotlist: {
-                blocklist: [],
-              },
+              allowlist: [],
+              blocklist: [],
+              fuzzylist: [],
               tolerance: 0,
               version: 0,
               lastUpdated: 1,
@@ -1153,11 +1884,11 @@ describe('PhishingController', () => {
           .delay(100)
           .reply(200, { data: [] });
 
-        const controller = getPhishingController();
+        const { controller } = getPhishingController();
         const firstPromise = controller.updateStalelist();
         const secondPromise = controller.updateStalelist();
 
-        clock.tick(1000 * 100);
+        jest.advanceTimersByTime(1000 * 100);
 
         await firstPromise;
         await secondPromise;
@@ -1168,20 +1899,18 @@ describe('PhishingController', () => {
       });
 
       it('should wait until the in-progress update has completed', async () => {
-        const clock = sinon.useFakeTimers();
+        jest.useFakeTimers({
+          doNotFake: ['nextTick', 'queueMicrotask'],
+          now: 0,
+        });
         nock(PHISHING_CONFIG_BASE_URL)
           .get(METAMASK_STALELIST_FILE)
           .delay(100)
           .reply(200, {
             data: {
-              eth_phishing_detect_config: {
-                allowlist: [],
-                blocklist: [],
-                fuzzylist: [],
-              },
-              phishfort_hotlist: {
-                blocklist: [],
-              },
+              allowlist: [],
+              blocklist: [],
+              fuzzylist: [],
               tolerance: 0,
               version: 0,
               lastUpdated: 1,
@@ -1191,10 +1920,10 @@ describe('PhishingController', () => {
           .delay(100)
           .reply(200, { data: [] });
 
-        const controller = getPhishingController();
+        const { controller } = getPhishingController();
         const firstPromise = controller.updateStalelist();
         const secondPromise = controller.updateStalelist();
-        clock.tick(1000 * 99);
+        jest.advanceTimersByTime(1000 * 99);
 
         await expect(secondPromise).toNeverResolve();
 
@@ -1219,12 +1948,14 @@ describe('PhishingController', () => {
           ],
         });
 
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         state: {
           phishingLists: [
             {
               allowlist: [],
               blocklist: [],
+              c2DomainBlocklist: [],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1240,6 +1971,8 @@ describe('PhishingController', () => {
         {
           allowlist: [],
           blocklist: [testBlockedDomain],
+          c2DomainBlocklist: [],
+          blocklistPaths: {},
           fuzzylist: [],
           tolerance: 3,
           name: ListNames.MetaMask,
@@ -1248,17 +1981,20 @@ describe('PhishingController', () => {
         },
       ]);
     });
-    it('should not update phishing lists if hotlist fetch returns 400', async () => {
+
+    it('should not update phishing lists if hotlist fetch returns 404', async () => {
       nock(PHISHING_CONFIG_BASE_URL)
         .get(`${METAMASK_HOTLIST_DIFF_FILE}/${0}`)
         .reply(404);
 
-      const controller = getPhishingController({
+      const { controller } = getPhishingController({
         state: {
           phishingLists: [
             {
               allowlist: [],
               blocklist: [],
+              c2DomainBlocklist: [],
+              blocklistPaths: {},
               fuzzylist: [],
               tolerance: 3,
               version: 1,
@@ -1277,5 +2013,3156 @@ describe('PhishingController', () => {
         },
       ]);
     });
+
+    it('should not make API calls to update hotlist when phishingLists array is empty', async () => {
+      const testBlockedDomain = 'some-test-blocked-url.com';
+      const hotlistNock = nock(PHISHING_CONFIG_BASE_URL)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${0}`)
+        .reply(200, {
+          data: [
+            {
+              targetList: 'eth_phishing_detect_config.blocklist',
+              url: testBlockedDomain,
+              timestamp: 1,
+            },
+          ],
+        });
+
+      const { controller } = getPhishingController({
+        state: {
+          phishingLists: [],
+        },
+      });
+      await controller.updateHotlist();
+
+      expect(hotlistNock.isDone()).toBe(false);
+    });
+
+    it('should handle empty hotlist and request blocklist responses gracefully', async () => {
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/0`)
+        .reply(200, { data: [] });
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .reply(200, {
+          recentlyAdded: [],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const { controller } = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              blocklistPaths: {},
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 0,
+            },
+          ],
+        },
+      });
+      await controller.updateHotlist();
+      await controller.updateC2DomainBlocklist();
+
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: [],
+          c2DomainBlocklist: [],
+          blocklistPaths: {},
+          fuzzylist: [],
+          tolerance: 3,
+          version: 1,
+          name: ListNames.MetaMask,
+          lastUpdated: 0,
+        },
+      ]);
+    });
+
+    it('should handle errors during hotlist fetching gracefully', async () => {
+      const exampleRequestBlockedHash =
+        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
+
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/0`)
+        .replyWithError('network error');
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .reply(200, {
+          recentlyAdded: [exampleRequestBlockedHash],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const { controller } = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [exampleRequestBlockedHash],
+              blocklistPaths: {},
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 1,
+            },
+          ],
+        },
+      });
+
+      await controller.updateHotlist();
+      await controller.updateC2DomainBlocklist();
+
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: [],
+          c2DomainBlocklist: [exampleRequestBlockedHash],
+          blocklistPaths: {},
+          fuzzylist: [],
+          tolerance: 3,
+          name: ListNames.MetaMask,
+          version: 1,
+          lastUpdated: 1,
+        },
+      ]);
+    });
+    it('should handle missing hotlist data and non-empty domain blocklist gracefully', async () => {
+      const exampleRequestBlockedHash =
+        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
+
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/0`)
+        .reply(500);
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .reply(200, {
+          recentlyAdded: [exampleRequestBlockedHash],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const { controller } = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              blocklistPaths: {},
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 0,
+            },
+          ],
+        },
+      });
+
+      await controller.updateHotlist();
+      await controller.updateC2DomainBlocklist();
+
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: [],
+          c2DomainBlocklist: [exampleRequestBlockedHash],
+          blocklistPaths: {},
+          fuzzylist: [],
+          tolerance: 3,
+          name: ListNames.MetaMask,
+          version: 1,
+          lastUpdated: 0,
+        },
+      ]);
+    });
+  });
+
+  describe('updateC2DomainBlocklist', () => {
+    it('should update the C2 domain blocklist if the fetch returns 200', async () => {
+      const exampleRequestBlockedHash =
+        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
+
+      // Mocking the request to the C2 domain blocklist endpoint
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .reply(200, {
+          recentlyAdded: [exampleRequestBlockedHash],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const { controller } = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              blocklistPaths: {},
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 0,
+            },
+          ],
+          c2DomainBlocklistLastFetched: 0,
+        },
+      });
+
+      await controller.updateC2DomainBlocklist();
+
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: [],
+          c2DomainBlocklist: [exampleRequestBlockedHash],
+          blocklistPaths: {},
+          fuzzylist: [],
+          tolerance: 3,
+          version: 1,
+          name: ListNames.MetaMask,
+          lastUpdated: 0,
+        },
+      ]);
+      expect(controller.state.c2DomainBlocklistLastFetched).toBeGreaterThan(0);
+    });
+
+    it('should not update the C2 domain blocklist if the fetch returns 404', async () => {
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .reply(404);
+
+      const { controller } = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              blocklistPaths: {},
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 0,
+            },
+          ],
+          c2DomainBlocklistLastFetched: 0,
+        },
+      });
+
+      await controller.updateC2DomainBlocklist();
+
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: [],
+          c2DomainBlocklist: [],
+          blocklistPaths: {},
+          fuzzylist: [],
+          tolerance: 3,
+          version: 1,
+          name: ListNames.MetaMask,
+          lastUpdated: 0,
+        },
+      ]);
+      expect(controller.state.c2DomainBlocklistLastFetched).toBe(0);
+    });
+
+    it('should update request blocklist with additions and removals', async () => {
+      const exampleRequestBlockedHash =
+        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
+      const exampleRequestBlockedHashTwo = 'd3bkcslj57l47pamplifyapp';
+
+      // Mock the request blocklist response with additions and removals
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .reply(200, {
+          recentlyAdded: [exampleRequestBlockedHash],
+          recentlyRemoved: [exampleRequestBlockedHashTwo],
+          lastFetchedAt: 1,
+        });
+
+      // Initialize the controller with an existing state
+      const { controller } = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [exampleRequestBlockedHashTwo],
+              blocklistPaths: {},
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 0,
+            },
+          ],
+        },
+      });
+
+      await controller.updateC2DomainBlocklist();
+
+      // Check the updated state
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: [],
+          c2DomainBlocklist: [exampleRequestBlockedHash],
+          blocklistPaths: {},
+          fuzzylist: [],
+          tolerance: 3,
+          name: ListNames.MetaMask,
+          version: 1,
+          lastUpdated: 0,
+        },
+      ]);
+    });
+
+    it('should handle an update that is already in progress', async () => {
+      const exampleRequestBlockedHash =
+        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .reply(200, {
+          recentlyAdded: [exampleRequestBlockedHash],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const { controller } = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              blocklistPaths: {},
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 0,
+            },
+          ],
+          c2DomainBlocklistLastFetched: 0,
+        },
+      });
+
+      const firstUpdatePromise = controller.updateC2DomainBlocklist();
+      const secondUpdatePromise = controller.updateC2DomainBlocklist();
+
+      await firstUpdatePromise;
+      await secondUpdatePromise;
+
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: [],
+          c2DomainBlocklist: [exampleRequestBlockedHash],
+          blocklistPaths: {},
+          fuzzylist: [],
+          tolerance: 3,
+          version: 1,
+          name: ListNames.MetaMask,
+          lastUpdated: 0,
+        },
+      ]);
+      expect(controller.state.c2DomainBlocklistLastFetched).toBeGreaterThan(0);
+    });
+
+    it('should handle empty recentlyAdded and recentlyRemoved in the response', async () => {
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .reply(200, {
+          recentlyAdded: [],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const { controller } = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              blocklistPaths: {},
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 0,
+            },
+          ],
+          c2DomainBlocklistLastFetched: 0,
+        },
+      });
+
+      await controller.updateC2DomainBlocklist();
+
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: [],
+          c2DomainBlocklist: [],
+          blocklistPaths: {},
+          fuzzylist: [],
+          tolerance: 3,
+          version: 1,
+          name: ListNames.MetaMask,
+          lastUpdated: 0,
+        },
+      ]);
+      expect(controller.state.c2DomainBlocklistLastFetched).toBeGreaterThan(0);
+    });
+
+    it('should handle errors during C2 domain blocklist fetching gracefully', async () => {
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(`${C2_DOMAIN_BLOCKLIST_ENDPOINT}?timestamp=0`)
+        .replyWithError('network error');
+
+      const { controller } = getPhishingController({
+        state: {
+          phishingLists: [
+            {
+              allowlist: [],
+              blocklist: [],
+              c2DomainBlocklist: [],
+              blocklistPaths: {},
+              fuzzylist: [],
+              tolerance: 3,
+              version: 1,
+              name: ListNames.MetaMask,
+              lastUpdated: 0,
+            },
+          ],
+          c2DomainBlocklistLastFetched: 0,
+        },
+      });
+
+      await controller.updateC2DomainBlocklist();
+
+      expect(controller.state.phishingLists).toStrictEqual([
+        {
+          allowlist: [],
+          blocklist: [],
+          c2DomainBlocklist: [],
+          blocklistPaths: {},
+          fuzzylist: [],
+          tolerance: 3,
+          version: 1,
+          name: ListNames.MetaMask,
+          lastUpdated: 0,
+        },
+      ]);
+      expect(controller.state.c2DomainBlocklistLastFetched).toBe(0);
+    });
+  });
+
+  describe('PhishingController - isBlockedRequest', () => {
+    afterEach(() => {
+      cleanAll();
+    });
+
+    it('should return false if c2DomainBlocklist is not defined or empty', async () => {
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_STALELIST_FILE)
+        .reply(200, {
+          data: {
+            allowlist: [],
+            blocklist: [],
+            fuzzylist: [],
+            tolerance: 0,
+            version: 0,
+            lastUpdated: 1,
+          },
+        })
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .reply(200, { data: [] });
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, {
+          recentlyAdded: [],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const { controller, rootMessenger } = getPhishingController();
+      await controller.updateStalelist();
+      const result = rootMessenger.call(
+        'PhishingController:isBlockedRequest',
+        'https://example.com',
+      );
+      expect(result).toMatchObject({
+        result: false,
+        type: PhishingDetectorResultType.C2DomainBlocklist,
+      });
+    });
+
+    it('should return true if URL is in the c2DomainBlocklist', async () => {
+      const exampleRequestBlockedHash =
+        '0415f1f12f07ddc4ef7e229da747c6c53a6a6474fbaf295a35d984ec0ece9455';
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_STALELIST_FILE)
+        .reply(200, {
+          data: {
+            allowlist: [],
+            blocklist: [],
+            fuzzylist: [],
+            tolerance: 0,
+            version: 0,
+            lastUpdated: 1,
+          },
+        })
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .reply(200, { data: [] });
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, {
+          recentlyAdded: [exampleRequestBlockedHash],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const { controller, rootMessenger } = getPhishingController();
+      await controller.updateStalelist();
+      const result = rootMessenger.call(
+        'PhishingController:isBlockedRequest',
+        'https://develop.d3bkcslj57l47p.amplifyapp.com',
+      );
+      expect(result).toMatchObject({
+        name: ListNames.MetaMask,
+        result: true,
+        type: PhishingDetectorResultType.C2DomainBlocklist,
+      });
+    });
+
+    it('should return false if URL is not in the c2DomainBlocklist', async () => {
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_STALELIST_FILE)
+        .reply(200, {
+          data: {
+            allowlist: [],
+            blocklist: [],
+            fuzzylist: [],
+            tolerance: 0,
+            version: 0,
+            lastUpdated: 1,
+          },
+        })
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .reply(200, { data: [] });
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, {
+          recentlyAdded: [],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const { controller, rootMessenger } = getPhishingController();
+      await controller.updateStalelist();
+      const result = rootMessenger.call(
+        'PhishingController:isBlockedRequest',
+        'https://example.com',
+      );
+      expect(result).toMatchObject({
+        result: false,
+        type: PhishingDetectorResultType.C2DomainBlocklist,
+      });
+    });
+
+    it('should return false if URL is invalid', async () => {
+      nock(PHISHING_CONFIG_BASE_URL)
+        .get(METAMASK_STALELIST_FILE)
+        .reply(200, {
+          data: {
+            allowlist: [],
+            blocklist: [],
+            fuzzylist: [],
+            tolerance: 0,
+            version: 0,
+            lastUpdated: 1,
+          },
+        })
+        .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+        .reply(200, { data: [] });
+
+      nock(CLIENT_SIDE_DETECION_BASE_URL)
+        .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+        .reply(200, {
+          recentlyAdded: [],
+          recentlyRemoved: [],
+          lastFetchedAt: 1,
+        });
+
+      const { controller, rootMessenger } = getPhishingController();
+      await controller.updateStalelist();
+      const result = rootMessenger.call(
+        'PhishingController:isBlockedRequest',
+        '#$@(%&@#$(%',
+      );
+      expect(result).toMatchObject({
+        result: false,
+        type: PhishingDetectorResultType.C2DomainBlocklist,
+      });
+    });
+  });
+  it('isBlockedRequest - should return false if the URL is in the whitelist', async () => {
+    const whitelistedHostname = 'example.com';
+
+    const { rootMessenger } = getPhishingController();
+    rootMessenger.call(
+      'PhishingController:bypass',
+      formatHostnameToUrl(whitelistedHostname),
+    );
+    const result = rootMessenger.call(
+      'PhishingController:isBlockedRequest',
+      `https://${whitelistedHostname}/path`,
+    );
+
+    expect(result).toMatchObject({
+      result: false,
+      type: PhishingDetectorResultType.All,
+    });
+  });
+  it('isBlockedRequest - should return false if the URL is in the allowlist', async () => {
+    const allowlistedDomain = 'example.com';
+
+    nock(PHISHING_CONFIG_BASE_URL)
+      .get(METAMASK_STALELIST_FILE)
+      .reply(200, {
+        data: {
+          allowlist: [allowlistedDomain],
+          blocklist: [],
+          blocklistPaths: [],
+          fuzzylist: [],
+          tolerance: 0,
+          version: 0,
+          lastUpdated: 1,
+        },
+      })
+      .get(`${METAMASK_HOTLIST_DIFF_FILE}/${1}`)
+      .reply(200, { data: [] });
+
+    nock(CLIENT_SIDE_DETECION_BASE_URL)
+      .get(C2_DOMAIN_BLOCKLIST_ENDPOINT)
+      .reply(200, {
+        recentlyAdded: [],
+        recentlyRemoved: [],
+        lastFetchedAt: 1,
+      });
+
+    const { controller, rootMessenger } = getPhishingController();
+    await controller.updateStalelist();
+    const result = rootMessenger.call(
+      'PhishingController:isBlockedRequest',
+      `https://${allowlistedDomain}/path`,
+    );
+
+    expect(result).toMatchObject({
+      result: false,
+      type: PhishingDetectorResultType.Allowlist,
+    });
+  });
+  describe('bypass', () => {
+    let controller: PhishingController;
+    let rootMessenger: RootMessenger;
+
+    beforeEach(() => {
+      const { controller: createdController, rootMessenger: createdMessenger } =
+        getPhishingController({
+          state: {
+            phishingLists: [
+              {
+                allowlist: [],
+                blocklist: [],
+                c2DomainBlocklist: [],
+                blocklistPaths: {
+                  'example.com': {
+                    path: {},
+                  },
+                  'sub.example.com': {
+                    path1: {
+                      path2: {},
+                    },
+                  },
+                },
+                fuzzylist: [],
+                tolerance: 0,
+                version: 0,
+                lastUpdated: 0,
+                name: ListNames.MetaMask,
+              },
+            ],
+            whitelistPaths: {},
+          },
+        });
+
+      controller = createdController;
+      rootMessenger = createdMessenger;
+    });
+
+    describe('whitelist', () => {
+      it('should do nothing if the origin is already in the whitelist', () => {
+        const origin = 'https://example.com';
+        const hostname = getHostnameFromUrl(origin);
+
+        // Call the bypass function
+        rootMessenger.call('PhishingController:bypass', origin);
+        rootMessenger.call('PhishingController:bypass', origin);
+
+        // Verify that the whitelist has not changed
+        expect(controller.state.whitelist).toContain(hostname);
+        expect(controller.state.whitelist).toHaveLength(1); // No duplicates added
+        expect(Object.keys(controller.state.whitelistPaths)).toHaveLength(0);
+      });
+
+      it('should add the origin to the whitelist if not already present', () => {
+        const origin = 'https://newsite.com';
+        const hostname = getHostnameFromUrl(origin);
+
+        // Call the bypass function
+        rootMessenger.call('PhishingController:bypass', origin);
+
+        // Verify that the whitelist now includes the new origin
+        expect(controller.state.whitelist).toContain(hostname);
+        expect(controller.state.whitelist).toHaveLength(1);
+        expect(Object.keys(controller.state.whitelistPaths)).toHaveLength(0);
+      });
+
+      it('should add punycode origins to the whitelist if not already present', () => {
+        const punycodeOrigin = 'xn--fsq.com'; // Example punycode domain
+
+        // Call the bypass function
+        rootMessenger.call('PhishingController:bypass', punycodeOrigin);
+
+        // Verify that the whitelist now includes the punycode origin
+        expect(controller.state.whitelist).toContain(punycodeOrigin);
+        expect(controller.state.whitelist).toHaveLength(1);
+        expect(Object.keys(controller.state.whitelistPaths)).toHaveLength(0);
+      });
+    });
+
+    describe('whitelistPaths', () => {
+      it('adds the matched path prefix within blocklistPaths to the whitelistPaths', () => {
+        const origin = 'https://sub.example.com/path1/path2/path3';
+        rootMessenger.call('PhishingController:bypass', origin);
+
+        expect(controller.state.whitelistPaths).toStrictEqual({
+          'sub.example.com': {
+            path1: {
+              path2: {},
+            },
+          },
+        });
+        expect(controller.state.whitelist).toHaveLength(0);
+      });
+
+      it('does not add if a matched path prefix is not present', () => {
+        const origin = 'https://sub.example.com/path1/path3';
+        rootMessenger.call('PhishingController:bypass', origin);
+
+        expect(controller.state.whitelistPaths).toStrictEqual({});
+        expect(controller.state.whitelist).toStrictEqual(['sub.example.com']);
+      });
+
+      it('idempotent', () => {
+        const origin = 'https://example.com/path';
+        rootMessenger.call('PhishingController:bypass', origin);
+        rootMessenger.call('PhishingController:bypass', origin);
+
+        expect(controller.state.whitelistPaths).toStrictEqual({
+          'example.com': {
+            path: {},
+          },
+        });
+        expect(controller.state.whitelist).toHaveLength(0);
+      });
+
+      it('if the pathname contains percent encoding, it is added decoded', () => {
+        const origin = 'https://example.com/%70%61%74%68';
+        rootMessenger.call('PhishingController:bypass', origin);
+
+        expect(controller.state.whitelistPaths).toStrictEqual({
+          'example.com': {
+            path: {},
+          },
+        });
+      });
+    });
+  });
+
+  describe('scanUrl', () => {
+    let rootMessenger: RootMessenger;
+
+    const testUrl: string = 'https://example.com';
+    const mockResponse: PhishingDetectionScanResult = {
+      hostname: 'example.com',
+      recommendedAction: RecommendedAction.None,
+    };
+
+    beforeEach(() => {
+      const { rootMessenger: createdMessenger } = getPhishingController();
+
+      rootMessenger = createdMessenger;
+
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+    });
+
+    it('should return the scan result', async () => {
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: 'example.com' })
+        .reply(200, mockResponse);
+
+      const response = await rootMessenger.call(
+        'PhishingController:scanUrl',
+        testUrl,
+      );
+      expect(response).toMatchObject(mockResponse);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it.each([
+      [400, 'Bad Request'],
+      [401, 'Unauthorized'],
+      [403, 'Forbidden'],
+      [404, 'Not Found'],
+      [500, 'Internal Server Error'],
+      [502, 'Bad Gateway'],
+      [503, 'Service Unavailable'],
+      [504, 'Gateway Timeout'],
+    ])(
+      'should return a PhishingDetectionScanResult with a fetchError on %i status code',
+      async (statusCode, statusText) => {
+        const scope = nock(PHISHING_DETECTION_BASE_URL)
+          .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+          .query({ url: 'example.com' })
+          .reply(statusCode);
+
+        const response = await rootMessenger.call(
+          'PhishingController:scanUrl',
+          testUrl,
+        );
+        expect(response).toMatchObject({
+          hostname: '',
+          recommendedAction: RecommendedAction.None,
+          fetchError: `${statusCode} ${statusText}`,
+        });
+        expect(scope.isDone()).toBe(true);
+      },
+    );
+
+    it('should return a PhishingDetectionScanResult with a fetchError on timeout', async () => {
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: 'example.com' })
+        .delayConnection(10000)
+        .reply(200, {});
+
+      const promise = rootMessenger.call('PhishingController:scanUrl', testUrl);
+      jest.advanceTimersByTime(8000);
+      const response = await promise;
+      expect(response).toMatchObject({
+        hostname: '',
+        recommendedAction: RecommendedAction.None,
+        fetchError: 'timeout of 8000ms exceeded',
+      });
+      expect(scope.isDone()).toBe(false);
+    });
+
+    it('should only send hostname when URL contains query parameters', async () => {
+      const urlWithQuery =
+        'https://example.com/path?param1=value1&param2=value2';
+      const expectedHostname = 'example.com';
+
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: expectedHostname })
+        .reply(200, mockResponse);
+
+      const response = await rootMessenger.call(
+        'PhishingController:scanUrl',
+        urlWithQuery,
+      );
+      expect(response).toMatchObject(mockResponse);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('should only send hostname when URL contains hash fragments', async () => {
+      const urlWithHash = 'https://example.com/page#section1';
+      const expectedHostname = 'example.com';
+
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: expectedHostname })
+        .reply(200, mockResponse);
+
+      const response = await rootMessenger.call(
+        'PhishingController:scanUrl',
+        urlWithHash,
+      );
+      expect(response).toMatchObject(mockResponse);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('should only send hostname for complex URLs with multiple parameters', async () => {
+      const complexUrl =
+        'https://sub.example.com:8080/path/to/page?q=search&utm_source=test#top';
+      const expectedHostname = 'sub.example.com';
+
+      const subdomainResponse = {
+        ...mockResponse,
+        hostname: 'sub.example.com',
+      };
+
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: expectedHostname })
+        .reply(200, subdomainResponse);
+
+      const response = await rootMessenger.call(
+        'PhishingController:scanUrl',
+        complexUrl,
+      );
+      expect(response).toMatchObject(subdomainResponse);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('should return a PhishingDetectionScanResult with a fetchError on invalid URLs', async () => {
+      const invalidUrls = [
+        'not-a-url',
+        'http://',
+        'https://',
+        'example',
+        'http://.',
+        'http://..',
+        'http://../',
+        'http://?',
+        'http://??',
+        'http://??/',
+        'http://#',
+        'http://##',
+        'http://##/',
+        'chrome://extensions',
+        'file://some_file.pdf',
+        'about:blank',
+      ];
+
+      for (const invalidUrl of invalidUrls) {
+        const response = await rootMessenger.call(
+          'PhishingController:scanUrl',
+          invalidUrl,
+        );
+        expect(response).toMatchObject({
+          hostname: '',
+          recommendedAction: RecommendedAction.None,
+          fetchError: 'url is not a valid web URL',
+        });
+      }
+    });
+
+    it('should handle URLs with authentication parameters correctly', async () => {
+      const urlWithAuth = 'https://user:pass@example.com/secure';
+      const expectedHostname = 'example.com';
+
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: expectedHostname })
+        .reply(200, mockResponse);
+
+      const response = await rootMessenger.call(
+        'PhishingController:scanUrl',
+        urlWithAuth,
+      );
+      expect(response).toMatchObject(mockResponse);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('should send hostname and path for path-based gateways and cache per path', async () => {
+      const urlA = 'https://ipfs.io/ipfs/QmAAA';
+      const urlB = 'https://ipfs.io/ipfs/QmBBB';
+
+      const scopeA = nock(PHISHING_DETECTION_BASE_URL)
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: 'ipfs.io/ipfs/QmAAA' })
+        .reply(200, {
+          recommendedAction: RecommendedAction.Warn,
+        });
+
+      const scopeB = nock(PHISHING_DETECTION_BASE_URL)
+        .get(`/${PHISHING_DETECTION_SCAN_ENDPOINT}`)
+        .query({ url: 'ipfs.io/ipfs/QmBBB' })
+        .reply(200, {
+          recommendedAction: RecommendedAction.Block,
+        });
+
+      const fetchSpy = jest.spyOn(global, 'fetch');
+
+      const resultA1 = await rootMessenger.call(
+        'PhishingController:scanUrl',
+        urlA,
+      );
+      const resultB = await rootMessenger.call(
+        'PhishingController:scanUrl',
+        urlB,
+      );
+      const resultA2 = await rootMessenger.call(
+        'PhishingController:scanUrl',
+        urlA,
+      );
+
+      expect(resultA1).toMatchObject({
+        hostname: 'ipfs.io',
+        recommendedAction: RecommendedAction.Warn,
+      });
+      expect(resultB).toMatchObject({
+        hostname: 'ipfs.io',
+        recommendedAction: RecommendedAction.Block,
+      });
+      expect(resultA2).toStrictEqual(resultA1);
+
+      expect(scopeA.isDone()).toBe(true);
+      expect(scopeB.isDone()).toBe(true);
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+
+      fetchSpy.mockRestore();
+    });
+  });
+
+  describe('bulkScanUrls', () => {
+    let rootMessenger: RootMessenger;
+
+    const testUrls: string[] = [
+      'https://example1.com',
+      'https://example2.com',
+      'https://example3.com',
+    ];
+    const mockResponse: BulkPhishingDetectionScanResponse = {
+      results: {
+        'https://example1.com': {
+          hostname: 'example1.com',
+          recommendedAction: RecommendedAction.None,
+        },
+        'https://example2.com': {
+          hostname: 'example2.com',
+          recommendedAction: RecommendedAction.Block,
+        },
+        'https://example3.com': {
+          hostname: 'example3.com',
+          recommendedAction: RecommendedAction.None,
+        },
+      },
+      errors: {},
+    };
+
+    beforeEach(() => {
+      const { rootMessenger: createdMessenger } = getPhishingController();
+
+      rootMessenger = createdMessenger;
+
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('should return the scan results for multiple URLs', async () => {
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: testUrls,
+        })
+        .reply(200, mockResponse);
+
+      const response = await rootMessenger.call(
+        'PhishingController:bulkScanUrls',
+        testUrls,
+      );
+      expect(response).toStrictEqual(mockResponse);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('should handle empty URL arrays', async () => {
+      const response = await rootMessenger.call(
+        'PhishingController:bulkScanUrls',
+        [],
+      );
+      expect(response).toStrictEqual({
+        results: {},
+        errors: {},
+      });
+    });
+
+    it('should enforce maximum URL limit', async () => {
+      const tooManyUrls = Array(251).fill('https://example.com');
+      const response = await rootMessenger.call(
+        'PhishingController:bulkScanUrls',
+        tooManyUrls,
+      );
+      expect(response).toStrictEqual({
+        results: {},
+        errors: {
+          too_many_urls: ['Maximum of 250 URLs allowed per request'],
+        },
+      });
+    });
+
+    it('should validate URL length', async () => {
+      const longUrl = `https://example.com/${'a'.repeat(2048)}`;
+      const response = await rootMessenger.call(
+        'PhishingController:bulkScanUrls',
+        [longUrl],
+      );
+      expect(response).toStrictEqual({
+        results: {},
+        errors: {
+          [longUrl]: ['URL length must not exceed 2048 characters'],
+        },
+      });
+    });
+
+    it.each([
+      [400, 'Bad Request'],
+      [401, 'Unauthorized'],
+      [403, 'Forbidden'],
+      [404, 'Not Found'],
+      [500, 'Internal Server Error'],
+      [502, 'Bad Gateway'],
+      [503, 'Service Unavailable'],
+      [504, 'Gateway Timeout'],
+    ])(
+      'should return an error response on %i status code',
+      async (statusCode, statusText) => {
+        const scope = nock(PHISHING_DETECTION_BASE_URL)
+          .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+            urls: testUrls,
+          })
+          .reply(statusCode);
+
+        const response = await rootMessenger.call(
+          'PhishingController:bulkScanUrls',
+          testUrls,
+        );
+        expect(response).toStrictEqual({
+          results: {},
+          errors: {
+            api_error: [`${statusCode} ${statusText}`],
+          },
+        });
+        expect(scope.isDone()).toBe(true);
+      },
+    );
+
+    it('should handle timeouts correctly', async () => {
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: testUrls,
+        })
+        .delayConnection(20000)
+        .reply(200, {});
+
+      const promise = rootMessenger.call(
+        'PhishingController:bulkScanUrls',
+        testUrls,
+      );
+      jest.advanceTimersByTime(15000);
+      const response = await promise;
+      expect(response).toStrictEqual({
+        results: {},
+        errors: {
+          network_error: ['timeout of 15000ms exceeded'],
+        },
+      });
+      expect(scope.isDone()).toBe(false);
+    });
+
+    it('should process URLs in batches when more than 50 URLs are provided', async () => {
+      const batchSize = 50;
+      const totalUrls = 120;
+      const manyUrls = Array(totalUrls)
+        .fill(0)
+        .map((_, i) => `https://example${i}.com`);
+
+      // Expected batches
+      const batch1 = manyUrls.slice(0, batchSize);
+      const batch2 = manyUrls.slice(batchSize, 2 * batchSize);
+      const batch3 = manyUrls.slice(2 * batchSize);
+
+      // Mock responses for each batch
+      const mockBatch1Response: BulkPhishingDetectionScanResponse = {
+        results: batch1.reduce<Record<string, PhishingDetectionScanResult>>(
+          (acc, url) => {
+            acc[url] = {
+              hostname: url.replace('https://', ''),
+              recommendedAction: RecommendedAction.None,
+            };
+            return acc;
+          },
+          {},
+        ),
+        errors: {},
+      };
+
+      const mockBatch2Response: BulkPhishingDetectionScanResponse = {
+        results: batch2.reduce<Record<string, PhishingDetectionScanResult>>(
+          (acc, url) => {
+            acc[url] = {
+              hostname: url.replace('https://', ''),
+              recommendedAction: RecommendedAction.None,
+            };
+            return acc;
+          },
+          {},
+        ),
+        errors: {},
+      };
+
+      const mockBatch3Response: BulkPhishingDetectionScanResponse = {
+        results: batch3.reduce<Record<string, PhishingDetectionScanResult>>(
+          (acc, url) => {
+            acc[url] = {
+              hostname: url.replace('https://', ''),
+              recommendedAction: RecommendedAction.None,
+            };
+            return acc;
+          },
+          {},
+        ),
+        errors: {},
+      };
+
+      // Setup nock to handle all three batch requests
+      const scope1 = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: batch1,
+        })
+        .reply(200, mockBatch1Response);
+
+      const scope2 = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: batch2,
+        })
+        .reply(200, mockBatch2Response);
+
+      const scope3 = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: batch3,
+        })
+        .reply(200, mockBatch3Response);
+
+      const response = await rootMessenger.call(
+        'PhishingController:bulkScanUrls',
+        manyUrls,
+      );
+
+      // Verify all scopes were called
+      expect(scope1.isDone()).toBe(true);
+      expect(scope2.isDone()).toBe(true);
+      expect(scope3.isDone()).toBe(true);
+
+      // Check all results were merged correctly
+      const combinedResults = {
+        ...mockBatch1Response.results,
+        ...mockBatch2Response.results,
+        ...mockBatch3Response.results,
+      };
+
+      expect(Object.keys(response.results)).toHaveLength(totalUrls);
+      expect(response.results).toStrictEqual(combinedResults);
+    });
+
+    it('should handle mixed results with both successful scans and errors', async () => {
+      const mixedResponse: BulkPhishingDetectionScanResponse = {
+        results: {
+          'https://example1.com': {
+            hostname: 'example1.com',
+            recommendedAction: RecommendedAction.None,
+          },
+        },
+        errors: {
+          'https://example2.com': ['Failed to process URL'],
+          'https://example3.com': ['Domain not found'],
+        },
+      };
+
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: testUrls,
+        })
+        .reply(200, mixedResponse);
+
+      const response = await rootMessenger.call(
+        'PhishingController:bulkScanUrls',
+        testUrls,
+      );
+      expect(response).toStrictEqual(mixedResponse);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('should have error merging issues when multiple batches return errors with the same key', async () => {
+      // Create enough URLs to need two batches (over 50)
+      const batchSize = 50;
+      const totalUrls = 100;
+      const manyUrls = Array(totalUrls)
+        .fill(0)
+        .map((_, i) => `https://example${i}.com`);
+
+      // The URLs will be split into two batches
+      const batch1 = manyUrls.slice(0, batchSize);
+      const batch2 = manyUrls.slice(batchSize);
+
+      // Setup nock to handle both batch requests with different error responses
+      const scope1 = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: batch1,
+        })
+        .reply(404, { error: 'Not Found' });
+
+      const scope2 = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: batch2,
+        })
+        .reply(500, { error: 'Internal Server Error' });
+
+      const response = await rootMessenger.call(
+        'PhishingController:bulkScanUrls',
+        manyUrls,
+      );
+
+      expect(scope1.isDone()).toBe(true);
+      expect(scope2.isDone()).toBe(true);
+
+      // With the fixed implementation, we should now preserve all errors
+      expect(response.errors).toHaveProperty('api_error');
+      expect(response.errors.api_error).toHaveLength(2);
+      expect(response.errors.api_error).toContain('404 Not Found');
+      expect(response.errors.api_error).toContain('500 Internal Server Error');
+    });
+
+    it('should use cached results for previously scanned URLs and only fetch uncached URLs', async () => {
+      const cachedUrl = 'https://cached-example.com';
+      const uncachedUrl = 'https://uncached-example.com';
+      const mixedUrls = [cachedUrl, uncachedUrl];
+
+      // Set up the cache with a pre-existing result
+      const cachedResult: PhishingDetectionScanResult = {
+        hostname: 'cached-example.com',
+        recommendedAction: RecommendedAction.None,
+      };
+
+      // First cache a result via scanUrl
+      nock(PHISHING_DETECTION_BASE_URL)
+        .get(
+          `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
+            'cached-example.com',
+          )}`,
+        )
+        .reply(200, {
+          recommendedAction: RecommendedAction.None,
+        });
+
+      await rootMessenger.call('PhishingController:scanUrl', cachedUrl);
+
+      // Now set up the mock for the bulk API call with only the uncached URL
+      const expectedPostBody = {
+        urls: [uncachedUrl],
+      };
+
+      const bulkApiResponse: BulkPhishingDetectionScanResponse = {
+        results: {
+          [uncachedUrl]: {
+            hostname: 'uncached-example.com',
+            recommendedAction: RecommendedAction.Warn,
+          },
+        },
+        errors: {},
+      };
+
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, expectedPostBody)
+        .reply(200, bulkApiResponse);
+
+      // Call bulkScanUrls with both URLs
+      const response = await rootMessenger.call(
+        'PhishingController:bulkScanUrls',
+        mixedUrls,
+      );
+
+      // Verify that only the uncached URL was requested from the API
+      expect(scope.isDone()).toBe(true);
+
+      // Verify the combined results include both the cached and newly fetched results
+      expect(response.results).toStrictEqual({
+        [cachedUrl]: cachedResult,
+        [uncachedUrl]: bulkApiResponse.results[uncachedUrl],
+      });
+
+      // Verify the newly fetched result is now in the cache
+      const newlyCachedResult = await rootMessenger.call(
+        'PhishingController:scanUrl',
+        uncachedUrl,
+      );
+      expect(newlyCachedResult).toStrictEqual(
+        bulkApiResponse.results[uncachedUrl],
+      );
+
+      // Should not make a new API call for the second scanUrl call
+      // eslint-disable-next-line import-x/no-named-as-default-member
+      expect(nock.pendingMocks()).toHaveLength(0);
+    });
+    it('should handle invalid URLs properly when mixed with valid URLs and cache results correctly', async () => {
+      const validUrl = 'https://valid-example.com';
+      const invalidUrl = 'not-a-url';
+      const mixedUrls = [validUrl, invalidUrl];
+
+      const bulkApiResponse: BulkPhishingDetectionScanResponse = {
+        results: {
+          [validUrl]: {
+            hostname: 'valid-example.com',
+            recommendedAction: RecommendedAction.None,
+          },
+        },
+        errors: {},
+      };
+
+      const scope = nock(PHISHING_DETECTION_BASE_URL)
+        .post(`/${PHISHING_DETECTION_BULK_SCAN_ENDPOINT}`, {
+          urls: [validUrl],
+        })
+        .reply(200, bulkApiResponse);
+
+      // Call bulkScanUrls with both URLs
+      const response = await rootMessenger.call(
+        'PhishingController:bulkScanUrls',
+        mixedUrls,
+      );
+
+      // Verify that only the valid URL was requested from the API
+      expect(scope.isDone()).toBe(true);
+
+      // Verify the results include the valid URL result and an error for the invalid URL
+      expect(response.results[validUrl]).toStrictEqual(
+        bulkApiResponse.results[validUrl],
+      );
+      expect(response.errors[invalidUrl]).toContain(
+        'url is not a valid web URL',
+      );
+
+      // Verify the valid result is now in the cache
+      const cachedResult = await rootMessenger.call(
+        'PhishingController:scanUrl',
+        validUrl,
+      );
+      expect(cachedResult).toStrictEqual(bulkApiResponse.results[validUrl]);
+
+      // Should not make a new API call for the cached URL
+      // eslint-disable-next-line import-x/no-named-as-default-member
+      expect(nock.pendingMocks()).toHaveLength(0);
+    });
+
+    it('should use cache for all URLs if all are already cached', async () => {
+      // First cache the results individually
+      const cachedUrls = ['https://domain1.com', 'https://domain2.com'];
+      const cachedResults = [
+        {
+          hostname: 'domain1.com',
+          recommendedAction: RecommendedAction.None,
+        },
+        {
+          hostname: 'domain2.com',
+          recommendedAction: RecommendedAction.Block,
+        },
+      ];
+
+      // Set up nock for individual caching
+      nock(PHISHING_DETECTION_BASE_URL)
+        .get(
+          `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
+            'domain1.com',
+          )}`,
+        )
+        .reply(200, {
+          recommendedAction: RecommendedAction.None,
+        });
+
+      nock(PHISHING_DETECTION_BASE_URL)
+        .get(
+          `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
+            'domain2.com',
+          )}`,
+        )
+        .reply(200, {
+          recommendedAction: RecommendedAction.Block,
+        });
+
+      // Cache the results
+      await rootMessenger.call('PhishingController:scanUrl', cachedUrls[0]);
+      await rootMessenger.call('PhishingController:scanUrl', cachedUrls[1]);
+
+      // No API call should be made for bulkScanUrls
+      const response = await rootMessenger.call(
+        'PhishingController:bulkScanUrls',
+        cachedUrls,
+      );
+
+      // Verify we got the results from cache
+      expect(response.results[cachedUrls[0]]).toStrictEqual(cachedResults[0]);
+      expect(response.results[cachedUrls[1]]).toStrictEqual(cachedResults[1]);
+
+      // Verify no API calls were made
+      // eslint-disable-next-line import-x/no-named-as-default-member
+      expect(nock.pendingMocks()).toHaveLength(0);
+    });
+  });
+
+  describe('scanAddress', () => {
+    let rootMessenger: RootMessenger;
+
+    const testChainId = '0x1';
+    const testAddress = '0x1234567890123456789012345678901234567890';
+    const mockResponse: AddressScanResult = {
+      result_type: AddressScanResultType.Benign,
+      label: '',
+    };
+
+    beforeEach(() => {
+      const { rootMessenger: createdMessenger } = getPhishingController();
+
+      rootMessenger = createdMessenger;
+
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('will return the scan result for a valid address', async () => {
+      const scope = nock(SECURITY_ALERTS_BASE_URL)
+        .post(ADDRESS_SCAN_ENDPOINT, {
+          chain: 'ethereum',
+          address: testAddress.toLowerCase(),
+        })
+        .reply(200, mockResponse);
+
+      const response = await rootMessenger.call(
+        'PhishingController:scanAddress',
+        testChainId,
+        testAddress,
+      );
+      expect(response).toMatchObject(mockResponse);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it.each([
+      [400, 'Bad Request'],
+      [401, 'Unauthorized'],
+      [403, 'Forbidden'],
+      [404, 'Not Found'],
+      [500, 'Internal Server Error'],
+      [502, 'Bad Gateway'],
+      [503, 'Service Unavailable'],
+      [504, 'Gateway Timeout'],
+    ])(
+      'will return an AddressScanResult with an ErrorResult on %i status code',
+      async (statusCode) => {
+        const scope = nock(SECURITY_ALERTS_BASE_URL)
+          .post(ADDRESS_SCAN_ENDPOINT, {
+            chain: 'ethereum',
+            address: testAddress.toLowerCase(),
+          })
+          .reply(statusCode);
+
+        const response = await rootMessenger.call(
+          'PhishingController:scanAddress',
+          testChainId,
+          testAddress,
+        );
+        expect(response).toMatchObject({
+          result_type: AddressScanResultType.ErrorResult,
+          label: '',
+        });
+        expect(scope.isDone()).toBe(true);
+      },
+    );
+
+    it('will return an AddressScanResult with an ErrorResult on timeout', async () => {
+      const scope = nock(SECURITY_ALERTS_BASE_URL)
+        .post(ADDRESS_SCAN_ENDPOINT, {
+          chain: 'ethereum',
+          address: testAddress.toLowerCase(),
+        })
+        .delayConnection(10000)
+        .reply(200, {});
+
+      const promise = rootMessenger.call(
+        'PhishingController:scanAddress',
+        testChainId,
+        testAddress,
+      );
+      jest.advanceTimersByTime(5000);
+      const response = await promise;
+      expect(response).toMatchObject({
+        result_type: AddressScanResultType.ErrorResult,
+        label: '',
+      });
+      expect(scope.isDone()).toBe(false);
+    });
+
+    it('will return an AddressScanResult with an ErrorResult when address is missing', async () => {
+      const response = await rootMessenger.call(
+        'PhishingController:scanAddress',
+        testChainId,
+        '',
+      );
+      expect(response).toMatchObject({
+        result_type: AddressScanResultType.ErrorResult,
+        label: '',
+      });
+    });
+
+    it('will return an AddressScanResult with an ErrorResult when chain ID is unknown', async () => {
+      const unknownChainId = '0x999999';
+      const response = await rootMessenger.call(
+        'PhishingController:scanAddress',
+        unknownChainId,
+        testAddress,
+      );
+      expect(response).toMatchObject({
+        result_type: AddressScanResultType.ErrorResult,
+        label: '',
+      });
+    });
+
+    it('will normalize address to lowercase', async () => {
+      const mixedCaseAddress = '0xAbCdEf1234567890123456789012345678901234';
+      const scope = nock(SECURITY_ALERTS_BASE_URL)
+        .post(ADDRESS_SCAN_ENDPOINT, {
+          chain: 'ethereum',
+          address: mixedCaseAddress.toLowerCase(),
+        })
+        .reply(200, mockResponse);
+
+      const response = await rootMessenger.call(
+        'PhishingController:scanAddress',
+        testChainId,
+        mixedCaseAddress,
+      );
+      expect(response).toMatchObject(mockResponse);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('will normalize chain ID to lowercase', async () => {
+      const mixedCaseChainId = '0xA';
+      const scope = nock(SECURITY_ALERTS_BASE_URL)
+        .post(ADDRESS_SCAN_ENDPOINT, {
+          chain: 'optimism',
+          address: testAddress.toLowerCase(),
+        })
+        .reply(200, mockResponse);
+
+      const response = await rootMessenger.call(
+        'PhishingController:scanAddress',
+        mixedCaseChainId,
+        testAddress,
+      );
+      expect(response).toMatchObject(mockResponse);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('will cache scan results and return them on subsequent calls', async () => {
+      const fetchSpy = jest.spyOn(global, 'fetch');
+
+      const scope = nock(SECURITY_ALERTS_BASE_URL)
+        .post(ADDRESS_SCAN_ENDPOINT, {
+          chain: 'ethereum',
+          address: testAddress.toLowerCase(),
+        })
+        .reply(200, mockResponse);
+
+      const result1 = await rootMessenger.call(
+        'PhishingController:scanAddress',
+        testChainId,
+        testAddress,
+      );
+      expect(result1).toMatchObject(mockResponse);
+
+      const result2 = await rootMessenger.call(
+        'PhishingController:scanAddress',
+        testChainId,
+        testAddress,
+      );
+      expect(result2).toMatchObject(mockResponse);
+
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+      expect(scope.isDone()).toBe(true);
+
+      fetchSpy.mockRestore();
+    });
+
+    it('will cache addresses per chain ID', async () => {
+      const chainId1 = '0x1';
+      const chainId2 = '0x89';
+
+      const mockResponse1: AddressScanResult = {
+        result_type: AddressScanResultType.Benign,
+        label: 'ethereum result',
+      };
+
+      const mockResponse2: AddressScanResult = {
+        result_type: AddressScanResultType.Warning,
+        label: 'polygon result',
+      };
+
+      const scope1 = nock(SECURITY_ALERTS_BASE_URL)
+        .post(ADDRESS_SCAN_ENDPOINT, {
+          chain: 'ethereum',
+          address: testAddress.toLowerCase(),
+        })
+        .reply(200, mockResponse1);
+
+      const scope2 = nock(SECURITY_ALERTS_BASE_URL)
+        .post(ADDRESS_SCAN_ENDPOINT, {
+          chain: 'polygon',
+          address: testAddress.toLowerCase(),
+        })
+        .reply(200, mockResponse2);
+
+      const result1 = await rootMessenger.call(
+        'PhishingController:scanAddress',
+        chainId1,
+        testAddress,
+      );
+      const result2 = await rootMessenger.call(
+        'PhishingController:scanAddress',
+        chainId2,
+        testAddress,
+      );
+
+      expect(result1).toMatchObject(mockResponse1);
+      expect(result2).toMatchObject(mockResponse2);
+      expect(scope1.isDone()).toBe(true);
+      expect(scope2.isDone()).toBe(true);
+
+      const cachedResult1 = await rootMessenger.call(
+        'PhishingController:scanAddress',
+        chainId1,
+        testAddress,
+      );
+      const cachedResult2 = await rootMessenger.call(
+        'PhishingController:scanAddress',
+        chainId2,
+        testAddress,
+      );
+
+      expect(cachedResult1).toMatchObject(mockResponse1);
+      expect(cachedResult2).toMatchObject(mockResponse2);
+    });
+  });
+
+  describe('getApprovals', () => {
+    let rootMessenger: RootMessenger;
+
+    const testChainId = '0x1';
+    const testAddress = '0x1234567890123456789012345678901234567890';
+    const mockApproval = {
+      allowance: { value: '1000000', usd_price: '1000.00' },
+      asset: {
+        type: 'ERC20',
+        address: '0xtoken',
+        symbol: 'TKN',
+        name: 'Token',
+        decimals: 18,
+        logo_url: 'https://example.com/token.png',
+      },
+      exposure: { usd_price: '100.00', value: '100.00', raw_value: '0x64' },
+      spender: {
+        address: '0xspender',
+        label: 'Uniswap',
+        features: [
+          {
+            type: ApprovalFeatureType.Benign,
+            feature_id: 'VERIFIED_CONTRACT',
+            description: 'This contract is verified',
+          },
+        ],
+      },
+      verdict: ApprovalResultType.Benign,
+    };
+    const mockResponse = { approvals: [mockApproval] };
+
+    beforeEach(() => {
+      const { rootMessenger: createdMessenger } = getPhishingController();
+      rootMessenger = createdMessenger;
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('will return approvals for a valid address and chain', async () => {
+      const scope = nock(SECURITY_ALERTS_BASE_URL)
+        .post(APPROVALS_ENDPOINT, {
+          chain: 'ethereum',
+          address: testAddress.toLowerCase(),
+        })
+        .reply(200, mockResponse);
+
+      const response = await rootMessenger.call(
+        'PhishingController:getApprovals',
+        testChainId,
+        testAddress,
+      );
+      expect(response).toStrictEqual(mockResponse);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('will return empty approvals when address is missing', async () => {
+      const response = await rootMessenger.call(
+        'PhishingController:getApprovals',
+        testChainId,
+        '',
+      );
+      expect(response).toStrictEqual({ approvals: [] });
+    });
+
+    it('will return empty approvals when chainId is missing', async () => {
+      const response = await rootMessenger.call(
+        'PhishingController:getApprovals',
+        '',
+        testAddress,
+      );
+      expect(response).toStrictEqual({ approvals: [] });
+    });
+
+    it('will return empty approvals for unknown chain ID', async () => {
+      const response = await rootMessenger.call(
+        'PhishingController:getApprovals',
+        '0x999999',
+        testAddress,
+      );
+      expect(response).toStrictEqual({ approvals: [] });
+    });
+
+    it('will return empty approvals for chains not supported by the approvals API', async () => {
+      const response = await rootMessenger.call(
+        'PhishingController:getApprovals',
+        '0x82750',
+        testAddress,
+      );
+      expect(response).toStrictEqual({ approvals: [] });
+    });
+
+    it.each([
+      [400, 'Bad Request'],
+      [500, 'Internal Server Error'],
+    ])('will return empty approvals on %i HTTP error', async (statusCode) => {
+      const scope = nock(SECURITY_ALERTS_BASE_URL)
+        .post(APPROVALS_ENDPOINT, {
+          chain: 'ethereum',
+          address: testAddress.toLowerCase(),
+        })
+        .reply(statusCode);
+
+      const response = await rootMessenger.call(
+        'PhishingController:getApprovals',
+        testChainId,
+        testAddress,
+      );
+      expect(response).toStrictEqual({ approvals: [] });
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('will return empty approvals on timeout', async () => {
+      const scope = nock(SECURITY_ALERTS_BASE_URL)
+        .post(APPROVALS_ENDPOINT, {
+          chain: 'ethereum',
+          address: testAddress.toLowerCase(),
+        })
+        .delayConnection(10000)
+        .reply(200, mockResponse);
+
+      const promise = rootMessenger.call(
+        'PhishingController:getApprovals',
+        testChainId,
+        testAddress,
+      );
+      jest.advanceTimersByTime(5000);
+      const response = await promise;
+      expect(response).toStrictEqual({ approvals: [] });
+      expect(scope.isDone()).toBe(false);
+    });
+
+    it('will normalize address to lowercase before API call', async () => {
+      const mixedCaseAddress = '0xAbCdEf1234567890123456789012345678901234';
+      const scope = nock(SECURITY_ALERTS_BASE_URL)
+        .post(APPROVALS_ENDPOINT, {
+          chain: 'ethereum',
+          address: mixedCaseAddress.toLowerCase(),
+        })
+        .reply(200, mockResponse);
+
+      const response = await rootMessenger.call(
+        'PhishingController:getApprovals',
+        testChainId,
+        mixedCaseAddress,
+      );
+      expect(response).toStrictEqual(mockResponse);
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('will normalize chainId and resolve to chain name', async () => {
+      const mixedCaseChainId = '0xA';
+      const scope = nock(SECURITY_ALERTS_BASE_URL)
+        .post(APPROVALS_ENDPOINT, {
+          chain: 'optimism',
+          address: testAddress.toLowerCase(),
+        })
+        .reply(200, mockResponse);
+
+      const response = await rootMessenger.call(
+        'PhishingController:getApprovals',
+        mixedCaseChainId,
+        testAddress,
+      );
+      expect(response).toStrictEqual(mockResponse);
+      expect(scope.isDone()).toBe(true);
+    });
+  });
+});
+
+describe('URL Scan Cache', () => {
+  beforeEach(() => {
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'], now: 0 });
+  });
+  afterEach(() => {
+    jest.useRealTimers();
+    cleanAll();
+  });
+
+  it('should cache scan results and return them on subsequent calls', async () => {
+    const testDomain = 'example.com';
+
+    // Spy on the fetch function to track calls
+    const fetchSpy = jest.spyOn(global, 'fetch');
+
+    nock(PHISHING_DETECTION_BASE_URL)
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
+          testDomain,
+        )}`,
+      )
+      .reply(200, {
+        recommendedAction: RecommendedAction.None,
+      });
+
+    const { rootMessenger } = getPhishingController();
+
+    const result1 = await rootMessenger.call(
+      'PhishingController:scanUrl',
+      `https://${testDomain}`,
+    );
+    expect(result1).toStrictEqual({
+      hostname: testDomain,
+      recommendedAction: RecommendedAction.None,
+    });
+
+    const result2 = await rootMessenger.call(
+      'PhishingController:scanUrl',
+      `https://${testDomain}`,
+    );
+    expect(result2).toStrictEqual({
+      hostname: testDomain,
+      recommendedAction: RecommendedAction.None,
+    });
+
+    // Verify that fetch was called exactly once
+    expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+    fetchSpy.mockRestore();
+  });
+
+  it('should expire cache entries after TTL', async () => {
+    const testDomain = 'example.com';
+    const cacheTTL = 300; // 5 minutes
+
+    nock(PHISHING_DETECTION_BASE_URL)
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
+          testDomain,
+        )}`,
+      )
+      .reply(200, {
+        recommendedAction: RecommendedAction.None,
+      })
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
+          testDomain,
+        )}`,
+      )
+      .reply(200, {
+        recommendedAction: RecommendedAction.None,
+      });
+
+    const { rootMessenger } = getPhishingController({
+      urlScanCacheTTL: cacheTTL,
+    });
+
+    await rootMessenger.call(
+      'PhishingController:scanUrl',
+      `https://${testDomain}`,
+    );
+
+    // Before TTL expires, should use cache
+    jest.advanceTimersByTime((cacheTTL - 10) * 1000);
+    await rootMessenger.call(
+      'PhishingController:scanUrl',
+      `https://${testDomain}`,
+    );
+    expect(pendingMocks()).toHaveLength(1); // One mock remaining
+
+    // After TTL expires, should fetch again
+    jest.advanceTimersByTime(11 * 1000);
+    await rootMessenger.call(
+      'PhishingController:scanUrl',
+      `https://${testDomain}`,
+    );
+    expect(pendingMocks()).toHaveLength(0); // All mocks used
+  });
+
+  it('should evict oldest entries when cache exceeds max size', async () => {
+    const maxCacheSize = 2;
+    const domains = ['domain1.com', 'domain2.com', 'domain3.com'];
+
+    // Setup nock to respond to all three domains
+    domains.forEach((domain) => {
+      nock(PHISHING_DETECTION_BASE_URL)
+        .get(
+          `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
+            domain,
+          )}`,
+        )
+        .reply(200, {
+          recommendedAction: RecommendedAction.None,
+        });
+    });
+
+    // Setup a second request for the first domain
+    nock(PHISHING_DETECTION_BASE_URL)
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
+          domains[0],
+        )}`,
+      )
+      .reply(200, {
+        recommendedAction: RecommendedAction.Warn,
+      });
+
+    const { rootMessenger } = getPhishingController({
+      urlScanCacheMaxSize: maxCacheSize,
+    });
+
+    // Fill the cache
+    await rootMessenger.call(
+      'PhishingController:scanUrl',
+      `https://${domains[0]}`,
+    );
+    jest.advanceTimersByTime(1000); // Ensure different timestamps
+    await rootMessenger.call(
+      'PhishingController:scanUrl',
+      `https://${domains[1]}`,
+    );
+
+    // This should evict the oldest entry (domain1)
+    jest.advanceTimersByTime(1000);
+    await rootMessenger.call(
+      'PhishingController:scanUrl',
+      `https://${domains[2]}`,
+    );
+
+    // Now domain1 should not be in cache and require a new fetch
+    await rootMessenger.call(
+      'PhishingController:scanUrl',
+      `https://${domains[0]}`,
+    );
+
+    // All mocks should be used
+    expect(isDone()).toBe(true);
+  });
+
+  it('should handle fetch errors and not cache them', async () => {
+    const testDomain = 'example.com';
+
+    nock(PHISHING_DETECTION_BASE_URL)
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
+          testDomain,
+        )}`,
+      )
+      .reply(500, { error: 'Internal Server Error' })
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
+          testDomain,
+        )}`,
+      )
+      .reply(200, {
+        recommendedAction: RecommendedAction.None,
+      });
+
+    const { rootMessenger } = getPhishingController();
+
+    // First call should result in an error response
+    const result1 = await rootMessenger.call(
+      'PhishingController:scanUrl',
+      `https://${testDomain}`,
+    );
+    expect(result1.fetchError).toBeDefined();
+
+    // Second call should try again (not use cache since errors aren't cached)
+    const result2 = await rootMessenger.call(
+      'PhishingController:scanUrl',
+      `https://${testDomain}`,
+    );
+    expect(result2.fetchError).toBeUndefined();
+    expect(result2.recommendedAction).toBe(RecommendedAction.None);
+
+    // All mocks should be used
+    expect(isDone()).toBe(true);
+  });
+
+  it('should handle timeout errors and not cache them', async () => {
+    const testDomain = 'example.com';
+
+    // First mock a timeout/error response
+    nock(PHISHING_DETECTION_BASE_URL)
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
+          testDomain,
+        )}`,
+      )
+      .replyWithError('connection timeout')
+      .get(
+        `/${PHISHING_DETECTION_SCAN_ENDPOINT}?url=${encodeURIComponent(
+          testDomain,
+        )}`,
+      )
+      .reply(200, {
+        recommendedAction: RecommendedAction.None,
+      });
+
+    const { rootMessenger } = getPhishingController();
+
+    // First call should result in an error
+    const result1 = await rootMessenger.call(
+      'PhishingController:scanUrl',
+      `https://${testDomain}`,
+    );
+    expect(result1.fetchError).toBeDefined();
+
+    // Second call should succeed (not use cache since errors aren't cached)
+    const result2 = await rootMessenger.call(
+      'PhishingController:scanUrl',
+      `https://${testDomain}`,
+    );
+    expect(result2.fetchError).toBeUndefined();
+    expect(result2.recommendedAction).toBe(RecommendedAction.None);
+
+    // All mocks should be used
+    expect(isDone()).toBe(true);
+  });
+
+  it('should handle invalid URLs and not cache them', async () => {
+    const invalidUrl = 'not-a-valid-url';
+
+    const { rootMessenger } = getPhishingController();
+
+    // First call should return an error for invalid URL
+    const result1 = await rootMessenger.call(
+      'PhishingController:scanUrl',
+      invalidUrl,
+    );
+    expect(result1.fetchError).toBeDefined();
+
+    // Second call should also return an error (not from cache)
+    const result2 = await rootMessenger.call(
+      'PhishingController:scanUrl',
+      invalidUrl,
+    );
+    expect(result2.fetchError).toBeDefined();
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const { controller } = getPhishingController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`{}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const { controller } = getPhishingController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "c2DomainBlocklistLastFetched": 0,
+          "hotlistLastFetched": 0,
+          "stalelistLastFetched": 0,
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const { controller } = getPhishingController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "addressScanCache": {},
+          "c2DomainBlocklistLastFetched": 0,
+          "hotlistLastFetched": 0,
+          "phishingLists": [],
+          "stalelistLastFetched": 0,
+          "tokenScanCache": {},
+          "urlScanCache": {},
+          "whitelist": [],
+          "whitelistPaths": {},
+        }
+      `);
+    });
+
+    it('includes expected state in UI', () => {
+      const { controller } = getPhishingController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "addressScanCache": {},
+          "tokenScanCache": {},
+          "urlScanCache": {},
+        }
+      `);
+    });
+  });
+});
+
+describe('Transaction Controller State Change Integration', () => {
+  let controller: PhishingController;
+  let globalMessenger: RootMessenger;
+  let bulkScanTokensSpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    const { messenger, rootMessenger } = setupMessenger();
+
+    globalMessenger = rootMessenger;
+
+    controller = new PhishingController({
+      messenger,
+    });
+
+    bulkScanTokensSpy = jest
+      .spyOn(controller, 'bulkScanTokens')
+      .mockResolvedValue({});
+  });
+
+  afterEach(() => {
+    bulkScanTokensSpy.mockRestore();
+  });
+
+  it('triggers bulk token scanning when transaction with token balance changes is added', async () => {
+    const mockTransaction = createMockTransaction('test-tx-1', [
+      TEST_ADDRESSES.USDC,
+      TEST_ADDRESSES.MOCK_TOKEN_1,
+    ]);
+    const stateChangePayload = createMockStateChangePayload([mockTransaction]);
+
+    globalMessenger.publish(
+      'TransactionController:stateChange',
+      stateChangePayload,
+      [
+        {
+          op: 'add' as const,
+          path: ['transactions', 0],
+          value: mockTransaction,
+        },
+      ],
+    );
+
+    await new Promise((resolve) => process.nextTick(resolve));
+
+    expect(bulkScanTokensSpy).toHaveBeenCalledWith({
+      chainId: mockTransaction.chainId.toLowerCase(),
+      tokens: [
+        TEST_ADDRESSES.USDC.toLowerCase(),
+        TEST_ADDRESSES.MOCK_TOKEN_1.toLowerCase(),
+      ],
+    });
+  });
+
+  it('triggers bulk token scanning when patch path includes simulationData', async () => {
+    const mockTransaction = createMockTransaction('test-tx-1', [
+      TEST_ADDRESSES.USDC,
+      TEST_ADDRESSES.MOCK_TOKEN_1,
+    ]);
+    const stateChangePayload = createMockStateChangePayload([mockTransaction]);
+
+    globalMessenger.publish(
+      'TransactionController:stateChange',
+      stateChangePayload,
+      [
+        {
+          op: 'add' as const,
+          path: ['transactions', 0, 'simulationData'],
+          value: mockTransaction.simulationData,
+        },
+      ],
+    );
+    await new Promise((resolve) => process.nextTick(resolve));
+
+    expect(bulkScanTokensSpy).toHaveBeenCalledWith({
+      chainId: mockTransaction.chainId.toLowerCase(),
+      tokens: [
+        TEST_ADDRESSES.USDC.toLowerCase(),
+        TEST_ADDRESSES.MOCK_TOKEN_1.toLowerCase(),
+      ],
+    });
+  });
+
+  it('skips processing when patch operation is remove', async () => {
+    const mockTransaction = createMockTransaction('test-tx-1', [
+      TEST_ADDRESSES.USDC,
+    ]);
+
+    const stateChangePayload = createMockStateChangePayload([]);
+
+    globalMessenger.publish(
+      'TransactionController:stateChange',
+      stateChangePayload,
+      [
+        {
+          op: 'remove' as const,
+          path: ['transactions', 0],
+          value: mockTransaction,
+        },
+      ],
+    );
+
+    await new Promise((resolve) => process.nextTick(resolve));
+
+    expect(bulkScanTokensSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not trigger bulk token scanning when transaction has no token balance changes', async () => {
+    const mockTransaction = createMockTransaction('test-tx-1', []);
+
+    const stateChangePayload = createMockStateChangePayload([mockTransaction]);
+
+    globalMessenger.publish(
+      'TransactionController:stateChange',
+      stateChangePayload,
+      [
+        {
+          op: 'add' as const,
+          path: ['transactions', 0],
+          value: mockTransaction,
+        },
+      ],
+    );
+
+    await new Promise((resolve) => process.nextTick(resolve));
+
+    expect(bulkScanTokensSpy).not.toHaveBeenCalled();
+  });
+
+  it('does not trigger bulk token scanning when using default tokenAddresses parameter', async () => {
+    const mockTransaction = createMockTransaction('test-tx-2');
+
+    const stateChangePayload = createMockStateChangePayload([mockTransaction]);
+
+    globalMessenger.publish(
+      'TransactionController:stateChange',
+      stateChangePayload,
+      [
+        {
+          op: 'add' as const,
+          path: ['transactions', 0],
+          value: mockTransaction,
+        },
+      ],
+    );
+
+    await new Promise((resolve) => process.nextTick(resolve));
+
+    expect(bulkScanTokensSpy).not.toHaveBeenCalled();
+  });
+
+  it('handles errors in transaction state change processing', async () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+    const stateChangePayload = createMockStateChangePayload([]);
+
+    globalMessenger.publish(
+      'TransactionController:stateChange',
+      stateChangePayload,
+      [
+        {
+          op: 'add' as const,
+          path: ['transactions', 0],
+          value: null,
+        },
+      ],
+    );
+
+    await new Promise((resolve) => process.nextTick(resolve));
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Error processing transaction state change:',
+      expect.any(Error),
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('handles errors in bulk token scanning', async () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+    bulkScanTokensSpy.mockRejectedValue(new Error('Scanning failed'));
+
+    const mockTransaction = createMockTransaction('test-tx-1', [
+      TEST_ADDRESSES.USDC,
+    ]);
+
+    const stateChangePayload = createMockStateChangePayload([mockTransaction]);
+
+    globalMessenger.publish(
+      'TransactionController:stateChange',
+      stateChangePayload,
+      [
+        {
+          op: 'add' as const,
+          path: ['transactions', 0],
+          value: mockTransaction,
+        },
+      ],
+    );
+
+    await new Promise((resolve) => process.nextTick(resolve));
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Error scanning tokens for chain 0x1:',
+      expect.any(Error),
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('continues bulk token scanning if known recipient updates fail', async () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+    const mockTransaction = createMockTransaction('test-tx-1', [
+      TEST_ADDRESSES.USDC,
+      TEST_ADDRESSES.MOCK_TOKEN_1,
+    ]);
+
+    globalMessenger.publish(
+      'TransactionController:stateChange',
+      {
+        ...createMockStateChangePayload([mockTransaction]),
+        transactions: undefined,
+      } as unknown as TransactionControllerState,
+      [
+        {
+          op: 'replace' as const,
+          path: ['transactions'],
+          value: undefined,
+        },
+        {
+          op: 'add' as const,
+          path: ['transactions', 0],
+          value: mockTransaction,
+        },
+      ],
+    );
+
+    await new Promise((resolve) => process.nextTick(resolve));
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Error updating known recipients from transaction state:',
+      expect.any(Error),
+    );
+    expect(bulkScanTokensSpy).toHaveBeenCalledWith({
+      chainId: mockTransaction.chainId.toLowerCase(),
+      tokens: [
+        TEST_ADDRESSES.USDC.toLowerCase(),
+        TEST_ADDRESSES.MOCK_TOKEN_1.toLowerCase(),
+      ],
+    });
+
+    consoleErrorSpy.mockRestore();
+  });
+});
+
+describe('Address poisoning detection', () => {
+  const ADDRESS_BOOK_RECIPIENT =
+    '0x1234bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb5678' as `0x${string}`;
+  const CONFIRMED_TX_RECIPIENT =
+    '0x1234cccccccccccccccccccccccccccccccc9abc' as `0x${string}`;
+  const CANDIDATE_ADDRESS =
+    '0x1234aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa5678' as `0x${string}`;
+  const TX_CANDIDATE_ADDRESS =
+    '0x1234aaaacccccccccccccccccccccccccccc9abc' as `0x${string}`;
+
+  it('hydrates known recipients from confirmed transactions and address book state', () => {
+    const confirmedTransaction = createMockTransaction('confirmed-tx', [], {
+      status: TransactionStatus.confirmed,
+      txParams: {
+        from: TEST_ADDRESSES.FROM_ADDRESS,
+        to: CONFIRMED_TX_RECIPIENT,
+        value: '0x0' as `0x${string}`,
+      },
+    });
+
+    const { messenger } = setupMessenger({
+      transactionControllerState: {
+        ...getDefaultTransactionControllerState(),
+        transactions: [confirmedTransaction],
+      },
+      addressBookControllerState: {
+        addressBook: {
+          '0x1': {
+            [ADDRESS_BOOK_RECIPIENT]: {
+              address: ADDRESS_BOOK_RECIPIENT,
+              name: 'Known recipient',
+              chainId: '0x1',
+              memo: '',
+              isEns: false,
+            },
+          },
+        },
+      },
+    });
+
+    const controller = new PhishingController({
+      messenger,
+    });
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toMatchObject([
+      {
+        knownAddress: ADDRESS_BOOK_RECIPIENT,
+        prefixMatchLength: 4,
+        suffixMatchLength: 4,
+        poisoningScore: 8,
+      },
+    ]);
+
+    expect(
+      controller.checkAddressPoisoning(TX_CANDIDATE_ADDRESS),
+    ).toMatchObject([
+      {
+        knownAddress: CONFIRMED_TX_RECIPIENT,
+        prefixMatchLength: 4,
+        suffixMatchLength: 32,
+        poisoningScore: 36,
+      },
+    ]);
+  });
+
+  it('ignores non-confirmed transactions when hydrating known recipients', () => {
+    const { messenger } = setupMessenger({
+      transactionControllerState: {
+        ...getDefaultTransactionControllerState(),
+        transactions: [
+          createMockTransaction('unapproved-tx', [], {
+            status: TransactionStatus.unapproved,
+            txParams: {
+              from: TEST_ADDRESSES.FROM_ADDRESS,
+              to: ADDRESS_BOOK_RECIPIENT,
+              value: '0x0' as `0x${string}`,
+            },
+          }),
+        ],
+      },
+    });
+
+    const controller = new PhishingController({
+      messenger,
+    });
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toStrictEqual(
+      [],
+    );
+  });
+
+  it('updates known recipients when address book state changes', async () => {
+    const { messenger, rootMessenger } = setupMessenger();
+
+    const controller = new PhishingController({
+      messenger,
+    });
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toStrictEqual(
+      [],
+    );
+
+    rootMessenger.publish('AddressBookController:stateChange', {
+      addressBook: {
+        '0x1': {
+          [ADDRESS_BOOK_RECIPIENT]: {
+            address: ADDRESS_BOOK_RECIPIENT,
+            name: 'Known recipient',
+            chainId: '0x1',
+            memo: '',
+            isEns: false,
+          },
+        },
+      },
+    });
+
+    await new Promise((resolve) => process.nextTick(resolve));
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toMatchObject([
+      {
+        knownAddress: ADDRESS_BOOK_RECIPIENT,
+        prefixMatchLength: 4,
+        suffixMatchLength: 4,
+        poisoningScore: 8,
+      },
+    ]);
+  });
+
+  it('updates known recipients when confirmed transactions change', async () => {
+    const { messenger, rootMessenger } = setupMessenger();
+
+    const controller = new PhishingController({
+      messenger,
+    });
+
+    const confirmedTransaction = createMockTransaction('confirmed-tx', [], {
+      status: TransactionStatus.confirmed,
+      txParams: {
+        from: TEST_ADDRESSES.FROM_ADDRESS,
+        to: ADDRESS_BOOK_RECIPIENT,
+        value: '0x0' as `0x${string}`,
+      },
+    });
+
+    rootMessenger.publish(
+      'TransactionController:stateChange',
+      createMockStateChangePayload([confirmedTransaction]),
+      [
+        {
+          op: 'add' as const,
+          path: ['transactions', 0],
+          value: confirmedTransaction,
+        },
+      ],
+    );
+
+    await new Promise((resolve) => process.nextTick(resolve));
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toMatchObject([
+      {
+        knownAddress: ADDRESS_BOOK_RECIPIENT,
+        prefixMatchLength: 4,
+        suffixMatchLength: 4,
+        poisoningScore: 8,
+      },
+    ]);
+  });
+
+  it('updates transaction recipients when a confirmed transaction recipient changes', async () => {
+    const originalTransaction = createMockTransaction('confirmed-tx', [], {
+      status: TransactionStatus.confirmed,
+      txParams: {
+        from: TEST_ADDRESSES.FROM_ADDRESS,
+        to: ADDRESS_BOOK_RECIPIENT,
+        value: '0x0' as `0x${string}`,
+      },
+    });
+    const updatedTransaction = createMockTransaction('confirmed-tx', [], {
+      status: TransactionStatus.confirmed,
+      txParams: {
+        from: TEST_ADDRESSES.FROM_ADDRESS,
+        to: CONFIRMED_TX_RECIPIENT,
+        value: '0x0' as `0x${string}`,
+      },
+    });
+    const { messenger, rootMessenger } = setupMessenger({
+      transactionControllerState: {
+        ...getDefaultTransactionControllerState(),
+        transactions: [originalTransaction],
+      },
+    });
+
+    const controller = new PhishingController({
+      messenger,
+    });
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toHaveLength(1);
+
+    rootMessenger.publish(
+      'TransactionController:stateChange',
+      createMockStateChangePayload([updatedTransaction]),
+      [
+        {
+          op: 'replace' as const,
+          path: ['transactions', 0],
+          value: updatedTransaction,
+        },
+      ],
+    );
+
+    await new Promise((resolve) => process.nextTick(resolve));
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toStrictEqual(
+      [],
+    );
+    expect(
+      controller.checkAddressPoisoning(TX_CANDIDATE_ADDRESS),
+    ).toMatchObject([
+      {
+        knownAddress: CONFIRMED_TX_RECIPIENT,
+        prefixMatchLength: 4,
+        suffixMatchLength: 32,
+        poisoningScore: 36,
+      },
+    ]);
+  });
+
+  it('keeps duplicate transaction recipients when one matching transaction recipient changes', async () => {
+    const firstTransaction = createMockTransaction('confirmed-tx-1', [], {
+      status: TransactionStatus.confirmed,
+      txParams: {
+        from: TEST_ADDRESSES.FROM_ADDRESS,
+        to: ADDRESS_BOOK_RECIPIENT,
+        value: '0x0' as `0x${string}`,
+      },
+    });
+    const secondTransaction = createMockTransaction('confirmed-tx-2', [], {
+      status: TransactionStatus.confirmed,
+      txParams: {
+        from: TEST_ADDRESSES.FROM_ADDRESS,
+        to: ADDRESS_BOOK_RECIPIENT,
+        value: '0x0' as `0x${string}`,
+      },
+    });
+    const updatedFirstTransaction = createMockTransaction(
+      'confirmed-tx-1',
+      [],
+      {
+        status: TransactionStatus.confirmed,
+        txParams: {
+          from: TEST_ADDRESSES.FROM_ADDRESS,
+          to: CONFIRMED_TX_RECIPIENT,
+          value: '0x0' as `0x${string}`,
+        },
+      },
+    );
+    const { messenger, rootMessenger } = setupMessenger({
+      transactionControllerState: {
+        ...getDefaultTransactionControllerState(),
+        transactions: [firstTransaction, secondTransaction],
+      },
+    });
+
+    const controller = new PhishingController({
+      messenger,
+    });
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toHaveLength(1);
+
+    rootMessenger.publish(
+      'TransactionController:stateChange',
+      createMockStateChangePayload([
+        updatedFirstTransaction,
+        secondTransaction,
+      ]),
+      [
+        {
+          op: 'replace' as const,
+          path: ['transactions', 0],
+          value: updatedFirstTransaction,
+        },
+      ],
+    );
+
+    await new Promise((resolve) => process.nextTick(resolve));
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toMatchObject([
+      {
+        knownAddress: ADDRESS_BOOK_RECIPIENT,
+        prefixMatchLength: 4,
+        suffixMatchLength: 4,
+        poisoningScore: 8,
+      },
+    ]);
+    expect(
+      controller.checkAddressPoisoning(TX_CANDIDATE_ADDRESS),
+    ).toMatchObject([
+      {
+        knownAddress: CONFIRMED_TX_RECIPIENT,
+        prefixMatchLength: 4,
+        suffixMatchLength: 32,
+        poisoningScore: 36,
+      },
+    ]);
+  });
+
+  it('ignores transaction state changes that do not include transaction patches', async () => {
+    const { messenger, rootMessenger } = setupMessenger();
+
+    const controller = new PhishingController({
+      messenger,
+    });
+
+    rootMessenger.publish(
+      'TransactionController:stateChange',
+      createMockStateChangePayload([]),
+      [
+        {
+          op: 'replace' as const,
+          path: ['methodData'],
+          value: {},
+        },
+      ],
+    );
+
+    await new Promise((resolve) => process.nextTick(resolve));
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toStrictEqual(
+      [],
+    );
+  });
+
+  it('rebuilds known recipients when the transaction collection changes', async () => {
+    const { messenger, rootMessenger } = setupMessenger();
+
+    const controller = new PhishingController({
+      messenger,
+    });
+
+    const confirmedTransaction = createMockTransaction('confirmed-tx', [], {
+      status: TransactionStatus.confirmed,
+      txParams: {
+        from: TEST_ADDRESSES.FROM_ADDRESS,
+        to: ADDRESS_BOOK_RECIPIENT,
+        value: '0x0' as `0x${string}`,
+      },
+    });
+
+    rootMessenger.publish(
+      'TransactionController:stateChange',
+      createMockStateChangePayload([confirmedTransaction]),
+      [
+        {
+          op: 'replace' as const,
+          path: ['transactions'],
+          value: [confirmedTransaction],
+        },
+      ],
+    );
+
+    await new Promise((resolve) => process.nextTick(resolve));
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toHaveLength(1);
+  });
+
+  it('rebuilds known recipients when a transaction patch is not indexed by array position', async () => {
+    const { messenger, rootMessenger } = setupMessenger();
+
+    const controller = new PhishingController({
+      messenger,
+    });
+
+    const confirmedTransaction = createMockTransaction('confirmed-tx', [], {
+      status: TransactionStatus.confirmed,
+      txParams: {
+        from: TEST_ADDRESSES.FROM_ADDRESS,
+        to: ADDRESS_BOOK_RECIPIENT,
+        value: '0x0' as `0x${string}`,
+      },
+    });
+
+    rootMessenger.publish(
+      'TransactionController:stateChange',
+      createMockStateChangePayload([confirmedTransaction]),
+      [
+        {
+          op: 'replace' as const,
+          path: ['transactions', 'confirmed-tx'],
+          value: confirmedTransaction,
+        },
+      ],
+    );
+
+    await new Promise((resolve) => process.nextTick(resolve));
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toHaveLength(1);
+  });
+
+  it('rebuilds known recipients when a remove patch does not include the removed transaction', async () => {
+    const confirmedTransaction = createMockTransaction('confirmed-tx', [], {
+      status: TransactionStatus.confirmed,
+      txParams: {
+        from: TEST_ADDRESSES.FROM_ADDRESS,
+        to: ADDRESS_BOOK_RECIPIENT,
+        value: '0x0' as `0x${string}`,
+      },
+    });
+    const { messenger, rootMessenger } = setupMessenger({
+      transactionControllerState: {
+        ...getDefaultTransactionControllerState(),
+        transactions: [confirmedTransaction],
+      },
+    });
+
+    const controller = new PhishingController({
+      messenger,
+    });
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toHaveLength(1);
+
+    rootMessenger.publish(
+      'TransactionController:stateChange',
+      createMockStateChangePayload([]),
+      [
+        {
+          op: 'remove' as const,
+          path: ['transactions', 0],
+        },
+      ],
+    );
+
+    await new Promise((resolve) => process.nextTick(resolve));
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toStrictEqual(
+      [],
+    );
+  });
+
+  it('rebuilds known recipients when the transaction array length changes', async () => {
+    const confirmedTransaction = createMockTransaction('confirmed-tx', [], {
+      status: TransactionStatus.confirmed,
+      txParams: {
+        from: TEST_ADDRESSES.FROM_ADDRESS,
+        to: ADDRESS_BOOK_RECIPIENT,
+        value: '0x0' as `0x${string}`,
+      },
+    });
+    const { messenger, rootMessenger } = setupMessenger({
+      transactionControllerState: {
+        ...getDefaultTransactionControllerState(),
+        transactions: [confirmedTransaction],
+      },
+    });
+
+    const controller = new PhishingController({
+      messenger,
+    });
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toHaveLength(1);
+
+    rootMessenger.publish(
+      'TransactionController:stateChange',
+      createMockStateChangePayload([]),
+      [
+        {
+          op: 'replace' as const,
+          path: ['transactions', 'length'],
+          value: 0,
+        },
+      ],
+    );
+
+    await new Promise((resolve) => process.nextTick(resolve));
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toStrictEqual(
+      [],
+    );
+  });
+
+  it('rebuilds duplicate transaction recipients when transactions are removed', async () => {
+    const firstTransaction = createMockTransaction('confirmed-tx-1', [], {
+      status: TransactionStatus.confirmed,
+      txParams: {
+        from: TEST_ADDRESSES.FROM_ADDRESS,
+        to: ADDRESS_BOOK_RECIPIENT,
+        value: '0x0' as `0x${string}`,
+      },
+    });
+    const secondTransaction = createMockTransaction('confirmed-tx-2', [], {
+      status: TransactionStatus.confirmed,
+      txParams: {
+        from: TEST_ADDRESSES.FROM_ADDRESS,
+        to: ADDRESS_BOOK_RECIPIENT,
+        value: '0x0' as `0x${string}`,
+      },
+    });
+    const { messenger, rootMessenger } = setupMessenger({
+      transactionControllerState: {
+        ...getDefaultTransactionControllerState(),
+        transactions: [firstTransaction, secondTransaction],
+      },
+    });
+
+    const controller = new PhishingController({
+      messenger,
+    });
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toHaveLength(1);
+
+    rootMessenger.publish(
+      'TransactionController:stateChange',
+      createMockStateChangePayload([secondTransaction]),
+      [
+        {
+          op: 'remove' as const,
+          path: ['transactions', 0],
+        },
+      ],
+    );
+
+    await new Promise((resolve) => process.nextTick(resolve));
+
+    expect(controller.checkAddressPoisoning(CANDIDATE_ADDRESS)).toMatchObject([
+      {
+        knownAddress: ADDRESS_BOOK_RECIPIENT,
+        prefixMatchLength: 4,
+        suffixMatchLength: 4,
+        poisoningScore: 8,
+      },
+    ]);
+  });
+
+  it('logs when transaction state hydration fails', () => {
+    const { messenger, rootMessenger } = setupMessenger();
+    const error = new Error('Transaction state unavailable');
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+    rootMessenger.unregisterActionHandler('TransactionController:getState');
+    rootMessenger.registerActionHandler(
+      'TransactionController:getState',
+      () => {
+        throw error;
+      },
+    );
+
+    // eslint-disable-next-line no-new -- controller hydrates known recipients on construction
+    new PhishingController({
+      messenger,
+    });
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Unable to hydrate known recipients from TransactionController state; address poisoning checks will not include existing confirmed transactions.',
+      error,
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('logs when address book state hydration fails', () => {
+    const { messenger, rootMessenger } = setupMessenger();
+    const error = new Error('Address book state unavailable');
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
+
+    rootMessenger.unregisterActionHandler('AddressBookController:getState');
+    rootMessenger.registerActionHandler(
+      'AddressBookController:getState',
+      () => {
+        throw error;
+      },
+    );
+
+    // eslint-disable-next-line no-new -- controller hydrates known recipients on construction
+    new PhishingController({
+      messenger,
+    });
+
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Unable to hydrate known recipients from AddressBookController state; address poisoning checks will not include existing address book entries.',
+      error,
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('exposes checkAddressPoisoning through the controller messenger', async () => {
+    const { messenger, rootMessenger } = setupMessenger({
+      addressBookControllerState: {
+        addressBook: {
+          '0x1': {
+            [ADDRESS_BOOK_RECIPIENT]: {
+              address: ADDRESS_BOOK_RECIPIENT,
+              name: 'Known recipient',
+              chainId: '0x1',
+              memo: '',
+              isEns: false,
+            },
+          },
+        },
+      },
+    });
+
+    // eslint-disable-next-line no-new -- controller registers messenger handlers as a side effect
+    new PhishingController({
+      messenger,
+    });
+
+    expect(
+      rootMessenger.call(
+        'PhishingController:checkAddressPoisoning',
+        CANDIDATE_ADDRESS,
+      ),
+    ).toMatchObject([
+      {
+        knownAddress: ADDRESS_BOOK_RECIPIENT,
+        prefixMatchLength: 4,
+        suffixMatchLength: 4,
+        poisoningScore: 8,
+      },
+    ]);
   });
 });

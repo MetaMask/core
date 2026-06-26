@@ -1,58 +1,74 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
+} from '@metamask/messenger';
 import * as uuid from 'uuid';
 
-import type { LoggingControllerActions } from './LoggingController';
+import type { LoggingControllerMessenger } from './LoggingController';
 import { LoggingController } from './LoggingController';
 import { LogType } from './logTypes';
 import { SigningMethod, SigningStage } from './logTypes/EthSignLog';
 
 jest.mock('uuid', () => {
-  const actual = jest.requireActual('uuid');
   return {
-    ...actual,
-    v1: jest.fn(() => actual.v1()),
+    __esModule: true,
+    ...jest.requireActual('uuid'),
   };
 });
 
-const name = 'LoggingController';
+type AllLoggingControllerActions = MessengerActions<LoggingControllerMessenger>;
+
+type AllLoggingControllerEvents = MessengerEvents<LoggingControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllLoggingControllerActions,
+  AllLoggingControllerEvents
+>;
+
+const namespace = 'LoggingController';
 
 /**
- * Constructs a unrestricted controller messenger.
+ * Constructs a root messenger instance.
  *
- * @returns A unrestricted controller messenger.
+ * @returns A root messenger.
  */
-function getUnrestrictedMessenger() {
-  return new ControllerMessenger<LoggingControllerActions, never>();
+function getRootMessenger(): RootMessenger {
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
 }
 
 /**
- * Constructs a restricted controller messenger.
+ * Constructs a messenger instance for LoggingController.
  *
- * @param controllerMessenger - An optional unrestricted messenger
- * @returns A restricted controller messenger.
+ * @param messenger - An optional root messenger
+ * @returns A controller messenger.
  */
-function getRestrictedMessenger(
-  controllerMessenger = getUnrestrictedMessenger(),
-) {
-  return controllerMessenger.getRestricted({
-    name,
+function getLoggingControllerMessenger(messenger = getRootMessenger()) {
+  return new Messenger<
+    typeof namespace,
+    AllLoggingControllerActions,
+    AllLoggingControllerEvents,
+    RootMessenger
+  >({
+    namespace,
+    parent: messenger,
   });
 }
 
 describe('LoggingController', () => {
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
   it('action: LoggingController:add with generic log', async () => {
-    const unrestricted = getUnrestrictedMessenger();
-    const messenger = getRestrictedMessenger(unrestricted);
+    const rootMessenger = getRootMessenger();
+    const messenger = getLoggingControllerMessenger(rootMessenger);
 
     const controller = new LoggingController({
       messenger,
     });
 
     expect(
-      await unrestricted.call('LoggingController:add', {
+      rootMessenger.call('LoggingController:add', {
         type: LogType.GenericLog,
         data: `Generic log`,
       }),
@@ -70,20 +86,20 @@ describe('LoggingController', () => {
   });
 
   it('action: LoggingController:add for a signing request', async () => {
-    const unrestricted = getUnrestrictedMessenger();
-    const messenger = getRestrictedMessenger(unrestricted);
+    const rootMessenger = getRootMessenger();
+    const messenger = getLoggingControllerMessenger(rootMessenger);
 
     const controller = new LoggingController({
       messenger,
     });
 
     expect(
-      await unrestricted.call('LoggingController:add', {
+      rootMessenger.call('LoggingController:add', {
         type: LogType.EthSignLog,
         data: {
-          signingMethod: SigningMethod.EthSign,
+          signingMethod: SigningMethod.PersonalSign,
           stage: SigningStage.Proposed,
-          signingData: '0x0000000000000',
+          signingData: 'hello',
         },
       }),
     ).toBeUndefined();
@@ -95,24 +111,25 @@ describe('LoggingController', () => {
       log: expect.objectContaining({
         type: LogType.EthSignLog,
         data: {
-          signingMethod: SigningMethod.EthSign,
+          signingMethod: SigningMethod.PersonalSign,
           stage: SigningStage.Proposed,
-          signingData: '0x0000000000000',
+          signingData: 'hello',
         },
       }),
     });
   });
 
   it('action: LoggingController:add prevents possible collision of ids', async () => {
-    const unrestricted = getUnrestrictedMessenger();
-    const messenger = getRestrictedMessenger(unrestricted);
+    const rootMessenger = getRootMessenger();
+    const messenger = getLoggingControllerMessenger(rootMessenger);
+    const uuidV1Spy = jest.spyOn(uuid, 'v1');
 
     const controller = new LoggingController({
       messenger,
     });
 
     expect(
-      await unrestricted.call('LoggingController:add', {
+      rootMessenger.call('LoggingController:add', {
         type: LogType.GenericLog,
         data: `Generic log`,
       }),
@@ -120,12 +137,10 @@ describe('LoggingController', () => {
 
     const { id } = Object.values(controller.state.logs)[0];
 
-    if (jest.isMockFunction(uuid.v1)) {
-      uuid.v1.mockImplementationOnce(() => id);
-    }
+    uuidV1Spy.mockReturnValueOnce(id);
 
     expect(
-      await unrestricted.call('LoggingController:add', {
+      rootMessenger.call('LoggingController:add', {
         type: LogType.GenericLog,
         data: `Generic log 2`,
       }),
@@ -150,24 +165,24 @@ describe('LoggingController', () => {
       }),
     });
 
-    expect(uuid.v1).toHaveBeenCalledTimes(3);
+    expect(uuidV1Spy).toHaveBeenCalledTimes(3);
   });
 
   it('internal method: clear', async () => {
-    const unrestricted = getUnrestrictedMessenger();
-    const messenger = getRestrictedMessenger(unrestricted);
+    const rootMessenger = getRootMessenger();
+    const messenger = getLoggingControllerMessenger(rootMessenger);
 
     const controller = new LoggingController({
       messenger,
     });
 
     expect(
-      await unrestricted.call('LoggingController:add', {
+      rootMessenger.call('LoggingController:add', {
         type: LogType.EthSignLog,
         data: {
-          signingMethod: SigningMethod.EthSign,
+          signingMethod: SigningMethod.PersonalSign,
           stage: SigningStage.Proposed,
-          signingData: '0x0000000000000',
+          signingData: 'Heya',
         },
       }),
     ).toBeUndefined();
@@ -175,5 +190,79 @@ describe('LoggingController', () => {
     expect(controller.clear()).toBeUndefined();
     const logs = Object.values(controller.state.logs);
     expect(logs).toHaveLength(0);
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const rootMessenger = getRootMessenger();
+      const messenger = getLoggingControllerMessenger(rootMessenger);
+      const controller = new LoggingController({
+        messenger,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`{}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const rootMessenger = getRootMessenger();
+      const messenger = getLoggingControllerMessenger(rootMessenger);
+      const controller = new LoggingController({
+        messenger,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "logs": {},
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const rootMessenger = getRootMessenger();
+      const messenger = getLoggingControllerMessenger(rootMessenger);
+      const controller = new LoggingController({
+        messenger,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "logs": {},
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const rootMessenger = getRootMessenger();
+      const messenger = getLoggingControllerMessenger(rootMessenger);
+      const controller = new LoggingController({
+        messenger,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`{}`);
+    });
   });
 });

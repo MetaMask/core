@@ -1,14 +1,16 @@
-import type { ControllerGetStateAction } from '@metamask/base-controller';
-import {
-  BaseController,
-  type ControllerStateChangeEvent,
-  type RestrictedControllerMessenger,
+import { BaseController } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  StateMetadata,
 } from '@metamask/base-controller';
+import type { ControllerStateChangeEvent } from '@metamask/base-controller';
+import type { Messenger } from '@metamask/messenger';
 import type { JsonRpcError, DataWithOptionalCause } from '@metamask/rpc-errors';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Json, OptionalField } from '@metamask/utils';
 import { nanoid } from 'nanoid';
 
+import type { ApprovalControllerMethodActions } from './ApprovalController-method-action-types';
 import {
   ApprovalRequestNotFoundError,
   ApprovalRequestNoResultSupportError,
@@ -26,10 +28,25 @@ export const APPROVAL_TYPE_RESULT_SUCCESS = 'result_success';
 
 const controllerName = 'ApprovalController';
 
-const stateMetadata = {
-  pendingApprovals: { persist: false, anonymous: true },
-  pendingApprovalCount: { persist: false, anonymous: false },
-  approvalFlows: { persist: false, anonymous: false },
+const stateMetadata: StateMetadata<ApprovalControllerState> = {
+  pendingApprovals: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
+  pendingApprovalCount: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  approvalFlows: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
 const getAlreadyPendingMessage = (origin: string, type: string) =>
@@ -42,6 +59,27 @@ const getDefaultState = (): ApprovalControllerState => {
     approvalFlows: [],
   };
 };
+
+// === MESSENGER ===
+
+const MESSENGER_EXPOSED_METHODS = [
+  'acceptRequest',
+  'add',
+  'addAndShowApprovalRequest',
+  'addRequest',
+  'clearRequests',
+  'endFlow',
+  'get',
+  'getApprovalCount',
+  'getTotalApprovalCount',
+  'hasRequest',
+  'rejectRequest',
+  'setFlowLoadingText',
+  'showError',
+  'showSuccess',
+  'startFlow',
+  'updateRequestState',
+] as const;
 
 // Internal Types
 
@@ -90,12 +128,13 @@ export type ApprovalRequest<RequestData extends ApprovalRequestData> = {
 
   /**
    * The type of the approval request.
+   * Unfortunately, not all values will match the `ApprovalType` enum, so we are using `string` here.
+   * TODO: Replace `string` with `ApprovalType` when all `type` values used by the clients can be encompassed by the `ApprovalType` enum.
    */
   type: string;
 
   /**
    * Additional data associated with the request.
-   * TODO:TS4.4 make optional
    */
   requestData: RequestData;
 
@@ -118,12 +157,10 @@ export type ApprovalControllerState = {
   approvalFlows: ApprovalFlowState[];
 };
 
-export type ApprovalControllerMessenger = RestrictedControllerMessenger<
+export type ApprovalControllerMessenger = Messenger<
   typeof controllerName,
   ApprovalControllerActions,
-  ApprovalControllerEvents,
-  never,
-  never
+  ApprovalControllerEvents
 >;
 
 // Option Types
@@ -180,6 +217,13 @@ export type AcceptOptions = {
    * If false or unspecified, the promise will resolve immediately.
    */
   waitForResult?: boolean;
+
+  /**
+   * Whether to delete the approval request after a result callback is called.
+   * If false or unspecified, the approval request will be deleted immediately.
+   * Ignored if `waitForResult` is false or unspecified.
+   */
+  deleteAfterResult?: boolean;
 };
 
 export type StartFlowOptions = OptionalField<
@@ -254,82 +298,14 @@ export type ApprovalControllerEvents = ApprovalStateChange;
 
 // Action Types
 
-export type GetApprovalsState = ControllerGetStateAction<
+export type ApprovalControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   ApprovalControllerState
 >;
 
-export type ClearApprovalRequests = {
-  type: `${typeof controllerName}:clearRequests`;
-  handler: (error: JsonRpcError<DataWithOptionalCause>) => void;
-};
-
-export type AddApprovalRequest = {
-  type: `${typeof controllerName}:addRequest`;
-  handler: (
-    opts: AddApprovalOptions,
-    shouldShowRequest: boolean,
-  ) => ReturnType<ApprovalController['add']>;
-};
-
-export type HasApprovalRequest = {
-  type: `${typeof controllerName}:hasRequest`;
-  handler: ApprovalController['has'];
-};
-
-export type AcceptRequest = {
-  type: `${typeof controllerName}:acceptRequest`;
-  handler: ApprovalController['accept'];
-};
-
-export type RejectRequest = {
-  type: `${typeof controllerName}:rejectRequest`;
-  handler: ApprovalController['reject'];
-};
-
-export type UpdateRequestState = {
-  type: `${typeof controllerName}:updateRequestState`;
-  handler: ApprovalController['updateRequestState'];
-};
-
-export type StartFlow = {
-  type: `${typeof controllerName}:startFlow`;
-  handler: ApprovalController['startFlow'];
-};
-
-export type EndFlow = {
-  type: `${typeof controllerName}:endFlow`;
-  handler: ApprovalController['endFlow'];
-};
-
-export type SetFlowLoadingText = {
-  type: `${typeof controllerName}:setFlowLoadingText`;
-  handler: ApprovalController['setFlowLoadingText'];
-};
-
-export type ShowSuccess = {
-  type: `${typeof controllerName}:showSuccess`;
-  handler: ApprovalController['success'];
-};
-
-export type ShowError = {
-  type: `${typeof controllerName}:showError`;
-  handler: ApprovalController['error'];
-};
-
 export type ApprovalControllerActions =
-  | GetApprovalsState
-  | ClearApprovalRequests
-  | AddApprovalRequest
-  | HasApprovalRequest
-  | AcceptRequest
-  | RejectRequest
-  | UpdateRequestState
-  | StartFlow
-  | EndFlow
-  | SetFlowLoadingText
-  | ShowSuccess
-  | ShowError;
+  | ApprovalControllerGetStateAction
+  | ApprovalControllerMethodActions;
 
 /**
  * Controller for managing requests that require user approval.
@@ -345,13 +321,13 @@ export class ApprovalController extends BaseController<
   ApprovalControllerState,
   ApprovalControllerMessenger
 > {
-  #approvals: Map<string, ApprovalCallbacks>;
+  readonly #approvals: Map<string, ApprovalCallbacks>;
 
-  #origins: Map<string, Map<string, number>>;
+  readonly #origins: Map<string, Map<string, number>>;
 
-  #showApprovalRequest: () => void;
+  readonly #showApprovalRequest: () => void;
 
-  #typesExcludedFromRateLimiting: string[];
+  readonly #typesExcludedFromRateLimiting: string[];
 
   /**
    * Construct an Approval controller.
@@ -359,7 +335,7 @@ export class ApprovalController extends BaseController<
    * @param options - The controller options.
    * @param options.showApprovalRequest - Function for opening the UI such that
    * the request can be displayed to the user.
-   * @param options.messenger - The restricted controller messenger for the Approval controller.
+   * @param options.messenger - The restricted messenger for the Approval controller.
    * @param options.state - The initial controller state.
    * @param options.typesExcludedFromRateLimiting - Array of approval types which allow multiple pending approval requests from the same origin.
    */
@@ -378,75 +354,40 @@ export class ApprovalController extends BaseController<
 
     this.#approvals = new Map();
     this.#origins = new Map();
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
     this.#showApprovalRequest = showApprovalRequest;
     this.#typesExcludedFromRateLimiting = typesExcludedFromRateLimiting;
-    this.registerMessageHandlers();
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   /**
-   * Constructor helper for registering this controller's messaging system
-   * actions.
+   * Adds an approval request per the given arguments, optionally showing
+   * the approval request to the user.
+   *
+   * @param opts - Options bag.
+   * @param opts.id - The id of the approval request. A random id will be
+   * generated if none is provided.
+   * @param opts.origin - The origin of the approval request.
+   * @param opts.type - The type associated with the approval request.
+   * @param opts.requestData - Additional data associated with the request,
+   * if any.
+   * @param opts.requestState - Additional state associated with the request,
+   * if any.
+   * @param shouldShowRequest - Whether to show the approval request to the user.
+   * @returns The approval promise.
    */
-  private registerMessageHandlers(): void {
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:clearRequests` as const,
-      this.clear.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:addRequest` as const,
-      (opts: AddApprovalOptions, shouldShowRequest: boolean) => {
-        if (shouldShowRequest) {
-          return this.addAndShowApprovalRequest(opts);
-        }
-        return this.add(opts);
-      },
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:hasRequest` as const,
-      this.has.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:acceptRequest` as const,
-      this.accept.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:rejectRequest` as const,
-      this.reject.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:updateRequestState` as const,
-      this.updateRequestState.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:startFlow` as const,
-      this.startFlow.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:endFlow` as const,
-      this.endFlow.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:setFlowLoadingText` as const,
-      this.setFlowLoadingText.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:showSuccess` as const,
-      this.success.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:showError` as const,
-      this.error.bind(this),
-    );
+  addRequest(
+    opts: AddApprovalOptions,
+    shouldShowRequest: boolean,
+  ): Promise<unknown> {
+    if (shouldShowRequest) {
+      return this.addAndShowApprovalRequest(opts);
+    }
+    return this.add(opts);
   }
 
   /**
@@ -626,7 +567,9 @@ export class ApprovalController extends BaseController<
    * @param opts.type - The type to check for.
    * @returns `true` if a matching approval is found, and `false` otherwise.
    */
-  has(opts: { id?: string; origin?: string; type?: string } = {}): boolean {
+  hasRequest(
+    opts: { id?: string; origin?: string; type?: string } = {},
+  ): boolean {
     const { id, origin, type: _type } = opts;
 
     if (id) {
@@ -676,16 +619,22 @@ export class ApprovalController extends BaseController<
    * the creator of the approval request, or immediately if `options.waitForResult`
    * is `false` or `undefined`.
    */
-  accept(
+  acceptRequest(
     id: string,
     value?: unknown,
     options?: AcceptOptions,
   ): Promise<AcceptResult> {
     // Safe to cast as the delete method below will throw if the ID is not found
     const approval = this.get(id) as ApprovalRequest<ApprovalRequestData>;
-    const requestPromise = this.#deleteApprovalAndGetCallbacks(id);
+    const requestPromise = this.#getCallbacks(id);
+    let requestDeleted = false;
 
-    return new Promise((resolve, reject) => {
+    if (!options?.deleteAfterResult || !options.waitForResult) {
+      this.#delete(id);
+      requestDeleted = true;
+    }
+
+    return new Promise<AcceptResult>((resolve, reject) => {
       const resultCallbacks: AcceptResultCallbacks = {
         success: (acceptValue?: unknown) => resolve({ value: acceptValue }),
         error: reject,
@@ -707,6 +656,10 @@ export class ApprovalController extends BaseController<
       if (!options?.waitForResult) {
         resolve({ value: undefined });
       }
+    }).finally(() => {
+      if (!requestDeleted) {
+        this.#delete(id);
+      }
     });
   }
 
@@ -717,8 +670,10 @@ export class ApprovalController extends BaseController<
    * @param id - The id of the approval request.
    * @param error - The error to reject the approval promise with.
    */
-  reject(id: string, error: unknown): void {
-    this.#deleteApprovalAndGetCallbacks(id).reject(error);
+  rejectRequest(id: string, error: unknown): void {
+    const callbacks = this.#getCallbacks(id);
+    this.#delete(id);
+    callbacks.reject(error);
   }
 
   /**
@@ -727,9 +682,9 @@ export class ApprovalController extends BaseController<
    * @param rejectionError - The JsonRpcError to reject the approval
    * requests with.
    */
-  clear(rejectionError: JsonRpcError<DataWithOptionalCause>): void {
+  clearRequests(rejectionError: JsonRpcError<DataWithOptionalCause>): void {
     for (const id of this.#approvals.keys()) {
-      this.reject(id, rejectionError);
+      this.rejectRequest(id, rejectionError);
     }
     this.#origins.clear();
     this.update((draftState) => {
@@ -838,7 +793,7 @@ export class ApprovalController extends BaseController<
    * @param opts.icon - The icon to display in the page. Shown by default but can be hidden with `null`.
    * @returns Empty object to support future additions.
    */
-  async success(opts: SuccessOptions = {}): Promise<SuccessResult> {
+  async showSuccess(opts: SuccessOptions = {}): Promise<SuccessResult> {
     await this.#result(APPROVAL_TYPE_RESULT_SUCCESS, opts, {
       message: opts.message,
       header: opts.header,
@@ -860,7 +815,7 @@ export class ApprovalController extends BaseController<
    * @param opts.icon - The icon to display in the page. Shown by default but can be hidden with `null`.
    * @returns Empty object to support future additions.
    */
-  async error(opts: ErrorOptions = {}): Promise<ErrorResult> {
+  async showError(opts: ErrorOptions = {}): Promise<ErrorResult> {
     await this.#result(APPROVAL_TYPE_RESULT_ERROR, opts, {
       error: opts.error,
       header: opts.header,
@@ -894,7 +849,7 @@ export class ApprovalController extends BaseController<
 
     if (
       !this.#typesExcludedFromRateLimiting.includes(type) &&
-      this.has({ origin, type })
+      this.hasRequest({ origin, type })
     ) {
       throw rpcErrors.resourceUnavailable(
         getAlreadyPendingMessage(origin, type),
@@ -1017,20 +972,21 @@ export class ApprovalController extends BaseController<
   }
 
   /**
-   * Deletes the approval with the given id. The approval promise must be
-   * resolved or reject before this method is called.
+   * Deletes the approval with the given id.
+   *
    * Deletion is an internal operation because approval state is solely
    * managed by this controller.
    *
    * @param id - The id of the approval request to be deleted.
    */
   #delete(id: string): void {
+    if (!this.#approvals.has(id)) {
+      throw new ApprovalRequestNotFoundError(id);
+    }
+
     this.#approvals.delete(id);
 
-    // This method is only called after verifying that the approval with the
-    // specified id exists.
-    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-    const { origin, type } = this.state.pendingApprovals[id]!;
+    const { origin, type } = this.state.pendingApprovals[id];
 
     const originMap = this.#origins.get(origin) as Map<string, number>;
     const originTotalCount = this.getApprovalCount({ origin });
@@ -1050,21 +1006,13 @@ export class ApprovalController extends BaseController<
     });
   }
 
-  /**
-   * Gets the approval callbacks for the given id, deletes the entry, and then
-   * returns the callbacks for promise resolution.
-   * Throws an error if no approval is found for the given id.
-   *
-   * @param id - The id of the approval request.
-   * @returns The promise callbacks associated with the approval request.
-   */
-  #deleteApprovalAndGetCallbacks(id: string): ApprovalCallbacks {
+  #getCallbacks(id: string): ApprovalCallbacks {
     const callbacks = this.#approvals.get(id);
+
     if (!callbacks) {
       throw new ApprovalRequestNotFoundError(id);
     }
 
-    this.#delete(id);
     return callbacks;
   }
 

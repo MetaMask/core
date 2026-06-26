@@ -1,4 +1,4 @@
-import type EthQuery from '@metamask/eth-query';
+import { toHex } from '@metamask/controller-utils';
 import type {
   GasFeeEstimates as FeeMarketGasPriceEstimate,
   GasFeeState,
@@ -6,15 +6,20 @@ import type {
 } from '@metamask/gas-fee-controller';
 import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 
-import type { GasFeeEstimates, TransactionMeta } from '../types';
-import { TransactionStatus } from '../types';
+import type { TransactionControllerMessenger } from '../TransactionController';
+import type {
+  FeeMarketGasFeeEstimates,
+  GasPriceGasFeeEstimates,
+  LegacyGasFeeEstimates,
+  TransactionMeta,
+} from '../types';
+import { GasFeeEstimateType, TransactionStatus } from '../types';
 import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
-
-const ETH_QUERY_MOCK = {} as EthQuery;
 
 const TRANSACTION_META_MOCK: TransactionMeta = {
   id: '1',
   chainId: '0x123',
+  networkClientId: 'testNetworkClientId',
   status: TransactionStatus.unapproved,
   time: 0,
   txParams: {
@@ -53,45 +58,46 @@ const LEGACY_RESPONSE_MOCK = {
   gasFeeEstimates: LEGACY_ESTIMATES_MOCK,
 } as GasFeeState;
 
-// Converted to Hex and multiplied by 1 billion.
-const FEE_MARKET_EXPECTED_RESULT: GasFeeEstimates = {
+const GAS_PRICE_RESPONSE_MOCK = {
+  gasEstimateType: GAS_ESTIMATE_TYPES.ETH_GASPRICE,
+  gasFeeEstimates: {
+    gasPrice: '3',
+  },
+} as GasFeeState;
+
+const FEE_MARKET_EXPECTED_RESULT: FeeMarketGasFeeEstimates = {
+  type: GasFeeEstimateType.FeeMarket,
   low: {
-    maxFeePerGas: '0x3b9aca00',
-    maxPriorityFeePerGas: '0x77359400',
+    maxFeePerGas: toHex(1e9),
+    maxPriorityFeePerGas: toHex(2e9),
   },
   medium: {
-    maxFeePerGas: '0xb2d05e00',
-    maxPriorityFeePerGas: '0xee6b2800',
+    maxFeePerGas: toHex(3e9),
+    maxPriorityFeePerGas: toHex(4e9),
   },
   high: {
-    maxFeePerGas: '0x12a05f200',
-    maxPriorityFeePerGas: '0x165a0bc00',
+    maxFeePerGas: toHex(5e9),
+    maxPriorityFeePerGas: toHex(6e9),
   },
 };
 
-// Converted to Hex and multiplied by 1 billion.
-const LEGACY_EXPECTED_RESULT: GasFeeEstimates = {
-  low: {
-    maxFeePerGas: '0x3b9aca00',
-    maxPriorityFeePerGas: '0x3b9aca00',
-  },
-  medium: {
-    maxFeePerGas: '0xb2d05e00',
-    maxPriorityFeePerGas: '0xb2d05e00',
-  },
-  high: {
-    maxFeePerGas: '0x12a05f200',
-    maxPriorityFeePerGas: '0x12a05f200',
-  },
+const LEGACY_EXPECTED_RESULT: LegacyGasFeeEstimates = {
+  type: GasFeeEstimateType.Legacy,
+  low: toHex(1e9),
+  medium: toHex(3e9),
+  high: toHex(5e9),
+};
+
+const GAS_PRICE_EXPECTED_RESULT: GasPriceGasFeeEstimates = {
+  type: GasFeeEstimateType.GasPrice,
+  gasPrice: toHex(3e9),
 };
 
 describe('DefaultGasFeeFlow', () => {
   describe('matchesTransaction', () => {
     it('returns true', () => {
       const defaultGasFeeFlow = new DefaultGasFeeFlow();
-      const result = defaultGasFeeFlow.matchesTransaction(
-        TRANSACTION_META_MOCK,
-      );
+      const result = defaultGasFeeFlow.matchesTransaction();
       expect(result).toBe(true);
     });
   });
@@ -100,13 +106,10 @@ describe('DefaultGasFeeFlow', () => {
     it('returns fee market values if estimate type is fee market', async () => {
       const defaultGasFeeFlow = new DefaultGasFeeFlow();
 
-      const getGasFeeControllerEstimates = jest
-        .fn()
-        .mockResolvedValue(FEE_MARKET_RESPONSE_MOCK);
-
       const response = await defaultGasFeeFlow.getGasFees({
-        ethQuery: ETH_QUERY_MOCK,
-        getGasFeeControllerEstimates,
+        networkClientId: 'testNetworkClientId',
+        gasFeeControllerData: FEE_MARKET_RESPONSE_MOCK,
+        messenger: {} as TransactionControllerMessenger,
         transactionMeta: TRANSACTION_META_MOCK,
       });
 
@@ -118,13 +121,10 @@ describe('DefaultGasFeeFlow', () => {
     it('returns legacy values if estimate type is legacy', async () => {
       const defaultGasFeeFlow = new DefaultGasFeeFlow();
 
-      const getGasFeeControllerEstimates = jest
-        .fn()
-        .mockResolvedValue(LEGACY_RESPONSE_MOCK);
-
       const response = await defaultGasFeeFlow.getGasFees({
-        ethQuery: ETH_QUERY_MOCK,
-        getGasFeeControllerEstimates,
+        networkClientId: 'testNetworkClientId',
+        gasFeeControllerData: LEGACY_RESPONSE_MOCK,
+        messenger: {} as TransactionControllerMessenger,
         transactionMeta: TRANSACTION_META_MOCK,
       });
 
@@ -133,20 +133,36 @@ describe('DefaultGasFeeFlow', () => {
       });
     });
 
-    it('throws if estimate type not supported', async () => {
+    it('returns gas price value if estimate type is gas price', async () => {
       const defaultGasFeeFlow = new DefaultGasFeeFlow();
 
-      const getGasFeeControllerEstimates = jest.fn().mockResolvedValue({
-        gasEstimateType: GAS_ESTIMATE_TYPES.ETH_GASPRICE,
-      });
-
-      const response = defaultGasFeeFlow.getGasFees({
-        ethQuery: ETH_QUERY_MOCK,
-        getGasFeeControllerEstimates,
+      const response = await defaultGasFeeFlow.getGasFees({
+        networkClientId: 'testNetworkClientId',
+        gasFeeControllerData: GAS_PRICE_RESPONSE_MOCK,
+        messenger: {} as TransactionControllerMessenger,
         transactionMeta: TRANSACTION_META_MOCK,
       });
 
-      await expect(response).rejects.toThrow('No gas fee estimates available');
+      expect(response).toStrictEqual({
+        estimates: GAS_PRICE_EXPECTED_RESULT,
+      });
+    });
+
+    it('throws if estimate type not supported', async () => {
+      const defaultGasFeeFlow = new DefaultGasFeeFlow();
+
+      const response = defaultGasFeeFlow.getGasFees({
+        networkClientId: 'testNetworkClientId',
+        gasFeeControllerData: {
+          gasEstimateType: GAS_ESTIMATE_TYPES.NONE,
+        } as GasFeeState,
+        messenger: {} as TransactionControllerMessenger,
+        transactionMeta: TRANSACTION_META_MOCK,
+      });
+
+      await expect(response).rejects.toThrow(
+        'Unsupported gas estimate type: none',
+      );
     });
   });
 });

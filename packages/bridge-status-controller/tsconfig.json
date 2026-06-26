@@ -1,0 +1,20 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "resolveJsonModule": true
+  },
+  "references": [
+    { "path": "../accounts-controller" },
+    { "path": "../base-controller" },
+    { "path": "../bridge-controller" },
+    { "path": "../controller-utils" },
+    { "path": "../messenger" },
+    { "path": "../network-controller" },
+    { "path": "../polling-controller" },
+    { "path": "../transaction-controller" },
+    { "path": "../profile-sync-controller" },
+    { "path": "../gas-fee-controller" }
+  ],
+  "include": ["../../types", "./src", "./test"]
+}

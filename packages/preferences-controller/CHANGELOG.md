@@ -7,6 +7,367 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+
+## [23.1.0]
+
+### Added
+
+- Expose missing public `PreferencesController` methods through its messenger ([#8193](https://github.com/MetaMask/core/pull/8193))
+  - The following actions are now available:
+    - `PreferencesController:setFeatureFlag`
+    - `PreferencesController:setIpfsGateway`
+    - `PreferencesController:setUseTokenDetection`
+    - `PreferencesController:setUseNftDetection`
+    - `PreferencesController:setDisplayNftMedia`
+    - `PreferencesController:setSecurityAlertsEnabled`
+    - `PreferencesController:setIsMultiAccountBalancesEnabled`
+    - `PreferencesController:setShowTestNetworks`
+    - `PreferencesController:setIsIpfsGatewayEnabled`
+    - `PreferencesController:setEnableNetworkIncomingTransactions`
+    - `PreferencesController:setShowMultiRpcModal`
+    - `PreferencesController:setSmartTransactionsOptInStatus`
+    - `PreferencesController:setUseTransactionSimulations`
+    - `PreferencesController:setTokenSortConfig`
+    - `PreferencesController:setUseSafeChainsListValidation`
+    - `PreferencesController:setPrivacyMode`
+    - `PreferencesController:setDismissSmartAccountSuggestionEnabled`
+    - `PreferencesController:setSmartAccountOptIn`
+    - `PreferencesController:setTokenNetworkFilter`
+  - Corresponding action types (e.g. `PreferencesControllerSetFeatureFlagAction`) are available as well.
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [23.0.0]
+
+### Removed
+
+- **BREAKING:** Remove legacy methods and state ([#8115](https://github.com/MetaMask/core/pull/8115))
+  - `identities`, `lostIdentities` and `selectedAddress` along with any associated methods and types were removed.
+  - `setSmartAccountOptInForAccounts` was also removed as it is deprecated and not used in the clients.
+- Removed `@metamask/keyring-controller` and `@metamask/controller-utils` dependencies ([#7995](https://github.com/MetaMask/core/pull/7995)), ([#8115](https://github.com/MetaMask/core/pull/8115))
+
+## [22.1.0]
+
+### Added
+
+- Add support for HYPEREVM (chain ID `0x3e7`) ([#7770](https://github.com/MetaMask/core/pull/7770))
+  - Add `HYPEREVM` into constant `ETHERSCAN_SUPPORTED_CHAIN_IDS`
+  - Update default controller state so HYPEREVM (Chain ID `0x3e7`) is automatically enabled in `showIncomingTransactions`
+
+### Changed
+
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209), [#7713](https://github.com/MetaMask/core/pull/7713))
+  - The dependencies moved are:
+    - `@metamask/keyring-controller` (^25.1.0)
+  - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
+    - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
+  - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.18.0` ([#7534](https://github.com/MetaMask/core/pull/7534), [#7583](https://github.com/MetaMask/core/pull/7583))
+
+## [22.0.0]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^24.0.0` to `^25.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+
+## [21.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6534](https://github.com/MetaMask/core/pull/6534))
+  - Previously, `PreferencesController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Metadata property `anonymous` renamed to `includeInDebugSnapshot` ([#6534](https://github.com/MetaMask/core/pull/6534))
+- **BREAKING:** Bump `@metamask/keyring-controller` from `^23.0.0` to `^24.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [20.1.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
+## [20.1.0]
+
+### Added
+
+- Add support for MONAD (chain ID `0x8f`) ([#6827](https://github.com/MetaMask/core/pull/6827))
+  - Add `MONAD` into constant `ETHERSCAN_SUPPORTED_CHAIN_IDS`
+  - Update default controller state so MONAD (Chain ID `0x8f`) is automatically enabled in `showIncomingTransactions`
+
+## [20.0.2]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.0` to `^8.4.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/controller-utils` from `^11.14.0` to `^11.14.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+
+## [20.0.1]
+
+### Changed
+
+- Change default for `showMultiRpcModal` to `false` ([#6723](https://github.com/MetaMask/core/pull/6723))
+
+## [20.0.0]
+
+### Added
+
+- Add a new controller state property: `tokenNetworkFilter` ([#6707](https://github.com/MetaMask/core/pull/6707))
+- Add a new controller method: `setTokenNetworkFilter` ([#6707](https://github.com/MetaMask/core/pull/6707))
+- Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6525](https://github.com/MetaMask/core/pull/6525))
+
+### Changed
+
+- **BREAKING:** Rename controller state property from `useMultiRpcMigration` to `showMultiRpcModal` ([#6707](https://github.com/MetaMask/core/pull/6707))
+- **BREAKING:** Rename controller method from `setUseMultiRpcMigration` to `setShowMultiRpcModal` ([#6707](https://github.com/MetaMask/core/pull/6707))
+- **BREAKING:** Rename controller state property from `openSeaEnabled` to `displayNftMedia` ([#4774](https://github.com/MetaMask/core/pull/4774))
+- **BREAKING:** Rename controller method from `setOpenSeaEnabled` to `setDisplayNftMedia` ([#4774](https://github.com/MetaMask/core/pull/4774))
+- Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
+- Bump `@metamask/base-controller` from `^8.1.0` to `^8.4.0` ([#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632))
+
+## [19.0.0]
+
+### Changed
+
+- **BREAKING:** Bump peer dependency `@metamask/keyring-controller` from `^22.0.0` to `^23.0.0` ([#6345](https://github.com/MetaMask/core/pull/6345))
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
+- Bump `@metamask/controller-utils` from `^11.11.0` to `^11.12.0` ([#6303](https://github.com/MetaMask/core/pull/6303))
+
+### Deprecated
+
+- Deprecate preference `smartAccountOptInForAccounts` and function `setSmartAccountOptInForAccounts` ([#6087](https://github.com/MetaMask/core/pull/6087))
+
+## [18.4.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.10.0` to `^11.11.0` ([#6069](https://github.com/MetaMask/core/pull/6069))
+  - This upgrade includes performance improvements to checksum hex address normalization
+
+## [18.4.0]
+
+### Changed
+
+- Initialise preference smartAccountOptIn with true value ([#6040](https://github.com/MetaMask/core/pull/6040))
+
+## [18.3.0]
+
+### Added
+
+- Add `smartAccountOptIn`, `smartAccountOptInForAccounts` preferences ([#6036](https://github.com/MetaMask/core/pull/6036))
+
+## [18.2.0]
+
+### Added
+
+- Add support for SEI (chain ID `0x531`) ([#6021](https://github.com/MetaMask/core/pull/6021))
+  - Add `SEI` into constant `ETHERSCAN_SUPPORTED_CHAIN_IDS`
+  - Update default controller state so SEI (Chain ID `0xe705`) is automatically enabled in `showIncomingTransactions`
+
+### Changed
+
+- Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
+
+## [18.1.0]
+
+### Added
+
+- Add `dismissSmartAccountSuggestionEnabled` preference ([#5866](https://github.com/MetaMask/core/pull/5866))
+
+### Changed
+
+- Bump `@metamask/controller-utils` to `^11.9.0` ([#5812](https://github.com/MetaMask/core/pull/5812))
+
+## [18.0.0]
+
+### Changed
+
+- **BREAKING:** bump `@metamask/keyring-controller` peer dependency to `^22.0.0` ([#5802](https://github.com/MetaMask/core/pull/5802))
+- Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
+- Bump `@metamask/controller-utils` to `^11.8.0` ([#5765](https://github.com/MetaMask/core/pull/5765))
+
+## [17.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency to `^21.0.0` ([#5439](https://github.com/MetaMask/core/pull/5439))
+
+## [16.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency to `^20.0.0` ([#5426](https://github.com/MetaMask/core/pull/5426))
+
+## [15.0.2]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.2` to `^8.0.0` ([#5079](https://github.com/MetaMask/core/pull/5079)), ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5305](https://github.com/MetaMask/core/pull/5305))
+- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0` ([#5135](https://github.com/MetaMask/core/pull/5135)), ([#5272](https://github.com/MetaMask/core/pull/5272))
+
+## [15.0.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.4.3` to `^11.4.4` ([#5012](https://github.com/MetaMask/core/pull/5012))
+
+## [15.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^18.0.0` to `^19.0.0` ([#4195](https://github.com/MetaMask/core/pull/4956))
+
+## [14.0.0]
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^17.0.0` to `^18.0.0` ([#4915](https://github.com/MetaMask/core/pull/4915))
+- Bump `@metamask/controller-utils` from `^11.4.2` to `^11.4.3` ([#4915](https://github.com/MetaMask/core/pull/4915))
+
+## [13.3.0]
+
+### Changed
+
+- Enable smart transactions by default for new users ([#4885](https://github.com/MetaMask/core/pull/4885))
+
+## [13.2.0]
+
+### Added
+
+- Add `useSafeChainsListValidation` preference ([#4860](https://github.com/MetaMask/core/pull/4860))
+  - Add `useSafeChainsListValidation` property to the `PreferencesController` state (default: `true`)
+  - Add `setUseSafeChainsListValidation` method to set this property
+- Add `tokenSortConfig` preference ([#4860](https://github.com/MetaMask/core/pull/4860))
+  - Add `tokenSortConfig` property to the `PreferencesController` state (default value: `{ key: 'tokenFiatAmount', order: 'dsc', sortCallback: 'stringNumeric' }`)
+  - Add `setTokenSortConfig` method to set this property
+- Add `privacyMode` preference ([#4860](https://github.com/MetaMask/core/pull/4860))
+  - Add `privacyMode` property to the `PreferencesController` state (default value: `false`)
+  - Add `setPrivacyMode` method to set this property
+- Add `useMultiRpcMigration` preference ([#4732](https://github.com/MetaMask/core/pull/4732))
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.1` to `^7.0.2` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/controller-utils` from `^11.3.0` to `^11.4.2` ([#4834](https://github.com/MetaMask/core/pull/4834), [#4862](https://github.com/MetaMask/core/pull/4862), [#4870](https://github.com/MetaMask/core/pull/4870))
+
+## [13.1.0]
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^17.2.1` to `^17.2.2` ([#4734](https://github.com/MetaMask/core/pull/4734))
+
+## [13.0.3]
+
+### Fixed
+
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+
+## [13.0.2]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^6.0.2` to `^7.0.0` ([#4625](https://github.com/MetaMask/core/pull/4625), [#4643](https://github.com/MetaMask/core/pull/4643))
+- Bump `@metamask/controller-utils` from `^11.0.2` to `^11.2.0` ([#4639](https://github.com/MetaMask/core/pull/4639), [#4651](https://github.com/MetaMask/core/pull/4651))
+- Bump `typescript` from `~5.0.4` to `~5.2.2` ([#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
+
+## [13.0.1]
+
+### Changed
+
+- Upgrade TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/base-controller` from `^6.0.0` to `^6.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/controller-utils` from `^11.0.0` to `^11.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
+
+## [13.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- **BREAKING:** Bump peer dependency `@metamask/keyring-controller` to `^17.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/base-controller` to `^6.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/controller-utils` to `^11.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
+## [12.0.0]
+
+### Added
+
+- Add `smartTransactionsOptInStatus` preference ([#3815](https://github.com/MetaMask/core/pull/3815))
+  - Add `smartTransactionsOptInStatus` property to the `PreferencesController` state (default: `false`)
+  - Add `setSmartTransactionOptInStatus` method to set this property
+- Add `useTransactionSimulations` preference ([#4283](https://github.com/MetaMask/core/pull/4283))
+  - Add `useTransactionSimulations` property to the `PreferencesController` state (default value: `false`)
+  - Add `setUseTransactionSimulations` method to set this property
+
+### Changed
+
+- Bump `@metamask/controller-utils` to `^10.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+
+### Removed
+
+- **BREAKING:** Remove state property `disabledRpcMethodPreferences` along with `setDisabledRpcMethodPreferences` method ([#4319](https://github.com/MetaMask/core/pull/4319))
+  - These were for disabling the `eth_sign` RPC method, but support for this method is being removed, so this preference is no longer needed.
+
+## [11.0.0]
+
+### Added
+
+- Export `ETHERSCAN_SUPPORTED_CHAIN_IDS` constant ([#4233](https://github.com/MetaMask/core/pull/4233))
+
+### Changed
+
+- **BREAKING** Bump `@metamask/keyring-controller` peer dependency to ^16.0.0 ([#4234](https://github.com/MetaMask/core/pull/4234))
+- Bump `@metamask/base-controller` to `^5.0.2` ([#4232](https://github.com/MetaMask/core/pull/4232))
+
+## [10.0.0]
+
+### Changed
+
+- **BREAKING** Bump peer dependency on `@metamask/keyring-controller` to `^15.0.0` ([#4090](https://github.com/MetaMask/core/pull/4090))
+- Restore previous behavior of toChecksumHexAddress ([#4046](https://github.com/MetaMask/core/pull/4046))
+
+## [9.0.1]
+
+### Fixed
+
+- Fix `types` field in `package.json` ([#4047](https://github.com/MetaMask/core/pull/4047))
+
+## [9.0.0]
+
+### Added
+
+- **BREAKING**: Add ESM build ([#3998](https://github.com/MetaMask/core/pull/3998))
+  - It's no longer possible to import files from `./dist` directly.
+- Add support for Linea Sepolia (chain ID `0xe705`) ([#3995](https://github.com/MetaMask/core/pull/3995))
+  - Update default controller state so `0xe705` is automatically enabled in `showIncomingTransactions`.
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+  - This version has a number of breaking changes. See the changelog for more.
+- **BREAKING:** Bump peer dependency on `@metamask/keyring-controller` to `^14.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+- Bump `@metamask/controller-utils` to `^9.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+
 ## [8.0.0]
 
 ### Changed
@@ -171,15 +532,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
-
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
-
     - `src/user/PreferencesController.ts` (plus `ContactEntry` copied from `src/user/AddressBookController.ts`)
     - `src/user/PreferencesController.test.ts`
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@8.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@23.1.0...HEAD
+[23.1.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@23.0.0...@metamask/preferences-controller@23.1.0
+[23.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@22.1.0...@metamask/preferences-controller@23.0.0
+[22.1.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@22.0.0...@metamask/preferences-controller@22.1.0
+[22.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@21.0.0...@metamask/preferences-controller@22.0.0
+[21.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.1.1...@metamask/preferences-controller@21.0.0
+[20.1.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.1.0...@metamask/preferences-controller@20.1.1
+[20.1.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.0.2...@metamask/preferences-controller@20.1.0
+[20.0.2]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.0.1...@metamask/preferences-controller@20.0.2
+[20.0.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@20.0.0...@metamask/preferences-controller@20.0.1
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@19.0.0...@metamask/preferences-controller@20.0.0
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.4.1...@metamask/preferences-controller@19.0.0
+[18.4.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.4.0...@metamask/preferences-controller@18.4.1
+[18.4.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.3.0...@metamask/preferences-controller@18.4.0
+[18.3.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.2.0...@metamask/preferences-controller@18.3.0
+[18.2.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.1.0...@metamask/preferences-controller@18.2.0
+[18.1.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@18.0.0...@metamask/preferences-controller@18.1.0
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@17.0.0...@metamask/preferences-controller@18.0.0
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@16.0.0...@metamask/preferences-controller@17.0.0
+[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@15.0.2...@metamask/preferences-controller@16.0.0
+[15.0.2]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@15.0.1...@metamask/preferences-controller@15.0.2
+[15.0.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@15.0.0...@metamask/preferences-controller@15.0.1
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@14.0.0...@metamask/preferences-controller@15.0.0
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.3.0...@metamask/preferences-controller@14.0.0
+[13.3.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.2.0...@metamask/preferences-controller@13.3.0
+[13.2.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.1.0...@metamask/preferences-controller@13.2.0
+[13.1.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.0.3...@metamask/preferences-controller@13.1.0
+[13.0.3]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.0.2...@metamask/preferences-controller@13.0.3
+[13.0.2]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.0.1...@metamask/preferences-controller@13.0.2
+[13.0.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@13.0.0...@metamask/preferences-controller@13.0.1
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@12.0.0...@metamask/preferences-controller@13.0.0
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@11.0.0...@metamask/preferences-controller@12.0.0
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@10.0.0...@metamask/preferences-controller@11.0.0
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@9.0.1...@metamask/preferences-controller@10.0.0
+[9.0.1]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@9.0.0...@metamask/preferences-controller@9.0.1
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@8.0.0...@metamask/preferences-controller@9.0.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@7.0.0...@metamask/preferences-controller@8.0.0
 [7.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@6.0.0...@metamask/preferences-controller@7.0.0
 [6.0.0]: https://github.com/MetaMask/core/compare/@metamask/preferences-controller@5.0.1...@metamask/preferences-controller@6.0.0

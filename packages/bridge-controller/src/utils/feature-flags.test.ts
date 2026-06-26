@@ -1,0 +1,591 @@
+import { DEFAULT_CHAIN_RANKING } from '../constants/bridge';
+import type {
+  FeatureFlagsPlatformConfig,
+  BridgeControllerMessenger,
+} from '../types';
+import {
+  formatFeatureFlags,
+  getBridgeFeatureFlags,
+  hasMinimumRequiredVersion,
+} from './feature-flags';
+
+describe('feature-flags', () => {
+  describe('formatFeatureFlags', () => {
+    it('should format chain IDs to CAIP format', () => {
+      const bridgeConfig = {
+        refreshRate: 3,
+        maxRefreshCount: 1,
+        support: true,
+        minimumVersion: '0.0.0',
+        chains: {
+          '1': {
+            isActiveSrc: true,
+            isActiveDest: true,
+            batchSellDestStablecoins: [
+              'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+              'eip155:1/slip44:60',
+            ],
+          },
+          '10': {
+            isActiveSrc: true,
+            isActiveDest: false,
+          },
+          '59144': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+          '120': {
+            isActiveSrc: true,
+            isActiveDest: false,
+          },
+          '137': {
+            isActiveSrc: false,
+            isActiveDest: true,
+          },
+          '11111': {
+            isActiveSrc: false,
+            isActiveDest: true,
+          },
+          '1151111081099710': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+        },
+        chainRanking: [],
+      };
+
+      const result = formatFeatureFlags(bridgeConfig);
+
+      expect(result).toStrictEqual({
+        refreshRate: 3,
+        maxRefreshCount: 1,
+        support: true,
+        minimumVersion: '0.0.0',
+        chainRanking: [],
+        chains: {
+          'eip155:1': {
+            isActiveSrc: true,
+            isActiveDest: true,
+            batchSellDestStablecoins: [
+              'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+              'eip155:1/slip44:60',
+            ],
+          },
+          'eip155:10': {
+            isActiveSrc: true,
+            isActiveDest: false,
+          },
+          'eip155:59144': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+          'eip155:120': {
+            isActiveSrc: true,
+            isActiveDest: false,
+          },
+          'eip155:137': {
+            isActiveSrc: false,
+            isActiveDest: true,
+          },
+          'eip155:11111': {
+            isActiveSrc: false,
+            isActiveDest: true,
+          },
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+        },
+      });
+    });
+
+    it('should handle empty chains object', () => {
+      const bridgeConfig: FeatureFlagsPlatformConfig = {
+        refreshRate: 3,
+        maxRefreshCount: 1,
+        support: true,
+        minimumVersion: '0.0.0',
+        chains: {},
+        chainRanking: [],
+      };
+
+      const result = formatFeatureFlags(bridgeConfig);
+
+      expect(result).toStrictEqual({
+        refreshRate: 3,
+        maxRefreshCount: 1,
+        support: true,
+        minimumVersion: '0.0.0',
+        chainRanking: [],
+        chains: {},
+      });
+    });
+
+    it('should handle invalid chain IDs', () => {
+      const bridgeConfig: FeatureFlagsPlatformConfig = {
+        refreshRate: 3,
+        maxRefreshCount: 1,
+        support: true,
+        minimumVersion: '0.0.0',
+        chains: {
+          'eip155:invalid': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+          'eip155:0x123': {
+            isActiveSrc: true,
+            isActiveDest: false,
+          },
+        },
+        chainRanking: [],
+      };
+
+      const result = formatFeatureFlags(bridgeConfig);
+
+      expect(result).toStrictEqual({
+        refreshRate: 3,
+        maxRefreshCount: 1,
+        support: true,
+        minimumVersion: '0.0.0',
+        chainRanking: [],
+        chains: {
+          'eip155:invalid': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+          'eip155:0x123': {
+            isActiveSrc: true,
+            isActiveDest: false,
+          },
+        },
+      });
+    });
+
+    it('should preserve non-empty chainRanking', () => {
+      const customChainRanking = [
+        { chainId: 'eip155:1' as const, name: 'Ethereum' },
+        { chainId: 'eip155:137' as const, name: 'Polygon' },
+      ];
+      const bridgeConfig: FeatureFlagsPlatformConfig = {
+        refreshRate: 3,
+        maxRefreshCount: 1,
+        support: true,
+        minimumVersion: '0.0.0',
+        chains: {},
+        chainRanking: customChainRanking,
+      };
+
+      const result = formatFeatureFlags(bridgeConfig);
+
+      expect(result).toStrictEqual({
+        refreshRate: 3,
+        maxRefreshCount: 1,
+        support: true,
+        minimumVersion: '0.0.0',
+        chainRanking: customChainRanking,
+        chains: {},
+      });
+    });
+  });
+  describe('getBridgeFeatureFlags', () => {
+    const mockMessenger = {
+      call: jest.fn(),
+      publish: jest.fn(),
+      registerActionHandler: jest.fn(),
+      registerInitialEventPayload: jest.fn(),
+    } as unknown as BridgeControllerMessenger;
+
+    it('should fetch bridge feature flags successfully', async () => {
+      const bridgeConfig = {
+        refreshRate: 3,
+        maxRefreshCount: 1,
+        support: true,
+        minimumVersion: '0.0.0',
+        chainRanking: [],
+        chains: {
+          '1': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+          '10': {
+            isActiveSrc: true,
+            isActiveDest: false,
+          },
+          '59144': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+          '120': {
+            isActiveSrc: true,
+            isActiveDest: false,
+          },
+          '137': {
+            isActiveSrc: false,
+            isActiveDest: true,
+          },
+          '11111': {
+            isActiveSrc: false,
+            isActiveDest: true,
+          },
+          '1151111081099710': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+        },
+      };
+
+      const remoteFeatureFlagControllerState = {
+        cacheTimestamp: 1745515389440,
+        remoteFeatureFlags: {
+          bridgeConfig,
+          assetsNotificationsEnabled: false,
+          confirmation_redesign: {
+            contract_interaction: false,
+            signatures: false,
+            staking_confirmations: false,
+          },
+          confirmations_eip_7702: {},
+          earnFeatureFlagTemplate: {
+            enabled: false,
+            minimumVersion: '0.0.0',
+          },
+          earnPooledStakingEnabled: {
+            enabled: false,
+            minimumVersion: '0.0.0',
+          },
+          earnPooledStakingServiceInterruptionBannerEnabled: {
+            enabled: false,
+            minimumVersion: '0.0.0',
+          },
+          earnStablecoinLendingEnabled: {
+            enabled: false,
+            minimumVersion: '0.0.0',
+          },
+          earnStablecoinLendingServiceInterruptionBannerEnabled: {
+            enabled: false,
+            minimumVersion: '0.0.0',
+          },
+          mobileMinimumVersions: {
+            androidMinimumAPIVersion: 0,
+            appMinimumBuild: 0,
+            appleMinimumOS: 0,
+          },
+          productSafetyDappScanning: false,
+          testFlagForThreshold: {},
+          tokenSearchDiscoveryEnabled: false,
+          transactionsPrivacyPolicyUpdate: 'no_update',
+          transactionsTxHashInAnalytics: false,
+          walletFrameworkRpcFailoverEnabled: false,
+        },
+      };
+
+      (mockMessenger.call as jest.Mock).mockImplementation(() => {
+        return remoteFeatureFlagControllerState;
+      });
+
+      const result = getBridgeFeatureFlags(mockMessenger);
+
+      const expectedBridgeConfig = {
+        maxRefreshCount: 1,
+        refreshRate: 3,
+        support: true,
+        minimumVersion: '0.0.0',
+        chainRanking: [...DEFAULT_CHAIN_RANKING],
+        chains: {
+          'eip155:1': {
+            isActiveDest: true,
+            isActiveSrc: true,
+          },
+          'eip155:10': {
+            isActiveDest: false,
+            isActiveSrc: true,
+          },
+          'eip155:11111': {
+            isActiveDest: true,
+            isActiveSrc: false,
+          },
+          'eip155:120': {
+            isActiveDest: false,
+            isActiveSrc: true,
+          },
+          'eip155:137': {
+            isActiveDest: true,
+            isActiveSrc: false,
+          },
+          'eip155:59144': {
+            isActiveDest: true,
+            isActiveSrc: true,
+          },
+          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': {
+            isActiveDest: true,
+            isActiveSrc: true,
+          },
+        },
+      };
+
+      expect(result).toStrictEqual(expectedBridgeConfig);
+    });
+
+    it('should use fallback bridge feature flags if response is unexpected', async () => {
+      const bridgeConfig = {
+        refreshRate: 3,
+        maxRefreshCount: 1,
+        support: 25,
+        minimumVersion: '0.0.0',
+        chains: {
+          a: {
+            isActiveSrc: 1,
+            isActiveDest: 'test',
+          },
+          '2': {
+            isActiveSrc: 'test',
+            isActiveDest: 2,
+          },
+        },
+      };
+      const remoteFeatureFlagControllerState = {
+        cacheTimestamp: 1745515389440,
+        remoteFeatureFlags: {
+          bridgeConfig,
+          assetsNotificationsEnabled: false,
+          confirmation_redesign: {
+            contract_interaction: false,
+            signatures: false,
+            staking_confirmations: false,
+          },
+          confirmations_eip_7702: {},
+          earnFeatureFlagTemplate: {
+            enabled: false,
+            minimumVersion: '0.0.0',
+          },
+          earnPooledStakingEnabled: {
+            enabled: false,
+            minimumVersion: '0.0.0',
+          },
+          earnPooledStakingServiceInterruptionBannerEnabled: {
+            enabled: false,
+            minimumVersion: '0.0.0',
+          },
+          earnStablecoinLendingEnabled: {
+            enabled: false,
+            minimumVersion: '0.0.0',
+          },
+          earnStablecoinLendingServiceInterruptionBannerEnabled: {
+            enabled: false,
+            minimumVersion: '0.0.0',
+          },
+          mobileMinimumVersions: {
+            androidMinimumAPIVersion: 0,
+            appMinimumBuild: 0,
+            appleMinimumOS: 0,
+          },
+          productSafetyDappScanning: false,
+          testFlagForThreshold: {},
+          tokenSearchDiscoveryEnabled: false,
+          transactionsPrivacyPolicyUpdate: 'no_update',
+          transactionsTxHashInAnalytics: false,
+          walletFrameworkRpcFailoverEnabled: false,
+        },
+      };
+
+      (mockMessenger.call as jest.Mock).mockResolvedValue(
+        remoteFeatureFlagControllerState,
+      );
+
+      const result = getBridgeFeatureFlags(mockMessenger);
+
+      const expectedBridgeConfig = {
+        maxRefreshCount: 5,
+        refreshRate: 30000,
+        support: false,
+        minimumVersion: '0.0.0',
+        chainRanking: [...DEFAULT_CHAIN_RANKING],
+        chains: {},
+      };
+      expect(result).toStrictEqual(expectedBridgeConfig);
+    });
+
+    it('should prioritize bridgeConfigV2 over bridgeConfig', async () => {
+      const bridgeConfigV2 = {
+        refreshRate: 5,
+        maxRefreshCount: 2,
+        support: true,
+        minimumVersion: '1.0.0',
+        chains: {
+          '1': {
+            isActiveSrc: true,
+            isActiveDest: true,
+            batchSellDestStablecoins: [
+              'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+              'eip155:1/slip44:60',
+            ],
+          },
+        },
+        chainRanking: [],
+      };
+
+      const bridgeConfig = {
+        refreshRate: 3,
+        maxRefreshCount: 1,
+        support: true,
+        minimumVersion: '0.0.0',
+        chains: {
+          '1': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+        },
+        chainRanking: [],
+      };
+
+      const remoteFeatureFlagControllerState = {
+        cacheTimestamp: 1745515389440,
+        remoteFeatureFlags: {
+          bridgeConfigV2,
+          bridgeConfig,
+          assetsNotificationsEnabled: false,
+        },
+      };
+
+      (mockMessenger.call as jest.Mock).mockImplementation(() => {
+        return remoteFeatureFlagControllerState;
+      });
+
+      const result = getBridgeFeatureFlags(mockMessenger);
+
+      const expectedBridgeConfig = {
+        refreshRate: 5,
+        maxRefreshCount: 2,
+        support: true,
+        minimumVersion: '1.0.0',
+        chains: {
+          'eip155:1': {
+            isActiveSrc: true,
+            isActiveDest: true,
+            batchSellDestStablecoins: [
+              'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+              'eip155:1/slip44:60',
+            ],
+          },
+        },
+        chainRanking: [...DEFAULT_CHAIN_RANKING],
+      };
+
+      expect(result).toStrictEqual(expectedBridgeConfig);
+    });
+
+    it('should fallback to bridgeConfig when bridgeConfigV2 is not available', async () => {
+      const bridgeConfig = {
+        refreshRate: 3,
+        maxRefreshCount: 1,
+        support: true,
+        minimumVersion: '0.0.0',
+        chains: {
+          '1': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+        },
+        chainRanking: [],
+      };
+
+      const remoteFeatureFlagControllerState = {
+        cacheTimestamp: 1745515389440,
+        remoteFeatureFlags: {
+          bridgeConfig,
+          assetsNotificationsEnabled: false,
+        },
+      };
+
+      (mockMessenger.call as jest.Mock).mockImplementation(() => {
+        return remoteFeatureFlagControllerState;
+      });
+
+      const result = getBridgeFeatureFlags(mockMessenger);
+
+      const expectedBridgeConfig = {
+        refreshRate: 3,
+        maxRefreshCount: 1,
+        support: true,
+        minimumVersion: '0.0.0',
+        chains: {
+          'eip155:1': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+        },
+        chainRanking: [...DEFAULT_CHAIN_RANKING],
+      };
+
+      expect(result).toStrictEqual(expectedBridgeConfig);
+    });
+
+    it('should preserve non-empty chainRanking from remote config', async () => {
+      const customChainRanking = [
+        { chainId: 'eip155:1' as const, name: 'Ethereum' },
+        { chainId: 'eip155:137' as const, name: 'Polygon' },
+      ];
+      const bridgeConfig = {
+        refreshRate: 3,
+        maxRefreshCount: 1,
+        support: true,
+        minimumVersion: '0.0.0',
+        chains: {
+          '1': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+        },
+        chainRanking: customChainRanking,
+      };
+
+      const remoteFeatureFlagControllerState = {
+        cacheTimestamp: 1745515389440,
+        remoteFeatureFlags: {
+          bridgeConfig,
+          assetsNotificationsEnabled: false,
+        },
+      };
+
+      (mockMessenger.call as jest.Mock).mockImplementation(() => {
+        return remoteFeatureFlagControllerState;
+      });
+
+      const result = getBridgeFeatureFlags(mockMessenger);
+
+      const expectedBridgeConfig = {
+        refreshRate: 3,
+        maxRefreshCount: 1,
+        support: true,
+        minimumVersion: '0.0.0',
+        chains: {
+          'eip155:1': {
+            isActiveSrc: true,
+            isActiveDest: true,
+          },
+        },
+        chainRanking: customChainRanking,
+      };
+
+      expect(result).toStrictEqual(expectedBridgeConfig);
+    });
+  });
+
+  describe('hasMinimumRequiredVersion', () => {
+    it('should return true if the client version is greater than or equal to the minimum required version', () => {
+      expect(hasMinimumRequiredVersion('13.8.0', '13.7.0')).toBe(true);
+      expect(hasMinimumRequiredVersion('13.8.1', '13.8.0')).toBe(true);
+      expect(hasMinimumRequiredVersion('14.0.0', '13.7.0')).toBe(true);
+      expect(hasMinimumRequiredVersion('13.9.0', '13.8.1')).toBe(true);
+    });
+
+    it('should return false if the client version is less than the minimum required version', () => {
+      expect(hasMinimumRequiredVersion('13.7.0', '13.8.0')).toBe(false);
+      expect(hasMinimumRequiredVersion('13.7.1', '13.8.0')).toBe(false);
+      expect(hasMinimumRequiredVersion('13.7.1', '13.7.2')).toBe(false);
+      expect(hasMinimumRequiredVersion('13.6.0', '13.8.0')).toBe(false);
+      expect(hasMinimumRequiredVersion('13.7.0', '14.7.0')).toBe(false);
+      expect(hasMinimumRequiredVersion('13.7.0', '13.8.1')).toBe(false);
+    });
+  });
+});

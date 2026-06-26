@@ -1,131 +1,266 @@
-import { toBuffer } from '@ethereumjs/util';
+import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
 } from '@metamask/base-controller';
-import { BaseController } from '@metamask/base-controller';
 import { SnapKeyring } from '@metamask/eth-snap-keyring';
-import type { InternalAccount } from '@metamask/keyring-api';
-import { EthAccountType, EthMethod } from '@metamask/keyring-api';
-import { KeyringTypes } from '@metamask/keyring-controller';
+import type {
+  SnapKeyringAccountAssetListUpdatedEvent,
+  SnapKeyringAccountBalancesUpdatedEvent,
+  SnapKeyringAccountTransactionsUpdatedEvent,
+} from '@metamask/eth-snap-keyring';
+import { SnapKeyring as SnapKeyringV2 } from '@metamask/eth-snap-keyring/v2';
+import type { KeyringAccountEntropyOptions } from '@metamask/keyring-api';
+import {
+  EthAccountType,
+  EthMethod,
+  EthScope,
+  isEvmAccountType,
+  KeyringAccountEntropyTypeOption,
+} from '@metamask/keyring-api';
+import { KeyringType } from '@metamask/keyring-api/v2';
 import type {
   KeyringControllerState,
-  KeyringControllerGetKeyringForAccountAction,
   KeyringControllerGetKeyringsByTypeAction,
-  KeyringControllerGetAccountsAction,
   KeyringControllerStateChangeEvent,
+  KeyringControllerGetStateAction,
+  KeyringObject,
 } from '@metamask/keyring-controller';
-import type {
-  SnapControllerState,
-  SnapStateChange,
-} from '@metamask/snaps-controllers';
-import type { SnapId } from '@metamask/snaps-sdk';
-import type { Snap } from '@metamask/snaps-utils';
-import type { Keyring, Json } from '@metamask/utils';
-import { sha256 } from 'ethereum-cryptography/sha256';
-import type { Draft } from 'immer';
-import { v4 as uuid } from 'uuid';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
+import { KeyringV1Adapter } from '@metamask/keyring-sdk/v2';
+import { isScopeEqualToAny } from '@metamask/keyring-utils';
+import type { Messenger, ExtractEventPayload } from '@metamask/messenger';
+import type { NetworkClientId } from '@metamask/network-controller';
+import { isCaipChainId } from '@metamask/utils';
+import type { CaipChainId } from '@metamask/utils';
+import type { WritableDraft } from 'immer/dist/internal.js';
+import { cloneDeep } from 'lodash';
 
-import { getUUIDFromAddressOfNormalAccount, keyringTypeToName } from './utils';
+import { AccountsControllerMethodActions } from './AccountsController-method-action-types';
+import { projectLogger as log } from './logger';
+import type {
+  MultichainNetworkControllerNetworkDidChangeEvent,
+  SnapAccountServiceAccountAssetListUpdatedEvent,
+  SnapAccountServiceAccountBalancesUpdatedEvent,
+  SnapAccountServiceAccountTransactionsUpdatedEvent,
+} from './types';
+import type { AccountsControllerStrictState } from './typing';
+import type { HdSnapKeyringAccount } from './utils';
+import {
+  constructAccountIdByAddress,
+  getEvmDerivationPathForIndex,
+  getEvmGroupIndexFromAddressIndex,
+  getUUIDFromAddressOfNormalAccount,
+  isHdKeyringType,
+  isHdSnapKeyringAccount,
+  isMoneyKeyringType,
+  isSnapKeyringType,
+  isSnapKeyringV2Type,
+  keyringTypeToName,
+} from './utils';
 
 const controllerName = 'AccountsController';
 
+/**
+ * @deprecated This type is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
+ */
+export type AccountId = string;
+
+/**
+ * @deprecated This type is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
+ */
 export type AccountsControllerState = {
   internalAccounts: {
-    accounts: Record<string, InternalAccount>;
+    accounts: Record<AccountId, InternalAccount>;
     selectedAccount: string; // id of the selected account
   };
+  accountIdByAddress: Record<InternalAccount['address'], AccountId>;
 };
 
+/**
+ * @deprecated This type is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
+ */
 export type AccountsControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
   AccountsControllerState
 >;
 
-export type AccountsControllerSetSelectedAccountAction = {
-  type: `${typeof controllerName}:setSelectedAccount`;
-  handler: AccountsController['setSelectedAccount'];
-};
+const MESSENGER_EXPOSED_METHODS = [
+  'setSelectedAccount',
+  'setAccountName',
+  'setAccountNameAndSelectAccount',
+  'listAccounts',
+  'listMultichainAccounts',
+  'updateAccounts',
+  'getSelectedAccount',
+  'getSelectedMultichainAccount',
+  'getAccountByAddress',
+  'getAccount',
+  'getAccounts',
+  'updateAccountMetadata',
+  'loadBackup',
+] as const;
 
-export type AccountsControllerSetAccountNameAction = {
-  type: `${typeof controllerName}:setAccountName`;
-  handler: AccountsController['setAccountName'];
-};
-
-export type AccountsControllerListAccountsAction = {
-  type: `${typeof controllerName}:listAccounts`;
-  handler: AccountsController['listAccounts'];
-};
-
-export type AccountsControllerUpdateAccountsAction = {
-  type: `${typeof controllerName}:updateAccounts`;
-  handler: AccountsController['updateAccounts'];
-};
-
-export type AccountsControllerGetSelectedAccountAction = {
-  type: `${typeof controllerName}:getSelectedAccount`;
-  handler: AccountsController['getSelectedAccount'];
-};
-
-export type AccountsControllerGetAccountByAddressAction = {
-  type: `${typeof controllerName}:getAccountByAddress`;
-  handler: AccountsController['getAccountByAddress'];
-};
-
-export type AccountsControllerGetAccountAction = {
-  type: `${typeof controllerName}:getAccount`;
-  handler: AccountsController['getAccount'];
-};
-
+/**
+ * @deprecated This type is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
+ */
 export type AllowedActions =
-  | KeyringControllerGetKeyringForAccountAction
   | KeyringControllerGetKeyringsByTypeAction
-  | KeyringControllerGetAccountsAction;
+  | KeyringControllerGetStateAction;
 
+/**
+ * @deprecated This type is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
+ */
 export type AccountsControllerActions =
   | AccountsControllerGetStateAction
-  | AccountsControllerSetSelectedAccountAction
-  | AccountsControllerListAccountsAction
-  | AccountsControllerSetAccountNameAction
-  | AccountsControllerUpdateAccountsAction
-  | AccountsControllerGetAccountByAddressAction
-  | AccountsControllerGetSelectedAccountAction
-  | AccountsControllerGetAccountAction;
+  | AccountsControllerMethodActions;
 
+/**
+ * @deprecated This type is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
+ */
 export type AccountsControllerChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
   AccountsControllerState
 >;
 
+/**
+ * @deprecated This type is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
+ */
 export type AccountsControllerSelectedAccountChangeEvent = {
   type: `${typeof controllerName}:selectedAccountChange`;
   payload: [InternalAccount];
 };
 
-export type AllowedEvents = SnapStateChange | KeyringControllerStateChangeEvent;
+/**
+ * @deprecated This type is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
+ */
+export type AccountsControllerSelectedEvmAccountChangeEvent = {
+  type: `${typeof controllerName}:selectedEvmAccountChange`;
+  payload: [InternalAccount];
+};
 
+/**
+ * @deprecated This type is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
+ */
+export type AccountsControllerAccountAddedEvent = {
+  type: `${typeof controllerName}:accountAdded`;
+  payload: [InternalAccount];
+};
+
+export type AccountsControllerAccountsAddedEvent = {
+  type: `${typeof controllerName}:accountsAdded`;
+  payload: [InternalAccount[]];
+};
+
+/**
+ * @deprecated This type is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
+ */
+export type AccountsControllerAccountRemovedEvent = {
+  type: `${typeof controllerName}:accountRemoved`;
+  payload: [AccountId];
+};
+
+export type AccountsControllerAccountsRemovedEvent = {
+  type: `${typeof controllerName}:accountsRemoved`;
+  payload: [AccountId[]];
+};
+
+/**
+ * @deprecated This type is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
+ */
+export type AccountsControllerAccountRenamedEvent = {
+  type: `${typeof controllerName}:accountRenamed`;
+  payload: [InternalAccount];
+};
+
+/**
+ * @deprecated This type is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
+ */
+export type AccountsControllerAccountBalancesUpdatesEvent = {
+  type: `${typeof controllerName}:accountBalancesUpdated`;
+  payload: SnapKeyringAccountBalancesUpdatedEvent['payload'];
+};
+
+/**
+ * @deprecated This type is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
+ */
+export type AccountsControllerAccountTransactionsUpdatedEvent = {
+  type: `${typeof controllerName}:accountTransactionsUpdated`;
+  payload: SnapKeyringAccountTransactionsUpdatedEvent['payload'];
+};
+
+/**
+ * @deprecated This type is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
+ */
+export type AccountsControllerAccountAssetListUpdatedEvent = {
+  type: `${typeof controllerName}:accountAssetListUpdated`;
+  payload: SnapKeyringAccountAssetListUpdatedEvent['payload'];
+};
+
+/**
+ * @deprecated This type is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
+ */
+export type AllowedEvents =
+  | KeyringControllerStateChangeEvent
+  | SnapAccountServiceAccountAssetListUpdatedEvent
+  | SnapAccountServiceAccountBalancesUpdatedEvent
+  | SnapAccountServiceAccountTransactionsUpdatedEvent
+  | MultichainNetworkControllerNetworkDidChangeEvent;
+
+/**
+ * @deprecated This type is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
+ */
 export type AccountsControllerEvents =
   | AccountsControllerChangeEvent
-  | AccountsControllerSelectedAccountChangeEvent;
+  | AccountsControllerSelectedAccountChangeEvent
+  | AccountsControllerSelectedEvmAccountChangeEvent
+  | AccountsControllerAccountAddedEvent
+  | AccountsControllerAccountsAddedEvent
+  | AccountsControllerAccountRemovedEvent
+  | AccountsControllerAccountsRemovedEvent
+  | AccountsControllerAccountRenamedEvent
+  | AccountsControllerAccountBalancesUpdatesEvent
+  | AccountsControllerAccountTransactionsUpdatedEvent
+  | AccountsControllerAccountAssetListUpdatedEvent;
 
-export type AccountsControllerMessenger = RestrictedControllerMessenger<
+/**
+ * @deprecated This type is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
+ */
+export type AccountsControllerMessenger = Messenger<
   typeof controllerName,
   AccountsControllerActions | AllowedActions,
-  AccountsControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  AccountsControllerEvents | AllowedEvents
 >;
-
-type AddressAndKeyringTypeObject = {
-  address: string;
-  type: string;
-};
 
 const accountsControllerMetadata = {
   internalAccounts: {
+    includeInStateLogs: true,
     persist: true,
-    anonymous: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  accountIdByAddress: {
+    includeInStateLogs: false,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
   },
 };
 
@@ -134,6 +269,40 @@ const defaultState: AccountsControllerState = {
     accounts: {},
     selectedAccount: '',
   },
+  accountIdByAddress: {},
+};
+
+/**
+ * @deprecated This constant is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
+ */
+export const EMPTY_ACCOUNT = {
+  id: '',
+  address: '',
+  options: {},
+  methods: [],
+  type: EthAccountType.Eoa,
+  scopes: [EthScope.Eoa],
+  metadata: {
+    name: '',
+    keyring: {
+      type: '',
+    },
+    importTime: 0,
+  },
+};
+
+/**
+ * A patch representing a keyring state change.
+ */
+type StatePatch = {
+  previous: Record<string, InternalAccount>;
+  added: {
+    address: string;
+    keyring: KeyringObject;
+  }[];
+  updated: InternalAccount[];
+  removed: InternalAccount[];
 };
 
 /**
@@ -143,6 +312,8 @@ const defaultState: AccountsControllerState = {
  * The accounts controller also listens for keyring state changes and updates the internal accounts accordingly.
  * The accounts controller also listens for snap state changes and updates the internal accounts accordingly.
  *
+ * @deprecated This class is deprecated and will be removed in a future version.
+ * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
  */
 export class AccountsController extends BaseController<
   typeof controllerName,
@@ -161,8 +332,11 @@ export class AccountsController extends BaseController<
     state,
   }: {
     messenger: AccountsControllerMessenger;
-    state: AccountsControllerState;
+    state?: AccountsControllerState;
   }) {
+    const accountIdByAddress = constructAccountIdByAddress(
+      state?.internalAccounts?.accounts ?? {},
+    );
     super({
       messenger,
       name: controllerName,
@@ -170,25 +344,23 @@ export class AccountsController extends BaseController<
       state: {
         ...defaultState,
         ...state,
+        accountIdByAddress,
       },
     });
 
-    this.messagingSystem.subscribe(
-      'SnapController:stateChange',
-      (snapStateState) => this.#handleOnSnapStateChange(snapStateState),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
 
-    this.messagingSystem.subscribe(
-      'KeyringController:stateChange',
-      (keyringState) => this.#handleOnKeyringStateChange(keyringState),
-    );
-
-    this.#registerMessageHandlers();
+    this.#subscribeToMessageEvents();
   }
 
   /**
    * Returns the internal account object for the given account ID, if it exists.
    *
+   * @deprecated This method is deprecated and will be removed in a future version.
+   * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
    * @param accountId - The ID of the account to retrieve.
    * @returns The internal account object, or undefined if the account does not exist.
    */
@@ -197,211 +369,457 @@ export class AccountsController extends BaseController<
   }
 
   /**
-   * Returns an array of all internal accounts.
+   * Returns the internal account objects for the given account IDs, if they exist.
    *
+   * @deprecated This method is deprecated and will be removed in a future version.
+   * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
+   * @param accountIds - The IDs of the accounts to retrieve.
+   * @returns The internal account objects, or undefined if the account(s) do not exist.
+   */
+  getAccounts(accountIds: string[]): (InternalAccount | undefined)[] {
+    return accountIds.map((accountId) => this.getAccount(accountId));
+  }
+
+  /**
+   * Returns an array of all evm internal accounts.
+   *
+   * @deprecated This method is deprecated and will be removed in a future version.
+   * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
    * @returns An array of InternalAccount objects.
    */
   listAccounts(): InternalAccount[] {
-    return Object.values(this.state.internalAccounts.accounts);
+    const accounts = Object.values(this.state.internalAccounts.accounts);
+    return accounts.filter((account) => isEvmAccountType(account.type));
+  }
+
+  /**
+   * Returns an array of all internal accounts.
+   *
+   * @deprecated This method is deprecated and will be removed in a future version.
+   * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
+   * @param chainId - The chain ID.
+   * @returns An array of InternalAccount objects.
+   */
+  listMultichainAccounts(chainId?: CaipChainId): InternalAccount[] {
+    const accounts = Object.values(this.state.internalAccounts.accounts);
+    if (!chainId) {
+      return accounts;
+    }
+
+    if (!isCaipChainId(chainId)) {
+      throw new Error(`Invalid CAIP-2 chain ID: ${String(chainId)}`);
+    }
+
+    return accounts.filter((account) =>
+      isScopeEqualToAny(chainId, account.scopes),
+    );
   }
 
   /**
    * Returns the internal account object for the given account ID.
    *
+   * @deprecated This method is deprecated and will be removed in a future version.
+   * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
    * @param accountId - The ID of the account to retrieve.
    * @returns The internal account object.
    * @throws An error if the account ID is not found.
    */
-  getAccountExpect(accountId: string): InternalAccount {
-    // Edge case where the extension is setup but the srp is not yet created
-    // certain ui elements will query the selected address before any accounts are created.
-    if (!accountId) {
-      return {
-        id: '',
-        address: '',
-        options: {},
-        methods: [],
-        type: EthAccountType.Eoa,
-        metadata: {
-          name: '',
-          keyring: {
-            type: '',
-          },
-        },
-      };
-    }
-
+  #getAccountExpect(accountId: string): InternalAccount {
     const account = this.getAccount(accountId);
     if (account === undefined) {
-      throw new Error(`Account Id ${accountId} not found`);
+      throw new Error(`Account Id "${accountId}" not found`);
     }
     return account;
   }
 
   /**
-   * Returns the selected internal account.
+   * Returns the last selected EVM account.
    *
+   * @deprecated This method is deprecated and will be removed in a future version.
+   * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
    * @returns The selected internal account.
    */
   getSelectedAccount(): InternalAccount {
-    return this.getAccountExpect(this.state.internalAccounts.selectedAccount);
+    const {
+      internalAccounts: { selectedAccount },
+    } = this.state;
+
+    // Edge case where the extension is setup but the srp is not yet created
+    // certain ui elements will query the selected address before any accounts are created.
+    if (!selectedAccount) {
+      return EMPTY_ACCOUNT;
+    }
+
+    const account = this.#getAccountExpect(selectedAccount);
+    if (isEvmAccountType(account.type)) {
+      return account;
+    }
+
+    const accounts = this.listAccounts();
+    if (!accounts.length) {
+      // ! Should never reach this.
+      throw new Error('No EVM accounts');
+    }
+
+    // This will never be undefined because we have already checked if accounts.length is > 0
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    return this.#getLastSelectedAccount(accounts)!;
+  }
+
+  /**
+   * __WARNING The return value may be undefined if there isn't an account for that chain id.__
+   *
+   * Retrieves the last selected account by chain ID.
+   *
+   * @deprecated This method is deprecated and will be removed in a future version.
+   * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
+   * @param chainId - The chain ID to filter the accounts.
+   * @returns The last selected account compatible with the specified chain ID or undefined.
+   */
+  getSelectedMultichainAccount(
+    chainId?: CaipChainId,
+  ): InternalAccount | undefined {
+    const {
+      internalAccounts: { selectedAccount },
+    } = this.state;
+
+    // Edge case where the extension is setup but the srp is not yet created
+    // certain ui elements will query the selected address before any accounts are created.
+    if (!selectedAccount) {
+      return EMPTY_ACCOUNT;
+    }
+
+    if (!chainId) {
+      return this.#getAccountExpect(selectedAccount);
+    }
+
+    const accounts = this.listMultichainAccounts(chainId);
+    return this.#getLastSelectedAccount(accounts);
   }
 
   /**
    * Returns the account with the specified address.
    * ! This method will only return the first account that matches the address
+   *
+   * @deprecated This method is deprecated and will be removed in a future version.
+   * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
    * @param address - The address of the account to retrieve.
    * @returns The account with the specified address, or undefined if not found.
    */
   getAccountByAddress(address: string): InternalAccount | undefined {
-    return this.listAccounts().find(
-      (account) => account.address.toLowerCase() === address.toLowerCase(),
-    );
+    // We need to have a fallback as a cache miss might be attributed to a checksummed address being passed.
+    let accountId = this.state.accountIdByAddress[address];
+    if (!accountId) {
+      // FIXME: We should not need lower-cased addresses, but some consumers might
+      // still be using non-normalized addresses. For now we keep it
+      // for convenience, but we will need to remove this fallback
+      // at some point.
+      // NOTE: We should only hit that branch for EVM accounts only.
+      const lowercasedAddress = address.toLowerCase();
+      accountId = this.state.accountIdByAddress[lowercasedAddress];
+      if (accountId) {
+        log(
+          `Cache missed for account ID: ${accountId}, received address: "${address}", matched address: "${lowercasedAddress}"`,
+        );
+      }
+    }
+    return accountId ? this.getAccount(accountId) : undefined;
   }
 
   /**
    * Sets the selected account by its ID.
    *
+   * @deprecated This method is deprecated and will be removed in a future version.
+   * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
    * @param accountId - The ID of the account to be selected.
    */
   setSelectedAccount(accountId: string): void {
-    const account = this.getAccount(accountId);
+    const account = this.#getAccountExpect(accountId);
 
-    this.update((currentState: Draft<AccountsControllerState>) => {
-      if (account) {
-        currentState.internalAccounts.accounts[
-          account.id
-        ].metadata.lastSelected = Date.now();
-        currentState.internalAccounts.selectedAccount = account.id;
-      } else {
-        currentState.internalAccounts.selectedAccount = '';
-      }
-    });
-
-    if (account) {
-      this.messagingSystem.publish(
-        'AccountsController:selectedAccountChange',
-        account,
-      );
+    if (this.state.internalAccounts.selectedAccount === account.id) {
+      return;
     }
+
+    this.#update((state) => {
+      const { internalAccounts } = state;
+
+      internalAccounts.accounts[account.id].metadata.lastSelected = Date.now();
+      internalAccounts.selectedAccount = account.id;
+    });
   }
 
   /**
    * Sets the name of the account with the given ID.
    *
+   * @deprecated This method is deprecated and will be removed in a future version.
+   * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
    * @param accountId - The ID of the account to set the name for.
    * @param accountName - The new name for the account.
    * @throws An error if an account with the same name already exists.
    */
   setAccountName(accountId: string, accountName: string): void {
-    const account = this.getAccountExpect(accountId);
+    // This will check for name uniqueness and fire the `accountRenamed` event
+    // if the account has been renamed.
+    this.updateAccountMetadata(accountId, {
+      name: accountName,
+      nameLastUpdatedAt: Date.now(),
+    });
+  }
 
+  /**
+   * Sets the name of the account with the given ID and select it.
+   *
+   * @deprecated This method is deprecated and will be removed in a future version.
+   * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
+   * @param accountId - The ID of the account to set the name for and select.
+   * @param accountName - The new name for the account.
+   * @throws An error if an account with the same name already exists.
+   */
+  setAccountNameAndSelectAccount(accountId: string, accountName: string): void {
+    const account = this.#getAccountExpect(accountId);
+
+    this.#assertAccountCanBeRenamed(account, accountName);
+
+    const internalAccount = {
+      ...account,
+      metadata: {
+        ...account.metadata,
+        name: accountName,
+        nameLastUpdatedAt: Date.now(),
+        lastSelected: this.#getLastSelectedIndex(),
+      },
+    };
+
+    this.#update((state) => {
+      state.internalAccounts.accounts[account.id] = internalAccount;
+      state.internalAccounts.selectedAccount = account.id;
+    });
+
+    this.messenger.publish(
+      'AccountsController:accountRenamed',
+      internalAccount,
+    );
+  }
+
+  #assertAccountCanBeRenamed(
+    account: InternalAccount,
+    accountName: string,
+  ): void {
     if (
-      this.listAccounts().find(
+      this.listMultichainAccounts().find(
         (internalAccount) =>
           internalAccount.metadata.name === accountName &&
-          internalAccount.id !== accountId,
+          internalAccount.id !== account.id,
       )
     ) {
       throw new Error('Account name already exists');
     }
+  }
 
-    this.update((currentState: Draft<AccountsControllerState>) => {
-      const internalAccount = {
-        ...account,
-        metadata: { ...account.metadata, name: accountName },
-      };
-      currentState.internalAccounts.accounts[accountId] =
-        // @ts-expect-error Assigning a complex type `T` to `Draft<T>` causes an excessive type instantiation depth error.
-        internalAccount as Draft<InternalAccount>;
+  /**
+   * Updates the metadata of the account with the given ID.
+   *
+   * @deprecated This method is deprecated and will be removed in a future version.
+   * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
+   * @param accountId - The ID of the account for which the metadata will be updated.
+   * @param metadata - The new metadata for the account.
+   */
+  updateAccountMetadata(
+    accountId: string,
+    metadata: Partial<InternalAccount['metadata']>,
+  ): void {
+    const account = this.#getAccountExpect(accountId);
+
+    if (metadata.name) {
+      this.#assertAccountCanBeRenamed(account, metadata.name);
+    }
+
+    const internalAccount = {
+      ...account,
+      metadata: { ...account.metadata, ...metadata },
+    };
+
+    this.#update((state) => {
+      state.internalAccounts.accounts[accountId] = internalAccount;
     });
+
+    if (metadata.name) {
+      this.messenger.publish(
+        'AccountsController:accountRenamed',
+        internalAccount,
+      );
+    }
   }
 
   /**
    * Updates the internal accounts list by retrieving normal and snap accounts,
    * removing duplicates, and updating the metadata of each account.
    *
+   * @deprecated This method is deprecated and will be removed in a future version.
+   * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
    * @returns A Promise that resolves when the accounts have been updated.
    */
   async updateAccounts(): Promise<void> {
-    const snapAccounts: InternalAccount[] = await this.#listSnapAccounts();
-    const normalAccounts = (await this.#listNormalAccounts()).filter(
-      (account) =>
-        !snapAccounts.find(
-          (snapAccount) => snapAccount.address === account.address,
-        ),
-    );
+    log('Synchronizing accounts with keyrings...');
 
-    // keyring type map.
-    const keyringTypes = new Map<string, number>();
-    const previousAccounts = this.state.internalAccounts.accounts;
+    const keyringAccountIndexes = new Map<string, number>();
 
-    const accounts: Record<string, InternalAccount> = [
-      ...normalAccounts,
-      ...snapAccounts,
-    ].reduce((internalAccountMap, internalAccount) => {
-      const keyringTypeName = keyringTypeToName(
-        internalAccount.metadata.keyring.type,
-      );
-      const keyringAccountIndex = keyringTypes.get(keyringTypeName) ?? 0;
-      if (keyringAccountIndex) {
-        keyringTypes.set(keyringTypeName, keyringAccountIndex + 1);
-      } else {
-        keyringTypes.set(keyringTypeName, 1);
+    const existingInternalAccounts = this.state.internalAccounts.accounts;
+    const internalAccounts: AccountsControllerState['internalAccounts']['accounts'] =
+      {};
+
+    const { keyrings } = this.messenger.call('KeyringController:getState');
+    for (const keyring of keyrings) {
+      // Money accounts are not treated as real accounts, they are owned by the `MoneyAccountController`, so
+      // we need to filter them out here.
+      if (isMoneyKeyringType(keyring.type)) {
+        continue;
       }
 
-      const existingAccount = previousAccounts[internalAccount.id];
+      const keyringTypeName = keyringTypeToName(keyring.type);
 
-      internalAccountMap[internalAccount.id] = {
-        ...internalAccount,
+      for (const address of keyring.accounts) {
+        const internalAccount = this.#getInternalAccountFromAddressAndType(
+          address,
+          keyring,
+        );
 
-        metadata: {
-          ...internalAccount.metadata,
-          name:
-            existingAccount && existingAccount.metadata.name !== ''
-              ? existingAccount.metadata.name
-              : `${keyringTypeName} ${keyringAccountIndex + 1}`,
-          lastSelected: existingAccount?.metadata?.lastSelected,
-        },
-      };
+        // This should never really happen, but if for some reason we're not
+        // able to get the Snap keyring reference, this would return an
+        // undefined account.
+        // So we just skip it, even though, this should not really happen.
+        if (!internalAccount) {
+          continue;
+        }
 
-      return internalAccountMap;
-    }, {} as Record<string, InternalAccount>);
+        // Get current index for this keyring (we use human indexing, so start at 1).
+        const keyringAccountIndex =
+          keyringAccountIndexes.get(keyringTypeName) ?? 1;
 
-    this.update((currentState: Draft<AccountsControllerState>) => {
-      (currentState as AccountsControllerState).internalAccounts.accounts =
-        accounts;
+        const existingAccount = existingInternalAccounts[internalAccount.id];
+        internalAccounts[internalAccount.id] = {
+          ...internalAccount,
+
+          metadata: {
+            ...internalAccount.metadata,
+
+            // Re-use existing metadata if any.
+            name:
+              existingAccount?.metadata.name ??
+              `${keyringTypeName} ${keyringAccountIndex}`,
+            importTime: existingAccount?.metadata.importTime ?? Date.now(),
+            lastSelected: existingAccount?.metadata.lastSelected ?? 0,
+          },
+        };
+
+        // Increment the account index for this keyring.
+        keyringAccountIndexes.set(keyringTypeName, keyringAccountIndex + 1);
+      }
+    }
+
+    this.#update((state) => {
+      state.internalAccounts.accounts = internalAccounts;
+      state.accountIdByAddress = constructAccountIdByAddress(internalAccounts);
     });
+
+    log('Accounts synchronized!');
   }
 
   /**
    * Loads the backup state of the accounts controller.
    *
+   * @deprecated This method is deprecated and will be removed in a future version.
+   * Use `AccountTreeController`, `MultichainAccountService`, or the Keyring API v2 instead.
    * @param backup - The backup state to load.
    */
   loadBackup(backup: AccountsControllerState): void {
     if (backup.internalAccounts) {
-      this.update((currentState: Draft<AccountsControllerState>) => {
-        (currentState as AccountsControllerState).internalAccounts =
-          backup.internalAccounts;
-      });
+      const accountIdByAddress = constructAccountIdByAddress(
+        backup.internalAccounts.accounts,
+      );
+      this.update(
+        (currentState: WritableDraft<AccountsControllerStrictState>) => {
+          currentState.internalAccounts = backup.internalAccounts;
+          currentState.accountIdByAddress = accountIdByAddress;
+        },
+      );
     }
   }
 
   /**
-   * Generates an internal account for a non-Snap account.
+   * Gets an internal account representation for a non-Snap account.
+   *
    * @param address - The address of the account.
-   * @param type - The type of the account.
+   * @param keyring - The keyring object of the account.
    * @returns The generated internal account.
    */
-  #generateInternalAccountForNonSnapAccount(
+  #getInternalAccountForNonSnapAccount(
     address: string,
-    type: string,
+    keyring: KeyringObject,
   ): InternalAccount {
+    const id = getUUIDFromAddressOfNormalAccount(address);
+
+    // We might have an account for this ID already, so we'll just re-use
+    // the same metadata
+    const account = this.getAccount(id);
+    const metadata: InternalAccount['metadata'] = {
+      name: account?.metadata.name ?? '',
+      ...(account?.metadata.nameLastUpdatedAt
+        ? {
+            nameLastUpdatedAt: account?.metadata.nameLastUpdatedAt,
+          }
+        : {}),
+      importTime: account?.metadata.importTime ?? Date.now(),
+      lastSelected: account?.metadata.lastSelected ?? 0,
+      keyring: {
+        type: keyring.type,
+      },
+    };
+
+    let options: InternalAccount['options'] = {};
+    if (isHdKeyringType(keyring.type)) {
+      // We need to find the account index from its HD keyring.
+      const groupIndex = getEvmGroupIndexFromAddressIndex(keyring, address);
+
+      // If for some reason, we cannot find this address, then the caller made a mistake
+      // and it did not use the proper keyring object. For now, we do not fail and just
+      // consider this account as "simple account".
+      if (groupIndex !== undefined) {
+        // NOTE: We are not using the `hdPath` from the associated keyring here and
+        // getting the keyring instance here feels a bit overkill.
+        // This will be naturally fixed once every keyring start using `KeyringAccount` and implement the keyring API.
+        const derivationPath = getEvmDerivationPathForIndex(groupIndex);
+
+        // Those are "legacy options" and they were used before `KeyringAccount` added
+        // support for type options. We keep those temporarily until we update everything
+        // to use the new typed options.
+        const legacyOptions = {
+          entropySource: keyring.metadata.id,
+          derivationPath,
+          groupIndex,
+        };
+
+        // New typed entropy options. This is required for multichain accounts.
+        const entropyOptions: { entropy: KeyringAccountEntropyOptions } = {
+          entropy: {
+            type: KeyringAccountEntropyTypeOption.Mnemonic,
+            id: keyring.metadata.id,
+            derivationPath,
+            groupIndex,
+          },
+        };
+
+        options = {
+          ...legacyOptions,
+          ...entropyOptions,
+        };
+      }
+    }
+
     return {
-      id: getUUIDFromAddressOfNormalAccount(address),
+      id,
       address,
-      options: {},
+      options,
       methods: [
         EthMethod.PersonalSign,
         EthMethod.Sign,
@@ -410,397 +828,492 @@ export class AccountsController extends BaseController<
         EthMethod.SignTypedDataV3,
         EthMethod.SignTypedDataV4,
       ],
+      scopes: [EthScope.Eoa],
       type: EthAccountType.Eoa,
-      metadata: {
-        name: '',
-        keyring: {
-          type,
-        },
-      },
+      metadata,
     };
   }
 
   /**
-   * Returns a list of internal accounts created using the SnapKeyring.
+   * Get Snap keyring from the keyring controller.
    *
-   * @returns A promise that resolves to an array of InternalAccount objects.
+   * @returns The Snap keyring if available.
    */
-  async #listSnapAccounts(): Promise<InternalAccount[]> {
-    const [snapKeyring] = this.messagingSystem.call(
+  #getSnapKeyring(): SnapKeyring | undefined {
+    const [snapKeyring] = this.messenger.call(
       'KeyringController:getKeyringsByType',
       SnapKeyring.type,
     );
-    // snap keyring is not available until the first account is created in the keyring controller
-    if (!snapKeyring) {
-      return [];
-    }
 
-    const snapAccounts = (snapKeyring as SnapKeyring).listAccounts();
-
-    return snapAccounts;
+    // Snap keyring is not available until the first account is created in the keyring
+    // controller, so this might be undefined.
+    return snapKeyring as SnapKeyring | undefined;
   }
 
   /**
-   * Returns a list of normal accounts.
-   * Note: listNormalAccounts is a temporary method until the keyrings all implement the InternalAccount interface.
-   * Once all keyrings implement the InternalAccount interface, this method can be removed and getAccounts can be used instead.
+   * Get an account from a Snap keyring v1.
    *
-   * @returns A Promise that resolves to an array of InternalAccount objects.
+   * @param address - The address of the account to retrieve.
+   * @returns The Snap account if available.
    */
-  async #listNormalAccounts(): Promise<InternalAccount[]> {
-    const addresses = await this.messagingSystem.call(
-      'KeyringController:getAccounts',
-    );
-    const internalAccounts: InternalAccount[] = [];
-    for (const address of addresses) {
-      const keyring = await this.messagingSystem.call(
-        'KeyringController:getKeyringForAccount',
-        address,
-      );
-      const v4options = {
-        random: sha256(toBuffer(address)).slice(0, 16),
-      };
+  #getAccountFromSnapKeyringV1(address: string): InternalAccount | undefined {
+    const snapKeyring = this.#getSnapKeyring();
 
-      internalAccounts.push({
-        id: uuid(v4options),
-        address,
-        options: {},
-        methods: [
-          EthMethod.PersonalSign,
-          EthMethod.Sign,
-          EthMethod.SignTransaction,
-          EthMethod.SignTypedDataV1,
-          EthMethod.SignTypedDataV3,
-          EthMethod.SignTypedDataV4,
-        ],
-        type: EthAccountType.Eoa,
-        metadata: {
-          name: '',
-          keyring: {
-            type: (keyring as Keyring<Json>).type,
-          },
-        },
-      });
+    // We need the Snap keyring to retrieve the account from its address.
+    if (!snapKeyring) {
+      return undefined;
     }
 
-    return internalAccounts.filter(
-      (account) => account.metadata.keyring.type !== KeyringTypes.snap,
+    // This might be undefined if the Snap deleted the account before
+    // reaching that point.
+    return snapKeyring.getAccountByAddress(address);
+  }
+
+  /**
+   * Get an account from a Snap keyring v2.
+   *
+   * @param address - The address of the account to retrieve.
+   * @returns The Snap account if available.
+   */
+  #getAccountFromSnapKeyringV2(address: string): InternalAccount | undefined {
+    const keyrings = this.messenger.call(
+      'KeyringController:getKeyringsByType',
+      KeyringType.Snap,
     );
+
+    // Snap keyring v2 are "per-Snaps" (and can be accessed using their v1 adapter), so we need to
+    // iterate over all of them to find the account.
+    // NOTE: `:getKeyringsByType` will only return v1 instances, that's why we need to use their v1
+    // adapter + `unwrap` method to get the reference to their v2 instance.
+    for (const keyring of keyrings) {
+      if (keyring instanceof KeyringV1Adapter) {
+        // NOTE: We already filtering by `KeyringType.Snap`, so we are sure that those adapters
+        // are wrapping a Snap keyring v2.
+        const adapter = keyring as KeyringV1Adapter<SnapKeyringV2>;
+        const keyringV2 = adapter.unwrap();
+
+        // We use the synchronous method here since this method is used during `:stateChange` that are
+        // use synchronous handlers.
+        const account = keyringV2.lookupByAddress(address);
+        if (account) {
+          return {
+            ...account,
+            // We still have to use internal account for now, so we inject some metadata.
+            metadata: {
+              name: '',
+              importTime: Date.now(),
+              lastSelected: 0,
+              keyring: {
+                type: KeyringType.Snap,
+              },
+              snap: {
+                id: keyringV2.snapId,
+              },
+            },
+          };
+        }
+      }
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Re-publish an account event.
+   *
+   * @param event - The event type. This is a unique identifier for this event.
+   * @param payload - The event payload. The type of the parameters for each event handler must
+   * match the type of this payload.
+   * @template EventType - A Snap keyring event type.
+   */
+  #handleOnSnapKeyringAccountEvent<
+    EventType extends AccountsControllerEvents['type'],
+  >(
+    event: EventType,
+    ...payload: ExtractEventPayload<AccountsControllerEvents, EventType>
+  ): void {
+    this.messenger.publish(event, ...payload);
   }
 
   /**
    * Handles changes in the keyring state, specifically when new accounts are added or removed.
    *
    * @param keyringState - The new state of the keyring controller.
+   * @param keyringState.isUnlocked - True if the keyrings are unlocked, false otherwise.
+   * @param keyringState.keyrings - List of all keyrings.
    */
-  #handleOnKeyringStateChange(keyringState: KeyringControllerState): void {
-    // check if there are any new accounts added
-    // TODO: change when accountAdded event is added to the keyring controller
+  #handleOnKeyringStateChange({
+    isUnlocked,
+    keyrings,
+  }: KeyringControllerState): void {
+    // TODO: Change when accountAdded event is added to the keyring controller.
 
     // We check for keyrings length to be greater than 0 because the extension client may try execute
     // submit password twice and clear the keyring state.
     // https://github.com/MetaMask/KeyringController/blob/2d73a4deed8d013913f6ef0c9f5c0bb7c614f7d3/src/KeyringController.ts#L910
-    if (keyringState.isUnlocked && keyringState.keyrings.length > 0) {
-      const updatedNormalKeyringAddresses: AddressAndKeyringTypeObject[] = [];
-      const updatedSnapKeyringAddresses: AddressAndKeyringTypeObject[] = [];
+    if (!isUnlocked || keyrings.length === 0) {
+      return;
+    }
 
-      for (const keyring of keyringState.keyrings) {
-        if (keyring.type === KeyringTypes.snap) {
-          updatedSnapKeyringAddresses.push(
-            ...keyring.accounts.map((address) => {
-              return {
-                address,
-                type: keyring.type,
-              };
-            }),
-          );
+    log('Synchronizing accounts with keyrings (through :stateChange)...');
+
+    // State patches.
+    const patch: StatePatch = {
+      previous: {},
+      added: [],
+      updated: [],
+      removed: [],
+    };
+
+    // Create a map (with lower-cased addresses) of all existing accounts.
+    for (const account of this.listMultichainAccounts()) {
+      const address = account.address.toLowerCase();
+
+      patch.previous[address] = account;
+    }
+
+    // Go over all keyring changes and create patches out of it.
+    const addresses = new Set<string>();
+    for (const keyring of keyrings) {
+      // Money accounts are not treated as real accounts, they are owned by the `MoneyAccountController`, so
+      // we need to filter them out here.
+      if (isMoneyKeyringType(keyring.type)) {
+        continue;
+      }
+
+      for (const accountAddress of keyring.accounts) {
+        // Lower-case address to use it in the `previous` map.
+        const address = accountAddress.toLowerCase();
+        const account = patch.previous[address];
+
+        if (account) {
+          // If the account exists before, this might be an update.
+          patch.updated.push(account);
         } else {
-          updatedNormalKeyringAddresses.push(
-            ...keyring.accounts.map((address) => {
-              return {
-                address,
-                type: keyring.type,
-              };
-            }),
-          );
+          // Otherwise, that's a new account.
+          patch.added.push({
+            address,
+            keyring,
+          });
         }
-      }
 
-      const { previousNormalInternalAccounts, previousSnapInternalAccounts } =
-        this.listAccounts().reduce(
-          (accumulator, account) => {
-            if (account.metadata.keyring.type === KeyringTypes.snap) {
-              accumulator.previousSnapInternalAccounts.push(account);
-            } else {
-              accumulator.previousNormalInternalAccounts.push(account);
-            }
-            return accumulator;
-          },
-          {
-            previousNormalInternalAccounts: [] as InternalAccount[],
-            previousSnapInternalAccounts: [] as InternalAccount[],
-          },
-        );
-
-      const addedAccounts: AddressAndKeyringTypeObject[] = [];
-      const deletedAccounts: InternalAccount[] = [];
-
-      // snap account ids are random uuid while normal accounts
-      // are determininistic based on the address
-
-      // ^NOTE: This will be removed when normal accounts also implement internal accounts
-      // finding all the normal accounts that were added
-      for (const account of updatedNormalKeyringAddresses) {
-        if (
-          !this.state.internalAccounts.accounts[
-            getUUIDFromAddressOfNormalAccount(account.address)
-          ]
-        ) {
-          addedAccounts.push(account);
-        }
-      }
-
-      // finding all the snap accounts that were added
-      for (const account of updatedSnapKeyringAddresses) {
-        if (
-          !previousSnapInternalAccounts.find(
-            (internalAccount) =>
-              internalAccount.address.toLowerCase() ===
-              account.address.toLowerCase(),
-          )
-        ) {
-          addedAccounts.push(account);
-        }
-      }
-
-      // finding all the normal accounts that were deleted
-      for (const account of previousNormalInternalAccounts) {
-        if (
-          !updatedNormalKeyringAddresses.find(
-            ({ address }) =>
-              address.toLowerCase() === account.address.toLowerCase(),
-          )
-        ) {
-          deletedAccounts.push(account);
-        }
-      }
-
-      // finding all the snap accounts that were deleted
-      for (const account of previousSnapInternalAccounts) {
-        if (
-          !updatedSnapKeyringAddresses.find(
-            ({ address }) =>
-              address.toLowerCase() === account.address.toLowerCase(),
-          )
-        ) {
-          deletedAccounts.push(account);
-        }
-      }
-
-      if (deletedAccounts.length > 0) {
-        for (const account of deletedAccounts) {
-          this.#handleAccountRemoved(account.id);
-        }
-      }
-
-      if (addedAccounts.length > 0) {
-        for (const account of addedAccounts) {
-          this.#handleNewAccountAdded(account);
-        }
-      }
-
-      // handle if the selected account was deleted
-      if (!this.getAccount(this.state.internalAccounts.selectedAccount)) {
-        const [accountToSelect] = this.listAccounts().sort(
-          (accountA, accountB) => {
-            // sort by lastSelected descending
-            return (
-              (accountB.metadata.lastSelected ?? 0) -
-              (accountA.metadata.lastSelected ?? 0)
-            );
-          },
-        );
-
-        // if the accountToSelect is undefined, then there are no accounts
-        // it mean the keyring was reinitialized.
-        this.setSelectedAccount(accountToSelect?.id);
+        // Keep track of those address to check for removed accounts later.
+        addresses.add(address);
       }
     }
-  }
 
-  /**
-   * Handles the change in SnapControllerState by updating the metadata of accounts that have a snap enabled.
-   *
-   * @param snapState - The new SnapControllerState.
-   */
-  #handleOnSnapStateChange(snapState: SnapControllerState) {
-    // only check if snaps changed in status
-    const { snaps } = snapState;
-    const accounts = this.listAccounts().filter(
-      (account) => account.metadata.snap,
-    );
+    // We might have accounts associated with removed keyrings, so we iterate
+    // over all previous known accounts and check against the keyring addresses.
+    for (const [address, account] of Object.entries(patch.previous)) {
+      // If a previous address is not part of the new addesses, then it got removed.
+      if (!addresses.has(address)) {
+        patch.removed.push(account);
+      }
+    }
 
-    this.update((currentState: Draft<AccountsControllerState>) => {
-      accounts.forEach((account) => {
-        const currentAccount =
-          currentState.internalAccounts.accounts[account.id];
-        if (currentAccount.metadata.snap) {
-          const snapId = currentAccount.metadata.snap.id;
-          const storedSnap: Snap = snaps[snapId as SnapId];
-          if (storedSnap) {
-            currentAccount.metadata.snap.enabled =
-              storedSnap.enabled && !storedSnap.blocked;
+    // Diff that we will use to publish events afterward.
+    const diff: { removed: string[]; added: InternalAccount[] } = {
+      removed: [],
+      added: [],
+    };
+
+    this.#update(
+      (state) => {
+        const { internalAccounts, accountIdByAddress } = state;
+
+        for (const account of patch.removed) {
+          delete internalAccounts.accounts[account.id];
+          delete accountIdByAddress[account.address];
+
+          diff.removed.push(account.id);
+        }
+
+        for (const added of patch.added) {
+          const account = this.#getInternalAccountFromAddressAndType(
+            added.address,
+            added.keyring,
+          );
+
+          if (account) {
+            const accounts = Object.values(
+              internalAccounts.accounts,
+            ) as InternalAccount[];
+
+            // If it's the first account, we need to select it.
+            const lastSelected =
+              accounts.length === 0 ? this.#getLastSelectedIndex() : 0;
+
+            internalAccounts.accounts[account.id] = {
+              ...account,
+              metadata: {
+                ...account.metadata,
+                importTime: Date.now(),
+                lastSelected,
+              },
+            };
+
+            accountIdByAddress[account.address] = account.id;
+
+            diff.added.push(internalAccounts.accounts[account.id]);
           }
         }
-      });
-    });
-  }
-
-  /**
-   * Returns the next account number for a given keyring type.
-   * @param keyringType - The type of keyring.
-   * @returns An object containing the account prefix and index to use.
-   */
-  #getNextAccountNumber(keyringType: string): {
-    accountPrefix: string;
-    indexToUse: number;
-  } {
-    const keyringName = keyringTypeToName(keyringType);
-    const previousKeyringAccounts = this.listAccounts().filter(
-      (internalAccount) => {
-        if (
-          keyringType === KeyringTypes.hd ||
-          keyringType === KeyringTypes.simple
-        ) {
-          return (
-            internalAccount.metadata.keyring.type === KeyringTypes.hd ||
-            internalAccount.metadata.keyring.type === KeyringTypes.simple
+      },
+      // Will get executed after the update, but before re-selecting an account in case
+      // the current one is not valid anymore.
+      () => {
+        // Now publish events
+        for (const id of diff.removed) {
+          this.messenger.publish('AccountsController:accountRemoved', id);
+        }
+        if (diff.removed.length > 0) {
+          this.messenger.publish(
+            'AccountsController:accountsRemoved',
+            diff.removed,
           );
         }
-        return internalAccount.metadata.keyring.type === keyringType;
+
+        for (const account of diff.added) {
+          this.messenger.publish('AccountsController:accountAdded', account);
+        }
+        if (diff.added.length > 0) {
+          this.messenger.publish(
+            'AccountsController:accountsAdded',
+            diff.added,
+          );
+        }
       },
     );
-    const lastDefaultIndexUsedForKeyringType =
-      previousKeyringAccounts
-        .filter((internalAccount) =>
-          new RegExp(`${keyringName} \\d+$`, 'u').test(
-            internalAccount.metadata.name,
-          ),
-        )
-        .map((internalAccount) => {
-          const nameToWords = internalAccount.metadata.name.split(' '); // get the index of a default account name
-          return parseInt(nameToWords[nameToWords.length], 10);
-        })
-        .sort((a, b) => b - a)[0] || 0;
 
-    const indexToUse = Math.max(
-      previousKeyringAccounts.length + 1,
-      lastDefaultIndexUsedForKeyringType + 1,
-    );
+    log('Accounts synchronized (through :stateChange)!');
 
-    return { accountPrefix: keyringName, indexToUse };
+    // NOTE: Since we also track "updated" accounts with our patches, we could fire a new event
+    // like `accountUpdated` (we would still need to check if anything really changed on the account).
   }
 
   /**
-   * Handles the addition of a new account to the controller.
-   * If the account is not a Snap Keyring account, generates an internal account for it and adds it to the controller.
-   * If the account is a Snap Keyring account, retrieves the account from the keyring and adds it to the controller.
-   * @param account - The address and keyring type object of the new account.
+   * Update the state and fixup the currently selected account.
+   *
+   * @param callback - Callback for updating state, passed a draft state object.
+   * @param beforeAutoSelectAccount - Callback to be executed before auto-selecting an account
+   * if the current one is no longer available.
    */
-  #handleNewAccountAdded(account: AddressAndKeyringTypeObject) {
-    let newAccount: InternalAccount;
-    if (account.type !== KeyringTypes.snap) {
-      newAccount = this.#generateInternalAccountForNonSnapAccount(
-        account.address,
-        account.type,
-      );
-    } else {
-      const [snapKeyring] = this.messagingSystem.call(
-        'KeyringController:getKeyringsByType',
-        SnapKeyring.type,
-      );
+  #update(
+    callback: (state: WritableDraft<AccountsControllerStrictState>) => void,
+    beforeAutoSelectAccount?: () => void,
+  ): void {
+    // The currently selected account might get deleted during the update, so keep track
+    // of it before doing any change.
+    const previouslySelectedAccount =
+      this.state.internalAccounts.selectedAccount;
 
-      newAccount = (snapKeyring as SnapKeyring).getAccountByAddress(
-        account.address,
-      ) as InternalAccount;
+    this.update((state: WritableDraft<AccountsControllerStrictState>) => {
+      callback(state);
 
-      // The snap deleted the account before the keyring controller could add it
-      if (!newAccount) {
-        return;
+      // If the account no longer exists (or none is selected), we need to re-select another one.
+      const { internalAccounts } = state;
+      if (!internalAccounts.accounts[previouslySelectedAccount]) {
+        const accounts = Object.values(
+          internalAccounts.accounts,
+        ) as InternalAccount[];
+
+        // Get the lastly selected account (according to the current accounts).
+        const lastSelectedAccount = this.#getLastSelectedAccount(accounts);
+        if (lastSelectedAccount) {
+          internalAccounts.selectedAccount = lastSelectedAccount.id;
+          internalAccounts.accounts[
+            lastSelectedAccount.id
+          ].metadata.lastSelected = this.#getLastSelectedIndex();
+        } else {
+          // It will be undefined if there are no accounts.
+          internalAccounts.selectedAccount = '';
+        }
+      }
+    });
+
+    // We might want to do some pre-work before selecting a new account.
+    beforeAutoSelectAccount?.();
+
+    // Now, we compare the newly selected account, and we send event if different.
+    const { selectedAccount } = this.state.internalAccounts;
+    if (selectedAccount && selectedAccount !== previouslySelectedAccount) {
+      const account = this.getSelectedMultichainAccount();
+
+      // The account should always be defined at this point, since we have already checked for
+      // `selectedAccount` to be non-empty.
+      if (account) {
+        if (isEvmAccountType(account.type)) {
+          this.messenger.publish(
+            'AccountsController:selectedEvmAccountChange',
+            account,
+          );
+        }
+        this.messenger.publish(
+          'AccountsController:selectedAccountChange',
+          account,
+        );
       }
     }
-
-    // get next index number for the keyring type
-    const { accountPrefix, indexToUse } = this.#getNextAccountNumber(
-      newAccount.metadata.keyring.type,
-    );
-
-    const accountName = `${accountPrefix} ${indexToUse}`;
-
-    this.update((currentState: Draft<AccountsControllerState>) => {
-      (currentState as AccountsControllerState).internalAccounts.accounts[
-        newAccount.id
-      ] = {
-        ...newAccount,
-        metadata: {
-          ...newAccount.metadata,
-          name: accountName,
-          lastSelected: Date.now(),
-        },
-      };
-    });
-
-    this.setSelectedAccount(newAccount.id);
   }
 
   /**
-   * Handles the removal of an account from the internal accounts list.
-   * @param accountId - The ID of the account to be removed.
+   * Returns the last selected account from the given array of accounts.
+   *
+   * @param accounts - An array of InternalAccount objects.
+   * @returns The InternalAccount object that was last selected, or undefined if the array is empty.
    */
-  #handleAccountRemoved(accountId: string) {
-    this.update((currentState: Draft<AccountsControllerState>) => {
-      delete currentState.internalAccounts.accounts[accountId];
+  #getLastSelectedAccount(
+    accounts: InternalAccount[],
+  ): InternalAccount | undefined {
+    const [accountToSelect] = accounts.sort((accountA, accountB) => {
+      // sort by lastSelected descending
+      return (
+        (accountB.metadata.lastSelected ?? 0) -
+        (accountA.metadata.lastSelected ?? 0)
+      );
     });
+
+    return accountToSelect;
   }
 
   /**
-   * Registers message handlers for the AccountsController.
-   * @private
+   * Retrieves the index value for `metadata.lastSelected`.
+   *
+   * @returns The index value.
    */
-  #registerMessageHandlers() {
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:setSelectedAccount`,
-      this.setSelectedAccount.bind(this),
+  #getLastSelectedIndex(): number {
+    // NOTE: For now we use the current date, since we know this value
+    // will always be higher than any already selected account index.
+    return Date.now();
+  }
+
+  /**
+   * Get an internal account given an address and a keyring type.
+   *
+   * If the account is not a Snap Keyring account, generates an internal account for it and adds it to the controller.
+   * If the account is a Snap Keyring account, retrieves the account from the keyring and adds it to the controller.
+   *
+   * @param address - The address of the new account.
+   * @param keyring - The keyring object of that new account.
+   * @returns The newly generated/retrieved internal account.
+   */
+  #getInternalAccountFromAddressAndType(
+    address: string,
+    keyring: KeyringObject,
+  ): InternalAccount | undefined {
+    const isSnapKeyringV1 = isSnapKeyringType(keyring.type);
+    const isSnapKeyringV2 = isSnapKeyringV2Type(keyring.type);
+
+    if (isSnapKeyringV1 || isSnapKeyringV2) {
+      let account: InternalAccount | undefined;
+
+      if (isSnapKeyringV1) {
+        account = this.#getAccountFromSnapKeyringV1(address);
+      } else {
+        account = this.#getAccountFromSnapKeyringV2(address);
+      }
+
+      if (account) {
+        // We force the copy here, to avoid mutating the reference returned by the Snap keyring.
+        account = cloneDeep(account);
+
+        // MIGRATION: To avoid any existing Snap account migration, we are
+        // just "adding" the new typed options that we need for multichain
+        // accounts. Ultimately, we would need a real Snap account migrations
+        // (being handled by each Snaps).
+        if (isHdSnapKeyringAccount(account)) {
+          const options: HdSnapKeyringAccount['options'] = {
+            ...account.options,
+            entropy: {
+              type: KeyringAccountEntropyTypeOption.Mnemonic,
+              id: account.options.entropySource,
+              groupIndex: account.options.index,
+              derivationPath: account.options.derivationPath,
+            },
+          };
+          // Inject the new typed options to the internal account copy.
+          account.options = options;
+        }
+      }
+
+      return account;
+    }
+
+    return this.#getInternalAccountForNonSnapAccount(address, keyring);
+  }
+
+  /**
+   * Handles the change in multichain network by updating the selected account.
+   *
+   * @param id - The EVM client ID or non-EVM chain ID that changed.
+   */
+  #handleOnMultichainNetworkDidChange(id: NetworkClientId | CaipChainId): void {
+    let accountId: string;
+
+    // We only support non-EVM Caip chain IDs at the moment. Ex Solana and Bitcoin
+    // MultichainNetworkController will handle throwing an error if the Caip chain ID is not supported
+    if (isCaipChainId(id)) {
+      // Update selected account to non evm account
+      const lastSelectedNonEvmAccount = this.getSelectedMultichainAccount(id);
+      // @ts-expect-error - This should never be undefined, otherwise it's a bug that should be handled
+      accountId = lastSelectedNonEvmAccount.id;
+    } else {
+      // Update selected account to evm account
+      const lastSelectedEvmAccount = this.getSelectedAccount();
+      accountId = lastSelectedEvmAccount.id;
+    }
+
+    if (this.state.internalAccounts.selectedAccount === accountId) {
+      return;
+    }
+
+    this.update((currentState) => {
+      currentState.internalAccounts.accounts[accountId].metadata.lastSelected =
+        Date.now();
+      currentState.internalAccounts.selectedAccount = accountId;
+    });
+
+    // DO NOT publish AccountsController:setSelectedAccount to prevent circular listener loops
+  }
+
+  /**
+   * Subscribes to message events.
+   */
+  #subscribeToMessageEvents(): void {
+    this.messenger.subscribe('KeyringController:stateChange', (keyringState) =>
+      this.#handleOnKeyringStateChange(keyringState),
     );
 
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:listAccounts`,
-      this.listAccounts.bind(this),
+    this.messenger.subscribe(
+      'SnapAccountService:accountAssetListUpdated',
+      (snapAccountEvent) =>
+        this.#handleOnSnapKeyringAccountEvent(
+          'AccountsController:accountAssetListUpdated',
+          snapAccountEvent,
+        ),
     );
 
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:setAccountName`,
-      this.setAccountName.bind(this),
+    this.messenger.subscribe(
+      'SnapAccountService:accountBalancesUpdated',
+      (snapAccountEvent) =>
+        this.#handleOnSnapKeyringAccountEvent(
+          'AccountsController:accountBalancesUpdated',
+          snapAccountEvent,
+        ),
     );
 
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:updateAccounts`,
-      this.updateAccounts.bind(this),
+    this.messenger.subscribe(
+      'SnapAccountService:accountTransactionsUpdated',
+      (snapAccountEvent) =>
+        this.#handleOnSnapKeyringAccountEvent(
+          'AccountsController:accountTransactionsUpdated',
+          snapAccountEvent,
+        ),
     );
 
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:getSelectedAccount`,
-      this.getSelectedAccount.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `${controllerName}:getAccountByAddress`,
-      this.getAccountByAddress.bind(this),
-    );
-
-    this.messagingSystem.registerActionHandler(
-      `AccountsController:getAccount`,
-      this.getAccount.bind(this),
+    // Handle account change when multichain network is changed
+    this.messenger.subscribe(
+      'MultichainNetworkController:networkDidChange',
+      (id) => this.#handleOnMultichainNetworkDidChange(id),
     );
   }
 }

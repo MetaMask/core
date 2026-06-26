@@ -3,6 +3,7 @@ import {
   NetworksTicker,
   ChainId,
   BuiltInNetworkName,
+  BlockExplorerUrl,
 } from './types';
 
 export const RPC = 'rpc';
@@ -48,6 +49,24 @@ export const TESTNET_TICKER_SYMBOLS = {
   SEPOLIA: 'SepoliaETH',
   LINEA_GOERLI: 'LineaETH',
   LINEA_SEPOLIA: 'LineaETH',
+  MEGAETH_TESTNET: 'MegaETH',
+  MEGAETH_TESTNET_V2: 'MegaETH',
+};
+
+/**
+ * Map of all built-in custom networks to their RPC endpoints.
+ */
+export const BUILT_IN_CUSTOM_NETWORKS_RPC = {
+  /**
+   * @deprecated Please use `megaeth-testnet` instead.
+   */
+  MEGAETH_TESTNET: 'https://carrot.megaeth.com/rpc',
+  /**
+   * @deprecated Please use `megaeth-testnet-v2` instead.
+   */
+  'megaeth-testnet': 'https://carrot.megaeth.com/rpc',
+  'megaeth-testnet-v2': 'https://carrot.megaeth.com/rpc',
+  'monad-testnet': 'https://testnet-rpc.monad.xyz',
 };
 
 /**
@@ -58,42 +77,133 @@ export const BUILT_IN_NETWORKS = {
     chainId: ChainId.goerli,
     ticker: NetworksTicker.goerli,
     rpcPrefs: {
-      blockExplorerUrl: `https://${NetworkType.goerli}.etherscan.io`,
+      blockExplorerUrl: BlockExplorerUrl.goerli,
     },
   },
   [NetworkType.sepolia]: {
     chainId: ChainId.sepolia,
     ticker: NetworksTicker.sepolia,
     rpcPrefs: {
-      blockExplorerUrl: `https://${NetworkType.sepolia}.etherscan.io`,
+      blockExplorerUrl: BlockExplorerUrl.sepolia,
     },
   },
   [NetworkType.mainnet]: {
     chainId: ChainId.mainnet,
     ticker: NetworksTicker.mainnet,
     rpcPrefs: {
-      blockExplorerUrl: 'https://etherscan.io',
+      blockExplorerUrl: BlockExplorerUrl.mainnet,
     },
   },
   [NetworkType['linea-goerli']]: {
     chainId: ChainId['linea-goerli'],
     ticker: NetworksTicker['linea-goerli'],
     rpcPrefs: {
-      blockExplorerUrl: 'https://goerli.lineascan.build',
+      blockExplorerUrl: BlockExplorerUrl['linea-goerli'],
     },
   },
   [NetworkType['linea-sepolia']]: {
     chainId: ChainId['linea-sepolia'],
     ticker: NetworksTicker['linea-sepolia'],
     rpcPrefs: {
-      blockExplorerUrl: 'https://sepolia.lineascan.build',
+      blockExplorerUrl: BlockExplorerUrl['linea-sepolia'],
     },
   },
   [NetworkType['linea-mainnet']]: {
     chainId: ChainId['linea-mainnet'],
     ticker: NetworksTicker['linea-mainnet'],
     rpcPrefs: {
-      blockExplorerUrl: 'https://lineascan.build',
+      blockExplorerUrl: BlockExplorerUrl['linea-mainnet'],
+    },
+  },
+  [NetworkType['megaeth-testnet']]: {
+    chainId: ChainId['megaeth-testnet'],
+    ticker: NetworksTicker['megaeth-testnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['megaeth-testnet'],
+    },
+  },
+  [NetworkType['megaeth-testnet-v2']]: {
+    chainId: ChainId['megaeth-testnet-v2'],
+    ticker: NetworksTicker['megaeth-testnet-v2'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['megaeth-testnet-v2'],
+    },
+  },
+  [NetworkType['monad-testnet']]: {
+    chainId: ChainId['monad-testnet'],
+    ticker: NetworksTicker['monad-testnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['monad-testnet'],
+    },
+  },
+  [NetworkType['base-mainnet']]: {
+    chainId: ChainId['base-mainnet'],
+    ticker: NetworksTicker['base-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['base-mainnet'],
+    },
+  },
+  [NetworkType['arbitrum-mainnet']]: {
+    chainId: ChainId['arbitrum-mainnet'],
+    ticker: NetworksTicker['arbitrum-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['arbitrum-mainnet'],
+    },
+  },
+  [NetworkType['bsc-mainnet']]: {
+    chainId: ChainId['bsc-mainnet'],
+    ticker: NetworksTicker['bsc-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['bsc-mainnet'],
+    },
+  },
+  [NetworkType['optimism-mainnet']]: {
+    chainId: ChainId['optimism-mainnet'],
+    ticker: NetworksTicker['optimism-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['optimism-mainnet'],
+    },
+  },
+  [NetworkType['polygon-mainnet']]: {
+    chainId: ChainId['polygon-mainnet'],
+    ticker: NetworksTicker['polygon-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['polygon-mainnet'],
+    },
+  },
+  [NetworkType['sei-mainnet']]: {
+    chainId: ChainId['sei-mainnet'],
+    ticker: NetworksTicker['sei-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['sei-mainnet'],
+    },
+  },
+  [NetworkType['monad-mainnet']]: {
+    chainId: ChainId['monad-mainnet'],
+    ticker: NetworksTicker['monad-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['monad-mainnet'],
+    },
+  },
+  [NetworkType['zksync-mainnet']]: {
+    chainId: ChainId['zksync-mainnet'],
+    ticker: NetworksTicker['zksync-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['zksync-mainnet'],
+    },
+  },
+  [NetworkType['megaeth-mainnet']]: {
+    chainId: ChainId['megaeth-mainnet'],
+    ticker: NetworksTicker['megaeth-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['megaeth-mainnet'],
+    },
+  },
+  [NetworkType['avalanche-mainnet']]: {
+    chainId: ChainId['avalanche-mainnet'],
+    ticker: NetworksTicker['avalanche-mainnet'],
+    rpcPrefs: {
+      blockExplorerUrl: BlockExplorerUrl['avalanche-mainnet'],
     },
   },
   [NetworkType.rpc]: {
@@ -104,9 +214,31 @@ export const BUILT_IN_NETWORKS = {
   },
 } as const;
 
+/**
+ * When a user adds a custom network to MetaMask, we perform some basic
+ * validations on the network. For instance, usually a network cannot share the
+ * same chain as another. In some cases, however, we want to allow networks that
+ * would normally be invalid. This mapping contains networks that should bypass
+ * validation.
+ */
+export const NETWORKS_BYPASSING_VALIDATION = {
+  // HyperEVM uses the same chain ID as Wanchain
+  '0x3e7': {
+    name: 'HyperEVM',
+    symbol: 'HYPE',
+    rpcUrl: 'https://rpc.hyperliquid.xyz',
+  },
+};
+
 // APIs
 export const OPENSEA_PROXY_URL =
-  'https://proxy.metafi.codefi.network/opensea/v1/api/v2';
+  'https://proxy.api.cx.metamask.io/opensea/v1/api/v2';
+
+export const NFT_API_BASE_URL = 'https://nft.api.cx.metamask.io';
+
+export const NFT_API_VERSION = '1';
+
+export const NFT_API_TIMEOUT = 15000;
 
 // Default origin for controllers
 export const ORIGIN_METAMASK = 'metamask';
@@ -121,7 +253,6 @@ export enum ApprovalType {
   ConnectAccounts = 'connect_accounts',
   EthDecrypt = 'eth_decrypt',
   EthGetEncryptionPublicKey = 'eth_getEncryptionPublicKey',
-  EthSign = 'eth_sign',
   EthSignTypedData = 'eth_signTypedData',
   PersonalSign = 'personal_sign',
   ResultError = 'result_error',
@@ -129,16 +260,22 @@ export enum ApprovalType {
   SnapDialogAlert = 'snap_dialog:alert',
   SnapDialogConfirmation = 'snap_dialog:confirmation',
   SnapDialogPrompt = 'snap_dialog:prompt',
+  SnapDialogDefault = 'snap_dialog',
   SwitchEthereumChain = 'wallet_switchEthereumChain',
   Transaction = 'transaction',
+  TransactionBatch = 'transaction_batch',
   Unlock = 'unlock',
   WalletConnect = 'wallet_connect',
   WalletRequestPermissions = 'wallet_requestPermissions',
   WatchAsset = 'wallet_watchAsset',
 }
 
+/**
+ * Mapping of chain IDs to their network names for ENS functionality.
+ * Note: MegaETH-testnet is intentionally excluded from this mapping as it doesn't support ENS.
+ */
 export const CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP: Record<
-  ChainId,
+  string,
   BuiltInNetworkName
 > = {
   [ChainId.goerli]: BuiltInNetworkName.Goerli,
@@ -149,3 +286,54 @@ export const CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP: Record<
   [ChainId['linea-mainnet']]: BuiltInNetworkName.LineaMainnet,
   [ChainId.aurora]: BuiltInNetworkName.Aurora,
 };
+
+/**
+ * The number of milliseconds in a second.
+ */
+export const SECOND = 1000;
+
+/**
+ * The number of milliseconds in a second.
+ */
+export const SECONDS = SECOND;
+
+/**
+ * The number of milliseconds in a minute.
+ */
+export const MINUTE = SECONDS * 60;
+
+/**
+ * The number of milliseconds in a minute.
+ */
+export const MINUTES = MINUTE;
+
+/**
+ * The number of milliseconds in a hour.
+ */
+export const HOUR = MINUTES * 60;
+
+/**
+ * The number of milliseconds in a hour.
+ */
+export const HOURS = HOUR;
+
+/**
+ * The number of milliseconds in a day.
+ */
+export const DAY = HOURS * 24;
+
+/**
+ * The number of milliseconds in a day.
+ */
+export const DAYS = DAY;
+
+/**
+ * Special "EVM-ish" chains with no native tokens.
+ * Created for Tempo, but can be extended to others.
+ * - For hidding the native token from the token list and Send list.
+ * - For excluding the native token from the total wallet value calculation.
+ */
+export const CHAIN_IDS_WITH_NO_NATIVE_TOKEN = [
+  'eip155:42431', // Tempo Testnet
+  'eip155:4217', // Tempo Mainnet
+] as const;

@@ -28,7 +28,7 @@ module.exports = {
   coverageDirectory: 'coverage',
 
   // An array of regexp pattern strings used to skip coverage collection
-  coveragePathIgnorePatterns: ['./src/index.ts'],
+  coveragePathIgnorePatterns: ['.*/index\\.ts'],
 
   // Indicates which provider should be used to instrument code for coverage
   coverageProvider: 'babel',
@@ -78,14 +78,19 @@ module.exports = {
 
   // A map from regular expressions to module names or to arrays of module names that allow to stub out resources with a single module
   // Here we ensure that Jest resolves `@metamask/*` imports to the uncompiled source code for packages that live in this repo.
-  // NOTE: This must be synchronized with the `paths` option in `tsconfig.packages.json`.
+  // NOTE: This must be synchronized with the `paths` option in `tsconfig.base.json`.
   moduleNameMapper: {
+    '^@metamask/json-rpc-engine/v2$': [
+      '<rootDir>/../json-rpc-engine/src/v2/index.ts',
+    ],
+    '^@metamask/utils/node$': require.resolve('@metamask/utils/node'),
     '^@metamask/(.+)$': [
       '<rootDir>/../$1/src',
       // Some @metamask/* packages we are referencing aren't in this monorepo,
       // so in that case use their published versions
       '<rootDir>/../../node_modules/@metamask/$1',
     ],
+    '^uuid$': require.resolve('uuid'),
   },
 
   // An array of regexp pattern strings, matched against all module paths before considered 'visible' to the module loader
@@ -100,6 +105,10 @@ module.exports = {
   // A preset that is used as a base for Jest's configuration
   preset: 'ts-jest',
 
+  // The path to the Prettier executable used to format snapshots
+  // Jest doesn't support Prettier 3 yet, so we use Prettier 2
+  prettierPath: require.resolve('prettier-2'),
+
   // Run tests from one or more projects
   // projects: undefined
 
@@ -108,8 +117,7 @@ module.exports = {
 
   // "resetMocks" resets all mocks, including mocked modules, to jest.fn(),
   // between each test case.
-  // TODO: Enable
-  // resetMocks: true,
+  resetMocks: true,
 
   // Reset the module registry before running each individual test
   // resetModules: false,
@@ -177,13 +185,10 @@ module.exports = {
   // testRunner: "jest-circus/runner",
 
   // Default timeout of a test in milliseconds.
-  testTimeout: 30000,
+  // testTimeout: 5000,
 
   // This option sets the URL for the jsdom environment. It is reflected in properties such as location.href
   // testURL: "http://localhost",
-
-  // Setting this value to "fake" allows the use of fake timers for functions such as "setTimeout"
-  // timers: "real",
 
   // A map from regular expressions to paths to transformers
   // transform: undefined,

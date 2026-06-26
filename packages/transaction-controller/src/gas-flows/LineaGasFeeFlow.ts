@@ -1,9 +1,11 @@
-import { ChainId, hexToBN, query, toHex } from '@metamask/controller-utils';
-import type EthQuery from '@metamask/eth-query';
-import { createModuleLogger, type Hex } from '@metamask/utils';
+import { ChainId, hexToBN, toHex } from '@metamask/controller-utils';
+import type { NetworkClientId } from '@metamask/network-controller';
+import { createModuleLogger } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 import type BN from 'bn.js';
 
 import { projectLogger } from '../logger';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
   GasFeeEstimates,
   GasFeeFlow,
@@ -11,7 +13,8 @@ import type {
   GasFeeFlowResponse,
   TransactionMeta,
 } from '../types';
-import { GasFeeEstimateLevel } from '../types';
+import { GasFeeEstimateLevel, GasFeeEstimateType } from '../types';
+import { rpcRequest } from '../utils/provider';
 import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
 
 type LineaEstimateGasResponse = {
@@ -49,7 +52,12 @@ const PRIORITY_FEE_MULTIPLIERS = {
  * - Static multipliers to increase the base and priority fees.
  */
 export class LineaGasFeeFlow implements GasFeeFlow {
-  matchesTransaction(transactionMeta: TransactionMeta): boolean {
+  matchesTransaction({
+    transactionMeta,
+  }: {
+    transactionMeta: TransactionMeta;
+    messenger: TransactionControllerMessenger;
+  }): boolean {
     return LINEA_CHAIN_IDS.includes(transactionMeta.chainId);
   }
 
@@ -65,11 +73,13 @@ export class LineaGasFeeFlow implements GasFeeFlow {
   async #getLineaGasFees(
     request: GasFeeFlowRequest,
   ): Promise<GasFeeFlowResponse> {
-    const { ethQuery, transactionMeta } = request;
+    const { messenger, transactionMeta } = request;
+    const { networkClientId } = transactionMeta;
 
     const lineaResponse = await this.#getLineaResponse(
       transactionMeta,
-      ethQuery,
+      messenger,
+      networkClientId,
     );
 
     log('Received Linea response', lineaResponse);
@@ -100,7 +110,7 @@ export class LineaGasFeeFlow implements GasFeeFlow {
           maxPriorityFeePerGas: toHex(priorityFees[level]),
         },
       }),
-      {} as GasFeeEstimates,
+      { type: GasFeeEstimateType.FeeMarket } as GasFeeEstimates,
     );
 
     return { estimates };
@@ -108,18 +118,31 @@ export class LineaGasFeeFlow implements GasFeeFlow {
 
   #getLineaResponse(
     transactionMeta: TransactionMeta,
-    ethQuery: EthQuery,
+    messenger: TransactionControllerMessenger,
+    networkClientId: NetworkClientId,
   ): Promise<LineaEstimateGasResponse> {
-    return query(ethQuery, 'linea_estimateGas', [
-      {
-        from: transactionMeta.txParams.from,
-        to: transactionMeta.txParams.to,
-        value: transactionMeta.txParams.value,
-        input: transactionMeta.txParams.data,
-        // Required in request but no impact on response.
-        gasPrice: '0x100000000',
-      },
-    ]);
+    const { from, to, value, data } = transactionMeta.txParams;
+
+    const params: Record<string, string> = { from };
+
+    if (to) {
+      params.to = to;
+    }
+
+    if (value) {
+      params.value = value;
+    }
+
+    if (data) {
+      params.input = data;
+    }
+
+    return rpcRequest({
+      messenger,
+      networkClientId,
+      method: 'linea_estimateGas',
+      params: [params],
+    }) as Promise<LineaEstimateGasResponse>;
   }
 
   #getValuesFromMultipliers(
@@ -149,7 +172,7 @@ export class LineaGasFeeFlow implements GasFeeFlow {
     };
   }
 
-  #feesToString(fees: FeesByLevel) {
+  #feesToString(fees: FeesByLevel): string[] {
     return Object.values(GasFeeEstimateLevel).map((level) =>
       fees[level].toString(10),
     );

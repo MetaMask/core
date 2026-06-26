@@ -1,9 +1,14 @@
 import type { InfuraNetworkType } from '@metamask/controller-utils';
-import type { SafeEventEmitterProvider } from '@metamask/eth-json-rpc-provider';
+import type { BlockTracker as BaseBlockTracker } from '@metamask/eth-block-tracker';
+import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
+import type { MiddlewareContext } from '@metamask/json-rpc-engine/v2';
 import type { Hex } from '@metamask/utils';
-import type { BlockTracker as BaseBlockTracker } from 'eth-block-tracker';
 
-export type Provider = SafeEventEmitterProvider;
+export type Provider = InternalProvider<
+  MiddlewareContext<
+    { origin: string; skipCache: boolean } & Record<string, unknown>
+  >
+>;
 
 export type BlockTracker = BaseBlockTracker & {
   checkForLatestBlock(): Promise<string>;
@@ -18,27 +23,34 @@ export enum NetworkClientType {
 }
 
 /**
+ * A configuration object that can be used to create a client for a network.
+ */
+type CommonNetworkClientConfiguration = {
+  chainId: Hex;
+  failoverRpcUrls?: string[];
+  ticker: string;
+};
+
+/**
  * A configuration object that can be used to create a client for a custom
  * network.
  */
-export type CustomNetworkClientConfiguration = {
-  chainId: Hex;
-  rpcUrl: string;
-  ticker: string;
-  type: NetworkClientType.Custom;
-};
+export type CustomNetworkClientConfiguration =
+  CommonNetworkClientConfiguration & {
+    rpcUrl: string;
+    type: NetworkClientType.Custom;
+  };
 
 /**
  * A configuration object that can be used to create a client for an Infura
  * network.
  */
-export type InfuraNetworkClientConfiguration = {
-  chainId: Hex;
-  network: InfuraNetworkType;
-  infuraProjectId: string;
-  ticker: string;
-  type: NetworkClientType.Infura;
-};
+export type InfuraNetworkClientConfiguration =
+  CommonNetworkClientConfiguration & {
+    network: InfuraNetworkType;
+    infuraProjectId: string;
+    type: NetworkClientType.Infura;
+  };
 
 /**
  * A configuration object that can be used to create a client for a network.

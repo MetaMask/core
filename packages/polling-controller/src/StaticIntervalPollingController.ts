@@ -1,5 +1,4 @@
-import { BaseController, BaseControllerV1 } from '@metamask/base-controller';
-import type { NetworkClientId } from '@metamask/network-controller';
+import { BaseController } from '@metamask/base-controller';
 import type { Json } from '@metamask/utils';
 
 import {
@@ -7,13 +6,10 @@ import {
   getKey,
 } from './AbstractPollingController';
 import type {
+  Constructor,
   IPollingController,
   PollingTokenSetId,
-} from './AbstractPollingController';
-
-// TODO: Replace `any` with type
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Constructor = new (...args: any[]) => object;
+} from './types';
 
 /**
  * StaticIntervalPollingControllerMixin
@@ -22,51 +18,57 @@ type Constructor = new (...args: any[]) => object;
  * @param Base - The base class to mix onto.
  * @returns The composed class.
  */
-function StaticIntervalPollingControllerMixin<TBase extends Constructor>(
-  Base: TBase,
-) {
+// This is a function that's used as class, and the return type is inferred from
+// the class defined inside the function scope, so this can't be easily typed.
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type, @typescript-eslint/naming-convention
+function StaticIntervalPollingControllerMixin<
+  TBase extends Constructor,
+  PollingInput extends Json,
+>(Base: TBase) {
   abstract class StaticIntervalPollingController
-    extends AbstractPollingControllerBaseMixin(Base)
-    implements IPollingController
+    extends AbstractPollingControllerBaseMixin<TBase, PollingInput>(Base)
+    implements IPollingController<PollingInput>
   {
     readonly #intervalIds: Record<PollingTokenSetId, NodeJS.Timeout> = {};
 
     #intervalLength: number | undefined = 1000;
 
-    setIntervalLength(intervalLength: number) {
+    setIntervalLength(intervalLength: number): void {
       this.#intervalLength = intervalLength;
     }
 
-    getIntervalLength() {
+    getIntervalLength(): number | undefined {
       return this.#intervalLength;
     }
 
-    _startPollingByNetworkClientId(
-      networkClientId: NetworkClientId,
-      options: Json,
-    ) {
+    _startPolling(input: PollingInput): void {
       if (!this.#intervalLength) {
         throw new Error('intervalLength must be defined and greater than 0');
       }
 
-      const key = getKey(networkClientId, options);
+      const key = getKey(input);
       const existingInterval = this.#intervalIds[key];
       this._stopPollingByPollingTokenSetId(key);
 
-      this.#intervalIds[key] = setTimeout(
+      // eslint-disable-next-line no-multi-assign
+      const intervalId = (this.#intervalIds[key] = setTimeout(
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
         async () => {
           try {
-            await this._executePoll(networkClientId, options);
+            await this._executePoll(input);
           } catch (error) {
             console.error(error);
           }
-          this._startPollingByNetworkClientId(networkClientId, options);
+          if (intervalId === this.#intervalIds[key]) {
+            this._startPolling(input);
+          }
         },
         existingInterval ? this.#intervalLength : 0,
-      );
+      ));
     }
 
-    _stopPollingByPollingTokenSetId(key: PollingTokenSetId) {
+    _stopPollingByPollingTokenSetId(key: PollingTokenSetId): void {
       const intervalId = this.#intervalIds[key];
       if (intervalId) {
         clearTimeout(intervalId);
@@ -80,9 +82,17 @@ function StaticIntervalPollingControllerMixin<TBase extends Constructor>(
 
 class Empty {}
 
-export const StaticIntervalPollingControllerOnly =
-  StaticIntervalPollingControllerMixin(Empty);
-export const StaticIntervalPollingController =
-  StaticIntervalPollingControllerMixin(BaseController);
-export const StaticIntervalPollingControllerV1 =
-  StaticIntervalPollingControllerMixin(BaseControllerV1);
+export const StaticIntervalPollingControllerOnly = <
+  PollingInput extends Json,
+  // The return type is inferred from the class defined inside the function
+  // scope, so this can't be easily typed.
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+>() => StaticIntervalPollingControllerMixin<typeof Empty, PollingInput>(Empty);
+
+// The return type is inferred from the class defined inside the function
+// scope, so this can't be easily typed.
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+export const StaticIntervalPollingController = <PollingInput extends Json>() =>
+  StaticIntervalPollingControllerMixin<typeof BaseController, PollingInput>(
+    BaseController,
+  );

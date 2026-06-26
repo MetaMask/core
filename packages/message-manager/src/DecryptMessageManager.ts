@@ -1,30 +1,73 @@
-import { v1 as random } from 'uuid';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+} from '@metamask/base-controller';
+import { ApprovalType } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
+import {} from '@metamask/messenger';
 
 import type {
   AbstractMessage,
   AbstractMessageParams,
   AbstractMessageParamsMetamask,
-  OriginalRequest,
+  MessageManagerState,
+  MessageRequest,
+  SecurityProviderRequest,
 } from './AbstractMessageManager';
 import { AbstractMessageManager } from './AbstractMessageManager';
 import { normalizeMessageData, validateDecryptedMessageData } from './utils';
+
+const managerName = 'DecryptMessageManager';
+
+export type DecryptMessageManagerState = MessageManagerState<DecryptMessage>;
+
+export type DecryptMessageManagerUnapprovedMessageAddedEvent = {
+  type: `${typeof managerName}:unapprovedMessage`;
+  payload: [AbstractMessageParamsMetamask];
+};
+
+export type DecryptMessageManagerUpdateBadgeEvent = {
+  type: `${typeof managerName}:updateBadge`;
+  payload: [];
+};
+
+type DecryptMessageManagerActions = ControllerGetStateAction<
+  typeof managerName,
+  DecryptMessageManagerState
+>;
+
+type DecryptMessageManagerEvents =
+  | ControllerStateChangeEvent<typeof managerName, DecryptMessageManagerState>
+  | DecryptMessageManagerUnapprovedMessageAddedEvent
+  | DecryptMessageManagerUpdateBadgeEvent;
+
+export type DecryptMessageManagerMessenger = Messenger<
+  typeof managerName,
+  DecryptMessageManagerActions,
+  DecryptMessageManagerEvents
+>;
+
+type DecryptMessageManagerOptions = {
+  messenger: DecryptMessageManagerMessenger;
+  securityProviderRequest?: SecurityProviderRequest;
+  state?: MessageManagerState<DecryptMessage>;
+  additionalFinishStatuses?: string[];
+};
 
 /**
  * @type DecryptMessage
  *
  * Represents and contains data about a 'eth_decrypt' type signature request.
  * These are created when a signature for an eth_decrypt call is requested.
+ *
  * @property id - An id to track and identify the message object
  * @property messageParams - The parameters to pass to the eth_decrypt method once the request is approved
  * @property type - The json-prc signing method for which a signature request has been made.
  * A 'DecryptMessage' which always has a 'eth_decrypt' type
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface DecryptMessage extends AbstractMessage {
+export type DecryptMessage = AbstractMessage & {
   messageParams: DecryptMessageParams;
-}
+};
 
 /**
  * @type DecryptMessageParams
@@ -32,18 +75,16 @@ export interface DecryptMessage extends AbstractMessage {
  * Represents the parameters to pass to the eth_decrypt method once the request is approved.
  * @property data - A hex string conversion of the raw buffer data of the signature request
  */
-// This interface was created before this ESLint rule was added.
-// Convert to a `type` in a future major version.
-// eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface DecryptMessageParams extends AbstractMessageParams {
+export type DecryptMessageParams = AbstractMessageParams & {
   data: string;
-}
+};
 
 /**
  * @type DecryptMessageParamsMetamask
  *
  * Represents the parameters to pass to the eth_decrypt method once the request is approved
  * plus data added by MetaMask.
+ *
  * @property metamaskId - Added for tracking and identification within MetaMask
  * @property data - A hex string conversion of the raw buffer data of the signature request
  * @property from - Address to sign this message from
@@ -52,8 +93,7 @@ export interface DecryptMessageParams extends AbstractMessageParams {
 // This interface was created before this ESLint rule was added.
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
-export interface DecryptMessageParamsMetamask
-  extends AbstractMessageParamsMetamask {
+export interface DecryptMessageParamsMetamask extends AbstractMessageParamsMetamask {
   data: string;
 }
 
@@ -61,14 +101,26 @@ export interface DecryptMessageParamsMetamask
  * Controller in charge of managing - storing, adding, removing, updating - DecryptMessages.
  */
 export class DecryptMessageManager extends AbstractMessageManager<
+  typeof managerName,
   DecryptMessage,
   DecryptMessageParams,
-  DecryptMessageParamsMetamask
+  DecryptMessageParamsMetamask,
+  DecryptMessageManagerMessenger
 > {
-  /**
-   * Name of this controller used during composition
-   */
-  override name = 'DecryptMessageManager';
+  constructor({
+    additionalFinishStatuses,
+    messenger,
+    securityProviderRequest,
+    state,
+  }: DecryptMessageManagerOptions) {
+    super({
+      additionalFinishStatuses,
+      messenger,
+      name: managerName,
+      securityProviderRequest,
+      state,
+    });
+  }
 
   /**
    * Creates a new Message with an 'unapproved' status using the passed messageParams.
@@ -80,38 +132,41 @@ export class DecryptMessageManager extends AbstractMessageManager<
    */
   async addUnapprovedMessageAsync(
     messageParams: DecryptMessageParams,
-    req?: OriginalRequest,
+    req?: MessageRequest,
   ): Promise<string> {
     validateDecryptedMessageData(messageParams);
     const messageId = await this.addUnapprovedMessage(messageParams, req);
 
     return new Promise((resolve, reject) => {
-      this.hub.once(`${messageId}:finished`, (data: DecryptMessage) => {
-        switch (data.status) {
-          case 'decrypted':
-            return resolve(data.rawSig as string);
-          case 'rejected':
-            return reject(
-              new Error(
-                'MetaMask DecryptMessage: User denied message decryption.',
-              ),
-            );
-          case 'errored':
-            return reject(
-              new Error(
-                'MetaMask DecryptMessage: This message cannot be decrypted.',
-              ),
-            );
-          default:
-            return reject(
-              new Error(
-                `MetaMask DecryptMessage: Unknown problem: ${JSON.stringify(
-                  messageParams,
-                )}`,
-              ),
-            );
-        }
-      });
+      this.internalEvents.once(
+        `${messageId}:finished`,
+        (data: DecryptMessage) => {
+          switch (data.status) {
+            case 'decrypted':
+              return resolve(data.rawSig as string);
+            case 'rejected':
+              return reject(
+                new Error(
+                  'MetaMask DecryptMessage: User denied message decryption.',
+                ),
+              );
+            case 'errored':
+              return reject(
+                new Error(
+                  'MetaMask DecryptMessage: This message cannot be decrypted.',
+                ),
+              );
+            default:
+              return reject(
+                new Error(
+                  `MetaMask DecryptMessage: Unknown problem: ${JSON.stringify(
+                    messageParams,
+                  )}`,
+                ),
+              );
+          }
+        },
+      );
     });
   }
 
@@ -127,24 +182,26 @@ export class DecryptMessageManager extends AbstractMessageManager<
    */
   async addUnapprovedMessage(
     messageParams: DecryptMessageParams,
-    req?: OriginalRequest,
+    req?: MessageRequest,
   ) {
-    if (req) {
-      messageParams.origin = req.origin;
-    }
-    messageParams.data = normalizeMessageData(messageParams.data);
-    const messageId = random();
-    const messageData: DecryptMessage = {
-      id: messageId,
+    const updatedMessageParams = this.addRequestToMessageParams(
       messageParams,
-      status: 'unapproved',
-      time: Date.now(),
-      type: 'eth_decrypt',
-    };
+      req,
+    ) satisfies DecryptMessageParams;
+    messageParams.data = normalizeMessageData(messageParams.data);
+
+    const messageData = this.createUnapprovedMessage(
+      updatedMessageParams,
+      ApprovalType.EthDecrypt,
+      req,
+    ) satisfies DecryptMessage;
+
+    const messageId = messageData.id;
+
     await this.addMessage(messageData);
-    this.hub.emit(`unapprovedMessage`, {
-      ...messageParams,
-      ...{ metamaskId: messageId },
+    this.messenger.publish(`${managerName}:unapprovedMessage`, {
+      ...updatedMessageParams,
+      metamaskId: messageId,
     });
     return messageId;
   }

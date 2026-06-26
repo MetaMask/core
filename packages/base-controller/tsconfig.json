@@ -6,7 +6,13 @@
   "references": [
     {
       "path": "../controller-utils"
+    },
+    {
+      "path": "../json-rpc-engine"
+    },
+    {
+      "path": "../messenger"
     }
   ],
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "./src", "./tests"]
 }

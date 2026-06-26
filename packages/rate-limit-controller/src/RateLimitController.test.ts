@@ -1,13 +1,15 @@
-import { ControllerMessenger } from '@metamask/base-controller';
-
+import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
-  RateLimitControllerActions,
-  RateLimitMessenger,
-  RateLimitControllerEvents,
-} from './RateLimitController';
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
+} from '@metamask/messenger';
+
+import type { RateLimitMessenger } from './RateLimitController';
 import { RateLimitController } from './RateLimitController';
 
-const name = 'RateLimitController';
+const controllerName = 'RateLimitController';
 
 const implementations = {
   apiWithoutCustomLimit: {
@@ -22,30 +24,49 @@ const implementations = {
 
 type RateLimitedApis = typeof implementations;
 
+type AllRateLimitControllerActions = MessengerActions<
+  RateLimitMessenger<RateLimitedApis>
+>;
+
+type AllRateLimitControllerEvents = MessengerEvents<
+  RateLimitMessenger<RateLimitedApis>
+>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllRateLimitControllerActions,
+  AllRateLimitControllerEvents
+>;
+
 /**
- * Constructs a unrestricted controller messenger.
+ * Creates and returns a root messenger for testing
  *
- * @returns A unrestricted controller messenger.
+ * @returns A messenger instance
  */
-function getUnrestrictedMessenger() {
-  return new ControllerMessenger<
-    RateLimitControllerActions<RateLimitedApis>,
-    RateLimitControllerEvents<RateLimitedApis>
-  >();
+function getRootMessenger(): RootMessenger {
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 }
 
 /**
- * Constructs a restricted controller messenger.
+ * Constructs a messenger for the RateLimitController.
  *
- * @param controllerMessenger - An optional unrestricted messenger
- * @returns A restricted controller messenger.
+ * @param rootMessenger - An optional root messenger
+ * @returns A messenger for the RateLimitController.
  */
-function getRestrictedMessenger(
-  controllerMessenger = getUnrestrictedMessenger(),
-) {
-  return controllerMessenger.getRestricted({
-    name,
-  }) as RateLimitMessenger<RateLimitedApis>;
+function getMessenger(
+  rootMessenger = getRootMessenger(),
+): RateLimitMessenger<RateLimitedApis> {
+  return new Messenger<
+    typeof controllerName,
+    AllRateLimitControllerActions,
+    AllRateLimitControllerEvents,
+    RootMessenger
+  >({
+    namespace: controllerName,
+    parent: rootMessenger,
+  });
 }
 
 const origin = 'snap_test';
@@ -63,17 +84,18 @@ describe('RateLimitController', () => {
   });
 
   it('action: RateLimitController:call', async () => {
-    const unrestricted = getUnrestrictedMessenger();
-    const messenger = getRestrictedMessenger(unrestricted);
+    const rootMessenger = getRootMessenger();
+    const messenger = getMessenger(rootMessenger);
 
     // Registers action handlers
+    // eslint-disable-next-line no-new
     new RateLimitController({
       implementations,
       messenger,
     });
 
     expect(
-      await unrestricted.call(
+      await rootMessenger.call(
         'RateLimitController:call',
         origin,
         'apiWithoutCustomLimit',
@@ -89,7 +111,7 @@ describe('RateLimitController', () => {
   });
 
   it('uses apiWithoutCustomLimit method', async () => {
-    const messenger = getRestrictedMessenger();
+    const messenger = getMessenger();
 
     const controller = new RateLimitController({
       implementations,
@@ -106,7 +128,7 @@ describe('RateLimitController', () => {
   });
 
   it('returns false if rate-limited', async () => {
-    const messenger = getRestrictedMessenger();
+    const messenger = getMessenger();
     const controller = new RateLimitController({
       implementations,
       messenger,
@@ -155,7 +177,7 @@ describe('RateLimitController', () => {
   });
 
   it('rate limit is reset after timeout', async () => {
-    const messenger = getRestrictedMessenger();
+    const messenger = getMessenger();
     const controller = new RateLimitController({
       implementations,
       messenger,
@@ -199,7 +221,7 @@ describe('RateLimitController', () => {
   });
 
   it('timeout is only applied once per window', async () => {
-    const messenger = getRestrictedMessenger();
+    const messenger = getMessenger();
     const controller = new RateLimitController({
       implementations,
       messenger,
@@ -220,5 +242,67 @@ describe('RateLimitController', () => {
     ).toBeUndefined();
     jest.advanceTimersByTime(2500);
     expect(controller.state.requests.apiWithoutCustomLimit[origin]).toBe(1);
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const controller = new RateLimitController({
+        implementations,
+        messenger: getMessenger(),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`{}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const controller = new RateLimitController({
+        implementations,
+        messenger: getMessenger(),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`{}`);
+    });
+
+    it('persists expected state', () => {
+      const controller = new RateLimitController({
+        implementations,
+        messenger: getMessenger(),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`{}`);
+    });
+
+    it('exposes expected state to UI', () => {
+      const controller = new RateLimitController({
+        implementations,
+        messenger: getMessenger(),
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`{}`);
+    });
   });
 });

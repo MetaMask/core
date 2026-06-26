@@ -1,32 +1,35 @@
 import type {
   AcceptResultCallbacks,
-  AddApprovalRequest,
+  ApprovalControllerAddRequestAction,
   AddResult,
 } from '@metamask/approval-controller';
-import type { RestrictedControllerMessenger } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type {
+  ControllerGetStateAction,
+  ControllerStateChangeEvent,
+} from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
-import EthQuery from '@metamask/eth-query';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import type {
   KeyringControllerPrepareUserOperationAction,
   KeyringControllerPatchUserOperationAction,
   KeyringControllerSignUserOperationAction,
 } from '@metamask/keyring-controller';
+import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerGetNetworkClientByIdAction,
   Provider,
 } from '@metamask/network-controller';
 import { errorCodes } from '@metamask/rpc-errors';
-import {
-  determineTransactionType,
-  type TransactionMeta,
-  type TransactionParams,
-  type TransactionType,
+import { TransactionType } from '@metamask/transaction-controller';
+import type {
+  TransactionMeta,
+  TransactionParams,
 } from '@metamask/transaction-controller';
 import { add0x } from '@metamask/utils';
+// This package purposefully relies on Node's EventEmitter module.
+// eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
-import type { Patch } from 'immer';
 import { cloneDeep } from 'lodash';
 import { v1 as random } from 'uuid';
 
@@ -41,6 +44,7 @@ import type {
   UserOperationMetadata,
 } from './types';
 import { UserOperationStatus } from './types';
+import type { UserOperationControllerMethodActions } from './UserOperationController-method-action-types';
 import { updateGas } from './utils/gas';
 import { updateGasFees } from './utils/gas-fees';
 import { getTransactionMetadata } from './utils/transaction';
@@ -54,8 +58,19 @@ import {
 
 const controllerName = 'UserOperationController';
 
+const MESSENGER_EXPOSED_METHODS = [
+  'addUserOperation',
+  'addUserOperationFromTransaction',
+  'startPollingByNetworkClientId',
+] as const;
+
 const stateMetadata = {
-  userOperations: { persist: true, anonymous: false },
+  userOperations: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
 };
 
 const getDefaultState = () => ({
@@ -89,32 +104,31 @@ export type UserOperationControllerState = {
   userOperations: Record<string, UserOperationMetadata>;
 };
 
-export type GetUserOperationState = {
-  type: `${typeof controllerName}:getState`;
-  handler: () => UserOperationControllerState;
-};
+export type GetUserOperationState = ControllerGetStateAction<
+  typeof controllerName,
+  UserOperationControllerState
+>;
 
-export type UserOperationStateChange = {
-  type: `${typeof controllerName}:stateChange`;
-  payload: [UserOperationControllerState, Patch[]];
-};
+export type UserOperationStateChange = ControllerStateChangeEvent<
+  typeof controllerName,
+  UserOperationControllerState
+>;
 
 export type UserOperationControllerActions =
   | GetUserOperationState
+  | UserOperationControllerMethodActions
   | NetworkControllerGetNetworkClientByIdAction
-  | AddApprovalRequest
+  | ApprovalControllerAddRequestAction
   | KeyringControllerPrepareUserOperationAction
   | KeyringControllerPatchUserOperationAction
   | KeyringControllerSignUserOperationAction;
 
 export type UserOperationControllerEvents = UserOperationStateChange;
 
-export type UserOperationControllerMessenger = RestrictedControllerMessenger<
+export type UserOperationControllerMessenger = Messenger<
   typeof controllerName,
   UserOperationControllerActions,
-  UserOperationControllerEvents,
-  UserOperationControllerActions['type'],
-  UserOperationControllerEvents['type']
+  UserOperationControllerEvents
 >;
 
 export type UserOperationControllerOptions = {
@@ -137,10 +151,15 @@ export type AddUserOperationRequest = {
 export type AddUserOperationSwapOptions = {
   approvalTxId?: string;
   destinationTokenAddress?: string;
+  destinationTokenAmount?: string;
   destinationTokenDecimals?: number;
   destinationTokenSymbol?: string;
   estimatedBaseFee?: string;
+  sourceTokenAddress?: string;
+  sourceTokenAmount?: string;
+  sourceTokenDecimals?: number;
   sourceTokenSymbol?: string;
+  swapAndSendRecipient?: string;
   swapMetaData?: Record<string, unknown>;
   swapTokenValue?: string;
 };
@@ -186,11 +205,11 @@ export class UserOperationController extends BaseController<
 > {
   hub: UserOperationControllerEventEmitter;
 
-  #entrypoint: string;
+  readonly #entrypoint: string;
 
-  #getGasFeeEstimates: () => Promise<GasFeeState>;
+  readonly #getGasFeeEstimates: () => Promise<GasFeeState>;
 
-  #pendingUserOperationTracker: PendingUserOperationTracker;
+  readonly #pendingUserOperationTracker: PendingUserOperationTracker;
 
   /**
    * Construct a UserOperationController instance.
@@ -198,7 +217,7 @@ export class UserOperationController extends BaseController<
    * @param options - Controller options.
    * @param options.entrypoint - Address of the entrypoint contract.
    * @param options.getGasFeeEstimates - Callback to get gas fee estimates.
-   * @param options.messenger - Restricted controller messenger for the user operation controller.
+   * @param options.messenger - Restricted messenger for the user operation controller.
    * @param options.state - Initial state to set on the controller.
    */
   constructor({
@@ -215,6 +234,11 @@ export class UserOperationController extends BaseController<
     });
 
     this.hub = new EventEmitter() as UserOperationControllerEventEmitter;
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
 
     this.#entrypoint = entrypoint;
     this.#getGasFeeEstimates = getGasFeeEstimates;
@@ -290,10 +314,16 @@ export class UserOperationController extends BaseController<
     return await this.#addUserOperation(request, { ...options, transaction });
   }
 
+  /**
+   * Starts polling for pending user operations on the given network.
+   *
+   * @param networkClientId - The ID of the network client to poll.
+   * @returns The polling token that can be used to stop polling.
+   */
   startPollingByNetworkClientId(networkClientId: string): string {
-    return this.#pendingUserOperationTracker.startPollingByNetworkClientId(
+    return this.#pendingUserOperationTracker.startPolling({
       networkClientId,
-    );
+    });
   }
 
   async #addUserOperation(
@@ -321,7 +351,7 @@ export class UserOperationController extends BaseController<
 
     const smartContractAccount =
       requestSmartContractAccount ??
-      new SnapSmartContractAccount(this.messagingSystem);
+      new SnapSmartContractAccount(this.messenger);
 
     const cache: UserOperationCache = {
       chainId,
@@ -437,10 +467,15 @@ export class UserOperationController extends BaseController<
         ? {
             approvalTxId: swaps.approvalTxId ?? null,
             destinationTokenAddress: swaps.destinationTokenAddress ?? null,
+            destinationTokenAmount: swaps.destinationTokenAmount ?? null,
             destinationTokenDecimals: swaps.destinationTokenDecimals ?? null,
             destinationTokenSymbol: swaps.destinationTokenSymbol ?? null,
             estimatedBaseFee: swaps.estimatedBaseFee ?? null,
+            sourceTokenAddress: swaps.sourceTokenAddress ?? null,
+            sourceTokenAmount: swaps.sourceTokenAmount ?? null,
+            sourceTokenDecimals: swaps.sourceTokenDecimals ?? null,
             sourceTokenSymbol: swaps.sourceTokenSymbol ?? null,
+            swapAndSendRecipient: swaps.swapAndSendRecipient ?? null,
             swapMetaData: (swaps.swapMetaData as Record<string, never>) ?? null,
             swapTokenValue: swaps.swapTokenValue ?? null,
           }
@@ -472,7 +507,6 @@ export class UserOperationController extends BaseController<
 
     const transactionType = await this.#getTransactionType(
       transaction,
-      provider,
       options,
     );
 
@@ -526,17 +560,27 @@ export class UserOperationController extends BaseController<
     metadata: UserOperationMetadata,
     smartContractAccount: SmartContractAccount,
   ) {
-    const { id, userOperation } = metadata;
+    const { id, userOperation, chainId } = metadata;
 
     log('Requesting paymaster data', { id });
 
     const response = await smartContractAccount.updateUserOperation({
       userOperation,
+      chainId,
     });
 
     validateUpdateUserOperationResponse(response);
 
     userOperation.paymasterAndData = response.paymasterAndData ?? EMPTY_BYTES;
+    if (response.callGasLimit) {
+      userOperation.callGasLimit = response.callGasLimit;
+    }
+    if (response.preVerificationGas) {
+      userOperation.preVerificationGas = response.preVerificationGas;
+    }
+    if (response.verificationGasLimit) {
+      userOperation.verificationGasLimit = response.verificationGasLimit;
+    }
 
     this.#updateMetadata(metadata);
   }
@@ -702,7 +746,7 @@ export class UserOperationController extends BaseController<
     const type = ApprovalType.Transaction;
     const requestData = { txId: id };
 
-    return (await this.messagingSystem.call(
+    return (await this.messenger.call(
       'ApprovalController:addRequest',
       {
         id,
@@ -717,7 +761,6 @@ export class UserOperationController extends BaseController<
 
   async #getTransactionType(
     transaction: TransactionParams | undefined,
-    provider: Provider,
     options: AddUserOperationOptions,
   ): Promise<TransactionType | undefined> {
     if (!transaction) {
@@ -728,16 +771,13 @@ export class UserOperationController extends BaseController<
       return options.type;
     }
 
-    const ethQuery = new EthQuery(provider);
-    const result = determineTransactionType(transaction, ethQuery);
-
-    return (await result).type;
+    return TransactionType.contractInteraction;
   }
 
   async #getProvider(
     networkClientId: string,
   ): Promise<{ provider: Provider; chainId: string }> {
-    const { provider, configuration } = this.messagingSystem.call(
+    const { provider, configuration } = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
     );
@@ -770,10 +810,21 @@ export class UserOperationController extends BaseController<
     const previousMaxFeePerGas = userOperation.maxFeePerGas;
     const previousMaxPriorityFeePerGas = userOperation.maxPriorityFeePerGas;
 
-    if (
+    const gasFeesUpdated =
       previousMaxFeePerGas !== updatedMaxFeePerGas ||
-      previousMaxPriorityFeePerGas !== updatedMaxPriorityFeePerGas
-    ) {
+      previousMaxPriorityFeePerGas !== updatedMaxPriorityFeePerGas;
+
+    /**
+     * true when we detect {@link getTransactionMetadata} has set the gas fees to zero
+     * because the userOperation has a paymaster. This should not be mistaken for gas
+     * fees being updated during the approval process.
+     */
+    const areGasFeesZeroBecauseOfPaymaster =
+      usingPaymaster &&
+      updatedMaxFeePerGas === VALUE_ZERO &&
+      updatedMaxPriorityFeePerGas === VALUE_ZERO;
+
+    if (gasFeesUpdated && !areGasFeesZeroBecauseOfPaymaster) {
       log('Gas fees updated during approval', {
         previousMaxFeePerGas,
         previousMaxPriorityFeePerGas,

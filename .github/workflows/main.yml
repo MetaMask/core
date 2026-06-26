@@ -4,25 +4,96 @@ on:
   push:
     branches: [main]
   pull_request:
+  merge_group:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.sha || github.ref }}
+  cancel-in-progress: ${{ !contains(github.ref, 'refs/heads/main') }}
 
 jobs:
+  check-skip-merge-queue:
+    name: Check if pull request can skip merge queue
+    runs-on: ubuntu-latest
+    outputs:
+      skip-merge-queue: ${{ steps.check-skip-merge-queue.outputs.up-to-date }}
+    steps:
+      - name: Check pull request merge queue status
+        id: check-skip-merge-queue
+        if: github.event_name == 'merge_group'
+        uses: MetaMask/github-tools/.github/actions/check-skip-merge-queue@v1
+
   check-workflows:
     name: Check workflows
+    needs:
+      - check-skip-merge-queue
+    if: github.event_name != 'merge_group' || needs.check-skip-merge-queue.outputs.skip-merge-queue != 'true'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
       - name: Download actionlint
         id: download-actionlint
-        run: bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/7fdc9630cc360ea1a469eed64ac6d78caeda1234/scripts/download-actionlint.bash) 1.6.25
+        run: bash <(curl https://raw.githubusercontent.com/rhysd/actionlint/914e7df21a07ef503a81201c76d2b11c789d3fca/scripts/download-actionlint.bash) 1.7.12
         shell: bash
       - name: Check workflow files
         run: ${{ steps.download-actionlint.outputs.executable }} -color
         shell: bash
 
+  analyse-code:
+    name: Analyse code
+    needs: check-workflows
+    uses: MetaMask/action-security-code-scanner/.github/workflows/security-scan.yml@v2
+    with:
+      scanner-ref: v2
+      paths-ignored: |
+        .storybook/
+        **/__snapshots__/
+        **/*.snap
+        **/*.stories.js
+        **/*.stories.tsx
+        **/*.test.browser.ts*
+        **/*.test.js*
+        **/*.test.ts*
+        **/fixtures/
+        **/jest.config.js
+        **/jest.environment.js
+        **/mocks/
+        **/test*/
+        docs/
+        e2e/
+        merged-packages/
+        node_modules/
+        storybook/
+        test*/
+    secrets:
+      project-metrics-token: ${{ secrets.SECURITY_SCAN_METRICS_TOKEN }}
+      slack-webhook: ${{ secrets.APPSEC_BOT_SLACK_WEBHOOK }}
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
   lint-build-test:
     name: Lint, build, and test
     needs: check-workflows
     uses: ./.github/workflows/lint-build-test.yml
+
+  check-release:
+    name: Check release
+    needs: check-workflows
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Check release
+        if: github.event_name != 'push'
+        uses: ./.github/actions/check-release
+        with:
+          commit-starts-with: ${{ vars.RELEASE_COMMIT_PREFIX }}
 
   is-release:
     name: Determine whether this is a release merge commit
@@ -33,9 +104,9 @@ jobs:
       IS_RELEASE: ${{ steps.is-release.outputs.IS_RELEASE }}
     steps:
       - id: is-release
-        uses: MetaMask/action-is-release@dc4672b05e3b1d464cdaf783579b04a4e43f8b02
+        uses: MetaMask/action-is-release@v2
         with:
-          commit-starts-with: 'Release [version],Release/[version]'
+          commit-starts-with: ${{ vars.RELEASE_COMMIT_PREFIX }}
 
   publish-release:
     name: Publish release
@@ -43,15 +114,28 @@ jobs:
     if: needs.is-release.outputs.IS_RELEASE == 'true'
     permissions:
       contents: write
+      id-token: write
     uses: ./.github/workflows/publish-release.yml
     secrets:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
 
+  create-update-issues:
+    name: Create update issues
+    needs: [is-release, publish-release]
+    if: needs.is-release.outputs.IS_RELEASE == 'true'
+    uses: ./.github/workflows/create-update-issues.yml
+    permissions:
+      contents: read
+      id-token: write
+
   all-jobs-complete:
     name: All jobs complete
     runs-on: ubuntu-latest
-    needs: lint-build-test
+    needs:
+      - analyse-code
+      - check-release
+      - lint-build-test
     outputs:
       passed: ${{ steps.set-output.outputs.passed }}
     steps:
@@ -63,11 +147,14 @@ jobs:
     name: All jobs pass
     if: ${{ always() }}
     runs-on: ubuntu-latest
-    needs: all-jobs-complete
+    needs:
+      - all-jobs-complete
+      - check-skip-merge-queue
+    env:
+      PASSED: ${{ needs.all-jobs-complete.outputs.passed == 'true' || needs.check-skip-merge-queue.outputs.skip-merge-queue == 'true' }}
     steps:
       - name: Check that all jobs have passed
         run: |
-          passed="${{ needs.all-jobs-complete.outputs.passed }}"
-          if [[ $passed != "true" ]]; then
+          if [[ "$PASSED" != "true" ]]; then
             exit 1
           fi

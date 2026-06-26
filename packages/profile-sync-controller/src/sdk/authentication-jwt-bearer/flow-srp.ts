@@ -1,0 +1,390 @@
+import type { Eip1193Provider } from 'ethers';
+
+import type { MetaMetricsAuth } from '../../shared/types/services';
+import { ValidationError, RateLimitedError } from '../errors';
+import { getMetaMaskProviderEIP6963 } from '../utils/eip-6963-metamask-provider';
+import {
+  MESSAGE_SIGNING_SNAP,
+  assertMessageStartsWithMetamask,
+  connectSnap,
+  isSnapConnected,
+} from '../utils/messaging-signing-snap-requests';
+import { validateLoginResponse } from '../utils/validate-login-response';
+import {
+  authenticate,
+  authorizeOIDC,
+  getNonce,
+  getUserProfileLineage,
+  pairProfiles,
+} from './services';
+import type { PairProfilesResponse } from './services';
+import type {
+  AuthConfig,
+  AuthSigningOptions,
+  AuthStorageOptions,
+  AuthType,
+  IBaseAuth,
+  LoginResponse,
+  UserProfile,
+  UserProfileLineage,
+} from './types';
+import { computeIdentifierId } from './utils/identifier';
+import * as timeUtils from './utils/time';
+
+type JwtBearerAuth_SRP_Options = {
+  storage: AuthStorageOptions;
+  signing?: AuthSigningOptions;
+  rateLimitRetry?: {
+    cooldownDefaultMs?: number; // default cooldown when 429 has no Retry-After
+    maxLoginRetries?: number; // maximum number of login retries on rate limit
+  };
+};
+
+// How long a successful pairing result stays cached so identical payloads
+// (concurrent or sequential retries) reuse it instead of re-hitting the endpoint.
+export const PAIR_DEDUPE_TTL_MS = 30_000;
+
+const getDefaultEIP6963Provider = async () => {
+  const provider = await getMetaMaskProviderEIP6963();
+  if (!provider) {
+    throw new ValidationError('No MetaMask wallet connected');
+  }
+  return provider;
+};
+
+const getDefaultEIP6963SigningOptions = (
+  customProvider?: Eip1193Provider,
+): AuthSigningOptions => ({
+  getIdentifier: async (entropySourceId?: string): Promise<string> => {
+    const provider = customProvider ?? (await getDefaultEIP6963Provider());
+    return await MESSAGE_SIGNING_SNAP.getPublicKey(provider, entropySourceId);
+  },
+  signMessage: async (
+    message: string,
+    entropySourceId?: string,
+  ): Promise<string> => {
+    const provider = customProvider ?? (await getDefaultEIP6963Provider());
+    assertMessageStartsWithMetamask(message);
+    return await MESSAGE_SIGNING_SNAP.signMessage(
+      provider,
+      message,
+      entropySourceId,
+    );
+  },
+});
+
+export class SRPJwtBearerAuth implements IBaseAuth {
+  readonly #config: AuthConfig;
+
+  readonly #options: {
+    storage: AuthStorageOptions;
+    signing: AuthSigningOptions;
+  };
+
+  readonly #metametrics?: MetaMetricsAuth;
+
+  // Map to store ongoing login promises by entropySourceId
+  readonly #ongoingLogins = new Map<
+    string | undefined,
+    Promise<LoginResponse>
+  >();
+
+  // Map to dedupe pairing calls by an order-insensitive token-set key.
+  // Holds the in-flight promise (coalescing concurrent callers) and keeps it
+  // for a short TTL after success (collapsing sequential retries).
+  readonly #ongoingPairings = new Map<
+    string,
+    { promise: Promise<PairProfilesResponse>; expiresAt: number }
+  >();
+
+  // Default cooldown when 429 has no Retry-After header
+  readonly #cooldownDefaultMs: number;
+
+  // Maximum number of login retries on rate limit errors
+  readonly #maxLoginRetries: number;
+
+  #customProvider?: Eip1193Provider;
+
+  constructor(
+    config: AuthConfig & { type: AuthType.SRP },
+    options: JwtBearerAuth_SRP_Options & {
+      customProvider?: Eip1193Provider;
+      metametrics?: MetaMetricsAuth;
+    },
+  ) {
+    this.#config = config;
+    this.#customProvider = options.customProvider;
+    this.#options = {
+      storage: options.storage,
+      signing:
+        options.signing ??
+        getDefaultEIP6963SigningOptions(this.#customProvider),
+    };
+    this.#metametrics = options.metametrics;
+
+    // Apply rate limit retry config if provided
+    this.#cooldownDefaultMs =
+      options.rateLimitRetry?.cooldownDefaultMs ?? 10000;
+    this.#maxLoginRetries = options.rateLimitRetry?.maxLoginRetries ?? 1;
+  }
+
+  setCustomProvider(provider: Eip1193Provider) {
+    this.#customProvider = provider;
+    this.#options.signing = getDefaultEIP6963SigningOptions(provider);
+  }
+
+  // TODO: might be easier to keep entropySourceId as a class param and use multiple SRPJwtBearerAuth instances where needed
+  async getAccessToken(entropySourceId?: string): Promise<string> {
+    const session = await this.#getAuthSession(entropySourceId);
+    if (session) {
+      return session.token.accessToken;
+    }
+
+    const loginResponse = await this.#login(entropySourceId);
+    return loginResponse.token.accessToken;
+  }
+
+  async getUserProfile(entropySourceId?: string): Promise<UserProfile> {
+    const session = await this.#getAuthSession(entropySourceId);
+    if (session) {
+      return session.profile;
+    }
+
+    const loginResponse = await this.#login(entropySourceId);
+    return loginResponse.profile;
+  }
+
+  async getIdentifier(entropySourceId?: string): Promise<string> {
+    return await this.#options.signing.getIdentifier(entropySourceId);
+  }
+
+  async getUserProfileLineage(
+    entropySourceId?: string,
+  ): Promise<UserProfileLineage> {
+    const accessToken = await this.getAccessToken(entropySourceId);
+    return await getUserProfileLineage(this.#config.env, accessToken);
+  }
+
+  async pairSrpProfiles(
+    accessTokens: string[],
+    authAccessToken: string,
+  ): Promise<PairProfilesResponse> {
+    // Order-insensitive key: the same token set in any order maps to the same
+    // entry. Sort a copy so the request payload itself stays primary-first.
+    const key = JSON.stringify([...accessTokens].sort());
+
+    const cached = this.#ongoingPairings.get(key);
+    if (cached && cached.expiresAt > Date.now()) {
+      return await cached.promise;
+    }
+
+    const promise = pairProfiles(
+      accessTokens,
+      authAccessToken,
+      this.#config.env,
+    );
+    // Store the in-flight promise immediately so concurrent callers coalesce
+    // regardless of how long the request takes.
+    this.#ongoingPairings.set(key, {
+      promise,
+      expiresAt: Number.MAX_SAFE_INTEGER,
+    });
+
+    try {
+      const result = await promise;
+      // Keep the resolved result cached for a short window so sequential
+      // retries with the same payload reuse it.
+      this.#ongoingPairings.set(key, {
+        promise,
+        expiresAt: Date.now() + PAIR_DEDUPE_TTL_MS,
+      });
+      return result;
+    } catch (error) {
+      // Never cache failures: the pairing retry loop must be able to re-hit
+      // the endpoint on the next attempt.
+      this.#ongoingPairings.delete(key);
+      throw error;
+    }
+  }
+
+  async signMessage(
+    message: string,
+    entropySourceId?: string,
+  ): Promise<string> {
+    return await this.#options.signing.signMessage(message, entropySourceId);
+  }
+
+  async isSnapConnected(): Promise<boolean> {
+    const provider =
+      this.#customProvider ?? (await getDefaultEIP6963Provider());
+    if (!provider) {
+      return false;
+    }
+
+    const isConnected = await isSnapConnected(provider);
+    return isConnected;
+  }
+
+  async connectSnap(): Promise<string> {
+    const provider =
+      this.#customProvider ?? (await getDefaultEIP6963Provider());
+
+    const res = await connectSnap(provider);
+    return res;
+  }
+
+  // convert expiresIn from seconds to milliseconds and use 90% of expiresIn
+  async #getAuthSession(
+    entropySourceId?: string,
+  ): Promise<LoginResponse | null> {
+    const auth = await this.#options.storage.getLoginResponse(entropySourceId);
+    if (!validateLoginResponse(auth)) {
+      return null;
+    }
+
+    // get canonical profile id from server if not present in the cached session
+    if (!auth.profile.canonicalProfileId) {
+      return null;
+    }
+
+    const currentTime = Date.now();
+    const sessionAge = currentTime - auth.token.obtainedAt;
+    const refreshThreshold = auth.token.expiresIn * 1000 * 0.9;
+
+    if (sessionAge < refreshThreshold) {
+      return auth;
+    }
+    return null;
+  }
+
+  async #login(entropySourceId?: string): Promise<LoginResponse> {
+    // Use a deferred login to avoid race conditions
+    return await this.#deferredLogin(entropySourceId);
+  }
+
+  async #performLogin(entropySourceId?: string): Promise<LoginResponse> {
+    // Nonce
+    const publicKey = await this.getIdentifier(entropySourceId);
+    const nonceRes = await getNonce(publicKey, this.#config.env);
+
+    const rawMessage = this.#createSrpLoginRawMessage(
+      nonceRes.nonce,
+      publicKey,
+    );
+    const signature = await this.signMessage(rawMessage, entropySourceId);
+
+    // Authenticate
+    const authResponse = await authenticate(
+      rawMessage,
+      signature,
+      this.#config.type,
+      this.#config.env,
+      this.#metametrics,
+    );
+
+    // Resolve original profileId from aliases.
+    // This is done mainly to preserve the original profileId for storage key derivation
+    // until we migrate to the canonical profileId storage system.
+    const canonicalProfileId = authResponse.profile.profileId;
+    const profile = { ...authResponse.profile };
+
+    if (authResponse.profileAliases?.length > 0) {
+      const targetIdentifierId = computeIdentifierId(
+        publicKey,
+        this.#config.env,
+      );
+
+      const matchingAliases = authResponse.profileAliases.filter((alias) =>
+        alias.identifierIds.some((id) => id.id === targetIdentifierId),
+      );
+
+      // Prefer the leaf alias (single identifier) — it's the original profile
+      // created for this SRP. Multi-identifier aliases are former canonicals
+      // that absorbed other profiles; they are correct only when this SRP's
+      // original profile was itself a canonical before being absorbed.
+      const targetAlias =
+        matchingAliases.find((alias) => alias.identifierIds.length === 1) ??
+        matchingAliases[0];
+
+      if (targetAlias) {
+        profile.profileId = targetAlias.aliasProfileId;
+      }
+    }
+
+    profile.canonicalProfileId = canonicalProfileId;
+
+    // Authorize
+    const tokenResponse = await authorizeOIDC(
+      authResponse.token,
+      this.#config.env,
+      this.#config.platform,
+    );
+
+    // Save
+    const result: LoginResponse = {
+      profile,
+      token: tokenResponse,
+    };
+
+    await this.#options.storage.setLoginResponse(result, entropySourceId);
+
+    return result;
+  }
+
+  async #deferredLogin(entropySourceId?: string): Promise<LoginResponse> {
+    // Check if there's already an ongoing login for this entropySourceId
+    const existingLogin = this.#ongoingLogins.get(entropySourceId);
+    if (existingLogin) {
+      return existingLogin;
+    }
+
+    // Create a new login promise
+    const loginPromise = this.#loginWithRetry(entropySourceId);
+
+    // Store the promise in the map
+    this.#ongoingLogins.set(entropySourceId, loginPromise);
+
+    try {
+      // Wait for the login to complete
+      return await loginPromise;
+    } finally {
+      // Always clean up the ongoing login promise when done
+      this.#ongoingLogins.delete(entropySourceId);
+    }
+  }
+
+  async #loginWithRetry(entropySourceId?: string): Promise<LoginResponse> {
+    // Allow max attempts: initial + maxLoginRetries on 429
+    for (let attempt = 0; attempt < 1 + this.#maxLoginRetries; attempt += 1) {
+      try {
+        return await this.#performLogin(entropySourceId);
+      } catch (e) {
+        // Only retry on rate-limit (429) errors
+        if (!RateLimitedError.isRateLimitError(e)) {
+          throw e;
+        }
+
+        // If we've exhausted attempts, rethrow
+        if (attempt >= this.#maxLoginRetries) {
+          throw e;
+        }
+
+        // Wait for Retry-After or default cooldown
+        const waitMs = e.retryAfterMs ?? this.#cooldownDefaultMs;
+        await timeUtils.delay(waitMs);
+
+        // Loop continues to retry
+      }
+    }
+
+    // Should never reach here due to loop logic, but TypeScript needs a return
+    throw new Error('Unexpected: login loop exhausted without result');
+  }
+
+  #createSrpLoginRawMessage(
+    nonce: string,
+    publicKey: string,
+  ): `metamask:${string}:${string}` {
+    return `metamask:${nonce}:${publicKey}` as const;
+  }
+}

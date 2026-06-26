@@ -1,0 +1,342 @@
+import { distance } from 'fastest-levenshtein';
+
+import { matchedPathPrefix } from './PathTrie';
+import type { PathTrie } from './PathTrie';
+import { PhishingDetectorResultType } from './types';
+import type { PhishingDetectorResult } from './types';
+import {
+  domainPartsToDomain,
+  domainPartsToFuzzyForm,
+  domainToParts,
+  generateParentDomains,
+  getDefaultPhishingDetectorConfig,
+  getHostnameFromUrl,
+  matchPartsAgainstList,
+  processConfigs,
+  sha256Hash,
+} from './utils';
+
+export type LegacyPhishingDetectorList = {
+  whitelist?: string[];
+  blacklist?: string[];
+  c2DomainBlocklist?: string[];
+} & FuzzyTolerance;
+
+export type PhishingDetectorList = {
+  allowlist?: string[];
+  blocklist?: string[];
+  blocklistPaths?: PathTrie;
+  c2DomainBlocklist?: string[];
+  name?: string;
+  version?: string | number;
+  tolerance?: number;
+} & FuzzyTolerance;
+
+export type FuzzyTolerance =
+  | {
+      tolerance?: number;
+      fuzzylist: string[];
+    }
+  | {
+      tolerance?: never;
+      fuzzylist?: never;
+    };
+
+export type PhishingDetectorOptions =
+  | LegacyPhishingDetectorList
+  | PhishingDetectorList[];
+
+export type PhishingDetectorConfiguration = {
+  name?: string;
+  version?: number | string;
+  allowlist: string[][];
+  blocklist: string[][];
+  blocklistPaths?: PathTrie;
+  c2DomainBlocklist?: string[];
+  fuzzylist: string[][];
+  tolerance: number;
+};
+
+export class PhishingDetector {
+  readonly #configs: PhishingDetectorConfiguration[];
+
+  readonly #legacyConfig: boolean;
+
+  /**
+   * Construct a phishing detector, which can check whether origins are known
+   * to be malicious or similar to common phishing targets.
+   *
+   * A list of configurations is accepted. Each origin checked is processed
+   * using each configuration in sequence, so the order defines which
+   * configurations take precedence.
+   *
+   * @param opts - Phishing detection options
+   */
+  constructor(opts: PhishingDetectorOptions) {
+    // recommended configuration
+    if (Array.isArray(opts)) {
+      this.#configs = processConfigs(opts);
+      this.#legacyConfig = false;
+      // legacy configuration
+    } else {
+      this.#configs = [
+        getDefaultPhishingDetectorConfig({
+          allowlist: opts.whitelist,
+          blocklist: opts.blacklist,
+          fuzzylist: opts.fuzzylist,
+          tolerance: opts.tolerance,
+        }),
+      ];
+      this.#legacyConfig = true;
+    }
+  }
+
+  /**
+   * Check if a url is known to be malicious or similar to a common phishing
+   * target. This will check the hostname and IPFS CID that is sometimes
+   * located in the path.
+   *
+   * @param url - The url to check.
+   * @returns The result of the check.
+   */
+  check(url: string): PhishingDetectorResult {
+    const result = this.#check(url);
+
+    if (this.#legacyConfig) {
+      let legacyType = result.type;
+      if (legacyType === PhishingDetectorResultType.Allowlist) {
+        legacyType = PhishingDetectorResultType.Whitelist;
+      } else if (legacyType === PhishingDetectorResultType.Blocklist) {
+        legacyType = PhishingDetectorResultType.Blacklist;
+      }
+      return {
+        match: result.match,
+        result: result.result,
+        type: legacyType,
+      };
+    }
+    return result;
+  }
+
+  #check(url: string): PhishingDetectorResult {
+    const ipfsCidMatch = url.match(ipfsCidRegex());
+
+    // Check for IPFS CID related blocklist entries
+    if (ipfsCidMatch !== null) {
+      // there is a cID string somewhere
+      // Determine if any of the entries are ipfs cids
+      // Depending on the gateway, the CID is in the path OR a subdomain, so we do a regex match on it all
+      const cID = ipfsCidMatch[0];
+      for (const { blocklist, name, version } of this.#configs) {
+        const blocklistMatch = blocklist
+          .filter((entries) => entries.length === 1)
+          .find((entries) => {
+            return entries[0] === cID;
+          });
+        if (blocklistMatch) {
+          return {
+            name,
+            match: cID,
+            result: true,
+            type: PhishingDetectorResultType.Blocklist,
+            version: version === undefined ? version : String(version),
+          };
+        }
+      }
+    }
+
+    let domain;
+    try {
+      domain = new URL(url).hostname;
+    } catch {
+      return {
+        result: false,
+        type: PhishingDetectorResultType.All,
+      };
+    }
+
+    const fqdn = domain.endsWith('.') ? domain.slice(0, -1) : domain;
+
+    const source = domainToParts(fqdn);
+
+    for (const { blocklistPaths, name, version } of this.#configs) {
+      if (!blocklistPaths || Object.keys(blocklistPaths).length === 0) {
+        continue;
+      }
+      const pathMatch = matchedPathPrefix(url, blocklistPaths);
+      if (pathMatch) {
+        return {
+          match: pathMatch,
+          name,
+          result: true,
+          type: PhishingDetectorResultType.Blocklist,
+          version: version === undefined ? version : String(version),
+        };
+      }
+    }
+
+    for (const { allowlist, name, version } of this.#configs) {
+      // if source matches allowlist hostname (or subdomain thereof), PASS
+      const allowlistMatch = matchPartsAgainstList(source, allowlist);
+      if (allowlistMatch) {
+        const match = domainPartsToDomain(allowlistMatch);
+        return {
+          match,
+          name,
+          result: false,
+          type: PhishingDetectorResultType.Allowlist,
+          version: version === undefined ? version : String(version),
+        };
+      }
+    }
+
+    for (const {
+      blocklist,
+      fuzzylist,
+      name,
+      tolerance,
+      version,
+    } of this.#configs) {
+      // if source matches blocklist hostname (or subdomain thereof), FAIL
+      const blocklistMatch = matchPartsAgainstList(source, blocklist);
+      if (blocklistMatch) {
+        const match = domainPartsToDomain(blocklistMatch);
+        return {
+          match,
+          name,
+          result: true,
+          type: PhishingDetectorResultType.Blocklist,
+          version: version === undefined ? version : String(version),
+        };
+      }
+
+      if (tolerance > 0) {
+        // check if near-match of whitelist domain, FAIL
+        let fuzzyForm = domainPartsToFuzzyForm(source);
+        // strip www
+        fuzzyForm = fuzzyForm.replace(/^www\./u, '');
+        // check against fuzzylist
+        const levenshteinMatched = fuzzylist.find((targetParts) => {
+          const fuzzyTarget = domainPartsToFuzzyForm(targetParts);
+          const dist = distance(fuzzyForm, fuzzyTarget);
+          return dist <= tolerance;
+        });
+        if (levenshteinMatched) {
+          const match = domainPartsToDomain(levenshteinMatched);
+          return {
+            name,
+            match,
+            result: true,
+            type: PhishingDetectorResultType.Fuzzy,
+            version: version === undefined ? version : String(version),
+          };
+        }
+      }
+    }
+
+    // matched nothing, PASS
+    return { result: false, type: PhishingDetectorResultType.All };
+  }
+
+  /**
+   * Gets the specific terminal path from blocklistPaths that is blocking a URL.
+   *
+   * @param url - The URL to check.
+   * @returns The terminal path that is blocking the URL, or null if not blocked.
+   */
+  blockingPath(url: string): string | null {
+    for (const { blocklistPaths } of this.#configs) {
+      if (!blocklistPaths || Object.keys(blocklistPaths).length === 0) {
+        continue;
+      }
+      const matchedPath = matchedPathPrefix(url, blocklistPaths);
+      if (matchedPath) {
+        return matchedPath;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Checks if a URL is blocked against the hashed request blocklist.
+   * This is done by hashing the URL's hostname and checking it against the hashed request blocklist.
+   *
+   * @param urlString - The URL to check.
+   * @returns An object indicating if the URL is blocked and relevant metadata.
+   */
+  isMaliciousC2Domain(urlString: string): PhishingDetectorResult {
+    const hostname = getHostnameFromUrl(urlString);
+    if (!hostname) {
+      return {
+        result: false,
+        type: PhishingDetectorResultType.C2DomainBlocklist,
+      };
+    }
+
+    const fqdn = hostname.endsWith('.') ? hostname.slice(0, -1) : hostname;
+    const sourceParts = domainToParts(fqdn);
+
+    for (const { allowlist, name, version } of this.#configs) {
+      // if source matches allowlist hostname (or subdomain thereof), PASS
+      const allowlistMatch = matchPartsAgainstList(sourceParts, allowlist);
+      if (allowlistMatch) {
+        const match = domainPartsToDomain(allowlistMatch);
+        return {
+          match,
+          name,
+          result: false,
+          type: PhishingDetectorResultType.Allowlist,
+          version: version === undefined ? version : String(version),
+        };
+      }
+    }
+
+    const hostnameHash = sha256Hash(hostname.toLowerCase());
+    const domainsToCheck = generateParentDomains(sourceParts.reverse(), 5);
+
+    for (const { c2DomainBlocklist, name, version } of this.#configs) {
+      if (!c2DomainBlocklist || c2DomainBlocklist.length === 0) {
+        continue;
+      }
+
+      if (c2DomainBlocklist.includes(hostnameHash)) {
+        return {
+          name,
+          result: true,
+          type: PhishingDetectorResultType.C2DomainBlocklist,
+          version: version === undefined ? version : String(version),
+        };
+      }
+
+      for (const domain of domainsToCheck) {
+        const domainHash = sha256Hash(domain);
+        if (c2DomainBlocklist.includes(domainHash)) {
+          return {
+            name,
+            result: true,
+            type: PhishingDetectorResultType.C2DomainBlocklist,
+            version: version === undefined ? version : String(version),
+          };
+        }
+      }
+    }
+    // did not match, PASS
+    return {
+      result: false,
+      type: PhishingDetectorResultType.C2DomainBlocklist,
+    };
+  }
+}
+
+/**
+ * Runs a regex match to determine if a string is a IPFS CID
+ *
+ * @returns Regex string for IPFS CID
+ */
+function ipfsCidRegex() {
+  // regex from https://stackoverflow.com/a/67176726
+  const reg =
+    'Qm[1-9A-HJ-NP-Za-km-z]{44,}|b[A-Za-z2-7]{58,}|B[A-Z2-7]{58,}|z[1-9A-HJ-NP-Za-km-z]{48,}|F[0-9A-F]{50,}';
+  return new RegExp(reg, 'u');
+}

@@ -1,3 +1,5 @@
+import { deriveStateFromMetadata } from '@metamask/base-controller';
+
 import type {
   SetNameRequest,
   UpdateProposedNamesRequest,
@@ -23,6 +25,7 @@ const TIME_MOCK = 123;
 
 const MESSENGER_MOCK = {
   registerActionHandler: jest.fn(),
+  registerMethodActionHandlers: jest.fn(),
   registerInitialEventPayload: jest.fn(),
   publish: jest.fn(),
   // TODO: Replace `any` with type
@@ -33,12 +36,6 @@ const CONTROLLER_ARGS_MOCK = {
   messenger: MESSENGER_MOCK,
   providers: [],
 };
-
-// eslint-disable-next-line jest/prefer-spy-on
-console.error = jest.fn();
-
-// eslint-disable-next-line jest/prefer-spy-on
-Date.now = jest.fn().mockReturnValue(TIME_MOCK * 1000);
 
 /**
  * Creates a mock name provider.
@@ -76,6 +73,14 @@ function createMockProvider(
 }
 
 describe('NameController', () => {
+  beforeEach(() => {
+    jest.spyOn(console, 'error').mockImplementation(() => {
+      // do nothing
+    });
+
+    jest.spyOn(Date, 'now').mockReturnValue(TIME_MOCK * 1000);
+  });
+
   describe('setName', () => {
     it('creates an entry if new%s', () => {
       const provider1 = createMockProvider(1);
@@ -458,6 +463,64 @@ describe('NameController', () => {
       });
     });
 
+    it('does not update if passed unsafe input', () => {
+      const provider1 = createMockProvider(1);
+
+      const controller = new NameController({
+        ...CONTROLLER_ARGS_MOCK,
+        providers: [provider1],
+        state: {
+          names: {
+            [NameType.ETHEREUM_ADDRESS]: {
+              [VALUE_MOCK]: {
+                [CHAIN_ID_MOCK]: {
+                  name: null,
+                  sourceId: null,
+                  origin: null,
+                  proposedNames: {
+                    [SOURCE_ID_MOCK]: {
+                      proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
+                      lastRequestTime: null,
+                      updateDelay: null,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      });
+
+      controller.setName({
+        value: '__proto__',
+        type: NameType.ETHEREUM_ADDRESS,
+        name: NAME_MOCK,
+        sourceId: `${SOURCE_ID_MOCK}1`,
+        variation: CHAIN_ID_MOCK,
+      });
+
+      expect(controller.state.names).toStrictEqual<
+        NameControllerState['names']
+      >({
+        [NameType.ETHEREUM_ADDRESS]: {
+          [VALUE_MOCK]: {
+            [CHAIN_ID_MOCK]: {
+              name: null,
+              sourceId: null,
+              origin: null,
+              proposedNames: {
+                [SOURCE_ID_MOCK]: {
+                  proposedNames: [PROPOSED_NAME_MOCK, PROPOSED_NAME_2_MOCK],
+                  lastRequestTime: null,
+                  updateDelay: null,
+                },
+              },
+            },
+          },
+        },
+      });
+    });
+
     it('does not throw if variation is fallback and type is Ethereum address', () => {
       const controller = new NameController(CONTROLLER_ARGS_MOCK);
 
@@ -561,7 +624,7 @@ describe('NameController', () => {
             variation,
           } as SetNameRequest),
         ).toThrow(
-          `Must specify a chain ID in hexidecimal format or the fallback, "*", for variation when using 'ethereumAddress' type.`,
+          `Must specify a chain ID in hexadecimal format or the fallback, "*", for variation when using 'ethereumAddress' type.`,
         );
       });
 
@@ -1610,7 +1673,7 @@ describe('NameController', () => {
         });
       });
 
-      it('stores emtpy array if result error while getting proposed name using provider', async () => {
+      it('stores empty array if result error while getting proposed name using provider', async () => {
         const provider1 = createMockProvider(1);
         const provider2 = createMockProvider(2);
         const error = new Error('TestError');
@@ -1955,7 +2018,7 @@ describe('NameController', () => {
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
             } as any),
           ).rejects.toThrow(
-            `Must specify a chain ID in hexidecimal format or the fallback, "*", for variation when using 'ethereumAddress' type.`,
+            `Must specify a chain ID in hexadecimal format or the fallback, "*", for variation when using 'ethereumAddress' type.`,
           );
         },
       );
@@ -2689,6 +2752,89 @@ describe('NameController', () => {
           }),
         );
       });
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const controller = new NameController({
+        ...CONTROLLER_ARGS_MOCK,
+        providers: [createMockProvider(1)],
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`{}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const controller = new NameController({
+        ...CONTROLLER_ARGS_MOCK,
+        providers: [createMockProvider(1)],
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "nameSources": {},
+          "names": {
+            "ethereumAddress": {},
+          },
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const controller = new NameController({
+        ...CONTROLLER_ARGS_MOCK,
+        providers: [createMockProvider(1)],
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "nameSources": {},
+          "names": {
+            "ethereumAddress": {},
+          },
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const controller = new NameController({
+        ...CONTROLLER_ARGS_MOCK,
+        providers: [createMockProvider(1)],
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "nameSources": {},
+          "names": {
+            "ethereumAddress": {},
+          },
+        }
+      `);
     });
   });
 });

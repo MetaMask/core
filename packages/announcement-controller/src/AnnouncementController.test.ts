@@ -1,28 +1,50 @@
-import { ControllerMessenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type { MockAnyNamespace } from '@metamask/messenger';
 
 import type {
   AnnouncementControllerState,
   StateAnnouncementMap,
   AnnouncementControllerActions,
   AnnouncementControllerEvents,
+  AnnouncementControllerMessenger,
   AnnouncementMap,
 } from './AnnouncementController';
 import { AnnouncementController } from './AnnouncementController';
 
 const name = 'AnnouncementController';
 
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AnnouncementControllerActions,
+  AnnouncementControllerEvents
+>;
+
+/**
+ * Constructs the root messenger.
+ *
+ * @returns The root messenger.
+ */
+function getRootMessenger(): RootMessenger {
+  return new Messenger<
+    MockAnyNamespace,
+    AnnouncementControllerActions,
+    AnnouncementControllerEvents
+  >({ namespace: MOCK_ANY_NAMESPACE });
+}
+
 /**
  * Constructs a restricted controller messenger.
  *
+ * @param rootMessenger - The root messenger to restrict.
  * @returns A restricted controller messenger.
  */
-function getRestrictedMessenger() {
-  const controllerMessenger = new ControllerMessenger<
-    AnnouncementControllerActions,
-    AnnouncementControllerEvents
-  >();
-  return controllerMessenger.getRestricted({
-    name,
+function getMessenger(
+  rootMessenger = getRootMessenger(),
+): AnnouncementControllerMessenger {
+  return new Messenger({
+    namespace: name,
+    parent: rootMessenger,
   });
 }
 const allAnnouncements: AnnouncementMap = {
@@ -87,7 +109,7 @@ const state2: AnnouncementControllerState = {
 describe('announcement controller', () => {
   it('should add announcement to state', () => {
     const controller = new AnnouncementController({
-      messenger: getRestrictedMessenger(),
+      messenger: getMessenger(),
       allAnnouncements,
     });
     expect(Object.keys(controller.state.announcements)).toHaveLength(2);
@@ -108,7 +130,7 @@ describe('announcement controller', () => {
 
   it('should add new announcement to state and a new announcement should be created with isShown as false', () => {
     const controller = new AnnouncementController({
-      messenger: getRestrictedMessenger(),
+      messenger: getMessenger(),
       state: state1,
       allAnnouncements: allAnnouncements2,
     });
@@ -118,29 +140,179 @@ describe('announcement controller', () => {
     expect(controller.state.announcements[3].isShown).toBe(false);
   });
 
-  describe('update viewed announcements', () => {
-    it('should update isShown status', () => {
+  describe('resetViewed', () => {
+    it('resets all announcement isShown states to false', () => {
+      const rootMessenger = getRootMessenger();
       const controller = new AnnouncementController({
-        messenger: getRestrictedMessenger(),
+        messenger: getMessenger(rootMessenger),
         state: state2,
         allAnnouncements: allAnnouncements2,
       });
-      controller.updateViewed({ 1: true });
+
+      rootMessenger.call('AnnouncementController:updateViewed', {
+        1: true,
+        3: true,
+      });
+      expect(controller.state.announcements[1].isShown).toBe(true);
+      expect(controller.state.announcements[3].isShown).toBe(true);
+
+      rootMessenger.call('AnnouncementController:resetViewed');
+      Object.values(controller.state.announcements).forEach((announcement) => {
+        expect(announcement.isShown).toBe(false);
+      });
+    });
+  });
+
+  describe('update viewed announcements', () => {
+    it('should update isShown status', () => {
+      const rootMessenger = getRootMessenger();
+      const controller = new AnnouncementController({
+        messenger: getMessenger(rootMessenger),
+        state: state2,
+        allAnnouncements: allAnnouncements2,
+      });
+      rootMessenger.call('AnnouncementController:updateViewed', { 1: true });
       expect(controller.state.announcements[1].isShown).toBe(true);
       expect(controller.state.announcements[2].isShown).toBe(false);
       expect(controller.state.announcements[3].isShown).toBe(false);
     });
 
     it('should update isShown of more than one announcement', () => {
+      const rootMessenger = getRootMessenger();
       const controller = new AnnouncementController({
-        messenger: getRestrictedMessenger(),
+        messenger: getMessenger(rootMessenger),
         state: state2,
         allAnnouncements: allAnnouncements2,
       });
-      controller.updateViewed({ 2: true, 3: true });
+      rootMessenger.call('AnnouncementController:updateViewed', {
+        2: true,
+        3: true,
+      });
       expect(controller.state.announcements[1].isShown).toBe(false);
       expect(controller.state.announcements[2].isShown).toBe(true);
       expect(controller.state.announcements[3].isShown).toBe(true);
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const controller = new AnnouncementController({
+        messenger: getMessenger(),
+        allAnnouncements,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "announcements": {
+            "1": {
+              "date": "12/8/2020",
+              "id": 1,
+              "isShown": false,
+            },
+            "2": {
+              "date": "12/8/2020",
+              "id": 2,
+              "isShown": false,
+            },
+          },
+        }
+      `);
+    });
+
+    it('includes expected state in state logs', () => {
+      const controller = new AnnouncementController({
+        messenger: getMessenger(),
+        allAnnouncements,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "announcements": {
+            "1": {
+              "date": "12/8/2020",
+              "id": 1,
+              "isShown": false,
+            },
+            "2": {
+              "date": "12/8/2020",
+              "id": 2,
+              "isShown": false,
+            },
+          },
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const controller = new AnnouncementController({
+        messenger: getMessenger(),
+        allAnnouncements,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "announcements": {
+            "1": {
+              "date": "12/8/2020",
+              "id": 1,
+              "isShown": false,
+            },
+            "2": {
+              "date": "12/8/2020",
+              "id": 2,
+              "isShown": false,
+            },
+          },
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const controller = new AnnouncementController({
+        messenger: getMessenger(),
+        allAnnouncements,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "announcements": {
+            "1": {
+              "date": "12/8/2020",
+              "id": 1,
+              "isShown": false,
+            },
+            "2": {
+              "date": "12/8/2020",
+              "id": 2,
+              "isShown": false,
+            },
+          },
+        }
+      `);
     });
   });
 });

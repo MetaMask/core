@@ -14,17 +14,13 @@ export default async function cli(
   argv: string[],
   // Parameterized for easier testing.
   commands: CommandModule[],
-) {
+): Promise<void> {
   await yargs(argv.slice(2))
     .scriptName('create-package')
     // Disable --version. This is an internal tool and it doesn't have a version.
     .version(false)
     .usage('$0 [args]')
-    // Typecast: the CommandModule<T, U>[] signature does in fact exist, but it is
-    // missing from our yargs types.
-    // TODO: Replace `any` with type
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .command(commands as any)
+    .command(commands)
     .strict()
     .check((args) => {
       // Trim all strings and ensure they are not empty.
@@ -45,6 +41,5 @@ export default async function cli(
     .showHelpOnFail(false)
     .help()
     .alias('help', 'h')
-    // @ts-expect-error: This does in fact exist, but it is missing from our yargs types.
     .parseAsync();
 }

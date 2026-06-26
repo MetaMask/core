@@ -66,8 +66,6 @@ const defaultCommand: CommandModule = {
     await createPackageHandler(args),
 };
 
-// export type CommandKeys = 'default';
-
 export const commands = [defaultCommand];
 export const commandMap = {
   $0: defaultCommand,

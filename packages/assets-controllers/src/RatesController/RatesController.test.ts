@@ -1,0 +1,531 @@
+import { deriveStateFromMetadata } from '@metamask/base-controller';
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
+} from '@metamask/messenger';
+
+import { jestAdvanceTime } from '../../../../tests/helpers';
+import type { fetchMultiExchangeRate as defaultFetchExchangeRate } from '../crypto-compare-service';
+import {
+  Cryptocurrency,
+  RatesController,
+  name as ratesControllerName,
+} from './RatesController';
+import type { RatesControllerMessenger, RatesControllerState } from './types';
+
+type AllActions = MessengerActions<RatesControllerMessenger>;
+
+type AllEvents = MessengerEvents<RatesControllerMessenger>;
+
+type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
+
+const MOCK_TIMESTAMP = 1709983353;
+
+/**
+ * Returns a stubbed date based on a predefined timestamp.
+ *
+ * @returns The stubbed date in milliseconds.
+ */
+function getStubbedDate(): number {
+  return new Date(MOCK_TIMESTAMP).getTime();
+}
+
+/**
+ * Builds a new root messenger instance.
+ *
+ * @returns A new root messenger instance.
+ */
+function buildRootMessenger(): RootMessenger {
+  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
+}
+
+/**
+ * Builds a restricted messenger for the RatesController.
+ *
+ * @param messenger - The base messenger instance.
+ * @returns A restricted messenger for the RatesController.
+ */
+function buildRatesControllerMessenger(
+  messenger: RootMessenger,
+): RatesControllerMessenger {
+  return new Messenger({
+    namespace: ratesControllerName,
+    parent: messenger,
+  });
+}
+
+/**
+ * Sets up and returns a new instance of RatesController with the provided configuration.
+ *
+ * @param config - The configuration object for the RatesController.
+ * @param config.interval - Polling interval.
+ * @param config.initialState - Initial state of the controller.
+ * @param config.messenger - Messenger instance.
+ * @param config.includeUsdRate - Indicates if the USD rate should be included.
+ * @param config.fetchMultiExchangeRate - Callback to fetch rates data.
+ * @returns A new instance of RatesController.
+ */
+function setupRatesController({
+  interval,
+  initialState,
+  messenger,
+  includeUsdRate,
+  fetchMultiExchangeRate,
+}: {
+  interval?: number;
+  initialState?: Partial<RatesControllerState>;
+  messenger: RootMessenger;
+  includeUsdRate: boolean;
+  fetchMultiExchangeRate?: typeof defaultFetchExchangeRate;
+}) {
+  const ratesControllerMessenger = buildRatesControllerMessenger(messenger);
+  const ratesController = new RatesController({
+    interval,
+    messenger: ratesControllerMessenger,
+    state: initialState,
+    includeUsdRate,
+    fetchMultiExchangeRate,
+  });
+  return { ratesController, ratesControllerMessenger };
+}
+
+describe('RatesController', () => {
+  describe('construct', () => {
+    it('constructs the RatesController with default values', () => {
+      const { ratesController } = setupRatesController({
+        initialState: {},
+        messenger: buildRootMessenger(),
+        includeUsdRate: false,
+      });
+      const { fiatCurrency, rates, cryptocurrencies } = ratesController.state;
+      expect(ratesController).toBeDefined();
+      expect(fiatCurrency).toBe('usd');
+      expect(Object.keys(rates)).toStrictEqual([
+        Cryptocurrency.Btc,
+        Cryptocurrency.Solana,
+      ]);
+      expect(cryptocurrencies).toStrictEqual([
+        Cryptocurrency.Btc,
+        Cryptocurrency.Solana,
+      ]);
+    });
+  });
+
+  describe('start', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('starts the polling process with default values', async () => {
+      const messenger = buildRootMessenger();
+
+      jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+      const mockBtcRateValue = 57715.42;
+      const mockSolRateValue = 200.48;
+
+      const fetchExchangeRateStub = jest.fn(() => {
+        return Promise.resolve({
+          btc: {
+            eur: mockBtcRateValue,
+          },
+          sol: {
+            eur: mockSolRateValue,
+          },
+        });
+      });
+      const { ratesController, ratesControllerMessenger } =
+        setupRatesController({
+          interval: 150,
+          initialState: {
+            fiatCurrency: 'eur',
+          },
+          messenger,
+          fetchMultiExchangeRate: fetchExchangeRateStub,
+          includeUsdRate: false,
+        });
+      const publishActionSpy = jest.spyOn(ratesControllerMessenger, 'publish');
+
+      const ratesPreUpdate = ratesController.state.rates;
+
+      expect(ratesPreUpdate).toStrictEqual({
+        btc: {
+          conversionDate: 0,
+          conversionRate: 0,
+        },
+        sol: {
+          conversionDate: 0,
+          conversionRate: 0,
+        },
+      });
+
+      await ratesController.start();
+
+      expect(publishActionSpy).toHaveBeenNthCalledWith(
+        1,
+        `${ratesControllerName}:pollingStarted`,
+      );
+
+      await jestAdvanceTime({ duration: 200 });
+
+      const ratesPosUpdate = ratesController.state.rates;
+
+      // checks for the RatesController:stateChange and
+      // RatesController:stateChanged events
+      expect(publishActionSpy).toHaveBeenCalledTimes(5);
+      expect(fetchExchangeRateStub).toHaveBeenCalled();
+      expect(ratesPosUpdate).toStrictEqual({
+        btc: {
+          conversionDate: MOCK_TIMESTAMP,
+          conversionRate: mockBtcRateValue,
+        },
+        sol: {
+          conversionDate: MOCK_TIMESTAMP,
+          conversionRate: mockSolRateValue,
+        },
+      });
+
+      await ratesController.start();
+
+      // since the polling has already started
+      // a second call to the start method should
+      // return immediately and no extra logic is executed
+      expect(publishActionSpy).not.toHaveBeenNthCalledWith(3);
+    });
+
+    it('starts the polling process with custom values', async () => {
+      jest.spyOn(global.Date, 'now').mockImplementation(() => getStubbedDate());
+      const mockBtcUsdRateValue = 62235.48;
+      const mockSolUsdRateValue = 148.41;
+      const mockStrkUsdRateValue = 1.248;
+      const mockBtcEurRateValue = 57715.42;
+      const mockSolEurRateValue = 137.68;
+      const mockStrkEurRateValue = 1.157;
+      const fetchExchangeRateStub = jest.fn(() => {
+        return Promise.resolve({
+          btc: {
+            usd: mockBtcUsdRateValue,
+            eur: mockBtcEurRateValue,
+          },
+          sol: {
+            usd: mockSolUsdRateValue,
+            eur: mockSolEurRateValue,
+          },
+          strk: {
+            usd: mockStrkUsdRateValue,
+            eur: mockStrkEurRateValue,
+          },
+        });
+      });
+
+      const { ratesController } = setupRatesController({
+        interval: 150,
+        initialState: {
+          cryptocurrencies: [Cryptocurrency.Btc],
+          fiatCurrency: 'eur',
+        },
+        messenger: buildRootMessenger(),
+        includeUsdRate: true,
+        fetchMultiExchangeRate: fetchExchangeRateStub,
+      });
+
+      await ratesController.start();
+
+      await jestAdvanceTime({ duration: 200 });
+
+      const { rates } = ratesController.state;
+      expect(fetchExchangeRateStub).toHaveBeenCalled();
+      expect(rates).toStrictEqual({
+        btc: {
+          conversionDate: MOCK_TIMESTAMP,
+          conversionRate: mockBtcEurRateValue,
+          usdConversionRate: mockBtcUsdRateValue,
+        },
+        sol: {
+          conversionDate: MOCK_TIMESTAMP,
+          conversionRate: mockSolEurRateValue,
+          usdConversionRate: mockSolUsdRateValue,
+        },
+        strk: {
+          conversionDate: MOCK_TIMESTAMP,
+          conversionRate: mockStrkEurRateValue,
+          usdConversionRate: mockStrkUsdRateValue,
+        },
+      });
+    });
+  });
+
+  describe('stop', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('stops the polling process', async () => {
+      const messenger = buildRootMessenger();
+      const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
+      const { ratesController, ratesControllerMessenger } =
+        setupRatesController({
+          interval: 150,
+          initialState: {},
+          messenger,
+          fetchMultiExchangeRate: fetchExchangeRateStub,
+          includeUsdRate: false,
+        });
+      const publishActionSpy = jest.spyOn(ratesControllerMessenger, 'publish');
+
+      await ratesController.start();
+
+      expect(publishActionSpy).toHaveBeenNthCalledWith(
+        1,
+        `${ratesControllerName}:pollingStarted`,
+      );
+
+      await jestAdvanceTime({ duration: 200 });
+
+      expect(fetchExchangeRateStub).toHaveBeenCalledTimes(2);
+
+      await ratesController.stop();
+
+      // Some of these calls are for state changes
+      expect(publishActionSpy).toHaveBeenNthCalledWith(
+        6,
+        `${ratesControllerName}:pollingStopped`,
+      );
+
+      await jestAdvanceTime({ duration: 200 });
+
+      expect(fetchExchangeRateStub).toHaveBeenCalledTimes(2);
+
+      await ratesController.stop();
+
+      expect(publishActionSpy).not.toHaveBeenNthCalledWith(
+        7,
+        `${ratesControllerName}:pollingStopped`,
+      );
+    });
+  });
+
+  describe('getCryptocurrencyList', () => {
+    it('returns the current cryptocurrency list', () => {
+      const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
+      const mockCryptocurrencyList = [Cryptocurrency.Btc];
+      const { ratesController } = setupRatesController({
+        interval: 150,
+        initialState: {
+          cryptocurrencies: mockCryptocurrencyList,
+        },
+        messenger: buildRootMessenger(),
+        fetchMultiExchangeRate: fetchExchangeRateStub,
+        includeUsdRate: false,
+      });
+
+      const cryptocurrencyList = ratesController.getCryptocurrencyList();
+      expect(cryptocurrencyList).toStrictEqual(mockCryptocurrencyList);
+    });
+  });
+
+  describe('setCryptocurrencyList', () => {
+    it('updates the cryptocurrency list', async () => {
+      const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
+      const mockCryptocurrencyList: Cryptocurrency[] = []; // Different from default list
+      const { ratesController } = setupRatesController({
+        interval: 150,
+        initialState: {},
+        messenger: buildRootMessenger(),
+        fetchMultiExchangeRate: fetchExchangeRateStub,
+        includeUsdRate: false,
+      });
+
+      const cryptocurrencyListPreUpdate =
+        ratesController.getCryptocurrencyList();
+      expect(cryptocurrencyListPreUpdate).toStrictEqual([
+        Cryptocurrency.Btc,
+        Cryptocurrency.Solana,
+      ]);
+      // Just to make sure we're updating to something else than the default list
+      expect(cryptocurrencyListPreUpdate).not.toStrictEqual(
+        mockCryptocurrencyList,
+      );
+
+      await ratesController.setCryptocurrencyList(mockCryptocurrencyList);
+      const cryptocurrencyListPostUpdate =
+        ratesController.getCryptocurrencyList();
+      expect(cryptocurrencyListPostUpdate).toStrictEqual(
+        mockCryptocurrencyList,
+      );
+    });
+  });
+
+  describe('setCurrentCurrency', () => {
+    it('sets the currency to a new value', async () => {
+      const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
+      const { ratesController } = setupRatesController({
+        interval: 150,
+        initialState: {},
+        messenger: buildRootMessenger(),
+        fetchMultiExchangeRate: fetchExchangeRateStub,
+        includeUsdRate: false,
+      });
+
+      const currencyPreUpdate = ratesController.state.fiatCurrency;
+      expect(currencyPreUpdate).toBe('usd');
+
+      await ratesController.setFiatCurrency('eur');
+
+      const currencyPostUpdate = ratesController.state.fiatCurrency;
+      expect(currencyPostUpdate).toBe('eur');
+    });
+
+    it('throws if input is an empty string', async () => {
+      const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
+      const { ratesController } = setupRatesController({
+        interval: 150,
+        initialState: {},
+        messenger: buildRootMessenger(),
+        fetchMultiExchangeRate: fetchExchangeRateStub,
+        includeUsdRate: false,
+      });
+
+      await expect(ratesController.setFiatCurrency('')).rejects.toThrow(
+        'The currency can not be an empty string',
+      );
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
+      const { ratesController } = setupRatesController({
+        messenger: buildRootMessenger(),
+        fetchMultiExchangeRate: fetchExchangeRateStub,
+        includeUsdRate: false,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          ratesController.state,
+          ratesController.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "cryptocurrencies": [
+            "btc",
+            "sol",
+          ],
+          "fiatCurrency": "usd",
+          "rates": {
+            "btc": {
+              "conversionDate": 0,
+              "conversionRate": 0,
+            },
+            "sol": {
+              "conversionDate": 0,
+              "conversionRate": 0,
+            },
+          },
+        }
+      `);
+    });
+
+    it('includes expected state in state logs', () => {
+      const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
+      const { ratesController } = setupRatesController({
+        messenger: buildRootMessenger(),
+        fetchMultiExchangeRate: fetchExchangeRateStub,
+        includeUsdRate: false,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          ratesController.state,
+          ratesController.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "cryptocurrencies": [
+            "btc",
+            "sol",
+          ],
+          "fiatCurrency": "usd",
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
+      const { ratesController } = setupRatesController({
+        messenger: buildRootMessenger(),
+        fetchMultiExchangeRate: fetchExchangeRateStub,
+        includeUsdRate: false,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          ratesController.state,
+          ratesController.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "cryptocurrencies": [
+            "btc",
+            "sol",
+          ],
+          "fiatCurrency": "usd",
+          "rates": {
+            "btc": {
+              "conversionDate": 0,
+              "conversionRate": 0,
+            },
+            "sol": {
+              "conversionDate": 0,
+              "conversionRate": 0,
+            },
+          },
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const fetchExchangeRateStub = jest.fn().mockResolvedValue({});
+      const { ratesController } = setupRatesController({
+        messenger: buildRootMessenger(),
+        fetchMultiExchangeRate: fetchExchangeRateStub,
+        includeUsdRate: false,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          ratesController.state,
+          ratesController.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "fiatCurrency": "usd",
+          "rates": {
+            "btc": {
+              "conversionDate": 0,
+              "conversionRate": 0,
+            },
+            "sol": {
+              "conversionDate": 0,
+              "conversionRate": 0,
+            },
+          },
+        }
+      `);
+    });
+  });
+});

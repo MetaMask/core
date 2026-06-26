@@ -1,9 +1,15 @@
-import { query } from '@metamask/controller-utils';
+import { query, toHex } from '@metamask/controller-utils';
 import EthQuery from '@metamask/eth-query';
-import type { NetworkClient, Provider } from '@metamask/network-controller';
+import type {
+  NetworkClient,
+  NetworkClientId,
+  Provider,
+} from '@metamask/network-controller';
 import { BlockTrackerPollingControllerOnly } from '@metamask/polling-controller';
-import type { Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
+// This package purposefully relies on Node's EventEmitter module.
+// eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
 
 import { projectLogger } from '../logger';
@@ -34,16 +40,21 @@ export type PendingUserOperationTrackerEventEmitter = EventEmitter & {
   emit<T extends keyof Events>(eventName: T, ...args: Events[T]): boolean;
 };
 
+/** The input to start polling for the {@link PendingUserOperationTracker} */
+type PendingUserOperationPollingInput = {
+  networkClientId: NetworkClientId;
+};
+
 /**
  * A helper class to periodically query the bundlers
  * and update the status of any submitted user operations.
  */
-export class PendingUserOperationTracker extends BlockTrackerPollingControllerOnly {
+export class PendingUserOperationTracker extends BlockTrackerPollingControllerOnly<PendingUserOperationPollingInput>() {
   hub: PendingUserOperationTrackerEventEmitter;
 
-  #getUserOperations: () => UserOperationMetadata[];
+  readonly #getUserOperations: () => UserOperationMetadata[];
 
-  #messenger: UserOperationControllerMessenger;
+  readonly #messenger: UserOperationControllerMessenger;
 
   constructor({
     getUserOperations,
@@ -60,7 +71,7 @@ export class PendingUserOperationTracker extends BlockTrackerPollingControllerOn
     this.#messenger = messenger;
   }
 
-  async _executePoll(networkClientId: string, _options: Json) {
+  async _executePoll({ networkClientId }: PendingUserOperationPollingInput) {
     try {
       const { blockTracker, configuration, provider } =
         this._getNetworkClientById(networkClientId) as NetworkClient;
@@ -158,8 +169,8 @@ export class PendingUserOperationTracker extends BlockTrackerPollingControllerOn
       [blockHash, false],
     );
 
-    metadata.actualGasCost = actualGasCost;
-    metadata.actualGasUsed = actualGasUsed;
+    metadata.actualGasCost = this.#normalizeGasValue(actualGasCost);
+    metadata.actualGasUsed = this.#normalizeGasValue(actualGasUsed);
     metadata.baseFeePerGas = baseFeePerGas;
     metadata.status = UserOperationStatus.Confirmed;
     metadata.transactionHash = transactionHash;
@@ -204,5 +215,12 @@ export class PendingUserOperationTracker extends BlockTrackerPollingControllerOn
   ): Promise<UserOperationReceipt | undefined> {
     const bundler = new Bundler(bundlerUrl);
     return bundler.getUserOperationReceipt(hash);
+  }
+
+  #normalizeGasValue(gasValue: Hex | number): string {
+    if (typeof gasValue === 'number') {
+      return toHex(gasValue);
+    }
+    return gasValue;
   }
 }

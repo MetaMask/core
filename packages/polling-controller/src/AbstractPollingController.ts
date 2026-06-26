@@ -1,42 +1,15 @@
-import type { NetworkClientId } from '@metamask/network-controller';
 import type { Json } from '@metamask/utils';
 import stringify from 'fast-json-stable-stringify';
 import { v4 as random } from 'uuid';
 
-export type IPollingController = {
-  startPollingByNetworkClientId(
-    networkClientId: NetworkClientId,
-    options: Json,
-  ): string;
+import type {
+  Constructor,
+  PollingTokenSetId,
+  IPollingController,
+} from './types';
 
-  stopAllPolling(): void;
-
-  stopPollingByPollingToken(pollingToken: string): void;
-
-  onPollingCompleteByNetworkClientId(
-    networkClientId: NetworkClientId,
-    callback: (networkClientId: NetworkClientId) => void,
-    options: Json,
-  ): void;
-
-  _executePoll(networkClientId: NetworkClientId, options: Json): Promise<void>;
-  _startPollingByNetworkClientId(
-    networkClientId: NetworkClientId,
-    options: Json,
-  ): void;
-  _stopPollingByPollingTokenSetId(key: PollingTokenSetId): void;
-};
-
-export const getKey = (
-  networkClientId: NetworkClientId,
-  options: Json,
-): PollingTokenSetId => `${networkClientId}:${stringify(options)}`;
-
-export type PollingTokenSetId = `${NetworkClientId}:${string}`;
-
-// TODO: Replace `any` with type
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type Constructor = new (...args: any[]) => object;
+export const getKey = <PollingInput>(input: PollingInput): PollingTokenSetId =>
+  stringify(input);
 
 /**
  * AbstractPollingControllerBaseMixin
@@ -44,45 +17,37 @@ type Constructor = new (...args: any[]) => object;
  * @param Base - The base class to mix onto.
  * @returns The composed class.
  */
-export function AbstractPollingControllerBaseMixin<TBase extends Constructor>(
-  Base: TBase,
-) {
+export function AbstractPollingControllerBaseMixin<
+  TBase extends Constructor,
+  PollingInput extends Json,
+>(Base: TBase) {
   abstract class AbstractPollingControllerBase
     extends Base
-    implements IPollingController
+    implements IPollingController<PollingInput>
   {
     readonly #pollingTokenSets: Map<PollingTokenSetId, Set<string>> = new Map();
 
-    #callbacks: Map<
+    readonly #callbacks: Map<
       PollingTokenSetId,
-      Set<(PollingTokenSetId: PollingTokenSetId) => void>
+      Set<(input: PollingInput) => void>
     > = new Map();
 
-    abstract _executePoll(
-      networkClientId: NetworkClientId,
-      options: Json,
-    ): Promise<void>;
+    abstract _executePoll(input: PollingInput): Promise<void>;
 
-    abstract _startPollingByNetworkClientId(
-      networkClientId: NetworkClientId,
-      options: Json,
-    ): void;
+    abstract _startPolling(input: PollingInput): void;
 
     abstract _stopPollingByPollingTokenSetId(key: PollingTokenSetId): void;
 
-    startPollingByNetworkClientId(
-      networkClientId: NetworkClientId,
-      options: Json = {},
-    ): string {
+    startPolling(input: PollingInput): string {
       const pollToken = random();
-      const key = getKey(networkClientId, options);
+      const key = getKey(input);
       const pollingTokenSet =
         this.#pollingTokenSets.get(key) ?? new Set<string>();
       pollingTokenSet.add(pollToken);
       this.#pollingTokenSets.set(key, pollingTokenSet);
 
       if (pollingTokenSet.size === 1) {
-        this._startPollingByNetworkClientId(networkClientId, options);
+        this._startPolling(input);
       }
 
       return pollToken;
@@ -117,20 +82,18 @@ export function AbstractPollingControllerBaseMixin<TBase extends Constructor>(
         const callbacks = this.#callbacks.get(keyToDelete);
         if (callbacks) {
           for (const callback of callbacks) {
-            // eslint-disable-next-line n/callback-return
-            callback(keyToDelete);
+            callback(JSON.parse(keyToDelete));
           }
           callbacks.clear();
         }
       }
     }
 
-    onPollingCompleteByNetworkClientId(
-      networkClientId: NetworkClientId,
-      callback: (networkClientId: NetworkClientId) => void,
-      options: Json = {},
+    onPollingComplete(
+      input: PollingInput,
+      callback: (input: PollingInput) => void,
     ) {
-      const key = getKey(networkClientId, options);
+      const key = getKey(input);
       const callbacks = this.#callbacks.get(key) ?? new Set<typeof callback>();
       callbacks.add(callback);
       this.#callbacks.set(key, callbacks);

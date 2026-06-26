@@ -5,12 +5,15 @@ import {
   toHex,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
-import { add0x, type Hex } from '@metamask/utils';
+import { add0x } from '@metamask/utils';
+import type { Hex } from '@metamask/utils';
 
 import * as assetsUtil from './assetsUtil';
 import { TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
 import type { Nft, NftMetadata } from './NftController';
+import { getNativeTokenAddress } from './token-prices-service';
 import type { AbstractTokenPricesService } from './token-prices-service';
+import { EvmAssetWithMarketData } from './token-prices-service/abstract-token-prices-service';
 
 const DEFAULT_IPFS_URL_FORMAT = 'ipfs://';
 const ALTERNATIVE_IPFS_URL_FORMAT = 'ipfs://ipfs/';
@@ -53,6 +56,30 @@ describe('assetsUtil', () => {
         animationOriginal: 'animationOriginal',
         externalLink: 'externalLink',
       };
+      const different = assetsUtil.compareNftMetadata(nftMetadata, nft);
+      expect(different).toBe(true);
+    });
+
+    it('should resolve true if only tokenURI is different', () => {
+      const nftMetadata: NftMetadata = {
+        description: null,
+        favorite: false,
+        image: 'test',
+        name: null,
+        standard: 'ERC1155',
+        tokenURI: 'foo',
+      };
+      const nft: Nft = {
+        address: '0x1D03117e63c3A476a236a897147a1358579F2c45',
+        description: null,
+        favorite: false,
+        image: 'test',
+        name: null,
+        standard: 'ERC1155',
+        tokenId: '1',
+        tokenURI: 'bar',
+      };
+
       const different = assetsUtil.compareNftMetadata(nftMetadata, nft);
       expect(different).toBe(true);
     });
@@ -128,10 +155,96 @@ describe('assetsUtil', () => {
         chainId: ChainId.mainnet,
         tokenAddress: linkTokenAddress,
       });
-      const expectedValue = `https://static.metafi.codefi.network/api/v1/tokenIcons/${convertHexToDecimal(
+      const expectedValue = `https://static.cx.metamask.io/api/v1/tokenIcons/${convertHexToDecimal(
         ChainId.mainnet,
       )}/${linkTokenAddress}.png`;
       expect(formattedIconUrl).toStrictEqual(expectedValue);
+    });
+  });
+
+  describe('hasNewCollectionFields', () => {
+    let baseNftMetadata: NftMetadata;
+    let baseNft: Nft;
+
+    beforeEach(() => {
+      baseNftMetadata = {
+        name: 'name',
+        image: 'image',
+        description: 'description',
+        standard: 'standard',
+        backgroundColor: 'backgroundColor',
+        imagePreview: 'imagePreview',
+        imageThumbnail: 'imageThumbnail',
+        imageOriginal: 'imageOriginal',
+        animation: 'animation',
+        animationOriginal: 'animationOriginal',
+        externalLink: 'externalLink',
+      };
+
+      baseNft = {
+        ...baseNftMetadata,
+        address: 'address',
+        tokenId: '123',
+      };
+    });
+    it('should return false if both objects do not have collection', () => {
+      const different = assetsUtil.hasNewCollectionFields(
+        baseNftMetadata,
+        baseNft,
+      );
+      expect(different).toBe(false);
+    });
+
+    it('should return false if existing object has collection and new nft metadata object does not', () => {
+      const different = assetsUtil.hasNewCollectionFields(baseNftMetadata, {
+        ...baseNft,
+        collection: {
+          id: 'address',
+          openseaVerificationStatus: 'verified',
+        },
+      });
+      expect(different).toBe(false);
+    });
+
+    it('should return false if both objects has the same keys', () => {
+      const nftMetadata: NftMetadata = {
+        ...baseNftMetadata,
+        collection: {
+          id: 'address',
+          openseaVerificationStatus: 'verified',
+        },
+      };
+      const nft: Nft = {
+        ...baseNft,
+        collection: {
+          id: 'address',
+          openseaVerificationStatus: 'verified',
+        },
+      };
+      const different = assetsUtil.hasNewCollectionFields(nftMetadata, nft);
+      expect(different).toBe(false);
+    });
+
+    it('should return true if new nft metadata object has keys that do not exist in the existing NFT', () => {
+      const nftMetadata: NftMetadata = {
+        ...baseNftMetadata,
+        collection: {
+          id: 'address',
+          openseaVerificationStatus: 'verified',
+          tokenCount: '5555',
+          ownerCount: '555',
+          contractDeployedAt: 'timestamp',
+        },
+      };
+      const nft: Nft = {
+        ...baseNft,
+        collection: {
+          id: 'address',
+          openseaVerificationStatus: 'verified',
+        },
+      };
+      const different = assetsUtil.hasNewCollectionFields(nftMetadata, nft);
+      expect(different).toBe(true);
     });
   });
 
@@ -139,7 +252,7 @@ describe('assetsUtil', () => {
     it('returns true for Mainnet', () => {
       expect(
         assetsUtil.isTokenDetectionSupportedForNetwork(
-          assetsUtil.SupportedTokenDetectionNetworks.mainnet,
+          assetsUtil.SupportedTokenDetectionNetworks.Mainnet,
         ),
       ).toBe(true);
     });
@@ -147,7 +260,7 @@ describe('assetsUtil', () => {
     it('returns true for custom network such as BSC', () => {
       expect(
         assetsUtil.isTokenDetectionSupportedForNetwork(
-          assetsUtil.SupportedTokenDetectionNetworks.bsc,
+          assetsUtil.SupportedTokenDetectionNetworks.Bsc,
         ),
       ).toBe(true);
     });
@@ -155,7 +268,7 @@ describe('assetsUtil', () => {
     it('returns true for the Aurora network', () => {
       expect(
         assetsUtil.isTokenDetectionSupportedForNetwork(
-          assetsUtil.SupportedTokenDetectionNetworks.aurora,
+          assetsUtil.SupportedTokenDetectionNetworks.Aurora,
         ),
       ).toBe(true);
     });
@@ -171,7 +284,7 @@ describe('assetsUtil', () => {
     it('returns true for Mainnet', () => {
       expect(
         assetsUtil.isTokenListSupportedForNetwork(
-          assetsUtil.SupportedTokenDetectionNetworks.mainnet,
+          assetsUtil.SupportedTokenDetectionNetworks.Mainnet,
         ),
       ).toBe(true);
     });
@@ -185,7 +298,7 @@ describe('assetsUtil', () => {
     it('returns true for custom network such as Polygon', () => {
       expect(
         assetsUtil.isTokenListSupportedForNetwork(
-          assetsUtil.SupportedTokenDetectionNetworks.polygon,
+          assetsUtil.SupportedTokenDetectionNetworks.Polygon,
         ),
       ).toBe(true);
     });
@@ -230,33 +343,33 @@ describe('assetsUtil', () => {
   });
 
   describe('getIpfsCIDv1AndPath', () => {
-    it('should return content identifier from default ipfs url format', () => {
+    it('should return content identifier from default ipfs url format', async () => {
       expect(
-        assetsUtil.getIpfsCIDv1AndPath(
+        await assetsUtil.getIpfsCIDv1AndPath(
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V0}`,
         ),
       ).toStrictEqual({ cid: IPFS_CID_V1, path: undefined });
     });
 
-    it('should return content identifier from alternative ipfs url format', () => {
+    it('should return content identifier from alternative ipfs url format', async () => {
       expect(
-        assetsUtil.getIpfsCIDv1AndPath(
+        await assetsUtil.getIpfsCIDv1AndPath(
           `${ALTERNATIVE_IPFS_URL_FORMAT}${IPFS_CID_V0}`,
         ),
       ).toStrictEqual({ cid: IPFS_CID_V1, path: undefined });
     });
 
-    it('should return unchanged content identifier if already v1', () => {
+    it('should return unchanged content identifier if already v1', async () => {
       expect(
-        assetsUtil.getIpfsCIDv1AndPath(
+        await assetsUtil.getIpfsCIDv1AndPath(
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}`,
         ),
       ).toStrictEqual({ cid: IPFS_CID_V1, path: undefined });
     });
 
-    it('should return a path when url contains one', () => {
+    it('should return a path when url contains one', async () => {
       expect(
-        assetsUtil.getIpfsCIDv1AndPath(
+        await assetsUtil.getIpfsCIDv1AndPath(
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}/test/test/test`,
         ),
       ).toStrictEqual({ cid: IPFS_CID_V1, path: '/test/test/test' });
@@ -264,9 +377,9 @@ describe('assetsUtil', () => {
   });
 
   describe('getFormattedIpfsUrl', () => {
-    it('should return a correctly formatted subdomained ipfs url when passed ipfsGateway without protocol prefix, no path and subdomainSupported argument set to true', () => {
+    it('should return a correctly formatted subdomained ipfs url when passed ipfsGateway without protocol prefix, no path and subdomainSupported argument set to true', async () => {
       expect(
-        assetsUtil.getFormattedIpfsUrl(
+        await assetsUtil.getFormattedIpfsUrl(
           IFPS_GATEWAY,
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}`,
           true,
@@ -274,9 +387,9 @@ describe('assetsUtil', () => {
       ).toBe(`https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}`);
     });
 
-    it('should return a correctly formatted subdomained ipfs url when passed ipfsGateway with protocol prefix, a cidv0 and no path and subdomainSupported argument set to true', () => {
+    it('should return a correctly formatted subdomained ipfs url when passed ipfsGateway with protocol prefix, a cidv0 and no path and subdomainSupported argument set to true', async () => {
       expect(
-        assetsUtil.getFormattedIpfsUrl(
+        await assetsUtil.getFormattedIpfsUrl(
           `https://${IFPS_GATEWAY}`,
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V0}`,
           true,
@@ -284,9 +397,9 @@ describe('assetsUtil', () => {
       ).toBe(`https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}`);
     });
 
-    it('should return a correctly formatted subdomained ipfs url when passed ipfsGateway with protocol prefix, a path at the end of the url, and subdomainSupported argument set to true', () => {
+    it('should return a correctly formatted subdomained ipfs url when passed ipfsGateway with protocol prefix, a path at the end of the url, and subdomainSupported argument set to true', async () => {
       expect(
-        assetsUtil.getFormattedIpfsUrl(
+        await assetsUtil.getFormattedIpfsUrl(
           `https://${IFPS_GATEWAY}`,
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}/test`,
           true,
@@ -294,9 +407,9 @@ describe('assetsUtil', () => {
       ).toBe(`https://${IPFS_CID_V1}.ipfs.${IFPS_GATEWAY}/test`);
     });
 
-    it('should return a correctly formatted non-subdomained ipfs url when passed ipfsGateway with no "/ipfs/" appended, a path at the end of the url, and subdomainSupported argument set to false', () => {
+    it('should return a correctly formatted non-subdomained ipfs url when passed ipfsGateway with no "/ipfs/" appended, a path at the end of the url, and subdomainSupported argument set to false', async () => {
       expect(
-        assetsUtil.getFormattedIpfsUrl(
+        await assetsUtil.getFormattedIpfsUrl(
           `https://${IFPS_GATEWAY}`,
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}/test`,
           false,
@@ -304,9 +417,9 @@ describe('assetsUtil', () => {
       ).toBe(`https://${IFPS_GATEWAY}/ipfs/${IPFS_CID_V1}/test`);
     });
 
-    it('should return a correctly formatted non-subdomained ipfs url when passed an ipfsGateway with "/ipfs/" appended, a path at the end of the url, subdomainSupported argument set to false', () => {
+    it('should return a correctly formatted non-subdomained ipfs url when passed an ipfsGateway with "/ipfs/" appended, a path at the end of the url, subdomainSupported argument set to false', async () => {
       expect(
-        assetsUtil.getFormattedIpfsUrl(
+        await assetsUtil.getFormattedIpfsUrl(
           `https://${IFPS_GATEWAY}/ipfs/`,
           `${DEFAULT_IPFS_URL_FORMAT}${IPFS_CID_V1}/test`,
           false,
@@ -439,6 +552,35 @@ describe('assetsUtil', () => {
       expect(Object.keys(timestampsByIndex)).toHaveLength(3);
       expect(timestampsIncreasing).toBe(true);
     });
+
+    it('works when the result is an array', async () => {
+      const results = await assetsUtil.reduceInBatchesSerially<
+        string,
+        string[]
+      >({
+        values: ['a', 'b', 'c', 'd', 'e', 'f'],
+        batchSize: 2,
+        eachBatch: async (workingResult, batch) => {
+          return [...workingResult, ...batch.map((s) => s.toUpperCase())];
+        },
+        initialResult: [],
+      });
+
+      expect(results).toStrictEqual(['A', 'B', 'C', 'D', 'E', 'F']);
+    });
+
+    it('works when the result is a number', async () => {
+      const results = await assetsUtil.reduceInBatchesSerially<number, number>({
+        values: [1, 2, 3, 4, 5],
+        batchSize: 2,
+        eachBatch: async (workingResult, batch) => {
+          return workingResult + batch.reduce((a, b) => a + b, 0);
+        },
+        initialResult: 0,
+      });
+
+      expect(results).toBe(15);
+    });
   });
 
   describe('fetchAndMapExchangeRates', () => {
@@ -483,13 +625,31 @@ describe('assetsUtil', () => {
       const testChainId = '0x1';
       const mockPriceService = createMockPriceService();
 
-      jest.spyOn(mockPriceService, 'fetchTokenPrices').mockResolvedValue({
-        [testTokenAddress]: {
+      jest.spyOn(mockPriceService, 'fetchTokenPrices').mockResolvedValue([
+        {
           tokenAddress: testTokenAddress,
-          value: 0.0004588648479937523,
+          chainId: testChainId,
           currency: testNativeCurrency,
+          allTimeHigh: 4000,
+          allTimeLow: 900,
+          circulatingSupply: 2000,
+          dilutedMarketCap: 100,
+          high1d: 200,
+          low1d: 100,
+          marketCap: 1000,
+          marketCapPercentChange1d: 100,
+          price: 0.0004588648479937523,
+          pricePercentChange14d: 100,
+          pricePercentChange1h: 1,
+          pricePercentChange1y: 200,
+          pricePercentChange200d: 300,
+          pricePercentChange30d: 200,
+          pricePercentChange7d: 100,
+          totalVolume: 100,
+          priceChange1d: 100,
+          pricePercentChange1d: 100,
         },
-      });
+      ]);
 
       const result = await assetsUtil.fetchTokenContractExchangeRates({
         tokenPricesService: mockPriceService,
@@ -529,13 +689,21 @@ describe('assetsUtil', () => {
       );
       expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(numBatches);
 
+      const tokenAddressesWithNativeToken = [
+        getNativeTokenAddress(testChainId),
+        ...tokenAddresses,
+      ];
       for (let i = 1; i <= numBatches; i++) {
         expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(i, {
-          chainId: testChainId,
-          tokenAddresses: tokenAddresses.slice(
-            (i - 1) * TOKEN_PRICES_BATCH_SIZE,
-            i * TOKEN_PRICES_BATCH_SIZE,
-          ),
+          assets: tokenAddressesWithNativeToken
+            .slice(
+              (i - 1) * TOKEN_PRICES_BATCH_SIZE,
+              i * TOKEN_PRICES_BATCH_SIZE,
+            )
+            .map((tokenAddress) => ({
+              chainId: testChainId,
+              tokenAddress,
+            })),
           currency: testNativeCurrency,
         });
       }
@@ -573,16 +741,89 @@ describe('assetsUtil', () => {
       );
       expect(fetchTokenPricesSpy).toHaveBeenCalledTimes(numBatches);
 
+      const tokenAddressesWithNativeToken = [
+        getNativeTokenAddress(testChainId),
+        ...tokenAddresses,
+      ];
       for (let i = 1; i <= numBatches; i++) {
         expect(fetchTokenPricesSpy).toHaveBeenNthCalledWith(i, {
-          chainId: testChainId,
-          tokenAddresses: tokenAddresses.slice(
-            (i - 1) * TOKEN_PRICES_BATCH_SIZE,
-            i * TOKEN_PRICES_BATCH_SIZE,
-          ),
+          assets: tokenAddressesWithNativeToken
+            .slice(
+              (i - 1) * TOKEN_PRICES_BATCH_SIZE,
+              i * TOKEN_PRICES_BATCH_SIZE,
+            )
+            .map((tokenAddress) => ({
+              chainId: testChainId,
+              tokenAddress,
+            })),
           currency: testNativeCurrency,
         });
       }
+    });
+
+    it('should return full market data keyed by checksummed address when includeMarketData is true', async () => {
+      const testTokenAddress =
+        '0x7bef710a5759d197ec0bf621c3df802c2d60d848' as Hex;
+      const checksummedAddress = '0x7BEF710a5759d197EC0Bf621c3Df802C2D60D848';
+      const testNativeCurrency = 'ETH';
+      const testChainId = '0x1';
+      const mockPriceService = createMockPriceService();
+
+      const mockMarketData = {
+        tokenAddress: testTokenAddress,
+        chainId: testChainId,
+        currency: testNativeCurrency,
+        allTimeHigh: 4000,
+        allTimeLow: 900,
+        circulatingSupply: 2000,
+        dilutedMarketCap: 100,
+        high1d: 200,
+        low1d: 100,
+        marketCap: 1000,
+        marketCapPercentChange1d: 100,
+        price: 0.0004588648479937523,
+        pricePercentChange14d: 100,
+        pricePercentChange1h: 1,
+        pricePercentChange1y: 200,
+        pricePercentChange200d: 300,
+        pricePercentChange30d: 200,
+        pricePercentChange7d: 100,
+        totalVolume: 100,
+        priceChange1d: 100,
+        pricePercentChange1d: 100,
+      };
+
+      jest
+        .spyOn(mockPriceService, 'fetchTokenPrices')
+        .mockResolvedValue([
+          mockMarketData as unknown as EvmAssetWithMarketData,
+        ]);
+
+      const result = await assetsUtil.fetchTokenContractExchangeRates({
+        tokenPricesService: mockPriceService,
+        nativeCurrency: testNativeCurrency,
+        tokenAddresses: [testTokenAddress],
+        chainId: testChainId,
+        includeMarketData: true,
+      });
+
+      expect(result).toStrictEqual({
+        [checksummedAddress]: {
+          ...mockMarketData,
+          tokenAddress: checksummedAddress,
+        },
+      });
+    });
+  });
+
+  describe('getKeyByValue', () => {
+    it('should return correct key for a specific value', () => {
+      const testMap = new Map([
+        ['toto', 'koko'],
+        ['foo', 'bar'],
+      ]);
+      const result = assetsUtil.getKeyByValue(testMap, 'koko');
+      expect(result).toBe('toto');
     });
   });
 });
@@ -612,6 +853,9 @@ function createMockPriceService(): AbstractTokenPricesService {
       return true;
     },
     async fetchTokenPrices() {
+      return [];
+    },
+    async fetchExchangeRates() {
       return {};
     },
   };

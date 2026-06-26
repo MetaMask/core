@@ -1,16 +1,17 @@
-import { ControllerMessenger } from '@metamask/base-controller';
-import { query } from '@metamask/controller-utils';
-
-import { CHAIN_IDS } from '../constants';
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
 import type {
-  AllowedActions,
-  AllowedEvents,
-  TransactionControllerActions,
-  TransactionControllerEvents,
-  TransactionControllerMessenger,
-} from '../TransactionController';
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
+} from '@metamask/messenger';
+import type { NetworkClientId } from '@metamask/network-controller';
+
+import { flushPromises } from '../../../../tests/helpers';
+import { CHAIN_IDS } from '../constants';
+import type { TransactionControllerMessenger } from '../TransactionController';
 import type { TransactionMeta } from '../types';
 import { TransactionType, TransactionStatus } from '../types';
+import { rpcRequest } from './provider';
 import {
   updateSwapsTransaction,
   updatePostTransactionBalance,
@@ -18,7 +19,11 @@ import {
   SWAPS_CHAINID_DEFAULT_TOKEN_MAP,
 } from './swaps';
 
-jest.mock('@metamask/controller-utils');
+jest.mock('./provider', () => ({
+  rpcRequest: jest.fn(),
+}));
+
+jest.useFakeTimers();
 
 describe('updateSwapsTransaction', () => {
   let transactionMeta: TransactionMeta;
@@ -45,12 +50,25 @@ describe('updateSwapsTransaction', () => {
         destinationTokenSymbol: 'DAI',
       },
     };
-    messenger = new ControllerMessenger<
-      TransactionControllerActions | AllowedActions,
-      TransactionControllerEvents | AllowedEvents
-    >().getRestricted({
-      name: 'TransactionController',
-      allowedActions: [
+    const rootMessenger = new Messenger<
+      MockAnyNamespace,
+      MessengerActions<TransactionControllerMessenger>,
+      MessengerEvents<TransactionControllerMessenger>
+    >({
+      namespace: MOCK_ANY_NAMESPACE,
+    });
+    messenger = new Messenger<
+      'TransactionController',
+      MessengerActions<TransactionControllerMessenger>,
+      MessengerEvents<TransactionControllerMessenger>,
+      typeof rootMessenger
+    >({
+      namespace: 'TransactionController',
+      parent: rootMessenger,
+    });
+    rootMessenger.delegate({
+      messenger,
+      actions: [
         'ApprovalController:addRequest',
         'NetworkController:getNetworkClientById',
         'NetworkController:findNetworkClientIdByChainId',
@@ -71,7 +89,7 @@ describe('updateSwapsTransaction', () => {
     expect(messenger.call).not.toHaveBeenCalled();
   });
 
-  it('should not update if transaction type is not swap or swapApproval', async () => {
+  it('should not update if transaction type is not swap, swapAndSend, swapApproval', async () => {
     transactionType = TransactionType.deployContract;
     jest.spyOn(messenger, 'call');
     updateSwapsTransaction(transactionMeta, transactionType, swaps, request);
@@ -242,16 +260,152 @@ describe('updateSwapsTransaction', () => {
       type,
     });
   });
+
+  it('should update swap and send transaction and publish TransactionController:transactionNewSwapAndSend', async () => {
+    const sourceTokenSymbol = 'ETH';
+    const destinationTokenSymbol = 'DAI';
+    const type = TransactionType.swapAndSend;
+    transactionType = TransactionType.swapAndSend;
+    const destinationTokenDecimals = '18';
+    const destinationTokenAddress = '0x0';
+    const swapMetaData = {
+      meta: 'data',
+    };
+    const swapTokenValue = '0x123';
+    const estimatedBaseFee = '0x123';
+    const approvalTxId = '0x123';
+
+    // swap + send properties
+    const destinationTokenAmount = '0x123';
+    const sourceTokenAddress = '0x123';
+    const sourceTokenAmount = '0x123';
+    const sourceTokenDecimals = '12';
+
+    const swapAndSendRecipient = '0x123';
+
+    swaps.meta = {
+      sourceTokenSymbol,
+      destinationTokenSymbol,
+      type,
+      destinationTokenDecimals,
+      destinationTokenAddress,
+      swapMetaData,
+      swapTokenValue,
+      estimatedBaseFee,
+      approvalTxId,
+      destinationTokenAmount,
+      sourceTokenAddress,
+      sourceTokenAmount,
+      sourceTokenDecimals,
+      swapAndSendRecipient,
+    };
+
+    const transactionNewSwapAndSendEventListener = jest.fn();
+    messenger.subscribe(
+      'TransactionController:transactionNewSwapAndSend',
+      transactionNewSwapAndSendEventListener,
+    );
+
+    updateSwapsTransaction(transactionMeta, transactionType, swaps, request);
+
+    expect(transactionNewSwapAndSendEventListener).toHaveBeenCalledWith({
+      transactionMeta: {
+        ...transactionMeta,
+        sourceTokenSymbol,
+        destinationTokenSymbol,
+        type,
+        destinationTokenDecimals,
+        destinationTokenAddress,
+        swapMetaData,
+        swapTokenValue,
+        estimatedBaseFee,
+        approvalTxId,
+        destinationTokenAmount,
+        sourceTokenAddress,
+        sourceTokenAmount,
+        sourceTokenDecimals,
+        swapAndSendRecipient,
+      },
+    });
+  });
+
+  it('should return the swap and send transaction updated with information', () => {
+    const sourceTokenSymbol = 'ETH';
+    const destinationTokenSymbol = 'DAI';
+    const type = TransactionType.swapAndSend;
+    transactionType = TransactionType.swapAndSend;
+    const destinationTokenDecimals = '18';
+    const destinationTokenAddress = '0x0';
+    const swapMetaData = {
+      meta: 'data',
+    };
+    const swapTokenValue = '0x123';
+    const estimatedBaseFee = '0x123';
+    const approvalTxId = '0x123';
+
+    // swap + send properties
+    const destinationTokenAmount = '0x123';
+    const sourceTokenAddress = '0x123';
+    const sourceTokenAmount = '0x123';
+    const sourceTokenDecimals = '12';
+
+    const swapAndSendRecipient = '0x123';
+
+    swaps.meta = {
+      sourceTokenSymbol,
+      destinationTokenSymbol,
+      type,
+      destinationTokenDecimals,
+      destinationTokenAddress,
+      swapMetaData,
+      swapTokenValue,
+      estimatedBaseFee,
+      approvalTxId,
+      destinationTokenAmount,
+      sourceTokenAddress,
+      sourceTokenAmount,
+      sourceTokenDecimals,
+      swapAndSendRecipient,
+    };
+
+    const updatedSwapsTransaction = updateSwapsTransaction(
+      transactionMeta,
+      transactionType,
+      swaps,
+      request,
+    );
+    expect(updatedSwapsTransaction).toStrictEqual({
+      ...transactionMeta,
+      sourceTokenSymbol,
+      destinationTokenSymbol,
+      type,
+      destinationTokenDecimals,
+      destinationTokenAddress,
+      swapMetaData,
+      swapTokenValue,
+      estimatedBaseFee,
+      approvalTxId,
+      destinationTokenAmount,
+      sourceTokenAddress,
+      sourceTokenAmount,
+      sourceTokenDecimals,
+      swapAndSendRecipient,
+    });
+  });
 });
 
 describe('updatePostTransactionBalance', () => {
-  const queryMock = jest.mocked(query);
+  const rpcRequestMock = jest.mocked(rpcRequest);
+  const messengerMock = {} as unknown as TransactionControllerMessenger;
+  const networkClientIdMock = 'testNetworkClientId' as NetworkClientId;
   let transactionMeta: TransactionMeta;
   // TODO: Replace `any` with type
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let request: any;
 
   beforeEach(() => {
+    jest.resetAllMocks();
+
     transactionMeta = {
       id: '1',
       txParams: {
@@ -265,7 +419,8 @@ describe('updatePostTransactionBalance', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
     request = {
-      ethQuery: {},
+      messenger: messengerMock,
+      networkClientId: networkClientIdMock,
       getTransaction: jest.fn().mockReturnValue(transactionMeta),
       updateTransaction: jest.fn(),
     };
@@ -273,7 +428,7 @@ describe('updatePostTransactionBalance', () => {
 
   it('updates post transaction balance', async () => {
     const mockPostTxBalance = '200';
-    queryMock.mockResolvedValue(mockPostTxBalance);
+    rpcRequestMock.mockResolvedValue(mockPostTxBalance);
 
     // First call to getTransaction returns transactionMeta
     // Second call to getTransaction returns approvalTransactionMeta
@@ -294,9 +449,12 @@ describe('updatePostTransactionBalance', () => {
       approvalTransactionMeta: undefined,
     });
 
-    expect(queryMock).toHaveBeenCalledWith(expect.anything(), 'getBalance', [
-      transactionMeta.txParams.from,
-    ]);
+    expect(rpcRequestMock).toHaveBeenCalledWith({
+      messenger: messengerMock,
+      networkClientId: networkClientIdMock,
+      method: 'eth_getBalance',
+      params: [transactionMeta.txParams.from, 'latest'],
+    });
     expect(request.updateTransaction).toHaveBeenCalledWith(
       expectedTransactionMeta,
       'TransactionController#updatePostTransactionBalance - Add post transaction balance',
@@ -308,7 +466,7 @@ describe('updatePostTransactionBalance', () => {
     transactionMeta.approvalTxId = mockApprovalTransactionId;
 
     const mockPostTxBalance = '200';
-    queryMock.mockResolvedValue(mockPostTxBalance);
+    rpcRequestMock.mockResolvedValue(mockPostTxBalance);
 
     const mockApprovalTransactionMeta = {
       id: mockApprovalTransactionId,
@@ -345,20 +503,24 @@ describe('updatePostTransactionBalance', () => {
 
   it(`retries at least ${UPDATE_POST_TX_BALANCE_ATTEMPTS} times then updates`, async () => {
     const mockPostTxBalance = transactionMeta.preTxBalance;
-    queryMock.mockResolvedValue(mockPostTxBalance);
+    rpcRequestMock.mockResolvedValue(mockPostTxBalance);
 
     jest
       .spyOn(request, 'getTransaction')
       .mockImplementation(() => transactionMeta);
 
-    // eslint-disable-next-line jest/valid-expect-in-promise
-    updatePostTransactionBalance(transactionMeta, request).then(
-      ({ updatedTransactionMeta }) => {
-        expect(updatedTransactionMeta?.postTxBalance).toBe(mockPostTxBalance);
-        expect(queryMock).toHaveBeenCalledTimes(
-          UPDATE_POST_TX_BALANCE_ATTEMPTS,
-        );
-      },
+    const promise = updatePostTransactionBalance(transactionMeta, request);
+
+    for (let i = 0; i < UPDATE_POST_TX_BALANCE_ATTEMPTS; i++) {
+      await flushPromises();
+      jest.runAllTimers();
+    }
+
+    const { updatedTransactionMeta } = await promise;
+
+    expect(updatedTransactionMeta?.postTxBalance).toBe(mockPostTxBalance);
+    expect(rpcRequestMock).toHaveBeenCalledTimes(
+      UPDATE_POST_TX_BALANCE_ATTEMPTS,
     );
   });
 });

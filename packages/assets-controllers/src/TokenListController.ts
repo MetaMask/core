@@ -1,28 +1,33 @@
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  RestrictedControllerMessenger,
+  StateMetadata,
 } from '@metamask/base-controller';
 import { safelyExecute } from '@metamask/controller-utils';
+import type { Messenger } from '@metamask/messenger';
 import type {
-  NetworkClientId,
   NetworkControllerStateChangeEvent,
   NetworkState,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
+import type {
+  StorageServiceSetItemAction,
+  StorageServiceGetItemAction,
+  StorageServiceGetAllKeysAction,
+} from '@metamask/storage-service';
 import type { Hex } from '@metamask/utils';
-import { Mutex } from 'async-mutex';
 
 import {
   isTokenListSupportedForNetwork,
   formatAggregatorNames,
   formatIconUrlWithProxy,
 } from './assetsUtil';
-import { fetchTokenListByChainId } from './token-service';
+import { TokenRwaData, fetchTokenListByChainId } from './token-service';
 
-const DEFAULT_INTERVAL = 24 * 60 * 60 * 1000;
-const DEFAULT_THRESHOLD = 24 * 60 * 60 * 1000;
+// 4 Hour Interval Cache Refresh Threshold
+const DEFAULT_INTERVAL = 4 * 60 * 60 * 1000;
+const DEFAULT_THRESHOLD = 4 * 60 * 60 * 1000;
 
 const name = 'TokenListController';
 
@@ -34,22 +39,21 @@ export type TokenListToken = {
   occurrences: number;
   aggregators: string[];
   iconUrl: string;
+  rwaData?: TokenRwaData;
 };
 
 export type TokenListMap = Record<string, TokenListToken>;
 
-type DataCache = {
+export type DataCache = {
   timestamp: number;
   data: TokenListMap;
 };
-type TokensChainsCache = {
+export type TokensChainsCache = {
   [chainId: Hex]: DataCache;
 };
 
 export type TokenListState = {
-  tokenList: TokenListMap;
   tokensChainsCache: TokensChainsCache;
-  preventPollingOnNetworkRestart: boolean;
 };
 
 export type TokenListStateChange = ControllerStateChangeEvent<
@@ -66,51 +70,104 @@ export type GetTokenListState = ControllerGetStateAction<
 
 export type TokenListControllerActions = GetTokenListState;
 
-type AllowedActions = NetworkControllerGetNetworkClientByIdAction;
+type AllowedActions =
+  | NetworkControllerGetNetworkClientByIdAction
+  | StorageServiceSetItemAction
+  | StorageServiceGetItemAction
+  | StorageServiceGetAllKeysAction;
 
 type AllowedEvents = NetworkControllerStateChangeEvent;
 
-export type TokenListControllerMessenger = RestrictedControllerMessenger<
+export type TokenListControllerMessenger = Messenger<
   typeof name,
   TokenListControllerActions | AllowedActions,
-  TokenListControllerEvents | AllowedEvents,
-  AllowedActions['type'],
-  AllowedEvents['type']
+  TokenListControllerEvents | AllowedEvents
 >;
 
-const metadata = {
-  tokenList: { persist: true, anonymous: true },
-  tokensChainsCache: { persist: true, anonymous: true },
-  preventPollingOnNetworkRestart: { persist: true, anonymous: true },
+const metadata: StateMetadata<TokenListState> = {
+  tokensChainsCache: {
+    includeInStateLogs: false,
+    persist: false, // Persisted separately via StorageService
+    includeInDebugSnapshot: true,
+    usedInUi: true,
+  },
 };
 
 export const getDefaultTokenListState = (): TokenListState => {
   return {
-    tokenList: {},
     tokensChainsCache: {},
-    preventPollingOnNetworkRestart: false,
   };
+};
+
+/** The input to start polling for the {@link TokenListController} */
+type TokenListPollingInput = {
+  chainId: Hex;
 };
 
 /**
  * Controller that passively polls on a set interval for the list of tokens from metaswaps api
  */
-export class TokenListController extends StaticIntervalPollingController<
+export class TokenListController extends StaticIntervalPollingController<TokenListPollingInput>()<
   typeof name,
   TokenListState,
   TokenListControllerMessenger
 > {
-  private readonly mutex = new Mutex();
+  /**
+   * Debounce timer for persisting state changes to storage.
+   */
+  #persistDebounceTimer?: ReturnType<typeof setTimeout>;
 
-  private intervalId?: ReturnType<typeof setTimeout>;
+  /**
+   * Promise for the in-flight initialization sequence.
+   */
+  #initializePromise?: Promise<void>;
 
-  private readonly intervalDelay: number;
+  /**
+   * Promise that resolves when the current persist operation completes.
+   * Used to prevent race conditions between persist operations.
+   */
+  #persistInFlightPromise?: Promise<void>;
 
-  private readonly cacheRefreshThreshold: number;
+  /**
+   * Tracks which chains have pending changes to persist.
+   * Only changed chains are persisted to reduce write amplification.
+   */
+  readonly #changedChainsToPersist: Set<Hex> = new Set();
 
-  private chainId: Hex;
+  /**
+   * Previous tokensChainsCache for detecting which chains changed.
+   */
+  #previousTokensChainsCache: TokensChainsCache = {};
 
-  private abortController: AbortController;
+  /**
+   * Debounce delay for persisting state changes (in milliseconds).
+   */
+  static readonly #persistDebounceMs = 500;
+
+  // Storage key prefix for per-chain files
+  static readonly #storageKeyPrefix = 'tokensChainsCache';
+
+  /**
+   * Get storage key for a specific chain.
+   *
+   * @param chainId - The chain ID.
+   * @returns Storage key for the chain.
+   */
+  static #getChainStorageKey(chainId: Hex): string {
+    return `${TokenListController.#storageKeyPrefix}:${chainId}`;
+  }
+
+  #intervalId?: ReturnType<typeof setTimeout>;
+
+  readonly #intervalDelay: number;
+
+  readonly #cacheRefreshThreshold: number;
+
+  #chainId: Hex;
+
+  #abortController: AbortController;
+
+  readonly #isDeprecated: () => boolean;
 
   /**
    * Creates a TokenListController instance.
@@ -120,26 +177,29 @@ export class TokenListController extends StaticIntervalPollingController<
    * @param options.onNetworkStateChange - A function for registering an event handler for network state changes.
    * @param options.interval - The polling interval, in milliseconds.
    * @param options.cacheRefreshThreshold - The token cache expiry time, in milliseconds.
-   * @param options.messenger - A restricted controller messenger.
+   * @param options.isDeprecated - Optional function returning whether the controller should be disabled.
+   * When it returns `true`, `tokensChainsCache` is reset to `{}` at construction and at every
+   * polling entry point, no fetches are issued, and persisted storage is cleared on initialize.
+   * The function is evaluated dynamically on each entry point so it can be toggled at runtime.
+   * @param options.messenger - A restricted messenger.
    * @param options.state - Initial state to set on this controller.
-   * @param options.preventPollingOnNetworkRestart - Determines whether to prevent poilling on network restart in extension.
    */
   constructor({
     chainId,
-    preventPollingOnNetworkRestart = false,
     onNetworkStateChange,
     interval = DEFAULT_INTERVAL,
     cacheRefreshThreshold = DEFAULT_THRESHOLD,
+    isDeprecated = (): boolean => false,
     messenger,
     state,
   }: {
     chainId: Hex;
-    preventPollingOnNetworkRestart?: boolean;
     onNetworkStateChange?: (
       listener: (networkState: NetworkState) => void,
     ) => void;
     interval?: number;
     cacheRefreshThreshold?: number;
+    isDeprecated?: () => boolean;
     messenger: TokenListControllerMessenger;
     state?: Partial<TokenListState>;
   }) {
@@ -149,21 +209,295 @@ export class TokenListController extends StaticIntervalPollingController<
       messenger,
       state: { ...getDefaultTokenListState(), ...state },
     });
-    this.intervalDelay = interval;
-    this.cacheRefreshThreshold = cacheRefreshThreshold;
-    this.chainId = chainId;
-    this.updatePreventPollingOnNetworkRestart(preventPollingOnNetworkRestart);
-    this.abortController = new AbortController();
+
+    this.#intervalDelay = interval;
+    this.setIntervalLength(interval);
+    this.#cacheRefreshThreshold = cacheRefreshThreshold;
+    this.#chainId = chainId;
+    this.#abortController = new AbortController();
+    this.#isDeprecated = isDeprecated;
+
+    if (this.#isDeprecated()) {
+      // Fire-and-forget: storage clearing is async but the constructor is sync.
+      // Errors are caught inside `#enforceDisabledState`.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.#enforceDisabledState();
+    }
+
     if (onNetworkStateChange) {
+      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
       onNetworkStateChange(async (networkControllerState) => {
         await this.#onNetworkControllerStateChange(networkControllerState);
       });
     } else {
-      this.messagingSystem.subscribe(
+      this.messenger.subscribe(
         'NetworkController:stateChange',
+        // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+        // eslint-disable-next-line @typescript-eslint/no-misused-promises
         async (networkControllerState) => {
           await this.#onNetworkControllerStateChange(networkControllerState);
         },
+      );
+    }
+  }
+
+  /**
+   * Initialize the controller by loading cache from storage and running migration.
+   * This method should be called by clients after construction.
+   *
+   * @returns A promise that resolves when initialization is complete.
+   */
+  async initialize(): Promise<void> {
+    if (this.#initializePromise) {
+      await this.#initializePromise;
+      return;
+    }
+
+    const executeInit = async (): Promise<void> => {
+      try {
+        if (this.#isDeprecated()) {
+          await this.#enforceDisabledState();
+          return;
+        }
+
+        await this.#synchronizeCacheWithStorage();
+
+        // Subscribe to state changes to automatically persist tokensChainsCache
+        this.messenger.subscribe(
+          'TokenListController:stateChange',
+          (newCache: TokensChainsCache) => this.#onCacheChanged(newCache),
+          (controllerState) => controllerState.tokensChainsCache,
+        );
+      } catch {
+        // do nothing
+      } finally {
+        this.#initializePromise = undefined;
+      }
+    };
+
+    this.#initializePromise = executeInit();
+
+    await this.#initializePromise;
+  }
+
+  /**
+   * Waits for any in-flight initialization to complete.
+   * Polling should not run against partially initialized state.
+   */
+  async #waitForInitialization(): Promise<void> {
+    try {
+      await this.#initializePromise;
+    } catch {
+      // do nothing
+    }
+  }
+
+  /**
+   * Handle tokensChainsCache changes by detecting which chains changed
+   * and scheduling debounced persistence.
+   *
+   * @param newCache - The new tokensChainsCache state.
+   */
+  #onCacheChanged(newCache: TokensChainsCache): void {
+    // Detect which chains changed by comparing with previous cache
+    for (const chainId of Object.keys(newCache) as Hex[]) {
+      const newData = newCache[chainId];
+      const prevData = this.#previousTokensChainsCache[chainId];
+
+      // Chain is new or timestamp changed (indicating data update)
+      if (prevData?.timestamp !== newData.timestamp) {
+        this.#changedChainsToPersist.add(chainId);
+      }
+    }
+
+    // Update previous cache reference
+    this.#previousTokensChainsCache = { ...newCache };
+
+    // Schedule persistence if there are changes
+    if (this.#changedChainsToPersist.size > 0) {
+      this.#debouncePersist();
+    }
+  }
+
+  /**
+   * Debounce persistence of changed chains to storage.
+   */
+  #debouncePersist(): void {
+    if (this.#persistDebounceTimer) {
+      clearTimeout(this.#persistDebounceTimer);
+    }
+
+    this.#persistDebounceTimer = setTimeout(() => {
+      // Note: #persistChangedChains handles errors internally via #saveChainCacheToStorage,
+      // so this promise will not reject.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      this.#persistChangedChains();
+    }, TokenListController.#persistDebounceMs);
+  }
+
+  /**
+   * Persist only the chains that have changed to storage.
+   * Reduces write amplification by skipping unchanged chains.
+   *
+   * If a persist operation is already in-flight, this method returns early
+   * and reschedules the debounce to ensure accumulated changes are retried
+   * after the current operation completes.
+   *
+   * @returns A promise that resolves when changed chains are persisted.
+   */
+  async #persistChangedChains(): Promise<void> {
+    if (this.#persistInFlightPromise) {
+      // Reschedule debounce to retry accumulated changes after in-flight persist completes
+      if (this.#changedChainsToPersist.size > 0) {
+        this.#debouncePersist();
+      }
+      return;
+    }
+
+    const chainsToPersist = [...this.#changedChainsToPersist];
+    this.#changedChainsToPersist.clear();
+
+    if (chainsToPersist.length === 0) {
+      return;
+    }
+
+    this.#persistInFlightPromise = Promise.all(
+      chainsToPersist.map((chainId) => this.#saveChainCacheToStorage(chainId)),
+    ).then(() => undefined);
+
+    try {
+      await this.#persistInFlightPromise;
+    } finally {
+      this.#persistInFlightPromise = undefined;
+    }
+  }
+
+  /**
+   * Synchronize tokensChainsCache between state and storage bidirectionally.
+   *
+   * This method:
+   * 1. Loads cached chains from storage (per-chain files) in parallel
+   * 2. Merges loaded data into state (preferring existing state to avoid overwriting fresh data)
+   * 3. Persists any chains that exist in state but not in storage
+   *
+   * Called during initialization to ensure state and storage are consistent.
+   *
+   * @returns A promise that resolves when synchronization is complete.
+   */
+  async #synchronizeCacheWithStorage(): Promise<void> {
+    try {
+      const allKeys = await this.messenger.call(
+        'StorageService:getAllKeys',
+        name,
+      );
+
+      // Filter keys that belong to tokensChainsCache (per-chain files)
+      const cacheKeys = allKeys.filter((key) =>
+        key.startsWith(`${TokenListController.#storageKeyPrefix}:`),
+      );
+
+      // Load all chains in parallel
+      const chainCaches = await Promise.all(
+        cacheKeys.map(async (key) => {
+          // Extract chainId from key: 'tokensChainsCache:0x1' → '0x1'
+          const chainId = key.split(':')[1] as Hex;
+
+          const { result, error } = await this.messenger.call(
+            'StorageService:getItem',
+            name,
+            key,
+          );
+
+          if (error) {
+            console.error(
+              `TokenListController: Error loading cache for ${chainId}:`,
+              error,
+            );
+            return null;
+          }
+
+          return result ? { chainId, data: result as DataCache } : null;
+        }),
+      );
+
+      // Build complete cache from loaded chains
+      const loadedCache: TokensChainsCache = {};
+      chainCaches.forEach((chainCache) => {
+        if (chainCache) {
+          loadedCache[chainCache.chainId] = chainCache.data;
+        }
+      });
+
+      // Chains in state _before loading persisted state_, from a recent update
+      const chainsInState = new Set(
+        Object.keys(this.state.tokensChainsCache) as Hex[],
+      );
+
+      // Merge loaded cache with existing state, preferring existing data
+      // (which may be fresher if fetched during initialization)
+      if (Object.keys(loadedCache).length > 0) {
+        this.update((state) => {
+          // Only load chains that don't already exist in state
+          // This prevents overwriting fresh API data with stale cached data
+          for (const [chainId, cacheData] of Object.entries(loadedCache)) {
+            if (!state.tokensChainsCache[chainId as Hex]) {
+              state.tokensChainsCache[chainId as Hex] = cacheData;
+            }
+          }
+        });
+      }
+
+      // Persist chains that exist in state but were not loaded from storage.
+      // This handles the case where initial state contains chains that don't exist
+      // in storage yet (e.g., fresh data from API). Without this, those chains
+      // would be lost on the next app restart.
+      for (const chainId of chainsInState) {
+        this.#changedChainsToPersist.add(chainId);
+      }
+
+      // Persist any chains that need to be saved
+      if (this.#changedChainsToPersist.size > 0) {
+        this.#debouncePersist();
+      }
+
+      this.#previousTokensChainsCache = { ...this.state.tokensChainsCache };
+    } catch (error) {
+      console.error(
+        'TokenListController: Failed to load cache from storage:',
+        error,
+      );
+    }
+  }
+
+  /**
+   * Save a specific chain's cache to StorageService.
+   * This persists only the updated chain's data, reducing write amplification.
+   *
+   * @param chainId - The chain ID to save.
+   * @returns A promise that resolves when saving is complete.
+   */
+  async #saveChainCacheToStorage(chainId: Hex): Promise<void> {
+    try {
+      const chainData = this.state.tokensChainsCache[chainId];
+
+      if (!chainData) {
+        console.warn(`TokenListController: No cache data for chain ${chainId}`);
+        return;
+      }
+
+      const storageKey = TokenListController.#getChainStorageKey(chainId);
+
+      await this.messenger.call(
+        'StorageService:setItem',
+        name,
+        storageKey,
+        chainData,
+      );
+    } catch (error) {
+      console.error(
+        `TokenListController: Failed to save cache for ${chainId}:`,
+        error,
       );
     }
   }
@@ -174,210 +508,274 @@ export class TokenListController extends StaticIntervalPollingController<
    *
    * @param networkControllerState - The updated network controller state.
    */
-  async #onNetworkControllerStateChange(networkControllerState: NetworkState) {
-    if (this.chainId !== networkControllerState.providerConfig.chainId) {
-      this.abortController.abort();
-      this.abortController = new AbortController();
-      this.chainId = networkControllerState.providerConfig.chainId;
-      if (this.state.preventPollingOnNetworkRestart) {
-        this.clearingTokenListData();
-      } else {
-        // Ensure tokenList is referencing data from correct network
-        this.update(() => {
-          return {
-            ...this.state,
-            tokenList: this.state.tokensChainsCache[this.chainId]?.data || {},
-          };
-        });
-        await this.restart();
-      }
+  async #onNetworkControllerStateChange(
+    networkControllerState: NetworkState,
+  ): Promise<void> {
+    const selectedNetworkClient = this.messenger.call(
+      'NetworkController:getNetworkClientById',
+      networkControllerState.selectedNetworkClientId,
+    );
+    const { chainId } = selectedNetworkClient.configuration;
+
+    if (this.#chainId !== chainId) {
+      this.#abortController.abort();
+      this.#abortController = new AbortController();
+      this.#chainId = chainId;
     }
   }
 
+  // Eventually we want to remove start/restart/stop controls in favor of new _executePoll API
+  // Maintaining these functions for now until we can safely deprecate them for backwards compatibility
   /**
    * Start polling for the token list.
+   *
+   * @deprecated This method is deprecated and will be removed in the future.
+   * Consider using the new polling approach instead
    */
-  async start() {
-    if (!isTokenListSupportedForNetwork(this.chainId)) {
+  async start(): Promise<void> {
+    if (this.#isDeprecated()) {
+      await this.#enforceDisabledState();
       return;
     }
-    await this.startPolling();
+    if (!isTokenListSupportedForNetwork(this.#chainId)) {
+      return;
+    }
+    await this.#startDeprecatedPolling();
   }
 
   /**
    * Restart polling for the token list.
+   *
+   * @deprecated This method is deprecated and will be removed in the future.
+   * Consider using the new polling approach instead
    */
-  async restart() {
-    this.stopPolling();
-    await this.startPolling();
+  async restart(): Promise<void> {
+    this.#stopPolling();
+    if (this.#isDeprecated()) {
+      await this.#enforceDisabledState();
+      return;
+    }
+    await this.#startDeprecatedPolling();
   }
 
   /**
    * Stop polling for the token list.
+   *
+   * @deprecated This method is deprecated and will be removed in the future.
+   * Consider using the new polling approach instead
    */
-  stop() {
-    this.stopPolling();
+  stop(): void {
+    this.#stopPolling();
   }
 
   /**
-   * Prepare to discard this controller.
-   *
    * This stops any active polling.
+   *
+   * @deprecated This method is deprecated and will be removed in the future.
+   * Consider using the new polling approach instead
    */
-  override destroy() {
+  override destroy(): void {
     super.destroy();
-    this.stopPolling();
+    this.#stopPolling();
+
+    // Cancel any pending debounced persistence operations
+    if (this.#persistDebounceTimer) {
+      clearTimeout(this.#persistDebounceTimer);
+      this.#persistDebounceTimer = undefined;
+    }
+    this.#changedChainsToPersist.clear();
   }
 
-  private stopPolling() {
-    if (this.intervalId) {
-      clearInterval(this.intervalId);
+  /**
+   * This stops any active polling intervals.
+   *
+   * @deprecated This method is deprecated and will be removed in the future.
+   * Consider using the new polling approach instead
+   */
+  #stopPolling(): void {
+    if (this.#intervalId) {
+      clearInterval(this.#intervalId);
     }
   }
 
   /**
-   * Starts a new polling interval.
+   * Starts a new polling interval for a given chainId (this should be deprecated in favor of _executePoll)
+   *
+   * @deprecated This method is deprecated and will be removed in the future.
+   * Consider using the new polling approach instead
    */
-  private async startPolling(): Promise<void> {
-    await safelyExecute(() => this.fetchTokenList());
-    this.intervalId = setInterval(async () => {
-      await safelyExecute(() => this.fetchTokenList());
-    }, this.intervalDelay);
+  async #startDeprecatedPolling(): Promise<void> {
+    // renaming this to avoid collision with base class
+    await safelyExecute(() => this.fetchTokenList(this.#chainId));
+    // TODO: Either fix this lint violation or explain why it's necessary to ignore.
+    // eslint-disable-next-line @typescript-eslint/no-misused-promises
+    this.#intervalId = setInterval(async () => {
+      await safelyExecute(() => this.fetchTokenList(this.#chainId));
+    }, this.#intervalDelay);
   }
 
   /**
-   * Fetching token list from the Token Service API.
+   * This starts a new polling loop for any given chain. Under the hood it is deduping polls
    *
-   * @private
-   * @param networkClientId - The ID of the network client triggering the fetch.
+   * @param input - The input for the poll.
+   * @param input.chainId - The chainId of the chain to trigger the fetch.
    * @returns A promise that resolves when this operation completes.
    */
-  async _executePoll(networkClientId: string): Promise<void> {
-    return this.fetchTokenList(networkClientId);
+  async _executePoll({ chainId }: TokenListPollingInput): Promise<void> {
+    if (this.#isDeprecated()) {
+      await this.#enforceDisabledState();
+      return;
+    }
+    await this.#waitForInitialization();
+    await this.fetchTokenList(chainId);
   }
 
   /**
-   * Fetching token list from the Token Service API.
+   * Fully enforce the disabled state in a single step:
+   * 1. Drop in-memory `tokensChainsCache` to `{}`.
+   * 2. Cancel any pending debounced persist and clear the changed-chains set so
+   *    a stale entry can't write old data after the in-memory reset.
+   * 3. Overwrite every persisted `tokensChainsCache:*` entry in StorageService
+   *    with `{ data: {}, timestamp: 0 }`.
    *
-   * @param networkClientId - The ID of the network client triggering the fetch.
+   * Called from every fetching entry point when `isDeprecated()` is true so that
+   * a runtime toggle propagates to both memory and storage immediately, even
+   * if `initialize()` was originally invoked while the controller was enabled.
+   *
+   * @returns A promise that resolves when persisted entries have been cleared.
    */
-  async fetchTokenList(networkClientId?: NetworkClientId): Promise<void> {
-    const releaseLock = await this.mutex.acquire();
-    let networkClient;
-    if (networkClientId) {
-      networkClient = this.messagingSystem.call(
-        'NetworkController:getNetworkClientById',
-        networkClientId,
-      );
+  async #enforceDisabledState(): Promise<void> {
+    this.#resetCacheState();
+    if (this.#persistDebounceTimer) {
+      clearTimeout(this.#persistDebounceTimer);
+      this.#persistDebounceTimer = undefined;
     }
-    const chainId = networkClient?.configuration.chainId ?? this.chainId;
+    this.#changedChainsToPersist.clear();
+    await this.#clearPersistedCache();
+  }
+
+  /**
+   * Reset in-memory `tokensChainsCache` to an empty object.
+   * Used when the controller is disabled to drop any data already in state.
+   */
+  #resetCacheState(): void {
+    if (Object.keys(this.state.tokensChainsCache).length === 0) {
+      return;
+    }
+    this.update((state) => {
+      state.tokensChainsCache = {};
+    });
+  }
+
+  /**
+   * Overwrite every persisted `tokensChainsCache:*` entry in StorageService
+   * with `{ data: {}, timestamp: 0 }` so the on-disk view reflects the
+   * disabled state.
+   *
+   * @returns A promise that resolves when persisted entries have been cleared.
+   */
+  async #clearPersistedCache(): Promise<void> {
     try {
-      const { tokensChainsCache } = this.state;
-      let tokenList: TokenListMap = {};
-      const cachedTokens = await safelyExecute(() =>
-        this.#fetchFromCache(chainId),
+      const allKeys = await this.messenger.call(
+        'StorageService:getAllKeys',
+        name,
       );
-      if (cachedTokens) {
-        // Use non-expired cached tokens
-        tokenList = { ...cachedTokens };
-      } else {
-        // Fetch fresh token list
-        const tokensFromAPI = await safelyExecute(
-          () =>
-            fetchTokenListByChainId(
-              chainId,
-              this.abortController.signal,
-            ) as Promise<TokenListToken[]>,
-        );
-
-        if (!tokensFromAPI) {
-          // Fallback to expired cached tokens
-          tokenList = { ...(tokensChainsCache[chainId]?.data || {}) };
-          this.update(() => {
-            return {
-              ...this.state,
-              tokenList,
-              tokensChainsCache,
-            };
-          });
-          return;
-        }
-        for (const token of tokensFromAPI) {
-          const formattedToken: TokenListToken = {
-            ...token,
-            aggregators: formatAggregatorNames(token.aggregators),
-            iconUrl: formatIconUrlWithProxy({
-              chainId,
-              tokenAddress: token.address,
-            }),
-          };
-          tokenList[token.address] = formattedToken;
-        }
-      }
-      const updatedTokensChainsCache: TokensChainsCache = {
-        ...tokensChainsCache,
-        [chainId]: {
-          timestamp: Date.now(),
-          data: tokenList,
-        },
-      };
-      this.update(() => {
-        return {
-          ...this.state,
-          tokenList,
-          tokensChainsCache: updatedTokensChainsCache,
-        };
-      });
-    } finally {
-      releaseLock();
+      const cacheKeys = allKeys.filter((key) =>
+        key.startsWith(`${TokenListController.#storageKeyPrefix}:`),
+      );
+      const emptyDataCache: DataCache = { data: {}, timestamp: 0 };
+      await Promise.all(
+        cacheKeys.map((key) =>
+          this.messenger.call(
+            'StorageService:setItem',
+            name,
+            key,
+            emptyDataCache,
+          ),
+        ),
+      );
+    } catch (error) {
+      console.error(
+        'TokenListController: Failed to clear persisted cache:',
+        error,
+      );
     }
   }
 
   /**
-   * Checks if the Cache timestamp is valid,
-   * if yes data in cache will be returned
-   * otherwise null will be returned.
-   * @param chainId - The chain ID of the network for which to fetch the cache.
-   * @returns The cached data, or `null` if the cache was expired.
-   */
-  async #fetchFromCache(chainId: Hex): Promise<TokenListMap | null> {
-    const { tokensChainsCache }: TokenListState = this.state;
-    const dataCache = tokensChainsCache[chainId];
-    const now = Date.now();
-    if (
-      dataCache?.data &&
-      now - dataCache?.timestamp < this.cacheRefreshThreshold
-    ) {
-      return dataCache.data;
-    }
-    return null;
-  }
-
-  /**
-   * Clearing tokenList and tokensChainsCache explicitly.
-   */
-  clearingTokenListData(): void {
-    this.update(() => {
-      return {
-        ...this.state,
-        tokenList: {},
-        tokensChainsCache: {},
-      };
-    });
-  }
-
-  /**
-   * Updates preventPollingOnNetworkRestart from extension.
+   * Fetching token list from the Token Service API. This will fetch tokens across chains.
+   * State changes are automatically persisted via the stateChange subscription.
    *
-   * @param shouldPreventPolling - Determine whether to prevent polling on network change
+   * @param chainId - The chainId of the current chain triggering the fetch.
    */
-  updatePreventPollingOnNetworkRestart(shouldPreventPolling: boolean): void {
-    this.update(() => {
-      return {
-        ...this.state,
-        preventPollingOnNetworkRestart: shouldPreventPolling,
+  async fetchTokenList(chainId: Hex): Promise<void> {
+    if (this.#isDeprecated()) {
+      await this.#enforceDisabledState();
+      return;
+    }
+    if (this.isCacheValid(chainId)) {
+      return;
+    }
+
+    // Fetch fresh token list from the API
+    const tokensFromAPI = await safelyExecute(
+      () =>
+        fetchTokenListByChainId(
+          chainId,
+          this.#abortController.signal,
+        ) as Promise<TokenListToken[]>,
+    );
+
+    // Have response - process and update list
+    if (tokensFromAPI) {
+      // Format tokens from API (HTTP) and update tokenList
+      const tokenList: TokenListMap = {};
+      for (const token of tokensFromAPI) {
+        tokenList[token.address] = {
+          ...token,
+          aggregators: formatAggregatorNames(token.aggregators),
+          iconUrl: formatIconUrlWithProxy({
+            chainId,
+            tokenAddress: token.address,
+          }),
+        };
+      }
+
+      // Update state - persistence happens automatically via subscription
+      const newDataCache: DataCache = {
+        data: tokenList,
+        timestamp: Date.now(),
       };
-    });
+      this.update((state) => {
+        state.tokensChainsCache[chainId] = newDataCache;
+      });
+      return;
+    }
+
+    // No response - fallback to previous state, or initialise empty.
+    // Only initialize with a new timestamp if there's no existing cache.
+    // If there's existing cache, keep it as-is without updating the timestamp
+    // to avoid making stale data appear "fresh" and preventing retry attempts.
+    if (!tokensFromAPI) {
+      const existingCache = this.state.tokensChainsCache[chainId];
+      if (!existingCache) {
+        // No existing cache - initialize empty (persistence happens automatically)
+        const newDataCache: DataCache = { data: {}, timestamp: Date.now() };
+        this.update((state) => {
+          state.tokensChainsCache[chainId] = newDataCache;
+        });
+      }
+      // If there's existing cache, keep it as-is (don't update timestamp or persist)
+    }
+  }
+
+  isCacheValid(chainId: Hex): boolean {
+    const { tokensChainsCache }: TokenListState = this.state;
+    const timestamp: number | undefined = tokensChainsCache[chainId]?.timestamp;
+    const now = Date.now();
+    return (
+      timestamp !== undefined && now - timestamp < this.#cacheRefreshThreshold
+    );
   }
 }
 

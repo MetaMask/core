@@ -17,6 +17,7 @@ import type { UserOperationMetadata } from '../types';
 
 /**
  * Converts a user operation metadata object into a transaction metadata object.
+ *
  * @param metadata - The user operation metadata object to convert.
  * @returns The equivalent transaction metadata object.
  */
@@ -108,11 +109,16 @@ export function getTransactionMetadata(
     approvalTxId: swapsMetadata?.approvalTxId ?? undefined,
     destinationTokenAddress:
       swapsMetadata?.destinationTokenAddress ?? undefined,
+    destinationTokenAmount: swapsMetadata?.destinationTokenAmount ?? undefined,
     destinationTokenDecimals:
       swapsMetadata?.destinationTokenDecimals ?? undefined,
     destinationTokenSymbol: swapsMetadata?.destinationTokenSymbol ?? undefined,
     estimatedBaseFee: swapsMetadata?.estimatedBaseFee ?? undefined,
+    sourceTokenAddress: swapsMetadata?.sourceTokenAddress ?? undefined,
+    sourceTokenAmount: swapsMetadata?.sourceTokenAmount ?? undefined,
+    sourceTokenDecimals: swapsMetadata?.sourceTokenDecimals ?? undefined,
     sourceTokenSymbol: swapsMetadata?.sourceTokenSymbol ?? undefined,
+    swapAndSendRecipient: swapsMetadata?.swapAndSendRecipient ?? undefined,
     swapMetaData: swapsMetadata?.swapMetaData ?? undefined,
     swapTokenValue: swapsMetadata?.swapTokenValue ?? undefined,
   };
@@ -126,6 +132,7 @@ export function getTransactionMetadata(
     hash: transactionHash ?? undefined,
     id,
     isUserOperation: true,
+    networkClientId: 'user-operation',
     origin,
     status,
     time,
@@ -142,6 +149,7 @@ export function getTransactionMetadata(
 
 /**
  * Adds the given hexadecimal values together.
+ *
  * @param values - The hexadecimal values to add together.
  * @returns The sum of the given hexadecimal values.
  */

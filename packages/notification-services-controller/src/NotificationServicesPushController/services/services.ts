@@ -1,0 +1,207 @@
+import type { PushNotificationEnv } from '../types';
+import type {
+  CreateRegToken,
+  DeleteRegToken,
+} from '../types/push-service-interface';
+import type { ENV } from './endpoints';
+import * as endpoints from './endpoints';
+
+export type RegToken = {
+  token: string;
+  platform: 'extension' | 'mobile' | 'portfolio';
+  locale: string;
+  os?: 'android' | 'ios';
+  appVersion?: string;
+  oldToken?: string;
+};
+
+export type RegistrationPlatform = 'extension' | 'mobile';
+
+/**
+ * Links API Response Shape
+ */
+export type PushTokenRequest = {
+  addresses: string[];
+  // API response uses snake_case for this property
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  registration_token: {
+    token: string;
+    platform: 'extension' | 'mobile' | 'portfolio';
+    locale: string;
+    os?: 'android' | 'ios';
+    appVersion?: string;
+    oldToken?: string;
+  };
+};
+
+export type DeletePushTokenRequest = {
+  addresses: string[];
+  // API request uses snake_case for this property
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  registration_token: {
+    platform: RegistrationPlatform;
+    token: string;
+  };
+};
+
+type UpdatePushTokenParams = {
+  bearerToken: string;
+  addresses: string[];
+  regToken: RegToken;
+  env?: ENV;
+};
+
+/**
+ * Updates the push notification links on a remote API.
+ *
+ * @param params - params for invoking update reg token
+ * @returns A promise that resolves with true if the update was successful, false otherwise.
+ */
+export async function updateLinksAPI(
+  params: UpdatePushTokenParams,
+): Promise<boolean> {
+  try {
+    const body: PushTokenRequest = {
+      addresses: params.addresses,
+      registration_token: params.regToken,
+    };
+    const response = await fetch(
+      endpoints.REGISTRATION_TOKENS_ENDPOINT(params.env),
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${params.bearerToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      },
+    );
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+type DeletePushTokenParams = {
+  bearerToken: string;
+  addresses: string[];
+  platform: RegistrationPlatform;
+  token: string;
+  env?: ENV;
+};
+
+/**
+ * Deletes push notification links for addresses and platform.
+ *
+ * @param params - params for deleting registration links
+ * @returns A promise that resolves with true if the delete request was successful, false otherwise.
+ */
+export async function deleteLinksAPI(
+  params: DeletePushTokenParams,
+): Promise<boolean> {
+  try {
+    const body: DeletePushTokenRequest = {
+      addresses: params.addresses,
+      registration_token: {
+        platform: params.platform,
+        token: params.token,
+      },
+    };
+    const response = await fetch(
+      endpoints.REGISTRATION_TOKENS_ENDPOINT(params.env),
+      {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${params.bearerToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      },
+    );
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+type ActivatePushNotificationsParams = {
+  // Create Push Token
+  env: PushNotificationEnv;
+  createRegToken: CreateRegToken;
+  controllerEnv?: ENV;
+
+  // Other Request Parameters
+  bearerToken: string;
+  addresses: string[];
+  regToken: Pick<
+    RegToken,
+    'appVersion' | 'locale' | 'oldToken' | 'os' | 'platform'
+  >;
+};
+
+/**
+ * Enables push notifications by registering the device and linking triggers.
+ *
+ * @param params - Activate Push Params
+ * @returns A promise that resolves with an object containing the success status and the BearerToken token.
+ */
+export async function activatePushNotifications(
+  params: ActivatePushNotificationsParams,
+): Promise<string | null> {
+  const { env, createRegToken } = params;
+
+  const regToken = await createRegToken(env).catch(() => null);
+  if (!regToken) {
+    return null;
+  }
+
+  await updateLinksAPI({
+    bearerToken: params.bearerToken,
+    addresses: params.addresses,
+    regToken: {
+      token: regToken,
+      platform: params.regToken.platform,
+      locale: params.regToken.locale,
+      os: params.regToken.os,
+      appVersion: params.regToken.appVersion,
+      oldToken: params.regToken.oldToken,
+    },
+    env: params.controllerEnv,
+  });
+
+  return regToken;
+}
+
+type DeactivatePushNotificationsParams = {
+  // Push Links
+  regToken: string;
+
+  // Push Un-registration
+  env: PushNotificationEnv;
+  deleteRegToken: DeleteRegToken;
+};
+
+/**
+ * Disables push notifications by removing the registration token
+ * We do not need to unlink triggers, and remove old reg tokens (this is cleaned up in the back-end)
+ *
+ * @param params - Deactivate Push Params
+ * @returns A promise that resolves with true if push notifications were successfully disabled, false otherwise.
+ */
+export async function deactivatePushNotifications(
+  params: DeactivatePushNotificationsParams,
+): Promise<boolean> {
+  const { regToken, env, deleteRegToken } = params;
+
+  // if we don't have a reg token, then we can early return
+  if (!regToken) {
+    return true;
+  }
+
+  const isTokenRemovedFromFCM = await deleteRegToken(env);
+  if (!isTokenRemovedFromFCM) {
+    return false;
+  }
+
+  return true;
+}

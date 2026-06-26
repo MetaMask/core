@@ -1,0 +1,24 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./"
+  },
+  "include": ["../../types", "./src"],
+  "references": [
+    {
+      "path": "../base-controller"
+    },
+    {
+      "path": "../network-controller"
+    },
+    {
+      "path": "../transaction-controller"
+    },
+    {
+      "path": "../account-tree-controller"
+    },
+    {
+      "path": "../messenger"
+    }
+  ]
+}

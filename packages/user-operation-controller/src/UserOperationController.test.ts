@@ -1,23 +1,21 @@
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 import { errorCodes } from '@metamask/rpc-errors';
-import {
-  determineTransactionType,
-  TransactionType,
-  type TransactionParams,
-} from '@metamask/transaction-controller';
+import { TransactionType } from '@metamask/transaction-controller';
+import type { TransactionParams } from '@metamask/transaction-controller';
 import { EventEmitter } from 'stream';
 
 import { ADDRESS_ZERO, EMPTY_BYTES, VALUE_ZERO } from './constants';
 import * as BundlerHelper from './helpers/Bundler';
 import * as PendingUserOperationTrackerHelper from './helpers/PendingUserOperationTracker';
 import { SnapSmartContractAccount } from './helpers/SnapSmartContractAccount';
+import { UserOperationStatus } from './types';
 import type { UserOperationMetadata } from './types';
-import {
-  UserOperationStatus,
-  type PrepareUserOperationResponse,
-  type SignUserOperationResponse,
-  type SmartContractAccount,
-  type UpdateUserOperationResponse,
+import type {
+  PrepareUserOperationResponse,
+  SignUserOperationResponse,
+  SmartContractAccount,
+  UpdateUserOperationResponse,
 } from './types';
 import type {
   AddUserOperationOptions,
@@ -35,7 +33,6 @@ import {
   validateUpdateUserOperationResponse,
 } from './utils/validation';
 
-jest.mock('@metamask/transaction-controller');
 jest.mock('./utils/gas');
 jest.mock('./utils/gas-fees');
 jest.mock('./utils/validation');
@@ -97,6 +94,7 @@ const ADD_USER_OPERATION_OPTIONS_MOCK: AddUserOperationOptions = {
 
 /**
  * Creates a mock user operation messenger.
+ *
  * @returns The mock user operation messenger.
  */
 function createMessengerMock() {
@@ -104,12 +102,14 @@ function createMessengerMock() {
     call: jest.fn(),
     publish: jest.fn(),
     registerActionHandler: jest.fn(),
+    registerMethodActionHandlers: jest.fn(),
     registerInitialEventPayload: jest.fn(),
   } as unknown as jest.Mocked<UserOperationControllerMessenger>;
 }
 
 /**
  * Creates a mock smart contract account.
+ *
  * @returns The mock smart contract account.
  */
 function createSmartContractAccountMock() {
@@ -122,6 +122,7 @@ function createSmartContractAccountMock() {
 
 /**
  * Creates a mock bundler.
+ *
  * @returns The mock bundler.
  */
 function createBundlerMock() {
@@ -133,11 +134,12 @@ function createBundlerMock() {
 
 /**
  * Creates a mock PendingUserOperationTracker.
+ *
  * @returns The mock PendingUserOperationTracker.
  */
 function createPendingUserOperationTrackerMock() {
   return {
-    startPollingByNetworkClientId: jest.fn(),
+    startPolling: jest.fn(),
     setIntervalLength: jest.fn(),
     hub: new EventEmitter(),
   } as unknown as jest.Mocked<PendingUserOperationTrackerHelper.PendingUserOperationTracker>;
@@ -160,7 +162,6 @@ describe('UserOperationController', () => {
   const networkControllerGetClientByIdMock = jest.fn();
   const resultCallbackSuccessMock = jest.fn();
   const resultCallbackErrorMock = jest.fn();
-  const determineTransactionTypeMock = jest.mocked(determineTransactionType);
   const getGasFeeEstimates = jest.fn();
   const updateGasMock = jest.mocked(updateGas);
   const updateGasFeesMock = jest.mocked(updateGasFees);
@@ -192,8 +193,6 @@ describe('UserOperationController', () => {
   );
 
   beforeEach(() => {
-    jest.resetAllMocks();
-
     jest.spyOn(BundlerHelper, 'Bundler').mockReturnValue(bundlerMock);
     jest
       .spyOn(PendingUserOperationTrackerHelper, 'PendingUserOperationTracker')
@@ -241,10 +240,6 @@ describe('UserOperationController', () => {
         throw new Error(`Unexpected mock messenger action: ${action}`);
       },
     );
-
-    determineTransactionTypeMock.mockResolvedValue({
-      type: TransactionType.simpleSend,
-    });
 
     updateGasMock.mockImplementation(async (metadata) => {
       metadata.userOperation.callGasLimit = PREPARE_USER_OPERATION_RESPONSE_MOCK
@@ -424,10 +419,15 @@ describe('UserOperationController', () => {
           smartContractAccount,
           swaps: {
             approvalTxId: 'testTxId',
+            destinationTokenAmount: '0x1',
             destinationTokenAddress: '0x1',
             destinationTokenDecimals: 3,
             destinationTokenSymbol: 'TEST',
             estimatedBaseFee: '0x2',
+            sourceTokenAddress: '0x3',
+            sourceTokenAmount: '0x4',
+            sourceTokenDecimals: 5,
+            swapAndSendRecipient: '0x5',
             sourceTokenSymbol: 'ETH',
             swapMetaData: { test: 'value' },
             swapTokenValue: '0x3',
@@ -440,10 +440,15 @@ describe('UserOperationController', () => {
         expect.objectContaining({
           swapsMetadata: {
             approvalTxId: 'testTxId',
+            destinationTokenAmount: '0x1',
             destinationTokenAddress: '0x1',
             destinationTokenDecimals: 3,
             destinationTokenSymbol: 'TEST',
             estimatedBaseFee: '0x2',
+            sourceTokenAddress: '0x3',
+            sourceTokenAmount: '0x4',
+            sourceTokenDecimals: 5,
+            swapAndSendRecipient: '0x5',
             sourceTokenSymbol: 'ETH',
             swapMetaData: { test: 'value' },
             swapTokenValue: '0x3',
@@ -471,10 +476,15 @@ describe('UserOperationController', () => {
           swapsMetadata: {
             approvalTxId: null,
             destinationTokenAddress: null,
+            destinationTokenAmount: null,
             destinationTokenDecimals: null,
             destinationTokenSymbol: null,
             estimatedBaseFee: null,
+            sourceTokenAddress: null,
+            sourceTokenAmount: null,
+            sourceTokenDecimals: null,
             sourceTokenSymbol: null,
+            swapAndSendRecipient: null,
             swapMetaData: null,
             swapTokenValue: null,
           },
@@ -826,6 +836,42 @@ describe('UserOperationController', () => {
       expect(prepareMock).toHaveBeenCalledTimes(1);
     });
 
+    it('uses gas limits suggested by smart contract account during #addPaymasterData', async () => {
+      const controller = new UserOperationController(optionsMock);
+      const UPDATE_USER_OPERATION_WITH_GAS_LIMITS_RESPONSE_MOCK: UpdateUserOperationResponse =
+        {
+          paymasterAndData: '0xA',
+          callGasLimit: '0x123',
+          preVerificationGas: '0x456',
+          verificationGasLimit: '0x789',
+        };
+      smartContractAccount.updateUserOperation.mockResolvedValue(
+        UPDATE_USER_OPERATION_WITH_GAS_LIMITS_RESPONSE_MOCK,
+      );
+      const { id, hash } = await addUserOperation(
+        controller,
+        ADD_USER_OPERATION_REQUEST_MOCK,
+        { ...ADD_USER_OPERATION_OPTIONS_MOCK, smartContractAccount },
+      );
+
+      await hash();
+
+      expect(Object.keys(controller.state.userOperations)).toHaveLength(1);
+      expect(
+        controller.state.userOperations[id].userOperation.callGasLimit,
+      ).toBe(UPDATE_USER_OPERATION_WITH_GAS_LIMITS_RESPONSE_MOCK.callGasLimit);
+      expect(
+        controller.state.userOperations[id].userOperation.verificationGasLimit,
+      ).toBe(
+        UPDATE_USER_OPERATION_WITH_GAS_LIMITS_RESPONSE_MOCK.verificationGasLimit,
+      );
+      expect(
+        controller.state.userOperations[id].userOperation.preVerificationGas,
+      ).toBe(
+        UPDATE_USER_OPERATION_WITH_GAS_LIMITS_RESPONSE_MOCK.preVerificationGas,
+      );
+    });
+
     describe('if approval request resolved with updated transaction', () => {
       it('updates gas fees without regeneration if paymaster data not set', async () => {
         const controller = new UserOperationController(optionsMock);
@@ -861,6 +907,46 @@ describe('UserOperationController', () => {
           expect.objectContaining({
             maxFeePerGas: '0x6',
             maxPriorityFeePerGas: '0x7',
+          }),
+        );
+        expect(smartContractAccount.prepareUserOperation).toHaveBeenCalledTimes(
+          1,
+        );
+        expect(smartContractAccount.updateUserOperation).toHaveBeenCalledTimes(
+          1,
+        );
+      });
+
+      it('does not update gas fees nor regenerate if paymaster is set but updated gas fees are zero', async () => {
+        const controller = new UserOperationController(optionsMock);
+
+        approvalControllerAddRequestMock.mockResolvedValue({
+          value: {
+            txMeta: {
+              txParams: {
+                ...ADD_USER_OPERATION_REQUEST_MOCK,
+                maxFeePerGas: '0x0',
+                maxPriorityFeePerGas: '0x0',
+              },
+            },
+          },
+        });
+
+        const { hash, id } = await addUserOperation(
+          controller,
+          ADD_USER_OPERATION_REQUEST_MOCK,
+          {
+            ...ADD_USER_OPERATION_OPTIONS_MOCK,
+            smartContractAccount,
+          },
+        );
+
+        await hash();
+
+        expect(controller.state.userOperations[id].userOperation).toStrictEqual(
+          expect.objectContaining({
+            maxFeePerGas: '0x4',
+            maxPriorityFeePerGas: '0x5',
           }),
         );
         expect(smartContractAccount.prepareUserOperation).toHaveBeenCalledTimes(
@@ -914,6 +1000,7 @@ describe('UserOperationController', () => {
             maxFeePerGas: '0x6',
             maxPriorityFeePerGas: '0x7',
           }),
+          chainId: CHAIN_ID_MOCK,
         });
       });
 
@@ -1185,11 +1272,9 @@ describe('UserOperationController', () => {
         expect(controller.state.userOperations[id].transactionType).toBe(
           TransactionType.swap,
         );
-
-        expect(determineTransactionTypeMock).toHaveBeenCalledTimes(0);
       });
 
-      it('determines transaction type if not set', async () => {
+      it('defaults transaction type to contractInteraction if not set', async () => {
         const controller = new UserOperationController(optionsMock);
 
         const { id } = await addUserOperation(
@@ -1204,30 +1289,24 @@ describe('UserOperationController', () => {
         await flushPromises();
 
         expect(controller.state.userOperations[id].transactionType).toBe(
-          TransactionType.simpleSend,
-        );
-
-        expect(determineTransactionTypeMock).toHaveBeenCalledTimes(1);
-        expect(determineTransactionTypeMock).toHaveBeenCalledWith(
-          ADD_USER_OPERATION_REQUEST_MOCK,
-          expect.anything(),
+          TransactionType.contractInteraction,
         );
       });
     }
   });
 
-  describe('startPollingByNetworkClientId', () => {
+  describe('startPolling', () => {
     it('starts polling in PendingUserOperationTracker', async () => {
       const controller = new UserOperationController(optionsMock);
 
       controller.startPollingByNetworkClientId(NETWORK_CLIENT_ID_MOCK);
 
       expect(
-        pendingUserOperationTrackerMock.startPollingByNetworkClientId,
+        pendingUserOperationTrackerMock.startPolling,
       ).toHaveBeenCalledTimes(1);
-      expect(
-        pendingUserOperationTrackerMock.startPollingByNetworkClientId,
-      ).toHaveBeenCalledWith(NETWORK_CLIENT_ID_MOCK);
+      expect(pendingUserOperationTrackerMock.startPolling).toHaveBeenCalledWith(
+        { networkClientId: NETWORK_CLIENT_ID_MOCK },
+      );
     });
   });
 
@@ -1349,6 +1428,68 @@ describe('UserOperationController', () => {
           },
         });
       });
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const controller = new UserOperationController(optionsMock);
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`{}`);
+    });
+
+    it('includes expected state in state logs', () => {
+      const controller = new UserOperationController(optionsMock);
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "userOperations": {},
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const controller = new UserOperationController(optionsMock);
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "userOperations": {},
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const controller = new UserOperationController(optionsMock);
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "userOperations": {},
+        }
+      `);
     });
   });
 });

@@ -16,6 +16,9 @@
     },
     {
       "path": "../permission-controller"
+    },
+    {
+      "path": "../messenger"
     }
   ],
   "include": ["../../types", "../../tests", "./src", "./tests"]

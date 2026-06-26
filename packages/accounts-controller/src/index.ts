@@ -1,18 +1,43 @@
 export type {
+  AccountId,
   AccountsControllerState,
   AccountsControllerGetStateAction,
-  AccountsControllerSetSelectedAccountAction,
-  AccountsControllerSetAccountNameAction,
-  AccountsControllerListAccountsAction,
-  AccountsControllerUpdateAccountsAction,
-  AccountsControllerGetSelectedAccountAction,
-  AccountsControllerGetAccountByAddressAction,
-  AccountsControllerGetAccountAction,
+  AllowedActions,
   AccountsControllerActions,
   AccountsControllerChangeEvent,
   AccountsControllerSelectedAccountChangeEvent,
+  AccountsControllerSelectedEvmAccountChangeEvent,
+  AccountsControllerAccountAddedEvent,
+  AccountsControllerAccountsAddedEvent,
+  AccountsControllerAccountRemovedEvent,
+  AccountsControllerAccountsRemovedEvent,
+  AccountsControllerAccountRenamedEvent,
+  AccountsControllerAccountBalancesUpdatesEvent,
+  AccountsControllerAccountTransactionsUpdatedEvent,
+  AccountsControllerAccountAssetListUpdatedEvent,
+  AllowedEvents,
   AccountsControllerEvents,
   AccountsControllerMessenger,
 } from './AccountsController';
-export { AccountsController } from './AccountsController';
-export { keyringTypeToName, getUUIDFromAddressOfNormalAccount } from './utils';
+export type {
+  AccountsControllerGetAccountAction,
+  AccountsControllerGetAccountsAction,
+  AccountsControllerListAccountsAction,
+  AccountsControllerListMultichainAccountsAction,
+  AccountsControllerGetSelectedAccountAction,
+  AccountsControllerGetSelectedMultichainAccountAction,
+  AccountsControllerGetAccountByAddressAction,
+  AccountsControllerSetSelectedAccountAction,
+  AccountsControllerSetAccountNameAction,
+  AccountsControllerSetAccountNameAndSelectAccountAction,
+  AccountsControllerUpdateAccountMetadataAction,
+  AccountsControllerUpdateAccountsAction,
+  AccountsControllerLoadBackupAction,
+} from './AccountsController-method-action-types';
+export { EMPTY_ACCOUNT, AccountsController } from './AccountsController';
+export {
+  keyringTypeToName,
+  getUUIDOptionsFromAddressOfNormalAccount,
+  getUUIDFromAddressOfNormalAccount,
+  isNormalKeyringType,
+} from './utils';

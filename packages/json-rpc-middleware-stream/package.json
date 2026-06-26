@@ -1,70 +1,76 @@
 {
   "name": "@metamask/json-rpc-middleware-stream",
-  "version": "6.0.2",
+  "version": "8.0.8",
   "description": "A small toolset for streaming JSON-RPC data and matching requests and responses",
   "keywords": [
-    "MetaMask",
-    "Ethereum"
+    "Ethereum",
+    "MetaMask"
   ],
   "homepage": "https://github.com/MetaMask/core/tree/main/packages/json-rpc-middleware-stream#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
+  "license": "ISC",
   "repository": {
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
-  "license": "ISC",
-  "sideEffects": false,
-  "exports": {
-    ".": {
-      "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/types/index.d.ts"
-    },
-    "./package.json": "./package.json"
-  },
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
   "files": [
     "dist/"
   ],
-  "scripts": {
-    "build": "tsup --config ../../tsup.config.ts --tsconfig ./tsconfig.build.json --clean",
-    "build:docs": "typedoc",
-    "changelog:update": "../../scripts/update-changelog.sh @metamask/json-rpc-middleware-stream --tag-prefix-before-package-rename json-rpc-middleware-stream@ --version-before-package-rename 5.0.1",
-    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/json-rpc-middleware-stream --tag-prefix-before-package-rename json-rpc-middleware-stream@ --version-before-package-rename 5.0.1",
-    "publish:preview": "yarn npm publish --tag preview",
-    "test": "jest --reporters=jest-silent-reporter",
-    "test:clean": "jest --clearCache",
-    "test:verbose": "jest --verbose",
-    "test:watch": "jest --watch"
-  },
-  "dependencies": {
-    "@metamask/json-rpc-engine": "^7.3.3",
-    "@metamask/safe-event-emitter": "^3.0.0",
-    "@metamask/utils": "^8.3.0",
-    "readable-stream": "^3.6.2"
-  },
-  "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.4",
-    "@types/jest": "^27.4.1",
-    "@types/readable-stream": "^2.3.0",
-    "deepmerge": "^4.2.2",
-    "extension-port-stream": "^3.0.0",
-    "jest": "^27.5.1",
-    "jest-it-up": "^2.0.2",
-    "ts-jest": "^27.1.4",
-    "typedoc": "^0.24.8",
-    "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~4.8.4",
-    "webextension-polyfill-ts": "^0.26.0"
-  },
-  "engines": {
-    "node": ">=16.0.0"
+  "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.cts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.mts",
+        "default": "./dist/index.mjs"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    },
+    "./package.json": "./package.json"
   },
   "publishConfig": {
     "access": "public",
     "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
+    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
+    "build:docs": "typedoc",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/json-rpc-middleware-stream --tag-prefix-before-package-rename json-rpc-middleware-stream@ --version-before-package-rename 5.0.1",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/json-rpc-middleware-stream --tag-prefix-before-package-rename json-rpc-middleware-stream@ --version-before-package-rename 5.0.1",
+    "since-latest-release": "../../scripts/since-latest-release.sh",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
+    "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
+    "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
+  },
+  "dependencies": {
+    "@metamask/json-rpc-engine": "^10.5.0",
+    "@metamask/safe-event-emitter": "^3.0.0",
+    "@metamask/utils": "^11.11.0",
+    "readable-stream": "^3.6.2"
+  },
+  "devDependencies": {
+    "@metamask/auto-changelog": "^6.1.0",
+    "@ts-bridge/cli": "^0.6.4",
+    "@types/jest": "^29.5.14",
+    "@types/readable-stream": "^2.3.0",
+    "deepmerge": "^4.2.2",
+    "extension-port-stream": "^3.0.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.2.5",
+    "typedoc": "^0.25.13",
+    "typedoc-plugin-missing-exports": "^2.0.0",
+    "typescript": "~5.3.3",
+    "webextension-polyfill-ts": "^0.26.0"
+  },
+  "engines": {
+    "node": "^18.18 || >=20"
   }
 }

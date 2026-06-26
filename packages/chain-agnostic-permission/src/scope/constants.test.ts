@@ -1,0 +1,95 @@
+import {
+  KnownRpcMethods,
+  KnownSessionProperties,
+  isKnownSessionPropertyValue,
+} from './constants';
+
+describe('KnownRpcMethods', () => {
+  it('should match the snapshot', () => {
+    expect(KnownRpcMethods).toMatchInlineSnapshot(`
+      {
+        "bip122": [],
+        "eip155": [
+          "personal_sign",
+          "eth_signTypedData_v4",
+          "wallet_watchAsset",
+          "wallet_sendCalls",
+          "wallet_getCallsStatus",
+          "wallet_getCapabilities",
+          "wallet_requestExecutionPermissions",
+          "wallet_getGrantedExecutionPermissions",
+          "wallet_getSupportedExecutionPermissions",
+          "eth_sendTransaction",
+          "eth_decrypt",
+          "eth_getEncryptionPublicKey",
+          "web3_clientVersion",
+          "eth_subscribe",
+          "eth_unsubscribe",
+          "eth_blockNumber",
+          "eth_call",
+          "eth_chainId",
+          "eth_estimateGas",
+          "eth_feeHistory",
+          "eth_gasPrice",
+          "eth_getBalance",
+          "eth_getBlockByHash",
+          "eth_getBlockByNumber",
+          "eth_getBlockTransactionCountByHash",
+          "eth_getBlockTransactionCountByNumber",
+          "eth_getCode",
+          "eth_getFilterChanges",
+          "eth_getFilterLogs",
+          "eth_getLogs",
+          "eth_getProof",
+          "eth_getStorageAt",
+          "eth_getTransactionByBlockHashAndIndex",
+          "eth_getTransactionByBlockNumberAndIndex",
+          "eth_getTransactionByHash",
+          "eth_getTransactionCount",
+          "eth_getTransactionReceipt",
+          "eth_getUncleCountByBlockHash",
+          "eth_getUncleCountByBlockNumber",
+          "eth_newBlockFilter",
+          "eth_newFilter",
+          "eth_newPendingTransactionFilter",
+          "eth_sendRawTransaction",
+          "eth_syncing",
+          "eth_uninstallFilter",
+        ],
+        "solana": [],
+        "tron": [],
+      }
+    `);
+  });
+});
+
+describe('KnownSessionProperties', () => {
+  it('should match the snapshot', () => {
+    expect(KnownSessionProperties).toMatchInlineSnapshot(`
+      {
+        "Bip122AccountChangedNotifications": "bip122_accountChanged_notifications",
+        "Eip1193Compatible": "eip1193-compatible",
+        "SolanaAccountChangedNotifications": "solana_accountChanged_notifications",
+        "TronAccountChangedNotifications": "tron_accountChanged_notifications",
+      }
+    `);
+  });
+});
+
+describe('isKnownSessionPropertyValue', () => {
+  it('should return true for known session property values', () => {
+    expect(isKnownSessionPropertyValue('eip1193-compatible')).toBe(true);
+    expect(
+      isKnownSessionPropertyValue('solana_accountChanged_notifications'),
+    ).toBe(true);
+    expect(
+      isKnownSessionPropertyValue('tron_accountChanged_notifications'),
+    ).toBe(true);
+    expect(
+      isKnownSessionPropertyValue('bip122_accountChanged_notifications'),
+    ).toBe(true);
+  });
+  it('should return false for unknown session property values', () => {
+    expect(isKnownSessionPropertyValue('unknown_session_property')).toBe(false);
+  });
+});

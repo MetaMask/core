@@ -1,0 +1,205 @@
+import { Interface } from '@ethersproject/abi';
+import { toHex } from '@metamask/controller-utils';
+import { abiERC20 } from '@metamask/metamask-eth-abis';
+import type { TransactionMeta } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
+import { createModuleLogger } from '@metamask/utils';
+
+import { projectLogger } from '../logger';
+import type {
+  TransactionPayControllerMessenger,
+  TransactionPayRequiredToken,
+} from '../types';
+import {
+  computeTokenAmounts,
+  getTokenBalance,
+  getTokenFiatRate,
+  getTokenInfo,
+} from './token';
+
+const log = createModuleLogger(projectLogger, 'required-tokens');
+
+const FOUR_BYTE_TOKEN_TRANSFER = '0xa9059cbb';
+
+/**
+ * Parse required tokens from a transaction.
+ *
+ * If the transaction has `requiredAssets`, those are used to determine required tokens.
+ * Otherwise, falls back to parsing the transaction data for token transfers.
+ *
+ * @param transaction - Transaction metadata.
+ * @param messenger - Controller messenger.
+ * @returns An array of required tokens.
+ */
+export function parseRequiredTokens(
+  transaction: TransactionMeta,
+  messenger: TransactionPayControllerMessenger,
+): TransactionPayRequiredToken[] {
+  const { requiredAssets } = transaction;
+
+  if (requiredAssets?.length) {
+    const assetTokens = requiredAssets
+      .map((asset) =>
+        buildRequiredToken(transaction, asset.address, asset.amount, messenger),
+      )
+      .filter(Boolean) as TransactionPayRequiredToken[];
+
+    return assetTokens;
+  }
+
+  const transferToken = getTokenTransferToken(transaction, messenger);
+  return transferToken ? [transferToken] : [];
+}
+
+/**
+ * Parse a required token from a token transfer.
+ *
+ * @param transaction - Transaction metadata.
+ * @param messenger - Controller messenger.
+ * @returns The required token or undefined if the transaction is not a token transfer.
+ */
+function getTokenTransferToken(
+  transaction: TransactionMeta,
+  messenger: TransactionPayControllerMessenger,
+): TransactionPayRequiredToken | undefined {
+  const { data, to } = getTokenTransferData(transaction) ?? {};
+
+  if (!to || !data) {
+    log('No token transfer detected', {
+      transactionId: transaction.id,
+    });
+    return undefined;
+  }
+
+  let transferAmount: Hex | undefined;
+  let decodeError: unknown;
+
+  try {
+    const result = new Interface(abiERC20).decodeFunctionData('transfer', data);
+    transferAmount = toHex(result._value);
+  } catch (error) {
+    decodeError = error;
+  }
+
+  if (transferAmount === undefined) {
+    log('Failed to decode transfer calldata', {
+      transactionId: transaction.id,
+      to,
+      error: decodeError,
+    });
+    return undefined;
+  }
+
+  return buildRequiredToken(transaction, to, transferAmount, messenger);
+}
+
+/**
+ * Get the full token properties for a specific token and amount.
+ *
+ * @param transaction - Transaction metadata.
+ * @param tokenAddress - Token address.
+ * @param amountRawHex - Raw token amount in hexadecimal format.
+ * @param messenger - Controller messenger.
+ * @returns The full token properties or undefined if the token data could not be retrieved.
+ */
+function buildRequiredToken(
+  transaction: TransactionMeta,
+  tokenAddress: Hex,
+  amountRawHex: Hex,
+  messenger: TransactionPayControllerMessenger,
+): TransactionPayRequiredToken | undefined {
+  const { chainId, txParams } = transaction;
+  const from = txParams.from as Hex;
+
+  const { decimals: tokenDecimals, symbol } =
+    getTokenInfo(messenger, tokenAddress, chainId) ?? {};
+
+  const fiatRates = getTokenFiatRate(messenger, tokenAddress, chainId);
+  const tokenBalance = getTokenBalance(messenger, from, chainId, tokenAddress);
+
+  if (tokenDecimals === undefined || !symbol || fiatRates === undefined) {
+    log('Missing token data', {
+      transactionId: transaction.id,
+      chainId,
+      tokenAddress,
+      missing: {
+        decimals: tokenDecimals === undefined,
+        symbol: !symbol,
+        fiatRates: fiatRates === undefined,
+      },
+    });
+    return undefined;
+  }
+
+  const {
+    human: balanceHuman,
+    raw: balanceRaw,
+    fiat: balanceFiat,
+    usd: balanceUsd,
+  } = computeTokenAmounts(tokenBalance, tokenDecimals, fiatRates);
+
+  const {
+    human: amountHuman,
+    raw: amountRaw,
+    fiat: amountFiat,
+    usd: amountUsd,
+  } = computeTokenAmounts(amountRawHex, tokenDecimals, fiatRates);
+
+  return {
+    address: tokenAddress,
+    allowUnderMinimum: false,
+    amountFiat,
+    amountHuman,
+    amountRaw,
+    amountUsd,
+    balanceFiat,
+    balanceHuman,
+    balanceRaw,
+    balanceUsd,
+    chainId,
+    decimals: tokenDecimals,
+    skipIfBalance: false,
+    symbol,
+  };
+}
+
+/**
+ * Find token transfer data in a transaction.
+ *
+ * @param transactionMeta - Transaction metadata.
+ * @returns - Token transfer data or undefined if not found.
+ */
+function getTokenTransferData(transactionMeta: TransactionMeta):
+  | {
+      data: Hex;
+      to: Hex;
+      index?: number;
+    }
+  | undefined {
+  const { nestedTransactions, txParams } = transactionMeta;
+  const { data: singleData } = txParams;
+  const singleTo = txParams?.to as Hex | undefined;
+
+  if (singleData?.startsWith(FOUR_BYTE_TOKEN_TRANSFER) && singleTo) {
+    return { data: singleData as Hex, to: singleTo, index: undefined };
+  }
+
+  const nestedCallIndex = nestedTransactions?.findIndex((call) =>
+    call.data?.startsWith(FOUR_BYTE_TOKEN_TRANSFER),
+  );
+
+  const nestedCall =
+    nestedCallIndex === undefined || nestedCallIndex === -1
+      ? undefined
+      : nestedTransactions?.[nestedCallIndex];
+
+  if (nestedCall?.data && nestedCall.to) {
+    return {
+      data: nestedCall.data,
+      to: nestedCall.to,
+      index: nestedCallIndex,
+    };
+  }
+
+  return undefined;
+}

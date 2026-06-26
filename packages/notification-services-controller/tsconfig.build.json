@@ -1,0 +1,33 @@
+{
+  "extends": "../../tsconfig.packages.build.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "skipLibCheck": true
+  },
+  "references": [
+    {
+      "path": "../authenticated-user-storage/tsconfig.build.json"
+    },
+    {
+      "path": "../base-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../profile-sync-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../keyring-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../messenger/tsconfig.build.json"
+    }
+  ],
+  "include": ["../../types", "./src"],
+  "exclude": [
+    "./jest.config.packages.ts",
+    "**/*.test.ts",
+    "**/jest.config.ts",
+    "**/__fixtures__/"
+  ]
+}

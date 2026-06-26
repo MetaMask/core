@@ -1,74 +1,188 @@
-/* eslint-disable jsdoc/require-jsdoc */
-
 import {
   BNToHex,
   fractionBN,
   hexToBN,
-  query,
+  toHex,
 } from '@metamask/controller-utils';
-import type EthQuery from '@metamask/eth-query';
-import type { Hex } from '@metamask/utils';
-import { add0x, createModuleLogger } from '@metamask/utils';
+import type { NetworkClientId } from '@metamask/network-controller';
+import type { Hex, Json } from '@metamask/utils';
+import { add0x, createModuleLogger, remove0x } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 
-import { GAS_BUFFER_CHAIN_OVERRIDES } from '../constants';
+import { simulateTransactions } from '../api/simulation-api';
 import { projectLogger } from '../logger';
-import type { TransactionMeta, TransactionParams } from '../types';
+import type { TransactionControllerMessenger } from '../TransactionController';
+import { TransactionEnvelopeType } from '../types';
+import type {
+  AuthorizationList,
+  BatchTransactionParams,
+  GetSimulationConfig,
+  IsAtomicBatchSupportedRequest,
+  IsAtomicBatchSupportedResult,
+  Revert,
+  TransactionBatchSingleRequest,
+  TransactionMeta,
+  TransactionParams,
+} from '../types';
+import {
+  DELEGATION_PREFIX,
+  doesAccountSupportEIP7702,
+  generateEIP7702BatchTransaction,
+} from './eip7702';
+import { getGasEstimateBuffer, getGasEstimateFallback } from './feature-flags';
+import { getChainId, rpcRequest } from './provider';
+import { decodeRevert } from './revert-reason';
 
 export type UpdateGasRequest = {
-  ethQuery: EthQuery;
   isCustomNetwork: boolean;
-  chainId: Hex;
+  isSimulationEnabled: boolean;
+  getSimulationConfig: GetSimulationConfig;
+  messenger: TransactionControllerMessenger;
   txMeta: TransactionMeta;
+};
+
+export type EstimateGasBatchResult = {
+  gasLimits: number[];
+  requiresAuthorizationList?: true;
+  totalGasLimit: number;
 };
 
 export const log = createModuleLogger(projectLogger, 'gas');
 
 export const FIXED_GAS = '0x5208';
 export const DEFAULT_GAS_MULTIPLIER = 1.5;
+export const MAX_GAS_BLOCK_PERCENT = 90;
+export const INTRINSIC_GAS = 21000;
 
-export async function updateGas(request: UpdateGasRequest) {
+export const DUMMY_AUTHORIZATION_SIGNATURE =
+  '0x1111111111111111111111111111111111111111111111111111111111111111';
+
+/**
+ * Populate the gas properties of the provided transaction meta.
+ *
+ * @param request - The request object including the necessary parameters.
+ */
+export async function updateGas(request: UpdateGasRequest): Promise<void> {
   const { txMeta } = request;
   const initialParams = { ...txMeta.txParams };
 
-  const [gas, simulationFails] = await getGas(request);
+  const [gas, simulationFails, gasLimitNoBuffer, gasRevert] =
+    await getGas(request);
 
   txMeta.txParams.gas = gas;
   txMeta.simulationFails = simulationFails;
+  txMeta.gasLimitNoBuffer = gasLimitNoBuffer;
+
+  if (gasRevert) {
+    txMeta.revert = { ...txMeta.revert, gas: gasRevert };
+  }
 
   if (!initialParams.gas) {
     txMeta.originalGasEstimate = txMeta.txParams.gas;
   }
 
-  if (!txMeta.defaultGasEstimates) {
-    txMeta.defaultGasEstimates = {};
-  }
-
+  txMeta.defaultGasEstimates ??= {};
   txMeta.defaultGasEstimates.gas = txMeta.txParams.gas;
 }
 
-export async function estimateGas(
-  txParams: TransactionParams,
-  ethQuery: EthQuery,
-) {
+/**
+ * Estimate the gas for the provided transaction parameters.
+ * If the gas estimate fails, the fallback value is returned.
+ *
+ * @param options - The options object.
+ * @param options.ignoreDelegationSignatures - Ignore signature errors if submitting delegations to the DelegationManager.
+ * @param options.isSimulationEnabled - Whether the simulation is enabled.
+ * @param options.getSimulationConfig - The function to get the simulation configuration.
+ * @param options.messenger - The messenger instance for communication.
+ * @param options.networkClientId - The network client ID.
+ * @param options.txParams - The transaction parameters.
+ * @returns The estimated gas and related info.
+ */
+export async function estimateGas({
+  ignoreDelegationSignatures,
+  isSimulationEnabled,
+  getSimulationConfig,
+  messenger,
+  networkClientId,
+  txParams,
+}: {
+  ignoreDelegationSignatures?: boolean;
+  isSimulationEnabled: boolean;
+  getSimulationConfig: GetSimulationConfig;
+  messenger: TransactionControllerMessenger;
+  networkClientId: NetworkClientId;
+  txParams: TransactionParams;
+}): Promise<{
+  blockGasLimit: string;
+  estimatedGas: string;
+  gasRevert?: Revert;
+  isUpgradeWithData: boolean;
+  simulationFails: TransactionMeta['simulationFails'];
+}> {
   const request = { ...txParams };
-  const { data, value } = request;
+  const { authorizationList, data, value } = request;
+  const chainId = getChainId({ messenger, networkClientId });
 
-  const { gasLimit: gasLimitHex, number: blockNumber } = await getLatestBlock(
-    ethQuery,
+  if (ignoreDelegationSignatures && !isSimulationEnabled) {
+    throw new Error(
+      'Gas estimation with ignored delegation signatures is not supported as simulation disabled',
+    );
+  }
+
+  const { gasLimit: blockGasLimit, number: blockNumber } = await getLatestBlock(
+    messenger,
+    networkClientId,
   );
 
-  const gasLimitBN = hexToBN(gasLimitHex);
+  const blockGasLimitBN = hexToBN(blockGasLimit);
+  const { percentage, fixed } = getGasEstimateFallback(chainId, messenger);
+
+  const fallback = fixed
+    ? toHex(fixed)
+    : BNToHex(fractionBN(blockGasLimitBN, percentage, 100));
+
+  log('Estimation fallback values', fallback);
 
   request.data = data ? add0x(data) : data;
-  request.gas = BNToHex(fractionBN(gasLimitBN, 19, 20));
-  request.value = value || '0x0';
+  request.value = value ?? '0x0';
 
-  let estimatedGas = request.gas;
-  let simulationFails;
+  request.authorizationList = normalizeAuthorizationList(
+    request.authorizationList,
+    chainId,
+  );
+
+  delete request.gasPrice;
+  delete request.maxFeePerGas;
+  delete request.maxPriorityFeePerGas;
+
+  let estimatedGas = fallback;
+  let simulationFails: TransactionMeta['simulationFails'];
+  let gasRevert: Revert | undefined;
+
+  const isUpgradeWithData =
+    txParams.type === TransactionEnvelopeType.setCode &&
+    Boolean(authorizationList?.length) &&
+    Boolean(data) &&
+    data !== '0x';
 
   try {
-    estimatedGas = await query(ethQuery, 'estimateGas', [request]);
-    // TODO: Replace `any` with type
+    if (isSimulationEnabled && isUpgradeWithData) {
+      estimatedGas = await estimateGasUpgradeWithDataToSelf(
+        request,
+        messenger,
+        networkClientId,
+        chainId,
+        getSimulationConfig,
+      );
+    } else if (ignoreDelegationSignatures && isSimulationEnabled) {
+      estimatedGas = await simulateGas({
+        chainId,
+        getSimulationConfig,
+        transaction: request,
+      });
+    } else {
+      estimatedGas = await estimateGasNode(messenger, networkClientId, request);
+    }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } catch (error: any) {
     simulationFails = {
@@ -76,28 +190,199 @@ export async function estimateGas(
       errorKey: error.errorKey,
       debug: {
         blockNumber,
-        blockGasLimit: gasLimitHex,
+        blockGasLimit,
       },
     };
 
-    log('Estimation failed', { ...simulationFails, fallback: estimateGas });
+    gasRevert = decodeRevert(error, 'gas');
+
+    log('Estimation failed', { ...simulationFails, fallback, gasRevert });
   }
 
   return {
-    blockGasLimit: gasLimitHex,
+    blockGasLimit,
     estimatedGas,
+    gasRevert,
+    isUpgradeWithData,
     simulationFails,
   };
 }
 
+/**
+ * Sum caller-provided gas limits across a batch.
+ *
+ * If every transaction in the batch already has a `gas` value, returns the
+ * parsed per-tx limits and their sum. Otherwise returns `undefined`.
+ *
+ * Used by `estimateGasBatch`:
+ * - non-7702 path: short-circuits simulation entirely when present.
+ * - EIP-7702 path: used as a fallback when simulation fails — required for
+ *   callers that submit batches whose individual sub-calls cannot be simulated
+ *   standalone (e.g. predict-withdraw, where the batch's first sub-call
+ *   provides source-token balance to subsequent sub-calls). When 7702
+ *   simulation succeeds it is preferred since the bundled call has no per-tx
+ *   intrinsic gas cost and produces a tighter estimate.
+ *
+ * @param transactions - Batch transactions to inspect.
+ * @returns Parsed gas limits and total when every transaction has gas; otherwise `undefined`.
+ */
+export function getProvidedBatchGasLimits(
+  transactions: BatchTransactionParams[],
+): { gasLimits: number[]; totalGasLimit: number } | undefined {
+  if (!transactions.every((transaction) => transaction.gas !== undefined)) {
+    return undefined;
+  }
+
+  const gasLimits = transactions.map((transaction) =>
+    new BigNumber(transaction.gas as Hex).toNumber(),
+  );
+  const totalGasLimit = gasLimits.reduce((acc, gasLimit) => acc + gasLimit, 0);
+
+  return { gasLimits, totalGasLimit };
+}
+
+export async function estimateGasBatch({
+  from,
+  getSimulationConfig,
+  isAtomicBatchSupported,
+  messenger,
+  networkClientId,
+  transactions,
+}: {
+  from: Hex;
+  getSimulationConfig: GetSimulationConfig;
+  isAtomicBatchSupported: (
+    request: IsAtomicBatchSupportedRequest,
+  ) => Promise<IsAtomicBatchSupportedResult>;
+  messenger: TransactionControllerMessenger;
+  networkClientId: NetworkClientId;
+  transactions: BatchTransactionParams[];
+}): Promise<EstimateGasBatchResult> {
+  const chainId = getChainId({ messenger, networkClientId });
+
+  const is7702Result = await isAtomicBatchSupported({
+    address: from,
+    chainIds: [chainId],
+  });
+
+  const accountSupports7702 = doesAccountSupportEIP7702(messenger, from);
+
+  const chainResult = accountSupports7702
+    ? is7702Result.find((result) => result.chainId === chainId)
+    : undefined;
+
+  const isUpgradeRequired = Boolean(chainResult && !chainResult.isSupported);
+
+  if (isUpgradeRequired && !chainResult?.upgradeContractAddress) {
+    throw new Error('Upgrade contract address not found');
+  }
+
+  if (chainResult) {
+    const providedBatchGasLimits = getProvidedBatchGasLimits(transactions);
+
+    const authorizationList = isUpgradeRequired
+      ? [{ address: chainResult.upgradeContractAddress as Hex }]
+      : undefined;
+
+    const type = isUpgradeRequired
+      ? TransactionEnvelopeType.setCode
+      : undefined;
+
+    const params: TransactionParams = {
+      ...generateEIP7702BatchTransaction(from, transactions),
+      authorizationList,
+      from,
+      type,
+    };
+
+    // Prefer real EIP-7702 simulation when it succeeds — the bundled call has
+    // no per-tx intrinsic gas cost so the estimate is typically lower than
+    // summing per-tx provided limits. Fall back to the provided sum when the
+    // node-level simulation fails (e.g. predict-withdraw, where the batch's
+    // first sub-call provides source-token balance to subsequent sub-calls).
+    const { estimatedGas: gasLimitHex, simulationFails } = await estimateGas({
+      isSimulationEnabled: true,
+      getSimulationConfig,
+      messenger,
+      networkClientId,
+      txParams: params,
+    });
+
+    if (simulationFails && providedBatchGasLimits) {
+      log(
+        'EIP-7702 estimation failed, using batch parameter gas limits',
+        providedBatchGasLimits,
+        simulationFails,
+      );
+      return {
+        gasLimits: [providedBatchGasLimits.totalGasLimit],
+        ...(isUpgradeRequired ? { requiresAuthorizationList: true } : {}),
+        totalGasLimit: providedBatchGasLimits.totalGasLimit,
+      };
+    }
+
+    const totalGasLimit = new BigNumber(gasLimitHex).toNumber();
+
+    log('Estimated EIP-7702 gas limit', totalGasLimit);
+
+    return {
+      gasLimits: [totalGasLimit],
+      ...(isUpgradeRequired ? { requiresAuthorizationList: true } : {}),
+      totalGasLimit,
+    };
+  }
+
+  const providedBatchGasLimits = getProvidedBatchGasLimits(transactions);
+  if (providedBatchGasLimits) {
+    log('Using batch parameter gas limits', providedBatchGasLimits);
+    return providedBatchGasLimits;
+  }
+
+  const { gasLimits: gasLimitsHex } = await simulateGasBatch({
+    chainId,
+    from,
+    getSimulationConfig,
+    transactions: transactions.map((transaction) => ({
+      params: transaction,
+    })),
+  });
+
+  const gasLimits = transactions.map((transaction, index) =>
+    transaction.gas
+      ? new BigNumber(transaction.gas).toNumber()
+      : new BigNumber(gasLimitsHex[index]).toNumber(),
+  );
+
+  const totalGasLimit = gasLimits.reduce((acc, gasLimit) => acc + gasLimit, 0);
+
+  log('Simulated batch gas limits', { totalGasLimit, gasLimits });
+
+  return { totalGasLimit, gasLimits };
+}
+
+/**
+ * Add a buffer to the provided estimated gas.
+ * The buffer is calculated based on the block gas limit and a multiplier.
+ *
+ * @param estimatedGas - The estimated gas.
+ * @param blockGasLimit - The block gas limit.
+ * @param multiplier - The multiplier to apply to the estimated gas.
+ * @returns The gas with the buffer applied.
+ */
 export function addGasBuffer(
   estimatedGas: string,
   blockGasLimit: string,
   multiplier: number,
-) {
+): string {
   const estimatedGasBN = hexToBN(estimatedGas);
-  const maxGasBN = hexToBN(blockGasLimit).muln(0.9);
-  const paddedGasBN = estimatedGasBN.muln(multiplier);
+
+  const maxGasBN = fractionBN(
+    hexToBN(blockGasLimit),
+    MAX_GAS_BLOCK_PERCENT,
+    100,
+  );
+
+  const paddedGasBN = fractionBN(estimatedGasBN, multiplier * 100, 100);
 
   if (estimatedGasBN.gt(maxGasBN)) {
     const estimatedGasHex = add0x(estimatedGas);
@@ -116,35 +401,140 @@ export function addGasBuffer(
   return maxHex;
 }
 
+/**
+ * Simulate the required gas for a batch of transactions using the simulation API.
+ *
+ * @param options - The options object.
+ * @param options.chainId - The chain ID of the transactions.
+ * @param options.from - The address of the sender.
+ * @param options.getSimulationConfig - The function to get the simulation configuration.
+ * @param options.transactions - The array of transactions within a batch request.
+ * @returns An object containing the transactions with their gas limits and the total gas limit.
+ */
+export async function simulateGasBatch({
+  chainId,
+  from,
+  getSimulationConfig,
+  transactions,
+}: {
+  chainId: Hex;
+  from: Hex;
+  getSimulationConfig: GetSimulationConfig;
+  transactions: TransactionBatchSingleRequest[];
+}): Promise<{ totalGasLimit: Hex; gasLimits: Hex[] }> {
+  try {
+    const response = await simulateTransactions(chainId, {
+      getSimulationConfig,
+      transactions: transactions.map((transaction) => ({
+        ...transaction.params,
+        from,
+      })),
+    });
+
+    if (response?.transactions?.length !== transactions.length) {
+      throw new Error('Simulation response does not match transaction count');
+    }
+
+    return response.transactions.reduce<{
+      totalGasLimit: Hex;
+      gasLimits: Hex[];
+    }>(
+      (acc, transaction) => {
+        const gasLimit = transaction?.gasLimit;
+
+        if (!gasLimit) {
+          throw new Error(
+            'No simulated gas returned for one of the transactions',
+          );
+        }
+
+        acc.gasLimits.push(gasLimit);
+
+        acc.totalGasLimit = BNToHex(
+          hexToBN(acc.totalGasLimit).add(hexToBN(gasLimit)),
+        );
+
+        return acc;
+      },
+      {
+        totalGasLimit: '0x0',
+        gasLimits: [],
+      },
+    );
+  } catch (error: unknown) {
+    log('Error while simulating gas batch', error);
+    throw new Error(
+      'Cannot estimate transaction batch total gas as simulation failed',
+    );
+  }
+}
+
+/**
+ * Determine the gas for the provided request.
+ *
+ * @param request - The request object including the necessary parameters.
+ * @returns The final gas value and the estimate used.
+ */
 async function getGas(
   request: UpdateGasRequest,
-): Promise<[string, TransactionMeta['simulationFails']?]> {
-  const { isCustomNetwork, chainId, txMeta } = request;
+): Promise<[string, TransactionMeta['simulationFails']?, string?, Revert?]> {
+  const {
+    isCustomNetwork,
+    isSimulationEnabled,
+    getSimulationConfig,
+    messenger,
+    txMeta,
+  } = request;
+  const { networkClientId } = txMeta;
+  const chainId = getChainId({ messenger, networkClientId });
+  const { disableGasBuffer } = txMeta;
 
   if (txMeta.txParams.gas) {
     log('Using value from request', txMeta.txParams.gas);
-    return [txMeta.txParams.gas];
+    return [txMeta.txParams.gas, undefined, txMeta.txParams.gas];
   }
 
   if (await requiresFixedGas(request)) {
     log('Using fixed value', FIXED_GAS);
-    return [FIXED_GAS];
+    return [FIXED_GAS, undefined, FIXED_GAS];
   }
 
-  const { blockGasLimit, estimatedGas, simulationFails } = await estimateGas(
-    txMeta.txParams,
-    request.ethQuery,
-  );
+  const {
+    blockGasLimit,
+    estimatedGas,
+    gasRevert,
+    isUpgradeWithData,
+    simulationFails,
+  } = await estimateGas({
+    isSimulationEnabled,
+    getSimulationConfig,
+    messenger,
+    networkClientId,
+    txParams: txMeta.txParams,
+  });
 
-  if (isCustomNetwork) {
-    log('Using original estimate as custom network');
-    return [estimatedGas, simulationFails];
+  log('Original estimated gas', estimatedGas);
+
+  if (simulationFails) {
+    log('Using original fallback estimate as simulation failed');
   }
 
-  const bufferMultiplier =
-    GAS_BUFFER_CHAIN_OVERRIDES[
-      chainId as keyof typeof GAS_BUFFER_CHAIN_OVERRIDES
-    ] ?? DEFAULT_GAS_MULTIPLIER;
+  if (disableGasBuffer) {
+    log('Gas buffer disabled');
+  }
+
+  if (simulationFails || disableGasBuffer) {
+    return [estimatedGas, simulationFails, estimatedGas, gasRevert];
+  }
+
+  const bufferMultiplier = getGasEstimateBuffer({
+    chainId,
+    isCustomRPC: isCustomNetwork,
+    isUpgradeWithData,
+    messenger,
+  });
+
+  log('Buffer', bufferMultiplier);
 
   const bufferedGas = addGasBuffer(
     estimatedGas,
@@ -152,36 +542,260 @@ async function getGas(
     bufferMultiplier,
   );
 
-  return [bufferedGas, simulationFails];
+  log('Buffered gas', bufferedGas);
+
+  return [bufferedGas, simulationFails, estimatedGas, gasRevert];
 }
 
+/**
+ * Determine if the gas for the provided request should be fixed.
+ *
+ * @param options - The options object.
+ * @param options.messenger - The messenger instance for communication.
+ * @param options.txMeta - The transaction meta object.
+ * @param options.isCustomNetwork - Whether the network is a custom network.
+ * @returns Whether the gas should be fixed.
+ */
 async function requiresFixedGas({
-  ethQuery,
+  messenger,
   txMeta,
   isCustomNetwork,
 }: UpdateGasRequest): Promise<boolean> {
   const {
-    txParams: { to, data },
+    networkClientId,
+    txParams: { to, data, type },
   } = txMeta;
 
-  if (isCustomNetwork || !to || data) {
+  if (
+    isCustomNetwork ||
+    !to ||
+    data ||
+    type === TransactionEnvelopeType.setCode
+  ) {
     return false;
   }
 
-  const code = await getCode(ethQuery, to);
+  const code = await getCode(messenger, networkClientId, to);
 
   return !code || code === '0x';
 }
 
+/**
+ * Get the contract code for the provided address.
+ *
+ * @param messenger - The messenger instance for communication.
+ * @param networkClientId - The network client ID.
+ * @param address - The address to get the code for.
+ * @returns The contract code.
+ */
 async function getCode(
-  ethQuery: EthQuery,
+  messenger: TransactionControllerMessenger,
+  networkClientId: NetworkClientId,
   address: string,
 ): Promise<string | undefined> {
-  return await query(ethQuery, 'getCode', [address]);
+  return (await rpcRequest({
+    messenger,
+    networkClientId,
+    method: 'eth_getCode',
+    params: [address, 'latest'],
+  })) as string | undefined;
 }
 
+/**
+ * Get the latest block from the network.
+ *
+ * @param messenger - The messenger instance for communication.
+ * @param networkClientId - The network client ID.
+ * @returns The latest block number.
+ */
 async function getLatestBlock(
-  ethQuery: EthQuery,
+  messenger: TransactionControllerMessenger,
+  networkClientId: NetworkClientId,
 ): Promise<{ gasLimit: string; number: string }> {
-  return await query(ethQuery, 'getBlockByNumber', ['latest', false]);
+  return (await rpcRequest({
+    messenger,
+    networkClientId,
+    method: 'eth_getBlockByNumber',
+    params: ['latest', false],
+  })) as { gasLimit: string; number: string };
+}
+
+/**
+ * Estimate the gas for a type 4 transaction.
+ *
+ * @param txParams - The transaction parameters.
+ * @param messenger - The messenger instance for communication.
+ * @param networkClientId - The network client ID.
+ * @param chainId - The chain ID of the transaction.
+ * @param getSimulationConfig - The function to get the simulation configuration.
+ * @returns The estimated gas.
+ */
+async function estimateGasUpgradeWithDataToSelf(
+  txParams: TransactionParams,
+  messenger: TransactionControllerMessenger,
+  networkClientId: NetworkClientId,
+  chainId: Hex,
+  getSimulationConfig: GetSimulationConfig,
+): Promise<Hex> {
+  const upgradeGas = (await rpcRequest({
+    messenger,
+    networkClientId,
+    method: 'eth_estimateGas',
+    params: [
+      {
+        ...txParams,
+        to: txParams.from,
+        data: '0x',
+      },
+    ],
+  })) as Hex;
+
+  log('Upgrade only gas', upgradeGas);
+
+  const delegationAddress = txParams.authorizationList?.[0].address as Hex;
+
+  let executeGas: Hex | undefined;
+
+  try {
+    executeGas = await simulateGas({
+      chainId,
+      delegationAddress,
+      getSimulationConfig,
+      transaction: txParams,
+    });
+  } catch (error: unknown) {
+    log('Error while simulating data portion of upgrade', error);
+  }
+
+  if (executeGas === undefined) {
+    try {
+      executeGas = await estimateGasNode(
+        messenger,
+        networkClientId,
+        { ...txParams, authorizationList: undefined, type: undefined },
+        delegationAddress,
+      );
+    } catch (error: unknown) {
+      log('Error while estimating data portion of upgrade', error);
+      throw error;
+    }
+
+    log('Success estimating data portion of upgrade', executeGas);
+  }
+
+  log('Execute gas', executeGas);
+
+  const total = BNToHex(
+    hexToBN(upgradeGas).add(hexToBN(executeGas)).subn(INTRINSIC_GAS),
+  );
+
+  log('Total type 4 gas', total);
+
+  return total;
+}
+
+/**
+ * Simulate the required gas using the simulation API.
+ *
+ * @param options - The options object.
+ * @param options.chainId - The chain ID of the transaction.
+ * @param options.delegationAddress - The delegation address of the sender to mock.
+ * @param options.getSimulationConfig - The function to get the simulation configuration.
+ * @param options.transaction - The transaction parameters.
+ * @returns The simulated gas.
+ */
+async function simulateGas({
+  chainId,
+  delegationAddress,
+  getSimulationConfig,
+  transaction,
+}: {
+  chainId: Hex;
+  delegationAddress?: Hex;
+  getSimulationConfig: GetSimulationConfig;
+  transaction: TransactionParams;
+}): Promise<Hex> {
+  const response = await simulateTransactions(chainId, {
+    getSimulationConfig,
+    transactions: [
+      {
+        to: transaction.to as Hex,
+        from: transaction.from as Hex,
+        data: transaction.data as Hex,
+        value: transaction.value as Hex,
+      },
+    ],
+    overrides: {
+      [transaction.from]: {
+        code:
+          delegationAddress &&
+          ((DELEGATION_PREFIX + remove0x(delegationAddress)) as Hex),
+      },
+    },
+  });
+
+  const gasLimit = response?.transactions?.[0].gasLimit;
+
+  if (!gasLimit) {
+    throw new Error('No simulated gas returned');
+  }
+
+  return gasLimit;
+}
+
+/**
+ * Populate the authorization list with dummy values.
+ *
+ * @param authorizationList - The authorization list to prepare.
+ * @param chainId - The chain ID to use.
+ * @returns The authorization list with dummy values.
+ */
+function normalizeAuthorizationList(
+  authorizationList: AuthorizationList | undefined,
+  chainId: Hex,
+): AuthorizationList | undefined {
+  return authorizationList?.map((authorization) => ({
+    ...authorization,
+    chainId: authorization.chainId ?? chainId,
+    nonce: authorization.nonce ?? '0x1',
+    r: authorization.r ?? DUMMY_AUTHORIZATION_SIGNATURE,
+    s: authorization.s ?? DUMMY_AUTHORIZATION_SIGNATURE,
+    yParity: authorization.yParity ?? '0x1',
+  }));
+}
+
+/**
+ * Estimate the gas for a transaction using the `eth_estimateGas` method.
+ *
+ * @param messenger - The messenger instance for communication.
+ * @param networkClientId - The network client ID.
+ * @param txParams - The transaction parameters.
+ * @param delegationAddress - The delegation address of the sender to mock.
+ * @returns The estimated gas as a hex string.
+ */
+async function estimateGasNode(
+  messenger: TransactionControllerMessenger,
+  networkClientId: NetworkClientId,
+  txParams: TransactionParams,
+  delegationAddress?: Hex,
+): Promise<Hex> {
+  const { from } = txParams;
+  const params = [txParams] as Json[];
+
+  if (delegationAddress) {
+    params.push('latest');
+
+    params.push({
+      [from]: {
+        code: DELEGATION_PREFIX + remove0x(delegationAddress),
+      },
+    });
+  }
+
+  return (await rpcRequest({
+    messenger,
+    networkClientId,
+    method: 'eth_estimateGas',
+    params,
+  })) as Hex;
 }

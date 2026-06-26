@@ -2,7 +2,7 @@ import { toHex } from '@metamask/controller-utils';
 import type {
   NonceLock,
   Transaction as NonceTrackerTransaction,
-} from 'nonce-tracker';
+} from '@metamask/nonce-tracker';
 
 import { createModuleLogger, projectLogger } from '../logger';
 import type { TransactionMeta, TransactionStatus } from '../types';
@@ -19,11 +19,17 @@ const log = createModuleLogger(projectLogger, 'nonce');
 export async function getNextNonce(
   txMeta: TransactionMeta,
   getNonceLock: (address: string) => Promise<NonceLock>,
-): Promise<[string, (() => void) | undefined]> {
+): Promise<[string | undefined, (() => void) | undefined]> {
   const {
     customNonceValue,
+    isExternalSign,
     txParams: { from, nonce: existingNonce },
   } = txMeta;
+
+  if (isExternalSign) {
+    log('Skipping nonce as signed externally');
+    return [undefined, undefined];
+  }
 
   const customNonce = customNonceValue ? toHex(customNonceValue) : undefined;
 
@@ -51,39 +57,55 @@ export async function getNextNonce(
  *
  * @param currentChainId - Chain ID of the current network.
  * @param fromAddress - Address of the account from which the transactions to filter from are sent.
- * @param transactionStatus - Status of the transactions for which to filter.
+ * @param transactionStatuses - Status of the transactions for which to filter.
  * @param transactions - Array of transactionMeta objects that have been prefiltered.
  * @returns Array of transactions formatted for the nonce tracker.
  */
 export function getAndFormatTransactionsForNonceTracker(
   currentChainId: string,
   fromAddress: string,
-  transactionStatus: TransactionStatus,
+  transactionStatuses: TransactionStatus[],
   transactions: TransactionMeta[],
 ): NonceTrackerTransaction[] {
   return transactions
     .filter(
-      ({ chainId, isTransfer, isUserOperation, status, txParams: { from } }) =>
+      ({
+        chainId,
+        isTransfer,
+        isUserOperation,
+        status,
+        txParams: { from, nonce },
+      }) =>
         !isTransfer &&
         !isUserOperation &&
         chainId === currentChainId &&
-        status === transactionStatus &&
-        from.toLowerCase() === fromAddress.toLowerCase(),
+        transactionStatuses.includes(status) &&
+        from.toLowerCase() === fromAddress.toLowerCase() &&
+        nonce,
     )
-    .map(({ status, txParams: { from, gas, value, nonce } }) => {
-      // the only value we care about is the nonce
-      // but we need to return the other values to satisfy the type
-      // TODO: refactor nonceTracker to not require this
-      /* istanbul ignore next */
-      return {
+    .flatMap(
+      ({
         status,
-        history: [{}],
-        txParams: {
-          from: from ?? '',
-          gas: gas ?? '',
-          value: value ?? '',
-          nonce: nonce ?? '',
-        },
-      };
-    });
+        txParams: { authorizationList, from, gas, value, nonce },
+      }) => {
+        const authorizationNonces = (authorizationList ?? [])
+          .map((authorization) => authorization.nonce)
+          .filter((authorizationNonce) => authorizationNonce !== undefined);
+
+        // the only value we care about is the nonce
+        // but we need to return the other values to satisfy the type
+        // TODO: refactor nonceTracker to not require this
+        /* istanbul ignore next */
+        return [nonce, ...authorizationNonces].map((currentNonce) => ({
+          status,
+          history: [{}],
+          txParams: {
+            from: from ?? '',
+            gas: gas ?? '',
+            value: value ?? '',
+            nonce: currentNonce ?? '',
+          },
+        }));
+      },
+    );
 }

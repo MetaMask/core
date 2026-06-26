@@ -7,6 +7,420 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Allow overriding `isServiceFailure` in `createServicePolicy` ([#9123](https://github.com/MetaMask/core/pull/9123))
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+
+## [12.2.0]
+
+### Added
+
+- Add `encodeFunctionData` to improve ABI encoding speed for addresses ([#9057](https://github.com/MetaMask/core/pull/9057))
+
+## [12.1.1]
+
+### Changed
+
+- Update `NetworkNickname` to match latest client overrides ([#9005](https://github.com/MetaMask/core/pull/9005))
+
+## [12.1.0]
+
+### Added
+
+- Add `DEFAULT_INFURA_NETWORKS` with Infura network names to be enabled by default ([#8767](https://github.com/MetaMask/core/pull/8767))
+
+## [12.0.0]
+
+### Changed
+
+- **BREAKING:** The `ServicePolicy` type's `onDegraded` event now emits `{ duration: number }` instead of `void` when the service succeeds but takes longer than the `degradedThreshold` ([#8455](https://github.com/MetaMask/core/pull/8455))
+  - `void` has been removed from the event's type union. Listeners that checked for `undefined` data should now check for the `duration` property instead.
+  - The event still emits a `FailureReason` when retries are exhausted.
+- Update `normalizeEnsName` regex to allow ENS names with 3 or more characters (previously required 7 or more) ([#8510](https://github.com/MetaMask/core/pull/8510))
+- Update default Sei Mainnet block explorer URL from `seitrace.com` to `seiscan.io` ([#8545](https://github.com/MetaMask/core/pull/8545))
+- Update `BUILT_IN_NETWORKS`, `InfuraNetworkType`, `ChainId`, `NetworksTicker`, `BlockExplorerUrl`, `NetworkNickname` to include missing Infura networks ([#8680](https://github.com/MetaMask/core/pull/8680), [#8713](https://github.com/MetaMask/core/pull/8713))
+
+## [11.20.0]
+
+### Added
+
+- Add `CHAIN_IDS_WITH_NO_NATIVE_TOKEN` with Tempo chains in `constants.ts` ([#8336](https://github.com/MetaMask/core/pull/8336))
+
+## [11.19.0]
+
+### Added
+
+- Add `megaeth-mainnet` to `BUILT_IN_NETWORKS` ([#7994](https://github.com/MetaMask/core/pull/7994))
+
+## [11.18.0]
+
+### Changed
+
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Update MegaETH Testnet "v2" RPC constants ([#7566](https://github.com/MetaMask/core/pull/7566))
+  - Change RPC endpoint from `https://timothy.megaeth.com/rpc` to `https://carrot.megaeth.com/rpc`
+
+## [11.17.0]
+
+### Added
+
+- Add MegaETH Testnet "v2" to various constants, enums, and types ([#7272](https://github.com/MetaMask/core/pull/7272))
+  - Add `megaeth-testnet-v2` to `BUILT_IN_NETWORKS`
+  - Add `megaeth-testnet-v2` to `BUILT_IN_CUSTOM_NETWORKS_RPC`
+  - Add `MegaETHTestnetV2` to `BuiltInNetworkName` enum
+  - Add `megaeth-testnet-v2` to `ChainId` type
+  - Add `MegaETHTestnetV2` to `NetworksTicker` enum
+  - Add `MegaETHTestnetV2` to `BlockExplorerUrl` quasi-enum
+  - Add `MegaETHTestnetV2` to `NetworkNickname` quasi-enum
+
+### Deprecated
+
+- Deprecate references to MegaETH Testnet "v1" in favor of "v2" ([#7272](https://github.com/MetaMask/core/pull/7272))
+  - Deprecate `BUILT_IN_CUSTOM_NETWORKS_RPC["megaeth-testnet"]`
+  - Deprecate `CustomNetworkType["megaeth-testnet"]`
+  - Deprecate `BuiltInNetworkName["megaeth-testnet"]`
+  - Deprecate `ChainId["megaeth-testnet"]`
+  - Deprecate `NetworksTicker["megaeth-testnet"]`
+  - Deprecate `BlockExplorerUrl["megaeth-testnet"]`
+  - Deprecate `NetworkNickname["megaeth-testnet"]`
+
+## [11.16.0]
+
+### Added
+
+- Add `getCircuitState` method to `ServicePolicy` ([#7164](https://github.com/MetaMask/core/pull/7164))
+  - This can be used when working with a chain of services to know whether a service's underlying circuit is open or closed.
+- Add `onAvailable` method to `ServicePolicy` ([#7164](https://github.com/MetaMask/core/pull/7164))
+  - This can be used to listen for the initial successful execution of the service, or the first successful execution after the service becomes degraded or the circuit breaks.
+- Add `reset` method to `ServicePolicy` ([#7164](https://github.com/MetaMask/core/pull/7164))
+  - This can be used when working with a chain of services to reset the state of the circuit breaker policy (e.g. if a primary recovers and we want to reset the failovers).
+- Export `CockatielEventEmitter` and `CockatielFailureReason` from Cockatiel ([#7164](https://github.com/MetaMask/core/pull/7164))
+  - These can be used to further transform types for event emitters/listeners.
+
+## [11.15.0]
+
+### Added
+
+- Arbitrum, BSC, Optimism, Polygon, and Sei networks to Infura networks ([#6972](https://github.com/MetaMask/core/pull/6972))
+  - Add `arbitrum-one`, `bsc-mainnet`, `optimism-mainnet`, `polygon-mainnet`, `sei-mainnet` to `BUILT_IN_NETWORKS`
+  - Add `arbitrum-one`, `bsc-mainnet`, `optimism-mainnet`, `polygon-mainnet`, `sei-mainnet` to `InfuraNetworkType`
+  - Add `ArbitrumOne`, `BscMainnet`, `OptimismMainnet`, `PolygonMainnet`, `SeiMainnet` to `BuiltInNetworkName` enum
+  - Add corresponding chain IDs to `ChainId` type (0xa4b1, 0x38, 0xa, 0x89, 0x531)
+  - Add `ETG`, `BNB`, `ETH`, `POL`, `SEI` tickers to `NetworksTicker` enum
+  - Add block explorer URLs to `BlockExplorerUrl` quasi-enum
+  - Add network nicknames to `NetworkNickname` quasi-enum
+
+## [11.14.1]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
+
+## [11.14.0]
+
+### Added
+
+- Export `NETWORKS_BYPASSING_VALIDATION` constant globally . ([#6627](https://github.com/MetaMask/core/pull/6627))
+
+## [11.13.0]
+
+### Added
+
+- Add constant `NETWORKS_BYPASSING_VALIDATION` to allow clients to ignore warning messages for specific networks. ([#6557](https://github.com/MetaMask/core/pull/6557))
+- Add `circuitBreakDuration` to the object returned by `createServicePolicy` ([#6423](https://github.com/MetaMask/core/pull/6423))
+  - This is the amount of time that the underlying circuit breaker policy will pause execution of the input function while the circuit is broken.
+- Add `getRemainingCircuitOpenDuration` to the object returned by `createServicePolicy` ([#6423](https://github.com/MetaMask/core/pull/6423))
+  - This returns the amount of time after which the underlying circuit breaker policy will resume execution of the input function after the circuit reopens.
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+
+## [11.12.0]
+
+### Added
+
+- Update `onDegraded` property in `ServicePolicy` so that the event listener payload may be an object with either an `error` or `value` property, which can be used to access the error produced by the last request when the maximum number of retries is exceeded ([#6188](https://github.com/MetaMask/core/pull/6188))
+  - The payload will be empty (i.e. the object will be `undefined`) if the degraded event merely represents a slow request.
+  - `ServicePolicy` is the type returned by `createServicePolicy`.
+  - **NOTE:** Although `error` and `value` are new, optional properties, this change makes an inadvertent breaking change to the signature of the event listener due to how TypeScript compares function types. We have conciously decided not to re-release this change under a major version, so be advised.
+
+## [11.11.0]
+
+### Added
+
+- Add convenience variables for calculating the number of milliseconds in a higher unit of time
+  - `SECOND` / `SECONDS`
+  - `MINUTE` / `MINUTES`
+  - `HOUR` / `HOURS`
+  - `DAY` / `DAYS`
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
+- Improve performance of `isValidHexAddress` and `toChecksumHexAddress` ([#6054](https://github.com/MetaMask/core/pull/6054))
+  - Replace `ethereumjs-util` lib with faster `@metamask/utils` functions
+  - Memoize `isValidHexAddress` and `toChecksumHexAddress` functions
+- Update `createServicePolicy` to reduce circuit break duration from 30 minutes to 2 minutes ([#6015](https://github.com/MetaMask/core/pull/6015))
+  - When hitting an API, this reduces the default duration for which requests to the API are paused when perceived to be unavailable
+
+## [11.10.0]
+
+### Added
+
+- Add `TransactionBatch` in approval types enum ([#5793](https://github.com/MetaMask/core/pull/5793))
+- Add Base network to default networks ([#5902](https://github.com/MetaMask/core/pull/5902))
+  - Add `base-mainnet` to `BUILT_IN_NETWORKS`
+  - Add `base-mainnet` to `InfuraNetworkType`
+  - Add `BaseMainnet` to `BuiltInNetworkName` enum
+  - Add `base-mainnet` to `ChainId` type
+  - Add `BaseMainnet` to `NetworksTicker` enum
+  - Add `BaseMainnet` to `BlockExplorerUrl` quasi-enum
+  - Add `BaseMainnet` to `NetworkNickname` quasi-enum
+
+## [11.9.0]
+
+### Added
+
+- Add `HttpError` class for errors representing non-200 HTTP responses ([#5809](https://github.com/MetaMask/core/pull/5809))
+
+### Changed
+
+- Improved circuit breaker behavior to no longer consider HTTP 4XX responses as service failures ([#5798](https://github.com/MetaMask/core/pull/5798), [#5809](https://github.com/MetaMask/core/pull/5809))
+  - Changed from using `handleAll` to `handleWhen(isServiceFailure)` in circuit breaker policy
+  - This ensures that expected error responses (like 405 Method Not Allowed and 429 Rate Limited) don't trigger the circuit breaker
+
+## [11.8.0]
+
+### Added
+
+- Add Monad Testnet to various constants, enums, and types ([#5724](https://github.com/MetaMask/core/pull/5724))
+  - Add `monad-testnet` to `BUILT_IN_NETWORKS`
+  - Add `monad-testnet` and `megaeth-testnet` to `BUILT_IN_CUSTOM_NETWORKS_RPC`
+  - Add `MonadTestnet` to `BuiltInNetworkName` enum
+  - Add `monad-testnet` to `ChainId` type
+  - Add `MonadTestnet` to `NetworksTicker` enum
+  - Add `MonadTestnet` to `BlockExplorerUrl` quasi-enum
+  - Add `MonadTestnet` to `NetworkNickname` quasi-enum
+
+## [11.7.0]
+
+### Added
+
+- Re-export `ConstantBackoff` and `ExponentialBackoff` from `cockatiel` ([#5492](https://github.com/MetaMask/core/pull/5492))
+  - These can be used to customize service policies
+- Add optional `backoff` option to `createServicePolicy` ([#5492](https://github.com/MetaMask/core/pull/5492))
+  - This is mainly useful in tests to force the backoff strategy to be constant rather than exponential
+- Add `BUILT_IN_CUSTOM_NETWORKS_RPC`, which includes MegaETH ([#5495](https://github.com/MetaMask/core/pull/5495))
+- Add `CustomNetworkType` quasi-enum and type, which includes MegaETH ([#5495](https://github.com/MetaMask/core/pull/5495))
+- Add `BuiltInNetworkType` type union, which encompasses all Infura and custom network types ([#5495](https://github.com/MetaMask/core/pull/5495))
+
+### Changed
+
+- Add MegaETH Testnet to various constants, enums, and types ([#5495](https://github.com/MetaMask/core/pull/5495))
+  - Add `MEGAETH_TESTNET` to `TESTNET_TICKER_SYMBOLS`
+  - Add `megaeth-testnet` to `BUILT_IN_NETWORKS`
+  - Add `MegaETHTestnet` to `BuiltInNetworkName` enum
+  - Add `megaeth-testnet` to `ChainId` type
+  - Add `MegaETHTestnet` to `NetworksTicker` enum
+  - Add `MegaETHTestnet` to `BlockExplorerUrl` quasi-enum
+  - Add `MegaETHTestnet` to `NetworkNickname` quasi-enum
+- `CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP` is now typed as `Record<string, BuiltInNetworkName>` rather than `Record<ChainId, BuiltInNetworkName>` ([#5495](https://github.com/MetaMask/core/pull/5495))
+- `NetworkType` quasi-enum now includes all keys/values from `CustomNetworkType` ([#5495](https://github.com/MetaMask/core/pull/5495))
+
+## [11.6.0]
+
+### Changed
+
+- Bump `@ethereumjs/util` from `^8.1.0` to `^9.1.0` ([#5347](https://github.com/MetaMask/core/pull/5347))
+- Bump `@metamask/utils` from `^11.1.0` to `^11.2.0` ([#5301](https://github.com/MetaMask/core/pull/5301))
+
+## [11.5.0]
+
+### Added
+
+- Add utility function `createServicePolicy` for reducing boilerplate for service classes ([#5141](https://github.com/MetaMask/core/pull/5141), [#5154](https://github.com/MetaMask/core/pull/5154), [#5143](https://github.com/MetaMask/core/pull/5143), [#5149](https://github.com/MetaMask/core/pull/5149), [#5188](https://github.com/MetaMask/core/pull/5188), [#5192](https://github.com/MetaMask/core/pull/5192), [#5225](https://github.com/MetaMask/core/pull/5225))
+  - Export constants `DEFAULT_CIRCUIT_BREAK_DURATION`, `DEFAULT_DEGRADED_THRESHOLD`, `DEFAULT_MAX_CONSECUTIVE_FAILURES`, and `DEFAULT_MAX_RETRIES`
+  - Export types `ServicePolicy` and `CreateServicePolicyOptions`
+  - Re-export `BrokenCircuitError`, `CircuitState`, `handleAll`, and `handleWhen` from `cockatiel`
+  - Export `CockatielEvent` type, an alias of the `Event` type from `cockatiel`
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.0.1` to `^11.1.0` ([#5223](https://github.com/MetaMask/core/pull/5223))
+
+## [11.4.5]
+
+### Changed
+
+- Bump `@metamask/utils` from `^10.0.0` to `^11.0.1` ([#5080](https://github.com/MetaMask/core/pull/5080))
+
+## [11.4.4]
+
+### Fixed
+
+- Make implicit peer dependencies explicit ([#4974](https://github.com/MetaMask/core/pull/4974))
+  - Add the following packages as peer dependencies of this package to satisfy peer dependency requirements from other dependencies:
+    - `@babel/runtime@^7.0.0` (required by `@metamask/ethjs-unit`)
+  - These dependencies really should be present in projects that consume this package (e.g. MetaMask clients), and this change ensures that they now are.
+  - Furthermore, we are assuming that clients already use these dependencies, since otherwise it would be impossible to consume this package in its entirety or even create a working build. Hence, the addition of these peer dependencies is really a formality and should not be breaking.
+- Correct ESM-compatible build so that imports of the following packages that re-export other modules via `export *` are no longer corrupted: ([#5011](https://github.com/MetaMask/core/pull/5011))
+  - `bn.js`
+  - `eth-ens-namehash`
+  - `fast-deep-equal`
+
+## [11.4.3]
+
+### Changed
+
+- The `NetworkNickname` for mainnet is now `Ethereum Mainnet` instead of `Mainnet`. And the display name for Linea is now `Linea` instead of `Linea Mainnet`. ([#4865](https://github.com/MetaMask/core/pull/4865))
+
+## [11.4.2]
+
+### Changed
+
+- Move BigNumber.js from devDependencies to dependencies ([#4873](https://github.com/MetaMask/core/pull/4873))
+
+## [11.4.1]
+
+### Changed
+
+- Bump `@metamask/utils` from `^9.1.0` to `^10.0.0` ([#4831](https://github.com/MetaMask/core/pull/4831))
+
+## [11.4.0]
+
+### Added
+
+- Add `isEqualCaseInsensitive` function for case-insensitive string comparison ([#4811](https://github.com/MetaMask/core/pull/4811))
+
+## [11.3.0]
+
+### Added
+
+- Add types `TraceContext`, `TraceRequest`, `TraceCallback` ([#4655](https://github.com/MetaMask/core/pull/4655))
+  - Migrated from `@metamask/transaction-controller@36.2.0`.
+
+### Fixed
+
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+
+## [11.2.0]
+
+### Added
+
+- Add `BlockExplorerUrl` object and type for looking up the block explorer URL of any Infura network ([#4268](https://github.com/MetaMask/core/pull/4286))
+- Add `NetworkNickname` object and type for looking up the common nickname for any Infura network ([#4268](https://github.com/MetaMask/core/pull/4286))
+- Add `Partialize` type for making select keys in an object type optional ([#4268](https://github.com/MetaMask/core/pull/4286))
+- `toHex` now supports converting a `bigint` into a hex string ([#4268](https://github.com/MetaMask/core/pull/4286))
+
+## [11.1.0]
+
+### Added
+
+- Add default snap dialog to ApprovalType ([#4630](https://github.com/MetaMask/core/pull/4630))
+
+## [11.0.2]
+
+### Changed
+
+- Bump TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/utils` from `^9.0.0` to `^9.1.0` ([#4529](https://github.com/MetaMask/core/pull/4529))
+
+## [11.0.1]
+
+### Changed
+
+- Bump `@metamask/rpc-errors` from `6.2.1` to `^6.3.1` ([#4516](https://github.com/MetaMask/core/pull/4516))
+- Bump `@metamask/utils` from `^8.3.0` to `^9.0.0` ([#4516](https://github.com/MetaMask/core/pull/4516))
+
+## [11.0.0]
+
+### Added
+
+- Add `NFT_API_VERSION` and `NFT_API_TIMEOUT` constants ([#4312](https://github.com/MetaMask/core/pull/4312))
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+
+### Removed
+
+- **BREAKING:** Remove `EthSign` from `ApprovalType` ([#4319](https://github.com/MetaMask/core/pull/4319))
+  - This represented an `eth_sign` approval, but support for that RPC method is being removed, so this is no longer needed.
+
+## [10.0.0]
+
+### Changed
+
+- **BREAKING:** Changed price and token API endpoints from `*.metafi.codefi.network` to `*.api.cx.metamask.io` ([#4301](https://github.com/MetaMask/core/pull/4301))
+
+## [9.1.0]
+
+### Added
+
+- Export new constant for the NFT API's url ([#4030](https://github.com/MetaMask/core/pull/4030))
+- Add support for wider range of SIWE messages ([#4141](https://github.com/MetaMask/core/pull/4141))
+
+### Changed
+
+- Bump TypeScript version to ~4.9.5 ([#4084](https://github.com/MetaMask/core/pull/4084))
+
+### Fixed
+
+- Add guards against prototype-polluting assignments ([#4041](https://github.com/MetaMask/core/pull/4041))
+
+## [9.0.2]
+
+### Fixed
+
+- Allow `toChecksumHexAddress` to take and handle non-string inputs again, which was removed in 8.0.4 ([#4046](https://github.com/MetaMask/core/pull/4046))
+
+## [9.0.1]
+
+### Fixed
+
+- Fix `types` field in `package.json` ([#4047](https://github.com/MetaMask/core/pull/4047))
+
+## [9.0.0]
+
+### Added
+
+- **BREAKING**: Add ESM build ([#3998](https://github.com/MetaMask/core/pull/3998))
+  - It's no longer possible to import files from `./dist` directly.
+- Add support for Linea Sepolia to various constants, types, and type guards ([#3995](https://github.com/MetaMask/core/pull/3995))
+  - Add `LINEA_SEPOLIA` to `TESTNET_TICKER_SYMBOLS` constant
+  - Add `0xe705` to `CHAIN_ID_TO_ETHERS_NETWORK_NAME_MAP` constant
+  - Add `linea-sepolia` to `BUILT_IN_NETWORKS` constant and `InfuraNetworkType`, `NetworkType`, `ChainId`, and `NetworksTicker` types
+  - Add `LineaSepolia` to `BuiltInNetworkName` enum
+  - `isNetworkType` and `isInfuraNetworkType` now return `true` when given "linea-sepolia"
+
+### Changed
+
+- Update `normalizeEnsName` so that it does not attempt to normalize `"."` ([#4006](https://github.com/MetaMask/core/pull/4006))
+- Move `bn.js` from `devDependencies` to `dependencies` ([#4023](https://github.com/MetaMask/core/pull/4023))
+
+### Fixed
+
+- **BREAKING**: Narrow argument type for `BNToHex` and `fractionBN` from `any` to `BN` to enhance type safety ([#3975](https://github.com/MetaMask/core/pull/3975))
+- **BREAKING**: Narrow argument type for `logOrRethrowError` from `any` to `unknown` to enhance type safety ([#3975](https://github.com/MetaMask/core/pull/3975))
+- **BREAKING**: Narrow argument type for `isNetworkType` from `any` to `string` to enhance type safety ([#3975](https://github.com/MetaMask/core/pull/3975))
+
 ## [8.0.4]
 
 ### Changed
@@ -238,7 +652,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
-
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
     - `src/constants.ts` (but see below)
     - `src/util.ts` (but see below)
@@ -246,7 +659,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `NetworkType` and `NetworkChainsId` from `src/network/NetworkController.ts` (via `types.ts`)
   - `ESTIMATE_GAS_ERROR`, which used to be exported by `src/constants.ts`, is now available via the `@metamask/gas-fee-controller` package.
   - A number of functions and types that were previously exported by `src/util.ts` are now available via other packages. Here's a breakdown of these exports and their new locations:
-
     - `@metamask/assets-controllers`:
       - `SupportedTokenDetectionNetworks`
       - `addUrlProtocolPrefix`
@@ -276,7 +688,45 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@12.2.0...HEAD
+[12.2.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@12.1.1...@metamask/controller-utils@12.2.0
+[12.1.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@12.1.0...@metamask/controller-utils@12.1.1
+[12.1.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@12.0.0...@metamask/controller-utils@12.1.0
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.20.0...@metamask/controller-utils@12.0.0
+[11.20.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.19.0...@metamask/controller-utils@11.20.0
+[11.19.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.18.0...@metamask/controller-utils@11.19.0
+[11.18.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.17.0...@metamask/controller-utils@11.18.0
+[11.17.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.16.0...@metamask/controller-utils@11.17.0
+[11.16.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.15.0...@metamask/controller-utils@11.16.0
+[11.15.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.14.1...@metamask/controller-utils@11.15.0
+[11.14.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.14.0...@metamask/controller-utils@11.14.1
+[11.14.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.13.0...@metamask/controller-utils@11.14.0
+[11.13.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.12.0...@metamask/controller-utils@11.13.0
+[11.12.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.11.0...@metamask/controller-utils@11.12.0
+[11.11.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.10.0...@metamask/controller-utils@11.11.0
+[11.10.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.9.0...@metamask/controller-utils@11.10.0
+[11.9.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.8.0...@metamask/controller-utils@11.9.0
+[11.8.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.7.0...@metamask/controller-utils@11.8.0
+[11.7.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.6.0...@metamask/controller-utils@11.7.0
+[11.6.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.5.0...@metamask/controller-utils@11.6.0
+[11.5.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.5...@metamask/controller-utils@11.5.0
+[11.4.5]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.4...@metamask/controller-utils@11.4.5
+[11.4.4]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.3...@metamask/controller-utils@11.4.4
+[11.4.3]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.2...@metamask/controller-utils@11.4.3
+[11.4.2]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.1...@metamask/controller-utils@11.4.2
+[11.4.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.4.0...@metamask/controller-utils@11.4.1
+[11.4.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.3.0...@metamask/controller-utils@11.4.0
+[11.3.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.2.0...@metamask/controller-utils@11.3.0
+[11.2.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.1.0...@metamask/controller-utils@11.2.0
+[11.1.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.0.2...@metamask/controller-utils@11.1.0
+[11.0.2]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.0.1...@metamask/controller-utils@11.0.2
+[11.0.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@11.0.0...@metamask/controller-utils@11.0.1
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@10.0.0...@metamask/controller-utils@11.0.0
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.1.0...@metamask/controller-utils@10.0.0
+[9.1.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.0.2...@metamask/controller-utils@9.1.0
+[9.0.2]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.0.1...@metamask/controller-utils@9.0.2
+[9.0.1]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@9.0.0...@metamask/controller-utils@9.0.1
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.4...@metamask/controller-utils@9.0.0
 [8.0.4]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.3...@metamask/controller-utils@8.0.4
 [8.0.3]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.2...@metamask/controller-utils@8.0.3
 [8.0.2]: https://github.com/MetaMask/core/compare/@metamask/controller-utils@8.0.1...@metamask/controller-utils@8.0.2

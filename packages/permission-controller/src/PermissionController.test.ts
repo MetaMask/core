@@ -1,26 +1,35 @@
-import type {
-  AcceptRequest as AcceptApprovalRequest,
-  AddApprovalRequest,
-  HasApprovalRequest,
-  RejectRequest as RejectApprovalRequest,
-} from '@metamask/approval-controller';
-import { ControllerMessenger } from '@metamask/base-controller';
+import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { isPlainObject } from '@metamask/controller-utils';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
-import type { Json, PendingJsonRpcResponse } from '@metamask/utils';
-import { hasProperty } from '@metamask/utils';
+import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MessengerActions,
+  MessengerEvents,
+  MockAnyNamespace,
+} from '@metamask/messenger';
+import type { Json, JsonRpcRequest } from '@metamask/utils';
+import {
+  assertIsJsonRpcFailure,
+  assertIsJsonRpcSuccess,
+  hasProperty,
+} from '@metamask/utils';
 import assert from 'assert';
 
-import type {
+import {
   AsyncRestrictedMethod,
   Caveat,
   CaveatConstraint,
+  CaveatMutator,
+  CaveatSpecificationMap,
   ExtractSpecifications,
   PermissionConstraint,
-  PermissionControllerActions,
-  PermissionControllerEvents,
   PermissionControllerMessenger,
+  PermissionControllerOptions,
+  PermissionControllerState,
+  PermissionMiddlewareActions,
   PermissionOptions,
+  PermissionsRequest,
   RestrictedMethodOptions,
   RestrictedMethodParameters,
   ValidPermission,
@@ -28,6 +37,8 @@ import type {
 import {
   CaveatMutatorOperation,
   constructPermission,
+  createPermissionMiddleware,
+  createPermissionMiddlewareV2,
   MethodNames,
   PermissionController,
   PermissionType,
@@ -35,7 +46,6 @@ import {
 import * as errors from './errors';
 import type { EndowmentGetterParams } from './Permission';
 import { SubjectType } from './SubjectMetadataController';
-import type { GetSubjectMetadata } from './SubjectMetadataController';
 
 // Caveat types and specifications
 
@@ -61,10 +71,18 @@ type FilterObjectCaveat = Caveat<
 
 type NoopCaveat = Caveat<typeof CaveatTypes.noopCaveat, null>;
 
-const onPermittedMock = jest.fn(() => Promise.resolve('foo'));
-const onFailureMock = jest.fn(() => Promise.resolve());
-const onPermitted = () => onPermittedMock();
-const onFailure = () => onFailureMock();
+// A caveat value merger for any caveat whose value is an array of JSON primitives.
+const primitiveArrayMerger = <Element extends string | null | number>(
+  a: Element[],
+  b: Element[],
+): [Element[], Element[]] | [] => {
+  const diff = b.filter((element) => !a.includes(element));
+
+  if (diff.length > 0) {
+    return [[...(a ?? []), ...diff], diff] as [Element[], Element[]];
+  }
+  return [] as [];
+};
 
 /**
  * Gets caveat specifications for:
@@ -76,7 +94,9 @@ const onFailure = () => onFailureMock();
  *
  * @returns The caveat specifications.
  */
-function getDefaultCaveatSpecifications() {
+// TODO: Replace `any` with proper type if possible.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function getDefaultCaveatSpecifications(): CaveatSpecificationMap<any> {
   return {
     [CaveatTypes.filterArrayResponse]: {
       type: CaveatTypes.filterArrayResponse,
@@ -105,6 +125,7 @@ function getDefaultCaveatSpecifications() {
           );
         }
       },
+      merger: primitiveArrayMerger,
     },
     [CaveatTypes.reverseArrayResponse]: {
       type: CaveatTypes.reverseArrayResponse,
@@ -142,6 +163,7 @@ function getDefaultCaveatSpecifications() {
           });
           return result;
         },
+      merger: primitiveArrayMerger,
     },
     [CaveatTypes.noopCaveat]: {
       type: CaveatTypes.noopCaveat,
@@ -161,6 +183,8 @@ function getDefaultCaveatSpecifications() {
           throw new Error('NoopCaveat value must be null');
         }
       },
+      merger: (a: null | undefined, _b: null) =>
+        a === undefined ? ([null, null] as [null, null]) : ([] as []),
     },
     [CaveatTypes.endowmentCaveat]: {
       type: CaveatTypes.endowmentCaveat,
@@ -198,6 +222,7 @@ const PermissionKeys = {
   wallet_noopWithValidator: 'wallet_noopWithValidator',
   wallet_noopWithRequiredCaveat: 'wallet_noopWithRequiredCaveat',
   wallet_noopWithFactory: 'wallet_noopWithFactory',
+  wallet_noopWithManyCaveats: 'wallet_noopWithManyCaveats',
   snap_foo: 'snap_foo',
   endowmentAnySubject: 'endowmentAnySubject',
   endowmentSnapsOnly: 'endowmentSnapsOnly',
@@ -230,10 +255,49 @@ const PermissionNames = {
     PermissionKeys.wallet_noopWithPermittedSideEffects,
   wallet_noopWithRequiredCaveat: PermissionKeys.wallet_noopWithRequiredCaveat,
   wallet_noopWithFactory: PermissionKeys.wallet_noopWithFactory,
+  wallet_noopWithManyCaveats: PermissionKeys.wallet_noopWithManyCaveats,
   snap_foo: PermissionKeys.snap_foo,
   endowmentAnySubject: PermissionKeys.endowmentAnySubject,
   endowmentSnapsOnly: PermissionKeys.endowmentSnapsOnly,
 } as const;
+
+// Default side-effect implementations.
+const onPermittedSideEffect = (): Promise<string> => Promise.resolve('foo');
+const onFailureSideEffect = (): Promise<void> => Promise.resolve();
+
+/**
+ * Gets the mocks for the side effect handlers of the permissions that have side effects.
+ * Mocking these handlers is complicated by the fact that their use by the permission
+ * controller precludes using Jest mock functions directly. We must create the mocks
+ * separately, then wrap them inside a plain function in the actual permission
+ * specification. This otherwise circuitous nonsense still allows us to access the
+ * underlying mocks in tests.
+ *
+ * @returns The side effect mocks.
+ */
+function getSideEffectHandlerMocks(): Record<
+  | typeof PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects
+  | typeof PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2
+  | typeof PermissionKeys.wallet_noopWithPermittedSideEffects,
+  {
+    onPermitted: jest.Mock<ReturnType<typeof onPermittedSideEffect>>;
+    onFailure?: jest.Mock<ReturnType<typeof onFailureSideEffect>>;
+  }
+> {
+  return {
+    [PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects]: {
+      onPermitted: jest.fn(onPermittedSideEffect),
+      onFailure: jest.fn(onFailureSideEffect),
+    },
+    [PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2]: {
+      onPermitted: jest.fn(onPermittedSideEffect),
+      onFailure: jest.fn(onFailureSideEffect),
+    },
+    [PermissionKeys.wallet_noopWithPermittedSideEffects]: {
+      onPermitted: jest.fn(onPermittedSideEffect),
+    },
+  } as const;
+}
 
 /**
  * Gets permission specifications for our test permissions.
@@ -241,200 +305,262 @@ const PermissionNames = {
  *
  * @returns The permission specifications.
  */
-function getDefaultPermissionSpecifications() {
-  return {
-    [PermissionKeys.wallet_getSecretArray]: {
-      permissionType: PermissionType.RestrictedMethod,
-      targetName: PermissionKeys.wallet_getSecretArray,
-      allowedCaveats: [
-        CaveatTypes.filterArrayResponse,
-        CaveatTypes.reverseArrayResponse,
-      ],
-      methodImplementation: (_args: RestrictedMethodOptions<Json[]>) => {
-        return ['a', 'b', 'c'];
-      },
-    },
-    [PermissionKeys.wallet_getSecretObject]: {
-      permissionType: PermissionType.RestrictedMethod,
-      targetName: PermissionKeys.wallet_getSecretObject,
-      allowedCaveats: [
-        CaveatTypes.filterObjectResponse,
-        CaveatTypes.noopCaveat,
-      ],
-      methodImplementation: (
-        _args: RestrictedMethodOptions<Record<string, Json>>,
-      ) => {
-        return { a: 'x', b: 'y', c: 'z' };
-      },
-      validator: (permission: PermissionConstraint) => {
-        // A dummy validator for a caveat type that should be impossible to add
-        assert.ok(
-          !permission.caveats?.some(
-            (caveat) => caveat.type === CaveatTypes.filterArrayResponse,
-          ),
-          'getSecretObject permission validation failed',
-        );
-      },
-    },
-    [PermissionKeys.wallet_doubleNumber]: {
-      permissionType: PermissionType.RestrictedMethod,
-      targetName: PermissionKeys.wallet_doubleNumber,
-      allowedCaveats: null,
-      methodImplementation: ({ params }: RestrictedMethodOptions<[number]>) => {
-        if (!Array.isArray(params)) {
-          throw new Error(
-            `Invalid ${PermissionKeys.wallet_doubleNumber} request`,
-          );
-        }
-        return params[0] * 2;
-      },
-    },
-    [PermissionKeys.wallet_noop]: {
-      permissionType: PermissionType.RestrictedMethod,
-      targetName: PermissionKeys.wallet_noop,
-      allowedCaveats: null,
-      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
-        return null;
-      },
-    },
-    [PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects]: {
-      permissionType: PermissionType.RestrictedMethod,
-      targetName: PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects,
-      allowedCaveats: null,
-      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
-        return null;
-      },
-      sideEffect: {
-        onPermitted,
-        onFailure,
-      },
-    },
-    [PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2]: {
-      permissionType: PermissionType.RestrictedMethod,
-      targetName: PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2,
-      allowedCaveats: null,
-      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
-        return null;
-      },
-      sideEffect: {
-        onPermitted,
-        onFailure,
-      },
-    },
-    [PermissionKeys.wallet_noopWithPermittedSideEffects]: {
-      permissionType: PermissionType.RestrictedMethod,
-      targetName: PermissionKeys.wallet_noopWithPermittedSideEffects,
-      allowedCaveats: null,
-      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
-        return null;
-      },
-      sideEffect: {
-        onPermitted,
-      },
-    },
-    // This one exists to check some permission validator logic
-    [PermissionKeys.wallet_noopWithValidator]: {
-      permissionType: PermissionType.RestrictedMethod,
-      targetName: PermissionKeys.wallet_noopWithValidator,
-      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
-        return null;
-      },
-      allowedCaveats: [CaveatTypes.noopCaveat, CaveatTypes.filterArrayResponse],
-      validator: (permission: PermissionConstraint) => {
-        if (
-          permission.caveats?.some(
-            ({ type }) => type !== CaveatTypes.noopCaveat,
-          )
-        ) {
-          throw new Error('noop permission validation failed');
-        }
-      },
-    },
-    [PermissionKeys.wallet_noopWithRequiredCaveat]: {
-      permissionType: PermissionType.RestrictedMethod,
-      targetName: PermissionKeys.wallet_noopWithRequiredCaveat,
-      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
-        return null;
-      },
-      allowedCaveats: [CaveatTypes.noopCaveat],
-      factory: (
-        options: PermissionOptions<NoopWithRequiredCaveat>,
-        _requestData?: Record<string, unknown>,
-      ) => {
-        return constructPermission<NoopWithRequiredCaveat>({
-          ...options,
-          caveats: [
-            {
-              type: CaveatTypes.noopCaveat,
-              value: null,
-            },
-          ],
-        });
-      },
-      validator: (permission: PermissionConstraint) => {
-        if (
-          permission.caveats?.length !== 1 ||
-          !permission.caveats?.some(
-            ({ type }) => type === CaveatTypes.noopCaveat,
-          )
-        ) {
-          throw new Error(
-            'noopWithRequiredCaveat permission validation failed',
-          );
-        }
-      },
-    },
-    // This one exists just to check that permission factories can use the
-    // requestData of approved permission requests
-    [PermissionKeys.wallet_noopWithFactory]: {
-      permissionType: PermissionType.RestrictedMethod,
-      targetName: PermissionKeys.wallet_noopWithFactory,
-      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
-        return null;
-      },
-      allowedCaveats: [CaveatTypes.filterArrayResponse],
-      factory: (
-        options: PermissionOptions<NoopWithFactoryPermission>,
-        requestData?: Record<string, unknown>,
-      ) => {
-        if (!requestData) {
-          throw new Error('requestData is required');
-        }
+// The return type of this is quite complicated.
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+function getDefaultPermissionSpecificationsAndMocks() {
+  const sideEffectMocks = getSideEffectHandlerMocks();
 
-        return constructPermission<NoopWithFactoryPermission>({
-          ...options,
-          caveats: [
-            {
-              type: CaveatTypes.filterArrayResponse,
-              value: requestData.caveatValue as string[],
-            },
-          ],
-        });
+  return [
+    {
+      [PermissionKeys.wallet_getSecretArray]: {
+        permissionType: PermissionType.RestrictedMethod,
+        targetName: PermissionKeys.wallet_getSecretArray,
+        allowedCaveats: [
+          CaveatTypes.filterArrayResponse,
+          CaveatTypes.reverseArrayResponse,
+        ],
+        methodImplementation: (
+          _args: RestrictedMethodOptions<Json[]>,
+        ): string[] => {
+          return ['a', 'b', 'c'];
+        },
+      },
+      [PermissionKeys.wallet_getSecretObject]: {
+        permissionType: PermissionType.RestrictedMethod,
+        targetName: PermissionKeys.wallet_getSecretObject,
+        allowedCaveats: [
+          CaveatTypes.filterObjectResponse,
+          CaveatTypes.noopCaveat,
+        ],
+        methodImplementation: (
+          _args: RestrictedMethodOptions<Record<string, Json>>,
+        ): { a: string; b: string; c: string } => {
+          return { a: 'x', b: 'y', c: 'z' };
+        },
+        validator: (permission: PermissionConstraint): void => {
+          // A dummy validator for a caveat type that should be impossible to add
+          assert.ok(
+            !permission.caveats?.some(
+              (caveat) => caveat.type === CaveatTypes.filterArrayResponse,
+            ),
+            'getSecretObject permission validation failed',
+          );
+        },
+      },
+      [PermissionKeys.wallet_doubleNumber]: {
+        permissionType: PermissionType.RestrictedMethod,
+        targetName: PermissionKeys.wallet_doubleNumber,
+        allowedCaveats: null,
+        methodImplementation: ({
+          params,
+        }: RestrictedMethodOptions<[number]>): number => {
+          if (!Array.isArray(params)) {
+            throw new Error(
+              `Invalid ${PermissionKeys.wallet_doubleNumber} request`,
+            );
+          }
+          return params[0] * 2;
+        },
+      },
+      [PermissionKeys.wallet_noop]: {
+        permissionType: PermissionType.RestrictedMethod,
+        targetName: PermissionKeys.wallet_noop,
+        allowedCaveats: null,
+        methodImplementation: (_args: RestrictedMethodOptions<null>): null => {
+          return null;
+        },
+      },
+      [PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects]: {
+        permissionType: PermissionType.RestrictedMethod,
+        targetName:
+          PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects,
+        allowedCaveats: null,
+        methodImplementation: (_args: RestrictedMethodOptions<null>): null => {
+          return null;
+        },
+        sideEffect: {
+          onPermitted: (): Promise<string> =>
+            sideEffectMocks[
+              PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects
+            ].onPermitted(),
+          onFailure: async (): Promise<void> =>
+            sideEffectMocks[
+              PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects
+            ]?.onFailure?.(),
+        },
+      },
+      [PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2]: {
+        permissionType: PermissionType.RestrictedMethod,
+        targetName:
+          PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2,
+        allowedCaveats: null,
+        methodImplementation: (_args: RestrictedMethodOptions<null>): null => {
+          return null;
+        },
+        sideEffect: {
+          onPermitted: (): Promise<string> =>
+            sideEffectMocks[
+              PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2
+            ].onPermitted(),
+          onFailure: async (): Promise<void> =>
+            sideEffectMocks[
+              PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2
+            ]?.onFailure?.(),
+        },
+      },
+      [PermissionKeys.wallet_noopWithPermittedSideEffects]: {
+        permissionType: PermissionType.RestrictedMethod,
+        targetName: PermissionKeys.wallet_noopWithPermittedSideEffects,
+        allowedCaveats: null,
+        methodImplementation: (_args: RestrictedMethodOptions<null>): null => {
+          return null;
+        },
+        sideEffect: {
+          onPermitted: (): Promise<string> =>
+            sideEffectMocks[
+              PermissionKeys.wallet_noopWithPermittedSideEffects
+            ].onPermitted(),
+        },
+      },
+      // This one exists to check some permission validator logic
+      [PermissionKeys.wallet_noopWithValidator]: {
+        permissionType: PermissionType.RestrictedMethod,
+        targetName: PermissionKeys.wallet_noopWithValidator,
+        methodImplementation: (_args: RestrictedMethodOptions<null>): null => {
+          return null;
+        },
+        allowedCaveats: [
+          CaveatTypes.noopCaveat,
+          CaveatTypes.filterArrayResponse,
+        ],
+        validator: (permission: PermissionConstraint): void => {
+          if (
+            permission.caveats?.some(
+              ({ type }) => type !== CaveatTypes.noopCaveat,
+            )
+          ) {
+            throw new Error('noop permission validation failed');
+          }
+        },
+      },
+      [PermissionKeys.wallet_noopWithRequiredCaveat]: {
+        permissionType: PermissionType.RestrictedMethod,
+        targetName: PermissionKeys.wallet_noopWithRequiredCaveat,
+        methodImplementation: (_args: RestrictedMethodOptions<null>): null => {
+          return null;
+        },
+        allowedCaveats: [CaveatTypes.noopCaveat],
+        factory: (
+          options: PermissionOptions<NoopWithRequiredCaveat>,
+          _requestData?: Record<string, unknown>,
+        ): NoopWithRequiredCaveat => {
+          return constructPermission<NoopWithRequiredCaveat>({
+            ...options,
+            caveats: [
+              {
+                type: CaveatTypes.noopCaveat,
+                value: null,
+              },
+            ],
+          });
+        },
+        validator: (permission: PermissionConstraint): void => {
+          if (
+            permission.caveats?.length !== 1 ||
+            !permission.caveats?.some(
+              ({ type }) => type === CaveatTypes.noopCaveat,
+            )
+          ) {
+            throw new Error(
+              'noopWithRequiredCaveat permission validation failed',
+            );
+          }
+        },
+      },
+      // This one exists just to check that permission factories can use the
+      // requestData of approved permission requests
+      [PermissionKeys.wallet_noopWithFactory]: {
+        permissionType: PermissionType.RestrictedMethod,
+        targetName: PermissionKeys.wallet_noopWithFactory,
+        methodImplementation: (_args: RestrictedMethodOptions<null>): null => {
+          return null;
+        },
+        allowedCaveats: [CaveatTypes.filterArrayResponse],
+        factory: (
+          options: PermissionOptions<NoopWithFactoryPermission>,
+          requestData?: Record<string, unknown>,
+        ): NoopWithFactoryPermission => {
+          if (!requestData) {
+            throw new Error('requestData is required');
+          }
+
+          return constructPermission<NoopWithFactoryPermission>({
+            ...options,
+            caveats: [
+              {
+                type: CaveatTypes.filterArrayResponse,
+                value: requestData.caveatValue as string[],
+              },
+            ],
+          });
+        },
+      },
+      // The implementation of this is fundamentally broken due to its allowed
+      // caveats, but that's okay because we never need to actually execute it.
+      // Originally created for the purpose of testing caveat merging.
+      [PermissionKeys.wallet_noopWithManyCaveats]: {
+        permissionType: PermissionType.RestrictedMethod,
+        targetName: PermissionKeys.wallet_noopWithManyCaveats,
+        methodImplementation: (_args: RestrictedMethodOptions<null>): null => {
+          return null;
+        },
+        allowedCaveats: [
+          CaveatTypes.filterArrayResponse,
+          CaveatTypes.filterObjectResponse,
+          CaveatTypes.noopCaveat,
+        ],
+      },
+      [PermissionKeys.snap_foo]: {
+        permissionType: PermissionType.RestrictedMethod,
+        targetName: PermissionKeys.snap_foo,
+        allowedCaveats: null,
+        methodImplementation: (_args: RestrictedMethodOptions<null>): null => {
+          return null;
+        },
+        subjectTypes: [SubjectType.Snap],
+      },
+      [PermissionKeys.endowmentAnySubject]: {
+        permissionType: PermissionType.Endowment,
+        targetName: PermissionKeys.endowmentAnySubject,
+        endowmentGetter: (_options: EndowmentGetterParams): string[] => [
+          'endowment1',
+        ],
+        allowedCaveats: null,
+      },
+      [PermissionKeys.endowmentSnapsOnly]: {
+        permissionType: PermissionType.Endowment,
+        targetName: PermissionKeys.endowmentSnapsOnly,
+        endowmentGetter: (_options: EndowmentGetterParams): string[] => [
+          'endowment2',
+        ],
+        allowedCaveats: [CaveatTypes.endowmentCaveat],
+        subjectTypes: [SubjectType.Snap],
       },
     },
-    [PermissionKeys.snap_foo]: {
-      permissionType: PermissionType.RestrictedMethod,
-      targetName: PermissionKeys.snap_foo,
-      allowedCaveats: null,
-      methodImplementation: (_args: RestrictedMethodOptions<null>) => {
-        return null;
-      },
-      subjectTypes: [SubjectType.Snap],
-    },
-    [PermissionKeys.endowmentAnySubject]: {
-      permissionType: PermissionType.Endowment,
-      targetName: PermissionKeys.endowmentAnySubject,
-      endowmentGetter: (_options: EndowmentGetterParams) => ['endowment1'],
-      allowedCaveats: null,
-    },
-    [PermissionKeys.endowmentSnapsOnly]: {
-      permissionType: PermissionType.Endowment,
-      targetName: PermissionKeys.endowmentSnapsOnly,
-      endowmentGetter: (_options: EndowmentGetterParams) => ['endowment2'],
-      allowedCaveats: [CaveatTypes.endowmentCaveat],
-      subjectTypes: [SubjectType.Snap],
-    },
-  } as const;
+    sideEffectMocks,
+  ] as const;
+}
+
+/**
+ * Gets permission specifications for our test permissions.
+ * Used as a default in {@link getPermissionControllerOptions}.
+ *
+ * @returns The permission specifications.
+ */
+// The return type of this is quite complicated.
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+function getDefaultPermissionSpecifications() {
+  return getDefaultPermissionSpecificationsAndMocks()[0];
 }
 
 type DefaultPermissionSpecifications = ExtractSpecifications<
@@ -445,47 +571,97 @@ type DefaultPermissionSpecifications = ExtractSpecifications<
 
 const controllerName = 'PermissionController' as const;
 
-type AllowedActions =
-  | HasApprovalRequest
-  | AddApprovalRequest
-  | AcceptApprovalRequest
-  | RejectApprovalRequest
-  | GetSubjectMetadata;
+/**
+ * Params for `ApprovalController:addRequest` of type `wallet_requestPermissions`.
+ */
+type AddPermissionRequestParams = {
+  id: string;
+  origin: string;
+  requestData: PermissionsRequest;
+  type: MethodNames.RequestPermissions;
+};
+
+type AddPermissionRequestArgs = [string, AddPermissionRequestParams];
+
+type AllPermissionControllerActions =
+  MessengerActions<PermissionControllerMessenger>;
+
+type AllPermissionControllerEvents =
+  MessengerEvents<PermissionControllerMessenger>;
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllPermissionControllerActions,
+  AllPermissionControllerEvents
+>;
 
 /**
- * Gets a unrestricted controller messenger. Used for tests.
+ * Creates and returns a root messenger for testing
  *
- * @returns The unrestricted messenger.
+ * @returns A messenger instance
  */
-function getUnrestrictedMessenger() {
-  return new ControllerMessenger<
-    PermissionControllerActions | AllowedActions,
-    PermissionControllerEvents
-  >();
+function getRootMessenger(): RootMessenger {
+  return new Messenger({
+    namespace: MOCK_ANY_NAMESPACE,
+  });
 }
 
 /**
- * Gets a restricted controller messenger.
+ * Gets a messenger for the permission controller.
  * Used as a default in {@link getPermissionControllerOptions}.
  *
- * @param messenger - Optional parameter to pass in a messenger
- * @returns The restricted messenger.
+ * @param rootMessenger - Optional parameter to pass in a root messenger
+ * @returns The messenger for the permission controller.
  */
 function getPermissionControllerMessenger(
-  messenger = getUnrestrictedMessenger(),
-) {
-  return messenger.getRestricted<typeof controllerName, AllowedActions['type']>(
-    {
-      name: controllerName,
-      allowedActions: [
-        'ApprovalController:hasRequest',
-        'ApprovalController:addRequest',
-        'ApprovalController:acceptRequest',
-        'ApprovalController:rejectRequest',
-        'SubjectMetadataController:getSubjectMetadata',
-      ],
-    },
-  ) as PermissionControllerMessenger;
+  rootMessenger = getRootMessenger(),
+): PermissionControllerMessenger {
+  const messenger = new Messenger<
+    typeof controllerName,
+    AllPermissionControllerActions,
+    AllPermissionControllerEvents,
+    RootMessenger
+  >({
+    namespace: controllerName,
+    parent: rootMessenger,
+  });
+  rootMessenger.delegate({
+    actions: [
+      'ApprovalController:hasRequest',
+      'ApprovalController:addRequest',
+      'ApprovalController:acceptRequest',
+      'ApprovalController:rejectRequest',
+      'SubjectMetadataController:getSubjectMetadata',
+    ],
+    messenger,
+  });
+  return messenger;
+}
+
+/**
+ * Gets a messenger scoped to the actions required by the permission
+ * middleware, delegated from the given root messenger.
+ *
+ * @param rootMessenger - The root messenger to delegate from.
+ * @returns A messenger suitable for passing to `createPermissionMiddleware`.
+ */
+function getPermissionMiddlewareMessenger(
+  rootMessenger: RootMessenger,
+): Messenger<'PermissionMiddleware', PermissionMiddlewareActions> {
+  const messenger = new Messenger<
+    'PermissionMiddleware',
+    PermissionMiddlewareActions,
+    never,
+    RootMessenger
+  >({ namespace: 'PermissionMiddleware', parent: rootMessenger });
+  rootMessenger.delegate({
+    actions: [
+      'PermissionController:executeRestrictedMethod',
+      'PermissionController:hasUnrestrictedMethod',
+    ],
+    messenger,
+  });
+  return messenger;
 }
 
 /**
@@ -494,7 +670,7 @@ function getPermissionControllerMessenger(
  *
  * @returns The unrestricted methods array
  */
-function getDefaultUnrestrictedMethods() {
+function getDefaultUnrestrictedMethods(): readonly string[] {
   return Object.freeze(['wallet_unrestrictedMethod']);
 }
 
@@ -504,7 +680,7 @@ function getDefaultUnrestrictedMethods() {
  *
  * @returns The existing mock state
  */
-function getExistingPermissionState() {
+function getExistingPermissionState(): PermissionControllerState<PermissionConstraint> {
   return {
     subjects: {
       'metamask.io': {
@@ -537,7 +713,12 @@ function getExistingPermissionState() {
  * @param opts - Permission controller options.
  * @returns The permission controller constructor options.
  */
-function getPermissionControllerOptions(opts?: Record<string, unknown>) {
+function getPermissionControllerOptions(
+  opts?: Record<string, unknown>,
+): PermissionControllerOptions<
+  DefaultPermissionSpecifications,
+  DefaultCaveatSpecifications
+> {
   return {
     caveatSpecifications: getDefaultCaveatSpecifications(),
     messenger: getPermissionControllerMessenger(),
@@ -557,7 +738,10 @@ function getPermissionControllerOptions(opts?: Record<string, unknown>) {
  */
 function getDefaultPermissionController(
   opts = getPermissionControllerOptions(),
-) {
+): PermissionController<
+  DefaultPermissionSpecifications,
+  DefaultCaveatSpecifications
+> {
   return new PermissionController<
     (typeof opts.permissionSpecifications)[keyof typeof opts.permissionSpecifications],
     (typeof opts.caveatSpecifications)[keyof typeof opts.caveatSpecifications]
@@ -572,7 +756,10 @@ function getDefaultPermissionController(
  * @returns The default permission controller for testing, with some initial
  * state.
  */
-function getDefaultPermissionControllerWithState() {
+function getDefaultPermissionControllerWithState(): PermissionController<
+  DefaultPermissionSpecifications,
+  DefaultCaveatSpecifications
+> {
   return new PermissionController<
     DefaultPermissionSpecifications,
     DefaultCaveatSpecifications
@@ -597,7 +784,9 @@ function getPermissionMatcher({
   parentCapability: string;
   caveats?: CaveatConstraint[] | null | typeof expect.objectContaining;
   invoker?: string;
-}) {
+  // `expect.objectContaining` returns `any`.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+}): any {
   return expect.objectContaining({
     id: expect.any(String),
     parentCapability,
@@ -608,9 +797,6 @@ function getPermissionMatcher({
 }
 
 describe('PermissionController', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
   describe('constructor', () => {
     it('initializes a new PermissionController', () => {
       const controller = getDefaultPermissionController();
@@ -643,7 +829,9 @@ describe('PermissionController', () => {
                 },
               }),
             ),
-        ).toThrow(`Invalid permission type: "${invalidPermissionType}"`);
+        ).toThrow(
+          `Invalid permission type: "${String(invalidPermissionType)}"`,
+        );
       });
     });
 
@@ -692,10 +880,8 @@ describe('PermissionController', () => {
     });
 
     it('throws if a permission specification lists unrecognized caveats', () => {
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const permissionSpecifications: any =
-        getDefaultPermissionSpecifications();
+      const permissionSpecifications = getDefaultPermissionSpecifications();
+      // @ts-expect-error Intentional destructive testing
       permissionSpecifications.wallet_getSecretArray.allowedCaveats.push('foo');
 
       expect(
@@ -770,36 +956,6 @@ describe('PermissionController', () => {
 
       controller.clearState();
       expect(controller.state).toStrictEqual({ subjects: {} });
-    });
-  });
-
-  describe('getRestrictedMethod', () => {
-    it('gets the implementation of a restricted method', async () => {
-      const controller = getDefaultPermissionController();
-      const method = controller.getRestrictedMethod(
-        PermissionNames.wallet_getSecretArray,
-      );
-
-      expect(
-        await method({
-          method: 'wallet_getSecretArray',
-          context: { origin: 'github.com' },
-        }),
-      ).toStrictEqual(['a', 'b', 'c']);
-    });
-
-    it('throws an error if the requested permission target is not a restricted method', () => {
-      const controller = getDefaultPermissionController();
-      expect(() =>
-        controller.getRestrictedMethod(PermissionNames.endowmentAnySubject),
-      ).toThrow(errors.methodNotFound(PermissionNames.endowmentAnySubject));
-    });
-
-    it('throws an error if the method does not exist', () => {
-      const controller = getDefaultPermissionController();
-      expect(() => controller.getRestrictedMethod('foo')).toThrow(
-        errors.methodNotFound('foo'),
-      );
     });
   });
 
@@ -1652,9 +1808,7 @@ describe('PermissionController', () => {
           origin,
           PermissionNames.wallet_getSecretObject,
           CaveatTypes.noopCaveat,
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          'bar' as any,
+          'bar',
         ),
       ).toThrow(new Error('NoopCaveat value must be null'));
     });
@@ -1852,7 +2006,6 @@ describe('PermissionController', () => {
       expect(() =>
         controller.removeCaveat(
           origin,
-          // @ts-expect-error - Testing invalid permission name.
           PermissionNames.wallet_noopWithRequiredCaveat,
           CaveatTypes.noopCaveat,
         ),
@@ -1864,9 +2017,9 @@ describe('PermissionController', () => {
 
   describe('updatePermissionsByCaveat', () => {
     enum MultiCaveatOrigins {
-      a = 'a.com',
-      b = 'b.io',
-      c = 'c.biz',
+      A = 'a.com',
+      B = 'b.io',
+      C = 'c.biz',
     }
 
     /**
@@ -1874,11 +2027,14 @@ describe('PermissionController', () => {
      *
      * @returns The permission controller instance
      */
-    const getMultiCaveatController = () => {
+    const getMultiCaveatController = (): PermissionController<
+      DefaultPermissionSpecifications,
+      DefaultCaveatSpecifications
+    > => {
       const controller = getDefaultPermissionController();
 
       controller.grantPermissions({
-        subject: { origin: MultiCaveatOrigins.a },
+        subject: { origin: MultiCaveatOrigins.A },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {
             caveats: [{ type: CaveatTypes.filterArrayResponse, value: ['a'] }],
@@ -1887,7 +2043,7 @@ describe('PermissionController', () => {
       });
 
       controller.grantPermissions({
-        subject: { origin: MultiCaveatOrigins.b },
+        subject: { origin: MultiCaveatOrigins.B },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretArray]: {
             caveats: [
@@ -1909,7 +2065,7 @@ describe('PermissionController', () => {
       });
 
       controller.grantPermissions({
-        subject: { origin: MultiCaveatOrigins.c },
+        subject: { origin: MultiCaveatOrigins.C },
         approvedPermissions: {
           [PermissionNames.wallet_getSecretObject]: {
             caveats: [{ type: CaveatTypes.filterObjectResponse, value: ['c'] }],
@@ -1927,25 +2083,25 @@ describe('PermissionController', () => {
       overrides: Partial<
         Record<MultiCaveatOrigins, ReturnType<typeof getPermissionMatcher>>
       > = {},
-    ) => {
+    ): PermissionControllerState<PermissionConstraint> => {
       return {
         subjects: {
-          [MultiCaveatOrigins.a]: {
-            origin: MultiCaveatOrigins.a,
+          [MultiCaveatOrigins.A]: {
+            origin: MultiCaveatOrigins.A,
             permissions: {
               [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
                 parentCapability: PermissionNames.wallet_getSecretArray,
                 caveats: [
                   { type: CaveatTypes.filterArrayResponse, value: ['a'] },
                 ],
-                invoker: MultiCaveatOrigins.a,
+                invoker: MultiCaveatOrigins.A,
               }),
-              ...overrides[MultiCaveatOrigins.a],
+              ...overrides[MultiCaveatOrigins.A],
             },
           },
 
-          [MultiCaveatOrigins.b]: {
-            origin: MultiCaveatOrigins.b,
+          [MultiCaveatOrigins.B]: {
+            origin: MultiCaveatOrigins.B,
             permissions: {
               [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
                 parentCapability: PermissionNames.wallet_getSecretArray,
@@ -1953,7 +2109,7 @@ describe('PermissionController', () => {
                   { type: CaveatTypes.filterArrayResponse, value: ['b'] },
                   { type: CaveatTypes.reverseArrayResponse, value: null },
                 ],
-                invoker: MultiCaveatOrigins.b,
+                invoker: MultiCaveatOrigins.B,
               }),
               [PermissionNames.wallet_getSecretObject]: getPermissionMatcher({
                 parentCapability: PermissionNames.wallet_getSecretObject,
@@ -1961,42 +2117,42 @@ describe('PermissionController', () => {
                   { type: CaveatTypes.filterObjectResponse, value: ['b'] },
                   { type: CaveatTypes.noopCaveat, value: null },
                 ],
-                invoker: MultiCaveatOrigins.b,
+                invoker: MultiCaveatOrigins.B,
               }),
               [PermissionNames.wallet_noopWithRequiredCaveat]:
                 getPermissionMatcher({
                   parentCapability:
                     PermissionNames.wallet_noopWithRequiredCaveat,
                   caveats: [{ type: CaveatTypes.noopCaveat, value: null }],
-                  invoker: MultiCaveatOrigins.b,
+                  invoker: MultiCaveatOrigins.B,
                 }),
               [PermissionNames.wallet_doubleNumber]: getPermissionMatcher({
                 parentCapability: PermissionNames.wallet_doubleNumber,
                 caveats: null,
-                invoker: MultiCaveatOrigins.b,
+                invoker: MultiCaveatOrigins.B,
               }),
-              ...overrides[MultiCaveatOrigins.b],
+              ...overrides[MultiCaveatOrigins.B],
             },
           },
 
-          [MultiCaveatOrigins.c]: {
-            origin: MultiCaveatOrigins.c,
+          [MultiCaveatOrigins.C]: {
+            origin: MultiCaveatOrigins.C,
             permissions: {
               [PermissionNames.wallet_getSecretObject]: getPermissionMatcher({
                 parentCapability: PermissionNames.wallet_getSecretObject,
                 caveats: [
                   { type: CaveatTypes.filterObjectResponse, value: ['c'] },
                 ],
-                invoker: MultiCaveatOrigins.c,
+                invoker: MultiCaveatOrigins.C,
               }),
               [PermissionNames.wallet_noopWithRequiredCaveat]:
                 getPermissionMatcher({
                   parentCapability:
                     PermissionNames.wallet_noopWithRequiredCaveat,
                   caveats: [{ type: CaveatTypes.noopCaveat, value: null }],
-                  invoker: MultiCaveatOrigins.c,
+                  invoker: MultiCaveatOrigins.C,
                 }),
-              ...overrides[MultiCaveatOrigins.c],
+              ...overrides[MultiCaveatOrigins.C],
             },
           },
         },
@@ -2018,7 +2174,7 @@ describe('PermissionController', () => {
         CaveatTypes.filterArrayResponse,
         () => {
           return {
-            operation: CaveatMutatorOperation.updateValue,
+            operation: CaveatMutatorOperation.UpdateValue,
             value: ['a', 'b'],
           };
         },
@@ -2034,7 +2190,7 @@ describe('PermissionController', () => {
       controller.updatePermissionsByCaveat(
         CaveatTypes.filterArrayResponse,
         () => {
-          return { operation: CaveatMutatorOperation.noop };
+          return { operation: CaveatMutatorOperation.Noop };
         },
       );
       expect(controller.state).toStrictEqual(getMultiCaveatStateMatcher());
@@ -2047,7 +2203,7 @@ describe('PermissionController', () => {
         CaveatTypes.filterArrayResponse,
         () => {
           return {
-            operation: CaveatMutatorOperation.updateValue,
+            operation: CaveatMutatorOperation.UpdateValue,
             value: ['a', 'b'],
           };
         },
@@ -2055,23 +2211,23 @@ describe('PermissionController', () => {
 
       expect(controller.state).toStrictEqual(
         getMultiCaveatStateMatcher({
-          [MultiCaveatOrigins.a]: {
+          [MultiCaveatOrigins.A]: {
             [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
               parentCapability: PermissionNames.wallet_getSecretArray,
               caveats: [
                 { type: CaveatTypes.filterArrayResponse, value: ['a', 'b'] },
               ],
-              invoker: MultiCaveatOrigins.a,
+              invoker: MultiCaveatOrigins.A,
             }),
           },
-          [MultiCaveatOrigins.b]: {
+          [MultiCaveatOrigins.B]: {
             [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
               parentCapability: PermissionNames.wallet_getSecretArray,
               caveats: [
                 { type: CaveatTypes.filterArrayResponse, value: ['a', 'b'] },
                 { type: CaveatTypes.reverseArrayResponse, value: null },
               ],
-              invoker: MultiCaveatOrigins.b,
+              invoker: MultiCaveatOrigins.B,
             }),
           },
         }),
@@ -2082,14 +2238,12 @@ describe('PermissionController', () => {
       const controller = getMultiCaveatController();
 
       let counter = 0;
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const mutator: any = () => {
+      const mutator: CaveatMutator<Caveat<string, Json>> = () => {
         counter += 1;
         return counter === 1
-          ? { operation: CaveatMutatorOperation.noop }
+          ? { operation: CaveatMutatorOperation.Noop as const }
           : {
-              operation: CaveatMutatorOperation.updateValue,
+              operation: CaveatMutatorOperation.UpdateValue as const,
               value: ['a', 'b'],
             };
       };
@@ -2101,14 +2255,14 @@ describe('PermissionController', () => {
 
       expect(controller.state).toStrictEqual(
         getMultiCaveatStateMatcher({
-          [MultiCaveatOrigins.b]: {
+          [MultiCaveatOrigins.B]: {
             [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
               parentCapability: PermissionNames.wallet_getSecretArray,
               caveats: [
                 { type: CaveatTypes.filterArrayResponse, value: ['a', 'b'] },
                 { type: CaveatTypes.reverseArrayResponse, value: null },
               ],
-              invoker: MultiCaveatOrigins.b,
+              invoker: MultiCaveatOrigins.B,
             }),
           },
         }),
@@ -2121,26 +2275,26 @@ describe('PermissionController', () => {
       controller.updatePermissionsByCaveat(
         CaveatTypes.filterArrayResponse,
         () => {
-          return { operation: CaveatMutatorOperation.deleteCaveat };
+          return { operation: CaveatMutatorOperation.DeleteCaveat };
         },
       );
 
       expect(controller.state).toStrictEqual(
         getMultiCaveatStateMatcher({
-          [MultiCaveatOrigins.a]: {
+          [MultiCaveatOrigins.A]: {
             [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
               parentCapability: PermissionNames.wallet_getSecretArray,
               caveats: null,
-              invoker: MultiCaveatOrigins.a,
+              invoker: MultiCaveatOrigins.A,
             }),
           },
-          [MultiCaveatOrigins.b]: {
+          [MultiCaveatOrigins.B]: {
             [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
               parentCapability: PermissionNames.wallet_getSecretArray,
               caveats: [
                 { type: CaveatTypes.reverseArrayResponse, value: null },
               ],
-              invoker: MultiCaveatOrigins.b,
+              invoker: MultiCaveatOrigins.B,
             }),
           },
         }),
@@ -2153,16 +2307,16 @@ describe('PermissionController', () => {
       controller.updatePermissionsByCaveat(
         CaveatTypes.filterObjectResponse,
         () => {
-          return { operation: CaveatMutatorOperation.revokePermission };
+          return { operation: CaveatMutatorOperation.RevokePermission };
         },
       );
 
       const matcher = getMultiCaveatStateMatcher();
-      delete matcher.subjects[MultiCaveatOrigins.b].permissions[
+      delete matcher.subjects[MultiCaveatOrigins.B].permissions[
         PermissionNames.wallet_getSecretObject
       ];
 
-      delete matcher.subjects[MultiCaveatOrigins.c].permissions[
+      delete matcher.subjects[MultiCaveatOrigins.C].permissions[
         PermissionNames.wallet_getSecretObject
       ];
 
@@ -2173,15 +2327,13 @@ describe('PermissionController', () => {
       const controller = getMultiCaveatController();
 
       let counter = 0;
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const mutator: any = () => {
+      const mutator: CaveatMutator<FilterArrayCaveat> = () => {
         counter += 1;
         return {
           operation:
             counter === 1
-              ? CaveatMutatorOperation.revokePermission
-              : CaveatMutatorOperation.noop,
+              ? CaveatMutatorOperation.RevokePermission
+              : CaveatMutatorOperation.Noop,
         };
       };
 
@@ -2191,9 +2343,7 @@ describe('PermissionController', () => {
       );
 
       const matcher = getMultiCaveatStateMatcher();
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      delete (matcher.subjects as any)[MultiCaveatOrigins.a];
+      delete matcher.subjects[MultiCaveatOrigins.A];
 
       expect(controller.state).toStrictEqual(matcher);
     });
@@ -2206,7 +2356,7 @@ describe('PermissionController', () => {
           CaveatTypes.filterArrayResponse,
           () => {
             return {
-              operation: CaveatMutatorOperation.updateValue,
+              operation: CaveatMutatorOperation.UpdateValue,
               value: 'foo',
             };
           },
@@ -2219,7 +2369,7 @@ describe('PermissionController', () => {
 
       expect(() =>
         controller.updatePermissionsByCaveat(CaveatTypes.noopCaveat, () => {
-          return { operation: CaveatMutatorOperation.deleteCaveat };
+          return { operation: CaveatMutatorOperation.DeleteCaveat };
         }),
       ).toThrow('noopWithRequiredCaveat permission validation failed');
     });
@@ -2230,10 +2380,9 @@ describe('PermissionController', () => {
       expect(() =>
         controller.updatePermissionsByCaveat(
           CaveatTypes.filterArrayResponse,
+          // @ts-expect-error Intentional destructive testing
           () => {
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return { operation: 'foobar' } as any;
+            return { operation: 'foobar' };
           },
         ),
       ).toThrow(`Unrecognized mutation result: "foobar"`);
@@ -2503,9 +2652,8 @@ describe('PermissionController', () => {
 
       expect(() =>
         controller.grantPermissions({
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          subject: { origin: 2 as any },
+          // @ts-expect-error Intentional destructive testing
+          subject: { origin: 2 },
           approvedPermissions: {
             wallet_getSecretArray: {},
           },
@@ -2605,9 +2753,8 @@ describe('PermissionController', () => {
           subject: { origin },
           approvedPermissions: {
             wallet_getSecretArray: {
-              // TODO: Replace `any` with type
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              caveats: [[]] as any,
+              // @ts-expect-error Intentional destructive testing
+              caveats: [[]],
             },
           },
         }),
@@ -2624,9 +2771,8 @@ describe('PermissionController', () => {
           subject: { origin },
           approvedPermissions: {
             wallet_getSecretArray: {
-              // TODO: Replace `any` with type
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              caveats: ['foo'] as any,
+              // @ts-expect-error Intentional destructive testing
+              caveats: ['foo'],
             },
           },
         }),
@@ -2651,11 +2797,10 @@ describe('PermissionController', () => {
               caveats: [
                 {
                   ...{ type: CaveatTypes.filterArrayResponse, value: ['foo'] },
+                  // @ts-expect-error Intentional destructive testing
                   bar: 'bar',
                 },
-                // TODO: Replace `any` with type
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              ] as any,
+              ],
             },
           },
         }),
@@ -2682,12 +2827,11 @@ describe('PermissionController', () => {
             wallet_getSecretArray: {
               caveats: [
                 {
+                  // @ts-expect-error Intentional destructive testing
                   type: 2,
                   value: ['foo'],
                 },
-                // TODO: Replace `any` with type
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              ] as any,
+              ],
             },
           },
         }),
@@ -2737,11 +2881,10 @@ describe('PermissionController', () => {
               caveats: [
                 {
                   type: CaveatTypes.filterArrayResponse,
+                  // @ts-expect-error Intentional destructive testing
                   foo: 'bar',
                 },
-                // TODO: Replace `any` with type
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              ] as any,
+              ],
             },
           },
         }),
@@ -2757,43 +2900,45 @@ describe('PermissionController', () => {
       );
     });
 
-    it('throws if a requested caveat has a value that is not valid JSON', () => {
+    it('throws if a requested caveat has a value with a self-referential cycle', () => {
       const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const circular: any = { foo: 'bar' };
+      const circular: Record<string, unknown> = { foo: 'bar' };
+      // Create a cycle. This will cause our JSON validity check to error.
       circular.circular = circular;
 
-      [{ foo: () => undefined }, circular, { foo: BigInt(10) }].forEach(
-        (invalidValue) => {
-          expect(() =>
-            controller.grantPermissions({
-              subject: { origin },
-              approvedPermissions: {
-                wallet_getSecretArray: {
-                  caveats: [
-                    {
-                      type: CaveatTypes.filterArrayResponse,
-                      value: invalidValue,
-                    },
-                  ],
-                },
+      [
+        { foo: (): undefined => undefined },
+        circular,
+        { foo: BigInt(10) },
+      ].forEach((invalidValue) => {
+        expect(() =>
+          controller.grantPermissions({
+            subject: { origin },
+            approvedPermissions: {
+              wallet_getSecretArray: {
+                caveats: [
+                  {
+                    type: CaveatTypes.filterArrayResponse,
+                    // @ts-expect-error Intentional destructive testing
+                    value: invalidValue,
+                  },
+                ],
               },
-            }),
-          ).toThrow(
-            new errors.CaveatInvalidJsonError(
-              {
-                type: CaveatTypes.filterArrayResponse,
-                value: invalidValue,
-              },
-              origin,
-              PermissionNames.wallet_getSecretArray,
-            ),
-          );
-        },
-      );
+            },
+          }),
+        ).toThrow(
+          new errors.CaveatInvalidJsonError(
+            {
+              type: CaveatTypes.filterArrayResponse,
+              value: invalidValue,
+            },
+            origin,
+            PermissionNames.wallet_getSecretArray,
+          ),
+        );
+      });
     });
 
     it('throws if caveat validation fails', () => {
@@ -2890,1130 +3035,1502 @@ describe('PermissionController', () => {
     });
   });
 
-  describe('requestPermissions', () => {
-    it('requests a permission', async () => {
-      const options = getPermissionControllerOptions();
-      const { messenger } = options;
+  // See requestPermissionsIncremental for further tests
+  describe('grantPermissionsIncremental', () => {
+    it('incrementally grants a permission', () => {
+      const controller = getDefaultPermissionControllerWithState();
       const origin = 'metamask.io';
 
-      const callActionSpy = jest
-        .spyOn(messenger, 'call')
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
-          return {
-            metadata: { ...requestData.metadata },
-            permissions: { ...requestData.permissions },
-          };
-        });
-
-      const controller = getDefaultPermissionController(options);
-      expect(
-        await controller.requestPermissions(
-          { origin },
-          {
-            [PermissionNames.wallet_getSecretArray]: {},
+      expect(controller.state).toStrictEqual({
+        subjects: {
+          [origin]: {
+            origin,
+            permissions: {
+              wallet_getSecretArray: getPermissionMatcher({
+                parentCapability: 'wallet_getSecretArray',
+              }),
+            },
           },
-        ),
-      ).toMatchObject([
-        {
-          [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
-            parentCapability: PermissionNames.wallet_getSecretArray,
-            caveats: null,
-            invoker: origin,
-          }),
         },
-        { id: expect.any(String), origin },
-      ]);
+      });
 
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: expect.any(String),
-          origin,
-          requestData: {
-            metadata: { id: expect.any(String), origin },
-            permissions: { [PermissionNames.wallet_getSecretArray]: {} },
-          },
-          type: MethodNames.requestPermissions,
+      controller.grantPermissionsIncremental({
+        subject: { origin },
+        approvedPermissions: {
+          wallet_getSecretObject: {},
         },
-        true,
-      );
-    });
+      });
 
-    it('requests a permission that requires permitted side-effects', async () => {
-      const options = getPermissionControllerOptions();
-      const { messenger } = options;
-      const origin = 'metamask.io';
-
-      const callActionSpy = jest
-        .spyOn(messenger, 'call')
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
-          return {
-            metadata: { ...requestData.metadata },
-            permissions: { ...requestData.permissions },
-          };
-        });
-
-      const controller = getDefaultPermissionController(options);
-      expect(
-        await controller.requestPermissions(
-          { origin },
-          {
-            [PermissionNames.wallet_noopWithPermittedSideEffects]: {},
-          },
-        ),
-      ).toMatchObject([
-        {
-          [PermissionNames.wallet_noopWithPermittedSideEffects]:
-            getPermissionMatcher({
-              parentCapability:
-                PermissionNames.wallet_noopWithPermittedSideEffects,
-              caveats: null,
-              invoker: origin,
+      expect(controller.state).toStrictEqual({
+        subjects: {
+          [origin]: {
+            origin,
+            permissions: expect.objectContaining({
+              wallet_getSecretArray: getPermissionMatcher({
+                parentCapability: 'wallet_getSecretArray',
+              }),
+              wallet_getSecretObject: getPermissionMatcher({
+                parentCapability: 'wallet_getSecretObject',
+              }),
             }),
-        },
-        {
-          data: {
-            [PermissionNames.wallet_noopWithPermittedSideEffects]: 'foo',
           },
-          id: expect.any(String),
-          origin,
         },
-      ]);
-      expect(onPermittedMock).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: expect.any(String),
-          origin,
-          requestData: {
-            metadata: { id: expect.any(String), origin },
-            permissions: {
-              [PermissionNames.wallet_noopWithPermittedSideEffects]: {},
-            },
-          },
-          type: MethodNames.requestPermissions,
-        },
-        true,
-      );
+      });
     });
 
-    it('requests a permission that requires permitted and failure side-effects', async () => {
-      const options = getPermissionControllerOptions();
-      const { messenger } = options;
+    it('incrementally grants a caveat to an existing permission', () => {
+      const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
+      const caveat1 = { type: CaveatTypes.filterArrayResponse, value: ['foo'] };
+      const caveat2 = {
+        type: CaveatTypes.filterObjectResponse,
+        value: ['bar'],
+      };
 
-      const callActionSpy = jest
-        .spyOn(messenger, 'call')
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
-          return {
-            metadata: { ...requestData.metadata },
-            permissions: { ...requestData.permissions },
-          };
-        });
-
-      const controller = getDefaultPermissionController(options);
-      expect(
-        await controller.requestPermissions(
-          { origin },
-          {
-            [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]: {},
+      controller.grantPermissions({
+        subject: { origin },
+        approvedPermissions: {
+          wallet_noopWithManyCaveats: {
+            caveats: [{ ...caveat1 }],
           },
-        ),
-      ).toMatchObject([
-        {
-          [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]:
-            getPermissionMatcher({
-              parentCapability:
-                PermissionNames.wallet_noopWithPermittedAndFailureSideEffects,
-              caveats: null,
-              invoker: origin,
+        },
+      });
+
+      controller.grantPermissionsIncremental({
+        subject: { origin },
+        approvedPermissions: {
+          wallet_noopWithManyCaveats: {
+            caveats: [{ ...caveat2 }],
+          },
+        },
+      });
+
+      expect(controller.state).toStrictEqual({
+        subjects: {
+          [origin]: {
+            origin,
+            permissions: expect.objectContaining({
+              wallet_noopWithManyCaveats: getPermissionMatcher({
+                parentCapability: 'wallet_noopWithManyCaveats',
+                caveats: [{ ...caveat1 }, { ...caveat2 }],
+              }),
             }),
-        },
-        {
-          data: {
-            [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]:
-              'foo',
           },
-          id: expect.any(String),
-          origin,
         },
-      ]);
-
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(onPermittedMock).toHaveBeenCalledTimes(1);
-      expect(onFailureMock).not.toHaveBeenCalled();
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: expect.any(String),
-          origin,
-          requestData: {
-            metadata: { id: expect.any(String), origin },
-            permissions: {
-              [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]:
-                {},
-            },
-          },
-          type: MethodNames.requestPermissions,
-        },
-        true,
-      );
+      });
     });
 
-    it('can handle multiple side effects', async () => {
-      const options = getPermissionControllerOptions();
-      const { messenger } = options;
+    it('incrementally updates a caveat of an existing permission', () => {
+      const controller = getDefaultPermissionController();
       const origin = 'metamask.io';
+      const getCaveat = (...values: string[]): Caveat<string, Json> => ({
+        type: CaveatTypes.filterArrayResponse,
+        value: values,
+      });
 
-      const callActionSpy = jest
-        .spyOn(messenger, 'call')
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
-          return {
-            metadata: { ...requestData.metadata },
-            permissions: { ...requestData.permissions },
-          };
-        });
-
-      const controller = getDefaultPermissionController(options);
-      expect(
-        await controller.requestPermissions(
-          { origin },
-          {
-            [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]: {},
-            [PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2]: {},
+      controller.grantPermissions({
+        subject: { origin },
+        approvedPermissions: {
+          wallet_noopWithManyCaveats: {
+            caveats: [getCaveat('foo')],
           },
-        ),
-      ).toMatchObject([
-        {
-          [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]:
-            getPermissionMatcher({
-              parentCapability:
-                PermissionNames.wallet_noopWithPermittedAndFailureSideEffects,
-              caveats: null,
-              invoker: origin,
+        },
+      });
+
+      controller.grantPermissionsIncremental({
+        subject: { origin },
+        approvedPermissions: {
+          wallet_noopWithManyCaveats: {
+            caveats: [getCaveat('foo', 'bar')],
+          },
+        },
+      });
+
+      expect(controller.state).toStrictEqual({
+        subjects: {
+          [origin]: {
+            origin,
+            permissions: expect.objectContaining({
+              wallet_noopWithManyCaveats: getPermissionMatcher({
+                parentCapability: 'wallet_noopWithManyCaveats',
+                caveats: [getCaveat('foo', 'bar')],
+              }),
             }),
-        },
-        {
-          data: {
-            [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]:
-              'foo',
-            [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects2]:
-              'foo',
           },
-          id: expect.any(String),
-          origin,
         },
-      ]);
-
-      expect(onPermittedMock).toHaveBeenCalledTimes(2);
-      expect(onFailureMock).not.toHaveBeenCalled();
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: expect.any(String),
-          origin,
-          requestData: {
-            metadata: { id: expect.any(String), origin },
-            permissions: {
-              [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]:
-                {},
-              [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects2]:
-                {},
-            },
-          },
-          type: MethodNames.requestPermissions,
-        },
-        true,
-      );
+      });
     });
+  });
 
-    it('can handle permitted multiple side-effect failure', async () => {
-      const options = getPermissionControllerOptions();
-      const { messenger } = options;
-      const origin = 'metamask.io';
+  describe('requesting permissions', () => {
+    // `expect.objectContaining` returns `any`.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const getAnyPermissionsDiffMatcher = (): any =>
+      expect.objectContaining({
+        currentPermissions: expect.any(Object),
+        permissionDiffMap: expect.any(Object),
+      });
 
-      onPermittedMock.mockImplementation(async () =>
-        Promise.reject(new Error('error')),
-      );
-
-      const callActionSpy = jest
-        .spyOn(messenger, 'call')
-        // TODO: Replace `any` with type
+    describe.each([
+      'requestPermissions',
+      'requestPermissionsIncremental',
+    ] as const)('%s', (requestFunctionName) => {
+      const getRequestDataDiffProperty = (): {
+        // `expect.objectContaining` returns `any`.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
-          return {
-            metadata: { ...requestData.metadata },
-            permissions: { ...requestData.permissions },
-          };
-        });
+        diff?: any;
+      } =>
+        requestFunctionName === 'requestPermissionsIncremental'
+          ? { diff: getAnyPermissionsDiffMatcher() }
+          : {};
 
-      const controller = getDefaultPermissionController(options);
-      await expect(async () =>
-        controller.requestPermissions(
-          { origin },
-          {
-            [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]: {},
-            [PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2]: {},
-          },
-        ),
-      ).rejects.toThrow(
-        'Multiple errors occurred during side-effects execution',
-      );
+      it('requests a permission', async () => {
+        const options = getPermissionControllerOptions();
+        const { messenger } = options;
+        const origin = 'metamask.io';
 
-      expect(onPermittedMock).toHaveBeenCalledTimes(2);
-      expect(onFailureMock).toHaveBeenCalledTimes(2);
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: expect.any(String),
-          origin,
-          requestData: {
-            metadata: { id: expect.any(String), origin },
-            permissions: {
-              [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]:
-                {},
-              [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects2]:
-                {},
-            },
-          },
-          type: MethodNames.requestPermissions,
-        },
-        true,
-      );
-    });
+        const callActionSpy = jest
+          .spyOn(messenger, 'call')
+          .mockImplementationOnce(async (...args) => {
+            const [, { requestData }] = args as AddPermissionRequestArgs;
+            return {
+              metadata: { ...requestData.metadata },
+              permissions: { ...requestData.permissions },
+            };
+          });
 
-    it('can handle permitted side-effect rejection', async () => {
-      const options = getPermissionControllerOptions();
-      const { messenger } = options;
-      const origin = 'metamask.io';
-
-      onPermittedMock.mockImplementation(async () =>
-        Promise.reject(new Error('error')),
-      );
-
-      const callActionSpy = jest
-        .spyOn(messenger, 'call')
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
-          return {
-            metadata: { ...requestData.metadata },
-            permissions: { ...requestData.permissions },
-          };
-        });
-
-      const controller = getDefaultPermissionController(options);
-      await expect(async () =>
-        controller.requestPermissions(
-          { origin },
-          {
-            [PermissionNames.wallet_noopWithPermittedSideEffects]: {},
-          },
-        ),
-      ).rejects.toThrow('error');
-
-      expect(onPermittedMock).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: expect.any(String),
-          origin,
-          requestData: {
-            metadata: { id: expect.any(String), origin },
-            permissions: {
-              [PermissionNames.wallet_noopWithPermittedSideEffects]: {},
-            },
-          },
-          type: MethodNames.requestPermissions,
-        },
-        true,
-      );
-    });
-
-    it('can handle failure side-effect rejection', async () => {
-      const options = getPermissionControllerOptions();
-      const { messenger } = options;
-      const origin = 'metamask.io';
-
-      onPermittedMock.mockImplementation(async () =>
-        Promise.reject(new Error('error')),
-      );
-
-      onFailureMock.mockImplementation(async () =>
-        Promise.reject(new Error('error')),
-      );
-
-      const callActionSpy = jest
-        .spyOn(messenger, 'call')
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
-          return {
-            metadata: { ...requestData.metadata },
-            permissions: { ...requestData.permissions },
-          };
-        });
-
-      const controller = getDefaultPermissionController(options);
-      await expect(async () =>
-        controller.requestPermissions(
-          { origin },
-          {
-            [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]: {},
-          },
-        ),
-      ).rejects.toThrow('Unexpected error in side-effects');
-
-      expect(onPermittedMock).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: expect.any(String),
-          origin,
-          requestData: {
-            metadata: { id: expect.any(String), origin },
-            permissions: {
-              [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]:
-                {},
-            },
-          },
-          type: MethodNames.requestPermissions,
-        },
-        true,
-      );
-    });
-
-    it('requests a permission that requires requestData in its factory', async () => {
-      const options = getPermissionControllerOptions();
-      const { messenger } = options;
-      const origin = 'metamask.io';
-
-      const callActionSpy = jest
-        .spyOn(messenger, 'call')
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
-          return {
-            metadata: { ...requestData.metadata },
-            permissions: { ...requestData.permissions },
-            caveatValue: ['foo'], // this will be added to the permission
-          };
-        });
-
-      const controller = getDefaultPermissionController(options);
-      expect(
-        await controller.requestPermissions(
-          { origin },
-          {
-            [PermissionNames.wallet_noopWithFactory]: {},
-          },
-        ),
-      ).toMatchObject([
-        {
-          [PermissionNames.wallet_noopWithFactory]: getPermissionMatcher({
-            parentCapability: PermissionNames.wallet_noopWithFactory,
-            caveats: [
-              { type: CaveatTypes.filterArrayResponse, value: ['foo'] },
-            ],
-            invoker: origin,
-          }),
-        },
-        { id: expect.any(String), origin },
-      ]);
-
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: expect.any(String),
-          origin,
-          requestData: {
-            metadata: { id: expect.any(String), origin },
-            permissions: {
-              [PermissionNames.wallet_noopWithFactory]: {},
-            },
-          },
-          type: MethodNames.requestPermissions,
-        },
-        true,
-      );
-    });
-
-    it('requests multiple permissions', async () => {
-      const options = getPermissionControllerOptions();
-      const { messenger } = options;
-      const origin = 'metamask.io';
-
-      const callActionSpy = jest
-        .spyOn(messenger, 'call')
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
-          return {
-            metadata: { ...requestData.metadata },
-            permissions: { ...requestData.permissions },
-          };
-        });
-
-      const controller = getDefaultPermissionController(options);
-      expect(
-        await controller.requestPermissions(
-          { origin },
-          {
-            [PermissionNames.wallet_getSecretArray]: {},
-            [PermissionNames.wallet_getSecretObject]: {
-              caveats: [
-                { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
-              ],
-            },
-          },
-        ),
-      ).toMatchObject([
-        {
-          [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
-            parentCapability: PermissionNames.wallet_getSecretArray,
-            caveats: null,
-            invoker: origin,
-          }),
-          [PermissionNames.wallet_getSecretObject]: getPermissionMatcher({
-            parentCapability: PermissionNames.wallet_getSecretObject,
-            caveats: [
-              { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
-            ],
-            invoker: origin,
-          }),
-        },
-        { id: expect.any(String), origin },
-      ]);
-
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: expect.any(String),
-          origin,
-          requestData: {
-            metadata: { id: expect.any(String), origin },
-            permissions: {
-              [PermissionNames.wallet_getSecretArray]: {},
-              [PermissionNames.wallet_getSecretObject]: {
-                caveats: [
-                  { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
-                ],
-              },
-            },
-          },
-          type: MethodNames.requestPermissions,
-        },
-        true,
-      );
-    });
-
-    it('requests multiple permissions (approved permissions are a strict superset)', async () => {
-      const options = getPermissionControllerOptions();
-      const { messenger } = options;
-      const origin = 'metamask.io';
-
-      const callActionSpy = jest
-        .spyOn(messenger, 'call')
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
-          return {
-            metadata: { ...requestData.metadata },
-            // endowmentAnySubject is added to the request
-            permissions: {
-              ...requestData.permissions,
-              [PermissionNames.endowmentAnySubject]: {},
-            },
-          };
-        });
-
-      const controller = getDefaultPermissionController(options);
-      expect(
-        await controller.requestPermissions(
-          { origin },
-          {
-            [PermissionNames.wallet_getSecretArray]: {},
-            [PermissionNames.wallet_getSecretObject]: {
-              caveats: [
-                { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
-              ],
-            },
-          },
-        ),
-      ).toMatchObject([
-        {
-          [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
-            parentCapability: PermissionNames.wallet_getSecretArray,
-            caveats: null,
-            invoker: origin,
-          }),
-          [PermissionNames.wallet_getSecretObject]: getPermissionMatcher({
-            parentCapability: PermissionNames.wallet_getSecretObject,
-            caveats: [
-              { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
-            ],
-            invoker: origin,
-          }),
-          [PermissionNames.endowmentAnySubject]: getPermissionMatcher({
-            parentCapability: PermissionNames.endowmentAnySubject,
-            caveats: null,
-            invoker: origin,
-          }),
-        },
-        { id: expect.any(String), origin },
-      ]);
-
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: expect.any(String),
-          origin,
-          requestData: {
-            metadata: { id: expect.any(String), origin },
-            permissions: {
-              [PermissionNames.wallet_getSecretArray]: {},
-              [PermissionNames.wallet_getSecretObject]: {
-                caveats: [
-                  { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
-                ],
-              },
-            },
-          },
-          type: MethodNames.requestPermissions,
-        },
-        true,
-      );
-    });
-
-    it('requests multiple permissions (approved permissions are a strict subset)', async () => {
-      const options = getPermissionControllerOptions();
-      const { messenger } = options;
-      const origin = 'metamask.io';
-
-      const callActionSpy = jest
-        .spyOn(messenger, 'call')
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
-          const approvedPermissions = { ...requestData.permissions };
-          delete approvedPermissions[PermissionNames.wallet_getSecretArray];
-
-          return {
-            metadata: { ...requestData.metadata },
-            permissions: approvedPermissions,
-          };
-        });
-
-      const controller = getDefaultPermissionController(options);
-      expect(
-        await controller.requestPermissions(
-          { origin },
-          {
-            [PermissionNames.wallet_getSecretArray]: {},
-            [PermissionNames.wallet_getSecretObject]: {
-              caveats: [
-                { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
-              ],
-            },
-            [PermissionNames.endowmentAnySubject]: {},
-          },
-        ),
-      ).toMatchObject([
-        {
-          [PermissionNames.wallet_getSecretObject]: getPermissionMatcher({
-            parentCapability: PermissionNames.wallet_getSecretObject,
-            caveats: [
-              { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
-            ],
-            invoker: origin,
-          }),
-          [PermissionNames.endowmentAnySubject]: getPermissionMatcher({
-            parentCapability: PermissionNames.endowmentAnySubject,
-            caveats: null,
-            invoker: origin,
-          }),
-        },
-        { id: expect.any(String), origin },
-      ]);
-
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: expect.any(String),
-          origin,
-          requestData: {
-            metadata: { id: expect.any(String), origin },
-            permissions: {
-              [PermissionNames.wallet_getSecretArray]: {},
-              [PermissionNames.wallet_getSecretObject]: {
-                caveats: [
-                  { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
-                ],
-              },
-              [PermissionNames.endowmentAnySubject]: {},
-            },
-          },
-          type: MethodNames.requestPermissions,
-        },
-        true,
-      );
-    });
-
-    it('requests multiple permissions (an approved permission is modified)', async () => {
-      const options = getPermissionControllerOptions();
-      const { messenger } = options;
-      const origin = 'metamask.io';
-
-      const callActionSpy = jest
-        .spyOn(messenger, 'call')
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
-          const approvedPermissions = { ...requestData.permissions };
-          approvedPermissions[PermissionNames.wallet_getSecretObject] = {
-            caveats: [
-              { type: CaveatTypes.filterObjectResponse, value: ['kaplar'] },
-            ],
-          };
-
-          return {
-            metadata: { ...requestData.metadata },
-            permissions: approvedPermissions,
-          };
-        });
-
-      const controller = getDefaultPermissionController(options);
-      expect(
-        await controller.requestPermissions(
-          { origin },
-          {
-            [PermissionNames.wallet_getSecretArray]: {},
-            [PermissionNames.wallet_getSecretObject]: {
-              caveats: [
-                { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
-              ],
-            },
-            [PermissionNames.endowmentAnySubject]: {},
-          },
-        ),
-      ).toMatchObject([
-        {
-          [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
-            parentCapability: PermissionNames.wallet_getSecretArray,
-            caveats: null,
-            invoker: origin,
-          }),
-          [PermissionNames.wallet_getSecretObject]: getPermissionMatcher({
-            parentCapability: PermissionNames.wallet_getSecretObject,
-            caveats: [
-              { type: CaveatTypes.filterObjectResponse, value: ['kaplar'] },
-            ],
-            invoker: origin,
-          }),
-          [PermissionNames.endowmentAnySubject]: getPermissionMatcher({
-            parentCapability: PermissionNames.endowmentAnySubject,
-            caveats: null,
-            invoker: origin,
-          }),
-        },
-        { id: expect.any(String), origin },
-      ]);
-
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: expect.any(String),
-          origin,
-          requestData: {
-            metadata: { id: expect.any(String), origin },
-            permissions: {
-              [PermissionNames.wallet_getSecretArray]: {},
-              [PermissionNames.wallet_getSecretObject]: {
-                caveats: [
-                  { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
-                ],
-              },
-              [PermissionNames.endowmentAnySubject]: {},
-            },
-          },
-          type: MethodNames.requestPermissions,
-        },
-        true,
-      );
-    });
-
-    it('throws if requested permissions object is not a plain object', async () => {
-      const options = getPermissionControllerOptions();
-      const { messenger } = options;
-      const origin = 'metamask.io';
-      const controller = getDefaultPermissionController(options);
-
-      const callActionSpy = jest.spyOn(messenger, 'call');
-
-      for (const invalidInput of [
-        // not plain objects
-        null,
-        'foo',
-        [{ [PermissionNames.wallet_getSecretArray]: {} }],
-      ]) {
-        await expect(
-          async () =>
-            await controller.requestPermissions(
-              { origin },
-              // TODO: Replace `any` with type
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              invalidInput as any,
-            ),
-        ).rejects.toThrow(
-          errors.invalidParams({
-            message: `Requested permissions for origin "${origin}" is not a plain object.`,
-            data: { origin, requestedPermissions: invalidInput },
-          }),
-        );
-      }
-
-      expect(callActionSpy).not.toHaveBeenCalled();
-    });
-
-    it('throws if requested permissions object has no permissions', async () => {
-      const options = getPermissionControllerOptions();
-      const { messenger } = options;
-      const origin = 'metamask.io';
-
-      const callActionSpy = jest.spyOn(messenger, 'call');
-
-      const controller = getDefaultPermissionController(options);
-      await expect(
-        async () =>
-          // No permissions in object
-          await controller.requestPermissions({ origin }, {}),
-      ).rejects.toThrow(
-        errors.invalidParams({
-          message: `Permissions request for origin "${origin}" contains no permissions.`,
-          data: { origin, requestedPermissions: {} },
-        }),
-      );
-
-      expect(callActionSpy).not.toHaveBeenCalled();
-    });
-
-    it('throws if requested permissions contain a (key : value.parentCapability) mismatch', async () => {
-      const options = getPermissionControllerOptions();
-      const { messenger } = options;
-      const origin = 'metamask.io';
-
-      const callActionSpy = jest.spyOn(messenger, 'call');
-
-      const controller = getDefaultPermissionController(options);
-      await expect(
-        async () =>
-          await controller.requestPermissions(
+        const controller = getDefaultPermissionController(options);
+        expect(
+          await controller[requestFunctionName](
             { origin },
             {
-              [PermissionNames.wallet_getSecretArray]: {
-                parentCapability: PermissionNames.wallet_getSecretArray,
+              [PermissionNames.wallet_getSecretArray]: {},
+            },
+          ),
+        ).toMatchObject([
+          {
+            [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
+              parentCapability: PermissionNames.wallet_getSecretArray,
+              caveats: null,
+              invoker: origin,
+            }),
+          },
+          { id: expect.any(String), origin },
+        ]);
+
+        expect(callActionSpy).toHaveBeenCalledTimes(1);
+        expect(callActionSpy).toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
+          {
+            id: expect.any(String),
+            origin,
+            requestData: {
+              metadata: { id: expect.any(String), origin },
+              permissions: { [PermissionNames.wallet_getSecretArray]: {} },
+              ...getRequestDataDiffProperty(),
+            },
+            type: MethodNames.RequestPermissions,
+          },
+          true,
+        );
+      });
+
+      it('allows caller passing additional metadata', async () => {
+        const options = getPermissionControllerOptions();
+        const { messenger } = options;
+        const origin = 'metamask.io';
+
+        const callActionSpy = jest
+          .spyOn(messenger, 'call')
+          .mockImplementationOnce(async (...args) => {
+            const [, { requestData }] = args as AddPermissionRequestArgs;
+            return {
+              metadata: { ...requestData.metadata },
+              permissions: { ...requestData.permissions },
+            };
+          });
+
+        const controller = getDefaultPermissionController(options);
+        expect(
+          await controller[requestFunctionName](
+            { origin },
+            {
+              [PermissionNames.wallet_getSecretArray]: {},
+            },
+            { metadata: { foo: 'bar' } },
+          ),
+        ).toMatchObject([
+          {
+            [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
+              parentCapability: PermissionNames.wallet_getSecretArray,
+              caveats: null,
+              invoker: origin,
+            }),
+          },
+          { id: expect.any(String), origin },
+        ]);
+
+        expect(callActionSpy).toHaveBeenCalledTimes(1);
+        expect(callActionSpy).toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
+          {
+            id: expect.any(String),
+            origin,
+            requestData: {
+              metadata: { foo: 'bar', id: expect.any(String), origin },
+              permissions: { [PermissionNames.wallet_getSecretArray]: {} },
+              ...getRequestDataDiffProperty(),
+            },
+            type: MethodNames.RequestPermissions,
+          },
+          true,
+        );
+      });
+
+      it('requests a permission that requires permitted side-effects', async () => {
+        const [permissionSpecifications, sideEffectMocks] =
+          getDefaultPermissionSpecificationsAndMocks();
+        const options = getPermissionControllerOptions({
+          permissionSpecifications,
+        });
+        const { messenger } = options;
+        const origin = 'metamask.io';
+
+        const callActionSpy = jest
+          .spyOn(messenger, 'call')
+          .mockImplementationOnce(async (...args) => {
+            const [, { requestData }] = args as AddPermissionRequestArgs;
+            return {
+              metadata: { ...requestData.metadata },
+              permissions: { ...requestData.permissions },
+            };
+          });
+
+        const controller = getDefaultPermissionController(options);
+
+        expect(
+          await controller[requestFunctionName](
+            { origin },
+            {
+              [PermissionNames.wallet_noopWithPermittedSideEffects]: {},
+            },
+          ),
+        ).toMatchObject([
+          {
+            [PermissionNames.wallet_noopWithPermittedSideEffects]:
+              getPermissionMatcher({
+                parentCapability:
+                  PermissionNames.wallet_noopWithPermittedSideEffects,
+                caveats: null,
+                invoker: origin,
+              }),
+          },
+          {
+            data: {
+              [PermissionNames.wallet_noopWithPermittedSideEffects]: 'foo',
+            },
+            id: expect.any(String),
+            origin,
+          },
+        ]);
+
+        expect(
+          sideEffectMocks[PermissionNames.wallet_noopWithPermittedSideEffects]
+            .onPermitted,
+        ).toHaveBeenCalledTimes(1);
+
+        expect(callActionSpy).toHaveBeenCalledTimes(1);
+        expect(callActionSpy).toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
+          {
+            id: expect.any(String),
+            origin,
+            requestData: {
+              metadata: { id: expect.any(String), origin },
+              permissions: {
+                [PermissionNames.wallet_noopWithPermittedSideEffects]: {},
               },
-              // parentCapability value does not match key
+              ...getRequestDataDiffProperty(),
+            },
+            type: MethodNames.RequestPermissions,
+          },
+          true,
+        );
+      });
+
+      it('requests a permission that requires permitted and failure side-effects', async () => {
+        const [permissionSpecifications, sideEffectMocks] =
+          getDefaultPermissionSpecificationsAndMocks();
+        const options = getPermissionControllerOptions({
+          permissionSpecifications,
+        });
+        const { messenger } = options;
+        const origin = 'metamask.io';
+
+        const callActionSpy = jest
+          .spyOn(messenger, 'call')
+          .mockImplementationOnce(async (...args) => {
+            const [, { requestData }] = args as AddPermissionRequestArgs;
+            return {
+              metadata: { ...requestData.metadata },
+              permissions: { ...requestData.permissions },
+            };
+          });
+
+        const controller = getDefaultPermissionController(options);
+        expect(
+          await controller[requestFunctionName](
+            { origin },
+            {
+              [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]:
+                {},
+            },
+          ),
+        ).toMatchObject([
+          {
+            [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]:
+              getPermissionMatcher({
+                parentCapability:
+                  PermissionNames.wallet_noopWithPermittedAndFailureSideEffects,
+                caveats: null,
+                invoker: origin,
+              }),
+          },
+          {
+            data: {
+              [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]:
+                'foo',
+            },
+            id: expect.any(String),
+            origin,
+          },
+        ]);
+
+        expect(
+          sideEffectMocks[
+            PermissionNames.wallet_noopWithPermittedAndFailureSideEffects
+          ].onPermitted,
+        ).toHaveBeenCalledTimes(1);
+
+        expect(
+          sideEffectMocks[
+            PermissionNames.wallet_noopWithPermittedAndFailureSideEffects
+          ].onFailure,
+        ).not.toHaveBeenCalled();
+
+        expect(callActionSpy).toHaveBeenCalledTimes(1);
+        expect(callActionSpy).toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
+          {
+            id: expect.any(String),
+            origin,
+            requestData: {
+              metadata: { id: expect.any(String), origin },
+              permissions: {
+                [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]:
+                  {},
+              },
+              ...getRequestDataDiffProperty(),
+            },
+            type: MethodNames.RequestPermissions,
+          },
+          true,
+        );
+      });
+
+      it('can handle multiple side-effects', async () => {
+        const [permissionSpecifications, sideEffectMocks] =
+          getDefaultPermissionSpecificationsAndMocks();
+        const options = getPermissionControllerOptions({
+          permissionSpecifications,
+        });
+        const { messenger } = options;
+        const origin = 'metamask.io';
+
+        const callActionSpy = jest
+          .spyOn(messenger, 'call')
+          .mockImplementationOnce(async (...args) => {
+            const [, { requestData }] = args as AddPermissionRequestArgs;
+            return {
+              metadata: { ...requestData.metadata },
+              permissions: { ...requestData.permissions },
+            };
+          });
+
+        const controller = getDefaultPermissionController(options);
+        expect(
+          await controller[requestFunctionName](
+            { origin },
+            {
+              [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]:
+                {},
+              [PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2]:
+                {},
+            },
+          ),
+        ).toMatchObject([
+          {
+            [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]:
+              getPermissionMatcher({
+                parentCapability:
+                  PermissionNames.wallet_noopWithPermittedAndFailureSideEffects,
+                caveats: null,
+                invoker: origin,
+              }),
+          },
+          {
+            data: {
+              [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]:
+                'foo',
+              [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects2]:
+                'foo',
+            },
+            id: expect.any(String),
+            origin,
+          },
+        ]);
+
+        expect(
+          sideEffectMocks[
+            PermissionNames.wallet_noopWithPermittedAndFailureSideEffects
+          ].onPermitted,
+        ).toHaveBeenCalledTimes(1);
+        expect(
+          sideEffectMocks[
+            PermissionNames.wallet_noopWithPermittedAndFailureSideEffects2
+          ].onPermitted,
+        ).toHaveBeenCalledTimes(1);
+
+        expect(
+          sideEffectMocks[
+            PermissionNames.wallet_noopWithPermittedAndFailureSideEffects
+          ].onFailure,
+        ).not.toHaveBeenCalled();
+        expect(
+          sideEffectMocks[
+            PermissionNames.wallet_noopWithPermittedAndFailureSideEffects2
+          ].onFailure,
+        ).not.toHaveBeenCalled();
+
+        expect(callActionSpy).toHaveBeenCalledTimes(1);
+        expect(callActionSpy).toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
+          {
+            id: expect.any(String),
+            origin,
+            requestData: {
+              metadata: { id: expect.any(String), origin },
+              permissions: {
+                [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]:
+                  {},
+                [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects2]:
+                  {},
+              },
+              ...getRequestDataDiffProperty(),
+            },
+            type: MethodNames.RequestPermissions,
+          },
+          true,
+        );
+      });
+
+      it('can handle multiple permitted side-effect failures', async () => {
+        const [permissionSpecifications, sideEffectMocks] =
+          getDefaultPermissionSpecificationsAndMocks();
+        const options = getPermissionControllerOptions({
+          permissionSpecifications,
+        });
+        const { messenger } = options;
+        const origin = 'metamask.io';
+
+        sideEffectMocks[
+          PermissionNames.wallet_noopWithPermittedAndFailureSideEffects
+        ].onPermitted.mockImplementation(() =>
+          Promise.reject(new Error('error')),
+        );
+        sideEffectMocks[
+          PermissionNames.wallet_noopWithPermittedAndFailureSideEffects2
+        ].onPermitted.mockImplementation(() =>
+          Promise.reject(new Error('error')),
+        );
+
+        const callActionSpy = jest
+          .spyOn(messenger, 'call')
+          .mockImplementationOnce(async (...args) => {
+            const [, { requestData }] = args as AddPermissionRequestArgs;
+            return {
+              metadata: { ...requestData.metadata },
+              permissions: { ...requestData.permissions },
+            };
+          });
+
+        const controller = getDefaultPermissionController(options);
+        await expect(async () =>
+          controller[requestFunctionName](
+            { origin },
+            {
+              [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]:
+                {},
+              [PermissionKeys.wallet_noopWithPermittedAndFailureSideEffects2]:
+                {},
+            },
+          ),
+        ).rejects.toThrow(
+          'Multiple errors occurred during side-effects execution',
+        );
+
+        expect(
+          sideEffectMocks[
+            PermissionNames.wallet_noopWithPermittedAndFailureSideEffects
+          ].onPermitted,
+        ).toHaveBeenCalledTimes(1);
+        expect(
+          sideEffectMocks[
+            PermissionNames.wallet_noopWithPermittedAndFailureSideEffects2
+          ].onPermitted,
+        ).toHaveBeenCalledTimes(1);
+
+        expect(
+          sideEffectMocks[
+            PermissionNames.wallet_noopWithPermittedAndFailureSideEffects
+          ].onFailure,
+        ).toHaveBeenCalledTimes(1);
+        expect(
+          sideEffectMocks[
+            PermissionNames.wallet_noopWithPermittedAndFailureSideEffects2
+          ].onFailure,
+        ).toHaveBeenCalledTimes(1);
+
+        expect(callActionSpy).toHaveBeenCalledTimes(1);
+        expect(callActionSpy).toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
+          {
+            id: expect.any(String),
+            origin,
+            requestData: {
+              metadata: { id: expect.any(String), origin },
+              permissions: {
+                [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]:
+                  {},
+                [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects2]:
+                  {},
+              },
+              ...getRequestDataDiffProperty(),
+            },
+            type: MethodNames.RequestPermissions,
+          },
+          true,
+        );
+      });
+
+      it('can handle permitted side-effect rejection (no failure handler)', async () => {
+        const [permissionSpecifications, sideEffectMocks] =
+          getDefaultPermissionSpecificationsAndMocks();
+        const options = getPermissionControllerOptions({
+          permissionSpecifications,
+        });
+        const { messenger } = options;
+        const origin = 'metamask.io';
+
+        sideEffectMocks[
+          PermissionNames.wallet_noopWithPermittedSideEffects
+        ].onPermitted.mockImplementation(() =>
+          Promise.reject(new Error('error')),
+        );
+
+        const callActionSpy = jest
+          .spyOn(messenger, 'call')
+          .mockImplementationOnce(async (...args) => {
+            const [, { requestData }] = args as AddPermissionRequestArgs;
+            return {
+              metadata: { ...requestData.metadata },
+              permissions: { ...requestData.permissions },
+            };
+          });
+
+        const controller = getDefaultPermissionController(options);
+        await expect(async () =>
+          controller[requestFunctionName](
+            { origin },
+            {
+              [PermissionNames.wallet_noopWithPermittedSideEffects]: {},
+            },
+          ),
+        ).rejects.toThrow('error');
+
+        expect(
+          sideEffectMocks[PermissionNames.wallet_noopWithPermittedSideEffects]
+            .onPermitted,
+        ).toHaveBeenCalledTimes(1);
+
+        expect(callActionSpy).toHaveBeenCalledTimes(1);
+        expect(callActionSpy).toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
+          {
+            id: expect.any(String),
+            origin,
+            requestData: {
+              metadata: { id: expect.any(String), origin },
+              permissions: {
+                [PermissionNames.wallet_noopWithPermittedSideEffects]: {},
+              },
+              ...getRequestDataDiffProperty(),
+            },
+            type: MethodNames.RequestPermissions,
+          },
+          true,
+        );
+      });
+
+      it('can handle failure side-effect rejection', async () => {
+        const [permissionSpecifications, sideEffectMocks] =
+          getDefaultPermissionSpecificationsAndMocks();
+        const options = getPermissionControllerOptions({
+          permissionSpecifications,
+        });
+        const { messenger } = options;
+        const origin = 'metamask.io';
+
+        sideEffectMocks[
+          PermissionNames.wallet_noopWithPermittedAndFailureSideEffects
+        ].onPermitted.mockImplementation(() =>
+          Promise.reject(new Error('error')),
+        );
+
+        sideEffectMocks[
+          PermissionNames.wallet_noopWithPermittedAndFailureSideEffects
+        ]?.onFailure?.mockImplementation(() =>
+          Promise.reject(new Error('error')),
+        );
+
+        const callActionSpy = jest
+          .spyOn(messenger, 'call')
+          .mockImplementationOnce(async (...args) => {
+            const [, { requestData }] = args as AddPermissionRequestArgs;
+            return {
+              metadata: { ...requestData.metadata },
+              permissions: { ...requestData.permissions },
+            };
+          });
+
+        const controller = getDefaultPermissionController(options);
+        await expect(async () =>
+          controller[requestFunctionName](
+            { origin },
+            {
+              [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]:
+                {},
+            },
+          ),
+        ).rejects.toThrow('Unexpected error in side-effects');
+
+        expect(
+          sideEffectMocks[
+            PermissionNames.wallet_noopWithPermittedAndFailureSideEffects
+          ].onPermitted,
+        ).toHaveBeenCalledTimes(1);
+
+        expect(
+          sideEffectMocks[
+            PermissionNames.wallet_noopWithPermittedAndFailureSideEffects
+          ].onFailure,
+        ).toHaveBeenCalledTimes(1);
+
+        expect(callActionSpy).toHaveBeenCalledTimes(1);
+        expect(callActionSpy).toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
+          {
+            id: expect.any(String),
+            origin,
+            requestData: {
+              metadata: { id: expect.any(String), origin },
+              permissions: {
+                [PermissionNames.wallet_noopWithPermittedAndFailureSideEffects]:
+                  {},
+              },
+              ...getRequestDataDiffProperty(),
+            },
+            type: MethodNames.RequestPermissions,
+          },
+          true,
+        );
+      });
+
+      it('requests a permission that requires requestData in its factory', async () => {
+        const options = getPermissionControllerOptions();
+        const { messenger } = options;
+        const origin = 'metamask.io';
+
+        const callActionSpy = jest
+          .spyOn(messenger, 'call')
+          .mockImplementationOnce(async (...args) => {
+            const [, { requestData }] = args as AddPermissionRequestArgs;
+            return {
+              metadata: { ...requestData.metadata },
+              permissions: { ...requestData.permissions },
+              caveatValue: ['foo'], // this will be added to the permission
+            };
+          });
+
+        const controller = getDefaultPermissionController(options);
+        expect(
+          await controller[requestFunctionName](
+            { origin },
+            {
+              [PermissionNames.wallet_noopWithFactory]: {},
+            },
+          ),
+        ).toMatchObject([
+          {
+            [PermissionNames.wallet_noopWithFactory]: getPermissionMatcher({
+              parentCapability: PermissionNames.wallet_noopWithFactory,
+              caveats: [
+                { type: CaveatTypes.filterArrayResponse, value: ['foo'] },
+              ],
+              invoker: origin,
+            }),
+          },
+          { id: expect.any(String), origin },
+        ]);
+
+        expect(callActionSpy).toHaveBeenCalledTimes(1);
+        expect(callActionSpy).toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
+          {
+            id: expect.any(String),
+            origin,
+            requestData: {
+              metadata: { id: expect.any(String), origin },
+              permissions: {
+                [PermissionNames.wallet_noopWithFactory]: {},
+              },
+              ...getRequestDataDiffProperty(),
+            },
+            type: MethodNames.RequestPermissions,
+          },
+          true,
+        );
+      });
+
+      it('requests multiple permissions', async () => {
+        const options = getPermissionControllerOptions();
+        const { messenger } = options;
+        const origin = 'metamask.io';
+
+        const callActionSpy = jest
+          .spyOn(messenger, 'call')
+          .mockImplementationOnce(async (...args) => {
+            const [, { requestData }] = args as AddPermissionRequestArgs;
+            return {
+              metadata: { ...requestData.metadata },
+              permissions: { ...requestData.permissions },
+            };
+          });
+
+        const controller = getDefaultPermissionController(options);
+        expect(
+          await controller[requestFunctionName](
+            { origin },
+            {
+              [PermissionNames.wallet_getSecretArray]: {},
               [PermissionNames.wallet_getSecretObject]: {
-                parentCapability: PermissionNames.wallet_getSecretArray,
+                caveats: [
+                  { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
+                ],
               },
             },
           ),
-      ).rejects.toThrow(
-        errors.invalidParams({
-          message: `Permissions request for origin "${origin}" contains invalid requested permission(s).`,
-          data: {
+        ).toMatchObject([
+          {
+            [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
+              parentCapability: PermissionNames.wallet_getSecretArray,
+              caveats: null,
+              invoker: origin,
+            }),
+            [PermissionNames.wallet_getSecretObject]: getPermissionMatcher({
+              parentCapability: PermissionNames.wallet_getSecretObject,
+              caveats: [
+                { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
+              ],
+              invoker: origin,
+            }),
+          },
+          { id: expect.any(String), origin },
+        ]);
+
+        expect(callActionSpy).toHaveBeenCalledTimes(1);
+        expect(callActionSpy).toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
+          {
+            id: expect.any(String),
             origin,
-            requestedPermissions: {
-              [PermissionNames.wallet_getSecretArray]: {
+            requestData: {
+              metadata: { id: expect.any(String), origin },
+              permissions: {
+                [PermissionNames.wallet_getSecretArray]: {},
+                [PermissionNames.wallet_getSecretObject]: {
+                  caveats: [
+                    { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
+                  ],
+                },
+              },
+              ...getRequestDataDiffProperty(),
+            },
+            type: MethodNames.RequestPermissions,
+          },
+          true,
+        );
+      });
+
+      it('requests multiple permissions (approved permissions are a strict superset)', async () => {
+        const options = getPermissionControllerOptions();
+        const { messenger } = options;
+        const origin = 'metamask.io';
+
+        const callActionSpy = jest
+          .spyOn(messenger, 'call')
+          .mockImplementationOnce(async (...args) => {
+            const [, { requestData }] = args as AddPermissionRequestArgs;
+            return {
+              metadata: { ...requestData.metadata },
+              // endowmentAnySubject is added to the request
+              permissions: {
+                ...requestData.permissions,
+                [PermissionNames.endowmentAnySubject]: {},
+              },
+            };
+          });
+
+        const controller = getDefaultPermissionController(options);
+        expect(
+          await controller[requestFunctionName](
+            { origin },
+            {
+              [PermissionNames.wallet_getSecretArray]: {},
+              [PermissionNames.wallet_getSecretObject]: {
+                caveats: [
+                  { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
+                ],
+              },
+            },
+          ),
+        ).toMatchObject([
+          {
+            [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
+              parentCapability: PermissionNames.wallet_getSecretArray,
+              caveats: null,
+              invoker: origin,
+            }),
+            [PermissionNames.wallet_getSecretObject]: getPermissionMatcher({
+              parentCapability: PermissionNames.wallet_getSecretObject,
+              caveats: [
+                { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
+              ],
+              invoker: origin,
+            }),
+            [PermissionNames.endowmentAnySubject]: getPermissionMatcher({
+              parentCapability: PermissionNames.endowmentAnySubject,
+              caveats: null,
+              invoker: origin,
+            }),
+          },
+          { id: expect.any(String), origin },
+        ]);
+
+        expect(callActionSpy).toHaveBeenCalledTimes(1);
+        expect(callActionSpy).toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
+          {
+            id: expect.any(String),
+            origin,
+            requestData: {
+              metadata: { id: expect.any(String), origin },
+              permissions: {
+                [PermissionNames.wallet_getSecretArray]: {},
+                [PermissionNames.wallet_getSecretObject]: {
+                  caveats: [
+                    { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
+                  ],
+                },
+              },
+              ...getRequestDataDiffProperty(),
+            },
+            type: MethodNames.RequestPermissions,
+          },
+          true,
+        );
+      });
+
+      it('requests multiple permissions (approved permissions are a strict subset)', async () => {
+        const options = getPermissionControllerOptions();
+        const { messenger } = options;
+        const origin = 'metamask.io';
+
+        const callActionSpy = jest
+          .spyOn(messenger, 'call')
+          .mockImplementationOnce(async (...args) => {
+            const [, { requestData }] = args as AddPermissionRequestArgs;
+            const approvedPermissions = { ...requestData.permissions };
+            delete approvedPermissions[PermissionNames.wallet_getSecretArray];
+
+            return {
+              metadata: { ...requestData.metadata },
+              permissions: approvedPermissions,
+            };
+          });
+
+        const controller = getDefaultPermissionController(options);
+        expect(
+          await controller[requestFunctionName](
+            { origin },
+            {
+              [PermissionNames.wallet_getSecretArray]: {},
+              [PermissionNames.wallet_getSecretObject]: {
+                caveats: [
+                  { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
+                ],
+              },
+              [PermissionNames.endowmentAnySubject]: {},
+            },
+          ),
+        ).toMatchObject([
+          {
+            [PermissionNames.wallet_getSecretObject]: getPermissionMatcher({
+              parentCapability: PermissionNames.wallet_getSecretObject,
+              caveats: [
+                { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
+              ],
+              invoker: origin,
+            }),
+            [PermissionNames.endowmentAnySubject]: getPermissionMatcher({
+              parentCapability: PermissionNames.endowmentAnySubject,
+              caveats: null,
+              invoker: origin,
+            }),
+          },
+          { id: expect.any(String), origin },
+        ]);
+
+        expect(callActionSpy).toHaveBeenCalledTimes(1);
+        expect(callActionSpy).toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
+          {
+            id: expect.any(String),
+            origin,
+            requestData: {
+              metadata: { id: expect.any(String), origin },
+              permissions: {
+                [PermissionNames.wallet_getSecretArray]: {},
+                [PermissionNames.wallet_getSecretObject]: {
+                  caveats: [
+                    { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
+                  ],
+                },
+                [PermissionNames.endowmentAnySubject]: {},
+              },
+              ...getRequestDataDiffProperty(),
+            },
+            type: MethodNames.RequestPermissions,
+          },
+          true,
+        );
+      });
+
+      it('requests multiple permissions (an approved permission is modified)', async () => {
+        const options = getPermissionControllerOptions();
+        const { messenger } = options;
+        const origin = 'metamask.io';
+
+        const callActionSpy = jest
+          .spyOn(messenger, 'call')
+          .mockImplementationOnce(async (...args) => {
+            const [, { requestData }] = args as AddPermissionRequestArgs;
+            const approvedPermissions = { ...requestData.permissions };
+            approvedPermissions[PermissionNames.wallet_getSecretObject] = {
+              caveats: [
+                { type: CaveatTypes.filterObjectResponse, value: ['kaplar'] },
+              ],
+            };
+
+            return {
+              metadata: { ...requestData.metadata },
+              permissions: approvedPermissions,
+            };
+          });
+
+        const controller = getDefaultPermissionController(options);
+        expect(
+          await controller[requestFunctionName](
+            { origin },
+            {
+              [PermissionNames.wallet_getSecretArray]: {},
+              [PermissionNames.wallet_getSecretObject]: {
+                caveats: [
+                  { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
+                ],
+              },
+              [PermissionNames.endowmentAnySubject]: {},
+            },
+          ),
+        ).toMatchObject([
+          {
+            [PermissionNames.wallet_getSecretArray]: getPermissionMatcher({
+              parentCapability: PermissionNames.wallet_getSecretArray,
+              caveats: null,
+              invoker: origin,
+            }),
+            [PermissionNames.wallet_getSecretObject]: getPermissionMatcher({
+              parentCapability: PermissionNames.wallet_getSecretObject,
+              caveats: [
+                { type: CaveatTypes.filterObjectResponse, value: ['kaplar'] },
+              ],
+              invoker: origin,
+            }),
+            [PermissionNames.endowmentAnySubject]: getPermissionMatcher({
+              parentCapability: PermissionNames.endowmentAnySubject,
+              caveats: null,
+              invoker: origin,
+            }),
+          },
+          { id: expect.any(String), origin },
+        ]);
+
+        expect(callActionSpy).toHaveBeenCalledTimes(1);
+        expect(callActionSpy).toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
+          {
+            id: expect.any(String),
+            origin,
+            requestData: {
+              metadata: { id: expect.any(String), origin },
+              permissions: {
+                [PermissionNames.wallet_getSecretArray]: {},
+                [PermissionNames.wallet_getSecretObject]: {
+                  caveats: [
+                    { type: CaveatTypes.filterObjectResponse, value: ['baz'] },
+                  ],
+                },
+                [PermissionNames.endowmentAnySubject]: {},
+              },
+              ...getRequestDataDiffProperty(),
+            },
+            type: MethodNames.RequestPermissions,
+          },
+          true,
+        );
+      });
+
+      it('throws if requested permissions object is not a plain object', async () => {
+        const options = getPermissionControllerOptions();
+        const { messenger } = options;
+        const origin = 'metamask.io';
+        const controller = getDefaultPermissionController(options);
+
+        const callActionSpy = jest.spyOn(messenger, 'call');
+
+        for (const invalidInput of [
+          // not plain objects
+          null,
+          'foo',
+          [{ [PermissionNames.wallet_getSecretArray]: {} }],
+        ]) {
+          await expect(
+            async () =>
+              await controller[requestFunctionName](
+                { origin },
+                // @ts-expect-error Intentional destructive testing
+                invalidInput,
+              ),
+          ).rejects.toThrow(
+            errors.invalidParams({
+              message: `Requested permissions for origin "${origin}" is not a plain object.`,
+              data: { origin, requestedPermissions: invalidInput },
+            }),
+          );
+        }
+
+        expect(callActionSpy).not.toHaveBeenCalled();
+      });
+
+      it('throws if requested permissions object has no permissions', async () => {
+        const options = getPermissionControllerOptions();
+        const { messenger } = options;
+        const origin = 'metamask.io';
+
+        const callActionSpy = jest.spyOn(messenger, 'call');
+
+        const controller = getDefaultPermissionController(options);
+        await expect(
+          async () =>
+            // No permissions in object
+            await controller[requestFunctionName]({ origin }, {}),
+        ).rejects.toThrow(
+          errors.invalidParams({
+            message: `Permissions request for origin "${origin}" contains no permissions.`,
+            data: { origin, requestedPermissions: {} },
+          }),
+        );
+
+        expect(callActionSpy).not.toHaveBeenCalled();
+      });
+
+      it('throws if requested permissions contain a (key : value.parentCapability) mismatch', async () => {
+        const options = getPermissionControllerOptions();
+        const { messenger } = options;
+        const origin = 'metamask.io';
+
+        const callActionSpy = jest.spyOn(messenger, 'call');
+
+        const controller = getDefaultPermissionController(options);
+        await expect(
+          async () =>
+            await controller[requestFunctionName](
+              { origin },
+              {
                 [PermissionNames.wallet_getSecretArray]: {
                   parentCapability: PermissionNames.wallet_getSecretArray,
                 },
+                // parentCapability value does not match key
                 [PermissionNames.wallet_getSecretObject]: {
                   parentCapability: PermissionNames.wallet_getSecretArray,
                 },
               },
+            ),
+        ).rejects.toThrow(
+          errors.invalidParams({
+            message: `Permissions request for origin "${origin}" contains invalid requested permission(s).`,
+            data: {
+              origin,
+              requestedPermissions: {
+                [PermissionNames.wallet_getSecretArray]: {
+                  [PermissionNames.wallet_getSecretArray]: {
+                    parentCapability: PermissionNames.wallet_getSecretArray,
+                  },
+                  [PermissionNames.wallet_getSecretObject]: {
+                    parentCapability: PermissionNames.wallet_getSecretArray,
+                  },
+                },
+              },
             },
-          },
-        }),
-      );
-
-      expect(callActionSpy).not.toHaveBeenCalled();
-    });
-
-    it('throws if requesting a permission for an unknown target', async () => {
-      const options = getPermissionControllerOptions();
-      const { messenger } = options;
-      const origin = 'metamask.io';
-
-      const callActionSpy = jest.spyOn(messenger, 'call');
-
-      const controller = getDefaultPermissionController(options);
-      await expect(
-        async () =>
-          await controller.requestPermissions(
-            { origin },
-            {
-              [PermissionNames.wallet_getSecretArray]: {},
-              wallet_getSecretKabob: {},
-            },
-          ),
-      ).rejects.toThrow(
-        errors.methodNotFound('wallet_getSecretKabob', {
-          origin,
-          requestedPermissions: {
-            [PermissionNames.wallet_getSecretArray]: {
-              [PermissionNames.wallet_getSecretArray]: {},
-              wallet_getSecretKabob: {},
-            },
-          },
-        }),
-      );
-
-      expect(callActionSpy).not.toHaveBeenCalled();
-    });
-
-    it('throws if subjectTypes do not match', async () => {
-      const options = getPermissionControllerOptions();
-      const { messenger } = options;
-      const origin = 'metamask.io';
-
-      const callActionSpy = jest
-        .spyOn(messenger, 'call')
-        .mockImplementationOnce(() => {
-          return {
-            origin,
-            name: origin,
-            subjectType: SubjectType.Website,
-            iconUrl: null,
-            extensionId: null,
-          };
-        });
-
-      const controller = getDefaultPermissionController(options);
-      await expect(
-        controller.requestPermissions(
-          { origin },
-          {
-            [PermissionNames.snap_foo]: {},
-          },
-        ),
-      ).rejects.toThrow(
-        'The method "snap_foo" does not exist / is not available.',
-      );
-
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'SubjectMetadataController:getSubjectMetadata',
-        origin,
-      );
-    });
-
-    it('does not throw if subjectTypes match', async () => {
-      const options = getPermissionControllerOptions();
-      const { messenger } = options;
-      const origin = '@metamask/test-snap-bip44';
-
-      const callActionSpy = jest
-        .spyOn(messenger, 'call')
-        .mockImplementationOnce(() => {
-          return {
-            origin,
-            name: origin,
-            subjectType: SubjectType.Snap,
-            iconUrl: null,
-            extensionId: null,
-          };
-        })
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
-          return {
-            metadata: { ...requestData.metadata },
-            permissions: { ...requestData.permissions },
-          };
-        })
-        .mockImplementation(() => {
-          return {
-            origin,
-            name: origin,
-            subjectType: SubjectType.Snap,
-            iconUrl: null,
-            extensionId: null,
-          };
-        });
-
-      const controller = getDefaultPermissionController(options);
-      expect(
-        await controller.requestPermissions(
-          { origin },
-          {
-            [PermissionNames.snap_foo]: {},
-          },
-        ),
-      ).toMatchObject([
-        {
-          [PermissionNames.snap_foo]: getPermissionMatcher({
-            parentCapability: PermissionNames.snap_foo,
-            caveats: null,
-            invoker: origin,
           }),
-        },
-        {
-          id: expect.any(String),
-          origin,
-        },
-      ]);
+        );
 
-      expect(callActionSpy).toHaveBeenCalledTimes(4);
-      expect(callActionSpy).toHaveBeenNthCalledWith(
-        1,
-        'SubjectMetadataController:getSubjectMetadata',
-        origin,
-      );
-      expect(callActionSpy).toHaveBeenNthCalledWith(
-        2,
-        'ApprovalController:addRequest',
-        {
-          id: expect.any(String),
-          origin,
-          requestData: {
-            metadata: { id: expect.any(String), origin },
-            permissions: { [PermissionNames.snap_foo]: {} },
-          },
-          type: MethodNames.requestPermissions,
-        },
-        true,
-      );
-      expect(callActionSpy).toHaveBeenNthCalledWith(
-        3,
-        'SubjectMetadataController:getSubjectMetadata',
-        origin,
-      );
-      expect(callActionSpy).toHaveBeenNthCalledWith(
-        4,
-        'SubjectMetadataController:getSubjectMetadata',
-        origin,
-      );
-    });
+        expect(callActionSpy).not.toHaveBeenCalled();
+      });
 
-    it('throws if the "caveat" property of a requested permission is invalid', async () => {
-      const options = getPermissionControllerOptions();
-      const { messenger } = options;
-      const origin = 'metamask.io';
+      it('throws if requesting a permission for an unknown target', async () => {
+        const options = getPermissionControllerOptions();
+        const { messenger } = options;
+        const origin = 'metamask.io';
 
-      const callActionSpy = jest.spyOn(messenger, 'call');
+        const callActionSpy = jest.spyOn(messenger, 'call');
 
-      const controller = getDefaultPermissionController(options);
-      for (const invalidCaveatsValue of [
-        [], // empty array
-        undefined,
-        'foo',
-        2,
-        Symbol('bar'),
-      ]) {
+        const controller = getDefaultPermissionController(options);
         await expect(
           async () =>
-            await controller.requestPermissions(
+            await controller[requestFunctionName](
+              { origin },
+              {
+                [PermissionNames.wallet_getSecretArray]: {},
+                wallet_getSecretKabob: {},
+              },
+            ),
+        ).rejects.toThrow(
+          errors.methodNotFound('wallet_getSecretKabob', {
+            origin,
+            requestedPermissions: {
+              [PermissionNames.wallet_getSecretArray]: {
+                [PermissionNames.wallet_getSecretArray]: {},
+                wallet_getSecretKabob: {},
+              },
+            },
+          }),
+        );
+
+        expect(callActionSpy).not.toHaveBeenCalled();
+      });
+
+      it('throws if permission subjectTypes does not include type of subject (restricted method)', async () => {
+        const options = getPermissionControllerOptions();
+        const { messenger } = options;
+        const origin = 'metamask.io';
+
+        const callActionSpy = jest
+          .spyOn(messenger, 'call')
+          .mockImplementationOnce(() => {
+            return {
+              origin,
+              name: origin,
+              subjectType: SubjectType.Website,
+              iconUrl: null,
+              extensionId: null,
+            };
+          });
+
+        const controller = getDefaultPermissionController(options);
+        await expect(
+          controller[requestFunctionName](
+            { origin },
+            {
+              [PermissionNames.snap_foo]: {},
+            },
+          ),
+        ).rejects.toThrow(
+          'The method "snap_foo" does not exist / is not available.',
+        );
+
+        expect(callActionSpy).toHaveBeenCalledTimes(1);
+        expect(callActionSpy).toHaveBeenCalledWith(
+          'SubjectMetadataController:getSubjectMetadata',
+          origin,
+        );
+      });
+
+      it('throws if permission subjectTypes does not include type of subject (endowment)', async () => {
+        const options = getPermissionControllerOptions();
+        const { messenger } = options;
+        const origin = 'metamask.io';
+
+        const callActionSpy = jest
+          .spyOn(messenger, 'call')
+          .mockImplementationOnce(() => {
+            return {
+              origin,
+              name: origin,
+              subjectType: SubjectType.Website,
+              iconUrl: null,
+              extensionId: null,
+            };
+          });
+
+        const controller = getDefaultPermissionController(options);
+        await expect(
+          controller[requestFunctionName](
+            { origin },
+            {
+              [PermissionNames.endowmentSnapsOnly]: {},
+            },
+          ),
+        ).rejects.toThrow(
+          'Subject "metamask.io" has no permission for "endowmentSnapsOnly".',
+        );
+
+        expect(callActionSpy).toHaveBeenCalledTimes(1);
+        expect(callActionSpy).toHaveBeenCalledWith(
+          'SubjectMetadataController:getSubjectMetadata',
+          origin,
+        );
+      });
+
+      it('does not throw if permission subjectTypes includes type of subject', async () => {
+        const options = getPermissionControllerOptions();
+        const { messenger } = options;
+        const origin = '@metamask/test-snap-bip44';
+
+        const callActionSpy = jest
+          .spyOn(messenger, 'call')
+          .mockImplementation((...args) => {
+            const [action, { requestData }] = args as AddPermissionRequestArgs;
+            if (action === 'ApprovalController:addRequest') {
+              return Promise.resolve({
+                metadata: { ...requestData.metadata },
+                permissions: { ...requestData.permissions },
+              });
+            } else if (
+              action === 'SubjectMetadataController:getSubjectMetadata'
+            ) {
+              return {
+                origin,
+                name: origin,
+                subjectType: SubjectType.Snap,
+                iconUrl: null,
+                extensionId: null,
+              };
+            }
+            throw new Error(`Unexpected action: "${action}"`);
+          });
+
+        const controller = getDefaultPermissionController(options);
+
+        expect(
+          await controller[requestFunctionName](
+            { origin },
+            {
+              [PermissionNames.snap_foo]: {},
+            },
+          ),
+        ).toMatchObject([
+          {
+            [PermissionNames.snap_foo]: getPermissionMatcher({
+              parentCapability: PermissionNames.snap_foo,
+              caveats: null,
+              invoker: origin,
+            }),
+          },
+          {
+            id: expect.any(String),
+            origin,
+          },
+        ]);
+
+        expect(callActionSpy).toHaveBeenCalledWith(
+          'SubjectMetadataController:getSubjectMetadata',
+          origin,
+        );
+        expect(callActionSpy).toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
+          {
+            id: expect.any(String),
+            origin,
+            requestData: {
+              metadata: { id: expect.any(String), origin },
+              permissions: { [PermissionNames.snap_foo]: {} },
+              ...getRequestDataDiffProperty(),
+            },
+            type: MethodNames.RequestPermissions,
+          },
+          true,
+        );
+      });
+
+      it('throws if the "caveats" property of a requested permission is invalid', async () => {
+        const options = getPermissionControllerOptions();
+        const { messenger } = options;
+        const origin = 'metamask.io';
+
+        const callActionSpy = jest.spyOn(messenger, 'call');
+
+        const controller = getDefaultPermissionController(options);
+        for (const invalidCaveatsValue of [
+          [], // empty array
+          undefined,
+          'foo',
+          2,
+          Symbol('bar'),
+        ]) {
+          await expect(
+            async () =>
+              await controller[requestFunctionName](
+                { origin },
+                {
+                  [PermissionNames.wallet_getSecretArray]: {
+                    // @ts-expect-error Intentional destructive testing
+                    caveats: invalidCaveatsValue,
+                  },
+                },
+              ),
+          ).rejects.toThrow(
+            new errors.InvalidCaveatsPropertyError(
+              origin,
+              PermissionNames.wallet_getSecretArray,
+              invalidCaveatsValue,
+            ),
+          );
+
+          expect(callActionSpy).not.toHaveBeenCalled();
+        }
+      });
+
+      it('throws if a requested permission has duplicate caveats', async () => {
+        const options = getPermissionControllerOptions();
+        const { messenger } = options;
+        const origin = 'metamask.io';
+
+        const callActionSpy = jest.spyOn(messenger, 'call');
+
+        const controller = getDefaultPermissionController(options);
+        await expect(
+          async () =>
+            await controller[requestFunctionName](
               { origin },
               {
                 [PermissionNames.wallet_getSecretArray]: {
-                  // TODO: Replace `any` with type
-                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  caveats: invalidCaveatsValue as any,
+                  caveats: [
+                    { type: CaveatTypes.filterArrayResponse, value: ['foo'] },
+                    { type: CaveatTypes.filterArrayResponse, value: ['foo'] },
+                  ],
                 },
               },
             ),
         ).rejects.toThrow(
-          new errors.InvalidCaveatsPropertyError(
+          new errors.DuplicateCaveatError(
+            CaveatTypes.filterArrayResponse,
             origin,
             PermissionNames.wallet_getSecretArray,
-            invalidCaveatsValue,
           ),
         );
 
         expect(callActionSpy).not.toHaveBeenCalled();
-      }
-    });
+      });
 
-    it('throws if a requested permission has duplicate caveats', async () => {
-      const options = getPermissionControllerOptions();
-      const { messenger } = options;
-      const origin = 'metamask.io';
+      it('throws if the approved request object is invalid', async () => {
+        const options = getPermissionControllerOptions();
+        const { messenger } = options;
+        const origin = 'metamask.io';
+        const controller = getDefaultPermissionController(options);
+        const callActionSpy = jest.spyOn(messenger, 'call');
 
-      const callActionSpy = jest.spyOn(messenger, 'call');
+        for (const invalidRequestObject of ['foo', null, { metadata: 'foo' }]) {
+          callActionSpy.mockClear();
+          callActionSpy.mockImplementationOnce(
+            async () => invalidRequestObject,
+          );
 
-      const controller = getDefaultPermissionController(options);
-      await expect(
-        async () =>
-          await controller.requestPermissions(
-            { origin },
+          await expect(
+            async () =>
+              await controller[requestFunctionName](
+                { origin },
+                {
+                  [PermissionNames.wallet_getSecretArray]: {},
+                },
+              ),
+          ).rejects.toThrow(
+            errors.internalError(
+              `Approved permissions request for subject "${origin}" is invalid.`,
+              { data: { approvedRequest: invalidRequestObject } },
+            ),
+          );
+
+          expect(callActionSpy).toHaveBeenCalledTimes(1);
+          expect(callActionSpy).toHaveBeenCalledWith(
+            'ApprovalController:addRequest',
             {
-              [PermissionNames.wallet_getSecretArray]: {
-                caveats: [
-                  { type: CaveatTypes.filterArrayResponse, value: ['foo'] },
-                  { type: CaveatTypes.filterArrayResponse, value: ['foo'] },
-                ],
+              id: expect.any(String),
+              origin,
+              requestData: {
+                metadata: { id: expect.any(String), origin },
+                permissions: { [PermissionNames.wallet_getSecretArray]: {} },
+                ...getRequestDataDiffProperty(),
               },
+              type: MethodNames.RequestPermissions,
             },
-          ),
-      ).rejects.toThrow(
-        new errors.DuplicateCaveatError(
-          CaveatTypes.filterArrayResponse,
-          origin,
-          PermissionNames.wallet_getSecretArray,
-        ),
-      );
+            true,
+          );
+        }
+      });
 
-      expect(callActionSpy).not.toHaveBeenCalled();
-    });
+      it('throws if the approved request ID changed', async () => {
+        const options = getPermissionControllerOptions();
+        const { messenger } = options;
+        const origin = 'metamask.io';
 
-    it('throws if the approved request object is invalid', async () => {
-      const options = getPermissionControllerOptions();
-      const { messenger } = options;
-      const origin = 'metamask.io';
-      const controller = getDefaultPermissionController(options);
-      const callActionSpy = jest.spyOn(messenger, 'call');
+        const callActionSpy = jest
+          .spyOn(messenger, 'call')
+          .mockImplementationOnce(async (...args) => {
+            const [, { requestData }] = args as AddPermissionRequestArgs;
+            return {
+              // different id
+              metadata: { ...requestData.metadata, id: 'foo' },
+              permissions: {
+                [PermissionNames.wallet_getSecretArray]: {},
+              },
+            };
+          });
 
-      for (const invalidRequestObject of ['foo', null, { metadata: 'foo' }]) {
-        callActionSpy.mockClear();
-        callActionSpy.mockImplementationOnce(async () => invalidRequestObject);
-
+        const controller = getDefaultPermissionController(options);
         await expect(
           async () =>
-            await controller.requestPermissions(
+            await controller[requestFunctionName](
               { origin },
               {
                 [PermissionNames.wallet_getSecretArray]: {},
@@ -4021,8 +4538,8 @@ describe('PermissionController', () => {
             ),
         ).rejects.toThrow(
           errors.internalError(
-            `Approved permissions request for subject "${origin}" is invalid.`,
-            { data: { approvedRequest: invalidRequestObject } },
+            `Approved permissions request for subject "${origin}" mutated its id.`,
+            { originalId: expect.any(String), mutatedId: 'foo' },
           ),
         );
 
@@ -4035,304 +4552,653 @@ describe('PermissionController', () => {
             requestData: {
               metadata: { id: expect.any(String), origin },
               permissions: { [PermissionNames.wallet_getSecretArray]: {} },
+              ...getRequestDataDiffProperty(),
             },
-            type: MethodNames.requestPermissions,
+            type: MethodNames.RequestPermissions,
           },
           true,
         );
-      }
-    });
+      });
 
-    it('throws if the approved request ID changed', async () => {
-      const options = getPermissionControllerOptions();
-      const { messenger } = options;
-      const origin = 'metamask.io';
+      it('throws if the approved request origin changed', async () => {
+        const options = getPermissionControllerOptions();
+        const { messenger } = options;
+        const origin = 'metamask.io';
 
-      const callActionSpy = jest
-        .spyOn(messenger, 'call')
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
-          return {
-            // different id
-            metadata: { ...requestData.metadata, id: 'foo' },
-            permissions: {
-              [PermissionNames.wallet_getSecretArray]: {},
-            },
-          };
-        });
+        const callActionSpy = jest
+          .spyOn(messenger, 'call')
+          .mockImplementationOnce(async (...args) => {
+            const [, { requestData }] = args as AddPermissionRequestArgs;
+            return {
+              // different origin
+              metadata: { ...requestData.metadata, origin: 'foo.com' },
+              permissions: {
+                [PermissionNames.wallet_getSecretArray]: {},
+              },
+            };
+          });
 
-      const controller = getDefaultPermissionController(options);
-      await expect(
-        async () =>
-          await controller.requestPermissions(
-            { origin },
-            {
-              [PermissionNames.wallet_getSecretArray]: {},
-            },
+        const controller = getDefaultPermissionController(options);
+        await expect(
+          async () =>
+            await controller[requestFunctionName](
+              { origin },
+              {
+                [PermissionNames.wallet_getSecretArray]: {},
+              },
+            ),
+        ).rejects.toThrow(
+          errors.internalError(
+            `Approved permissions request for subject "${origin}" mutated its origin.`,
+            { originalOrigin: origin, mutatedOrigin: 'foo' },
           ),
-      ).rejects.toThrow(
-        errors.internalError(
-          `Approved permissions request for subject "${origin}" mutated its id.`,
-          { originalId: expect.any(String), mutatedId: 'foo' },
-        ),
-      );
+        );
 
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: expect.any(String),
-          origin,
-          requestData: {
-            metadata: { id: expect.any(String), origin },
-            permissions: { [PermissionNames.wallet_getSecretArray]: {} },
-          },
-          type: MethodNames.requestPermissions,
-        },
-        true,
-      );
-    });
-
-    it('throws if the approved request origin changed', async () => {
-      const options = getPermissionControllerOptions();
-      const { messenger } = options;
-      const origin = 'metamask.io';
-
-      const callActionSpy = jest
-        .spyOn(messenger, 'call')
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
-          return {
-            // different origin
-            metadata: { ...requestData.metadata, origin: 'foo.com' },
-            permissions: {
-              [PermissionNames.wallet_getSecretArray]: {},
-            },
-          };
-        });
-
-      const controller = getDefaultPermissionController(options);
-      await expect(
-        async () =>
-          await controller.requestPermissions(
-            { origin },
-            {
-              [PermissionNames.wallet_getSecretArray]: {},
-            },
-          ),
-      ).rejects.toThrow(
-        errors.internalError(
-          `Approved permissions request for subject "${origin}" mutated its origin.`,
-          { originalOrigin: origin, mutatedOrigin: 'foo' },
-        ),
-      );
-
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: expect.any(String),
-          origin,
-          requestData: {
-            metadata: { id: expect.any(String), origin },
-            permissions: { [PermissionNames.wallet_getSecretArray]: {} },
-          },
-          type: MethodNames.requestPermissions,
-        },
-        true,
-      );
-    });
-
-    it('throws if no permissions were approved', async () => {
-      const options = getPermissionControllerOptions();
-      const { messenger } = options;
-      const origin = 'metamask.io';
-
-      const callActionSpy = jest
-        .spyOn(messenger, 'call')
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
-          return {
-            metadata: { ...requestData.metadata },
-            permissions: {}, // no permissions
-          };
-        });
-
-      const controller = getDefaultPermissionController(options);
-      await expect(
-        async () =>
-          await controller.requestPermissions(
-            { origin },
-            {
-              [PermissionNames.wallet_getSecretArray]: {},
-            },
-          ),
-      ).rejects.toThrow(
-        errors.internalError(
-          `Invalid approved permissions request: Permissions request for origin "${origin}" contains no permissions.`,
+        expect(callActionSpy).toHaveBeenCalledTimes(1);
+        expect(callActionSpy).toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
           {
-            [PermissionNames.wallet_getSecretArray]: {},
+            id: expect.any(String),
+            origin,
+            requestData: {
+              metadata: { id: expect.any(String), origin },
+              permissions: { [PermissionNames.wallet_getSecretArray]: {} },
+              ...getRequestDataDiffProperty(),
+            },
+            type: MethodNames.RequestPermissions,
           },
-        ),
-      );
+          true,
+        );
+      });
 
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: expect.any(String),
-          origin,
-          requestData: {
-            metadata: { id: expect.any(String), origin },
-            permissions: { [PermissionNames.wallet_getSecretArray]: {} },
+      it('throws if no permissions were approved', async () => {
+        const options = getPermissionControllerOptions();
+        const { messenger } = options;
+        const origin = 'metamask.io';
+
+        const callActionSpy = jest
+          .spyOn(messenger, 'call')
+          .mockImplementationOnce(async (...args) => {
+            const [, { requestData }] = args as AddPermissionRequestArgs;
+            return {
+              metadata: { ...requestData.metadata },
+              permissions: {}, // no permissions
+            };
+          });
+
+        const controller = getDefaultPermissionController(options);
+        await expect(
+          async () =>
+            await controller[requestFunctionName](
+              { origin },
+              {
+                [PermissionNames.wallet_getSecretArray]: {},
+              },
+            ),
+        ).rejects.toThrow(
+          errors.internalError(
+            `Invalid approved permissions request: Permissions request for origin "${origin}" contains no permissions.`,
+            {
+              [PermissionNames.wallet_getSecretArray]: {},
+            },
+          ),
+        );
+
+        expect(callActionSpy).toHaveBeenCalledTimes(1);
+        expect(callActionSpy).toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
+          {
+            id: expect.any(String),
+            origin,
+            requestData: {
+              metadata: { id: expect.any(String), origin },
+              permissions: { [PermissionNames.wallet_getSecretArray]: {} },
+              ...getRequestDataDiffProperty(),
+            },
+            type: MethodNames.RequestPermissions,
           },
-          type: MethodNames.requestPermissions,
-        },
-        true,
-      );
-    });
+          true,
+        );
+      });
 
-    it('throws if approved permissions object is not a plain object', async () => {
-      const options = getPermissionControllerOptions();
-      const { messenger } = options;
-      const origin = 'metamask.io';
-      const id = 'arbitraryId';
-      const controller = getDefaultPermissionController(options);
+      it('throws if approved permissions object is not a plain object', async () => {
+        const options = getPermissionControllerOptions();
+        const { messenger } = options;
+        const origin = 'metamask.io';
+        const id = 'arbitraryId';
+        const controller = getDefaultPermissionController(options);
 
-      const callActionSpy = jest.spyOn(messenger, 'call');
+        const callActionSpy = jest.spyOn(messenger, 'call');
 
-      // The metadata is valid, but the permissions are invalid
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const getInvalidRequestObject = (invalidPermissions: any) => {
-        return {
-          metadata: { origin, id },
-          permissions: invalidPermissions,
+        // The metadata is valid, but the permissions are invalid
+        const getInvalidRequestObject = (
+          invalidPermissions: unknown,
+        ): PermissionsRequest => {
+          return {
+            metadata: { origin, id },
+
+            // @ts-expect-error Intentional destructive testing.
+            permissions: invalidPermissions,
+          };
         };
-      };
 
-      for (const invalidRequestObject of [
-        null,
-        'foo',
-        [{ [PermissionNames.wallet_getSecretArray]: {} }],
-      ].map((invalidPermissions) =>
-        getInvalidRequestObject(invalidPermissions),
-      )) {
-        callActionSpy.mockClear();
-        callActionSpy.mockImplementationOnce(async () => invalidRequestObject);
+        for (const invalidRequestObject of [
+          null,
+          'foo',
+          [{ [PermissionNames.wallet_getSecretArray]: {} }],
+        ].map((invalidPermissions) =>
+          getInvalidRequestObject(invalidPermissions),
+        )) {
+          callActionSpy.mockClear();
+          callActionSpy.mockImplementationOnce(
+            async () => invalidRequestObject,
+          );
 
-        await expect(
-          async () =>
-            await controller.requestPermissions(
-              { origin },
-              {
-                [PermissionNames.wallet_getSecretArray]: {},
-              },
-              { id, preserveExistingPermissions: true },
+          await expect(
+            async () =>
+              await controller[requestFunctionName](
+                { origin },
+                {
+                  [PermissionNames.wallet_getSecretArray]: {},
+                },
+                { id, preserveExistingPermissions: true },
+              ),
+          ).rejects.toThrow(
+            errors.internalError(
+              `Invalid approved permissions request: Requested permissions for origin "${origin}" is not a plain object.`,
+              { data: { approvedRequest: invalidRequestObject } },
             ),
-        ).rejects.toThrow(
-          errors.internalError(
-            `Invalid approved permissions request: Requested permissions for origin "${origin}" is not a plain object.`,
-            { data: { approvedRequest: invalidRequestObject } },
-          ),
-        );
+          );
 
-        expect(callActionSpy).toHaveBeenCalledTimes(1);
-        expect(callActionSpy).toHaveBeenCalledWith(
-          'ApprovalController:addRequest',
-          {
-            id: expect.any(String),
-            origin,
-            requestData: {
-              metadata: { id: expect.any(String), origin },
-              permissions: { [PermissionNames.wallet_getSecretArray]: {} },
-            },
-            type: MethodNames.requestPermissions,
-          },
-          true,
-        );
-      }
-    });
-
-    it('throws if approved permissions contain a (key : value.parentCapability) mismatch', async () => {
-      const options = getPermissionControllerOptions();
-      const { messenger } = options;
-      const origin = 'metamask.io';
-      const controller = getDefaultPermissionController(options);
-
-      const callActionSpy = jest
-        .spyOn(messenger, 'call')
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (...args: any) => {
-          const [, { requestData }] = args;
-          return {
-            metadata: { ...requestData.metadata },
-            permissions: {
-              [PermissionNames.wallet_getSecretArray]: {
-                parentCapability: PermissionNames.wallet_getSecretArray,
-              },
-              // parentCapability value does not match key
-              [PermissionNames.wallet_getSecretObject]: {
-                parentCapability: PermissionNames.wallet_getSecretArray,
-              },
-            },
-          };
-        });
-
-      await expect(
-        async () =>
-          await controller.requestPermissions(
-            { origin },
+          expect(callActionSpy).toHaveBeenCalledTimes(1);
+          expect(callActionSpy).toHaveBeenCalledWith(
+            'ApprovalController:addRequest',
             {
-              [PermissionNames.wallet_getSecretArray]: {
-                parentCapability: PermissionNames.wallet_getSecretArray,
+              id: expect.any(String),
+              origin,
+              requestData: {
+                metadata: { id: expect.any(String), origin },
+                permissions: { [PermissionNames.wallet_getSecretArray]: {} },
+                ...getRequestDataDiffProperty(),
               },
+              type: MethodNames.RequestPermissions,
             },
-          ),
-      ).rejects.toThrow(
-        errors.invalidParams({
-          message: `Invalid approved permissions request: Permissions request for origin "${origin}" contains invalid requested permission(s).`,
-          data: {
-            origin,
-            requestedPermissions: {
-              [PermissionNames.wallet_getSecretArray]: {
+            true,
+          );
+        }
+      });
+
+      it('throws if approved permissions contain a (key : value.parentCapability) mismatch', async () => {
+        const options = getPermissionControllerOptions();
+        const { messenger } = options;
+        const origin = 'metamask.io';
+        const controller = getDefaultPermissionController(options);
+
+        const callActionSpy = jest
+          .spyOn(messenger, 'call')
+          .mockImplementationOnce(async (...args) => {
+            const [, { requestData }] = args as AddPermissionRequestArgs;
+            return {
+              metadata: { ...requestData.metadata },
+              permissions: {
                 [PermissionNames.wallet_getSecretArray]: {
                   parentCapability: PermissionNames.wallet_getSecretArray,
                 },
+                // parentCapability value does not match key
                 [PermissionNames.wallet_getSecretObject]: {
                   parentCapability: PermissionNames.wallet_getSecretArray,
                 },
               },
-            },
-          },
-        }),
-      );
+            };
+          });
 
-      expect(callActionSpy).toHaveBeenCalledTimes(1);
-      expect(callActionSpy).toHaveBeenCalledWith(
-        'ApprovalController:addRequest',
-        {
-          id: expect.any(String),
-          origin,
-          requestData: {
-            metadata: { id: expect.any(String), origin },
-            permissions: {
-              [PermissionNames.wallet_getSecretArray]: {
-                parentCapability: PermissionNames.wallet_getSecretArray,
+        await expect(
+          async () =>
+            await controller[requestFunctionName](
+              { origin },
+              {
+                [PermissionNames.wallet_getSecretArray]: {
+                  parentCapability: PermissionNames.wallet_getSecretArray,
+                },
+              },
+            ),
+        ).rejects.toThrow(
+          errors.invalidParams({
+            message: `Invalid approved permissions request: Permissions request for origin "${origin}" contains invalid requested permission(s).`,
+            data: {
+              origin,
+              requestedPermissions: {
+                [PermissionNames.wallet_getSecretArray]: {
+                  [PermissionNames.wallet_getSecretArray]: {
+                    parentCapability: PermissionNames.wallet_getSecretArray,
+                  },
+                  [PermissionNames.wallet_getSecretObject]: {
+                    parentCapability: PermissionNames.wallet_getSecretArray,
+                  },
+                },
               },
             },
+          }),
+        );
+
+        expect(callActionSpy).toHaveBeenCalledTimes(1);
+        expect(callActionSpy).toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
+          {
+            id: expect.any(String),
+            origin,
+            requestData: {
+              metadata: { id: expect.any(String), origin },
+              permissions: {
+                [PermissionNames.wallet_getSecretArray]: {
+                  parentCapability: PermissionNames.wallet_getSecretArray,
+                },
+              },
+              ...getRequestDataDiffProperty(),
+            },
+            type: MethodNames.RequestPermissions,
           },
-          type: MethodNames.requestPermissions,
+          true,
+        );
+      });
+
+      it('correctly throws errors that do not inherit from JsonRpcError', async () => {
+        const options = getPermissionControllerOptions();
+        const { messenger } = options;
+        const origin = 'metamask.io';
+        const controller = getDefaultPermissionController(options);
+
+        const callActionSpy = jest
+          .spyOn(messenger, 'call')
+          .mockImplementationOnce(async (...args) => {
+            const [, { requestData }] = args as AddPermissionRequestArgs;
+            return {
+              metadata: { ...requestData.metadata },
+              permissions: {
+                [PermissionNames.wallet_getSecretArray]: {
+                  parentCapability: PermissionNames.wallet_getSecretArray,
+                },
+                [PermissionNames.wallet_getSecretObject]: {
+                  parentCapability: PermissionNames.wallet_getSecretObject,
+                  caveats: 'foo', // invalid
+                },
+              },
+            };
+          });
+
+        await expect(
+          async () =>
+            await controller[requestFunctionName](
+              { origin },
+              {
+                [PermissionNames.wallet_getSecretArray]: {
+                  parentCapability: PermissionNames.wallet_getSecretArray,
+                },
+              },
+            ),
+        ).rejects.toThrow(
+          errors.internalError(
+            `Invalid approved permissions request: The "caveats" property of permission for "${PermissionNames.wallet_getSecretObject}" of subject "${origin}" is invalid. It must be a non-empty array if specified.`,
+          ),
+        );
+
+        expect(callActionSpy).toHaveBeenCalledTimes(1);
+        expect(callActionSpy).toHaveBeenCalledWith(
+          'ApprovalController:addRequest',
+          {
+            id: expect.any(String),
+            origin,
+            requestData: {
+              metadata: { id: expect.any(String), origin },
+              permissions: {
+                [PermissionNames.wallet_getSecretArray]: {
+                  parentCapability: PermissionNames.wallet_getSecretArray,
+                },
+              },
+              ...getRequestDataDiffProperty(),
+            },
+            type: MethodNames.RequestPermissions,
+          },
+          true,
+        );
+      });
+    });
+
+    // Permissions and their caveats are merged through a right-biased union.
+    // The existing permissions are the left-hand side and denoted as `A`.
+    // The requested permissions are the right-hand side and denoted as `B`.
+    describe('requestPermissionsIncremental: merging permissions', () => {
+      const caveatType1 = CaveatTypes.filterArrayResponse;
+      const caveatType2 = CaveatTypes.filterObjectResponse;
+      const caveatType3 = CaveatTypes.noopCaveat;
+
+      const makeCaveat = (type: string, value: Json): Caveat<string, Json> => ({
+        type,
+        value,
+      });
+      const makeCaveat1 = (...value: string[]): Caveat<string, Json> =>
+        makeCaveat(caveatType1, value);
+      const makeCaveat2 = (...value: string[]): Caveat<string, Json> =>
+        makeCaveat(caveatType2, value);
+      const makeCaveat3 = (): Caveat<string, Json> =>
+        makeCaveat(caveatType3, null);
+
+      it.each([
+        ['neither A nor B have caveats', null, null],
+        ['only A has caveats', [makeCaveat1('a', 'b'), makeCaveat3()], null],
+        [
+          'A and B have the same caveat',
+          [makeCaveat1('a', 'b')],
+          [makeCaveat1('a', 'b')],
+        ],
+        [
+          'A and B have the same caveats',
+          [makeCaveat1('a', 'b'), makeCaveat3()],
+          [makeCaveat1('a', 'b'), makeCaveat3()],
+        ],
+      ])(
+        'no-ops if request results in no change: %s',
+        async (_case, leftCaveats, rightCaveats) => {
+          const options = getPermissionControllerOptions();
+          const { messenger } = options;
+          const origin = 'metamask.io';
+          const controller = getDefaultPermissionController(options);
+
+          controller.grantPermissions({
+            subject: { origin },
+            approvedPermissions: {
+              [PermissionNames.wallet_noopWithManyCaveats]: {
+                // @ts-expect-error We know that the caveat type is correct.
+                caveats: leftCaveats,
+              },
+            },
+          });
+
+          const callActionSpy = jest
+            .spyOn(messenger, 'call')
+            .mockImplementationOnce(async (...args) => {
+              const [, { requestData }] = args as AddPermissionRequestArgs;
+              return {
+                metadata: { ...requestData.metadata },
+                permissions: { ...requestData.permissions },
+              };
+            });
+
+          expect(
+            await controller.requestPermissionsIncremental(
+              { origin },
+              {
+                [PermissionNames.wallet_noopWithManyCaveats]: {
+                  // @ts-expect-error We know that the caveat type is correct.
+                  caveats: rightCaveats,
+                },
+              },
+            ),
+          ).toStrictEqual([]);
+
+          expect(callActionSpy).not.toHaveBeenCalled();
         },
-        true,
       );
+
+      it.each([
+        [
+          'only B has caveats',
+          null,
+          [makeCaveat1('a', 'b'), makeCaveat3()],
+          [makeCaveat1('a', 'b'), makeCaveat3()],
+          { [caveatType1]: ['a', 'b'], [caveatType3]: null },
+        ],
+        [
+          'A and B have disjoint caveats',
+          [makeCaveat1('a', 'b')],
+          [makeCaveat2('y', 'z'), makeCaveat3()],
+          [makeCaveat1('a', 'b'), makeCaveat2('y', 'z'), makeCaveat3()],
+          { [caveatType2]: ['y', 'z'], [caveatType3]: null },
+        ],
+        [
+          'A and B have one of the same caveat',
+          [makeCaveat1('a', 'b')],
+          [makeCaveat1('c')],
+          [makeCaveat1('a', 'b', 'c')],
+          { [caveatType1]: ['c'] },
+        ],
+        [
+          'A and B have one of the same caveat, and others',
+          [makeCaveat1('a', 'b'), makeCaveat2('x')],
+          [makeCaveat1('c'), makeCaveat3()],
+          [makeCaveat1('a', 'b', 'c'), makeCaveat2('x'), makeCaveat3()],
+          { [caveatType1]: ['c'], [caveatType3]: null },
+        ],
+        [
+          'A and B have two of the same caveat',
+          [makeCaveat1('a', 'b'), makeCaveat2('x')],
+          [makeCaveat2('y', 'z'), makeCaveat1('c')],
+          [makeCaveat1('a', 'b', 'c'), makeCaveat2('x', 'y', 'z')],
+          { [caveatType1]: ['c'], [caveatType2]: ['y', 'z'] },
+        ],
+        [
+          'A and B have two of the same caveat, and A has one other',
+          [makeCaveat1('a', 'b'), makeCaveat2('x'), makeCaveat3()],
+          [makeCaveat2('y', 'z'), makeCaveat1('c')],
+          [
+            makeCaveat1('a', 'b', 'c'),
+            makeCaveat2('x', 'y', 'z'),
+            makeCaveat3(),
+          ],
+          { [caveatType1]: ['c'], [caveatType2]: ['y', 'z'] },
+        ],
+        [
+          'A and B have two of the same caveat, and B has one other',
+          [makeCaveat1('a', 'b'), makeCaveat2('x')],
+          [makeCaveat2('y', 'z'), makeCaveat1('c'), makeCaveat3()],
+          [
+            makeCaveat1('a', 'b', 'c'),
+            makeCaveat2('x', 'y', 'z'),
+            makeCaveat3(),
+          ],
+          {
+            [caveatType1]: ['c'],
+            [caveatType2]: ['y', 'z'],
+            [caveatType3]: null,
+          },
+        ],
+      ])(
+        'requested permission merges with existing permission: %s',
+        async (
+          _case,
+          leftCaveats,
+          rightCaveats,
+          expectedCaveats,
+          caveatsDiff,
+        ) => {
+          const getPermissionDiffMatcher = (
+            previousCaveats: CaveatConstraint[] | null,
+            diff: Record<string, Json[] | null>,
+            // `expect.objectContaining` returns `any`.
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          ): any =>
+            expect.objectContaining({
+              currentPermissions: expect.objectContaining({
+                [PermissionNames.wallet_noopWithManyCaveats]:
+                  expect.objectContaining({
+                    caveats: previousCaveats,
+                  }),
+              }),
+              permissionDiffMap: {
+                [PermissionNames.wallet_noopWithManyCaveats]: diff,
+              },
+            });
+
+          const options = getPermissionControllerOptions();
+          const { messenger } = options;
+          const origin = 'metamask.io';
+          const controller = getDefaultPermissionController(options);
+
+          controller.grantPermissions({
+            subject: { origin },
+            approvedPermissions: {
+              [PermissionNames.wallet_noopWithManyCaveats]: {
+                // @ts-expect-error The caveat type is in fact valid.
+                caveats: leftCaveats,
+              },
+            },
+          });
+
+          const callActionSpy = jest
+            .spyOn(messenger, 'call')
+            .mockImplementationOnce(async (...args) => {
+              const [, { requestData }] = args as AddPermissionRequestArgs;
+              return {
+                metadata: { ...requestData.metadata },
+                permissions: { ...requestData.permissions },
+              };
+            });
+
+          expect(
+            await controller.requestPermissionsIncremental(
+              { origin },
+              {
+                [PermissionNames.wallet_noopWithManyCaveats]: {
+                  // @ts-expect-error The caveat type is in fact valid.
+                  caveats: rightCaveats,
+                },
+              },
+            ),
+          ).toMatchObject([
+            {
+              [PermissionNames.wallet_noopWithManyCaveats]:
+                getPermissionMatcher({
+                  parentCapability: PermissionNames.wallet_noopWithManyCaveats,
+                  caveats: expectedCaveats,
+                }),
+            },
+            { id: expect.any(String), origin },
+          ]);
+
+          expect(callActionSpy).toHaveBeenCalledTimes(1);
+          expect(callActionSpy).toHaveBeenCalledWith(
+            'ApprovalController:addRequest',
+            {
+              id: expect.any(String),
+              origin,
+              requestData: {
+                metadata: { id: expect.any(String), origin },
+                permissions: {
+                  [PermissionNames.wallet_noopWithManyCaveats]:
+                    getPermissionMatcher({
+                      parentCapability:
+                        PermissionNames.wallet_noopWithManyCaveats,
+                      caveats: expectedCaveats,
+                    }),
+                },
+                diff: getPermissionDiffMatcher(leftCaveats, caveatsDiff),
+              },
+              type: MethodNames.RequestPermissions,
+            },
+            true,
+          );
+        },
+      );
+
+      it('throws if attempting to merge caveats without a merger function', async () => {
+        const options = getPermissionControllerOptions();
+        const { messenger } = options;
+        const origin = 'metamask.io';
+
+        const controller = getDefaultPermissionController(options);
+
+        controller.grantPermissions({
+          subject: { origin },
+          approvedPermissions: {
+            [PermissionNames.wallet_getSecretArray]: {
+              caveats: [makeCaveat(CaveatTypes.reverseArrayResponse, null)],
+            },
+          },
+        });
+
+        const callActionSpy = jest
+          .spyOn(messenger, 'call')
+          .mockImplementationOnce(async (...args) => {
+            const [, { requestData }] = args as AddPermissionRequestArgs;
+            return {
+              metadata: { ...requestData.metadata },
+              permissions: { ...requestData.permissions },
+            };
+          });
+
+        await expect(
+          controller.requestPermissionsIncremental(
+            { origin },
+            {
+              [PermissionNames.wallet_getSecretArray]: {
+                caveats: [makeCaveat(CaveatTypes.reverseArrayResponse, null)],
+              },
+            },
+          ),
+        ).rejects.toThrow(
+          new errors.CaveatMergerDoesNotExistError(
+            CaveatTypes.reverseArrayResponse,
+          ),
+        );
+
+        expect(callActionSpy).not.toHaveBeenCalled();
+      });
+
+      it('throws if merged caveats produce an invalid permission', async () => {
+        const caveatSpecifications = getDefaultCaveatSpecifications();
+        caveatSpecifications[CaveatTypes.filterArrayResponse].merger = (): [
+          string,
+          string,
+        ] => ['foo', 'foo'];
+
+        const options = getPermissionControllerOptions({
+          caveatSpecifications,
+        });
+        const { messenger } = options;
+        const origin = 'metamask.io';
+
+        const controller = getDefaultPermissionController(options);
+
+        controller.grantPermissions({
+          subject: { origin },
+          approvedPermissions: {
+            [PermissionNames.wallet_getSecretArray]: {
+              caveats: [makeCaveat(CaveatTypes.filterArrayResponse, ['a'])],
+            },
+          },
+        });
+
+        const callActionSpy = jest
+          .spyOn(messenger, 'call')
+          .mockImplementationOnce(async (...args) => {
+            const [, { requestData }] = args as AddPermissionRequestArgs;
+            return {
+              metadata: { ...requestData.metadata },
+              permissions: { ...requestData.permissions },
+            };
+          });
+
+        await expect(
+          controller.requestPermissionsIncremental(
+            { origin },
+            {
+              [PermissionNames.wallet_getSecretArray]: {
+                caveats: [makeCaveat(CaveatTypes.filterArrayResponse, ['b'])],
+              },
+            },
+          ),
+        ).rejects.toThrow(
+          new errors.InvalidMergedPermissionsError(
+            origin,
+            new Error(
+              `${CaveatTypes.filterArrayResponse} values must be arrays`,
+            ),
+            {},
+          ),
+        );
+
+        expect(callActionSpy).not.toHaveBeenCalled();
+      });
     });
   });
 
@@ -4345,12 +5211,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce((..._args: any) => true)
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce((..._args: any) => undefined);
+        .mockImplementationOnce(() => true)
+        .mockImplementationOnce(() => undefined);
 
       const controller = getDefaultPermissionController(options);
 
@@ -4391,12 +5253,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce((..._args: any) => true)
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce((..._args: any) => undefined);
+        .mockImplementationOnce(() => true)
+        .mockImplementationOnce(() => undefined);
 
       const controller = getDefaultPermissionController(options);
 
@@ -4432,9 +5290,7 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce((..._args: any) => false);
+        .mockImplementationOnce(() => false);
 
       const controller = getDefaultPermissionController(options);
 
@@ -4466,17 +5322,11 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce((..._args: any) => true)
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce((..._args: any) => {
+        .mockImplementationOnce(() => true)
+        .mockImplementationOnce(() => {
           throw new Error('unexpected failure');
         })
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce((..._args: any) => undefined);
+        .mockImplementationOnce(() => undefined);
 
       const controller = getDefaultPermissionController(options);
 
@@ -4528,12 +5378,8 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (..._args: any) => true)
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce(async (..._args: any) => undefined);
+        .mockImplementationOnce(async () => true)
+        .mockImplementationOnce(async () => undefined);
 
       const controller = getDefaultPermissionController(options);
 
@@ -4563,9 +5409,7 @@ describe('PermissionController', () => {
 
       const callActionSpy = jest
         .spyOn(messenger, 'call')
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .mockImplementationOnce((..._args: any) => false);
+        .mockImplementationOnce(() => false);
 
       const controller = getDefaultPermissionController(options);
 
@@ -4618,9 +5462,8 @@ describe('PermissionController', () => {
       await expect(
         controller.getEndowments(
           origin,
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          PermissionNames.wallet_getSecretArray as any,
+          // @ts-expect-error Intentional destructive testing
+          PermissionNames.wallet_getSecretArray,
         ),
       ).rejects.toThrow(
         new errors.EndowmentPermissionDoesNotExistError(
@@ -4750,19 +5593,16 @@ describe('PermissionController', () => {
       const origin = 'metamask.io';
 
       await expect(
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        controller.executeRestrictedMethod(origin, 'wallet_getMeTacos' as any),
+        // @ts-expect-error Intentional destructive testing
+        controller.executeRestrictedMethod(origin, 'wallet_getMeTacos'),
       ).rejects.toThrow(errors.methodNotFound('wallet_getMeTacos', { origin }));
     });
 
     it('throws if the restricted method returns undefined', async () => {
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const permissionSpecifications: any =
-        getDefaultPermissionSpecifications();
-      permissionSpecifications.wallet_doubleNumber.methodImplementation = () =>
-        undefined;
+      const permissionSpecifications = getDefaultPermissionSpecifications();
+      // @ts-expect-error Intentional destructive testing
+      permissionSpecifications.wallet_doubleNumber.methodImplementation =
+        (): undefined => undefined;
 
       const controller = new PermissionController<
         DefaultPermissionSpecifications,
@@ -4788,15 +5628,17 @@ describe('PermissionController', () => {
         ),
       ).rejects.toThrow(
         new Error(
-          `Internal request for method "${PermissionNames.wallet_doubleNumber}" as origin "${origin}" returned no result.`,
+          `Request for method "${PermissionNames.wallet_doubleNumber}" as origin "${origin}" returned no result.`,
         ),
       );
     });
   });
 
   describe('controller actions', () => {
-    it('action: PermissionController:clearPermissions', () => {
-      const messenger = getUnrestrictedMessenger();
+    it('action: PermissionController:clearState', () => {
+      const messenger = getRootMessenger();
+      jest.spyOn(messenger, 'call');
+
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -4804,7 +5646,6 @@ describe('PermissionController', () => {
         DefaultPermissionSpecifications,
         DefaultCaveatSpecifications
       >(options);
-      const clearStateSpy = jest.spyOn(controller, 'clearState');
 
       controller.grantPermissions({
         subject: { origin: 'foo' },
@@ -4815,13 +5656,19 @@ describe('PermissionController', () => {
 
       expect(hasProperty(controller.state.subjects, 'foo')).toBe(true);
 
-      messenger.call('PermissionController:clearPermissions');
-      expect(clearStateSpy).toHaveBeenCalledTimes(1);
+      messenger.call('PermissionController:clearState');
+      expect(messenger.call).toHaveBeenCalledTimes(1);
+      expect(messenger.call).toHaveBeenNthCalledWith(
+        1,
+        'PermissionController:clearState',
+      );
       expect(controller.state).toStrictEqual({ subjects: {} });
     });
 
     it('action: PermissionController:getEndowments', async () => {
-      const messenger = getUnrestrictedMessenger();
+      const messenger = getRootMessenger();
+      jest.spyOn(messenger, 'call');
+
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -4829,7 +5676,6 @@ describe('PermissionController', () => {
         DefaultPermissionSpecifications,
         DefaultCaveatSpecifications
       >(options);
-      const getEndowmentsSpy = jest.spyOn(controller, 'getEndowments');
 
       await expect(
         messenger.call(
@@ -4870,23 +5716,24 @@ describe('PermissionController', () => {
         ),
       ).toStrictEqual(['endowment1']);
 
-      expect(getEndowmentsSpy).toHaveBeenCalledTimes(3);
-      expect(getEndowmentsSpy).toHaveBeenNthCalledWith(
+      expect(messenger.call).toHaveBeenCalledTimes(3);
+      expect(messenger.call).toHaveBeenNthCalledWith(
         1,
+        'PermissionController:getEndowments',
         'foo',
         PermissionNames.endowmentAnySubject,
-        undefined,
       );
 
-      expect(getEndowmentsSpy).toHaveBeenNthCalledWith(
+      expect(messenger.call).toHaveBeenNthCalledWith(
         2,
+        'PermissionController:getEndowments',
         'foo',
         PermissionNames.endowmentAnySubject,
-        undefined,
       );
 
-      expect(getEndowmentsSpy).toHaveBeenNthCalledWith(
+      expect(messenger.call).toHaveBeenNthCalledWith(
         3,
+        'PermissionController:getEndowments',
         'foo',
         PermissionNames.endowmentAnySubject,
         { arbitrary: 'requestData' },
@@ -4894,7 +5741,9 @@ describe('PermissionController', () => {
     });
 
     it('action: PermissionController:getSubjectNames', () => {
-      const messenger = getUnrestrictedMessenger();
+      const messenger = getRootMessenger();
+      jest.spyOn(messenger, 'call');
+
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -4902,7 +5751,6 @@ describe('PermissionController', () => {
         DefaultPermissionSpecifications,
         DefaultCaveatSpecifications
       >(options);
-      const getSubjectNamesSpy = jest.spyOn(controller, 'getSubjectNames');
 
       expect(
         messenger.call('PermissionController:getSubjectNames'),
@@ -4918,11 +5766,21 @@ describe('PermissionController', () => {
       expect(
         messenger.call('PermissionController:getSubjectNames'),
       ).toStrictEqual(['foo']);
-      expect(getSubjectNamesSpy).toHaveBeenCalledTimes(2);
+      expect(messenger.call).toHaveBeenCalledTimes(2);
+      expect(messenger.call).toHaveBeenNthCalledWith(
+        1,
+        'PermissionController:getSubjectNames',
+      );
+      expect(messenger.call).toHaveBeenNthCalledWith(
+        2,
+        'PermissionController:getSubjectNames',
+      );
     });
 
     it('action: PermissionController:hasPermission', () => {
-      const messenger = getUnrestrictedMessenger();
+      const messenger = getRootMessenger();
+      jest.spyOn(messenger, 'call');
+
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -4930,7 +5788,6 @@ describe('PermissionController', () => {
         DefaultPermissionSpecifications,
         DefaultCaveatSpecifications
       >(options);
-      const hasPermissionSpy = jest.spyOn(controller, 'hasPermission');
 
       expect(
         messenger.call(
@@ -4963,28 +5820,33 @@ describe('PermissionController', () => {
         ),
       ).toBe(false);
 
-      expect(hasPermissionSpy).toHaveBeenCalledTimes(3);
-      expect(hasPermissionSpy).toHaveBeenNthCalledWith(
+      expect(messenger.call).toHaveBeenCalledTimes(3);
+      expect(messenger.call).toHaveBeenNthCalledWith(
         1,
+        'PermissionController:hasPermission',
         'foo',
         PermissionNames.wallet_getSecretArray,
       );
 
-      expect(hasPermissionSpy).toHaveBeenNthCalledWith(
+      expect(messenger.call).toHaveBeenNthCalledWith(
         2,
+        'PermissionController:hasPermission',
         'foo',
         PermissionNames.wallet_getSecretArray,
       );
 
-      expect(hasPermissionSpy).toHaveBeenNthCalledWith(
+      expect(messenger.call).toHaveBeenNthCalledWith(
         3,
+        'PermissionController:hasPermission',
         'foo',
         PermissionNames.wallet_getSecretObject,
       );
     });
 
     it('action: PermissionController:hasPermissions', () => {
-      const messenger = getUnrestrictedMessenger();
+      const messenger = getRootMessenger();
+      jest.spyOn(messenger, 'call');
+
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -4992,7 +5854,6 @@ describe('PermissionController', () => {
         DefaultPermissionSpecifications,
         DefaultCaveatSpecifications
       >(options);
-      const hasPermissionsSpy = jest.spyOn(controller, 'hasPermissions');
 
       expect(messenger.call('PermissionController:hasPermissions', 'foo')).toBe(
         false,
@@ -5008,13 +5869,23 @@ describe('PermissionController', () => {
       expect(messenger.call('PermissionController:hasPermissions', 'foo')).toBe(
         true,
       );
-      expect(hasPermissionsSpy).toHaveBeenCalledTimes(2);
-      expect(hasPermissionsSpy).toHaveBeenNthCalledWith(1, 'foo');
-      expect(hasPermissionsSpy).toHaveBeenNthCalledWith(2, 'foo');
+      expect(messenger.call).toHaveBeenCalledTimes(2);
+      expect(messenger.call).toHaveBeenNthCalledWith(
+        1,
+        'PermissionController:hasPermissions',
+        'foo',
+      );
+      expect(messenger.call).toHaveBeenNthCalledWith(
+        2,
+        'PermissionController:hasPermissions',
+        'foo',
+      );
     });
 
     it('action: PermissionController:getPermissions', () => {
-      const messenger = getUnrestrictedMessenger();
+      const messenger = getRootMessenger();
+      jest.spyOn(messenger, 'call');
+
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5022,7 +5893,6 @@ describe('PermissionController', () => {
         DefaultPermissionSpecifications,
         DefaultCaveatSpecifications
       >(options);
-      const getPermissionsSpy = jest.spyOn(controller, 'getPermissions');
 
       expect(
         messenger.call('PermissionController:getPermissions', 'foo'),
@@ -5042,13 +5912,23 @@ describe('PermissionController', () => {
         ),
       ).toStrictEqual(['wallet_getSecretArray']);
 
-      expect(getPermissionsSpy).toHaveBeenCalledTimes(3);
-      expect(getPermissionsSpy).toHaveBeenNthCalledWith(1, 'foo');
-      expect(getPermissionsSpy).toHaveBeenNthCalledWith(2, 'foo');
+      expect(messenger.call).toHaveBeenCalledTimes(2);
+      expect(messenger.call).toHaveBeenNthCalledWith(
+        1,
+        'PermissionController:getPermissions',
+        'foo',
+      );
+      expect(messenger.call).toHaveBeenNthCalledWith(
+        2,
+        'PermissionController:getPermissions',
+        'foo',
+      );
     });
 
     it('action: PermissionController:revokeAllPermissions', () => {
-      const messenger = getUnrestrictedMessenger();
+      const messenger = getRootMessenger();
+      jest.spyOn(messenger, 'call');
+
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5063,10 +5943,6 @@ describe('PermissionController', () => {
           wallet_getSecretArray: {},
         },
       });
-      const revokeAllPermissionsSpy = jest.spyOn(
-        controller,
-        'revokeAllPermissions',
-      );
 
       expect(controller.hasPermission('foo', 'wallet_getSecretArray')).toBe(
         true,
@@ -5077,12 +5953,18 @@ describe('PermissionController', () => {
       expect(controller.hasPermission('foo', 'wallet_getSecretArray')).toBe(
         false,
       );
-      expect(revokeAllPermissionsSpy).toHaveBeenCalledTimes(1);
-      expect(revokeAllPermissionsSpy).toHaveBeenNthCalledWith(1, 'foo');
+      expect(messenger.call).toHaveBeenCalledTimes(1);
+      expect(messenger.call).toHaveBeenNthCalledWith(
+        1,
+        'PermissionController:revokeAllPermissions',
+        'foo',
+      );
     });
 
     it('action: PermissionController:revokePermissionForAllSubjects', () => {
-      const messenger = getUnrestrictedMessenger();
+      const messenger = getRootMessenger();
+      jest.spyOn(messenger, 'call');
+
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5097,10 +5979,6 @@ describe('PermissionController', () => {
           wallet_getSecretArray: {},
         },
       });
-      const revokePermissionForAllSubjectsSpy = jest.spyOn(
-        controller,
-        'revokePermissionForAllSubjects',
-      );
 
       expect(controller.hasPermission('foo', 'wallet_getSecretArray')).toBe(
         true,
@@ -5114,15 +5992,16 @@ describe('PermissionController', () => {
       expect(controller.hasPermission('foo', 'wallet_getSecretArray')).toBe(
         false,
       );
-      expect(revokePermissionForAllSubjectsSpy).toHaveBeenCalledTimes(1);
-      expect(revokePermissionForAllSubjectsSpy).toHaveBeenNthCalledWith(
+      expect(messenger.call).toHaveBeenCalledTimes(1);
+      expect(messenger.call).toHaveBeenNthCalledWith(
         1,
+        'PermissionController:revokePermissionForAllSubjects',
         'wallet_getSecretArray',
       );
     });
 
-    it('action: PermissionsController:grantPermissions', async () => {
-      const messenger = getUnrestrictedMessenger();
+    it('action: PermissionController:grantPermissions', async () => {
+      const messenger = getRootMessenger();
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5142,8 +6021,8 @@ describe('PermissionController', () => {
       );
     });
 
-    it('action: PermissionsController:requestPermissions', async () => {
-      const messenger = getUnrestrictedMessenger();
+    it('action: PermissionController:grantPermissionsIncremental', async () => {
+      const messenger = getRootMessenger();
       const options = getPermissionControllerOptions({
         messenger: getPermissionControllerMessenger(messenger),
       });
@@ -5152,13 +6031,38 @@ describe('PermissionController', () => {
         DefaultCaveatSpecifications
       >(options);
 
-      // TODO(ritave): requestPermissions calls unregistered action ApprovalController:addRequest that
-      //               can't be easily mocked, thus we mock the whole implementation
-      const requestPermissionsSpy = jest
-        .spyOn(controller, 'requestPermissions')
-        .mockImplementation();
+      const result = messenger.call(
+        'PermissionController:grantPermissionsIncremental',
+        {
+          subject: { origin: 'foo' },
+          approvedPermissions: { wallet_getSecretArray: {} },
+        },
+      );
 
-      await messenger.call(
+      expect(result).toHaveProperty('wallet_getSecretArray');
+      expect(controller.hasPermission('foo', 'wallet_getSecretArray')).toBe(
+        true,
+      );
+    });
+
+    it('action: PermissionController:requestPermissions', async () => {
+      const messenger = getRootMessenger();
+      const options = getPermissionControllerOptions({
+        messenger: getPermissionControllerMessenger(messenger),
+      });
+
+      // eslint-disable-next-line no-new
+      new PermissionController<
+        DefaultPermissionSpecifications,
+        DefaultCaveatSpecifications
+      >(options);
+
+      messenger.registerActionHandler(
+        'ApprovalController:addRequest',
+        async ({ requestData }) => requestData,
+      );
+
+      const [result] = await messenger.call(
         'PermissionController:requestPermissions',
         { origin: 'foo' },
         {
@@ -5166,11 +6070,48 @@ describe('PermissionController', () => {
         },
       );
 
-      expect(requestPermissionsSpy).toHaveBeenCalledTimes(1);
+      expect(result).toHaveProperty('wallet_getSecretArray');
+    });
+
+    it('action: PermissionController:requestPermissionsIncremental', async () => {
+      const messenger = getRootMessenger();
+      jest.spyOn(messenger, 'call');
+
+      const options = getPermissionControllerOptions({
+        messenger: getPermissionControllerMessenger(messenger),
+      });
+
+      // eslint-disable-next-line no-new
+      new PermissionController<
+        DefaultPermissionSpecifications,
+        DefaultCaveatSpecifications
+      >(options);
+
+      messenger.registerActionHandler(
+        'ApprovalController:addRequest',
+        async ({ requestData }) => requestData,
+      );
+
+      const [result] = await messenger.call(
+        'PermissionController:requestPermissionsIncremental',
+        { origin: 'foo' },
+        {
+          wallet_getSecretArray: {},
+        },
+      );
+
+      expect(result).toHaveProperty('wallet_getSecretArray');
+      expect(messenger.call).toHaveBeenCalledWith(
+        'PermissionController:requestPermissionsIncremental',
+        { origin: 'foo' },
+        { wallet_getSecretArray: {} },
+      );
     });
 
     it('action: PermissionController:updateCaveat', async () => {
-      const messenger = getUnrestrictedMessenger();
+      const messenger = getRootMessenger();
+      jest.spyOn(messenger, 'call');
+
       const state = {
         subjects: {
           'metamask.io': {
@@ -5199,9 +6140,7 @@ describe('PermissionController', () => {
         DefaultCaveatSpecifications
       >(options);
 
-      const updateCaveatSpy = jest.spyOn(controller, 'updateCaveat');
-
-      await messenger.call(
+      messenger.call(
         'PermissionController:updateCaveat',
         'metamask.io',
         'wallet_getSecretArray',
@@ -5209,7 +6148,15 @@ describe('PermissionController', () => {
         ['baz'],
       );
 
-      expect(updateCaveatSpy).toHaveBeenCalledTimes(1);
+      expect(messenger.call).toHaveBeenCalledTimes(1);
+      expect(messenger.call).toHaveBeenNthCalledWith(
+        1,
+        'PermissionController:updateCaveat',
+        'metamask.io',
+        'wallet_getSecretArray',
+        CaveatTypes.filterArrayResponse,
+        ['baz'],
+      );
       expect(controller.state).toStrictEqual({
         subjects: {
           'metamask.io': {
@@ -5229,11 +6176,149 @@ describe('PermissionController', () => {
         },
       });
     });
+
+    it('action: PermissionController:getCaveat', async () => {
+      const messenger = getRootMessenger();
+      const state = {
+        subjects: {
+          'metamask.io': {
+            origin: 'metamask.io',
+            permissions: {
+              wallet_getSecretArray: {
+                id: 'escwEx9JrOxGZKZk3RkL4',
+                parentCapability: 'wallet_getSecretArray',
+                invoker: 'metamask.io',
+                caveats: [
+                  { type: CaveatTypes.filterArrayResponse, value: ['bar'] },
+                ],
+                date: 1632618373085,
+              },
+            },
+          },
+        },
+      };
+      const options = getPermissionControllerOptions({
+        messenger: getPermissionControllerMessenger(messenger),
+        state,
+      });
+
+      // eslint-disable-next-line no-new
+      new PermissionController<
+        DefaultPermissionSpecifications,
+        DefaultCaveatSpecifications
+      >(options);
+
+      const result = messenger.call(
+        'PermissionController:getCaveat',
+        'metamask.io',
+        'wallet_getSecretArray',
+        CaveatTypes.filterArrayResponse,
+      );
+
+      expect(result).toBe(
+        state.subjects['metamask.io'].permissions.wallet_getSecretArray
+          .caveats[0],
+      );
+    });
+
+    it('action: PermissionController:hasUnrestrictedMethod', () => {
+      const messenger = getRootMessenger();
+      const options = getPermissionControllerOptions({
+        messenger: getPermissionControllerMessenger(messenger),
+      });
+      // eslint-disable-next-line no-new
+      new PermissionController<
+        DefaultPermissionSpecifications,
+        DefaultCaveatSpecifications
+      >(options);
+
+      expect(
+        messenger.call(
+          'PermissionController:hasUnrestrictedMethod',
+          'wallet_unrestrictedMethod',
+        ),
+      ).toBe(true);
+
+      expect(
+        messenger.call(
+          'PermissionController:hasUnrestrictedMethod',
+          PermissionNames.wallet_getSecretArray,
+        ),
+      ).toBe(false);
+
+      expect(
+        messenger.call(
+          'PermissionController:hasUnrestrictedMethod',
+          'wallet_unknownMethod',
+        ),
+      ).toBe(false);
+    });
+
+    it('action: PermissionController:executeRestrictedMethod', async () => {
+      const messenger = getRootMessenger();
+      const options = getPermissionControllerOptions({
+        messenger: getPermissionControllerMessenger(messenger),
+      });
+      const controller = new PermissionController<
+        DefaultPermissionSpecifications,
+        DefaultCaveatSpecifications
+      >(options);
+      const origin = 'metamask.io';
+
+      controller.grantPermissions({
+        subject: { origin },
+        approvedPermissions: {
+          [PermissionNames.wallet_getSecretArray]: {},
+        },
+      });
+
+      const result = await messenger.call(
+        'PermissionController:executeRestrictedMethod',
+        origin,
+        PermissionNames.wallet_getSecretArray,
+      );
+
+      expect(result).toStrictEqual(['a', 'b', 'c']);
+    });
   });
 
   describe('permission middleware', () => {
+    /**
+     * Builds a permission controller and a messenger suitable for passing to
+     * `createPermissionMiddleware` that are wired to the same root messenger.
+     *
+     * @param opts - Permission controller options overrides.
+     * @returns The controller and the middleware messenger.
+     */
+    const setup = (
+      opts?: Record<string, unknown>,
+    ): {
+      controller: PermissionController<
+        DefaultPermissionSpecifications,
+        DefaultCaveatSpecifications
+      >;
+      middlewareMessenger: Messenger<
+        'PermissionMiddleware',
+        PermissionMiddlewareActions
+      >;
+    } => {
+      const rootMessenger = getRootMessenger();
+      const controller = new PermissionController<
+        DefaultPermissionSpecifications,
+        DefaultCaveatSpecifications
+      >(
+        getPermissionControllerOptions({
+          messenger: getPermissionControllerMessenger(rootMessenger),
+          ...opts,
+        }),
+      );
+      const middlewareMessenger =
+        getPermissionMiddlewareMessenger(rootMessenger);
+      return { controller, middlewareMessenger };
+    };
+
     it('executes a restricted method', async () => {
-      const controller = getDefaultPermissionController();
+      const { controller, middlewareMessenger } = setup();
       const origin = 'metamask.io';
 
       controller.grantPermissions({
@@ -5244,21 +6329,25 @@ describe('PermissionController', () => {
       });
 
       const engine = new JsonRpcEngine();
-      engine.push(controller.createPermissionMiddleware({ origin }));
+      engine.push(
+        createPermissionMiddleware({
+          messenger: middlewareMessenger,
+          origin,
+        }),
+      );
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response: any = await engine.handle({
+      const response = await engine.handle({
         jsonrpc: '2.0',
         id: 1,
         method: PermissionNames.wallet_getSecretArray,
       });
+      assertIsJsonRpcSuccess(response);
 
       expect(response.result).toStrictEqual(['a', 'b', 'c']);
     });
 
     it('executes a restricted method with a caveat', async () => {
-      const controller = getDefaultPermissionController();
+      const { controller, middlewareMessenger } = setup();
       const origin = 'metamask.io';
 
       controller.grantPermissions({
@@ -5271,21 +6360,25 @@ describe('PermissionController', () => {
       });
 
       const engine = new JsonRpcEngine();
-      engine.push(controller.createPermissionMiddleware({ origin }));
+      engine.push(
+        createPermissionMiddleware({
+          messenger: middlewareMessenger,
+          origin,
+        }),
+      );
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response: any = await engine.handle({
+      const response = await engine.handle({
         jsonrpc: '2.0',
         id: 1,
         method: PermissionNames.wallet_getSecretArray,
       });
+      assertIsJsonRpcSuccess(response);
 
       expect(response.result).toStrictEqual(['b']);
     });
 
     it('executes a restricted method with multiple caveats', async () => {
-      const controller = getDefaultPermissionController();
+      const { controller, middlewareMessenger } = setup();
       const origin = 'metamask.io';
 
       controller.grantPermissions({
@@ -5301,80 +6394,62 @@ describe('PermissionController', () => {
       });
 
       const engine = new JsonRpcEngine();
-      engine.push(controller.createPermissionMiddleware({ origin }));
+      engine.push(
+        createPermissionMiddleware({
+          messenger: middlewareMessenger,
+          origin,
+        }),
+      );
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response: any = await engine.handle({
+      const response = await engine.handle({
         jsonrpc: '2.0',
         id: 1,
         method: PermissionNames.wallet_getSecretArray,
       });
+      assertIsJsonRpcSuccess(response);
 
       expect(response.result).toStrictEqual(['c', 'a']);
     });
 
     it('passes through unrestricted methods', async () => {
-      const controller = getDefaultPermissionController();
+      const { middlewareMessenger } = setup();
       const origin = 'metamask.io';
 
       const engine = new JsonRpcEngine();
-      engine.push(controller.createPermissionMiddleware({ origin }));
       engine.push(
-        (
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          _req: any,
-          res: PendingJsonRpcResponse<'success'>,
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          _next: any,
-          // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          end: () => any,
-        ) => {
-          res.result = 'success';
-          end();
-        },
+        createPermissionMiddleware({
+          messenger: middlewareMessenger,
+          origin,
+        }),
       );
+      engine.push((_req, res, _next, end) => {
+        res.result = 'success';
+        end();
+      });
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response: any = await engine.handle({
+      const response = await engine.handle({
         jsonrpc: '2.0',
         id: 1,
         method: 'wallet_unrestrictedMethod',
       });
+      assertIsJsonRpcSuccess(response);
 
       expect(response.result).toBe('success');
     });
 
-    it('throws an error if the subject has an invalid "origin" property', async () => {
-      const controller = getDefaultPermissionController();
-
-      ['', null, undefined, 2].forEach((invalidOrigin) => {
-        expect(() =>
-          controller.createPermissionMiddleware({
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            origin: invalidOrigin as any,
-          }),
-        ).toThrow(
-          new Error('The subject "origin" must be a non-empty string.'),
-        );
-      });
-    });
-
     it('returns an error if the subject does not have the requisite permission', async () => {
-      const controller = getDefaultPermissionController();
+      const { middlewareMessenger } = setup();
       const origin = 'metamask.io';
 
       const engine = new JsonRpcEngine();
-      engine.push(controller.createPermissionMiddleware({ origin }));
+      engine.push(
+        createPermissionMiddleware({
+          messenger: middlewareMessenger,
+          origin,
+        }),
+      );
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const request: any = {
+      const request: JsonRpcRequest<[]> = {
         jsonrpc: '2.0',
         id: 1,
         method: PermissionNames.wallet_getSecretArray,
@@ -5390,22 +6465,26 @@ describe('PermissionController', () => {
           'Unauthorized to perform action. Try requesting the required permission(s) first. For more information, see: https://docs.metamask.io/guide/rpc-api.html#permissions',
       });
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error }: any = await engine.handle(request);
-      expect(error).toMatchObject(expect.objectContaining(expectedError));
+      const response = await engine.handle(request);
+      assertIsJsonRpcFailure(response);
+      expect(response.error).toMatchObject(
+        expect.objectContaining(expectedError),
+      );
     });
 
     it('returns an error if the method does not exist', async () => {
-      const controller = getDefaultPermissionController();
+      const { middlewareMessenger } = setup();
       const origin = 'metamask.io';
 
       const engine = new JsonRpcEngine();
-      engine.push(controller.createPermissionMiddleware({ origin }));
+      engine.push(
+        createPermissionMiddleware({
+          messenger: middlewareMessenger,
+          origin,
+        }),
+      );
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const request: any = {
+      const request: JsonRpcRequest<[]> = {
         jsonrpc: '2.0',
         id: 1,
         method: 'wallet_foo',
@@ -5413,33 +6492,27 @@ describe('PermissionController', () => {
 
       const expectedError = errors.methodNotFound('wallet_foo', { origin });
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error }: any = await engine.handle(request);
+      const response = await engine.handle(request);
+      assertIsJsonRpcFailure(response);
+      const { error } = response;
 
       expect(error.message).toStrictEqual(expectedError.message);
-      expect(error.data.cause).toBeNull();
-      delete error.message;
+      // @ts-expect-error We do expect this property to exist.
+      expect(error.data?.cause).toBeNull();
+      // @ts-expect-error Intentional destructive testing
       delete error.data.cause;
       expect(error).toMatchObject(expect.objectContaining(expectedError));
     });
 
     it('returns an error if the restricted method returns undefined', async () => {
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const permissionSpecifications: any =
-        getDefaultPermissionSpecifications();
-      permissionSpecifications.wallet_doubleNumber.methodImplementation = () =>
-        undefined;
+      const permissionSpecifications = getDefaultPermissionSpecifications();
+      // @ts-expect-error Intentional destructive testing
+      permissionSpecifications.wallet_doubleNumber.methodImplementation =
+        (): undefined => undefined;
 
-      const controller = new PermissionController<
-        DefaultPermissionSpecifications,
-        DefaultCaveatSpecifications
-      >(
-        getPermissionControllerOptions({
-          permissionSpecifications,
-        }),
-      );
+      const { controller, middlewareMessenger } = setup({
+        permissionSpecifications,
+      });
       const origin = 'metamask.io';
 
       controller.grantPermissions({
@@ -5450,29 +6523,301 @@ describe('PermissionController', () => {
       });
 
       const engine = new JsonRpcEngine();
-      engine.push(controller.createPermissionMiddleware({ origin }));
+      engine.push(
+        createPermissionMiddleware({
+          messenger: middlewareMessenger,
+          origin,
+        }),
+      );
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const request: any = {
+      const request: JsonRpcRequest<[]> = {
         jsonrpc: '2.0',
         id: 1,
         method: PermissionNames.wallet_doubleNumber,
       };
 
-      const expectedError = errors.internalError(
-        `Request for method "${PermissionNames.wallet_doubleNumber}" returned undefined result.`,
-        { request: { ...request } },
-      );
+      const response = await engine.handle(request);
+      assertIsJsonRpcFailure(response);
+      const { error } = response;
 
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error }: any = await engine.handle(request);
-      expect(error.message).toStrictEqual(expectedError.message);
-      expect(error.data.cause).toBeNull();
-      delete error.message;
-      delete error.data.cause;
-      expect(error).toMatchObject(expect.objectContaining(expectedError));
+      // The public `executeRestrictedMethod` throws a plain `Error` when the
+      // restricted method returns `undefined`; the JSON-RPC engine wraps it
+      // as an internal error response.
+      expect(error.message).toBe(
+        `Request for method "${PermissionNames.wallet_doubleNumber}" as origin "${origin}" returned no result.`,
+      );
+      expect(error.code).toBe(-32603);
+    });
+
+    describe('v2', () => {
+      it('executes a restricted method', async () => {
+        const { controller, middlewareMessenger } = setup();
+        const origin = 'metamask.io';
+
+        controller.grantPermissions({
+          subject: { origin },
+          approvedPermissions: {
+            [PermissionNames.wallet_getSecretArray]: {},
+          },
+        });
+
+        const engine = JsonRpcEngineV2.create({
+          middleware: [
+            createPermissionMiddlewareV2({
+              messenger: middlewareMessenger,
+              origin,
+            }),
+          ],
+        });
+
+        const result = await engine.handle({
+          jsonrpc: '2.0',
+          id: 1,
+          method: PermissionNames.wallet_getSecretArray,
+        });
+
+        expect(result).toStrictEqual(['a', 'b', 'c']);
+      });
+
+      it('passes through unrestricted methods', async () => {
+        const { middlewareMessenger } = setup();
+        const origin = 'metamask.io';
+
+        const engine = JsonRpcEngineV2.create({
+          middleware: [
+            createPermissionMiddlewareV2({
+              messenger: middlewareMessenger,
+              origin,
+            }),
+            (): string => 'success',
+          ],
+        });
+
+        const result = await engine.handle({
+          jsonrpc: '2.0',
+          id: 1,
+          method: 'wallet_unrestrictedMethod',
+        });
+
+        expect(result).toBe('success');
+      });
+
+      it('throws if the subject does not have the requisite permission', async () => {
+        const { middlewareMessenger } = setup();
+        const origin = 'metamask.io';
+
+        const engine = JsonRpcEngineV2.create({
+          middleware: [
+            createPermissionMiddlewareV2({
+              messenger: middlewareMessenger,
+              origin,
+            }),
+          ],
+        });
+
+        await expect(
+          engine.handle({
+            jsonrpc: '2.0',
+            id: 1,
+            method: PermissionNames.wallet_getSecretArray,
+          }),
+        ).rejects.toThrow(
+          'Unauthorized to perform action. Try requesting the required permission(s) first.',
+        );
+      });
+
+      it('executes a restricted method with a caveat', async () => {
+        const { controller, middlewareMessenger } = setup();
+        const origin = 'metamask.io';
+
+        controller.grantPermissions({
+          subject: { origin },
+          approvedPermissions: {
+            [PermissionNames.wallet_getSecretArray]: {
+              caveats: [
+                { type: CaveatTypes.filterArrayResponse, value: ['b'] },
+              ],
+            },
+          },
+        });
+
+        const engine = JsonRpcEngineV2.create({
+          middleware: [
+            createPermissionMiddlewareV2({
+              messenger: middlewareMessenger,
+              origin,
+            }),
+          ],
+        });
+
+        const result = await engine.handle({
+          jsonrpc: '2.0',
+          id: 1,
+          method: PermissionNames.wallet_getSecretArray,
+        });
+
+        expect(result).toStrictEqual(['b']);
+      });
+
+      it('executes a restricted method with multiple caveats', async () => {
+        const { controller, middlewareMessenger } = setup();
+        const origin = 'metamask.io';
+
+        controller.grantPermissions({
+          subject: { origin },
+          approvedPermissions: {
+            [PermissionNames.wallet_getSecretArray]: {
+              caveats: [
+                { type: CaveatTypes.filterArrayResponse, value: ['a', 'c'] },
+                { type: CaveatTypes.reverseArrayResponse, value: null },
+              ],
+            },
+          },
+        });
+
+        const engine = JsonRpcEngineV2.create({
+          middleware: [
+            createPermissionMiddlewareV2({
+              messenger: middlewareMessenger,
+              origin,
+            }),
+          ],
+        });
+
+        const result = await engine.handle({
+          jsonrpc: '2.0',
+          id: 1,
+          method: PermissionNames.wallet_getSecretArray,
+        });
+
+        expect(result).toStrictEqual(['c', 'a']);
+      });
+
+      it('throws if the method does not exist', async () => {
+        const { middlewareMessenger } = setup();
+        const origin = 'metamask.io';
+
+        const engine = JsonRpcEngineV2.create({
+          middleware: [
+            createPermissionMiddlewareV2({
+              messenger: middlewareMessenger,
+              origin,
+            }),
+          ],
+        });
+
+        await expect(
+          engine.handle({
+            jsonrpc: '2.0',
+            id: 1,
+            method: 'wallet_foo',
+          }),
+        ).rejects.toThrow(errors.methodNotFound('wallet_foo', { origin }));
+      });
+
+      it('throws if the restricted method returns undefined', async () => {
+        const permissionSpecifications = getDefaultPermissionSpecifications();
+        // @ts-expect-error Intentional destructive testing
+        permissionSpecifications.wallet_doubleNumber.methodImplementation =
+          (): undefined => undefined;
+
+        const { controller, middlewareMessenger } = setup({
+          permissionSpecifications,
+        });
+        const origin = 'metamask.io';
+
+        controller.grantPermissions({
+          subject: { origin },
+          approvedPermissions: {
+            [PermissionNames.wallet_doubleNumber]: {},
+          },
+        });
+
+        const engine = JsonRpcEngineV2.create({
+          middleware: [
+            createPermissionMiddlewareV2({
+              messenger: middlewareMessenger,
+              origin,
+            }),
+          ],
+        });
+
+        await expect(
+          engine.handle({
+            jsonrpc: '2.0',
+            id: 1,
+            method: PermissionNames.wallet_doubleNumber,
+          }),
+        ).rejects.toThrow(
+          `Request for method "${PermissionNames.wallet_doubleNumber}" as origin "${origin}" returned no result.`,
+        );
+      });
+    });
+  });
+
+  describe('metadata', () => {
+    it('includes expected state in debug snapshots', () => {
+      const controller = getDefaultPermissionController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "subjects": {},
+        }
+      `);
+    });
+
+    it('includes expected state in state logs', () => {
+      const controller = getDefaultPermissionController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "subjects": {},
+        }
+      `);
+    });
+
+    it('persists expected state', () => {
+      const controller = getDefaultPermissionController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "subjects": {},
+        }
+      `);
+    });
+
+    it('exposes expected state to UI', () => {
+      const controller = getDefaultPermissionController();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "subjects": {},
+        }
+      `);
     });
   });
 });

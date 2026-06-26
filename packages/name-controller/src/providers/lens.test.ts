@@ -13,10 +13,6 @@ const HANDLE_2_MOCK = 'TestHandle2';
 describe('LensNameProvider', () => {
   const graphqlMock = jest.mocked(graphQL);
 
-  beforeEach(() => {
-    jest.resetAllMocks();
-  });
-
   describe('getMetadata', () => {
     it('returns the provider metadata', () => {
       const metadata = new LensNameProvider().getMetadata();

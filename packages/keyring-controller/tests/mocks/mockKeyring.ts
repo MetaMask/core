@@ -1,19 +1,19 @@
-import type { EthKeyring } from '@metamask/keyring-api';
-import type { Json, Hex } from '@metamask/utils';
+import type { EthKeyring } from '@metamask/keyring-internal-api';
+import type { Hex, Json } from '@metamask/utils';
 
-export class MockKeyring implements EthKeyring<Json> {
+export class MockKeyring implements EthKeyring {
   static type = 'Mock Keyring';
 
   public type = 'Mock Keyring';
 
-  #accounts: Hex[] = [];
+  readonly #accounts: Hex[] = [];
 
   constructor(options: Record<string, unknown> | undefined = {}) {
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises, @typescript-eslint/promise-function-async
+    // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.deserialize(options);
   }
 
-  async init() {
+  async init(): Promise<void> {
     return Promise.resolve();
   }
 
@@ -21,15 +21,19 @@ export class MockKeyring implements EthKeyring<Json> {
     return Promise.resolve(this.#accounts);
   }
 
-  async getAccounts() {
+  async getAccounts(): Promise<Hex[]> {
     return Promise.resolve(this.#accounts);
   }
 
-  async serialize() {
+  async serialize(): Promise<Json> {
     return Promise.resolve({});
   }
 
-  async deserialize(_: unknown) {
+  async deserialize(_: unknown): Promise<void> {
+    return Promise.resolve();
+  }
+
+  async destroy(): Promise<void> {
     return Promise.resolve();
   }
 }

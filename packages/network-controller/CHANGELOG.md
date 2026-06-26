@@ -7,6 +7,799 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add defaults for policy and block tracker options ([#9002](https://github.com/MetaMask/core/pull/9002))
+  - The `NetworkController` constructor argument `getRpcServiceOptions` is now optional.
+  - The default `policyOptions.maxRetries` is now `3`.
+  - The default `policyOptions.maxConsecutiveFailures` is now `12` for regular RPC endpoints and `40` for fallback RPC endpoints.
+  - The default `policyOptions.circuitBreakDuration` is now `30` seconds.
+  - The default `pollingInterval` for the block tracker is now `20` seconds.
+  - The default `retryTimeout` for the block tracker is now `20` seconds.
+- Add `failoverUrls` constructor argument ([#9140](https://github.com/MetaMask/core/pull/9140))
+  - These will override `failoverUrls` from state during network client creation.
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.2.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083))
+- **BREAKING:** Remove deprecated `NetworkControllerGetNetworkConfigurationByNetworkClientId` type ([#9185](https://github.com/MetaMask/core/pull/9185))
+  - Use `NetworkControllerGetNetworkConfigurationByNetworkClientIdAction` instead.
+- **BREAKING:** Automatically populate `isRpcFailoverEnabled` using `RemoteFeatureFlagController` ([#9013](https://github.com/MetaMask/core/pull/9013))
+  - `NetworkController.init` must now be called to fully initialize the controller.
+  - The constructor argument `isRpcFailoverEnabled` is no longer available.
+  - `RemoteFeatureFlagController:stateChange` and `RemoteFeatureFlagController:getState` are now required.
+- Drop `async-mutex` dependency, which was no longer used in source ([#9064](https://github.com/MetaMask/core/pull/9064))
+- Consider all Infura HTTP errors as service failures except `400` and `429` ([#9123](https://github.com/MetaMask/core/pull/9123))
+- Only consider failover endpoints when using Infura ([#9125](https://github.com/MetaMask/core/pull/9125))
+
+### Removed
+
+- **BREAKING:** Remove `initializeProvider` in favor of `init` ([#9034](https://github.com/MetaMask/core/pull/9034))
+  - `init` does not call `lookupNetwork`, if this is required it must be called manually.
+- **BREAKING:** Remove `additionalDefaultNetworks` constructor option ([#9035](https://github.com/MetaMask/core/pull/9035), [#9183](https://github.com/MetaMask/core/pull/9183))
+  - MegaETH v1 is no longer a default network.
+
+### Fixed
+
+- Add defaults for `fetch`, `btoa` and `isOffline` in `RpcServiceOptions` ([#9000](https://github.com/MetaMask/core/pull/9000))
+- Ensure block explorer URLs are populated for default networks ([#9005](https://github.com/MetaMask/core/pull/9005))
+
+## [32.0.0]
+
+### Changed
+
+- **BREAKING:** Remove Sei, MegaETH, Avalanche, and ZKSync from list of default networks ([#8767](https://github.com/MetaMask/core/pull/8767))
+  - You will need to add them as network configurations first before switching to them.
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+
+## [31.1.0]
+
+### Added
+
+- Add export for `AddNetworkCustomRpcEndpointFields` and `InfuraRpcEndpoint` types ([#8764](https://github.com/MetaMask/core/pull/8764))
+
+## [31.0.0]
+
+### Added
+
+- **BREAKING:** Add `duration` and `traceId` to `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointChainDegraded` event payloads ([#8455](https://github.com/MetaMask/core/pull/8455))
+  - `duration` contains the policy execution time in milliseconds when the request succeeded but was slow. It is `undefined` when retries were exhausted.
+  - `traceId` contains the value of the `x-trace-id` response header from the last request attempt, or `undefined` if the header was not present.
+  - This is breaking because if you're calling `messenger.subscribe` with a handler function you've explicitly typed, you will need to make sure to update that type to cover these two additional payload properties.
+
+### Changed
+
+- Bump `@metamask/json-rpc-engine` from `^10.2.4` to `^10.5.0` ([#8661](https://github.com/MetaMask/core/pull/8661), [#8746](https://github.com/MetaMask/core/pull/8746), [#8753](https://github.com/MetaMask/core/pull/8753))
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+
+## [30.1.0]
+
+### Added
+
+- Expose missing public `NetworkController` methods through its messenger ([#8350](https://github.com/MetaMask/core/pull/8350))
+  - The following actions are now available:
+    - `NetworkController:enableRpcFailover`
+    - `NetworkController:disableRpcFailover`
+    - `NetworkController:getProviderAndBlockTracker`
+    - `NetworkController:getNetworkClientRegistry`
+    - `NetworkController:initializeProvider`
+    - `NetworkController:lookupNetwork`
+    - `NetworkController:lookupNetworkByClientId`
+    - `NetworkController:get1559CompatibilityWithNetworkClientId`
+    - `NetworkController:resetConnection`
+    - `NetworkController:rollbackToPreviousProvider`
+    - `NetworkController:loadBackup`
+  - Corresponding action types are available as well.
+- Add `getEthQuery` method to `NetworkController` ([#8350](https://github.com/MetaMask/core/pull/8350))
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+- Bump `@metamask/eth-json-rpc-middleware` from `^23.1.1` to `^23.1.3` ([#8550](https://github.com/MetaMask/core/pull/8550), [#8611](https://github.com/MetaMask/core/pull/8611))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+
+### Deprecated
+
+- `NetworkControllerGetNetworkConfigurationByNetworkClientId` type is deprecated in favor of `NetworkControllerGetNetworkConfigurationByNetworkClientIdAction` ([#8350](https://github.com/MetaMask/core/pull/8350))
+- Deprecate `AbstractRpcService` and `RpcServiceRequestable` ([#8475](https://github.com/MetaMask/core/pull/8475))
+  - There are no equivalents to these interfaces. If you need to take an "RPC-service-like" argument, it's best to declare which properties you're interested in rather than accepting the entire RPC service interface.
+
+## [30.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.0` to `^9.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/connectivity-controller` from `^0.1.0` to `^0.2.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/eth-json-rpc-middleware` from `^23.1.0` to `^23.1.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/eth-json-rpc-provider` from `^6.0.0` to `^6.0.1` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/messenger` from `^0.3.0` to `^1.0.0` ([#8317](https://github.com/MetaMask/core/pull/8317))
+- Bump `@metamask/json-rpc-engine` from `^10.2.2` to `^10.2.4` ([#8078](https://github.com/MetaMask/core/pull/8078), [#8317](https://github.com/MetaMask/core/pull/8317))
+
+## [30.0.0]
+
+### Added
+
+- Add `rpcMethodName` to `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointChainDegraded` event payloads ([#7954](https://github.com/MetaMask/core/pull/7954))
+  - This field contains the JSON-RPC method name (e.g. `eth_blockNumber`) that was being processed when the event fired, enabling identification of which methods produce the most slow requests or retry exhaustions.
+- Add `type` and `retryReason` to `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointChainDegraded` event payloads ([#7988](https://github.com/MetaMask/core/pull/7988))
+  - `type` (`DegradedEventType`) is `'slow_success'` when the request succeeded but was slow, or `'retries_exhausted'` when retries ran out.
+  - `retryReason` (`RetryReason`, only present when `type` is `'retries_exhausted'`) classifies the error that was retried (e.g. `'non_successful_http_status'`, `'timed_out'`, `'connection_failed'`).
+
+### Changed
+
+- **BREAKING:** The `RpcServiceRequestable` type's `onDegraded` listener now receives `rpcMethodName: string` in its data parameter ([#7954](https://github.com/MetaMask/core/pull/7954))
+  - Implementors of this interface will need to accept the new field in their `onDegraded` callback signature.
+- Bump `@metamask/eth-json-rpc-middleware` from `^23.0.0` to `^23.1.0` ([#7810](https://github.com/MetaMask/core/pull/7810))
+- Bump `@metamask/json-rpc-engine` from `^10.2.1` to `^10.2.2` ([#7856](https://github.com/MetaMask/core/pull/7856))
+- Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
+
+## [29.0.0]
+
+### Added
+
+- Add dependency `@metamask/connectivity-controller` `^0.1.0` ([#7642](https://github.com/MetaMask/core/pull/7642))
+
+### Changed
+
+- Bump `@metamask/eth-block-tracker` from `^15.0.0` to `^15.0.1` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/json-rpc-engine` from `^10.2.0` to `^10.2.1` ([#7642](https://github.com/MetaMask/core/pull/7642))
+- Bump `@metamask/eth-json-rpc-middleware` from `^22.0.1` to `^23.0.0` ([#7634](https://github.com/MetaMask/core/pull/7634))
+- **BREAKING:** NetworkController now requires `ConnectivityController:getState` action handler to be registered on the messenger ([#7627](https://github.com/MetaMask/core/pull/7627))
+  - The `NetworkController` now depends on the `ConnectivityController` to prevent retries and suppress events when the user is offline.
+  - When offline, `NetworkController:rpcEndpointUnavailable` and `NetworkController:rpcEndpointDegraded` events are suppressed since retries don't occur and circuit breakers don't trigger.
+  - You must register a `ConnectivityController:getState` action handler on your root messenger that returns an object with a `connectivityStatus` property (`'online'` or `'offline'`).
+  - You must delegate the `ConnectivityController:getState` action from your root messenger to the `NetworkControllerMessenger` using `rootMessenger.delegate({ messenger: networkControllerMessenger, actions: ['ConnectivityController:getState'] })`.
+
+## [28.0.0]
+
+### Changed
+
+- Corrects the previous 27.2.0 release to document breaking changes that were missed:
+  - **BREAKING:** Remove dependency on `@metamask/error-reporting-service` ([#7542](https://github.com/MetaMask/core/pull/7542))
+    - `ErrorReportingService:captureException` is no longer an allowed action on the NetworkController messenger. You do not need to delegate its `ErrorReportingService:captureException` action to the NetworkController messenger.
+
+## [27.2.0] [DEPRECATED]
+
+### Changed
+
+- Upgrade `@metamask/utils` from `^11.8.1` to `^11.9.0` ([#7511](https://github.com/MetaMask/core/pull/7511))
+- Remove dependency on `@metamask/error-reporting-service` ([#7542](https://github.com/MetaMask/core/pull/7542))
+  - The service no longer needs `ErrorReportingService:captureException`.
+- Bump `@metamask/controller-utils` from `^11.17.0` to `^11.18.0` ([#7583](https://github.com/MetaMask/core/pull/7583))
+
+## [27.1.0]
+
+### Added
+
+- Add MegaETH Testnet "v2" as a default custom network ([#7272](https://github.com/MetaMask/core/pull/7272))
+  - The URL for this is `https://timothy.megaeth.com/rpc` rather than `https://carrot.megaeth.com/rpc`, and the chain ID has changed from `0x18c6` to `0x18c7`.
+  - "v1" of this network has not been removed.
+
+### Changed
+
+- Bump `@metamask/eth-json-rpc-middleware` from `^22.0.0` to `^22.0.1` ([#7330](https://github.com/MetaMask/core/pull/7330))
+- Bump `@metamask/controller-utils` from `^11.16.0` to `^11.17.0` ([#7534](https://github.com/MetaMask/core/pull/7534))
+
+### Fixed
+
+- Ensure `get1559CompatibilityWithNetworkClientId` updates network metadata with EIP-1559 compatibility data missing ([#7532](https://github.com/MetaMask/core/pull/7532))
+
+## [27.0.0]
+
+### Added
+
+- Add `NetworkController:rpcEndpointChainAvailable` messenger event ([#7166](https://github.com/MetaMask/core/pull/7166))
+  - This is a counterpart to the (new) `NetworkController:rpcEndpointChainUnavailable` and `NetworkController:rpcEndpointChainDegraded` events, but is published when a successful request to an endpoint within a chain of endpoints is made either initially or following a previously established degraded or unavailable status.
+- Update `networksMetadata` state property so that networks can now have a possible status of `degraded` ([#7186](https://github.com/MetaMask/core/pull/7186))
+
+### Changed
+
+- **BREAKING:** Split up and update payload data for `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointUnavailable` ([#7166](https://github.com/MetaMask/core/pull/7166))
+  - `NetworkController:rpcEndpointDegraded` and `NetworkController:rpcEndpointUnavailable` still exist and retain the same behavior as before.
+  - New events are `NetworkController:rpcEndpointChainDegraded` and `NetworkController:rpcEndpointChainUnavailable`, and are designed to represent an entire chain of endpoints. They are also guaranteed to not be published multiple times in a row. In particular, `NetworkController:rpcEndpointChainUnavailable` is published only after trying all of the endpoints for a chain and when the underlying circuit for the last endpoint breaks, not as each primary's or failover's circuit breaks.
+  - The event payloads have been changed:
+    - For individual endpoint events (`NetworkController:rpcEndpointUnavailable`, `NetworkController:rpcEndpointDegraded`): `failoverEndpointUrl` has been removed, and `primaryEndpointUrl` has been added. In addition, `networkClientId` has been added to the payload.
+    - For chain-level events (`NetworkController:rpcEndpointChainUnavailable`, `NetworkController:rpcEndpointChainDegraded`, `NetworkController:rpcEndpointChainAvailable`): These include `chainId`, `networkClientId`, and event-specific fields (e.g., `error`, `endpointUrl`) but do not include `primaryEndpointUrl`. Consumers can derive endpoint information from the `networkClientId` using `NetworkController:getNetworkClientById` or `NetworkController:getNetworkConfigurationByNetworkClientId`.
+- **BREAKING:** Rename and update payload data for `NetworkController:rpcEndpointRequestRetried` ([#7166](https://github.com/MetaMask/core/pull/7166))
+  - This event is now called `NetworkController:rpcEndpointRetried`.
+  - The event payload has been changed as well: `failoverEndpointUrl` has been removed, and `primaryEndpointUrl` has been added. In addition, `networkClientId` and `attempt` have been added to the payload.
+- **BREAKING:** Update `AbstractRpcService`/`RpcServiceRequestable` to remove `{ isolated: true }` from the `onBreak` event data type ([#7166](https://github.com/MetaMask/core/pull/7166))
+  - This represented the error produced when `isolate` is called on a Cockatiel circuit breaker policy. This never happens for our service (we use `isolate` internally, but this error is suppressed and cannot trigger `onBreak`)
+- Move peer dependencies for controller and service packages to direct dependencies ([#7209](https://github.com/MetaMask/core/pull/7209))
+  - The dependencies moved are:
+    - `@metamask/error-reporting-service` (^3.0.0)
+  - In clients, it is now possible for multiple versions of these packages to exist in the dependency tree.
+    - For example, this scenario would be valid: a client relies on `@metamask/controller-a` 1.0.0 and `@metamask/controller-b` 1.0.0, and `@metamask/controller-b` depends on `@metamask/controller-a` 1.1.0.
+  - Note, however, that the versions specified in the client's `package.json` always "win", and you are expected to keep them up to date so as not to break controller and service intercommunication.
+- Automatically update network status metadata when chain-level RPC events are published ([#7186](https://github.com/MetaMask/core/pull/7186))
+  - `NetworkController` now automatically subscribes to `NetworkController:rpcEndpointChainUnavailable`, `NetworkController:rpcEndpointChainDegraded`, and `NetworkController:rpcEndpointChainAvailable` events and updates the corresponding network's status metadata in state when these events are published.
+  - This enables real-time network status updates without requiring explicit `lookupNetwork` calls, providing more accurate and timely network availability information.
+
+## [26.0.0]
+
+### Added
+
+- Add infura supported networks ([#6972](https://github.com/MetaMask/core/pull/6972))
+
+### Changed
+
+- Bump `@metamask/json-rpc-engine` from `^10.1.1` to `^10.2.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/eth-json-rpc-provider` from `^5.0.1` to `^6.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/eth-json-rpc-middleware` from `^21.0.0` to `^22.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- Bump `@metamask/eth-block-tracker` from `^14.0.0` to `^15.0.0` ([#7202](https://github.com/MetaMask/core/pull/7202))
+- **BREAKING:** Use `InternalProvider` instead of `SafeEventEmitterProvider` ([#6796](https://github.com/MetaMask/core/pull/6796))
+  - Providers accessible either via network clients or global proxies no longer emit events (or inherit from EventEmitter, for that matter).
+- **BREAKING:** Make `Provider` type more specific ([#7061](https://github.com/MetaMask/core/pull/7061))
+  - The `Provider` type is now an `InternalProvider` with a context type of `{ origin: string; skipCache: boolean } & Record<string, unknown>`.
+- **BREAKING:** Stop retrying `undefined` results for methods that include a block tag parameter ([#7001](https://github.com/MetaMask/core/pull/7001))
+  - The network client middleware, via `@metamask/eth-json-rpc-middleware`, will now throw an error if it encounters an
+    `undefined` result when dispatching a request with a later block number than the originally requested block number.
+  - In practice, this should happen rarely if ever.
+- **BREAKING:** Migrate `NetworkClient` to `JsonRpcEngineV2` ([#7065](https://github.com/MetaMask/core/pull/7065))
+  - This ought to be unobservable, but we mark it as breaking out of an abundance of caution.
+- **BREAKING:** Update signature of `request` in `AbstractRpcService` and `RpcServiceRequestable` so that the JSON-RPC request must be frozen ([#7138](https://github.com/MetaMask/core/pull/7138))
+- Bump `@metamask/controller-utils` from `^11.15.0` to `^11.16.0` ([#7003](https://github.com/MetaMask/core/pull/7003), [#7202](https://github.com/MetaMask/core/pull/7202))
+
+### Fixed
+
+- Ensure `networksMetadata` never references old network client IDs ([#7047](https://github.com/MetaMask/core/pull/7047))
+  - When removing a network configuration, ensure that metadata for all RPC endpoints in the network configuration are also removed from `networksMetadata`
+  - When initializing the controller, remove metadata for RPC endpoints in `networksMetadata` that are not present in a network configuration
+
+## [25.0.0]
+
+### Changed
+
+- **BREAKING:** Use new `Messenger` from `@metamask/messenger` ([#6386](https://github.com/MetaMask/core/pull/6386))
+  - Previously, `NetworkController` accepted a `RestrictedMessenger` instance from `@metamask/base-controller`.
+- **BREAKING:** Bump `@metamask/error-reporting-service` from `^2.0.0` to `^3.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+- Bump `@metamask/base-controller` from `^8.4.2` to `^9.0.0` ([#6962](https://github.com/MetaMask/core/pull/6962))
+
+## [24.3.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.4.1` to `^8.4.2` ([#6917](https://github.com/MetaMask/core/pull/6917))
+
+## [24.3.0]
+
+### Changed
+
+- Bump `@metamask/eth-json-rpc-middleware` from `^19.0.1` to `^21.0.0` ([#6866](https://github.com/MetaMask/core/pull/6866), [#6883](https://github.com/MetaMask/core/pull/6883))
+- Bump `@metamask/eth-block-tracker` from `^13.0.0` to `^14.0.0` ([#6883](https://github.com/MetaMask/core/pull/6883))
+
+## [24.2.2]
+
+### Changed
+
+- Bump `@metamask/eth-block-tracker` from `^12.0.1` to `^12.2.1` ([#6811](https://github.com/MetaMask/core/pull/6811))
+- Bump `@metamask/eth-json-rpc-infura` from `^10.2.0` to `^10.3.0` ([#6811](https://github.com/MetaMask/core/pull/6811))
+- Bump `@metamask/eth-json-rpc-middleware` from `^18.0.0` to `^19.0.1` ([#6811](https://github.com/MetaMask/core/pull/6811))
+
+## [24.2.1]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.8.0` to `^11.8.1` ([#6708](https://github.com/MetaMask/core/pull/6708))
+- Update `@metamask/eth-json-rpc-middleware` from `^17.0.1` to `^18.0.0` ([#6714](https://github.com/MetaMask/core/pull/6714))
+- Bump `@metamask/error-reporting-service` from `^2.1.0` to `^2.2.0` ([#6782](https://github.com/MetaMask/core/pull/6782))
+- Bump `@metamask/base-controller` from `^8.4.0` to `^8.4.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/controller-utils` from `^11.14.0` to `^11.14.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/eth-json-rpc-provider` from `^5.0.0` to `^5.0.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+- Bump `@metamask/json-rpc-engine` from `^10.1.0` to `^10.1.1` ([#6807](https://github.com/MetaMask/core/pull/6807))
+
+## [24.2.0]
+
+### Added
+
+- Add two new controller state metadata properties: `includeInStateLogs` and `usedInUi` ([#6525](https://github.com/MetaMask/core/pull/6525))
+- Add `lookupNetwork` option to `initializeProvider`, to allow for skipping the request used to populate metadata for the globally selected network ([#6575](https://github.com/MetaMask/core/pull/6575), [#6607](https://github.com/MetaMask/core/pull/6607))
+  - If `lookupNetwork` is set to `false`, the function is fully synchronous, and does not return a promise.
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.12.0` to `^11.14.0` ([#6620](https://github.com/MetaMask/core/pull/6620), [#6629](https://github.com/MetaMask/core/pull/6629))
+- Bump `@metamask/base-controller` from `^8.1.0` to `^8.4.0` ([#6355](https://github.com/MetaMask/core/pull/6355), [#6465](https://github.com/MetaMask/core/pull/6465), [#6632](https://github.com/MetaMask/core/pull/6632))
+- Rephrase "circuit broken" errors so they are more user-friendly ([#6423](https://github.com/MetaMask/core/pull/6423))
+  - These are errors produced when a request is made to an RPC endpoint after it returns too many consecutive 5xx responses and the underlying circuit is open.
+- Bump `@metamask/utils` from `^11.4.2` to `^11.8.0` ([#6588](https://github.com/MetaMask/core/pull/6588))
+- Bump `@metamask/json-rpc-engine` from `^10.0.3` to `^10.1.0` ([#6678](https://github.com/MetaMask/core/pull/6678))
+- Bump `@metamask/eth-json-rpc-provider` from `^4.1.8` to `^5.0.0` ([#6678](https://github.com/MetaMask/core/pull/6678))
+
+### Deprecated
+
+- Deprecate `lookupNetworkByClientId` ([#6308](https://github.com/MetaMask/core/pull/6308))
+  - `lookupNetwork` already supports passing in a network client ID; please use this going forward instead.
+
+## [24.1.0]
+
+### Added
+
+- The object in the `NetworkController:rpcEndpointDegraded` event payload now includes an `error` property, which can be used to access the error produced by the last request when the maximum number of retries is exceeded ([#6188](https://github.com/MetaMask/core/pull/6188))
+  - This `error` property will be `undefined` if the degraded event merely represents a slow request
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^8.0.1` to `^8.1.0` ([#6284](https://github.com/MetaMask/core/pull/6284))
+- Bump `@metamask/controller-utils` from `^11.11.0` to `^11.12.0` ([#6303](https://github.com/MetaMask/core/pull/6303))
+  - This effectively changes the `onDegraded` property on `AbstractRpcService` so that the event listener payload may be an object with either a `endpointUrl` property, `error` + `endpointUrl` properties, or `value` + `endpointUrl` properties
+  - **NOTE:** Although `error` and `value` are new, optional properties, this change makes an inadvertent breaking change to the signature of the event listener due to how TypeScript compares function types. We have conciously decided not to re-release this change under a major version, so be advised.
+
+## [24.0.1]
+
+### Changed
+
+- Requests to an RPC endpoint that returns a 502 response ("bad gateway") will now be retried ([#5923](https://github.com/MetaMask/core/pull/5923))
+- All JSON-RPC errors that represent 4xx and 5xx responses from RPC endpoints now include the HTTP status code under `data.httpStatus` ([#5923](https://github.com/MetaMask/core/pull/5923))
+- 3xx responses from RPC endpoints are no longer treated as errors ([#5923](https://github.com/MetaMask/core/pull/5923))
+- Bump `@metamask/controller-utils` from `^11.10.0` to `^11.11.0` ([#6069](https://github.com/MetaMask/core/pull/6069))
+- Bump `@metamask/utils` from `^11.2.0` to `^11.4.2` ([#6054](https://github.com/MetaMask/core/pull/6054))
+
+### Fixed
+
+- If an RPC endpoint returns invalid/unparseable JSON, it is now represented as a JSON-RPC error with code -32700 (parse error) instead of -32603 (internal error) ([#5923](https://github.com/MetaMask/core/pull/5923))
+- If an RPC endpoint returns a 401 response, it is now represented as a JSON-RPC error with code -32006 (unauthorized) instead of -32603 (internal error) ([#5923](https://github.com/MetaMask/core/pull/5923))
+- If an RPC endpoint returns a 405 response, it is now represented as a JSON-RPC error with code -32080 (client error) instead of -32601 (method not found) ([#5923](https://github.com/MetaMask/core/pull/5923))
+- If an RPC endpoint returns a 402, 404, or 5xx response, it is now represented as a JSON-RPC error with code -32002 (resource unavailable error) instead of -32603 (internal error) ([#5923](https://github.com/MetaMask/core/pull/5923))
+- If an RPC endpoint returns a 4xx response besides 401, 402, 404, 405, or 429, it is now represented as a JSON-RPC error with code -32080 (client error) instead of -32603 (internal error) ([#5923](https://github.com/MetaMask/core/pull/5923))
+- Improve detection of partial JSON responses from RPC endpoints ([#5923](https://github.com/MetaMask/core/pull/5923))
+- Fix "Request cannot be constructed from a URL that includes credentials" error when using RPC endpoints with embedded credentials ([#6116](https://github.com/MetaMask/core/pull/6116))
+
+## [24.0.0]
+
+### Changed
+
+- **BREAKING:** Remove `@metamask/error-reporting-service@^1.0.0` as a direct dependency, add `^2.0.0` as a peer dependency ([#5970](https://github.com/MetaMask/core/pull/5970), [#5999](https://github.com/MetaMask/core/pull/5999))
+
+## [23.6.0]
+
+### Added
+
+- Add Base network to default infura networks ([#5902](https://github.com/MetaMask/core/pull/5902))
+  - Network changes were added in `@metamask/controller-utils`
+
+### Changed
+
+- Bump `@metamask/controller-utils` to `^11.10.0` ([#5935](https://github.com/MetaMask/core/pull/5935))
+
+## [23.5.1]
+
+### Changed
+
+- **BREAKING:** NetworkController messenger now requires the `ErrorReportingService:captureException` action to be allowed ([#5970](https://github.com/MetaMask/core/pull/5970))
+  - This change was originally missed when this release was created. It was added to the changelog afterward.
+- Block tracker errors will no longer be wrapped under "PollingBlockTracker - encountered an error while attempting to update latest block" ([#5860](https://github.com/MetaMask/core/pull/5860))
+- Bump dependencies ([#5867](https://github.com/MetaMask/core/pull/5867), [#5860](https://github.com/MetaMask/core/pull/5860))
+  - Bump `@metamask/eth-block-tracker` to `^12.0.1`
+  - Bump `@metamask/eth-json-rpc-infura` to `^10.2.0`
+  - Bump `@metamask/eth-json-rpc-middleware` to `^17.0.1`
+
+### Fixed
+
+- Rather than throwing an error, NetworkController now corrects an invalid initial `selectedNetworkClientId` to point to the default RPC endpoint of the first network sorted by chain ID ([#5851](https://github.com/MetaMask/core/pull/5851))
+- Fix the block tracker so that it will now reject if an error is thrown while making the request instead of hanging ([#5860](https://github.com/MetaMask/core/pull/5860))
+
+## [23.5.0]
+
+### Changed
+
+- Remove obsolete `eth_getBlockByNumber` error handling for load balancer errors ([#5808](https://github.com/MetaMask/core/pull/5808))
+- Bump `@metamask/controller-utils` to `^11.9.0` ([#5812](https://github.com/MetaMask/core/pull/5812))
+
+### Fixed
+
+- Improved handling of HTTP status codes to prevent unnecessary circuit breaker triggers ([#5798](https://github.com/MetaMask/core/pull/5798), [#5809](https://github.com/MetaMask/core/pull/5809))
+  - HTTP 4XX responses (e.g. rate limit errors) will no longer trigger the circuit breaker policy.
+
+## [23.4.0]
+
+### Added
+
+- Add Monad Testnet as default network ([#5724](https://github.com/MetaMask/core/pull/5724))
+
+### Changed
+
+- Bump `@metamask/controller-utils` to `^11.8.0` ([#5765](https://github.com/MetaMask/core/pull/5765))
+
+## [23.3.0]
+
+### Added
+
+- Add optional `getBlockTrackerOptions` argument to NetworkController constructor ([#5702](https://github.com/MetaMask/core/pull/5702))
+- Add optional `rpcFailoverEnabled` option to NetworkController constructor (`false` by default) ([#5668](https://github.com/MetaMask/core/pull/5668))
+- Add `enableRpcFailover` and `disableRpcFailover` methods to NetworkController ([#5668](https://github.com/MetaMask/core/pull/5668))
+
+### Changed
+
+- Bump `@metamask/base-controller` from ^8.0.0 to ^8.0.1 ([#5722](https://github.com/MetaMask/core/pull/5722))
+- Disable the RPC failover behavior by default ([#5668](https://github.com/MetaMask/core/pull/5668))
+  - You are free to set the `failoverUrls` property on an RPC endpoint, but it won't have any effect
+  - To enable this behavior, either pass `rpcFailoverEnabled: true` to the constructor or call `enableRpcFailover` after initialization
+
+## [23.2.0]
+
+### Added
+
+- Add optional `additionalDefaultNetworks` option to `NetworkController` constructor ([#5527](https://github.com/MetaMask/core/pull/5527))
+  - This can be used to customize which custom networks the default `networkConfigurationsByChainId` includes.
+- Add `getSelectedChainId` method to `NetworkController` ([#5516](https://github.com/MetaMask/core/pull/5516))
+  - This is also callable via the messenger.
+- Add `DEPRECATED_NETWORKS` constant ([#5560](https://github.com/MetaMask/core/pull/5560))
+
+### Changed
+
+- Remove Goerli and Linea Goerli from set of default networks ([#5560](https://github.com/MetaMask/core/pull/5560))
+  - Note that if you do not pass any initial state to NetworkController, this means that `0x5` and `0xe704` will no longer be keys in `networkConfigurationsByChainId`.
+  - We are not counting this as a breaking change because we don't make any guarantees about what keys are present in `networkConfigurationsByChainId` at runtime — only that they must be valid chain IDs.
+  - If you want more of a guarantee, you are recommended to persist the NetworkController state and then pass it back through as initial state.
+- Update `RpcEndpoint` so that `failoverUrls` is optional ([#5561](https://github.com/MetaMask/core/pull/5561))
+  - This property was introduced in 23.0.0 as a breaking change, but this change makes it non-breaking.
+- Update `NetworkClientConfiguration` so that `failoverUrls` is optional ([#5561](https://github.com/MetaMask/core/pull/5561))
+  - This property was introduced in 23.0.0 as a breaking change, but this change makes it non-breaking.
+- Bump `@metamask/controller-utils` to `^11.7.0` ([#5583](https://github.com/MetaMask/core/pull/5583))
+
+### Fixed
+
+- Upgrade `@metamask/eth-json-rpc-infura` to `^10.1.1` and `@metamask/eth-json-rpc-infura` to `^16.0.1` ([#5573](https://github.com/MetaMask/core/pull/5573))
+  - This fixes a bug where non-standard unsuccessful JSON-RPC errors were being ignored/discarded
+
+## [23.1.0]
+
+### Added
+
+- The `NetworkController:rpcEndpointDegraded` messenger event now has a new `chainId` property in its data, which is the ID of the chain that the endpoint represents ([#5517](https://github.com/MetaMask/core/pull/5517))
+
+## [23.0.0]
+
+### Added
+
+- Implement circuit breaker pattern when retrying requests to Infura and custom RPC endpoints ([#5290](https://github.com/MetaMask/core/pull/5290))
+  - If the network is perceived to be unavailable after 5 attempts, further retries will be paused for 30 seconds.
+  - "Unavailable" means the following:
+    - A failure to reach the network (exact error depending on platform / HTTP client)
+    - The request responds with a non-JSON-parseable or non-JSON-RPC-compatible body
+    - The request returns a non-200 response
+- Use exponential backoff / jitter when retrying requests to Infura and custom RPC endpoints ([#5290](https://github.com/MetaMask/core/pull/5290))
+  - As requests are retried, the delay between retries will increase exponentially (using random variance to prevent bursts).
+- Add support for automatic failover when Infura is unavailable ([#5360](https://github.com/MetaMask/core/pull/5360))
+  - An Infura RPC endpoint can now be configured with a list of failover URLs via `failoverUrls`.
+  - If, after many attempts, an Infura network is perceived to be down, the list of failover URLs will be tried in turn.
+- Add messenger action `NetworkController:rpcEndpointUnavailable` for responding to when a RPC endpoint becomes unavailable (see above) ([#5492](https://github.com/MetaMask/core/pull/5492), [#5501](https://github.com/MetaMask/core/pull/5501))
+  - Also add associated type `NetworkControllerRpcEndpointUnavailableEvent`.
+- Add messenger action `NetworkController:rpcEndpointDegraded` for responding to when a RPC endpoint becomes degraded ([#5492](https://github.com/MetaMask/core/pull/5492))
+  - Also add associated type `NetworkControllerRpcEndpointDegradedEvent`.
+- Add messenger action `NetworkController:rpcEndpointRequestRetried` for responding to when a RPC endpoint is retried following a retriable error ([#5492](https://github.com/MetaMask/core/pull/5492))
+  - Also add associated type `NetworkControllerRpcEndpointRequestRetriedEvent`.
+  - This is mainly useful for tests when mocking timers.
+- Export `RpcServiceRequestable` type, which was previously named `AbstractRpcService` ([#5492](https://github.com/MetaMask/core/pull/5492))
+- Export `isConnectionError` utility function ([#5501](https://github.com/MetaMask/core/pull/5501))
+
+### Changed
+
+- **BREAKING:** `NetworkController` constructor now takes a new required option, `getRpcServiceOptions` ([#5290](https://github.com/MetaMask/core/pull/5290), [#5492](https://github.com/MetaMask/core/pull/5492))
+  - This can be used to customize how RPC services (which eventually hit RPC endpoints) are constructed.
+  - For instance, you could set one `circuitBreakDuration` for one class of endpoints, and another `circuitBreakDuration` for another class.
+  - At minimum you will need to pass `fetch` and `btoa`.
+  - The `NetworkControllerOptions` also reflects this change.
+- **BREAKING:** Add required property `failoverUrls` to `RpcEndpoint` ([#5360](https://github.com/MetaMask/core/pull/5360))
+  - The `NetworkControllerState` and the `state` option to `NetworkController` also reflect this change.
+- **BREAKING:** Add required property `failoverRpcUrls` to `NetworkClientConfiguration` ([#5360](https://github.com/MetaMask/core/pull/5360))
+  - The `configuration` property in the `AutoManagedNetworkClient` and `NetworkClient` types also reflect this change.
+- **BREAKING:** The `AbstractRpcService` type now has a non-optional `endpointUrl` property ([#5492](https://github.com/MetaMask/core/pull/5492))
+  - The old version of `AbstractRpcService` is now called `RpcServiceRequestable`
+- Synchronize retry logic and error handling behavior between Infura and custom RPC endpoints ([#5290](https://github.com/MetaMask/core/pull/5290))
+  - A request to a custom endpoint that returns a 418 response will no longer return a JSON-RPC response with the error "Request is being rate limited".
+  - A request to a custom endpoint that returns a 429 response now returns a JSON-RPC response with the error "Request is being rate limited".
+  - A request to a custom endpoint that throws an "ECONNRESET" error will now be retried up to 5 times.
+  - A request to a Infura endpoint that fails more than 5 times in a row will now respond with a JSON-RPC error that encompasses the failure instead of hiding it as "InfuraProvider - cannot complete request. All retries exhausted".
+  - A request to a Infura endpoint that returns a non-retriable, non-2xx response will now respond with a JSON-RPC error that has the underling message "Non-200 status code: '\<code\>'" rather than including the raw response from the endpoint.
+  - A request to a custom endpoint that fails with a retriable error more than 5 times in a row will now respond with a JSON-RPC error that encompasses the failure instead of returning an empty response.
+  - A "retriable error" is now regarded as the following:
+    - A failure to reach the network (exact error depending on platform / HTTP client)
+    - The request responds with a non-JSON-parseable or non-JSON-RPC-compatible body
+    - The request returns a 503 or 504 response
+- Bump dependencies to support usage of RPC services internally for network requests ([#5290](https://github.com/MetaMask/core/pull/5290))
+  - Bump `@metamask/eth-json-rpc-infura` to `^10.1.0`
+  - Bump `@metamask/eth-json-rpc-middleware` to `^15.1.0`
+- Bump `@metamask/controller-utils` to `^11.5.0` ([#5439](https://github.com/MetaMask/core/pull/5439))
+- Bump `@metamask/utils` to `^11.2.0` ([#5301](https://github.com/MetaMask/core/pull/5301))
+
+### Fixed
+
+- Fix `findNetworkClientIdByChainId` to return the network client ID for the chain's configured default RPC endpoint instead of its first listed RPC endpoint ([#5344](https://github.com/MetaMask/core/pull/5344))
+
+## [22.2.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.1.1` to `^8.0.0` ([#5305](https://github.com/MetaMask/core/pull/5305))
+
+## [22.2.0]
+
+### Added
+
+- Export `AbstractRpcService` type ([#5263](https://github.com/MetaMask/core/pull/5263))
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.0` to `^7.1.1` ([#5079](https://github.com/MetaMask/core/pull/5079), [#5135](https://github.com/MetaMask/core/pull/5135))
+- Bump `@metamask/controller-utils` from `^11.4.4` to `^11.5.0` ([#5135](https://github.com/MetaMask/core/pull/5135), [#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/eth-json-rpc-provider` from `^4.1.6` to `^4.1.8` ([#5082](https://github.com/MetaMask/core/pull/5082), [#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/json-rpc-engine` from `^10.0.1` to `^10.0.3` ([#5082](https://github.com/MetaMask/core/pull/5082), [#5272](https://github.com/MetaMask/core/pull/5272))
+- Bump `@metamask/rpc-errors` from `^7.0.1` to `^7.0.2` ([#5080](https://github.com/MetaMask/core/pull/5080))
+- Bump `@metamask/utils` from `^10.0.0` to `^11.1.0` ([#5080](https://github.com/MetaMask/core/pull/5080), [#5223](https://github.com/MetaMask/core/pull/5223))
+
+### Fixed
+
+- Fix `lookupNetwork` so that it will no longer throw an error if `networkDidChange` subscriptions have been removed before it returns ([#5116](https://github.com/MetaMask/core/pull/5116))
+  - This error could occur if the NetworkController's messenger is cleared of subscriptions, as in a "destroy" step.
+- Fix race condition so that after adding a new RPC endpoint to a network, it is possible to access the new endpoint inside of a `stateChange` event listener via `getNetworkConfigurationByNetworkClientId` ([#5122](https://github.com/MetaMask/core/pull/5122))
+- Fix `selectAvailableNetworkClientIds` so that it is properly memoized ([#5193](https://github.com/MetaMask/core/pull/5193))
+
+## [22.1.1]
+
+### Changed
+
+- Bump `@metamask/eth-json-rpc-middleware` from `^15.0.0` to `^15.0.1` ([#5037](https://github.com/MetaMask/core/pull/5037))
+- Bump `swappable-obj-proxy` from `^2.2.0` to `^2.3.0` ([#5036](https://github.com/MetaMask/core/pull/5036))
+- Bump `@metamask/eth-block-tracker` from `^11.0.2` to `^11.0.3` ([#5025](https://github.com/MetaMask/core/pull/5025))
+
+## [22.1.0]
+
+### Added
+
+- The `NetworkController:networkRemoved` messenger event will now be emitted when a network is removed ([#4698](https://github.com/MetaMask/core/pull/4698))
+- Add messenger actions `NetworkController:addNetwork`, `NetworkController:removeNetwork`, and `NetworkController:updateNetwork` which call the respective controller methods ([#4698](https://github.com/MetaMask/core/pull/4698))
+- Add `lastUpdatedAt` property to network configurations which will be set to the current time on addition or update ([#4652](https://github.com/MetaMask/core/pull/4652))
+  - This was added to support the upcoming network syncing feature.
+  - This property is optional and will be `undefined` for existing network configurations that have not yet been updated.
+
+### Changed
+
+- Add dependency `fast-deep-equal` ([#4652](https://github.com/MetaMask/core/pull/4652))
+- Bump `@metamask/controller-utils` from `^11.4.3` to `^11.4.4` ([#5012](https://github.com/MetaMask/core/pull/5012))
+
+### Fixed
+
+- Remove dependency on Node builtin module `util` to ensure that `@metamask/network-controller` can be used in a strict browser context ([#3672](https://github.com/MetaMask/core/pull/3672))
+- Correct ESM-compatible build so that imports of the following packages that re-export other modules via `export *` are no longer corrupted: ([#5011](https://github.com/MetaMask/core/pull/5011))
+  - `@metamask/eth-block-tracker`
+  - `@metamask/eth-json-rpc-infura`
+  - `@metamask/eth-json-rpc-middleware`
+  - `@metamask/eth-query`
+  - `@metamask/swappable-obj-proxy`
+  - `fast-deep-equal`
+
+## [22.0.2]
+
+### Changed
+
+- `getDefaultNetworkConfigurationsByChainId` returns the updated display names for mainnet and linea. `Ethereum Mainnet` instead of `Mainnet`, and `Linea` instead of `Linea Mainnet`. ([#4865](https://github.com/MetaMask/core/pull/4865))
+- Bump `@metamask/controller-utils` from `^11.4.2` to `^11.4.3` ([#4915](https://github.com/MetaMask/core/pull/4915))
+
+## [22.0.1]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^7.0.1` to `^7.0.2` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/controller-utils` from `^11.4.0` to `^11.4.2` ([#4862](https://github.com/MetaMask/core/pull/4862), [#4870](https://github.com/MetaMask/core/pull/4870))
+- Bump `@metamask/eth-json-rpc-provider` from `^4.1.5` to `^4.1.6` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/json-rpc-engine` from `^10.0.0` to `^10.0.1` ([#4862](https://github.com/MetaMask/core/pull/4862))
+- Bump `@metamask/rpc-errors` from `^7.0.0` to `^7.0.1` ([#4831](https://github.com/MetaMask/core/pull/4831))
+
+## [22.0.0]
+
+### Changed
+
+- Corrects the previous 21.1.0 release to document breaking changes that were missed:
+  - **BREAKING:** Bump `@metamask/eth-block-tracker` from `^10.0.0` to `^11.0.2` ([#4769](https://github.com/MetaMask/core/pull/4769))
+  - **BREAKING:** Bump `@metamask/eth-json-rpc-middleware` from `^13.0.0` to `^15.0.0` ([#4769](https://github.com/MetaMask/core/pull/4769))
+  - **BREAKING:** Bump `@metamask/json-rpc-engine` from `^9.0.3` to `^10.0.0` ([#4769](https://github.com/MetaMask/core/pull/4769))
+  - **BREAKING:** Bump `@metamask/rpc-errors` from `^6.3.1` to `^7.0.0` ([#4769](https://github.com/MetaMask/core/pull/4769))
+  - **BREAKING:** Bump `@metamask/eth-json-rpc-infura` from `^9.1.0` to `^10.0.0` ([#4769](https://github.com/MetaMask/core/pull/4769))
+  - Bump `@metamask/eth-json-rpc-provider` from `^4.1.4` to `^4.1.5` ([#4798](https://github.com/MetaMask/core/pull/4798))
+    - This update was recorded in the v21.1.0 changelog, but is listed here again because that release has been deprecated.
+- Bump `@metamask/controller-utils` from `^11.3.0` to `^11.4.0` ([#4834](https://github.com/MetaMask/core/pull/4834))
+
+## [21.1.0] [DEPRECATED]
+
+### Changed
+
+- Bump `@metamask/eth-json-rpc-provider` from `^4.1.4` to `^4.1.5` ([#4798](https://github.com/MetaMask/core/pull/4798))
+
+## [21.0.1]
+
+### Fixed
+
+- Produce and export ESM-compatible TypeScript type declaration files in addition to CommonJS-compatible declaration files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, this package shipped with only one variant of type declaration
+    files, and these files were only CommonJS-compatible, and the `exports`
+    field in `package.json` linked to these files. This is an anti-pattern and
+    was rightfully flagged by the
+    ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
+    ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
+    All of the ATTW checks now pass.
+- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648))
+  - Previously, the build tool we used to generate JavaScript files extracted
+    common code to "chunk" files. While this was intended to make this package
+    more tree-shakeable, it also made debugging more difficult for our
+    development teams. These chunk files are no longer present.
+
+## [21.0.0]
+
+### Added
+
+- **BREAKING:** Add `networkConfigurationsByChainId` to `NetworkState` (type: `Record<Hex, NetworkConfiguration>`) ([#4268](https://github.com/MetaMask/core/pull/4268))
+  - This property replaces `networkConfigurations`, and, as its name implies, organizes network configurations by chain ID rather than network client ID.
+  - If no initial state or this property is not included in initial state, the default value of this property will now include configurations for known Infura networks (Mainnet, Goerli, Sepolia, Linea Goerli, Linea Sepolia, and Linea Mainnet) by default.
+- Add `getNetworkConfigurationByChainId` method, `NetworkController:getNetworkConfigurationByChainId` messenger action, and `NetworkControllerGetNetworkConfigurationByNetworkClientId` type ([#4268](https://github.com/MetaMask/core/pull/4268))
+- Add `addNetwork`, which replaces one half of `upsertNetworkConfiguration` and can be used to add new network clients for a chain ([#4268](https://github.com/MetaMask/core/pull/4268))
+  - It's worth noting that this method now publishes a `NetworkController:networkAdded` event instead of calling a `trackMetaMetricsEvent` callback. It is expected that you will subscribe to this event and create a MetaMetrics event yourself.
+- Add `updateNetwork`, which replaces one half of `upsertNetworkConfiguration` and can be used to recreate the network clients for an existing chain based on an updated configuration ([#4268](https://github.com/MetaMask/core/pull/4268))
+  - Note that it is not possible to remove the RPC endpoint from a network configuration that is currently represented by the globally selected network client. To prevent an error, you'll need to detect when such a removal is occurring and pass the `replacementSelectedRpcEndpointIndex` to `updateNetwork`. It will then switch to the designated RPC endpoint's network client on your behalf.
+- Add `removeNetwork`, which replaces `removeNetworkConfiguration` and can be used to remove existing network clients for a chain ([#4268](https://github.com/MetaMask/core/pull/4268))
+- Add `getDefaultNetworkControllerState` function, which replaces `defaultState` and matches patterns in other controllers ([#4268](https://github.com/MetaMask/core/pull/4268))
+- Add `RpcEndpointType`, `AddNetworkFields`, and `UpdateNetworkFields` types ([#4268](https://github.com/MetaMask/core/pull/4268))
+- Add `getNetworkConfigurations`, `getAvailableNetworkClientIds` and `selectAvailableNetworkClientIds` selectors ([#4268](https://github.com/MetaMask/core/pull/4268))
+  - These new selectors can be applied to messenger event subscriptions
+
+### Changed
+
+- **BREAKING:** Replace `NetworkConfiguration` type with a new definition ([#4268](https://github.com/MetaMask/core/pull/4268))
+  - A network configuration no longer represents a single RPC endpoint but rather a collection of RPC endpoints that can all be used to interface with a single chain.
+  - The only property that has brought over to this type unchanged is `chainId`.
+  - `ticker` has been renamed to `nativeCurrency`.
+  - `nickname` has been renamed to `name`.
+  - `rpcEndpoints` has been added. This is an an array of objects, where each object has properties `name` (optional), `networkClientId` (optional), `type`, and `url`.
+  - `defaultRpcEndpointIndex` has been added. This must point to an entry in `rpcEndpoints`.
+  - The block explorer URL is no longer located in `rpcPrefs` and is no longer restricted to one: `blockExplorerUrls` has been added along with a corresponding property `defaultBlockExplorerUrlIndex`, which must point to an entry in `blockExplorerUrls`.
+  - `id` has been removed. Previously, this represented the ID of the network client associated with the network configuration. Since network clients are now created from RPC endpoints, the equivalent to this is the `networkClientId` property on an `RpcEndpoint`.
+- **BREAKING:** The network controller messenger must now allow the action `NetworkController:getNetworkConfigurationByChainId` ([#4268](https://github.com/MetaMask/core/pull/4268))
+- **BREAKING:** The network controller messenger must now allow the event `NetworkController:networkAdded` ([#4268](https://github.com/MetaMask/core/pull/4268))
+- **BREAKING:** The `NetworkController` constructor will now throw if the initial state provided is invalid ([#4268](https://github.com/MetaMask/core/pull/4268))
+  - `networkConfigurationsByChainId` cannot be empty.
+  - The `chainId` of a network configuration in `networkConfigurationsByChainId` must match the chain ID it is filed under.
+  - The `defaultRpcEndpointIndex` of a network configuration in `networkConfigurationsByChainId` must point to an entry in its `rpcEndpoints`.
+  - The `defaultBlockExplorerUrlIndex` of a network configuration in `networkConfigurationsByChainId` must point to an entry in its `blockExplorerUrls`.
+  - `selectedNetworkClientId` must match the `networkClientId` of an RPC endpoint in `networkConfigurationsByChainId`.
+- **BREAKING:** Update `getNetworkConfigurationByNetworkClientId` so that when given an Infura network name (that is, a value from `InfuraNetworkType`), it will return a masked version of the RPC endpoint URL for the associated Infura network ([#4268](https://github.com/MetaMask/core/pull/4268))
+  - If you want the unmasked version, you'll need the `url` property from the network _client_ configuration, which you can get by calling `getNetworkClientById` and then accessing the `configuration` property off of the network client.
+- **BREAKING:** Update `loadBackup` to take and update `networkConfigurationsByChainId` instead of `networkConfigurations` ([#4268](https://github.com/MetaMask/core/pull/4268))
+- Bump `@metamask/base-controller` from `^6.0.2` to `^7.0.0` ([#4625](https://github.com/MetaMask/core/pull/4625), [#4643](https://github.com/MetaMask/core/pull/4643))
+- Bump `@metamask/controller-utils` from `^11.0.2` to `^11.2.0` ([#4639](https://github.com/MetaMask/core/pull/4639), [#4651](https://github.com/MetaMask/core/pull/4651))
+- Bump `@metamask/eth-block-tracker` from `^9.0.3` to `^10.0.0` ([#4424](https://github.com/MetaMask/core/pull/4424))
+- Bump `@metamask/eth-json-rpc-middleware` from `^12.1.1` to `^13.0.0` ([#4424](https://github.com/MetaMask/core/pull/4424))
+
+### Removed
+
+- **BREAKING:** Remove `networkConfigurations` from `NetworkState`, which has been replaced with `networkConfigurationsByChainId` ([#4268](https://github.com/MetaMask/core/pull/4268))
+- **BREAKING:** Remove `upsertNetworkConfiguration` and `removeNetworkConfiguration`, which have been replaced with `addNetwork`, `updateNetwork`, and `removeNetwork` ([#4268](https://github.com/MetaMask/core/pull/4268))
+- **BREAKING:** Remove `defaultState` variable, which has been replaced with a `getDefaultNetworkControllerState` function ([#4268](https://github.com/MetaMask/core/pull/4268))
+- **BREAKING:** Remove `trackMetaMetricsEvent` option from the NetworkController constructor ([#4268](https://github.com/MetaMask/core/pull/4268))
+  - Previously, this was used in `upsertNetworkConfiguration` to create a MetaMetrics event when a new network was added. This can now be achieved by subscribing to the `NetworkController:networkAdded` event and creating the event inside of the event handler.
+
+## [20.2.0]
+
+### Changed
+
+- `upsertNetworkConfiguration` now accepts an optional id property on the NetworkConfiguration param. It allows a network configuration to have its rpcUrl updated in place when an id is specified, but only if that new rpcUrl does not already exist on a different network configuration. ([#4614](https://github.com/MetaMask/core/pull/4614))
+- Bump `@metamask/eth-json-rpc-provider` to `^4.1.3` ([#4607](https://github.com/MetaMask/core/pull/4607))
+- Update TypeScript to 5.2.2 ([#4576](https://github.com/MetaMask/core/pull/4576), [#4584](https://github.com/MetaMask/core/pull/4584))
+
+### Fixed
+
+- `removeNetworkConfiguration` now throws an error if you attempt to remove the selected network ([#4566](https://github.com/MetaMask/core/pull/4566))
+
+## [20.1.0]
+
+### Added
+
+- Newly export the following types: `AutoManagedNetworkClient`, `InfuraNetworkClientConfiguration`, `CustomNetworkClientConfiguration` ([#3645](https://github.com/MetaMask/core/pull/3645))
+
+### Changed
+
+- Upgrade TypeScript version to `~5.0.4` and set `moduleResolution` option to `Node16` ([#3645](https://github.com/MetaMask/core/pull/3645))
+- Bump `@metamask/base-controller` from `^6.0.0` to `^6.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/controller-utils` from `^11.0.0` to `^11.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/eth-json-rpc-provider` from `^4.1.0` to `^4.1.2` ([#4519](https://github.com/MetaMask/core/pull/4519), [#4548](https://github.com/MetaMask/core/pull/4548))
+- Bump `@metamask/json-rpc-engine` from `^9.0.0` to `^9.0.2` ([#4517](https://github.com/MetaMask/core/pull/4517), [#4544](https://github.com/MetaMask/core/pull/4544))
+- Bump `@metamask/rpc-errors` from `^6.2.1` to `^6.3.1` ([#4516](https://github.com/MetaMask/core/pull/4516))
+- Bump `@metamask/utils` from `^8.3.0` to `^9.1.0` ([#4516](https://github.com/MetaMask/core/pull/4516), [#4529](https://github.com/MetaMask/core/pull/4529))
+
+## [20.0.0]
+
+### Added
+
+- Add a new `log` argument to the constructor ([#4440](https://github.com/MetaMask/core/pull/4440))
+  - The new `log` argument must be a `Logger` object from the `loglevel` package and will be used to log a message when we fail to connect to a network or the network responds with an unknown error
+
+### Changed
+
+- **BREAKING:** Update `networksMetadata` state property so that the keys in the object will only ever be network client IDs and not RPC URLs ([#4254](https://github.com/MetaMask/core/pull/4254))
+  - Some keys could have been RPC URLs if the initial network controller state had a `providerConfig` with an empty `id`, but since `providerConfig` is being removed, that won't happen anymore.
+- Bump `@metamask/eth-block-tracker` to `^9.0.3` ([#4418](https://github.com/MetaMask/core/pull/4418))
+- Bump `@metamask/eth-json-rpc-provider` to `^4.1.0` ([#4508](https://github.com/MetaMask/core/pull/4508))
+
+### Removed
+
+- **BREAKING:** Remove `providerConfig` property from state along with `ProviderConfig` type and `NetworkController:getProviderConfig` messenger action ([#4254](https://github.com/MetaMask/core/pull/4254))
+  - The best way to obtain the equivalent configuration object, e.g. to access the chain ID of the currently selected network, is to get `selectedNetworkClientId` from state, pass this to the `NetworkController:getNetworkClientId` messenger action, and then use the `configuration` property on the network client.
+
+## [19.0.0]
+
+### Changed
+
+- **BREAKING:** Bump minimum Node version to 18.18 ([#3611](https://github.com/MetaMask/core/pull/3611))
+- Bump `@metamask/base-controller` to `^6.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/controller-utils` to `^11.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/eth-json-rpc-provider` to `^4.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+- Bump `@metamask/json-rpc-engine` to `^9.0.0` ([#4352](https://github.com/MetaMask/core/pull/4352))
+
+## [18.1.3]
+
+### Changed
+
+- Bump `async-mutex` to `^0.5.0` ([#4335](https://github.com/MetaMask/core/pull/4335))
+- Bump `@metamask/controller-utils` to `^10.0.0` ([#4342](https://github.com/MetaMask/core/pull/4342))
+
+## [18.1.2]
+
+### Fixed
+
+- Update from `eth-block-tracker` to `@metamask/eth-block-tracker` `^9.0.2`, mitigating redundant polling loops ([#4309](https://github.com/MetaMask/core/pull/4309))
+
+## [18.1.1]
+
+### Added
+
+- Export `BuiltInNetworkClientId` and `CustomNetworkClientId` ([#4247](https://github.com/MetaMask/core/pull/4247))
+
+### Changed
+
+- Bump `@metamask/eth-json-rpc-provider` to `^3.0.2` ([#4234](https://github.com/MetaMask/core/pull/4234))
+- Bump `@metamask/json-rpc-engine` to `^8.0.2` ([#4234](https://github.com/MetaMask/core/pull/4234))
+- Bump `@metamask/base-controller` to `^5.0.2` ([#4232](https://github.com/MetaMask/core/pull/4232))
+- Bump `@metamask/controller-utils` to `^9.1.0` ([#4153](https://github.com/MetaMask/core/pull/4153))
+
+## [18.1.0]
+
+### Added
+
+- Add `getSelectedNetworkClient` method that returns the provider and blockTracker for the currently selected network but with a more easily used type than `getProviderAndBlockTracker` ([#4063](https://github.com/MetaMask/core/pull/4063))
+- Add `NetworkController:getSelectedNetworkClient` action ([#4063](https://github.com/MetaMask/core/pull/4063))
+
+### Changed
+
+- `getProviderAndBlockTracker` is now marked as deprecated and will be removed in a future release. ([#4063](https://github.com/MetaMask/core/pull/4063))
+
+## [18.0.1]
+
+### Fixed
+
+- Fix `types` field in `package.json` ([#4047](https://github.com/MetaMask/core/pull/4047))
+
+## [18.0.0]
+
+### Added
+
+- **BREAKING**: Add ESM build ([#3998](https://github.com/MetaMask/core/pull/3998))
+  - It's no longer possible to import files from `./dist` directly.
+- Add network client for Linea Sepolia (chain ID `0xe705`) ([#3995](https://github.com/MetaMask/core/pull/3995))
+  - Bump `@metamask/eth-json-rpc-infura` to `^9.1.0` to bring this change.
+
+### Changed
+
+- **BREAKING:** Bump `@metamask/base-controller` to `^5.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+  - This version has a number of breaking changes. See the changelog for more.
+- Bump `@metamask/controller-utils` to `^9.0.0` ([#4039](https://github.com/MetaMask/core/pull/4039))
+
+### Fixed
+
+- **BREAKING:** Narrow `NetworkControllerMessenger` type parameters `AllowedAction` and `AllowedEvent` from `string` to `never` ([#4031](https://github.com/MetaMask/core/pull/4031))
+  - Allowlisting or using any external actions or events will now produce a type error.
+
 ## [17.2.1]
 
 ### Changed
@@ -425,14 +1218,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
-
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
-
     - Everything in `src/network` (minus `NetworkType` and `NetworksChainId`, which were placed in `@metamask/controller-utils`)
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@32.0.0...HEAD
+[32.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@31.1.0...@metamask/network-controller@32.0.0
+[31.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@31.0.0...@metamask/network-controller@31.1.0
+[31.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@30.1.0...@metamask/network-controller@31.0.0
+[30.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@30.0.1...@metamask/network-controller@30.1.0
+[30.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@30.0.0...@metamask/network-controller@30.0.1
+[30.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@29.0.0...@metamask/network-controller@30.0.0
+[29.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@28.0.0...@metamask/network-controller@29.0.0
+[28.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@27.2.0...@metamask/network-controller@28.0.0
+[27.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@27.1.0...@metamask/network-controller@27.2.0
+[27.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@27.0.0...@metamask/network-controller@27.1.0
+[27.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@26.0.0...@metamask/network-controller@27.0.0
+[26.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@25.0.0...@metamask/network-controller@26.0.0
+[25.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.3.1...@metamask/network-controller@25.0.0
+[24.3.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.3.0...@metamask/network-controller@24.3.1
+[24.3.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.2.2...@metamask/network-controller@24.3.0
+[24.2.2]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.2.1...@metamask/network-controller@24.2.2
+[24.2.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.2.0...@metamask/network-controller@24.2.1
+[24.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.1.0...@metamask/network-controller@24.2.0
+[24.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.0.1...@metamask/network-controller@24.1.0
+[24.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@24.0.0...@metamask/network-controller@24.0.1
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.6.0...@metamask/network-controller@24.0.0
+[23.6.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.5.1...@metamask/network-controller@23.6.0
+[23.5.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.5.0...@metamask/network-controller@23.5.1
+[23.5.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.4.0...@metamask/network-controller@23.5.0
+[23.4.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.3.0...@metamask/network-controller@23.4.0
+[23.3.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.2.0...@metamask/network-controller@23.3.0
+[23.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.1.0...@metamask/network-controller@23.2.0
+[23.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@23.0.0...@metamask/network-controller@23.1.0
+[23.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.2.1...@metamask/network-controller@23.0.0
+[22.2.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.2.0...@metamask/network-controller@22.2.1
+[22.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.1.1...@metamask/network-controller@22.2.0
+[22.1.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.1.0...@metamask/network-controller@22.1.1
+[22.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.0.2...@metamask/network-controller@22.1.0
+[22.0.2]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.0.1...@metamask/network-controller@22.0.2
+[22.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@22.0.0...@metamask/network-controller@22.0.1
+[22.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@21.1.0...@metamask/network-controller@22.0.0
+[21.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@21.0.1...@metamask/network-controller@21.1.0
+[21.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@21.0.0...@metamask/network-controller@21.0.1
+[21.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@20.2.0...@metamask/network-controller@21.0.0
+[20.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@20.1.0...@metamask/network-controller@20.2.0
+[20.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@20.0.0...@metamask/network-controller@20.1.0
+[20.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@19.0.0...@metamask/network-controller@20.0.0
+[19.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.1.3...@metamask/network-controller@19.0.0
+[18.1.3]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.1.2...@metamask/network-controller@18.1.3
+[18.1.2]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.1.1...@metamask/network-controller@18.1.2
+[18.1.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.1.0...@metamask/network-controller@18.1.1
+[18.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.0.1...@metamask/network-controller@18.1.0
+[18.0.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@18.0.0...@metamask/network-controller@18.0.1
+[18.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.2.1...@metamask/network-controller@18.0.0
 [17.2.1]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.2.0...@metamask/network-controller@17.2.1
 [17.2.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.1.0...@metamask/network-controller@17.2.0
 [17.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@17.0.0...@metamask/network-controller@17.1.0

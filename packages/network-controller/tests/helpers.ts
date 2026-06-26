@@ -1,0 +1,687 @@
+import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
+import type { ConnectivityStatus } from '@metamask/connectivity-controller';
+import {
+  ChainId,
+  InfuraNetworkType,
+  NetworkNickname,
+  NetworksTicker,
+  toHex,
+} from '@metamask/controller-utils';
+import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
+import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
+import type {
+  MockAnyNamespace,
+  MessengerActions,
+  MessengerEvents,
+} from '@metamask/messenger';
+import type { Hex } from '@metamask/utils';
+import { v4 as uuidV4 } from 'uuid';
+
+import { FakeBlockTracker } from '../../../tests/fake-block-tracker';
+import { FakeProvider } from '../../../tests/fake-provider';
+import type { FakeProviderStub } from '../../../tests/fake-provider';
+import { buildTestObject } from '../../../tests/helpers';
+import { NetworkController } from '../src';
+import type {
+  BuiltInNetworkClientId,
+  CustomNetworkClientId,
+  NetworkClient,
+  NetworkClientConfiguration,
+  NetworkClientId,
+  NetworkConfiguration,
+} from '../src';
+import type { AutoManagedNetworkClient } from '../src/create-auto-managed-network-client';
+import type {
+  AddNetworkCustomRpcEndpointFields,
+  AddNetworkFields,
+  CustomRpcEndpoint,
+  InfuraRpcEndpoint,
+  NetworkControllerMessenger,
+  NetworkControllerOptions,
+  UpdateNetworkCustomRpcEndpointFields,
+} from '../src/NetworkController';
+import { RpcEndpointType } from '../src/NetworkController';
+import { RpcServiceOptions } from '../src/rpc-service/rpc-service';
+import type {
+  CustomNetworkClientConfiguration,
+  InfuraNetworkClientConfiguration,
+} from '../src/types';
+import { NetworkClientType } from '../src/types';
+
+export type AllNetworkControllerActions =
+  MessengerActions<NetworkControllerMessenger>;
+
+export type AllNetworkControllerEvents =
+  MessengerEvents<NetworkControllerMessenger>;
+
+export type RootMessenger = Messenger<
+  MockAnyNamespace,
+  AllNetworkControllerActions,
+  AllNetworkControllerEvents
+>;
+
+/**
+ * A list of active InfuraNetworkType that are used in many tests
+ *
+ * TODO: Base this off of InfuraNetworkType when Goerli is removed.
+ */
+export const INFURA_NETWORKS = [
+  InfuraNetworkType.mainnet,
+  InfuraNetworkType.sepolia,
+  InfuraNetworkType['linea-mainnet'],
+  InfuraNetworkType['linea-sepolia'],
+];
+
+/**
+ * A object that contains the configuration for a network that begining used in many tests
+ */
+export const TESTNET = {
+  networkType: InfuraNetworkType.sepolia,
+  chainId: ChainId.sepolia,
+  name: 'Sepolia',
+  nativeCurrency: 'SepoliaETH',
+};
+
+/**
+ * Build a root messenger that includes all events used by the network
+ * controller.
+ *
+ * @param options - Optional configuration.
+ * @param options.connectivityStatus - The connectivity status to return by default.
+ * If not provided, defaults to Online.
+ * @param options.isRpcFailoverEnabled - The RPC failover feature flag to return, defaults to false.
+ * @returns The messenger.
+ */
+export function buildRootMessenger({
+  connectivityStatus = CONNECTIVITY_STATUSES.Online,
+  isRpcFailoverEnabled = false,
+}: {
+  connectivityStatus?: ConnectivityStatus;
+  isRpcFailoverEnabled?: boolean;
+} = {}): RootMessenger {
+  const rootMessenger = new Messenger<
+    MockAnyNamespace,
+    MessengerActions<NetworkControllerMessenger>,
+    MessengerEvents<NetworkControllerMessenger>
+  >({ namespace: MOCK_ANY_NAMESPACE, captureException: jest.fn() });
+
+  rootMessenger.registerActionHandler(
+    'ConnectivityController:getState',
+    () => ({
+      connectivityStatus,
+    }),
+  );
+
+  rootMessenger.registerActionHandler(
+    'RemoteFeatureFlagController:getState',
+    () => ({
+      remoteFeatureFlags: {
+        walletFrameworkRpcFailoverEnabled: isRpcFailoverEnabled,
+      },
+      cacheTimestamp: 0,
+    }),
+  );
+
+  return rootMessenger;
+}
+
+/**
+ * Build a messenger for the network controller.
+ *
+ * @param rootMessenger - The root messenger.
+ * @returns The network controller messenger.
+ */
+export function buildNetworkControllerMessenger(
+  rootMessenger = buildRootMessenger(),
+): NetworkControllerMessenger {
+  const networkControllerMessenger = new Messenger<
+    'NetworkController',
+    AllNetworkControllerActions,
+    AllNetworkControllerEvents,
+    typeof rootMessenger
+  >({
+    namespace: 'NetworkController',
+    parent: rootMessenger,
+  });
+
+  rootMessenger.delegate({
+    messenger: networkControllerMessenger,
+    actions: [
+      'ConnectivityController:getState',
+      'RemoteFeatureFlagController:getState',
+    ],
+    // eslint-disable-next-line no-restricted-syntax
+    events: ['RemoteFeatureFlagController:stateChange'],
+  });
+
+  return networkControllerMessenger;
+}
+
+/**
+ * Builds an object that satisfies the NetworkClient shape, but using a fake
+ * provider and block tracker which doesn't make any requests.
+ *
+ * @param args - Arguments to this function.
+ * @param args.configuration - The desired network client configuration.
+ * @param args.providerStubs - Objects that allow for stubbing specific provider
+ * requests.
+ * @returns The fake network client.
+ */
+function buildFakeNetworkClient({
+  configuration,
+  providerStubs = [],
+}: {
+  configuration: NetworkClientConfiguration;
+  providerStubs?: FakeProviderStub[];
+}): NetworkClient {
+  const provider = new FakeProvider({ stubs: providerStubs });
+  return {
+    configuration,
+    provider,
+    blockTracker: new FakeBlockTracker({
+      provider: provider as unknown as InternalProvider,
+    }),
+    destroy: (): void => {
+      // do nothing
+    },
+  };
+}
+
+/**
+ * The `getNetworkClientById` method on NetworkController (and thus, the
+ * `NetworkController:getNetworkClientById` controller action) is difficult to
+ * mock because it needs to be able to return either an Infura network client or
+ * a custom network client. However, a test may want to return specific network
+ * clients with specific network client configurations for specific network
+ * client IDs. This function makes that easier by allowing the consumer to
+ * specify a map of network client ID to network client configuration, handling
+ * the logic appropriately as well as defining the correct overloads for the
+ * mock version of `getNetworkClientById`.
+ *
+ * @param mockNetworkClientConfigurationsByNetworkClientId - Allows for defining
+ * the network client configuration — and thus the network client itself — that
+ * belongs to a particular network client ID.
+ * @returns The mock version of `getNetworkClientById`.
+ */
+export function buildMockGetNetworkClientById(
+  mockNetworkClientConfigurationsByNetworkClientId: Record<
+    NetworkClientId,
+    NetworkClientConfiguration
+  > = {},
+): NetworkController['getNetworkClientById'] {
+  // Since we might want to access these network client IDs so often in tests,
+  // register the network client configurations for all Infura networks by
+  // default. This does introduce a bit of magic as we don't expect to actually
+  // have a NetworkController in a test, but if we did, then we'd be able to
+  // make the same assumption anyway (i.e., that we'd be able to access any
+  // Infura network without having to add it explicitly to the controller). So
+  // pre-registering these network client IDs provides consistency from a mental
+  // model perspective at the expense of debuggability.
+  const defaultMockNetworkClientConfigurationsByNetworkClientId = Object.values(
+    InfuraNetworkType,
+  ).reduce((obj, infuraNetworkType) => {
+    return {
+      ...obj,
+      [infuraNetworkType]:
+        buildInfuraNetworkClientConfiguration(infuraNetworkType),
+    };
+  }, {});
+  const mergedMockNetworkClientConfigurationsByNetworkClientId: Record<
+    NetworkClientId,
+    NetworkClientConfiguration
+  > = {
+    ...defaultMockNetworkClientConfigurationsByNetworkClientId,
+    ...mockNetworkClientConfigurationsByNetworkClientId,
+  };
+
+  function getNetworkClientById(
+    networkClientId: BuiltInNetworkClientId,
+  ): AutoManagedNetworkClient<InfuraNetworkClientConfiguration>;
+  function getNetworkClientById(
+    networkClientId: CustomNetworkClientId,
+  ): AutoManagedNetworkClient<CustomNetworkClientConfiguration>;
+
+  function getNetworkClientById(networkClientId: string): NetworkClient {
+    const mockNetworkClientConfiguration =
+      mergedMockNetworkClientConfigurationsByNetworkClientId[networkClientId];
+
+    if (mockNetworkClientConfiguration === undefined) {
+      throw new Error(
+        `Unknown network client ID '${networkClientId}'. Please add it to mockNetworkClientConfigurationsByNetworkClientId.`,
+      );
+    }
+
+    return buildFakeNetworkClient({
+      configuration: mockNetworkClientConfiguration,
+    });
+  }
+
+  return getNetworkClientById;
+}
+
+/**
+ * Builds a mock version of the `findNetworkClientIdByChainId` method on
+ * NetworkController.
+ *
+ * @param mockNetworkClientConfigurationsByNetworkClientId - Allows for defining
+ * the network client configuration — and thus the network client itself — that
+ * belongs to a particular network client ID.
+ * @returns The mock version of `findNetworkClientIdByChainId`.
+ */
+export function buildMockFindNetworkClientIdByChainId(
+  mockNetworkClientConfigurationsByNetworkClientId: Record<
+    Hex,
+    NetworkClientConfiguration
+  > = {},
+): NetworkController['findNetworkClientIdByChainId'] {
+  const defaultMockNetworkClientConfigurationsByNetworkClientId = Object.values(
+    InfuraNetworkType,
+  ).reduce((obj, infuraNetworkType) => {
+    const testNetworkClientConfig =
+      buildInfuraNetworkClientConfiguration(infuraNetworkType);
+    return {
+      ...obj,
+      [testNetworkClientConfig.chainId]: testNetworkClientConfig,
+    };
+  }, {});
+  const mergedMockNetworkClientConfigurationsByNetworkClientId: Record<
+    Hex,
+    InfuraNetworkClientConfiguration
+  > = {
+    ...defaultMockNetworkClientConfigurationsByNetworkClientId,
+    ...mockNetworkClientConfigurationsByNetworkClientId,
+  };
+
+  function findNetworkClientIdByChainId(chainId: Hex): NetworkClientId;
+
+  function findNetworkClientIdByChainId(chainId: Hex): NetworkClientId {
+    const networkClientConfigForChainId =
+      mergedMockNetworkClientConfigurationsByNetworkClientId[chainId];
+    if (!networkClientConfigForChainId) {
+      throw new Error(
+        `Unknown chainId '${chainId}'. Please add it to mockNetworkClientConfigurationsByNetworkClientId.`,
+      );
+    }
+
+    return networkClientConfigForChainId.network;
+  }
+  return findNetworkClientIdByChainId;
+}
+
+/**
+ * Builds a configuration object for an Infura network client based on the name
+ * of an Infura network.
+ *
+ * @param network - The name of an Infura network.
+ * @param overrides - Properties to merge into the configuration object.
+ * @returns the complete Infura network client configuration.
+ */
+export function buildInfuraNetworkClientConfiguration(
+  network: InfuraNetworkType,
+  overrides: Partial<InfuraNetworkClientConfiguration> = {},
+): InfuraNetworkClientConfiguration {
+  return {
+    type: NetworkClientType.Infura,
+    network,
+    failoverRpcUrls: [],
+    infuraProjectId: 'test-infura-project-id',
+    chainId: ChainId[network],
+    ticker: NetworksTicker[network],
+    ...overrides,
+  };
+}
+
+/**
+ * Builds a configuration object for a custom network client based on any
+ * overrides provided.
+ *
+ * @param overrides - Properties to merge into the configuration object.
+ * @returns the complete custom network client configuration.
+ */
+export function buildCustomNetworkClientConfiguration(
+  overrides: Partial<CustomNetworkClientConfiguration> = {},
+): CustomNetworkClientConfiguration {
+  // `Object.assign` allows for properties to be `undefined` in `overrides`,
+  // and will copy them over
+  return Object.assign(
+    {
+      chainId: toHex(1337),
+      failoverRpcUrls: [],
+      rpcUrl: 'https://example.test',
+      ticker: 'TEST',
+    },
+    overrides,
+    {
+      type: NetworkClientType.Custom,
+    },
+  );
+}
+
+/**
+ * Constructs a NetworkConfiguration object for use in testing, providing
+ * defaults and allowing properties to be overridden at will.
+ *
+ * @param overrides - The properties to override the new
+ * NetworkConfiguration with.
+ * @param defaultRpcEndpointType - The type of the RPC endpoint you want to
+ * use by default.
+ * @returns The complete NetworkConfiguration object.
+ */
+export function buildNetworkConfiguration(
+  overrides: Partial<NetworkConfiguration> = {},
+  defaultRpcEndpointType: RpcEndpointType = RpcEndpointType.Custom,
+): NetworkConfiguration {
+  return buildTestObject(
+    {
+      blockExplorerUrls: () => [],
+      chainId: () => '0x1337',
+      // @ts-expect-error We will make sure that this property is set below.
+      defaultRpcEndpointIndex: () => undefined,
+      name: () => 'Some Network',
+      nativeCurrency: () => 'TOKEN',
+      rpcEndpoints: () => [
+        defaultRpcEndpointType === RpcEndpointType.Infura
+          ? buildInfuraRpcEndpoint(TESTNET.networkType)
+          : buildCustomRpcEndpoint({ url: 'https://test.endpoint' }),
+      ],
+    },
+    overrides,
+    (object) => {
+      if (
+        object.defaultRpcEndpointIndex === undefined &&
+        object.rpcEndpoints.length > 0
+      ) {
+        return {
+          ...object,
+          defaultRpcEndpointIndex: 0,
+        };
+      }
+      return object;
+    },
+  );
+}
+
+/**
+ * Constructs a NetworkConfiguration object preloaded with a custom RPC endpoint
+ * for use in testing, providing defaults and allowing properties to be
+ * overridden at will.
+ *
+ * @param overrides - The properties to override the new NetworkConfiguration
+ * with.
+ * @returns The complete NetworkConfiguration object.
+ */
+export function buildCustomNetworkConfiguration(
+  overrides: Partial<NetworkConfiguration> = {},
+): NetworkConfiguration {
+  return buildTestObject(
+    {
+      blockExplorerUrls: () => [],
+      chainId: () => '0x1337' as const,
+      // @ts-expect-error We will make sure that this property is set below.
+      defaultRpcEndpointIndex: () => undefined,
+      name: () => 'Some Network',
+      nativeCurrency: () => 'TOKEN',
+      rpcEndpoints: () => [
+        buildCustomRpcEndpoint({
+          url: generateCustomRpcEndpointUrl(),
+        }),
+      ],
+    },
+    overrides,
+    (object) => {
+      if (
+        object.defaultRpcEndpointIndex === undefined &&
+        object.rpcEndpoints.length > 0
+      ) {
+        return {
+          ...object,
+          defaultRpcEndpointIndex: 0,
+        };
+      }
+      return object;
+    },
+  );
+}
+
+/**
+ * Constructs a NetworkConfiguration object preloaded with an Infura RPC
+ * endpoint for use in testing.
+ *
+ * @param infuraNetworkType - The Infura network type from which to create the
+ * NetworkConfiguration.
+ * @param overrides - The properties to override the new NetworkConfiguration
+ * with.
+ * @param overrides.rpcEndpoints - Extra RPC endpoints.
+ * @returns The complete NetworkConfiguration object.
+ */
+export function buildInfuraNetworkConfiguration(
+  infuraNetworkType: InfuraNetworkType,
+  overrides: Partial<NetworkConfiguration> = {},
+): NetworkConfiguration {
+  const defaultRpcEndpoint = buildInfuraRpcEndpoint(infuraNetworkType);
+  return buildTestObject(
+    {
+      blockExplorerUrls: () => [],
+      chainId: () => ChainId[infuraNetworkType],
+      // @ts-expect-error We will make sure that this property is set below.
+      defaultRpcEndpointIndex: () => undefined,
+      name: () => NetworkNickname[infuraNetworkType],
+      nativeCurrency: () => NetworksTicker[infuraNetworkType],
+      rpcEndpoints: () => [defaultRpcEndpoint],
+    },
+    overrides,
+    (object) => {
+      if (
+        object.defaultRpcEndpointIndex === undefined &&
+        object.rpcEndpoints.length > 0
+      ) {
+        return {
+          ...object,
+          defaultRpcEndpointIndex: 0,
+        };
+      }
+      return object;
+    },
+  );
+}
+
+/**
+ * Constructs a InfuraRpcEndpoint object for use in testing.
+ *
+ * @param infuraNetworkType - The Infura network type from which to create the
+ * InfuraRpcEndpoint.
+ * @param options - Options.
+ * @param options.failoverUrls - The failover URLs to use.
+ * @returns The created InfuraRpcEndpoint object.
+ */
+export function buildInfuraRpcEndpoint(
+  infuraNetworkType: InfuraNetworkType,
+  { failoverUrls = [] }: { failoverUrls?: string[] } = {},
+): InfuraRpcEndpoint {
+  return {
+    failoverUrls,
+    networkClientId: infuraNetworkType,
+    type: RpcEndpointType.Infura as const,
+    url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
+  };
+}
+
+/**
+ * Constructs an CustomRpcEndpoint object for use in testing, providing defaults
+ * and allowing properties to be overridden at will.
+ *
+ * @param overrides - The properties to override the new CustomRpcEndpoint with.
+ * @returns The complete CustomRpcEndpoint object.
+ */
+export function buildCustomRpcEndpoint(
+  overrides: Partial<CustomRpcEndpoint> = {},
+): CustomRpcEndpoint {
+  return buildTestObject(
+    {
+      failoverUrls: () => [],
+      networkClientId: () => uuidV4(),
+      type: () => RpcEndpointType.Custom as const,
+      url: () => generateCustomRpcEndpointUrl(),
+    },
+    overrides,
+  );
+}
+
+/**
+ * Constructs an AddNetworkFields object for use in testing, providing defaults
+ * and allowing properties to be overridden at will.
+ *
+ * @param overrides - The properties to override the new AddNetworkFields with.
+ * @returns The complete AddNetworkFields object.
+ */
+export function buildAddNetworkFields(
+  overrides: Partial<AddNetworkFields> = {},
+): AddNetworkFields {
+  return buildTestObject(
+    {
+      blockExplorerUrls: () => [],
+      chainId: () => '0x1337' as const,
+      // @ts-expect-error We will make sure that this property is set below.
+      defaultRpcEndpointIndex: () => undefined,
+      name: () => 'Some Network',
+      nativeCurrency: () => 'TOKEN',
+      rpcEndpoints: () => [
+        buildAddNetworkCustomRpcEndpointFields({
+          url: generateCustomRpcEndpointUrl(),
+        }),
+      ],
+    },
+    overrides,
+    (object) => {
+      if (
+        object.defaultRpcEndpointIndex === undefined &&
+        object.rpcEndpoints.length > 0
+      ) {
+        return {
+          ...object,
+          defaultRpcEndpointIndex: 0,
+        };
+      }
+      return object;
+    },
+  );
+}
+
+/**
+ * Constructs an AddNetworkCustomRpcEndpointFields object for use in testing,
+ * providing defaults and allowing properties to be overridden at will.
+ *
+ * @param overrides - The properties to override the new
+ * AddNetworkCustomRpcEndpointFields with.
+ * @returns The complete AddNetworkCustomRpcEndpointFields object.
+ */
+export function buildAddNetworkCustomRpcEndpointFields(
+  overrides: Partial<AddNetworkCustomRpcEndpointFields> = {},
+): AddNetworkCustomRpcEndpointFields {
+  return buildTestObject(
+    {
+      failoverUrls: () => [],
+      type: () => RpcEndpointType.Custom as const,
+      url: () => generateCustomRpcEndpointUrl(),
+    },
+    overrides,
+  );
+}
+
+/**
+ * Constructs an UpdateNetworkCustomRpcEndpointFields object for use in testing,
+ * providing defaults and allowing properties to be overridden at will.
+ *
+ * @param overrides - The properties to override the new
+ * UpdateNetworkCustomRpcEndpointFields with.
+ * @returns The complete UpdateNetworkCustomRpcEndpointFields object.
+ */
+export function buildUpdateNetworkCustomRpcEndpointFields(
+  overrides: Partial<UpdateNetworkCustomRpcEndpointFields> = {},
+): UpdateNetworkCustomRpcEndpointFields {
+  return buildTestObject(
+    {
+      failoverUrls: () => [],
+      type: () => RpcEndpointType.Custom as const,
+      url: () => generateCustomRpcEndpointUrl(),
+    },
+    overrides,
+  );
+}
+
+let testEndpointCounter = 0;
+
+/**
+ * Generates a unique custom RPC endpoint URL for testing.
+ *
+ * @returns The generated RPC endpoint URL.
+ */
+function generateCustomRpcEndpointUrl(): string {
+  const url = `https://test.endpoint/${testEndpointCounter}`;
+  testEndpointCounter += 1;
+  return url;
+}
+
+type WithControllerCallback<ReturnValue> = ({
+  controller,
+}: {
+  controller: NetworkController;
+  messenger: RootMessenger;
+  networkControllerMessenger: NetworkControllerMessenger;
+}) => Promise<ReturnValue> | ReturnValue;
+
+type WithControllerOptions = Partial<NetworkControllerOptions> & {
+  isRpcFailoverEnabled?: boolean;
+  initializeController?: boolean;
+};
+
+type WithControllerArgs<ReturnValue> =
+  | [WithControllerCallback<ReturnValue>]
+  | [WithControllerOptions, WithControllerCallback<ReturnValue>];
+
+/**
+ * Builds a controller based on the given options, and calls the given function
+ * with that controller.
+ *
+ * @param args - Either a function, or an options bag + a function. The options
+ * bag is equivalent to the options that NetworkController takes (although
+ * `messenger` and `infuraProjectId` are  filled in if not given); the function
+ * will be called with the built controller.
+ * @returns Whatever the callback returns.
+ */
+export async function withController<ReturnValue>(
+  ...args: WithControllerArgs<ReturnValue>
+): Promise<ReturnValue> {
+  const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
+  const {
+    isRpcFailoverEnabled,
+    initializeController = true,
+    ...controllerOptions
+  } = rest;
+  const messenger = buildRootMessenger({ isRpcFailoverEnabled });
+  const networkControllerMessenger = buildNetworkControllerMessenger(messenger);
+  const controller = new NetworkController({
+    messenger: networkControllerMessenger,
+    infuraProjectId: 'infura-project-id',
+    getRpcServiceOptions: (): Omit<
+      RpcServiceOptions,
+      'failoverService' | 'endpointUrl'
+    > => ({
+      fetch,
+      btoa,
+      isOffline: (): boolean => false,
+    }),
+    ...controllerOptions,
+  });
+
+  if (initializeController) {
+    controller.init();
+  }
+
+  try {
+    return await fn({ controller, messenger, networkControllerMessenger });
+  } finally {
+    const { blockTracker } = controller.getProviderAndBlockTracker();
+    await blockTracker?.__target__?.destroy();
+  }
+}

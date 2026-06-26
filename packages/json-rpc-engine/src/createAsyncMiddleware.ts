@@ -5,7 +5,10 @@ import type {
   PendingJsonRpcResponse,
 } from '@metamask/utils';
 
-import type { JsonRpcMiddleware } from './JsonRpcEngine';
+import type {
+  JsonRpcEngineReturnHandler,
+  JsonRpcMiddleware,
+} from './JsonRpcEngine';
 
 export type AsyncJsonRpcEngineNextCallback = () => Promise<void>;
 
@@ -18,7 +21,7 @@ export type AsyncJsonrpcMiddleware<
   next: AsyncJsonRpcEngineNextCallback,
 ) => Promise<void>;
 
-type ReturnHandlerCallback = (error: null | Error) => void;
+type ReturnHandlerCallback = Parameters<JsonRpcEngineReturnHandler>[0];
 
 /**
  * JsonRpcEngine only accepts callback-based middleware directly.
@@ -37,6 +40,7 @@ type ReturnHandlerCallback = (error: null | Error) => void;
  * The return handler will always be called. Its resolution of the promise
  * enables the control flow described above.
  *
+ * @deprecated Use `JsonRpcEngineV2` and its corresponding types instead.
  * @param asyncMiddleware - The asynchronous middleware function to wrap.
  * @returns The wrapped asynchronous middleware function, ready to be consumed
  * by JsonRpcEngine.
@@ -61,7 +65,7 @@ export function createAsyncMiddleware<
     let nextWasCalled = false;
 
     // This will be called by the consumer's async middleware.
-    const asyncNext = async () => {
+    const asyncNext = async (): Promise<void> => {
       nextWasCalled = true;
 
       // We pass a return handler to next(). When it is called by the engine,
@@ -83,9 +87,7 @@ export function createAsyncMiddleware<
       } else {
         end(null);
       }
-      // TODO: Replace `any` with type
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (error: any) {
+    } catch (error) {
       if (returnHandlerCallback) {
         (returnHandlerCallback as ReturnHandlerCallback)(error);
       } else {
