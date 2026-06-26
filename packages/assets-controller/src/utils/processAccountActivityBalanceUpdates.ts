@@ -15,7 +15,7 @@ import type {
  * @param updates - Balance updates from account-activity websocket payload.
  * @param accountId - Internal account UUID.
  * @param getAssetType - Resolver for asset metadata type.
- * @returns DataResponse with merge mode when balances are present.
+ * @returns DataResponse with update mode when balances are present.
  */
 export function processAccountActivityBalanceUpdates(
   updates: BalanceUpdate[],
@@ -68,7 +68,7 @@ export function processAccountActivityBalanceUpdates(
     };
   }
 
-  const response: DataResponse = { updateMode: 'merge' };
+  const response: DataResponse = { updateMode: 'update' };
   if (Object.keys(assetsBalance[accountId]).length > 0) {
     response.assetsBalance = assetsBalance;
     response.assetsInfo = assetsMetadata;

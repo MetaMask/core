@@ -807,7 +807,7 @@ describe('AssetsController', () => {
 
             await flushPromises();
 
-            // Background pipelines use 'merge' mode — they don't wipe existing entries.
+            // Background pipelines use 'update' mode — they don't wipe existing entries.
             expect(
               controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
                 MOCK_NATIVE_ASSET_ID
@@ -1075,6 +1075,7 @@ describe('AssetsController', () => {
         },
         async ({ controller }) => {
           const emptyApiResponse: DataResponse = {
+            updateMode: 'merge',
             assetsInfo: {
               [MOCK_ASSET_ID]: {
                 type: 'erc20',
@@ -1116,6 +1117,7 @@ describe('AssetsController', () => {
         },
         async ({ controller }) => {
           const apiResponse: DataResponse = {
+            updateMode: 'merge',
             assetsInfo: {
               [MOCK_ASSET_ID]: {
                 type: 'erc20',
@@ -1682,7 +1684,7 @@ describe('AssetsController', () => {
       });
     });
 
-    it('preserves existing balances when merge update adds new chain data', async () => {
+    it('preserves existing balances when update mode adds new chain data', async () => {
       const polygonNative = 'eip155:137/slip44:966' as Caip19AssetId;
       const initialState: Partial<AssetsControllerState> = {
         assetsBalance: {
@@ -1696,7 +1698,7 @@ describe('AssetsController', () => {
       await withController({ state: initialState }, async ({ controller }) => {
         await controller.handleAssetsUpdate(
           {
-            updateMode: 'merge',
+            updateMode: 'update',
             assetsBalance: {
               [MOCK_ACCOUNT_ID]: {
                 [polygonNative]: { amount: '10' },

@@ -74,7 +74,7 @@ export function mergeDataResponses(responses: DataResponse[]): DataResponse {
       merged.updateMode = 'update';
     }
   }
-  merged.updateMode ??= 'merge';
+  merged.updateMode ??= 'update';
 
   return merged;
 }

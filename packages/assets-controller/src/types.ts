@@ -368,7 +368,7 @@ export type DataResponse = {
   detectedAssets?: Record<AccountId, Caip19AssetId[]>;
   /**
    * How to apply this response to state. See {@link AssetsUpdateMode}.
-   * Defaults to `'merge'` if omitted.
+   * Defaults to `'update'` if omitted.
    */
   updateMode?: AssetsUpdateMode;
 };
