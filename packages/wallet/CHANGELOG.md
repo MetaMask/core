@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0]
+
+### Added
+
+- **BREAKING:** Add `NetworkController` initialization ([#9001](https://github.com/MetaMask/core/pull/9001))
+  - Passing `instanceOptions.networkController.infuraProjectId` is now required.
+- Add the `Wallet.init` function which calls `init` on required instances ([#9001](https://github.com/MetaMask/core/pull/9001))
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
+
 ## [4.0.0]
 
 ### Added
@@ -61,7 +73,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8838](https://github.com/MetaMask/core/pull/8838))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@4.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/wallet@5.0.0...HEAD
+[5.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@4.0.0...@metamask/wallet@5.0.0
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@3.0.0...@metamask/wallet@4.0.0
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@2.0.0...@metamask/wallet@3.0.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/wallet@1.0.1...@metamask/wallet@2.0.0

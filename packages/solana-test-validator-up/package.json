@@ -15,6 +15,7 @@
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
+  "bin": "./dist/bin/solana-test-validator-up.mjs",
   "files": [
     "dist/"
   ],
@@ -51,6 +52,9 @@
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
+  },
+  "dependencies": {
+    "@metamask/local-node-utils": "^0.0.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",

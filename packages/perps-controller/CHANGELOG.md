@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add Perps Advanced Chart analytics constants to `PERPS_EVENT_PROPERTY` and `PERPS_EVENT_VALUE` so mobile can import chart instrumentation keys from `@metamask/perps-controller` instead of maintaining a local mirror ([#9221](https://github.com/MetaMask/core/pull/9221))
+  - New `PERPS_EVENT_PROPERTY` keys: `CHART_LIBRARY`, `ASSET_TYPE`
+  - New `PERPS_EVENT_VALUE.CHART_LIBRARY` group: `lightweight`, `advanced`
+  - New `PERPS_EVENT_VALUE.ASSET_TYPE` group: `spot`, `perp`
+
+## [9.0.0]
+
+### Added
+
+- **BREAKING:** Sync `watchlistMarkets` with `AuthenticatedUserStorageService` so the watchlist is persisted server-side per authenticated user account ([#9010](https://github.com/MetaMask/core/pull/9010))
+- `toggleWatchlistMarket` now performs an optimistic local-state update followed by an async AUS read-merge-write; on failure the local state is reverted.
+- On `init()`, `state.watchlistMarkets` is hydrated from AUS (source of truth). If no remote watchlist exists yet for the active exchange, any existing local markets are migrated to AUS in a one-time push.
+- When unauthenticated, or when the active provider is not mapped to an AUS exchange key (e.g. `'aggregated'`), the controller falls back to local-only state without surfacing errors to callers.
+- `toggleWatchlistMarket` return type changed from `void` to `Promise<void>` to allow callers to await the remote write.
+- Add `resolveWatchlistExchangeKey(activeProvider)` helper that maps a `PerpsActiveProviderMode` to the corresponding `PerpsWatchlistMarkets` exchange key, returning `null` for unsupported modes ([#9010](https://github.com/MetaMask/core/pull/9010))
+
+### Fixed
+
+- Fix `#syncWatchlistFromRemote` to use exchange-key presence instead of symbol count when deciding whether to hydrate from AUS, so an intentionally cleared remote watchlist is honored rather than overwritten by stale local favorites ([#9010](https://github.com/MetaMask/core/pull/9010))
+
+## [8.3.0]
+
+### Added
+
 - Add Terminal API integration for market data, controlled via `useTerminalApi` parameter on `GetMarketsParams` / `GetMarketDataWithPricesParams` ([#9137](https://github.com/MetaMask/core/pull/9137))
   - `TerminalMarketService` fetches structured market metadata from the injected `terminalApiUrl` with a 5-minute cache TTL.
   - When enabled, `getMarkets()` attempts the Terminal API first; on failure or empty response, falls back silently to HyperLiquid. Terminal results respect the same allowlist/blocklist filtering as the provider path.
@@ -25,6 +49,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/controller-utils` from `^12.2.0` to `^12.3.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+
+### Fixed
+
+- Add a 10-second fetch timeout to `TerminalMarketService` so a stalled Terminal API degrades to the provider promptly instead of blocking indefinitely ([#9224](https://github.com/MetaMask/core/pull/9224))
+- Only override the provider display name when Terminal supplies a non-null value, preventing symbol fallback from replacing good provider names ([#9224](https://github.com/MetaMask/core/pull/9224))
 
 ## [8.2.0]
 
@@ -410,7 +439,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@8.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@9.0.0...HEAD
+[9.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@8.3.0...@metamask/perps-controller@9.0.0
+[8.3.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@8.2.0...@metamask/perps-controller@8.3.0
 [8.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@8.1.0...@metamask/perps-controller@8.2.0
 [8.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@8.0.0...@metamask/perps-controller@8.1.0
 [8.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@7.0.0...@metamask/perps-controller@8.0.0

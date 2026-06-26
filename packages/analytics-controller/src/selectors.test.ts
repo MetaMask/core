@@ -60,4 +60,34 @@ describe('analyticsControllerSelectors', () => {
       },
     );
   });
+
+  describe('selectConsentDecisionMade', () => {
+    it.each([[true], [false]])(
+      'returns %s when consentDecisionMade is %s',
+      (consentDecisionMade) => {
+        const state: AnalyticsControllerState = {
+          optedIn: false,
+          consentDecisionMade,
+          analyticsId: defaultAnalyticsId,
+        };
+
+        const result =
+          analyticsControllerSelectors.selectConsentDecisionMade(state);
+
+        expect(result).toBe(consentDecisionMade);
+      },
+    );
+
+    it('defaults to false when the field is absent', () => {
+      const state: AnalyticsControllerState = {
+        optedIn: false,
+        analyticsId: defaultAnalyticsId,
+      };
+
+      const result =
+        analyticsControllerSelectors.selectConsentDecisionMade(state);
+
+      expect(result).toBe(false);
+    });
+  });
 });

@@ -293,7 +293,7 @@ type RequiredEventContextFromClientBase = {
  * Properties that are required to be provided when trackUnifiedSwapBridgeEvent is called.
  * This combines the event-specific properties from RequiredEventContextFromClientBase
  * with an optional `location` property. When `location` is omitted, the controller
- * falls back to the value stored via `setLocation()` (defaults to MainView).
+ * falls back to the value stored via `setLocation()` (defaults to Unknown).
  *
  * `ab_tests` is the legacy field and `active_ab_tests` is the newer field.
  * Both are kept for a migration window and are treated as separate payloads.

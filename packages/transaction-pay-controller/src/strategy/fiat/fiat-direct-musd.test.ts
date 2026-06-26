@@ -20,6 +20,7 @@ import {
   updateTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
+import { findRecentChompVaultDeposit } from './chomp';
 import { DEFAULT_FIAT_CURRENCY, MUSD_MONAD_FIAT_ASSET } from './constants';
 import {
   getDirectMusdFiatQuote,
@@ -32,6 +33,7 @@ jest.mock('../../utils/feature-flags');
 jest.mock('../../utils/provider');
 jest.mock('../../utils/token');
 jest.mock('../../utils/transaction');
+jest.mock('./chomp');
 
 const TRANSACTION_ID_MOCK = 'tx-id';
 const MONEY_ACCOUNT_ADDRESS_MOCK =
@@ -384,12 +386,16 @@ describe('fiat-direct-musd', () => {
       expect(callMock).toHaveBeenCalledWith(
         'TransactionController:addTransactionBatch',
         expect.objectContaining({
+          disableHook: true,
+          disableSequential: true,
+          disableUpgrade: true,
           from: MONEY_ACCOUNT_ADDRESS_MOCK,
           isGasFeeSponsored: true,
           isInternal: true,
           networkClientId: NETWORK_CLIENT_ID_MOCK,
           origin: 'metamask',
           requireApproval: false,
+          skipInitialGasEstimate: true,
           transactions: [
             {
               params: { data: '0xnewApprove', to: '0xapprove', value: '0x0' },
@@ -464,7 +470,8 @@ describe('fiat-direct-musd', () => {
       ).rejects.toThrow('Missing nested transactions');
     });
 
-    it('prefixes addTransactionBatch errors with Vault', async () => {
+    it('prefixes addTransactionBatch errors with Vault and stops collecting transaction IDs', async () => {
+      const endMock = jest.fn();
       const callMock = jest.fn((action: string) => {
         if (action === 'TransactionPayController:getAmountData') {
           return Promise.resolve({
@@ -478,6 +485,7 @@ describe('fiat-direct-musd', () => {
 
         throw new Error(`Unexpected action: ${action}`);
       });
+      collectTransactionIdsMock.mockReturnValue({ end: endMock });
 
       await expect(
         submitDirectMusdVaultDeposit({
@@ -486,6 +494,7 @@ describe('fiat-direct-musd', () => {
           transaction: TRANSACTION_MOCK,
         }),
       ).rejects.toThrow('Vault: batch failed');
+      expect(endMock).toHaveBeenCalledTimes(1);
     });
 
     it('throws when no vault transactions are collected', async () => {
@@ -576,6 +585,179 @@ describe('fiat-direct-musd', () => {
           transaction,
         }),
       ).rejects.toThrow('Missing Money Account address');
+    });
+
+    describe('CHOMP idempotency', () => {
+      const CHOMP_FROM_BLOCK = '0x100' as Hex;
+      const CHOMP_HASH =
+        '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef' as Hex;
+      const findRecentChompVaultDepositMock = jest.mocked(
+        findRecentChompVaultDeposit,
+      );
+
+      function makeCallMock(): jest.Mock {
+        return jest.fn((action: string) => {
+          if (action === 'TransactionPayController:getAmountData') {
+            return Promise.resolve({
+              updates: [
+                { data: '0xnewApprove', nestedTransactionIndex: 0 },
+                { data: '0xnewDeposit', nestedTransactionIndex: 1 },
+              ],
+            });
+          }
+
+          if (action === 'TransactionController:addTransactionBatch') {
+            return Promise.resolve({ batchId: 'batch-id' });
+          }
+
+          throw new Error(`Unexpected action: ${action}`);
+        });
+      }
+
+      it('skips addTransactionBatch and returns the CHOMP hash when pre-check finds a match', async () => {
+        findRecentChompVaultDepositMock.mockResolvedValue(CHOMP_HASH);
+
+        const callMock = makeCallMock();
+
+        const result = await submitDirectMusdVaultDeposit({
+          fromBlock: CHOMP_FROM_BLOCK,
+          request: getExecuteRequest({ callMock }),
+          sourceAmountRaw: '5000000',
+          transaction: TRANSACTION_MOCK,
+        });
+
+        expect(result).toStrictEqual({ transactionHash: CHOMP_HASH });
+        expect(callMock).not.toHaveBeenCalledWith(
+          'TransactionController:addTransactionBatch',
+          expect.anything(),
+        );
+        expect(collectTransactionIdsMock).not.toHaveBeenCalled();
+      });
+
+      it('detects CHOMP in the catch path and returns the CHOMP hash', async () => {
+        // Pre-check misses, addTransactionBatch fails, post-check hits.
+        findRecentChompVaultDepositMock
+          .mockResolvedValueOnce(undefined) // pre-check
+          .mockResolvedValueOnce(CHOMP_HASH); // post-check
+
+        const callMock = jest.fn((action: string) => {
+          if (action === 'TransactionPayController:getAmountData') {
+            return Promise.resolve({
+              updates: [{ data: '0xnewApprove', nestedTransactionIndex: 0 }],
+            });
+          }
+
+          if (action === 'TransactionController:addTransactionBatch') {
+            throw new Error('Account does not support EIP-7702');
+          }
+
+          throw new Error(`Unexpected action: ${action}`);
+        });
+
+        const result = await submitDirectMusdVaultDeposit({
+          fromBlock: CHOMP_FROM_BLOCK,
+          request: getExecuteRequest({ callMock }),
+          sourceAmountRaw: '5000000',
+          transaction: TRANSACTION_MOCK,
+        });
+
+        expect(result).toStrictEqual({ transactionHash: CHOMP_HASH });
+        expect(findRecentChompVaultDepositMock).toHaveBeenCalledTimes(2);
+      });
+
+      it('preserves the Vault-prefixed error when no CHOMP match is found in the catch path', async () => {
+        findRecentChompVaultDepositMock.mockResolvedValue(undefined);
+
+        const callMock = jest.fn((action: string) => {
+          if (action === 'TransactionPayController:getAmountData') {
+            return Promise.resolve({
+              updates: [{ data: '0xnewApprove', nestedTransactionIndex: 0 }],
+            });
+          }
+
+          if (action === 'TransactionController:addTransactionBatch') {
+            throw new Error('batch failed');
+          }
+
+          throw new Error(`Unexpected action: ${action}`);
+        });
+
+        await expect(
+          submitDirectMusdVaultDeposit({
+            fromBlock: CHOMP_FROM_BLOCK,
+            request: getExecuteRequest({ callMock }),
+            sourceAmountRaw: '5000000',
+            transaction: TRANSACTION_MOCK,
+          }),
+        ).rejects.toThrow('Vault: batch failed');
+      });
+
+      it('proceeds with vault submit when pre-check throws', async () => {
+        findRecentChompVaultDepositMock
+          .mockRejectedValueOnce(new Error('network error')) // pre-check fails
+          .mockResolvedValueOnce(undefined); // post-check (not invoked in success path)
+
+        const callMock = makeCallMock();
+
+        const result = await submitDirectMusdVaultDeposit({
+          fromBlock: CHOMP_FROM_BLOCK,
+          request: getExecuteRequest({ callMock }),
+          sourceAmountRaw: '5000000',
+          transaction: TRANSACTION_MOCK,
+        });
+
+        // Normal path completes and returns the confirmed vault tx hash.
+        expect(result).toStrictEqual({ transactionHash: '0xdirect' });
+        expect(callMock).toHaveBeenCalledWith(
+          'TransactionController:addTransactionBatch',
+          expect.anything(),
+        );
+      });
+
+      it('re-throws the Vault-prefixed error when both addTransactionBatch and CHOMP post-check fail', async () => {
+        // Pre-check misses, addTransactionBatch fails, post-check also throws.
+        findRecentChompVaultDepositMock
+          .mockResolvedValueOnce(undefined) // pre-check
+          .mockRejectedValueOnce(new Error('rpc error')); // post-check throws
+
+        const callMock = jest.fn((action: string) => {
+          if (action === 'TransactionPayController:getAmountData') {
+            return Promise.resolve({
+              updates: [{ data: '0xnewApprove', nestedTransactionIndex: 0 }],
+            });
+          }
+
+          if (action === 'TransactionController:addTransactionBatch') {
+            throw new Error('Account does not support EIP-7702');
+          }
+
+          throw new Error(`Unexpected action: ${action}`);
+        });
+
+        await expect(
+          submitDirectMusdVaultDeposit({
+            fromBlock: CHOMP_FROM_BLOCK,
+            request: getExecuteRequest({ callMock }),
+            sourceAmountRaw: '5000000',
+            transaction: TRANSACTION_MOCK,
+          }),
+        ).rejects.toThrow('Vault: Account does not support EIP-7702');
+
+        expect(findRecentChompVaultDepositMock).toHaveBeenCalledTimes(2);
+      });
+
+      it('skips CHOMP checks when fromBlock is not provided', async () => {
+        const callMock = makeCallMock();
+
+        const result = await submitDirectMusdVaultDeposit({
+          request: getExecuteRequest({ callMock }),
+          sourceAmountRaw: '5000000',
+          transaction: TRANSACTION_MOCK,
+        });
+
+        expect(result).toStrictEqual({ transactionHash: '0xdirect' });
+        expect(findRecentChompVaultDepositMock).not.toHaveBeenCalled();
+      });
     });
   });
 });

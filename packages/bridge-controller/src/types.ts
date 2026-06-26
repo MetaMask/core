@@ -44,6 +44,7 @@ import type {
   StepSchema,
   TokenFeatureSchema,
   QuoteStreamCompleteSchema,
+  StellarTradeDataSchema,
   TronTradeDataSchema,
   TxDataSchema,
   BatchSellTradesResponseSchema,
@@ -265,6 +266,7 @@ export enum FeatureId {
   PERPS = 'perps',
   QUICK_BUY_FOLLOW_TRADING = 'quick_buy_follow_trading',
   QUICK_BUY_TOKEN_DETAILS = 'quick_buy_token_details',
+  QUICK_BUY_EXPLORE = 'quick_buy_explore',
   DAPP_SWAP = 'dapp_swap',
   BATCH_SELL = 'batch_sell',
   UNIFIED_SWAP_BRIDGE = 'unified_swap_bridge',
@@ -298,13 +300,20 @@ export type IntentOrderLike = Intent['order'];
 export type BitcoinTradeData = Infer<typeof BitcoinTradeDataSchema>;
 
 export type TronTradeData = Infer<typeof TronTradeDataSchema>;
+
+export type StellarTradeData = Infer<typeof StellarTradeDataSchema>;
 /**
  * This is the type for the quote response from the bridge-api
  * TxDataType can be overriden to be a string when the quote is non-evm
  * ApprovalType can be overriden when you know the specific approval type (e.g., TxData for EVM-only contexts)
  */
 export type QuoteResponseV1<
-  TxDataType = TxData | string | BitcoinTradeData | TronTradeData,
+  TxDataType =
+    | TxData
+    | string
+    | BitcoinTradeData
+    | TronTradeData
+    | StellarTradeData,
   ApprovalType = TxData | TronTradeData,
 > = Infer<typeof QuoteResponseSchema> & {
   trade: TxDataType;
@@ -366,6 +375,8 @@ export enum ChainId {
   LINEA = 59144,
   SOLANA = 1151111081099710,
   BTC = 20000000000001,
+  /** Internal bridge / token-list id for Stellar pubnet (Token API chain: stellar:pubnet). */
+  STELLAR = 20000000000002,
   TRON = 728126428,
   SEI = 1329,
   MONAD = 143,

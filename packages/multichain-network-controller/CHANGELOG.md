@@ -7,9 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0]
+
 ### Added
 
 - Add Stellar pubnet (`stellar:pubnet`) and Stellar testnet (`stellar:testnet`) to multichain network configurations (`AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS`), native asset CAIP-19 constants, metadata, tickers, decimal places, and `SupportedCaipChainId`; register testnet in `NON_EVM_TESTNET_IDS` ([#8831](https://github.com/MetaMask/core/pull/8831))
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
+- Bump `@metamask/keyring-api` from `^23.1.0` to `^23.3.0` ([#9249](https://github.com/MetaMask/core/pull/9249))
 
 ## [3.1.4]
 
@@ -301,7 +308,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Handle both EVM and non-EVM network and account switching for the associated network.
   - Act as a proxy for the `NetworkController` (for EVM network changes).
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.1.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.2.0...HEAD
+[3.2.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.1.4...@metamask/multichain-network-controller@3.2.0
 [3.1.4]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.1.3...@metamask/multichain-network-controller@3.1.4
 [3.1.3]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.1.2...@metamask/multichain-network-controller@3.1.3
 [3.1.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-network-controller@3.1.1...@metamask/multichain-network-controller@3.1.2

@@ -27,6 +27,7 @@ import {
   updateTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
+import { findRecentChompVaultDeposit } from './chomp';
 import { MUSD_MONAD_FIAT_ASSET } from './constants';
 import type { FiatQuote } from './types';
 import {
@@ -149,14 +150,16 @@ export async function submitDirectMusdAfterFiatCompletion({
       transactionId: transaction.id,
     });
 
-    const sourceAmountRaw = await resolveSourceAmountRaw({
-      messenger,
-      order,
-      fiatAsset: MUSD_MONAD_FIAT_ASSET,
-      walletAddress: transaction.txParams.from as Hex,
-    });
+    const { amountRaw: sourceAmountRaw, fromBlock } =
+      await resolveSourceAmountRaw({
+        messenger,
+        order,
+        fiatAsset: MUSD_MONAD_FIAT_ASSET,
+        walletAddress: transaction.txParams.from as Hex,
+      });
 
     return await submitDirectMusdVaultDeposit({
+      fromBlock,
       request,
       sourceAmountRaw,
       transaction,
@@ -170,16 +173,22 @@ export async function submitDirectMusdAfterFiatCompletion({
  * Submits the direct mUSD Money Account vault batch after fiat settlement.
  *
  * @param options - Submit options.
+ * @param options.fromBlock - Optional Monad block baseline for CHOMP
+ *   idempotency scanning; sourced from the ramps settlement tx receipt via
+ *   {@link resolveSourceAmountRaw}. When omitted the CHOMP checks are skipped.
  * @param options.request - Strategy execute request.
  * @param options.sourceAmountRaw - Settled source amount in raw mUSD units.
  * @param options.transaction - Original Money Account transaction.
- * @returns Hash of the final submitted child transaction, if available.
+ * @returns Hash of the final submitted child transaction (or the CHOMP deposit
+ *   hash), if available.
  */
 export async function submitDirectMusdVaultDeposit({
+  fromBlock,
   request,
   sourceAmountRaw,
   transaction,
 }: {
+  fromBlock?: Hex;
   request: PayStrategyExecuteRequest<FiatQuote>;
   sourceAmountRaw: string;
   transaction: PayStrategyExecuteRequest<FiatQuote>['transaction'];
@@ -251,6 +260,20 @@ export async function submitDirectMusdVaultDeposit({
     },
   );
 
+  // CHOMP pre-check: skip addTransactionBatch entirely if CHOMP has already
+  // auto-vaulted the funds during or before the checkout window.
+  const preChompHash = await tryFindChompDeposit({
+    fromBlock,
+    messenger,
+    moneyAccountAddress,
+    sourceAmountRaw,
+    transactionId,
+  });
+
+  if (preChompHash) {
+    return { transactionHash: preChompHash };
+  }
+
   const networkClientId = getNetworkClientId(
     messenger,
     MUSD_MONAD_FIAT_ASSET.chainId,
@@ -286,12 +309,16 @@ export async function submitDirectMusdVaultDeposit({
 
   try {
     await messenger.call('TransactionController:addTransactionBatch', {
+      disableHook: true,
+      disableSequential: true,
+      disableUpgrade: true,
       from: moneyAccountAddress,
       isGasFeeSponsored: true,
       isInternal: true,
       networkClientId,
       origin: ORIGIN_METAMASK,
       requireApproval: false,
+      skipInitialGasEstimate: true,
       transactions: nestedTransactions.map((nestedTransaction, index) => ({
         params: {
           data: nestedTransaction.data,
@@ -305,10 +332,24 @@ export async function submitDirectMusdVaultDeposit({
       })),
     });
   } catch (error) {
-    throw prefixError(error, VAULT_ERROR_PREFIX);
-  }
+    // CHOMP post-check: CHOMP may have won the race between pre-check and
+    // submit. Return the CHOMP hash instead of surfacing a Vault-prefixed error.
+    const postChompHash = await tryFindChompDeposit({
+      fromBlock,
+      messenger,
+      moneyAccountAddress,
+      sourceAmountRaw,
+      transactionId,
+    });
 
-  end();
+    if (postChompHash) {
+      return { transactionHash: postChompHash };
+    }
+
+    throw prefixError(error, VAULT_ERROR_PREFIX);
+  } finally {
+    end();
+  }
 
   log('Submitted direct mUSD vault deposit', {
     moneyAccountAddress,
@@ -422,4 +463,34 @@ function getRampsProviderFee(fiatQuote: RampsQuote): BigNumber {
   return new BigNumber(fiatQuote.quote.providerFee ?? 0).plus(
     fiatQuote.quote.networkFee ?? 0,
   );
+}
+
+async function tryFindChompDeposit({
+  fromBlock,
+  messenger,
+  moneyAccountAddress,
+  sourceAmountRaw,
+  transactionId,
+}: {
+  fromBlock: Hex | undefined;
+  messenger: PayStrategyExecuteRequest<FiatQuote>['messenger'];
+  moneyAccountAddress: Hex;
+  sourceAmountRaw: string;
+  transactionId: string;
+}): Promise<Hex | undefined> {
+  if (!fromBlock) {
+    return undefined;
+  }
+
+  try {
+    return await findRecentChompVaultDeposit({
+      fromBlock,
+      messenger,
+      moneyAccountAddress,
+      sourceAmountRaw,
+    });
+  } catch (chompError) {
+    log('CHOMP check failed', { chompError, transactionId });
+    return undefined;
+  }
 }

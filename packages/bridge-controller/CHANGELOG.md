@@ -7,11 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/multichain-network-controller` from `^3.1.4` to `^3.2.0` ([#9264](https://github.com/MetaMask/core/pull/9264))
+
+## [77.0.0]
+
+### Added
+
+- Added `getLocation()` method to `BridgeController` for reading the current swap/bridge entry point ([#9243](https://github.com/MetaMask/core/pull/9243))
+- Added `Unknown` value to `MetaMetricsSwapsEventSource` enum for unattributed swap and bridge flows ([#9243](https://github.com/MetaMask/core/pull/9243))
+- Added `ActivityTabEmptyState`, `TransactionShield`, `TransactionDetails`, and `DeepLink` values to `MetaMetricsSwapsEventSource` enum for attributing swap and bridge flows to additional entry points ([#9241](https://github.com/MetaMask/core/pull/9241))
+
+### Changed
+
+- **BREAKING:** Default `location` fallback for Unified SwapBridge events now uses `Unknown` instead of `Main View` when no entry point is set ([#9243](https://github.com/MetaMask/core/pull/9243))
+- Bump `@metamask/assets-controller` from `^9.0.2` to `^9.1.0` ([#9244](https://github.com/MetaMask/core/pull/9244))
+- Bump `@metamask/keyring-api` from `^23.1.0` to `^23.3.0` ([#9249](https://github.com/MetaMask/core/pull/9249))
+- Bump `@metamask/transaction-controller` from `^68.1.1` to `^68.2.0` ([#9253](https://github.com/MetaMask/core/pull/9253))
+
+## [76.1.0]
+
+### Added
+
+- Add `quick_buy_explore` to the `FeatureId` enum ([#9222](https://github.com/MetaMask/core/pull/9222))
+
+### Changed
+
+- Bump `@metamask/assets-controllers` from `^109.2.1` to `^109.2.2` ([#9231](https://github.com/MetaMask/core/pull/9231))
+- Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
+
 ## [76.0.0]
 
 ### Added
 
 - **BREAKING**: Add persisted input primary denomination state and `Unified SwapBridge Fiat Crypto Toggle Clicked` analytics event support ([#9147](https://github.com/MetaMask/core/pull/9147))
+- Add Stellar support for bridge token flows: `isStellarChainId`, `ChainId.STELLAR`, native XLM metadata, CAIP/decimal formatting aligned with Bridge API, and Stellar pubnet/testnet in `isNonEvmChainId` ([#8829](https://github.com/MetaMask/core/pull/8829))
+- Add `StellarTradeDataSchema`, `StellarTradeData`, and `isStellarTrade`; extend `extractTradeData` to read Stellar XDR from `{ xdrBase64 }` or `{ xdr }` objects ([#8829](https://github.com/MetaMask/core/pull/8829))
 
 ## [75.2.1]
 
@@ -1639,7 +1671,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@76.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.0.0...HEAD
+[77.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@76.1.0...@metamask/bridge-controller@77.0.0
+[76.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@76.0.0...@metamask/bridge-controller@76.1.0
 [76.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@75.2.1...@metamask/bridge-controller@76.0.0
 [75.2.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@75.2.0...@metamask/bridge-controller@75.2.1
 [75.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@75.1.1...@metamask/bridge-controller@75.2.0

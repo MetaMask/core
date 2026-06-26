@@ -7,15 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^68.1.1` to `^68.2.0` ([#9253](https://github.com/MetaMask/core/pull/9253))
+
+### Fixed
+
+- Fix stale token balances after transactions when switching accounts or when websocket subscriptions reconnect; `AssetsController` now fetches before re-subscribing on account switch, serializes overlapping refresh work, treats `getAssets({ forceUpdate: true })` as authoritative over recent websocket freshness guards, and prevents passive polling from overwriting websocket balances for 120 seconds ([#9265](https://github.com/MetaMask/core/pull/9265))
+- `AccountsApiDataSource` bypasses the TanStack Query balance cache when `forceUpdate` is true so forced refreshes return up-to-date balances instead of 60-second cached values ([#9265](https://github.com/MetaMask/core/pull/9265))
+- `BackendWebsocketDataSource` re-subscribes when subscribed accounts change (case-insensitive EVM address matching), serializes subscribe/unsubscribe to prevent races on account switch, and registers optional channel callbacks for more reliable notification delivery ([#9265](https://github.com/MetaMask/core/pull/9265))
+
+## [9.1.0]
+
 ### Added
 
+- Add `calculateBalanceForAllWallets` and `calculateBalanceChangeForAccountGroup` selectors for computing wallet- and group-level balances from the unified `AssetsController` state ([#9230](https://github.com/MetaMask/core/pull/9230))
 - Add `priceFreshnessTtlMs` option to `PriceDataSourceConfig` controlling how long a fetched price is considered fresh before it is re-fetched (defaults to the poll interval, 60 000 ms) ([#9189](https://github.com/MetaMask/core/pull/9189))
 - Add `PriceDataSource.invalidatePriceCache()` to force the next fetch to bypass the freshness cache; `AssetsController` now calls it when the selected currency changes so cached prices in the previous currency are refreshed ([#9189](https://github.com/MetaMask/core/pull/9189))
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.5.2` to `^7.5.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
+- Bump `@metamask/assets-controllers` from `^109.2.1` to `^109.2.2` ([#9231](https://github.com/MetaMask/core/pull/9231))
+- Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
+- Bump `@metamask/keyring-api` from `^23.1.0` to `^23.3.0` ([#9249](https://github.com/MetaMask/core/pull/9249))
 
 ### Fixed
 
 - Deduplicate price fetches in `PriceDataSource` so overlapping triggers (enrichment middleware, subscription polls, and manual refreshes) no longer issue duplicate price API requests for the same asset; assets fetched within the freshness TTL are skipped and concurrent in-flight fetches are joined ([#9189](https://github.com/MetaMask/core/pull/9189))
 - Remove a redundant one-time balance fetch in `AssetsController` when the enabled network list changes, since subscription refresh and the enabled-networks handler already cover those fetches ([#9189](https://github.com/MetaMask/core/pull/9189))
+- `DetectionMiddleware` no longer triggers redundant metadata and price fetches for assets already present in `assetsBalance` or `assetsInfo` state ([#9215](https://github.com/MetaMask/core/pull/9215))
+- `AccountsApiDataSource` and `SnapDataSource` now use `merge` update mode instead of `full`, preventing assets on custom or partially-supported networks from being incorrectly wiped on each poll ([#9215](https://github.com/MetaMask/core/pull/9215))
 
 ## [9.0.2]
 
@@ -640,7 +662,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@9.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@9.1.0...HEAD
+[9.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@9.0.2...@metamask/assets-controller@9.1.0
 [9.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@9.0.1...@metamask/assets-controller@9.0.2
 [9.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@9.0.0...@metamask/assets-controller@9.0.1
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@8.3.3...@metamask/assets-controller@9.0.0

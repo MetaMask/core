@@ -699,7 +699,6 @@ describe('RampsController', () => {
           | {
               provider?: string | string[];
               crypto?: string | string[];
-              fiat?: string | string[];
               payments?: string | string[];
             }
           | undefined;
@@ -710,7 +709,6 @@ describe('RampsController', () => {
             options?: {
               provider?: string | string[];
               crypto?: string | string[];
-              fiat?: string | string[];
               payments?: string | string[];
             },
           ) => {
@@ -722,14 +720,12 @@ describe('RampsController', () => {
         await rootMessenger.call('RampsController:getProviders', 'us-ca', {
           provider: 'paypal',
           crypto: 'ETH',
-          fiat: 'USD',
           payments: 'card',
         });
 
         expect(receivedOptions).toStrictEqual({
           provider: 'paypal',
           crypto: 'ETH',
-          fiat: 'USD',
           payments: 'card',
         });
       });
@@ -4468,7 +4464,6 @@ describe('RampsController', () => {
             'RampsService:getPaymentMethods',
             async (options: {
               region: string;
-              fiat: string;
               assetId: string;
               provider: string;
             }) => {
@@ -4487,37 +4482,49 @@ describe('RampsController', () => {
       );
     });
 
-    it('throws error when fiat is not provided and userRegion has no currency', async () => {
-      const regionWithoutCurrency: UserRegion = {
-        country: {
-          isoCode: 'US',
-          name: 'United States',
-          flag: '🇺🇸',
-          currency: undefined as unknown as string,
-          phone: { prefix: '+1', placeholder: '', template: '' },
-          supported: { buy: true, sell: true },
-        },
-        state: null,
-        regionCode: 'us-ca',
-      };
-
+    it('does not pass fiat to the service', async () => {
       await withController(
         {
           options: {
             state: {
-              userRegion: regionWithoutCurrency,
+              userRegion: createMockUserRegion('us-ca'),
             },
           },
         },
         async ({ rootMessenger }) => {
-          await expect(
-            rootMessenger.call('RampsController:getPaymentMethods', 'us-ca', {
+          let receivedOptions:
+            | {
+                region: string;
+                assetId: string;
+                provider: string;
+              }
+            | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async (options: {
+              region: string;
+              assetId: string;
+              provider: string;
+            }) => {
+              receivedOptions = options;
+              return { payments: [] };
+            },
+          );
+
+          await rootMessenger.call(
+            'RampsController:getPaymentMethods',
+            'us-ca',
+            {
               assetId: 'eip155:1/slip44:60',
               provider: '/providers/stripe',
-            }),
-          ).rejects.toThrow(
-            'Fiat currency is required. Either provide a fiat parameter or ensure userRegion is set in controller state.',
+            },
           );
+
+          expect(receivedOptions).toStrictEqual({
+            region: 'us-ca',
+            assetId: 'eip155:1/slip44:60',
+            provider: '/providers/stripe',
+          });
         },
       );
     });
@@ -4548,7 +4555,6 @@ describe('RampsController', () => {
             'RampsService:getPaymentMethods',
             async (options: {
               region: string;
-              fiat: string;
               assetId: string;
               provider: string;
             }) => {
@@ -4601,7 +4607,6 @@ describe('RampsController', () => {
             'RampsService:getPaymentMethods',
             async (options: {
               region: string;
-              fiat: string;
               assetId: string;
               provider: string;
             }) => {
@@ -4638,7 +4643,6 @@ describe('RampsController', () => {
             'RampsService:getPaymentMethods',
             async (options: {
               region: string;
-              fiat: string;
               assetId: string;
               provider: string;
             }) => {
@@ -4736,7 +4740,6 @@ describe('RampsController', () => {
             'RampsService:getPaymentMethods',
             async (options: {
               region: string;
-              fiat: string;
               assetId: string;
               provider: string;
             }) => {
