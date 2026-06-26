@@ -1095,6 +1095,16 @@ export class AssetsController extends BaseController<
       },
     );
 
+    // Post-tx refresh via the full fetch pipeline (Accounts API + RPC fallback).
+    // RpcDataSource also listens for transactionConfirmed, but only refreshes
+    // chains it owns via an active subscription.
+    this.messenger.subscribe(
+      'TransactionController:transactionConfirmed',
+      (transactionMeta: TransactionMeta) => {
+        this.#onTransactionConfirmed(transactionMeta);
+      },
+    );
+
     // Real-time post-tx balances from AccountActivityService (same WS payload as
     // TokenBalancesController; BackendWebsocketDataSource may not receive the
     // callback when AccountActivityService owns the server subscription).
@@ -1132,6 +1142,33 @@ export class AssetsController extends BaseController<
       log('Failed to refresh assets after unapproved transaction added', {
         error,
       });
+    });
+  }
+
+  #onTransactionConfirmed(transactionMeta: TransactionMeta): void {
+    const hexChainId = transactionMeta.chainId;
+    if (!hexChainId) {
+      return;
+    }
+
+    const caipChainId = `eip155:${parseInt(hexChainId, 16)}` as ChainId;
+    const fromAddress = transactionMeta.txParams.from?.toLowerCase();
+    if (!fromAddress) {
+      return;
+    }
+
+    const matchedAccount = this.#getSelectedAccounts().find(
+      (account) => account.address.toLowerCase() === fromAddress,
+    );
+    if (!matchedAccount) {
+      return;
+    }
+
+    this.getAssets([matchedAccount], {
+      chainIds: [caipChainId],
+      forceUpdate: true,
+    }).catch((error) => {
+      log('Failed to refresh assets after transaction confirmed', { error });
     });
   }
 

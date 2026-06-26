@@ -2061,6 +2061,31 @@ describe('AssetsController', () => {
   });
 
   describe('events', () => {
+    it('force refreshes assets when transaction is confirmed', async () => {
+      await withController(async ({ controller, messenger }) => {
+        const getAssetsSpy = jest
+          .spyOn(controller, 'getAssets')
+          .mockResolvedValue({});
+
+        messenger.publish('TransactionController:transactionConfirmed', {
+          chainId: '0xa4b1',
+          txParams: { from: '0x1234567890123456789012345678901234567890' },
+        });
+
+        await flushPromises();
+
+        expect(getAssetsSpy).toHaveBeenCalledWith(
+          [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+          {
+            chainIds: ['eip155:42161'],
+            forceUpdate: true,
+          },
+        );
+
+        getAssetsSpy.mockRestore();
+      });
+    });
+
     it('publishes balanceChanged event when balance updates', async () => {
       await withController(async ({ controller, messenger }) => {
         const balanceChangedHandler = jest.fn();
