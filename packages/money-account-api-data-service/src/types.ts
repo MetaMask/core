@@ -1,12 +1,7 @@
 /**
  * Valid time-window values for the interest endpoint.
  */
-export type InterestWindow =
-  | '24h'
-  | '7d'
-  | '30d'
-  | 'ytd'
-  | 'since_inception';
+export type InterestWindow = '24h' | '7d' | '30d' | 'ytd' | 'since_inception';
 
 /**
  * Options for the `fetchInterest` method.

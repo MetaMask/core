@@ -140,9 +140,7 @@ function createServiceMessenger(
 // Factory
 // ============================================================
 
-function createService(
-  env: Env = Env.DEV,
-): {
+function createService(env: Env = Env.DEV): {
   service: MoneyAccountApiDataService;
   rootMessenger: RootMessenger;
   messenger: MoneyAccountApiDataServiceMessenger;
@@ -590,9 +588,7 @@ describe('MoneyAccountApiDataService', () => {
     it('is callable via messenger action', async () => {
       const { rootMessenger, service } = createService(Env.DEV);
 
-      await rootMessenger.call(
-        'MoneyAccountApiDataService:invalidateQueries',
-      );
+      await rootMessenger.call('MoneyAccountApiDataService:invalidateQueries');
       service.destroy();
     });
   });

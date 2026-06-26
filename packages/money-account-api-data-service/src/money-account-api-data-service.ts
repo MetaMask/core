@@ -163,8 +163,7 @@ export class MoneyAccountApiDataService extends BaseDataService<
       queryClientConfig,
       policyOptions: {
         retryFilterPolicy: handleWhen(
-          (error) =>
-            !(error instanceof MoneyAccountApiResponseValidationError),
+          (error) => !(error instanceof MoneyAccountApiResponseValidationError),
         ),
         ...policyOptions,
       },
