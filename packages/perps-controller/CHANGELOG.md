@@ -13,17 +13,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New `PERPS_EVENT_PROPERTY` keys: `CHART_LIBRARY`, `ASSET_TYPE`
   - New `PERPS_EVENT_VALUE.CHART_LIBRARY` group: `lightweight`, `advanced`
   - New `PERPS_EVENT_VALUE.ASSET_TYPE` group: `spot`, `perp`
-- Add `fast?: boolean` to `SubscribeOrderBookParams` (TAT-3333): when set to `true`, the order book subscription uses Hyperliquid's fast l2Book mode (5 levels @ ~0.5 s cadence) instead of the default (20 levels @ ~2 s)
+- Add `fast?: boolean` to `SubscribeOrderBookParams` ([#9160](https://github.com/MetaMask/core/pull/9160)): when set to `true`, the order book subscription uses Hyperliquid's fast l2Book mode (5 levels @ ~0.5 s cadence) instead of the default (20 levels @ ~2 s)
   - No change to `#processOrderBookData` or cumulative-total math; callers opting into `fast: true` receive up to 5 levels per side instead of 20.
 
 ### Changed
 
-- On `subscribeToPrices` calls with `includeMarketData: true` (focused detail/ticket screens), the `price` field in each `PriceUpdate` is now driven by the per-symbol `activeAssetCtx` WebSocket stream (`midPx`, falling back to `markPx`) rather than the main-DEX `allMids` snapshot, which Hyperliquid throttles to a ~2 s push cadence
+- On `subscribeToPrices` calls with `includeMarketData: true` (focused detail/ticket screens), the `price` field in each `PriceUpdate` is now driven by the per-symbol `activeAssetCtx` WebSocket stream (`midPx`, falling back to `markPx`) rather than the main-DEX `allMids` snapshot, which Hyperliquid throttles to a ~5 s push cadence ([#9160](https://github.com/MetaMask/core/pull/9160))
   - Price source selection is **per-subscriber**: focused (`includeMarketData: true`) callbacks receive the fast-stream price; list/overview (`includeMarketData: false`) callbacks always receive the raw `allMids` baseline, even when both subscriber types share the same symbol.
   - The fast-stream price is preferred only while it is fresh (within a 10 s staleness window); `allMids` takes back over automatically once the `activeAssetCtx` stream goes quiet.
   - A startup guard prevents any `'0'` price from being emitted: if `activeAssetCtx` fires before `allMids` with no `midPx`/`markPx`, no notification is sent until a usable price arrives from either source.
   - No new WebSocket subscriptions are created; `activeAssetCtx` was already established for `includeMarketData: true` subscriptions.
-- Bump `@nktkas/hyperliquid` from `^0.32.2` to `^0.33.1` (TAT-3333): adds support for the `fast` field on `l2Book` subscriptions
+- Bump `@nktkas/hyperliquid` from `^0.32.2` to `^0.33.1` ([#9160](https://github.com/MetaMask/core/pull/9160)): adds support for the `fast` field on `l2Book` subscriptions
 
 ## [9.0.0]
 
@@ -81,10 +81,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
-- On `subscribeToPrices` calls with `includeMarketData: true` (i.e. focused single-symbol screens), the `price` field in each `PriceUpdate` is now driven by the per-symbol `activeAssetCtx` WebSocket stream (`midPx`, falling back to `markPx`) rather than the main-DEX `allMids` snapshot, which Hyperliquid throttles to a ~5 s push cadence ([#TODO](https://github.com/MetaMask/core/pull/TODO))
-  - The fast-stream price is preferred only while it is fresh (within a 10 s staleness window); `allMids` remains the fallback if the `activeAssetCtx` stream goes silent.
-  - Subscriptions with `includeMarketData: false` (list/overview screens) are unaffected and continue to use `allMids` exclusively.
-  - No new WebSocket subscriptions are created; `activeAssetCtx` was already established for `includeMarketData: true` subscriptions.
 
 ## [8.1.0]
 
