@@ -25,6 +25,10 @@ import type {
 // ============================================================================
 const TRACE_AGGREGATED_BALANCE_SELECTOR = 'AggregatedBalanceSelector';
 
+const MERGE_BALANCES_IGNORE_LIST = [
+  'eip155:5042/erc20:0x3600000000000000000000000000000000000000',
+];
+
 export type EnabledNetworkMap =
   | Record<string, Record<string, boolean>>
   | undefined;
@@ -218,7 +222,10 @@ function mergeBalancesIntoMap(args: {
     }
     const typedAssetId = assetId as Caip19AssetId;
 
-    if (assetPreferences?.[typedAssetId]?.hidden) {
+    if (
+      assetPreferences?.[typedAssetId]?.hidden ||
+      MERGE_BALANCES_IGNORE_LIST.includes(typedAssetId)
+    ) {
       continue;
     }
 

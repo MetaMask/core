@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `MERGE_BALANCES_IGNORE_LIST` is `balances.ts` selectors with Arc ERC20 USDC to ignore in balance total ([#9277](https://github.com/MetaMask/core/pull/9277))
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^68.1.1` to `^68.2.0` ([#9253](https://github.com/MetaMask/core/pull/9253))
