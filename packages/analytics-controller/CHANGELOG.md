@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Preserve the pre-consent event queue when calling `resetConsentDecision`, matching extension behavior for undecided consent resets during onboarding restarts
+- Preserve the pre-consent event queue when calling `resetConsentDecision`, matching extension behavior for undecided consent resets during onboarding restarts ([#9284](https://github.com/MetaMask/core/pull/9284))
 
 ## [1.2.0]
 
