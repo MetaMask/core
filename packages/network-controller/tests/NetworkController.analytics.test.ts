@@ -1,12 +1,9 @@
 import type { Hex } from '@metamask/utils';
 
-import {
-  buildNetworkControllerMessenger,
-  buildRootMessenger,
-} from './helpers';
-import type { RootMessenger } from './helpers';
 import { NetworkController } from '../src';
 import type { NetworkControllerAnalyticsOptions } from '../src';
+import { buildNetworkControllerMessenger, buildRootMessenger } from './helpers';
+import type { RootMessenger } from './helpers';
 
 const PUBLIC_ENDPOINT_URL = 'https://mainnet.infura.io/v3/the-key';
 
@@ -54,7 +51,9 @@ function buildController({
 }): {
   controller: NetworkController;
   rootMessenger: RootMessenger;
-  networkControllerMessenger: ReturnType<typeof buildNetworkControllerMessenger>;
+  networkControllerMessenger: ReturnType<
+    typeof buildNetworkControllerMessenger
+  >;
 } {
   const networkControllerMessenger =
     buildNetworkControllerMessenger(rootMessenger);
@@ -81,11 +80,10 @@ describe('NetworkController analytics', () => {
     expect(callSpy).toHaveBeenCalledWith('AnalyticsController:trackEvent', {
       name: 'RPC Service Unavailable',
       properties: {
-         
         chain_id_caip: 'eip155:1',
-         
+
         rpc_domain: 'mainnet.infura.io',
-         
+
         rpc_endpoint_url: 'mainnet.infura.io',
       },
       sensitiveProperties: {},
@@ -108,22 +106,21 @@ describe('NetworkController analytics', () => {
     expect(callSpy).toHaveBeenCalledWith('AnalyticsController:trackEvent', {
       name: 'RPC Service Degraded',
       properties: {
-         
         chain_id_caip: 'eip155:1',
-         
+
         rpc_domain: 'mainnet.infura.io',
-         
+
         rpc_endpoint_url: 'mainnet.infura.io',
-         
+
         rpc_method_name: 'eth_blockNumber',
         type: 'retries_exhausted',
-         
+
         retry_reason: 'connection-error',
-         
+
         duration_ms: 1234,
-         
+
         trace_id: 'trace-1',
-         
+
         http_status: 503,
       },
       sensitiveProperties: {},
@@ -190,7 +187,10 @@ describe('NetworkController analytics', () => {
 
   it('does not emit when the event falls outside the sample', () => {
     const { networkControllerMessenger } = buildController({
-      analytics: { isRpcEndpointUrlPublic: () => true, rpcServiceEventsSampleRate: 0 },
+      analytics: {
+        isRpcEndpointUrlPublic: () => true,
+        rpcServiceEventsSampleRate: 0,
+      },
     });
     const callSpy = jest.spyOn(networkControllerMessenger, 'call');
 

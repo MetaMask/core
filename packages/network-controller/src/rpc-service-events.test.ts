@@ -34,11 +34,10 @@ describe('buildRpcServiceEventProperties', () => {
     });
 
     expect(properties).toStrictEqual({
-       
       chain_id_caip: 'eip155:1',
-       
+
       rpc_domain: 'mainnet.infura.io',
-       
+
       rpc_endpoint_url: 'mainnet.infura.io',
     });
   });
@@ -52,9 +51,8 @@ describe('buildRpcServiceEventProperties', () => {
     });
 
     expect(properties).toMatchObject({
-       
       rpc_domain: 'custom',
-       
+
       rpc_endpoint_url: 'custom',
     });
   });
@@ -67,7 +65,6 @@ describe('buildRpcServiceEventProperties', () => {
       isRpcEndpointUrlPublic,
     });
 
-     
     expect(properties).toMatchObject({ chain_id_caip: 'eip155:59144' });
   });
 
@@ -80,7 +77,6 @@ describe('buildRpcServiceEventProperties', () => {
         isRpcEndpointUrlPublic,
         rpcMethodName: 'eth_blockNumber',
       }),
-       
     ).toMatchObject({ rpc_method_name: 'eth_blockNumber' });
 
     expect(
@@ -123,7 +119,6 @@ describe('buildRpcServiceEventProperties', () => {
         isRpcEndpointUrlPublic,
         retryReason: 'connection-error',
       }),
-       
     ).toMatchObject({ retry_reason: 'connection-error' });
 
     expect(
@@ -145,7 +140,6 @@ describe('buildRpcServiceEventProperties', () => {
         isRpcEndpointUrlPublic,
         duration: 1234,
       }),
-       
     ).toMatchObject({ duration_ms: 1234 });
 
     expect(
@@ -167,7 +161,6 @@ describe('buildRpcServiceEventProperties', () => {
         isRpcEndpointUrlPublic,
         traceId: 'abc-123',
       }),
-       
     ).toMatchObject({ trace_id: 'abc-123' });
 
     expect(
@@ -188,7 +181,6 @@ describe('buildRpcServiceEventProperties', () => {
         error: { httpStatus: 503 },
         isRpcEndpointUrlPublic,
       }),
-       
     ).toMatchObject({ http_status: 503 });
   });
 
@@ -218,13 +210,12 @@ describe('buildRpcServiceEventProperties', () => {
 describe('toAnalyticsTrackingEvent', () => {
   it('wraps a name and properties into an analytics tracking event', () => {
     const event = toAnalyticsTrackingEvent('RPC Service Degraded', {
-       
       chain_id_caip: 'eip155:1',
     });
 
     expect(event).toStrictEqual({
       name: 'RPC Service Degraded',
-       
+
       properties: { chain_id_caip: 'eip155:1' },
       sensitiveProperties: {},
       saveDataRecording: false,
@@ -233,10 +224,10 @@ describe('toAnalyticsTrackingEvent', () => {
   });
 
   it('reports hasProperties as false when there are no properties', () => {
-    expect(toAnalyticsTrackingEvent('RPC Service Unavailable', {})).toMatchObject(
-      {
-        hasProperties: false,
-      },
-    );
+    expect(
+      toAnalyticsTrackingEvent('RPC Service Unavailable', {}),
+    ).toMatchObject({
+      hasProperties: false,
+    });
   });
 });

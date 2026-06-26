@@ -1,6 +1,11 @@
 import type { AnalyticsTrackingEvent } from '@metamask/analytics-controller';
 import type { Hex, Json } from '@metamask/utils';
-import { hasProperty, hexToNumber, isObject, isValidJson } from '@metamask/utils';
+import {
+  hasProperty,
+  hexToNumber,
+  isObject,
+  isValidJson,
+} from '@metamask/utils';
 
 import type { DegradedEventType, RetryReason } from './create-network-client';
 

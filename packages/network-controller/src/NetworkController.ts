@@ -1,12 +1,12 @@
 import type {
+  AnalyticsControllerGetStateAction,
+  AnalyticsControllerTrackEventAction,
+} from '@metamask/analytics-controller';
+import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import type {
-  AnalyticsControllerGetStateAction,
-  AnalyticsControllerTrackEventAction,
-} from '@metamask/analytics-controller';
 import type { ConnectivityControllerGetStateAction } from '@metamask/connectivity-controller';
 import type { Partialize } from '@metamask/controller-utils';
 import {
@@ -1404,11 +1404,15 @@ export class NetworkController extends BaseController<
       this.messenger.subscribe(
         `${this.name}:rpcEndpointUnavailable`,
         ({ chainId, endpointUrl, error }) => {
-          this.#trackRpcServiceEvent(analyticsOptions, 'RPC Service Unavailable', {
-            chainId,
-            endpointUrl,
-            error,
-          });
+          this.#trackRpcServiceEvent(
+            analyticsOptions,
+            'RPC Service Unavailable',
+            {
+              chainId,
+              endpointUrl,
+              error,
+            },
+          );
         },
       );
       this.messenger.subscribe(
