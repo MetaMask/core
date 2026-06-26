@@ -141,9 +141,9 @@ import type {
   BridgeExchangeRatesFormat,
   TransactionPayLegacyFormat,
 } from './utils';
+import { balanceWsDebug } from './utils/balanceWsDebug';
 import { ZERO_ADDRESS } from './utils/constants';
 import { pickRpcCustomAssetsSupplement } from './utils/customAssetsRpcSupplement';
-import { balanceWsDebug } from './utils/balanceWsDebug';
 import { processAccountActivityBalanceUpdates } from './utils/processAccountActivityBalanceUpdates';
 
 const NATIVE_ASSETS_QUERY_KEY = ['nativeAssets'];
@@ -2424,7 +2424,9 @@ export class AssetsController extends BaseController<
 
                     // Preserve custom assets that the response omitted.
                     for (const customId of customAssetIds) {
-                      if (!Object.prototype.hasOwnProperty.call(next, customId)) {
+                      if (
+                        !Object.prototype.hasOwnProperty.call(next, customId)
+                      ) {
                         const prev = previousBalances[customId];
                         next[customId] =
                           prev ?? ({ amount: '0' } as AssetBalance);
@@ -2586,8 +2588,7 @@ export class AssetsController extends BaseController<
         for (const [accountId, accountBalances] of Object.entries(
           normalizedResponse.assetsBalance,
         )) {
-          const previousBalances =
-            previousState.assetsBalance[accountId] ?? {};
+          const previousBalances = previousState.assetsBalance[accountId] ?? {};
 
           for (const [assetId, balance] of Object.entries(accountBalances)) {
             const rawAmount = (balance as { amount?: unknown }).amount;

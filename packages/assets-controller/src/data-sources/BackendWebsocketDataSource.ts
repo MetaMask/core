@@ -17,13 +17,13 @@ import {
 import type { AssetsControllerMessenger } from '../AssetsController';
 import { projectLogger, createModuleLogger } from '../logger';
 import type { ChainId, Caip19AssetId, DataResponse } from '../types';
+import { balanceWsDebug } from '../utils/balanceWsDebug';
+import { processAccountActivityBalanceUpdates } from '../utils/processAccountActivityBalanceUpdates';
 import { AbstractDataSource } from './AbstractDataSource';
 import type {
   DataSourceState,
   SubscriptionRequest,
 } from './AbstractDataSource';
-import { balanceWsDebug } from '../utils/balanceWsDebug';
-import { processAccountActivityBalanceUpdates } from '../utils/processAccountActivityBalanceUpdates';
 
 // ============================================================================
 // CONSTANTS
@@ -761,10 +761,8 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     _chainId: ChainId,
     accountId: string,
   ): DataResponse {
-    return processAccountActivityBalanceUpdates(
-      updates,
-      accountId,
-      (assetId) => this.#getAssetType(assetId),
+    return processAccountActivityBalanceUpdates(updates, accountId, (assetId) =>
+      this.#getAssetType(assetId),
     );
   }
 

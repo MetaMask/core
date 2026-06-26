@@ -1875,30 +1875,33 @@ describe('AssetsController', () => {
         },
       };
 
-      await withController({ state: initialState }, async ({ controller, messenger }) => {
-        messenger.publish('AccountActivityService:balanceUpdated', {
-          address: '0x1234567890123456789012345678901234567890',
-          chain: 'eip155:42161',
-          updates: [
-            {
-              asset: {
-                fungible: true,
-                type: arbNative,
-                unit: 'ETH',
-                decimals: 18,
+      await withController(
+        { state: initialState },
+        async ({ controller, messenger }) => {
+          messenger.publish('AccountActivityService:balanceUpdated', {
+            address: '0x1234567890123456789012345678901234567890',
+            chain: 'eip155:42161',
+            updates: [
+              {
+                asset: {
+                  fungible: true,
+                  type: arbNative,
+                  unit: 'ETH',
+                  decimals: 18,
+                },
+                postBalance: { amount: '0x10aa6d94e80' },
+                transfers: [],
               },
-              postBalance: { amount: '0x10aa6d94e80' },
-              transfers: [],
-            },
-          ],
-        });
+            ],
+          });
 
-        await flushPromises();
+          await flushPromises();
 
-        expect(
-          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[arbNative],
-        ).toStrictEqual({ amount: '0.00000114526056' });
-      });
+          expect(
+            controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[arbNative],
+          ).toStrictEqual({ amount: '0.00000114526056' });
+        },
+      );
     });
 
     it('zeros stale native in update mode when the chain is covered but native is omitted', async () => {
