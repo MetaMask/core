@@ -2161,7 +2161,7 @@ describe('AssetsController', () => {
             messenger as unknown as {
               publish: (topic: string, payload?: unknown) => void;
             }
-          ).publish('ClientController:stateChange', { isUiOpen: true });
+          ).publish('ClientController:stateChanged', { isUiOpen: true });
           messenger.publish('KeyringController:unlock');
 
           // Allow #start() -> getAssets() to resolve so the callback runs
@@ -2214,7 +2214,7 @@ describe('AssetsController', () => {
             messenger as unknown as {
               publish: (topic: string, payload?: unknown) => void;
             }
-          ).publish('ClientController:stateChange', { isUiOpen: true });
+          ).publish('ClientController:stateChanged', { isUiOpen: true });
           messenger.publish('KeyringController:unlock');
           await new Promise((resolve) => setTimeout(resolve, 100));
 
@@ -2296,7 +2296,7 @@ describe('AssetsController', () => {
     it('handles enabled networks change', async () => {
       await withController(async ({ messenger }) => {
         (messenger.publish as CallableFunction)(
-          'NetworkEnablementController:stateChange',
+          'NetworkEnablementController:stateChanged',
           {
             enabledNetworkMap: {
               eip155: {
@@ -2321,7 +2321,7 @@ describe('AssetsController', () => {
     it('handles network being disabled', async () => {
       await withController(async ({ messenger }) => {
         (messenger.publish as CallableFunction)(
-          'NetworkEnablementController:stateChange',
+          'NetworkEnablementController:stateChanged',
           {
             enabledNetworkMap: {
               eip155: {
@@ -2340,7 +2340,7 @@ describe('AssetsController', () => {
         await new Promise(process.nextTick);
 
         (messenger.publish as CallableFunction)(
-          'NetworkEnablementController:stateChange',
+          'NetworkEnablementController:stateChanged',
           {
             enabledNetworkMap: {
               eip155: {
@@ -2453,7 +2453,7 @@ describe('AssetsController', () => {
         messenger as unknown as {
           publish: (topic: string, payload?: unknown) => void;
         }
-      ).publish('ClientController:stateChange', { isUiOpen: true });
+      ).publish('ClientController:stateChanged', { isUiOpen: true });
       messenger.publish('KeyringController:unlock');
       await new Promise((resolve) => setTimeout(resolve, 100));
 
@@ -2462,7 +2462,7 @@ describe('AssetsController', () => {
       // Step 2: AccountTreeController.init() completes — accounts now available
       getAccountsMock.mockReturnValue([createMockInternalAccount()]);
       (messenger.publish as CallableFunction)(
-        'AccountTreeController:stateChange',
+        'AccountTreeController:stateChanged',
         {},
         [],
       );

@@ -1,16 +1,17 @@
 import type {
   AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
   AccountTreeControllerSelectedAccountGroupChangeEvent,
-  AccountTreeControllerStateChangeEvent,
+  AccountTreeControllerState,
 } from '@metamask/account-tree-controller';
 import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
 import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
+  ControllerStateChangedEvent,
   StateMetadata,
 } from '@metamask/base-controller';
-import type { ClientControllerStateChangeEvent } from '@metamask/client-controller';
+import type { ClientControllerState } from '@metamask/client-controller';
 import { clientControllerSelectors } from '@metamask/client-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type {
@@ -319,11 +320,26 @@ type AllowedActions =
   // PhishingController
   | PhishingControllerBulkScanTokensAction;
 
+type AccountTreeControllerStateChangedEvent = ControllerStateChangedEvent<
+  'AccountTreeController',
+  AccountTreeControllerState
+>;
+
+type ClientControllerStateChangedEvent = ControllerStateChangedEvent<
+  'ClientController',
+  ClientControllerState
+>;
+
+type NetworkEnablementControllerStateChangedEvent = ControllerStateChangedEvent<
+  'NetworkEnablementController',
+  NetworkEnablementControllerState
+>;
+
 type AllowedEvents =
   // AssetsController
   | AccountTreeControllerSelectedAccountGroupChangeEvent
-  | AccountTreeControllerStateChangeEvent
-  | ClientControllerStateChangeEvent
+  | AccountTreeControllerStateChangedEvent
+  | ClientControllerStateChangedEvent
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
   | PreferencesControllerStateChangeEvent
@@ -338,6 +354,7 @@ type AllowedEvents =
   | NetworkControllerNetworkRemovedEvent
   // StakedBalanceDataSource
   | NetworkEnablementControllerEvents
+  | NetworkEnablementControllerStateChangedEvent
   // SnapDataSource
   | AccountsControllerAccountBalancesUpdatedEvent
   | PermissionControllerStateChange
@@ -1020,13 +1037,13 @@ export class AssetsController extends BaseController<
     // The base-controller `:stateChange` event is guaranteed to fire
     // when init() calls this.update(). #start() is idempotent so
     // repeated fires are safe.
-    this.messenger.subscribe('AccountTreeController:stateChange', () => {
+    this.messenger.subscribe('AccountTreeController:stateChanged', () => {
       this.#handleAccountTreeStateChange();
     });
 
     // Subscribe to network enablement changes (only enabledNetworkMap)
     this.messenger.subscribe(
-      'NetworkEnablementController:stateChange',
+      'NetworkEnablementController:stateChanged',
       ({ enabledNetworkMap }) => {
         this.#handleEnabledNetworksChanged(enabledNetworkMap).catch(
           console.error,
@@ -1054,7 +1071,7 @@ export class AssetsController extends BaseController<
 
     // Client + Keyring lifecycle: only run when UI is open AND keyring is unlocked
     this.messenger.subscribe(
-      'ClientController:stateChange',
+      'ClientController:stateChanged',
       (isUiOpen: boolean) => {
         this.#uiOpen = isUiOpen;
         this.#updateActive();
@@ -2163,7 +2180,12 @@ export class AssetsController extends BaseController<
           balances[accountId] = {};
         }
         for (const nativeAssetId of nativeAssetIds) {
-          if (!(nativeAssetId in balances[accountId])) {
+          if (
+            !Object.prototype.hasOwnProperty.call(
+              balances[accountId],
+              nativeAssetId,
+            )
+          ) {
             balances[accountId][nativeAssetId] = { amount: '0' };
           }
         }
@@ -2402,7 +2424,7 @@ export class AssetsController extends BaseController<
 
                     // Preserve custom assets that the response omitted.
                     for (const customId of customAssetIds) {
-                      if (!(customId in next)) {
+                      if (!Object.prototype.hasOwnProperty.call(next, customId)) {
                         const prev = previousBalances[customId];
                         next[customId] =
                           prev ?? ({ amount: '0' } as AssetBalance);
@@ -2428,12 +2450,17 @@ export class AssetsController extends BaseController<
               : this.#getNativeAssetIdsForEnabledChains();
             for (const nativeAssetId of nativeAssetIdsForAccount) {
               const nativeChain = nativeAssetId.split('/')[0];
-              if (!(nativeAssetId in effective)) {
+              if (
+                !Object.prototype.hasOwnProperty.call(effective, nativeAssetId)
+              ) {
                 effective[nativeAssetId] = { amount: '0' } as AssetBalance;
               } else if (
                 mode === 'update' &&
                 coveredChainsInResponse.has(nativeChain) &&
-                !(nativeAssetId in accountBalances)
+                !Object.prototype.hasOwnProperty.call(
+                  accountBalances,
+                  nativeAssetId,
+                )
               ) {
                 // Update-mode overlay keeps previous native when the response
                 // omits it. If the API returned any balance on this chain,
@@ -2936,10 +2963,13 @@ export class AssetsController extends BaseController<
       const seenIds = new Set<string>();
       const accountsForSource = assignedChains
         .flatMap((chainId) => chainToAccounts.get(chainId) ?? [])
-        .filter(
-          (account) =>
-            !seenIds.has(account.id) && (seenIds.add(account.id), true),
-        );
+        .filter((account) => {
+          if (seenIds.has(account.id)) {
+            return false;
+          }
+          seenIds.add(account.id);
+          return true;
+        });
       if (accountsForSource.length > 0) {
         this.#subscribeDataSource(source, accountsForSource, assignedChains);
       }
