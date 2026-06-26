@@ -4,7 +4,7 @@
     "baseUrl": "./",
     "outDir": "./dist",
     "rootDir": "./src",
-    "module": "Preserve",
+    "module": "ESNext",
     "moduleResolution": "Bundler"
   },
   "references": [

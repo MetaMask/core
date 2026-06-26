@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
     "baseUrl": "./",
-    "module": "Preserve",
+    "module": "ESNext",
     "moduleResolution": "Bundler"
   },
   "references": [
