@@ -15,6 +15,7 @@ import {
 import type {
   BackendWebSocketServiceOptions,
   BackendWebSocketServiceMessenger,
+  ServerNotificationMessage,
 } from './BackendWebSocketService';
 
 // =====================================================
@@ -2282,6 +2283,52 @@ describe('BackendWebSocketService', () => {
         mockWs.simulateMessage(notification);
 
         expect(subscriptionCallback).toHaveBeenCalledWith(notification);
+      });
+    });
+
+    it('should skip subscription notifications when the matched subscription has no callback', async () => {
+      await withService(async ({ service, getMockWebSocket }) => {
+        await service.connect();
+        const mockWs = getMockWebSocket();
+        const channel =
+          'account-activity.v1.eip155:0:0x1234567890123456789012345678901234567890';
+        const subscriptionId = 'sub-no-callback';
+        const requestId = 'test-no-callback-subscribe';
+
+        const subscriptionPromise = service.subscribe({
+          channels: [channel],
+          channelType: 'account-activity.v1',
+          callback: undefined as unknown as (
+            notification: ServerNotificationMessage,
+          ) => void,
+          requestId,
+        });
+
+        mockWs.simulateMessage(
+          createResponseMessage(requestId, {
+            subscriptionId,
+            successful: [channel],
+            failed: [],
+          }),
+        );
+
+        await subscriptionPromise;
+
+        const channelCallback = jest.fn();
+        service.addChannelCallback({
+          channelName: channel,
+          callback: channelCallback,
+        });
+
+        mockWs.simulateMessage({
+          event: 'notification',
+          channel,
+          subscriptionId,
+          data: { address: '0x1234567890123456789012345678901234567890' },
+          timestamp: 1760344704595,
+        });
+
+        expect(channelCallback).toHaveBeenCalled();
       });
     });
 

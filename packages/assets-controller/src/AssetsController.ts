@@ -141,7 +141,6 @@ import type {
   BridgeExchangeRatesFormat,
   TransactionPayLegacyFormat,
 } from './utils';
-import { balanceWsDebug } from './utils/balanceWsDebug';
 import { ZERO_ADDRESS } from './utils/constants';
 import { pickRpcCustomAssetsSupplement } from './utils/customAssetsRpcSupplement';
 import { processAccountActivityBalanceUpdates } from './utils/processAccountActivityBalanceUpdates';
@@ -1145,13 +1144,6 @@ export class AssetsController extends BaseController<
     chain: string;
     updates: BalanceUpdate[];
   }): void {
-    balanceWsDebug('aa:enter', {
-      address,
-      chain,
-      updateCount: updates.length,
-      updates,
-    });
-
     const account = this.#getSelectedAccounts().find((a) =>
       a.address.startsWith('0x')
         ? a.address.toLowerCase() === address.toLowerCase()
@@ -1159,7 +1151,6 @@ export class AssetsController extends BaseController<
     );
 
     if (!account) {
-      balanceWsDebug('aa:drop', { reason: 'account-not-found', address });
       return;
     }
 
@@ -1171,7 +1162,6 @@ export class AssetsController extends BaseController<
     );
 
     if (!response.assetsBalance) {
-      balanceWsDebug('aa:drop', { reason: 'no-balances', address, chain });
       return;
     }
 
@@ -1181,16 +1171,8 @@ export class AssetsController extends BaseController<
       dataTypes: ['balance', 'metadata'],
     };
 
-    balanceWsDebug('aa:apply', {
-      accountId: account.id,
-      chainId,
-      balances: response.assetsBalance,
-      updateMode: response.updateMode,
-    });
-
     this.handleAssetsUpdate(response, 'AccountActivityService', request).catch(
       (error) => {
-        balanceWsDebug('aa:error', { error: String(error) });
         log('Failed to apply AccountActivityService balance update', { error });
       },
     );
@@ -2271,16 +2253,6 @@ export class AssetsController extends BaseController<
     const normalizedResponse = normalizeResponse(response);
     const mode: AssetsUpdateMode = normalizedResponse.updateMode ?? 'merge';
 
-    balanceWsDebug('updateState:enter', {
-      updateMode: mode,
-      balanceAccounts: normalizedResponse.assetsBalance
-        ? Object.keys(normalizedResponse.assetsBalance)
-        : [],
-      metadataCount: normalizedResponse.assetsInfo
-        ? Object.keys(normalizedResponse.assetsInfo).length
-        : 0,
-    });
-
     const releaseLock = await this.#controllerMutex.acquire();
 
     try {
@@ -2550,13 +2522,6 @@ export class AssetsController extends BaseController<
         changedMetadata.length > 0 ||
         changedPriceAssets.length > 0
       ) {
-        balanceWsDebug('updateState:applied', {
-          updateMode: mode,
-          changedBalances,
-          changedMetadataCount: changedMetadata.length,
-          changedPricesCount: changedPriceAssets.length,
-        });
-
         log('State updated', {
           changedBalances:
             changedBalances.length > 0 ? changedBalances : undefined,
@@ -2573,64 +2538,6 @@ export class AssetsController extends BaseController<
                   assets,
                 }))
               : undefined,
-        });
-      } else if (normalizedResponse.assetsBalance) {
-        const balanceComparisons: {
-          accountId: string;
-          assetId: string;
-          incomingAmount: string;
-          previousAmount: string | undefined;
-          normalizedIncoming?: string;
-          normalizedPrevious?: string;
-          amountsEqual: boolean;
-        }[] = [];
-
-        for (const [accountId, accountBalances] of Object.entries(
-          normalizedResponse.assetsBalance,
-        )) {
-          const previousBalances = previousState.assetsBalance[accountId] ?? {};
-
-          for (const [assetId, balance] of Object.entries(accountBalances)) {
-            const rawAmount = (balance as { amount?: unknown }).amount;
-            const incomingAmount =
-              typeof rawAmount === 'string' || typeof rawAmount === 'number'
-                ? String(rawAmount)
-                : '';
-            const previousAmount = (
-              previousBalances[assetId as Caip19AssetId] as
-                | { amount?: string }
-                | undefined
-            )?.amount;
-            const assetDecimals = (
-              previousState.assetsInfo[assetId as Caip19AssetId] as
-                | { decimals?: number }
-                | undefined
-            )?.decimals;
-
-            balanceComparisons.push({
-              accountId,
-              assetId,
-              incomingAmount,
-              previousAmount,
-              normalizedIncoming: normalizeAmountString(
-                incomingAmount,
-                assetDecimals,
-              ),
-              normalizedPrevious:
-                previousAmount === undefined
-                  ? undefined
-                  : normalizeAmountString(previousAmount, assetDecimals),
-              amountsEqual:
-                previousAmount !== undefined &&
-                normalizeAmountString(incomingAmount, assetDecimals) ===
-                  normalizeAmountString(previousAmount, assetDecimals),
-            });
-          }
-        }
-
-        balanceWsDebug('updateState:noChanges', {
-          updateMode: mode,
-          balanceComparisons,
         });
       }
 
@@ -3445,18 +3352,6 @@ export class AssetsController extends BaseController<
   ): Promise<void> {
     const updateStart = performance.now();
 
-    if (sourceId === 'BackendWebsocketDataSource') {
-      balanceWsDebug('handleAssetsUpdate:enter', {
-        sourceId,
-        updateMode: response.updateMode,
-        balances: response.assetsBalance,
-        metadataKeys: response.assetsInfo
-          ? Object.keys(response.assetsInfo)
-          : [],
-        dataTypes: request?.dataTypes,
-      });
-    }
-
     log('Assets updated from data source', {
       sourceId,
       hasBalance: Boolean(response.assetsBalance),
@@ -3510,17 +3405,6 @@ export class AssetsController extends BaseController<
     );
 
     await this.#updateState(enrichedResponse);
-
-    if (sourceId === 'BackendWebsocketDataSource') {
-      balanceWsDebug('handleAssetsUpdate:done', {
-        sourceId,
-        durationMs: performance.now() - updateStart,
-        enrichedMetadataKeys: enrichedResponse.assetsInfo
-          ? Object.keys(enrichedResponse.assetsInfo)
-          : [],
-        enrichedBalances: enrichedResponse.assetsBalance,
-      });
-    }
 
     this.#emitTrace(TRACE_UPDATE_PIPELINE, {
       source: sourceId,

@@ -17,7 +17,6 @@ import {
 import type { AssetsControllerMessenger } from '../AssetsController';
 import { projectLogger, createModuleLogger } from '../logger';
 import type { ChainId, Caip19AssetId, DataResponse } from '../types';
-import { balanceWsDebug } from '../utils/balanceWsDebug';
 import { processAccountActivityBalanceUpdates } from '../utils/processAccountActivityBalanceUpdates';
 import { AbstractDataSource } from './AbstractDataSource';
 import type {
@@ -640,13 +639,6 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       const activityMessage =
         notification.data as unknown as AccountActivityMessage;
 
-      balanceWsDebug('ws:enter', {
-        subscriptionId,
-        channel: notification.channel,
-        event: (notification as { event?: string }).event,
-        data: activityMessage,
-      });
-
       const storedSubscription = this.#subscriptionRequests.get(subscriptionId);
       const request = storedSubscription?.request;
       const onAssetsUpdate =
@@ -654,20 +646,12 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
         storedSubscription?.onAssetsUpdate;
 
       if (!request) {
-        balanceWsDebug('ws:drop', { reason: 'no-request', subscriptionId });
         return;
       }
 
       const { address, tx, updates } = activityMessage;
 
       if (!address || !tx || !updates) {
-        balanceWsDebug('ws:drop', {
-          reason: 'missing-activity-fields',
-          subscriptionId,
-          hasAddress: Boolean(address),
-          hasTx: Boolean(tx),
-          hasUpdates: Boolean(updates),
-        });
         return;
       }
 
@@ -683,14 +667,6 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
             : a.address === address,
         );
       if (!account) {
-        balanceWsDebug('ws:drop', {
-          reason: 'account-not-in-request',
-          subscriptionId,
-          address,
-          requestedAddresses: request.accountsWithSupportedChains.map(
-            (entry) => entry.account.address,
-          ),
-        });
         return;
       }
       const accountId = account.id;
@@ -701,48 +677,12 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       const balanceEntries = response.assetsBalance?.[accountId] ?? {};
       const hasBalances = Object.keys(balanceEntries).length > 0;
 
-      balanceWsDebug('ws:processed', {
-        subscriptionId,
-        accountId,
-        chainId,
-        updateCount: updates.length,
-        balanceCount: Object.keys(balanceEntries).length,
-        balances: balanceEntries,
-        hasCallback: Boolean(onAssetsUpdate),
-      });
-
       if (hasBalances && onAssetsUpdate) {
-        balanceWsDebug('ws:apply', {
-          subscriptionId,
-          accountId,
-          updateMode: response.updateMode,
-        });
         Promise.resolve(onAssetsUpdate(response, request)).catch((error) => {
-          balanceWsDebug('ws:applyError', {
-            subscriptionId,
-            accountId,
-            error: String(error),
-          });
           console.error(error);
-        });
-      } else if (hasBalances) {
-        balanceWsDebug('ws:drop', {
-          reason: 'no-callback',
-          subscriptionId,
-          accountId,
-        });
-      } else {
-        balanceWsDebug('ws:drop', {
-          reason: 'no-valid-balances',
-          subscriptionId,
-          accountId,
         });
       }
     } catch (error) {
-      balanceWsDebug('ws:error', {
-        subscriptionId,
-        error: String(error),
-      });
       log('Error handling notification', error);
     }
   }
