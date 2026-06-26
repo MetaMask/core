@@ -12,6 +12,7 @@
     { "path": "../keyring-controller/tsconfig.json" },
     { "path": "../messenger/tsconfig.json" },
     { "path": "../network-controller/tsconfig.json" },
+    { "path": "../ramps-controller/tsconfig.json" },
     { "path": "../remote-feature-flag-controller/tsconfig.json" },
     { "path": "../storage-service/tsconfig.json" }
   ],

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export opt-in `RampsService`, `RampsController`, and `TransakService` initialization configurations from `@metamask/wallet/initialization/instances/ramps` for aggregator and native on-ramp flows. These are not included in default wallet instances; consumers pass them via `initializationConfigurations`.
+
 ## [5.0.0]
 
 ### Added
