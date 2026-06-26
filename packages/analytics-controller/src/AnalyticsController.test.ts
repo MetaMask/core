@@ -2138,19 +2138,20 @@ describe('AnalyticsController', () => {
       expect(mockAdapter.track).not.toHaveBeenCalled();
     });
 
-    it('clears the queue and resets the decision on resetConsentDecision', async () => {
+    it('preserves the pre-consent queue and resets the decision on resetConsentDecision', async () => {
       const { controller, mockAdapter } =
         await setupControllerWithQueuedEvent();
+      const queuedEvents = controller.state.preConsentEventQueue;
 
       controller.resetConsentDecision();
 
       expect(controller.state.optedIn).toBe(false);
       expect(controller.state.consentDecisionMade).toBe(false);
-      expect(controller.state.preConsentEventQueue).toStrictEqual({});
+      expect(controller.state.preConsentEventQueue).toStrictEqual(queuedEvents);
       expect(mockAdapter.track).not.toHaveBeenCalled();
     });
 
-    it('also clears the delivery queue on resetConsentDecision', async () => {
+    it('clears the delivery queue on resetConsentDecision', async () => {
       const mockAdapter = createMockAdapter();
       const { controller } = await setupController({
         state: {
@@ -2172,7 +2173,6 @@ describe('AnalyticsController', () => {
       expect(controller.state.optedIn).toBe(false);
       expect(controller.state.consentDecisionMade).toBe(false);
       expect(controller.state.eventQueue).toStrictEqual({});
-      expect(controller.state.preConsentEventQueue ?? {}).toStrictEqual({});
     });
 
     it('replays a persisted queue on init when already opted in', async () => {
