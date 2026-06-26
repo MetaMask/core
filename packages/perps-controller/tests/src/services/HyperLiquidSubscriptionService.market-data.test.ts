@@ -2743,13 +2743,10 @@ describe('HyperLiquidSubscriptionService', () => {
 
       await jest.runAllTimersAsync();
 
-      // No '0' price should have been emitted
-      const zeroPriceCalls = mockCallback.mock.calls.filter((call) =>
-        call[0].some(
-          (update: { price: string }) => update.price === '0',
-        ),
-      );
-      expect(zeroPriceCalls).toHaveLength(0);
+      // The callback should not have been called at all: without midPx/markPx
+      // there is no fast-stream price to project, and no allMids baseline
+      // exists yet, so #notifyAllPriceSubscribers has nothing to send.
+      expect(mockCallback).not.toHaveBeenCalled();
 
       unsubscribe();
     });
@@ -2878,13 +2875,17 @@ describe('HyperLiquidSubscriptionService', () => {
         },
       });
 
-      // Advance time beyond the 10 s TTL so the fast-stream price becomes stale
-      jest.advanceTimersByTime(11_000);
+      // Move the system clock past the 10 s TTL so the staleness check in
+      // #getFreshActiveAssetCtxPrice returns undefined. Use setSystemTime
+      // (not advanceTimersByTime) to avoid firing service-internal timers
+      // that could alter subscription state before the second allMids fires.
+      jest.setSystemTime(Date.now() + 11_000);
 
       mockCallback.mockClear();
 
-      // allMids fires again – should now win because fast-stream price is stale
-      allMidsCallback?.({ mids: { BTC: '50000' } });
+      // allMids fires with a NEW price (must differ from the cached '50000' so the
+      // allMids handler's price-deduplication guard doesn't swallow the update).
+      allMidsCallback?.({ mids: { BTC: '51000' } });
 
       await jest.runAllTimersAsync();
 
@@ -2894,7 +2895,7 @@ describe('HyperLiquidSubscriptionService', () => {
         expect.arrayContaining([
           expect.objectContaining({
             symbol: 'BTC',
-            price: '50000', // allMids wins after TTL expires
+            price: '51000', // allMids wins after TTL – fast-stream '50500' is stale
           }),
         ]),
       );
@@ -2927,6 +2928,77 @@ describe('HyperLiquidSubscriptionService', () => {
       await jest.runAllTimersAsync();
 
       expect(mockSubscriptionClient.activeAssetCtx).not.toHaveBeenCalled();
+
+      unsubscribe();
+    });
+
+    it('projection preserves derived fields (funding, openInterest, markPrice, isTradable, percentChange24h) from the allMids baseline', async () => {
+      let allMidsCallback: ((data: any) => void) | undefined;
+      let activeAssetCallback: ((data: any) => void) | undefined;
+
+      mockSubscriptionClient.allMids.mockImplementation(
+        (paramsOrCallback: any, maybeCallback?: any) => {
+          allMidsCallback =
+            typeof paramsOrCallback === 'function'
+              ? paramsOrCallback
+              : maybeCallback;
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      mockSubscriptionClient.activeAssetCtx.mockImplementation(
+        (params: any, callback: any) => {
+          activeAssetCallback = callback;
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      const focusedCallback = jest.fn();
+      const unsubscribe = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: focusedCallback,
+        includeMarketData: true,
+      });
+
+      await jest.runAllTimersAsync();
+
+      // allMids establishes the baseline price
+      allMidsCallback?.({ mids: { BTC: '50000' } });
+      await jest.runAllTimersAsync();
+
+      // activeAssetCtx fires with a fast price and rich market data
+      activeAssetCallback?.({
+        coin: 'BTC',
+        ctx: {
+          prevDayPx: '48000',
+          funding: '0.0001',
+          openInterest: '2000000',
+          dayNtlVlm: '100000000',
+          oraclePx: '50050',
+          markPx: '50025',
+          midPx: '50500',
+        },
+      });
+      await jest.runAllTimersAsync();
+
+      const lastUpdate: PriceUpdate =
+        focusedCallback.mock.calls[focusedCallback.mock.calls.length - 1][0][0];
+
+      // Fast-stream price is projected
+      expect(lastUpdate.price).toBe('50500');
+
+      // Derived fields from the allMids baseline (enriched by activeAssetCtx) are preserved
+      expect(lastUpdate.funding).toBeDefined();
+      expect(lastUpdate.openInterest).toBeDefined();
+      expect(lastUpdate.volume24h).toBeDefined();
+      expect(lastUpdate.markPrice).toBeDefined();
+      expect(lastUpdate.percentChange24h).toBeDefined();
+      // isTradable defaults to true when the price is within oracle deviation limits
+      expect(lastUpdate.isTradable).toBe(true);
 
       unsubscribe();
     });
