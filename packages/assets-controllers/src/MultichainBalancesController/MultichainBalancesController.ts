@@ -31,17 +31,16 @@ import type {
   MultichainAssetsControllerAccountAssetListUpdatedEvent,
 } from '../MultichainAssetsController';
 import {
-  buildBalanceRowsWithExtra,
+  buildBalanceRowsWithAccountAssetInfo,
   fetchAccountAssetInfoFromSnap,
   filterAssetsForAccountAssetEnrichment,
-  mergeAccountBalances,
-} from './utils';
+} from './account-asset-info';
 import type {
   GetAccountAssetInfoResponse,
   MultichainAccountBalance,
-} from './utils';
+} from './account-asset-info';
 
-export type { AccountAssetInfoExtra, MultichainAccountBalance } from './utils';
+export type { AccountAssetInfo, MultichainAccountBalance } from './account-asset-info';
 
 const controllerName = 'MultichainBalancesController';
 
@@ -302,7 +301,7 @@ export class MultichainBalancesController extends BaseController<
           ).catch(() => undefined)
         : undefined;
 
-      balancesToAdd[accountId] = buildBalanceRowsWithExtra(
+      balancesToAdd[accountId] = buildBalanceRowsWithAccountAssetInfo(
         assetsToFetch,
         accountBalance,
         enrichment,
@@ -585,4 +584,20 @@ export class MultichainBalancesController extends BaseController<
         })) as Promise<Json>,
     });
   }
+}
+
+function mergeAccountBalances(
+  previous: Record<string, MultichainAccountBalance>,
+  incoming: Record<string, Partial<MultichainAccountBalance>>,
+): Record<string, MultichainAccountBalance> {
+  const merged = { ...previous };
+
+  for (const [assetId, balance] of Object.entries(incoming)) {
+    merged[assetId] = {
+      ...(merged[assetId] ?? { amount: '0', unit: '' }),
+      ...balance,
+    };
+  }
+
+  return merged;
 }

@@ -2,19 +2,18 @@ import { HandlerType } from '@metamask/snaps-utils';
 import type { CaipAssetType, CaipChainId } from '@metamask/utils';
 
 import {
-  buildBalanceRowsWithExtra,
+  buildBalanceRowsWithAccountAssetInfo,
   createGetAccountAssetInfoClientRequest,
   fetchAccountAssetInfoFromSnap,
   filterAssetsForAccountAssetEnrichment,
   GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD,
   isAccountAssetInfoEnrichmentAvailable,
-  mergeAccountBalances,
-} from './utils';
+} from './account-asset-info';
 
 const stellarClassic =
   'stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN' as CaipAssetType;
 
-describe('MultichainBalancesController utils', () => {
+describe('MultichainBalancesController account-asset-info', () => {
   describe('isAccountAssetInfoEnrichmentAvailable', () => {
     it('returns true for Stellar pubnet', () => {
       expect(
@@ -159,10 +158,10 @@ describe('MultichainBalancesController utils', () => {
     });
   });
 
-  describe('buildBalanceRowsWithExtra', () => {
-    it('merges balance rows with enrichment extra fields', () => {
+  describe('buildBalanceRowsWithAccountAssetInfo', () => {
+    it('merges balance rows with enrichment accountAssetInfo fields', () => {
       expect(
-        buildBalanceRowsWithExtra(
+        buildBalanceRowsWithAccountAssetInfo(
           [stellarClassic],
           {
             [stellarClassic]: { amount: '5', unit: 'USDC' },
@@ -175,41 +174,16 @@ describe('MultichainBalancesController utils', () => {
         [stellarClassic]: {
           amount: '5',
           unit: 'USDC',
-          extra: { limit: '1000' },
+          accountAssetInfo: { limit: '1000' },
         },
       });
     });
 
     it('uses zero placeholder when balance is missing', () => {
       expect(
-        buildBalanceRowsWithExtra([stellarClassic], {}, undefined),
+        buildBalanceRowsWithAccountAssetInfo([stellarClassic], {}, undefined),
       ).toStrictEqual({
         [stellarClassic]: { amount: '0', unit: '' },
-      });
-    });
-  });
-
-  describe('mergeAccountBalances', () => {
-    it('preserves existing extra when incoming row omits it', () => {
-      expect(
-        mergeAccountBalances(
-          {
-            [stellarClassic]: {
-              amount: '1',
-              unit: 'USDC',
-              extra: { limit: '500' },
-            },
-          },
-          {
-            [stellarClassic]: { amount: '2', unit: 'USDC' },
-          },
-        ),
-      ).toStrictEqual({
-        [stellarClassic]: {
-          amount: '2',
-          unit: 'USDC',
-          extra: { limit: '500' },
-        },
       });
     });
   });

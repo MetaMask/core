@@ -28,7 +28,7 @@ import type {
   MultichainBalancesControllerState,
 } from '.';
 import { getDefaultMultichainBalancesControllerState } from './MultichainBalancesController';
-import { GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD } from './utils';
+import { GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD } from './account-asset-info';
 
 const mockBtcAccount = {
   address: 'bc1qssdcp5kvwh6nghzg9tuk99xsflwkdv4hgvq58q',
@@ -453,7 +453,7 @@ describe('MultichainBalancesController', () => {
     );
   });
 
-  it('preserves balance extra when accountBalancesUpdated overwrites amount', async () => {
+  it('preserves balance accountAssetInfo when accountBalancesUpdated overwrites amount', async () => {
     const assetId = mockBtcNativeAsset;
     const { controller, messenger } = setupController({
       state: {
@@ -462,7 +462,7 @@ describe('MultichainBalancesController', () => {
             [assetId]: {
               amount: '1',
               unit: 'BTC',
-              extra: { limit: '500' },
+              accountAssetInfo: { limit: '500' },
             },
           },
         },
@@ -485,7 +485,7 @@ describe('MultichainBalancesController', () => {
       {
         amount: '2',
         unit: 'BTC',
-        extra: { limit: '500' },
+        accountAssetInfo: { limit: '500' },
       },
     );
   });
@@ -828,7 +828,7 @@ describe('MultichainBalancesController', () => {
   });
 
   describe('Stellar account-asset enrichment', () => {
-    it('stores balances without extra when enrichment fails', async () => {
+    it('stores balances without accountAssetInfo when enrichment fails', async () => {
       const { controller, messenger, mockSnapHandleRequest } = setupController({
         state: {
           balances: {
@@ -927,11 +927,11 @@ describe('MultichainBalancesController', () => {
       ).toStrictEqual({
         amount: '0',
         unit: '',
-        extra: { limit: '0' },
+        accountAssetInfo: { limit: '0' },
       });
     });
 
-    it('does not enrich extra when accountBalancesUpdated fires', async () => {
+    it('does not enrich accountAssetInfo when accountBalancesUpdated fires', async () => {
       const { controller, messenger, mockSnapHandleRequest } = setupController({
         state: {
           balances: {
@@ -939,7 +939,7 @@ describe('MultichainBalancesController', () => {
               [STELLAR_CLASSIC_USDC]: {
                 amount: '0',
                 unit: 'USDC',
-                extra: { limit: '0' },
+                accountAssetInfo: { limit: '0' },
               },
             },
           },
@@ -972,7 +972,7 @@ describe('MultichainBalancesController', () => {
       ).toStrictEqual({
         amount: '5',
         unit: 'USDC',
-        extra: { limit: '0' },
+        accountAssetInfo: { limit: '0' },
       });
     });
 
@@ -984,7 +984,7 @@ describe('MultichainBalancesController', () => {
               [STELLAR_CLASSIC_USDC]: {
                 amount: '0',
                 unit: 'USDC',
-                extra: { limit: '0' },
+                accountAssetInfo: { limit: '0' },
               },
             },
           },
@@ -1032,7 +1032,7 @@ describe('MultichainBalancesController', () => {
       ).toStrictEqual({
         amount: '0',
         unit: 'USDC',
-        extra: { limit: '1000' },
+        accountAssetInfo: { limit: '1000' },
       });
     });
 
@@ -1044,7 +1044,7 @@ describe('MultichainBalancesController', () => {
               [STELLAR_CLASSIC_USDC]: {
                 amount: '10',
                 unit: 'USDC',
-                extra: { limit: '1000' },
+                accountAssetInfo: { limit: '1000' },
               },
             },
           },

@@ -1180,13 +1180,13 @@ describe('token-selectors', () => {
     });
   });
 
-  describe('balance extra passthrough', () => {
+  describe('balance accountAssetInfo passthrough', () => {
     const stellarAccountId = 'stellar-acct-test';
     const stellarClassic =
       'stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN' as CaipAssetType;
     const stellarChainId = 'stellar:pubnet';
 
-    it('passes balance extra through to asset list items', () => {
+    it('passes balance accountAssetInfo through to asset list items', () => {
       const state = cloneDeep(mockedMergedState);
       const wallet =
         state.accountTree.wallets['entropy:01K1TJY9QPSCKNBSVGZNG510GJ'];
@@ -1219,7 +1219,7 @@ describe('token-selectors', () => {
         [stellarClassic]: {
           amount: '0',
           unit: 'USDC',
-          extra: { limit: '0' },
+          accountAssetInfo: { limit: '0' },
         },
       };
 
@@ -1230,10 +1230,10 @@ describe('token-selectors', () => {
         ) ?? [];
 
       expect(stellarAssets).toHaveLength(1);
-      expect(stellarAssets[0]?.extra).toStrictEqual({ limit: '0' });
+      expect(stellarAssets[0]?.accountAssetInfo).toStrictEqual({ limit: '0' });
     });
 
-    it('passes positive limit extra through to asset list items', () => {
+    it('passes positive limit accountAssetInfo through to asset list items', () => {
       const state = cloneDeep(mockedMergedState);
       const wallet =
         state.accountTree.wallets['entropy:01K1TJY9QPSCKNBSVGZNG510GJ'];
@@ -1266,7 +1266,7 @@ describe('token-selectors', () => {
         [stellarClassic]: {
           amount: '0',
           unit: 'USDC',
-          extra: { limit: '1000' },
+          accountAssetInfo: { limit: '1000' },
         },
       };
 
@@ -1277,7 +1277,7 @@ describe('token-selectors', () => {
         ) ?? [];
 
       expect(stellarAssets).toHaveLength(1);
-      expect(stellarAssets[0]?.extra).toStrictEqual({ limit: '1000' });
+      expect(stellarAssets[0]?.accountAssetInfo).toStrictEqual({ limit: '1000' });
     });
   });
 });

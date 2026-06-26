@@ -10,7 +10,7 @@ export const GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD =
   'getAccountAssetInfo' as const;
 
 /** Optional per-asset fields returned by snap enrichment (chain-specific semantics). */
-export type AccountAssetInfoExtra = {
+export type AccountAssetInfo = {
   limit?: string;
   authorized?: boolean;
   sponsored?: boolean;
@@ -18,14 +18,14 @@ export type AccountAssetInfoExtra = {
 
 export type GetAccountAssetInfoResponse = Record<
   CaipAssetType,
-  AccountAssetInfoExtra
+  AccountAssetInfo
 >;
 
-/** Per-asset balance row; `extra` carries chain-specific snap enrichment fields. */
+/** Per-asset balance row; `accountAssetInfo` carries chain-specific snap enrichment fields. */
 export type MultichainAccountBalance = {
   amount: string;
   unit: string;
-  extra?: AccountAssetInfoExtra;
+  accountAssetInfo?: AccountAssetInfo;
 };
 
 /**
@@ -151,37 +151,14 @@ export async function fetchAccountAssetInfoFromSnap(
 }
 
 /**
- * Merges incoming per-asset balance rows into a cached account balance map.
- *
- * @param previous - Prior cached balances for the account.
- * @param incoming - Per-asset balance rows to merge in.
- * @returns The merged account balance map.
- */
-export function mergeAccountBalances(
-  previous: Record<string, MultichainAccountBalance>,
-  incoming: Record<string, Partial<MultichainAccountBalance>>,
-): Record<string, MultichainAccountBalance> {
-  const merged = { ...previous };
-
-  for (const [assetId, balance] of Object.entries(incoming)) {
-    merged[assetId] = {
-      ...(merged[assetId] ?? { amount: '0', unit: '' }),
-      ...balance,
-    };
-  }
-
-  return merged;
-}
-
-/**
  * Combines snap balance rows with optional per-asset enrichment fields.
  *
  * @param assetIds - Assets to include in the result.
  * @param balances - Balance rows keyed by asset id.
  * @param enrichment - Optional snap enrichment keyed by asset id.
- * @returns Per-asset balance rows with merged `extra` when present.
+ * @returns Per-asset balance rows with merged `accountAssetInfo` when present.
  */
-export function buildBalanceRowsWithExtra(
+export function buildBalanceRowsWithAccountAssetInfo(
   assetIds: CaipAssetType[],
   balances: Record<CaipAssetType, Balance>,
   enrichment?: GetAccountAssetInfoResponse,
@@ -189,13 +166,13 @@ export function buildBalanceRowsWithExtra(
   return Object.fromEntries(
     assetIds.map((assetId) => {
       const balance = balances[assetId] ?? { amount: '0', unit: '' };
-      const extra = enrichment?.[assetId];
+      const accountAssetInfo = enrichment?.[assetId];
 
       return [
         assetId,
         {
           ...balance,
-          ...(extra === undefined ? {} : { extra }),
+          ...(accountAssetInfo === undefined ? {} : { accountAssetInfo }),
         },
       ];
     }),

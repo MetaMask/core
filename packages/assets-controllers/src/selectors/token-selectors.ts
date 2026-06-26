@@ -18,7 +18,7 @@ import type {
   MultichainAccountBalance,
   MultichainBalancesControllerState,
 } from '../MultichainBalancesController';
-import type { AccountAssetInfoExtra } from '../MultichainBalancesController/utils';
+import type { AccountAssetInfo } from '../MultichainBalancesController/account-asset-info';
 import { getNativeTokenAddress } from '../token-prices-service/codefi-v2';
 import type { TokenBalancesControllerState } from '../TokenBalancesController';
 import type { Token, TokenRatesControllerState } from '../TokenRatesController';
@@ -93,8 +93,8 @@ export type Asset = (
         conversionRate: number;
       }
     | undefined;
-  /** Chain-specific snap enrichment fields from balance `extra`. */
-  extra?: AccountAssetInfoExtra;
+  /** Chain-specific snap enrichment fields from balance `accountAssetInfo`. */
+  accountAssetInfo?: AccountAssetInfo;
   rwaData?: TokenRwaData;
 };
 
@@ -452,7 +452,7 @@ const selectAllMultichainAssets = createAssetListSelector(
               }
             : undefined,
           chainId,
-          ...(balance?.extra !== undefined && { extra: balance.extra }),
+          ...(balance?.accountAssetInfo !== undefined && { accountAssetInfo: balance.accountAssetInfo }),
         });
       }
     }
