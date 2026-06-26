@@ -1865,6 +1865,90 @@ describe('AssetsController', () => {
       });
     });
 
+    it('updates state from AccountActivityService:balanceUpdated', async () => {
+      const arbNative = 'eip155:42161/slip44:60' as Caip19AssetId;
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [arbNative]: { amount: '1' },
+          },
+        },
+      };
+
+      await withController({ state: initialState }, async ({ controller, messenger }) => {
+        messenger.publish('AccountActivityService:balanceUpdated', {
+          address: '0x1234567890123456789012345678901234567890',
+          chain: 'eip155:42161',
+          updates: [
+            {
+              asset: {
+                fungible: true,
+                type: arbNative,
+                unit: 'ETH',
+                decimals: 18,
+              },
+              postBalance: { amount: '0x10aa6d94e80' },
+              transfers: [],
+            },
+          ],
+        });
+
+        await flushPromises();
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[arbNative],
+        ).toStrictEqual({ amount: '0.00000114526056' });
+      });
+    });
+
+    it('zeros stale native in update mode when the chain is covered but native is omitted', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_NATIVE_ASSET_ID]: { amount: '1.5' },
+            [MOCK_ASSET_ID]: { amount: '10' },
+          },
+        },
+        assetsInfo: {
+          [MOCK_NATIVE_ASSET_ID]: {
+            type: 'native',
+            symbol: 'ETH',
+            name: 'Ether',
+            decimals: 18,
+          },
+          [MOCK_ASSET_ID]: {
+            type: 'erc20',
+            symbol: 'USDC',
+            name: 'USD Coin',
+            decimals: 6,
+          },
+        },
+      };
+
+      await withController({ state: initialState }, async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            updateMode: 'update',
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '0' },
+              },
+            },
+          },
+          'AccountsApiDataSource',
+        );
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+        ).toStrictEqual({ amount: '0' });
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+            MOCK_NATIVE_ASSET_ID
+          ],
+        ).toStrictEqual({ amount: '0' });
+      });
+    });
+
     it('updates state with price data', async () => {
       await withController(async ({ controller }) => {
         await controller.handleAssetsUpdate(

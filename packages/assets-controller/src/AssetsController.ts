@@ -15,8 +15,10 @@ import { clientControllerSelectors } from '@metamask/client-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type {
   ApiPlatformClient,
+  AccountActivityServiceBalanceUpdatedEvent,
   BackendWebSocketServiceActions,
   BackendWebSocketServiceEvents,
+  BalanceUpdate,
   SupportedCurrency,
 } from '@metamask/core-backend';
 import type {
@@ -140,6 +142,8 @@ import type {
 } from './utils';
 import { ZERO_ADDRESS } from './utils/constants';
 import { pickRpcCustomAssetsSupplement } from './utils/customAssetsRpcSupplement';
+import { balanceWsDebug } from './utils/balanceWsDebug';
+import { processAccountActivityBalanceUpdates } from './utils/processAccountActivityBalanceUpdates';
 
 const NATIVE_ASSETS_QUERY_KEY = ['nativeAssets'];
 
@@ -339,7 +343,9 @@ type AllowedEvents =
   | PermissionControllerStateChange
   | SnapControllerSnapInstalledEvent
   // BackendWebsocketDataSource
-  | BackendWebSocketServiceEvents;
+  | BackendWebSocketServiceEvents
+  // AccountActivityService (real-time balance updates for unified assets)
+  | AccountActivityServiceBalanceUpdatedEvent;
 
 export type AssetsControllerMessenger = Messenger<
   typeof CONTROLLER_NAME,
@@ -1072,6 +1078,16 @@ export class AssetsController extends BaseController<
         this.#onUnapprovedTransactionAdded(transactionMeta);
       },
     );
+
+    // Real-time post-tx balances from AccountActivityService (same WS payload as
+    // TokenBalancesController; BackendWebsocketDataSource may not receive the
+    // callback when AccountActivityService owns the server subscription).
+    this.messenger.subscribe(
+      'AccountActivityService:balanceUpdated',
+      (event) => {
+        this.#onAccountActivityBalanceUpdated(event);
+      },
+    );
   }
 
   #onUnapprovedTransactionAdded(transactionMeta: TransactionMeta): void {
@@ -1101,6 +1117,66 @@ export class AssetsController extends BaseController<
         error,
       });
     });
+  }
+
+  #onAccountActivityBalanceUpdated({
+    address,
+    chain,
+    updates,
+  }: {
+    address: string;
+    chain: string;
+    updates: BalanceUpdate[];
+  }): void {
+    balanceWsDebug('aa:enter', {
+      address,
+      chain,
+      updateCount: updates.length,
+      updates,
+    });
+
+    const account = this.#getSelectedAccounts().find((a) =>
+      a.address.startsWith('0x')
+        ? a.address.toLowerCase() === address.toLowerCase()
+        : a.address === address,
+    );
+
+    if (!account) {
+      balanceWsDebug('aa:drop', { reason: 'account-not-found', address });
+      return;
+    }
+
+    const chainId = chain as ChainId;
+    const response = processAccountActivityBalanceUpdates(
+      updates,
+      account.id,
+      (assetId) => this.#getAssetType(assetId),
+    );
+
+    if (!response.assetsBalance) {
+      balanceWsDebug('aa:drop', { reason: 'no-balances', address, chain });
+      return;
+    }
+
+    const request: DataRequest = {
+      accountsWithSupportedChains: [{ account, supportedChains: [chainId] }],
+      chainIds: [chainId],
+      dataTypes: ['balance', 'metadata'],
+    };
+
+    balanceWsDebug('aa:apply', {
+      accountId: account.id,
+      chainId,
+      balances: response.assetsBalance,
+      updateMode: response.updateMode,
+    });
+
+    this.handleAssetsUpdate(response, 'AccountActivityService', request).catch(
+      (error) => {
+        balanceWsDebug('aa:error', { error: String(error) });
+        log('Failed to apply AccountActivityService balance update', { error });
+      },
+    );
   }
 
   /**
@@ -1453,29 +1529,38 @@ export class AssetsController extends BaseController<
       // commits to state. Their balances are merged together before detection.
       // Token + price enrichment matches the pre-split behavior: only when basic
       // functionality is on (RPC-only mode must not call token/price APIs).
-      const slowSources = this.#isBasicFunctionality()
-        ? [this.#snapDataSource, this.#rpcDataSource]
-        : [this.#rpcDataSource];
+      const slowPipelineChainIds = this.#getSlowPipelineChainIds(
+        chainIds,
+        response,
+      );
 
-      this.#executeMiddlewares(
-        [
-          createParallelBalanceMiddleware(slowSources),
-          this.#detectionMiddleware,
-          ...(this.#isBasicFunctionality()
-            ? [
-                createParallelMiddleware([
-                  this.#tokenDataSource,
-                  this.#priceDataSource,
-                ]),
-              ]
-            : []),
-        ],
-        request,
-      )
-        .then(({ response: slowResponse }) =>
-          this.#updateState({ ...slowResponse, updateMode: 'update' }),
+      if (slowPipelineChainIds.length > 0) {
+        const slowSources = this.#isBasicFunctionality()
+          ? [this.#snapDataSource, this.#rpcDataSource]
+          : [this.#rpcDataSource];
+
+        const slowRequest = { ...request, chainIds: slowPipelineChainIds };
+
+        this.#executeMiddlewares(
+          [
+            createParallelBalanceMiddleware(slowSources),
+            this.#detectionMiddleware,
+            ...(this.#isBasicFunctionality()
+              ? [
+                  createParallelMiddleware([
+                    this.#tokenDataSource,
+                    this.#priceDataSource,
+                  ]),
+                ]
+              : []),
+          ],
+          slowRequest,
         )
-        .catch((error) => log('Background pipeline failed', { error }));
+          .then(({ response: slowResponse }) =>
+            this.#updateState({ ...slowResponse, updateMode: 'update' }),
+          )
+          .catch((error) => log('Background pipeline failed', { error }));
+      }
 
       const durationMs = performance.now() - startTime;
 
@@ -2026,6 +2111,34 @@ export class AssetsController extends BaseController<
   }
 
   /**
+   * Chains for the post-commit slow pipeline (Snap + RPC). Excludes chains the
+   * fast Accounts API path already handled without error so stale RPC data cannot
+   * overwrite fresh API zeros (e.g. after max send).
+   *
+   * @param chainIds - Chains requested by the caller.
+   * @param fastResponse - Response committed by the fast pipeline.
+   * @returns Chain IDs that still need the slow pipeline.
+   */
+  #getSlowPipelineChainIds(
+    chainIds: ChainId[],
+    fastResponse: DataResponse,
+  ): ChainId[] {
+    const accountsApiChains = new Set(
+      this.#accountsApiDataSource.getActiveChainsSync(),
+    );
+
+    return chainIds.filter((chainId) => {
+      if (fastResponse.errors?.[chainId]) {
+        return true;
+      }
+      if (!accountsApiChains.has(chainId)) {
+        return true;
+      }
+      return false;
+    });
+  }
+
+  /**
    * Ensures assetsBalance has a 0 balance for each native token (from
    * NetworkEnablementController.nativeAssetIdentifiers) for each selected account.
    * Only adds natives for chains that the account supports (correct accountId ↔ chain mapping).
@@ -2135,6 +2248,16 @@ export class AssetsController extends BaseController<
   async #updateState(response: DataResponse): Promise<void> {
     const normalizedResponse = normalizeResponse(response);
     const mode: AssetsUpdateMode = normalizedResponse.updateMode ?? 'merge';
+
+    balanceWsDebug('updateState:enter', {
+      updateMode: mode,
+      balanceAccounts: normalizedResponse.assetsBalance
+        ? Object.keys(normalizedResponse.assetsBalance)
+        : [],
+      metadataCount: normalizedResponse.assetsInfo
+        ? Object.keys(normalizedResponse.assetsInfo).length
+        : 0,
+    });
 
     const releaseLock = await this.#controllerMutex.acquire();
 
@@ -2288,6 +2411,14 @@ export class AssetsController extends BaseController<
                     return next;
                   })();
 
+            // Chains present in this partial response (e.g. Accounts API returned
+            // ERC-20 zeros but omitted native after a max send).
+            const coveredChainsInResponse = new Set(
+              Object.keys(accountBalances).map(
+                (assetId) => assetId.split('/')[0],
+              ),
+            );
+
             // Ensure native tokens have an entry (0 if missing) for chains this account supports
             const account = this.#getSelectedAccounts().find(
               (a) => a.id === accountId,
@@ -2296,7 +2427,17 @@ export class AssetsController extends BaseController<
               ? this.#getNativeAssetIdsForAccount(account)
               : this.#getNativeAssetIdsForEnabledChains();
             for (const nativeAssetId of nativeAssetIdsForAccount) {
+              const nativeChain = nativeAssetId.split('/')[0];
               if (!(nativeAssetId in effective)) {
+                effective[nativeAssetId] = { amount: '0' } as AssetBalance;
+              } else if (
+                mode === 'update' &&
+                coveredChainsInResponse.has(nativeChain) &&
+                !(nativeAssetId in accountBalances)
+              ) {
+                // Update-mode overlay keeps previous native when the response
+                // omits it. If the API returned any balance on this chain,
+                // treat omitted native as zero instead of a stale pre-tx amount.
                 effective[nativeAssetId] = { amount: '0' } as AssetBalance;
               }
             }
@@ -2380,6 +2521,13 @@ export class AssetsController extends BaseController<
         changedMetadata.length > 0 ||
         changedPriceAssets.length > 0
       ) {
+        balanceWsDebug('updateState:applied', {
+          updateMode: mode,
+          changedBalances,
+          changedMetadataCount: changedMetadata.length,
+          changedPricesCount: changedPriceAssets.length,
+        });
+
         log('State updated', {
           changedBalances:
             changedBalances.length > 0 ? changedBalances : undefined,
@@ -2396,6 +2544,65 @@ export class AssetsController extends BaseController<
                   assets,
                 }))
               : undefined,
+        });
+      } else if (normalizedResponse.assetsBalance) {
+        const balanceComparisons: {
+          accountId: string;
+          assetId: string;
+          incomingAmount: string;
+          previousAmount: string | undefined;
+          normalizedIncoming?: string;
+          normalizedPrevious?: string;
+          amountsEqual: boolean;
+        }[] = [];
+
+        for (const [accountId, accountBalances] of Object.entries(
+          normalizedResponse.assetsBalance,
+        )) {
+          const previousBalances =
+            previousState.assetsBalance[accountId] ?? {};
+
+          for (const [assetId, balance] of Object.entries(accountBalances)) {
+            const rawAmount = (balance as { amount?: unknown }).amount;
+            const incomingAmount =
+              typeof rawAmount === 'string' || typeof rawAmount === 'number'
+                ? String(rawAmount)
+                : '';
+            const previousAmount = (
+              previousBalances[assetId as Caip19AssetId] as
+                | { amount?: string }
+                | undefined
+            )?.amount;
+            const assetDecimals = (
+              previousState.assetsInfo[assetId as Caip19AssetId] as
+                | { decimals?: number }
+                | undefined
+            )?.decimals;
+
+            balanceComparisons.push({
+              accountId,
+              assetId,
+              incomingAmount,
+              previousAmount,
+              normalizedIncoming: normalizeAmountString(
+                incomingAmount,
+                assetDecimals,
+              ),
+              normalizedPrevious:
+                previousAmount === undefined
+                  ? undefined
+                  : normalizeAmountString(previousAmount, assetDecimals),
+              amountsEqual:
+                previousAmount !== undefined &&
+                normalizeAmountString(incomingAmount, assetDecimals) ===
+                  normalizeAmountString(previousAmount, assetDecimals),
+            });
+          }
+        }
+
+        balanceWsDebug('updateState:noChanges', {
+          updateMode: mode,
+          balanceComparisons,
         });
       }
 
@@ -3207,6 +3414,18 @@ export class AssetsController extends BaseController<
   ): Promise<void> {
     const updateStart = performance.now();
 
+    if (sourceId === 'BackendWebsocketDataSource') {
+      balanceWsDebug('handleAssetsUpdate:enter', {
+        sourceId,
+        updateMode: response.updateMode,
+        balances: response.assetsBalance,
+        metadataKeys: response.assetsInfo
+          ? Object.keys(response.assetsInfo)
+          : [],
+        dataTypes: request?.dataTypes,
+      });
+    }
+
     log('Assets updated from data source', {
       sourceId,
       hasBalance: Boolean(response.assetsBalance),
@@ -3235,7 +3454,8 @@ export class AssetsController extends BaseController<
     // chains the rule does not apply to, so skip the middleware for those.
     const shouldGraduateCustomAssets =
       sourceId === 'AccountsApiDataSource' ||
-      sourceId === 'BackendWebsocketDataSource';
+      sourceId === 'BackendWebsocketDataSource' ||
+      sourceId === 'AccountActivityService';
 
     const enrichmentSources: AssetsDataSource[] = [
       ...(shouldGraduateCustomAssets
@@ -3259,6 +3479,17 @@ export class AssetsController extends BaseController<
     );
 
     await this.#updateState(enrichedResponse);
+
+    if (sourceId === 'BackendWebsocketDataSource') {
+      balanceWsDebug('handleAssetsUpdate:done', {
+        sourceId,
+        durationMs: performance.now() - updateStart,
+        enrichedMetadataKeys: enrichedResponse.assetsInfo
+          ? Object.keys(enrichedResponse.assetsInfo)
+          : [],
+        enrichedBalances: enrichedResponse.assetsBalance,
+      });
+    }
 
     this.#emitTrace(TRACE_UPDATE_PIPELINE, {
       source: sourceId,

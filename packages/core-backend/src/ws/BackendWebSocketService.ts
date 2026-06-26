@@ -16,6 +16,58 @@ const SERVICE_NAME = 'BackendWebSocketService' as const;
 
 const log = createModuleLogger(projectLogger, SERVICE_NAME);
 
+/** @see packages/assets-controller/src/utils/balanceWsDebug.ts */
+type BalanceWsRouteDebugGlobal = typeof globalThis & {
+  // eslint-disable-next-line @typescript-eslint/naming-convention -- DevTools toggle
+  METAMASK_BALANCE_WS_DEBUG?: boolean;
+};
+
+const LOG_PREFIX = '+++ [Balances][WS]';
+
+/**
+ * @param value - Value to serialize for console output.
+ * @returns JSON string safe for logging.
+ */
+function balanceWsSafeStringify(value: unknown): string {
+  try {
+    return JSON.stringify(
+      value,
+      (_key, nestedValue) =>
+        typeof nestedValue === 'bigint' ? nestedValue.toString() : nestedValue,
+      2,
+    );
+  } catch {
+    return String(value);
+  }
+}
+
+/**
+ * Temporary WS routing logging. Filter DevTools with `+++`.
+ *
+ * @param step - Routing step label.
+ * @param payload - Optional structured debug data.
+ */
+function balanceWsRouteDebug(
+  step: string,
+  payload?: Record<string, unknown>,
+): void {
+  if (typeof globalThis === 'undefined') {
+    return;
+  }
+
+  const debugGlobal = globalThis as BalanceWsRouteDebugGlobal;
+  if (debugGlobal.METAMASK_BALANCE_WS_DEBUG === false) {
+    return;
+  }
+
+  if (payload === undefined) {
+    console.log(`${LOG_PREFIX} ${step}`);
+    return;
+  }
+
+  console.log(`${LOG_PREFIX} ${step}\n${balanceWsSafeStringify(payload)}`);
+}
+
 function isAccountActivityChannel(channel: string): boolean {
   return channel.includes('account-activity');
 }
@@ -1226,8 +1278,37 @@ export class BackendWebSocketService {
    * @param message - The WebSocket message to handle
    */
   #handleMessage(message: WebSocketMessage): void {
+    const notificationMessage = message as Partial<ServerNotificationMessage>;
+    const { channel, subscriptionId } = notificationMessage;
+    const isServerResponse = this.#isServerResponse(message);
+    const isSubscriptionNotification =
+      this.#isSubscriptionNotification(message);
+    const isChannelMessage = this.#isChannelMessage(message);
+
+    if (
+      typeof channel === 'string' &&
+      isAccountActivityChannel(channel) &&
+      (isSubscriptionNotification || isChannelMessage)
+    ) {
+      balanceWsRouteDebug('wsService:handleMessage', {
+        channel,
+        subscriptionId,
+        isServerResponse,
+        isSubscriptionNotification,
+        isChannelMessage,
+        hasRequestIdInData:
+          Object.prototype.hasOwnProperty.call(message, 'data') &&
+          message.data !== null &&
+          typeof message.data === 'object' &&
+          Object.prototype.hasOwnProperty.call(
+            message.data as object,
+            'requestId',
+          ),
+      });
+    }
+
     // Handle server responses (correlated with requests) first
-    if (this.#isServerResponse(message)) {
+    if (isServerResponse) {
       const maybeNotification = message as Partial<ServerNotificationMessage>;
       if (
         typeof maybeNotification.channel !== 'string' ||
@@ -1239,9 +1320,14 @@ export class BackendWebSocketService {
     }
 
     // Handle subscription notifications with valid subscriptionId
-    if (this.#isSubscriptionNotification(message)) {
+    if (isSubscriptionNotification) {
       const notificationMsg = message as ServerNotificationMessage;
       const handled = this.#handleSubscriptionNotification(notificationMsg);
+      balanceWsRouteDebug('wsService:subscriptionRoute', {
+        channel: notificationMsg.channel,
+        subscriptionId: notificationMsg.subscriptionId,
+        handled,
+      });
       // If subscription notification wasn't handled (falsy subscriptionId), fall through to channel handling
       if (handled) {
         return;
@@ -1249,8 +1335,12 @@ export class BackendWebSocketService {
     }
 
     // Trigger channel callbacks for any message with a channel property
-    if (this.#isChannelMessage(message)) {
+    if (isChannelMessage) {
       const channelMsg = message;
+      balanceWsRouteDebug('wsService:channelFallback', {
+        channel: channelMsg.channel,
+        subscriptionId: channelMsg.subscriptionId,
+      });
       this.#handleChannelMessage(channelMsg);
     }
   }
@@ -1339,6 +1429,10 @@ export class BackendWebSocketService {
    */
   #handleChannelMessage(message: ServerNotificationMessage): void {
     const callback = this.#resolveChannelCallback(message.channel);
+    balanceWsRouteDebug('wsService:channelCallback', {
+      channel: message.channel,
+      hasCallback: Boolean(callback),
+    });
     callback?.(message);
   }
 
@@ -1408,14 +1502,28 @@ export class BackendWebSocketService {
       }
 
       if (!subscription) {
+        balanceWsRouteDebug('wsService:subscriptionMiss', {
+          channel,
+          subscriptionId,
+        });
         return false;
       }
 
       const activeSubscription = subscription;
 
       if (!activeSubscription.callback) {
+        balanceWsRouteDebug('wsService:subscriptionNoCallback', {
+          channel,
+          subscriptionId,
+        });
         return false;
       }
+
+      balanceWsRouteDebug('wsService:subscriptionHit', {
+        channel,
+        subscriptionId,
+        channelType: activeSubscription.channelType,
+      });
 
       // Calculate notification latency: time from server sent to client received
       const receivedAt = Date.now();
@@ -1439,6 +1547,12 @@ export class BackendWebSocketService {
           },
         },
         () => {
+          balanceWsRouteDebug('wsService:callbackInvoke', {
+            channel,
+            subscriptionId,
+            channelType: activeSubscription.channelType,
+            data: message.data,
+          });
           activeSubscription.callback?.(message);
         },
       );

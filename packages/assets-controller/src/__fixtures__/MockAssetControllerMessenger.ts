@@ -92,6 +92,8 @@ export function createMockAssetControllerMessenger(): {
       'PermissionController:stateChange',
       // BackendWebsocketDataSource
       'BackendWebSocketService:connectionStateChanged',
+      // AccountActivityService
+      'AccountActivityService:balanceUpdated',
     ],
   });
 

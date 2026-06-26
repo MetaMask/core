@@ -13,22 +13,17 @@ import {
   KnownCaipNamespace,
   toCaipChainId,
 } from '@metamask/utils';
-import BigNumberJS from 'bignumber.js';
 
 import type { AssetsControllerMessenger } from '../AssetsController';
 import { projectLogger, createModuleLogger } from '../logger';
-import type {
-  ChainId,
-  Caip19AssetId,
-  AssetMetadata,
-  AssetBalance,
-  DataResponse,
-} from '../types';
+import type { ChainId, Caip19AssetId, DataResponse } from '../types';
 import { AbstractDataSource } from './AbstractDataSource';
 import type {
   DataSourceState,
   SubscriptionRequest,
 } from './AbstractDataSource';
+import { balanceWsDebug } from '../utils/balanceWsDebug';
+import { processAccountActivityBalanceUpdates } from '../utils/processAccountActivityBalanceUpdates';
 
 // ============================================================================
 // CONSTANTS
@@ -645,6 +640,13 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       const activityMessage =
         notification.data as unknown as AccountActivityMessage;
 
+      balanceWsDebug('ws:enter', {
+        subscriptionId,
+        channel: notification.channel,
+        event: (notification as { event?: string }).event,
+        data: activityMessage,
+      });
+
       const storedSubscription = this.#subscriptionRequests.get(subscriptionId);
       const request = storedSubscription?.request;
       const onAssetsUpdate =
@@ -652,12 +654,20 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
         storedSubscription?.onAssetsUpdate;
 
       if (!request) {
+        balanceWsDebug('ws:drop', { reason: 'no-request', subscriptionId });
         return;
       }
 
       const { address, tx, updates } = activityMessage;
 
       if (!address || !tx || !updates) {
+        balanceWsDebug('ws:drop', {
+          reason: 'missing-activity-fields',
+          subscriptionId,
+          hasAddress: Boolean(address),
+          hasTx: Boolean(tx),
+          hasUpdates: Boolean(updates),
+        });
         return;
       }
 
@@ -673,6 +683,14 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
             : a.address === address,
         );
       if (!account) {
+        balanceWsDebug('ws:drop', {
+          reason: 'account-not-in-request',
+          subscriptionId,
+          address,
+          requestedAddresses: request.accountsWithSupportedChains.map(
+            (entry) => entry.account.address,
+          ),
+        });
         return;
       }
       const accountId = account.id;
@@ -680,13 +698,51 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       // Process all balance updates from the activity message
       const response = this.#processBalanceUpdates(updates, chainId, accountId);
 
-      const hasBalances =
-        Object.keys(response.assetsBalance?.[accountId] ?? {}).length > 0;
+      const balanceEntries = response.assetsBalance?.[accountId] ?? {};
+      const hasBalances = Object.keys(balanceEntries).length > 0;
+
+      balanceWsDebug('ws:processed', {
+        subscriptionId,
+        accountId,
+        chainId,
+        updateCount: updates.length,
+        balanceCount: Object.keys(balanceEntries).length,
+        balances: balanceEntries,
+        hasCallback: Boolean(onAssetsUpdate),
+      });
 
       if (hasBalances && onAssetsUpdate) {
-        Promise.resolve(onAssetsUpdate(response, request)).catch(console.error);
+        balanceWsDebug('ws:apply', {
+          subscriptionId,
+          accountId,
+          updateMode: response.updateMode,
+        });
+        Promise.resolve(onAssetsUpdate(response, request)).catch((error) => {
+          balanceWsDebug('ws:applyError', {
+            subscriptionId,
+            accountId,
+            error: String(error),
+          });
+          console.error(error);
+        });
+      } else if (hasBalances) {
+        balanceWsDebug('ws:drop', {
+          reason: 'no-callback',
+          subscriptionId,
+          accountId,
+        });
+      } else {
+        balanceWsDebug('ws:drop', {
+          reason: 'no-valid-balances',
+          subscriptionId,
+          accountId,
+        });
       }
     } catch (error) {
+      balanceWsDebug('ws:error', {
+        subscriptionId,
+        error: String(error),
+      });
       log('Error handling notification', error);
     }
   }
@@ -705,57 +761,11 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     _chainId: ChainId,
     accountId: string,
   ): DataResponse {
-    const assetsBalance: Record<string, Record<Caip19AssetId, AssetBalance>> = {
-      [accountId]: {},
-    };
-    const assetsMetadata: Record<Caip19AssetId, AssetMetadata> = {};
-
-    for (const update of updates) {
-      const { asset, postBalance } = update;
-
-      if (!asset || !postBalance) {
-        continue;
-      }
-
-      // Asset type is in CAIP format: "eip155:1/erc20:0x..." or "eip155:1/slip44:60"
-      // We can use it directly as the asset ID
-      const assetId = asset.type as Caip19AssetId;
-
-      const tokenType = this.#getAssetType(assetId);
-
-      // We assume decimals are always present; skip malformed updates
-      if (asset.decimals === undefined) {
-        continue;
-      }
-
-      // Parse raw balance (hex like "0x26f0e5" or decimal string)
-      const rawBalanceStr = postBalance.amount.startsWith('0x')
-        ? BigInt(postBalance.amount).toString()
-        : postBalance.amount;
-
-      const humanReadableAmount = new BigNumberJS(rawBalanceStr)
-        .dividedBy(new BigNumberJS(10).pow(asset.decimals))
-        .toFixed();
-
-      assetsBalance[accountId][assetId] = {
-        amount: humanReadableAmount,
-      };
-
-      assetsMetadata[assetId] = {
-        type: tokenType,
-        symbol: asset.unit,
-        name: asset.unit, // Use unit as name (actual name may not be in the message)
-        decimals: asset.decimals,
-      };
-    }
-
-    const response: DataResponse = { updateMode: 'merge' };
-    if (Object.keys(assetsBalance[accountId]).length > 0) {
-      response.assetsBalance = assetsBalance;
-      response.assetsInfo = assetsMetadata;
-    }
-
-    return response;
+    return processAccountActivityBalanceUpdates(
+      updates,
+      accountId,
+      (assetId) => this.#getAssetType(assetId),
+    );
   }
 
   // ============================================================================
