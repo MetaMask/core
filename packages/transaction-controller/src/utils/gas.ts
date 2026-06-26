@@ -135,11 +135,25 @@ export async function estimateGas({
   );
 
   const blockGasLimitBN = hexToBN(blockGasLimit);
-  const { percentage, fixed } = getGasEstimateFallback(chainId, messenger);
+  const { percentage, fixed, maxGasLimit } = getGasEstimateFallback(
+    chainId,
+    messenger,
+  );
 
-  const fallback = fixed
+  const uncappedFallback = fixed
     ? toHex(fixed)
     : BNToHex(fractionBN(blockGasLimitBN, percentage, 100));
+
+  // Clamp the fallback to the chain's per-transaction gas cap so it can never
+  // exceed the gas limit the RPC will accept. Without this, a percentage of a
+  // high block gas limit can overshoot the cap (e.g. 35% of Polygon's ~140M
+  // block limit is ~49M, but the node caps a tx at ~33.5M and rejects it with
+  // "transaction gas limit too high").
+  const fallback =
+    maxGasLimit !== undefined &&
+    hexToBN(uncappedFallback).gt(hexToBN(toHex(maxGasLimit)))
+      ? toHex(maxGasLimit)
+      : uncappedFallback;
 
   log('Estimation fallback values', fallback);
 

@@ -384,12 +384,16 @@ describe('fiat-direct-musd', () => {
       expect(callMock).toHaveBeenCalledWith(
         'TransactionController:addTransactionBatch',
         expect.objectContaining({
+          disableHook: true,
+          disableSequential: true,
+          disableUpgrade: true,
           from: MONEY_ACCOUNT_ADDRESS_MOCK,
           isGasFeeSponsored: true,
           isInternal: true,
           networkClientId: NETWORK_CLIENT_ID_MOCK,
           origin: 'metamask',
           requireApproval: false,
+          skipInitialGasEstimate: true,
           transactions: [
             {
               params: { data: '0xnewApprove', to: '0xapprove', value: '0x0' },
@@ -464,7 +468,8 @@ describe('fiat-direct-musd', () => {
       ).rejects.toThrow('Missing nested transactions');
     });
 
-    it('prefixes addTransactionBatch errors with Vault', async () => {
+    it('prefixes addTransactionBatch errors with Vault and stops collecting transaction IDs', async () => {
+      const endMock = jest.fn();
       const callMock = jest.fn((action: string) => {
         if (action === 'TransactionPayController:getAmountData') {
           return Promise.resolve({
@@ -478,6 +483,7 @@ describe('fiat-direct-musd', () => {
 
         throw new Error(`Unexpected action: ${action}`);
       });
+      collectTransactionIdsMock.mockReturnValue({ end: endMock });
 
       await expect(
         submitDirectMusdVaultDeposit({
@@ -486,6 +492,7 @@ describe('fiat-direct-musd', () => {
           transaction: TRANSACTION_MOCK,
         }),
       ).rejects.toThrow('Vault: batch failed');
+      expect(endMock).toHaveBeenCalledTimes(1);
     });
 
     it('throws when no vault transactions are collected', async () => {

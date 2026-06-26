@@ -50,6 +50,9 @@
       "path": "./packages/base-data-service/tsconfig.build.json"
     },
     {
+      "path": "./packages/bitcoin-regtest-up/tsconfig.build.json"
+    },
+    {
       "path": "./packages/bridge-controller/tsconfig.build.json"
     },
     {
@@ -128,6 +131,9 @@
       "path": "./packages/geolocation-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/java-tron-up/tsconfig.build.json"
+    },
+    {
       "path": "./packages/json-rpc-engine/tsconfig.build.json"
     },
     {
@@ -135,6 +141,9 @@
     },
     {
       "path": "./packages/keyring-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/local-node-utils/tsconfig.build.json"
     },
     {
       "path": "./packages/logging-controller/tsconfig.build.json"
@@ -243,6 +252,9 @@
     },
     {
       "path": "./packages/social-controllers/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/solana-test-validator-up/tsconfig.build.json"
     },
     {
       "path": "./packages/storage-service/tsconfig.build.json"

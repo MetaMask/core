@@ -49,5 +49,6 @@ export type {
   AnalyticsControllerTrackViewAction,
   AnalyticsControllerOptInAction,
   AnalyticsControllerOptOutAction,
+  AnalyticsControllerResetConsentDecisionAction,
   AnalyticsControllerMethodActions,
 } from './AnalyticsController-method-action-types';

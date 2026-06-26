@@ -323,6 +323,47 @@ describe('TradingService', () => {
       );
     });
 
+    it('includes chart_library when trackingData has chartLibrary', async () => {
+      const orderParams: OrderParams = {
+        symbol: 'BTC',
+        isBuy: true,
+        size: '0.1',
+        orderType: 'market',
+        leverage: 10,
+        trackingData: {
+          totalFee: 0,
+          marketPrice: 50000,
+          chartLibrary: PERPS_EVENT_VALUE.CHART_LIBRARY.ADVANCED,
+        },
+      };
+      const mockOrderResult: OrderResult = {
+        success: true,
+        orderId: 'order-123',
+        filledSize: '0.1',
+        averagePrice: '50000',
+      };
+
+      mockProvider.placeOrder.mockResolvedValue(mockOrderResult);
+      mockRewardsIntegrationService.calculateUserFeeDiscount.mockResolvedValue(
+        undefined,
+      );
+
+      await tradingService.placeOrder({
+        provider: mockProvider,
+        params: orderParams,
+        context: mockContext,
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+        PerpsAnalyticsEvent.TradeTransaction,
+        expect.objectContaining({
+          status: 'executed',
+          chart_library: 'advanced',
+        }),
+      );
+    });
+
     it('includes mm_pay_token_selected "Perps Balance" when user uses perps balance', async () => {
       const orderParams: OrderParams = {
         symbol: 'BTC',

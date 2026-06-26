@@ -8,6 +8,7 @@ export enum UnifiedSwapBridgeEventName {
   ButtonClicked = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Button Clicked`,
   PageViewed = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Page Viewed`,
   InputChanged = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Input Changed`,
+  FiatCryptoToggleClicked = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Fiat Crypto Toggle Clicked`,
   InputSourceDestinationSwitched = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Source Destination Switched`,
   QuotesRequested = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Quotes Requested`,
   QuotesReceived = `${UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY} Quotes Received`,
@@ -49,6 +50,11 @@ export enum MetaMetricsSwapsEventSource {
   TokenView = 'Token View',
   TrendingExplore = 'Trending Explore',
   Rewards = 'Rewards',
+  ActivityTabEmptyState = 'Activity Tab Empty State',
+  TransactionShield = 'Transaction Shield',
+  TransactionDetails = 'Transaction Details',
+  DeepLink = 'Deep Link',
+  Unknown = 'Unknown',
 }
 
 export enum InputAmountPreset {
