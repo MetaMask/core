@@ -1,0 +1,18 @@
+# Changelog
+
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+
+- Add `MoneyAccountApiDataService` data service ([#9278](https://github.com/MetaMask/core/pull/9278))
+  - Fetch user vault positions from the Money Account API (`fetchPositions`)
+  - Fetch interest earned over a time window (`fetchInterest`)
+  - Fetch cursor-paginated cash-flow history (`fetchHistory`)
+  - Fetch vault exchange-rate time series (`fetchRateHistory`)
+
+[Unreleased]: https://github.com/MetaMask/core/

@@ -47,6 +47,7 @@
 ## Earn Team
 /packages/earn-controller                   @MetaMask/earn
 /packages/money-account-balance-service     @MetaMask/earn
+/packages/money-account-api-data-service    @MetaMask/earn
 /packages/chomp-api-service                 @MetaMask/earn @MetaMask/delegation
 /packages/money-account-upgrade-controller  @MetaMask/earn @MetaMask/delegation
 
@@ -170,6 +171,8 @@
 /packages/earn-controller/CHANGELOG.md            @MetaMask/earn @MetaMask/core-platform
 /packages/money-account-balance-service/package.json @MetaMask/earn @MetaMask/core-platform
 /packages/money-account-balance-service/CHANGELOG.md @MetaMask/earn @MetaMask/core-platform
+/packages/money-account-api-data-service/package.json @MetaMask/earn @MetaMask/core-platform
+/packages/money-account-api-data-service/CHANGELOG.md @MetaMask/earn @MetaMask/core-platform
 /packages/ens-controller/package.json             @MetaMask/confirmations @MetaMask/core-platform
 /packages/ens-controller/CHANGELOG.md             @MetaMask/confirmations @MetaMask/core-platform
 /packages/gas-fee-controller/package.json         @MetaMask/confirmations @MetaMask/core-platform
