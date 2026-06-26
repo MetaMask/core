@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## Added
+
+- Add Stellar support to bridge transaction submission and status tracking: thread `StellarTradeData` through the non-EVM submit strategies and include source and destination asset IDs in the snap client transaction request ([#9170](https://github.com/MetaMask/core/pull/9170))
+
 ## [73.0.0]
 
 ### Changed
@@ -35,7 +39,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add input primary denomination to submitted bridge history and post-submit analytics ([#9147](https://github.com/MetaMask/core/pull/9147))
-- Add Stellar support to bridge transaction submission and status tracking: thread `StellarTradeData` through the non-EVM submit strategies and include source and destination asset IDs in the snap client transaction request ([#8829](https://github.com/MetaMask/core/pull/8829))
 
 ### Changed
 
