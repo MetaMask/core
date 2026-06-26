@@ -1643,10 +1643,8 @@ export class HyperLiquidSubscriptionService {
           marketData.priceLastUpdated !== undefined &&
           now - marketData.priceLastUpdated <=
             HyperLiquidSubscriptionService.#activeAssetCtxPriceTtlMs;
-        if (isFastPriceFresh) {
-          const fastPrice = (
-            marketData!.activeAssetCtxPrice as number
-          ).toString();
+        if (isFastPriceFresh && marketData?.activeAssetCtxPrice !== undefined) {
+          const fastPrice = marketData.activeAssetCtxPrice.toString();
           callback([this.#createPriceUpdate(symbol, fastPrice)]);
         }
       }
@@ -3953,10 +3951,8 @@ export class HyperLiquidSubscriptionService {
 
         let priceUpdate: PriceUpdate | undefined;
 
-        if (isFocused && isFastPriceFresh) {
-          const fastPrice = (
-            marketData!.activeAssetCtxPrice as number
-          ).toString();
+        if (isFocused && isFastPriceFresh && marketData?.activeAssetCtxPrice !== undefined) {
+          const fastPrice = marketData.activeAssetCtxPrice.toString();
           // Use allMids baseline as the structural base when available;
           // fall back to a freshly computed PriceUpdate if allMids hasn't
           // arrived yet so focused screens stay responsive on first render.
@@ -3968,10 +3964,9 @@ export class HyperLiquidSubscriptionService {
         }
 
         if (priceUpdate !== undefined) {
-          if (!subscriberUpdates.has(callback)) {
-            subscriberUpdates.set(callback, []);
-          }
-          subscriberUpdates.get(callback)!.push(priceUpdate);
+          const updates = subscriberUpdates.get(callback) ?? [];
+          updates.push(priceUpdate);
+          subscriberUpdates.set(callback, updates);
         }
       });
     });
