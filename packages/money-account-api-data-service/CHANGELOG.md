@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release of `@metamask/money-account-api-data-service` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Add `MoneyAccountApiDataService` data service ([#9278](https://github.com/MetaMask/core/pull/9278))
+  - Fetch user vault positions from the Money Account API (`fetchPositions`)
+  - Fetch interest earned over a time window (`fetchInterest`)
+  - Fetch cursor-paginated cash-flow history (`fetchHistory`)
+  - Fetch vault exchange-rate time series (`fetchRateHistory`)
 
 [Unreleased]: https://github.com/MetaMask/core/
