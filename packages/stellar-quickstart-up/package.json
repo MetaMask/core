@@ -1,6 +1,6 @@
 {
   "name": "@metamask/stellar-quickstart-up",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Stellar Quickstart runtime installer for MetaMask E2E tests",
   "keywords": [
     "Ethereum",
@@ -15,6 +15,7 @@
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
+  "bin": "./dist/bin/stellar-quickstart-up.mjs",
   "files": [
     "dist/"
   ],
@@ -51,6 +52,9 @@
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
+  },
+  "dependencies": {
+    "@metamask/local-node-utils": "^0.0.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",

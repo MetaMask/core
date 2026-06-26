@@ -8637,6 +8637,7 @@ __metadata:
   resolution: "@metamask/stellar-quickstart-up@workspace:packages/stellar-quickstart-up"
   dependencies:
     "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/local-node-utils": "npm:^0.0.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
     deepmerge: "npm:^4.2.2"
@@ -8646,6 +8647,8 @@ __metadata:
     typedoc: "npm:^0.25.13"
     typedoc-plugin-missing-exports: "npm:^2.0.0"
     typescript: "npm:~5.3.3"
+  bin:
+    stellar-quickstart-up: ./dist/bin/stellar-quickstart-up.mjs
   languageName: unknown
   linkType: soft
 
