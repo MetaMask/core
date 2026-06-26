@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Skip proof-of-ownership signing for accounts with no entropy source ([#XXX](https://github.com/MetaMask/core/pull/XXX))
+- Skip proof-of-ownership signing for accounts with no entropy source ([#9286](https://github.com/MetaMask/core/pull/9286))
   - They are still submitted to the metrics endpoint, just without a `proof` field.
 
 ### Changed
