@@ -116,7 +116,6 @@ import type {
   SDKOrderParams,
   MetaResponse,
   PerpsAssetCtx,
-  FrontendOrder,
   SpotMetaResponse,
 } from '../types/hyperliquid-types';
 import {
