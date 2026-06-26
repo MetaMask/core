@@ -9,7 +9,7 @@ export const Caip25Errors = {
    *
    * @returns A new JsonRpcError instance.
    */
-  unknownErrorOrNoScopesAuthorized: () =>
+  unknownErrorOrNoScopesAuthorized: (): JsonRpcError =>
     new JsonRpcError(5000, 'Unknown error with request'),
 
   /**
@@ -18,7 +18,7 @@ export const Caip25Errors = {
    *
    * @returns A new JsonRpcError instance.
    */
-  requestedChainsNotSupportedError: () =>
+  requestedChainsNotSupportedError: (): JsonRpcError =>
     new JsonRpcError(5100, 'Requested networks are not supported'),
 
   /**
@@ -28,7 +28,7 @@ export const Caip25Errors = {
    *
    * @returns A new JsonRpcError instance.
    */
-  requestedMethodsNotSupportedError: () =>
+  requestedMethodsNotSupportedError: (): JsonRpcError =>
     new JsonRpcError(5101, 'Requested methods are not supported'),
 
   /**
@@ -38,7 +38,7 @@ export const Caip25Errors = {
    *
    * @returns A new JsonRpcError instance.
    */
-  requestedNotificationsNotSupportedError: () =>
+  requestedNotificationsNotSupportedError: (): JsonRpcError =>
     new JsonRpcError(5102, 'Requested notifications are not supported'),
 
   /**
@@ -47,7 +47,7 @@ export const Caip25Errors = {
    *
    * @returns A new JsonRpcError instance.
    */
-  unknownMethodsRequestedError: () =>
+  unknownMethodsRequestedError: (): JsonRpcError =>
     new JsonRpcError(5201, 'Unknown method(s) requested'),
 
   /**
@@ -56,7 +56,7 @@ export const Caip25Errors = {
    *
    * @returns A new JsonRpcError instance.
    */
-  unknownNotificationsRequestedError: () =>
+  unknownNotificationsRequestedError: (): JsonRpcError =>
     new JsonRpcError(5202, 'Unknown notification(s) requested'),
 
   /**
@@ -65,6 +65,6 @@ export const Caip25Errors = {
    *
    * @returns A new JsonRpcError instance.
    */
-  invalidSessionPropertiesError: () =>
+  invalidSessionPropertiesError: (): JsonRpcError =>
     new JsonRpcError(5302, 'Invalid sessionProperties requested'),
 };
