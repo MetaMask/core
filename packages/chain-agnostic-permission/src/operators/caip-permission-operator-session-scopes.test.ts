@@ -372,7 +372,9 @@ describe('CAIP-25 session scopes adapters', () => {
     });
 
     it('calls getCapabilities with each unique permitted EVM address', () => {
-      const getCapabilities = jest.fn().mockReturnValue({ atomic: 'supported' });
+      const getCapabilities = jest
+        .fn()
+        .mockReturnValue({ atomic: 'supported' });
 
       getSessionProperties(
         {
