@@ -9,6 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add initial `stellar-quickstart-up` runtime installer that pulls a pinned `stellar/quickstart` Docker image, caches image metadata, and installs a `stellar-quickstart` wrapper in `node_modules/.bin`
+- Add initial `stellar-quickstart-up` runtime installer that pulls a pinned `stellar/quickstart` Docker image, caches image metadata, and installs a `stellar-quickstart` wrapper in `node_modules/.bin` ([#9282](https://github.com/MetaMask/core/pull/9282))
 
 [Unreleased]: https://github.com/MetaMask/core/
