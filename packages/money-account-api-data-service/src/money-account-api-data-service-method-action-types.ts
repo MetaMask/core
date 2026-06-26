@@ -31,10 +31,16 @@ export type MoneyAccountApiDataServiceFetchInterestAction = {
 
 /**
  * Fetches cursor-paginated cash-flow history for a given address.
+ * Uses `fetchInfiniteQuery` for proper TanStack Query pagination semantics.
+ *
+ * When paginating, consumers must re-pass the same filter options
+ * (`vaultAddress`, `chainId`, `limit`) alongside `cursor` on every page
+ * request. This ensures the query key matches the original infinite query
+ * and that the HTTP request includes the correct filters.
  *
  * @param address - The user's Ethereum address.
  * @param options - Optional filtering and pagination options.
- * @returns The history response containing cash-flow entries.
+ * @returns The history response containing cash-flow entries for the requested page.
  */
 export type MoneyAccountApiDataServiceFetchHistoryAction = {
   type: `MoneyAccountApiDataService:fetchHistory`;
