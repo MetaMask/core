@@ -114,7 +114,12 @@ export type QuoteWarning =
   | 'quote_expired'
   | 'tx_alert';
 
-type BatchSellTokenPageEventContext = {
+type BatchSellChainProperties = {
+  chain_id_source: CaipChainId;
+  chain_id_destination: CaipChainId | null;
+};
+
+type BatchSellTokenPageEventContext = BatchSellChainProperties & {
   location: BatchSellMetricsLocation;
 };
 
@@ -135,29 +140,24 @@ type BatchSellReviewModalSubmittedEventContext =
   BatchSellQuotePageEventContext &
     Pick<TradeData, 'usd_quoted_gas' | 'usd_quoted_return'>;
 
-type BatchSellChainProperties = {
-  chain_id_source: CaipChainId;
-  chain_id_destination: CaipChainId | null;
-};
-
 type BatchSellTokenPageEventProperties = BatchSellChainProperties &
   BatchSellTokenPageEventContext;
 
 type BatchSellSourceTokenEventProperties = BatchSellChainProperties &
   BatchSellSourceTokenEventContext & {
-    source_token_count: number;
-  };
+  source_token_count: number;
+};
 
 type BatchSellQuotePageEventProperties = BatchSellChainProperties &
   BatchSellQuotePageEventContext & {
-    source_token_count: number;
-  };
+  source_token_count: number;
+};
 
 type BatchSellReviewModalSubmittedEventProperties =
   BatchSellChainProperties &
-    BatchSellReviewModalSubmittedEventContext & {
-      source_token_count: number;
-    };
+  BatchSellReviewModalSubmittedEventContext & {
+    source_token_count: number;
+  };
 
 type SharedEventContextFromClient = {
   ab_tests?: Record<string, string>;

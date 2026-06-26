@@ -3044,11 +3044,13 @@ describe('BridgeController', function () {
       });
     });
 
-    it('should track Batch Sell token page events with default chain fallback', async () => {
+    it('should track Batch Sell token page events with client chain ids', async () => {
       await withController(async ({ rootMessenger }) => {
+        const chainIdSource = formatChainIdToCaip(ChainId.POLYGON);
+        const chainIdDestination = formatChainIdToCaip(ChainId.BASE);
         const sourceTokenAddresses = [
-          'eip155:1/erc20:0x1111111111111111111111111111111111111111',
-          'eip155:1/erc20:0x2222222222222222222222222222222222222222',
+          'eip155:137/erc20:0x1111111111111111111111111111111111111111',
+          'eip155:137/erc20:0x2222222222222222222222222222222222222222',
         ] satisfies CaipAssetType[];
         const sourceTokenSymbols = ['LINK', 'UNI'];
 
@@ -3056,6 +3058,8 @@ describe('BridgeController', function () {
           'BridgeController:trackUnifiedSwapBridgeEvent',
           BatchSellMetricsEventName.BatchSellTokenPageViewed,
           {
+            chain_id_source: chainIdSource,
+            chain_id_destination: chainIdDestination,
             location: BatchSellMetricsLocation.TradeMenu,
           },
         );
@@ -3063,6 +3067,8 @@ describe('BridgeController', function () {
           'BridgeController:trackUnifiedSwapBridgeEvent',
           BatchSellMetricsEventName.BatchSellTokenPageContinueClicked,
           {
+            chain_id_source: chainIdSource,
+            chain_id_destination: chainIdDestination,
             location: BatchSellMetricsLocation.AssetPicker,
             source_token_symbols: sourceTokenSymbols,
             source_token_addresses: sourceTokenAddresses,
@@ -3073,8 +3079,8 @@ describe('BridgeController', function () {
           1,
           BatchSellMetricsEventName.BatchSellTokenPageViewed,
           {
-            chain_id_source: formatChainIdToCaip(ChainId.ETH),
-            chain_id_destination: null,
+            chain_id_source: chainIdSource,
+            chain_id_destination: chainIdDestination,
             location: BatchSellMetricsLocation.TradeMenu,
           },
         );
@@ -3082,8 +3088,8 @@ describe('BridgeController', function () {
           2,
           BatchSellMetricsEventName.BatchSellTokenPageContinueClicked,
           {
-            chain_id_source: formatChainIdToCaip(ChainId.ETH),
-            chain_id_destination: null,
+            chain_id_source: chainIdSource,
+            chain_id_destination: chainIdDestination,
             location: BatchSellMetricsLocation.AssetPicker,
             source_token_count: sourceTokenAddresses.length,
             source_token_symbols: sourceTokenSymbols,
@@ -3114,13 +3120,15 @@ describe('BridgeController', function () {
         );
         jest.clearAllMocks();
 
+        const chainIdSource = formatChainIdToCaip(ChainId.POLYGON);
+        const chainIdDestination = formatChainIdToCaip(ChainId.BASE);
         const sourceTokenAddresses = [
-          'eip155:10/erc20:0x1111111111111111111111111111111111111111',
-          'eip155:10/erc20:0x2222222222222222222222222222222222222222',
+          'eip155:137/erc20:0x1111111111111111111111111111111111111111',
+          'eip155:137/erc20:0x2222222222222222222222222222222222222222',
         ] satisfies CaipAssetType[];
         const destinationTokenAddress =
-          'eip155:10/erc20:0x3333333333333333333333333333333333333333' satisfies CaipAssetType;
-        const properties = {
+          'eip155:8453/erc20:0x3333333333333333333333333333333333333333' satisfies CaipAssetType;
+        const sharedProperties = {
           location: BatchSellMetricsLocation.Deeplink,
           source_token_symbols: ['WETH', 'OP'],
           source_token_addresses: sourceTokenAddresses,
@@ -3130,9 +3138,12 @@ describe('BridgeController', function () {
           usd_amount_source_total: 30,
           source_token_slippages: [0.5, 1],
         };
+        const properties = {
+          chain_id_source: chainIdSource,
+          chain_id_destination: chainIdDestination,
+          ...sharedProperties,
+        };
         const expectedProperties = {
-          chain_id_source: formatChainIdToCaip(ChainId.OPTIMISM),
-          chain_id_destination: formatChainIdToCaip(ChainId.OPTIMISM),
           source_token_count: sourceTokenAddresses.length,
           ...properties,
         };

@@ -25,7 +25,7 @@ import {
   ExchangeRateSourcesForLookup,
   selectIsAssetExchangeRateInState,
 } from './selectors';
-import { ChainId, FeatureId, RequestStatus } from './types';
+import { FeatureId, RequestStatus } from './types';
 import type {
   L1GasFees,
   GenericQuoteRequest,
@@ -1186,14 +1186,14 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     const inputPrimaryDenominationProperties = {
       input_primary_denomination: this.state.inputPrimaryDenomination,
     };
-    const batchSellQuoteRequest = this.state.quoteRequest[0];
+    const batchSellClientChainProperties =
+      propertiesFromClient as Pick<
+        RequiredEventContextFromClient[BatchSellMetricsEventName.BatchSellTokenPageViewed],
+        'chain_id_source' | 'chain_id_destination'
+      >;
     const batchSellBaseProperties = {
-      chain_id_source: formatChainIdToCaip(
-        batchSellQuoteRequest?.srcChainId ?? ChainId.ETH,
-      ),
-      chain_id_destination: batchSellQuoteRequest?.destChainId
-        ? formatChainIdToCaip(batchSellQuoteRequest.destChainId)
-        : null,
+      chain_id_source: batchSellClientChainProperties.chain_id_source,
+      chain_id_destination: batchSellClientChainProperties.chain_id_destination,
       location: clientProps?.location ?? this.#location,
     };
     const quoteRequest = this.state.quoteRequest[quoteRequestIndex];
@@ -1219,33 +1219,33 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       case BatchSellMetricsEventName.BatchSellTokenPageViewed:
         return batchSellBaseProperties;
       case BatchSellMetricsEventName.BatchSellTokenPageContinueClicked: {
-        const sourceTokenProperties =
+        const propsFromClient =
           propertiesFromClient as RequiredEventContextFromClient[BatchSellMetricsEventName.BatchSellTokenPageContinueClicked];
         return {
           ...batchSellBaseProperties,
           source_token_count:
-            sourceTokenProperties.source_token_addresses.length,
-          source_token_symbols: sourceTokenProperties.source_token_symbols,
-          source_token_addresses: sourceTokenProperties.source_token_addresses,
+            propsFromClient.source_token_addresses.length,
+          source_token_symbols: propsFromClient.source_token_symbols,
+          source_token_addresses: propsFromClient.source_token_addresses,
         };
       }
       case BatchSellMetricsEventName.BatchSellQuotePageViewed:
       case BatchSellMetricsEventName.BatchSellQuotePageReviewClicked: {
-        const quotePageProperties =
+        const propsFromClient =
           propertiesFromClient as RequiredEventContextFromClient[BatchSellMetricsEventName.BatchSellQuotePageViewed];
         return {
           ...batchSellBaseProperties,
-          source_token_count: quotePageProperties.source_token_addresses.length,
-          source_token_symbols: quotePageProperties.source_token_symbols,
-          source_token_addresses: quotePageProperties.source_token_addresses,
+          source_token_count: propsFromClient.source_token_addresses.length,
+          source_token_symbols: propsFromClient.source_token_symbols,
+          source_token_addresses: propsFromClient.source_token_addresses,
           destination_token_symbol:
-            quotePageProperties.destination_token_symbol,
+            propsFromClient.destination_token_symbol,
           destination_token_address:
-            quotePageProperties.destination_token_address,
+            propsFromClient.destination_token_address,
           usd_amount_source_tokens:
-            quotePageProperties.usd_amount_source_tokens,
-          usd_amount_source_total: quotePageProperties.usd_amount_source_total,
-          source_token_slippages: quotePageProperties.source_token_slippages,
+            propsFromClient.usd_amount_source_tokens,
+          usd_amount_source_total: propsFromClient.usd_amount_source_total,
+          source_token_slippages: propsFromClient.source_token_slippages,
         };
       }
       case BatchSellMetricsEventName.BatchSellReviewModalSubmitted: {
