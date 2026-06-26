@@ -1894,7 +1894,7 @@ describe('RpcDataSource', () => {
   });
 
   describe('transaction events', () => {
-    it('refreshes balance with update mode when transaction confirmed', async () => {
+    it('refreshes balance with merge mode when transaction confirmed', async () => {
       const onAssetsUpdate = jest.fn().mockResolvedValue(undefined);
       const fetchSpy = jest
         .spyOn(RpcDataSource.prototype, 'fetch')
@@ -1904,7 +1904,7 @@ describe('RpcDataSource', () => {
               'eip155:1/slip44:60': { amount: '2' },
             },
           },
-          updateMode: 'update',
+          updateMode: 'merge',
         });
 
       try {
@@ -1924,7 +1924,7 @@ describe('RpcDataSource', () => {
 
           expect(fetchSpy).toHaveBeenCalled();
           expect(onAssetsUpdate).toHaveBeenCalledWith(
-            expect.objectContaining({ updateMode: 'update' }),
+            expect.objectContaining({ updateMode: 'merge' }),
             expect.objectContaining({ dataTypes: ['balance'] }),
           );
         });

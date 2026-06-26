@@ -66,12 +66,6 @@ export function mergeDataResponses(responses: DataResponse[]): DataResponse {
       merged.updateMode !== 'full'
     ) {
       merged.updateMode = 'merge';
-    } else if (
-      response.updateMode === 'update' &&
-      merged.updateMode !== 'full' &&
-      merged.updateMode !== 'merge'
-    ) {
-      merged.updateMode = 'update';
     }
   }
   merged.updateMode ??= 'merge';

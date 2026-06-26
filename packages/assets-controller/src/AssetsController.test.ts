@@ -1758,7 +1758,7 @@ describe('AssetsController', () => {
       });
     });
 
-    it('overlays balances without removing tokens when update mode is used', async () => {
+    it('overlays balances without removing tokens when merge mode is used', async () => {
       const initialState: Partial<AssetsControllerState> = {
         assetsBalance: {
           [MOCK_ACCOUNT_ID]: {
@@ -1766,31 +1766,15 @@ describe('AssetsController', () => {
             [MOCK_NATIVE_ASSET_ID]: { amount: '0.000390285791392' },
           },
         },
-        assetsInfo: {
-          [MOCK_ASSET_ID]: {
-            type: 'erc20',
-            symbol: 'USDC',
-            name: 'USD Coin',
-            decimals: 6,
-          },
-        },
       };
 
       await withController({ state: initialState }, async ({ controller }) => {
         await controller.handleAssetsUpdate(
           {
-            updateMode: 'update',
+            updateMode: 'merge',
             assetsBalance: {
               [MOCK_ACCOUNT_ID]: {
                 [MOCK_NATIVE_ASSET_ID]: { amount: '0.000389261286724' },
-              },
-            },
-            assetsInfo: {
-              [MOCK_ASSET_ID]: {
-                type: 'erc20',
-                symbol: 'REPLACED',
-                name: 'Replaced',
-                decimals: 18,
               },
             },
           },
@@ -1805,17 +1789,16 @@ describe('AssetsController', () => {
             MOCK_NATIVE_ASSET_ID
           ],
         ).toStrictEqual({ amount: '0.000389261286724' });
-        expect(controller.state.assetsInfo[MOCK_ASSET_ID]?.symbol).toBe('USDC');
       });
     });
 
-    it('seeds missing metadata in update mode for RPC-only chains', async () => {
+    it('seeds missing metadata in merge mode for RPC-only chains', async () => {
       const avaxNative = 'eip155:43114/slip44:9005' as Caip19AssetId;
 
       await withController({ state: {} }, async ({ controller }) => {
         await controller.handleAssetsUpdate(
           {
-            updateMode: 'update',
+            updateMode: 'merge',
             assetsBalance: {
               [MOCK_ACCOUNT_ID]: {
                 [avaxNative]: { amount: '1.5' },
@@ -1840,7 +1823,7 @@ describe('AssetsController', () => {
       });
     });
 
-    it('updates balance amounts present in update mode response', async () => {
+    it('updates balance amounts present in merge mode response', async () => {
       const initialState: Partial<AssetsControllerState> = {
         assetsBalance: {
           [MOCK_ACCOUNT_ID]: {
@@ -1852,7 +1835,7 @@ describe('AssetsController', () => {
       await withController({ state: initialState }, async ({ controller }) => {
         await controller.handleAssetsUpdate(
           {
-            updateMode: 'update',
+            updateMode: 'merge',
             assetsBalance: {
               [MOCK_ACCOUNT_ID]: {
                 [MOCK_ASSET_ID]: { amount: '2' },
@@ -1905,54 +1888,6 @@ describe('AssetsController', () => {
           ).toStrictEqual({ amount: '0.00000114526056' });
         },
       );
-    });
-
-    it('zeros stale native in update mode when the chain is covered but native is omitted', async () => {
-      const initialState: Partial<AssetsControllerState> = {
-        assetsBalance: {
-          [MOCK_ACCOUNT_ID]: {
-            [MOCK_NATIVE_ASSET_ID]: { amount: '1.5' },
-            [MOCK_ASSET_ID]: { amount: '10' },
-          },
-        },
-        assetsInfo: {
-          [MOCK_NATIVE_ASSET_ID]: {
-            type: 'native',
-            symbol: 'ETH',
-            name: 'Ether',
-            decimals: 18,
-          },
-          [MOCK_ASSET_ID]: {
-            type: 'erc20',
-            symbol: 'USDC',
-            name: 'USD Coin',
-            decimals: 6,
-          },
-        },
-      };
-
-      await withController({ state: initialState }, async ({ controller }) => {
-        await controller.handleAssetsUpdate(
-          {
-            updateMode: 'update',
-            assetsBalance: {
-              [MOCK_ACCOUNT_ID]: {
-                [MOCK_ASSET_ID]: { amount: '0' },
-              },
-            },
-          },
-          'AccountsApiDataSource',
-        );
-
-        expect(
-          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
-        ).toStrictEqual({ amount: '0' });
-        expect(
-          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
-            MOCK_NATIVE_ASSET_ID
-          ],
-        ).toStrictEqual({ amount: '0' });
-      });
     });
 
     it('updates state with price data', async () => {

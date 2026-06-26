@@ -304,7 +304,7 @@ export class SnapDataSource extends AbstractDataSource<
 
     // Only report if we have snap-related updates
     if (assetsBalance) {
-      const response: DataResponse = { assetsBalance, updateMode: 'update' };
+      const response: DataResponse = { assetsBalance, updateMode: 'merge' };
       for (const subscription of this.activeSubscriptions.values()) {
         subscription.onAssetsUpdate(response)?.catch(console.error);
       }
@@ -445,13 +445,13 @@ export class SnapDataSource extends AbstractDataSource<
       return {};
     }
     if (!request?.accountsWithSupportedChains?.length) {
-      return { assetsBalance: {}, assetsInfo: {}, updateMode: 'update' };
+      return { assetsBalance: {}, assetsInfo: {}, updateMode: 'merge' };
     }
 
     const results: DataResponse = {
       assetsBalance: {},
       assetsInfo: {},
-      updateMode: 'update',
+      updateMode: 'merge',
     };
 
     // Fetch balances for each account using its snap ID from metadata

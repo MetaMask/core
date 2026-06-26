@@ -523,7 +523,7 @@ export class RpcDataSource extends AbstractDataSource<
         [result.accountId]: newBalances,
       },
       assetsInfo,
-      updateMode: 'update',
+      updateMode: 'merge',
     };
 
     const request: DataRequest = {
@@ -603,7 +603,7 @@ export class RpcDataSource extends AbstractDataSource<
       assetsBalance: {
         [result.accountId]: newBalances,
       },
-      updateMode: 'update',
+      updateMode: 'merge',
     };
 
     const chainIdDecimal = parseInt(result.chainId, 16);
@@ -709,7 +709,7 @@ export class RpcDataSource extends AbstractDataSource<
 
         const responseWithMode: DataResponse = {
           ...response,
-          updateMode: response.updateMode ?? 'update',
+          updateMode: response.updateMode ?? 'merge',
         };
 
         await subscription.onAssetsUpdate(responseWithMode, request);
@@ -1172,7 +1172,7 @@ export class RpcDataSource extends AbstractDataSource<
       response.assetsInfo = assetsInfo;
     }
 
-    response.updateMode = 'update';
+    response.updateMode = 'merge';
 
     return response;
   }

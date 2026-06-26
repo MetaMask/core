@@ -26,7 +26,7 @@ describe('processAccountActivityBalanceUpdates', () => {
       () => 'native',
     );
 
-    expect(response.updateMode).toBe('update');
+    expect(response.updateMode).toBe('merge');
     expect(response.assetsBalance?.[accountId]?.[assetId]).toStrictEqual({
       amount: '0.00000114526056',
     });

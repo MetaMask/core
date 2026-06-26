@@ -1546,7 +1546,7 @@ export class AssetsController extends BaseController<
       // creation, RPC is slow on many chains). Results are committed to state
       // immediately so the UI can display balances without waiting for them.
       //
-      // Fast/slow pipelines use 'update' so partial API snapshots cannot wipe
+      // Fast/slow pipelines use merge so partial API snapshots cannot wipe
       // tokens missing from the response (e.g. USDC when only native balance
       // is returned). Balances present in the response are still refreshed.
       const fastSources = this.#isBasicFunctionality()
@@ -1571,7 +1571,7 @@ export class AssetsController extends BaseController<
         fastSources,
         request,
       );
-      await this.#updateState({ ...response, updateMode: 'update' });
+      await this.#updateState({ ...response, updateMode: 'merge' });
 
       // Background pipeline: snap and RPC run in parallel after the fast path
       // commits to state. Their balances are merged together before detection.
@@ -1605,7 +1605,7 @@ export class AssetsController extends BaseController<
           slowRequest,
         )
           .then(({ response: slowResponse }) =>
-            this.#updateState({ ...slowResponse, updateMode: 'update' }),
+            this.#updateState({ ...slowResponse, updateMode: 'merge' }),
           )
           .catch((error) => log('Background pipeline failed', { error }));
       }
@@ -2330,51 +2330,34 @@ export class AssetsController extends BaseController<
         const prices = state.assetsPrice as Record<string, AssetPrice>;
 
         if (normalizedResponse.assetsInfo) {
-          if (mode === 'update') {
-            // Balance-only refresh: patch amounts without overwriting metadata,
-            // but seed entries that are missing so RPC-only chains (e.g.
-            // Avalanche) can render native balances on first fetch.
-            for (const [key, value] of Object.entries(
-              normalizedResponse.assetsInfo,
-            )) {
-              if (metadata[key]) {
-                continue;
-              }
-              metadata[key] = value;
+          for (const [key, value] of Object.entries(
+            normalizedResponse.assetsInfo,
+          )) {
+            if (
+              !isEqual(previousState.assetsInfo[key as Caip19AssetId], value)
+            ) {
               changedMetadata.push(key);
             }
-          } else {
-            for (const [key, value] of Object.entries(
-              normalizedResponse.assetsInfo,
-            )) {
-              if (
-                !isEqual(previousState.assetsInfo[key as Caip19AssetId], value)
-              ) {
-                changedMetadata.push(key);
-              }
 
-              const existing = metadata[key] as
-                | FungibleAssetMetadata
-                | undefined;
-              const incoming = value as FungibleAssetMetadata;
+            const existing = metadata[key] as FungibleAssetMetadata | undefined;
+            const incoming = value as FungibleAssetMetadata;
 
-              // When the API returns no symbol or name for this token, it has no
-              // real knowledge of it (e.g. a user-deployed token not indexed by
-              // the API). Preserve richer metadata already in state (e.g. from
-              // pendingMetadata set by addCustomAsset) so that the correct
-              // decimals/symbol/name/image are not overwritten with empty values.
-              if (existing && !incoming.symbol && !incoming.name) {
-                metadata[key] = {
-                  ...existing,
-                  ...incoming,
-                  symbol: existing.symbol,
-                  name: existing.name,
-                  decimals: existing.decimals ?? incoming.decimals,
-                  image: existing.image ?? incoming.image,
-                };
-              } else {
-                metadata[key] = value;
-              }
+            // When the API returns no symbol or name for this token, it has no
+            // real knowledge of it (e.g. a user-deployed token not indexed by
+            // the API). Preserve richer metadata already in state (e.g. from
+            // pendingMetadata set by addCustomAsset) so that the correct
+            // decimals/symbol/name/image are not overwritten with empty values.
+            if (existing && !incoming.symbol && !incoming.name) {
+              metadata[key] = {
+                ...existing,
+                ...incoming,
+                symbol: existing.symbol,
+                name: existing.name,
+                decimals: existing.decimals ?? incoming.decimals,
+                image: existing.image ?? incoming.image,
+              };
+            } else {
+              metadata[key] = value;
             }
           }
         }
@@ -2416,10 +2399,9 @@ export class AssetsController extends BaseController<
             //   balances for chains not in the response are preserved from
             //   previous state so unsupported chains (e.g. Ink on AccountsAPI)
             //   are never inadvertently reset to zero.
-            // Merge / update: response overlays previous balances (update never
-            //   removes tokens missing from a partial snapshot).
+            // Merge: response overlays previous balances.
             const effective: Record<string, AssetBalance> =
-              mode === 'merge' || mode === 'update'
+              mode === 'merge'
                 ? { ...previousBalances, ...accountBalances }
                 : ((): Record<string, AssetBalance> => {
                     // Determine which chain namespaces this response covers.
@@ -2456,14 +2438,6 @@ export class AssetsController extends BaseController<
                     return next;
                   })();
 
-            // Chains present in this partial response (e.g. Accounts API returned
-            // ERC-20 zeros but omitted native after a max send).
-            const coveredChainsInResponse = new Set(
-              Object.keys(accountBalances).map(
-                (assetId) => assetId.split('/')[0],
-              ),
-            );
-
             // Ensure native tokens have an entry (0 if missing) for chains this account supports
             const account = this.#getSelectedAccounts().find(
               (a) => a.id === accountId,
@@ -2472,22 +2446,9 @@ export class AssetsController extends BaseController<
               ? this.#getNativeAssetIdsForAccount(account)
               : this.#getNativeAssetIdsForEnabledChains();
             for (const nativeAssetId of nativeAssetIdsForAccount) {
-              const nativeChain = nativeAssetId.split('/')[0];
               if (
                 !Object.prototype.hasOwnProperty.call(effective, nativeAssetId)
               ) {
-                effective[nativeAssetId] = { amount: '0' } as AssetBalance;
-              } else if (
-                mode === 'update' &&
-                coveredChainsInResponse.has(nativeChain) &&
-                !Object.prototype.hasOwnProperty.call(
-                  accountBalances,
-                  nativeAssetId,
-                )
-              ) {
-                // Update-mode overlay keeps previous native when the response
-                // omits it. If the API returned any balance on this chain,
-                // treat omitted native as zero instead of a stale pre-tx amount.
                 effective[nativeAssetId] = { amount: '0' } as AssetBalance;
               }
             }
@@ -2529,24 +2490,11 @@ export class AssetsController extends BaseController<
           }
         }
 
-        // Update prices in state. Update mode only seeds missing entries so
-        // balance-only refreshes do not clobber existing price data.
         if (normalizedResponse.assetsPrice) {
-          if (mode === 'update') {
-            for (const [key, value] of Object.entries(
-              normalizedResponse.assetsPrice,
-            )) {
-              if (prices[key]) {
-                continue;
-              }
-              prices[key] = value;
-            }
-          } else {
-            for (const [key, value] of Object.entries(
-              normalizedResponse.assetsPrice,
-            )) {
-              prices[key] = value;
-            }
+          for (const [key, value] of Object.entries(
+            normalizedResponse.assetsPrice,
+          )) {
+            prices[key] = value;
           }
         }
       });
