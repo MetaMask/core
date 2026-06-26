@@ -7,15 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- Skip proof-of-ownership signing for accounts with no entropy source ([#9286](https://github.com/MetaMask/core/pull/9286))
-  - They are still submitted to the metrics endpoint, just without a `proof` field.
-
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
 - Bump `@metamask/transaction-controller` from `^68.1.1` to `^68.2.0` ([#9253](https://github.com/MetaMask/core/pull/9253))
+
+### Fixed
+
+- Skip proof-of-ownership signing for accounts with no entropy source ([#9286](https://github.com/MetaMask/core/pull/9286))
+  - They are still submitted to the metrics endpoint, just without a `proof` field.
 
 ## [4.0.0]
 
