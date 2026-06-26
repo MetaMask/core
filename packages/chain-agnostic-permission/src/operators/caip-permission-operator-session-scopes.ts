@@ -1,6 +1,7 @@
 import { isCaipChainId, KnownCaipNamespace } from '@metamask/utils';
 import type { CaipAccountId, CaipChainId } from '@metamask/utils';
 
+import { getEthAccounts } from './caip-permission-operator-accounts';
 import type { Caip25CaveatValue } from '../caip25Permission';
 import {
   KnownNotifications,
@@ -107,7 +108,7 @@ const getNormalizedScopesObject = (
 export const getSessionScopes = (
   caip25CaveatValue: Pick<
     Caip25CaveatValue,
-    'requiredScopes' | 'optionalScopes'
+    'requiredScopes' | 'optionalScopes' | 'sessionProperties'
   >,
   {
     getNonEvmSupportedMethods,
@@ -141,6 +142,43 @@ export const getSessionScopes = (
   }
 
   return mergedScopes;
+};
+
+/**
+ * Builds the session properties for an endowment:caip25 permission caveat value,
+ * hydrating the persisted session properties with the capabilities for each
+ * permitted EVM account.
+ *
+ * @param caip25CaveatValue - The CAIP-25 CaveatValue to get the session properties from.
+ * @param hooks - An object containing the following properties:
+ * @param hooks.getCapabilities - A function that returns the capabilities for a given address.
+ * @returns The session properties merged with a `capabilities` record keyed by account address.
+ */
+export const getSessionProperties = (
+  caip25CaveatValue: Pick<
+    Caip25CaveatValue,
+    'requiredScopes' | 'optionalScopes' | 'sessionProperties'
+  >,
+  {
+    getCapabilities,
+  }: {
+    getCapabilities: (params: { address: string }) => unknown;
+  },
+): Record<string, unknown> => {
+  const addresses = getEthAccounts(caip25CaveatValue);
+
+  const capabilities = addresses.reduce<Record<string, unknown>>(
+    (acc, address) => {
+      acc[address] = getCapabilities({ address });
+      return acc;
+    },
+    {},
+  );
+
+  return {
+    ...caip25CaveatValue.sessionProperties,
+    capabilities,
+  };
 };
 
 /**

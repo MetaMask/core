@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `getSessionProperties` function that hydrates the persisted session properties of a CAIP-25 caveat value with a `capabilities` record built by invoking the provided `getCapabilities` hook for each permitted EVM account ([#0000](https://github.com/MetaMask/core/pull/0000))
+
 ## [1.6.2]
 
 ### Changed

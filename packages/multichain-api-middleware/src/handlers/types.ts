@@ -33,3 +33,7 @@ export type GetNonEvmSupportedMethodsHook = {
 export type SortAccountIdsByLastSelectedHook = {
   sortAccountIdsByLastSelected: (accounts: CaipAccountId[]) => CaipAccountId[];
 };
+
+export type GetCapabilitiesHook = {
+  getCapabilities: (params: { address: string }) => unknown;
+};
