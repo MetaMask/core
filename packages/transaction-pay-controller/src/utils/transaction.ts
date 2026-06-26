@@ -328,6 +328,27 @@ export function isPredictWithdrawTransaction(
 }
 
 /**
+ * Check whether a transaction is a Money Account deposit.
+ *
+ * Returns `true` when the transaction's own type is `moneyAccountDeposit`,
+ * or when any of its nested transactions has that type.
+ *
+ * @param transaction - Transaction metadata.
+ * @returns `true` when the transaction is a Money Account deposit.
+ */
+export function isMoneyAccountDepositTransaction(
+  transaction: TransactionMeta,
+): boolean {
+  return (
+    transaction.type === TransactionType.moneyAccountDeposit ||
+    (transaction.nestedTransactions?.some(
+      (nt) => nt.type === TransactionType.moneyAccountDeposit,
+    ) ??
+      false)
+  );
+}
+
+/**
  * Handle a transaction change by updating its associated data.
  *
  * @param transaction - Transaction metadata.

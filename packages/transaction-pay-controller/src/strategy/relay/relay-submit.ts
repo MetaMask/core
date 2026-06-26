@@ -15,6 +15,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
+import { PaymentOverride } from '../../constants';
 import { prefixError } from '../../utils/error-prefix';
 import {
   getFeatureFlags,
@@ -30,10 +31,12 @@ import {
 import {
   collectTransactionIds,
   getTransaction,
+  isMoneyAccountDepositTransaction,
   updateTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
 import {
+  FALLBACK_HASH,
   RELAY_DEPOSIT_TYPES,
   RELAY_FAILURE_STATUSES,
   RELAY_PENDING_STATUSES,
@@ -44,15 +47,15 @@ import {
   submitPolymarketWithdraw,
 } from './polymarket/withdraw';
 import { getRelayStatus, submitRelayExecute } from './relay-api';
+import { submitPostRelayVaultDeposit } from './relay-post-ma-vault';
 import type {
+  RelayCompletionOutcome,
   RelayExecuteRequest,
   RelayQuote,
   RelayStatus,
   RelayStatusResponse,
   RelayTransactionStep,
 } from './types';
-
-const FALLBACK_HASH = '0x0' as Hex;
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
 const RELAY_ERROR_PREFIX = 'Relay: ';
@@ -165,6 +168,23 @@ async function executeSingleQuote(
     }
   }
 
+  let result: { transactionHash?: Hex };
+
+  if (
+    quote.request.isMaxAmount &&
+    (isMoneyAccountDepositTransaction(transaction) ||
+      quote.request.paymentOverride === PaymentOverride.MoneyAccount)
+  ) {
+    result = await submitPostRelayVaultDeposit({
+      completion,
+      messenger,
+      quote,
+      transaction,
+    });
+  } else {
+    result = { transactionHash: completion.targetHash };
+  }
+
   updateTransaction(
     {
       transactionId: transaction.id,
@@ -176,7 +196,7 @@ async function executeSingleQuote(
     },
   );
 
-  return { transactionHash: completion.targetHash };
+  return result;
 }
 
 function setRelaySourceHash(
@@ -196,11 +216,6 @@ function setRelaySourceHash(
     },
   );
 }
-
-type RelayCompletionOutcome = {
-  status: RelayStatus | 'timeout';
-  targetHash?: Hex;
-};
 
 async function waitForRelayCompletion(
   quote: RelayQuote,
@@ -425,7 +440,7 @@ async function submitTransactions(
 
   let allParams = normalizedParams;
 
-  if (quote.request.paymentOverride) {
+  if (quote.request.paymentOverride && !quote.request.isMaxAmount) {
     const { transactionData } = messenger.call(
       'TransactionPayController:getState',
     );

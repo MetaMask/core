@@ -55,7 +55,10 @@ import {
   normalizeTokenAddress,
   TokenAddressTarget,
 } from '../../utils/token';
-import { isPredictWithdrawTransaction } from '../../utils/transaction';
+import {
+  isMoneyAccountDepositTransaction,
+  isPredictWithdrawTransaction,
+} from '../../utils/transaction';
 import { TOKEN_TRANSFER_FOUR_BYTE } from './constants';
 import { applyHyperliquidActivationFee } from './hyperliquid-activation';
 import { applyPolymarketDepositWalletOverrides } from './polymarket/withdraw';
@@ -333,7 +336,8 @@ async function getSingleQuote(
       await processTransactions(transaction, request, body, messenger);
     } else if (
       request.isPostQuote &&
-      request.paymentOverride === PaymentOverride.MoneyAccount
+      request.paymentOverride === PaymentOverride.MoneyAccount &&
+      !isMaxAmount
     ) {
       await processMoneyAccountPostQuote(transaction, request, body, messenger);
     } else if (request.refundTo) {
@@ -406,6 +410,11 @@ async function processTransactions(
 
   if (skipDelegation) {
     log('Skipping delegation as token transfer or Hypercore deposit');
+    return;
+  }
+
+  if (isMaxAmount && isMoneyAccountDepositTransaction(transaction)) {
+    log('Skipping included transactions for max amount Money Account deposit');
     return;
   }
 

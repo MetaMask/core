@@ -130,8 +130,16 @@ function calculatePostQuoteSourceAmounts(
       return true;
     })
     .map((token) => ({
-      sourceAmountHuman: isMaxAmount ? token.balanceHuman : token.amountHuman,
-      sourceAmountRaw: isMaxAmount ? token.balanceRaw : token.amountRaw,
+      // For HyperLiquid sources, the on-chain wallet balance is zero — the real
+      // balance is the typed amount from the HL account, already in amountRaw.
+      sourceAmountHuman:
+        isMaxAmount && !isHyperliquidSource
+          ? token.balanceHuman
+          : token.amountHuman,
+      sourceAmountRaw:
+        isMaxAmount && !isHyperliquidSource
+          ? token.balanceRaw
+          : token.amountRaw,
       sourceBalanceRaw: token.balanceRaw,
       sourceChainId: token.chainId,
       sourceTokenAddress: token.address,

@@ -119,6 +119,7 @@ export async function updateQuotes(
     }
 
     const requests = buildQuoteRequests({
+      accountOverride,
       from,
       isMaxAmount: isMaxAmount ?? false,
       isPostQuote,
@@ -356,6 +357,7 @@ function clearControllerIfCurrent(
  * @returns Array of quote requests.
  */
 function buildQuoteRequests({
+  accountOverride,
   from,
   isMaxAmount,
   isPostQuote,
@@ -368,6 +370,7 @@ function buildQuoteRequests({
   tokens,
   transactionId,
 }: {
+  accountOverride?: Hex;
   from: Hex;
   isMaxAmount: boolean;
   isPostQuote?: boolean;
@@ -386,6 +389,7 @@ function buildQuoteRequests({
 
   if (isPostQuote) {
     return buildPostQuoteRequests({
+      accountOverride,
       from,
       isMaxAmount,
       isHyperliquidSource,
@@ -443,6 +447,7 @@ function buildQuoteRequests({
  * @returns Array of quote requests for post-quote flow.
  */
 function buildPostQuoteRequests({
+  accountOverride,
   from,
   isMaxAmount,
   isHyperliquidSource,
@@ -453,6 +458,7 @@ function buildPostQuoteRequests({
   sourceAmounts,
   transactionId,
 }: {
+  accountOverride?: Hex;
   from: Hex;
   isMaxAmount: boolean;
   isHyperliquidSource?: boolean;
@@ -489,6 +495,11 @@ function buildPostQuoteRequests({
     isHyperliquidSource,
     isPolymarketDepositWallet,
     paymentOverride,
+    ...(isMaxAmount &&
+    paymentOverride === PaymentOverride.MoneyAccount &&
+    accountOverride
+      ? { recipient: refundTo ?? accountOverride }
+      : {}),
     refundTo,
     sourceBalanceRaw: sourceAmount.sourceBalanceRaw,
     sourceTokenAmount: sourceAmount.sourceAmountRaw,
