@@ -1,4 +1,5 @@
 import { JsonRpcError } from '@metamask/rpc-errors';
+import type { OptionalDataWithOptionalCause } from '@metamask/rpc-errors';
 
 /**
  * CAIP25 Errors.
@@ -9,7 +10,7 @@ export const Caip25Errors = {
    *
    * @returns A new JsonRpcError instance.
    */
-  unknownErrorOrNoScopesAuthorized: (): JsonRpcError =>
+  unknownErrorOrNoScopesAuthorized: (): JsonRpcError<OptionalDataWithOptionalCause> =>
     new JsonRpcError(5000, 'Unknown error with request'),
 
   /**
@@ -18,7 +19,7 @@ export const Caip25Errors = {
    *
    * @returns A new JsonRpcError instance.
    */
-  requestedChainsNotSupportedError: (): JsonRpcError =>
+  requestedChainsNotSupportedError: (): JsonRpcError<OptionalDataWithOptionalCause> =>
     new JsonRpcError(5100, 'Requested networks are not supported'),
 
   /**
@@ -28,7 +29,7 @@ export const Caip25Errors = {
    *
    * @returns A new JsonRpcError instance.
    */
-  requestedMethodsNotSupportedError: (): JsonRpcError =>
+  requestedMethodsNotSupportedError: (): JsonRpcError<OptionalDataWithOptionalCause> =>
     new JsonRpcError(5101, 'Requested methods are not supported'),
 
   /**
@@ -38,7 +39,7 @@ export const Caip25Errors = {
    *
    * @returns A new JsonRpcError instance.
    */
-  requestedNotificationsNotSupportedError: (): JsonRpcError =>
+  requestedNotificationsNotSupportedError: (): JsonRpcError<OptionalDataWithOptionalCause> =>
     new JsonRpcError(5102, 'Requested notifications are not supported'),
 
   /**
@@ -47,7 +48,7 @@ export const Caip25Errors = {
    *
    * @returns A new JsonRpcError instance.
    */
-  unknownMethodsRequestedError: (): JsonRpcError =>
+  unknownMethodsRequestedError: (): JsonRpcError<OptionalDataWithOptionalCause> =>
     new JsonRpcError(5201, 'Unknown method(s) requested'),
 
   /**
@@ -56,7 +57,7 @@ export const Caip25Errors = {
    *
    * @returns A new JsonRpcError instance.
    */
-  unknownNotificationsRequestedError: (): JsonRpcError =>
+  unknownNotificationsRequestedError: (): JsonRpcError<OptionalDataWithOptionalCause> =>
     new JsonRpcError(5202, 'Unknown notification(s) requested'),
 
   /**
@@ -65,6 +66,6 @@ export const Caip25Errors = {
    *
    * @returns A new JsonRpcError instance.
    */
-  invalidSessionPropertiesError: (): JsonRpcError =>
+  invalidSessionPropertiesError: (): JsonRpcError<OptionalDataWithOptionalCause> =>
     new JsonRpcError(5302, 'Invalid sessionProperties requested'),
 };
