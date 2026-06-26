@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Preserve `isExternalSign` on gas-sponsored transactions when no Pay quotes exist ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+  - `syncTransaction` previously cleared `isExternalSign` unconditionally when quote fetches returned no results (e.g. same source and target token). For gas-sponsored transactions, `TransactionController` owns this flag based on the Sentinel simulation result; TPC no longer overrides it.
+
 ## [23.17.0]
 
 ### Added
