@@ -740,6 +740,14 @@ export class RpcDataSource extends AbstractDataSource<
     }
   }
 
+  /**
+   * Re-read NetworkController state and refresh Rpc `activeChains` (e.g. when
+   * network availability metadata changes after an EVM network switch).
+   */
+  refreshActiveChainsFromNetworkState(): void {
+    this.#initializeFromNetworkController();
+  }
+
   #updateFromNetworkState(networkState: NetworkState): void {
     const { networkConfigurationsByChainId, networksMetadata } = networkState;
 

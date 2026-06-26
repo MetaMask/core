@@ -8,6 +8,7 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import type { NetworkState } from '@metamask/network-controller';
 
 import {
   AssetsController,
@@ -2406,6 +2407,124 @@ describe('AssetsController', () => {
 
         expect(true).toBe(true);
       });
+    });
+
+    it('subscribes and fetches assets when the selected EVM network switches', async () => {
+      const sepoliaHex = '0xaa36a7';
+      const mainnetHex = '0x1';
+      let selectedNetworkClientId = 'sepolia';
+
+      const getNetworkState = (): NetworkState => ({
+        networkConfigurationsByChainId: {
+          [sepoliaHex]: { chainId: sepoliaHex },
+          [mainnetHex]: { chainId: mainnetHex },
+        } as NetworkState['networkConfigurationsByChainId'],
+        networksMetadata: {} as NetworkState['networksMetadata'],
+        selectedNetworkClientId,
+      });
+
+      const messenger: RootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      messenger.registerActionHandler(
+        'AccountTreeController:getAccountsFromSelectedAccountGroup',
+        () => [createMockInternalAccount()],
+      );
+      messenger.registerActionHandler(
+        'NetworkEnablementController:getState',
+        () => ({
+          enabledNetworkMap: { eip155: { '1': true, '11155111': true } },
+          nativeAssetIdentifiers: {
+            'eip155:1': MOCK_NATIVE_ASSET_ID,
+            'eip155:11155111': 'eip155:11155111/slip44:60' as Caip19AssetId,
+          },
+        }),
+      );
+      messenger.registerActionHandler(
+        'NetworkController:getState',
+        getNetworkState,
+      );
+      (
+        messenger as {
+          registerActionHandler: (a: string, h: (id: string) => unknown) => void;
+        }
+      ).registerActionHandler(
+        'NetworkController:getNetworkClientById',
+        (networkClientId: string) => ({
+          provider: {},
+          configuration: {
+            chainId: networkClientId === 'mainnet' ? mainnetHex : sepoliaHex,
+          },
+        }),
+      );
+      (
+        messenger as {
+          registerActionHandler: (a: string, h: () => unknown) => void;
+        }
+      ).registerActionHandler('ClientController:getState', () => ({
+        isUiOpen: true,
+      }));
+
+      const fetchV2SupportedNetworks = jest.fn().mockResolvedValue({
+        fullSupport: [1, 11155111],
+        partialSupport: [],
+      });
+
+      const queryApiClient = {
+        ...createMockQueryApiClient(),
+        accounts: {
+          fetchV2SupportedNetworks,
+          fetchV5MultiAccountBalances: jest.fn().mockResolvedValue({
+            balances: [],
+            unprocessedNetworks: [],
+          }),
+        },
+      } as unknown as ApiPlatformClient;
+
+      const controller = new AssetsController({
+        messenger: messenger as unknown as AssetsControllerMessenger,
+        queryApiClient,
+        subscribeToBasicFunctionalityChange: (): void => {
+          /* no-op */
+        },
+      });
+
+      const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+
+      try {
+        (
+          messenger as unknown as {
+            publish: (topic: string, payload?: unknown) => void;
+          }
+        ).publish('ClientController:stateChanged', { isUiOpen: true });
+        messenger.publish('KeyringController:unlock');
+        await flushPromises();
+
+        getAssetsSpy.mockClear();
+        fetchV2SupportedNetworks.mockClear();
+
+        selectedNetworkClientId = 'mainnet';
+        (messenger.publish as CallableFunction)(
+          'NetworkController:networkDidChange',
+          getNetworkState(),
+        );
+
+        await flushPromises();
+
+        expect(fetchV2SupportedNetworks).toHaveBeenCalled();
+        expect(getAssetsSpy).toHaveBeenCalledWith(
+          [expect.objectContaining({ id: MOCK_ACCOUNT_ID })],
+          expect.objectContaining({
+            chainIds: ['eip155:1'],
+            forceUpdate: true,
+          }),
+        );
+      } finally {
+        getAssetsSpy.mockRestore();
+        await flushPromises();
+        controller.destroy();
+      }
     });
   });
 

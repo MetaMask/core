@@ -32,7 +32,9 @@ import type {
   NetworkControllerGetNetworkClientByIdAction,
   NetworkControllerGetStateAction,
   NetworkControllerNetworkAddedEvent,
+  NetworkControllerNetworkDidChangeEvent,
   NetworkControllerNetworkRemovedEvent,
+  NetworkState,
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import type {
@@ -350,6 +352,7 @@ type AllowedEvents =
   // whenever a network configuration is added to or removed from
   // NetworkController)
   | NetworkControllerNetworkAddedEvent
+  | NetworkControllerNetworkDidChangeEvent
   | NetworkControllerNetworkRemovedEvent
   // StakedBalanceDataSource
   | NetworkEnablementControllerEvents
@@ -1067,6 +1070,15 @@ export class AssetsController extends BaseController<
     this.messenger.subscribe('NetworkController:networkRemoved', () => {
       this.#refreshAssetsAfterNetworkChange();
     });
+
+    // Selected EVM network switch (network picker). Enablement changes are
+    // handled separately via NetworkEnablementController:stateChanged.
+    this.messenger.subscribe(
+      'NetworkController:networkDidChange',
+      (networkState) => {
+        this.#handleNetworkDidChange(networkState).catch(console.error);
+      },
+    );
 
     // Client + Keyring lifecycle: only run when UI is open AND keyring is unlocked
     this.messenger.subscribe(
@@ -3354,6 +3366,88 @@ export class AssetsController extends BaseController<
     });
 
     this.#ensureDefaultTrackedAssetsSeeded([caipChainId]);
+  }
+
+  /**
+   * Refresh data-source `activeChains` after an EVM network switch so API/WS/Rpc
+   * chain claiming is not stuck on an empty or stale init-time list.
+   */
+  async #refreshActiveChainsOnNetworkSwitch(): Promise<void> {
+    await Promise.all([
+      this.#accountsApiDataSource.refreshActiveChains(),
+      this.#backendWebsocketDataSource.refreshActiveChains(),
+    ]);
+    this.#rpcDataSource.refreshActiveChainsFromNetworkState();
+  }
+
+  /**
+   * Resolve the CAIP-2 chain ID for the currently selected EVM network client.
+   *
+   * @param networkState - NetworkController state from `networkDidChange`.
+   * @returns CAIP-2 chain ID (e.g. `eip155:1`) or undefined when unavailable.
+   */
+  #getSelectedEvmChainIdFromNetworkState(
+    networkState: NetworkState,
+  ): ChainId | undefined {
+    try {
+      const networkClient = this.messenger.call(
+        'NetworkController:getNetworkClientById',
+        networkState.selectedNetworkClientId,
+      );
+      const hexChainId = networkClient.configuration?.chainId;
+      if (!hexChainId) {
+        return undefined;
+      }
+      return `eip155:${parseInt(hexChainId, 16)}` as ChainId;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * Refresh subscriptions and fetch balances when the user switches the
+   * selected EVM network in the UI (`NetworkController:networkDidChange`).
+   *
+   * @param networkState - NetworkController state after the switch.
+   */
+  async #handleNetworkDidChange(
+    networkState: NetworkState,
+  ): Promise<void> {
+    if (!this.#uiOpen || !this.#keyringUnlocked || !this.#isEnabled()) {
+      return;
+    }
+
+    const accounts = this.#getSelectedAccounts();
+    if (accounts.length === 0) {
+      return;
+    }
+
+    const selectedChainId =
+      this.#getSelectedEvmChainIdFromNetworkState(networkState);
+    if (!selectedChainId) {
+      return;
+    }
+
+    log('Selected EVM network switched', {
+      selectedNetworkClientId: networkState.selectedNetworkClientId,
+      selectedChainId,
+    });
+
+    const releaseLock = await this.#accountRefreshMutex.acquire();
+    try {
+      await this.#refreshActiveChainsOnNetworkSwitch();
+
+      this.#subscribeAssets();
+
+      await this.getAssets(accounts, {
+        chainIds: [selectedChainId],
+        forceUpdate: true,
+      });
+
+      this.#ensureNativeBalancesDefaultZero();
+    } finally {
+      releaseLock();
+    }
   }
 
   /**

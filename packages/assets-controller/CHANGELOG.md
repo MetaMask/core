@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove the 120-second websocket balance freshness guard that blocked force-refresh and polling updates from correcting stale websocket balances ([#9273](https://github.com/MetaMask/core/pull/9273))
 - Add `update` balance update mode so fetch and force-refresh pipelines patch balances without removing tokens omitted from partial API snapshots; `getAssets({ forceUpdate: true })`, `AccountsApiDataSource`, and `SnapDataSource` use this mode ([#9273](https://github.com/MetaMask/core/pull/9273))
 - `BackendWebsocketDataSource` registers subscription handlers before the subscribe handshake so in-flight account-activity notifications are not dropped, cleans up subscription state on subscribe failure, and resolves balance updates from stored subscription state when notifications arrive with stale subscription IDs ([#9273](https://github.com/MetaMask/core/pull/9273))
+- `AssetsController` refreshes data-source `activeChains`, re-subscribes, and force-fetches balances for the newly selected EVM chain when the user switches networks via `NetworkController:networkDidChange`
 
 ## [9.1.0]
 

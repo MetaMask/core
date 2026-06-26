@@ -232,6 +232,33 @@ describe('AccountsApiDataSource', () => {
     controller.destroy();
   });
 
+  it('refreshActiveChains re-fetches supported networks and updates activeChains', async () => {
+    const { controller, apiClient, activeChainsUpdateHandler } =
+      await setupController({ supportedChains: [1] });
+
+    activeChainsUpdateHandler.mockClear();
+    apiClient.accounts.fetchV2SupportedNetworks.mockClear();
+    apiClient.accounts.fetchV2SupportedNetworks.mockResolvedValue({
+      fullSupport: [1, 137],
+      partialSupport: [],
+    });
+
+    await controller.refreshActiveChains();
+
+    expect(apiClient.accounts.fetchV2SupportedNetworks).toHaveBeenCalledTimes(1);
+    expect(activeChainsUpdateHandler).toHaveBeenCalledWith(
+      'AccountsApiDataSource',
+      [CHAIN_MAINNET, CHAIN_POLYGON],
+      [CHAIN_MAINNET],
+    );
+    expect(controller.getActiveChainsSync()).toStrictEqual([
+      CHAIN_MAINNET,
+      CHAIN_POLYGON,
+    ]);
+
+    controller.destroy();
+  });
+
   it('exposes assetsMiddleware and getActiveChains on instance', async () => {
     const { controller } = await setupController();
 
