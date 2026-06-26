@@ -12,7 +12,7 @@ import {
   SecretType,
 } from './constants';
 import type { SecretDataType } from './types';
-import { compareTimeuuid, getSecretTypeFromDataType } from './utils';
+import { getSecretTypeFromDataType } from './utils';
 
 type ISecretMetadata<DataType extends SecretDataType = Uint8Array> = {
   data: DataType;
@@ -183,9 +183,7 @@ export class SecretMetadata<
    *
    * Ordering priority:
    * 1. PrimarySrp always comes first (regardless of order direction)
-   * 2. Server-side createdAt (TIMEUUID) if both have it
-   * 3. Legacy items (null createdAt) are considered older
-   * 4. Fall back to client-side timestamp
+   * 2. Fall back to client-side timestamp
    *
    * @param a - The first SecretMetadata instance.
    * @param b - The second SecretMetadata instance.
@@ -209,18 +207,7 @@ export class SecretMetadata<
     if (bIsPrimary) {
       return 1;
     }
-    // Use server-side createdAt if available (TIMEUUID requires timestamp extraction)
-    if (a.createdAt && b.createdAt) {
-      return compareTimeuuid(a.createdAt, b.createdAt, order);
-    }
-    // Handle mixed createdAt: legacy items (null) are older
-    if (!a.createdAt && b.createdAt) {
-      return order === 'asc' ? -1 : 1; // a (legacy/older) comes before b in asc
-    }
-    if (a.createdAt && !b.createdAt) {
-      return order === 'asc' ? 1 : -1; // b (legacy/older) comes before a in asc
-    }
-    // Both null: fall back to client-side timestamp
+    // Fall back to client-side timestamp
     return SecretMetadata.compareByTimestamp(a, b, order);
   }
 

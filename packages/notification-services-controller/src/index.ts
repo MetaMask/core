@@ -1,6 +1,7 @@
 export * as NotificationServicesController from './NotificationServicesController';
 export * as NotificationServicesPushController from './NotificationServicesPushController';
 export {
+  DEFAULT_AGENTIC_CLI_PREFERENCES,
   DEFAULT_PERPS_PREFERENCES,
   DEFAULT_SOCIAL_AI_PREFERENCES,
 } from './NotificationServicesController';

@@ -51,6 +51,3 @@ export const MUSD_MONAD_FIAT_ASSET: TransactionPayFiatAsset = {
   address: MUSD_MONAD_ADDRESS,
   chainId: CHAIN_ID_MONAD,
 };
-
-/** Fixed USD amount used to probe whether any fiat provider can sell mUSD on Monad. */
-export const MUSD_PROBE_AMOUNT_USD = 50;

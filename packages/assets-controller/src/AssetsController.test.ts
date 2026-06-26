@@ -1267,45 +1267,48 @@ describe('AssetsController', () => {
   });
 
   describe('handleActiveChainsUpdate', () => {
-    it('calls getAssets with added enabled chains when chains are added', async () => {
+    it('re-subscribes assets when chains are added', async () => {
+      await withController(async ({ controller }) => {
+        const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
+
+        const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
+        onActiveChainsUpdated('TestDataSource', ['eip155:1'], []);
+
+        expect(subscribeSpy).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('does not fetch balances directly when chains are added', async () => {
       await withController(async ({ controller }) => {
         const getAssetsSpy = jest.spyOn(controller, 'getAssets');
 
         const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
         onActiveChainsUpdated('TestDataSource', ['eip155:1'], []);
 
-        expect(getAssetsSpy).toHaveBeenCalledTimes(1);
-        expect(getAssetsSpy).toHaveBeenCalledWith(
-          expect.any(Array),
-          expect.objectContaining({
-            chainIds: ['eip155:1'],
-            forceUpdate: true,
-            updateMode: 'merge',
-          }),
-        );
+        expect(getAssetsSpy).not.toHaveBeenCalled();
       });
     });
 
-    it('does not call getAssets when no chains are added', async () => {
+    it('does not re-subscribe when no chains change', async () => {
       await withController(async ({ controller }) => {
-        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+        const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
 
         const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
         onActiveChainsUpdated('TestDataSource', [], []);
         onActiveChainsUpdated('TestDataSource', ['eip155:1'], ['eip155:1']);
 
-        expect(getAssetsSpy).not.toHaveBeenCalled();
+        expect(subscribeSpy).not.toHaveBeenCalled();
       });
     });
 
-    it('does not call getAssets when only chains are removed', async () => {
+    it('re-subscribes assets when chains are removed', async () => {
       await withController(async ({ controller }) => {
-        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+        const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
 
         const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
         onActiveChainsUpdated('TestDataSource', [], ['eip155:1']);
 
-        expect(getAssetsSpy).not.toHaveBeenCalled();
+        expect(subscribeSpy).toHaveBeenCalledTimes(1);
       });
     });
 
@@ -1315,12 +1318,12 @@ describe('AssetsController', () => {
           controllerOptions: { isEnabled: (): boolean => false },
         },
         async ({ controller }) => {
-          const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+          const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
           const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
 
           onActiveChainsUpdated('TestDataSource', ['eip155:1'], []);
 
-          expect(getAssetsSpy).not.toHaveBeenCalled();
+          expect(subscribeSpy).not.toHaveBeenCalled();
         },
       );
     });
@@ -1333,13 +1336,13 @@ describe('AssetsController', () => {
           controllerOptions: { isEnabled: (): boolean => enabled },
         },
         async ({ controller }) => {
-          const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+          const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
           enabled = false;
 
           const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
           onActiveChainsUpdated('TestDataSource', ['eip155:1'], []);
 
-          expect(getAssetsSpy).not.toHaveBeenCalled();
+          expect(subscribeSpy).not.toHaveBeenCalled();
         },
       );
     });
@@ -1714,6 +1717,82 @@ describe('AssetsController', () => {
         expect(
           controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[polygonNative],
         ).toStrictEqual({ amount: '10' });
+      });
+    });
+
+    it('does not let subscription polling overwrite a recent websocket balance update', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '8.185173' },
+          },
+        },
+      };
+
+      await withController({ state: initialState }, async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '7.185173' },
+              },
+            },
+          },
+          'BackendWebsocketDataSource',
+        );
+
+        await controller.handleAssetsUpdate(
+          {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '8.185173' },
+              },
+            },
+          },
+          'AccountsApiDataSource',
+        );
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+        ).toStrictEqual({ amount: '7.185173' });
+      });
+    });
+
+    it('applies getAssets forceUpdate over a recent websocket balance update', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '8.185173' },
+          },
+        },
+      };
+
+      await withController({ state: initialState }, async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '7.185173' },
+              },
+            },
+          },
+          'BackendWebsocketDataSource',
+        );
+
+        await controller.handleAssetsUpdate(
+          {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '8.185173' },
+              },
+            },
+          },
+          'getAssets:forceUpdate',
+        );
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+        ).toStrictEqual({ amount: '8.185173' });
       });
     });
 

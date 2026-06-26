@@ -161,6 +161,10 @@ export class TradingService {
     if (params.trackingData?.source) {
       properties[PERPS_EVENT_PROPERTY.SOURCE] = params.trackingData.source;
     }
+    if (params.trackingData?.chartLibrary) {
+      properties[PERPS_EVENT_PROPERTY.CHART_LIBRARY] =
+        params.trackingData.chartLibrary;
+    }
     if (params.trackingData?.tradeAction) {
       properties[PERPS_EVENT_PROPERTY.ACTION] = params.trackingData.tradeAction;
     }

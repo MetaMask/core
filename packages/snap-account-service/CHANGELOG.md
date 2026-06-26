@@ -9,8 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/keyring-api` from `^23.1.0` to `^23.3.0` ([#9249](https://github.com/MetaMask/core/pull/9249))
+- Bump `@metamask/keyring-snap-sdk` from `^9.0.1` to `^9.0.2` ([#9249](https://github.com/MetaMask/core/pull/9249))
+
+## [1.0.0]
+
+### Added
+
+- Add `ensureMigrated` ([#8732](https://github.com/MetaMask/core/pull/8732))
+  - Migrates the legacy global Snap keyring (v1) to per-Snap keyrings (v2).
+  - The migration is triggered automatically whenever a consumer request access to any Snap keyring (v2).
+  - If the migration is not successful, it will get retried on the next call.
+  - It is concurrent-free and can safely be called by multiple execution flows.
+  - Once the migration has run, the legacy Snap keyring will be removed.
+  - Selected-account forwarding now targets v2 Snap keyrings.
+  - The service messenger now requires the `KeyringController:withKeyringV2Unsafe`.
+
+### Changed
+
+- `SnapAccountService.ensureReady` now automatically creates the Snap keyring (v2) for a given Snap ID if it was not available ([#8732](https://github.com/MetaMask/core/pull/8732))
+- Bump `@metamask/eth-snap-keyring` from `^22.0.1` to `^22.3.0` ([#8732](https://github.com/MetaMask/core/pull/8732))
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
+- Bump `@metamask/account-tree-controller` from `^7.5.2` to `^7.5.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
+
+### Removed
+
+- **BREAKING:** Removed `getLegacySnapKeyring` ([#8732](https://github.com/MetaMask/core/pull/8732))
+  - The legacy Snap keyring should not be used anymore after the migration has completed.
 
 ## [0.3.1]
 
@@ -90,7 +116,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
 - Bump `@metamask/account-tree-controller` from `^7.3.0` to `^7.4.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@0.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@0.3.1...@metamask/snap-account-service@1.0.0
 [0.3.1]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@0.3.0...@metamask/snap-account-service@0.3.1
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@0.2.1...@metamask/snap-account-service@0.3.0
 [0.2.1]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@0.2.0...@metamask/snap-account-service@0.2.1

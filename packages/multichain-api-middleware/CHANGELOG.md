@@ -7,12 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `MULTICHAIN_API.md`, a reference for the Multichain API: `wallet_createSession` and the other session methods, supported methods per namespace, error codes, and divergences from the current CAIP-25 spec ([#9258](https://github.com/MetaMask/core/pull/9258))
+
 ### Changed
 
 - **BREAKING:** The `wallet_getSession` and `wallet_createSession` handlers now require a `getCapabilities` hook (`(params: { address: string }) => unknown`) ([#9294](https://github.com/MetaMask/core/pull/9294))
   - `WalletGetSessionHooks` and `WalletCreateSessionHooks` now include this hook, which must be provided when wiring up the handlers.
 - The `wallet_getSession` and `wallet_createSession` handlers now derive the returned `sessionProperties` via `getSessionProperties`, hydrating the persisted session properties with a `capabilities` record built from the `getCapabilities` hook for each permitted EVM account ([#9294](https://github.com/MetaMask/core/pull/9294))
   - `wallet_getSession` now always includes a `sessionProperties` field in its result (an empty object when there is no active session).
+- Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
+
+## [3.1.5]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.1` to `^39.0.2` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/controller-utils` from `^12.2.0` to `^12.3.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/network-controller` from `^32.0.0` to `^33.0.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
 
 ## [3.1.4]
 
@@ -252,7 +265,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.1.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.1.5...HEAD
+[3.1.5]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.1.4...@metamask/multichain-api-middleware@3.1.5
 [3.1.4]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.1.3...@metamask/multichain-api-middleware@3.1.4
 [3.1.3]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.1.2...@metamask/multichain-api-middleware@3.1.3
 [3.1.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.1.1...@metamask/multichain-api-middleware@3.1.2
