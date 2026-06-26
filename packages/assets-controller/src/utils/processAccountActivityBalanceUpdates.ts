@@ -22,10 +22,18 @@ export function processAccountActivityBalanceUpdates(
   accountId: string,
   getAssetType: (assetId: Caip19AssetId) => 'native' | 'erc20' | 'spl',
 ): DataResponse {
-  const assetsBalance: Record<string, Record<Caip19AssetId, AssetBalance>> = {
-    [accountId]: {},
-  };
-  const assetsMetadata: Record<Caip19AssetId, AssetMetadata> = {};
+  const assetsBalance = Object.create(null) as Record<
+    string,
+    Record<Caip19AssetId, AssetBalance>
+  >;
+  assetsBalance[accountId] = Object.create(null) as Record<
+    Caip19AssetId,
+    AssetBalance
+  >;
+  const assetsMetadata = Object.create(null) as Record<
+    Caip19AssetId,
+    AssetMetadata
+  >;
 
   for (const update of updates) {
     const { asset, postBalance } = update;
