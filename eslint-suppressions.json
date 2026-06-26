@@ -710,9 +710,6 @@
   "packages/bridge-controller/src/utils/trade-utils.ts": {
     "no-restricted-globals": {
       "count": 1
-    },
-    "no-restricted-syntax": {
-      "count": 5
     }
   },
   "packages/bridge-controller/tests/mock-sse.ts": {

@@ -30,6 +30,17 @@ const selectEnabled = (state: AnalyticsControllerState): boolean =>
   state.optedIn;
 
 /**
+ * Selects whether the user has made a consent decision (opted in or opted out).
+ * Use this selector to distinguish the "undecided" state (e.g. during
+ * onboarding) from an explicit opt-out.
+ *
+ * @param state - The controller state
+ * @returns Whether the user has made a consent decision
+ */
+const selectConsentDecisionMade = (state: AnalyticsControllerState): boolean =>
+  state.consentDecisionMade ?? false;
+
+/**
  * Selectors for the AnalyticsController state.
  * These can be used with Redux or directly with controller state.
  */
@@ -37,4 +48,5 @@ export const analyticsControllerSelectors = {
   selectAnalyticsId,
   selectOptedIn,
   selectEnabled,
+  selectConsentDecisionMade,
 };

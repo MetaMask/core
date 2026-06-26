@@ -149,6 +149,8 @@ export class RemoteFeatureFlagController extends BaseController<
 
   readonly #clientVersion: SemVerVersion;
 
+  #processedRemoteFeatureFlags: FeatureFlags = {};
+
   /**
    * Constructs a new RemoteFeatureFlagController instance.
    *
@@ -196,17 +198,32 @@ export class RemoteFeatureFlagController extends BaseController<
       isValidSemVerVersion(prevClientVersion) &&
       prevClientVersion !== clientVersion;
 
+    const localOverrides = initialState.localOverrides ?? {};
+
     super({
       name: controllerName,
       metadata: remoteFeatureFlagControllerMetadata,
       messenger,
       state: {
         ...initialState,
+        remoteFeatureFlags: {
+          ...initialState.remoteFeatureFlags,
+          ...localOverrides,
+        },
         cacheTimestamp: hasClientVersionChanged
           ? 0
           : initialState.cacheTimestamp,
       },
     });
+
+    this.#processedRemoteFeatureFlags = {
+      ...initialState.remoteFeatureFlags,
+    };
+    for (const [flagName, overrideValue] of Object.entries(localOverrides)) {
+      if (this.#processedRemoteFeatureFlags[flagName] === overrideValue) {
+        delete this.#processedRemoteFeatureFlags[flagName];
+      }
+    }
 
     this.#fetchInterval = fetchInterval;
     this.#disabled = disabled;
@@ -303,10 +320,15 @@ export class RemoteFeatureFlagController extends BaseController<
     }
 
     // Single state update with all changes batched together
+    this.#processedRemoteFeatureFlags = processedFlags;
+
     this.update(() => {
       return {
         ...this.state,
-        remoteFeatureFlags: processedFlags,
+        remoteFeatureFlags: {
+          ...processedFlags,
+          ...this.state.localOverrides,
+        },
         rawRemoteFeatureFlags: remoteFeatureFlags,
         cacheTimestamp: Date.now(),
         thresholdCache: updatedThresholdCache,
@@ -434,10 +456,16 @@ export class RemoteFeatureFlagController extends BaseController<
    */
   setFlagOverride(flagName: string, value: Json): void {
     this.update(() => {
+      const localOverrides = {
+        ...this.state.localOverrides,
+        [flagName]: value,
+      };
+
       return {
         ...this.state,
-        localOverrides: {
-          ...this.state.localOverrides,
+        localOverrides,
+        remoteFeatureFlags: {
+          ...this.state.remoteFeatureFlags,
           [flagName]: value,
         },
       };
@@ -452,10 +480,21 @@ export class RemoteFeatureFlagController extends BaseController<
   removeFlagOverride(flagName: string): void {
     const newLocalOverrides = { ...this.state.localOverrides };
     delete newLocalOverrides[flagName];
+
+    const remoteFeatureFlags = { ...this.state.remoteFeatureFlags };
+    const processedValue = this.#processedRemoteFeatureFlags[flagName];
+
+    if (processedValue === undefined) {
+      delete remoteFeatureFlags[flagName];
+    } else {
+      remoteFeatureFlags[flagName] = processedValue;
+    }
+
     this.update(() => {
       return {
         ...this.state,
         localOverrides: newLocalOverrides,
+        remoteFeatureFlags,
       };
     });
   }
@@ -468,6 +507,7 @@ export class RemoteFeatureFlagController extends BaseController<
       return {
         ...this.state,
         localOverrides: {},
+        remoteFeatureFlags: { ...this.#processedRemoteFeatureFlags },
       };
     });
   }

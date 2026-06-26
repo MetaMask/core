@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/multichain-network-controller` from `^3.1.4` to `^3.2.0` ([#9264](https://github.com/MetaMask/core/pull/9264))
+
 ## [77.0.0]
 
 ### Added
@@ -38,6 +42,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **BREAKING**: Add persisted input primary denomination state and `Unified SwapBridge Fiat Crypto Toggle Clicked` analytics event support ([#9147](https://github.com/MetaMask/core/pull/9147))
+- Add Stellar support for bridge token flows: `isStellarChainId`, `ChainId.STELLAR`, native XLM metadata, CAIP/decimal formatting aligned with Bridge API, and Stellar pubnet/testnet in `isNonEvmChainId` ([#8829](https://github.com/MetaMask/core/pull/8829))
+- Add `StellarTradeDataSchema`, `StellarTradeData`, and `isStellarTrade`; extend `extractTradeData` to read Stellar XDR from `{ xdrBase64 }` or `{ xdr }` objects ([#8829](https://github.com/MetaMask/core/pull/8829))
 
 ## [75.2.1]
 

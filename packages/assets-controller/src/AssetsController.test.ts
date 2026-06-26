@@ -1720,6 +1720,82 @@ describe('AssetsController', () => {
       });
     });
 
+    it('does not let subscription polling overwrite a recent websocket balance update', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '8.185173' },
+          },
+        },
+      };
+
+      await withController({ state: initialState }, async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '7.185173' },
+              },
+            },
+          },
+          'BackendWebsocketDataSource',
+        );
+
+        await controller.handleAssetsUpdate(
+          {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '8.185173' },
+              },
+            },
+          },
+          'AccountsApiDataSource',
+        );
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+        ).toStrictEqual({ amount: '7.185173' });
+      });
+    });
+
+    it('applies getAssets forceUpdate over a recent websocket balance update', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '8.185173' },
+          },
+        },
+      };
+
+      await withController({ state: initialState }, async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '7.185173' },
+              },
+            },
+          },
+          'BackendWebsocketDataSource',
+        );
+
+        await controller.handleAssetsUpdate(
+          {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '8.185173' },
+              },
+            },
+          },
+          'getAssets:forceUpdate',
+        );
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+        ).toStrictEqual({ amount: '8.185173' });
+      });
+    });
+
     it('replaces state when full update has authoritative data', async () => {
       const initialState: Partial<AssetsControllerState> = {
         assetsBalance: {

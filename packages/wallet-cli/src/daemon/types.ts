@@ -1,6 +1,12 @@
 import type { Json } from '@metamask/utils';
 
 /**
+ * Sink for daemon diagnostic messages. A backgrounded daemon's stdio may be
+ * discarded, so hosts supply a logger that writes somewhere durable.
+ */
+export type Logger = (message: string) => void;
+
+/**
  * A function that handles a JSON-RPC method call.
  *
  * The `params` argument will be `null` if the client did not provide params.
