@@ -26,6 +26,7 @@ import type { GetGasFeeState } from '@metamask/gas-fee-controller';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerSignTypedMessageAction,
+  KeyringControllerUnlockEvent,
   KeyringTypes,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
@@ -96,6 +97,7 @@ export type AllowedEvents =
   | AssetsControllerStateChangeEvent
   | BridgeStatusControllerStateChangeEvent
   | CurrencyRateStateChange
+  | KeyringControllerUnlockEvent
   | TokenRatesControllerStateChangeEvent
   | TokensControllerStateChangeEvent
   | TransactionControllerStateChangeEvent

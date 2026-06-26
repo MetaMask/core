@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add CHOMP idempotency for direct mUSD vault deposits ([#9267](https://github.com/MetaMask/core/pull/9267))
+
+### Fixed
+
+- Wait for keyring unlock before executing fiat post-ramp second leg ([#9267](https://github.com/MetaMask/core/pull/9267))
+
 ## [23.16.1]
 
 ### Changed
