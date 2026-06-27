@@ -199,6 +199,8 @@ export const isNativeAddress = (address?: string | null) =>
       (reference) => address.includes(reference) || reference.endsWith(address),
     ));
 
+const SOLANA_MAINNET_CHAIN_ID_STRING = SolScope.Mainnet.toString();
+const SOLANA_CHAIN_ID_STRING = ChainId.SOLANA.toString();
 /**
  * Checks whether the chainId matches Solana in CaipChainId or number format
  *
@@ -209,25 +211,31 @@ export const isSolanaChainId = (
   chainId: Hex | number | CaipChainId | string,
 ) => {
   if (isCaipChainId(chainId)) {
-    return chainId === SolScope.Mainnet.toString();
+    return chainId === SOLANA_MAINNET_CHAIN_ID_STRING;
   }
-  return chainId.toString() === ChainId.SOLANA.toString();
+  return chainId.toString() === SOLANA_CHAIN_ID_STRING;
 };
+
+const BITCOIN_MAINNET_CHAIN_ID_STRING = BtcScope.Mainnet.toString();
+const BITCOIN_CHAIN_ID_STRING = ChainId.BTC.toString();
 
 export const isBitcoinChainId = (
   chainId: Hex | number | CaipChainId | string,
 ) => {
   if (isCaipChainId(chainId)) {
-    return chainId === BtcScope.Mainnet.toString();
+    return chainId === BITCOIN_MAINNET_CHAIN_ID_STRING;
   }
-  return chainId.toString() === ChainId.BTC.toString();
+  return chainId.toString() === BITCOIN_CHAIN_ID_STRING;
 };
+
+const TRON_MAINNET_CHAIN_ID_STRING = TrxScope.Mainnet.toString();
+const TRON_CHAIN_ID_STRING = ChainId.TRON.toString();
 
 export const isTronChainId = (chainId: Hex | number | CaipChainId | string) => {
   if (isCaipChainId(chainId)) {
-    return chainId === TrxScope.Mainnet.toString();
+    return chainId === TRON_MAINNET_CHAIN_ID_STRING;
   }
-  return chainId.toString() === ChainId.TRON.toString();
+  return chainId.toString() === TRON_CHAIN_ID_STRING;
 };
 
 /**
