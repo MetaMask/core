@@ -1,5 +1,5 @@
-import { RampsEnvironment } from '@metamask/ramps-controller';
 import { Messenger } from '@metamask/messenger';
+import { RampsEnvironment } from '@metamask/ramps-controller';
 
 import type {
   DefaultActions,

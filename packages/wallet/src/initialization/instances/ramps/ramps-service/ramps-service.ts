@@ -32,7 +32,7 @@ export const rampsService: InitializationConfiguration<
     // Type cast required: RampsServiceMessenger's parent constraint includes
     // AuthenticationController:getBearerToken which is not in DefaultActions
     // (these are opt-in configs, not default wallet instances).
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const messenger: RampsServiceMessenger = new Messenger({
       namespace: 'RampsService',
       parent: parent as never,

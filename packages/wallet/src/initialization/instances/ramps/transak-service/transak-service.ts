@@ -24,7 +24,7 @@ export const transakService: InitializationConfiguration<
   getMessenger: (parent) =>
     // Type cast required: TransakServiceMessenger's parent type constraint
     // does not extend DefaultActions (opt-in config, not a default instance).
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     new Messenger({
       namespace: 'TransakService',
       parent: parent as never,

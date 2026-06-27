@@ -1,5 +1,5 @@
-import { TransakEnvironment } from '@metamask/ramps-controller';
 import { Messenger } from '@metamask/messenger';
+import { TransakEnvironment } from '@metamask/ramps-controller';
 
 import type {
   DefaultActions,

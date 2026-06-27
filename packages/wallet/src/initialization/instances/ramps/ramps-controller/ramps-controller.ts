@@ -23,7 +23,7 @@ export const rampsController: InitializationConfiguration<
     // Type cast required: RampsControllerMessenger's parent constraint includes
     // RampsService/TransakService actions that are not in DefaultActions (since
     // these are opt-in configs, not default wallet instances).
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const messenger: RampsControllerMessenger = new Messenger({
       namespace: 'RampsController',
       parent: parent as never,
