@@ -11,9 +11,6 @@ import type { KeyringControllerInstanceOptions } from './initialization/instance
 import type { NetworkControllerInstanceOptions } from './initialization/instances/network-controller/types';
 import type { RemoteFeatureFlagControllerInstanceOptions } from './initialization/instances/remote-feature-flag-controller/types';
 import type { StorageServiceInstanceOptions } from './initialization/instances/storage-service/types';
-import type { RampsControllerInstanceOptions } from './initialization/instances/ramps/ramps-controller/types';
-import type { RampsServiceInstanceOptions } from './initialization/instances/ramps/ramps-service/types';
-import type { TransakServiceInstanceOptions } from './initialization/instances/ramps/transak-service/types';
 import type { InitializationConfiguration } from './initialization/types';
 
 export type WalletOptions = {
@@ -31,9 +28,6 @@ export type InstanceSpecificOptions = {
   connectivityController: ConnectivityControllerInstanceOptions;
   keyringController?: KeyringControllerInstanceOptions;
   networkController: NetworkControllerInstanceOptions;
-  rampsController?: RampsControllerInstanceOptions;
-  rampsService?: RampsServiceInstanceOptions;
   remoteFeatureFlagController: RemoteFeatureFlagControllerInstanceOptions;
   storageService: StorageServiceInstanceOptions;
-  transakService?: TransakServiceInstanceOptions;
 };

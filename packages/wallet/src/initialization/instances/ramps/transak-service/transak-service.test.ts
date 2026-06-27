@@ -21,7 +21,7 @@ describe('transakService', () => {
       state: undefined,
       options: {
         environment: TransakEnvironment.Staging,
-        context: 'mobile-ios',
+        context: 'test',
         fetch: fetchMock as unknown as typeof fetch,
       },
     });

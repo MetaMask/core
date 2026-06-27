@@ -21,7 +21,7 @@ describe('rampsService', () => {
       state: undefined,
       options: {
         environment: RampsEnvironment.Staging,
-        context: 'extension',
+        context: 'test',
         fetch: fetchMock as unknown as typeof fetch,
       },
     });

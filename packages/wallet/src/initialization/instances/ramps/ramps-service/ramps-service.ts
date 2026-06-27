@@ -6,6 +6,14 @@ import {
 
 import { InitializationConfiguration } from '../../../types';
 
+/**
+ * Opt-in initialization config for `RampsService`.
+ *
+ * **Prerequisite:** `AuthenticationController` must be registered on the root
+ * messenger before this config is used — `RampsService` delegates
+ * `AuthenticationController:getBearerToken` and will throw at runtime if that
+ * action is not available.
+ */
 export const rampsService: InitializationConfiguration<
   RampsService,
   RampsServiceMessenger
