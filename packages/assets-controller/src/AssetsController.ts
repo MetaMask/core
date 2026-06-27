@@ -1063,11 +1063,11 @@ export class AssetsController extends BaseController<
       'NetworkController:networkAdded',
       (networkConfiguration) => {
         this.#handleNetworkAdded(networkConfiguration.chainId);
-        this.#refreshAssetsAfterNetworkAdded(networkConfiguration.chainId).catch(
-          (error) => {
-            log('Failed to refresh assets after network added', { error });
-          },
-        );
+        this.#refreshAssetsAfterNetworkAdded(
+          networkConfiguration.chainId,
+        ).catch((error) => {
+          log('Failed to refresh assets after network added', { error });
+        });
       },
     );
 
