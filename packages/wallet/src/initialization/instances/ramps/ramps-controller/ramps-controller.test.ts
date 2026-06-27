@@ -4,7 +4,7 @@ import type {
   DefaultActions,
   DefaultEvents,
   RootMessenger,
-} from '../../defaults';
+} from '../../../defaults';
 import { rampsController } from './ramps-controller';
 
 describe('rampsController', () => {

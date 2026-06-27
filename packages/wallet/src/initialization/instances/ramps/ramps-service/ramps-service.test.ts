@@ -5,7 +5,7 @@ import type {
   DefaultActions,
   DefaultEvents,
   RootMessenger,
-} from '../../defaults';
+} from '../../../defaults';
 import { rampsService } from './ramps-service';
 
 describe('rampsService', () => {

@@ -5,7 +5,7 @@ import type {
   DefaultActions,
   DefaultEvents,
   RootMessenger,
-} from '../../defaults';
+} from '../../../defaults';
 import { transakService } from './transak-service';
 
 describe('transakService', () => {
