@@ -379,10 +379,14 @@ export type DataResponse = {
  * - **full**: Response is the full set for the scope. Assets in state but not in the
  *   response are cleared (except custom assets). Use for initial fetch or full refresh.
  * - **merge**: Only assets present in the response are updated; nothing is removed.
- *   Metadata and prices from the response are applied. Use for event-driven updates
- *   and partial balance refreshes.
+ *   Metadata and prices from the response are applied. Use for event-driven updates.
+ * - **update**: Balance-only overlay — incoming balance amounts are patched in place;
+ *   existing balances, metadata, and prices are never removed or overwritten.
+ *   Missing metadata and prices from the response are seeded so RPC-only chains
+ *   can render on first fetch. Use for force refresh when the API may return a
+ *   partial chain snapshot.
  */
-export type AssetsUpdateMode = 'full' | 'merge';
+export type AssetsUpdateMode = 'full' | 'merge' | 'update';
 
 // ============================================================================
 // DATA SOURCE <-> CONTROLLER (DIRECT CALLS, NO MESSENGER PER SOURCE)

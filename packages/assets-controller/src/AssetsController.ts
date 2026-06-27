@@ -1063,7 +1063,11 @@ export class AssetsController extends BaseController<
       'NetworkController:networkAdded',
       (networkConfiguration) => {
         this.#handleNetworkAdded(networkConfiguration.chainId);
-        this.#refreshAssetsAfterNetworkChange();
+        this.#refreshAssetsAfterNetworkAdded(networkConfiguration.chainId).catch(
+          (error) => {
+            log('Failed to refresh assets after network added', { error });
+          },
+        );
       },
     );
 
@@ -1978,6 +1982,60 @@ export class AssetsController extends BaseController<
       ),
     }).catch((error) => {
       log('Failed to fetch asset prices after current currency change', error);
+    });
+  }
+
+  /**
+   * Fetch spot prices (bypassing deduper cache) for held assets that have no
+   * entry in `assetsPrice` yet. Used when switching or adding a network.
+   *
+   * @param accounts - Accounts whose held assets should be priced.
+   * @param chainIds - Chains to scope the check and fetch.
+   */
+  #fetchMissingPricesWithoutCache(
+    accounts: InternalAccount[],
+    chainIds: ChainId[],
+  ): void {
+    if (!this.#isBasicFunctionality() || accounts.length === 0) {
+      return;
+    }
+
+    const accountIds = new Set(accounts.map((account) => account.id));
+    const chainFilter = new Set(chainIds);
+    const assetsForPriceUpdate: Caip19AssetId[] = [];
+    const prices = this.state.assetsPrice as Record<string, AssetPrice>;
+
+    for (const [accountId, accountBalances] of Object.entries(
+      this.state.assetsBalance,
+    )) {
+      if (!accountIds.has(accountId)) {
+        continue;
+      }
+      for (const assetId of Object.keys(accountBalances)) {
+        if (!chainFilter.has(assetId.split('/')[0] as ChainId)) {
+          continue;
+        }
+        const normalizedAssetId = normalizeAssetId(assetId as Caip19AssetId);
+        if (prices[normalizedAssetId] ?? prices[assetId]) {
+          continue;
+        }
+        assetsForPriceUpdate.push(normalizedAssetId);
+      }
+    }
+
+    if (assetsForPriceUpdate.length === 0) {
+      return;
+    }
+
+    this.#priceDataSource.invalidatePriceCache();
+
+    this.getAssets(accounts, {
+      forceUpdate: true,
+      dataTypes: ['price'],
+      chainIds,
+      assetsForPriceUpdate,
+    }).catch((error) => {
+      log('Failed to fetch missing prices', { error });
     });
   }
 
@@ -3388,28 +3446,58 @@ export class AssetsController extends BaseController<
       await this.getAssets(accounts, {
         chainIds: [selectedChainId],
         forceUpdate: true,
+        dataTypes: ['balance', 'metadata', 'price'],
       });
 
       this.#ensureNativeBalancesDefaultZero();
+      this.#fetchMissingPricesWithoutCache(accounts, [selectedChainId]);
     } finally {
       releaseLock();
     }
   }
 
   /**
-   * Refresh assets across every data source after a network configuration
-   * is added to or removed from NetworkController. Mirrors the
-   * `forceUpdate` path used elsewhere (e.g. unapproved tx, account-tree
-   * change), so balances/prices/metadata stay consistent for the user's
-   * currently-enabled chains without us having to maintain bespoke
-   * per-event state surgery.
+   * Refresh balances after a network configuration is removed.
    */
   #refreshAssetsAfterNetworkChange(): void {
-    this.getAssets(this.#getSelectedAccounts(), {
+    const accounts = this.#getSelectedAccounts();
+    if (accounts.length === 0) {
+      return;
+    }
+
+    this.getAssets(accounts, {
       forceUpdate: true,
+      dataTypes: ['balance', 'metadata'],
     }).catch((error) => {
       log('Failed to refresh assets after network change', { error });
     });
+  }
+
+  /**
+   * Refresh balances and fetch missing prices after a network is added.
+   *
+   * @param hexChainId - Hex chain id of the newly-added network.
+   */
+  async #refreshAssetsAfterNetworkAdded(hexChainId: Hex): Promise<void> {
+    const accounts = this.#getSelectedAccounts();
+    if (accounts.length === 0) {
+      return;
+    }
+
+    let caipChainId: ChainId;
+    try {
+      caipChainId = `eip155:${parseInt(hexChainId, 16)}` as ChainId;
+    } catch {
+      return;
+    }
+
+    await this.getAssets(accounts, {
+      chainIds: [caipChainId],
+      forceUpdate: true,
+      dataTypes: ['balance', 'metadata', 'price'],
+    });
+    this.#ensureNativeBalancesDefaultZero();
+    this.#fetchMissingPricesWithoutCache(accounts, [caipChainId]);
   }
 
   /**

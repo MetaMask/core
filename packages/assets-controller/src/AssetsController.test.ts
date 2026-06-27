@@ -2456,6 +2456,7 @@ describe('AssetsController', () => {
           expect.objectContaining({
             chainIds: ['eip155:1'],
             forceUpdate: true,
+            dataTypes: ['balance', 'metadata', 'price'],
           }),
         );
       } finally {
