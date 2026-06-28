@@ -273,6 +273,14 @@ describe('assetsUtil', () => {
       ).toBe(true);
     });
 
+    it('returns true for DeFi Oracle Meta Mainnet (138)', () => {
+      expect(
+        assetsUtil.isTokenDetectionSupportedForNetwork(
+          assetsUtil.SupportedTokenDetectionNetworks.DefiOracleMeta,
+        ),
+      ).toBe(true);
+    });
+
     it('returns false for testnets such as Goerli', () => {
       expect(assetsUtil.isTokenDetectionSupportedForNetwork(toHex(5))).toBe(
         false,
