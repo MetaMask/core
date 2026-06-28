@@ -37,6 +37,7 @@ export const DEFAULT_FALLBACK_GAS_ESTIMATE = 900000;
 export const DEFAULT_FALLBACK_GAS_MAX = 1500000;
 export const DEFAULT_RELAY_EXECUTE_URL = RELAY_EXECUTE_URL;
 export const DEFAULT_RELAY_QUOTE_URL = RELAY_QUOTE_URL;
+export const DEFAULT_RELAY_SUBSIDIZE_URL = `${SERVER_URL_BASE}/relay/subsidize`;
 export const DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD = '300000';
 export const DEFAULT_SLIPPAGE = 0.005;
 export const DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD = 1;
@@ -66,6 +67,7 @@ type FeatureFlagsRaw = {
     max?: number;
   };
   relayQuoteUrl?: string;
+  relaySubsidizeUrl?: string;
   slippage?: number;
   slippageTokens?: Record<Hex, Record<Hex, number>>;
   strategyOrder?: string[];
@@ -151,6 +153,7 @@ export type FeatureFlags = {
     max: number;
   };
   relayQuoteUrl: string;
+  relaySubsidizeUrl: string;
   slippage: number;
 };
 
@@ -501,7 +504,11 @@ export function getFeatureFlags(
   const relayExecuteUrl =
     featureFlags.relayExecuteUrl ?? DEFAULT_RELAY_EXECUTE_URL;
 
-  const relayQuoteUrl = featureFlags.relayQuoteUrl ?? DEFAULT_RELAY_QUOTE_URL;
+  const relayQuoteUrl =
+    featureFlags.relayQuoteUrl ?? DEFAULT_RELAY_QUOTE_URL;
+
+  const relaySubsidizeUrl =
+    featureFlags.relaySubsidizeUrl ?? DEFAULT_RELAY_SUBSIDIZE_URL;
 
   const relayDisabledGasStationChains =
     featureFlags.relayDisabledGasStationChains ?? [];
@@ -516,6 +523,7 @@ export function getFeatureFlags(
       max,
     },
     relayQuoteUrl,
+    relaySubsidizeUrl,
     slippage,
   };
 

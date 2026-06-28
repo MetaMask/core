@@ -5,8 +5,9 @@ import {
   fetchRelayQuote,
   getRelayStatus,
   submitRelayExecute,
+  submitRelaySubsidize,
 } from './relay-api';
-import type { RelayQuoteRequest } from './types';
+import type { RelayQuoteRequest, RelaySubsidizeRequest } from './types';
 
 jest.mock('../../utils/feature-flags');
 
@@ -29,6 +30,7 @@ const mockErrorResponse = (status: number, body: unknown): jest.SpyInstance =>
 
 const QUOTE_URL_MOCK = 'https://proxy.test/relay/quote';
 const EXECUTE_URL_MOCK = 'https://proxy.test/relay/execute';
+const SUBSIDIZE_URL_MOCK = 'https://proxy.test/relay/subsidize';
 
 const MESSENGER_MOCK = {} as Parameters<typeof fetchRelayQuote>[0];
 
@@ -39,6 +41,7 @@ describe('relay-api', () => {
     getFeatureFlagsMock.mockReturnValue({
       relayQuoteUrl: QUOTE_URL_MOCK,
       relayExecuteUrl: EXECUTE_URL_MOCK,
+      relaySubsidizeUrl: SUBSIDIZE_URL_MOCK,
     } as FeatureFlags);
   });
 
@@ -205,6 +208,76 @@ describe('relay-api', () => {
       const result = await getRelayStatus(REQUEST_ID_MOCK);
 
       expect(result).toStrictEqual(STATUS_RESPONSE_MOCK);
+    });
+  });
+
+  describe('submitRelaySubsidize', () => {
+    const SUBSIDIZE_REQUEST_MOCK: RelaySubsidizeRequest = {
+      quoteRequest: { amount: '1000000', originChainId: 137 },
+      delegations: ['0xpermissioncontext1'],
+      from: '0xccc',
+    };
+
+    const SUBSIDIZE_RESPONSE_MOCK = {
+      requestId: '0xnewrequestid',
+    };
+
+    it('posts to the subsidize URL from feature flags', async () => {
+      mockOkResponse(SUBSIDIZE_RESPONSE_MOCK);
+
+      await submitRelaySubsidize(MESSENGER_MOCK, SUBSIDIZE_REQUEST_MOCK);
+
+      expect(fetchMock).toHaveBeenCalledWith(SUBSIDIZE_URL_MOCK, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(SUBSIDIZE_REQUEST_MOCK),
+      });
+    });
+
+    it('returns the parsed response', async () => {
+      mockOkResponse(SUBSIDIZE_RESPONSE_MOCK);
+
+      const result = await submitRelaySubsidize(
+        MESSENGER_MOCK,
+        SUBSIDIZE_REQUEST_MOCK,
+      );
+
+      expect(result).toStrictEqual(SUBSIDIZE_RESPONSE_MOCK);
+    });
+
+    it('includes authorizationList when provided', async () => {
+      const requestWithAuth: RelaySubsidizeRequest = {
+        ...SUBSIDIZE_REQUEST_MOCK,
+        authorizationList: [
+          {
+            chainId: 1,
+            address: '0xdelegateAddr' as `0x${string}`,
+            nonce: 0,
+            yParity: 0,
+            r: '0xr' as `0x${string}`,
+            s: '0xs' as `0x${string}`,
+          },
+        ],
+      };
+
+      mockOkResponse(SUBSIDIZE_RESPONSE_MOCK);
+
+      await submitRelaySubsidize(MESSENGER_MOCK, requestWithAuth);
+
+      const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+      const body = JSON.parse(init.body as string) as RelaySubsidizeRequest;
+
+      expect(body.authorizationList).toStrictEqual(
+        requestWithAuth.authorizationList,
+      );
+    });
+
+    it('throws on non-OK responses with status and message', async () => {
+      mockErrorResponse(400, { message: 'invalid delegation' });
+
+      await expect(
+        submitRelaySubsidize(MESSENGER_MOCK, SUBSIDIZE_REQUEST_MOCK),
+      ).rejects.toThrow('400 - invalid delegation');
     });
   });
 });

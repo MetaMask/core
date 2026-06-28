@@ -7,6 +7,8 @@ import type {
   RelayQuote,
   RelayQuoteRequest,
   RelayStatusResponse,
+  RelaySubsidizeRequest,
+  RelaySubsidizeResponse,
 } from './types';
 
 /**
@@ -73,6 +75,35 @@ export async function getRelayStatus(
   const response = await relayFetch(url, { method: 'GET' });
 
   return (await response.json()) as RelayStatusResponse;
+}
+
+/**
+ * Submit a subsidized Relay transaction via the intents-API POST /relay/subsidize
+ * endpoint.
+ *
+ * The server JIT-fetches a fresh subsidized Relay quote, pairs each step with
+ * the signed permission context provided by the client, builds the
+ * redeemDelegations calldata, and submits to Relay — returning the Relay
+ * request ID used for status polling via the existing GET /relay/status
+ * endpoint.
+ *
+ * @param messenger - Controller messenger.
+ * @param body - Subsidize request parameters.
+ * @returns The subsidize response containing the Relay request ID.
+ */
+export async function submitRelaySubsidize(
+  messenger: TransactionPayControllerMessenger,
+  body: RelaySubsidizeRequest,
+): Promise<RelaySubsidizeResponse> {
+  const { relaySubsidizeUrl } = getFeatureFlags(messenger);
+
+  const response = await relayFetch(relaySubsidizeUrl, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  return (await response.json()) as RelaySubsidizeResponse;
 }
 
 /**

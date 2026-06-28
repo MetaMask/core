@@ -170,6 +170,8 @@ export function getMessengerMock({
     ],
   });
 
+  const signTypedMessageMock = jest.fn();
+
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
@@ -316,10 +318,15 @@ export function getMessengerMock({
     );
   }
 
-  messenger.registerActionHandler(
-    'KeyringController:getState',
-    getKeyringControllerStateMock,
-  );
+    messenger.registerActionHandler(
+      'KeyringController:getState',
+      getKeyringControllerStateMock,
+    );
+
+    messenger.registerActionHandler(
+      'KeyringController:signTypedMessage',
+      signTypedMessageMock,
+    );
 
   const publish = messenger.publish.bind(messenger);
 
@@ -353,6 +360,7 @@ export function getMessengerMock({
     polymarketGetDepositWalletAddressMock,
     polymarketSubmitDepositWalletBatchMock,
     publish,
+    signTypedMessageMock,
     submitTransactionMock,
     updateTransactionMock,
   };

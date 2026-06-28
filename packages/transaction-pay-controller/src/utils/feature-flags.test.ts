@@ -24,6 +24,7 @@ import {
   getFiatOrderPollIntervalMs,
   getFiatOrderPollTimeoutMs,
   DEFAULT_RELAY_EXECUTE_URL,
+  DEFAULT_RELAY_SUBSIDIZE_URL,
   getDirectMoneyMusdEnabled,
   getServerPollingInterval,
   getServerPollingTimeout,
@@ -100,6 +101,7 @@ describe('Feature Flags Utils', () => {
           max: DEFAULT_FALLBACK_GAS_MAX,
         },
         relayQuoteUrl: DEFAULT_RELAY_QUOTE_URL,
+        relaySubsidizeUrl: DEFAULT_RELAY_SUBSIDIZE_URL,
         slippage: DEFAULT_SLIPPAGE,
       });
     });
@@ -131,6 +133,7 @@ describe('Feature Flags Utils', () => {
           max: GAS_FALLBACK_MAX_MOCK,
         },
         relayQuoteUrl: RELAY_QUOTE_URL_MOCK,
+        relaySubsidizeUrl: DEFAULT_RELAY_SUBSIDIZE_URL,
         slippage: SLIPPAGE_MOCK,
       });
     });

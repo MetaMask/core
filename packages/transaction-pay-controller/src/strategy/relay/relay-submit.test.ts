@@ -30,12 +30,14 @@ import {
 import { RELAY_STATUS_URL } from './constants';
 import { submitRelayQuotes } from './relay-submit';
 import type { RelayQuote } from './types';
+import { buildAndSignSubsidizedDelegation } from './utils/delegation';
 
 jest.mock('../../utils/token');
 jest.mock('../../utils/transaction');
 jest.mock('../../utils/feature-flags');
 jest.mock('./hyperliquid-withdraw');
 jest.mock('./polymarket/withdraw');
+jest.mock('./utils/delegation');
 
 const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
 const TRANSACTION_HASH_MOCK = '0x1234';
@@ -148,6 +150,7 @@ describe('Relay Submit Utils', () => {
     getDelegationTransactionMock,
     findNetworkClientIdByChainIdMock,
     getPaymentOverrideDataMock,
+    signTypedMessageMock,
     messenger,
   } = getMessengerMock();
 
@@ -2020,6 +2023,214 @@ describe('Relay Submit Utils', () => {
 
         expect(getDelegationTransactionMock).not.toHaveBeenCalled();
         expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    describe('EIP-7702 subsidized execute path', () => {
+      const PERMISSION_CONTEXT_0_MOCK = '0xabcdef1234permissioncontext0' as Hex;
+      const PERMISSION_CONTEXT_1_MOCK = '0xabcdef1234permissioncontext1' as Hex;
+      const NEW_REQUEST_ID_MOCK = '0xnewrequestid';
+
+      const SUBSIDIZE_RESPONSE_MOCK = {
+        requestId: NEW_REQUEST_ID_MOCK,
+      };
+
+      const SUBSIDIZE_URL_MOCK = 'https://proxy.test/relay/subsidize';
+
+      const FEATURE_FLAGS_SUBSIDIZE_MOCK = {
+        relaySubsidizeUrl: SUBSIDIZE_URL_MOCK,
+        relayFallbackGas: { max: 123 },
+      } as FeatureFlags;
+
+      const ORIGINAL_QUOTE_REQUEST_MOCK = {
+        amount: '1000000',
+        originChainId: 137,
+        originCurrency: '0xtoken',
+        destinationChainId: 1,
+        destinationCurrency: '0xusdc',
+        tradeType: 'EXPECTED_OUTPUT',
+        user: FROM_MOCK,
+        recipient: FROM_MOCK,
+      };
+
+      const buildAndSignSubsidizedDelegationMock = jest.mocked(
+        buildAndSignSubsidizedDelegation,
+      );
+
+      beforeEach(() => {
+        request.quotes[0].original.metamask.isExecute = true;
+        request.quotes[0].original.fees = {
+          relayer: { amountUsd: '0' },
+          subsidized: {
+            amount: '1000000',
+            amountFormatted: '1.00',
+            amountUsd: '1.00',
+            currency: {
+              address: '0xtoken' as Hex,
+              chainId: 137,
+              decimals: 6,
+            },
+            minimumAmount: '900000',
+          },
+        };
+        request.quotes[0].original.request = ORIGINAL_QUOTE_REQUEST_MOCK as never;
+
+        buildAndSignSubsidizedDelegationMock
+          .mockResolvedValueOnce(PERMISSION_CONTEXT_0_MOCK)
+          .mockResolvedValueOnce(PERMISSION_CONTEXT_1_MOCK);
+        getFeatureFlagsMock.mockReturnValue(FEATURE_FLAGS_SUBSIDIZE_MOCK);
+
+        successfulFetchMock
+          .mockResolvedValueOnce({
+            ok: true,
+            json: async () => SUBSIDIZE_RESPONSE_MOCK,
+          } as Response)
+          .mockResolvedValue({
+            ok: true,
+            json: async () => STATUS_RESPONSE_MOCK,
+          } as Response);
+      });
+
+      it('calls buildAndSignSubsidizedDelegation twice with quote params', async () => {
+        await submitRelayQuotes(request);
+
+        expect(buildAndSignSubsidizedDelegationMock).toHaveBeenCalledTimes(2);
+
+        const expectedParams = {
+          from: FROM_MOCK,
+          sourceChainId: CHAIN_ID_MOCK,
+          sourceTokenAddress: TOKEN_ADDRESS_MOCK,
+          sourceAmountRaw: SOURCE_AMOUNT_RAW_MOCK,
+          messenger: expect.anything(),
+        };
+
+        expect(buildAndSignSubsidizedDelegationMock).toHaveBeenNthCalledWith(
+          1,
+          expectedParams,
+        );
+        expect(buildAndSignSubsidizedDelegationMock).toHaveBeenNthCalledWith(
+          2,
+          expectedParams,
+        );
+      });
+
+      it('posts to /relay/subsidize with signed delegation and quote request', async () => {
+        await submitRelayQuotes(request);
+
+        const fetchCall = successfulFetchMock.mock.calls[0];
+        const body = JSON.parse(
+          (fetchCall[1] as RequestInit).body as string,
+        ) as Record<string, unknown>;
+
+        expect(fetchCall[0]).toBe(SUBSIDIZE_URL_MOCK);
+        expect(body.quoteRequest).toStrictEqual(ORIGINAL_QUOTE_REQUEST_MOCK);
+        expect(body.from).toBe(FROM_MOCK);
+        expect(body.delegations).toStrictEqual([
+          PERMISSION_CONTEXT_0_MOCK,
+          PERMISSION_CONTEXT_1_MOCK,
+        ]);
+        expect(body.delegation).toBeUndefined();
+      });
+
+      it('does not post to relayExecuteUrl', async () => {
+        await submitRelayQuotes(request);
+
+        const allUrls = successfulFetchMock.mock.calls.map(
+          ([url]: [string]) => url,
+        );
+
+        expect(allUrls).not.toContain(expect.stringContaining('/execute'));
+      });
+
+      it('polls relay status with the requestId returned by /relay/subsidize', async () => {
+        await submitRelayQuotes(request);
+
+        expect(successfulFetchMock).toHaveBeenCalledWith(
+          `${RELAY_STATUS_URL}?requestId=${NEW_REQUEST_ID_MOCK}`,
+          { method: 'GET' },
+        );
+      });
+
+      it('does not poll with the original quote requestId', async () => {
+        await submitRelayQuotes(request);
+
+        const allUrls = successfulFetchMock.mock.calls.map(
+          ([url]: [string]) => url,
+        );
+
+        expect(allUrls).not.toContain(
+          `${RELAY_STATUS_URL}?requestId=${REQUEST_ID_MOCK}`,
+        );
+      });
+
+      it('pushes a synthetic deposit step and polls when preview quote has no steps', async () => {
+        // Simulate the actual crash case: server omits `steps` entirely (undefined),
+        // not just empty array. undefined.filter() throws; [] does not.
+        request.quotes[0].original.steps = undefined as never;
+
+        await submitRelayQuotes(request);
+
+        // Polling should use the server-returned requestId, not crash on undefined
+        expect(successfulFetchMock).toHaveBeenCalledWith(
+          `${RELAY_STATUS_URL}?requestId=${NEW_REQUEST_ID_MOCK}`,
+          { method: 'GET' },
+        );
+      });
+
+      it('returns target hash from relay status', async () => {
+        const result = await submitRelayQuotes(request);
+
+        expect(result.transactionHash).toBe(TRANSACTION_HASH_MOCK);
+      });
+
+      it('does not call addTransaction or addTransactionBatch', async () => {
+        await submitRelayQuotes(request);
+
+        expect(addTransactionMock).not.toHaveBeenCalled();
+        expect(addTransactionBatchMock).not.toHaveBeenCalled();
+      });
+
+      it('wraps /relay/subsidize submission failures with the Subsidize prefix', async () => {
+        successfulFetchMock.mockReset();
+        successfulFetchMock.mockResolvedValueOnce({
+          ok: false,
+          status: 400,
+          json: async () => ({ message: 'invalid delegation' }),
+        } as Response);
+
+        await expect(submitRelayQuotes(request)).rejects.toThrow(
+          'Relay: Subsidize: 400 - invalid delegation',
+        );
+      });
+
+      it('uses TransactionController path when quote is not subsidized', async () => {
+        request.quotes[0].original.fees = {
+          relayer: { amountUsd: '0' },
+          subsidized: undefined,
+        };
+
+        getDelegationTransactionMock.mockResolvedValue({
+          data: '0xdelegatedata' as Hex,
+          to: '0xdelegationMgr' as Hex,
+          value: '0x0' as Hex,
+        });
+
+        successfulFetchMock.mockReset();
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => STATUS_RESPONSE_MOCK,
+        } as Response);
+
+        await submitRelayQuotes(request);
+
+        expect(getDelegationTransactionMock).toHaveBeenCalledTimes(1);
+        expect(buildAndSignSubsidizedDelegationMock).not.toHaveBeenCalled();
+
+        const allUrls = successfulFetchMock.mock.calls.map(
+          ([url]: [string]) => url,
+        );
+
+        expect(allUrls).not.toContain(expect.stringContaining('/subsidize'));
       });
     });
   });
