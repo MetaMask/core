@@ -7,9 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add subsidized Relay submit path via `POST /relay/subsidize` endpoint
+  - Subsidized quotes (non-zero `fees.subsidized.amountUsd`) bypass `/execute` and instead sign two ERC20BalanceChange + LimitedCalls delegations that are sent to the intents-API `/relay/subsidize` endpoint
+  - The server JIT-fetches a fresh Relay quote, pairs each signed delegation with a step, builds `redeemDelegations` calldata server-side, and submits to Relay — returning a new request ID used for status polling
+  - Introduces `buildAndSignSubsidizedDelegation` in `utils/delegation.ts`, `submitRelaySubsidize` in `relay-api.ts`, and `submitViaRelaySubsidize` + `isSubsidizedRelayQuote` in `relay-submit.ts`
+  - Adds `RelaySubsidizeRequest` / `RelaySubsidizeResponse` types and `relaySubsidizeUrl` feature flag with default `DEFAULT_RELAY_SUBSIDIZE_URL`
+
 ### Changed
 
 - Bump `@metamask/bridge-status-controller` from `^73.0.0` to `^73.1.0` ([#9288](https://github.com/MetaMask/core/pull/9288))
+
+### Fixed
+
+- Fix crash when subsidized preview quotes have `steps: undefined`
+  - Server `toSafeSubsidizedQuote()` strips `steps` from subsidized quotes; `undefined.filter()` in `submitTransactions` and `undefined[0]` in `submitViaRelaySubsidize` both threw `TypeError` at runtime
+  - `submitTransactions` now reads `quote.original.steps ?? []`; `submitViaRelaySubsidize` initialises `quote.original.steps ??= []` before accessing its elements
 
 ## [23.17.1]
 

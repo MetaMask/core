@@ -91,33 +91,16 @@ function buildQuote(
 
 describe('submitHyperliquidWithdraw', () => {
   const successfulFetchMock = jest.mocked(successfulFetch);
-  const { messenger } = getMessengerMock();
-
-  let signTypedMessageMock: jest.Mock;
+  const { messenger, signTypedMessageMock } = getMessengerMock();
 
   beforeEach(() => {
     jest.resetAllMocks();
 
-    signTypedMessageMock = jest.fn().mockResolvedValue(SIGNATURE_MOCK);
-
-    messenger.registerActionHandler(
-      'KeyringController:signTypedMessage' as never,
-      signTypedMessageMock,
-    );
+    signTypedMessageMock.mockResolvedValue(SIGNATURE_MOCK);
 
     successfulFetchMock.mockResolvedValue({
       json: async () => ({ status: 'ok' }),
     } as Response);
-  });
-
-  afterEach(() => {
-    try {
-      messenger.unregisterActionHandler(
-        'KeyringController:signTypedMessage' as never,
-      );
-    } catch {
-      // already unregistered
-    }
   });
 
   it('throws if authorize step is missing', async () => {

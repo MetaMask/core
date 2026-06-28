@@ -43,20 +43,23 @@ import {
   sweepPolymarketDepositWallet,
   submitPolymarketWithdraw,
 } from './polymarket/withdraw';
-import { getRelayStatus, submitRelayExecute } from './relay-api';
+import { getRelayStatus, submitRelayExecute, submitRelaySubsidize } from './relay-api';
 import type {
   RelayExecuteRequest,
   RelayQuote,
   RelayStatus,
   RelayStatusResponse,
+  RelaySubsidizeRequest,
   RelayTransactionStep,
 } from './types';
+import { buildAndSignSubsidizedDelegation } from './utils/delegation';
 
 const FALLBACK_HASH = '0x0' as Hex;
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
 const RELAY_ERROR_PREFIX = 'Relay: ';
 const RELAY_EXECUTE_ERROR_PREFIX = 'Execute: ';
+const RELAY_SUBSIDIZE_ERROR_PREFIX = 'Subsidize: ';
 
 /**
  * Submits Relay quotes.
@@ -386,7 +389,7 @@ async function submitTransactions(
   transaction: TransactionMeta,
   messenger: TransactionPayControllerMessenger,
 ): Promise<Hex> {
-  const { steps } = quote.original;
+  const steps = quote.original.steps ?? [];
   const txSteps = steps.filter(
     (step): step is RelayTransactionStep => step.kind === 'transaction',
   );
@@ -465,6 +468,15 @@ async function submitTransactions(
   }
 
   if (quote.original.metamask.isExecute) {
+    if (isSubsidizedRelayQuote(quote.original)) {
+      return await submitViaRelaySubsidize(
+        quote,
+        transaction,
+        messenger,
+        allParams,
+      );
+    }
+
     return await submitViaRelayExecute(
       quote,
       transaction,
@@ -601,6 +613,103 @@ async function submitViaRelayExecute(
   }
 
   log('Relay execute response', result);
+
+  return FALLBACK_HASH;
+}
+
+/**
+ * Returns true when a Relay quote carries a non-zero subsidized fee, meaning
+ * the intents-api will cover the Relay solver fee on behalf of the user.
+ *
+ * @param quote - Raw Relay quote.
+ * @returns Whether the quote is subsidized.
+ */
+function isSubsidizedRelayQuote(quote: RelayQuote): boolean {
+  return Number(quote.fees?.subsidized?.amountUsd ?? '0') > 0;
+}
+
+/**
+ * Submit a subsidized Relay quote via the intents-API POST /relay/subsidize
+ * endpoint.
+ *
+ * Rather than committing to specific Relay calldata, this path signs a
+ * server-managed delegation constrained by an ERC20BalanceChangeEnforcer
+ * caveat (spending cap) and a LimitedCallsEnforcer caveat (single use). The
+ * signed permission context is sent to /relay/subsidize; the server JIT-fetches
+ * a fresh subsidized Relay quote, builds the redeemDelegations calldata, and
+ * submits to Relay — returning a new Relay request ID.
+ *
+ * The quote's step requestId is updated to the server-returned value so that
+ * the shared waitForRelayCompletion polling loop uses the correct ID. When the
+ * preview quote had no steps (server deferred calldata to submit time), a
+ * synthetic deposit step is pushed to ensure polling can proceed.
+ *
+ * @param quote - Relay quote.
+ * @param _transaction - Original transaction meta (unused in this path).
+ * @param messenger - Controller messenger.
+ * @param _allParams - Source transaction params (unused in this path; server derives from quote).
+ * @returns Fallback hash (actual hash surfaces via relay status polling).
+ */
+async function submitViaRelaySubsidize(
+  quote: TransactionPayQuote<RelayQuote>,
+  _transaction: TransactionMeta,
+  messenger: TransactionPayControllerMessenger,
+  _allParams: TransactionParams[],
+): Promise<Hex> {
+  const { from, sourceChainId, sourceTokenAddress } = quote.request;
+  const { request: quoteRequest } = quote.original;
+
+  const delegationParams = {
+    from,
+    sourceChainId,
+    sourceTokenAddress,
+    sourceAmountRaw: quote.sourceAmount.raw,
+    messenger,
+  };
+
+  // Sign two delegations in parallel — one per expected Relay step (Relay
+  // quotes for Pay flows have at most 2 steps: optional approval + deposit).
+  // Each delegation carries its own random salt, so they are distinct and
+  // non-replayable. The server pairs delegations[i] with steps[i].
+  const [permissionContext0, permissionContext1] = await Promise.all([
+    buildAndSignSubsidizedDelegation(delegationParams),
+    buildAndSignSubsidizedDelegation(delegationParams),
+  ]);
+
+  const submitBody: RelaySubsidizeRequest = {
+    quoteRequest: quoteRequest as Record<string, unknown>,
+    delegations: [permissionContext0, permissionContext1],
+    from,
+  };
+
+  log('Submitting via relay subsidize', { submitBody, from });
+
+  let subsidizeResult;
+
+  try {
+    subsidizeResult = await submitRelaySubsidize(messenger, submitBody);
+  } catch (error) {
+    throw prefixError(error, RELAY_SUBSIDIZE_ERROR_PREFIX);
+  }
+
+  log('Relay subsidize response', subsidizeResult);
+
+  // Update the quote's requestId to the one returned by the server's JIT
+  // re-quote so that waitForRelayCompletion polls the correct Relay request.
+  quote.original.steps ??= [];
+  if (quote.original.steps[0]) {
+    quote.original.steps[0].requestId = subsidizeResult.requestId;
+  } else {
+    // The preview quote may have had no steps (server deferred calldata to
+    // submit time). Push a synthetic deposit step so waitForRelayCompletion
+    // can poll the correct request ID.
+    quote.original.steps.push({
+      id: 'deposit',
+      kind: 'transaction',
+      requestId: subsidizeResult.requestId,
+      items: [],
+    } as RelayTransactionStep);
+  }
 
   return FALLBACK_HASH;
 }

@@ -211,3 +211,50 @@ export type RelayStatusResponse = {
   originChainId: number;
   destinationChainId: number;
 };
+
+/**
+ * Request body for POST /relay/subsidize.
+ *
+ * The server JIT-fetches a fresh subsidized Relay quote, pairs each step with
+ * the corresponding signed permission context supplied by the client, builds
+ * redeemDelegations calldata, and submits to Relay — returning the Relay
+ * request ID for status polling.
+ */
+export type RelaySubsidizeRequest = {
+  /**
+   * Standard Relay quote request parameters passed through to Relay's /quote
+   * endpoint verbatim (with subsidizeFees forced server-side).
+   */
+  quoteRequest: Record<string, unknown>;
+  /**
+   * Hex-encoded ABI-encoded Delegation[] permission contexts, one per expected
+   * Relay step (always send 2 to cover both 1-step and 2-step quotes). Each is
+   * signed with ERC20BalanceChangeEnforcer and LimitedCallsEnforcer caveats.
+   * The server pairs delegations[i] with steps[i] when building the
+   * redeemDelegations calldata from its JIT Relay quote.
+   */
+  delegations: string[];
+  /**
+   * Optional EIP-7702 authorization list. When present it is embedded in the
+   * Relay execute body as data.authorizationList.
+   */
+  authorizationList?: {
+    chainId: number;
+    address: Hex;
+    nonce: number;
+    yParity: number;
+    r: Hex;
+    s: Hex;
+  }[];
+  /**
+   * Address of the 7702 account redeeming the delegations. Used as the user
+   * field in the Relay execute body.
+   */
+  from: string;
+};
+
+/** Response body from POST /relay/subsidize. */
+export type RelaySubsidizeResponse = {
+  /** Relay request ID — poll GET /relay/status?requestId=<this> */
+  requestId: string;
+};
