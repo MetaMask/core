@@ -31,7 +31,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Wire `AddressBookController` into the default wallet initialization ([#9291](https://github.com/MetaMask/core/pull/9291))
 - **BREAKING:** Wire `PreferencesController` into the default wallet initialization ([#9232](https://github.com/MetaMask/core/pull/9232))
-  - The default `Wallet` now constructs a `PreferencesController` and registers its `PreferencesController:*` messenger actions. Consumers that pass their own `messenger` and already wire a `PreferencesController` must remove their own before upgrading, or the duplicate registration will collide.
 - Export the `InitializationConfiguration`, `InitFunctionArguments`, and `InstanceState` types so consumers can author initialization configurations that override a default controller ([#9232](https://github.com/MetaMask/core/pull/9232))
 
 ### Changed
