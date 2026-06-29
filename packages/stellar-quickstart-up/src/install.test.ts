@@ -240,6 +240,35 @@ describe('stellar-quickstart-up installer', () => {
     assert.equal(existsSync(join(cacheDirectory, 'foundryup')), true);
   });
 
+  it('resolves bare docker binary names before installing the wrapper', async () => {
+    const cwd = createTempDir();
+    const cacheDirectory = join(cwd, '.metamask', 'cache');
+    const binDirectory = join(cwd, 'node_modules', '.bin');
+    const dockerBinary = createDockerStub(cwd);
+    const dependencies = createInstallDependencies({
+      digest: STELLAR_QUICKSTART_DEFAULT_IMAGE.digest as string,
+      dockerBinary,
+    });
+
+    const result = await installStellarQuickstart(
+      {
+        binDirectory,
+        cacheDirectory,
+        cwd,
+        dockerBinary: 'docker',
+      },
+      {
+        ...dependencies,
+        async resolveDockerBinary(): Promise<string> {
+          return dockerBinary;
+        },
+      },
+    );
+
+    const wrapperSource = readFileSync(result.binaryPath, 'utf8');
+    assert.match(wrapperSource, new RegExp(dockerBinary.replaceAll('/', '\\/'), 'u'));
+  });
+
   it('forwards arguments through the installed wrapper', async () => {
     const cwd = createTempDir();
     const cacheDirectory = join(cwd, '.metamask', 'cache');

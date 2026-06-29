@@ -11,7 +11,7 @@ import {
 import { execFile } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 import { promisify } from 'node:util';
 
 const STELLAR_QUICKSTART_CACHE_NAMESPACE = 'stellar-quickstart-up';
@@ -49,6 +49,7 @@ export type StellarQuickstartInstallDependencies = {
     dockerBinary: string,
     imageReference: string,
   ) => Promise<void>;
+  resolveDockerBinary?: (dockerBinary: string) => Promise<string>;
   runCommand?: typeof runCommand;
 };
 
@@ -184,13 +185,16 @@ export async function installStellarQuickstart(
   const pullDockerImage = dependencies.pullDockerImage ?? pullDockerImageDefault;
   const inspectDockerImage =
     dependencies.inspectDockerImage ?? inspectDockerImageDefault;
+  const resolveDockerBinary =
+    dependencies.resolveDockerBinary ?? resolveDockerBinaryDefault;
+  const resolvedDockerBinary = await resolveDockerBinary(dockerBinary);
 
-  await runCommandImpl(dockerBinary, ['version']);
+  await runCommandImpl(resolvedDockerBinary, ['version']);
 
   const imageResult = await installStellarQuickstartImage(
     {
       cacheDirectory,
-      dockerBinary,
+      dockerBinary: resolvedDockerBinary,
       image,
     },
     { inspectDockerImage, pullDockerImage },
@@ -199,7 +203,7 @@ export async function installStellarQuickstart(
     binDirectory,
     commandName: 'stellar-quickstart',
     executableArgs: [...runArgs, imageResult.imageReference],
-    executablePath: dockerBinary,
+    executablePath: resolvedDockerBinary,
     pathResolution: 'absolute',
   });
 
@@ -321,6 +325,31 @@ async function pullDockerImageDefault(
   await runCommand(dockerBinary, ['pull', imageReference]);
 }
 
+async function resolveDockerBinaryDefault(
+  dockerBinary: string,
+): Promise<string> {
+  if (
+    isAbsolute(dockerBinary) ||
+    dockerBinary.includes('/') ||
+    dockerBinary.includes('\\')
+  ) {
+    return dockerBinary;
+  }
+
+  const execFileAsync = promisify(execFile);
+  const lookupCommand = process.platform === 'win32' ? 'where' : 'which';
+  const { stdout } = await execFileAsync(lookupCommand, [dockerBinary], {
+    encoding: 'utf8',
+  });
+  const resolvedPath = stdout.split(/\r?\n/u)[0]?.trim();
+
+  if (!resolvedPath) {
+    throw new Error(`Could not resolve Docker binary: ${dockerBinary}`);
+  }
+
+  return resolvedPath;
+}
+
 async function inspectDockerImageDefault(
   dockerBinary: string,
   imageReference: string,
@@ -328,9 +357,30 @@ async function inspectDockerImageDefault(
   const execFileAsync = promisify(execFile);
   const { stdout } = await execFileAsync(
     dockerBinary,
-    ['image', 'inspect', imageReference, '--format', '{{.Id}}'],
+    [
+      'image',
+      'inspect',
+      imageReference,
+      '--format',
+      '{{index .RepoDigests 0}}',
+    ],
     { encoding: 'utf8' },
   );
+  const repoDigest = stdout.trim();
 
-  return stdout.trim();
+  if (!repoDigest) {
+    throw new Error(
+      `Docker image ${imageReference} has no RepoDigests after pull.`,
+    );
+  }
+
+  const digestSeparatorIndex = repoDigest.lastIndexOf('@');
+
+  if (digestSeparatorIndex === -1) {
+    throw new Error(
+      `Docker image ${imageReference} returned unexpected RepoDigest: ${repoDigest}`,
+    );
+  }
+
+  return repoDigest.slice(digestSeparatorIndex + 1);
 }
