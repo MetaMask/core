@@ -55,6 +55,12 @@ Or invoke `prebuild-install` directly from the monorepo root (where `better-sqli
 cd node_modules/better-sqlite3 && node ../.bin/prebuild-install
 ```
 
+## Testing
+
+Unit tests run with `yarn workspace @metamask/wallet-cli test`.
+
+The subprocess end-to-end suite (`*.daemon-e2e.test.ts`) spawns the built `mm` CLI and the native `better-sqlite3` addon as real processes, so it is kept out of the unit run and its coverage gate. Build the workspace dependencies first (`yarn build` from the repo root), then run it with `yarn workspace @metamask/wallet-cli test:e2e`.
+
 ## Contributing
 
 This package is part of a monorepo. Instructions for contributing can be found in the [monorepo README](https://github.com/MetaMask/core#readme).
