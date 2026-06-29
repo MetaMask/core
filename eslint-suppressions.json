@@ -760,11 +760,6 @@
       "count": 1
     }
   },
-  "packages/chain-agnostic-permission/src/scope/errors.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 5
-    }
-  },
   "packages/chain-agnostic-permission/src/scope/filter.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 3

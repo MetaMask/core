@@ -12,6 +12,7 @@ import {
   getAllScopesFromScopesObjects,
   setNonSCACaipAccountIdsInCaip25CaveatValue,
   isNamespaceInScopesObject,
+  Caip25Errors,
 } from '@metamask/chain-agnostic-permission';
 import type {
   Caip25Authorization,
@@ -30,7 +31,6 @@ import type {
   GenericPermissionController,
   RequestedPermissions,
 } from '@metamask/permission-controller';
-import { JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
 import type { MultichainRoutingService } from '@metamask/snaps-controllers';
 import {
   isPlainObject,
@@ -113,7 +113,7 @@ async function handleWalletCreateSession(
   const { requiredScopes, optionalScopes, sessionProperties } = req.params;
 
   if (sessionProperties && Object.keys(sessionProperties).length === 0) {
-    return end(new JsonRpcError(5302, 'Invalid sessionProperties requested'));
+    return end(Caip25Errors.invalidSessionPropertiesError());
   }
 
   const filteredSessionProperties = Object.fromEntries(
@@ -245,9 +245,7 @@ async function handleWalletCreateSession(
         };
       } else {
         // if solana is not requested and there are no supported scopes, we return an error
-        return end(
-          new JsonRpcError(5100, 'Requested scopes are not supported'),
-        );
+        return end(Caip25Errors.requestedChainsNotSupportedError());
       }
     }
 
@@ -273,7 +271,7 @@ async function handleWalletCreateSession(
       (caveat) => caveat.type === Caip25CaveatType,
     )?.value as Caip25CaveatValue;
     if (!approvedCaip25CaveatValue) {
-      throw rpcErrors.internal();
+      throw Caip25Errors.unknownErrorOrNoScopesAuthorized();
     }
 
     const sessionScopes = getSessionScopes(approvedCaip25CaveatValue, {

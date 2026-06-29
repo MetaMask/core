@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Update `wallet_createSession` and `wallet_revokeSession` handlers to use `Caip25Errors` instead of creating `JsonRpcError` directly ([#6109](https://github.com/MetaMask/core/pull/6109))
 - Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
 
 ## [3.1.5]

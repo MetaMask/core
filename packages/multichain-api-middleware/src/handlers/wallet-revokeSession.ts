@@ -2,6 +2,7 @@ import {
   Caip25CaveatMutators,
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
+  Caip25Errors,
   getCaipAccountIdsFromCaip25CaveatValue,
 } from '@metamask/chain-agnostic-permission';
 import type { Caip25CaveatValue } from '@metamask/chain-agnostic-permission';
@@ -16,7 +17,6 @@ import {
   PermissionDoesNotExistError,
   UnrecognizedSubjectError,
 } from '@metamask/permission-controller';
-import { rpcErrors } from '@metamask/rpc-errors';
 import { isObject } from '@metamask/utils';
 import type {
   Json,
@@ -151,7 +151,7 @@ async function handleWalletRevokeSession(
   } catch (err) {
     if (!isPermissionError(err)) {
       console.error(err);
-      return end(rpcErrors.internal());
+      return end(Caip25Errors.unknownErrorOrNoScopesAuthorized());
     }
   }
 

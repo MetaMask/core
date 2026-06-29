@@ -1,17 +1,28 @@
 import { JsonRpcError } from '@metamask/rpc-errors';
+import type { OptionalDataWithOptionalCause } from '@metamask/rpc-errors';
 
 /**
  * CAIP25 Errors.
  */
 export const Caip25Errors = {
   /**
+   * Thrown when an unknown error occurs or no scopes were authorized in a CAIP-25 request.
+   *
+   * @returns A new JsonRpcError instance.
+   */
+  unknownErrorOrNoScopesAuthorized:
+    (): JsonRpcError<OptionalDataWithOptionalCause> =>
+      new JsonRpcError(5000, 'Unknown error with request'),
+
+  /**
    * Thrown when chains requested in a CAIP-25 `wallet_createSession` call are not supported by the wallet.
    * Defined in [CAIP-25 error codes section](https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-25.md#trusted-failure-codes).
    *
    * @returns A new JsonRpcError instance.
    */
-  requestedChainsNotSupportedError: () =>
-    new JsonRpcError(5100, 'Requested chains are not supported'),
+  requestedChainsNotSupportedError:
+    (): JsonRpcError<OptionalDataWithOptionalCause> =>
+      new JsonRpcError(5100, 'Requested networks are not supported'),
 
   /**
    * Thrown when methods requested in a CAIP-25 `wallet_createSession` call are not supported by the wallet.
@@ -20,8 +31,9 @@ export const Caip25Errors = {
    *
    * @returns A new JsonRpcError instance.
    */
-  requestedMethodsNotSupportedError: () =>
-    new JsonRpcError(5101, 'Requested methods are not supported'),
+  requestedMethodsNotSupportedError:
+    (): JsonRpcError<OptionalDataWithOptionalCause> =>
+      new JsonRpcError(5101, 'Requested methods are not supported'),
 
   /**
    * Thrown when notifications requested in a CAIP-25 `wallet_createSession` call are not supported by the wallet.
@@ -30,8 +42,9 @@ export const Caip25Errors = {
    *
    * @returns A new JsonRpcError instance.
    */
-  requestedNotificationsNotSupportedError: () =>
-    new JsonRpcError(5102, 'Requested notifications are not supported'),
+  requestedNotificationsNotSupportedError:
+    (): JsonRpcError<OptionalDataWithOptionalCause> =>
+      new JsonRpcError(5102, 'Requested notifications are not supported'),
 
   /**
    * Thrown when methods requested in a CAIP-25 `wallet_createSession` call are not supported by the wallet.
@@ -39,8 +52,9 @@ export const Caip25Errors = {
    *
    * @returns A new JsonRpcError instance.
    */
-  unknownMethodsRequestedError: () =>
-    new JsonRpcError(5201, 'Unknown method(s) requested'),
+  unknownMethodsRequestedError:
+    (): JsonRpcError<OptionalDataWithOptionalCause> =>
+      new JsonRpcError(5201, 'Unknown method(s) requested'),
 
   /**
    * Thrown when notifications requested in a CAIP-25 `wallet_createSession` call are not supported by the wallet.
@@ -48,6 +62,17 @@ export const Caip25Errors = {
    *
    * @returns A new JsonRpcError instance.
    */
-  unknownNotificationsRequestedError: () =>
-    new JsonRpcError(5202, 'Unknown notification(s) requested'),
+  unknownNotificationsRequestedError:
+    (): JsonRpcError<OptionalDataWithOptionalCause> =>
+      new JsonRpcError(5202, 'Unknown notification(s) requested'),
+
+  /**
+   * Thrown when sessionProperties requested in a CAIP-25 `wallet_createSession` call are not supported by the wallet.
+   * Defined in [CAIP-25 error codes section](https://github.com/ChainAgnostic/CAIPs/blob/main/CAIPs/caip-25.md#trust-agnostic-malformed-request-failure-codes)
+   *
+   * @returns A new JsonRpcError instance.
+   */
+  invalidSessionPropertiesError:
+    (): JsonRpcError<OptionalDataWithOptionalCause> =>
+      new JsonRpcError(5302, 'Invalid sessionProperties requested'),
 };

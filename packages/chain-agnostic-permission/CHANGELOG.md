@@ -7,8 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `unknownErrorOrNoScopesAuthorized` and `invalidSessionPropertiesError` to `Caip25Errors` ([#6109](https://github.com/MetaMask/core/pull/6109))
+
 ### Changed
 
+- Update `requestedChainsNotSupportedError` message from "Requested chains are not supported" to "Requested networks are not supported" ([#6109](https://github.com/MetaMask/core/pull/6109))
 - Bump `@metamask/controller-utils` from `^12.2.0` to `^12.3.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
 
 ## [1.6.2]

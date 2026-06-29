@@ -6,11 +6,11 @@ import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
   KnownSessionProperties,
+  Caip25Errors,
 } from '@metamask/chain-agnostic-permission';
 import * as ChainAgnosticPermission from '@metamask/chain-agnostic-permission';
 import { MultichainNetwork } from '@metamask/multichain-transactions-controller';
 import { invalidParams } from '@metamask/permission-controller';
-import { JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
 import type {
   Hex,
   Json,
@@ -19,14 +19,6 @@ import type {
 } from '@metamask/utils';
 
 import { walletCreateSessionHandler } from './wallet-createSession';
-
-jest.mock('@metamask/rpc-errors', () => ({
-  ...jest.requireActual('@metamask/rpc-errors'),
-  rpcErrors: {
-    invalidParams: jest.fn(),
-    internal: jest.fn(),
-  },
-}));
 
 jest.mock('@metamask/chain-agnostic-permission', () => ({
   ...jest.requireActual('@metamask/chain-agnostic-permission'),
@@ -186,7 +178,7 @@ describe('wallet_createSession', () => {
       },
     });
     expect(end).toHaveBeenCalledWith(
-      new JsonRpcError(5302, 'Invalid sessionProperties requested'),
+      Caip25Errors.invalidSessionPropertiesError(),
     );
   });
 
@@ -574,7 +566,7 @@ describe('wallet_createSession', () => {
       });
     await handler(baseRequest);
     expect(end).toHaveBeenCalledWith(
-      new JsonRpcError(5100, 'Requested scopes are not supported'),
+      Caip25Errors.requestedChainsNotSupportedError(),
     );
   });
 
@@ -902,8 +894,8 @@ describe('wallet_createSession', () => {
     });
   });
 
-  it('calls internal RPC error if approved CAIP-25 permission has no CAIP-25 caveat value', async () => {
-    const { handler, requestPermissionsForOrigin } = createMockedHandler();
+  it('calls end with error if approved CAIP-25 permission has no CAIP-25 caveat value', async () => {
+    const { handler, requestPermissionsForOrigin, end } = createMockedHandler();
     requestPermissionsForOrigin.mockReturnValue([
       {
         [Caip25EndowmentPermissionName]: {
@@ -924,7 +916,9 @@ describe('wallet_createSession', () => {
       },
     });
 
-    expect(rpcErrors.internal).toHaveBeenCalled();
+    expect(end).toHaveBeenCalledWith(
+      Caip25Errors.unknownErrorOrNoScopesAuthorized(),
+    );
   });
 
   describe('address case sensitivity', () => {
@@ -1301,7 +1295,7 @@ describe('wallet_createSession', () => {
       await handler(requestWithNoValidScopes);
 
       expect(end).toHaveBeenCalledWith(
-        new JsonRpcError(5100, 'Requested scopes are not supported'),
+        Caip25Errors.requestedChainsNotSupportedError(),
       );
     });
   });

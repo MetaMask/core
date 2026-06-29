@@ -1,12 +1,12 @@
 import {
   Caip25CaveatType,
   Caip25EndowmentPermissionName,
+  Caip25Errors,
 } from '@metamask/chain-agnostic-permission';
 import {
   PermissionDoesNotExistError,
   UnrecognizedSubjectError,
 } from '@metamask/permission-controller';
-import { rpcErrors } from '@metamask/rpc-errors';
 import type { JsonRpcRequest } from '@metamask/utils';
 
 import { walletRevokeSessionHandler } from './wallet-revokeSession';
@@ -216,7 +216,9 @@ describe('wallet_revokeSession', () => {
     });
 
     await handler(baseRequest);
-    expect(end).toHaveBeenCalledWith(rpcErrors.internal());
+    expect(end).toHaveBeenCalledWith(
+      Caip25Errors.unknownErrorOrNoScopesAuthorized(),
+    );
   });
 
   it('throws an internal RPC error if a non-error is thrown', async () => {
@@ -227,7 +229,9 @@ describe('wallet_revokeSession', () => {
     });
 
     await handler(baseRequest);
-    expect(end).toHaveBeenCalledWith(rpcErrors.internal());
+    expect(end).toHaveBeenCalledWith(
+      Caip25Errors.unknownErrorOrNoScopesAuthorized(),
+    );
   });
 
   it('returns true if the permission was revoked', async () => {
