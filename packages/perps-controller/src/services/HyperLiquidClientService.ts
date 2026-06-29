@@ -311,9 +311,9 @@ export class HyperLiquidClientService {
   public isInitialized(): boolean {
     return Boolean(
       this.#exchangeClient &&
-        this.#infoClient &&
-        this.#infoClientHttp &&
-        this.#subscriptionClient,
+      this.#infoClient &&
+      this.#infoClientHttp &&
+      this.#subscriptionClient,
     );
   }
 
