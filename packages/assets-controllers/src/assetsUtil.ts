@@ -164,6 +164,7 @@ export enum SupportedTokenDetectionNetworks {
   MonadMainnet = '0x8f', // decimal: 143
   Hyperevm = '0x3e7', // decimal: 999
   Arc = '0x13b2', // decimal: 5042
+  DefiOracleMeta = '0x8a', // decimal: 138 — DeFi Oracle Meta Mainnet
 }
 
 /**
