@@ -173,7 +173,13 @@ export const getSessionProperties = async (
 
   await Promise.all(
     addresses.map(async (address) => {
-      eip155Capabilities[address] = await getCapabilities({ address });
+      try {
+        eip155Capabilities[address] = await getCapabilities({ address });
+      } catch (error) {
+        console.error(
+          `Error getting capabilities for address ${address}: ${String(error)}`,
+        );
+      }
     }),
   );
 

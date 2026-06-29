@@ -453,6 +453,47 @@ describe('CAIP-25 session scopes adapters', () => {
       expect(getCapabilities).not.toHaveBeenCalled();
       expect(result).toStrictEqual({ eip155Capabilities: {} });
     });
+
+    it('logs an error and omits the address when getCapabilities rejects', async () => {
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+      const error = new Error('failed');
+      const getCapabilities = jest
+        .fn()
+        .mockResolvedValueOnce({ '0x1': { atomic: { status: 'supported' } } })
+        .mockRejectedValueOnce(error);
+
+      const result = await getSessionProperties(
+        {
+          requiredScopes: {
+            'eip155:1': {
+              accounts: ['eip155:1:0xdead'],
+            },
+          },
+          optionalScopes: {
+            'eip155:137': {
+              accounts: ['eip155:137:0xbeef'],
+            },
+          },
+          sessionProperties: {},
+        },
+        {
+          getCapabilities,
+        },
+      );
+
+      expect(result).toStrictEqual({
+        eip155Capabilities: {
+          '0xdead': { '0x1': { atomic: { status: 'supported' } } },
+        },
+      });
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        `Error getting capabilities for address 0xbeef: ${error}`,
+      );
+
+      consoleErrorSpy.mockRestore();
+    });
   });
 
   describe('getPermittedAccountsForScopes', () => {
