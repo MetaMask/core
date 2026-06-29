@@ -7,15 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Extract `submitMoneyAccountVaultDeposit` to `utils/ma-vault-deposit.ts` as a shared utility callable from both fiat and Relay deposit paths ([#TBD](https://github.com/MetaMask/core/pull/TBD))
-- Add `submitPostRelayVaultDeposit` in `strategy/relay/relay-post-ma-vault.ts` to handle vault deposit after a max-amount Relay bridge settles mUSD into the Money Account ([#TBD](https://github.com/MetaMask/core/pull/TBD))
-- Export `FALLBACK_HASH` from `strategy/relay/constants.ts` and `RelayCompletionOutcome` from `strategy/relay/types.ts` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
-
 ### Changed
 
-- Relocate `chomp.ts` and `chomp.test.ts` from `strategy/fiat/` to `utils/` ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Refactor vault deposit utilities into shared `utils/` modules (`chomp`, `ma-vault-deposit`, `relay-post-ma-vault`) to prepare for the Relay Money Account deposit path ([#9303](https://github.com/MetaMask/core/pull/9303))
 - Bump `@metamask/bridge-status-controller` from `^73.0.0` to `^73.1.0` ([#9288](https://github.com/MetaMask/core/pull/9288))
 - Bump `@metamask/bridge-controller` from `^77.0.0` to `^77.1.0` ([#9301](https://github.com/MetaMask/core/pull/9301))
 
