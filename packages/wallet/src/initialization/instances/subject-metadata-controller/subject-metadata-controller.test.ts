@@ -116,14 +116,34 @@ describe('subjectMetadataController', () => {
     instance.addSubjectMetadata({ origin: 'https://a.example' });
     instance.addSubjectMetadata({ origin: 'https://b.example' });
 
-    // With a cache limit of 1 and neither subject holding permissions, the
-    // first is evicted when the second is added.
     expect(Object.keys(instance.state.subjectMetadata)).toStrictEqual([
       'https://b.example',
     ]);
   });
 
-  it('defaults subjectCacheLimit to 100 when omitted, retaining subjects past a small count', () => {
+  it('retains a subject with permissions even when the cache limit is exceeded', () => {
+    const rootMessenger = getRootMessenger();
+    // Every subject reports as holding permissions.
+    registerHasPermissionsStub(rootMessenger, true);
+    const messenger = subjectMetadataController.getMessenger(rootMessenger);
+
+    const instance = subjectMetadataController.init({
+      state: undefined,
+      messenger,
+      options: { subjectCacheLimit: 1 },
+    });
+
+    instance.addSubjectMetadata({ origin: 'https://a.example' });
+    instance.addSubjectMetadata({ origin: 'https://b.example' });
+
+    // Metadata for subjects with permissions is never evicted.
+    expect(Object.keys(instance.state.subjectMetadata)).toStrictEqual([
+      'https://a.example',
+      'https://b.example',
+    ]);
+  });
+
+  it('does not evict until the default cache limit of 100 is exceeded', () => {
     const rootMessenger = getRootMessenger();
     registerHasPermissionsStub(rootMessenger, false);
     const messenger = subjectMetadataController.getMessenger(rootMessenger);
@@ -134,12 +154,16 @@ describe('subjectMetadataController', () => {
       options: {},
     });
 
-    instance.addSubjectMetadata({ origin: 'https://a.example' });
-    instance.addSubjectMetadata({ origin: 'https://b.example' });
+    for (let index = 0; index < 100; index++) {
+      instance.addSubjectMetadata({ origin: `https://${index}.example` });
+    }
+    expect(Object.keys(instance.state.subjectMetadata)).toHaveLength(100);
 
-    expect(Object.keys(instance.state.subjectMetadata)).toStrictEqual([
-      'https://a.example',
-      'https://b.example',
-    ]);
+    // The 101st permissionless subject evicts the oldest (FIFO).
+    instance.addSubjectMetadata({ origin: 'https://overflow.example' });
+    const origins = Object.keys(instance.state.subjectMetadata);
+    expect(origins).toHaveLength(100);
+    expect(origins).not.toContain('https://0.example');
+    expect(origins).toContain('https://overflow.example');
   });
 });

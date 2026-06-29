@@ -474,4 +474,70 @@ describe('Wallet', () => {
       ).toStrictEqual({ testFlag: true });
     });
   });
+
+  describe('PermissionController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+
+      expect(
+        wallet.messenger.call('PermissionController:getState'),
+      ).toStrictEqual({ subjects: {} });
+    });
+  });
+
+  describe('SubjectMetadataController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+
+      expect(
+        wallet.messenger.call('SubjectMetadataController:getState'),
+      ).toStrictEqual({ subjectMetadata: {} });
+    });
+
+    it('hydrates persisted subject metadata, consulting the wired PermissionController for retention', () => {
+      // Constructing the controller from persisted state calls
+      // `PermissionController:hasPermissions`, so this proves the default
+      // wiring initializes `PermissionController` before
+      // `SubjectMetadataController` (otherwise construction would throw).
+      const origin = 'https://metamask.io';
+
+      const wallet = new Wallet({
+        state: {
+          PermissionController: {
+            subjects: {
+              [origin]: { origin, permissions: { somePermission: {} } },
+            },
+          },
+          SubjectMetadataController: {
+            subjectMetadata: {
+              [origin]: {
+                origin,
+                name: 'MetaMask',
+                subjectType: null,
+                extensionId: null,
+                iconUrl: null,
+              },
+            },
+          },
+        },
+        instanceOptions: {
+          connectivityController: {
+            connectivityAdapter: new AlwaysOnlineAdapter(),
+          },
+          networkController: {
+            infuraProjectId: 'fake-infura-project-id',
+          },
+          storageService: {
+            storage: new InMemoryStorageAdapter(),
+          },
+          remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+        },
+      });
+
+      // The subject holds permissions, so its metadata is retained on hydration.
+      expect(
+        Object.keys(wallet.state.SubjectMetadataController.subjectMetadata),
+      ).toContain(origin);
+    });
+  });
 });

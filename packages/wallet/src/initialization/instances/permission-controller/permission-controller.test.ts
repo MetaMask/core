@@ -1,5 +1,8 @@
 import { Messenger } from '@metamask/messenger';
-import { PermissionController } from '@metamask/permission-controller';
+import {
+  PermissionController,
+  PermissionType,
+} from '@metamask/permission-controller';
 
 import { defaultConfigurations } from '../../defaults';
 import type {
@@ -58,21 +61,46 @@ describe('permissionController', () => {
     expect(instance.state.subjects).toStrictEqual(subjects);
   });
 
-  it('forwards injected specifications and unrestricted methods', () => {
+  it('forwards injected unrestrictedMethods to the controller', () => {
     const messenger = permissionController.getMessenger(getRootMessenger());
 
     const instance = permissionController.init({
       state: undefined,
       messenger,
-      options: {
-        caveatSpecifications: {},
-        permissionSpecifications: {},
-        unrestrictedMethods: ['eth_chainId', 'eth_blockNumber'],
-      },
+      options: { unrestrictedMethods: ['eth_chainId', 'eth_blockNumber'] },
     });
 
     expect(instance.hasUnrestrictedMethod('eth_chainId')).toBe(true);
     expect(instance.hasUnrestrictedMethod('eth_sendTransaction')).toBe(false);
+  });
+
+  it('forwards injected permission specifications to the controller', () => {
+    const messenger = permissionController.getMessenger(getRootMessenger());
+    const origin = 'https://metamask.io';
+
+    const instance = permissionController.init({
+      state: undefined,
+      messenger,
+      options: {
+        permissionSpecifications: {
+          wallet_noop: {
+            permissionType: PermissionType.RestrictedMethod,
+            targetName: 'wallet_noop',
+            allowedCaveats: null,
+            methodImplementation: () => null,
+          },
+        },
+      },
+    });
+
+    // Granting the injected permission only succeeds if its specification was
+    // forwarded to the controller; an unknown target would throw.
+    instance.grantPermissions({
+      subject: { origin },
+      approvedPermissions: { wallet_noop: {} },
+    });
+
+    expect(instance.getPermissions(origin)).toHaveProperty('wallet_noop');
   });
 
   it('exposes its actions through the root messenger', () => {
@@ -84,5 +112,41 @@ describe('permissionController', () => {
     expect(rootMessenger.call('PermissionController:getState')).toStrictEqual({
       subjects: {},
     });
+  });
+
+  it('can reach the actions delegated to its messenger', () => {
+    const rootMessenger = getRootMessenger();
+
+    // Register stub handlers as the real ApprovalController and
+    // SubjectMetadataController would, then confirm the PermissionController's
+    // messenger can call them — proving the delegation allowlist is wired.
+    const approvalControllerMessenger = new Messenger({
+      namespace: 'ApprovalController',
+      parent: rootMessenger,
+    });
+    approvalControllerMessenger.registerActionHandler(
+      'ApprovalController:hasRequest',
+      () => true,
+    );
+    const subjectMetadataControllerMessenger = new Messenger({
+      namespace: 'SubjectMetadataController',
+      parent: rootMessenger,
+    });
+    subjectMetadataControllerMessenger.registerActionHandler(
+      'SubjectMetadataController:getSubjectMetadata',
+      () => undefined,
+    );
+
+    const messenger = permissionController.getMessenger(rootMessenger);
+
+    expect(messenger.call('ApprovalController:hasRequest', { id: 'x' })).toBe(
+      true,
+    );
+    expect(
+      messenger.call(
+        'SubjectMetadataController:getSubjectMetadata',
+        'https://metamask.io',
+      ),
+    ).toBeUndefined();
   });
 });
