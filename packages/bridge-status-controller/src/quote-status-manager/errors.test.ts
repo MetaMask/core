@@ -98,6 +98,34 @@ describe('QuoteStatusGetError', () => {
 
       expect(error.name).toBe('QuoteStatusGetError');
     });
+
+    it('defaults retryable to false when no third argument is provided', () => {
+      const error = new QuoteStatusGetError('request failed', {
+        quoteId: 'quote-1',
+      });
+
+      expect(error.retryable).toBe(false);
+    });
+
+    it('sets retryable to true when explicitly passed', () => {
+      const error = new QuoteStatusGetError(
+        'request failed',
+        { quoteId: 'quote-1' },
+        true,
+      );
+
+      expect(error.retryable).toBe(true);
+    });
+
+    it('sets retryable to false when explicitly passed', () => {
+      const error = new QuoteStatusGetError(
+        'request failed',
+        { quoteId: 'quote-1' },
+        false,
+      );
+
+      expect(error.retryable).toBe(false);
+    });
   });
 
   describe('prototype chain', () => {

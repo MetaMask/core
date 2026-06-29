@@ -167,9 +167,14 @@ export class QuoteStatusApiService {
     );
 
     if (!res.ok) {
+      // 5xx errors are transient (server-side); 4xx errors are client-side and
+      // non-retryable. The `retryable` flag lets `getQuoteStatusWithRetry`
+      // distinguish the two and only exit early for permanent failures.
+      const retryable = res.status >= 500;
       const error = new QuoteStatusGetError(
         `request error to getQuoteStatus [${res.status}: ${res.statusText}]`,
         { quoteId: data.quoteId },
+        retryable,
       );
       this.#onError?.(error);
       throw error;
@@ -325,7 +330,10 @@ export class QuoteStatusApiService {
           );
         }
 
-        if (error instanceof QuoteStatusGetError) {
+        // Only short-circuit for non-retryable errors (e.g. 4xx, validation
+        // failures). Retryable errors (e.g. 5xx) fall through so the loop can
+        // attempt the next retry instead of returning NonRetryable immediately.
+        if (error instanceof QuoteStatusGetError && !error.retryable) {
           return new QuoteStatusGetWithRetryOutcome(
             QuoteStatusFetchWithRetryOutcomeType.NonRetryable,
             undefined,

@@ -37,15 +37,30 @@ export class QuoteStatusGetError extends Error {
   readonly details?: QuoteStatusGetErrorDetails;
 
   /**
+   * Whether the error is transient and the request may succeed on a retry.
+   *
+   * `true` for 5xx (server-side) HTTP errors; `false` for 4xx (client-side)
+   * errors and response-validation failures.
+   */
+  readonly retryable: boolean;
+
+  /**
    * Creates a quote status fetch error with structured context.
    *
    * @param message - Human-readable error message.
    * @param details - Structured metadata about the failed quote status fetch.
    * @param details.quoteId - Unique quote identifier associated with the error.
+   * @param retryable - Whether the error is transient and may resolve on retry.
+   * Defaults to `false`.
    */
-  constructor(message: string, details: QuoteStatusGetErrorDetails) {
+  constructor(
+    message: string,
+    details: QuoteStatusGetErrorDetails,
+    retryable = false,
+  ) {
     super(message);
     this.details = details;
+    this.retryable = retryable;
     this.name = QuoteStatusGetError.name;
     Object.setPrototypeOf(this, QuoteStatusGetError.prototype);
   }

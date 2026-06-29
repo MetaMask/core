@@ -532,6 +532,59 @@ describe('QuoteStatusApiService', () => {
       });
     });
 
+    it('sets retryable=false on the error for 4xx responses', async () => {
+      fetchSpy.mockResolvedValue(
+        createFetchResponse({
+          ok: false,
+          status: 404,
+          statusText: 'Not Found',
+        }),
+      );
+      const { service } = createService();
+
+      const thrown = await service
+        .getQuoteStatus(GET_REQUEST_DATA)
+        .catch((error) => error);
+
+      expect(thrown).toBeInstanceOf(QuoteStatusGetError);
+      expect(thrown.retryable).toBe(false);
+    });
+
+    it('sets retryable=true on the error for 5xx responses', async () => {
+      fetchSpy.mockResolvedValue(
+        createFetchResponse({
+          ok: false,
+          status: 503,
+          statusText: 'Service Unavailable',
+        }),
+      );
+      const { service } = createService();
+
+      const thrown = await service
+        .getQuoteStatus(GET_REQUEST_DATA)
+        .catch((error) => error);
+
+      expect(thrown).toBeInstanceOf(QuoteStatusGetError);
+      expect(thrown.retryable).toBe(true);
+    });
+
+    it('sets retryable=false on validation-failure errors', async () => {
+      fetchSpy.mockResolvedValue(
+        createFetchResponse({
+          ok: true,
+          body: { submittedTx: { status: 'NOT_A_STATUS_TYPE' } },
+        }),
+      );
+      const { service } = createService();
+
+      const thrown = await service
+        .getQuoteStatus(GET_REQUEST_DATA)
+        .catch((error) => error);
+
+      expect(thrown).toBeInstanceOf(QuoteStatusGetError);
+      expect(thrown.retryable).toBe(false);
+    });
+
     it('throws and notifies onError when the success response shape is unexpected', async () => {
       fetchSpy.mockResolvedValue(
         createFetchResponse({
@@ -618,11 +671,13 @@ describe('QuoteStatusApiService', () => {
       expect(fetchSpy).toHaveBeenCalledTimes(1);
     });
 
-    it('returns NonRetryable with the error when getQuoteStatus throws a QuoteStatusGetError', async () => {
+    it('returns NonRetryable with the error when getQuoteStatus throws a non-retryable QuoteStatusGetError', async () => {
       const { service } = createService();
-      const quoteStatusGetError = new QuoteStatusGetError('api error', {
-        quoteId: GET_REQUEST_DATA.quoteId,
-      });
+      const quoteStatusGetError = new QuoteStatusGetError(
+        'api error',
+        { quoteId: GET_REQUEST_DATA.quoteId },
+        false, // non-retryable (e.g. 4xx or validation failure)
+      );
       jest
         .spyOn(service, 'getQuoteStatus')
         .mockRejectedValue(quoteStatusGetError);
@@ -636,6 +691,69 @@ describe('QuoteStatusApiService', () => {
         QuoteStatusFetchWithRetryOutcomeType.NonRetryable,
       );
       expect(outcome.error).toBe(quoteStatusGetError);
+    });
+
+    it('does not retry when getQuoteStatus throws a non-retryable QuoteStatusGetError', async () => {
+      const { service } = createService();
+      const quoteStatusGetError = new QuoteStatusGetError(
+        'api error',
+        { quoteId: GET_REQUEST_DATA.quoteId },
+        false,
+      );
+      const getQuoteStatusSpy = jest
+        .spyOn(service, 'getQuoteStatus')
+        .mockRejectedValue(quoteStatusGetError);
+
+      await service.getQuoteStatusWithRetry(GET_REQUEST_DATA, RETRY_OPTIONS);
+
+      // Non-retryable errors short-circuit immediately; only 1 attempt.
+      expect(getQuoteStatusSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('retries and returns RetryableExhausted when getQuoteStatus always throws a retryable QuoteStatusGetError', async () => {
+      const { service } = createService();
+      const retryableError = new QuoteStatusGetError(
+        'request error to getQuoteStatus [500: Internal Server Error]',
+        { quoteId: GET_REQUEST_DATA.quoteId },
+        true, // retryable (5xx)
+      );
+      const getQuoteStatusSpy = jest
+        .spyOn(service, 'getQuoteStatus')
+        .mockRejectedValue(retryableError);
+
+      const outcome = await service.getQuoteStatusWithRetry(
+        GET_REQUEST_DATA,
+        RETRY_OPTIONS,
+      );
+
+      expect(outcome.type).toBe(
+        QuoteStatusFetchWithRetryOutcomeType.RetryableExhausted,
+      );
+      expect(getQuoteStatusSpy).toHaveBeenCalledTimes(
+        RETRY_OPTIONS.maxRetries + 1,
+      );
+    });
+
+    it('returns Accepted when a retryable error is followed by a success', async () => {
+      const { service } = createService();
+      const retryableError = new QuoteStatusGetError(
+        'request error to getQuoteStatus [503: Service Unavailable]',
+        { quoteId: GET_REQUEST_DATA.quoteId },
+        true,
+      );
+      const getQuoteStatusSpy = jest
+        .spyOn(service, 'getQuoteStatus')
+        .mockRejectedValueOnce(retryableError)
+        .mockResolvedValueOnce(GET_RESPONSE_BODY);
+
+      const outcome = await service.getQuoteStatusWithRetry(
+        GET_REQUEST_DATA,
+        RETRY_OPTIONS,
+      );
+
+      expect(outcome.type).toBe(QuoteStatusFetchWithRetryOutcomeType.Accepted);
+      expect(outcome.response).toStrictEqual(GET_RESPONSE_BODY);
+      expect(getQuoteStatusSpy).toHaveBeenCalledTimes(2);
     });
 
     it('returns RetryableExhausted after all attempts fail with a non-QuoteStatusGetError', async () => {
