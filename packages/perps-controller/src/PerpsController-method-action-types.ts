@@ -1018,10 +1018,12 @@ export type PerpsControllerGetWatchlistMarketsAction = {
 
 /**
  * Record that the user viewed a market.
- * Prepends the symbol to the per-network recently-viewed list (newest-first),
- * deduplicates, and caps at the configured limit.
  *
- * @param symbol - The trading pair symbol.
+ * The symbol is prepended to the per-network recently-viewed list (newest-first).
+ * Any existing entry for the same symbol is removed first so there are no
+ * duplicates. The list is then capped at PERPS_CONSTANTS.RecentlyViewedMarketsLimit.
+ *
+ * @param symbol - The trading pair symbol (e.g. 'BTC', 'ETH', 'xyz:TSLA').
  */
 export type PerpsControllerRecordMarketViewedAction = {
   type: `PerpsController:recordMarketViewed`;
@@ -1030,10 +1032,13 @@ export type PerpsControllerRecordMarketViewedAction = {
 
 /**
  * Get recently viewed markets for the current network.
- * Returns up to the configured limit of symbols, ordered newest-first,
- * filtered to entries within the last 24 hours.
  *
- * @returns Ordered array of market symbols, or an empty array when none qualify.
+ * Returns up to PERPS_CONSTANTS.RecentlyViewedMarketsLimit symbols, ordered
+ * newest-first, filtered to entries within the last
+ * PERPS_CONSTANTS.RecentlyViewedMarketsTtlMs (24 hours). Returns an empty
+ * array when no qualifying entries exist.
+ *
+ * @returns Ordered array of market symbols.
  */
 export type PerpsControllerGetRecentlyViewedMarketsAction = {
   type: `PerpsController:getRecentlyViewedMarkets`;
