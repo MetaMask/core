@@ -1608,9 +1608,3 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     });
   };
 }
-
-// TODO: implement feature flags
-// TODO: consume feature flags for main
-// TODO: wire up getStatus for regular swaps, ignore intend and batch sell
-// TODO: in case the feature is dissabled (aka return null from getStatus)
-//       route through the regular getTxStatus endpoint
