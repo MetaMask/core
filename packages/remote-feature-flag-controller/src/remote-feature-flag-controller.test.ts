@@ -1406,6 +1406,72 @@ describe('RemoteFeatureFlagController', () => {
       jest.useRealTimers();
     });
 
+    it('removes stale featureFlagThresholdGroups entries when flags are removed from server', async () => {
+      jest.useRealTimers();
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: {
+          flagA: [
+            {
+              thresholdName: 'groupA',
+              thresholdVersion: ThresholdVersion.DirectValue,
+              scope: { type: 'threshold', value: 1.0 },
+              value: true,
+            },
+          ],
+          flagB: [
+            {
+              thresholdName: 'groupB',
+              thresholdVersion: ThresholdVersion.DirectValue,
+              scope: { type: 'threshold', value: 1.0 },
+              value: false,
+            },
+          ],
+        },
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        flagA: 'groupA',
+        flagB: 'groupB',
+      });
+
+      jest
+        .spyOn(clientConfigApiService, 'fetchRemoteFeatureFlags')
+        .mockResolvedValue({
+          remoteFeatureFlags: {
+            flagB: [
+              {
+                thresholdName: 'groupB',
+                thresholdVersion: ThresholdVersion.DirectValue,
+                scope: { type: 'threshold', value: 1.0 },
+                value: false,
+              },
+            ],
+          },
+          cacheTimestamp: Date.now(),
+        });
+
+      jest.useFakeTimers();
+      jest.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+      await flushPromises();
+
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        flagB: 'groupB',
+      });
+
+      jest.useRealTimers();
+    });
+
     it('preserves threshold cache entries for flags still in server response', async () => {
       // Arrange
       const mockFlags = {
