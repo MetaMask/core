@@ -4423,7 +4423,6 @@ describe('NetworkController', () => {
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                   rpcFailoverMode: 'enabled',
-                  logger: undefined,
                 },
               );
               expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
@@ -4441,7 +4440,6 @@ describe('NetworkController', () => {
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                   rpcFailoverMode: 'enabled',
-                  logger: undefined,
                 },
               );
               expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
@@ -4459,7 +4457,6 @@ describe('NetworkController', () => {
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                   rpcFailoverMode: 'enabled',
-                  logger: undefined,
                 },
               );
               const networkConfigurationsByNetworkClientId =
@@ -5927,7 +5924,6 @@ describe('NetworkController', () => {
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                   rpcFailoverMode: 'enabled',
-                  logger: undefined,
                 });
 
                 const networkConfigurationsByNetworkClientId =
@@ -6244,7 +6240,6 @@ describe('NetworkController', () => {
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                   rpcFailoverMode: 'enabled',
-                  logger: undefined,
                 });
                 expect(
                   createAutoManagedNetworkClientSpy,
@@ -6261,7 +6256,6 @@ describe('NetworkController', () => {
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                   rpcFailoverMode: 'enabled',
-                  logger: undefined,
                 });
 
                 const networkConfigurationsByNetworkClientId =
@@ -7239,7 +7233,6 @@ describe('NetworkController', () => {
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                   rpcFailoverMode: 'enabled',
-                  logger: undefined,
                 });
                 const networkConfigurationsByNetworkClientId =
                   getNetworkConfigurationsByNetworkClientId(
@@ -8115,7 +8108,6 @@ describe('NetworkController', () => {
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                   rpcFailoverMode: 'enabled',
-                  logger: undefined,
                 },
               );
               expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
@@ -8133,7 +8125,6 @@ describe('NetworkController', () => {
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                   rpcFailoverMode: 'enabled',
-                  logger: undefined,
                 },
               );
 
@@ -9124,7 +9115,6 @@ describe('NetworkController', () => {
                 getBlockTrackerOptions,
                 messenger: networkControllerMessenger,
                 rpcFailoverMode: 'enabled',
-                logger: undefined,
               });
               expect(
                 getNetworkConfigurationsByNetworkClientId(
@@ -10286,7 +10276,6 @@ describe('NetworkController', () => {
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                   rpcFailoverMode: 'enabled',
-                  logger: undefined,
                 });
                 expect(
                   createAutoManagedNetworkClientSpy,
@@ -10303,7 +10292,6 @@ describe('NetworkController', () => {
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                   rpcFailoverMode: 'enabled',
-                  logger: undefined,
                 });
 
                 const networkConfigurationsByNetworkClientId =
@@ -11010,7 +10998,6 @@ describe('NetworkController', () => {
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                   rpcFailoverMode: 'enabled',
-                  logger: undefined,
                 });
                 expect(createAutoManagedNetworkClientSpy).toHaveBeenCalledWith({
                   networkClientId: 'DDDD-DDDD-DDDD-DDDD',
@@ -11025,7 +11012,6 @@ describe('NetworkController', () => {
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                   rpcFailoverMode: 'enabled',
-                  logger: undefined,
                 });
 
                 expect(
@@ -11747,7 +11733,6 @@ describe('NetworkController', () => {
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                   rpcFailoverMode: 'enabled',
-                  logger: undefined,
                 });
                 expect(
                   createAutoManagedNetworkClientSpy,
@@ -11764,7 +11749,6 @@ describe('NetworkController', () => {
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
                   rpcFailoverMode: 'enabled',
-                  logger: undefined,
                 });
 
                 const networkConfigurationsByChainId =
@@ -12452,7 +12436,6 @@ describe('NetworkController', () => {
                 getBlockTrackerOptions,
                 messenger: networkControllerMessenger,
                 rpcFailoverMode: 'enabled',
-                logger: undefined,
               },
             );
             expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
@@ -12470,7 +12453,6 @@ describe('NetworkController', () => {
                 getBlockTrackerOptions,
                 messenger: networkControllerMessenger,
                 rpcFailoverMode: 'enabled',
-                logger: undefined,
               },
             );
 
