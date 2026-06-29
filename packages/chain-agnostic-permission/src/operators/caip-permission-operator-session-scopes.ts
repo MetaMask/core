@@ -108,7 +108,7 @@ const getNormalizedScopesObject = (
 export const getSessionScopes = (
   caip25CaveatValue: Pick<
     Caip25CaveatValue,
-    'requiredScopes' | 'optionalScopes' | 'sessionProperties'
+    'requiredScopes' | 'optionalScopes'
   >,
   {
     getNonEvmSupportedMethods,
