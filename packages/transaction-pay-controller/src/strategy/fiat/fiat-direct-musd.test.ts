@@ -21,7 +21,6 @@ import {
 jest.mock('../../utils/token');
 jest.mock('../../utils/transaction');
 
-
 const TRANSACTION_ID_MOCK = 'tx-id';
 const MONEY_ACCOUNT_ADDRESS_MOCK =
   '0x1111111111111111111111111111111111111111' as Hex;
@@ -280,6 +279,4 @@ describe('fiat-direct-musd', () => {
       });
     });
   });
-
 });
-

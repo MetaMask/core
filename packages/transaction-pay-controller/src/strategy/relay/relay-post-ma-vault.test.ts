@@ -98,7 +98,8 @@ describe('submitPostRelayVaultDeposit', () => {
     });
 
     it('prefers quote.request.recipient over quote.request.from for the on-chain lookup', async () => {
-      const recipientAddress = '0xrecipient000000000000000000000000000001' as Hex;
+      const recipientAddress =
+        '0xrecipient000000000000000000000000000001' as Hex;
       getTransferredAmountMock.mockResolvedValue({
         amountRaw: ON_CHAIN_AMOUNT_MOCK,
         blockNumber: undefined,

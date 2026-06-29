@@ -66,7 +66,9 @@ describe('submitMoneyAccountVaultDeposit', () => {
   const getNetworkClientIdMock = jest.mocked(getNetworkClientId);
   const getTransactionMock = jest.mocked(getTransaction);
   const updateTransactionMock = jest.mocked(updateTransaction);
-  const waitForTransactionConfirmedMock = jest.mocked(waitForTransactionConfirmed);
+  const waitForTransactionConfirmedMock = jest.mocked(
+    waitForTransactionConfirmed,
+  );
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -95,9 +97,9 @@ describe('submitMoneyAccountVaultDeposit', () => {
     updateTransactionMock.mockImplementation((_request, callback) => {
       callback({
         ...TRANSACTION_MOCK,
-        nestedTransactions: TRANSACTION_MOCK.nestedTransactions?.map(
-          (nt) => ({ ...nt }),
-        ),
+        nestedTransactions: TRANSACTION_MOCK.nestedTransactions?.map((nt) => ({
+          ...nt,
+        })),
         requiredAssets: [{ amount: '0x0' }],
       } as TransactionMeta);
     });
@@ -242,7 +244,9 @@ describe('submitMoneyAccountVaultDeposit', () => {
     });
     collectTransactionIdsMock.mockReturnValue({ end: endMock });
 
-    await expect(callSubmit({ callMock })).rejects.toThrow('Vault: batch failed');
+    await expect(callSubmit({ callMock })).rejects.toThrow(
+      'Vault: batch failed',
+    );
     expect(endMock).toHaveBeenCalledTimes(1);
   });
 
@@ -345,7 +349,10 @@ describe('submitMoneyAccountVaultDeposit', () => {
         throw new Error(`Unexpected action: ${action}`);
       });
 
-      const result = await callSubmit({ callMock, fromBlock: CHOMP_FROM_BLOCK });
+      const result = await callSubmit({
+        callMock,
+        fromBlock: CHOMP_FROM_BLOCK,
+      });
 
       expect(result).toStrictEqual({ transactionHash: CHOMP_HASH });
       expect(findRecentChompVaultDepositMock).toHaveBeenCalledTimes(2);

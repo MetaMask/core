@@ -96,13 +96,15 @@ async function resolvePostRelayAmount({
     completion.targetHash !== FALLBACK_HASH
   ) {
     try {
-      const { amountRaw: onChainAmount } = await getTransferredAmountFromTxHash({
-        messenger,
-        txHash: completion.targetHash,
-        chainId: MUSD_MONAD_FIAT_ASSET.chainId,
-        tokenAddress: MUSD_MONAD_FIAT_ASSET.address,
-        walletAddress: moneyAccountAddress,
-      });
+      const { amountRaw: onChainAmount } = await getTransferredAmountFromTxHash(
+        {
+          messenger,
+          txHash: completion.targetHash,
+          chainId: MUSD_MONAD_FIAT_ASSET.chainId,
+          tokenAddress: MUSD_MONAD_FIAT_ASSET.address,
+          walletAddress: moneyAccountAddress,
+        },
+      );
 
       if (onChainAmount) {
         log('Resolved post-Relay amount from on-chain transaction', {
