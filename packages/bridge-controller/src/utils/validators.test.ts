@@ -516,9 +516,9 @@ describe('validators', () => {
     });
 
     it('rejects non-string discountType values', () => {
-      expect(
-        is({ ...metabridgeFee, discountType: 123 }, FeeDataSchema),
-      ).toBe(false);
+      expect(is({ ...metabridgeFee, discountType: 123 }, FeeDataSchema)).toBe(
+        false,
+      );
     });
   });
 
@@ -532,8 +532,7 @@ describe('validators', () => {
             feeData: {
               ...mockBridgeQuotesNativeErc20EthV1[0].quote.feeData,
               metabridge: {
-                ...mockBridgeQuotesNativeErc20EthV1[0].quote.feeData
-                  .metabridge,
+                ...mockBridgeQuotesNativeErc20EthV1[0].quote.feeData.metabridge,
                 discountType: DiscountType.PROMO,
               },
             },

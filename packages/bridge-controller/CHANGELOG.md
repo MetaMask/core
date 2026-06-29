@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `DiscountType` and expose `quote.feeData.metabridge.discountType` in quote validation ([#9305](https://github.com/MetaMask/core/pull/9305))
+
 ## [77.1.0]
 
 ### Added
