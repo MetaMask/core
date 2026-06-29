@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **BREAKING:** Wire `AddressBookController` into the default wallet initialization ([#9291](https://github.com/MetaMask/core/pull/9291))
+- **BREAKING:** Wire `PermissionController` and `SubjectMetadataController` into the default wallet initialization ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+  - Adds optional `instanceOptions.permissionController` (`caveatSpecifications`, `permissionSpecifications`, `unrestrictedMethods`) and `instanceOptions.subjectMetadataController.subjectCacheLimit`.
 
 ## [5.0.0]
 
