@@ -2,8 +2,8 @@ import type { Hex } from '@metamask/utils';
 
 import { CHAIN_ID_MONAD, MUSD_MONAD_ADDRESS } from '../constants';
 import type { TransactionPayControllerMessenger } from '../types';
-import { rpcRequest } from './provider';
 import { findRecentChompVaultDeposit } from './chomp';
+import { rpcRequest } from './provider';
 
 jest.mock('./provider');
 

@@ -5,8 +5,8 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
-import { getTransferredAmountFromTxHash } from '../../utils/transaction';
 import { submitMoneyAccountVaultDeposit } from '../../utils/ma-vault-deposit';
+import { getTransferredAmountFromTxHash } from '../../utils/transaction';
 import { MUSD_MONAD_FIAT_ASSET } from '../fiat/constants';
 import { FALLBACK_HASH } from './constants';
 import { submitPostRelayVaultDeposit } from './relay-post-ma-vault';

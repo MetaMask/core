@@ -3,15 +3,15 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 import type { TransactionPayControllerMessenger } from '../types';
-import { getNetworkClientId } from './provider';
 import { findRecentChompVaultDeposit } from './chomp';
+import { submitMoneyAccountVaultDeposit } from './ma-vault-deposit';
+import { getNetworkClientId } from './provider';
 import {
   collectTransactionIds,
   getTransaction,
   updateTransaction,
   waitForTransactionConfirmed,
 } from './transaction';
-import { submitMoneyAccountVaultDeposit } from './ma-vault-deposit';
 
 jest.mock('./chomp');
 jest.mock('./provider');

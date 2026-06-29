@@ -5,9 +5,9 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
 import { projectLogger } from '../logger';
-import { findRecentChompVaultDeposit } from './chomp';
 import { MUSD_MONAD_FIAT_ASSET } from '../strategy/fiat/constants';
 import type { TransactionPayControllerMessenger } from '../types';
+import { findRecentChompVaultDeposit } from './chomp';
 import { prefixError } from './error-prefix';
 import { getNetworkClientId } from './provider';
 import {
