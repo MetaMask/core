@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.1]
+
+### Uncategorized
+
+- Revert "Release/1064.0.0 (#9228)" ([#9228](https://github.com/MetaMask/core/pull/9228))
+- Release/1064.0.0 ([#9228](https://github.com/MetaMask/core/pull/9228))
+
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
@@ -191,7 +198,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#7194](https://github.com/MetaMask/core/pull/7194), [#7196](https://github.com/MetaMask/core/pull/7196), [#7263](https://github.com/MetaMask/core/pull/7263))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@4.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@4.0.1...HEAD
+[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@4.0.0...@metamask/profile-metrics-controller@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@3.2.0...@metamask/profile-metrics-controller@4.0.0
 [3.2.0]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@3.1.6...@metamask/profile-metrics-controller@3.2.0
 [3.1.6]: https://github.com/MetaMask/core/compare/@metamask/profile-metrics-controller@3.1.5...@metamask/profile-metrics-controller@3.1.6
