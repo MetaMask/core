@@ -16,8 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The `NetworkControllerMessenger` now allows the `AnalyticsController:getState` and `AnalyticsController:trackEvent` actions ([#9270](https://github.com/MetaMask/core/pull/9270))
+- **BREAKING:** Drive RPC failover from the single `corePlatformRpcFailoverMode` remote feature flag ([#9175](https://github.com/MetaMask/core/pull/9175))
+  - The flag is a string with three values: `disabled` (failover off), `enabled` (divert to failover URLs when the primary endpoint is unavailable), and `forced` (Infura endpoints that have failover URLs route all traffic to those URLs, bypassing Infura entirely). Custom endpoints are unaffected, and the value defaults to `disabled` when the flag is absent or unrecognized.
+  - `NetworkController` no longer reads the `walletFrameworkRpcFailoverEnabled` flag; the `enabled` mode replaces it. Update your remote feature flag configuration to set `corePlatformRpcFailoverMode`.
+- **BREAKING:** The `NetworkControllerMessenger` now allows the `AnalyticsController:getState` and `AnalyticsController:trackEvent` actions ([#9270](https://github.com/MetaMask/core/pull/9270))
   - Consumers that pass the `analytics` option must delegate these actions to the network controller messenger.
+
+### Removed
+
+- **BREAKING:** Remove the `NetworkController.enableRpcFailover` and `NetworkController.disableRpcFailover` methods, their `NetworkController:enableRpcFailover` / `NetworkController:disableRpcFailover` messenger actions, and the `NetworkControllerEnableRpcFailoverAction` / `NetworkControllerDisableRpcFailoverAction` types ([#9175](https://github.com/MetaMask/core/pull/9175))
+  - RPC failover is now driven entirely by the `corePlatformRpcFailoverMode` remote feature flag, so there is no longer an imperative toggle.
 
 ## [33.0.0]
 
@@ -1232,7 +1240,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
+
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
+
     - Everything in `src/network` (minus `NetworkType` and `NetworksChainId`, which were placed in `@metamask/controller-utils`)
 
     All changes listed after this point were applied to this package following the monorepo conversion.

@@ -86,7 +86,7 @@ export function testsForRpcFailoverBehavior({
             const result = await withNetworkClient(
               {
                 providerType,
-                isRpcFailoverEnabled: true,
+                rpcFailoverMode: 'enabled',
                 failoverRpcUrls: ['https://failover.endpoint'],
                 messenger,
                 getRpcServiceOptions: () => ({
@@ -178,7 +178,7 @@ export function testsForRpcFailoverBehavior({
               const result = await withNetworkClient(
                 {
                   providerType,
-                  isRpcFailoverEnabled: true,
+                  rpcFailoverMode: 'enabled',
                   failoverRpcUrls: ['https://failover.endpoint'],
                   messenger,
                   getRpcServiceOptions: (rpcEndpointUrl) => {
@@ -266,7 +266,7 @@ export function testsForRpcFailoverBehavior({
         await withNetworkClient(
           {
             providerType,
-            isRpcFailoverEnabled: false,
+            rpcFailoverMode: 'disabled',
             failoverRpcUrls: ['https://failover.endpoint'],
             messenger,
             getRpcServiceOptions: () => ({

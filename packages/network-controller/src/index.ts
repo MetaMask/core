@@ -72,8 +72,6 @@ export type {
   NetworkControllerAddNetworkAction,
   NetworkControllerRemoveNetworkAction,
   NetworkControllerUpdateNetworkAction,
-  NetworkControllerEnableRpcFailoverAction,
-  NetworkControllerDisableRpcFailoverAction,
   NetworkControllerGetProviderAndBlockTrackerAction,
   NetworkControllerGetNetworkClientRegistryAction,
   NetworkControllerLookupNetworkAction,

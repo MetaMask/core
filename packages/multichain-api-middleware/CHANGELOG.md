@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `MULTICHAIN_API.md`, a reference for the Multichain API: `wallet_createSession` and the other session methods, supported methods per namespace, error codes, and divergences from the current CAIP-25 spec ([#9258](https://github.com/MetaMask/core/pull/9258))
+
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))

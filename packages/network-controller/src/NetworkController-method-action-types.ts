@@ -17,26 +17,6 @@ export type NetworkControllerGetEthQueryAction = {
 };
 
 /**
- * Enables the RPC failover functionality. That is, if any RPC endpoints are
- * configured with failover URLs, then traffic will automatically be diverted
- * to them if those RPC endpoints are unavailable.
- */
-export type NetworkControllerEnableRpcFailoverAction = {
-  type: `NetworkController:enableRpcFailover`;
-  handler: NetworkController['enableRpcFailover'];
-};
-
-/**
- * Disables the RPC failover functionality. That is, even if any RPC endpoints
- * are configured with failover URLs, then traffic will not automatically be
- * diverted to them if those RPC endpoints are unavailable.
- */
-export type NetworkControllerDisableRpcFailoverAction = {
-  type: `NetworkController:disableRpcFailover`;
-  handler: NetworkController['disableRpcFailover'];
-};
-
-/**
  * Accesses the provider and block tracker for the currently selected network.
  *
  * @returns The proxy and block tracker proxies.
@@ -309,8 +289,6 @@ export type NetworkControllerFindNetworkClientIdByChainIdAction = {
  */
 export type NetworkControllerMethodActions =
   | NetworkControllerGetEthQueryAction
-  | NetworkControllerEnableRpcFailoverAction
-  | NetworkControllerDisableRpcFailoverAction
   | NetworkControllerGetProviderAndBlockTrackerAction
   | NetworkControllerGetSelectedNetworkClientAction
   | NetworkControllerGetSelectedChainIdAction
