@@ -4,7 +4,7 @@ import { Command } from '@oclif/core';
 import { pingDaemon, sendCommand } from '../../daemon/daemon-client';
 import { getDaemonPaths } from '../../daemon/paths';
 import type { DaemonStatusInfo } from '../../daemon/types';
-import { readPidFile } from '../../daemon/utils';
+import { isProcessAlive, readPidFile } from '../../daemon/utils';
 
 export default class DaemonStatus extends Command {
   static override description = 'Check the status of the wallet daemon';
@@ -18,6 +18,17 @@ export default class DaemonStatus extends Command {
     const ping = await pingDaemon(socketPath);
 
     if (ping.status === 'absent') {
+      // A missing socket alone does not prove the daemon is gone: stopDaemon
+      // treats an absent socket plus an alive recorded PID as a daemon that
+      // outlived its socket. Surface that orphan here rather than reporting a
+      // clean "not running".
+      if (pid !== undefined && isProcessAlive(pid)) {
+        this.log(
+          `Daemon socket is missing at ${socketPath} but recorded PID ${pid} is still alive. ` +
+            `The daemon may be running without its socket; run \`mm daemon stop\` or \`mm daemon purge\`.`,
+        );
+        return;
+      }
       this.log('Daemon is not running.');
       return;
     }

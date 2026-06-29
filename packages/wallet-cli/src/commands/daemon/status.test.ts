@@ -1,5 +1,5 @@
 import { pingDaemon, sendCommand } from '../../daemon/daemon-client';
-import { readPidFile } from '../../daemon/utils';
+import { isProcessAlive, readPidFile } from '../../daemon/utils';
 import { runCommand } from '../../test/run-command';
 import DaemonStatus from './status';
 
@@ -9,18 +9,41 @@ jest.mock('../../daemon/utils');
 const mockPingDaemon = jest.mocked(pingDaemon);
 const mockSendCommand = jest.mocked(sendCommand);
 const mockReadPidFile = jest.mocked(readPidFile);
+const mockIsProcessAlive = jest.mocked(isProcessAlive);
 
 describe('daemon status', () => {
   beforeEach(() => {
     mockReadPidFile.mockResolvedValue(12345);
+    mockIsProcessAlive.mockReturnValue(false);
   });
 
-  it('reports "not running" when the socket is absent', async () => {
+  it('reports "not running" when the socket is absent and the recorded PID is dead', async () => {
     mockPingDaemon.mockResolvedValue({ status: 'absent' });
 
     const { stdout } = await runCommand(DaemonStatus);
 
     expect(stdout).toContain('Daemon is not running.');
+  });
+
+  it('reports "not running" when the socket is absent and no PID file exists', async () => {
+    mockReadPidFile.mockResolvedValue(undefined);
+    mockPingDaemon.mockResolvedValue({ status: 'absent' });
+
+    const { stdout } = await runCommand(DaemonStatus);
+
+    expect(stdout).toContain('Daemon is not running.');
+    expect(mockIsProcessAlive).not.toHaveBeenCalled();
+  });
+
+  it('reports a possible orphan when the socket is absent but the recorded PID is alive', async () => {
+    mockPingDaemon.mockResolvedValue({ status: 'absent' });
+    mockIsProcessAlive.mockReturnValue(true);
+
+    const { stdout } = await runCommand(DaemonStatus);
+
+    expect(stdout).not.toContain('Daemon is not running.');
+    expect(stdout).toContain('recorded PID 12345 is still alive');
+    expect(mockIsProcessAlive).toHaveBeenCalledWith(12345);
   });
 
   it('reports the unreachable reason and recorded PID', async () => {
