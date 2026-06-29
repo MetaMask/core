@@ -403,8 +403,7 @@ export class Messenger<
    * Get the types of all actions that this messenger can call directly.
    *
    * This includes actions registered on this messenger as well as actions that
-   * have been delegated into it from another messenger. It does not include
-   * actions this messenger has delegated out to other messengers.
+   * have been delegated to it from another messenger.
    *
    * Note that this reflects the registrations on this specific messenger
    * instance.
