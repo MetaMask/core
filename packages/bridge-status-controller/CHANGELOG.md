@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [74.0.0]
+
 ### Added
 
 - **BREAKING:** Add required `quoteId: string` and `reportedSubmittedTxHash: string` to `BridgeHistoryItem` ([#8462](https://github.com/MetaMask/core/pull/8462))
@@ -1345,7 +1347,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@73.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.0.0...HEAD
+[74.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@73.1.0...@metamask/bridge-status-controller@74.0.0
 [73.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@73.0.0...@metamask/bridge-status-controller@73.1.0
 [73.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.3.0...@metamask/bridge-status-controller@73.0.0
 [72.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@72.2.0...@metamask/bridge-status-controller@72.3.0
