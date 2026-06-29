@@ -176,7 +176,7 @@ export class HyperLiquidClientService {
       // Close WebSocket transport to release resources and event listeners
       if (this.#wsTransport) {
         try {
-          this.#wsTransport.close();
+          await this.#wsTransport.close();
         } catch {
           // Ignore cleanup errors
         }
@@ -311,9 +311,9 @@ export class HyperLiquidClientService {
   public isInitialized(): boolean {
     return Boolean(
       this.#exchangeClient &&
-      this.#infoClient &&
-      this.#infoClientHttp &&
-      this.#subscriptionClient,
+        this.#infoClient &&
+        this.#infoClientHttp &&
+        this.#subscriptionClient,
     );
   }
 
@@ -959,7 +959,7 @@ export class HyperLiquidClientService {
       // Close WebSocket transport only (HTTP is stateless)
       if (this.#wsTransport) {
         try {
-          this.#wsTransport.close();
+          await this.#wsTransport.close();
           this.#deps.debugLogger.log(
             'HyperLiquid: Closed WebSocket transport',
             {
@@ -1181,7 +1181,7 @@ export class HyperLiquidClientService {
       // so createTransports() will create fresh ones
       if (this.#wsTransport) {
         try {
-          this.#wsTransport.close();
+          await this.#wsTransport.close();
         } catch {
           // Ignore errors during close - transport may already be dead
         }

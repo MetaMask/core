@@ -185,8 +185,7 @@ export function adaptOrderFromSDK(
   // TODO: We assume that there can only be 1 TP and 1 SL as children but there can be several TPSLs as children
   if (rawOrder.children && rawOrder.children.length > 0) {
     rawOrder.children.forEach((childUnknown) => {
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
-      const child = childUnknown as FrontendOrder;
+      const child = childUnknown;
       if (child.isTrigger && child.orderType) {
         if (child.orderType.includes('Take Profit')) {
           takeProfitPrice = child.triggerPx || child.limitPx;
