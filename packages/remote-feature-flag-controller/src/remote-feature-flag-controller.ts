@@ -71,7 +71,7 @@ const remoteFeatureFlagControllerMetadata = {
     includeInStateLogs: true,
     persist: true,
     includeInDebugSnapshot: true,
-    usedInUi: true,
+    usedInUi: false,
   },
 };
 
