@@ -116,6 +116,7 @@ import type {
   SDKOrderParams,
   MetaResponse,
   PerpsAssetCtx,
+  FrontendOrder,
   SpotMetaResponse,
 } from '../types/hyperliquid-types';
 import {
@@ -5224,7 +5225,9 @@ export class HyperLiquidProvider implements PerpsProvider {
                 },
               );
 
-              parentOrder.children.forEach((childOrder) => {
+              parentOrder.children.forEach((childOrderUnknown) => {
+                // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+                const childOrder = childOrderUnknown as FrontendOrder;
                 if (childOrder.isTrigger && childOrder.reduceOnly) {
                   if (
                     childOrder.orderType === 'Take Profit Market' ||
