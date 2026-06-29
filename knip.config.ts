@@ -22,10 +22,6 @@ const config: KnipConfig = {
       // relative path that doesn't resolve inside this monorepo.
       ignoreUnresolved: [/^\.\.\/\.\.\/\.\.\/core\/Engine$/u],
     },
-    'packages/react-data-query': {
-      // Flagged due to knip bug, see https://github.com/webpro-nl/knip/issues/1823
-      ignoreDependencies: ['react-dom', 'react-native'],
-    },
 
     // -- Per-workspace `ignoreDependencies` snapshots --
     //
