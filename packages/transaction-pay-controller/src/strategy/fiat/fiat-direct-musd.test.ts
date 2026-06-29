@@ -5,30 +5,19 @@ import type { Hex } from '@metamask/utils';
 
 import { TransactionPayStrategy } from '../../constants';
 import type {
-  PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
   TransactionFiatPayment,
   TransactionPayRequiredToken,
   TransactionPayQuote,
 } from '../../types';
-import { getFiatVaultDisabled } from '../../utils/feature-flags';
-import { getNetworkClientId } from '../../utils/provider';
 import { buildCaipAssetType, getTokenInfo } from '../../utils/token';
-import {
-  collectTransactionIds,
-  getTransaction,
-  updateTransaction,
-  waitForTransactionConfirmed,
-} from '../../utils/transaction';
+import { getTransaction } from '../../utils/transaction';
 import { DEFAULT_FIAT_CURRENCY, MUSD_MONAD_FIAT_ASSET } from './constants';
 import {
   getDirectMusdFiatQuote,
   isDirectMusdMoneyAccountQuote,
 } from './fiat-direct-musd';
-import type { FiatQuote } from './types';
 
-jest.mock('../../utils/feature-flags');
-jest.mock('../../utils/provider');
 jest.mock('../../utils/token');
 jest.mock('../../utils/transaction');
 
@@ -38,7 +27,6 @@ const MONEY_ACCOUNT_ADDRESS_MOCK =
   '0x1111111111111111111111111111111111111111' as Hex;
 const MUSD_CAIP_ASSET_ID_MOCK =
   'eip155:143/erc20:0xaca92e438df0b2401ff60da7e4337b687a2435da';
-const NETWORK_CLIENT_ID_MOCK = 'network-client-id-mock';
 
 const RAMPS_QUOTE_MOCK: RampsQuote = {
   provider: '/providers/transak-native-staging',
@@ -127,59 +115,17 @@ function getQuotesMessenger({
   };
 }
 
-function getExecuteRequest({
-  callMock = jest.fn(),
-}: { callMock?: jest.Mock } = {}): PayStrategyExecuteRequest<FiatQuote> {
-  return {
-    accountSupports7702: true,
-    isSmartTransaction: () => false,
-    messenger: {
-      call: callMock,
-    } as unknown as PayStrategyExecuteRequest<FiatQuote>['messenger'],
-    quotes: [],
-    transaction: TRANSACTION_MOCK,
-  };
-}
-
 describe('fiat-direct-musd', () => {
   const buildCaipAssetTypeMock = jest.mocked(buildCaipAssetType);
-  const collectTransactionIdsMock = jest.mocked(collectTransactionIds);
-  const getFiatVaultDisabledMock = jest.mocked(getFiatVaultDisabled);
-  const getNetworkClientIdMock = jest.mocked(getNetworkClientId);
   const getTokenInfoMock = jest.mocked(getTokenInfo);
   const getTransactionMock = jest.mocked(getTransaction);
-  const updateTransactionMock = jest.mocked(updateTransaction);
-  const waitForTransactionConfirmedMock = jest.mocked(
-    waitForTransactionConfirmed,
-  );
 
   beforeEach(() => {
     jest.resetAllMocks();
 
     buildCaipAssetTypeMock.mockReturnValue(MUSD_CAIP_ASSET_ID_MOCK);
-    getFiatVaultDisabledMock.mockReturnValue(false);
-    getNetworkClientIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
     getTokenInfoMock.mockReturnValue({ decimals: 6 } as never);
-    collectTransactionIdsMock.mockImplementation(
-      (_chainId, _from, _messenger, onTransaction) => {
-        onTransaction('direct-child-1');
-        onTransaction('direct-child-2');
-
-        return { end: jest.fn() };
-      },
-    );
-    getTransactionMock.mockImplementation((transactionId) => {
-      if (transactionId === TRANSACTION_ID_MOCK) {
-        return TRANSACTION_MOCK;
-      }
-
-      if (transactionId === 'direct-child-2') {
-        return { hash: '0xdirect' } as TransactionMeta;
-      }
-
-      return undefined;
-    });
-    waitForTransactionConfirmedMock.mockResolvedValue();
+    getTransactionMock.mockReturnValue(TRANSACTION_MOCK);
   });
 
   describe('isDirectMusdMoneyAccountQuote', () => {

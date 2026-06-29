@@ -68,20 +68,6 @@ export async function submitMoneyAccountVaultDeposit({
     return { transactionHash: '0x' };
   }
 
-  // CHOMP pre-check: skip vault batch entirely if CHOMP has already
-  // auto-vaulted the funds during or before the checkout window.
-  const preChompHash = await tryFindChompDeposit({
-    fromBlock,
-    messenger,
-    moneyAccountAddress,
-    sourceAmountRaw,
-    transactionId,
-  });
-
-  if (preChompHash) {
-    return { transactionHash: preChompHash };
-  }
-
   const updatedTransaction =
     getTransaction(transactionId, messenger) ?? transaction;
   const { updates } = await messenger.call(
@@ -130,6 +116,20 @@ export async function submitMoneyAccountVaultDeposit({
       }
     },
   );
+
+  // CHOMP pre-check: skip addTransactionBatch entirely if CHOMP has already
+  // auto-vaulted the funds during or before the checkout window.
+  const preChompHash = await tryFindChompDeposit({
+    fromBlock,
+    messenger,
+    moneyAccountAddress,
+    sourceAmountRaw,
+    transactionId,
+  });
+
+  if (preChompHash) {
+    return { transactionHash: preChompHash };
+  }
 
   const networkClientId = getNetworkClientId(
     messenger,
@@ -189,8 +189,6 @@ export async function submitMoneyAccountVaultDeposit({
       })),
     });
   } catch (error) {
-    end();
-
     // CHOMP post-check: CHOMP may have won the race between pre-check and
     // submit. Return the CHOMP hash instead of surfacing a Vault-prefixed error.
     const postChompHash = await tryFindChompDeposit({
@@ -206,6 +204,8 @@ export async function submitMoneyAccountVaultDeposit({
     }
 
     throw prefixError(error, VAULT_ERROR_PREFIX);
+  } finally {
+    end();
   }
 
   log('Submitted Money Account vault deposit', {

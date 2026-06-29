@@ -33,7 +33,9 @@ const TRANSACTION_MOCK = {
   type: TransactionType.batch,
 } as unknown as TransactionMeta;
 
-function buildMessenger(callMock = jest.fn()): TransactionPayControllerMessenger {
+function buildMessenger(
+  callMock: jest.Mock = jest.fn(),
+): TransactionPayControllerMessenger {
   return { call: callMock } as unknown as TransactionPayControllerMessenger;
 }
 
@@ -49,7 +51,7 @@ function callSubmit({
   transaction?: TransactionMeta;
   vaultDisabled?: boolean;
   fromBlock?: Hex;
-} = {}) {
+} = {}): Promise<{ transactionHash?: Hex }> {
   return submitMoneyAccountVaultDeposit({
     fromBlock,
     messenger: buildMessenger(callMock),
