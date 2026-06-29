@@ -1,11 +1,11 @@
 import type { Hex } from '@metamask/utils';
 
-import { CHAIN_ID_MONAD, MUSD_MONAD_ADDRESS } from '../../constants';
-import type { TransactionPayControllerMessenger } from '../../types';
-import { rpcRequest } from '../../utils/provider';
+import { CHAIN_ID_MONAD, MUSD_MONAD_ADDRESS } from '../constants';
+import type { TransactionPayControllerMessenger } from '../types';
+import { rpcRequest } from './provider';
 import { findRecentChompVaultDeposit } from './chomp';
 
-jest.mock('../../utils/provider');
+jest.mock('./provider');
 
 const MONEY_ACCOUNT_ADDRESS =
   '0x1111111111111111111111111111111111111111' as Hex;
