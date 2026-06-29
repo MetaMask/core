@@ -6,9 +6,8 @@ import type { SubjectMetadataController } from '@metamask/permission-controller'
 export type SubjectMetadataControllerInstanceOptions = {
   /**
    * Maximum number of distinct permissionless subjects (origins) to retain
-   * metadata for. Once exceeded, the oldest permissionless subject is evicted
-   * (FIFO). Defaults to `100` when omitted, matching the extension and mobile
-   * clients.
+   * metadata for, evicted oldest-first once exceeded. Defaults to a
+   * platform-agnostic value when omitted.
    */
   subjectCacheLimit?: ConstructorParameters<
     typeof SubjectMetadataController
