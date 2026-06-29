@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `listedAt` (epoch ms) to `PerpsMarketData` and `TerminalAssetMetadata`, sourced from the Terminal API and normalized from either a numeric epoch value or an ISO 8601 string. Clients can use this field to surface recently added markets (e.g. markets listed within the last 30 days).
 - Add Perps Advanced Chart analytics constants to `PERPS_EVENT_PROPERTY` and `PERPS_EVENT_VALUE` so mobile can import chart instrumentation keys from `@metamask/perps-controller` instead of maintaining a local mirror ([#9221](https://github.com/MetaMask/core/pull/9221))
   - New `PERPS_EVENT_PROPERTY` keys: `CHART_LIBRARY`, `ASSET_TYPE`
   - New `PERPS_EVENT_VALUE.CHART_LIBRARY` group: `lightweight`, `advanced`
