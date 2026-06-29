@@ -1,3 +1,10 @@
+// Export custom error classes
+export {
+  QuoteStatusUpdateError,
+  QuoteStatusGetError,
+} from './quote-status-manager/errors';
+export { BaseQuoteStatusUpdateErrorTypes } from './quote-status-manager/constants';
+
 // Export constants
 export {
   REFRESH_INTERVAL_MS,
@@ -15,6 +22,7 @@ export type {
   RefuelStatusResponse,
   BridgeHistoryItem,
   BridgeStatusControllerState,
+  QuoteStatusPersistEntry,
   BridgeStatusControllerMessenger,
   BridgeStatusControllerActions,
   BridgeStatusControllerGetStateAction,

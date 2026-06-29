@@ -1,6 +1,6 @@
 {
   "name": "@metamask/bridge-controller",
-  "version": "77.0.0",
+  "version": "77.1.0",
   "description": "Manages bridge-related quote fetching functionality for MetaMask",
   "keywords": [
     "Ethereum",
