@@ -1,4 +1,3 @@
-import { StatusTypes } from '@metamask/bridge-controller';
 import {
   string,
   number,
@@ -9,6 +8,7 @@ import {
   optional,
 } from '@metamask/superstruct';
 
+import { StatusResponseSchema } from '../utils/validators';
 import {
   BaseQuoteStatusUpdateErrorTypes,
   QuoteStatusUpdateBackendOnChainMismatchTypes,
@@ -51,16 +51,8 @@ export const QuoteStatusGetResponseSchema = type({
   /**
    * Submitted transaction: StatusResponseDto with at least srcChain (chainId + txHash).
    * Prefilled by updateQuoteStatus; replaced with full provider status by getQuoteStatus.
-   *
-   * **Note**: This struct is big and unused atm. For that
-   * reason we have decided to type it as any(). In the future,
-   * once we need it to be strongly type, we will refactor.
    */
-  submittedTx: optional(
-    type({
-      status: enums(Object.values(StatusTypes)),
-    }),
-  ),
+  submittedTx: optional(StatusResponseSchema),
 });
 
 export function validateQuoteStatusGetResponse(

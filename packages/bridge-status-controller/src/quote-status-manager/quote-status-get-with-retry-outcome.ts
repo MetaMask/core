@@ -1,4 +1,5 @@
 import { QuoteStatusFetchWithRetryOutcomeType } from './constants';
+import { QuoteStatusGetError } from './errors';
 import { QuoteStatusGetResponse } from './types';
 
 /**
@@ -23,15 +24,20 @@ export class QuoteStatusGetWithRetryOutcome {
    */
   readonly response?: QuoteStatusGetResponse;
 
+  readonly error?: QuoteStatusGetError;
+
   /**
    * @param outcome - The outcome type describing how the fetch resolved.
    * @param response - Optional backend quote status payload when accepted.
+   * @param error - Optional quote status fetch error when the outcome is non-retryable.
    */
   constructor(
     outcome: QuoteStatusFetchWithRetryOutcomeType,
     response?: QuoteStatusGetResponse,
+    error?: QuoteStatusGetError,
   ) {
     this.type = outcome;
     this.response = response;
+    this.error = error;
   }
 }

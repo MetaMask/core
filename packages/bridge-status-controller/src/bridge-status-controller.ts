@@ -48,7 +48,7 @@ import {
   QuoteStatusGetError,
   QuoteStatusUpdateError,
 } from './quote-status-manager/errors';
-import { QuoteStatusUpdateManager } from './quote-status-manager/quotes-status-update-manager';
+import { QuoteStatusManager } from './quote-status-manager/quotes-status-manager';
 import executeSubmitStrategy from './strategy';
 import { SubmitStep } from './strategy/types';
 import type { SubmitStrategyParams } from './strategy/types';
@@ -147,7 +147,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
   readonly #intentManager: IntentManager;
 
-  readonly #quoteStatusUpdateManager: QuoteStatusUpdateManager;
+  readonly #quoteStatusManager: QuoteStatusManager;
 
   readonly #clientId: BridgeClientId;
 
@@ -214,7 +214,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       customBridgeApiBaseUrl: this.#config.customBridgeApiBaseUrl,
       fetchFn: this.#fetchFn,
     });
-    this.#quoteStatusUpdateManager = new QuoteStatusUpdateManager({
+    this.#quoteStatusManager = new QuoteStatusManager({
       messenger: this.messenger,
       clientId: this.#clientId,
       clientProduct,
@@ -317,7 +317,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
 
     // Replay swap/bridge finalizations that resolved while the client was
     // closed, before resuming polling (which recovers in-flight bridges).
-    this.#quoteStatusUpdateManager.init();
+    this.#quoteStatusManager.init();
 
     // If you close the extension, but keep the browser open, the polling continues
     // If you close the browser, the polling stops
@@ -364,7 +364,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       (txMeta.type && isCrossChainTx(txMeta.type)) ||
       hasNestedSwapTransactions(txMeta)
     ) {
-      this.#quoteStatusUpdateManager.reportFinalised(txMeta.id, false);
+      this.#quoteStatusManager.reportFinalised(txMeta.id, false);
     }
 
     this.#trackUnifiedSwapBridgeEvent(
@@ -421,7 +421,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       ) {
         this.#reportSubmittedOnce(historyKey, txMeta.hash, txMeta.id);
       }
-      this.#quoteStatusUpdateManager.reportFinalised(txMeta.id, true);
+      this.#quoteStatusManager.reportFinalised(txMeta.id, true);
       this.#trackUnifiedSwapBridgeEvent(
         UnifiedSwapBridgeEventName.Completed,
         historyKey,
@@ -484,7 +484,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     if (historyItem.reportedSubmittedTxHash === srcTxHash) {
       return;
     }
-    this.#quoteStatusUpdateManager.reportSubmitted(
+    this.#quoteStatusManager.reportSubmitted(
       historyItem.quoteId,
       srcTxHash,
       txMetaId,
@@ -498,7 +498,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
   };
 
   resetState = (): void => {
-    this.#quoteStatusUpdateManager.destroy();
+    this.#quoteStatusManager.destroy();
     this.update((state) => {
       state.txHistory = DEFAULT_BRIDGE_STATUS_CONTROLLER_STATE.txHistory;
       state.quoteUpdateStatusStore =
@@ -820,7 +820,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     // Report finalization as a failure here, this is the only place that
     // permanently ends polling, so it's the correct and non-duplicative point
     // to emit the final status.
-    this.#quoteStatusUpdateManager.reportFinalised(bridgeTxMetaId, false);
+    this.#quoteStatusManager.reportFinalised(bridgeTxMetaId, false);
     this.#deleteHistoryItem(bridgeTxMetaId);
   };
 
@@ -970,7 +970,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           );
         }
 
-        this.#quoteStatusUpdateManager.reportFinalised(
+        this.#quoteStatusManager.reportFinalised(
           bridgeTxMetaId,
           status.status === StatusTypes.COMPLETE,
         );
@@ -1191,10 +1191,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
             break;
 
           case SubmitStep.PublishCompletedEvent:
-            this.#quoteStatusUpdateManager.reportFinalised(
-              payload.historyKey,
-              true,
-            );
+            this.#quoteStatusManager.reportFinalised(payload.historyKey, true);
             this.#trackUnifiedSwapBridgeEvent(
               UnifiedSwapBridgeEventName.Completed,
               payload.historyKey,

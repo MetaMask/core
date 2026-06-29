@@ -143,6 +143,8 @@ export type QuoteStatusGetErrorDetails = {
    * Unique quote identifier associated with the error.
    */
   quoteId: string;
+
+  validationFailures?: string[];
 };
 
 /**

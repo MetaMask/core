@@ -12,6 +12,7 @@ import type {
   QuoteStatusApiServiceOptions,
   QuoteStatusGetResponse,
 } from './types';
+import * as validators from './validators';
 
 const API_BASE_URL = 'https://bridge.api.test';
 
@@ -28,6 +29,9 @@ const GET_REQUEST_DATA = {
 const GET_RESPONSE_BODY: QuoteStatusGetResponse = {
   submittedTx: {
     status: StatusTypes.SUBMITTED,
+    srcChain: {
+      chainId: 1,
+    },
   },
 };
 
@@ -542,7 +546,7 @@ describe('QuoteStatusApiService', () => {
       const { service, onError } = createService();
 
       await expect(service.getQuoteStatus(GET_REQUEST_DATA)).rejects.toThrow(
-        'At path: submittedTx.status',
+        'unexpected response shape from getQuoteStatus',
       );
       expect(onError).toHaveBeenCalledTimes(1);
       const [error] = onError.mock.calls[0];
@@ -552,6 +556,9 @@ describe('QuoteStatusApiService', () => {
       );
       expect(error.details).toStrictEqual({
         quoteId: GET_REQUEST_DATA.quoteId,
+        validationFailures: expect.arrayContaining([
+          expect.stringContaining('submittedTx.status'),
+        ]),
       });
     });
 
@@ -569,8 +576,26 @@ describe('QuoteStatusApiService', () => {
       const { service } = createService({ onError: undefined });
 
       await expect(service.getQuoteStatus(GET_REQUEST_DATA)).rejects.toThrow(
-        'At path: submittedTx.status',
+        'unexpected response shape from getQuoteStatus',
       );
+    });
+
+    it('re-throws a non-StructError thrown during validation without calling onError', async () => {
+      const nonStructError = new Error('unexpected validator crash');
+      fetchSpy.mockResolvedValue(
+        createFetchResponse({ ok: true, body: GET_RESPONSE_BODY }),
+      );
+      jest
+        .spyOn(validators, 'validateQuoteStatusGetResponse')
+        .mockImplementationOnce(() => {
+          throw nonStructError;
+        });
+      const { service, onError } = createService();
+
+      await expect(service.getQuoteStatus(GET_REQUEST_DATA)).rejects.toThrow(
+        nonStructError,
+      );
+      expect(onError).not.toHaveBeenCalled();
     });
   });
 
@@ -593,15 +618,31 @@ describe('QuoteStatusApiService', () => {
       expect(fetchSpy).toHaveBeenCalledTimes(1);
     });
 
-    it('returns RetryableExhausted after all attempts fail', async () => {
+    it('returns NonRetryable with the error when getQuoteStatus throws a QuoteStatusGetError', async () => {
+      const { service } = createService();
+      const quoteStatusGetError = new QuoteStatusGetError('api error', {
+        quoteId: GET_REQUEST_DATA.quoteId,
+      });
+      jest
+        .spyOn(service, 'getQuoteStatus')
+        .mockRejectedValue(quoteStatusGetError);
+
+      const outcome = await service.getQuoteStatusWithRetry(
+        GET_REQUEST_DATA,
+        RETRY_OPTIONS,
+      );
+
+      expect(outcome.type).toBe(
+        QuoteStatusFetchWithRetryOutcomeType.NonRetryable,
+      );
+      expect(outcome.error).toBe(quoteStatusGetError);
+    });
+
+    it('returns RetryableExhausted after all attempts fail with a non-QuoteStatusGetError', async () => {
       const { service } = createService();
       const getQuoteStatusSpy = jest
         .spyOn(service, 'getQuoteStatus')
-        .mockRejectedValue(
-          new QuoteStatusGetError('network error', {
-            quoteId: GET_REQUEST_DATA.quoteId,
-          }),
-        );
+        .mockRejectedValue(new Error('network error'));
 
       const outcome = await service.getQuoteStatusWithRetry(
         GET_REQUEST_DATA,
@@ -620,11 +661,7 @@ describe('QuoteStatusApiService', () => {
       const { service } = createService();
       const getQuoteStatusSpy = jest
         .spyOn(service, 'getQuoteStatus')
-        .mockRejectedValueOnce(
-          new QuoteStatusGetError('network error', {
-            quoteId: GET_REQUEST_DATA.quoteId,
-          }),
-        )
+        .mockRejectedValueOnce(new Error('network error'))
         .mockResolvedValueOnce(GET_RESPONSE_BODY);
 
       const outcome = await service.getQuoteStatusWithRetry(

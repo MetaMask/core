@@ -67,6 +67,9 @@ describe('quote-status validators', () => {
       const response = {
         submittedTx: {
           status: StatusTypes.SUBMITTED,
+          srcChain: {
+            chainId: 1,
+          },
         },
       };
 

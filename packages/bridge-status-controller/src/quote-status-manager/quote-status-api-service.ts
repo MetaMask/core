@@ -1,4 +1,5 @@
 import { getClientHeaders } from '@metamask/bridge-controller';
+import { StructError } from '@metamask/superstruct';
 
 import { BridgeClientId, BridgeStatusControllerMessenger } from '../types';
 import { getJwt } from '../utils/authentication';
@@ -174,17 +175,33 @@ export class QuoteStatusApiService {
       throw error;
     }
 
+    const responseData = await res.json();
+
     try {
-      const responseData = await res.json();
       validateQuoteStatusGetResponse(responseData);
       return responseData;
     } catch (error) {
-      this.#onError?.(
-        new QuoteStatusGetError(
+      if (error instanceof StructError) {
+        const validationFailures = [];
+
+        for (const { path } of error.failures()) {
+          const aggregatorId =
+            (responseData as QuoteStatusGetResponse)?.submittedTx?.bridge ??
+            ('unknown' as string);
+          const pathString = path?.join('.') || 'unknown';
+          validationFailures.push([aggregatorId, pathString].join('|'));
+        }
+
+        const validationError = new QuoteStatusGetError(
           'unexpected response shape from getQuoteStatus',
-          { quoteId: data.quoteId },
-        ),
-      );
+          { quoteId: data.quoteId, validationFailures },
+        );
+
+        this.#onError?.(validationError);
+
+        throw validationError;
+      }
+
       throw error;
     }
   }
@@ -301,10 +318,18 @@ export class QuoteStatusApiService {
           QuoteStatusFetchWithRetryOutcomeType.Accepted,
           response,
         );
-      } catch {
+      } catch (error) {
         if (signal?.aborted) {
           return new QuoteStatusGetWithRetryOutcome(
             QuoteStatusFetchWithRetryOutcomeType.Interrupted,
+          );
+        }
+
+        if (error instanceof QuoteStatusGetError) {
+          return new QuoteStatusGetWithRetryOutcome(
+            QuoteStatusFetchWithRetryOutcomeType.NonRetryable,
+            undefined,
+            error,
           );
         }
       }

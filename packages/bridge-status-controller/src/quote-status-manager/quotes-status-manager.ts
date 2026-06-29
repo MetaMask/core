@@ -16,7 +16,6 @@ import {
 import { QuoteStatusUpdateError } from './errors';
 import { QuoteStatusApiService } from './quote-status-api-service';
 import { QuoteStatusEntryStore } from './quote-status-entry-store';
-import { QuoteStatusGetWithRetryOutcome } from './quote-status-get-with-retry-outcome';
 import { QuoteStatusStateFsm } from './quote-status-state-fsm';
 import { QuoteStatusUpdateWithRetryOutcome } from './quote-status-update-with-retry-outcome';
 import { QuoteStatusPersistEntry, QuoteStatusRuntimeEntry } from './types';
@@ -31,7 +30,7 @@ import { QuoteStatusPersistEntry, QuoteStatusRuntimeEntry } from './types';
  * terminal state, at which point it is evicted and the timer stops once the
  * store is empty.
  */
-export class QuoteStatusUpdateManager {
+export class QuoteStatusManager {
   readonly #messenger: BridgeStatusControllerMessenger;
 
   readonly #quoteStatusApiService: QuoteStatusApiService;
@@ -297,23 +296,36 @@ export class QuoteStatusUpdateManager {
    * the manager is disabled ({@link enabled} is `false`).
    *
    * @param quoteId - Identifier of the quote whose status should be fetched.
-   * @returns A promise that resolves to the fetch outcome, or `null` when
-   * disabled.
+   * @param options - Retry configuration.
+   * @param options.maxRetries - Maximum number of retries after the initial attempt.
+   * @param options.delayMsBetweenRetries - Delay in milliseconds between attempts.
    */
-  getStatus(quoteId: string): Promise<QuoteStatusGetWithRetryOutcome> | null {
+  getStatus(
+    quoteId: string,
+    options: {
+      maxRetries?: number;
+      delayMsBetweenRetries?: number;
+    } = {
+      maxRetries: 0,
+      delayMsBetweenRetries: 1000,
+    },
+  ): void {
     if (!this.#isEnabled?.()) {
-      return null;
+      return;
     }
 
-    return this.#quoteStatusApiService.getQuoteStatusWithRetry(
-      {
-        quoteId,
-      },
-      {
-        maxRetries: 2,
-        delayMsBetweenRetries: 1000,
-      },
-    );
+    this.#quoteStatusApiService
+      .getQuoteStatusWithRetry(
+        {
+          quoteId,
+        },
+        {
+          maxRetries: options.maxRetries ?? 0,
+          delayMsBetweenRetries: options.delayMsBetweenRetries ?? 1000,
+        },
+        // Errors already reported by #onError handlers of `getQuoteStatusWithRetry()`
+      )
+      .catch(() => undefined);
   }
 
   /**
@@ -508,6 +520,10 @@ export class QuoteStatusUpdateManager {
               // `Completed` state and keep the entry so any later duplicate
               // `reportSubmitted` for this quote is rejected instead of looping.
               this.#markCompleted(current);
+              // Call getStatus to complete the flow on the backend.
+              // We discard any value for now, this is used purely
+              // to notify backend that the flow is complete.
+              this.getStatus(entry.quoteId, { maxRetries: 1 });
               return undefined;
             }
             // A non-final status (e.g. `Submitted`) was accepted. The quote is
