@@ -127,6 +127,10 @@ export async function addTransactionBatch(
     messenger,
     request: transactionBatchRequest,
   } = request;
+
+  const { disableHook, disable7702, disableSequential } =
+    transactionBatchRequest;
+
   const sizeLimit = getBatchSizeLimit(messenger);
 
   validateBatchRequest({
@@ -143,7 +147,11 @@ export async function addTransactionBatch(
     transactionBatchRequest.from,
   );
 
-  if (!transactionBatchRequest.disable7702 && accountCanUse7702) {
+  if (disableHook && disableSequential && !disable7702 && !accountCanUse7702) {
+    throw rpcErrors.internal('Account does not support EIP-7702');
+  }
+
+  if (!disable7702 && accountCanUse7702) {
     try {
       return await addTransactionBatchWith7702(request);
     } catch (error: unknown) {
@@ -151,7 +159,7 @@ export async function addTransactionBatch(
         error instanceof JsonRpcError &&
         error.message === 'Chain does not support EIP-7702';
 
-      if (!isEIP7702NotSupportedError) {
+      if (!isEIP7702NotSupportedError || (disableHook && disableSequential)) {
         throw error;
       }
     }
@@ -232,7 +240,7 @@ export async function isAtomicBatchSupported(
  *
  * @returns  A unique batch ID as a hexadecimal string.
  */
-function generateBatchId(): Hex {
+export function generateBatchId(): Hex {
   const idString = v4();
   const idBytes = new Uint8Array(parse(idString));
   return bytesToHex(idBytes);

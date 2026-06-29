@@ -91,6 +91,9 @@ export const createMockInfrastructure =
         invalidateAll: jest.fn(),
       },
 
+      // === Terminal API ===
+      terminalApiUrl: 'https://terminal.test-api.cx.metamask.io/v1/perpetuals',
+
       // === Rewards (DI — no RewardsController in Core yet) ===
       rewards: {
         getPerpsDiscountForAccount: jest.fn().mockResolvedValue(0),

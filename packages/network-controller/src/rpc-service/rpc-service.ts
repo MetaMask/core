@@ -30,6 +30,15 @@ import type {
 } from './shared';
 
 /**
+ * Options for the RpcService constructor with some properties omitted and made optional as they have defaults.
+ */
+export type RpcServiceOptionsWithDefaults = Omit<
+  RpcServiceOptions,
+  'failoverService' | 'endpointUrl' | 'isOffline' | 'btoa' | 'fetch'
+> &
+  Partial<Pick<RpcServiceOptions, 'isOffline' | 'btoa' | 'fetch'>>;
+
+/**
  * Options for the RpcService constructor.
  */
 export type RpcServiceOptions = {
@@ -58,10 +67,13 @@ export type RpcServiceOptions = {
    */
   logger?: Pick<Logger, 'warn'>;
   /**
-   * Options to pass to `createServicePolicy`. Note that `retryFilterPolicy` is
-   * not accepted, as it is overwritten. See {@link createServicePolicy}.
+   * Options to pass to `createServicePolicy`. Note that `retryFilterPolicy` and `isServiceFailure`
+   * are not accepted, as they are overwritten. See {@link createServicePolicy}.
    */
-  policyOptions?: Omit<CreateServicePolicyOptions, 'retryFilterPolicy'>;
+  policyOptions?: Omit<
+    CreateServicePolicyOptions,
+    'retryFilterPolicy' | 'isServiceFailure'
+  >;
   /**
    * A function that checks if the user is currently offline. If it returns true,
    * connection errors will not be retried, preventing degraded and break
@@ -75,6 +87,8 @@ const log = createModuleLogger(projectLogger, 'RpcService');
 /**
  * The maximum number of times that a failing service should be re-run before
  * giving up.
+ *
+ * Note: This is not used in production and should be removed.
  */
 export const DEFAULT_MAX_RETRIES = 4;
 
@@ -273,6 +287,31 @@ function stripCredentialsFromUrl(url: URL): URL {
   return strippedUrl;
 }
 
+const INFURA_NON_FAILURE_HTTP_STATUS_CODES = [400, 429];
+
+/**
+ * Predicate function that determines if an error from Infura is treated as a service failure.
+ *
+ * @param error - The error.
+ * @returns True if the error should be treated as a service policy failure. Most errors are treated like failures,
+ * with the exception of certain HTTP status codes.
+ */
+function isServiceFailureInfura(error: unknown): boolean {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    hasProperty(error, 'httpStatus') &&
+    typeof error.httpStatus === 'number'
+  ) {
+    return !INFURA_NON_FAILURE_HTTP_STATUS_CODES.includes(error.httpStatus);
+  }
+
+  // If the error is not an object, or doesn't have a numeric httpStatus
+  // property, consider it a service failure (e.g., network errors, timeouts,
+  // etc.)
+  return true;
+}
+
 /**
  * This class is responsible for making a request to an endpoint that implements
  * the JSON-RPC protocol. It is designed to gracefully handle network and server
@@ -357,10 +396,13 @@ export class RpcService {
     this.endpointUrl = stripCredentialsFromUrl(normalizedUrl);
     this.#logger = logger;
 
+    const isInfura = normalizedUrl.hostname.endsWith('.infura.io');
+
     this.#policy = createServicePolicy({
       maxRetries: DEFAULT_MAX_RETRIES,
       maxConsecutiveFailures: DEFAULT_MAX_CONSECUTIVE_FAILURES,
       ...policyOptions,
+      isServiceFailure: isInfura ? isServiceFailureInfura : undefined,
       retryFilterPolicy: handleWhen((error) => {
         // If user is offline, don't retry any errors
         // This prevents degraded/break callbacks from being triggered

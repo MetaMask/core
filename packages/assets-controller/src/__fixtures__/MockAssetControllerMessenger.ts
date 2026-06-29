@@ -85,7 +85,6 @@ export function createMockAssetControllerMessenger(): {
       // RpcDataSource, StakedBalanceDataSource
       'NetworkController:stateChange',
       'TransactionController:transactionConfirmed',
-      'TransactionController:incomingTransactionsReceived',
       // StakedBalanceDataSource
       'NetworkEnablementController:stateChange',
       // SnapDataSource

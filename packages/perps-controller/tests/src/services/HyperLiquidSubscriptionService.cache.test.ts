@@ -1192,7 +1192,7 @@ describe('HyperLiquidSubscriptionService', () => {
       unsubscribe();
     });
 
-    it('includes spot balance in webData2 (single-DEX) account updates without flickering', async () => {
+    it('includes spot balance in single-DEX account updates without flickering', async () => {
       jest.mocked(adaptAccountStateFromSDK).mockImplementation(() => ({
         spendableBalance: '50',
         withdrawableBalance: '50',
@@ -1202,24 +1202,25 @@ describe('HyperLiquidSubscriptionService', () => {
         returnOnEquity: '0.05',
       }));
 
-      let webData2Callback: ((data: any) => void) | undefined;
-      mockSubscriptionClient.webData2.mockImplementation(
+      // HIP-3 disabled now uses the per-DEX clearinghouseState subscription
+      // (not the deprecated webData2 channel) for account updates.
+      const clearinghouseData = {
+        dex: '',
+        clearinghouseState: {
+          assetPositions: [],
+          marginSummary: {
+            accountValue: '200',
+            totalMarginUsed: '10',
+          },
+          withdrawable: '50',
+        },
+      };
+
+      let clearinghouseCallback: ((data: any) => void) | undefined;
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
         (_params: any, callback: any) => {
-          webData2Callback = callback;
-          setTimeout(() => {
-            callback({
-              clearinghouseState: {
-                assetPositions: [],
-                marginSummary: {
-                  accountValue: '200',
-                  totalMarginUsed: '10',
-                },
-                withdrawable: '50',
-              },
-              openOrders: [],
-              perpsAtOpenInterestCap: [],
-            });
-          }, 0);
+          clearinghouseCallback = callback;
+          setTimeout(() => callback(clearinghouseData), 0);
           return Promise.resolve({
             unsubscribe: jest.fn().mockResolvedValue(undefined),
           });
@@ -1240,6 +1241,7 @@ describe('HyperLiquidSubscriptionService', () => {
 
       await jest.runAllTimersAsync();
 
+      expect(mockSubscriptionClient.webData2).not.toHaveBeenCalled();
       expect(mockCallback).toHaveBeenCalled();
       const firstUpdate = mockCallback.mock.calls.at(-1)[0];
       // Unified-mode default: freeSpot ($100.77) folds into spendable and
@@ -1254,20 +1256,9 @@ describe('HyperLiquidSubscriptionService', () => {
       // Simulate a second WebSocket tick — should still include spot balance,
       // not revert to perps-only 200.
       mockCallback.mockClear();
-      expect(webData2Callback).toBeDefined();
+      expect(clearinghouseCallback).toBeDefined();
 
-      webData2Callback!({
-        clearinghouseState: {
-          assetPositions: [],
-          marginSummary: {
-            accountValue: '200',
-            totalMarginUsed: '10',
-          },
-          withdrawable: '50',
-        },
-        openOrders: [],
-        perpsAtOpenInterestCap: [],
-      });
+      clearinghouseCallback!(clearinghouseData);
 
       await jest.runAllTimersAsync();
 

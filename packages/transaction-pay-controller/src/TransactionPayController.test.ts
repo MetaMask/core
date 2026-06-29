@@ -11,6 +11,7 @@ import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils';
 import { getMessengerMock } from './tests/messenger-mock';
 import type {
   TransactionPayControllerMessenger,
+  TransactionPayControllerOptions,
   TransactionPaySourceAmount,
   UpdateTransactionDataCallback,
 } from './types';
@@ -35,7 +36,6 @@ const TRANSACTION_ID_MOCK = '123-456';
 const TRANSACTION_META_MOCK = { id: TRANSACTION_ID_MOCK } as TransactionMeta;
 const TOKEN_ADDRESS_MOCK = '0xabc' as Hex;
 const CHAIN_ID_MOCK = '0x1' as Hex;
-
 describe('TransactionPayController', () => {
   const updateFiatPaymentMock = jest.mocked(updateFiatPayment);
   const updatePaymentTokenMock = jest.mocked(updatePaymentToken);
@@ -56,10 +56,14 @@ describe('TransactionPayController', () => {
   /**
    * Create a TransactionPayController.
    *
+   * @param options - Controller options.
    * @returns The created controller.
    */
-  function createController(): TransactionPayController {
+  function createController(
+    options: Partial<TransactionPayControllerOptions> = {},
+  ): TransactionPayController {
     return new TransactionPayController({
+      ...options,
       getDelegationTransaction: jest.fn(),
       messenger,
     });
@@ -518,6 +522,74 @@ describe('TransactionPayController', () => {
     });
   });
 
+  describe('getAmountData', () => {
+    it('delegates to the callback', async () => {
+      const resultMock = {
+        updates: [{ nestedTransactionIndex: 0, data: '0xabc' as const }],
+      };
+      const getAmountDataMock = jest.fn().mockResolvedValue(resultMock);
+
+      new TransactionPayController({
+        getAmountData: getAmountDataMock,
+        getDelegationTransaction: jest.fn(),
+        messenger,
+      });
+
+      const requestMock = {
+        amount: '5000000',
+        transaction: TRANSACTION_META_MOCK,
+      };
+
+      const result = await messenger.call(
+        'TransactionPayController:getAmountData',
+        requestMock,
+      );
+
+      expect(getAmountDataMock).toHaveBeenCalledWith(requestMock);
+      expect(result).toStrictEqual(resultMock);
+    });
+
+    it('returns empty updates when no callback is configured', async () => {
+      new TransactionPayController({
+        getDelegationTransaction: jest.fn(),
+        messenger,
+      });
+
+      const result = await messenger.call(
+        'TransactionPayController:getAmountData',
+        {
+          amount: '5000000',
+          transaction: TRANSACTION_META_MOCK,
+        },
+      );
+
+      expect(result).toStrictEqual({ updates: [] });
+    });
+  });
+
+  describe('getFiatOptions', () => {
+    it('returns configured fiat options', () => {
+      const fiatOptions = {
+        testFundingSource: '0x1111111111111111111111111111111111111111' as Hex,
+        testAmountOverride: '0.1',
+      };
+
+      createController({ fiatOptions });
+
+      const result = messenger.call('TransactionPayController:getFiatOptions');
+
+      expect(result).toBe(fiatOptions);
+    });
+
+    it('returns undefined when no fiat options are configured', () => {
+      createController();
+
+      const result = messenger.call('TransactionPayController:getFiatOptions');
+
+      expect(result).toBeUndefined();
+    });
+  });
+
   describe('polymarket callbacks', () => {
     const EOA_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
     const DEPOSIT_WALLET_MOCK =
@@ -899,7 +971,6 @@ describe('TransactionPayController', () => {
   });
 
   describe('fiat token selection', () => {
-    const CAIP_ASSET_ID_MOCK = 'eip155:137/slip44:966';
     const FIAT_ASSET_MOCK = {
       address: '0x0000000000000000000000000000000000001010' as Hex,
       chainId: '0x89' as Hex,
@@ -939,7 +1010,7 @@ describe('TransactionPayController', () => {
       ).toBeUndefined();
     });
 
-    it('stores caipAssetId in fiatPayment when payment method changes', () => {
+    it('does not set caipAssetId when payment method changes (set by quote functions instead)', () => {
       getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
       deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
 
@@ -953,7 +1024,7 @@ describe('TransactionPayController', () => {
       expect(
         controller.state.transactionData[TRANSACTION_ID_MOCK]?.fiatPayment
           ?.caipAssetId,
-      ).toBe(CAIP_ASSET_ID_MOCK);
+      ).toBeUndefined();
     });
 
     it('triggers quote update when fiat payment changes', () => {

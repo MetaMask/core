@@ -6,7 +6,14 @@ When run within a project (such as `metamask-extension` or `metamask-mobile`), t
 
 ## Installation
 
-1. Add this package as a dependency (`yarn add --dev @metamask/platform-api-docs` or `npm install --save-dev @metamask/platform-api-docs`).
+1. Add this package as a development dependency:
+
+   `yarn add @metamask/platform-api-docs`
+
+   or
+
+   `npm install @metamask/platform-api-docs`
+
 2. Add a script to your project's `package.json`. For example:
    ```json
    {

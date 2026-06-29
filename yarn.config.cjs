@@ -39,6 +39,7 @@ const ALLOWED_PEER_DEPENDENCIES = ['react', 'react-dom', 'react-native'];
 const TOOLS = [
   '@metamask/foundryup',
   '@metamask/messenger-cli',
+  '@metamask/wallet-cli',
   '@metamask/wallet-framework-docs',
   '@metamask/platform-api-docs',
 ];
@@ -176,11 +177,16 @@ module.exports = defineConfig({
         );
 
         // All non-root packages must have the same "test" script.
-        expectWorkspaceField(
-          workspace,
-          'scripts.test',
-          'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter',
-        );
+        // @metamask/wallet-cli prepends a better-sqlite3 prebuild fetch to its
+        // "test" script because the native addon isn't built during
+        // `yarn install` (Yarn runs with `enableScripts: false`).
+        if (workspace.ident !== '@metamask/wallet-cli') {
+          expectWorkspaceField(
+            workspace,
+            'scripts.test',
+            'NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter',
+          );
+        }
 
         // All non-root packages must have the same "test:clean" script.
         expectWorkspaceField(
@@ -258,11 +264,18 @@ module.exports = defineConfig({
       if (isChildWorkspace) {
         workspace.unset('packageManager');
       } else {
-        expectWorkspaceField(workspace, 'packageManager', 'yarn@4.14.1');
+        expectYarnPackageManager(workspace);
       }
 
       // All packages must specify a minimum Node.js version of 18.18.
-      expectWorkspaceField(workspace, 'engines.node', '^18.18 || >=20');
+      // @metamask/wallet-cli depends on `better-sqlite3`, which only ships
+      // prebuilt binaries for Node 20+; bumping its declared minimum keeps the
+      // engines field honest.
+      if (workspace.ident === '@metamask/wallet-cli') {
+        expectWorkspaceField(workspace, 'engines.node', '>=20');
+      } else {
+        expectWorkspaceField(workspace, 'engines.node', '^18.18 || >=20');
+      }
 
       // All non-root public packages should be published to the NPM registry;
       // all non-root private packages should not.
@@ -534,6 +547,7 @@ async function expectWorkspaceLicense(workspace) {
       '@metamask/permission-log-controller',
       '@metamask/eth-json-rpc-middleware',
       '@metamask/eth-json-rpc-provider',
+      '@metamask/smart-transactions-controller',
     ].includes(workspace.manifest.name)
   ) {
     expectWorkspaceField(workspace, 'license');
@@ -1018,5 +1032,28 @@ async function expectCodeowner(workspace, workspaceBasename) {
         'Missing CODEOWNER rule for package.json co-ownership with core platform team',
       );
     }
+  }
+}
+
+/**
+ * Expect that the workspace has a package manager set, and that it is Yarn with
+ * a sha256 hash.
+ *
+ * @param {Workspace} workspace - The workspace to check.
+ */
+function expectYarnPackageManager(workspace) {
+  expectWorkspaceField(workspace, 'packageManager');
+
+  const { packageManager } = workspace.manifest;
+  if (!packageManager.startsWith('yarn@')) {
+    workspace.error(
+      `Expected packageManager to start with "yarn@<version>", but got "${packageManager}".`,
+    );
+  }
+
+  if (!packageManager.includes('sha256')) {
+    workspace.error(
+      `Expected packageManager to include a sha256 hash, but got "${packageManager}".`,
+    );
   }
 }

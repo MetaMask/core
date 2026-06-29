@@ -1,3 +1,4 @@
+import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import { Messenger } from '@metamask/messenger';
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import { Json } from '@metamask/utils';
@@ -5,18 +6,35 @@ import { webcrypto } from 'crypto';
 
 import MockEncryptor from '../../keyring-controller/tests/mocks/mockEncryptor';
 import * as initializationModule from './initialization/initialization';
+import { AlwaysOnlineAdapter } from './initialization/instances/connectivity-controller/always-online-adapter';
 import { importSecretRecoveryPhrase } from './utilities';
 import { Wallet } from './Wallet';
 
 const TEST_SRP = 'test test test test test test test test test test test ball';
 const TEST_PASSWORD = 'testpass';
 
+const REMOTE_FEATURE_FLAG_OPTIONS = {
+  clientConfigApiService: {
+    fetchRemoteFeatureFlags: async (): Promise<{
+      remoteFeatureFlags: Record<string, boolean>;
+      cacheTimestamp: number;
+    }> => ({ remoteFeatureFlags: {}, cacheTimestamp: Date.now() }),
+  },
+};
+
 async function setupWallet(): Promise<Wallet> {
   const wallet = new Wallet({
     instanceOptions: {
+      connectivityController: {
+        connectivityAdapter: new AlwaysOnlineAdapter(),
+      },
+      networkController: {
+        infuraProjectId: 'fake-infura-project-id',
+      },
       storageService: {
         storage: new InMemoryStorageAdapter(),
       },
+      remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
     },
   });
 
@@ -67,12 +85,19 @@ describe('Wallet', () => {
   it('supports passing instance options', async () => {
     const wallet = new Wallet({
       instanceOptions: {
+        connectivityController: {
+          connectivityAdapter: new AlwaysOnlineAdapter(),
+        },
         keyringController: {
           encryptor: new MockEncryptor(),
+        },
+        networkController: {
+          infuraProjectId: 'fake-infura-project-id',
         },
         storageService: {
           storage: new InMemoryStorageAdapter(),
         },
+        remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
       },
     });
 
@@ -112,9 +137,16 @@ describe('Wallet', () => {
         },
       ],
       instanceOptions: {
+        connectivityController: {
+          connectivityAdapter: new AlwaysOnlineAdapter(),
+        },
+        networkController: {
+          infuraProjectId: 'fake-infura-project-id',
+        },
         storageService: {
           storage: new InMemoryStorageAdapter(),
         },
+        remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
       },
     });
     const { state } = wallet;
@@ -146,12 +178,33 @@ describe('Wallet', () => {
       NoMeta: { state: {} },
     });
 
-    const wallet = new Wallet({});
+    const wallet = new Wallet({
+      instanceOptions: {
+        connectivityController: {
+          connectivityAdapter: new AlwaysOnlineAdapter(),
+        },
+        networkController: {
+          infuraProjectId: 'fake-infura-project-id',
+        },
+        storageService: {
+          storage: new InMemoryStorageAdapter(),
+        },
+        remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+      },
+    });
 
     expect(wallet.controllerMetadata).toStrictEqual({
       WithMeta: fakeMetadata,
     });
     expect(Object.keys(wallet.state)).toStrictEqual(['WithMeta', 'NoMeta']);
+  });
+
+  it('calls init on all instances and returns the results', async () => {
+    const wallet = await setupWallet();
+
+    const results = await wallet.init();
+
+    expect(results).toHaveLength(2);
   });
 
   it('disallows modifying the messenger', async () => {
@@ -191,6 +244,47 @@ describe('Wallet', () => {
     expect(spy).toHaveBeenCalledTimes(1);
   });
 
+  describe('AccountsController', () => {
+    it('tracks accounts created via KeyringController', async () => {
+      const wallet = await setupWallet();
+
+      const keyringAccounts = await wallet.messenger.call(
+        'KeyringController:getAccounts',
+      );
+      const trackedAddresses = Object.values(
+        wallet.state.AccountsController.internalAccounts.accounts,
+      ).map((account) => account.address);
+
+      // Sort both arrays so the assertion does not depend on account ordering.
+      expect([...trackedAddresses].sort()).toStrictEqual(
+        [...keyringAccounts].sort(),
+      );
+    });
+  });
+
+  describe('ConnectivityController', () => {
+    it('reports online connectivity status', () => {
+      const wallet = new Wallet({
+        instanceOptions: {
+          connectivityController: {
+            connectivityAdapter: new AlwaysOnlineAdapter(),
+          },
+          networkController: {
+            infuraProjectId: 'fake-infura-project-id',
+          },
+          storageService: {
+            storage: new InMemoryStorageAdapter(),
+          },
+          remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+        },
+      });
+
+      expect(wallet.state.ConnectivityController.connectivityStatus).toBe(
+        CONNECTIVITY_STATUSES.Online,
+      );
+    });
+  });
+
   describe('KeyringController', () => {
     it('can unlock and populate accounts', async () => {
       const wallet = await setupWallet();
@@ -212,9 +306,16 @@ describe('Wallet', () => {
           },
         },
         instanceOptions: {
+          connectivityController: {
+            connectivityAdapter: new AlwaysOnlineAdapter(),
+          },
+          networkController: {
+            infuraProjectId: 'fake-infura-project-id',
+          },
           storageService: {
             storage: new InMemoryStorageAdapter(),
           },
+          remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
         },
       });
 
@@ -262,6 +363,58 @@ describe('Wallet', () => {
         (await messenger.call('StorageService:getItem', 'TestNamespace', 'foo'))
           .result,
       ).toBe('bar');
+    });
+  });
+
+  describe('RemoteFeatureFlagController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+
+      expect(
+        messenger.call('RemoteFeatureFlagController:getState'),
+      ).toStrictEqual({
+        remoteFeatureFlags: {},
+        localOverrides: {},
+        rawRemoteFeatureFlags: {},
+        cacheTimestamp: 0,
+      });
+    });
+
+    it('routes injected instanceOptions through to the controller', async () => {
+      const wallet = new Wallet({
+        instanceOptions: {
+          connectivityController: {
+            connectivityAdapter: new AlwaysOnlineAdapter(),
+          },
+          networkController: {
+            infuraProjectId: 'fake-infura-project-id',
+          },
+          keyringController: { encryptor: new MockEncryptor() },
+          storageService: { storage: new InMemoryStorageAdapter() },
+          remoteFeatureFlagController: {
+            clientConfigApiService: {
+              fetchRemoteFeatureFlags: async (): Promise<{
+                remoteFeatureFlags: Record<string, boolean>;
+                cacheTimestamp: number;
+              }> => ({
+                remoteFeatureFlags: { testFlag: true },
+                cacheTimestamp: Date.now(),
+              }),
+            },
+          },
+        },
+      });
+      const { messenger } = wallet;
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(
+        messenger.call('RemoteFeatureFlagController:getState')
+          .remoteFeatureFlags,
+      ).toStrictEqual({ testFlag: true });
     });
   });
 });

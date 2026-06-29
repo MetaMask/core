@@ -328,9 +328,9 @@ function buildAccountsControllerMessenger(
     ],
     events: [
       'KeyringController:stateChange',
-      'SnapKeyring:accountAssetListUpdated',
-      'SnapKeyring:accountBalancesUpdated',
-      'SnapKeyring:accountTransactionsUpdated',
+      'SnapAccountService:accountAssetListUpdated',
+      'SnapAccountService:accountBalancesUpdated',
+      'SnapAccountService:accountTransactionsUpdated',
       'MultichainNetworkController:networkDidChange',
     ],
   });
@@ -2144,7 +2144,7 @@ describe('AccountsController', () => {
       return { messenger, account, accountsController };
     };
 
-    it('re-publishes keyring events: SnapKeyring:accountBalancesUpdated', () => {
+    it('re-publishes keyring events: SnapAccountService:accountBalancesUpdated', () => {
       const { account, messenger } = setupTest();
 
       const payload: AccountBalancesUpdatedEventPayload = {
@@ -2163,11 +2163,11 @@ describe('AccountsController', () => {
         'AccountsController:accountBalancesUpdated',
         mockRePublishedCallback,
       );
-      messenger.publish('SnapKeyring:accountBalancesUpdated', payload);
+      messenger.publish('SnapAccountService:accountBalancesUpdated', payload);
       expect(mockRePublishedCallback).toHaveBeenCalledWith(payload);
     });
 
-    it('re-publishes keyring events: SnapKeyring:accountAssetListUpdated', () => {
+    it('re-publishes keyring events: SnapAccountService:accountAssetListUpdated', () => {
       const { account, messenger } = setupTest();
 
       const payload: AccountAssetListUpdatedEventPayload = {
@@ -2184,11 +2184,11 @@ describe('AccountsController', () => {
         'AccountsController:accountAssetListUpdated',
         mockRePublishedCallback,
       );
-      messenger.publish('SnapKeyring:accountAssetListUpdated', payload);
+      messenger.publish('SnapAccountService:accountAssetListUpdated', payload);
       expect(mockRePublishedCallback).toHaveBeenCalledWith(payload);
     });
 
-    it('re-publishes keyring events: SnapKeyring:accountTransactionsUpdated', () => {
+    it('re-publishes keyring events: SnapAccountService:accountTransactionsUpdated', () => {
       const { account, messenger } = setupTest();
 
       const payload: AccountTransactionsUpdatedEventPayload = {
@@ -2225,7 +2225,10 @@ describe('AccountsController', () => {
         'AccountsController:accountTransactionsUpdated',
         mockRePublishedCallback,
       );
-      messenger.publish('SnapKeyring:accountTransactionsUpdated', payload);
+      messenger.publish(
+        'SnapAccountService:accountTransactionsUpdated',
+        payload,
+      );
       expect(mockRePublishedCallback).toHaveBeenCalledWith(payload);
     });
   });

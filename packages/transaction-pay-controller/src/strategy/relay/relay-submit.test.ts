@@ -206,6 +206,14 @@ describe('Relay Submit Utils', () => {
   });
 
   describe('submitRelayQuotes', () => {
+    it('throws if there are no Relay quotes to submit', async () => {
+      request.quotes = [];
+
+      await expect(submitRelayQuotes(request)).rejects.toThrow(
+        'Relay: No quotes to submit',
+      );
+    });
+
     it('adds transaction', async () => {
       await submitRelayQuotes(request);
 
@@ -228,6 +236,22 @@ describe('Relay Submit Utils', () => {
           requireApproval: false,
           type: TransactionType.relayDeposit,
         },
+      );
+    });
+
+    it('passes sponsored gas options when parent sponsorship applies to same-chain quote', async () => {
+      request.transaction.chainId = CHAIN_ID_MOCK;
+      request.transaction.isGasFeeSponsored = true;
+      request.quotes[0].request.targetChainId = CHAIN_ID_MOCK;
+      request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.any(Object),
+        expect.objectContaining({
+          isGasFeeSponsored: true,
+        }),
       );
     });
 
@@ -601,7 +625,7 @@ describe('Relay Submit Utils', () => {
       request.quotes[0].original.steps[0].kind = 'unsupported' as never;
 
       await expect(submitRelayQuotes(request)).rejects.toThrow(
-        'Unsupported step kind: unsupported',
+        'Relay: Unsupported step kind: unsupported',
       );
     });
 
@@ -625,9 +649,31 @@ describe('Relay Submit Utils', () => {
     it('does not wait for relay status if same chain', async () => {
       request.quotes[0].original.details.currencyOut.currency.chainId = 1;
 
-      await submitRelayQuotes(request);
+      const result = await submitRelayQuotes(request);
 
+      expect(result.transactionHash).toBe('0x0');
       expect(successfulFetchMock).toHaveBeenCalledTimes(0);
+    });
+
+    it('returns fallback hash if same-chain polling returns no target hash', async () => {
+      request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+      request.quotes[0].original.steps = [
+        {
+          ...request.quotes[0].original.steps[0],
+          id: 'deposit',
+        },
+      ];
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          ...STATUS_RESPONSE_MOCK,
+          txHashes: [],
+        }),
+      } as Response);
+
+      const result = await submitRelayQuotes(request);
+
+      expect(result.transactionHash).toBe('0x0');
     });
 
     it('waits for relay status if same chain with single deposit step', async () => {
@@ -656,7 +702,7 @@ describe('Relay Submit Utils', () => {
       );
 
       await expect(submitRelayQuotes(request)).rejects.toThrow(
-        'Transaction failed',
+        'Relay: Transaction failed',
       );
     });
 
@@ -666,7 +712,23 @@ describe('Relay Submit Utils', () => {
       );
 
       await expect(submitRelayQuotes(request)).rejects.toThrow(
-        'addTransaction boom',
+        'Relay: addTransaction boom',
+      );
+    });
+
+    it('throws if no Relay child transactions are collected', async () => {
+      collectTransactionIdsMock.mockReturnValue({ end: jest.fn() });
+
+      await expect(submitRelayQuotes(request)).rejects.toThrow(
+        'Relay: No transactions submitted',
+      );
+    });
+
+    it('throws if the confirmed Relay child transaction has no hash', async () => {
+      getTransactionMock.mockReturnValue({} as TransactionMeta);
+
+      await expect(submitRelayQuotes(request)).rejects.toThrow(
+        'Relay: Missing transaction hash',
       );
     });
 
@@ -679,7 +741,7 @@ describe('Relay Submit Utils', () => {
         } as Response);
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
-          `Relay request failed with status: ${status}`,
+          `Relay: Request failed with status: ${status}`,
         );
       },
     );
@@ -691,7 +753,7 @@ describe('Relay Submit Utils', () => {
       } as Response);
 
       await expect(submitRelayQuotes(request)).rejects.toThrow(
-        'Relay returned unrecognized status: unknown_status',
+        'Relay: Unrecognized status: unknown_status',
       );
     });
 
@@ -746,7 +808,7 @@ describe('Relay Submit Utils', () => {
         });
 
       await expect(submitRelayQuotes(request)).rejects.toThrow(
-        'Relay polling timed out',
+        'Relay: Polling timed out',
       );
     });
 
@@ -768,7 +830,7 @@ describe('Relay Submit Utils', () => {
         });
 
       await expect(submitRelayQuotes(request)).rejects.toThrow(
-        'Relay polling timed out (last status: pending)',
+        'Relay: Polling timed out (last status: pending)',
       );
     });
 
@@ -1130,25 +1192,6 @@ describe('Relay Submit Utils', () => {
         );
       });
 
-      it('sets gas to undefined when gasLimits entry is missing', async () => {
-        request.quotes[0].original.metamask.gasLimits = [];
-
-        await submitRelayQuotes(request);
-
-        expect(addTransactionBatchMock).toHaveBeenCalledWith(
-          expect.objectContaining({
-            transactions: expect.arrayContaining([
-              expect.objectContaining({
-                params: expect.objectContaining({
-                  gas: undefined,
-                }),
-                type: TransactionType.relayDeposit,
-              }),
-            ]),
-          }),
-        );
-      });
-
       it('does not activate 7702 mode with multiple post-quote gas limits', async () => {
         request.quotes[0].original.metamask.gasLimits = [21000, 21000];
 
@@ -1339,6 +1382,24 @@ describe('Relay Submit Utils', () => {
       );
     });
 
+    it('passes sponsored gas options to same-chain batch submissions', async () => {
+      request.transaction.chainId = CHAIN_ID_MOCK;
+      request.transaction.isGasFeeSponsored = true;
+      request.quotes[0].request.targetChainId = CHAIN_ID_MOCK;
+      request.quotes[0].original.details.currencyOut.currency.chainId = 1;
+      request.quotes[0].original.steps[0].items.push({
+        ...request.quotes[0].original.steps[0].items[0],
+      });
+
+      await submitRelayQuotes(request);
+
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          isGasFeeSponsored: true,
+        }),
+      );
+    });
+
     it('validates source balance before submitting single transaction', async () => {
       await submitRelayQuotes(request);
 
@@ -1369,7 +1430,7 @@ describe('Relay Submit Utils', () => {
       getLiveTokenBalanceMock.mockResolvedValue('500000');
 
       await expect(submitRelayQuotes(request)).rejects.toThrow(
-        'Insufficient source token balance for relay deposit. Required: 1000000, Available: 500000',
+        'Relay: Insufficient source token balance for relay deposit. Required: 1000000, Available: 500000',
       );
 
       expect(addTransactionMock).not.toHaveBeenCalled();
@@ -1383,7 +1444,7 @@ describe('Relay Submit Utils', () => {
       getLiveTokenBalanceMock.mockResolvedValue('500000');
 
       await expect(submitRelayQuotes(request)).rejects.toThrow(
-        'Insufficient source token balance for relay deposit. Required: 1000000, Available: 500000',
+        'Relay: Insufficient source token balance for relay deposit. Required: 1000000, Available: 500000',
       );
 
       expect(addTransactionBatchMock).not.toHaveBeenCalled();
@@ -1393,7 +1454,7 @@ describe('Relay Submit Utils', () => {
       getLiveTokenBalanceMock.mockResolvedValue('0');
 
       await expect(submitRelayQuotes(request)).rejects.toThrow(
-        'Insufficient source token balance for relay deposit. Required: 1000000, Available: 0',
+        'Relay: Insufficient source token balance for relay deposit. Required: 1000000, Available: 0',
       );
 
       expect(addTransactionMock).not.toHaveBeenCalled();
@@ -1419,7 +1480,7 @@ describe('Relay Submit Utils', () => {
       getLiveTokenBalanceMock.mockRejectedValue(new Error('RPC timeout'));
 
       await expect(submitRelayQuotes(request)).rejects.toThrow(
-        'Cannot validate payment token balance - RPC timeout',
+        'Relay: Cannot validate payment token balance - RPC timeout',
       );
     });
 
@@ -1562,7 +1623,7 @@ describe('Relay Submit Utils', () => {
         } as Response);
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
-          'Relay request failed with status: refund',
+          'Relay: Request failed with status: refund',
         );
         expect(sweepPolymarketDepositWallet).toHaveBeenCalledWith(
           FROM_MOCK,
@@ -1584,7 +1645,7 @@ describe('Relay Submit Utils', () => {
         } as Response);
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
-          'Relay request failed with status: refunded',
+          'Relay: Request failed with status: refunded',
         );
         expect(sweepPolymarketDepositWallet).toHaveBeenCalledWith(
           FROM_MOCK,
@@ -1602,7 +1663,7 @@ describe('Relay Submit Utils', () => {
         } as Response);
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
-          'Relay request failed with status: timeout',
+          'Relay: Request failed with status: timeout',
         );
         expect(sweepPolymarketDepositWallet).toHaveBeenCalledWith(
           FROM_MOCK,
@@ -1759,7 +1820,7 @@ describe('Relay Submit Utils', () => {
         } as Response);
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
-          'Relay execute: 422 - failed to decode param in array[0] invalid JSON input',
+          'Relay: Execute: 422 - failed to decode param in array[0] invalid JSON input',
         );
       });
 
@@ -1768,7 +1829,7 @@ describe('Relay Submit Utils', () => {
         successfulFetchMock.mockRejectedValueOnce('network down');
 
         await expect(submitRelayQuotes(request)).rejects.toThrow(
-          'Relay execute: network down',
+          'Relay: Execute: network down',
         );
       });
 

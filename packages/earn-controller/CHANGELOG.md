@@ -9,7 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/account-tree-controller` from `^7.4.0` to `^7.5.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
+- Bump `@metamask/account-tree-controller` from `^7.5.2` to `^7.5.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
+- Bump `@metamask/keyring-api` from `^23.1.0` to `^23.3.0` ([#9249](https://github.com/MetaMask/core/pull/9249))
+
+## [12.2.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.3.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/account-tree-controller` from `^7.4.0` to `^7.5.2` ([#8912](https://github.com/MetaMask/core/pull/8912), [#8999](https://github.com/MetaMask/core/pull/8999), [#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/transaction-controller` from `^67.1.0` to `^68.0.0` ([#9089](https://github.com/MetaMask/core/pull/9089))
+- Bump `@metamask/network-controller` from `^32.0.0` to `^33.0.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
 
 ## [12.2.0]
 
@@ -461,7 +471,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.1...HEAD
+[12.2.1]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.0...@metamask/earn-controller@12.2.1
 [12.2.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.1.2...@metamask/earn-controller@12.2.0
 [12.1.2]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.1.1...@metamask/earn-controller@12.1.2
 [12.1.1]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.1.0...@metamask/earn-controller@12.1.1

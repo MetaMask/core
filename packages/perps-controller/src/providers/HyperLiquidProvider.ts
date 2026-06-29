@@ -20,6 +20,8 @@ import {
   HIP3_ASSET_MARKET_TYPES,
   HIP3_FEE_CONFIG,
   HIP3_MARGIN_CONFIG,
+  HYPERLIQUID_ASSET_NAMES,
+  HYPERLIQUID_CONFIG,
   HYPERLIQUID_WITHDRAWAL_MINUTES,
   REFERRAL_CONFIG,
   SPOT_ASSET_ID_OFFSET,
@@ -407,11 +409,14 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   readonly #builderAddressMainnet?: string;
 
+  readonly #priceDeviationLimit: number;
+
   constructor(options: {
     isTestnet?: boolean;
     hip3Enabled?: boolean;
     allowlistMarkets?: string[];
     blocklistMarkets?: string[];
+    priceDeviationLimit?: number;
     useUnifiedAccount?: boolean;
     platformDependencies: PerpsPlatformDependencies;
     messenger: PerpsControllerMessengerBase;
@@ -423,6 +428,9 @@ export class HyperLiquidProvider implements PerpsProvider {
     this.#messenger = options.messenger;
     this.#builderAddressTestnet = options.builderAddressTestnet;
     this.#builderAddressMainnet = options.builderAddressMainnet;
+    this.#priceDeviationLimit =
+      options.priceDeviationLimit ??
+      HYPERLIQUID_CONFIG.OraclePriceDeviationLimit;
     const isTestnet = options.isTestnet ?? false;
 
     // Dev-friendly defaults: Enable all markets by default for easier testing (discovery mode)
@@ -457,6 +465,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       [], // enabledDexs - will be populated after DEX discovery in buildAssetMapping
       this.#allowlistMarkets,
       this.#blocklistMarkets,
+      this.#priceDeviationLimit,
     );
 
     // NOTE: Clients are NOT initialized here - they'll be initialized lazily
@@ -6816,6 +6825,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       },
       this.#deps.marketDataFormatters,
       HIP3_ASSET_MARKET_TYPES,
+      HYPERLIQUID_ASSET_NAMES,
     );
 
     return this.#cacheFreshMarketDataSnapshot(
@@ -7537,7 +7547,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   /**
    * Subscribe to open interest cap updates
-   * Zero additional overhead - data extracted from existing webData2 subscription
+   * Zero additional overhead - data extracted from existing webData3 subscription
    *
    * @param params - The operation parameters.
    * @returns A cleanup function to remove the subscription.

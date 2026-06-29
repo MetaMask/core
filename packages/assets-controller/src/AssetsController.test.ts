@@ -28,7 +28,7 @@ import type {
   DataResponse,
   FungibleAssetMetadata,
 } from './types';
-import { formatExchangeRatesForBridge } from './utils';
+import { formatExchangeRatesForBridge, normalizeAssetId } from './utils';
 
 jest.mock('./utils', () => {
   const actual = jest.requireActual<typeof import('./utils')>('./utils');
@@ -269,12 +269,10 @@ describe('AssetsController', () => {
       const defaultState = getDefaultAssetsControllerState();
       const assetIds = Object.keys(defaultState.assetsInfo);
       expect(assetIds.length).toBeGreaterThan(0);
-      // Every erc20 asset ID must contain at least one uppercase hex letter
-      // (EIP-55 checksum property) so that keys match normalizeAssetId output.
       const erc20Ids = assetIds.filter((id) => id.includes('/erc20:'));
       expect(erc20Ids.length).toBeGreaterThan(0);
       for (const id of erc20Ids) {
-        expect(id).toMatch(/\/erc20:0x[0-9a-fA-F]*[A-F][0-9a-fA-F]*/u);
+        expect(id).toBe(normalizeAssetId(id as Caip19AssetId));
       }
     });
   });
@@ -1269,45 +1267,48 @@ describe('AssetsController', () => {
   });
 
   describe('handleActiveChainsUpdate', () => {
-    it('calls getAssets with added enabled chains when chains are added', async () => {
+    it('re-subscribes assets when chains are added', async () => {
+      await withController(async ({ controller }) => {
+        const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
+
+        const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
+        onActiveChainsUpdated('TestDataSource', ['eip155:1'], []);
+
+        expect(subscribeSpy).toHaveBeenCalledTimes(1);
+      });
+    });
+
+    it('does not fetch balances directly when chains are added', async () => {
       await withController(async ({ controller }) => {
         const getAssetsSpy = jest.spyOn(controller, 'getAssets');
 
         const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
         onActiveChainsUpdated('TestDataSource', ['eip155:1'], []);
 
-        expect(getAssetsSpy).toHaveBeenCalledTimes(1);
-        expect(getAssetsSpy).toHaveBeenCalledWith(
-          expect.any(Array),
-          expect.objectContaining({
-            chainIds: ['eip155:1'],
-            forceUpdate: true,
-            updateMode: 'merge',
-          }),
-        );
+        expect(getAssetsSpy).not.toHaveBeenCalled();
       });
     });
 
-    it('does not call getAssets when no chains are added', async () => {
+    it('does not re-subscribe when no chains change', async () => {
       await withController(async ({ controller }) => {
-        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+        const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
 
         const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
         onActiveChainsUpdated('TestDataSource', [], []);
         onActiveChainsUpdated('TestDataSource', ['eip155:1'], ['eip155:1']);
 
-        expect(getAssetsSpy).not.toHaveBeenCalled();
+        expect(subscribeSpy).not.toHaveBeenCalled();
       });
     });
 
-    it('does not call getAssets when only chains are removed', async () => {
+    it('re-subscribes assets when chains are removed', async () => {
       await withController(async ({ controller }) => {
-        const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+        const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
 
         const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
         onActiveChainsUpdated('TestDataSource', [], ['eip155:1']);
 
-        expect(getAssetsSpy).not.toHaveBeenCalled();
+        expect(subscribeSpy).toHaveBeenCalledTimes(1);
       });
     });
 
@@ -1317,12 +1318,12 @@ describe('AssetsController', () => {
           controllerOptions: { isEnabled: (): boolean => false },
         },
         async ({ controller }) => {
-          const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+          const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
           const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
 
           onActiveChainsUpdated('TestDataSource', ['eip155:1'], []);
 
-          expect(getAssetsSpy).not.toHaveBeenCalled();
+          expect(subscribeSpy).not.toHaveBeenCalled();
         },
       );
     });
@@ -1335,13 +1336,13 @@ describe('AssetsController', () => {
           controllerOptions: { isEnabled: (): boolean => enabled },
         },
         async ({ controller }) => {
-          const getAssetsSpy = jest.spyOn(controller, 'getAssets');
+          const subscribeSpy = jest.spyOn(controller, 'subscribeAssetsPrice');
           enabled = false;
 
           const onActiveChainsUpdated = controller.getOnActiveChainsUpdated();
           onActiveChainsUpdated('TestDataSource', ['eip155:1'], []);
 
-          expect(getAssetsSpy).not.toHaveBeenCalled();
+          expect(subscribeSpy).not.toHaveBeenCalled();
         },
       );
     });
@@ -1365,6 +1366,167 @@ describe('AssetsController', () => {
           controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
         ).toStrictEqual({ amount: '1000000' });
       });
+    });
+
+    it('reconciles a stale native type stored as erc20 when assetsInfo includes the asset', async () => {
+      // Native (zero-address ERC-20) mis-stored as erc20 by an older version.
+      const imxAssetId =
+        'eip155:13371/erc20:0x0000000000000000000000000000000000000000' as Caip19AssetId;
+      const initialState: Partial<AssetsControllerState> = {
+        assetsInfo: {
+          [imxAssetId]: {
+            type: 'erc20',
+            symbol: 'IMX',
+            name: 'Immutable X',
+            decimals: 18,
+            image: 'https://example.com/imx.png',
+          },
+        },
+      };
+
+      await withController(
+        { state: initialState, isBasicFunctionality: () => false },
+        async ({ controller }) => {
+          // Reconciliation occurs when assetsInfo includes the asset.
+          await controller.handleAssetsUpdate(
+            {
+              assetsInfo: {
+                [imxAssetId]: {
+                  type: 'erc20',
+                  symbol: 'IMX',
+                  name: 'Immutable X',
+                  decimals: 18,
+                  image: 'https://example.com/imx.png',
+                },
+              },
+            },
+            'TestSource',
+          );
+
+          expect(controller.state.assetsInfo[imxAssetId]).toStrictEqual({
+            type: 'native',
+            symbol: 'IMX',
+            name: 'Immutable X',
+            decimals: 18,
+            image: 'https://example.com/imx.png',
+          });
+        },
+      );
+    });
+
+    it('reconciles a stale native type stored as erc20 when assetsBalance includes the asset', async () => {
+      const imxAssetId =
+        'eip155:13371/erc20:0x0000000000000000000000000000000000000000' as Caip19AssetId;
+      const initialState: Partial<AssetsControllerState> = {
+        assetsInfo: {
+          [imxAssetId]: {
+            type: 'erc20',
+            symbol: 'IMX',
+            name: 'Immutable X',
+            decimals: 18,
+            image: 'https://example.com/imx.png',
+          },
+        },
+      };
+
+      await withController(
+        { state: initialState, isBasicFunctionality: () => false },
+        async ({ controller }) => {
+          await controller.handleAssetsUpdate(
+            {
+              assetsBalance: {
+                [MOCK_ACCOUNT_ID]: {
+                  [imxAssetId]: { amount: '1000000000000000000' },
+                },
+              },
+            },
+            'TestSource',
+          );
+
+          expect(controller.state.assetsInfo[imxAssetId]).toStrictEqual({
+            type: 'native',
+            symbol: 'IMX',
+            name: 'Immutable X',
+            decimals: 18,
+            image: 'https://example.com/imx.png',
+          });
+        },
+      );
+    });
+
+    it('leaves a genuine erc20 type untouched when assetsInfo includes it', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsInfo: {
+          [MOCK_ASSET_ID]: {
+            type: 'erc20',
+            symbol: 'USDC',
+            name: 'USD Coin',
+            decimals: 6,
+          },
+        },
+      };
+
+      await withController(
+        { state: initialState, isBasicFunctionality: () => false },
+        async ({ controller }) => {
+          await controller.handleAssetsUpdate(
+            {
+              assetsInfo: {
+                [MOCK_ASSET_ID]: {
+                  type: 'erc20',
+                  symbol: 'USDC',
+                  name: 'USD Coin',
+                  decimals: 6,
+                },
+              },
+            },
+            'TestSource',
+          );
+
+          expect(controller.state.assetsInfo[MOCK_ASSET_ID]?.type).toBe(
+            'erc20',
+          );
+        },
+      );
+    });
+
+    it('reconciles type when assetsInfo response uses a non-checksummed asset ID', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsInfo: {
+          [MOCK_ASSET_ID]: {
+            type: 'native',
+            symbol: 'USDC',
+            name: 'USD Coin',
+            decimals: 6,
+          },
+        },
+      };
+
+      await withController(
+        { state: initialState, isBasicFunctionality: () => false },
+        async ({ controller }) => {
+          await controller.handleAssetsUpdate(
+            {
+              assetsInfo: {
+                [MOCK_ASSET_ID_LOWERCASE]: {
+                  type: 'native',
+                  symbol: 'USDC',
+                  name: 'USD Coin',
+                  decimals: 6,
+                },
+              },
+            },
+            'TestSource',
+          );
+
+          expect(controller.state.assetsInfo[MOCK_ASSET_ID]?.type).toBe(
+            'erc20',
+          );
+          expect(
+            controller.state.assetsInfo[MOCK_ASSET_ID_LOWERCASE],
+          ).toBeUndefined();
+        },
+      );
     });
 
     it('updates state with metadata', async () => {
@@ -1555,6 +1717,82 @@ describe('AssetsController', () => {
         expect(
           controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[polygonNative],
         ).toStrictEqual({ amount: '10' });
+      });
+    });
+
+    it('does not let subscription polling overwrite a recent websocket balance update', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '8.185173' },
+          },
+        },
+      };
+
+      await withController({ state: initialState }, async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '7.185173' },
+              },
+            },
+          },
+          'BackendWebsocketDataSource',
+        );
+
+        await controller.handleAssetsUpdate(
+          {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '8.185173' },
+              },
+            },
+          },
+          'AccountsApiDataSource',
+        );
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+        ).toStrictEqual({ amount: '7.185173' });
+      });
+    });
+
+    it('applies getAssets forceUpdate over a recent websocket balance update', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: { amount: '8.185173' },
+          },
+        },
+      };
+
+      await withController({ state: initialState }, async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '7.185173' },
+              },
+            },
+          },
+          'BackendWebsocketDataSource',
+        );
+
+        await controller.handleAssetsUpdate(
+          {
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '8.185173' },
+              },
+            },
+          },
+          'getAssets:forceUpdate',
+        );
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+        ).toStrictEqual({ amount: '8.185173' });
       });
     });
 

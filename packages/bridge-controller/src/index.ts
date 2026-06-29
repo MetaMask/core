@@ -1,12 +1,18 @@
 export { BridgeController } from './bridge-controller';
 
 export {
+  BatchSellMetricsEventName,
   UnifiedSwapBridgeEventName,
+  BATCH_SELL_EVENT_CATEGORY,
   UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY,
+  BatchSellMetricsLocation,
   InputAmountPreset,
   MetaMetricsSwapsEventSource,
   PollingStatus,
 } from './utils/metrics/constants';
+
+export type { BridgeControllerMetricsEventName } from './utils/metrics/constants';
+export type { BridgeControllerMetricsLocation } from './utils/metrics/constants';
 
 export type {
   AccountHardwareType,
@@ -18,6 +24,7 @@ export type {
   TxStatusData,
   QuoteFetchData,
   QuoteWarning,
+  InputPrimaryDenominationData,
 } from './utils/metrics/types';
 
 export {
@@ -47,14 +54,16 @@ export type {
   Step,
   RefuelData,
   Quote,
-  QuoteResponse,
+  QuoteResponseV1 as QuoteResponse,
   FeeData,
   TxData,
   Intent,
   IntentOrderLike,
   BitcoinTradeData,
+  StellarTradeData,
   TronTradeData,
   BridgeControllerState,
+  InputPrimaryDenomination,
   BridgeControllerAction,
   BridgeControllerActions,
   BridgeControllerEvents,
@@ -68,6 +77,8 @@ export type {
   BridgeControllerFetchQuotesAction,
   BridgeControllerStopPollingForQuotesAction,
   BridgeControllerSetLocationAction,
+  BridgeControllerGetLocationAction,
+  BridgeControllerSetInputPrimaryDenominationAction,
   BridgeControllerResetStateAction,
   BridgeControllerSetChainIntervalLengthAction,
   BridgeControllerTrackUnifiedSwapBridgeEventAction,
@@ -83,6 +94,7 @@ export {
   SortOrder,
   ChainId,
   RequestStatus,
+  FeatureId,
   type TokenFeature,
   type QuoteStreamCompleteData,
   type BridgeControllerGetStateAction,
@@ -93,7 +105,6 @@ export {
   FeeType,
   ActionTypes,
   BridgeAssetSchema,
-  FeatureId,
   TokenFeatureType,
   validateQuoteStreamComplete,
   QuoteStreamCompleteReason,
@@ -144,6 +155,7 @@ export {
   isSolanaChainId,
   isBitcoinChainId,
   isTronChainId,
+  isStellarChainId,
   isNonEvmChainId,
   getNativeAssetForChainId,
   getDefaultBridgeControllerState,
@@ -171,6 +183,7 @@ export {
 export {
   extractTradeData,
   isBitcoinTrade,
+  isStellarTrade,
   isTronTrade,
   isEvmTxData,
   type Trade,

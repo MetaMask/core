@@ -1,4 +1,7 @@
 export type {
+  GetAmountDataCallback,
+  GetAmountDataRequest,
+  GetAmountDataResponse,
   GetPaymentOverrideDataRequest,
   GetPaymentOverrideDataResponse,
   TransactionConfig,
@@ -6,6 +9,7 @@ export type {
   TransactionData,
   TransactionFiatPayment,
   TransactionFiatPaymentCallback,
+  TransactionPayFiatOptions,
   TransactionPayControllerActions,
   TransactionPayControllerEvents,
   TransactionPayControllerGetStateAction,
@@ -23,7 +27,9 @@ export type {
   UpdatePaymentTokenRequest,
 } from './types';
 export type {
+  TransactionPayControllerGetAmountDataAction,
   TransactionPayControllerGetDelegationTransactionAction,
+  TransactionPayControllerGetFiatOptionsAction,
   TransactionPayControllerGetStrategyAction,
   TransactionPayControllerPolymarketGetDepositWalletAddressAction,
   TransactionPayControllerPolymarketSubmitDepositWalletBatchAction,

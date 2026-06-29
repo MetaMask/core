@@ -77,6 +77,7 @@ const config = createConfig([
       '**/coverage/**',
       '**/dist/**',
       '**/docs/**',
+      '.skills-cache/**',
       '.yarn/**',
       'merged-packages/**',
       'scripts/create-package/package-template/**',
@@ -311,11 +312,27 @@ const config = createConfig([
     },
   },
   {
-    files: ['packages/platform-api-docs/**/*.{js,ts}'],
+    files: ['packages/wallet-cli/src/**/*.{js,ts}'],
     rules: {
       'import-x/no-nodejs-modules': 'off',
+      'no-restricted-globals': 'off',
+    },
+  },
+  {
+    files: [
+      'packages/wallet-cli/src/**/*.test.{js,ts}',
+      'packages/platform-api-docs/**/*.{js,ts}',
+    ],
+    rules: {
+      'jest/unbound-method': 'off',
       'n/no-process-env': 'off',
       'n/no-sync': 'off',
+    },
+  },
+  {
+    files: ['packages/wallet-cli/bin/**/*.mjs'],
+    rules: {
+      'import-x/no-unresolved': 'off',
     },
   },
   {

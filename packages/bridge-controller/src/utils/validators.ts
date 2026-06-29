@@ -31,12 +31,6 @@ export enum FeeType {
   TX_FEE = 'txFee',
 }
 
-export enum FeatureId {
-  PERPS = 'perps',
-  QUICK_BUY = 'quickBuy',
-  DAPP_SWAP = 'dappSwap',
-}
-
 export enum ActionTypes {
   BRIDGE = 'bridge',
   SWAP = 'swap',
@@ -162,15 +156,13 @@ const GenericQuoteRequestSchema = type({
   fee: optional(number()),
 });
 
-const FeatureIdSchema = enums(Object.values(FeatureId));
-
 /**
  * This is the schema for the feature flags response from the RemoteFeatureFlagController
  */
 export const PlatformConfigSchema = type({
   priceImpactThreshold: optional(PriceImpactThresholdSchema),
   quoteRequestOverrides: optional(
-    record(FeatureIdSchema, optional(GenericQuoteRequestSchema)),
+    record(string(), optional(GenericQuoteRequestSchema)),
   ),
   minimumVersion: string(),
   refreshRate: number(),
@@ -470,6 +462,14 @@ export const TronTradeDataSchema = type({
   ),
 });
 
+/**
+ * Stellar bridge quote: unsigned transaction envelope as XDR (base64).
+ */
+export const StellarTradeDataSchema = union([
+  type({ xdrBase64: string() }),
+  type({ xdr: string() }),
+]);
+
 export const QuoteResponseSchema = type({
   quoteId: optional(string()),
   quote: QuoteSchema,
@@ -479,11 +479,12 @@ export const QuoteResponseSchema = type({
     TxDataSchema,
     BitcoinTradeDataSchema,
     TronTradeDataSchema,
+    StellarTradeDataSchema,
     string(),
   ]),
 });
 
-export const validateQuoteResponse = (
+export const validateQuoteResponseV1 = (
   data: unknown,
 ): data is Infer<typeof QuoteResponseSchema> => {
   assert(data, QuoteResponseSchema);
