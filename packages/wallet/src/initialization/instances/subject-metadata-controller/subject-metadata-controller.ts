@@ -38,10 +38,9 @@ export const subjectMetadataController: InitializationConfiguration<
         parent,
       });
 
-    // `SubjectMetadataController` calls `PermissionController:hasPermissions`
-    // while hydrating persisted subjects, so `PermissionController` must be
-    // initialized first (it registers that handler in its constructor). The
-    // alphabetical export order in `instances/index.ts` guarantees this.
+    // Hydration calls `PermissionController:hasPermissions`, so
+    // `PermissionController` must be constructed first. It sorts earlier in
+    // `instances/index.ts`, and `initialize` keeps that order under overrides.
     parent.delegate({
       messenger: subjectMetadataControllerMessenger,
       actions: ['PermissionController:hasPermissions'],

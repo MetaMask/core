@@ -8,6 +8,8 @@ import { webcrypto } from 'crypto';
 import MockEncryptor from '../../keyring-controller/tests/mocks/mockEncryptor';
 import * as initializationModule from './initialization/initialization';
 import { AlwaysOnlineAdapter } from './initialization/instances/connectivity-controller/always-online-adapter';
+import { subjectMetadataController } from './initialization/instances/subject-metadata-controller/subject-metadata-controller';
+import type { InitializationConfiguration } from './initialization/types';
 import { importSecretRecoveryPhrase } from './utilities';
 import { Wallet } from './Wallet';
 
@@ -537,6 +539,61 @@ describe('Wallet', () => {
       // The subject holds permissions, so its metadata is retained on hydration.
       expect(
         Object.keys(wallet.state.SubjectMetadataController.subjectMetadata),
+      ).toContain(origin);
+    });
+
+    it('is constructed after the default PermissionController even when overridden', () => {
+      // An override hydrates via `PermissionController:hasPermissions`, so it
+      // must run after the default `PermissionController`, not ahead of it.
+      const origin = 'https://metamask.io';
+
+      let wallet: Wallet | undefined;
+
+      expect(() => {
+        wallet = new Wallet({
+          initializationConfigurations: [
+            subjectMetadataController as InitializationConfiguration<
+              unknown,
+              unknown
+            >,
+          ],
+          state: {
+            PermissionController: {
+              subjects: {
+                [origin]: { origin, permissions: { somePermission: {} } },
+              },
+            },
+            SubjectMetadataController: {
+              subjectMetadata: {
+                [origin]: {
+                  origin,
+                  name: 'MetaMask',
+                  subjectType: null,
+                  extensionId: null,
+                  iconUrl: null,
+                },
+              },
+            },
+          },
+          instanceOptions: {
+            connectivityController: {
+              connectivityAdapter: new AlwaysOnlineAdapter(),
+            },
+            networkController: {
+              infuraProjectId: 'fake-infura-project-id',
+            },
+            storageService: {
+              storage: new InMemoryStorageAdapter(),
+            },
+            remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+          },
+        });
+      }).not.toThrow();
+
+      expect(
+        Object.keys(
+          (wallet as Wallet).state.SubjectMetadataController.subjectMetadata,
+        ),
       ).toContain(origin);
     });
   });
