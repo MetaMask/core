@@ -1,6 +1,6 @@
 {
   "name": "@metamask/wallet",
-  "version": "5.0.0",
+  "version": "5.1.0",
   "description": "Provides a shared framework for building MetaMask wallets",
   "keywords": [
     "Ethereum",
@@ -30,6 +30,16 @@
       "require": {
         "types": "./dist/index.d.cts",
         "default": "./dist/index.cjs"
+      }
+    },
+    "./initialization/instances/ramps": {
+      "import": {
+        "types": "./dist/initialization/instances/ramps/index.d.mts",
+        "default": "./dist/initialization/instances/ramps/index.mjs"
+      },
+      "require": {
+        "types": "./dist/initialization/instances/ramps/index.d.cts",
+        "default": "./dist/initialization/instances/ramps/index.cjs"
       }
     },
     "./package.json": "./package.json"
@@ -62,6 +72,7 @@
     "@metamask/keyring-controller": "^27.1.0",
     "@metamask/messenger": "^1.2.0",
     "@metamask/network-controller": "^33.0.0",
+    "@metamask/ramps-controller": "^15.0.0",
     "@metamask/remote-feature-flag-controller": "^4.2.2",
     "@metamask/scure-bip39": "^2.1.1",
     "@metamask/storage-service": "^1.0.2",
