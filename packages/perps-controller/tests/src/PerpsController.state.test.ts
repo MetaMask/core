@@ -981,6 +981,94 @@ describe('PerpsController', () => {
     });
   });
 
+  describe('recently viewed markets', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('returns empty array by default', () => {
+      expect(controller.getRecentlyViewedMarkets()).toStrictEqual([]);
+    });
+
+    it('records a viewed market and returns it', () => {
+      controller.recordMarketViewed('BTC');
+
+      expect(controller.getRecentlyViewedMarkets()).toStrictEqual(['BTC']);
+    });
+
+    it('prepends new entries (newest first)', () => {
+      controller.recordMarketViewed('BTC');
+      jest.advanceTimersByTime(1000);
+      controller.recordMarketViewed('ETH');
+
+      expect(controller.getRecentlyViewedMarkets()).toStrictEqual(['ETH', 'BTC']);
+    });
+
+    it('deduplicates: moves existing symbol to front', () => {
+      controller.recordMarketViewed('BTC');
+      jest.advanceTimersByTime(1000);
+      controller.recordMarketViewed('ETH');
+      jest.advanceTimersByTime(1000);
+      controller.recordMarketViewed('BTC');
+
+      const result = controller.getRecentlyViewedMarkets();
+      expect(result[0]).toBe('BTC');
+      expect(result.filter((s) => s === 'BTC')).toHaveLength(1);
+    });
+
+    it('caps at 10 entries', () => {
+      for (let i = 0; i < 15; i++) {
+        controller.recordMarketViewed(`COIN${i}`);
+        jest.advanceTimersByTime(100);
+      }
+
+      expect(controller.getRecentlyViewedMarkets()).toHaveLength(10);
+    });
+
+    it('filters out entries older than 24 hours', () => {
+      controller.recordMarketViewed('BTC');
+      // Advance past the 24h TTL
+      jest.advanceTimersByTime(25 * 60 * 60 * 1000);
+      controller.recordMarketViewed('ETH');
+
+      const result = controller.getRecentlyViewedMarkets();
+      expect(result).toContain('ETH');
+      expect(result).not.toContain('BTC');
+    });
+
+    it('returns empty array when all entries are expired', () => {
+      controller.recordMarketViewed('BTC');
+      jest.advanceTimersByTime(25 * 60 * 60 * 1000);
+
+      expect(controller.getRecentlyViewedMarkets()).toStrictEqual([]);
+    });
+
+    it('tracks per network — mainnet and testnet are independent', () => {
+      controller.testUpdate((state) => {
+        state.isTestnet = false;
+      });
+      controller.recordMarketViewed('BTC');
+
+      controller.testUpdate((state) => {
+        state.isTestnet = true;
+      });
+      expect(controller.getRecentlyViewedMarkets()).toStrictEqual([]);
+
+      controller.recordMarketViewed('SOL');
+      expect(controller.getRecentlyViewedMarkets()).toContain('SOL');
+
+      controller.testUpdate((state) => {
+        state.isTestnet = false;
+      });
+      expect(controller.getRecentlyViewedMarkets()).toContain('BTC');
+      expect(controller.getRecentlyViewedMarkets()).not.toContain('SOL');
+    });
+  });
+
   describe('AUS watchlist sync', () => {
     /**
      * Minimal valid NotificationPreferences blob used across these tests.

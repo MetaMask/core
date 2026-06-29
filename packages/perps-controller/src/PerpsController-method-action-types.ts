@@ -1017,6 +1017,30 @@ export type PerpsControllerGetWatchlistMarketsAction = {
 };
 
 /**
+ * Record that the user viewed a market.
+ * Prepends the symbol to the per-network recently-viewed list (newest-first),
+ * deduplicates, and caps at the configured limit.
+ *
+ * @param symbol - The trading pair symbol.
+ */
+export type PerpsControllerRecordMarketViewedAction = {
+  type: `PerpsController:recordMarketViewed`;
+  handler: PerpsController['recordMarketViewed'];
+};
+
+/**
+ * Get recently viewed markets for the current network.
+ * Returns up to the configured limit of symbols, ordered newest-first,
+ * filtered to entries within the last 24 hours.
+ *
+ * @returns Ordered array of market symbols, or an empty array when none qualify.
+ */
+export type PerpsControllerGetRecentlyViewedMarketsAction = {
+  type: `PerpsController:getRecentlyViewedMarkets`;
+  handler: PerpsController['getRecentlyViewedMarkets'];
+};
+
+/**
  * Check if the controller is currently reinitializing
  *
  * @returns true if providers are being reinitialized
@@ -1116,4 +1140,6 @@ export type PerpsControllerMethodActions =
   | PerpsControllerToggleWatchlistMarketAction
   | PerpsControllerIsWatchlistMarketAction
   | PerpsControllerGetWatchlistMarketsAction
+  | PerpsControllerRecordMarketViewedAction
+  | PerpsControllerGetRecentlyViewedMarketsAction
   | PerpsControllerIsCurrentlyReinitializingAction;

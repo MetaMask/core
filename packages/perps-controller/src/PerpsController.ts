@@ -342,6 +342,14 @@ export type PerpsControllerState = {
     mainnet: string[]; // Array of watchlist market symbols for mainnet
   };
 
+  // Recently viewed markets tracking (per network, persisted)
+  // Entries are ordered newest-first. TTL filtering and the 10-item cap
+  // are applied on read in getRecentlyViewedMarkets / selectRecentlyViewedMarkets.
+  recentlyViewedMarkets: {
+    testnet: { symbol: string; viewedAt: number }[];
+    mainnet: { symbol: string; viewedAt: number }[];
+  };
+
   // Trade configurations per market (per network)
   tradeConfigurations: {
     testnet: {
@@ -463,6 +471,10 @@ export const getDefaultPerpsControllerState = (): PerpsControllerState => ({
     mainnet: false,
   },
   watchlistMarkets: {
+    testnet: [],
+    mainnet: [],
+  },
+  recentlyViewedMarkets: {
     testnet: [],
     mainnet: [],
   },
@@ -622,6 +634,12 @@ const metadata: StateMetadata<PerpsControllerState> = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
+  recentlyViewedMarkets: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
   tradeConfigurations: {
     includeInStateLogs: true,
     persist: true,
@@ -769,6 +787,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getPendingTradeConfiguration',
   'getPositions',
   'getTradeConfiguration',
+  'getRecentlyViewedMarkets',
   'getWatchlistMarkets',
   'getWebSocketConnectionState',
   'getWithdrawalProgress',
@@ -781,6 +800,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'markTutorialCompleted',
   'placeOrder',
   'reconnect',
+  'recordMarketViewed',
   'refreshEligibility',
   'resetFirstTimeUserState',
   'resetSelectedPaymentToken',
@@ -5216,6 +5236,50 @@ export class PerpsController extends BaseController<
   getWatchlistMarkets(): string[] {
     const currentNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
     return this.state.watchlistMarkets[currentNetwork];
+  }
+
+  /**
+   * Record that the user viewed a market.
+   *
+   * The symbol is prepended to the per-network recently-viewed list (newest-first).
+   * Any existing entry for the same symbol is removed first so there are no
+   * duplicates. The list is then capped at PERPS_CONSTANTS.RecentlyViewedMarketsLimit.
+   *
+   * @param symbol - The trading pair symbol (e.g. 'BTC', 'ETH', 'xyz:TSLA').
+   */
+  recordMarketViewed(symbol: string): void {
+    const currentNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
+    const now = Date.now();
+
+    this.update((state) => {
+      const current = state.recentlyViewedMarkets[currentNetwork].filter(
+        (entry) => entry.symbol !== symbol,
+      );
+      state.recentlyViewedMarkets[currentNetwork] = [
+        { symbol, viewedAt: now },
+        ...current,
+      ].slice(0, PERPS_CONSTANTS.RecentlyViewedMarketsLimit);
+    });
+  }
+
+  /**
+   * Get recently viewed markets for the current network.
+   *
+   * Returns up to PERPS_CONSTANTS.RecentlyViewedMarketsLimit symbols, ordered
+   * newest-first, filtered to entries within the last
+   * PERPS_CONSTANTS.RecentlyViewedMarketsTtlMs (24 hours). Returns an empty
+   * array when no qualifying entries exist.
+   *
+   * @returns Ordered array of market symbols.
+   */
+  getRecentlyViewedMarkets(): string[] {
+    const currentNetwork = this.state.isTestnet ? 'testnet' : 'mainnet';
+    const cutoff = Date.now() - PERPS_CONSTANTS.RecentlyViewedMarketsTtlMs;
+
+    return this.state.recentlyViewedMarkets[currentNetwork]
+      .filter((entry) => entry.viewedAt > cutoff)
+      .map((entry) => entry.symbol)
+      .slice(0, PERPS_CONSTANTS.RecentlyViewedMarketsLimit);
   }
 
   /**
