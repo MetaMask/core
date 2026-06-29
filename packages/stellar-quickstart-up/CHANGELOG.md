@@ -7,4 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat: scaffold `@metamask/stellar-quickstart-up` package ([#9281](https://github.com/MetaMask/core/pull/9281))
+
 [Unreleased]: https://github.com/MetaMask/core/
