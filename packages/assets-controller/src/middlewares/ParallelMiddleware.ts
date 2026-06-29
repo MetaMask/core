@@ -67,6 +67,9 @@ export function mergeDataResponses(responses: DataResponse[]): DataResponse {
     ) {
       merged.updateMode = 'merge';
     }
+    if (response.replaceCoveredChainBalances) {
+      merged.replaceCoveredChainBalances = true;
+    }
   }
   merged.updateMode ??= 'merge';
 

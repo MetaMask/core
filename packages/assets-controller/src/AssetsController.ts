@@ -550,7 +550,54 @@ function normalizeResponse(response: DataResponse): DataResponse {
     normalized.updateMode = response.updateMode;
   }
 
+  if (response.replaceCoveredChainBalances) {
+    normalized.replaceCoveredChainBalances = true;
+  }
+
   return normalized;
+}
+
+/**
+ * Merge account balances from a data-source response into prior state.
+ *
+ * @param previousBalances - Balances already in state for this account.
+ * @param accountBalances - Balances from the incoming response.
+ * @param customAssetIds - Custom assets to preserve when replacing covered chains.
+ * @param replaceCoveredChains - When true, drop prior balances on chains present
+ *   in the response before applying it (authoritative chain slice).
+ * @returns The merged balance map for the account.
+ */
+function mergeAccountBalances(
+  previousBalances: Record<string, AssetBalance>,
+  accountBalances: Record<string, AssetBalance>,
+  customAssetIds: Caip19AssetId[],
+  replaceCoveredChains: boolean,
+): Record<string, AssetBalance> {
+  if (!replaceCoveredChains) {
+    return { ...previousBalances, ...accountBalances };
+  }
+
+  const coveredChains = new Set(
+    Object.keys(accountBalances).map((assetId) => assetId.split('/')[0]),
+  );
+
+  const next: Record<string, AssetBalance> = {};
+  for (const [assetId, balance] of Object.entries(previousBalances)) {
+    if (!coveredChains.has(assetId.split('/')[0])) {
+      next[assetId] = balance;
+    }
+  }
+
+  Object.assign(next, accountBalances);
+
+  for (const customId of customAssetIds) {
+    if (!Object.prototype.hasOwnProperty.call(next, customId)) {
+      const prev = previousBalances[customId];
+      next[customId] = prev ?? ({ amount: '0' } as AssetBalance);
+    }
+  }
+
+  return next;
 }
 
 // ============================================================================
@@ -1309,6 +1356,31 @@ export class AssetsController extends BaseController<
     }
   }
 
+  /**
+   * Force-fetch balances then subscribe. Used on unlock / first startup.
+   *
+   * @param accounts - Selected accounts to refresh.
+   */
+  async #runStartupRefresh(accounts: InternalAccount[]): Promise<void> {
+    const releaseLock = await this.#accountRefreshMutex.acquire();
+    try {
+      await this.getAssets(accounts, {
+        chainIds: [...this.#enabledChains],
+        forceUpdate: true,
+      });
+      this.#subscribeAssets();
+      this.#ensureNativeBalancesDefaultZero();
+      this.#ensureDefaultTrackedAssetsSeeded();
+    } catch (error) {
+      log('Failed to fetch assets on startup', error);
+      this.#subscribeAssets();
+      this.#ensureNativeBalancesDefaultZero();
+      this.#ensureDefaultTrackedAssetsSeeded();
+    } finally {
+      releaseLock();
+    }
+  }
+
   #registerActionHandlers(): void {
     this.messenger.registerMethodActionHandlers(
       this,
@@ -1575,7 +1647,11 @@ export class AssetsController extends BaseController<
         fastSources,
         request,
       );
-      await this.#updateState({ ...response, updateMode: 'merge' });
+      await this.#updateState({
+        ...response,
+        updateMode: 'merge',
+        replaceCoveredChainBalances: true,
+      });
 
       // Background pipeline: snap and RPC run in parallel after the fast path
       // commits to state. Their balances are merged together before detection.
@@ -2453,48 +2529,16 @@ export class AssetsController extends BaseController<
                 accountId
               ] ?? [];
 
-            // Full: response is authoritative for the chains it covered;
-            //   balances for chains not in the response are preserved from
-            //   previous state so unsupported chains (e.g. Ink on AccountsAPI)
-            //   are never inadvertently reset to zero.
-            // Merge: response overlays previous balances.
-            const effective: Record<string, AssetBalance> =
-              mode === 'merge'
-                ? { ...previousBalances, ...accountBalances }
-                : ((): Record<string, AssetBalance> => {
-                    // Determine which chain namespaces this response covers.
-                    const coveredChains = new Set(
-                      Object.keys(accountBalances).map(
-                        (assetId) => assetId.split('/')[0],
-                      ),
-                    );
+            const replaceCoveredChains =
+              mode === 'full' ||
+              normalizedResponse.replaceCoveredChainBalances === true;
 
-                    // Start from previous balances, dropping only entries for
-                    // chains this response is authoritative over.
-                    const next: Record<string, AssetBalance> = {};
-                    for (const [assetId, balance] of Object.entries(
-                      previousBalances,
-                    )) {
-                      if (!coveredChains.has(assetId.split('/')[0])) {
-                        next[assetId] = balance;
-                      }
-                    }
-
-                    // Apply the response (authoritative for covered chains).
-                    Object.assign(next, accountBalances);
-
-                    // Preserve custom assets that the response omitted.
-                    for (const customId of customAssetIds) {
-                      if (
-                        !Object.prototype.hasOwnProperty.call(next, customId)
-                      ) {
-                        const prev = previousBalances[customId];
-                        next[customId] =
-                          prev ?? ({ amount: '0' } as AssetBalance);
-                      }
-                    }
-                    return next;
-                  })();
+            const effective = mergeAccountBalances(
+              previousBalances,
+              accountBalances,
+              customAssetIds,
+              replaceCoveredChains,
+            );
 
             // Ensure native tokens have an entry (0 if missing) for chains this account supports
             const account = this.#getSelectedAccounts().find(
@@ -2783,14 +2827,8 @@ export class AssetsController extends BaseController<
     });
 
     this.#lastKnownAccountIds = new Set(accounts.map((a) => a.id));
-    this.#subscribeAssets();
-    this.#ensureNativeBalancesDefaultZero();
-    this.#ensureDefaultTrackedAssetsSeeded();
-    this.getAssets(accounts, {
-      chainIds,
-      forceUpdate: true,
-    }).catch((error) => {
-      log('Failed to fetch assets', error);
+    this.#runStartupRefresh(accounts).catch((error) => {
+      log('Failed to start asset tracking', error);
     });
   }
 
@@ -3569,7 +3607,10 @@ export class AssetsController extends BaseController<
       response,
     );
 
-    await this.#updateState(enrichedResponse);
+    await this.#updateState({
+      ...enrichedResponse,
+      replaceCoveredChainBalances: response.replaceCoveredChainBalances,
+    });
 
     this.#emitTrace(TRACE_UPDATE_PIPELINE, {
       source: sourceId,
