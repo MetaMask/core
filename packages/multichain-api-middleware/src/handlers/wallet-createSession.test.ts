@@ -108,7 +108,7 @@ const createMockedHandler = (trackSessionEvents: boolean = true) => {
   }>;
   const getNonEvmAccountAddresses = jest.fn().mockReturnValue([]);
   const sortAccountIdsByLastSelected = jest.fn((accounts) => accounts);
-  const getCapabilities = jest.fn();
+  const getCapabilities = jest.fn().mockResolvedValue({});
   const handler = (
     request: JsonRpcRequest<Caip25Authorization> & { origin: string },
   ) =>
@@ -159,7 +159,7 @@ describe('wallet_createSession', () => {
       unsupportableScopes: {},
     });
     MockChainAgnosticPermission.getSessionScopes.mockReturnValue({});
-    MockChainAgnosticPermission.getSessionProperties.mockReturnValue({});
+    MockChainAgnosticPermission.getSessionProperties.mockResolvedValue({});
     MockChainAgnosticPermission.getSupportedScopeObjects.mockImplementation(
       (scopesObject) => scopesObject,
     );
@@ -884,7 +884,7 @@ describe('wallet_createSession', () => {
         accounts: ['eip155:5:0x1', 'eip155:5:0x2'],
       },
     });
-    MockChainAgnosticPermission.getSessionProperties.mockReturnValue({
+    MockChainAgnosticPermission.getSessionProperties.mockResolvedValue({
       [KnownSessionProperties.SolanaAccountChangedNotifications]: true,
     });
     await handler({

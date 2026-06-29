@@ -24,7 +24,7 @@ const createMockedHandler = () => {
   const end = jest.fn();
   const getNonEvmSupportedMethods = jest.fn();
   const sortAccountIdsByLastSelected = jest.fn((accounts) => accounts);
-  const getCapabilities = jest.fn();
+  const getCapabilities = jest.fn().mockResolvedValue({});
   const getCaveatForOrigin = jest.fn().mockReturnValue({
     value: {
       requiredScopes: {
@@ -80,7 +80,7 @@ describe('wallet_getSession', () => {
       .mockReturnValue({});
     jest
       .spyOn(chainAgnosticPermissionModule, 'getSessionProperties')
-      .mockReturnValue({});
+      .mockResolvedValue({});
   });
 
   it('gets the authorized scopes from the CAIP-25 endowment permission', async () => {
@@ -192,9 +192,9 @@ describe('wallet_getSession', () => {
       });
     jest
       .spyOn(chainAgnosticPermissionModule, 'getSessionProperties')
-      .mockReturnValue({
-        capabilities: {
-          '0x1': { atomic: { status: 'supported' } },
+      .mockResolvedValue({
+        eip155Capabilities: {
+          '0x1': { '0x1': { atomic: { status: 'supported' } } },
         },
       });
 
@@ -218,8 +218,8 @@ describe('wallet_getSession', () => {
         },
       },
       sessionProperties: {
-        capabilities: {
-          '0x1': { atomic: { status: 'supported' } },
+        eip155Capabilities: {
+          '0x1': { '0x1': { atomic: { status: 'supported' } } },
         },
       },
     });

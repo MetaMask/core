@@ -350,10 +350,10 @@ describe('CAIP-25 session scopes adapters', () => {
   });
 
   describe('getSessionProperties', () => {
-    it('returns the persisted session properties merged with an empty capabilities record when there are no permitted accounts', () => {
+    it('returns the persisted session properties merged with an empty eip155Capabilities record when there are no permitted accounts', async () => {
       const getCapabilities = jest.fn();
 
-      const result = getSessionProperties(
+      const result = await getSessionProperties(
         {
           requiredScopes: {},
           optionalScopes: {},
@@ -367,16 +367,16 @@ describe('CAIP-25 session scopes adapters', () => {
       expect(getCapabilities).not.toHaveBeenCalled();
       expect(result).toStrictEqual({
         'eip1193-compatible': true,
-        capabilities: {},
+        eip155Capabilities: {},
       });
     });
 
-    it('calls getCapabilities with each unique permitted EVM address', () => {
+    it('calls getCapabilities with each unique permitted EVM address', async () => {
       const getCapabilities = jest
         .fn()
-        .mockReturnValue({ atomic: 'supported' });
+        .mockResolvedValue({ '0x1': { atomic: { status: 'supported' } } });
 
-      getSessionProperties(
+      await getSessionProperties(
         {
           requiredScopes: {
             'eip155:1': {
@@ -400,13 +400,12 @@ describe('CAIP-25 session scopes adapters', () => {
       expect(getCapabilities).toHaveBeenCalledWith({ address: '0xbeef' });
     });
 
-    it('returns the session properties with a capabilities record keyed by address', () => {
-      const getCapabilities = jest.fn((params: { address: string }) => ({
-        address: params.address,
-        atomic: { status: 'supported' },
-      }));
+    it('returns the session properties with an eip155Capabilities record keyed by address', async () => {
+      const getCapabilities = jest.fn().mockResolvedValue({
+        '0x1': { atomic: { status: 'supported' } },
+      });
 
-      const result = getSessionProperties(
+      const result = await getSessionProperties(
         {
           requiredScopes: {
             'eip155:1': {
@@ -423,19 +422,18 @@ describe('CAIP-25 session scopes adapters', () => {
 
       expect(result).toStrictEqual({
         expiry: '2025-01-01T00:00:00.000Z',
-        capabilities: {
+        eip155Capabilities: {
           '0xdead': {
-            address: '0xdead',
-            atomic: { status: 'supported' },
+            '0x1': { atomic: { status: 'supported' } },
           },
         },
       });
     });
 
-    it('does not call getCapabilities for non-EVM accounts', () => {
+    it('does not call getCapabilities for non-EVM accounts', async () => {
       const getCapabilities = jest.fn();
 
-      const result = getSessionProperties(
+      const result = await getSessionProperties(
         {
           requiredScopes: {},
           optionalScopes: {
@@ -453,7 +451,7 @@ describe('CAIP-25 session scopes adapters', () => {
       );
 
       expect(getCapabilities).not.toHaveBeenCalled();
-      expect(result).toStrictEqual({ capabilities: {} });
+      expect(result).toStrictEqual({ eip155Capabilities: {} });
     });
   });
 

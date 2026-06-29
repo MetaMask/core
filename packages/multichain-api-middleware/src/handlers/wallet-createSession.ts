@@ -285,12 +285,12 @@ async function handleWalletCreateSession(
       sortAccountIdsByLastSelected: hooks.sortAccountIdsByLastSelected,
     });
 
-    const approvedSessionProperties = getSessionProperties(
+    const approvedSessionProperties = await getSessionProperties(
       approvedCaip25CaveatValue,
       {
         getCapabilities: hooks.getCapabilities,
       },
-    ) as Record<string, Json>;
+    );
 
     hooks.trackSessionCreatedEvent?.(approvedCaip25CaveatValue);
 

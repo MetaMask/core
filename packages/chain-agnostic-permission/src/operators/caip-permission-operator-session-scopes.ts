@@ -1,5 +1,5 @@
 import { isCaipChainId, KnownCaipNamespace } from '@metamask/utils';
-import type { CaipAccountId, CaipChainId } from '@metamask/utils';
+import type { CaipAccountId, CaipChainId, Hex, Json } from '@metamask/utils';
 
 import { getEthAccounts } from './caip-permission-operator-accounts';
 import type { Caip25CaveatValue } from '../caip25Permission';
@@ -146,15 +146,15 @@ export const getSessionScopes = (
 
 /**
  * Builds the session properties for an endowment:caip25 permission caveat value,
- * hydrating the persisted session properties with the capabilities for each
- * permitted EVM account.
+ * hydrating the persisted session properties with an `eip155Capabilities` record
+ * that maps each permitted EVM account address to its per-chain capabilities.
  *
  * @param caip25CaveatValue - The CAIP-25 CaveatValue to get the session properties from.
  * @param hooks - An object containing the following properties:
- * @param hooks.getCapabilities - A function that returns the capabilities for a given address.
- * @returns The session properties merged with a `capabilities` record keyed by account address.
+ * @param hooks.getCapabilities - A function that resolves the per-chain capabilities for a given address.
+ * @returns A promise that resolves to the session properties merged with an `eip155Capabilities` record keyed by account address.
  */
-export const getSessionProperties = (
+export const getSessionProperties = async (
   caip25CaveatValue: Pick<
     Caip25CaveatValue,
     'requiredScopes' | 'optionalScopes' | 'sessionProperties'
@@ -162,22 +162,24 @@ export const getSessionProperties = (
   {
     getCapabilities,
   }: {
-    getCapabilities: (params: { address: string }) => unknown;
+    getCapabilities: (params: {
+      address: string;
+    }) => Promise<Record<Hex, Record<string, Json>>>;
   },
-): Record<string, unknown> => {
+): Promise<Record<string, Json>> => {
   const addresses = getEthAccounts(caip25CaveatValue);
 
-  const capabilities = addresses.reduce<Record<string, unknown>>(
-    (acc, address) => {
-      acc[address] = getCapabilities({ address });
-      return acc;
-    },
-    {},
+  const eip155Capabilities: Record<Hex, Record<string, Json>> = {};
+
+  await Promise.all(
+    addresses.map(async (address) => {
+      eip155Capabilities[address] = await getCapabilities({ address });
+    }),
   );
 
   return {
     ...caip25CaveatValue.sessionProperties,
-    capabilities,
+    eip155Capabilities,
   };
 };
 

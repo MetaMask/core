@@ -79,9 +79,9 @@ async function handleWalletGetSession(
       getNonEvmSupportedMethods: hooks.getNonEvmSupportedMethods,
       sortAccountIdsByLastSelected: hooks.sortAccountIdsByLastSelected,
     }),
-    sessionProperties: getSessionProperties(caveat.value, {
+    sessionProperties: await getSessionProperties(caveat.value, {
       getCapabilities: hooks.getCapabilities,
-    }) as Record<string, Json>,
+    }),
   };
   return end();
 }

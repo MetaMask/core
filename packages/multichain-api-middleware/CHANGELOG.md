@@ -13,9 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** The `wallet_getSession` and `wallet_createSession` handlers now require a `getCapabilities` hook (`(params: { address: string }) => unknown`) ([#9294](https://github.com/MetaMask/core/pull/9294))
+- **BREAKING:** The `wallet_getSession` and `wallet_createSession` handlers now require a `getCapabilities` hook (`(params: { address: string }) => Promise<Record<Hex, Record<string, Json>>>`) ([#9294](https://github.com/MetaMask/core/pull/9294))
   - `WalletGetSessionHooks` and `WalletCreateSessionHooks` now include this hook, which must be provided when wiring up the handlers.
-- The `wallet_getSession` and `wallet_createSession` handlers now derive the returned `sessionProperties` via `getSessionProperties`, hydrating the persisted session properties with a `capabilities` record built from the `getCapabilities` hook for each permitted EVM account ([#9294](https://github.com/MetaMask/core/pull/9294))
+- The `wallet_getSession` and `wallet_createSession` handlers now derive the returned `sessionProperties` via `getSessionProperties`, hydrating the persisted session properties with an `eip155Capabilities` record that maps each permitted EVM account address to its per-chain capabilities resolved from the `getCapabilities` hook ([#9294](https://github.com/MetaMask/core/pull/9294))
   - `wallet_getSession` now always includes a `sessionProperties` field in its result (an empty object when there is no active session).
 - Bump `@metamask/accounts-controller` from `^39.0.2` to `^39.0.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
 
