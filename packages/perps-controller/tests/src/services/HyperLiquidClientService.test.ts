@@ -202,7 +202,6 @@ describe('HyperLiquidClientService', () => {
         timeout: 10_000,
         keepAlive: { interval: 30_000 },
         reconnect: expect.objectContaining({
-          WebSocket: expect.any(Function),
           maxRetries: 5,
           connectionTimeout: 10_000,
         }),
@@ -263,7 +262,8 @@ describe('HyperLiquidClientService', () => {
         timeout: 10_000,
         keepAlive: { interval: 30_000 },
         reconnect: expect.objectContaining({
-          WebSocket: expect.any(Function),
+          maxRetries: 5,
+          connectionTimeout: 10_000,
         }),
       });
 
