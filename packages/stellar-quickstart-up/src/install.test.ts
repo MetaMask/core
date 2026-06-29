@@ -155,10 +155,7 @@ describe('stellar-quickstart-up installer', () => {
 
     assert.equal(result.cacheHit, false);
     assert.equal(result.imageReference, 'stellar/quickstart:latest');
-    assert.equal(
-      result.digest,
-      STELLAR_QUICKSTART_DEFAULT_IMAGE.digest,
-    );
+    assert.equal(result.digest, STELLAR_QUICKSTART_DEFAULT_IMAGE.digest);
     assert.equal(result.binaryPath, join(binDirectory, 'stellar-quickstart'));
     assert.equal(dependencies.pullCalls, 1);
     assert.equal(dependencies.inspectCalls, 1);
@@ -266,7 +263,10 @@ describe('stellar-quickstart-up installer', () => {
     );
 
     const wrapperSource = readFileSync(result.binaryPath, 'utf8');
-    assert.match(wrapperSource, new RegExp(dockerBinary.replaceAll('/', '\\/'), 'u'));
+    assert.match(
+      wrapperSource,
+      new RegExp(dockerBinary.replaceAll('/', '\\/'), 'u'),
+    );
   });
 
   it('forwards arguments through the installed wrapper', async () => {

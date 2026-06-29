@@ -153,9 +153,7 @@ export function parseStellarQuickstartInstallCliOptions(
         index += 1;
         break;
       default:
-        throw new Error(
-          `Unknown stellar-quickstart-up install option: ${arg}`,
-        );
+        throw new Error(`Unknown stellar-quickstart-up install option: ${arg}`);
     }
   }
 
@@ -182,7 +180,8 @@ export async function installStellarQuickstart(
   );
   const runArgs = options.runArgs ?? STELLAR_QUICKSTART_DEFAULT_RUN_ARGS;
   const runCommandImpl = dependencies.runCommand ?? runCommand;
-  const pullDockerImage = dependencies.pullDockerImage ?? pullDockerImageDefault;
+  const pullDockerImage =
+    dependencies.pullDockerImage ?? pullDockerImageDefault;
   const inspectDockerImage =
     dependencies.inspectDockerImage ?? inspectDockerImageDefault;
   const resolveDockerBinary =
@@ -217,10 +216,7 @@ export async function installStellarQuickstart(
 }
 
 export async function cleanStellarQuickstartCache(
-  options: Pick<
-    StellarQuickstartInstallOptions,
-    'cacheDirectory' | 'cwd'
-  > = {},
+  options: Pick<StellarQuickstartInstallOptions, 'cacheDirectory' | 'cwd'> = {},
 ): Promise<void> {
   const cwd = options.cwd ?? process.cwd();
   const cacheDirectory =
