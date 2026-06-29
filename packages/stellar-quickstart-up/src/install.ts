@@ -4,12 +4,13 @@ import {
   getCacheKey,
   getMetamaskCacheDirectory,
   installExecutableWrapper,
+  isFileMissingError,
   readCliValue,
   readPackageJsonToolConfig,
   runCommand,
 } from '@metamask/local-node-utils';
 import { execFile } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 import { promisify } from 'node:util';
@@ -275,18 +276,10 @@ async function installStellarQuickstartImage(
   );
   const digestPath = join(cacheRoot, '.image-digest');
   const referencePath = join(cacheRoot, '.image-reference');
+  const cached = readCachedImageMetadata(digestPath, referencePath, image);
 
-  if (
-    existsSync(digestPath) &&
-    existsSync(referencePath) &&
-    readFileSync(referencePath, 'utf8') === image.reference &&
-    (!image.digest || readFileSync(digestPath, 'utf8') === image.digest)
-  ) {
-    return {
-      cacheHit: true,
-      digest: readFileSync(digestPath, 'utf8'),
-      imageReference: image.reference,
-    };
+  if (cached) {
+    return cached;
   }
 
   await rm(cacheRoot, { force: true, recursive: true });
@@ -312,6 +305,40 @@ async function installStellarQuickstartImage(
     digest,
     imageReference: image.reference,
   };
+}
+
+function readCachedImageMetadata(
+  digestPath: string,
+  referencePath: string,
+  image: StellarQuickstartImageConfig,
+): {
+  cacheHit: true;
+  digest: string;
+  imageReference: string;
+} | null {
+  try {
+    const imageReference = readFileSync(referencePath, 'utf8');
+    const digest = readFileSync(digestPath, 'utf8');
+
+    if (
+      imageReference !== image.reference ||
+      (image.digest && digest !== image.digest)
+    ) {
+      return null;
+    }
+
+    return {
+      cacheHit: true,
+      digest,
+      imageReference: image.reference,
+    };
+  } catch (error) {
+    if (!isFileMissingError(error)) {
+      throw error;
+    }
+
+    return null;
+  }
 }
 
 async function pullDockerImageDefault(
