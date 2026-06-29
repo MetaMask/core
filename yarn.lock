@@ -8952,6 +8952,7 @@ __metadata:
   resolution: "@metamask/wallet@workspace:packages/wallet"
   dependencies:
     "@metamask/accounts-controller": "npm:^39.0.3"
+    "@metamask/address-book-controller": "npm:^7.1.2"
     "@metamask/approval-controller": "npm:^9.0.2"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
