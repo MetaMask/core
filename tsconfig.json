@@ -249,6 +249,9 @@
       "path": "./packages/solana-test-validator-up"
     },
     {
+      "path": "./packages/stellar-quickstart-up"
+    },
+    {
       "path": "./packages/subscription-controller"
     },
     {
