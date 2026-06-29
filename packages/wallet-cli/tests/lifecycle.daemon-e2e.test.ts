@@ -3,8 +3,8 @@ import { mkdtemp, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { getDaemonPaths } from './paths';
-import { isProcessAlive, readPidFile } from './utils';
+import { getDaemonPaths } from '../src/daemon/paths';
+import { isProcessAlive, readPidFile } from '../src/daemon/utils';
 
 // Subprocess-level lifecycle test for the `mm daemon` command suite. Unlike the
 // in-process suites (`socket-integration.test.ts` exercises the transport in
@@ -29,7 +29,7 @@ const TEST_INFURA_PROJECT_ID = '00000000000000000000000000000000';
 
 const ADDRESS_REGEX = /^0x[0-9a-fA-F]{40}$/u;
 
-const BIN_PATH = join(__dirname, '..', '..', 'bin', 'run.mjs');
+const BIN_PATH = join(__dirname, '..', 'bin', 'run.mjs');
 
 // Each step (spawn the CLI, construct a real Wallet, run PBKDF2 key derivation
 // for the first-run SRP import) is slow; give the whole lifecycle room.
