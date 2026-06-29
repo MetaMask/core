@@ -17,6 +17,7 @@ const config: KnipConfig = {
       ignoreUnresolved: ['ts-jest/jest-preset'],
     },
     'packages/perps-controller': {
+      ignoreDependencies: ['@metamask/accounts-controller'],
       // The mobile client provides `core/Engine`; tests mock it via a
       // relative path that doesn't resolve inside this monorepo.
       ignoreUnresolved: [/^\.\.\/\.\.\/\.\.\/core\/Engine$/u],
@@ -31,7 +32,11 @@ const config: KnipConfig = {
     // an entry once you've either fixed the issue or confirmed it's a
     // permanent false positive worth recording.
     'packages/account-tree-controller': {
-      ignoreDependencies: ['@metamask/keyring-internal-api', 'lodash'],
+      ignoreDependencies: [
+        '@metamask/controller-utils',
+        '@metamask/keyring-internal-api',
+        'lodash',
+      ],
     },
     'packages/analytics-data-regulation-controller': {
       ignoreDependencies: ['cockatiel'],
@@ -52,7 +57,12 @@ const config: KnipConfig = {
       ],
     },
     'packages/bridge-status-controller': {
-      ignoreDependencies: ['@metamask/gas-fee-controller', 'lodash', 'nock'],
+      ignoreDependencies: [
+        '@metamask/gas-fee-controller',
+        '@metamask/remote-feature-flag-controller',
+        'lodash',
+        'nock',
+      ],
     },
     'packages/compliance-controller': {
       ignoreDependencies: ['cockatiel'],
@@ -67,7 +77,11 @@ const config: KnipConfig = {
       ignoreDependencies: ['@metamask/keyring-internal-api'],
     },
     'packages/eip-5792-middleware': {
-      ignoreDependencies: ['@metamask/keyring-internal-api'],
+      ignoreDependencies: [
+        '@metamask/accounts-controller',
+        '@metamask/keyring-internal-api',
+        '@metamask/preferences-controller',
+      ],
     },
     'packages/eip-7702-internal-rpc-middleware': {
       ignoreDependencies: ['@metamask/controller-utils'],
@@ -86,6 +100,9 @@ const config: KnipConfig = {
     'packages/java-tron-up': {
       // `sysctl` is an external system binary, not an npm package.
       ignoreBinaries: ['sysctl'],
+    },
+    'packages/keyring-controller': {
+      ignoreDependencies: ['@metamask/controller-utils'],
     },
     'packages/local-node-utils': {
       // `sysctl` is an external system binary, not an npm package.
@@ -124,6 +141,7 @@ const config: KnipConfig = {
     },
     'packages/profile-sync-controller': {
       ignoreDependencies: [
+        '@metamask/controller-utils',
         '@metamask/keyring-api',
         '@metamask/keyring-internal-api',
         '@metamask/snaps-utils',
@@ -153,7 +171,11 @@ const config: KnipConfig = {
       ignoreDependencies: ['@metamask/controller-utils'],
     },
     'packages/transaction-controller': {
-      ignoreDependencies: ['@ethereumjs/util', 'nock'],
+      ignoreDependencies: [
+        '@ethereumjs/util',
+        '@metamask/keyring-controller',
+        'nock',
+      ],
     },
     'packages/transaction-pay-controller': {
       ignoreDependencies: [
