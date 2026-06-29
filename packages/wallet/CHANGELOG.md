@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Wire `PermissionController` and `SubjectMetadataController` into the default wallet initialization ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+  - Adds optional `instanceOptions.permissionController` (`caveatSpecifications`, `permissionSpecifications`, `unrestrictedMethods`) and `instanceOptions.subjectMetadataController.subjectCacheLimit`.
+
 ### Changed
 
 - Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
