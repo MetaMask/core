@@ -13,17 +13,11 @@ import {
   KnownCaipNamespace,
   toCaipChainId,
 } from '@metamask/utils';
-import BigNumberJS from 'bignumber.js';
 
 import type { AssetsControllerMessenger } from '../AssetsController';
 import { projectLogger, createModuleLogger } from '../logger';
-import type {
-  ChainId,
-  Caip19AssetId,
-  AssetMetadata,
-  AssetBalance,
-  DataResponse,
-} from '../types';
+import type { ChainId, Caip19AssetId, DataResponse } from '../types';
+import { processAccountActivityBalanceUpdates } from '../utils/processAccountActivityBalanceUpdates';
 import { AbstractDataSource } from './AbstractDataSource';
 import type {
   DataSourceState,
@@ -364,6 +358,17 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     }
   }
 
+  /**
+   * Re-fetch supported networks and refresh `activeChains` when connected.
+   * When disconnected, only `#supportedChains` is updated so reconnect can
+   * reclaim chains. Called on EVM network switch from AssetsController.
+   *
+   * @returns Resolves when supported networks have been re-fetched.
+   */
+  refreshActiveChains(): Promise<void> {
+    return this.#refreshActiveChains();
+  }
+
   async #fetchActiveChains(): Promise<ChainId[]> {
     const response = await this.#apiClient.accounts.fetchV2SupportedNetworks();
     return response.fullSupport.map(toChainId);
@@ -588,6 +593,18 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     }
 
     try {
+      // Register request/callback before awaiting server subscribe so notifications
+      // that arrive during the subscribe handshake are not dropped.
+      this.#subscriptionRequests.set(subscriptionId, subscriptionRequest);
+      this.activeSubscriptions.set(subscriptionId, {
+        cleanup: () => {
+          this.#teardownSubscription(subscriptionId).catch(() => undefined);
+        },
+        chains: chainsToSubscribe,
+        addresses,
+        onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
+      });
+
       // Create WebSocket subscription
       const wsSubscription = await this.#messenger.call(
         'BackendWebSocketService:subscribe',
@@ -600,20 +617,7 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
         },
       );
 
-      // Store WebSocket subscription and subscription state before optional
-      // channel callbacks — wsCallback routing works without them.
       this.#wsSubscriptions.set(subscriptionId, wsSubscription);
-
-      this.activeSubscriptions.set(subscriptionId, {
-        cleanup: () => {
-          this.#teardownSubscription(subscriptionId).catch(() => undefined);
-        },
-        chains: chainsToSubscribe,
-        addresses,
-        onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
-      });
-
-      this.#subscriptionRequests.set(subscriptionId, subscriptionRequest);
 
       try {
         this.#registerChannelCallbacks(subscriptionId, channels);
@@ -624,6 +628,8 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
         );
       }
     } catch (error) {
+      this.activeSubscriptions.delete(subscriptionId);
+      this.#subscriptionRequests.delete(subscriptionId);
       log('WebSocket subscription FAILED', {
         subscriptionId,
         error,
@@ -641,14 +647,19 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     subscriptionId: string,
   ): void {
     try {
-      const subscription = this.activeSubscriptions.get(subscriptionId);
-      const request = this.#subscriptionRequests.get(subscriptionId)?.request;
+      const activityMessage =
+        notification.data as unknown as AccountActivityMessage;
+
+      const storedSubscription = this.#subscriptionRequests.get(subscriptionId);
+      const request = storedSubscription?.request;
+      const onAssetsUpdate =
+        this.activeSubscriptions.get(subscriptionId)?.onAssetsUpdate ??
+        storedSubscription?.onAssetsUpdate;
+
       if (!request) {
         return;
       }
 
-      const activityMessage =
-        notification.data as unknown as AccountActivityMessage;
       const { address, tx, updates } = activityMessage;
 
       if (!address || !tx || !updates) {
@@ -674,10 +685,13 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       // Process all balance updates from the activity message
       const response = this.#processBalanceUpdates(updates, chainId, accountId);
 
-      if (Object.keys(response).length > 0 && subscription) {
-        Promise.resolve(subscription.onAssetsUpdate(response, request)).catch(
-          console.error,
-        );
+      const balanceEntries = response.assetsBalance?.[accountId] ?? {};
+      const hasBalances = Object.keys(balanceEntries).length > 0;
+
+      if (hasBalances && onAssetsUpdate) {
+        Promise.resolve(onAssetsUpdate(response, request)).catch((error) => {
+          console.error(error);
+        });
       }
     } catch (error) {
       log('Error handling notification', error);
@@ -698,57 +712,9 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     _chainId: ChainId,
     accountId: string,
   ): DataResponse {
-    const assetsBalance: Record<string, Record<Caip19AssetId, AssetBalance>> = {
-      [accountId]: {},
-    };
-    const assetsMetadata: Record<Caip19AssetId, AssetMetadata> = {};
-
-    for (const update of updates) {
-      const { asset, postBalance } = update;
-
-      if (!asset || !postBalance) {
-        continue;
-      }
-
-      // Asset type is in CAIP format: "eip155:1/erc20:0x..." or "eip155:1/slip44:60"
-      // We can use it directly as the asset ID
-      const assetId = asset.type as Caip19AssetId;
-
-      const tokenType = this.#getAssetType(assetId);
-
-      // We assume decimals are always present; skip malformed updates
-      if (asset.decimals === undefined) {
-        continue;
-      }
-
-      // Parse raw balance (hex like "0x26f0e5" or decimal string)
-      const rawBalanceStr = postBalance.amount.startsWith('0x')
-        ? BigInt(postBalance.amount).toString()
-        : postBalance.amount;
-
-      const humanReadableAmount = new BigNumberJS(rawBalanceStr)
-        .dividedBy(new BigNumberJS(10).pow(asset.decimals))
-        .toFixed();
-
-      assetsBalance[accountId][assetId] = {
-        amount: humanReadableAmount,
-      };
-
-      assetsMetadata[assetId] = {
-        type: tokenType,
-        symbol: asset.unit,
-        name: asset.unit, // Use unit as name (actual name may not be in the message)
-        decimals: asset.decimals,
-      };
-    }
-
-    const response: DataResponse = { updateMode: 'merge' };
-    if (Object.keys(assetsBalance[accountId]).length > 0) {
-      response.assetsBalance = assetsBalance;
-      response.assetsInfo = assetsMetadata;
-    }
-
-    return response;
+    return processAccountActivityBalanceUpdates(updates, accountId, (assetId) =>
+      this.#getAssetType(assetId),
+    );
   }
 
   // ============================================================================

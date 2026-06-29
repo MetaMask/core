@@ -15,6 +15,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
 - Bump `@metamask/accounts-controller` from `^39.0.1` to `^39.0.3` ([#9218](https://github.com/MetaMask/core/pull/9218), [#9231](https://github.com/MetaMask/core/pull/9231))
 
+### Fixed
+
+- `BackendWebSocketService` routes account-activity notifications when subscribed channels use chain wildcard `0` but the server sends a specific chain id, falls back to channel-based subscription lookup when `subscriptionId` is stale, and normalizes nested notification payloads ([#9273](https://github.com/MetaMask/core/pull/9273))
+
 ## [6.3.3]
 
 ### Changed
