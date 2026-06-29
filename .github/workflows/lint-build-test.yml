@@ -267,3 +267,33 @@ jobs:
             echo "Working tree dirty at end of job"
             exit 1
           fi
+
+  # The wallet-cli daemon e2e spawns the BUILT `mm` CLI and the native
+  # better-sqlite3 addon as real child processes, so it needs its dependency
+  # subtree built first and cannot run in the per-package `test-*` matrix above
+  # (which runs against source with no build). It has its own job here. Runs on
+  # the package's engine floor (20.x) and latest (24.x); better-sqlite3 needs
+  # Node >=20.
+  test-wallet-cli-e2e:
+    name: Test wallet-cli daemon e2e (${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    needs: prepare
+    strategy:
+      matrix:
+        node-version: [20.x, 24.x]
+    steps:
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v2
+        with:
+          is-high-risk-environment: false
+          node-version: ${{ matrix.node-version }}
+      - name: Build wallet-cli and its dependencies
+        run: yarn workspaces foreach --topological-dev --recursive --from '@metamask/wallet-cli' run build
+      - run: yarn workspace @metamask/wallet-cli run test:e2e
+      - name: Require clean working directory
+        shell: bash
+        run: |
+          if ! git diff --exit-code; then
+            echo "Working tree dirty at end of job"
+            exit 1
+          fi
