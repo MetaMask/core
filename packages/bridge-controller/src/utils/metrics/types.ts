@@ -9,7 +9,10 @@ import type {
 } from '../../types';
 import type {
   UnifiedSwapBridgeEventName,
-  MetaMetricsSwapsEventSource,
+  BatchSellMetricsEventName,
+  BatchSellMetricsLocation,
+  BridgeControllerMetricsEventName,
+  BridgeControllerMetricsLocation,
   MetricsActionType,
   MetricsSwapType,
   PollingStatus,
@@ -111,10 +114,66 @@ export type QuoteWarning =
   | 'quote_expired'
   | 'tx_alert';
 
+type BatchSellChainProperties = {
+  chain_id_source: CaipChainId;
+  chain_id_destination: CaipChainId | null;
+};
+
+type BatchSellTokenPageEventContext = BatchSellChainProperties & {
+  location: BatchSellMetricsLocation;
+};
+
+type BatchSellSourceTokenEventContext = BatchSellTokenPageEventContext & {
+  source_token_symbols: string[];
+  source_token_addresses: CaipAssetType[];
+};
+
+type BatchSellQuotePageEventContext = BatchSellSourceTokenEventContext & {
+  destination_token_symbol: string;
+  destination_token_address: CaipAssetType;
+  usd_amount_source_tokens: number[];
+  usd_amount_source_total: number;
+  source_token_slippages: number[];
+};
+
+type BatchSellReviewModalSubmittedEventContext =
+  BatchSellQuotePageEventContext &
+    Pick<TradeData, 'usd_quoted_gas' | 'usd_quoted_return'>;
+
+type BatchSellTokenPageEventProperties = BatchSellChainProperties &
+  BatchSellTokenPageEventContext;
+
+type BatchSellSourceTokenEventProperties = BatchSellChainProperties &
+  BatchSellSourceTokenEventContext & {
+    source_token_count: number;
+  };
+
+type BatchSellQuotePageEventProperties = BatchSellChainProperties &
+  BatchSellQuotePageEventContext & {
+    source_token_count: number;
+  };
+
+type BatchSellReviewModalSubmittedEventProperties = BatchSellChainProperties &
+  BatchSellReviewModalSubmittedEventContext & {
+    source_token_count: number;
+  };
+
+type SharedEventContextFromClient = {
+  ab_tests?: Record<string, string>;
+  active_ab_tests?: { key: string; value: string }[];
+  feature_id: FeatureId;
+};
+
+type OptionalLocationContextFromClient<T> = T extends {
+  location: unknown;
+}
+  ? object
+  : { location?: BridgeControllerMetricsLocation };
+
 /**
  * Properties that are required to be provided when trackUnifiedSwapBridgeEvent is called.
- * This is the base type without the `location` property which is added to all events
- * via the RequiredEventContextFromClient mapped type.
+ * Most events receive an optional location via RequiredEventContextFromClient;
+ * Batch Sell events define their own required location enum.
  */
 type RequiredEventContextFromClientBase = {
   [UnifiedSwapBridgeEventName.ButtonClicked]: Pick<
@@ -287,6 +346,11 @@ type RequiredEventContextFromClientBase = {
   [UnifiedSwapBridgeEventName.AssetPickerOpened]: {
     asset_location: 'source' | 'destination';
   };
+  [BatchSellMetricsEventName.BatchSellTokenPageViewed]: BatchSellTokenPageEventContext;
+  [BatchSellMetricsEventName.BatchSellTokenPageContinueClicked]: BatchSellSourceTokenEventContext;
+  [BatchSellMetricsEventName.BatchSellQuotePageViewed]: BatchSellQuotePageEventContext;
+  [BatchSellMetricsEventName.BatchSellQuotePageReviewClicked]: BatchSellQuotePageEventContext;
+  [BatchSellMetricsEventName.BatchSellReviewModalSubmitted]: BatchSellReviewModalSubmittedEventContext;
 };
 
 /**
@@ -299,12 +363,13 @@ type RequiredEventContextFromClientBase = {
  * Both are kept for a migration window and are treated as separate payloads.
  */
 export type RequiredEventContextFromClient = {
-  [K in keyof RequiredEventContextFromClientBase]: RequiredEventContextFromClientBase[K] & {
-    location?: MetaMetricsSwapsEventSource;
-    ab_tests?: Record<string, string>;
-    active_ab_tests?: { key: string; value: string }[];
-    feature_id: FeatureId;
-  };
+  [K in keyof RequiredEventContextFromClientBase]: K extends BatchSellMetricsEventName
+    ? RequiredEventContextFromClientBase[K]
+    : RequiredEventContextFromClientBase[K] &
+        OptionalLocationContextFromClient<
+          RequiredEventContextFromClientBase[K]
+        > &
+        SharedEventContextFromClient;
 };
 
 /**
@@ -379,7 +444,25 @@ export type EventPropertiesFromControllerState = {
     > & {
       batch_id?: string;
     };
+  [BatchSellMetricsEventName.BatchSellTokenPageViewed]: BatchSellTokenPageEventProperties;
+  [BatchSellMetricsEventName.BatchSellTokenPageContinueClicked]: BatchSellSourceTokenEventProperties;
+  [BatchSellMetricsEventName.BatchSellQuotePageViewed]: BatchSellQuotePageEventProperties;
+  [BatchSellMetricsEventName.BatchSellQuotePageReviewClicked]: BatchSellQuotePageEventProperties;
+  [BatchSellMetricsEventName.BatchSellReviewModalSubmitted]: BatchSellReviewModalSubmittedEventProperties;
 };
+
+type SharedCrossChainSwapsEventProperties<
+  T extends BridgeControllerMetricsEventName,
+> =
+  | {
+      feature_id: FeatureId;
+      action_type: MetricsActionType;
+      location: BridgeControllerMetricsLocation;
+      ab_tests?: Record<string, string>;
+      active_ab_tests?: { key: string; value: string }[];
+    }
+  | Pick<EventPropertiesFromControllerState, T>[T]
+  | Pick<RequiredEventContextFromClient, T>[T];
 
 /**
  * trackUnifiedSwapBridgeEvent payload properties consist of required properties from the client
@@ -389,14 +472,7 @@ export type EventPropertiesFromControllerState = {
  * `ab_tests` and `active_ab_tests` intentionally coexist during migration.
  */
 export type CrossChainSwapsEventProperties<
-  T extends UnifiedSwapBridgeEventName,
-> =
-  | {
-      feature_id: FeatureId;
-      action_type: MetricsActionType;
-      location: MetaMetricsSwapsEventSource;
-      ab_tests?: Record<string, string>;
-      active_ab_tests?: { key: string; value: string }[];
-    }
-  | Pick<EventPropertiesFromControllerState, T>[T]
-  | Pick<RequiredEventContextFromClient, T>[T];
+  T extends BridgeControllerMetricsEventName,
+> = T extends BatchSellMetricsEventName
+  ? Pick<EventPropertiesFromControllerState, T>[T]
+  : SharedCrossChainSwapsEventProperties<T>;

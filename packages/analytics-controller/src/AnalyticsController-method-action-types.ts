@@ -67,9 +67,9 @@ export type AnalyticsControllerOptOutAction = {
  * Reset the consent decision back to undecided.
  *
  * Intended for client flows that restart onboarding. Clears the opt-in
- * preference and discards both the delivery queue and any pre-consent events,
- * so nothing captured before the reset is delivered and the user is treated
- * as undecided again.
+ * preference and discards the delivery queue, but preserves any pre-consent
+ * events so they can still be replayed if the user opts in again. The user is
+ * treated as undecided again.
  */
 export type AnalyticsControllerResetConsentDecisionAction = {
   type: `AnalyticsController:resetConsentDecision`;

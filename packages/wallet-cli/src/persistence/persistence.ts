@@ -106,7 +106,7 @@ export function loadState(
  * @returns A function that unsubscribes all persistence handlers.
  */
 export function subscribeToChanges(
-  messenger: RootMessenger<DefaultActions, DefaultEvents>,
+  messenger: Readonly<RootMessenger<DefaultActions, DefaultEvents>>,
   controllerMetadata: Readonly<
     Record<string, Readonly<StateMetadataConstraint>>
   >,
@@ -186,7 +186,7 @@ export function subscribeToChanges(
  * @returns A function that unsubscribes the handler.
  */
 function subscribeToStateChanged(
-  messenger: RootMessenger<DefaultActions, DefaultEvents>,
+  messenger: Readonly<RootMessenger<DefaultActions, DefaultEvents>>,
   eventType: string,
   handler: StateChangedHandler,
 ): () => void {

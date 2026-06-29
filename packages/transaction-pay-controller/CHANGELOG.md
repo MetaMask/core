@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/bridge-status-controller` from `^73.0.0` to `^73.1.0` ([#9288](https://github.com/MetaMask/core/pull/9288))
+
+## [23.17.1]
+
+### Fixed
+
+- Preserve `isExternalSign` on gas-sponsored transactions when no Pay quotes exist ([#9279](https://github.com/MetaMask/core/pull/9279))
+  - `syncTransaction` previously cleared `isExternalSign` unconditionally when quote fetches returned no results (e.g. same source and target token). For gas-sponsored transactions, `TransactionController` owns this flag based on the Sentinel simulation result; TPC no longer overrides it.
+
+## [23.17.0]
+
+### Added
+
+- Add CHOMP idempotency for direct mUSD vault deposits ([#9267](https://github.com/MetaMask/core/pull/9267))
+
+### Fixed
+
+- Wait for keyring unlock before executing fiat post-ramp second leg ([#9267](https://github.com/MetaMask/core/pull/9267))
+
 ## [23.16.1]
 
 ### Changed
@@ -1184,7 +1205,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.16.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.17.1...HEAD
+[23.17.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.17.0...@metamask/transaction-pay-controller@23.17.1
+[23.17.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.16.1...@metamask/transaction-pay-controller@23.17.0
 [23.16.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.16.0...@metamask/transaction-pay-controller@23.16.1
 [23.16.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.15.0...@metamask/transaction-pay-controller@23.16.0
 [23.15.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.14.0...@metamask/transaction-pay-controller@23.15.0

@@ -126,7 +126,12 @@ export async function submitFiatQuotes(
   });
 
   try {
-    const result = await submitRelayAfterFiatCompletion({ order, request });
+    await waitForKeyringUnlock(messenger, transactionId);
+
+    const result = await submitRelayAfterFiatCompletion({
+      order,
+      request,
+    });
 
     if (result.transactionHash === undefined) {
       throw new Error('Missing transaction hash');
@@ -246,7 +251,10 @@ async function submitRelayAfterFiatCompletion({
   const isDirectMusd = isDirectMusdMoneyAccountQuote(fiatQuote);
 
   if (isDirectMusd) {
-    return await submitDirectMusdAfterFiatCompletion({ order, request });
+    return await submitDirectMusdAfterFiatCompletion({
+      order,
+      request,
+    });
   }
 
   const fiatAsset = deriveFiatAssetForFiatPayment(transaction, messenger);
@@ -259,7 +267,7 @@ async function submitRelayAfterFiatCompletion({
 
   const baseRequest = fiatQuote.request;
 
-  const sourceAmountRaw = await resolveSourceAmountRaw({
+  const { amountRaw: sourceAmountRaw } = await resolveSourceAmountRaw({
     messenger,
     order,
     fiatAsset,
@@ -312,4 +320,36 @@ function getWalletAddress({
   }
 
   return address as Hex;
+}
+
+function waitForKeyringUnlock(
+  messenger: TransactionPayControllerMessenger,
+  transactionId: string,
+): Promise<void> {
+  const { isUnlocked } = messenger.call('KeyringController:getState');
+
+  if (isUnlocked) {
+    return Promise.resolve();
+  }
+
+  log(
+    'KeyringController is locked; waiting for unlock before fiat submit second leg',
+    {
+      transactionId,
+    },
+  );
+
+  return new Promise((resolve) => {
+    const handler = (): void => {
+      messenger.unsubscribe('KeyringController:unlock', handler);
+
+      log('KeyringController unlocked; resuming fiat submit second leg', {
+        transactionId,
+      });
+
+      resolve();
+    };
+
+    messenger.subscribe('KeyringController:unlock', handler);
+  });
 }

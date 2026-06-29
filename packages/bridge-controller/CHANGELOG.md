@@ -7,9 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Batch Sell analytics event types ([#9272](https://github.com/MetaMask/core/pull/9272))
+  - `Batch Sell Token Page Viewed`
+  - `Batch Sell Token Page Continue Clicked`
+  - `Batch Sell Quote Page Viewed`
+  - `Batch Sell Quote Page Review Clicked`
+  - `Batch Sell Review Modal Submitted`
+
 ### Changed
 
 - Bump `@metamask/multichain-network-controller` from `^3.1.4` to `^3.2.0` ([#9264](https://github.com/MetaMask/core/pull/9264))
+
+### Fixed
+
+- Fix Batch Sell-only `sentAmount.usd` metadata calculations to use each quote's source token exchange rate ([#9272](https://github.com/MetaMask/core/pull/9272))
 
 ## [77.0.0]
 
