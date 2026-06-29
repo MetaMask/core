@@ -868,8 +868,7 @@ describe('wallet_createSession', () => {
                   },
                 },
                 sessionProperties: {
-                  [KnownSessionProperties.SolanaAccountChangedNotifications]:
-                    true,
+                  [KnownSessionProperties.SolanaAccountChangedNotifications]: true,
                 },
               },
             },
@@ -1127,8 +1126,7 @@ describe('wallet_createSession', () => {
                   },
                   isMultichainOrigin: true,
                   sessionProperties: {
-                    [KnownSessionProperties.SolanaAccountChangedNotifications]:
-                      true,
+                    [KnownSessionProperties.SolanaAccountChangedNotifications]: true,
                   },
                 },
               },
@@ -1195,8 +1193,7 @@ describe('wallet_createSession', () => {
                   },
                   isMultichainOrigin: true,
                   sessionProperties: {
-                    [KnownSessionProperties.SolanaAccountChangedNotifications]:
-                      true,
+                    [KnownSessionProperties.SolanaAccountChangedNotifications]: true,
                   },
                 },
               },
@@ -1256,8 +1253,7 @@ describe('wallet_createSession', () => {
                   },
                   isMultichainOrigin: true,
                   sessionProperties: {
-                    [KnownSessionProperties.SolanaAccountChangedNotifications]:
-                      true,
+                    [KnownSessionProperties.SolanaAccountChangedNotifications]: true,
                   },
                 },
               },

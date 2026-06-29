@@ -1,7 +1,6 @@
 import { isCaipChainId, KnownCaipNamespace } from '@metamask/utils';
 import type { CaipAccountId, CaipChainId, Hex, Json } from '@metamask/utils';
 
-import { getEthAccounts } from './caip-permission-operator-accounts';
 import type { Caip25CaveatValue } from '../caip25Permission';
 import {
   KnownNotifications,
@@ -15,6 +14,7 @@ import type {
   NormalizedScopesObject,
 } from '../scope/types';
 import { parseScopeString } from '../scope/types';
+import { getEthAccounts } from './caip-permission-operator-accounts';
 
 /**
  * Converts an NormalizedScopesObject to a InternalScopesObject.
