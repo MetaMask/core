@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- A configuration that overrides a default is now initialized in that default's position rather than ahead of all defaults, preserving construction-order dependencies between default controllers (e.g. `PermissionController` before `SubjectMetadataController`) ([#9300](https://github.com/MetaMask/core/pull/9300))
 - Bump `@metamask/network-controller` from `^35.0.0` to `^35.0.1` ([#9758](https://github.com/MetaMask/core/pull/9758))
 
 ## [9.0.0]
@@ -79,6 +80,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/accounts-controller` from `^39.0.3` to `^39.0.4` ([#9349](https://github.com/MetaMask/core/pull/9349))
 - Bump `@metamask/network-controller` from `^33.0.0` to `^34.0.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
+=======
+- A configuration that overrides a default is now initialized in that default's position rather than ahead of all defaults, preserving construction-order dependencies between default controllers (e.g. `PermissionController` before `SubjectMetadataController`) ([#9300](https://github.com/MetaMask/core/pull/9300))
+>>>>>>> 0b8cac1b5b (fix(wallet): initialize overriding configurations in their default's position)
 
 ## [5.0.0]
 
