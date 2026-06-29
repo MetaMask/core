@@ -6476,6 +6476,197 @@ describe('BridgeStatusController', () => {
         },
       );
     });
+
+    describe('early reporting during submitTx for EVM txs', () => {
+      const EVM_TRADE_HASH = '0xevmEarlySrcTxHash';
+      const EVM_TX_META_ID = 'evmEarlyTxMetaId';
+      const EVM_QUOTE_ID = 'evm-early-quote-1';
+
+      const mockEvmSwapQuoteResponse = {
+        ...getMockQuote({ srcChainId: 42161, destChainId: 42161 }),
+        quoteId: EVM_QUOTE_ID,
+        quote: {
+          ...getMockQuote({ srcChainId: 42161, destChainId: 42161 }),
+          srcChainId: 42161,
+          destChainId: 42161,
+        },
+        estimatedProcessingTimeInSeconds: 0,
+        sentAmount: { amount: '1.234', valueInCurrency: '2.00', usd: '1.01' },
+        toTokenAmount: {
+          amount: '1.5',
+          valueInCurrency: '2.9999',
+          usd: '0.134214',
+        },
+        minToTokenAmount: {
+          amount: '1.425',
+          valueInCurrency: '2.85',
+          usd: '0.127',
+        },
+        totalNetworkFee: { amount: '1.234', valueInCurrency: null, usd: null },
+        totalMaxNetworkFee: {
+          amount: '1.234',
+          valueInCurrency: null,
+          usd: null,
+        },
+        gasFee: {
+          effective: {
+            amount: '.00055',
+            valueInCurrency: null,
+            usd: '2.5778',
+          },
+          total: { amount: '1.234', valueInCurrency: null, usd: null },
+          max: { amount: '1.234', valueInCurrency: null, usd: null },
+        },
+        adjustedReturn: { valueInCurrency: null, usd: null },
+        swapRate: '1.234',
+        cost: { valueInCurrency: null, usd: null },
+        trade: {
+          from: '0xaccount1',
+          to: '0xbridgeContract',
+          value: '0x0',
+          data: '0xdata',
+          chainId: 42161,
+          gasLimit: 21000,
+        },
+      } as unknown as QuoteResponse & QuoteMetadata;
+
+      const mockTradeTxMeta = {
+        id: EVM_TX_META_ID,
+        hash: EVM_TRADE_HASH,
+        status: TransactionStatus.submitted,
+        type: TransactionType.swap,
+        chainId: '0xa4b1',
+        txParams: { from: '0xaccount1' } as unknown as TransactionParams,
+      } as unknown as TransactionMeta;
+
+      const registerSubmitTxHandlers = (rootMessenger: RootMessenger) => {
+        rootMessenger.registerActionHandler(
+          'BridgeController:stopPollingForQuotes',
+          jest.fn(),
+        );
+        rootMessenger.registerActionHandler(
+          'AccountsController:getAccountByAddress',
+          (() => mockSelectedAccount) as never,
+        );
+        rootMessenger.registerActionHandler(
+          'BridgeController:trackUnifiedSwapBridgeEvent',
+          jest.fn(),
+        );
+        rootMessenger.registerActionHandler(
+          'TransactionController:isAtomicBatchSupported',
+          (() => []) as never,
+        );
+        rootMessenger.registerActionHandler(
+          'NetworkController:findNetworkClientIdByChainId',
+          () => 'networkClientId',
+        );
+        rootMessenger.registerActionHandler(
+          'TransactionController:estimateGasFee',
+          (async () => ({
+            estimates: {
+              type: GasFeeEstimateType.FeeMarket,
+              high: {
+                suggestedMaxFeePerGas: '0x1234',
+                suggestedMaxPriorityFeePerGas: '0x5678',
+              },
+            },
+          })) as never,
+        );
+        rootMessenger.registerActionHandler(
+          'TransactionController:addTransaction',
+          (() => ({
+            transactionMeta: mockTradeTxMeta,
+            result: Promise.resolve(EVM_TRADE_HASH),
+          })) as never,
+        );
+        rootMessenger.registerActionHandler(
+          'TransactionController:getState',
+          (() => ({ transactions: [mockTradeTxMeta] })) as never,
+        );
+        rootMessenger.registerActionHandler(
+          'AuthenticationController:getBearerToken',
+          (async () => 'auth-token') as never,
+        );
+      };
+
+      it('reports SUBMITTED at submission time, before any status event', async () => {
+        await withController(
+          { options: { isQuoteStatusManagerEnabled: () => true } },
+          async ({ controller, rootMessenger }) => {
+            registerSubmitTxHandlers(rootMessenger);
+
+            const result = await rootMessenger.call(
+              'BridgeStatusController:submitTx',
+              (mockEvmSwapQuoteResponse.trade as TxData).from,
+              mockEvmSwapQuoteResponse,
+              false,
+            );
+            controller.stopAllPolling();
+
+            // Reported during submission, without any transactionStatusUpdated event.
+            expect(result.id).toBe(EVM_TX_META_ID);
+            expect(
+              controller.state.txHistory[EVM_TX_META_ID]
+                .reportedSubmittedTxHash,
+            ).toBe(EVM_TRADE_HASH);
+            expect(
+              Object.keys(controller.state.quoteUpdateStatusStore),
+            ).toStrictEqual([`${EVM_QUOTE_ID}:${EVM_TRADE_HASH}`]);
+
+            // A later submitted event for the same hash is a no-op.
+            rootMessenger.publish(
+              'TransactionController:transactionStatusUpdated',
+              { transactionMeta: mockTradeTxMeta },
+            );
+            expect(
+              Object.keys(controller.state.quoteUpdateStatusStore),
+            ).toStrictEqual([`${EVM_QUOTE_ID}:${EVM_TRADE_HASH}`]);
+
+            controller.resetState();
+          },
+        );
+      });
+
+      it('reports SUBMITTED again when the trade hash is replaced after submission', async () => {
+        await withController(
+          { options: { isQuoteStatusManagerEnabled: () => true } },
+          async ({ controller, rootMessenger }) => {
+            registerSubmitTxHandlers(rootMessenger);
+
+            await rootMessenger.call(
+              'BridgeStatusController:submitTx',
+              (mockEvmSwapQuoteResponse.trade as TxData).from,
+              mockEvmSwapQuoteResponse,
+              false,
+            );
+            controller.stopAllPolling();
+
+            const replacementHash = '0xevmReplacementSrcTxHash';
+            rootMessenger.publish(
+              'TransactionController:transactionStatusUpdated',
+              {
+                transactionMeta: { ...mockTradeTxMeta, hash: replacementHash },
+              },
+            );
+
+            expect(
+              controller.state.txHistory[EVM_TX_META_ID]
+                .reportedSubmittedTxHash,
+            ).toBe(replacementHash);
+            expect(
+              Object.keys(controller.state.quoteUpdateStatusStore).sort(),
+            ).toStrictEqual(
+              [
+                `${EVM_QUOTE_ID}:${EVM_TRADE_HASH}`,
+                `${EVM_QUOTE_ID}:${replacementHash}`,
+              ].sort(),
+            );
+
+            controller.resetState();
+          },
+        );
+      });
+    });
   });
 
   describe('metadata', () => {
