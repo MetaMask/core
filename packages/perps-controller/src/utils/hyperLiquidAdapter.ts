@@ -188,10 +188,10 @@ export function adaptOrderFromSDK(
       const child = childUnknown;
       if (child.isTrigger && child.orderType) {
         if (child.orderType.includes('Take Profit')) {
-          takeProfitPrice = child.triggerPx || child.limitPx;
+          takeProfitPrice = child.triggerPx ?? child.limitPx;
           takeProfitOrderId = child.oid.toString();
         } else if (child.orderType.includes('Stop')) {
-          stopLossPrice = child.triggerPx || child.limitPx;
+          stopLossPrice = child.triggerPx ?? child.limitPx;
           stopLossOrderId = child.oid.toString();
         }
       }
