@@ -347,7 +347,9 @@ describe('TerminalMarketService', () => {
           status: 200,
           statusText: 'OK',
           json: () =>
-            Promise.resolve([{ symbol: 'BTC', name: 'Bitcoin', listedAt: epochMs }]),
+            Promise.resolve([
+              { symbol: 'BTC', name: 'Bitcoin', listedAt: epochMs },
+            ]),
         } as Response);
 
         const { metadata } = await service.fetchMarkets();
@@ -363,7 +365,9 @@ describe('TerminalMarketService', () => {
           status: 200,
           statusText: 'OK',
           json: () =>
-            Promise.resolve([{ symbol: 'ETH', name: 'Ethereum', listedAt: isoString }]),
+            Promise.resolve([
+              { symbol: 'ETH', name: 'Ethereum', listedAt: isoString },
+            ]),
         } as Response);
 
         const { metadata } = await service.fetchMarkets();
@@ -377,7 +381,9 @@ describe('TerminalMarketService', () => {
           status: 200,
           statusText: 'OK',
           json: () =>
-            Promise.resolve([{ symbol: 'DOGE', name: 'Dogecoin', listedAt: 'not-a-date' }]),
+            Promise.resolve([
+              { symbol: 'DOGE', name: 'Dogecoin', listedAt: 'not-a-date' },
+            ]),
         } as Response);
 
         const { metadata } = await service.fetchMarkets();
@@ -390,8 +396,7 @@ describe('TerminalMarketService', () => {
           ok: true,
           status: 200,
           statusText: 'OK',
-          json: () =>
-            Promise.resolve([{ symbol: 'SOL', listedAt: null }]),
+          json: () => Promise.resolve([{ symbol: 'SOL', listedAt: null }]),
         } as Response);
 
         const { metadata } = await service.fetchMarkets();

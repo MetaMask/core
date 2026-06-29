@@ -1005,7 +1005,10 @@ describe('PerpsController', () => {
       jest.advanceTimersByTime(1000);
       controller.recordMarketViewed('ETH');
 
-      expect(controller.getRecentlyViewedMarkets()).toStrictEqual(['ETH', 'BTC']);
+      expect(controller.getRecentlyViewedMarkets()).toStrictEqual([
+        'ETH',
+        'BTC',
+      ]);
     });
 
     it('deduplicates: moves existing symbol to front', () => {
