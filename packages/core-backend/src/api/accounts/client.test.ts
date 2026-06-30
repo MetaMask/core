@@ -472,6 +472,80 @@ describe('AccountsApiClient', () => {
         expect(result.staleTime).toBe(60_000);
         expect(result.gcTime).toBe(120_000);
       });
+
+      it('queryFn fetches paginated transactions and getNextPageParam uses endCursor', async () => {
+        const mockResponse = {
+          unprocessedNetworks: [],
+          pageInfo: {
+            count: 1,
+            hasNextPage: true,
+            endCursor: 'cursor-page-2',
+          },
+          data: [
+            {
+              hash: '0xabc123',
+              timestamp: '2024-01-01T00:00:00Z',
+              chainId: 1,
+              blockNumber: 12345,
+              blockHash: '0xdef',
+              gas: 21000,
+              gasUsed: 21000,
+              gasPrice: '20000000000',
+              effectiveGasPrice: '20000000000',
+              nonce: 0,
+              cumulativeGasUsed: 21000,
+              value: '1000000000000000000',
+              to: '0x456',
+              from: '0x123',
+            },
+          ],
+        };
+        mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+        const queryOptions =
+          client.accounts.getV4MultiAccountTransactionsInfiniteQueryOptions(
+            {
+              accountAddresses: ['eip155:1:0x123'],
+              networks: ['eip155:1'],
+              sortDirection: 'DESC',
+              includeLogs: true,
+              includeTxMetadata: true,
+              maxLogsPerTx: 10,
+              lang: 'en',
+            },
+            { initialPageParam: 'cursor-page-1' },
+          );
+
+        expect(typeof queryOptions.queryFn).toBe('function');
+        expect(queryOptions.getNextPageParam).toBeDefined();
+
+        const page = await queryOptions.queryFn({
+          pageParam: 'cursor-page-1',
+          signal: undefined,
+        });
+        expect(page).toStrictEqual(mockResponse);
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.stringContaining('/v4/multiaccount/transactions'),
+          expect.objectContaining({
+            method: 'GET',
+            signal: undefined,
+          }),
+        );
+        expect(mockFetch.mock.calls[0]?.[0]).toContain('cursor=cursor-page-1');
+        expect(mockFetch.mock.calls[0]?.[0]).toContain(
+          'accountAddresses=eip155%3A1%3A0x123',
+        );
+
+        expect(queryOptions.getNextPageParam?.(mockResponse)).toBe(
+          'cursor-page-2',
+        );
+        expect(
+          queryOptions.getNextPageParam?.({
+            ...mockResponse,
+            pageInfo: { count: 1, hasNextPage: false },
+          }),
+        ).toBeUndefined();
+      });
     });
   });
 

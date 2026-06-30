@@ -102,6 +102,7 @@ export {
 } from './types';
 
 export {
+  DiscountType,
   FeeType,
   ActionTypes,
   BridgeAssetSchema,
