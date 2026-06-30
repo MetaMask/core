@@ -18,12 +18,20 @@ export async function writeLine(socket: Socket, line: string): Promise<void> {
     socket.once('error', onError);
 
     socket.write(`${line}\n`, (error) => {
-      socket.removeListener('error', onError);
       if (error) {
+        // A failed write (e.g. EPIPE when the peer closed mid-write) is
+        // delivered BOTH here AND as a separate 'error' event on the socket.
+        // Leave `onError` attached so that event still has a handler —
+        // detaching it here would let Node treat the emission as unhandled and
+        // crash the whole process, even though this rejection is caught
+        // upstream. `onError` rejects idempotently and detaches itself when the
+        // event arrives; rejecting here settles the promise even if it never
+        // does.
         reject(error);
-      } else {
-        resolve();
+        return;
       }
+      socket.removeListener('error', onError);
+      resolve();
     });
   });
 }
