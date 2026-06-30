@@ -2597,6 +2597,27 @@ describe('TradingService', () => {
           expect.objectContaining({ status: 'submitted', asset: 'BTC' }),
         );
       });
+
+      it('emits a terminal failed event when the flip is rejected without throwing', async () => {
+        mockProvider.placeOrder.mockResolvedValue({
+          success: false,
+          error: 'insufficient margin',
+        });
+
+        await tradingService.flipPosition({
+          provider: mockProvider,
+          position: mockClosePosition,
+          context: mockContext,
+        });
+
+        expect(findCall(PerpsAnalyticsEvent.TradeTransaction, 'failed')?.[1]).toEqual(
+          expect.objectContaining({
+            status: 'failed',
+            asset: 'BTC',
+            error_message: 'insufficient margin',
+          }),
+        );
+      });
     });
 
     it('emits a terminal close event when no local position is found', async () => {
