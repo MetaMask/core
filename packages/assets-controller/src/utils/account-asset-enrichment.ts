@@ -2,10 +2,10 @@ import type { SnapController } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
 import type { CaipChainId } from '@metamask/utils';
-import { KnownCaipNamespace, parseCaipAssetType } from '@metamask/utils';
+import { parseCaipAssetType } from '@metamask/utils';
 
 import type {
-  AccountAssetInfoExtra,
+  AccountAssetInfo,
   AssetBalance,
   AssetsUpdateMode,
   Caip19AssetId,
@@ -55,31 +55,13 @@ export function isAccountAssetInfoEnrichmentAvailable(
 }
 
 /**
- * Returns whether the asset id is a Stellar classic `asset:` token.
- *
- * @param assetId - CAIP-19 asset id.
- * @returns True for Stellar classic assets on pubnet/testnet.
- */
-export function isStellarClassicAssetId(assetId: Caip19AssetId): boolean {
-  try {
-    const parsed = parseCaipAssetType(assetId);
-    return (
-      parsed.chain.namespace === KnownCaipNamespace.Stellar &&
-      parsed.assetNamespace === 'asset'
-    );
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Filters asset ids to Stellar classic tokens on an enrichment-enabled chain.
+ * Filters asset ids to those on an enrichment-enabled chain.
  *
  * @param assetIds - CAIP-19 asset types to filter.
  * @param chainId - Expected chain for enrichment (caller-provided scope).
- * @returns Stellar classic asset ids on the given chain when enrichment is available.
+ * @returns Asset ids on the given chain when enrichment is available.
  */
-export function filterStellarClassicAssetsForEnrichment(
+export function filterAssetsForAccountAssetEnrichment(
   assetIds: Caip19AssetId[],
   chainId: CaipChainId,
 ): Caip19AssetId[] {
@@ -88,10 +70,7 @@ export function filterStellarClassicAssetsForEnrichment(
   }
   return assetIds.filter((assetId) => {
     try {
-      return (
-        parseCaipAssetType(assetId).chainId === chainId &&
-        isStellarClassicAssetId(assetId)
-      );
+      return parseCaipAssetType(assetId).chainId === chainId;
     } catch {
       return false;
     }
@@ -103,11 +82,11 @@ export function filterStellarClassicAssetsForEnrichment(
  * Uses `limit: '0'` so UI treats the trustline as inactive rather than unknown.
  *
  * @param previous - Prior enrichment fields to preserve (authorized, sponsored).
- * @returns Extra with zero limit.
+ * @returns AccountAssetInfo with zero limit.
  */
-export function createInvalidatedStellarClassicExtra(
-  previous?: AccountAssetInfoExtra,
-): AccountAssetInfoExtra {
+export function createInvalidatedAccountAssetInfo(
+  previous?: AccountAssetInfo,
+): AccountAssetInfo {
   return {
     ...previous,
     limit: '0',
@@ -115,7 +94,7 @@ export function createInvalidatedStellarClassicExtra(
 }
 
 /**
- * Merges incoming balance rows into prior rows, preserving `extra` when the
+ * Merges incoming balance rows into prior rows, preserving `accountAssetInfo` when the
  * incoming row is amount-only (as snap balance sync responses are).
  *
  * @param previous - Prior balance row, if any.
@@ -127,8 +106,8 @@ export function mergeAssetBalanceRow(
   incoming: AssetBalance,
 ): AssetBalance {
   const prev = previous ?? ({ amount: '0' } as FungibleAssetBalance);
-  const prevExtra = (prev as FungibleAssetBalance).extra;
-  const incomingExtra = (incoming as FungibleAssetBalance).extra;
+  const prevInfo = (prev as FungibleAssetBalance).accountAssetInfo;
+  const incomingInfo = (incoming as FungibleAssetBalance).accountAssetInfo;
 
   const merged: FungibleAssetBalance = {
     ...(prev as FungibleAssetBalance),
@@ -136,10 +115,10 @@ export function mergeAssetBalanceRow(
     amount: (incoming as FungibleAssetBalance).amount,
   };
 
-  if (incomingExtra !== undefined) {
-    merged.extra = incomingExtra;
-  } else if (prevExtra !== undefined) {
-    merged.extra = prevExtra;
+  if (incomingInfo !== undefined) {
+    merged.accountAssetInfo = incomingInfo;
+  } else if (prevInfo !== undefined) {
+    merged.accountAssetInfo = prevInfo;
   }
 
   return merged;
@@ -185,7 +164,7 @@ export function buildEffectiveAccountBalances(
   }
 
   // Snap/RPC balance sync responses are amount-only; per-row merge preserves
-  // account-asset enrichment stored separately (e.g. Stellar trustline extra).
+  // account-asset enrichment stored separately (e.g. Stellar trustline accountAssetInfo).
   for (const [assetId, incoming] of Object.entries(incomingBalances)) {
     next[assetId] = mergeAssetBalanceRow(previousBalances[assetId], incoming);
   }

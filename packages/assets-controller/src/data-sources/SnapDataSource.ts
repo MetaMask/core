@@ -14,8 +14,8 @@ import type {
 } from '@metamask/snaps-controllers';
 import type { Snap, SnapId } from '@metamask/snaps-sdk';
 import { HandlerType, SnapCaveatType } from '@metamask/snaps-utils';
+import type { CaipChainId, Json, JsonRpcRequest } from '@metamask/utils';
 import { parseCaipAssetType } from '@metamask/utils';
-import type { Json, JsonRpcRequest } from '@metamask/utils';
 
 import type { AssetsControllerMessenger } from '../AssetsController';
 import { projectLogger, createModuleLogger } from '../logger';
@@ -32,6 +32,11 @@ import type {
   DataSourceState,
   SubscriptionRequest,
 } from './AbstractDataSource';
+import {
+  fetchAccountAssetInfoFromSnap,
+  isAccountAssetInfoEnrichmentAvailable,
+  ACCOUNT_ASSET_INFO_SNAP_BATCH_SIZE,
+} from '../utils/account-asset-enrichment';
 
 // ============================================================================
 // SNAP KEYRING EVENT TYPES
@@ -503,6 +508,69 @@ export class SnapDataSource extends AbstractDataSource<
         }
       } catch {
         // Expected when account doesn't belong to this snap
+      }
+    }
+
+    // Step 3: Enrich account-asset info for assets on eligible chains (e.g. Stellar trustlines)
+    for (const { account } of request.accountsWithSupportedChains) {
+      const accountId = account.id;
+      const accountBalancesAfterFetch = results.assetsBalance?.[accountId];
+      if (!accountBalancesAfterFetch) {
+        continue;
+      }
+
+      const allAssetIds = Object.keys(accountBalancesAfterFetch) as Caip19AssetId[];
+      const byChain = new Map<CaipChainId, Caip19AssetId[]>();
+      for (const assetId of allAssetIds) {
+        const slash = assetId.indexOf('/');
+        if (slash < 0) {
+          continue;
+        }
+        const chainId = assetId.slice(0, slash) as CaipChainId;
+        if (!isAccountAssetInfoEnrichmentAvailable(chainId)) {
+          continue;
+        }
+        const list = byChain.get(chainId) ?? [];
+        list.push(assetId);
+        byChain.set(chainId, list);
+      }
+
+      const snapId = account.metadata.snap?.id;
+      if (!snapId) {
+        continue;
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const handleSnapRequest = (params: any): Promise<unknown> =>
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (this.#messenger as any).call('SnapController:handleRequest', params) as Promise<unknown>;
+
+      for (const [chainId, assetIds] of byChain) {
+        for (
+          let i = 0;
+          i < assetIds.length;
+          i += ACCOUNT_ASSET_INFO_SNAP_BATCH_SIZE
+        ) {
+          const batch = assetIds.slice(i, i + ACCOUNT_ASSET_INFO_SNAP_BATCH_SIZE);
+          // eslint-disable-next-line no-await-in-loop
+          const info = await fetchAccountAssetInfoFromSnap(handleSnapRequest, {
+            accountId,
+            snapId: snapId as SnapId,
+            chainId,
+            assets: batch,
+          });
+          if (info) {
+            for (const [assetId, assetInfo] of Object.entries(info)) {
+              const row = (accountBalancesAfterFetch as Record<string, AssetBalance | undefined>)[assetId];
+              if (row) {
+                (accountBalancesAfterFetch as Record<string, unknown>)[assetId] = {
+                  ...row,
+                  accountAssetInfo: assetInfo,
+                };
+              }
+            }
+          }
+        }
       }
     }
 
