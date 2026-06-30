@@ -61,6 +61,14 @@ export function mergeDataResponses(responses: DataResponse[]): DataResponse {
     }
     if (response.updateMode === 'full') {
       merged.updateMode = 'full';
+    } else if (
+      response.updateMode === 'merge' &&
+      merged.updateMode !== 'full'
+    ) {
+      merged.updateMode = 'merge';
+    }
+    if (response.replaceCoveredChainBalances) {
+      merged.replaceCoveredChainBalances = true;
     }
   }
   merged.updateMode ??= 'merge';

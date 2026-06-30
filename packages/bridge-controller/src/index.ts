@@ -1,12 +1,18 @@
 export { BridgeController } from './bridge-controller';
 
 export {
+  BatchSellMetricsEventName,
   UnifiedSwapBridgeEventName,
+  BATCH_SELL_EVENT_CATEGORY,
   UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY,
+  BatchSellMetricsLocation,
   InputAmountPreset,
   MetaMetricsSwapsEventSource,
   PollingStatus,
 } from './utils/metrics/constants';
+
+export type { BridgeControllerMetricsEventName } from './utils/metrics/constants';
+export type { BridgeControllerMetricsLocation } from './utils/metrics/constants';
 
 export type {
   AccountHardwareType,
@@ -96,6 +102,7 @@ export {
 } from './types';
 
 export {
+  DiscountType,
   FeeType,
   ActionTypes,
   BridgeAssetSchema,

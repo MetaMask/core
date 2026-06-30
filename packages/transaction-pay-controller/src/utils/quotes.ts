@@ -247,7 +247,14 @@ function syncTransaction({
       // When there are no quotes (e.g. user selected the target token as the
       // payment token in a Predict flow), the transaction falls back to normal
       // local signing, so the flag is cleared to allow that.
-      tx.isExternalSign = hasQuotes;
+      // If gas is sponsored, TC owns this field — it is set based on the
+      // Sentinel simulation result and must not be cleared here. Same-token
+      // flows (e.g. Monad mUSD withdrawal via a Money Account) produce no
+      // quotes but still need external sign because the account cannot sign
+      // locally.
+      if (!tx.isGasFeeSponsored) {
+        tx.isExternalSign = hasQuotes;
+      }
 
       tx.metamaskPay = {
         bridgeFeeFiat: totals.fees.provider.usd,

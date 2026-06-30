@@ -35,6 +35,8 @@ type SetupResult = {
   wsSubscribeMock: jest.Mock;
   getConnectionInfoMock: jest.Mock;
   findSubscriptionsMock: jest.Mock;
+  addChannelCallbackMock: jest.Mock;
+  removeChannelCallbackMock: jest.Mock;
   assetsUpdateHandler: jest.Mock;
   activeChainsUpdateHandler: jest.Mock;
   triggerConnectionStateChange: (state: WebSocketState) => void;
@@ -78,10 +80,12 @@ function createDataRequest(
   };
 }
 
-function createMockWsSubscription(): WebSocketSubscription {
+function createMockWsSubscription(
+  channels: string[] = [],
+): WebSocketSubscription {
   return {
     unsubscribe: jest.fn().mockResolvedValue(undefined),
-    channels: [],
+    channels,
   } as unknown as WebSocketSubscription;
 }
 
@@ -129,6 +133,8 @@ function setupController(
       'BackendWebSocketService:subscribe',
       'BackendWebSocketService:getConnectionInfo',
       'BackendWebSocketService:findSubscriptionsByChannelPrefix',
+      'BackendWebSocketService:addChannelCallback',
+      'BackendWebSocketService:removeChannelCallback',
     ],
     events: ['BackendWebSocketService:connectionStateChanged'],
   });
@@ -138,6 +144,8 @@ function setupController(
   const wsSubscribeMock = jest
     .fn()
     .mockResolvedValue(createMockWsSubscription());
+  const addChannelCallbackMock = jest.fn();
+  const removeChannelCallbackMock = jest.fn().mockReturnValue(true);
   const getConnectionInfoMock = jest.fn().mockReturnValue({
     state: connectionState,
     url: 'wss://test.example.com',
@@ -160,6 +168,14 @@ function setupController(
   rootMessenger.registerActionHandler(
     'BackendWebSocketService:findSubscriptionsByChannelPrefix',
     findSubscriptionsMock,
+  );
+  rootMessenger.registerActionHandler(
+    'BackendWebSocketService:addChannelCallback',
+    addChannelCallbackMock,
+  );
+  rootMessenger.registerActionHandler(
+    'BackendWebSocketService:removeChannelCallback',
+    removeChannelCallbackMock,
   );
 
   const queryApiClient = {
@@ -221,6 +237,8 @@ function setupController(
     wsSubscribeMock,
     getConnectionInfoMock,
     findSubscriptionsMock,
+    addChannelCallbackMock,
+    removeChannelCallbackMock,
     assetsUpdateHandler,
     activeChainsUpdateHandler,
     triggerConnectionStateChange,
@@ -491,12 +509,115 @@ describe('BackendWebsocketDataSource', () => {
     controller.destroy();
   });
 
-  it('unsubscribe cleans up WebSocket subscription', async () => {
-    const mockWsSubscription = createMockWsSubscription();
+  it('subscribe update treats checksummed and lowercase EVM addresses as unchanged', async () => {
     const { controller, wsSubscribeMock } = setupController({
       initialActiveChains: [CHAIN_MAINNET],
       connectionState: WebSocketState.CONNECTED,
     });
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: jest.fn(),
+    });
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest({
+        accountsWithSupportedChains: [
+          {
+            account: createMockAccount({
+              address: `0x${MOCK_ADDRESS.slice(2).toUpperCase()}`,
+            }),
+            supportedChains: [CHAIN_MAINNET],
+          },
+        ],
+        chainIds: [CHAIN_MAINNET],
+      }),
+      isUpdate: true,
+      onAssetsUpdate: jest.fn(),
+    });
+
+    expect(wsSubscribeMock).toHaveBeenCalledTimes(1);
+
+    controller.destroy();
+  });
+
+  it('serializes concurrent subscribe calls so the last address wins', async () => {
+    const addressA = MOCK_ADDRESS;
+    const addressB = '0xabcdef1234567890abcdef1234567890abcdef12';
+    let resolveFirstSubscribe: (() => void) | undefined;
+    const firstSubscribeGate = new Promise<void>((resolve) => {
+      resolveFirstSubscribe = resolve;
+    });
+
+    const { controller, wsSubscribeMock } = setupController({
+      initialActiveChains: [CHAIN_MAINNET],
+      connectionState: WebSocketState.CONNECTED,
+    });
+
+    wsSubscribeMock
+      .mockImplementationOnce(async () => {
+        await firstSubscribeGate;
+        return createMockWsSubscription([
+          `account-activity.v1.eip155:0:${addressA.toLowerCase()}`,
+        ]);
+      })
+      .mockResolvedValue(
+        createMockWsSubscription([
+          `account-activity.v1.eip155:0:${addressB.toLowerCase()}`,
+        ]),
+      );
+
+    const firstSubscribe = controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest({
+        accountsWithSupportedChains: [
+          {
+            account: createMockAccount({ address: addressA }),
+            supportedChains: [CHAIN_MAINNET],
+          },
+        ],
+      }),
+      isUpdate: false,
+      onAssetsUpdate: jest.fn(),
+    });
+
+    const secondSubscribe = controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest({
+        accountsWithSupportedChains: [
+          {
+            account: createMockAccount({ address: addressB }),
+            supportedChains: [CHAIN_MAINNET],
+          },
+        ],
+      }),
+      isUpdate: true,
+      onAssetsUpdate: jest.fn(),
+    });
+
+    await new Promise(process.nextTick);
+    resolveFirstSubscribe?.();
+    await Promise.all([firstSubscribe, secondSubscribe]);
+
+    expect(wsSubscribeMock).toHaveBeenCalledTimes(2);
+    expect(wsSubscribeMock.mock.calls[1][0].channels).toStrictEqual([
+      `account-activity.v1.eip155:0:${addressB.toLowerCase()}`,
+    ]);
+
+    controller.destroy();
+  });
+
+  it('unsubscribe cleans up WebSocket subscription', async () => {
+    const channel = `account-activity.v1.eip155:0:${MOCK_ADDRESS.toLowerCase()}`;
+    const mockWsSubscription = createMockWsSubscription([channel]);
+    const { controller, wsSubscribeMock, removeChannelCallbackMock } =
+      setupController({
+        initialActiveChains: [CHAIN_MAINNET],
+        connectionState: WebSocketState.CONNECTED,
+      });
 
     wsSubscribeMock.mockResolvedValueOnce(mockWsSubscription);
 
@@ -510,6 +631,186 @@ describe('BackendWebsocketDataSource', () => {
     await controller.unsubscribe('sub-1');
 
     expect(mockWsSubscription.unsubscribe).toHaveBeenCalled();
+    expect(removeChannelCallbackMock).toHaveBeenCalledWith(channel);
+
+    controller.destroy();
+  });
+
+  it('registers channel callbacks as fallback when subscriptionId does not match', async () => {
+    const channel = `account-activity.v1.eip155:0:${MOCK_ADDRESS.toLowerCase()}`;
+    const mockWsSubscription = createMockWsSubscription([channel]);
+    const onAssetsUpdate = jest.fn().mockResolvedValue(undefined);
+    const { controller, wsSubscribeMock, addChannelCallbackMock } =
+      setupController({
+        initialActiveChains: [CHAIN_MAINNET],
+        connectionState: WebSocketState.CONNECTED,
+      });
+
+    wsSubscribeMock.mockResolvedValueOnce(mockWsSubscription);
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate,
+    });
+
+    expect(addChannelCallbackMock).toHaveBeenCalledWith(
+      expect.objectContaining({ channelName: channel }),
+    );
+
+    const channelCallback = addChannelCallbackMock.mock.calls.find(
+      ([args]) => args.channelName === channel,
+    )?.[0].callback;
+
+    expect(channelCallback).toBeDefined();
+
+    channelCallback(
+      createMockNotification({
+        channel: `account-activity.v1.eip155:42161:${MOCK_ADDRESS.toLowerCase()}`,
+        subscriptionId: 'stale-server-sub-id',
+        data: {
+          address: MOCK_ADDRESS,
+          tx: { chain: CHAIN_MAINNET },
+          updates: [
+            {
+              asset: {
+                type: 'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+                decimals: 6,
+              },
+              postBalance: { amount: '1000000' },
+            },
+          ],
+        },
+      }),
+    );
+
+    await new Promise(process.nextTick);
+
+    expect(onAssetsUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assetsBalance: expect.objectContaining({
+          'mock-account-id': expect.any(Object),
+        }),
+      }),
+      expect.objectContaining({
+        accountsWithSupportedChains: expect.any(Array),
+      }),
+    );
+
+    controller.destroy();
+  });
+
+  it('still stores subscription state when channel callback registration fails', async () => {
+    const channel = `account-activity.v1.eip155:0:${MOCK_ADDRESS.toLowerCase()}`;
+    const onAssetsUpdate = jest.fn().mockResolvedValue(undefined);
+    let notificationCallback: (
+      notification: ServerNotificationMessage,
+    ) => void = () => undefined;
+
+    const rootMessenger = new Messenger<
+      MockAnyNamespace,
+      AllActions,
+      AllEvents
+    >({ namespace: MOCK_ANY_NAMESPACE });
+    const controllerMessenger = new Messenger<
+      'BackendWebsocketDataSource',
+      AllActions,
+      AllEvents,
+      RootMessenger
+    >({
+      namespace: 'BackendWebsocketDataSource',
+      parent: rootMessenger,
+    });
+
+    rootMessenger.delegate({
+      messenger: controllerMessenger,
+      actions: [
+        'BackendWebSocketService:subscribe',
+        'BackendWebSocketService:getConnectionInfo',
+        'BackendWebSocketService:addChannelCallback',
+      ],
+      events: ['BackendWebSocketService:connectionStateChanged'],
+    });
+
+    rootMessenger.registerActionHandler(
+      'BackendWebSocketService:subscribe',
+      ({ callback }) => {
+        notificationCallback = callback;
+        return Promise.resolve(createMockWsSubscription([channel]));
+      },
+    );
+    rootMessenger.registerActionHandler(
+      'BackendWebSocketService:getConnectionInfo',
+      () => ({
+        state: WebSocketState.CONNECTED,
+        url: 'wss://test.example.com',
+        reconnectAttempts: 0,
+        timeout: 30000,
+        reconnectDelay: 1000,
+        maxReconnectDelay: 30000,
+        requestTimeout: 30000,
+      }),
+    );
+    rootMessenger.registerActionHandler(
+      'BackendWebSocketService:addChannelCallback',
+      () => {
+        throw new Error(
+          'A handler for BackendWebSocketService:addChannelCallback has not been delegated to AssetsController',
+        );
+      },
+    );
+
+    const controller = new BackendWebsocketDataSource({
+      messenger: controllerMessenger as unknown as AssetsControllerMessenger,
+      queryApiClient: {
+        accounts: {
+          fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
+            fullSupport: [1],
+          }),
+        },
+      } as unknown as ApiPlatformClient,
+      onActiveChainsUpdated: jest.fn(),
+      getAssetType: (): 'erc20' => 'erc20',
+      state: { activeChains: [CHAIN_MAINNET] },
+    });
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate,
+    });
+
+    notificationCallback(
+      createMockNotification({
+        channel,
+        data: {
+          address: MOCK_ADDRESS,
+          tx: { chain: CHAIN_MAINNET },
+          updates: [
+            {
+              asset: {
+                type: 'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+                decimals: 6,
+              },
+              postBalance: { amount: '1000000' },
+            },
+          ],
+        },
+      }),
+    );
+
+    await new Promise(process.nextTick);
+
+    expect(onAssetsUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assetsBalance: expect.objectContaining({
+          'mock-account-id': expect.any(Object),
+        }),
+      }),
+      expect.objectContaining({ dataTypes: ['balance'] }),
+    );
 
     controller.destroy();
   });
@@ -636,6 +937,10 @@ describe('BackendWebsocketDataSource', () => {
           }),
         }),
       }),
+      expect.objectContaining({
+        dataTypes: ['balance'],
+        accountsWithSupportedChains: expect.any(Array),
+      }),
     );
 
     controller.destroy();
@@ -706,6 +1011,10 @@ describe('BackendWebsocketDataSource', () => {
             }),
         }),
       }),
+      expect.objectContaining({
+        dataTypes: ['balance'],
+        accountsWithSupportedChains: expect.any(Array),
+      }),
     );
 
     controller.destroy();
@@ -768,6 +1077,10 @@ describe('BackendWebsocketDataSource', () => {
             },
           }),
         }),
+      }),
+      expect.objectContaining({
+        dataTypes: ['balance'],
+        accountsWithSupportedChains: expect.any(Array),
       }),
     );
 
@@ -835,6 +1148,10 @@ describe('BackendWebsocketDataSource', () => {
           }),
         }),
       }),
+      expect.objectContaining({
+        dataTypes: ['balance'],
+        accountsWithSupportedChains: expect.any(Array),
+      }),
     );
 
     controller.destroy();
@@ -887,8 +1204,7 @@ describe('BackendWebsocketDataSource', () => {
     notificationCallback(notification);
     await new Promise(process.nextTick);
 
-    // No valid updates → response has only updateMode, no assetsBalance
-    expect(assetsUpdateHandler).toHaveBeenCalledWith({ updateMode: 'merge' });
+    expect(assetsUpdateHandler).not.toHaveBeenCalled();
 
     controller.destroy();
   });
