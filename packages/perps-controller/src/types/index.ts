@@ -96,6 +96,11 @@ export type TerminalAssetMetadata = {
   tags?: string[];
   categories?: string[];
   marketType?: MarketType;
+  /**
+   * Epoch ms when this market was listed on the Terminal backend.
+   * Normalized from the raw API value (number or ISO string).
+   */
+  listedAt?: number;
 };
 
 // Market type filter for UI category badges
@@ -522,6 +527,12 @@ export type PerpsMarketData = {
    * Market categories from Terminal API metadata (e.g., ['crypto', 'meme'])
    */
   categories?: string[];
+  /**
+   * Epoch ms when this market was listed on the Terminal backend.
+   * Sourced from the Terminal API `listedAt` field.
+   * Clients can use this to surface recently added markets (e.g. markets listed within the last 30 days).
+   */
+  listedAt?: number;
 };
 
 export type ToggleTestnetResult = {
