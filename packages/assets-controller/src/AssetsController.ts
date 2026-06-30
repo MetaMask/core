@@ -132,10 +132,6 @@ import type {
 import {
   buildEffectiveAccountBalances,
   createInvalidatedAccountAssetInfo,
-  fetchAccountAssetInfoFromSnap,
-  filterAssetsForAccountAssetEnrichment,
-  isAccountAssetInfoEnrichmentAvailable,
-  ACCOUNT_ASSET_INFO_SNAP_BATCH_SIZE,
 } from './utils/account-asset-enrichment';
 import {
   normalizeAmountString,
@@ -194,7 +190,6 @@ const MESSENGER_EXPOSED_METHODS = [
   'hideAsset',
   'unhideAsset',
   'setSelectedCurrency',
-  'refreshAccountAssetInfo',
   'invalidateAccountAssetExtras',
 ] as const;
 
@@ -1814,87 +1809,6 @@ export class AssetsController extends BaseController<
   // ============================================================================
 
   /**
-   * Fetches and merges snap account-asset enrichment for eligible assets.
-   * Only Stellar classic `asset:` tokens on enrichment-enabled chains are processed.
-   * No-ops when the keyring is locked or the snap request fails.
-   *
-   * @param accountId - Internal account UUID.
-   * @param assetIds - CAIP-19 asset ids to enrich.
-   */
-  async refreshAccountAssetInfo(
-    accountId: AccountId,
-    assetIds: Caip19AssetId[],
-  ): Promise<void> {
-    if (!this.#keyringUnlocked || assetIds.length === 0) {
-      return;
-    }
-
-    const byChain = new Map<ChainId, Caip19AssetId[]>();
-
-    for (const assetId of assetIds) {
-      const normalizedAssetId = normalizeAssetId(assetId);
-      let chainId: ChainId;
-      try {
-        chainId = extractChainId(normalizedAssetId);
-      } catch {
-        continue;
-      }
-
-      if (!isAccountAssetInfoEnrichmentAvailable(chainId)) {
-        continue;
-      }
-
-      const eligible = filterAssetsForAccountAssetEnrichment(
-        [normalizedAssetId],
-        chainId,
-      );
-      if (eligible.length === 0) {
-        continue;
-      }
-
-      const chainAssets = byChain.get(chainId) ?? [];
-      chainAssets.push(normalizedAssetId);
-      byChain.set(chainId, chainAssets);
-    }
-
-    for (const [chainId, chainAssetIds] of byChain) {
-      const snapId = this.#snapDataSource.getSnapIdForChain(chainId as ChainId);
-      if (!snapId) {
-        continue;
-      }
-      for (let i = 0; i < chainAssetIds.length; i += ACCOUNT_ASSET_INFO_SNAP_BATCH_SIZE) {
-        const batch = chainAssetIds.slice(i, i + ACCOUNT_ASSET_INFO_SNAP_BATCH_SIZE);
-        // eslint-disable-next-line no-await-in-loop
-        const info = await fetchAccountAssetInfoFromSnap(
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (params) => (this.messenger as any).call('SnapController:handleRequest', params) as Promise<unknown>,
-          { accountId, snapId, chainId, assets: batch },
-        );
-        if (info) {
-          this.update((state) => {
-            const balances = state.assetsBalance as Record<
-              string,
-              Record<string, FungibleAssetBalance>
-            >;
-            const accountBalances = balances[accountId];
-            if (!accountBalances) {
-              return;
-            }
-            for (const [assetId, assetInfo] of Object.entries(info)) {
-              if (assetId in accountBalances) {
-                accountBalances[assetId] = {
-                  ...accountBalances[assetId],
-                  accountAssetInfo: assetInfo,
-                };
-              }
-            }
-          });
-        }
-      }
-    }
-  }
-
-  /**
    * Marks Stellar classic trustline enrichment as inactive for the given assets.
    * Sets `extra.limit` to `'0'` rather than deleting `extra`, so UI can distinguish
    * inactive trustlines from not-yet-enriched state.
@@ -1926,36 +1840,6 @@ export class AssetsController extends BaseController<
         balances[accountId][normalizedAssetId] = {
           amount: existing?.amount ?? '0',
           accountAssetInfo: createInvalidatedAccountAssetInfo(existing?.accountAssetInfo),
-        };
-      }
-    });
-  }
-
-  /**
-   * Merges snap enrichment fields into balance rows.
-   *
-   * @param accountId - Internal account UUID.
-   * @param extras - Per-asset enrichment from getAccountAssetInfo.
-   */
-  #applyAccountAssetExtras(
-    accountId: AccountId,
-    extras: GetAccountAssetInfoResponse,
-  ): void {
-    this.update((state) => {
-      const balances = state.assetsBalance as Record<
-        string,
-        Record<string, AssetBalance>
-      >;
-      balances[accountId] ??= {};
-
-      for (const [assetId, accountAssetInfo] of Object.entries(extras)) {
-        const normalizedAssetId = normalizeAssetId(assetId as Caip19AssetId);
-        const existing = balances[accountId][normalizedAssetId] ?? {
-          amount: '0',
-        };
-        balances[accountId][normalizedAssetId] = {
-          ...existing,
-          accountAssetInfo,
         };
       }
     });

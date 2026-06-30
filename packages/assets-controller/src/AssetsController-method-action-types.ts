@@ -94,19 +94,6 @@ export type AssetsControllerGetCustomAssetsAction = {
 };
 
 /**
- * Fetches and merges snap account-asset enrichment for eligible assets.
- * Only Stellar classic `asset:` tokens on enrichment-enabled chains are processed.
- * No-ops when the keyring is locked or the snap request fails.
- *
- * @param accountId - Internal account UUID.
- * @param assetIds - CAIP-19 asset ids to enrich.
- */
-export type AssetsControllerRefreshAccountAssetInfoAction = {
-  type: `AssetsController:refreshAccountAssetInfo`;
-  handler: AssetsController['refreshAccountAssetInfo'];
-};
-
-/**
  * Marks Stellar classic trustline enrichment as inactive for the given assets.
  * Sets `extra.limit` to `'0'` rather than deleting `extra`, so UI can distinguish
  * inactive trustlines from not-yet-enriched state.
@@ -164,7 +151,7 @@ export type AssetsControllerMethodActions =
   | AssetsControllerAddCustomAssetAction
   | AssetsControllerRemoveCustomAssetAction
   | AssetsControllerGetCustomAssetsAction
-  | AssetsControllerRefreshAccountAssetInfoAction
+
   | AssetsControllerInvalidateAccountAssetExtrasAction
   | AssetsControllerHideAssetAction
   | AssetsControllerUnhideAssetAction

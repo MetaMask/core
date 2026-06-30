@@ -216,7 +216,7 @@ export class SnapDataSource extends AbstractDataSource<
   /** Bound handler for snap keyring balance updates, stored for cleanup */
   readonly #handleSnapBalancesUpdatedBound: (
     payload: AccountBalancesUpdatedEventPayload,
-  ) => void;
+  ) => Promise<void>;
 
   readonly #handlePermissionStateChangeBound: () => void;
 
@@ -235,7 +235,7 @@ export class SnapDataSource extends AbstractDataSource<
     // Bind handlers for cleanup in destroy()
     this.#handleSnapBalancesUpdatedBound = this.#handleSnapBalancesUpdated.bind(
       this,
-    ) as (payload: AccountBalancesUpdatedEventPayload) => void;
+    );
     this.#handlePermissionStateChangeBound =
       this.#discoverKeyringSnaps.bind(this);
 
@@ -273,9 +273,9 @@ export class SnapDataSource extends AbstractDataSource<
    *
    * @param payload - The balance update payload from AccountsController.
    */
-  #handleSnapBalancesUpdated(
+  async #handleSnapBalancesUpdated(
     payload: AccountBalancesUpdatedEventPayload,
-  ): void {
+  ): Promise<void> {
     // Transform the snap keyring payload to DataResponse format
     let assetsBalance: NonNullable<DataResponse['assetsBalance']> | undefined;
 
@@ -308,11 +308,70 @@ export class SnapDataSource extends AbstractDataSource<
     }
 
     // Only report if we have snap-related updates
-    if (assetsBalance) {
-      const response: DataResponse = { assetsBalance, updateMode: 'merge' };
-      for (const subscription of this.activeSubscriptions.values()) {
-        subscription.onAssetsUpdate(response)?.catch(console.error);
+    if (!assetsBalance) {
+      return;
+    }
+
+    // Enrich account-asset info inline for eligible chains (e.g. Stellar trustlines),
+    // same pattern as fetch(). This ensures push updates carry fresh enrichment.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handleSnapRequest = (params: any): Promise<unknown> =>
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (this.#messenger as any).call('SnapController:handleRequest', params) as Promise<unknown>;
+
+    for (const [accountId, accountAssets] of Object.entries(assetsBalance)) {
+      const allAssetIds = Object.keys(accountAssets) as Caip19AssetId[];
+      const byChain = new Map<CaipChainId, Caip19AssetId[]>();
+      for (const assetId of allAssetIds) {
+        const slash = assetId.indexOf('/');
+        if (slash < 0) {
+          continue;
+        }
+        const chainId = assetId.slice(0, slash) as CaipChainId;
+        if (!isAccountAssetInfoEnrichmentAvailable(chainId)) {
+          continue;
+        }
+        const list = byChain.get(chainId) ?? [];
+        list.push(assetId);
+        byChain.set(chainId, list);
       }
+
+      for (const [chainId, assetIds] of byChain) {
+        const snapId = this.getSnapIdForChain(chainId as ChainId);
+        if (!snapId) {
+          continue;
+        }
+        for (
+          let i = 0;
+          i < assetIds.length;
+          i += ACCOUNT_ASSET_INFO_SNAP_BATCH_SIZE
+        ) {
+          const batch = assetIds.slice(i, i + ACCOUNT_ASSET_INFO_SNAP_BATCH_SIZE);
+          // eslint-disable-next-line no-await-in-loop
+          const info = await fetchAccountAssetInfoFromSnap(handleSnapRequest, {
+            accountId,
+            snapId,
+            chainId,
+            assets: batch,
+          });
+          if (info) {
+            for (const [assetId, assetInfo] of Object.entries(info)) {
+              const row = (accountAssets as Record<string, AssetBalance | undefined>)[assetId];
+              if (row) {
+                (accountAssets as Record<string, unknown>)[assetId] = {
+                  ...row,
+                  accountAssetInfo: assetInfo,
+                };
+              }
+            }
+          }
+        }
+      }
+    }
+
+    const response: DataResponse = { assetsBalance, updateMode: 'merge' };
+    for (const subscription of this.activeSubscriptions.values()) {
+      subscription.onAssetsUpdate(response)?.catch(console.error);
     }
   }
 

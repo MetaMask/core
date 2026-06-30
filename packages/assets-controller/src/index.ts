@@ -176,14 +176,6 @@ export {
   formatExchangeRatesForBridge,
   formatStateForTransactionPay,
 } from './utils';
-export {
-  isAccountAssetInfoEnrichmentAvailable,
-  filterAssetsForAccountAssetEnrichment,
-  createInvalidatedAccountAssetInfo,
-  mergeAssetBalanceRow,
-  buildEffectiveAccountBalances,
-  GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD,
-} from './utils/account-asset-enrichment';
 export type {
   AccountForLegacyFormat,
   BridgeExchangeRatesFormat,
