@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `extraFee` to the `Quote` `quote` type, surfacing the partner (MetaMask) fee returned by the quotes API alongside `providerFee` and `networkFee` ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Add optional `isFeeExcludedFromFiat` to `RampsController.getQuotes` and `RampsService.getQuotes` to request fee-on-top quoting, forwarding `isFeeExcludedFromFiat=true` to the quotes API so provider/network fees are added on top of the requested amount rather than deducted from the crypto output ([#0000](https://github.com/MetaMask/core/pull/0000))
+
 ## [15.0.0]
 
 ### Changed

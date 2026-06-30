@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Request fee-on-top quoting (`isFeeExcludedFromFiat`) when fetching ramps quotes in the fiat strategy, so the on-ramp adds its fees on top of the requested amount instead of deducting them from the crypto output (keeps the funded amount aligned with the target and surfaces itemized provider/network fees) ([#0000](https://github.com/MetaMask/core/pull/0000))
 - Bump `@metamask/assets-controller` from `^9.1.0` to `^10.0.0` ([#9312](https://github.com/MetaMask/core/pull/9312))
 
 ## [23.17.2]
