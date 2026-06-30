@@ -83,6 +83,7 @@ describe('stopDaemon', () => {
     expect(mockSendSignal).not.toHaveBeenCalled();
   });
 
+
   it('signals the recorded PID when the socket is absent but the process is still alive', async () => {
     mockReadPidFile.mockResolvedValue(123);
     mockPingDaemon.mockResolvedValue(ABSENT);
