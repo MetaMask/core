@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New `getRecentlyViewedMarkets()` method — returns up to 10 symbol strings for the current network, filtered to entries within the last 24 hours, ordered newest-first. Returns `[]` when none qualify.
   - New `selectRecentlyViewedMarkets` selector that applies the same TTL/limit/ordering logic for Redux subscribers.
   - New `PerpsControllerRecordMarketViewedAction` and `PerpsControllerGetRecentlyViewedMarketsAction` messenger action types.
+- Consolidate the Perps analytics contract so clients import a single source of truth from `@metamask/perps-controller` ([#9311](https://github.com/MetaMask/core/pull/9311))
+  - Add five new `PerpsAnalyticsEvent` members: `TransactionConsidered` (`Perp Transaction Considered`), `TradeQuoteReceived` (`Perp Trade Quote Received`), `SearchQuery` (`Perp Search Query`), `SearchResultTapped` (`Perp Search Result Tapped`), `SearchAbandoned` (`Perp Search Abandoned`)
+  - Add new `PERPS_EVENT_PROPERTY` keys: `entry_point`, `discovery_source`, `perp_discovery_source`, `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term`, `watchlisted`, `hl_fee_rate`, `bulk_action_id`, `environment_type`, `order_context`, `order_size_percent`, `limit_price_input_type`, `limit_price_input_preset`, `order_has_tp`, `order_has_sl`, `quote_latency_ms`, `error_reason`, `saved_order`, `default_payment_token`, `default_size_amount`, `default_leverage`, `default_auto_close`, `order_execution_latency_ms`, `screen_context`, `from_token`, `from_chain`, `to_token`, `to_chain`, `search_query`, `results_count`, `result_rank`, `mode`, `current_token`, `sort_field`, `sort_direction`, `filter_category`, `time_on_screen_ms`
+  - Add new `PERPS_EVENT_VALUE` entries: `INTERACTION_TYPE.{SORT_APPLIED, FILTER_APPLIED, SEARCH_RESULT_TAPPED, SEARCH_CHIP_TAPPED, SEARCH_SIGNAL_TILE_TAPPED, PAYMENT_TOKEN_SELECTOR_DISMISSED}`, `ACTION.ABANDON_ORDER`, `BUTTON_CLICKED.{PLACE_ORDER, CLOSE, REDUCE_EXPOSURE}`, `SCREEN_TYPE.{SEARCH_RESULTS_SHOWN, SEARCH_NO_RESULTS}`
+  - Add `PerpsAttributionContext` type and `setAttributionContext` / `getAttributionContext` / `clearAttributionContext` / `mergeAttributionContext` on `PerpsController` (with matching messenger actions) for transient UTM attribution propagation
+  - Extend `TrackingData` with `entryPoint`, `discoverySource`, `perpDiscoverySource`, `hlFeeRate`; extend `TPSLTrackingData` with `entryPoint`, `discoverySource`, `perpDiscoverySource`; add optional `trackingData` to `CancelOrderParams`
 - Add Perps Advanced Chart analytics constants to `PERPS_EVENT_PROPERTY` and `PERPS_EVENT_VALUE` so mobile can import chart instrumentation keys from `@metamask/perps-controller` instead of maintaining a local mirror ([#9221](https://github.com/MetaMask/core/pull/9221))
   - New `PERPS_EVENT_PROPERTY` keys: `CHART_LIBRARY`, `ASSET_TYPE`
   - New `PERPS_EVENT_VALUE.CHART_LIBRARY` group: `lightweight`, `advanced`
@@ -25,6 +31,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Consolidate the Perps transaction analytics pipeline in `TradingService` ([#9311](https://github.com/MetaMask/core/pull/9311))
+  - Emit a `status: 'submitted'` event before the provider round-trip for trade (`placeOrder`), close (`closePosition`), cancel (`cancelOrder`) and risk-management (`updatePositionTPSL`) operations
+  - Populate `metamask_fee` on successful `flipPosition` trades from `trackingData`
+  - Add `leverage` to `Perp Position Close Transaction` event properties
+  - Add `hl_fee_rate` to trade and close events when present in `trackingData`; omit it entirely when unavailable
+  - Generate a `bulk_action_id` UUID for `closePositions` / `cancelOrders` and attach it to each per-item event and the batch summary event
+  - Propagate `entry_point`, `discovery_source`, `perp_discovery_source` from `trackingData` onto trade/close/cancel/risk events; the legacy `source` field on `TPSLTrackingData` is now deprecated
 - On `subscribeToPrices` calls with `includeMarketData: true` (focused detail/ticket screens), the `price` field in each `PriceUpdate` is now driven by the per-symbol `activeAssetCtx` WebSocket stream (`midPx`, falling back to `markPx`) rather than the main-DEX `allMids` snapshot, which Hyperliquid throttles to a ~5 s push cadence ([#9160](https://github.com/MetaMask/core/pull/9160))
   - Price source selection is **per-subscriber**: focused (`includeMarketData: true`) callbacks receive the fast-stream price; list/overview (`includeMarketData: false`) callbacks always receive the raw `allMids` baseline, even when both subscriber types share the same symbol.
   - The fast-stream price is preferred only while it is fresh (within a 10 s staleness window); `allMids` takes back over automatically once the `activeAssetCtx` stream goes quiet.

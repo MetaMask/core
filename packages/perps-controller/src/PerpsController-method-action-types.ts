@@ -547,6 +547,35 @@ export type PerpsControllerGetWithdrawalRoutesAction = {
 };
 
 /**
+ * Set the transient UTM / discovery attribution context (TAT-3133, TAT-3140).
+ * Replaces any previously set context. Held in-memory only — not persisted.
+ *
+ * @param context - The attribution context (UTM fields) to store.
+ */
+export type PerpsControllerSetAttributionContextAction = {
+  type: `PerpsController:setAttributionContext`;
+  handler: PerpsController['setAttributionContext'];
+};
+
+/**
+ * Get a copy of the current attribution context (TAT-3133, TAT-3140).
+ *
+ * @returns A shallow copy of the stored attribution context.
+ */
+export type PerpsControllerGetAttributionContextAction = {
+  type: `PerpsController:getAttributionContext`;
+  handler: PerpsController['getAttributionContext'];
+};
+
+/**
+ * Clear the stored attribution context (TAT-3133, TAT-3140).
+ */
+export type PerpsControllerClearAttributionContextAction = {
+  type: `PerpsController:clearAttributionContext`;
+  handler: PerpsController['clearAttributionContext'];
+};
+
+/**
  * Toggle between testnet and mainnet
  *
  * @returns The toggle result with success status and current network mode.
@@ -1102,6 +1131,9 @@ export type PerpsControllerMethodActions =
   | PerpsControllerValidateClosePositionAction
   | PerpsControllerValidateWithdrawalAction
   | PerpsControllerGetWithdrawalRoutesAction
+  | PerpsControllerSetAttributionContextAction
+  | PerpsControllerGetAttributionContextAction
+  | PerpsControllerClearAttributionContextAction
   | PerpsControllerToggleTestnetAction
   | PerpsControllerSwitchProviderAction
   | PerpsControllerGetCurrentNetworkAction

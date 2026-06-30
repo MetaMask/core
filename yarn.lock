@@ -5911,7 +5911,7 @@ __metadata:
   resolution: "@metamask/bitcoin-regtest-up@workspace:packages/bitcoin-regtest-up"
   dependencies:
     "@metamask/auto-changelog": "npm:^6.1.0"
-    "@metamask/local-node-utils": "npm:^0.0.0"
+    "@metamask/local-node-utils": "npm:^1.0.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
     deepmerge: "npm:^4.2.2"
@@ -5926,7 +5926,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/bridge-controller@npm:^77.1.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
+"@metamask/bridge-controller@npm:^77.2.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-controller@workspace:packages/bridge-controller"
   dependencies:
@@ -5980,7 +5980,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^39.0.3"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
-    "@metamask/bridge-controller": "npm:^77.1.0"
+    "@metamask/bridge-controller": "npm:^77.2.0"
     "@metamask/controller-utils": "npm:^12.3.0"
     "@metamask/gas-fee-controller": "npm:^26.2.3"
     "@metamask/keyring-controller": "npm:^27.1.0"
@@ -7086,7 +7086,7 @@ __metadata:
   resolution: "@metamask/java-tron-up@workspace:packages/java-tron-up"
   dependencies:
     "@metamask/auto-changelog": "npm:^6.1.0"
-    "@metamask/local-node-utils": "npm:^0.0.0"
+    "@metamask/local-node-utils": "npm:^1.0.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
     deepmerge: "npm:^4.2.2"
@@ -7299,7 +7299,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/local-node-utils@npm:^0.0.0, @metamask/local-node-utils@workspace:packages/local-node-utils":
+"@metamask/local-node-utils@npm:^1.0.0, @metamask/local-node-utils@workspace:packages/local-node-utils":
   version: 0.0.0-use.local
   resolution: "@metamask/local-node-utils@workspace:packages/local-node-utils"
   dependencies:
@@ -8634,7 +8634,7 @@ __metadata:
   resolution: "@metamask/solana-test-validator-up@workspace:packages/solana-test-validator-up"
   dependencies:
     "@metamask/auto-changelog": "npm:^6.1.0"
-    "@metamask/local-node-utils": "npm:^0.0.0"
+    "@metamask/local-node-utils": "npm:^1.0.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
     deepmerge: "npm:^4.2.2"
@@ -8817,7 +8817,7 @@ __metadata:
     "@metamask/assets-controllers": "npm:^109.2.2"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
-    "@metamask/bridge-controller": "npm:^77.1.0"
+    "@metamask/bridge-controller": "npm:^77.2.0"
     "@metamask/bridge-status-controller": "npm:^74.0.0"
     "@metamask/controller-utils": "npm:^12.3.0"
     "@metamask/gas-fee-controller": "npm:^26.2.3"

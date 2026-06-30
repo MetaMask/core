@@ -111,6 +111,8 @@ import type {
   PerpsPlatformDependencies,
   PerpsLogger,
   PerpsActiveProviderMode,
+  PerpsAnalyticsProperties,
+  PerpsAttributionContext,
   PerpsProviderType,
   PerpsSelectedPaymentToken,
   PerpsRemoteFeatureFlagState,
@@ -752,6 +754,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'calculateMaintenanceMargin',
   'cancelOrder',
   'cancelOrders',
+  'clearAttributionContext',
   'clearDepositResult',
   'clearPendingTradeConfiguration',
   'clearPendingTransactionRequests',
@@ -768,6 +771,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getAccountState',
   'getActiveProvider',
   'getActiveProviderOrNull',
+  'getAttributionContext',
   'getAvailableDexs',
   'getBlockExplorerUrl',
   'getCachedMarketDataForActiveProvider',
@@ -810,6 +814,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'saveOrderBookGrouping',
   'savePendingTradeConfiguration',
   'saveTradeConfiguration',
+  'setAttributionContext',
   'setLiveDataConfig',
   'setSelectedPaymentToken',
   'startEligibilityMonitoring',
@@ -888,6 +893,13 @@ export class PerpsController extends BaseController<
   // market is reported untradable (PriceUpdate.isTradable). Protocol-agnostic: passed
   // through to each provider, which applies its own default when this is undefined.
   readonly #priceDeviationLimit?: number;
+
+  /**
+   * Transient UTM / discovery attribution context (TAT-3133, TAT-3140).
+   * Held in-memory only (never persisted in PerpsControllerState) and merged
+   * into analytics event properties via {@link mergeAttributionContext}.
+   */
+  #attributionContext: PerpsAttributionContext = {};
 
   /**
    * Check if MYX provider is enabled via feature flag
@@ -3870,6 +3882,65 @@ export class PerpsController extends BaseController<
       // Return empty array if provider is not available
       return [];
     }
+  }
+
+  /**
+   * Set the transient UTM / discovery attribution context (TAT-3133, TAT-3140).
+   * Replaces any previously set context. Held in-memory only — not persisted.
+   *
+   * @param context - The attribution context (UTM fields) to store.
+   */
+  setAttributionContext(context: PerpsAttributionContext): void {
+    this.#attributionContext = { ...context };
+  }
+
+  /**
+   * Get a copy of the current attribution context (TAT-3133, TAT-3140).
+   *
+   * @returns A shallow copy of the stored attribution context.
+   */
+  getAttributionContext(): PerpsAttributionContext {
+    return { ...this.#attributionContext };
+  }
+
+  /**
+   * Clear the stored attribution context (TAT-3133, TAT-3140).
+   */
+  clearAttributionContext(): void {
+    this.#attributionContext = {};
+  }
+
+  /**
+   * Merge the stored UTM attribution context into a set of analytics event
+   * properties (TAT-3133, TAT-3140). Only defined UTM fields are added, mapped
+   * to their canonical PERPS_EVENT_PROPERTY keys. Provided properties take
+   * precedence and are never overwritten.
+   *
+   * @param properties - Base event properties to merge attribution into.
+   * @returns A new properties object including any defined UTM keys.
+   */
+  mergeAttributionContext(
+    properties: PerpsAnalyticsProperties = {},
+  ): PerpsAnalyticsProperties {
+    const utm: PerpsAnalyticsProperties = {};
+    const context = this.#attributionContext;
+    if (context.utmSource !== undefined) {
+      utm[PERPS_EVENT_PROPERTY.UTM_SOURCE] = context.utmSource;
+    }
+    if (context.utmMedium !== undefined) {
+      utm[PERPS_EVENT_PROPERTY.UTM_MEDIUM] = context.utmMedium;
+    }
+    if (context.utmCampaign !== undefined) {
+      utm[PERPS_EVENT_PROPERTY.UTM_CAMPAIGN] = context.utmCampaign;
+    }
+    if (context.utmContent !== undefined) {
+      utm[PERPS_EVENT_PROPERTY.UTM_CONTENT] = context.utmContent;
+    }
+    if (context.utmTerm !== undefined) {
+      utm[PERPS_EVENT_PROPERTY.UTM_TERM] = context.utmTerm;
+    }
+    // Provided properties win over attribution context.
+    return { ...utm, ...properties };
   }
 
   /**
