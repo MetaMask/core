@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { closeSync, existsSync, openSync } from 'node:fs';
 
 import { pingDaemon } from './daemon-client';
 import { ensureDaemon } from './daemon-spawn';
@@ -13,8 +13,14 @@ jest.mock('./paths');
 
 const mockSpawn = jest.mocked(spawn);
 const mockExistsSync = jest.mocked(existsSync);
+const mockOpenSync = jest.mocked(openSync);
+const mockCloseSync = jest.mocked(closeSync);
 const mockPingDaemon = jest.mocked(pingDaemon);
 const mockGetDaemonPaths = jest.mocked(getDaemonPaths);
+
+// Arbitrary fd handed back by the mocked `openSync` so tests can assert it is
+// wired into the child's stdio and later closed in the parent.
+const LOG_FD = 7;
 
 const CONFIG: DaemonSpawnConfig = {
   dataDir: '/tmp/data',
@@ -79,6 +85,7 @@ describe('ensureDaemon', () => {
       logPath: '/tmp/test.log',
       dbPath: '/tmp/wallet.db',
     });
+    mockOpenSync.mockReturnValue(LOG_FD);
     setupSpawnMock();
   });
 
@@ -128,7 +135,7 @@ describe('ensureDaemon', () => {
       ['/pkg/dist/daemon/daemon-entry.mjs'],
       expect.objectContaining({
         detached: true,
-        stdio: 'ignore',
+        stdio: ['ignore', 'ignore', LOG_FD],
         env: expect.objectContaining({
           MM_DAEMON_DATA_DIR: '/tmp/data',
           MM_DAEMON_SOCKET_PATH: '/tmp/test.sock',
@@ -139,6 +146,21 @@ describe('ensureDaemon', () => {
         }),
       }),
     );
+  });
+
+  it('redirects the daemon stderr to its log file and closes the parent fd', async () => {
+    mockPingDaemon
+      .mockResolvedValueOnce(ABSENT)
+      .mockResolvedValueOnce(RESPONSIVE);
+    mockExistsSync.mockReturnValue(true);
+
+    await ensureDaemon(CONFIG);
+
+    expect(mockOpenSync).toHaveBeenCalledWith('/tmp/test.log', 'a');
+    const spawnOptions = mockSpawn.mock.calls[0][2] as { stdio: unknown };
+    expect(spawnOptions.stdio).toStrictEqual(['ignore', 'ignore', LOG_FD]);
+    // The child dups the fd, so the parent must close its own copy.
+    expect(mockCloseSync).toHaveBeenCalledWith(LOG_FD);
   });
 
   it('returns started when the spawned daemon becomes responsive', async () => {
