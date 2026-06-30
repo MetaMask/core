@@ -5,6 +5,7 @@ import type {
   DelegationSubmission,
   NotificationPreferences,
 } from '../../src/types';
+import { DEFAULT_PRICE_ALERT_PREFERENCES } from '../../src/validators';
 
 export const MOCK_DELEGATIONS_URL = `${getAuthenticatedStorageUrl('prod')}/delegations`;
 export const MOCK_NOTIFICATION_PREFERENCES_URL = `${getAuthenticatedStorageUrl('prod')}/preferences/notifications`;
@@ -72,10 +73,14 @@ export const MOCK_NOTIFICATION_PREFERENCES: NotificationPreferences = {
     inAppNotificationsEnabled: true,
     pushNotificationsEnabled: false,
   },
+  priceAlerts: { ...DEFAULT_PRICE_ALERT_PREFERENCES },
 };
 
-/** Legacy notification preferences blob without `agenticCli`. */
-export const MOCK_LEGACY_NOTIFICATION_PREFERENCES: NotificationPreferences = {
+/** Legacy notification preferences blob without `agenticCli` or `priceAlerts`. */
+export const MOCK_LEGACY_NOTIFICATION_PREFERENCES: Omit<
+  NotificationPreferences,
+  'agenticCli' | 'priceAlerts'
+> = {
   walletActivity: MOCK_NOTIFICATION_PREFERENCES.walletActivity,
   marketing: MOCK_NOTIFICATION_PREFERENCES.marketing,
   perps: MOCK_NOTIFICATION_PREFERENCES.perps,

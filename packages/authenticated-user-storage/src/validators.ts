@@ -17,6 +17,7 @@ import type {
   AgenticCliPreference,
   DelegationResponse,
   NotificationPreferences,
+  PriceAlertPreference,
 } from './types';
 
 /**
@@ -113,6 +114,15 @@ const NotificationPreferencesSchema = type({
  * notification-preference blobs that omit `agenticCli`.
  */
 export const DEFAULT_AGENTIC_CLI_PREFERENCES: AgenticCliPreference = {
+  inAppNotificationsEnabled: true,
+  pushNotificationsEnabled: true,
+};
+
+/**
+ * Default price-alert notification preferences applied when coercing legacy
+ * notification-preference blobs that omit `priceAlerts`.
+ */
+export const DEFAULT_PRICE_ALERT_PREFERENCES: PriceAlertPreference = {
   inAppNotificationsEnabled: true,
   pushNotificationsEnabled: true,
 };
