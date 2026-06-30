@@ -41,7 +41,9 @@ describe('PERPS_EVENT_PROPERTY', () => {
 
     it('exports order funnel / quote keys (TAT-3084)', () => {
       expect(PERPS_EVENT_PROPERTY.ORDER_CONTEXT).toBe('order_context');
-      expect(PERPS_EVENT_PROPERTY.ORDER_SIZE_PERCENT).toBe('order_size_percent');
+      expect(PERPS_EVENT_PROPERTY.ORDER_SIZE_PERCENT).toBe(
+        'order_size_percent',
+      );
       expect(PERPS_EVENT_PROPERTY.LIMIT_PRICE_INPUT_TYPE).toBe(
         'limit_price_input_type',
       );
@@ -60,7 +62,9 @@ describe('PERPS_EVENT_PROPERTY', () => {
         'default_size_amount',
       );
       expect(PERPS_EVENT_PROPERTY.DEFAULT_LEVERAGE).toBe('default_leverage');
-      expect(PERPS_EVENT_PROPERTY.DEFAULT_AUTO_CLOSE).toBe('default_auto_close');
+      expect(PERPS_EVENT_PROPERTY.DEFAULT_AUTO_CLOSE).toBe(
+        'default_auto_close',
+      );
       expect(PERPS_EVENT_PROPERTY.ORDER_EXECUTION_LATENCY_MS).toBe(
         'order_execution_latency_ms',
       );
@@ -326,7 +330,9 @@ describe('PERPS_EVENT_VALUE.BUTTON_LOCATION extensions', () => {
 
 describe('PERPS_EVENT_VALUE consolidated contract entries (TAT-3463)', () => {
   it('exports new INTERACTION_TYPE values (TAT-3142, TAT-3144, TAT-3202, TAT-3151)', () => {
-    expect(PERPS_EVENT_VALUE.INTERACTION_TYPE.SORT_APPLIED).toBe('sort_applied');
+    expect(PERPS_EVENT_VALUE.INTERACTION_TYPE.SORT_APPLIED).toBe(
+      'sort_applied',
+    );
     expect(PERPS_EVENT_VALUE.INTERACTION_TYPE.FILTER_APPLIED).toBe(
       'filter_applied',
     );
@@ -339,9 +345,9 @@ describe('PERPS_EVENT_VALUE consolidated contract entries (TAT-3463)', () => {
     expect(PERPS_EVENT_VALUE.INTERACTION_TYPE.SEARCH_SIGNAL_TILE_TAPPED).toBe(
       'search_signal_tile_tapped',
     );
-    expect(PERPS_EVENT_VALUE.INTERACTION_TYPE.PAYMENT_TOKEN_SELECTOR_DISMISSED).toBe(
-      'payment_token_selector_dismissed',
-    );
+    expect(
+      PERPS_EVENT_VALUE.INTERACTION_TYPE.PAYMENT_TOKEN_SELECTOR_DISMISSED,
+    ).toBe('payment_token_selector_dismissed');
   });
 
   it('exports ACTION.ABANDON_ORDER (TAT-3136)', () => {

@@ -609,7 +609,9 @@ describe('PerpsController', () => {
         utmTerm: 'perps',
       });
 
-      expect(controller.mergeAttributionContext({ asset: 'BTC' })).toStrictEqual({
+      expect(
+        controller.mergeAttributionContext({ asset: 'BTC' }),
+      ).toStrictEqual({
         [PERPS_EVENT_PROPERTY.UTM_SOURCE]: 'newsletter',
         [PERPS_EVENT_PROPERTY.UTM_MEDIUM]: 'email',
         [PERPS_EVENT_PROPERTY.UTM_CAMPAIGN]: 'launch',
@@ -623,7 +625,9 @@ describe('PerpsController', () => {
       controller.setAttributionContext({ utmSource: 'newsletter' });
 
       expect(
-        controller.mergeAttributionContext({ [PERPS_EVENT_PROPERTY.UTM_SOURCE]: 'override' }),
+        controller.mergeAttributionContext({
+          [PERPS_EVENT_PROPERTY.UTM_SOURCE]: 'override',
+        }),
       ).toStrictEqual({ [PERPS_EVENT_PROPERTY.UTM_SOURCE]: 'override' });
     });
 

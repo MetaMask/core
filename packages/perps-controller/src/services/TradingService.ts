@@ -2348,20 +2348,24 @@ export class TradingService {
       } else {
         // Provider rejected the flip without throwing: emit a terminal failed
         // event so every submitted flip is paired with executed or failed.
-        this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.TradeTransaction, {
-          [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.FAILED,
-          [PERPS_EVENT_PROPERTY.ASSET]: position.symbol,
-          [PERPS_EVENT_PROPERTY.ACTION]: flipAction,
-          [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
-          [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: result.error ?? 'Unknown error',
-          ...(trackingData?.vipTier !== undefined && {
-            [PERPS_EVENT_PROPERTY.VIP_TIER]: trackingData.vipTier,
-          }),
-          ...(trackingData?.vipDiscount !== undefined && {
-            [PERPS_EVENT_PROPERTY.VIP_DISCOUNT]: trackingData.vipDiscount,
-          }),
-          ...this.#buildAttributionProperties(trackingData),
-        });
+        this.#deps.metrics.trackPerpsEvent(
+          PerpsAnalyticsEvent.TradeTransaction,
+          {
+            [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.FAILED,
+            [PERPS_EVENT_PROPERTY.ASSET]: position.symbol,
+            [PERPS_EVENT_PROPERTY.ACTION]: flipAction,
+            [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
+            [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]:
+              result.error ?? 'Unknown error',
+            ...(trackingData?.vipTier !== undefined && {
+              [PERPS_EVENT_PROPERTY.VIP_TIER]: trackingData.vipTier,
+            }),
+            ...(trackingData?.vipDiscount !== undefined && {
+              [PERPS_EVENT_PROPERTY.VIP_DISCOUNT]: trackingData.vipDiscount,
+            }),
+            ...this.#buildAttributionProperties(trackingData),
+          },
+        );
       }
 
       this.#deps.tracer.endTrace({

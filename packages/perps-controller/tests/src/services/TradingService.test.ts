@@ -2511,7 +2511,12 @@ describe('TradingService', () => {
 
         await tradingService.placeOrder({
           provider: mockProvider,
-          params: { symbol: 'BTC', isBuy: true, size: '0.1', orderType: 'market' },
+          params: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.1',
+            orderType: 'market',
+          },
           context: mockContext,
           reportOrderToDataLake: mockReportOrderToDataLake,
         });
@@ -2610,7 +2615,9 @@ describe('TradingService', () => {
           context: mockContext,
         });
 
-        expect(findCall(PerpsAnalyticsEvent.TradeTransaction, 'failed')?.[1]).toEqual(
+        expect(
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'failed')?.[1],
+        ).toEqual(
           expect.objectContaining({
             status: 'failed',
             asset: 'BTC',
@@ -2659,9 +2666,9 @@ describe('TradingService', () => {
         context: mockContext,
       });
 
-      expect(findCall(PerpsAnalyticsEvent.TradeTransaction, 'executed')?.[1]).toEqual(
-        expect.objectContaining({ metamask_fee: 2.5 }),
-      );
+      expect(
+        findCall(PerpsAnalyticsEvent.TradeTransaction, 'executed')?.[1],
+      ).toEqual(expect.objectContaining({ metamask_fee: 2.5 }));
     });
 
     it('adds leverage to the close event properties (TAT-3147)', async () => {
@@ -2701,7 +2708,11 @@ describe('TradingService', () => {
             isBuy: true,
             size: '0.1',
             orderType: 'market',
-            trackingData: { totalFee: 1, marketPrice: 50000, hlFeeRate: 0.00045 },
+            trackingData: {
+              totalFee: 1,
+              marketPrice: 50000,
+              hlFeeRate: 0.00045,
+            },
           },
           context: mockContext,
           reportOrderToDataLake: mockReportOrderToDataLake,
@@ -2762,8 +2773,9 @@ describe('TradingService', () => {
       });
 
       it('attaches bulk_action_id to per-item close events in the fallback path', async () => {
-        (mockProvider as unknown as { closePositions?: unknown }).closePositions =
-          undefined;
+        (
+          mockProvider as unknown as { closePositions?: unknown }
+        ).closePositions = undefined;
         mockGetPositions.mockResolvedValue([mockClosePosition]);
         mockProvider.closePosition.mockResolvedValue({
           success: true,
@@ -2779,7 +2791,10 @@ describe('TradingService', () => {
         });
 
         expect(
-          findCall(PerpsAnalyticsEvent.PositionCloseTransaction, 'executed')?.[1],
+          findCall(
+            PerpsAnalyticsEvent.PositionCloseTransaction,
+            'executed',
+          )?.[1],
         ).toEqual(expect.objectContaining({ bulk_action_id: 'mock-trace-id' }));
       });
 
