@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/core-backend` from `^6.3.3` to `^6.4.0` ([#9312](https://github.com/MetaMask/core/pull/9312))
+
 ### Fixed
 
 - Resimulate the latest transaction data instead of stale data captured when resimulation started, fixing flickering simulation results after a transaction is updated ([#9287](https://github.com/MetaMask/core/pull/9287))

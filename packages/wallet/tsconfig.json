@@ -5,6 +5,7 @@
   },
   "references": [
     { "path": "../accounts-controller/tsconfig.json" },
+    { "path": "../address-book-controller/tsconfig.json" },
     { "path": "../approval-controller/tsconfig.json" },
     { "path": "../base-controller/tsconfig.json" },
     { "path": "../connectivity-controller/tsconfig.json" },

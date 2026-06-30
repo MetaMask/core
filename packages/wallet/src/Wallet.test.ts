@@ -1,3 +1,4 @@
+import { getDefaultAddressBookControllerState } from '@metamask/address-book-controller';
 import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import { Messenger } from '@metamask/messenger';
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
@@ -259,6 +260,62 @@ describe('Wallet', () => {
       expect([...trackedAddresses].sort()).toStrictEqual(
         [...keyringAccounts].sort(),
       );
+    });
+  });
+
+  describe('AddressBookController', () => {
+    const ADDRESS = '0x1234567890123456789012345678901234567890';
+
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+
+      expect(messenger.call('AddressBookController:getState')).toStrictEqual(
+        getDefaultAddressBookControllerState(),
+      );
+    });
+
+    it('applies initial state passed through the Wallet constructor', () => {
+      const entry = {
+        address: ADDRESS,
+        name: 'Alice',
+        chainId: '0x1' as const,
+        memo: '',
+        isEns: false,
+      };
+
+      const wallet = new Wallet({
+        state: {
+          AddressBookController: {
+            addressBook: { '0x1': { [ADDRESS]: entry } },
+          },
+        },
+        instanceOptions: {
+          connectivityController: {
+            connectivityAdapter: new AlwaysOnlineAdapter(),
+          },
+          networkController: {
+            infuraProjectId: 'fake-infura-project-id',
+          },
+          storageService: {
+            storage: new InMemoryStorageAdapter(),
+          },
+          remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+        },
+      });
+
+      expect(
+        wallet.state.AddressBookController.addressBook['0x1'][ADDRESS],
+      ).toStrictEqual(entry);
+    });
+
+    it('routes its method actions through the wallet messenger', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+
+      messenger.call('AddressBookController:set', ADDRESS, 'Alice');
+
+      expect(messenger.call('AddressBookController:list')).toHaveLength(1);
     });
   });
 
