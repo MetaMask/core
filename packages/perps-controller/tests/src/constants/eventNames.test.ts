@@ -15,6 +15,12 @@ describe('PERPS_EVENT_PROPERTY', () => {
     });
   });
 
+  describe('Auto Close TP/SL RoE sign analytics keys', () => {
+    it('exports ROE_SIGN property key', () => {
+      expect(PERPS_EVENT_PROPERTY.ROE_SIGN).toBe('roe_sign');
+    });
+  });
+
   describe('consolidated analytics contract property keys (TAT-3463)', () => {
     it('exports entry point / discovery attribution keys (TAT-3080)', () => {
       expect(PERPS_EVENT_PROPERTY.ENTRY_POINT).toBe('entry_point');
@@ -348,6 +354,9 @@ describe('PERPS_EVENT_VALUE consolidated contract entries (TAT-3463)', () => {
     expect(
       PERPS_EVENT_VALUE.INTERACTION_TYPE.PAYMENT_TOKEN_SELECTOR_DISMISSED,
     ).toBe('payment_token_selector_dismissed');
+    expect(PERPS_EVENT_VALUE.INTERACTION_TYPE.TPSL_ROE_SIGN_TOGGLED).toBe(
+      'tpsl_roe_sign_toggled',
+    );
   });
 
   it('exports ACTION.ABANDON_ORDER (TAT-3136)', () => {

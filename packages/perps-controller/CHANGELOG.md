@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add Auto Close TP/SL RoE sign toggle analytics constants to `PERPS_EVENT_PROPERTY` and `PERPS_EVENT_VALUE` so mobile and extension can import them from `@metamask/perps-controller` instead of local mirrors ([TAT-3429](https://consensyssoftware.atlassian.net/browse/TAT-3429))
+  - New `PERPS_EVENT_PROPERTY` key: `ROE_SIGN` (`roe_sign`)
+  - New `PERPS_EVENT_VALUE.INTERACTION_TYPE` entry: `TPSL_ROE_SIGN_TOGGLED` (`tpsl_roe_sign_toggled`)
 - Consolidate the Perps analytics contract so clients import a single source of truth from `@metamask/perps-controller` ([#9311](https://github.com/MetaMask/core/pull/9311))
   - Add five new `PerpsAnalyticsEvent` members: `TransactionConsidered` (`Perp Transaction Considered`), `TradeQuoteReceived` (`Perp Trade Quote Received`), `SearchQuery` (`Perp Search Query`), `SearchResultTapped` (`Perp Search Result Tapped`), `SearchAbandoned` (`Perp Search Abandoned`)
   - Add new `PERPS_EVENT_PROPERTY` keys: `entry_point`, `discovery_source`, `perp_discovery_source`, `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term`, `watchlisted`, `hl_fee_rate`, `bulk_action_id`, `environment_type`, `order_context`, `order_size_percent`, `limit_price_input_type`, `limit_price_input_preset`, `order_has_tp`, `order_has_sl`, `quote_latency_ms`, `error_reason`, `saved_order`, `default_payment_token`, `default_size_amount`, `default_leverage`, `default_auto_close`, `order_execution_latency_ms`, `screen_context`, `from_token`, `from_chain`, `to_token`, `to_chain`, `search_query`, `results_count`, `result_rank`, `mode`, `current_token`, `sort_field`, `sort_direction`, `filter_category`, `time_on_screen_ms`
