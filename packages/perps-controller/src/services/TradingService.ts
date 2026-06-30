@@ -897,14 +897,39 @@ export class TradingService {
   }): void {
     const { position, result, error, params, duration, bulkActionId } = options;
 
-    if (!position) {
-      return;
-    }
-
     // Bulk action correlation id for batch close events (TAT-3150)
     const bulkActionProps: PerpsAnalyticsProperties = bulkActionId
       ? { [PERPS_EVENT_PROPERTY.BULK_ACTION_ID]: bulkActionId }
       : {};
+
+    if (!position) {
+      // No local position record, yet closePosition already emitted a
+      // submitted event and the close may still complete at the provider.
+      // Emit a terminal (executed/failed) event so every submitted close has a
+      // matching outcome, even without position-derived metrics.
+      const status =
+        result?.success === true
+          ? PERPS_EVENT_VALUE.STATUS.EXECUTED
+          : PERPS_EVENT_VALUE.STATUS.FAILED;
+      const errorMessage = error?.message ?? result?.error;
+
+      this.#deps.metrics.trackPerpsEvent(
+        PerpsAnalyticsEvent.PositionCloseTransaction,
+        {
+          [PERPS_EVENT_PROPERTY.STATUS]: status,
+          [PERPS_EVENT_PROPERTY.ASSET]: params.symbol,
+          [PERPS_EVENT_PROPERTY.ORDER_TYPE]:
+            params.orderType ?? PERPS_EVENT_VALUE.ORDER_TYPE.MARKET,
+          [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: duration,
+          ...(errorMessage && {
+            [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: errorMessage,
+          }),
+          ...this.#buildAttributionProperties(params.trackingData),
+          ...bulkActionProps,
+        },
+      );
+      return;
+    }
 
     const metrics = result
       ? this.#calculateCloseMetrics(position, params, result)
@@ -2240,6 +2265,11 @@ export class TradingService {
 
       const flipSize = positionSize * 2;
 
+      // Direction-specific flip action, shared by the submitted and terminal events
+      const flipAction = isCurrentlyLong
+        ? PERPS_EVENT_VALUE.ACTION.FLIP_LONG_TO_SHORT
+        : PERPS_EVENT_VALUE.ACTION.FLIP_SHORT_TO_LONG;
+
       // Create order params for flip
       // Use 2x position size: 1x to close current position + 1x to open opposite position.
       // Do not pass the position entry price as currentPrice: the provider must fetch
@@ -2251,6 +2281,20 @@ export class TradingService {
         orderType: 'market',
         leverage: position.leverage?.value,
       };
+
+      // Emit submitted event before the provider round-trip, keeping flip
+      // trades aligned with the consolidated placeOrder pipeline.
+      this.#trackSubmitted(PerpsAnalyticsEvent.TradeTransaction, {
+        [PERPS_EVENT_PROPERTY.ASSET]: position.symbol,
+        [PERPS_EVENT_PROPERTY.DIRECTION]: oppositeDirection
+          ? PERPS_EVENT_VALUE.DIRECTION.LONG
+          : PERPS_EVENT_VALUE.DIRECTION.SHORT,
+        [PERPS_EVENT_PROPERTY.ORDER_TYPE]: 'market',
+        [PERPS_EVENT_PROPERTY.LEVERAGE]: position.leverage?.value || 1,
+        [PERPS_EVENT_PROPERTY.ORDER_SIZE]: positionSize,
+        [PERPS_EVENT_PROPERTY.ACTION]: flipAction,
+        ...this.#buildAttributionProperties(trackingData),
+      });
 
       // Place flip order (HyperLiquid handles margin transfer automatically)
       const result = await provider.placeOrder(orderParams);
@@ -2270,10 +2314,6 @@ export class TradingService {
         }
 
         // Track success analytics with direction-specific flip action
-        const flipAction = isCurrentlyLong
-          ? PERPS_EVENT_VALUE.ACTION.FLIP_LONG_TO_SHORT
-          : PERPS_EVENT_VALUE.ACTION.FLIP_SHORT_TO_LONG;
-
         this.#deps.metrics.trackPerpsEvent(
           PerpsAnalyticsEvent.TradeTransaction,
           {

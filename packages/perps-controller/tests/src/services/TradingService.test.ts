@@ -2579,6 +2579,49 @@ describe('TradingService', () => {
           expect.objectContaining({ status: 'submitted', asset: 'BTC' }),
         );
       });
+
+      it('emits a submitted trade event before flipPosition', async () => {
+        mockProvider.placeOrder.mockResolvedValue({
+          success: true,
+          orderId: 'flip-1',
+        });
+
+        await tradingService.flipPosition({
+          provider: mockProvider,
+          position: mockClosePosition,
+          context: mockContext,
+        });
+
+        expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+          PerpsAnalyticsEvent.TradeTransaction,
+          expect.objectContaining({ status: 'submitted', asset: 'BTC' }),
+        );
+      });
+    });
+
+    it('emits a terminal close event when no local position is found', async () => {
+      mockGetPositions.mockResolvedValue([]);
+      mockProvider.closePosition.mockResolvedValue({
+        success: true,
+        orderId: 'close-1',
+      });
+
+      await tradingService.closePosition({
+        provider: mockProvider,
+        params: { symbol: 'BTC' },
+        context: { ...mockContext, getPositions: mockGetPositions },
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      // Submitted event still fires, and a matching terminal event is emitted
+      // even though no local position metrics are available.
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+        PerpsAnalyticsEvent.PositionCloseTransaction,
+        expect.objectContaining({ status: 'submitted', asset: 'BTC' }),
+      );
+      expect(
+        findCall(PerpsAnalyticsEvent.PositionCloseTransaction, 'executed')?.[1],
+      ).toEqual(expect.objectContaining({ asset: 'BTC', status: 'executed' }));
     });
 
     it('populates metamask_fee on flip success from trackingData (TAT-3146)', async () => {
