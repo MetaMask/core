@@ -187,6 +187,12 @@ const config: KnipConfig = {
     'packages/user-operation-controller': {
       ignoreDependencies: ['immer'],
     },
+    'packages/wallet-cli': {
+      // `tsx` is the dev-mode loader: it's referenced only as a `node --import`
+      // argument string (in `daemon-spawn`'s source-entry path and `bin/dev`),
+      // never as a traceable import, so knip can't see it.
+      ignoreDependencies: ['tsx'],
+    },
     'packages/wallet-framework-docs': {
       // Source lives under `site/` instead of `src/`; tell knip to scan it
       // so the type imports of `@docusaurus/*` / `prism-react-renderer` in
