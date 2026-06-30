@@ -450,6 +450,7 @@ linkStyle default opacity:0.5
   name_controller --> base_controller;
   name_controller --> controller_utils;
   name_controller --> messenger;
+  network_controller --> analytics_controller;
   network_controller --> base_controller;
   network_controller --> connectivity_controller;
   network_controller --> controller_utils;
