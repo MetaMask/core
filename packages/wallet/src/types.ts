@@ -9,8 +9,10 @@ import type { ApprovalControllerInstanceOptions } from './initialization/instanc
 import type { ConnectivityControllerInstanceOptions } from './initialization/instances/connectivity-controller/types';
 import type { KeyringControllerInstanceOptions } from './initialization/instances/keyring-controller/types';
 import type { NetworkControllerInstanceOptions } from './initialization/instances/network-controller/types';
+import type { PermissionControllerInstanceOptions } from './initialization/instances/permission-controller/types';
 import type { RemoteFeatureFlagControllerInstanceOptions } from './initialization/instances/remote-feature-flag-controller/types';
 import type { StorageServiceInstanceOptions } from './initialization/instances/storage-service/types';
+import type { SubjectMetadataControllerInstanceOptions } from './initialization/instances/subject-metadata-controller/types';
 import type { InitializationConfiguration } from './initialization/types';
 
 export type WalletOptions = {
@@ -28,6 +30,8 @@ export type InstanceSpecificOptions = {
   connectivityController: ConnectivityControllerInstanceOptions;
   keyringController?: KeyringControllerInstanceOptions;
   networkController: NetworkControllerInstanceOptions;
+  permissionController?: PermissionControllerInstanceOptions;
   remoteFeatureFlagController: RemoteFeatureFlagControllerInstanceOptions;
   storageService: StorageServiceInstanceOptions;
+  subjectMetadataController?: SubjectMetadataControllerInstanceOptions;
 };

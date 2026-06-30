@@ -25,14 +25,29 @@ export function initialize(options: InitializeOptions): DefaultInstances {
     instanceOptions,
   } = options;
 
-  const overriddenConfiguration = initializationConfigurations.map(
-    (config) => config.name,
+  const defaultConfigurationEntries = Object.values(
+    defaultConfigurations,
+  ) as InitializationConfiguration<unknown, unknown>[];
+
+  const overrideConfigurationsByName = new Map(
+    initializationConfigurations.map((config) => [config.name, config]),
+  );
+  const defaultConfigurationNames = new Set(
+    defaultConfigurationEntries.map((config) => config.name),
   );
 
-  const configurationEntries = initializationConfigurations.concat(
-    Object.values(defaultConfigurations).filter(
-      (config) => !overriddenConfiguration.includes(config.name),
-    ) as InitializationConfiguration<unknown, unknown>[],
+  // Overrides keep their default's position so construction order between
+  // defaults is preserved (e.g. `PermissionController` before
+  // `SubjectMetadataController`). Non-default configs are additive and run first.
+  const additionalConfigurations = initializationConfigurations.filter(
+    (config) => !defaultConfigurationNames.has(config.name),
+  );
+  const mergedDefaultConfigurations = defaultConfigurationEntries.map(
+    (config) => overrideConfigurationsByName.get(config.name) ?? config,
+  );
+
+  const configurationEntries = additionalConfigurations.concat(
+    mergedDefaultConfigurations,
   );
 
   const instances: Record<string, unknown> = {};
