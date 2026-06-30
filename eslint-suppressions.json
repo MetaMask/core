@@ -158,11 +158,6 @@
       "count": 6
     }
   },
-  "packages/assets-controller/src/AssetsController.ts": {
-    "no-restricted-syntax": {
-      "count": 7
-    }
-  },
   "packages/assets-controller/src/__fixtures__/MockAssetControllerMessenger.ts": {
     "no-restricted-syntax": {
       "count": 4
@@ -847,11 +842,6 @@
     }
   },
   "packages/core-backend/src/ws/AccountActivityService.ts": {
-    "no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "packages/core-backend/src/ws/BackendWebSocketService.test.ts": {
     "no-restricted-syntax": {
       "count": 1
     }
