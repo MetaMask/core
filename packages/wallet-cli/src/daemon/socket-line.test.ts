@@ -38,6 +38,24 @@ describe('writeLine', () => {
     await expect(writeLine(socket, 'hello')).rejects.toThrow('write failed');
   });
 
+  it('keeps an error listener for the trailing event a failed write also emits', async () => {
+    const socket = createMockSocket();
+    const writeError = Object.assign(new Error('EPIPE'), { code: 'EPIPE' });
+    (socket.write as jest.Mock).mockImplementation(
+      (_data: string, callback: (e?: Error) => void) => callback(writeError),
+    );
+
+    await expect(writeLine(socket, 'hello')).rejects.toThrow('EPIPE');
+
+    // A failed write surfaces both via the callback (above) AND as a separate
+    // 'error' event. A listener must remain so that emission is handled;
+    // otherwise Node throws "Unhandled 'error' event" and crashes the process.
+    expect(socket.listenerCount('error')).toBe(1);
+    expect(() => socket.emit('error', writeError)).not.toThrow();
+    // Once it fires, the listener detaches itself.
+    expect(socket.listenerCount('error')).toBe(0);
+  });
+
   it('rejects when the socket emits an error before the write completes', async () => {
     const socket = createMockSocket();
     // Never invoke the write callback; the failure arrives via the 'error' event.
