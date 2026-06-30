@@ -270,10 +270,7 @@ jobs:
 
   # The wallet-cli daemon e2e spawns the BUILT `mm` CLI and the native
   # better-sqlite3 addon as real child processes, so it needs its dependency
-  # subtree built first and cannot run in the per-package `test-*` matrix above
-  # (which runs against source with no build). It has its own job here. Runs on
-  # the package's engine floor (20.x) and latest (24.x); better-sqlite3 needs
-  # Node >=20.
+  # subtree built first and cannot run in the per-package `test-*` matrix above.
   test-wallet-cli-e2e:
     name: Test wallet-cli daemon e2e (${{ matrix.node-version }})
     runs-on: ubuntu-latest
