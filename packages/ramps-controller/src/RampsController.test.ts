@@ -921,6 +921,12 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
+            "countries": {
+              "data": [],
+              "error": null,
+              "isLoading": false,
+              "selected": null,
+            },
             "orders": [],
             "providerAutoSelected": false,
             "userRegion": null,
