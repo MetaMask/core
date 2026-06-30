@@ -140,6 +140,8 @@ export const PERPS_EVENT_PROPERTY = {
   HAS_STOP_LOSS: 'has_stop_loss',
   TAKE_PROFIT_PERCENTAGE: 'take_profit_percentage',
   STOP_LOSS_PERCENTAGE: 'stop_loss_percentage',
+  // Auto Close TP/SL RoE sign toggle (`'+'` | `'-'`)
+  ROE_SIGN: 'roe_sign',
   // Watchlist/Favorites properties
   FAVORITES_COUNT: 'favorites_count',
 
@@ -454,6 +456,8 @@ export const PERPS_EVENT_VALUE = {
     SLIPPAGE_CONFIG_OPENED: 'slippage_config_opened',
     SLIPPAGE_CONFIG_CHANGED: 'slippage_config_changed',
     SLIPPAGE_LIMIT_BLOCKED_ORDER: 'slippage_limit_blocked_order',
+    // Auto Close TP/SL RoE sign toggle
+    TPSL_ROE_SIGN_TOGGLED: 'tpsl_roe_sign_toggled',
     // Discovery analytics
     MARKET_LIST_FILTER: 'market_list_filter',
     // Sort / filter interactions (TAT-3142)
