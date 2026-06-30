@@ -5660,7 +5660,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/assets-controller@npm:^9.1.0, @metamask/assets-controller@workspace:packages/assets-controller":
+"@metamask/assets-controller@npm:^10.0.0, @metamask/assets-controller@workspace:packages/assets-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/assets-controller@workspace:packages/assets-controller"
   dependencies:
@@ -5674,7 +5674,7 @@ __metadata:
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/client-controller": "npm:^1.0.1"
     "@metamask/controller-utils": "npm:^12.3.0"
-    "@metamask/core-backend": "npm:^6.3.3"
+    "@metamask/core-backend": "npm:^6.4.0"
     "@metamask/keyring-api": "npm:^23.3.0"
     "@metamask/keyring-controller": "npm:^27.1.0"
     "@metamask/keyring-internal-api": "npm:^11.0.1"
@@ -5727,7 +5727,7 @@ __metadata:
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/contract-metadata": "npm:^2.4.0"
     "@metamask/controller-utils": "npm:^12.3.0"
-    "@metamask/core-backend": "npm:^6.3.3"
+    "@metamask/core-backend": "npm:^6.4.0"
     "@metamask/eth-query": "npm:^4.0.0"
     "@metamask/ethjs-provider-http": "npm:^0.3.0"
     "@metamask/keyring-api": "npm:^23.3.0"
@@ -5936,7 +5936,7 @@ __metadata:
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
     "@metamask/accounts-controller": "npm:^39.0.3"
-    "@metamask/assets-controller": "npm:^9.1.0"
+    "@metamask/assets-controller": "npm:^10.0.0"
     "@metamask/assets-controllers": "npm:^109.2.2"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
@@ -6280,7 +6280,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/core-backend@npm:^6.3.3, @metamask/core-backend@workspace:packages/core-backend":
+"@metamask/core-backend@npm:^6.4.0, @metamask/core-backend@workspace:packages/core-backend":
   version: 0.0.0-use.local
   resolution: "@metamask/core-backend@workspace:packages/core-backend"
   dependencies:
@@ -8767,7 +8767,7 @@ __metadata:
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/connectivity-controller": "npm:^0.2.0"
     "@metamask/controller-utils": "npm:^12.3.0"
-    "@metamask/core-backend": "npm:^6.3.3"
+    "@metamask/core-backend": "npm:^6.4.0"
     "@metamask/eth-block-tracker": "npm:^15.0.0"
     "@metamask/eth-json-rpc-provider": "npm:^6.0.1"
     "@metamask/ethjs-provider-http": "npm:^0.3.0"
@@ -8813,7 +8813,7 @@ __metadata:
     "@ethersproject/abi": "npm:^5.7.0"
     "@ethersproject/contracts": "npm:^5.7.0"
     "@ethersproject/providers": "npm:^5.7.0"
-    "@metamask/assets-controller": "npm:^9.1.0"
+    "@metamask/assets-controller": "npm:^10.0.0"
     "@metamask/assets-controllers": "npm:^109.2.2"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
