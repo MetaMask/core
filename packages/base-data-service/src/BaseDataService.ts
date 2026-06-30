@@ -22,6 +22,7 @@ import {
   InfiniteQueryPageParamsOptions,
   InvalidateOptions,
   InvalidateQueryFilters,
+  MutationOptions,
   OmitKeyof,
   QueryClient,
   QueryClientConfig,
@@ -29,6 +30,8 @@ import {
   WithRequired,
   dehydrate,
   hydrate,
+  hashKey,
+  MutationFunction,
 } from '@tanstack/query-core';
 import deepEqual from 'fast-deep-equal';
 import { debounce, DebouncedFunc } from 'lodash';
@@ -38,10 +41,28 @@ import {
   CreateServicePolicyOptions,
   ServicePolicy,
 } from './createServicePolicy.js';
-import { processQueryResponse } from './utils.js';
+import { createModuleLogger, projectLogger } from './loggers.js';
+import { processMutationResponse, processQueryResponse } from './utils.js';
 
-// Data service queries use the following format: ['ServiceActionName', ...params]
-export type QueryKey = [string, ...Json[]] | readonly [string, ...Json[]];
+const log = createModuleLogger(projectLogger, 'BaseDataService');
+
+/**
+ * Data service mutations and queries use the following format:
+ * `['${ServiceName}:${ActionName}', ...params]`
+ */
+type Key = [string, ...Json[]] | readonly [string, ...Json[]];
+
+/*
+ * Data service queries use the following format:
+ * `['${ServiceName}:${ActionName}', ...params]`
+ */
+export type QueryKey = Key;
+
+/*
+ * Data service mutations use the following format:
+ * `['${ServiceName}:${ActionName}', ...params]`
+ */
+export type MutationKey = Key;
 
 /**
  * The supertype of all messengers, scoped to a namespace.
@@ -103,11 +124,16 @@ export type DataServiceEvents<ServiceName extends string> =
   | DataServiceCacheUpdatedEvent<ServiceName>
   | DataServiceGranularCacheUpdatedEvent<ServiceName>;
 
-// Defaults to apply to all data service queries if no default option specified
+/*
+ * Defaults to apply to all data service queries if no default option specified.
+ */
 const QUERY_CLIENT_DEFAULTS: DefaultOptions = {
   queries: {
     retry: false,
     staleTime: inMilliseconds(1, Duration.Minute),
+  },
+  mutations: {
+    retry: false,
   },
 };
 
@@ -163,6 +189,8 @@ export class BaseDataService<
 
   readonly #queryCacheUnsubscribe: () => void;
 
+  readonly #mutationCacheUnsubscribe: () => void;
+
   readonly #debouncedPersist?: DebouncedFunc<() => void>;
 
   readonly #persistenceConfig?: PersistenceConfiguration;
@@ -208,9 +236,16 @@ export class BaseDataService<
       defaultOptions: {
         queries: {
           ...QUERY_CLIENT_DEFAULTS.queries,
+          // We always provide defaultOptions in our tests.
+          /* c8 ignore next */
           ...queryClientConfig.defaultOptions?.queries,
         },
-        mutations: queryClientConfig.defaultOptions?.mutations,
+        mutations: {
+          ...QUERY_CLIENT_DEFAULTS.mutations,
+          // We always provide defaultOptions in our tests.
+          /* c8 ignore next */
+          ...queryClientConfig.defaultOptions?.mutations,
+        },
       },
     });
 
@@ -223,7 +258,8 @@ export class BaseDataService<
       debounce(
         () => {
           this.#persistCache().catch(
-            /* istanbul ignore next */
+            // We always provide this in our tests.
+            /* c8 ignore next */
             (error) => this.#messenger.captureException?.(error),
           );
         },
@@ -239,10 +275,33 @@ export class BaseDataService<
     this.#queryCacheUnsubscribe = this.#queryClient
       .getQueryCache()
       .subscribe((event) => {
+        log('Query cache event emitted', event);
         if (['added', 'updated', 'removed'].includes(event.type)) {
           this.#publishCacheUpdate(
-            event.query.queryHash,
+            'query',
             event.type as CacheUpdatedType,
+            event.query.queryHash,
+          );
+
+          this.#debouncedPersist?.();
+        }
+      });
+
+    log('Subscribing to mutation cache');
+    this.#mutationCacheUnsubscribe = this.#queryClient
+      .getMutationCache()
+      .subscribe((event) => {
+        log('Mutation cache event emitted', event);
+        if (
+          event.mutation &&
+          ['added', 'updated', 'removed'].includes(event.type) &&
+          event.mutation.options.mutationKey !== undefined
+        ) {
+          const mutationHash = hashKey(event.mutation.options.mutationKey);
+          this.#publishCacheUpdate(
+            'mutation',
+            event.type as CacheUpdatedType,
+            mutationHash,
           );
 
           this.#debouncedPersist?.();
@@ -260,6 +319,7 @@ export class BaseDataService<
    *
    * @param options - The options defining the query. Keep in mind that `queryKey` and `queryFn` are required when using data services.
    * Additionally `retry` and `retryDelay` are not available, retries can be customized using the `servicePolicyOptions`.
+   * @param options.queryFn - The query function.
    * @param options.responseStruct - An optional struct for validating the response of the query function.
    * @returns The query results.
    */
@@ -272,6 +332,7 @@ export class BaseDataService<
       : TQueryFnData,
     TQueryKey extends QueryKey = QueryKey,
   >({
+    queryFn,
     responseStruct,
     ...options
   }: WithRequired<
@@ -287,9 +348,7 @@ export class BaseDataService<
     return this.#queryClient.fetchQuery({
       ...options,
       queryFn: async (context) => {
-        const response = await this.#policy.execute(() =>
-          options.queryFn(context),
-        );
+        const response = await this.#policy.execute(() => queryFn(context));
         return processQueryResponse(options.queryKey, response, responseStruct);
       },
     });
@@ -391,6 +450,79 @@ export class BaseDataService<
   }
 
   /**
+   * Execute a mutation (e.g. a request that is expected to change server-side data).
+   * Unlike `fetchQuery`, the request will not be cached or retried.
+   *
+   * @param options - The options defining the mutation. Keep in mind that `mutationKey` and `mutationFn` are required when using data services.
+   * Additionally, `retry` and `retryDelay` are not available.
+   * @param options.mutationFn - The mutation function.
+   * @param options.responseStruct - An optional struct for validating the response of the mutation function.
+   * @returns The mutation results.
+   */
+  protected async executeMutation<
+    TMutationFnData extends Json,
+    // We have to use `Struct<any>` here, as using `Struct<TMutationFnData>`
+    // (or even `Struct<unknown>`) would reject a more concrete, "real world" struct.
+    // The reason is that `Struct` is an object type with methods that take its
+    // content type as arguments (i.e. `Struct` is contravariant in its content type).
+    // The only way to get around that it to use `any`.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    TStruct extends Struct<any> | undefined = undefined,
+    TData = TStruct extends Struct<infer StructType>
+      ? StructType
+      : TMutationFnData,
+    TError = unknown,
+    TContext = unknown,
+    TMutationKey extends MutationKey = MutationKey,
+  >({
+    mutationFn,
+    responseStruct,
+    ...options
+  }: OmitKeyof<
+    MutationOptions<TData, TError, Record<never, never>, TContext>,
+    'retry' | 'retryDelay' | 'mutationKey' | 'mutationFn'
+  > & {
+    mutationKey: TMutationKey;
+    mutationFn: MutationFunction<TMutationFnData, Record<never, never>>;
+    responseStruct?: TStruct;
+  }): Promise<TData> {
+    const mutationCache = this.#queryClient.getMutationCache();
+    const mutation = mutationCache.build<
+      TData,
+      TError,
+      Record<never, never>,
+      TContext
+    >(this.#queryClient, {
+      ...options,
+      mutationFn: async (...args) => {
+        // Note that we purposely only use the circuit breaker policy
+        // and not the circuit breaker and retry policies, as we don't want
+        // to retry mutations.
+        const response = await this.#policy.circuitBreakerPolicy.execute(() =>
+          mutationFn(...args),
+        );
+        const data = responseStruct
+          ? processMutationResponse(
+              options.mutationKey,
+              response,
+              responseStruct,
+            )
+          : response;
+        // Type assertion: `TData` is a conditional default that resolves to the
+        // struct's decoded type when a struct is provided and `TMutationFnData`
+        // otherwise, which mirrors the two branches above. TypeScript cannot
+        // relate a value to an unresolved conditional type parameter, so we
+        // assert the correspondence that this method's own generics guarantee.
+        return data as unknown as TData;
+      },
+    });
+    // We purposely pass an empty set of variables because this method is
+    // intended to be used internally by the data service, not end users, and
+    // the data service has full control of `mutationFn` anyway.
+    return await mutation.execute({});
+  }
+
+  /**
    * Invalidate queries serviced by this data service.
    *
    * @param filters - Optional filter for selecting specific queries.
@@ -409,7 +541,8 @@ export class BaseDataService<
    */
   init(): void {
     this.#loadCache().catch(
-      /* istanbul ignore next */
+      // We always provide captureException in our tests.
+      /* c8 ignore next */
       (error) => this.#messenger.captureException?.(error),
     );
   }
@@ -421,29 +554,47 @@ export class BaseDataService<
   destroy(): void {
     this.#debouncedPersist?.cancel();
     this.#queryCacheUnsubscribe();
+    this.#mutationCacheUnsubscribe();
+    // `QueryClient.clear()` clears both caches, but `MutationCache.clear()` only
+    // drops its references to mutations without clearing their pending
+    // garbage-collection timers. We destroy each mutation first so those timers
+    // are cleared and do not keep the process alive.
+    for (const mutation of this.#queryClient.getMutationCache().getAll()) {
+      mutation.destroy();
+    }
     this.#queryClient.clear();
     this.messenger.clearSubscriptions();
     this.messenger.clearActions();
   }
 
   /**
-   * Publish `cacheUpdated` events when a given query changes.
+   * Publish `cacheUpdated` events when the query or mutation cache is updated.
    *
-   * @param hash The hash of the query.
-   * @param type The type of cache update.
+   * @param objectType - The type of object updated ("query" or "mutation").
+   * @param eventType - What happened to the query or mutation ("added" or "updated").
+   * @param hash - The hash of the query or mutation.
    */
-  #publishCacheUpdate(hash: string, type: CacheUpdatedType): void {
+  #publishCacheUpdate(
+    objectType: 'query' | 'mutation',
+    eventType: CacheUpdatedType,
+    hash: string,
+  ): void {
     const state =
-      type === 'added' || type === 'updated'
+      eventType === 'added' || eventType === 'updated'
         ? dehydrate(this.#queryClient, {
-            shouldDehydrateQuery: (query) => query.queryHash === hash,
+            shouldDehydrateQuery: (query) =>
+              objectType === 'query' && query.queryHash === hash,
+            shouldDehydrateMutation: (mutation) =>
+              objectType === 'mutation' &&
+              mutation.options.mutationKey !== undefined &&
+              hashKey(mutation.options.mutationKey) === hash,
           })
         : null;
 
     this.#messenger.publish(
       `${this.name}:cacheUpdated` as const,
       {
-        type,
+        type: eventType,
         hash,
         state,
       } as DataServiceCacheUpdatedPayload,
@@ -452,7 +603,7 @@ export class BaseDataService<
     this.#messenger.publish(
       `${this.name}:cacheUpdated:${hash}` as const,
       {
-        type,
+        type: eventType,
         state,
       } as DataServiceGranularCacheUpdatedPayload,
     );

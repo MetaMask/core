@@ -14,10 +14,13 @@ module.exports = merge(baseConfig, {
   // The display name when running multiple projects
   displayName,
 
+  // v8 tends to work better for this package.
+  coverageProvider: 'v8',
+
   // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
     global: {
-      branches: 96.49,
+      branches: 100,
       functions: 100,
       lines: 100,
       statements: 100,
