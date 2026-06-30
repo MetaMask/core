@@ -1027,6 +1027,30 @@ export type PerpsControllerIsCurrentlyReinitializingAction = {
 };
 
 /**
+ * Set the transient UTM / discovery attribution context (TAT-3133, TAT-3140).
+ */
+export type PerpsControllerSetAttributionContextAction = {
+  type: `PerpsController:setAttributionContext`;
+  handler: PerpsController['setAttributionContext'];
+};
+
+/**
+ * Get the current UTM / discovery attribution context (TAT-3133, TAT-3140).
+ */
+export type PerpsControllerGetAttributionContextAction = {
+  type: `PerpsController:getAttributionContext`;
+  handler: PerpsController['getAttributionContext'];
+};
+
+/**
+ * Clear the stored UTM / discovery attribution context (TAT-3133, TAT-3140).
+ */
+export type PerpsControllerClearAttributionContextAction = {
+  type: `PerpsController:clearAttributionContext`;
+  handler: PerpsController['clearAttributionContext'];
+};
+
+/**
  * Union of all PerpsController action types.
  */
 export type PerpsControllerMethodActions =
@@ -1116,4 +1140,7 @@ export type PerpsControllerMethodActions =
   | PerpsControllerToggleWatchlistMarketAction
   | PerpsControllerIsWatchlistMarketAction
   | PerpsControllerGetWatchlistMarketsAction
-  | PerpsControllerIsCurrentlyReinitializingAction;
+  | PerpsControllerIsCurrentlyReinitializingAction
+  | PerpsControllerSetAttributionContextAction
+  | PerpsControllerGetAttributionContextAction
+  | PerpsControllerClearAttributionContextAction;
