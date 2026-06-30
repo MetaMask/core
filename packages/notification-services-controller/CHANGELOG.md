@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `DEFAULT_PRICE_ALERT_PREFERENCES` and initialize `priceAlerts` when building fresh notification preferences via `NotificationServicesController` ([#9316](https://github.com/MetaMask/core/pull/9316))
+  - Re-export `DEFAULT_PRICE_ALERT_PREFERENCES` from `@metamask/authenticated-user-storage`.
+
 ## [24.2.0]
 
 ### Added
