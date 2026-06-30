@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `listedAt` (epoch ms) to `PerpsMarketData` and `TerminalAssetMetadata`, sourced from the Terminal API and normalized from either a numeric epoch value or an ISO 8601 string. Clients can use this field to surface recently added markets (e.g. markets listed within the last 30 days).
-- Add recently viewed markets tracking to `PerpsController`:
+- Add `listedAt` (epoch ms) to `PerpsMarketData` and `TerminalAssetMetadata`, sourced from the Terminal API and normalized from either a numeric epoch value or an ISO 8601 string. Clients can use this field to surface recently added markets (e.g. markets listed within the last 30 days). ([#9308](https://github.com/MetaMask/core/pull/9308))
+- Add recently viewed markets tracking to `PerpsController`: ([#9308](https://github.com/MetaMask/core/pull/9308))
   - New `recentlyViewedMarkets` persisted state (per-network: `testnet`/`mainnet`), containing `{ symbol, viewedAt }` entries ordered newest-first and capped at 10.
   - New `recordMarketViewed(symbol)` method — call when the user opens a market. Deduplicates and prepends the entry; no remote sync.
   - New `getRecentlyViewedMarkets()` method — returns up to 10 symbol strings for the current network, filtered to entries within the last 24 hours, ordered newest-first. Returns `[]` when none qualify.
