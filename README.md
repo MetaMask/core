@@ -62,6 +62,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/chomp-api-service`](packages/chomp-api-service)
 - [`@metamask/claims-controller`](packages/claims-controller)
 - [`@metamask/client-controller`](packages/client-controller)
+- [`@metamask/client-shared`](packages/client-shared)
 - [`@metamask/compliance-controller`](packages/compliance-controller)
 - [`@metamask/composable-controller`](packages/composable-controller)
 - [`@metamask/config-registry-controller`](packages/config-registry-controller)
@@ -163,6 +164,7 @@ linkStyle default opacity:0.5
   chomp_api_service(["@metamask/chomp-api-service"]);
   claims_controller(["@metamask/claims-controller"]);
   client_controller(["@metamask/client-controller"]);
+  client_shared(["@metamask/client-shared"]);
   compliance_controller(["@metamask/compliance-controller"]);
   composable_controller(["@metamask/composable-controller"]);
   config_registry_controller(["@metamask/config-registry-controller"]);
@@ -338,6 +340,9 @@ linkStyle default opacity:0.5
   claims_controller --> profile_sync_controller;
   client_controller --> base_controller;
   client_controller --> messenger;
+  client_shared --> controller_utils;
+  client_shared --> core_backend;
+  client_shared --> transaction_controller;
   compliance_controller --> base_controller;
   compliance_controller --> controller_utils;
   compliance_controller --> messenger;

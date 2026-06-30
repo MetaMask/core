@@ -75,6 +75,9 @@
       "path": "./packages/client-controller"
     },
     {
+      "path": "./packages/client-shared"
+    },
+    {
       "path": "./packages/compliance-controller"
     },
     {
