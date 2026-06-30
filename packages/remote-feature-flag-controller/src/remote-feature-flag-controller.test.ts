@@ -18,7 +18,7 @@ import type {
   RemoteFeatureFlagControllerMessenger,
   RemoteFeatureFlagControllerState,
 } from './remote-feature-flag-controller';
-import { ThresholdVersion } from './remote-feature-flag-controller-types';
+import { ThresholdVersion, FeatureFlagIdType } from './remote-feature-flag-controller-types';
 import type { FeatureFlags } from './remote-feature-flag-controller-types';
 
 const MOCK_FLAGS: FeatureFlags = {
@@ -47,6 +47,8 @@ const MOCK_FLAGS_WITH_THRESHOLD = {
 };
 
 const MOCK_METRICS_ID = 'f9e8d7c6-b5a4-4210-9876-543210fedcba';
+const MOCK_CANONICAL_ID =
+  '0x86bacb9b2bf9a7e8d2b147eadb95ac9aaa26842327cd24afc8bd4b3c1d136420';
 const MOCK_BASE_VERSION = '13.10.0';
 
 /**
@@ -57,6 +59,7 @@ const MOCK_BASE_VERSION = '13.10.0';
  * @param options.clientConfigApiService - The client config API service instance
  * @param options.disabled - Whether the controller should start disabled
  * @param options.getMetaMetricsId - Returns metaMetricsId
+ * @param options.getCanonicalId - Returns canonicalId
  * @param options.clientVersion - The client version string
  * @param options.prevClientVersion - The previous client version string
  * @returns The controller and the root messenger
@@ -67,6 +70,7 @@ function createController(
     clientConfigApiService: AbstractClientConfigApiService;
     disabled: boolean;
     getMetaMetricsId: () => string;
+    getCanonicalId: () => string;
     clientVersion: string;
     prevClientVersion: string;
   }> = {},
@@ -81,6 +85,9 @@ function createController(
     getMetaMetricsId:
       options.getMetaMetricsId ??
       ((): typeof MOCK_METRICS_ID => MOCK_METRICS_ID),
+    getCanonicalId:
+      options.getCanonicalId ??
+      ((): typeof MOCK_CANONICAL_ID => MOCK_CANONICAL_ID),
     clientVersion: options.clientVersion ?? MOCK_BASE_VERSION,
     prevClientVersion: options.prevClientVersion,
   });
@@ -98,6 +105,36 @@ describe('RemoteFeatureFlagController', () => {
         rawRemoteFeatureFlags: {},
         cacheTimestamp: 0,
       });
+    });
+
+    it('defaults getCanonicalId to an empty string when omitted', async () => {
+      const mockFlags = {
+        canonicalThresholdFlag: [
+          {
+            idType: FeatureFlagIdType.Canonical,
+            name: 'groupA',
+            scope: { type: 'threshold', value: 1.0 },
+            value: 'canonicalA',
+          },
+        ],
+      };
+      const { rootMessenger, controllerMessenger } = buildMessenger();
+      const controller = new RemoteFeatureFlagController({
+        messenger: controllerMessenger,
+        clientConfigApiService: buildClientConfigApiService({
+          remoteFeatureFlags: mockFlags,
+        }),
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+        clientVersion: MOCK_BASE_VERSION,
+      });
+
+      await rootMessenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(controller.state.remoteFeatureFlags.canonicalThresholdFlag).toStrictEqual(
+        mockFlags.canonicalThresholdFlag,
+      );
     });
 
     it('initializes with default state if the disabled parameter is provided', () => {
@@ -478,15 +515,15 @@ describe('RemoteFeatureFlagController', () => {
 
       // With MOCK_METRICS_ID + 'testFlagForThreshold' hashed:
       // Threshold = 0.380673, which falls in groupB range (0.3 < t <= 0.5)
-      expect(
-        controller.state.remoteFeatureFlags.testFlagForThreshold,
-      ).toStrictEqual({
-        name: 'groupB',
-        value: 'valueB',
+      expect(controller.state.remoteFeatureFlags.testFlagForThreshold).toBe(
+        'valueB',
+      );
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        testFlagForThreshold: 'groupB',
       });
     });
 
-    it('preserves selected legacy threshold object value wrappers', async () => {
+    it('stores selected threshold group name from name field when thresholdName is absent', async () => {
       const thresholdFlagValue = {
         enabled: true,
         minimumVersion: '13.10.0',
@@ -515,13 +552,13 @@ describe('RemoteFeatureFlagController', () => {
 
       expect(
         controller.state.remoteFeatureFlags.thresholdObjectFlag,
-      ).toStrictEqual({
-        name: 'enabled',
-        value: thresholdFlagValue,
+      ).toStrictEqual(thresholdFlagValue);
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        thresholdObjectFlag: 'enabled',
       });
     });
 
-    it('returns selected threshold version 2 values without wrapper metadata', async () => {
+    it('does not map threshold group when only thresholdName is provided', async () => {
       const thresholdFlagValue = {
         enabled: true,
         minimumVersion: '13.10.0',
@@ -552,9 +589,10 @@ describe('RemoteFeatureFlagController', () => {
       expect(
         controller.state.remoteFeatureFlags.thresholdObjectFlag,
       ).toStrictEqual(thresholdFlagValue);
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({});
     });
 
-    it('falls back to legacy threshold wrappers for unrecognized threshold versions', async () => {
+    it('returns selected threshold values for unrecognized threshold versions', async () => {
       const thresholdFlagValue = {
         enabled: true,
       };
@@ -582,9 +620,9 @@ describe('RemoteFeatureFlagController', () => {
 
       expect(
         controller.state.remoteFeatureFlags.thresholdObjectFlag,
-      ).toStrictEqual({
-        name: 'enabled',
-        value: thresholdFlagValue,
+      ).toStrictEqual(thresholdFlagValue);
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        thresholdObjectFlag: 'enabled',
       });
     });
 
@@ -649,9 +687,13 @@ describe('RemoteFeatureFlagController', () => {
       // Assert - User gets different groups because each flag uses unique seed
       const { featureA, featureB } = controller.state.remoteFeatureFlags;
       // featureA: hash(MOCK_METRICS_ID + 'featureA') → threshold 0.966682 → groupA2
-      expect(featureA).toStrictEqual({ name: 'groupA2', value: 'A2' });
+      expect(featureA).toBe('A2');
       // featureB: hash(MOCK_METRICS_ID + 'featureB') → threshold 0.398654 → groupB1
-      expect(featureB).toStrictEqual({ name: 'groupB1', value: 'B1' });
+      expect(featureB).toBe('B1');
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        featureA: 'groupA2',
+        featureB: 'groupB1',
+      });
       // Different groups proves independence!
     });
 
@@ -711,9 +753,11 @@ describe('RemoteFeatureFlagController', () => {
       );
 
       // Assert - Invalid item skipped, valid item selected
-      expect(controller.state.remoteFeatureFlags.mixedArray).toStrictEqual({
-        name: 'validGroup',
-        value: 'selectedValue',
+      expect(controller.state.remoteFeatureFlags.mixedArray).toBe(
+        'selectedValue',
+      );
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        mixedArray: 'validGroup',
       });
     });
 
@@ -761,7 +805,77 @@ describe('RemoteFeatureFlagController', () => {
       // Assert - Same user always gets same group (deterministic)
       // testFlag: hash(MOCK_METRICS_ID + 'testFlag') → threshold 0.496587 → control
       expect(firstResult).toStrictEqual(secondResult);
-      expect(firstResult).toStrictEqual({ name: 'control', value: false });
+      expect(firstResult).toBe(false);
+      expect(controller1.state.featureFlagThresholdGroups).toStrictEqual({
+        testFlag: 'control',
+      });
+    });
+
+    it('uses getCanonicalId for threshold flags with canonical idType', async () => {
+      const mockFlags = {
+        canonicalThresholdFlag: [
+          {
+            idType: FeatureFlagIdType.Canonical,
+            name: 'groupA',
+            scope: { type: 'threshold', value: 0.5 },
+            value: 'canonicalA',
+          },
+          {
+            idType: FeatureFlagIdType.Canonical,
+            name: 'groupB',
+            scope: { type: 'threshold', value: 1.0 },
+            value: 'canonicalB',
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => '',
+        getCanonicalId: () => MOCK_CANONICAL_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(
+        controller.state.remoteFeatureFlags.canonicalThresholdFlag,
+      ).toBe('canonicalB');
+      expect(controller.state.thresholdCache).toStrictEqual({
+        [`${MOCK_CANONICAL_ID}:canonicalThresholdFlag`]: expect.any(Number),
+      });
+    });
+
+    it('preserves threshold arrays when canonical id is empty for canonical idType flags', async () => {
+      const mockFlags = {
+        canonicalThresholdFlag: [
+          {
+            idType: FeatureFlagIdType.Canonical,
+            name: 'groupA',
+            scope: { type: 'threshold', value: 1.0 },
+            value: 'canonicalA',
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+        getCanonicalId: () => '',
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(controller.state.remoteFeatureFlags.canonicalThresholdFlag).toStrictEqual(
+        mockFlags.canonicalThresholdFlag,
+      );
     });
   });
 
@@ -1073,8 +1187,11 @@ describe('RemoteFeatureFlagController', () => {
       // With MOCK_METRICS_ID + 'multiVersionABFlag' hashed:
       // Threshold = 0.094878, which falls in groupA range (t <= 0.3)
       expect(multiVersionABFlag).toStrictEqual({
-        name: 'groupA',
-        value: { feature: 'A', enabled: true },
+        feature: 'A',
+        enabled: true,
+      });
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        multiVersionABFlag: 'groupA',
       });
       expect(regularFlag).toBe(true);
     });
@@ -1402,6 +1519,72 @@ describe('RemoteFeatureFlagController', () => {
       expect(Object.keys(cacheAfterSecond)).toHaveLength(1);
       expect(cacheAfterSecond[`${MOCK_METRICS_ID}:flagB`]).toBeDefined();
       expect(cacheAfterSecond[`${MOCK_METRICS_ID}:flagA`]).toBeUndefined();
+
+      jest.useRealTimers();
+    });
+
+    it('removes stale featureFlagThresholdGroups entries when flags are removed from server', async () => {
+      jest.useRealTimers();
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: {
+          flagA: [
+            {
+              name: 'groupA',
+              thresholdVersion: ThresholdVersion.DirectValue,
+              scope: { type: 'threshold', value: 1.0 },
+              value: true,
+            },
+          ],
+          flagB: [
+            {
+              name: 'groupB',
+              thresholdVersion: ThresholdVersion.DirectValue,
+              scope: { type: 'threshold', value: 1.0 },
+              value: false,
+            },
+          ],
+        },
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        flagA: 'groupA',
+        flagB: 'groupB',
+      });
+
+      jest
+        .spyOn(clientConfigApiService, 'fetchRemoteFeatureFlags')
+        .mockResolvedValue({
+          remoteFeatureFlags: {
+            flagB: [
+              {
+                name: 'groupB',
+                thresholdVersion: ThresholdVersion.DirectValue,
+                scope: { type: 'threshold', value: 1.0 },
+                value: false,
+              },
+            ],
+          },
+          cacheTimestamp: Date.now(),
+        });
+
+      jest.useFakeTimers();
+      jest.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+      await flushPromises();
+
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        flagB: 'groupB',
+      });
 
       jest.useRealTimers();
     });

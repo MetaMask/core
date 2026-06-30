@@ -1,8 +1,10 @@
 import { v4 as uuidV4 } from 'uuid';
 
+import { FeatureFlagIdType } from '../remote-feature-flag-controller-types';
 import {
   calculateThresholdForFlag,
   generateDeterministicRandomNumber,
+  getThresholdIdType,
   isFeatureFlagWithScopeValue,
 } from './user-segmentation-utils';
 
@@ -316,6 +318,37 @@ describe('user-segmentation-utils', () => {
       expect(
         isFeatureFlagWithScopeValue(MOCK_FEATURE_FLAGS.INVALID_NO_SCOPE),
       ).toBe(false);
+    });
+  });
+
+  describe('getThresholdIdType', () => {
+    it('defaults to metametrics when idType is absent', () => {
+      expect(
+        getThresholdIdType([
+          {
+            name: 'groupA',
+            scope: { type: 'threshold', value: 1.0 },
+            value: true,
+          },
+        ]),
+      ).toBe(FeatureFlagIdType.MetaMetrics);
+    });
+
+    it('returns canonical when configured on threshold entries', () => {
+      expect(
+        getThresholdIdType([
+          {
+            idType: FeatureFlagIdType.Canonical,
+            name: 'groupA',
+            scope: { type: 'threshold', value: 1.0 },
+            value: true,
+          },
+        ]),
+      ).toBe(FeatureFlagIdType.Canonical);
+    });
+
+    it('defaults to metametrics for non-array flag values', () => {
+      expect(getThresholdIdType(true)).toBe(FeatureFlagIdType.MetaMetrics);
     });
   });
 });
