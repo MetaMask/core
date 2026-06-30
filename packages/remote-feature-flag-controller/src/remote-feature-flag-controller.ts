@@ -427,9 +427,9 @@ export class RemoteFeatureFlagController extends BaseController<
 
         if (selectedGroup) {
           processedValue = selectedGroup.value;
-          if (selectedGroup.thresholdName) {
+          if (selectedGroup.name) {
             featureFlagThresholdGroupUpdates[remoteFeatureFlagName] =
-              selectedGroup.thresholdName;
+              selectedGroup.name;
           }
         }
       }
