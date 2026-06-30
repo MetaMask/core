@@ -70,8 +70,10 @@ export type AnalyticsControllerState = {
   /**
    * Persisted queue of track events ({@link AnalyticsQueuedTrackEvent}) captured
    * while the user is undecided (no consent decision made yet). Replayed on
-   * opt-in and cleared on opt-out. This is only used when the pre-consent queue
-   * is enabled.
+   * opt-in and cleared on opt-out.
+   * Preserved across {@link AnalyticsController.resetConsentDecision} so onboarding
+   * restarts do not drop install-time events.
+   * This is only used when the pre-consent queue is enabled.
    */
   preConsentEventQueue?: Record<string, Json>;
 };
@@ -949,9 +951,9 @@ export class AnalyticsController extends BaseController<
    * Reset the consent decision back to undecided.
    *
    * Intended for client flows that restart onboarding. Clears the opt-in
-   * preference and discards both the delivery queue and any pre-consent events,
-   * so nothing captured before the reset is delivered and the user is treated
-   * as undecided again.
+   * preference and discards the delivery queue, but preserves any pre-consent
+   * events so they can still be replayed if the user opts in again. The user is
+   * treated as undecided again.
    */
   resetConsentDecision(): void {
     this.update((state) => {
@@ -960,6 +962,5 @@ export class AnalyticsController extends BaseController<
     });
 
     this.#clearQueuedEvents();
-    this.#clearPreConsentEvents();
   }
 }

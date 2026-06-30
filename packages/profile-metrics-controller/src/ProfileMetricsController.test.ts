@@ -725,7 +725,7 @@ describe('ProfileMetricsController', () => {
             );
           });
 
-          it('passes `entropySourceId: null` to fetchNonces for the unaffiliated batch', async () => {
+          it('skips proof-of-ownership entirely for accounts with no entropy source', async () => {
             const address = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
             const accounts: Record<string, AccountWithScopes[]> = {
               null: [{ address: address.toLowerCase(), scopes: ['eip155:1'] }],
@@ -738,6 +738,8 @@ describe('ProfileMetricsController', () => {
               },
               async ({
                 controller,
+                getMetaMetricsId,
+                mockSubmitMetrics,
                 mockFetchNonces,
                 mockSignProof,
                 registerAccounts,
@@ -745,18 +747,19 @@ describe('ProfileMetricsController', () => {
                 registerAccounts([
                   createMockAccount(address.toLowerCase(), false),
                 ]);
-                mockFetchNonces.mockResolvedValueOnce({ [address]: 'n' });
-                mockSignProof.mockResolvedValueOnce({
-                  nonce: 'n',
-                  signature: '0xsig',
-                });
 
                 await controller._executePoll();
 
-                expect(mockFetchNonces).toHaveBeenCalledWith({
-                  identifiers: [address],
+                expect(mockFetchNonces).not.toHaveBeenCalled();
+                expect(mockSignProof).not.toHaveBeenCalled();
+                expect(mockSubmitMetrics).toHaveBeenCalledWith({
+                  metametricsId: getMetaMetricsId(),
                   entropySourceId: null,
+                  accounts: [
+                    { address: address.toLowerCase(), scopes: ['eip155:1'] },
+                  ],
                 });
+                expect(controller.state.syncQueue).toStrictEqual({});
               },
             );
           });
@@ -1027,36 +1030,6 @@ describe('ProfileMetricsController', () => {
                 );
                 // Batch is dropped from the queue on a successful submit.
                 expect(controller.state.syncQueue).toStrictEqual({});
-              },
-            );
-          });
-
-          it('logs `null` in the fetchNonces failure message when the batch has no entropy source', async () => {
-            const address = '0x71C7656EC7ab88b098defB751B7401B5f6d8976F';
-            const accounts: Record<string, AccountWithScopes[]> = {
-              null: [{ address: address.toLowerCase(), scopes: ['eip155:1'] }],
-            };
-            await withController(
-              {
-                options: {
-                  state: { syncQueue: accounts, initialDelayEndTimestamp: 0 },
-                },
-              },
-              async ({ controller, mockFetchNonces, registerAccounts }) => {
-                const consoleErrorSpy = jest
-                  .spyOn(console, 'error')
-                  .mockImplementation();
-                registerAccounts([
-                  createMockAccount(address.toLowerCase(), false),
-                ]);
-                mockFetchNonces.mockRejectedValueOnce(new Error('boom'));
-
-                await controller._executePoll();
-
-                expect(consoleErrorSpy).toHaveBeenCalledWith(
-                  'Failed to fetch proof-of-ownership nonces for entropy source ID null:',
-                  expect.any(Error),
-                );
               },
             );
           });
