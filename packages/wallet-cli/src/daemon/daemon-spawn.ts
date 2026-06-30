@@ -3,6 +3,7 @@ import { closeSync, existsSync, openSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { pingDaemon } from './daemon-client';
+import { ensureOwnerOnlyDirectory } from './data-dir';
 import { getDaemonPaths } from './paths';
 import type { DaemonSpawnConfig } from './types';
 
@@ -62,6 +63,12 @@ export async function ensureDaemon(
   process.stderr.write('Starting daemon...\n');
 
   const { entryPath, args } = resolveEntryPoint(config.packageRoot);
+
+  // Create (and lock down) the data directory here, before opening the log
+  // file below. The daemon entry also does this, but that runs only once the
+  // child is spawned: opening the log first would fail with ENOENT on a fresh
+  // data directory that does not exist yet.
+  await ensureOwnerOnlyDirectory(config.dataDir);
 
   // Redirect the daemon's stderr into its log file rather than discarding it.
   // The daemon is detached, so anything it writes to stderr — the top-level
