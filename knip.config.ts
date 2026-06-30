@@ -136,6 +136,30 @@ const config: KnipConfig = {
     'packages/phishing-controller': {
       ignoreDependencies: ['immer', 'punycode'],
     },
+    'packages/platform-api-docs': {
+      // This package has both a CLI (`src/`) and a Docusaurus site (`site/`).
+      // Scan both so the CLI's deps (e.g. `glob`, `ts-morph`) and the site's
+      // `@docusaurus/*` / `prism-react-renderer` imports in
+      // `docusaurus.config.ts` are seen and neither gets flagged as unused.
+      entry: ['site/docusaurus.config.ts'],
+      project: ['src/**/*.{ts,tsx}', 'site/**/*.{ts,tsx}'],
+      ignoreDependencies: [
+        // Docusaurus runtime and React peers loaded by the framework at build
+        // time; the `docusaurus` binary is invoked via execa, never imported
+        // by source.
+        '@docusaurus/core',
+        '@docusaurus/plugin-content-docs',
+        '@mdx-js/react',
+        'react',
+        'react-dom',
+        // Loaded by docusaurus as a plugin name string (themes[0]); knip
+        // doesn't trace string-referenced plugins.
+        '@easyops-cn/docusaurus-search-local',
+        // Pulled in transitively by `@docusaurus/preset-classic`; pinned here
+        // so the framework's webpack/theme resolution finds a single version.
+        '@docusaurus/theme-common',
+      ],
+    },
     'packages/profile-metrics-controller': {
       ignoreDependencies: ['cockatiel'],
     },
