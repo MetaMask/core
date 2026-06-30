@@ -19,10 +19,13 @@ jobs:
         # The site is published under the `/platform-api/` subdirectory of
         # the repo's GitHub Pages site so that other doc sites (e.g.
         # package API docs) can be hosted alongside under sibling paths.
+        env:
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
         run: |
           yarn docs:platform-api:build \
-            --site-url "https://${{ github.repository_owner }}.github.io" \
-            --site-base-url "/${{ github.event.repository.name }}/platform-api/"
+            --site-url "https://${REPO_OWNER}.github.io" \
+            --site-base-url "/${REPO_NAME}/platform-api/"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v7
