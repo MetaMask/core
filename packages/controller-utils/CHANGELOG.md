@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `startTime` to `TraceRequest` to allow backdating a span's start time ([#0000](https://github.com/MetaMask/core/pull/0000))
+
 ## [12.3.0]
 
 ### Added
