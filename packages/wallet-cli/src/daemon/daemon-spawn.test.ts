@@ -3,18 +3,21 @@ import { closeSync, existsSync, openSync } from 'node:fs';
 
 import { pingDaemon } from './daemon-client';
 import { ensureDaemon } from './daemon-spawn';
+import { ensureOwnerOnlyDirectory } from './data-dir';
 import { getDaemonPaths } from './paths';
 import type { DaemonSpawnConfig } from './types';
 
 jest.mock('node:child_process');
 jest.mock('node:fs');
 jest.mock('./daemon-client');
+jest.mock('./data-dir');
 jest.mock('./paths');
 
 const mockSpawn = jest.mocked(spawn);
 const mockExistsSync = jest.mocked(existsSync);
 const mockOpenSync = jest.mocked(openSync);
 const mockCloseSync = jest.mocked(closeSync);
+const mockEnsureOwnerOnlyDirectory = jest.mocked(ensureOwnerOnlyDirectory);
 const mockPingDaemon = jest.mocked(pingDaemon);
 const mockGetDaemonPaths = jest.mocked(getDaemonPaths);
 
@@ -86,6 +89,7 @@ describe('ensureDaemon', () => {
       dbPath: '/tmp/wallet.db',
     });
     mockOpenSync.mockReturnValue(LOG_FD);
+    mockEnsureOwnerOnlyDirectory.mockResolvedValue(undefined);
     setupSpawnMock();
   });
 
@@ -161,6 +165,29 @@ describe('ensureDaemon', () => {
     expect(spawnOptions.stdio).toStrictEqual(['ignore', 'ignore', LOG_FD]);
     // The child dups the fd, so the parent must close its own copy.
     expect(mockCloseSync).toHaveBeenCalledWith(LOG_FD);
+  });
+
+  it('creates the data directory before opening the log file', async () => {
+    mockPingDaemon
+      .mockResolvedValueOnce(ABSENT)
+      .mockResolvedValueOnce(RESPONSIVE);
+    mockExistsSync.mockReturnValue(true);
+    // The log lives inside the data directory; opening it before the directory
+    // exists would throw ENOENT on a fresh `MM_DATA_DIR`, so the directory must
+    // be created first.
+    const order: string[] = [];
+    mockEnsureOwnerOnlyDirectory.mockImplementation(async () => {
+      order.push('ensureDir');
+    });
+    mockOpenSync.mockImplementation(() => {
+      order.push('openLog');
+      return LOG_FD;
+    });
+
+    await ensureDaemon(CONFIG);
+
+    expect(mockEnsureOwnerOnlyDirectory).toHaveBeenCalledWith('/tmp/data');
+    expect(order).toStrictEqual(['ensureDir', 'openLog']);
   });
 
   it('returns started when the spawned daemon becomes responsive', async () => {
