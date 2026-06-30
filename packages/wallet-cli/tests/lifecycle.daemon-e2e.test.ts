@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { mkdtemp, rm, stat } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -74,6 +74,40 @@ async function runMm(args: string[], dataDir: string): Promise<RunResult> {
 }
 
 /**
+ * Assert that a CLI invocation exited 0.
+ *
+ * On failure this throws an error embedding the captured stdout/stderr AND the
+ * daemon's own log file. The harness otherwise discards all three when only the
+ * exit code is asserted, which leaves a CI-only failure (one we cannot
+ * reproduce locally) impossible to diagnose from the run output. The daemon log
+ * is the only window into the spawned process: it records `Shutting down
+ * (...)`, `handle.close() failed`, `Daemon fatal: ...`, etc.
+ *
+ * @param step - Human-readable label for the CLI step (e.g. `daemon stop`).
+ * @param result - The captured run result.
+ * @param dataDir - Data directory the daemon is using (to locate its log).
+ */
+async function expectSuccessfulRun(
+  step: string,
+  result: RunResult,
+  dataDir: string,
+): Promise<void> {
+  if (result.code === 0) {
+    return;
+  }
+  const { logPath } = getDaemonPaths(dataDir);
+  const daemonLog = await readFile(logPath, 'utf-8').catch(
+    (error: unknown) => `<could not read daemon log: ${String(error)}>`,
+  );
+  throw new Error(
+    `Expected \`mm ${step}\` to exit 0 but it exited ${String(result.code)}.\n` +
+      `=== stdout ===\n${result.stdout}\n` +
+      `=== stderr ===\n${result.stderr}\n` +
+      `=== ${logPath} ===\n${daemonLog}\n`,
+  );
+}
+
+/**
  * Call a messenger action on the running daemon and parse its JSON result.
  *
  * @param action - The messenger action name.
@@ -85,7 +119,7 @@ async function callAction(
   dataDir: string,
 ): Promise<Record<string, unknown>> {
   const result = await runMm(['daemon', 'call', action], dataDir);
-  expect(result.code).toBe(0);
+  await expectSuccessfulRun(`daemon call ${action}`, result, dataDir);
   return JSON.parse(result.stdout.trim());
 }
 
@@ -139,12 +173,12 @@ describe('mm daemon lifecycle (subprocess e2e)', () => {
     'starts, reports already-running, answers call & status, then stops',
     async () => {
       const start = await runMm(['daemon', 'start'], dataDir);
-      expect(start.code).toBe(0);
+      await expectSuccessfulRun('daemon start', start, dataDir);
       expect(start.stdout).toMatch(/Daemon running\. Socket:/u);
 
       // A second start finds the responsive daemon and leaves it untouched.
       const restart = await runMm(['daemon', 'start'], dataDir);
-      expect(restart.code).toBe(0);
+      await expectSuccessfulRun('daemon start (restart)', restart, dataDir);
       expect(restart.stdout).toMatch(/already running/iu);
 
       // First run imports the SRP, so the wallet is unlocked and exposes the
@@ -158,7 +192,7 @@ describe('mm daemon lifecycle (subprocess e2e)', () => {
       expect(keyrings[0]?.accounts[0]).toMatch(ADDRESS_REGEX);
 
       const status = await runMm(['daemon', 'status'], dataDir);
-      expect(status.code).toBe(0);
+      await expectSuccessfulRun('daemon status', status, dataDir);
       expect(status.stdout).toMatch(
         /Daemon is running\. PID: \d+, Uptime: \d+s/u,
       );
@@ -175,10 +209,10 @@ describe('mm daemon lifecycle (subprocess e2e)', () => {
       expect(dirMode).toBe('700');
 
       const stop = await runMm(['daemon', 'stop'], dataDir);
-      expect(stop.code).toBe(0);
+      await expectSuccessfulRun('daemon stop', stop, dataDir);
 
       const statusAfterStop = await runMm(['daemon', 'status'], dataDir);
-      expect(statusAfterStop.code).toBe(0);
+      await expectSuccessfulRun('daemon status (after stop)', statusAfterStop, dataDir);
       expect(statusAfterStop.stdout).toMatch(/not running/iu);
     },
     STEP_TIMEOUT_MS,
@@ -220,7 +254,7 @@ describe('mm daemon lifecycle (subprocess e2e)', () => {
       await runMm(['daemon', 'start'], dataDir);
 
       const purge = await runMm(['daemon', 'purge', '--force'], dataDir);
-      expect(purge.code).toBe(0);
+      await expectSuccessfulRun('daemon purge --force', purge, dataDir);
       expect(purge.stdout).toMatch(/All daemon state deleted/u);
 
       const paths = getDaemonPaths(dataDir);
