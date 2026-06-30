@@ -45,6 +45,15 @@ export type GetActivityResponse = {
   };
 };
 
+export type AddFollowerResponse = {
+  followed: {
+    profileId: string;
+    address: string;
+    name: string;
+    imageUrl?: string | null;
+  }[];
+};
+
 export type PageParam =
   | {
       before: string;
@@ -60,6 +69,8 @@ export class ExampleDataService extends BaseDataService<
   readonly #accountsBaseUrl = 'https://accounts.api.cx.metamask.io';
 
   readonly #tokensBaseUrl = 'https://tokens.api.cx.metamask.io';
+
+  readonly #socialBaseUrl = 'https://social.api.cx.metamask.io';
 
   constructor(
     messenger: ExampleMessenger,
@@ -144,6 +155,29 @@ export class ExampleDataService extends BaseDataService<
       },
       page,
     );
+  }
+
+  async addFollower(followerId: string): Promise<AddFollowerResponse> {
+    return this.executeMutation<AddFollowerResponse>({
+      mutationKey: [`${this.name}:addFollower`, followerId],
+      mutationFn: async () => {
+        const url = new URL(`${this.#socialBaseUrl}/api/v1/users/me/follows`);
+
+        const response = await fetch(url, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ followerId }),
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            `Mutation failed with status code: ${response.status}.`,
+          );
+        }
+
+        return response.json();
+      },
+    });
   }
 
   destroy(): void {
