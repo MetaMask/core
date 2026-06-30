@@ -212,15 +212,35 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
 
   readonly #controllerOperationMutex = new Mutex();
 
+  readonly #isDeprecated: () => boolean;
+
+  /**
+   * Creates an instance of MultichainAssetsController.
+   *
+   * @param options - Constructor options.
+   * @param options.messenger - A reference to the messenger.
+   * @param options.state - Initial state to set on this controller.
+   * @param options.blockaidTokenRescanInterval - Blockaid re-scan interval (ms);
+   * default daily. `0` disables.
+   * @param options.isDeprecated - Optional function that returns true to completely
+   * disable this controller (no Snap requests, no state updates). When it returns
+   * `true`, `accountsAssets`, `assetsMetadata`, and `allIgnoredAssets` are reset to
+   * `{}` at construction and at every entry point, so no stale asset data remains
+   * in state. The function is evaluated dynamically on each entry point so it can
+   * be toggled at runtime. Intended for use when a higher-level controller
+   * (e.g. AssetsController) supersedes this one.
+   */
   constructor({
     messenger,
     state = {},
     blockaidTokenRescanInterval = DEFAULT_BLOCKAID_TOKEN_RESCAN_INTERVAL_MS,
+    isDeprecated = (): boolean => false,
   }: {
     messenger: MultichainAssetsControllerMessenger;
     state?: Partial<MultichainAssetsControllerState>;
     /** Blockaid re-scan interval (ms); default daily. `0` disables. */
     blockaidTokenRescanInterval?: number;
+    isDeprecated?: () => boolean;
   }) {
     super({
       messenger,
@@ -233,8 +253,11 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
     });
 
     this.#snaps = {};
+    this.#isDeprecated = isDeprecated;
 
-    if (blockaidTokenRescanInterval > 0) {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+    } else if (blockaidTokenRescanInterval > 0) {
       this.setIntervalLength(blockaidTokenRescanInterval);
       this.startPolling(null);
     }
@@ -258,7 +281,35 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
     messenger.registerMethodActionHandlers(this, MESSENGER_EXPOSED_METHODS);
   }
 
+  /**
+   * Clears all persisted `accountsAssets`, `assetsMetadata`, and
+   * `allIgnoredAssets` so that no stale asset data remains in state.
+   *
+   * Called from every entry point when `isDeprecated()` is true so that a
+   * runtime toggle propagates to state immediately, even if the controller was
+   * originally constructed while it was enabled. The update is skipped when all
+   * three maps are already empty to avoid emitting redundant state changes.
+   */
+  #enforceDisabledState(): void {
+    if (
+      Object.keys(this.state.accountsAssets).length === 0 &&
+      Object.keys(this.state.assetsMetadata).length === 0 &&
+      Object.keys(this.state.allIgnoredAssets).length === 0
+    ) {
+      return;
+    }
+    this.update((state) => {
+      state.accountsAssets = {};
+      state.assetsMetadata = {};
+      state.allIgnoredAssets = {};
+    });
+  }
+
   async _executePoll(_input: null): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     await this.#withControllerLock(async () => {
       const assetsByAccount: Record<
         string,
@@ -305,6 +356,10 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
   async #handleAccountAssetListUpdatedEvent(
     event: AccountAssetListUpdatedEventPayload,
   ) {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return undefined;
+    }
     return this.#withControllerLock(async () =>
       this.#handleAccountAssetListUpdated(event),
     );
@@ -312,6 +367,10 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
 
   // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
   async #handleOnAccountAddedEvent(account: InternalAccount) {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return undefined;
+    }
     return this.#withControllerLock(async () =>
       this.#handleOnAccountAdded(account),
     );
@@ -334,6 +393,10 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
    * @param accountId - The account ID to ignore assets for.
    */
   ignoreAssets(assetsToIgnore: CaipAssetType[], accountId: string): void {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     this.update((state) => {
       if (state.accountsAssets[accountId]) {
         state.accountsAssets[accountId] = state.accountsAssets[
@@ -365,6 +428,11 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
     assetIds: CaipAssetType[],
     accountId: string,
   ): Promise<CaipAssetType[]> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return [];
+    }
+
     if (assetIds.length === 0) {
       return this.state.accountsAssets[accountId] || [];
     }
@@ -583,6 +651,10 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
    * @param accountId - The new account id being removed.
    */
   async #handleOnAccountRemovedEvent(accountId: string): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     this.update((state) => {
       if (state.accountsAssets[accountId]) {
         delete state.accountsAssets[accountId];
