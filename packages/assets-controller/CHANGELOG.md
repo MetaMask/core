@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** `AssetsController` messenger must now allow `AccountActivityService:balanceUpdated` so unified `assetsBalance` state receives real-time websocket balance updates when `AccountActivityService` owns the server subscription ([#9273](https://github.com/MetaMask/core/pull/9273))
 - Bump `@metamask/transaction-controller` from `^68.1.1` to `^68.2.0` ([#9253](https://github.com/MetaMask/core/pull/9253))
+- Bump `@metamask/core-backend` from `^6.3.3` to `^6.4.0` ([#9312](https://github.com/MetaMask/core/pull/9312))
 
 ### Fixed
 
