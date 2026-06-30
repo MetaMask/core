@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0]
+
 ### Added
 
 - Add the `@metamask/solana-test-validator-up` package ([#9210](https://github.com/MetaMask/core/pull/9210)).
@@ -26,4 +28,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Propagate child termination signals as a non-zero exit from generated binary
   wrappers ([#9210](https://github.com/MetaMask/core/pull/9210)).
 
-[Unreleased]: https://github.com/MetaMask/core/
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/solana-test-validator-up@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/solana-test-validator-up@1.0.0

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0]
+
 ### Added
 
 - Add the `@metamask/bitcoin-regtest-up` package ([#9212](https://github.com/MetaMask/core/pull/9212)).
@@ -22,4 +24,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Merge partial `bitcoinCore` overrides from `package.json` with the pinned defaults instead of replacing them ([#9212](https://github.com/MetaMask/core/pull/9212)).
 - Propagate child termination signals as a non-zero exit from the generated `bitcoind` and `bitcoin-cli` wrappers ([#9212](https://github.com/MetaMask/core/pull/9212)).
 
-[Unreleased]: https://github.com/MetaMask/core/
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bitcoin-regtest-up@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/bitcoin-regtest-up@1.0.0
