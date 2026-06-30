@@ -574,6 +574,68 @@ describe('PerpsController', () => {
     mockInfrastructure.logger.error.mockClear();
     mockInfrastructure.debugLogger.log.mockClear();
   });
+  describe('attribution context (TAT-3463)', () => {
+    it('returns an empty context by default', () => {
+      expect(controller.getAttributionContext()).toStrictEqual({});
+    });
+
+    it('stores and returns the UTM attribution context', () => {
+      controller.setAttributionContext({
+        utmSource: 'newsletter',
+        utmMedium: 'email',
+        utmCampaign: 'launch',
+      });
+
+      expect(controller.getAttributionContext()).toStrictEqual({
+        utmSource: 'newsletter',
+        utmMedium: 'email',
+        utmCampaign: 'launch',
+      });
+    });
+
+    it('clears the stored attribution context', () => {
+      controller.setAttributionContext({ utmSource: 'newsletter' });
+      controller.clearAttributionContext();
+
+      expect(controller.getAttributionContext()).toStrictEqual({});
+    });
+
+    it('merges defined UTM keys into event properties using canonical keys', () => {
+      controller.setAttributionContext({
+        utmSource: 'newsletter',
+        utmMedium: 'email',
+        utmCampaign: 'launch',
+        utmContent: 'cta',
+        utmTerm: 'perps',
+      });
+
+      expect(
+        controller.mergeAttributionContext({ asset: 'BTC' }),
+      ).toStrictEqual({
+        [PERPS_EVENT_PROPERTY.UTM_SOURCE]: 'newsletter',
+        [PERPS_EVENT_PROPERTY.UTM_MEDIUM]: 'email',
+        [PERPS_EVENT_PROPERTY.UTM_CAMPAIGN]: 'launch',
+        [PERPS_EVENT_PROPERTY.UTM_CONTENT]: 'cta',
+        [PERPS_EVENT_PROPERTY.UTM_TERM]: 'perps',
+        asset: 'BTC',
+      });
+    });
+
+    it('lets provided properties win over attribution context and omits undefined UTM keys', () => {
+      controller.setAttributionContext({ utmSource: 'newsletter' });
+
+      expect(
+        controller.mergeAttributionContext({
+          [PERPS_EVENT_PROPERTY.UTM_SOURCE]: 'override',
+        }),
+      ).toStrictEqual({ [PERPS_EVENT_PROPERTY.UTM_SOURCE]: 'override' });
+    });
+
+    it('returns only base properties when no context is set', () => {
+      expect(controller.mergeAttributionContext()).toStrictEqual({});
+    });
+  });
+
   describe('state management', () => {
     it('returns positions without updating state', async () => {
       const mockPositions = [

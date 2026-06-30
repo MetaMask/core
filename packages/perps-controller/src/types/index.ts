@@ -162,6 +162,16 @@ export type TrackingData = {
   // Chart library active when the trade was initiated (e.g., lightweight, advanced)
   chartLibrary?: string;
 
+  // Entry point / discovery attribution (TAT-3080). Propagated onto trade/close/
+  // cancel/risk events as entry_point, discovery_source, perp_discovery_source.
+  entryPoint?: string;
+  discoverySource?: string;
+  perpDiscoverySource?: string;
+
+  // HyperLiquid protocol fee rate (TAT-3149). Emitted as hl_fee_rate on trade +
+  // close events when present; omitted entirely when unavailable.
+  hlFeeRate?: number;
+
   // Pay with any token: true when user paid with a custom token (not Perps balance)
   tradeWithToken?: boolean;
   mmPayTokenSelected?: string; // Token symbol when tradeWithToken is true
@@ -178,12 +188,22 @@ export type TrackingData = {
 // TP/SL-specific tracking data for analytics events
 export type TPSLTrackingData = {
   direction: 'long' | 'short'; // Position direction
-  source: string; // Source of the TP/SL update (e.g., 'tp_sl_view', 'position_card')
+  /**
+   * @deprecated Source of the TP/SL update (e.g., 'tp_sl_view', 'position_card').
+   * Prefer `entryPoint` / `discoverySource` / `perpDiscoverySource` for risk-event
+   * attribution (TAT-3080); `source` is retained for backward compatibility.
+   */
+  source: string;
   positionSize: number; // Unsigned position size for metrics
   takeProfitPercentage?: number; // Take profit percentage from entry
   stopLossPercentage?: number; // Stop loss percentage from entry
   isEditingExistingPosition?: boolean; // true = editing existing position, false = creating for new order
   entryPrice?: number; // Entry price for percentage calculations
+
+  // Entry point / discovery attribution (TAT-3080), propagated onto risk events.
+  entryPoint?: string;
+  discoverySource?: string;
+  perpDiscoverySource?: string;
 };
 
 // MetaMask Perps API order parameters for PerpsController
@@ -537,6 +557,8 @@ export type CancelOrderParams = {
   orderId: string; // Order ID to cancel
   symbol: string; // Asset identifier (e.g., 'BTC', 'ETH', 'xyz:TSLA')
   providerId?: PerpsProviderType; // Multi-provider: optional provider override for routing
+  // Optional tracking data for MetaMetrics events (e.g. discovery attribution)
+  trackingData?: TrackingData;
 };
 
 export type CancelOrderResult = {
@@ -1383,7 +1405,29 @@ export enum PerpsAnalyticsEvent {
   RiskManagement = 'Perp Risk Management',
   PerpsError = 'Perp Error',
   AccountSetup = 'Perp Account Setup',
+  // New funnel + search events (TAT-3084, TAT-3202).
+  // Names must match MetaMetrics/Mixpanel exactly; no other event names may be added.
+  TransactionConsidered = 'Perp Transaction Considered',
+  TradeQuoteReceived = 'Perp Trade Quote Received',
+  SearchQuery = 'Perp Search Query',
+  SearchResultTapped = 'Perp Search Result Tapped',
+  SearchAbandoned = 'Perp Search Abandoned',
 }
+
+/**
+ * UTM / discovery attribution context for Perps analytics (TAT-3133, TAT-3140).
+ *
+ * Held transiently in-memory by PerpsController (never persisted in state) and
+ * merged into analytics event properties so client-originated UTM attribution
+ * can be propagated onto core-emitted transaction events.
+ */
+export type PerpsAttributionContext = {
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
+  utmContent?: string;
+  utmTerm?: string;
+};
 
 /**
  * Perps-specific trace names. These must match TraceName enum values in mobile.
