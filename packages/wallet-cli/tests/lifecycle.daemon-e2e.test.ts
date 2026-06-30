@@ -212,7 +212,11 @@ describe('mm daemon lifecycle (subprocess e2e)', () => {
       await expectSuccessfulRun('daemon stop', stop, dataDir);
 
       const statusAfterStop = await runMm(['daemon', 'status'], dataDir);
-      await expectSuccessfulRun('daemon status (after stop)', statusAfterStop, dataDir);
+      await expectSuccessfulRun(
+        'daemon status (after stop)',
+        statusAfterStop,
+        dataDir,
+      );
       expect(statusAfterStop.stdout).toMatch(/not running/iu);
     },
     STEP_TIMEOUT_MS,
