@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { closeSync, existsSync, openSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { pingDaemon } from './daemon-client';
@@ -38,7 +38,7 @@ export type EnsureDaemonResult = {
 export async function ensureDaemon(
   config: DaemonSpawnConfig,
 ): Promise<EnsureDaemonResult> {
-  const { socketPath } = getDaemonPaths(config.dataDir);
+  const { socketPath, logPath } = getDaemonPaths(config.dataDir);
 
   const initialPing = await pingDaemon(socketPath);
   if (initialPing.status === 'responsive') {
@@ -63,9 +63,18 @@ export async function ensureDaemon(
 
   const { entryPath, args } = resolveEntryPoint(config.packageRoot);
 
+  // Redirect the daemon's stderr into its log file rather than discarding it.
+  // The daemon is detached, so anything it writes to stderr — the top-level
+  // `Daemon fatal: ...` line, an uncaught stack trace, or a native
+  // `better-sqlite3` abort — would otherwise vanish, leaving a daemon that dies
+  // after startup completely undiagnosable (e.g. a `daemon stop` that then
+  // finds a stale socket and a dead PID). `stdout` stays ignored: structured
+  // status already goes through the file logger. The child dups the fd on
+  // spawn, so the parent closes its own copy immediately.
+  const logFd = openSync(logPath, 'a');
   const child = spawn(process.execPath, [...args, entryPath], {
     detached: true,
-    stdio: 'ignore',
+    stdio: ['ignore', 'ignore', logFd],
     env: {
       ...process.env,
       MM_DAEMON_DATA_DIR: config.dataDir,
@@ -75,6 +84,10 @@ export async function ensureDaemon(
       MM_WALLET_SRP: config.srp,
     },
   });
+  // The child has dup'd the fd into its own stderr; the parent no longer needs
+  // its copy. `spawn` reports runtime failures via the 'error' event rather
+  // than throwing synchronously, so closing here is safe on the success path.
+  closeSync(logFd);
 
   type ExitInfo = { code: number | null; signal: NodeJS.Signals | null };
   const exitInfo: { value: ExitInfo | null } = { value: null };

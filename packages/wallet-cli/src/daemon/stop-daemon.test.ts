@@ -50,6 +50,23 @@ describe('stopDaemon', () => {
     expect(mockSendSignal).not.toHaveBeenCalled();
   });
 
+  it('cleans up a stale socket and PID file when the socket is unreachable but the process is dead', async () => {
+    mockReadPidFile.mockResolvedValue(123);
+    mockPingDaemon.mockResolvedValue(UNREACHABLE);
+    mockIsProcessAlive.mockReturnValue(false);
+
+    const result = await stopDaemon('/tmp/test.sock', '/tmp/test.pid');
+
+    // A daemon that crashed leaves a connectable-but-dead socket and its PID
+    // file behind; the daemon is gone, so report success and clear both.
+    expect(result).toBe(true);
+    expect(mockRm).toHaveBeenCalledWith('/tmp/test.pid', { force: true });
+    expect(mockRm).toHaveBeenCalledWith('/tmp/test.sock', { force: true });
+    // The recorded PID is dead, so never signal it — it may have been recycled.
+    expect(mockSendSignal).not.toHaveBeenCalled();
+    expect(mockSendCommand).not.toHaveBeenCalled();
+  });
+
   it('signals the recorded PID when the socket is absent but the process is still alive', async () => {
     mockReadPidFile.mockResolvedValue(123);
     mockPingDaemon.mockResolvedValue(ABSENT);
