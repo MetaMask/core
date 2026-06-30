@@ -7,12 +7,23 @@ import { isProcessAlive, readPidFile, sendSignal, waitFor } from './utils';
  * Stop the daemon via a `shutdown` RPC call. Falls back to PID + SIGTERM if
  * the socket is unresponsive, and escalates to SIGKILL if SIGTERM is ignored.
  *
- * Signals are sent when EITHER the socket was observed (`responsive` or
- * `unreachable`) OR the recorded PID is still alive on its own. The
- * socket-absent + alive-PID branch trades a small risk of signalling a
+ * Resolution order when a live daemon is present:
+ * 1. If the socket is responsive, request a graceful `shutdown` over it.
+ * 2. If the recorded PID is still alive, escalate to SIGTERM.
+ * 3. ...then SIGKILL.
+ *
+ * Signals (steps 2-3) are only ever sent against a PID that is observed alive.
+ * The socket-absent + alive-PID branch trades a small risk of signalling a
  * recycled PID for the larger risk of leaving an orphan daemon holding the
- * SQLite database — which `daemon purge` would otherwise wipe out from
- * under it.
+ * SQLite database — which `daemon purge` would otherwise wipe out from under
+ * it.
+ *
+ * When the socket is NOT responsive AND the recorded PID is dead (or there is
+ * no PID file), there is no live daemon: a lingering socket or PID file is
+ * stale leftovers from a daemon that already exited — typically one that
+ * crashed without running its own cleanup. Those files are removed and the
+ * stop is reported as successful, rather than failing on a daemon that is
+ * already gone.
  *
  * @param socketPath - The daemon socket path.
  * @param pidPath - The daemon PID file path.
@@ -30,9 +41,12 @@ export async function stopDaemon(
     ping.status === 'responsive' || ping.status === 'unreachable';
   const processAlive = pid !== undefined && isProcessAlive(pid);
 
-  if (!socketObserved && !processAlive) {
-    // No live daemon evidence. Just remove the stale PID file if any.
+  if (ping.status !== 'responsive' && !processAlive) {
+    // No live daemon: the socket is not answering and the recorded PID (if
+    // any) is dead. Remove any stale socket/PID files left behind by a daemon
+    // that already exited and report success.
     await cleanupFile(pidPath, 'PID file', log);
+    await cleanupFile(socketPath, 'socket file', log);
     return true;
   }
 
