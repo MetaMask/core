@@ -2400,6 +2400,33 @@ describe('TradingService', () => {
       );
     });
 
+    it('propagates attribution properties on failure', async () => {
+      mockProvider.placeOrder.mockRejectedValue(new Error('Network error'));
+
+      await expect(
+        tradingService.flipPosition({
+          provider: mockProvider,
+          position: mockPosition,
+          trackingData: {
+            entryPoint: 'position_view',
+            discoverySource: 'banner',
+            hlFeeRate: 0.00045,
+          },
+          context: mockContext,
+        }),
+      ).rejects.toThrow('Network error');
+
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+        PerpsAnalyticsEvent.TradeTransaction,
+        expect.objectContaining({
+          status: 'failed',
+          entry_point: 'position_view',
+          discovery_source: 'banner',
+          hl_fee_rate: 0.00045,
+        }),
+      );
+    });
+
     it('updates state on success', async () => {
       const mockResult: OrderResult = { success: true, orderId: 'flip-123' };
       mockProvider.placeOrder.mockResolvedValue(mockResult);

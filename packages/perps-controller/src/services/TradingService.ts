@@ -2342,6 +2342,7 @@ export class TradingService {
         ...(trackingData?.vipDiscount !== undefined && {
           [PERPS_EVENT_PROPERTY.VIP_DISCOUNT]: trackingData.vipDiscount,
         }),
+        ...this.#buildAttributionProperties(trackingData),
       });
 
       this.#deps.tracer.endTrace({
