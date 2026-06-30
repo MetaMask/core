@@ -574,7 +574,7 @@ describe('PerpsController', () => {
     mockInfrastructure.logger.error.mockClear();
     mockInfrastructure.debugLogger.log.mockClear();
   });
-  describe('attribution context (TAT-3463)', () => {
+  describe('attribution context', () => {
     it('returns an empty context by default', () => {
       expect(controller.getAttributionContext()).toStrictEqual({});
     });
