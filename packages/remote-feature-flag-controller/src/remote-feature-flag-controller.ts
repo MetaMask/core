@@ -312,8 +312,15 @@ export class RemoteFeatureFlagController extends BaseController<
 
     const updatedFeatureFlagThresholdGroups = {
       ...(this.state.featureFlagThresholdGroups ?? {}),
-      ...featureFlagThresholdGroupUpdates,
     };
+
+    for (const [flagName, thresholdGroup] of Object.entries(
+      featureFlagThresholdGroupUpdates,
+    )) {
+      if (currentFlagNames.includes(flagName)) {
+        updatedFeatureFlagThresholdGroups[flagName] = thresholdGroup;
+      }
+    }
 
     for (const flagName of Object.keys(updatedFeatureFlagThresholdGroups)) {
       if (!currentFlagNames.includes(flagName)) {
