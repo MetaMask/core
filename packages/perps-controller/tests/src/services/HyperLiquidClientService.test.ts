@@ -420,9 +420,9 @@ describe('HyperLiquidClientService', () => {
     });
 
     it('handles disconnect errors gracefully', async () => {
-      mockWsTransport.close.mockRejectedValueOnce(
-        new Error('Disconnect failed'),
-      );
+      mockWsTransport.close.mockImplementationOnce(() => {
+        throw new Error('Disconnect failed');
+      });
 
       // Should not throw, error is caught and logged
       await expect(service.disconnect()).resolves.not.toThrow();

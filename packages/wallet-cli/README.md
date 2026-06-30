@@ -10,6 +10,33 @@ or
 
 `npm install @metamask/wallet-cli`
 
+## Usage
+
+The CLI drives a long-lived background **daemon** that holds an unlocked `@metamask/wallet` in memory and exposes its messenger over a per-user Unix socket. All commands live under the `mm daemon` topic; run `mm --help` (or `mm daemon <command> --help`) for the full reference.
+
+Start the daemon (flags may also be supplied as the `INFURA_PROJECT_ID`, `MM_WALLET_PASSWORD`, and `MM_WALLET_SRP` environment variables — preferred for secrets):
+
+```sh
+mm daemon start --infura-project-id <key> --password <pw> --srp "<phrase>"
+```
+
+Call any messenger action on the running wallet (positional JSON array for arguments, optional `--timeout`):
+
+```sh
+mm daemon call AccountsController:listAccounts
+mm daemon call KeyringController:getState --timeout 10000
+```
+
+Inspect or tear it down:
+
+```sh
+mm daemon status          # PID + uptime, or why the socket is unreachable
+mm daemon stop            # graceful shutdown (falls back to SIGTERM/SIGKILL)
+mm daemon purge           # stop, then delete all daemon state files (--force to skip the prompt)
+```
+
+State (socket, PID file, log, and the SQLite database) lives in the per-user oclif data directory; override it with `MM_DATA_DIR`.
+
 ## Troubleshooting
 
 ### Rebuilding `better-sqlite3`

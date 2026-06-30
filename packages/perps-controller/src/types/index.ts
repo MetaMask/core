@@ -998,6 +998,13 @@ export type SubscribeOrderBookParams = {
   nSigFigs?: 2 | 3 | 4 | 5;
   /** Mantissa for aggregation when nSigFigs is 5 (2 or 5). Controls finest price increments */
   mantissa?: 2 | 5;
+  /**
+   * Enable fast order book updates (5 levels @ ~0.5 s cadence).
+   * When omitted, Hyperliquid uses the default cadence (20 levels @ ~2 s).
+   * Note: with `fast: true` the widget receives at most 5 levels per side
+   * regardless of the `levels` setting.
+   */
+  fast?: boolean;
   /** Callback function receiving order book updates */
   callback: (orderBook: OrderBookData) => void;
   /** Callback for errors */
