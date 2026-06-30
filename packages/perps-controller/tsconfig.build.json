@@ -6,8 +6,6 @@
     "moduleResolution": "Bundler",
     "outDir": "./dist",
     "rootDir": "./src",
-    "module": "ESNext",
-    "moduleResolution": "Bundler"
   },
   "references": [
     { "path": "../account-tree-controller/tsconfig.build.json" },
