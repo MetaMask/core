@@ -339,7 +339,7 @@ export class SnapDataSource extends AbstractDataSource<
       }
 
       for (const [chainId, assetIds] of byChain) {
-        const snapId = this.getSnapIdForChain(chainId as ChainId);
+        const snapId = this.getSnapIdForChain(chainId);
         if (!snapId) {
           continue;
         }
@@ -352,7 +352,7 @@ export class SnapDataSource extends AbstractDataSource<
             i,
             i + ACCOUNT_ASSET_INFO_SNAP_BATCH_SIZE,
           );
-          // eslint-disable-next-line no-await-in-loop
+           
           const info = await fetchAccountAssetInfoFromSnap(handleSnapRequest, {
             accountId,
             snapId,
@@ -626,7 +626,7 @@ export class SnapDataSource extends AbstractDataSource<
             i,
             i + ACCOUNT_ASSET_INFO_SNAP_BATCH_SIZE,
           );
-          // eslint-disable-next-line no-await-in-loop
+           
           const info = await fetchAccountAssetInfoFromSnap(handleSnapRequest, {
             accountId,
             snapId: snapId as SnapId,

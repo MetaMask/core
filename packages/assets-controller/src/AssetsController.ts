@@ -53,7 +53,6 @@ import type {
   SnapControllerHandleRequestAction,
   SnapControllerSnapInstalledEvent,
 } from '@metamask/snaps-controllers';
-import type { SnapId } from '@metamask/snaps-sdk';
 import type {
   TransactionControllerTransactionConfirmedEvent,
   TransactionControllerUnapprovedTransactionAddedEvent,
@@ -120,7 +119,6 @@ import type {
   FungibleAssetMetadata,
   AssetPrice,
   AssetBalance,
-  FungibleAssetBalance,
   AccountWithSupportedChains,
   AssetType,
   DataType,
