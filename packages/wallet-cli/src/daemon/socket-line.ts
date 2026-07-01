@@ -19,14 +19,11 @@ export async function writeLine(socket: Socket, line: string): Promise<void> {
 
     socket.write(`${line}\n`, (error) => {
       if (error) {
-        // A failed write (e.g. EPIPE when the peer closed mid-write) is
-        // delivered BOTH here AND as a separate 'error' event on the socket.
-        // Leave `onError` attached so that event still has a handler —
-        // detaching it here would let Node treat the emission as unhandled and
-        // crash the whole process, even though this rejection is caught
-        // upstream. `onError` rejects idempotently and detaches itself when the
-        // event arrives; rejecting here settles the promise even if it never
-        // does.
+        // A failed write (e.g. EPIPE) is delivered BOTH here AND as a later
+        // 'error' event. Leave `onError` attached to handle that event —
+        // detaching here would let Node treat it as unhandled and crash the
+        // process. This reject settles the promise; `onError` detaches itself
+        // when/if the event arrives.
         reject(error);
         return;
       }
