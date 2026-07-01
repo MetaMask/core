@@ -94,8 +94,8 @@ export type RampsControllerSetSelectedProviderAction = {
  * Idempotent: subsequent calls return the same promise unless forceRefresh is set.
  * Force-refetches the countries catalog on startup (bypassing the in-session
  * request cache) so region preset amounts stay current. The catalog is not
- * persisted, so a cold start always re-fetches it regardless. Skips geolocation
- * when userRegion already exists.
+ * persisted, so a cold start always re-fetches it regardless. Skips
+ * geolocation when userRegion already exists.
  *
  * @param options - Options for cache behavior. forceRefresh bypasses idempotency and re-runs the full flow.
  * @returns Promise that resolves when initialization is complete.
