@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `metaMetricsIds` field to threshold feature flag entries for explicit user targeting ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+  - When a threshold entry includes `metaMetricsIds: string[]`, the entry is selected immediately if the current user's MetaMetrics ID appears in that list, bypassing hash-based rollout. This is intended for QA and Product Manager testing in any environment, including production.
+  - If multiple entries share the same ID, the first matching entry wins.
+  - Explicit-ID matches bypass the threshold cache; hash-based selection continues to use and populate the cache as before.
+  - Entries with malformed `metaMetricsIds` values (e.g. non-array) are silently skipped; the flag continues processing normally.
+  - MetaMetrics IDs are compared case-insensitively after trimming whitespace.
+  - `metaMetricsIds` values are redacted from `rawRemoteFeatureFlags` before the field is persisted to state, so they never appear in state logs or debug snapshots.
+
 ### Changed
 
 - Merge `localOverrides` into `remoteFeatureFlags` at the controller level so consumers receive effective flag values directly ([#9259](https://github.com/MetaMask/core/pull/9259))
