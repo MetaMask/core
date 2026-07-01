@@ -79,7 +79,9 @@ jobs:
 
   deploy-platform-api-docs:
     name: Deploy Platform API Docs
+    # The site is built in `lint-build-test`; only publish it on `main` pushes.
     needs: lint-build-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
       contents: read
       id-token: write
@@ -143,7 +145,6 @@ jobs:
     needs:
       - analyse-code
       - check-release
-      - deploy-platform-api-docs
       - lint-build-test
     outputs:
       passed: ${{ steps.set-output.outputs.passed }}
