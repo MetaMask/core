@@ -26,7 +26,11 @@ describe('daemon start', () => {
 
     expect(stdout).toContain('Daemon running. Socket: /tmp/daemon.sock');
     expect(mockEnsureDaemon).toHaveBeenCalledWith(
-      expect.objectContaining({ infuraProjectId: 'key', password: 'pw', srp: 'phrase' }),
+      expect.objectContaining({
+        infuraProjectId: 'key',
+        password: 'pw',
+        srp: 'phrase',
+      }),
     );
   });
 
@@ -49,8 +53,10 @@ describe('daemon start', () => {
     });
 
     await runCommand(DaemonStart, [
-      '--infura-project-id', 'key',
-      '--srp', 'phrase',
+      '--infura-project-id',
+      'key',
+      '--srp',
+      'phrase',
     ]);
 
     expect(mockEnsureDaemon).toHaveBeenCalledWith(

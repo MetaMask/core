@@ -167,7 +167,7 @@ describe('daemon-entry', () => {
     expect(process.exitCode).toBeUndefined();
   });
 
-  it('passes password: \'\' to createWallet when MM_WALLET_PASSWORD is an empty string', async () => {
+  it("passes password: '' to createWallet when MM_WALLET_PASSWORD is an empty string", async () => {
     process.env.MM_WALLET_PASSWORD = '';
     mockCreateWallet.mockResolvedValue(createMockWallet());
     mockStartRpcSocketServer.mockResolvedValue(createMockHandle());

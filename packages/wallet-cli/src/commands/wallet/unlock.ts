@@ -4,7 +4,10 @@ import { Command, Flags } from '@oclif/core';
 import { sendCommand } from '../../daemon/daemon-client';
 import { getDaemonPaths } from '../../daemon/paths';
 import { promptPassword } from '../../daemon/prompts';
-import { blankToUndefined, makeDaemonConnectionError } from '../../daemon/utils';
+import {
+  blankToUndefined,
+  makeDaemonConnectionError,
+} from '../../daemon/utils';
 
 export default class WalletUnlock extends Command {
   static override description =
