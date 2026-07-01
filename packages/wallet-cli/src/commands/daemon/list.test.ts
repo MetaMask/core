@@ -12,7 +12,10 @@ const mockSendCommand = jest.mocked(sendCommand);
  * @param value - The value to assign to `process.stdout.isTTY`.
  * @param fn - The callback to run while the override is in place.
  */
-async function withTTY(value: boolean, fn: () => Promise<void>): Promise<void> {
+async function withTTY(
+  value: boolean | undefined,
+  fn: () => Promise<void>,
+): Promise<void> {
   const original = process.stdout.isTTY;
   Object.defineProperty(process.stdout, 'isTTY', {
     value,
@@ -91,6 +94,21 @@ describe('daemon list', () => {
       .mockImplementation(() => true);
 
     await withTTY(false, async () => {
+      await runCommand(DaemonList);
+    });
+
+    expect(writeSpy).toHaveBeenCalledWith(
+      'KeyringController:getState\nNetworkController:getState\n',
+    );
+    writeSpy.mockRestore();
+  });
+
+  it('treats an undefined isTTY as non-TTY', async () => {
+    const writeSpy = jest
+      .spyOn(process.stdout, 'write')
+      .mockImplementation(() => true);
+
+    await withTTY(undefined, async () => {
       await runCommand(DaemonList);
     });
 
