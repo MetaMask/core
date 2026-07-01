@@ -626,6 +626,11 @@
       "count": 3
     }
   },
+  "packages/base-data-service/src/createServicePolicy.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
   "packages/bridge-controller/src/utils/assets.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 2
