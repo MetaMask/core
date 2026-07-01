@@ -13,12 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **BREAKING:** Remove `Bridge` and `Test` values from the `TransactionPayStrategy` enum ([#9335](https://github.com/MetaMask/core/pull/9335))
-  - Callers passing `TransactionPayStrategy.Bridge` or `TransactionPayStrategy.Test` to `getStrategy` / `getStrategies` must remove those references.
-- **BREAKING:** Remove `TransactionPayBridgeQuote` type export ([#9335](https://github.com/MetaMask/core/pull/9335))
-  - Consumers that imported this type must remove the import.
-- **BREAKING:** Remove `@metamask/bridge-controller` and `@metamask/bridge-status-controller` from dependencies; remove corresponding actions/events from `TransactionPayControllerMessenger` ([#9335](https://github.com/MetaMask/core/pull/9335))
-  - Clients wiring `BridgeController:fetchQuotes`, `BridgeStatusController:submitTx`, `BridgeStatusController:getState`, or subscribing to `BridgeStatusControllerStateChangeEvent` via the TPC messenger must remove those delegations.
+- **BREAKING:** Remove Bridge and Test pay strategies and all `@metamask/bridge-controller` / `@metamask/bridge-status-controller` dependencies ([#9335](https://github.com/MetaMask/core/pull/9335))
+  - Remove `Bridge` and `Test` values from the `TransactionPayStrategy` enum. Callers passing these to `getStrategy` / `getStrategies` must remove those references.
+  - Remove `TransactionPayBridgeQuote` type export.
+  - Remove `BridgeController:fetchQuotes`, `BridgeStatusController:submitTx`, `BridgeStatusController:getState` actions and `BridgeStatusControllerStateChangeEvent` event from `TransactionPayControllerMessenger`. Clients must remove the corresponding messenger delegations.
 
 ## [23.17.2]
 

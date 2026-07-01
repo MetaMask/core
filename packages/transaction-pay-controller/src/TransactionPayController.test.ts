@@ -693,7 +693,8 @@ describe('TransactionPayController', () => {
     it('returns callback value if provided', async () => {
       new TransactionPayController({
         getDelegationTransaction: jest.fn(),
-        getStrategy: (): TransactionPayStrategy => TransactionPayStrategy.Across,
+        getStrategy: (): TransactionPayStrategy =>
+          TransactionPayStrategy.Across,
         messenger,
       });
 
