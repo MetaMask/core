@@ -17,6 +17,7 @@ import { rm } from 'node:fs/promises';
 import { KeyValueStore } from '../persistence/KeyValueStore';
 import { loadState, subscribeToChanges } from '../persistence/persistence';
 import type { Logger } from './types';
+import { blankToUndefined } from './utils';
 
 const IN_MEMORY_DATABASE_PATH = ':memory:';
 
@@ -150,12 +151,7 @@ export async function createWallet({
   infuraProjectId,
   log,
 }: CreateWalletConfig): Promise<CreateWalletResult> {
-  // An empty `--password` flag or `MM_WALLET_PASSWORD` env var means "no
-  // password supplied", not "the empty string is my password". Collapsing
-  // the ambiguity here avoids the daemon trying to submit `''` to the
-  // keyring (which would surface as a wrong-password error rather than the
-  // intended "start locked" behavior).
-  const effectivePassword = password === '' ? undefined : password;
+  const effectivePassword = blankToUndefined(password);
 
   const logFn = log ?? ((message: string): void => console.error(message));
   const store = new KeyValueStore(databasePath);
@@ -209,19 +205,26 @@ export async function createWallet({
     }
 
     if (wasFirstRun) {
-      // The precondition check above narrows `effectivePassword` to a
-      // defined string on this branch; TS can't follow that, hence the
-      // non-null assertion.
+      // The precondition check above guards this branch on `effectivePassword`,
+      // but TS does not narrow it across the intervening `await wallet.init()`,
+      // hence the assertion.
       await importSecretRecoveryPhrase(
         wallet,
         effectivePassword as string,
         srp,
       );
     } else if (effectivePassword !== undefined) {
-      await wallet.messenger.call(
-        'KeyringController:submitPassword',
-        effectivePassword,
-      );
+      try {
+        await wallet.messenger.call(
+          'KeyringController:submitPassword',
+          effectivePassword,
+        );
+      } catch (error) {
+        throw new Error(
+          `Failed to unlock the persisted vault: ${String(error)}`,
+          { cause: error },
+        );
+      }
     }
 
     let disposePromise: Promise<void> | undefined;

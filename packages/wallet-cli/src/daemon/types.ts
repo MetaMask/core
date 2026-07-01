@@ -43,7 +43,8 @@ export type DaemonStatusInfo = {
  * the keyring, and the caller is expected to use `mm wallet unlock` before
  * any keyring-bound operation. First-run startup still requires both
  * `password` and `srp`; without `password`, the daemon will exit during
- * startup with a clear error.
+ * startup with a clear error. `srp` is always required by the type and
+ * forwarded to the daemon; it is only consumed on first run.
  */
 export type DaemonSpawnConfig = {
   dataDir: string;

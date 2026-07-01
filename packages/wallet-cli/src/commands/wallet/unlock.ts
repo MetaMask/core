@@ -4,7 +4,7 @@ import { Command, Flags } from '@oclif/core';
 import { sendCommand } from '../../daemon/daemon-client';
 import { getDaemonPaths } from '../../daemon/paths';
 import { promptPassword } from '../../daemon/prompts';
-import { isErrorWithCode } from '../../daemon/utils';
+import { blankToUndefined, makeDaemonConnectionError } from '../../daemon/utils';
 
 export default class WalletUnlock extends Command {
   static override description =
@@ -37,15 +37,16 @@ export default class WalletUnlock extends Command {
     const { flags } = await this.parse(WalletUnlock);
     const { timeout: timeoutMs } = flags;
 
-    // Empty `--password ''` or empty `MM_WALLET_PASSWORD` env var means "no
-    // password supplied", not "the empty string is the password" —
-    // collapsing the ambiguity here so the prompt fires instead of sending
-    // an empty string the controller will reject.
-    const flagPassword =
-      flags.password === undefined || flags.password === ''
-        ? undefined
-        : flags.password;
-    const password = flagPassword ?? (await promptPassword());
+    // `blankToUndefined` collapses `--password ''` and `MM_WALLET_PASSWORD=''`
+    // to undefined so the prompt fires instead of sending an empty string.
+    const flagPassword = blankToUndefined(flags.password);
+    let password: string;
+    try {
+      password = flagPassword ?? (await promptPassword());
+    } catch {
+      // ExitPromptError — user cancelled the interactive prompt (Ctrl+C).
+      return;
+    }
 
     const { socketPath } = getDaemonPaths(this.config.dataDir);
 
@@ -58,20 +59,7 @@ export default class WalletUnlock extends Command {
         ...(timeoutMs === undefined ? {} : { timeoutMs }),
       });
     } catch (error) {
-      if (
-        isErrorWithCode(error, 'ENOENT') ||
-        isErrorWithCode(error, 'ECONNREFUSED')
-      ) {
-        this.error('Daemon is not running. Start it with `mm daemon start`.');
-      }
-      if (isErrorWithCode(error, 'EACCES')) {
-        this.error(
-          `Cannot connect to the daemon socket: permission denied. ` +
-            `The socket may be owned by another user, or MM_DAEMON_DATA_DIR ` +
-            `may point to a directory you cannot access.`,
-        );
-      }
-      this.error(error instanceof Error ? error.message : String(error));
+      this.error(makeDaemonConnectionError(error));
     }
 
     if (isJsonRpcFailure(response)) {
@@ -79,7 +67,9 @@ export default class WalletUnlock extends Command {
       // `isJsonRpcFailure` already validates that `data` is JSON, so
       // `JSON.stringify` cannot throw here.
       const dataSuffix =
-        data === undefined ? '' : ` data=${JSON.stringify(data)}`;
+        data === undefined || data === null
+          ? ''
+          : ` data=${JSON.stringify(data)}`;
       this.error(
         `Failed to unlock: ${message} (code ${String(code)})${dataSuffix}`,
       );
