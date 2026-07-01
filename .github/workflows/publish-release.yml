@@ -29,7 +29,7 @@ jobs:
       - name: Build
         run: yarn build
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: publish-release-artifacts-${{ github.sha }}
           include-hidden-files: true
