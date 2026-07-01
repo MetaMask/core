@@ -87,7 +87,7 @@ runs:
         skip-checkout: true
 
     - name: Fail if root package is bumped but not detected as release
-      if: steps.is-release.outputs.IS_RELEASE != 'true' && steps.check-root-package.outputs.root-package-bumped == 'true'
+      if: github.event_name == 'pull_request' && steps.is-release.outputs.IS_RELEASE != 'true' && steps.check-root-package.outputs.root-package-bumped == 'true'
       shell: bash
       env:
         COMMIT_STARTS_WITH: ${{ inputs.commit-starts-with }}
