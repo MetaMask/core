@@ -9,7 +9,6 @@ import type { Json, SemVerVersion } from '@metamask/utils';
 
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import type { RemoteFeatureFlagControllerMethodActions } from './remote-feature-flag-controller-method-action-types';
-import { ThresholdVersion } from './remote-feature-flag-controller-types';
 import type {
   FeatureFlags,
   ServiceResponse,
@@ -34,6 +33,7 @@ export type RemoteFeatureFlagControllerState = {
   rawRemoteFeatureFlags?: FeatureFlags;
   cacheTimestamp: number;
   thresholdCache?: Record<string, number>;
+  featureFlagThresholdGroups?: Record<string, string>;
 };
 
 const remoteFeatureFlagControllerMetadata = {
@@ -65,6 +65,12 @@ const remoteFeatureFlagControllerMetadata = {
     includeInStateLogs: false,
     persist: true,
     includeInDebugSnapshot: false,
+    usedInUi: false,
+  },
+  featureFlagThresholdGroups: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
     usedInUi: false,
   },
 };
@@ -116,19 +122,6 @@ export function getDefaultRemoteFeatureFlagControllerState(): RemoteFeatureFlagC
     localOverrides: {},
     rawRemoteFeatureFlags: {},
     cacheTimestamp: 0,
-  };
-}
-
-function normalizeThresholdValue(featureFlag: FeatureFlagScopeValue): Json {
-  if (featureFlag.thresholdVersion === ThresholdVersion.DirectValue) {
-    return featureFlag.value;
-  }
-
-  // Unknown threshold versions fall back to the legacy wrapper shape for
-  // backwards compatibility with existing threshold feature flag configs.
-  return {
-    name: featureFlag.name,
-    value: featureFlag.value,
   };
 }
 
@@ -288,8 +281,11 @@ export class RemoteFeatureFlagController extends BaseController<
    * @param remoteFeatureFlags - The new feature flags to cache.
    */
   async #updateCache(remoteFeatureFlags: FeatureFlags): Promise<void> {
-    const { processedFlags, thresholdCacheUpdates } =
-      await this.#processRemoteFeatureFlags(remoteFeatureFlags);
+    const {
+      processedFlags,
+      thresholdCacheUpdates,
+      featureFlagThresholdGroupUpdates,
+    } = await this.#processRemoteFeatureFlags(remoteFeatureFlags);
 
     const metaMetricsId = this.#getMetaMetricsId();
     const currentFlagNames = Object.keys(remoteFeatureFlags);
@@ -314,6 +310,24 @@ export class RemoteFeatureFlagController extends BaseController<
       }
     }
 
+    const updatedFeatureFlagThresholdGroups = {
+      ...(this.state.featureFlagThresholdGroups ?? {}),
+    };
+
+    for (const [flagName, thresholdGroup] of Object.entries(
+      featureFlagThresholdGroupUpdates,
+    )) {
+      if (currentFlagNames.includes(flagName)) {
+        updatedFeatureFlagThresholdGroups[flagName] = thresholdGroup;
+      }
+    }
+
+    for (const flagName of Object.keys(updatedFeatureFlagThresholdGroups)) {
+      if (!currentFlagNames.includes(flagName)) {
+        delete updatedFeatureFlagThresholdGroups[flagName];
+      }
+    }
+
     // Single state update with all changes batched together
     this.#processedRemoteFeatureFlags = processedFlags;
 
@@ -327,6 +341,7 @@ export class RemoteFeatureFlagController extends BaseController<
         rawRemoteFeatureFlags: remoteFeatureFlags,
         cacheTimestamp: Date.now(),
         thresholdCache: updatedThresholdCache,
+        featureFlagThresholdGroups: updatedFeatureFlagThresholdGroups,
       };
     });
   }
@@ -348,10 +363,12 @@ export class RemoteFeatureFlagController extends BaseController<
   async #processRemoteFeatureFlags(remoteFeatureFlags: FeatureFlags): Promise<{
     processedFlags: FeatureFlags;
     thresholdCacheUpdates: Record<string, number>;
+    featureFlagThresholdGroupUpdates: Record<string, string>;
   }> {
     const processedFlags: FeatureFlags = {};
     const metaMetricsId = this.#getMetaMetricsId();
     const thresholdCacheUpdates: Record<string, number> = {};
+    const featureFlagThresholdGroupUpdates: Record<string, string> = {};
 
     for (const [
       remoteFeatureFlagName,
@@ -409,14 +426,22 @@ export class RemoteFeatureFlagController extends BaseController<
         );
 
         if (selectedGroup) {
-          processedValue = normalizeThresholdValue(selectedGroup);
+          processedValue = selectedGroup.value;
+          if (selectedGroup.name) {
+            featureFlagThresholdGroupUpdates[remoteFeatureFlagName] =
+              selectedGroup.name;
+          }
         }
       }
 
       processedFlags[remoteFeatureFlagName] = processedValue;
     }
 
-    return { processedFlags, thresholdCacheUpdates };
+    return {
+      processedFlags,
+      thresholdCacheUpdates,
+      featureFlagThresholdGroupUpdates,
+    };
   }
 
   /**
