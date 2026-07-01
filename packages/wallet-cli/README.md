@@ -59,7 +59,7 @@ cd node_modules/better-sqlite3 && node ../.bin/prebuild-install
 
 Unit tests run with `yarn workspace @metamask/wallet-cli test`.
 
-The subprocess end-to-end suite (`*.daemon-e2e.test.ts`) spawns the built `mm` CLI and the native `better-sqlite3` addon as real processes, so it is kept out of the unit run and its coverage gate. Build the workspace dependencies first (`yarn build` from the repo root), then run it with `yarn workspace @metamask/wallet-cli test:e2e`.
+The subprocess end-to-end suite (in `tests/`) spawns the built `mm` CLI and the native `better-sqlite3` addon as real processes, so it is kept out of the unit run and its coverage gate. Build the workspace dependencies first (`yarn build` from the repo root), then run it with `yarn workspace @metamask/wallet-cli test:e2e`.
 
 ## Contributing
 
