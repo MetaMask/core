@@ -22,7 +22,7 @@ jobs:
         run: git fetch --prune --unshallow --tags
       - name: Get extension token
         id: extension-token
-        uses: MetaMask/github-tools/.github/actions/get-token@v1
+        uses: MetaMask/github-tools/.github/actions/get-token@v1.14.0
         with:
           token-exchange-url: ${{ vars.TOKEN_EXCHANGE_URL }}
           target-repository: 'MetaMask/metamask-extension'
@@ -32,7 +32,7 @@ jobs:
             metadata: read
       - name: Get mobile token
         id: mobile-token
-        uses: MetaMask/github-tools/.github/actions/get-token@v1
+        uses: MetaMask/github-tools/.github/actions/get-token@v1.14.0
         with:
           token-exchange-url: ${{ vars.TOKEN_EXCHANGE_URL }}
           target-repository: 'MetaMask/metamask-mobile'
