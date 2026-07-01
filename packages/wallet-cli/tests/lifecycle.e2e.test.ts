@@ -21,7 +21,8 @@ import { isProcessAlive, readPidFile } from '../src/daemon/utils';
 // only action called here, `KeyringController:getState`, is local.
 
 // A valid 12-word BIP-39 mnemonic — the same fixtures the in-process e2e uses.
-const TEST_SRP = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+const TEST_SRP =
+  'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 const TEST_PASSWORD = 'testpass';
 // NetworkController requires a project ID but is never reached over the network
 // here, so any well-formed-looking value works.
