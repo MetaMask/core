@@ -321,6 +321,7 @@ const config = createConfig([
   {
     files: [
       'packages/wallet-cli/src/**/*.test.{js,ts}',
+      'packages/wallet-cli/tests/**/*.{js,ts}',
       'packages/platform-api-docs/**/*.{js,ts}',
     ],
     rules: {

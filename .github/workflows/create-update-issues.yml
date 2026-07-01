@@ -15,7 +15,7 @@ jobs:
       id-token: write
     steps:
       - name: Checkout head
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Fetch tags
