@@ -460,6 +460,8 @@ export class Messenger<
       typeof this
     >({
       namespace,
+      // @ts-expect-error TypeScript cannot correctly infer this, but should be safe
+      // given `ChildAction extends Action` and `ChildEvent extends Event`.
       parent: this,
     });
 
