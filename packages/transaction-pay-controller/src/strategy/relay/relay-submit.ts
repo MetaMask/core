@@ -34,6 +34,7 @@ import {
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
 import {
+  FALLBACK_HASH,
   RELAY_DEPOSIT_TYPES,
   RELAY_FAILURE_STATUSES,
   RELAY_PENDING_STATUSES,
@@ -45,14 +46,13 @@ import {
 } from './polymarket/withdraw';
 import { getRelayStatus, submitRelayExecute } from './relay-api';
 import type {
+  RelayCompletionOutcome,
   RelayExecuteRequest,
   RelayQuote,
   RelayStatus,
   RelayStatusResponse,
   RelayTransactionStep,
 } from './types';
-
-const FALLBACK_HASH = '0x0' as Hex;
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
 const RELAY_ERROR_PREFIX = 'Relay: ';
@@ -196,11 +196,6 @@ function setRelaySourceHash(
     },
   );
 }
-
-type RelayCompletionOutcome = {
-  status: RelayStatus | 'timeout';
-  targetHash?: Hex;
-};
 
 async function waitForRelayCompletion(
   quote: RelayQuote,

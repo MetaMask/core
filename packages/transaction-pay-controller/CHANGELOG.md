@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Refactor vault deposit utilities into shared `utils/` modules (`chomp`, `ma-vault-deposit`, `relay-post-ma-vault`) to prepare for the Relay Money Account deposit path ([#9303](https://github.com/MetaMask/core/pull/9303))
 - Bump `@metamask/assets-controller` from `^9.1.0` to `^10.0.0` ([#9312](https://github.com/MetaMask/core/pull/9312))
 - Bump `@metamask/bridge-controller` from `^77.1.0` to `^77.2.0` ([#9318](https://github.com/MetaMask/core/pull/9318))
 

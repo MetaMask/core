@@ -211,3 +211,8 @@ export type RelayStatusResponse = {
   originChainId: number;
   destinationChainId: number;
 };
+
+export type RelayCompletionOutcome = {
+  status: RelayStatus | 'timeout';
+  targetHash?: Hex;
+};
