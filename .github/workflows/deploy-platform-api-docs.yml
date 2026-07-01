@@ -7,22 +7,16 @@ jobs:
   deploy:
     name: Build and deploy to GitHub Pages
     runs-on: ubuntu-latest
-    # `default-branch` is the environment the Token Exchange Service policy
-    # matches on; it's locked to the `main` branch, so a PAT can only be minted
-    # from a `main` run.
+    # Locked to `main`, matching the Token Exchange Service policy that lets
+    # this job mint a `contents: write` token.
     environment: default-branch
     permissions:
-      # `id-token: write` lets the job exchange its OIDC token for a PAT via the
-      # Token Exchange Service; `contents: read` is for the checkout. The push
-      # to `gh-pages` uses the exchanged PAT, not GITHUB_TOKEN.
       id-token: write
       contents: read
     steps:
-      # Build the site fresh here rather than reusing the artifact from the
-      # `build-platform-api-docs` job in `lint-build-test`: that job also runs
-      # for PRs, so trusting its output (or the caches behind it) for a
-      # production deploy would risk publishing poisoned content.
-      # `is-high-risk-environment` isolates the build.
+      # Build fresh rather than reusing the artifact from `lint-build-test`,
+      # which also builds untrusted PR code — publishing its output would be a
+      # supply-chain risk.
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
         with:
@@ -30,9 +24,6 @@ jobs:
           persist-credentials: false
 
       - name: Generate and build Platform API docs
-        # The site is published under the `/platform-api/` subdirectory of the
-        # repo's GitHub Pages site so that other doc sites (e.g. package API
-        # docs) can be hosted alongside under sibling paths.
         env:
           REPO_OWNER: ${{ github.repository_owner }}
           REPO_NAME: ${{ github.event.repository.name }}
@@ -42,9 +33,7 @@ jobs:
             --site-base-url "/${REPO_NAME}/platform-api/"
 
       - name: Get access token
-        # The token must be requested in the same job that uses it: GitHub drops
-        # secret values passed between jobs, so a separate token job would hand
-        # back an empty string.
+        # Requested here because GitHub drops secret outputs passed between jobs.
         id: get-token
         uses: MetaMask/github-tools/.github/actions/get-token@v1
         with:
@@ -55,13 +44,10 @@ jobs:
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e # v4.0.0
         with:
-          # Use a PAT obtained via Token Exchange Service rather than the
-          # default `GITHUB_TOKEN`. `GITHUB_TOKEN` can't be granted branch
-          # protections that disallow direct human pushes while still letting
-          # this workflow publish, which is what we want for `gh-pages`.
+          # Push with the exchanged PAT so `gh-pages` can keep protections that
+          # block direct human pushes.
           personal_token: ${{ steps.get-token.outputs.token }}
           publish_dir: ./.platform-api-docs/build
           destination_dir: platform-api
-          # Preserve sibling subdirectories (e.g. /package-api/) so this deploy
-          # only overwrites /platform-api/.
+          # Only overwrite `/platform-api/`, leaving sibling doc sites intact.
           keep_files: true

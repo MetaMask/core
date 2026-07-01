@@ -235,8 +235,7 @@ jobs:
           is-high-risk-environment: true
           persist-credentials: false
 
-      # Validate that the docs site builds on every PR. The deploy workflow
-      # rebuilds it from scratch rather than reusing an artifact from here, so
-      # this job only needs to prove the build succeeds — it doesn't publish.
+      # PR build check only; the deploy workflow rebuilds from scratch, so this
+      # doesn't publish an artifact.
       - name: Generate and build Platform API docs
         run: yarn docs:platform-api:build
