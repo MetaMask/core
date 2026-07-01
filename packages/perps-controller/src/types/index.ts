@@ -92,6 +92,7 @@ export type MarketType = `${MarketCategory}`;
  */
 export type TerminalAssetMetadata = {
   name?: string;
+  description?: string;
   keywords?: string[];
   tags?: string[];
   categories?: string[];
@@ -419,6 +420,12 @@ export type PerpsMarketData = {
    * Full token name (e.g., 'Bitcoin', 'Ethereum')
    */
   name: string;
+  /**
+   * Human-readable asset description from Terminal API metadata, when available
+   * (e.g., 'The leading smart contract platform. Home to DeFi, NFTs...').
+   * Only populated when using the Terminal API backend and the asset has one.
+   */
+  description?: string;
   /**
    * Maximum leverage available as formatted string (e.g., '40x', '25x')
    */
