@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add the `mm daemon list` command, which prints the messenger actions the running daemon can dispatch via `daemon call`, enumerated from the live messenger so the list cannot drift from what `call` accepts ([#9330](https://github.com/MetaMask/core/pull/9330))
 - Add the `mm daemon` command suite (`start`, `stop`, `status`, `purge`, and `call`) for running the wallet daemon and dispatching messenger actions over its socket ([#9255](https://github.com/MetaMask/core/pull/9255))
 - Add a wallet factory and daemon entry point that construct a `@metamask/wallet` `Wallet` backed by the SQLite key-value store, hydrate it from persisted state, run controller initialization (aborting startup if any step fails), import the secret recovery phrase on first run, and expose a `dispose` teardown handle ([#9226](https://github.com/MetaMask/core/pull/9226))
 - Add a daemon transport layer: a JSON-RPC client and server over a Unix socket, plus daemon spawn/stop lifecycle helpers ([#9108](https://github.com/MetaMask/core/pull/9108))
