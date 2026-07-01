@@ -1591,6 +1591,14 @@ export class AssetsController extends BaseController<
       assetsForPriceUpdate?: Caip19AssetId[];
       /** When set to `'merge'`, fetch result is merged with existing state instead of replacing. Use for partial fetches (e.g. newly added chains). */
       updateMode?: AssetsUpdateMode;
+      /**
+       * Additional custom ERC-20 tokens to include in this fetch, on top of the
+       * accounts' stored custom assets. These are passed to the Accounts API v6
+       * balances endpoint as `includeAssetIds` (to confirm detection) and are
+       * fetched via RPC as custom assets. Ignored when v6 is disabled for the
+       * API path, but still fetched via RPC.
+       */
+      includeTokens?: Caip19AssetId[];
     },
   ): Promise<Record<AccountId, Record<Caip19AssetId, Asset>>> {
     const chainIds = options?.chainIds ?? [...this.#enabledChains];
@@ -1601,12 +1609,19 @@ export class AssetsController extends BaseController<
       return this.#getAssetsFromState(accounts, chainIds, assetTypes);
     }
 
-    // Collect custom assets for all requested accounts
-    const customAssets: Caip19AssetId[] = [];
+    // Collect custom assets for all requested accounts, plus any explicit
+    // includeTokens passed by the caller. Deduplicated so the same token is not
+    // sent twice to the Accounts API / RPC.
+    const customAssetsSet = new Set<Caip19AssetId>();
     for (const account of accounts) {
-      const accountCustomAssets = this.getCustomAssets(account.id);
-      customAssets.push(...accountCustomAssets);
+      for (const accountCustomAsset of this.getCustomAssets(account.id)) {
+        customAssetsSet.add(accountCustomAsset);
+      }
     }
+    for (const includeToken of options?.includeTokens ?? []) {
+      customAssetsSet.add(includeToken);
+    }
+    const customAssets: Caip19AssetId[] = [...customAssetsSet];
 
     if (options?.forceUpdate) {
       const startTime = performance.now();

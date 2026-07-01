@@ -18,6 +18,7 @@ import type {
   AssetsControllerMessenger,
   AssetsControllerState,
 } from './AssetsController';
+import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
 import { PriceDataSource } from './data-sources/PriceDataSource';
 import { TokenDataSource } from './data-sources/TokenDataSource';
@@ -124,6 +125,7 @@ type WithControllerOptions = {
   controllerOptions?: Partial<{
     trace: TraceCallback;
     priceDataSourceConfig: PriceDataSourceConfig;
+    accountsApiDataSourceConfig: AccountsApiDataSourceConfig;
     isEnabled: () => boolean;
   }>;
 };
@@ -756,6 +758,56 @@ describe('AssetsController', () => {
         expect(assets).toBeDefined();
         // When queryApiClient is not provided, no data sources run; result is from state
       });
+    });
+
+    it('passes includeTokens to the Accounts API v6 endpoint as includeAssetIds', async () => {
+      const fetchV6MultiAccountBalances = jest.fn().mockResolvedValue({
+        accounts: [],
+        unprocessedNetworks: [],
+        unprocessedIncludeAssetIds: [],
+      });
+
+      const queryApiClient = {
+        ...createMockQueryApiClient(),
+        accounts: {
+          fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
+            fullSupport: [1],
+            partialSupport: [],
+          }),
+          fetchV6MultiAccountBalances,
+          fetchV5MultiAccountBalances: jest.fn().mockResolvedValue({
+            balances: [],
+            unprocessedNetworks: [],
+          }),
+        },
+      } as unknown as ApiPlatformClient;
+
+      await withController(
+        {
+          queryApiClient,
+          controllerOptions: {
+            accountsApiDataSourceConfig: { useBalanceV6: () => true },
+          },
+        },
+        async ({ controller }) => {
+          // Let the data source initialize its active chains.
+          await flushPromises();
+
+          await controller.getAssets([createMockInternalAccount()], {
+            chainIds: ['eip155:1'],
+            forceUpdate: true,
+            includeTokens: [MOCK_ASSET_ID],
+          });
+
+          expect(fetchV6MultiAccountBalances).toHaveBeenCalledWith(
+            expect.arrayContaining([
+              `eip155:1:0x1234567890123456789012345678901234567890`,
+            ]),
+            { includeAssetIds: [MOCK_ASSET_ID] },
+            expect.anything(),
+          );
+        },
+      );
     });
 
     describe('pipeline splitting', () => {

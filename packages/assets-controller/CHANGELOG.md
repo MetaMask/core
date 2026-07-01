@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `AccountsApiDataSourceConfig.useBalanceV6` feature flag getter (`() => boolean`, default `() => false`) that switches the Accounts API balances endpoint from v5 to v6; the flag is read per fetch so it can be toggled at runtime to revert v6 -> v5 without re-instantiating the data source. Only `category: 'token'` rows from the v6 response are consumed (DeFi positions are ignored) to preserve parity with v5
+- Add `includeTokens` option to `AssetsController.getAssets` — a list of custom ERC-20 CAIP-19 asset IDs to include in the fetch on top of the accounts' stored custom assets. These are passed to the Accounts API v6 balances endpoint as `includeAssetIds` (to confirm detection) and are fetched via RPC as custom assets
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^68.2.0` to `^68.2.1` ([#9337](https://github.com/MetaMask/core/pull/9337))
