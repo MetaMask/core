@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add optional `description?: string` to `PerpsMarketData` and `TerminalAssetMetadata`, exposing the human-readable asset description sourced from the Terminal API when available ([#9334](https://github.com/MetaMask/core/pull/9334))
+  - `TerminalMarketService` now reads the `description` field from Terminal API items (ignoring `null`/empty values) and includes it in per-symbol metadata.
+  - `MarketDataService.getMarketDataWithPrices` merges the description into `PerpsMarketData` when the Terminal API backend (`useTerminalApi`) is enabled; markets without a Terminal description keep the field `undefined`.
 - Add Auto Close TP/SL RoE sign toggle analytics constants to `PERPS_EVENT_PROPERTY` and `PERPS_EVENT_VALUE` so mobile and extension can import them from `@metamask/perps-controller` instead of local mirrors ([#9322](https://github.com/MetaMask/core/pull/9322))
   - New `PERPS_EVENT_PROPERTY` key: `ROE_SIGN` (`roe_sign`)
   - New `PERPS_EVENT_VALUE.INTERACTION_TYPE` entry: `TPSL_ROE_SIGN_TOGGLED` (`tpsl_roe_sign_toggled`)
