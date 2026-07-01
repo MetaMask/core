@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `PriceAlertPreference` type, required `priceAlerts` field on `NotificationPreferences`, and `DEFAULT_PRICE_ALERT_PREFERENCES` constant ([#9316](https://github.com/MetaMask/core/pull/9316))
+
+### Changed
+
+- **BREAKING:** Make `agenticCli` required on `NotificationPreferences` (previously optional on the type) ([#9316](https://github.com/MetaMask/core/pull/9316))
+- Remove client-side backfill of `agenticCli` and `priceAlerts` in `getNotificationPreferences`; the API merges defaults on GET ([#9316](https://github.com/MetaMask/core/pull/9316))
+
 ## [2.1.0]
 
 ### Added
