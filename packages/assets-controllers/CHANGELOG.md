@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `isDeprecated` option to `MultichainAssetsController` constructor ([#9310](https://github.com/MetaMask/core/pull/9310))
+  - When `isDeprecated()` returns `true`, no Snap requests are issued and `accountsAssets`, `assetsMetadata`, and `allIgnoredAssets` are reset to `{}` at construction and at every entry point (`addAssets`, `ignoreAssets`, `_executePoll`, `AccountsController:accountAdded`, `AccountsController:accountRemoved`, and `AccountsController:accountAssetListUpdated`), so no stale asset data remains in state.
+  - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller.
+
 ### Changed
 
 - Bump `@metamask/keyring-api` from `^23.1.0` to `^23.3.0` ([#9249](https://github.com/MetaMask/core/pull/9249))
