@@ -45,6 +45,7 @@
   },
   "dependencies": {
     "@inquirer/confirm": "^6.0.11",
+    "@inquirer/password": "^5.1.1",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/remote-feature-flag-controller": "^4.2.2",
     "@metamask/rpc-errors": "^7.0.2",

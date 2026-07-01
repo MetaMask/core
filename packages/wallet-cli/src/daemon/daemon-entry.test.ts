@@ -154,15 +154,35 @@ describe('daemon-entry', () => {
     expect(process.exitCode).toBe(1);
   });
 
-  it('writes to stderr and sets exitCode when MM_WALLET_PASSWORD is missing', async () => {
+  it('passes password: undefined to createWallet when MM_WALLET_PASSWORD is absent', async () => {
     delete process.env.MM_WALLET_PASSWORD;
+    mockCreateWallet.mockResolvedValue(createMockWallet());
+    mockStartRpcSocketServer.mockResolvedValue(createMockHandle());
 
     await importDaemonEntry();
 
-    expect(stderrSpy).toHaveBeenCalledWith(
-      expect.stringContaining('MM_WALLET_PASSWORD'),
+    expect(mockCreateWallet).toHaveBeenCalledWith(
+      expect.objectContaining({ password: undefined }),
     );
-    expect(process.exitCode).toBe(1);
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it("passes password: '' to createWallet when MM_WALLET_PASSWORD is an empty string", async () => {
+    process.env.MM_WALLET_PASSWORD = '';
+    mockCreateWallet.mockResolvedValue(createMockWallet());
+    mockStartRpcSocketServer.mockResolvedValue(createMockHandle());
+
+    await importDaemonEntry();
+
+    // daemon-entry passes the raw empty string through to createWallet;
+    // blankToUndefined inside createWallet normalises it to undefined (start
+    // locked). Testing the raw value here pins the layering contract — if
+    // blankToUndefined were removed from wallet-factory, this test would still
+    // pass and a separate wallet-factory test would catch the regression.
+    expect(mockCreateWallet).toHaveBeenCalledWith(
+      expect.objectContaining({ password: '' }),
+    );
+    expect(process.exitCode).toBeUndefined();
   });
 
   it('writes to stderr and sets exitCode when MM_WALLET_SRP is missing', async () => {

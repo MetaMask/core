@@ -30,7 +30,7 @@ const CONFIG: DaemonSpawnConfig = {
   dataDir: '/tmp/data',
   infuraProjectId: 'test-key',
   password: 'test-pass',
-  srp: 'test test test test test test test test test test test ball',
+  srp: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
   packageRoot: '/pkg',
 };
 
@@ -147,7 +147,7 @@ describe('ensureDaemon', () => {
           INFURA_PROJECT_ID: 'test-key',
           MM_WALLET_PASSWORD: 'test-pass',
           MM_WALLET_SRP:
-            'test test test test test test test test test test test ball',
+            'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
         }),
       }),
     );
@@ -379,6 +379,43 @@ describe('ensureDaemon', () => {
     expect((thrownError as Error).message).toContain(
       'Failed to spawn daemon process',
     );
+  });
+
+  it('omits MM_WALLET_PASSWORD from the child env when no password is supplied', async () => {
+    mockPingDaemon
+      .mockResolvedValueOnce(ABSENT)
+      .mockResolvedValueOnce(RESPONSIVE);
+    mockExistsSync.mockReturnValue(true);
+
+    // Snapshot+restore the whole env via assignment so the await between
+    // mutation and restore does not trip `require-atomic-updates`.
+    const savedEnv = process.env;
+    process.env = { ...savedEnv, MM_WALLET_PASSWORD: 'leaked-from-parent' };
+    let spawnedEnv: NodeJS.ProcessEnv | undefined;
+    try {
+      const { password: _password, ...configWithoutPassword } = CONFIG;
+      await ensureDaemon(configWithoutPassword);
+      spawnedEnv = (mockSpawn.mock.calls[0][2] as { env: NodeJS.ProcessEnv })
+        .env;
+    } finally {
+      // Restoring after await is intentional; jest runs each test serially.
+      // eslint-disable-next-line require-atomic-updates
+      process.env = savedEnv;
+    }
+
+    expect(spawnedEnv).not.toHaveProperty('MM_WALLET_PASSWORD');
+  });
+
+  it('forwards an explicitly-supplied password to the child env', async () => {
+    mockPingDaemon
+      .mockResolvedValueOnce(ABSENT)
+      .mockResolvedValueOnce(RESPONSIVE);
+    mockExistsSync.mockReturnValue(true);
+
+    await ensureDaemon({ ...CONFIG, password: 'explicit-pass' });
+
+    const spawnOpts = mockSpawn.mock.calls[0][2] as { env: NodeJS.ProcessEnv };
+    expect(spawnOpts.env.MM_WALLET_PASSWORD).toBe('explicit-pass');
   });
 
   it('writes spawn errors to stderr', async () => {
