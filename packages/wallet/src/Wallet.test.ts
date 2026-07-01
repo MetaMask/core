@@ -1,6 +1,7 @@
 import { getDefaultAddressBookControllerState } from '@metamask/address-book-controller';
 import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import { Messenger } from '@metamask/messenger';
+import { getDefaultPreferencesState } from '@metamask/preferences-controller';
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import { Json } from '@metamask/utils';
 import { webcrypto } from 'crypto';
@@ -400,6 +401,104 @@ describe('Wallet', () => {
         isUnlocked: false,
         keyrings: [],
         vault: expect.any(String),
+      });
+    });
+  });
+
+  describe('PreferencesController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+
+      expect(messenger.call('PreferencesController:getState')).toStrictEqual(
+        getDefaultPreferencesState(),
+      );
+    });
+
+    it('applies initial state passed through the Wallet constructor', () => {
+      const wallet = new Wallet({
+        state: {
+          PreferencesController: { privacyMode: true },
+        },
+        instanceOptions: {
+          connectivityController: {
+            connectivityAdapter: new AlwaysOnlineAdapter(),
+          },
+          networkController: {
+            infuraProjectId: 'fake-infura-project-id',
+          },
+          storageService: {
+            storage: new InMemoryStorageAdapter(),
+          },
+          remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+        },
+      });
+
+      expect(wallet.state.PreferencesController.privacyMode).toBe(true);
+    });
+
+    it('routes its method actions through the wallet messenger', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+
+      messenger.call(
+        'PreferencesController:setIpfsGateway',
+        'https://example.com/ipfs/',
+      );
+
+      expect(wallet.state.PreferencesController.ipfsGateway).toBe(
+        'https://example.com/ipfs/',
+      );
+    });
+
+    it('lets a consumer override the default with a diverging superset controller', () => {
+      // A client (e.g. the extension) whose local PreferencesController is a
+      // superset of the package one can keep it by supplying its own
+      // `PreferencesController` initialization configuration. The same `name`
+      // overrides the package default, so the wallet constructs the superset
+      // instead of the package controller — no convergence required.
+      class SupersetPreferencesController {
+        state = {
+          ipfsGateway: 'https://superset.example/ipfs/',
+          currentLocale: 'en',
+          preferences: { showTestNetworks: true },
+        };
+      }
+
+      const wallet = new Wallet({
+        initializationConfigurations: [
+          {
+            name: 'PreferencesController',
+            getMessenger: (): Messenger<string> =>
+              new Messenger({ namespace: 'PreferencesController' }),
+            init: (): SupersetPreferencesController =>
+              new SupersetPreferencesController(),
+          },
+        ],
+        instanceOptions: {
+          connectivityController: {
+            connectivityAdapter: new AlwaysOnlineAdapter(),
+          },
+          networkController: {
+            infuraProjectId: 'fake-infura-project-id',
+          },
+          storageService: {
+            storage: new InMemoryStorageAdapter(),
+          },
+          remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+        },
+      });
+
+      expect(wallet.getInstance('PreferencesController')).toBeInstanceOf(
+        SupersetPreferencesController,
+      );
+      // The superset's shape — including fields absent from the package
+      // controller (`currentLocale`, nested `preferences`) — is what the wallet
+      // exposes, not the package defaults.
+      expect(wallet.state.PreferencesController).toStrictEqual({
+        ipfsGateway: 'https://superset.example/ipfs/',
+        currentLocale: 'en',
+        preferences: { showTestNetworks: true },
       });
     });
   });
