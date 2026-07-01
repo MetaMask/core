@@ -523,6 +523,33 @@ describe('mapApiTransaction', () => {
     });
   });
 
+  // Captures the real Lido stETH stake response. NOTE: the backend returns this
+  // as `CONTRACT_CALL` with the Lido submit method id (part of `supplyMethodIds`),
+  // so `mapApiTransaction` currently returns `lendingDeposit`. `mapLocalTransaction`
+  // maps the same stake (TransactionType.stakingDeposit) to `deposit`, so the two
+  // mappers disagree on this transaction.
+  it('maps a real Lido stake (CONTRACT_CALL + supply method id) to a lendingDeposit activity', () => {
+    const item = mapApiTransaction(
+      apiTransactionFixtures.mapArgs.mapsALidoStakeToA,
+    );
+
+    expect(item).toMatchObject({
+      type: 'lendingDeposit',
+      chainId: 'eip155:1',
+      status: 'success',
+      hash: '0xd8ca1456ed6305ec3d9c058f28a1ba48eb335ffcffd7d7c4321d3169c29e6a07',
+      data: {
+        from: subjectAddress,
+        sourceToken: { direction: 'out', symbol: 'ETH', amount: '1000000000000' },
+        destinationToken: {
+          direction: 'in',
+          symbol: 'stETH',
+          amount: '999999999999',
+        },
+      },
+    });
+  });
+
   it('maps a WETH deposit to a Wrap activity', () => {
     const item = mapApiTransaction(
       apiTransactionFixtures.mapArgs.mapsAWethDepositToA,
@@ -554,6 +581,48 @@ describe('mapApiTransaction', () => {
         },
       },
     });
+  });
+
+  it('maps an Aave supply contract call with an uppercase method id to a Lending deposit activity', () => {
+    const { transaction, ...rest } =
+      apiTransactionFixtures.mapArgs.mapsAnAaveSupplyContractCall;
+    const item = mapApiTransaction({
+      ...rest,
+      transaction: {
+        ...transaction,
+        methodId: transaction.methodId?.toUpperCase(),
+      },
+    });
+
+    expect(item.type).toBe('lendingDeposit');
+  });
+
+  it('maps an Aave withdraw with an uppercase method id to a Lending withdrawal activity', () => {
+    const { transaction, ...rest } =
+      apiTransactionFixtures.mapArgs.mapsAnAaveWithdrawWithA;
+    const item = mapApiTransaction({
+      ...rest,
+      transaction: {
+        ...transaction,
+        methodId: transaction.methodId?.toUpperCase(),
+      },
+    });
+
+    expect(item.type).toBe('lendingWithdrawal');
+  });
+
+  it('maps a WETH deposit with an uppercase method id to a Wrap activity', () => {
+    const { transaction, ...rest } =
+      apiTransactionFixtures.mapArgs.mapsAWethDepositToA;
+    const item = mapApiTransaction({
+      ...rest,
+      transaction: {
+        ...transaction,
+        methodId: transaction.methodId?.toUpperCase(),
+      },
+    });
+
+    expect(item.type).toBe('wrap');
   });
 
   it('maps a WETH withdrawal to an Unwrap activity', () => {

@@ -27,6 +27,7 @@ const addresses = {
   mainnetUsdt: '0xdac17f958d2ee523a2206206994597c13d831ec7',
   nftContractAddress: '0x239fd4b0c4db49fa8660e65b97619d43d0e0a79d',
   stakingContractAddress: '0x00000000219ab540356cbb839cbe05303d7705fa',
+  lidoStEth: '0xae7ab96520de3a18e5e111b5eaab095312d7fe84',
 } as const;
 
 const transactions = {
@@ -649,6 +650,53 @@ const transactions = {
       },
     ],
   },
+  // Real Lido stETH stake response captured from the transactions API.
+  mapsALidoStakeToA: {
+    hash: '0xd8ca1456ed6305ec3d9c058f28a1ba48eb335ffcffd7d7c4321d3169c29e6a07',
+    timestamp: '2026-07-01T13:36:23.000Z',
+    chainId: 1,
+    accountId: 'eip155:1:0x9bed78535d6a03a955f1504aadba974d9a29e292',
+    blockNumber: 25438003,
+    blockHash:
+      '0x536c1a1e521c3bc41efac41b418efd9e2bba49bf71eec4b06c5428e36691e1f4',
+    gas: 131071,
+    gasUsed: 76670,
+    gasPrice: '2371985355',
+    effectiveGasPrice: '2371985355',
+    nonce: 224,
+    cumulativeGasUsed: 18700942,
+    methodId: '0xa1903eab',
+    value: '1000000000000',
+    to: addresses.lidoStEth,
+    from: addresses.subjectAddress,
+    isError: false,
+    valueTransfers: [
+      {
+        from: '0x0000000000000000000000000000000000000000',
+        to: addresses.subjectAddress,
+        amount: '999999999999',
+        decimal: 18,
+        contractAddress: addresses.lidoStEth,
+        symbol: 'stETH',
+        name: 'Liquid staked Ether 2.0',
+        transferType: 'erc20',
+      },
+      {
+        from: addresses.subjectAddress,
+        to: addresses.lidoStEth,
+        amount: '1000000000000',
+        decimal: 18,
+        symbol: 'ETH',
+        name: 'Ether',
+        transferType: 'normal',
+      },
+    ],
+    logs: [],
+    transactionType: 'GENERIC_CONTRACT_CALL',
+    transactionCategory: 'CONTRACT_CALL',
+    readable: 'Unidentified Transaction',
+    readableExtended: 'Unidentified Transaction',
+  },
   mapsAWethDepositToA: {
     hash: '0x6e448f5b8cf55534507770c1cb90ba14e723d03b4a46b4919a5847eb8d13b7b5',
     timestamp: '2026-05-28T13:42:23.000Z',
@@ -1036,6 +1084,10 @@ const mapArgs = {
   mapsADepositWithoutAnInbound: {
     subjectAddress: addresses.subjectAddress,
     transaction: transactions.mapsADepositWithoutAnInbound,
+  },
+  mapsALidoStakeToA: {
+    subjectAddress: addresses.subjectAddress,
+    transaction: transactions.mapsALidoStakeToA,
   },
   mapsAWethDepositToA: {
     subjectAddress: addresses.subjectAddress,

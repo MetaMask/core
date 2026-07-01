@@ -44,6 +44,7 @@ export function mapApiTransaction({
 }): ActivityItem {
   const { hash, transactionCategory, valueTransfers, from, methodId } =
     transaction;
+  const normalizedMethodId = methodId?.toLowerCase() ?? '';
   const status: Status = transaction.isError ? 'failed' : 'success';
   const timestamp = new Date(transaction.timestamp).getTime();
   const chainId = toCaipChainId(
@@ -283,7 +284,7 @@ export function mapApiTransaction({
 
   if (
     transactionCategory === 'WITHDRAW' &&
-    withdrawMethodIds.has(methodId ?? '')
+    withdrawMethodIds.has(normalizedMethodId)
   ) {
     return {
       type: 'lendingWithdrawal',
@@ -298,7 +299,7 @@ export function mapApiTransaction({
   }
 
   // TODO: Categorize Deposit/Stake in the backend
-  if (sentTransfer && supplyMethodIds.has(methodId ?? '')) {
+  if (sentTransfer && supplyMethodIds.has(normalizedMethodId)) {
     return {
       type: 'lendingDeposit',
       ...common,
@@ -311,7 +312,7 @@ export function mapApiTransaction({
     };
   }
 
-  if (receivedTransfer && wrapMethodIds.has(methodId ?? '')) {
+  if (receivedTransfer && wrapMethodIds.has(normalizedMethodId)) {
     return {
       type: 'wrap',
       ...common,
