@@ -352,7 +352,7 @@ export class SnapDataSource extends AbstractDataSource<
             i,
             i + ACCOUNT_ASSET_INFO_SNAP_BATCH_SIZE,
           );
-           
+
           const info = await fetchAccountAssetInfoFromSnap(handleSnapRequest, {
             accountId,
             snapId,
@@ -626,7 +626,7 @@ export class SnapDataSource extends AbstractDataSource<
             i,
             i + ACCOUNT_ASSET_INFO_SNAP_BATCH_SIZE,
           );
-           
+
           const info = await fetchAccountAssetInfoFromSnap(handleSnapRequest, {
             accountId,
             snapId: snapId as SnapId,
