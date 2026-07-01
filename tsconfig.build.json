@@ -74,6 +74,9 @@
       "path": "./packages/client-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/client-shared/tsconfig.build.json"
+    },
+    {
       "path": "./packages/compliance-controller/tsconfig.build.json"
     },
     {
