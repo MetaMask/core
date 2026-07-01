@@ -43,9 +43,13 @@ export default class WalletUnlock extends Command {
     let password: string;
     try {
       password = flagPassword ?? (await promptPassword());
-    } catch {
-      // ExitPromptError — user cancelled the interactive prompt (Ctrl+C).
-      return;
+    } catch (error) {
+      // Only swallow ExitPromptError (@inquirer/core's Ctrl+C signal); any
+      // other rejection (import failure, internal prompt crash) should surface.
+      if (error instanceof Error && error.name === 'ExitPromptError') {
+        return;
+      }
+      throw error;
     }
 
     const { socketPath } = getDaemonPaths(this.config.dataDir);

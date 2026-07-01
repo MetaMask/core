@@ -119,16 +119,34 @@ describe('wallet unlock', () => {
     );
   });
 
-  it('exits cleanly when the interactive prompt is cancelled', async () => {
+  it('exits cleanly when the interactive prompt is cancelled (ExitPromptError)', async () => {
     const savedEnv = process.env;
     process.env = { ...savedEnv };
     delete process.env.MM_WALLET_PASSWORD;
-    mockPromptPassword.mockRejectedValue(new Error('User force closed the prompt'));
+    const exitPromptError = Object.assign(new Error('User force closed the prompt'), {
+      name: 'ExitPromptError',
+    });
+    mockPromptPassword.mockRejectedValue(exitPromptError);
     try {
       const { stdout, error } = await runCommand(WalletUnlock, []);
       expect(error).toBeUndefined();
       expect(stdout).toBe('');
       expect(mockSendCommand).not.toHaveBeenCalled();
+    } finally {
+      // eslint-disable-next-line require-atomic-updates
+      process.env = savedEnv;
+    }
+  });
+
+  it('surfaces a genuine prompt failure (non-cancellation error)', async () => {
+    const savedEnv = process.env;
+    process.env = { ...savedEnv };
+    delete process.env.MM_WALLET_PASSWORD;
+    mockPromptPassword.mockRejectedValue(new Error('Dynamic import failed'));
+    try {
+      await expect(runCommand(WalletUnlock, [])).rejects.toThrow(
+        'Dynamic import failed',
+      );
     } finally {
       // eslint-disable-next-line require-atomic-updates
       process.env = savedEnv;
