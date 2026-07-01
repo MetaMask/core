@@ -101,17 +101,23 @@ const AgenticCliPreferenceSchema = type({
   pushNotificationsEnabled: boolean(),
 });
 
+const PriceAlertPreferenceSchema = type({
+  inAppNotificationsEnabled: boolean(),
+  pushNotificationsEnabled: boolean(),
+});
+
 const NotificationPreferencesSchema = type({
   walletActivity: WalletActivityPreferenceSchema,
   marketing: MarketingPreferenceSchema,
   perps: PerpsPreferenceSchema,
   socialAI: SocialAIPreferenceSchema,
   agenticCli: AgenticCliPreferenceSchema,
+  priceAlerts: PriceAlertPreferenceSchema,
 });
 
 /**
- * Default Agentic CLI notification preferences applied when coercing legacy
- * notification-preference blobs that omit `agenticCli`.
+ * Default Agentic CLI notification preferences for consumers building a
+ * fresh `NotificationPreferences` object.
  */
 export const DEFAULT_AGENTIC_CLI_PREFERENCES: AgenticCliPreference = {
   inAppNotificationsEnabled: true,
@@ -119,8 +125,8 @@ export const DEFAULT_AGENTIC_CLI_PREFERENCES: AgenticCliPreference = {
 };
 
 /**
- * Default price-alert notification preferences applied when coercing legacy
- * notification-preference blobs that omit `priceAlerts`.
+ * Default price-alert notification preferences for consumers building a
+ * fresh `NotificationPreferences` object.
  */
 export const DEFAULT_PRICE_ALERT_PREFERENCES: PriceAlertPreference = {
   inAppNotificationsEnabled: true,

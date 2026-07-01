@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Make `agenticCli` required on `NotificationPreferences` (previously optional on the type) ([#9316](https://github.com/MetaMask/core/pull/9316))
-  - `getNotificationPreferences` still backfills legacy blobs that omit `agenticCli` with `DEFAULT_AGENTIC_CLI_PREFERENCES`.
+- Remove client-side backfill of `agenticCli` and `priceAlerts` in `getNotificationPreferences`; the API merges defaults on GET ([#9316](https://github.com/MetaMask/core/pull/9316))
 
 ## [2.1.0]
 
