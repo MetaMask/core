@@ -4,8 +4,7 @@ import { pingDaemon, sendCommand } from './daemon-client';
 import { isProcessAlive, readPidFile, sendSignal, waitFor } from './utils';
 
 /**
- * Stop the daemon via a `shutdown` RPC call. Falls back to PID + SIGTERM if
- * the socket is unresponsive, and escalates to SIGKILL if SIGTERM is ignored.
+ * Stop the daemon, preferring a graceful shutdown.
  *
  * Resolution order when a live daemon is present:
  * 1. If the socket is responsive, request a graceful `shutdown` over it.
@@ -41,10 +40,13 @@ export async function stopDaemon(
     ping.status === 'responsive' || ping.status === 'unreachable';
   const processAlive = pid !== undefined && isProcessAlive(pid);
 
-  if (ping.status !== 'responsive' && !processAlive) {
-    // No live daemon: the socket is not answering and the recorded PID (if
-    // any) is dead. Remove any stale socket/PID files left behind by a daemon
-    // that already exited and report success.
+  // Only `absent` and `refused` prove no live daemon; `permission`/`timeout`/
+  // `protocol` may be a wedged or foreign daemon, so those fall through.
+  const socketProvenGone =
+    ping.status === 'absent' ||
+    (ping.status === 'unreachable' && ping.reason === 'refused');
+
+  if (socketProvenGone && !processAlive) {
     await cleanupFile(pidPath, 'PID file', log);
     await cleanupFile(socketPath, 'socket file', log);
     return true;

@@ -42,46 +42,49 @@ export async function ensureDaemon(
   const { socketPath, logPath } = getDaemonPaths(config.dataDir);
 
   const initialPing = await pingDaemon(socketPath);
-  if (initialPing.status === 'responsive') {
-    return { state: 'already-running', socketPath };
-  }
-  if (initialPing.status === 'unreachable') {
-    if (initialPing.reason === 'permission') {
+  switch (initialPing.status) {
+    case 'responsive':
+      return { state: 'already-running', socketPath };
+    case 'unreachable':
+      if (initialPing.reason === 'permission') {
+        throw new Error(
+          `Refusing to start: the socket at ${socketPath} is owned by another user. ` +
+            `Choose a different data directory (MM_DAEMON_DATA_DIR) or remove the socket manually. ` +
+            `(${initialPing.error.message})`,
+        );
+      }
       throw new Error(
-        `Refusing to start: the socket at ${socketPath} is owned by another user. ` +
-          `Choose a different data directory (MM_DAEMON_DATA_DIR) or remove the socket manually. ` +
+        `Refusing to start: a daemon socket already exists at ${socketPath} but is unresponsive. ` +
+          `Run \`mm daemon stop\` (or \`mm daemon purge\`) before starting a new daemon. ` +
           `(${initialPing.error.message})`,
       );
+    case 'absent':
+      break;
+    /* istanbul ignore next -- exhaustiveness guard; unreachable for the current PingResult union */
+    default: {
+      const exhaustiveCheck: never = initialPing;
+      throw new Error(
+        `Unexpected daemon ping status: ${String(exhaustiveCheck)}`,
+      );
     }
-    throw new Error(
-      `Refusing to start: a daemon socket already exists at ${socketPath} but is unresponsive. ` +
-        `Run \`mm daemon stop\` (or \`mm daemon purge\`) before starting a new daemon. ` +
-        `(${initialPing.error.message})`,
-    );
   }
 
   process.stderr.write('Starting daemon...\n');
 
   const { entryPath, args } = resolveEntryPoint(config.packageRoot);
 
-  // Create (and lock down) the data directory here, before opening the log
-  // file below. The daemon entry also does this, but that runs only once the
-  // child is spawned: opening the log first would fail with ENOENT on a fresh
-  // data directory that does not exist yet.
+  // Create the data directory before opening the log file inside it. The daemon
+  // entry also does this, but only after spawn — opening the log first would
+  // ENOENT on a fresh data directory.
   await ensureOwnerOnlyDirectory(config.dataDir);
 
-  // Redirect the daemon's stderr into its log file rather than discarding it.
-  // The daemon is detached, so anything it writes to stderr — the top-level
-  // `Daemon fatal: ...` line, an uncaught stack trace, or a native
-  // `better-sqlite3` abort — would otherwise vanish, leaving a daemon that dies
-  // after startup completely undiagnosable (e.g. a `daemon stop` that then
-  // finds a stale socket and a dead PID). `stdout` stays ignored: structured
-  // status already goes through the file logger. The child dups the fd on
-  // spawn, so the parent closes its own copy immediately.
-  const logFd = openSync(logPath, 'a');
+  // Redirect the detached daemon's stderr to its log file rather than
+  // discarding it, so a crash after startup stays diagnosable. stdout stays
+  // ignored — structured status goes through the file logger.
+  const logFileDescriptor = openSync(logPath, 'a');
   const child = spawn(process.execPath, [...args, entryPath], {
     detached: true,
-    stdio: ['ignore', 'ignore', logFd],
+    stdio: ['ignore', 'ignore', logFileDescriptor],
     env: {
       ...process.env,
       MM_DAEMON_DATA_DIR: config.dataDir,
@@ -91,40 +94,45 @@ export async function ensureDaemon(
       MM_WALLET_SRP: config.srp,
     },
   });
-  // The child has dup'd the fd into its own stderr; the parent no longer needs
-  // its copy. `spawn` reports runtime failures via the 'error' event rather
-  // than throwing synchronously, so closing here is safe on the success path.
-  closeSync(logFd);
+  // The child dup'd the file descriptor into its stderr, so drop the parent's
+  // copy. Safe on the success path: `spawn` reports failures via the 'error'
+  // event, not a synchronous throw.
+  closeSync(logFileDescriptor);
 
-  type ExitInfo = { code: number | null; signal: NodeJS.Signals | null };
-  const exitInfo: { value: ExitInfo | null } = { value: null };
+  type StartupOutcome =
+    | { kind: 'pending' }
+    | { kind: 'error'; error: Error }
+    | { kind: 'exited'; code: number | null; signal: NodeJS.Signals | null };
+
   // A failed spawn (bad interpreter, EACCES, ENOENT) emits 'error' and may
-  // never emit 'exit'. Capture it so the readiness loop can surface the real
-  // cause immediately instead of hanging for the full timeout.
-  const spawnError: { value: Error | null } = { value: null };
+  // never emit 'exit', so 'error' is recorded first and not overwritten by a
+  // later 'exit' — the loop surfaces the real cause instead of hanging.
+  const outcome: { current: StartupOutcome } = { current: { kind: 'pending' } };
 
   child.on('error', (error: Error) => {
     process.stderr.write(`Failed to spawn daemon process: ${String(error)}\n`);
-    spawnError.value = error;
+    outcome.current = { kind: 'error', error };
   });
   child.on('exit', (code, signal) => {
-    exitInfo.value = { code, signal };
+    if (outcome.current.kind === 'pending') {
+      outcome.current = { kind: 'exited', code, signal };
+    }
   });
   child.unref();
 
   for (let i = 0; i < MAX_POLLS; i++) {
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-    if (spawnError.value !== null) {
+    const settled = outcome.current;
+    if (settled.kind === 'error') {
       throw new Error(
-        `Failed to spawn daemon process: ${spawnError.value.message}. ` +
-          `Check the daemon log at ${getDaemonPaths(config.dataDir).logPath}.`,
+        `Failed to spawn daemon process: ${settled.error.message}. ` +
+          `Check the daemon log at ${logPath}.`,
       );
     }
-    if (exitInfo.value !== null) {
-      const { code, signal } = exitInfo.value;
+    if (settled.kind === 'exited') {
       throw new Error(
-        `Daemon process exited during startup (code=${String(code)}, signal=${String(signal)}). ` +
-          `Check the daemon log at ${getDaemonPaths(config.dataDir).logPath}.`,
+        `Daemon process exited during startup (code=${String(settled.code)}, signal=${String(settled.signal)}). ` +
+          `Check the daemon log at ${logPath}.`,
       );
     }
     const ping = await pingDaemon(socketPath);
