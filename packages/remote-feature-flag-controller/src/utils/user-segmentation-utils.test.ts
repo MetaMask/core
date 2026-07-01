@@ -322,23 +322,10 @@ describe('user-segmentation-utils', () => {
   });
 
   describe('getThresholdIdType', () => {
-    it('defaults to metametrics when idType is absent', () => {
+    it('defaults to canonical when idType is absent', () => {
       expect(
         getThresholdIdType([
           {
-            name: 'groupA',
-            scope: { type: 'threshold', value: 1.0 },
-            value: true,
-          },
-        ]),
-      ).toBe(FeatureFlagIdType.MetaMetrics);
-    });
-
-    it('returns canonical when configured on threshold entries', () => {
-      expect(
-        getThresholdIdType([
-          {
-            idType: FeatureFlagIdType.Canonical,
             name: 'groupA',
             scope: { type: 'threshold', value: 1.0 },
             value: true,
@@ -347,8 +334,21 @@ describe('user-segmentation-utils', () => {
       ).toBe(FeatureFlagIdType.Canonical);
     });
 
-    it('defaults to metametrics for non-array flag values', () => {
-      expect(getThresholdIdType(true)).toBe(FeatureFlagIdType.MetaMetrics);
+    it('returns metametrics when configured on threshold entries', () => {
+      expect(
+        getThresholdIdType([
+          {
+            idType: FeatureFlagIdType.MetaMetrics,
+            name: 'groupA',
+            scope: { type: 'threshold', value: 1.0 },
+            value: true,
+          },
+        ]),
+      ).toBe(FeatureFlagIdType.MetaMetrics);
+    });
+
+    it('defaults to canonical for non-array flag values', () => {
+      expect(getThresholdIdType(true)).toBe(FeatureFlagIdType.Canonical);
     });
   });
 });

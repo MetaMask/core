@@ -36,16 +36,23 @@ const MOCK_FLAGS_WITH_THRESHOLD = {
   ...MOCK_FLAGS,
   testFlagForThreshold: [
     {
+      idType: FeatureFlagIdType.MetaMetrics,
       name: 'groupA',
       scope: { type: 'threshold', value: 0.3 },
       value: 'valueA',
     },
     {
+      idType: FeatureFlagIdType.MetaMetrics,
       name: 'groupB',
       scope: { type: 'threshold', value: 0.5 },
       value: 'valueB',
     },
-    { name: 'groupC', scope: { type: 'threshold', value: 1 }, value: 'valueC' },
+    {
+      idType: FeatureFlagIdType.MetaMetrics,
+      name: 'groupC',
+      scope: { type: 'threshold', value: 1 },
+      value: 'valueC',
+    },
   ],
 };
 
@@ -127,7 +134,7 @@ describe('RemoteFeatureFlagController', () => {
         clientConfigApiService: buildClientConfigApiService({
           remoteFeatureFlags: mockFlags,
         }),
-        getMetaMetricsId: () => MOCK_METRICS_ID,
+        getMetaMetricsId: (): string => MOCK_METRICS_ID,
         clientVersion: MOCK_BASE_VERSION,
       });
 
@@ -651,11 +658,13 @@ describe('RemoteFeatureFlagController', () => {
       const mockFlags = {
         featureA: [
           {
+            idType: FeatureFlagIdType.MetaMetrics,
             name: 'groupA1',
             scope: { type: 'threshold', value: 0.5 },
             value: 'A1',
           },
           {
+            idType: FeatureFlagIdType.MetaMetrics,
             name: 'groupA2',
             scope: { type: 'threshold', value: 1.0 },
             value: 'A2',
@@ -663,11 +672,13 @@ describe('RemoteFeatureFlagController', () => {
         ],
         featureB: [
           {
+            idType: FeatureFlagIdType.MetaMetrics,
             name: 'groupB1',
             scope: { type: 'threshold', value: 0.5 },
             value: 'B1',
           },
           {
+            idType: FeatureFlagIdType.MetaMetrics,
             name: 'groupB2',
             scope: { type: 'threshold', value: 1.0 },
             value: 'B2',
@@ -736,6 +747,7 @@ describe('RemoteFeatureFlagController', () => {
         mixedArray: [
           { name: 'invalid', value: 'no scope' }, // Invalid - missing scope property
           {
+            idType: FeatureFlagIdType.MetaMetrics,
             name: 'validGroup',
             scope: { type: 'threshold', value: 1.0 },
             value: 'selectedValue',
@@ -769,11 +781,13 @@ describe('RemoteFeatureFlagController', () => {
       const mockFlags = {
         testFlag: [
           {
+            idType: FeatureFlagIdType.MetaMetrics,
             name: 'control',
             scope: { type: 'threshold', value: 0.5 },
             value: false,
           },
           {
+            idType: FeatureFlagIdType.MetaMetrics,
             name: 'treatment',
             scope: { type: 'threshold', value: 1.0 },
             value: true,
@@ -1137,16 +1151,19 @@ describe('RemoteFeatureFlagController', () => {
           versions: {
             '13.1.0': [
               {
+                idType: FeatureFlagIdType.MetaMetrics,
                 name: 'groupA',
                 scope: { type: 'threshold', value: 0.3 },
                 value: { feature: 'A', enabled: true },
               },
               {
+                idType: FeatureFlagIdType.MetaMetrics,
                 name: 'groupB',
                 scope: { type: 'threshold', value: 0.7 },
                 value: { feature: 'B', enabled: false },
               },
               {
+                idType: FeatureFlagIdType.MetaMetrics,
                 name: 'groupC',
                 scope: { type: 'threshold', value: 1.0 },
                 value: { feature: 'C', enabled: true },
@@ -1154,11 +1171,13 @@ describe('RemoteFeatureFlagController', () => {
             ],
             '13.2.0': [
               {
+                idType: FeatureFlagIdType.MetaMetrics,
                 name: 'newGroupA',
                 scope: { type: 'threshold', value: 0.5 },
                 value: { feature: 'NewA', enabled: false },
               },
               {
+                idType: FeatureFlagIdType.MetaMetrics,
                 name: 'newGroupB',
                 scope: { type: 'threshold', value: 1.0 },
                 value: { feature: 'NewB', enabled: true },
@@ -1465,6 +1484,7 @@ describe('RemoteFeatureFlagController', () => {
         remoteFeatureFlags: {
           flagA: [
             {
+              idType: FeatureFlagIdType.MetaMetrics,
               name: 'groupA',
               scope: { type: 'threshold', value: 1.0 },
               value: true,
@@ -1472,6 +1492,7 @@ describe('RemoteFeatureFlagController', () => {
           ],
           flagB: [
             {
+              idType: FeatureFlagIdType.MetaMetrics,
               name: 'groupB',
               scope: { type: 'threshold', value: 1.0 },
               value: false,
@@ -1498,6 +1519,7 @@ describe('RemoteFeatureFlagController', () => {
           remoteFeatureFlags: {
             flagB: [
               {
+                idType: FeatureFlagIdType.MetaMetrics,
                 name: 'groupB',
                 scope: { type: 'threshold', value: 1.0 },
                 value: false,
@@ -1597,6 +1619,7 @@ describe('RemoteFeatureFlagController', () => {
       const mockFlags = {
         persistentFlag: [
           {
+            idType: FeatureFlagIdType.MetaMetrics,
             name: 'group',
             scope: { type: 'threshold', value: 1.0 },
             value: true,
@@ -1640,6 +1663,7 @@ describe('RemoteFeatureFlagController', () => {
       const mockFlags = {
         testFlag: [
           {
+            idType: FeatureFlagIdType.MetaMetrics,
             name: 'group',
             scope: { type: 'threshold', value: 1.0 },
             value: true,
@@ -1679,6 +1703,7 @@ describe('RemoteFeatureFlagController', () => {
       const mockFlags = {
         newFlag: [
           {
+            idType: FeatureFlagIdType.MetaMetrics,
             name: 'group',
             scope: { type: 'threshold', value: 1.0 },
             value: true,
@@ -1710,6 +1735,7 @@ describe('RemoteFeatureFlagController', () => {
         remoteFeatureFlags: {
           oldFlag: [
             {
+              idType: FeatureFlagIdType.MetaMetrics,
               name: 'group',
               scope: { type: 'threshold', value: 1.0 },
               value: true,
@@ -1736,6 +1762,7 @@ describe('RemoteFeatureFlagController', () => {
           remoteFeatureFlags: {
             newFlag: [
               {
+                idType: FeatureFlagIdType.MetaMetrics,
                 name: 'group',
                 scope: { type: 'threshold', value: 1.0 },
                 value: false,
@@ -1765,11 +1792,13 @@ describe('RemoteFeatureFlagController', () => {
       const mockFlags = {
         thresholdFlag: [
           {
+            idType: FeatureFlagIdType.MetaMetrics,
             name: 'groupA',
             scope: { type: 'threshold', value: 0.5 },
             value: 'A',
           },
           {
+            idType: FeatureFlagIdType.MetaMetrics,
             name: 'groupB',
             scope: { type: 'threshold', value: 1.0 },
             value: 'B',
@@ -1800,6 +1829,7 @@ describe('RemoteFeatureFlagController', () => {
       const mockFlags = {
         'feature:v2': [
           {
+            idType: FeatureFlagIdType.MetaMetrics,
             name: 'group',
             scope: { type: 'threshold', value: 1.0 },
             value: true,
@@ -1843,6 +1873,7 @@ describe('RemoteFeatureFlagController', () => {
         remoteFeatureFlags: {
           flagA: [
             {
+              idType: FeatureFlagIdType.MetaMetrics,
               name: 'groupA',
               scope: { type: 'threshold', value: 1.0 },
               value: true,
@@ -1850,6 +1881,7 @@ describe('RemoteFeatureFlagController', () => {
           ],
           flagB: [
             {
+              idType: FeatureFlagIdType.MetaMetrics,
               name: 'groupB',
               scope: { type: 'threshold', value: 1.0 },
               value: false,

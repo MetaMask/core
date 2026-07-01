@@ -2,10 +2,8 @@ import type { Json } from '@metamask/utils';
 import { sha256, bytesToHex } from '@metamask/utils';
 import { validate as uuidValidate, version as uuidVersion } from 'uuid';
 
-import {
-  FeatureFlagIdType,
-  type FeatureFlagScopeValue,
-} from '../remote-feature-flag-controller-types';
+import type { FeatureFlagScopeValue } from '../remote-feature-flag-controller-types';
+import { FeatureFlagIdType } from '../remote-feature-flag-controller-types';
 
 /**
  * Converts a UUID string to a BigInt by removing dashes and converting to hexadecimal.
@@ -136,17 +134,17 @@ export const isFeatureFlagWithScopeValue = (
 
 /**
  * Returns the identifier type used for deterministic threshold assignment.
- * Defaults to MetaMetrics when no threshold entry specifies an idType.
+ * Defaults to Canonical when no threshold entry specifies an idType.
  *
  * @param flagValue - The feature flag value to inspect.
  * @returns The identifier type for threshold processing.
  */
 export function getThresholdIdType(flagValue: Json): FeatureFlagIdType {
   if (!Array.isArray(flagValue)) {
-    return FeatureFlagIdType.MetaMetrics;
+    return FeatureFlagIdType.Canonical;
   }
 
   const firstThresholdEntry = flagValue.find(isFeatureFlagWithScopeValue);
 
-  return firstThresholdEntry?.idType ?? FeatureFlagIdType.MetaMetrics;
+  return firstThresholdEntry?.idType ?? FeatureFlagIdType.Canonical;
 }

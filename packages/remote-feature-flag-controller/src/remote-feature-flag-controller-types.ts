@@ -57,7 +57,7 @@ export type FeatureFlagScopeValue = {
   thresholdName?: string;
   /**
    * Selects which client identifier is used for deterministic threshold
-   * assignment. Defaults to `metametrics` when omitted.
+   * assignment. Defaults to `canonical` when omitted.
    */
   idType?: FeatureFlagIdType;
   /**
