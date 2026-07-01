@@ -10,7 +10,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/assets-controller` from `^9.1.0` to `^10.0.0` ([#9312](https://github.com/MetaMask/core/pull/9312))
-- Bump `@metamask/bridge-controller` from `^77.1.0` to `^77.3.0` ([#9318](https://github.com/MetaMask/core/pull/9318), [#9326](https://github.com/MetaMask/core/pull/9326))
+
+### Removed
+
+- **BREAKING:** Remove `Bridge` and `Test` values from the `TransactionPayStrategy` enum ([#9335](https://github.com/MetaMask/core/pull/9335))
+  - Callers passing `TransactionPayStrategy.Bridge` or `TransactionPayStrategy.Test` to `getStrategy` / `getStrategies` must remove those references.
+- **BREAKING:** Remove `TransactionPayBridgeQuote` type export ([#9335](https://github.com/MetaMask/core/pull/9335))
+  - Consumers that imported this type must remove the import.
+- **BREAKING:** Remove `@metamask/bridge-controller` and `@metamask/bridge-status-controller` from dependencies; remove corresponding actions/events from `TransactionPayControllerMessenger` ([#9335](https://github.com/MetaMask/core/pull/9335))
+  - Clients wiring `BridgeController:fetchQuotes`, `BridgeStatusController:submitTx`, `BridgeStatusController:getState`, or subscribing to `BridgeStatusControllerStateChangeEvent` via the TPC messenger must remove those delegations.
 
 ## [23.17.2]
 
