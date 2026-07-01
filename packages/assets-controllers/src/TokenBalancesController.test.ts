@@ -2035,6 +2035,68 @@ describe('TokenBalancesController', () => {
 
       expect(controller.state.tokenBalances).toStrictEqual({});
     });
+
+    it('does not start polling and clears stale tokenBalances on startPolling when isDeprecated toggles to true at runtime', () => {
+      let deprecated = false;
+      const { controller } = setupController({
+        config: { state: initialState, isDeprecated: () => deprecated },
+      });
+
+      const executePollSpy = jest.spyOn(controller, '_executePoll');
+
+      deprecated = true;
+
+      controller.startPolling({ chainIds: ['0x1'] });
+
+      expect(executePollSpy).not.toHaveBeenCalled();
+      expect(controller.state.tokenBalances).toStrictEqual({});
+    });
+
+    it('does not restart polling and clears stale tokenBalances on updateChainPollingConfigs when isDeprecated toggles to true at runtime', () => {
+      jest.useFakeTimers();
+      let deprecated = false;
+      const { controller } = setupController({
+        config: { state: initialState, isDeprecated: () => deprecated },
+      });
+
+      controller.startPolling({ chainIds: ['0x1'] });
+
+      const executePollSpy = jest.spyOn(controller, '_executePoll');
+      executePollSpy.mockClear();
+
+      deprecated = true;
+
+      controller.updateChainPollingConfigs(
+        { '0x1': { interval: 60_000 } },
+        { immediateUpdate: true },
+      );
+
+      expect(executePollSpy).not.toHaveBeenCalled();
+      expect(controller.state.tokenBalances).toStrictEqual({});
+    });
+
+    it('does not fetch and clears stale tokenBalances on TransactionController:transactionConfirmed when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      const { controller, messenger } = setupController({
+        config: { state: initialState, isDeprecated: () => deprecated },
+      });
+
+      const fetchSpy = jest.spyOn(
+        multicall,
+        'getTokenBalancesForMultipleAddresses',
+      );
+
+      deprecated = true;
+
+      messenger.publish('TransactionController:transactionConfirmed', {
+        chainId: '0x1',
+      });
+
+      await flushPromises();
+
+      expect(fetchSpy).not.toHaveBeenCalled();
+      expect(controller.state.tokenBalances).toStrictEqual({});
+    });
   });
 
   describe('when accountRemoved is published', () => {
