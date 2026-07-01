@@ -119,6 +119,75 @@ export function getDefaultRemoteFeatureFlagControllerState(): RemoteFeatureFlagC
   };
 }
 
+/**
+ * Searches threshold entries for an explicit MetaMetrics ID match.
+ * Returns the first entry whose `metaMetricsIds` list contains the given
+ * normalized ID. Entries with malformed `metaMetricsIds` (not an array) are
+ * skipped without throwing.
+ *
+ * @param entries - The array of raw threshold entries for a feature flag.
+ * @param normalizedId - The current user's MetaMetrics ID, already trimmed and
+ * lower-cased.
+ * @returns The first matching entry, or `undefined` if none match.
+ */
+function findExplicitIdMatch(
+  entries: Json[],
+  normalizedId: string,
+): FeatureFlagScopeValue | undefined {
+  for (const entry of entries) {
+    if (!isFeatureFlagWithScopeValue(entry)) {
+      continue;
+    }
+    const { metaMetricsIds } = entry;
+    if (!Array.isArray(metaMetricsIds)) {
+      continue;
+    }
+    const hasMatch = metaMetricsIds.some(
+      (id) => typeof id === 'string' && id.trim().toLowerCase() === normalizedId,
+    );
+    if (hasMatch) {
+      return entry;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Returns a copy of `flags` with `metaMetricsIds` removed from every
+ * threshold entry. Used before persisting raw flags to state so that
+ * MetaMetrics IDs are never written to state logs or debug snapshots.
+ *
+ * @param flags - The raw feature flags object from the API.
+ * @returns A new object with the same structure but without any
+ * `metaMetricsIds` fields inside threshold entry arrays.
+ */
+function redactMetaMetricsIds(flags: FeatureFlags): FeatureFlags {
+  const result: FeatureFlags = {};
+  for (const [name, value] of Object.entries(flags)) {
+    if (!Array.isArray(value)) {
+      result[name] = value;
+      continue;
+    }
+    result[name] = value.map((entry) => {
+      if (
+        typeof entry !== 'object' ||
+        entry === null ||
+        Array.isArray(entry)
+      ) {
+        return entry;
+      }
+      const entryRecord = entry as Record<string, Json>;
+      if (entryRecord.metaMetricsIds === undefined) {
+        return entry;
+      }
+      const copy: Record<string, Json> = { ...entryRecord };
+      delete copy.metaMetricsIds;
+      return copy as Json;
+    });
+  }
+  return result;
+}
+
 function normalizeThresholdValue(featureFlag: FeatureFlagScopeValue): Json {
   if (featureFlag.thresholdVersion === ThresholdVersion.DirectValue) {
     return featureFlag.value;
@@ -324,7 +393,7 @@ export class RemoteFeatureFlagController extends BaseController<
           ...processedFlags,
           ...this.state.localOverrides,
         },
-        rawRemoteFeatureFlags: remoteFeatureFlags,
+        rawRemoteFeatureFlags: redactMetaMetricsIds(remoteFeatureFlags),
         cacheTimestamp: Date.now(),
         thresholdCache: updatedThresholdCache,
       };
@@ -383,33 +452,45 @@ export class RemoteFeatureFlagController extends BaseController<
           continue;
         }
 
-        // Check cache first, calculate only if needed
-        const cacheKey = `${metaMetricsId}:${remoteFeatureFlagName}` as const;
-        let thresholdValue = this.state.thresholdCache?.[cacheKey];
-
-        if (thresholdValue === undefined) {
-          thresholdValue = await calculateThresholdForFlag(
-            metaMetricsId,
-            remoteFeatureFlagName,
-          );
-
-          // Collect new threshold for batched state update
-          thresholdCacheUpdates[cacheKey] = thresholdValue;
-        }
-
-        const threshold = thresholdValue;
-        const selectedGroup = processedValue.find(
-          (featureFlag): featureFlag is FeatureFlagScopeValue => {
-            if (!isFeatureFlagWithScopeValue(featureFlag)) {
-              return false;
-            }
-
-            return threshold <= featureFlag.scope.value;
-          },
+        // Explicit-ID matching: check before hash-based threshold, bypasses cache
+        const normalizedMetaMetricsId = metaMetricsId.trim().toLowerCase();
+        const explicitMatch = findExplicitIdMatch(
+          processedValue,
+          normalizedMetaMetricsId,
         );
 
-        if (selectedGroup) {
-          processedValue = normalizeThresholdValue(selectedGroup);
+        if (explicitMatch) {
+          processedValue = normalizeThresholdValue(explicitMatch);
+        } else {
+          // Fall back to hash-based threshold selection with cache
+          const cacheKey =
+            `${metaMetricsId}:${remoteFeatureFlagName}` as const;
+          let thresholdValue = this.state.thresholdCache?.[cacheKey];
+
+          if (thresholdValue === undefined) {
+            thresholdValue = await calculateThresholdForFlag(
+              metaMetricsId,
+              remoteFeatureFlagName,
+            );
+
+            // Collect new threshold for batched state update
+            thresholdCacheUpdates[cacheKey] = thresholdValue;
+          }
+
+          const threshold = thresholdValue;
+          const selectedGroup = processedValue.find(
+            (featureFlag): featureFlag is FeatureFlagScopeValue => {
+              if (!isFeatureFlagWithScopeValue(featureFlag)) {
+                return false;
+              }
+
+              return threshold <= featureFlag.scope.value;
+            },
+          );
+
+          if (selectedGroup) {
+            processedValue = normalizeThresholdValue(selectedGroup);
+          }
         }
       }
 
