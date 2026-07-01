@@ -2039,6 +2039,16 @@ export class RampsController extends BaseController<
     };
 
     const isEligible = (quote: Quote): boolean => {
+      // TEMP(device-testing): exclude Transak Native so a non-native in-app
+      // provider is the one suggested during physical-device testing of the
+      // in-app WebView flow. REVERT before this ships.
+      /* istanbul ignore next */
+      if (
+        providerByCode.get(normalizeProviderCode(quote.provider))?.type ===
+        'native'
+      ) {
+        return false;
+      }
       // `all` (Phase 2) skips the in-app-only exclusions; both scopes still
       // enforce provider limits up front.
       if (scope !== 'all') {
