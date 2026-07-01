@@ -8,7 +8,8 @@ import { createWallet } from './wallet-factory';
 // fetches in `updateRemoteFeatureFlags`, and NetworkController's `init()` is
 // synchronous and does not call `lookupNetwork`.
 
-const TEST_SRP = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+const TEST_SRP =
+  'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 const TEST_PASSWORD = 'testpass';
 
 describe('createWallet (real Wallet, in-memory)', () => {

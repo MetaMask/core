@@ -6,7 +6,8 @@ jest.mock('../../daemon/daemon-spawn');
 
 const mockEnsureDaemon = jest.mocked(ensureDaemon);
 
-const SRP = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+const SRP =
+  'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 
 const FLAGS = ['--infura-project-id', 'key', '--password', 'pw', '--srp', SRP];
 

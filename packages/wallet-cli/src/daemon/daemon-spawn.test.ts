@@ -27,7 +27,8 @@ const mockGetDaemonPaths = jest.mocked(getDaemonPaths);
 // assert it is wired into the child's stdio and later closed in the parent.
 const LOG_FILE_DESCRIPTOR = 7;
 
-const SRP = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+const SRP =
+  'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 
 const CONFIG: DaemonSpawnConfig = {
   dataDir: '/tmp/data',
