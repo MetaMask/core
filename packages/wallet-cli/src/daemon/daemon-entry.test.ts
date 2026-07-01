@@ -90,7 +90,7 @@ describe('daemon-entry', () => {
     process.env.INFURA_PROJECT_ID = 'key';
     process.env.MM_WALLET_PASSWORD = 'pass';
     process.env.MM_WALLET_SRP =
-      'test test test test test test test test test test test ball';
+      'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
     process.exitCode = undefined;
     stderrSpy = jest
       .spyOn(process.stderr, 'write')
@@ -196,7 +196,7 @@ describe('daemon-entry', () => {
     const passedConfig = mockCreateWallet.mock.calls[0][0];
     expect(passedConfig.password.unwrap()).toBe('pass');
     expect(passedConfig.srp.unwrap()).toBe(
-      'test test test test test test test test test test test ball',
+      'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
     );
     expect(mockWriteFile).toHaveBeenCalledWith(
       '/tmp/daemon.pid',
@@ -222,7 +222,7 @@ describe('daemon-entry', () => {
     const passedConfig = mockCreateWallet.mock.calls[0][0];
     expect(passedConfig.password.unwrap()).toBe('pass');
     expect(passedConfig.srp.unwrap()).toBe(
-      'test test test test test test test test test test test ball',
+      'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
     );
     // ...but no longer linger in the long-lived daemon's environment.
     expect(process.env.MM_WALLET_PASSWORD).toBeUndefined();

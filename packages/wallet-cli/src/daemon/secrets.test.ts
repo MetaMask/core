@@ -3,10 +3,18 @@ import { inspect } from 'node:util';
 import { Password, Srp } from './secrets';
 
 const VALID_SRP_12 =
-  'test test test test test test test test test test test ball';
+  'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 const VALID_SRP_24 =
-  'test test test test test test test test test test test test ' +
-  'test test test test test test test test test test test ball';
+  'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon ' +
+  'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon art';
+
+const VALID_SRPS: Record<number, string> = {
+  12: VALID_SRP_12,
+  15: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon address',
+  18: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon agent',
+  21: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon admit',
+  24: VALID_SRP_24,
+};
 
 describe('Password', () => {
   describe('from', () => {
@@ -72,30 +80,53 @@ describe('Srp', () => {
     it.each([12, 15, 18, 21, 24])(
       'accepts a %i-word mnemonic of valid words',
       (count) => {
-        const phrase = Array.from({ length: count - 1 }, () => 'test')
-          .concat('ball')
-          .join(' ');
-        expect(Srp.from(phrase)).toBeInstanceOf(Srp);
+        expect(Srp.from(VALID_SRPS[count])).toBeInstanceOf(Srp);
       },
     );
 
     it('throws when the word count is invalid', () => {
-      expect(() => Srp.from('test test test')).toThrow(
+      expect(() => Srp.from('abandon abandon abandon')).toThrow(
         /must be 12, 15, 18, 21, or 24 words \(got 3\)/u,
       );
     });
 
     it('throws when a word is not in the BIP-39 wordlist', () => {
       const phrase =
-        'notabip39word test test test test test test test test test test ball';
+        'notabip39word abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
       expect(() => Srp.from(phrase)).toThrow(
         'Secret recovery phrase contains a word not in the BIP-39 English wordlist',
       );
     });
+
+    it('throws when the phrase has an invalid checksum', () => {
+      // All valid BIP-39 words, correct count, but wrong last word → bad checksum
+      expect(() =>
+        Srp.from(
+          'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon above',
+        ),
+      ).toThrow('Secret recovery phrase has an invalid checksum');
+    });
+
+    it('accepts a phrase with a trailing space', () => {
+      expect(Srp.from(`${VALID_SRP_12} `)).toBeInstanceOf(Srp);
+    });
+
+    it('accepts a phrase with leading whitespace', () => {
+      expect(Srp.from(`  ${VALID_SRP_12}`)).toBeInstanceOf(Srp);
+    });
+
+    it('accepts a phrase with multiple spaces between words', () => {
+      const phrase = VALID_SRP_12.replace(' test ', '  test  ');
+      expect(Srp.from(phrase)).toBeInstanceOf(Srp);
+    });
+
+    it('normalizes whitespace in the stored value', () => {
+      expect(Srp.from(`  ${VALID_SRP_12}  `).unwrap()).toBe(VALID_SRP_12);
+    });
   });
 
   describe('unwrap', () => {
-    it('returns the original phrase', () => {
+    it('returns the normalized phrase', () => {
       expect(Srp.from(VALID_SRP_12).unwrap()).toBe(VALID_SRP_12);
       expect(Srp.from(VALID_SRP_24).unwrap()).toBe(VALID_SRP_24);
     });

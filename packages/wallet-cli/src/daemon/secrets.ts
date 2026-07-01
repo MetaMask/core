@@ -1,3 +1,4 @@
+import { validateMnemonic } from '@metamask/scure-bip39';
 import { wordlist } from '@metamask/scure-bip39/dist/wordlists/english';
 
 const REDACTED = '[redacted]';
@@ -86,22 +87,24 @@ export class Srp {
   /**
    * Validate and wrap a BIP-39 mnemonic phrase.
    *
-   * The phrase is expected to be a single space-separated string. Catching
-   * malformed input here (rather than letting it reach
+   * Whitespace is normalized (trimmed and collapsed) before validation so that
+   * copy-pasted phrases with accidental leading/trailing/extra spaces are
+   * accepted. Catching malformed input here (rather than letting it reach
    * `KeyringController:createNewVaultAndRestore`) produces a clearer error.
    *
    * @param value - The raw mnemonic string.
-   * @returns A redacting {@link Srp} wrapper.
-   * @throws If the word count is not one of 12/15/18/21/24, or if any word is
-   * not present in the BIP-39 English wordlist.
+   * @returns A redacting {@link Srp} wrapper containing the normalized phrase.
+   * @throws If the word count is not one of 12/15/18/21/24, if any word is
+   * not present in the BIP-39 English wordlist, or if the checksum is invalid.
    */
   static from(value: string): Srp {
-    const words = value.split(' ');
+    const words = value.trim().split(/\s+/u);
     if (!VALID_SRP_WORD_COUNTS.includes(words.length)) {
       throw new Error(
         `Secret recovery phrase must be 12, 15, 18, 21, or 24 words (got ${words.length})`,
       );
     }
+    const normalized = words.join(' ');
     for (const word of words) {
       if (!WORDLIST_SET.has(word)) {
         throw new Error(
@@ -109,7 +112,10 @@ export class Srp {
         );
       }
     }
-    return new Srp(value);
+    if (!validateMnemonic(normalized, wordlist)) {
+      throw new Error('Secret recovery phrase has an invalid checksum');
+    }
+    return new Srp(normalized);
   }
 
   /**
