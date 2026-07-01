@@ -405,6 +405,404 @@ describe('RampsController', () => {
     });
   });
 
+  describe('getQuotes provider-scope widening (in-app)', () => {
+    const SCOPE_ASSET_ID = 'eip155:1/slip44:60';
+    const SCOPE_PAYMENT_METHOD = '/payments/debit-credit-card';
+    const SCOPE_WALLET = '0x1234567890abcdef1234567890abcdef12345678';
+    const NATIVE = '/providers/transak-native';
+    const MOONPAY = '/providers/moonpay';
+    const REVOLUT = '/providers/revolut';
+    const COINBASE = '/providers/coinbase';
+
+    const buildScopeProvider = (
+      id: string,
+      type: 'native' | 'aggregator',
+      limits?: Provider['limits'],
+    ): Provider => ({
+      id,
+      name: id,
+      type,
+      environmentType: 'STAGING',
+      description: '',
+      hqAddress: '',
+      links: [],
+      logos: { light: '', dark: '', height: 24, width: 77 },
+      supportedCryptoCurrencies: { [SCOPE_ASSET_ID]: true },
+      ...(limits ? { limits } : {}),
+    });
+
+    const fiatLimit = (
+      minAmount: number,
+      maxAmount: number,
+    ): Provider['limits'] => ({
+      fiat: {
+        usd: {
+          [SCOPE_PAYMENT_METHOD]: {
+            minAmount,
+            maxAmount,
+            feeFixedRate: 0,
+            feeDynamicRate: 0,
+          },
+        },
+      },
+    });
+
+    const inAppScopeQuote = (provider: string, reliability: number): Quote => ({
+      provider,
+      quote: {
+        amountIn: 100,
+        amountOut: '0.05',
+        paymentMethod: SCOPE_PAYMENT_METHOD,
+        buyWidget: {
+          url: 'https://widget.example/checkout',
+          browser: 'APP_BROWSER',
+        },
+      },
+      metadata: { reliability },
+    });
+
+    const externalScopeQuote = (
+      provider: string,
+      reliability: number,
+    ): Quote => ({
+      provider,
+      quote: {
+        amountIn: 100,
+        amountOut: '0.05',
+        paymentMethod: SCOPE_PAYMENT_METHOD,
+        buyWidget: {
+          url: 'https://widget.example/checkout',
+          browser: 'IN_APP_OS_BROWSER',
+        },
+      },
+      metadata: { reliability },
+    });
+
+    const scopeState = (
+      providers: Provider[],
+    ): Partial<RampsControllerState> => ({
+      userRegion: createMockUserRegion('us-ca'),
+      providers: createResourceState(providers, null),
+    });
+
+    const callScopedGetQuotes = async (
+      messenger: RampsControllerMessenger,
+      overrides: Record<string, unknown> = {},
+    ): Promise<QuotesResponse> =>
+      messenger.call('RampsController:getQuotes', {
+        action: 'buy',
+        amount: 100,
+        assetId: SCOPE_ASSET_ID,
+        fiat: 'USD',
+        paymentMethods: [SCOPE_PAYMENT_METHOD],
+        region: 'us-ca',
+        walletAddress: SCOPE_WALLET,
+        autoSelectProvider: true,
+        restrictToKnownOrNativeProviders: true,
+        ...overrides,
+      });
+
+    it('widens to all supporting providers and returns the reliability winner at success[0], excluding external quotes', async () => {
+      const response: QuotesResponse = {
+        success: [
+          inAppScopeQuote(MOONPAY, 90),
+          inAppScopeQuote(REVOLUT, 80),
+          externalScopeQuote(COINBASE, 99),
+          inAppScopeQuote(NATIVE, 70),
+        ],
+        // Coinbase is the most reliable but external, so it is skipped and the
+        // next in-app provider (MoonPay) wins.
+        sorted: [
+          { sortBy: 'reliability', ids: [COINBASE, MOONPAY, REVOLUT, NATIVE] },
+        ],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            state: scopeState([
+              buildScopeProvider(NATIVE, 'native'),
+              buildScopeProvider(MOONPAY, 'aggregator'),
+              buildScopeProvider(REVOLUT, 'aggregator'),
+              buildScopeProvider(COINBASE, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          let quotedProviders: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { providers?: string[] }) => {
+              quotedProviders = params.providers;
+              return response;
+            },
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          // Widened beyond native-only: every supporting provider was quoted.
+          expect(quotedProviders).toStrictEqual([
+            NATIVE,
+            MOONPAY,
+            REVOLUT,
+            COINBASE,
+          ]);
+          expect(quotes.success[0]?.provider).toBe(MOONPAY);
+        },
+      );
+    });
+
+    it('falls back to the price order when there is no reliability order', async () => {
+      const response: QuotesResponse = {
+        success: [inAppScopeQuote(MOONPAY, 90), inAppScopeQuote(REVOLUT, 80)],
+        sorted: [{ sortBy: 'price', ids: [REVOLUT, MOONPAY] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            state: scopeState([
+              buildScopeProvider(MOONPAY, 'aggregator'),
+              buildScopeProvider(REVOLUT, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => response,
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          expect(quotes.success[0]?.provider).toBe(REVOLUT);
+        },
+      );
+    });
+
+    it('skips a provider whose fiat limits do not fit the amount and picks the next', async () => {
+      const response: QuotesResponse = {
+        success: [inAppScopeQuote(MOONPAY, 90), inAppScopeQuote(REVOLUT, 80)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY, REVOLUT] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            state: scopeState([
+              // MoonPay's minimum is above the $100 amount, so it is skipped.
+              buildScopeProvider(MOONPAY, 'aggregator', fiatLimit(200, 1000)),
+              // Revolut publishes no limits, so it stays eligible.
+              buildScopeProvider(REVOLUT, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => response,
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          expect(quotes.success[0]?.provider).toBe(REVOLUT);
+        },
+      );
+    });
+
+    it('returns an empty success list when no in-app quote is usable', async () => {
+      const response: QuotesResponse = {
+        success: [externalScopeQuote(COINBASE, 99)],
+        sorted: [{ sortBy: 'reliability', ids: [COINBASE] }],
+        error: [{ provider: MOONPAY, error: 'unavailable' }],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            state: scopeState([buildScopeProvider(COINBASE, 'aggregator')]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => response,
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          expect(quotes.success).toStrictEqual([]);
+          expect(quotes.error).toStrictEqual(response.error);
+        },
+      );
+    });
+
+    it('excludes custom-action providers from selection', async () => {
+      const response: QuotesResponse = {
+        success: [inAppScopeQuote(MOONPAY, 90), inAppScopeQuote(REVOLUT, 80)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY, REVOLUT] }],
+        error: [],
+        customActions: [
+          {
+            buy: { providerId: MOONPAY },
+            paymentMethodId: SCOPE_PAYMENT_METHOD,
+            supportedPaymentMethodIds: [SCOPE_PAYMENT_METHOD],
+          },
+        ],
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            state: scopeState([
+              buildScopeProvider(MOONPAY, 'aggregator'),
+              buildScopeProvider(REVOLUT, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => response,
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          // MoonPay is a custom action, so Revolut wins despite ranking higher.
+          expect(quotes.success[0]?.provider).toBe(REVOLUT);
+        },
+      );
+    });
+
+    it('does not widen and does not mutate providers.selected when the scope is off', async () => {
+      const response: QuotesResponse = {
+        success: [inAppScopeQuote(NATIVE, 70)],
+        sorted: [{ sortBy: 'reliability', ids: [NATIVE] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'off',
+            state: scopeState([
+              buildScopeProvider(NATIVE, 'native'),
+              buildScopeProvider(MOONPAY, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ controller, messenger, rootMessenger }) => {
+          let quotedProviders: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { providers?: string[] }) => {
+              quotedProviders = params.providers;
+              return response;
+            },
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          // Native-only auto-selection is preserved: only the native provider
+          // is quoted and the response is returned untouched.
+          expect(quotedProviders).toStrictEqual([NATIVE]);
+          expect(quotes).toStrictEqual(response);
+          expect(controller.state.providers.selected).toBeNull();
+        },
+      );
+    });
+
+    it('does not widen when the caller passes an explicit providers list', async () => {
+      const response: QuotesResponse = {
+        success: [inAppScopeQuote(MOONPAY, 90)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            state: scopeState([
+              buildScopeProvider(MOONPAY, 'aggregator'),
+              buildScopeProvider(REVOLUT, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          let quotedProviders: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { providers?: string[] }) => {
+              quotedProviders = params.providers;
+              return response;
+            },
+          );
+
+          const quotes = await callScopedGetQuotes(messenger, {
+            providers: [MOONPAY],
+          });
+
+          expect(quotedProviders).toStrictEqual([MOONPAY]);
+          expect(quotes).toStrictEqual(response);
+        },
+      );
+    });
+
+    it('hydrates the provider catalog via getProviders when state is empty', async () => {
+      const response: QuotesResponse = {
+        success: [inAppScopeQuote(MOONPAY, 90)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            state: { userRegion: createMockUserRegion('us-ca') },
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => ({
+              providers: [buildScopeProvider(MOONPAY, 'aggregator')],
+            }),
+          );
+          let quotedProviders: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { providers?: string[] }) => {
+              quotedProviders = params.providers;
+              return response;
+            },
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          expect(quotedProviders).toStrictEqual([MOONPAY]);
+          expect(quotes.success[0]?.provider).toBe(MOONPAY);
+        },
+      );
+    });
+  });
+
   describe('getProviders', () => {
     const mockProviders: Provider[] = [
       {

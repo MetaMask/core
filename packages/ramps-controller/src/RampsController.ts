@@ -23,6 +23,8 @@ import type {
   PaymentMethodsResponse,
   QuotesResponse,
   Quote,
+  QuoteSortBy,
+  QuoteCustomAction,
   RampsToken,
   RampsServiceActions,
   RampsOrder,
@@ -660,6 +662,17 @@ export type RampsControllerMessenger = Messenger<
 /**
  * Configuration options for the RampsController.
  */
+/**
+ * Provider-class scope for fiat quote widening, resolved per `getQuotes` call.
+ *
+ * - `off`: native-only auto-selection (default; preserves prior behaviour).
+ * - `in-app`: also quote in-app WebView aggregator providers and select the
+ *   best in-app quote.
+ * - `all`: additionally allow external-browser / custom-action providers
+ *   (Phase 2).
+ */
+export type ProviderScope = 'off' | 'in-app' | 'all';
+
 export type RampsControllerOptions = {
   /** The messenger suited for this controller. */
   messenger: RampsControllerMessenger;
@@ -669,6 +682,13 @@ export type RampsControllerOptions = {
   requestCacheTTL?: number;
   /** Maximum number of entries in the request cache. Defaults to 250. */
   requestCacheMaxSize?: number;
+  /**
+   * Optional callback returning the current provider-class scope for fiat quote
+   * widening. Read per `getQuotes` call so a host-side toggle takes effect at
+   * runtime without reconstructing the controller. Defaults to `off`
+   * (native-only) when omitted.
+   */
+  getProviderScope?: () => ProviderScope;
 };
 
 // === HELPER FUNCTIONS ===
@@ -859,6 +879,12 @@ export class RampsController extends BaseController<
   readonly #requestCacheMaxSize: number;
 
   /**
+   * Resolves the current provider-class scope for fiat quote widening. Defaults
+   * to `() => 'off'` (native-only) when no callback is injected.
+   */
+  readonly #getProviderScope: () => ProviderScope;
+
+  /**
    * Map of pending requests for deduplication.
    * Key is the cache key, value is the pending request with abort controller.
    */
@@ -924,12 +950,15 @@ export class RampsController extends BaseController<
    * controller. Missing properties will be filled in with defaults.
    * @param args.requestCacheTTL - Time to live for cached requests in milliseconds.
    * @param args.requestCacheMaxSize - Maximum number of entries in the request cache.
+   * @param args.getProviderScope - Optional callback returning the current
+   * provider-class scope for fiat quote widening. Defaults to `off`.
    */
   constructor({
     messenger,
     state = {},
     requestCacheTTL = DEFAULT_REQUEST_CACHE_TTL,
     requestCacheMaxSize = DEFAULT_REQUEST_CACHE_MAX_SIZE,
+    getProviderScope,
   }: RampsControllerOptions) {
     super({
       messenger,
@@ -945,6 +974,7 @@ export class RampsController extends BaseController<
 
     this.#requestCacheTTL = requestCacheTTL;
     this.#requestCacheMaxSize = requestCacheMaxSize;
+    this.#getProviderScope = getProviderScope ?? ((): ProviderScope => 'off');
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -1797,7 +1827,21 @@ export class RampsController extends BaseController<
       throw new Error('assetId is required.');
     }
 
+    // When a non-`off` provider scope is active, widen the native-only
+    // auto-selection path to every supporting provider and pick the best in-app
+    // quote from the results (in-app vs external is only knowable per-quote via
+    // `buyWidget.browser`). Only the auto-select/restrict path that MM Pay's
+    // `getRampsQuote` uses is affected; explicit-`providers` callers and the
+    // plain all-provider path are untouched.
+    const providerScope = this.#getProviderScope();
+    const widenToInAppProviders =
+      providerScope !== 'off' &&
+      !options.providers &&
+      (options.autoSelectProvider === true ||
+        options.restrictToKnownOrNativeProviders === true);
+
     let providersToUse: string[];
+    let inAppProviderCatalog: Provider[] = this.state.providers.data;
     if (options.providers) {
       providersToUse = options.restrictToKnownOrNativeProviders
         ? await this.#filterProviderIdsBySupport({
@@ -1806,6 +1850,16 @@ export class RampsController extends BaseController<
             region: regionToUse,
           })
         : options.providers;
+    } else if (widenToInAppProviders) {
+      // `#getSupportingProvidersForRegion` also hydrates the provider catalog
+      // when controller state is empty, so all-provider quoting cannot silently
+      // return zero providers here.
+      const { supporting } = await this.#getSupportingProvidersForRegion({
+        assetId: normalizedAssetIdForValidation,
+        region: regionToUse,
+      });
+      inAppProviderCatalog = supporting;
+      providersToUse = supporting.map((provider) => provider.id);
     } else if (
       options.autoSelectProvider ||
       options.restrictToKnownOrNativeProviders
@@ -1883,7 +1937,7 @@ export class RampsController extends BaseController<
       action,
     };
 
-    return this.executeRequest(
+    const response = await this.executeRequest(
       cacheKey,
       async () => {
         return this.messenger.call('RampsService:getQuotes', params);
@@ -1892,6 +1946,150 @@ export class RampsController extends BaseController<
         forceRefresh: options.forceRefresh,
         ttl: options.ttl ?? DEFAULT_QUOTES_TTL,
       },
+    );
+
+    if (!widenToInAppProviders) {
+      return response;
+    }
+
+    // Reduce the widened multi-provider result to the single best in-app quote
+    // and place it at `success[0]`, since single-pick consumers
+    // (`getRampsQuote` -> `success?.[0]`) rely on index 0 while `success[]`
+    // order is server-defined rather than ranked.
+    const selectedQuote = this.#pickInAppQuote(response, {
+      scope: providerScope,
+      amount: options.amount,
+      fiat: normalizedFiat,
+      providers: inAppProviderCatalog,
+    });
+
+    if (!selectedQuote) {
+      // No usable in-app quote: surface "no quote" rather than leaking an
+      // external/custom quote to the single-pick consumer.
+      return {
+        success: [],
+        sorted: response.sorted,
+        error: response.error,
+        customActions: response.customActions,
+      };
+    }
+
+    return {
+      ...response,
+      success: [
+        selectedQuote,
+        ...response.success.filter((quote) => quote !== selectedQuote),
+      ],
+    };
+  }
+
+  /**
+   * Selects the best in-app quote from a widened multi-provider response.
+   *
+   * Applies the Phase 1 in-app filter (drops custom-action providers and
+   * external-browser quotes), enforces per-provider fiat limits up front, then
+   * orders by reliability and falls back to price using the server-provided
+   * `sorted` order. Returns `undefined` when no in-app quote is usable.
+   *
+   * @param response - The multi-provider quotes response.
+   * @param options - Selection inputs.
+   * @param options.scope - Active provider scope (`in-app` or `all`).
+   * @param options.amount - Fiat amount, for the limit-fit check.
+   * @param options.fiat - Lowercased fiat short code, for the limit lookup.
+   * @param options.providers - Provider catalog for the limit lookup.
+   * @returns The selected quote, or `undefined` when none is usable.
+   */
+  #pickInAppQuote(
+    response: QuotesResponse,
+    {
+      scope,
+      amount,
+      fiat,
+      providers,
+    }: {
+      scope: ProviderScope;
+      amount: number;
+      fiat: string;
+      providers: Provider[];
+    },
+  ): Quote | undefined {
+    const providerByCode = new Map(
+      providers.map((provider) => [
+        normalizeProviderCode(provider.id),
+        provider,
+      ]),
+    );
+    const customActionProviderCodes = new Set(
+      response.customActions.map((action: QuoteCustomAction) =>
+        normalizeProviderCode(action.buy.providerId),
+      ),
+    );
+
+    const fitsProviderLimits = (quote: Quote): boolean => {
+      const provider = providerByCode.get(
+        normalizeProviderCode(quote.provider),
+      );
+      const limit = provider?.limits?.fiat?.[fiat]?.[quote.quote.paymentMethod];
+      if (!limit) {
+        // No published limits for this provider/payment method: treat as
+        // eligible and let the provider enforce limits at checkout.
+        return true;
+      }
+      return amount >= limit.minAmount && amount <= limit.maxAmount;
+    };
+
+    const isEligible = (quote: Quote): boolean => {
+      // `all` (Phase 2) skips the in-app-only exclusions; both scopes still
+      // enforce provider limits up front.
+      if (scope !== 'all') {
+        const providerCode = normalizeProviderCode(quote.provider);
+        if (customActionProviderCodes.has(providerCode)) {
+          return false;
+        }
+        // Defensive: the wire may carry an inline `isCustomAction` flag that is
+        // absent from the published `Quote` type.
+        if (
+          (quote.quote as { isCustomAction?: boolean }).isCustomAction === true
+        ) {
+          return false;
+        }
+        if (quote.quote.buyWidget?.browser === 'IN_APP_OS_BROWSER') {
+          return false;
+        }
+      }
+      return fitsProviderLimits(quote);
+    };
+
+    const candidates = response.success.filter(isEligible);
+    if (candidates.length === 0) {
+      return undefined;
+    }
+
+    const candidateByCode = new Map(
+      candidates.map((quote) => [normalizeProviderCode(quote.provider), quote]),
+    );
+
+    const pickBySortOrder = (sortBy: QuoteSortBy): Quote | undefined => {
+      const order = response.sorted.find(
+        (entry) => entry.sortBy === sortBy,
+      )?.ids;
+      if (!order) {
+        return undefined;
+      }
+      for (const providerId of order) {
+        const match = candidateByCode.get(normalizeProviderCode(providerId));
+        if (match) {
+          return match;
+        }
+      }
+      return undefined;
+    };
+
+    // Reliability first, then price, then the first surviving candidate.
+    return (
+      pickBySortOrder('reliability') ??
+      pickBySortOrder('price') ??
+      candidates[0]
     );
   }
 
