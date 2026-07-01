@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `BlockTrackerPollingDataService` and `StaticIntervalPollingDataService` mixins for integrating the polling pattern in data services ([#9352](https://github.com/MetaMask/core/pull/9352))
+
 ## [16.0.8]
 
 ### Changed

@@ -6,6 +6,7 @@
   },
   "references": [
     { "path": "../base-controller" },
+    { "path": "../base-data-service" },
     { "path": "../controller-utils" },
     { "path": "../network-controller" },
     { "path": "../messenger" }
