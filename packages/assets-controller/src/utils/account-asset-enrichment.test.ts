@@ -3,7 +3,6 @@ import type { CaipChainId } from '@metamask/utils';
 
 import type { Caip19AssetId } from '../types';
 import {
-  buildEffectiveAccountBalances,
   createGetAccountAssetInfoClientRequest,
   createInvalidatedStellarClassicExtra,
   fetchAccountAssetInfoFromSnap,
@@ -149,57 +148,6 @@ describe('account-asset-enrichment utils', () => {
     it('seeds zero amount when no prior row exists', () => {
       expect(mergeAssetBalanceRow(undefined, { amount: '5' })).toStrictEqual({
         amount: '5',
-      });
-    });
-  });
-
-  describe('buildEffectiveAccountBalances', () => {
-    it('preserves extra in merge mode when incoming is amount-only', () => {
-      expect(
-        buildEffectiveAccountBalances(
-          {
-            [stellarClassic]: { amount: '1', extra: { limit: '500' } },
-          },
-          { [stellarClassic]: { amount: '2' } },
-          'merge',
-          [],
-        ),
-      ).toStrictEqual({
-        [stellarClassic]: { amount: '2', extra: { limit: '500' } },
-      });
-    });
-
-    it('preserves extra in full mode when incoming is amount-only', () => {
-      expect(
-        buildEffectiveAccountBalances(
-          {
-            [stellarClassic]: { amount: '1', extra: { limit: '500' } },
-          },
-          { [stellarClassic]: { amount: '2' } },
-          'full',
-          [],
-        ),
-      ).toStrictEqual({
-        [stellarClassic]: { amount: '2', extra: { limit: '500' } },
-      });
-    });
-
-    it('preserves balances for chains not covered by a full response', () => {
-      const evmAsset =
-        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
-      expect(
-        buildEffectiveAccountBalances(
-          {
-            [evmAsset]: { amount: '10' },
-            [stellarClassic]: { amount: '1', extra: { limit: '500' } },
-          },
-          { [stellarClassic]: { amount: '2' } },
-          'full',
-          [],
-        ),
-      ).toStrictEqual({
-        [evmAsset]: { amount: '10' },
-        [stellarClassic]: { amount: '2', extra: { limit: '500' } },
       });
     });
   });

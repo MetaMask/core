@@ -14,6 +14,16 @@ module.exports = merge(baseConfig, {
   // The display name when running multiple projects
   displayName,
 
+  // The e2e test constructs a real KeyringController, which needs the Web
+  // Crypto API; this environment polyfills `crypto` when the test realm (Node
+  // < 21 under --experimental-vm-modules) lacks it.
+  testEnvironment: '<rootDir>/jest.environment.js',
+
+  // The test harness in `src/test/` is exercised by the command tests but
+  // not all of its error/edge branches are worth driving directly — it's
+  // production code's test infrastructure, not production code itself.
+  coveragePathIgnorePatterns: ['.*/src/test/.*'],
+
   // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
     global: {

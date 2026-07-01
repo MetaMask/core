@@ -41,6 +41,7 @@ const TOOLS = [
   '@metamask/messenger-cli',
   '@metamask/wallet-cli',
   '@metamask/wallet-framework-docs',
+  '@metamask/platform-api-docs',
 ];
 
 /**

@@ -8,6 +8,7 @@ import type {
   Caip19AssetId,
   AssetsControllerStateInternal,
 } from '../types';
+import { normalizeAssetId } from '../utils';
 import type { PriceDataSourceOptions } from './PriceDataSource';
 import { PriceDataSource } from './PriceDataSource';
 
@@ -74,7 +75,7 @@ function createMiddlewareContext(overrides?: Partial<Context>): Context {
   return {
     request: createDataRequest(),
     response: {},
-    getAssetsState: jest.fn(),
+    getAssetsState: jest.fn().mockReturnValue({ assetsPrice: {} }),
     ...overrides,
   };
 }
@@ -756,7 +757,7 @@ describe('PriceDataSource', () => {
     await controller.assetsMiddleware(context, next);
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
-      [MOCK_TOKEN_ASSET],
+      [normalizeAssetId(MOCK_TOKEN_ASSET)],
       { currency: 'usd', includeMarketData: true },
     );
     expect(context.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toStrictEqual({

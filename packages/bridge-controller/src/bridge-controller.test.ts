@@ -13,6 +13,7 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import type { CaipAssetType } from '@metamask/utils';
 import nock from 'nock';
 
 import { flushPromises } from '../../../tests/helpers';
@@ -52,6 +53,8 @@ import {
 import * as featureFlagUtils from './utils/feature-flags';
 import * as fetchUtils from './utils/fetch';
 import {
+  BatchSellMetricsEventName,
+  BatchSellMetricsLocation,
   InputAmountPreset,
   MetaMetricsSwapsEventSource,
   MetricsActionType,
@@ -2911,6 +2914,15 @@ describe('BridgeController', function () {
         expect(rootMessenger.call('BridgeController:getLocation')).toBe(
           MetaMetricsSwapsEventSource.TokenView,
         );
+
+        rootMessenger.call(
+          'BridgeController:setLocation',
+          BatchSellMetricsLocation.AssetPicker,
+        );
+
+        expect(rootMessenger.call('BridgeController:getLocation')).toBe(
+          BatchSellMetricsLocation.AssetPicker,
+        );
       });
     });
   });
@@ -3029,6 +3041,152 @@ describe('BridgeController', function () {
         expect(trackMetaMetricsFn).toHaveBeenCalledTimes(1);
 
         expect(trackMetaMetricsFn.mock.calls).toMatchSnapshot();
+      });
+    });
+
+    it('should track Batch Sell token page events with client chain ids', async () => {
+      await withController(async ({ rootMessenger }) => {
+        const chainIdSource = formatChainIdToCaip(ChainId.POLYGON);
+        const chainIdDestination = formatChainIdToCaip(ChainId.BASE);
+        const sourceTokenAddresses = [
+          'eip155:137/erc20:0x1111111111111111111111111111111111111111',
+          'eip155:137/erc20:0x2222222222222222222222222222222222222222',
+        ] satisfies CaipAssetType[];
+        const sourceTokenSymbols = ['LINK', 'UNI'];
+
+        rootMessenger.call(
+          'BridgeController:trackUnifiedSwapBridgeEvent',
+          BatchSellMetricsEventName.BatchSellTokenPageViewed,
+          {
+            chain_id_source: chainIdSource,
+            chain_id_destination: chainIdDestination,
+            location: BatchSellMetricsLocation.TradeMenu,
+          },
+        );
+        rootMessenger.call(
+          'BridgeController:trackUnifiedSwapBridgeEvent',
+          BatchSellMetricsEventName.BatchSellTokenPageContinueClicked,
+          {
+            chain_id_source: chainIdSource,
+            chain_id_destination: chainIdDestination,
+            location: BatchSellMetricsLocation.AssetPicker,
+            source_token_symbols: sourceTokenSymbols,
+            source_token_addresses: sourceTokenAddresses,
+          },
+        );
+
+        expect(trackMetaMetricsFn).toHaveBeenNthCalledWith(
+          1,
+          BatchSellMetricsEventName.BatchSellTokenPageViewed,
+          {
+            chain_id_source: chainIdSource,
+            chain_id_destination: chainIdDestination,
+            location: BatchSellMetricsLocation.TradeMenu,
+          },
+        );
+        expect(trackMetaMetricsFn).toHaveBeenNthCalledWith(
+          2,
+          BatchSellMetricsEventName.BatchSellTokenPageContinueClicked,
+          {
+            chain_id_source: chainIdSource,
+            chain_id_destination: chainIdDestination,
+            location: BatchSellMetricsLocation.AssetPicker,
+            source_token_count: sourceTokenAddresses.length,
+            source_token_symbols: sourceTokenSymbols,
+            source_token_addresses: sourceTokenAddresses,
+          },
+        );
+      });
+    });
+
+    it('should track Batch Sell quote page events with selected token metadata', async () => {
+      await withController(async ({ rootMessenger }) => {
+        await rootMessenger.call(
+          'BridgeController:updateBridgeQuoteRequestParams',
+          {
+            walletAddress: '0x123',
+            srcChainId: ChainId.OPTIMISM,
+            destChainId: ChainId.OPTIMISM,
+          },
+          {
+            stx_enabled: false,
+            security_warnings: [],
+            token_symbol_source: 'ETH',
+            token_symbol_destination: 'USDC',
+            usd_amount_source: 100,
+            token_security_type_destination: null,
+            feature_id: FeatureId.BATCH_SELL,
+          },
+        );
+        jest.clearAllMocks();
+
+        const chainIdSource = formatChainIdToCaip(ChainId.POLYGON);
+        const chainIdDestination = formatChainIdToCaip(ChainId.BASE);
+        const sourceTokenAddresses = [
+          'eip155:137/erc20:0x1111111111111111111111111111111111111111',
+          'eip155:137/erc20:0x2222222222222222222222222222222222222222',
+        ] satisfies CaipAssetType[];
+        const destinationTokenAddress =
+          'eip155:8453/erc20:0x3333333333333333333333333333333333333333' satisfies CaipAssetType;
+        const sharedProperties = {
+          location: BatchSellMetricsLocation.Deeplink,
+          source_token_symbols: ['WETH', 'OP'],
+          source_token_addresses: sourceTokenAddresses,
+          destination_token_symbol: 'USDC',
+          destination_token_address: destinationTokenAddress,
+          usd_amount_source_tokens: [10, 20],
+          usd_amount_source_total: 30,
+          source_token_slippages: [0.5, 1],
+        };
+        const properties = {
+          chain_id_source: chainIdSource,
+          chain_id_destination: chainIdDestination,
+          ...sharedProperties,
+        };
+        const expectedProperties = {
+          source_token_count: sourceTokenAddresses.length,
+          ...properties,
+        };
+
+        rootMessenger.call(
+          'BridgeController:trackUnifiedSwapBridgeEvent',
+          BatchSellMetricsEventName.BatchSellQuotePageViewed,
+          properties,
+        );
+        rootMessenger.call(
+          'BridgeController:trackUnifiedSwapBridgeEvent',
+          BatchSellMetricsEventName.BatchSellQuotePageReviewClicked,
+          properties,
+        );
+        rootMessenger.call(
+          'BridgeController:trackUnifiedSwapBridgeEvent',
+          BatchSellMetricsEventName.BatchSellReviewModalSubmitted,
+          {
+            ...properties,
+            usd_quoted_gas: 1,
+            usd_quoted_return: 29,
+          },
+        );
+
+        expect(trackMetaMetricsFn).toHaveBeenNthCalledWith(
+          1,
+          BatchSellMetricsEventName.BatchSellQuotePageViewed,
+          expectedProperties,
+        );
+        expect(trackMetaMetricsFn).toHaveBeenNthCalledWith(
+          2,
+          BatchSellMetricsEventName.BatchSellQuotePageReviewClicked,
+          expectedProperties,
+        );
+        expect(trackMetaMetricsFn).toHaveBeenNthCalledWith(
+          3,
+          BatchSellMetricsEventName.BatchSellReviewModalSubmitted,
+          {
+            ...expectedProperties,
+            usd_quoted_gas: 1,
+            usd_quoted_return: 29,
+          },
+        );
       });
     });
 

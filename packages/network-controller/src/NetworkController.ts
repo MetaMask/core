@@ -56,7 +56,8 @@ import type { DegradedEventType, RetryReason } from './create-network-client';
 import { projectLogger, createModuleLogger } from './logger';
 import type { NetworkControllerMethodActions } from './NetworkController-method-action-types';
 import type { RpcServiceOptionsWithDefaults } from './rpc-service/rpc-service';
-import { getIsRpcFailoverEnabled } from './selectors';
+import { getRpcFailoverMode } from './selectors';
+import type { RpcFailoverMode } from './selectors';
 import { NetworkClientType } from './types';
 import type {
   BlockTracker,
@@ -668,8 +669,6 @@ type AllowedEvents = RemoteFeatureFlagControllerStateChangeEvent;
 
 const MESSENGER_EXPOSED_METHODS = [
   'addNetwork',
-  'disableRpcFailover',
-  'enableRpcFailover',
   'findNetworkClientIdByChainId',
   'get1559CompatibilityWithNetworkClientId',
   'getEIP1559Compatibility',
@@ -1273,7 +1272,7 @@ export class NetworkController extends BaseController<
     NetworkConfiguration
   >;
 
-  #isRpcFailoverEnabled = false;
+  #rpcFailoverMode: RpcFailoverMode = 'disabled';
 
   /**
    * Constructs a NetworkController.
@@ -1373,10 +1372,10 @@ export class NetworkController extends BaseController<
     this.messenger.subscribe(
       // eslint-disable-next-line no-restricted-syntax
       'RemoteFeatureFlagController:stateChange',
-      (isRpcFailoverEnabled) => {
-        this.#updateRpcFailoverEnabled(isRpcFailoverEnabled);
+      (rpcFailoverMode) => {
+        this.#updateRpcFailover(rpcFailoverMode);
       },
-      getIsRpcFailoverEnabled,
+      getRpcFailoverMode,
     );
   }
 
@@ -1391,35 +1390,15 @@ export class NetworkController extends BaseController<
   }
 
   /**
-   * Enables the RPC failover functionality. That is, if any RPC endpoints are
-   * configured with failover URLs, then traffic will automatically be diverted
-   * to them if those RPC endpoints are unavailable.
-   */
-  enableRpcFailover(): void {
-    this.#updateRpcFailoverEnabled(true);
-  }
-
-  /**
-   * Disables the RPC failover functionality. That is, even if any RPC endpoints
-   * are configured with failover URLs, then traffic will not automatically be
-   * diverted to them if those RPC endpoints are unavailable.
-   */
-  disableRpcFailover(): void {
-    this.#updateRpcFailoverEnabled(false);
-  }
-
-  /**
-   * Enables or disables the RPC failover functionality, depending on the
-   * boolean given. This is done by reconstructing all network clients that were
-   * originally configured with failover URLs so that those URLs are either
-   * honored or ignored. Network client IDs will be preserved so as not to
-   * invalidate state in other controllers.
+   * Applies the given RPC failover mode by reconstructing all network clients
+   * that were configured with failover URLs so that the new mode takes effect.
+   * Network client IDs are preserved so as not to invalidate state in other
+   * controllers.
    *
-   * @param newIsRpcFailoverEnabled - Whether or not to enable or disable the
-   * RPC failover functionality.
+   * @param newMode - The RPC failover mode to apply.
    */
-  #updateRpcFailoverEnabled(newIsRpcFailoverEnabled: boolean): void {
-    if (this.#isRpcFailoverEnabled === newIsRpcFailoverEnabled) {
+  #updateRpcFailover(newMode: RpcFailoverMode): void {
+    if (this.#rpcFailoverMode === newMode) {
       return;
     }
 
@@ -1439,14 +1418,12 @@ export class NetworkController extends BaseController<
           networkClient.configuration.failoverRpcUrls &&
           networkClient.configuration.failoverRpcUrls.length > 0
         ) {
-          newIsRpcFailoverEnabled
-            ? networkClient.enableRpcFailover()
-            : networkClient.disableRpcFailover();
+          networkClient.setRpcFailoverMode(newMode);
         }
       }
     }
 
-    this.#isRpcFailoverEnabled = newIsRpcFailoverEnabled;
+    this.#rpcFailoverMode = newMode;
   }
 
   /**
@@ -1610,12 +1587,13 @@ export class NetworkController extends BaseController<
   }
 
   /**
-   * Initialize the NetworkController, updating the RPC failover feature flag
-   * and applying the network selection.
+   * Initialize the NetworkController, applying the RPC failover mode from the
+   * `corePlatformRpcFailoverMode` remote feature flag and applying the network
+   * selection.
    */
   init(): void {
     const state = this.messenger.call('RemoteFeatureFlagController:getState');
-    this.#updateRpcFailoverEnabled(getIsRpcFailoverEnabled(state));
+    this.#updateRpcFailover(getRpcFailoverMode(state));
 
     this.#applyNetworkSelection(this.state.selectedNetworkClientId);
   }
@@ -2859,7 +2837,7 @@ export class NetworkController extends BaseController<
           getRpcServiceOptions: this.#getRpcServiceOptions,
           getBlockTrackerOptions: this.#getBlockTrackerOptions,
           messenger: this.messenger,
-          isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
+          rpcFailoverMode: this.#rpcFailoverMode,
           logger: this.#log,
         });
       } else {
@@ -2878,7 +2856,7 @@ export class NetworkController extends BaseController<
           getRpcServiceOptions: this.#getRpcServiceOptions,
           getBlockTrackerOptions: this.#getBlockTrackerOptions,
           messenger: this.messenger,
-          isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
+          rpcFailoverMode: this.#rpcFailoverMode,
           logger: this.#log,
         });
       }
@@ -3044,7 +3022,7 @@ export class NetworkController extends BaseController<
               getRpcServiceOptions: this.#getRpcServiceOptions,
               getBlockTrackerOptions: this.#getBlockTrackerOptions,
               messenger: this.messenger,
-              isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
+              rpcFailoverMode: this.#rpcFailoverMode,
               logger: this.#log,
             }),
           ] as const;
@@ -3063,7 +3041,7 @@ export class NetworkController extends BaseController<
             getRpcServiceOptions: this.#getRpcServiceOptions,
             getBlockTrackerOptions: this.#getBlockTrackerOptions,
             messenger: this.messenger,
-            isRpcFailoverEnabled: this.#isRpcFailoverEnabled,
+            rpcFailoverMode: this.#rpcFailoverMode,
             logger: this.#log,
           }),
         ] as const;

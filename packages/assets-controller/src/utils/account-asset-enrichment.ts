@@ -7,7 +7,6 @@ import { parseCaipAssetType } from '@metamask/utils';
 import type {
   AccountAssetInfo,
   AssetBalance,
-  AssetsUpdateMode,
   Caip19AssetId,
   FungibleAssetBalance,
   GetAccountAssetInfoResponse,
@@ -122,59 +121,6 @@ export function mergeAssetBalanceRow(
   }
 
   return merged;
-}
-
-/**
- * Builds the effective per-account balance map for a data-source response.
- * Snap/RPC balance sync responses are amount-only and must not erase separately
- * stored account-asset enrichment (e.g. Stellar trustline `extra`).
- *
- * @param previousBalances - Prior balances for the account.
- * @param incomingBalances - Incoming balances from the data source.
- * @param mode - Merge overlays incoming rows; full replaces covered chains.
- * @param customAssetIds - Custom assets to preserve when omitted from full responses.
- * @returns Effective balance map before amount normalization.
- */
-export function buildEffectiveAccountBalances(
-  previousBalances: Record<string, AssetBalance>,
-  incomingBalances: Record<string, AssetBalance>,
-  mode: AssetsUpdateMode,
-  customAssetIds: Caip19AssetId[],
-): Record<string, AssetBalance> {
-  if (mode === 'merge') {
-    const effective: Record<string, AssetBalance> = { ...previousBalances };
-    for (const [assetId, incoming] of Object.entries(incomingBalances)) {
-      effective[assetId] = mergeAssetBalanceRow(
-        previousBalances[assetId],
-        incoming,
-      );
-    }
-    return effective;
-  }
-
-  const coveredChains = new Set(
-    Object.keys(incomingBalances).map((assetId) => assetId.split('/')[0]),
-  );
-
-  const next: Record<string, AssetBalance> = {};
-  for (const [assetId, balance] of Object.entries(previousBalances)) {
-    if (!coveredChains.has(assetId.split('/')[0])) {
-      next[assetId] = balance;
-    }
-  }
-
-  // Snap/RPC balance sync responses are amount-only; per-row merge preserves
-  // account-asset enrichment stored separately (e.g. Stellar trustline accountAssetInfo).
-  for (const [assetId, incoming] of Object.entries(incomingBalances)) {
-    next[assetId] = mergeAssetBalanceRow(previousBalances[assetId], incoming);
-  }
-
-  for (const customId of customAssetIds) {
-    next[customId] ??=
-      previousBalances[customId] ?? ({ amount: '0' } as AssetBalance);
-  }
-
-  return next;
 }
 
 /**

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/assets-controller",
-  "version": "9.1.0",
+  "version": "10.0.0",
   "description": "Tracks assets balances/prices and handles token detection across all digital assets",
   "keywords": [
     "Ethereum",
@@ -62,7 +62,7 @@
     "@metamask/base-controller": "^9.1.0",
     "@metamask/client-controller": "^1.0.1",
     "@metamask/controller-utils": "^12.3.0",
-    "@metamask/core-backend": "^6.3.3",
+    "@metamask/core-backend": "^6.4.0",
     "@metamask/keyring-api": "^23.3.0",
     "@metamask/keyring-controller": "^27.1.0",
     "@metamask/keyring-internal-api": "^11.0.1",
