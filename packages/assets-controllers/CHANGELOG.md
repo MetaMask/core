@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- feat(network-enablement-controller): enable in network enablement [STELLAR] ([#8832](https://github.com/MetaMask/core/pull/8832))
-
 ### Added
 
 - Snap account-asset enrichment via `getAccountAssetInfo`; balance rows and `Asset.extra` carry chain-specific fields; export `isStellarClassicTrustlineInactiveForDisplay` for Stellar trustline UX ([#8828](https://github.com/MetaMask/core/pull/8828))

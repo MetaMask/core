@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Release/1086.0.0 ([#9337](https://github.com/MetaMask/core/pull/9337))
-- feat(aus): add priceAlerts to NotificationPreferences type ([#9316](https://github.com/MetaMask/core/pull/9316))
-- fix: move analytics changes to unreleased ([#9254](https://github.com/MetaMask/core/pull/9254))
-- Release 1068.0.0 ([#9253](https://github.com/MetaMask/core/pull/9253))
-
 ### Added
 
 - Add Auto Close TP/SL RoE sign toggle analytics constants to `PERPS_EVENT_PROPERTY` and `PERPS_EVENT_VALUE` so mobile and extension can import them from `@metamask/perps-controller` instead of local mirrors ([#9322](https://github.com/MetaMask/core/pull/9322))
@@ -36,7 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New `PERPS_EVENT_PROPERTY` keys: `CHART_LIBRARY`, `ASSET_TYPE`
   - New `PERPS_EVENT_VALUE.CHART_LIBRARY` group: `lightweight`, `advanced`
   - New `PERPS_EVENT_VALUE.ASSET_TYPE` group: `spot`, `perp`
-- Add `fast?: boolean` to `SubscribeOrderBookParams`: when set to `true`, the order book subscription uses Hyperliquid's fast l2Book mode (5 levels @ ~0.5 s cadence) instead of the default (20 levels @ ~2 s) ([#9160](https://github.com/MetaMask/core/pull/9160))
+- Add `fast?: boolean` to `SubscribeOrderBookParams` ([#9160](https://github.com/MetaMask/core/pull/9160)): when set to `true`, the order book subscription uses Hyperliquid's fast l2Book mode (5 levels @ ~0.5 s cadence) instead of the default (20 levels @ ~2 s)
   - No change to `#processOrderBookData` or cumulative-total math; callers opting into `fast: true` receive up to 5 levels per side instead of 20.
 
 ### Changed
@@ -53,7 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The fast-stream price is preferred only while it is fresh (within a 10 s staleness window); `allMids` takes back over automatically once the `activeAssetCtx` stream goes quiet.
   - A startup guard prevents any `'0'` price from being emitted: if `activeAssetCtx` fires before `allMids` with no `midPx`/`markPx`, no notification is sent until a usable price arrives from either source.
   - No new WebSocket subscriptions are created; `activeAssetCtx` was already established for `includeMarketData: true` subscriptions.
-- Bump `@nktkas/hyperliquid` from `^0.32.2` to `^0.33.1`: adds support for the `fast` field on `l2Book` subscriptions ([#9160](https://github.com/MetaMask/core/pull/9160))
+- Bump `@nktkas/hyperliquid` from `^0.32.2` to `^0.33.1` ([#9160](https://github.com/MetaMask/core/pull/9160)): adds support for the `fast` field on `l2Book` subscriptions
 
 ## [9.0.0]
 
