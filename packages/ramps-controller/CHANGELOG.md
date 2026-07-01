@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add an optional `getProviderScope` callback to `RampsControllerOptions` and export the `ProviderScope` type (`'off' | 'in-app' | 'all'`); when it returns a non-`off` scope, `RampsController.getQuotes` widens its native-only auto-selection (the `autoSelectProvider` / `restrictToKnownOrNativeProviders` path) to every supporting provider and returns the best in-app quote at `success[0]`, excluding external-browser and custom-action quotes and enforcing per-provider fiat limits, while the default stays native-only and explicit-`providers` callers are unaffected ([#9353](https://github.com/MetaMask/core/pull/9353))
+
 ## [15.0.0]
 
 ### Changed
