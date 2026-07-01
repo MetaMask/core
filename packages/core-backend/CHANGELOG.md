@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `AccountsApiClient` support for the Accounts API `/v6/multiaccount/balances` endpoint via `fetchV6MultiAccountBalances` / `getV6MultiAccountBalancesQueryOptions`, returning token balances plus optional DeFi positions and spot prices (new types `V6BalancesResponse`, `V6AccountBalancesEntry`, `V6BalanceItem`, `V6BalanceMetadata`, `V6TokenMetadata`, `V6VsCurrency`) ([#9302](https://github.com/MetaMask/core/pull/9302))
+
 ## [6.4.0]
 
 ### Changed
