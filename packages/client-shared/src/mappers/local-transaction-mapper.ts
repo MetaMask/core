@@ -371,9 +371,9 @@ export function mapLocalTransaction(
         isSupplyContractInteraction &&
         Boolean(
           simulationData?.nativeBalanceChange?.isDecrease ||
-            simulationData?.tokenBalanceChanges?.some(
-              ({ isDecrease, standard }) => isDecrease && standard === 'erc20',
-            ),
+          simulationData?.tokenBalanceChanges?.some(
+            ({ isDecrease, standard }) => isDecrease && standard === 'erc20',
+          ),
         );
       const incomingNftBalanceChange =
         transactionType === TransactionType.contractInteraction &&

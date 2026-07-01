@@ -432,6 +432,28 @@ describe('mapLocalTransaction', () => {
       },
     });
   });
+  it('sets no destination token amount when the received transfer log data is not a valid amount', () => {
+    const base =
+      localTransactionFixtures.mapInputs.mapsAWithdrawContractInteractionFrom;
+    const item = mapLocalTransaction({
+      ...base,
+      initialTransaction: {
+        ...base.initialTransaction,
+        txReceipt: {
+          logs: (base.initialTransaction.txReceipt?.logs ?? []).map((log) => ({
+            ...log,
+            data: 'not-a-hex-amount',
+          })),
+        },
+      },
+    });
+    expect(item.type).toBe('lendingWithdrawal');
+    expect(
+      item.type === 'lendingWithdrawal'
+        ? item.data.destinationToken?.amount
+        : 'unset',
+    ).toBeUndefined();
+  });
   it('maps a withdraw contract interaction without a matching log to no destination token', () => {
     const item = mapLocalTransaction(
       localTransactionFixtures.mapInputs
