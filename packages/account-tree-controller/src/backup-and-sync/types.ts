@@ -77,6 +77,20 @@ export type LegacyUserStorageSyncedAccount = Infer<
   typeof LegacyUserStorageSyncedAccountSchema
 >;
 
+/**
+ * Tracks whether the current full sync run performed a real write (a local
+ * mutation or a remote push), so the service can gate emission of the
+ * full-sync trace.
+ */
+export type SyncMutationTracker = {
+  /** Records that a real write happened during the current sync run. */
+  markOccurred: () => void;
+  /** Whether a real write has been recorded since the last reset. */
+  hasOccurred: () => boolean;
+  /** Clears the tracker at the start of a sync run. */
+  reset: () => void;
+};
+
 export type BackupAndSyncContext = {
   messenger: AccountTreeControllerMessenger;
   controller: AccountTreeController;
@@ -84,6 +98,12 @@ export type BackupAndSyncContext = {
   traceFn: TraceCallback;
   groupIdToWalletId: Map<AccountGroupId, AccountWalletId>;
   emitAnalyticsEventFn: (event: BackupAndSyncEmitAnalyticsEventParams) => void;
+  /**
+   * Tracks whether the current sync run performed a real write (a local
+   * mutation or a remote push). Sync helpers call `markOccurred()`; the service
+   * reads it to gate emission of the full-sync trace.
+   */
+  mutationTracker?: SyncMutationTracker;
 };
 
 export type LegacyAccountSyncingContext = {
