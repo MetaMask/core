@@ -232,12 +232,13 @@ jobs:
     needs: prepare
     strategy:
       matrix:
-        node-version: [20.x, 24.x]
+        node-version: [20.x, 22.x, 24.x]
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v2
+        uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: false
+          persist-credentials: false
           node-version: ${{ matrix.node-version }}
       - name: Build wallet-cli and its dependencies
         run: yarn workspaces foreach --topological-dev --recursive --from '@metamask/wallet-cli' run build
