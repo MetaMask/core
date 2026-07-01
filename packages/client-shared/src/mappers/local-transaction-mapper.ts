@@ -356,16 +356,6 @@ export function mapLocalTransaction(
         methodId &&
         withdrawMethodIds.has(methodId.toLowerCase());
 
-      const suppliedTokenBalanceChange =
-        isSupplyContractInteraction &&
-        simulationData?.tokenBalanceChanges?.find(
-          ({ isDecrease, standard }) => isDecrease && standard === 'erc20',
-        );
-      const incomingNftBalanceChange =
-        transactionType === TransactionType.contractInteraction &&
-        simulationData?.tokenBalanceChanges?.find(
-          ({ isDecrease, standard }) => !isDecrease && isNftStandard(standard),
-        );
       let hasNativeValue = false;
 
       try {
@@ -373,6 +363,23 @@ export function mapLocalTransaction(
       } catch {
         hasNativeValue = false;
       }
+
+      // Confirm an outflow before labelling a supply, mirroring the API mapper's
+      // `sentTransfer` guard: native stakes (e.g. Lido) decrease the native
+      // balance, while ERC-20 supplies (e.g. Aave) show a token decrease.
+      const isSupply =
+        isSupplyContractInteraction &&
+        Boolean(
+          simulationData?.nativeBalanceChange?.isDecrease ||
+            simulationData?.tokenBalanceChanges?.some(
+              ({ isDecrease, standard }) => isDecrease && standard === 'erc20',
+            ),
+        );
+      const incomingNftBalanceChange =
+        transactionType === TransactionType.contractInteraction &&
+        simulationData?.tokenBalanceChanges?.find(
+          ({ isDecrease, standard }) => !isDecrease && isNftStandard(standard),
+        );
 
       if (incomingNftBalanceChange && hasNativeValue) {
         return {
@@ -387,7 +394,7 @@ export function mapLocalTransaction(
         };
       }
 
-      if (suppliedTokenBalanceChange) {
+      if (isSupply) {
         return {
           type: 'lendingDeposit',
           ...common,
@@ -412,9 +419,19 @@ export function mapLocalTransaction(
             );
           },
         );
+        let receivedAmount: string | undefined;
+
+        if (receivedTokenLog) {
+          try {
+            receivedAmount = BigInt(String(receivedTokenLog.data)).toString();
+          } catch {
+            receivedAmount = undefined;
+          }
+        }
+
         const destinationToken = receivedTokenLog
           ? getContractTokenWithKnownMetadata({
-              amount: BigInt(String(receivedTokenLog.data)).toString(),
+              amount: receivedAmount,
               transaction: initialTransaction,
               direction: 'in',
               contractAddress: receivedTokenLog.address,

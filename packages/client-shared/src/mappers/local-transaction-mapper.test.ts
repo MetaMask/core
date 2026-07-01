@@ -394,6 +394,22 @@ describe('mapLocalTransaction', () => {
       },
     });
   });
+  it('maps a native-asset Lido stake contract interaction to a Lending deposit activity', () => {
+    const item = mapLocalTransaction(
+      localTransactionFixtures.mapInputs
+        .mapsALidoNativeStakeContractInteraction,
+    );
+    expect(item).toStrictEqual({
+      type: 'lendingDeposit',
+      chainId: 'eip155:1',
+      status: 'success',
+      timestamp: 1782912963672,
+      hash: '0xd8ca1456ed6305ec3d9c058f28a1ba48eb335ffcffd7d7c4321d3169c29e6a07',
+      data: {
+        from,
+      },
+    });
+  });
   it('maps a withdraw contract interaction from the received token transfer', () => {
     const item = mapLocalTransaction(
       localTransactionFixtures.mapInputs.mapsAWithdrawContractInteractionFrom,

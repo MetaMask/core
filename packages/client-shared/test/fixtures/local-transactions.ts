@@ -31,6 +31,7 @@ const addresses = {
   mainnetUsdc: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
   mainnetUsdt: '0xdac17f958d2ee523a2206206994597c13d831ec7',
   unknownTokenContract: '0x1111111111111111111111111111111111111111',
+  lidoStEth: '0xae7ab96520de3a18e5e111b5eaab095312d7fe84',
 } as const;
 
 const unwrapAmount = '1000000000000000000';
@@ -1145,6 +1146,59 @@ const mapInputs = {
         },
       },
     ],
+  },
+  // Real Lido stETH stake: native ETH supplied (recorded in `nativeBalanceChange`),
+  // only the received stETH appears in `tokenBalanceChanges` as an erc20 increase.
+  mapsALidoNativeStakeContractInteraction: {
+    hasCancelled: false,
+    hasRetried: false,
+    initialTransaction: {
+      chainId: chainIds.mainnet,
+      id: 'lido-stake-id',
+      hash: '0xd8ca1456ed6305ec3d9c058f28a1ba48eb335ffcffd7d7c4321d3169c29e6a07',
+      status: TransactionStatus.confirmed,
+      time: 1782912963672,
+      type: TransactionType.contractInteraction,
+      txParams: {
+        from: addresses.from,
+        to: addresses.lidoStEth,
+        value: '0xe8d4a51000',
+        data: '0xa1903eab00000000000000000000000011d00000000000000000000000000000000011d0',
+      },
+      simulationData: {
+        nativeBalanceChange: {
+          difference: '0xe8d4a51000',
+          isDecrease: true,
+          newBalance: '0x2caa8ba791077',
+          previousBalance: '0x2cb918f1e2077',
+        },
+        tokenBalanceChanges: [
+          {
+            address: addresses.lidoStEth,
+            difference: '0xe8d4a50fff',
+            isDecrease: false,
+            newBalance: '0xe8d4a50fff',
+            previousBalance: '0x0',
+            standard: 'erc20',
+          },
+        ],
+      },
+    },
+    nonce: '0xe0',
+    primaryTransaction: {
+      chainId: chainIds.mainnet,
+      id: 'lido-stake-id',
+      hash: '0xd8ca1456ed6305ec3d9c058f28a1ba48eb335ffcffd7d7c4321d3169c29e6a07',
+      status: TransactionStatus.confirmed,
+      time: 1782912963672,
+      type: TransactionType.contractInteraction,
+      txParams: {
+        from: addresses.from,
+        to: addresses.lidoStEth,
+        value: '0xe8d4a51000',
+        data: '0xa1903eab00000000000000000000000011d00000000000000000000000000000000011d0',
+      },
+    },
   },
   mapsAWithdrawContractInteractionFrom: {
     initialTransaction: {
