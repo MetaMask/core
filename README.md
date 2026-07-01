@@ -573,6 +573,7 @@ linkStyle default opacity:0.5
   social_controllers --> messenger;
   social_controllers --> profile_sync_controller;
   solana_test_validator_up --> local_node_utils;
+  stellar_quickstart_up --> local_node_utils;
   storage_service --> messenger;
   subscription_controller --> base_controller;
   subscription_controller --> controller_utils;
