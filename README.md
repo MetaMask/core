@@ -595,8 +595,6 @@ linkStyle default opacity:0.5
   transaction_pay_controller --> assets_controller;
   transaction_pay_controller --> assets_controllers;
   transaction_pay_controller --> base_controller;
-  transaction_pay_controller --> bridge_controller;
-  transaction_pay_controller --> bridge_status_controller;
   transaction_pay_controller --> controller_utils;
   transaction_pay_controller --> gas_fee_controller;
   transaction_pay_controller --> keyring_controller;
