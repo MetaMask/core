@@ -151,7 +151,6 @@ export type AssetsControllerMethodActions =
   | AssetsControllerAddCustomAssetAction
   | AssetsControllerRemoveCustomAssetAction
   | AssetsControllerGetCustomAssetsAction
-
   | AssetsControllerInvalidateAccountAssetExtrasAction
   | AssetsControllerHideAssetAction
   | AssetsControllerUnhideAssetAction

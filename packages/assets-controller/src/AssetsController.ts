@@ -135,10 +135,6 @@ import type {
   GetAccountAssetInfoResponse,
 } from './types';
 import {
-  createInvalidatedAccountAssetInfo,
-  mergeAssetBalanceRow,
-} from './utils/account-asset-enrichment';
-import {
   normalizeAmountString,
   normalizeAssetId,
   formatExchangeRatesForBridge,
@@ -150,6 +146,10 @@ import type {
   BridgeExchangeRatesFormat,
   TransactionPayLegacyFormat,
 } from './utils';
+import {
+  createInvalidatedAccountAssetInfo,
+  mergeAssetBalanceRow,
+} from './utils/account-asset-enrichment';
 import { ZERO_ADDRESS } from './utils/constants';
 import { pickRpcCustomAssetsSupplement } from './utils/customAssetsRpcSupplement';
 import { processAccountActivityBalanceUpdates } from './utils/processAccountActivityBalanceUpdates';
@@ -1951,7 +1951,6 @@ export class AssetsController extends BaseController<
     // Re-evaluate subscriptions so the supplemental RPC poll picks up the
     // new customAsset on chains another data source already owns.
     this.#subscribeAssets();
-
   }
 
   /**
@@ -2025,12 +2024,17 @@ export class AssetsController extends BaseController<
       for (const assetId of assetIds) {
         const normalizedAssetId = normalizeAssetId(assetId);
         const existing = balances[accountId][normalizedAssetId] as
-          | { amount: string; accountAssetInfo?: GetAccountAssetInfoResponse[Caip19AssetId] }
+          | {
+              amount: string;
+              accountAssetInfo?: GetAccountAssetInfoResponse[Caip19AssetId];
+            }
           | undefined;
 
         balances[accountId][normalizedAssetId] = {
           amount: existing?.amount ?? '0',
-          accountAssetInfo: createInvalidatedAccountAssetInfo(existing?.accountAssetInfo),
+          accountAssetInfo: createInvalidatedAccountAssetInfo(
+            existing?.accountAssetInfo,
+          ),
         };
       }
     });

@@ -104,7 +104,10 @@ function registerStellarSnapMocks(
 ): void {
   (
     messenger as {
-      registerActionHandler: (a: string, h: (...args: unknown[]) => unknown) => void;
+      registerActionHandler: (
+        a: string,
+        h: (...args: unknown[]) => unknown,
+      ) => void;
     }
   ).registerActionHandler('SnapController:getRunnableSnaps', () => [
     {
@@ -116,7 +119,10 @@ function registerStellarSnapMocks(
   ]);
   (
     messenger as {
-      registerActionHandler: (a: string, h: (...args: unknown[]) => unknown) => void;
+      registerActionHandler: (
+        a: string,
+        h: (...args: unknown[]) => unknown,
+      ) => void;
     }
   ).registerActionHandler('PermissionController:getPermissions', () => ({
     [KEYRING_PERMISSION]: {
@@ -141,7 +147,10 @@ function registerStellarSnapMocks(
   }));
   (
     messenger as {
-      registerActionHandler: (a: string, h: (...args: unknown[]) => unknown) => void;
+      registerActionHandler: (
+        a: string,
+        h: (...args: unknown[]) => unknown,
+      ) => void;
     }
   ).registerActionHandler('SnapController:handleRequest', handleSnapRequest);
 }
@@ -2748,7 +2757,9 @@ describe('AssetsController', () => {
         );
 
         expect(
-          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[STELLAR_CLASSIC_USDC],
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+            STELLAR_CLASSIC_USDC
+          ],
         ).toStrictEqual({
           amount: '2',
           accountAssetInfo: { limit: '500' },
@@ -2782,7 +2793,9 @@ describe('AssetsController', () => {
         );
 
         expect(
-          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[STELLAR_CLASSIC_USDC],
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+            STELLAR_CLASSIC_USDC
+          ],
         ).toStrictEqual({
           amount: '2',
           accountAssetInfo: { limit: '500' },
@@ -2812,7 +2825,9 @@ describe('AssetsController', () => {
         ]);
 
         expect(
-          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[STELLAR_CLASSIC_USDC],
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+            STELLAR_CLASSIC_USDC
+          ],
         ).toStrictEqual({
           amount: '5',
           accountAssetInfo: { limit: '0', authorized: true, sponsored: false },
@@ -2839,7 +2854,9 @@ describe('AssetsController', () => {
         controller.removeCustomAsset(MOCK_ACCOUNT_ID, STELLAR_CLASSIC_USDC);
 
         expect(
-          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[STELLAR_CLASSIC_USDC],
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[
+            STELLAR_CLASSIC_USDC
+          ],
         ).toStrictEqual({
           amount: '0',
           accountAssetInfo: { limit: '0' },

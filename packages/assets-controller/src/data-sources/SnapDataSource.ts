@@ -27,16 +27,16 @@ import type {
   DataResponse,
   Middleware,
 } from '../types';
-import { AbstractDataSource } from './AbstractDataSource';
-import type {
-  DataSourceState,
-  SubscriptionRequest,
-} from './AbstractDataSource';
 import {
   fetchAccountAssetInfoFromSnap,
   isAccountAssetInfoEnrichmentAvailable,
   ACCOUNT_ASSET_INFO_SNAP_BATCH_SIZE,
 } from '../utils/account-asset-enrichment';
+import { AbstractDataSource } from './AbstractDataSource';
+import type {
+  DataSourceState,
+  SubscriptionRequest,
+} from './AbstractDataSource';
 
 // ============================================================================
 // SNAP KEYRING EVENT TYPES
@@ -233,9 +233,8 @@ export class SnapDataSource extends AbstractDataSource<
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
 
     // Bind handlers for cleanup in destroy()
-    this.#handleSnapBalancesUpdatedBound = this.#handleSnapBalancesUpdated.bind(
-      this,
-    );
+    this.#handleSnapBalancesUpdatedBound =
+      this.#handleSnapBalancesUpdated.bind(this);
     this.#handlePermissionStateChangeBound =
       this.#discoverKeyringSnaps.bind(this);
 
@@ -317,7 +316,10 @@ export class SnapDataSource extends AbstractDataSource<
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handleSnapRequest = (params: any): Promise<unknown> =>
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (this.#messenger as any).call('SnapController:handleRequest', params) as Promise<unknown>;
+      (this.#messenger as any).call(
+        'SnapController:handleRequest',
+        params,
+      ) as Promise<unknown>;
 
     for (const [accountId, accountAssets] of Object.entries(assetsBalance)) {
       const allAssetIds = Object.keys(accountAssets) as Caip19AssetId[];
@@ -346,7 +348,10 @@ export class SnapDataSource extends AbstractDataSource<
           i < assetIds.length;
           i += ACCOUNT_ASSET_INFO_SNAP_BATCH_SIZE
         ) {
-          const batch = assetIds.slice(i, i + ACCOUNT_ASSET_INFO_SNAP_BATCH_SIZE);
+          const batch = assetIds.slice(
+            i,
+            i + ACCOUNT_ASSET_INFO_SNAP_BATCH_SIZE,
+          );
           // eslint-disable-next-line no-await-in-loop
           const info = await fetchAccountAssetInfoFromSnap(handleSnapRequest, {
             accountId,
@@ -356,7 +361,9 @@ export class SnapDataSource extends AbstractDataSource<
           });
           if (info) {
             for (const [assetId, assetInfo] of Object.entries(info)) {
-              const row = (accountAssets as Record<string, AssetBalance | undefined>)[assetId];
+              const row = (
+                accountAssets as Record<string, AssetBalance | undefined>
+              )[assetId];
               if (row) {
                 (accountAssets as Record<string, unknown>)[assetId] = {
                   ...row,
@@ -578,7 +585,9 @@ export class SnapDataSource extends AbstractDataSource<
         continue;
       }
 
-      const allAssetIds = Object.keys(accountBalancesAfterFetch) as Caip19AssetId[];
+      const allAssetIds = Object.keys(
+        accountBalancesAfterFetch,
+      ) as Caip19AssetId[];
       const byChain = new Map<CaipChainId, Caip19AssetId[]>();
       for (const assetId of allAssetIds) {
         const slash = assetId.indexOf('/');
@@ -602,7 +611,10 @@ export class SnapDataSource extends AbstractDataSource<
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const handleSnapRequest = (params: any): Promise<unknown> =>
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (this.#messenger as any).call('SnapController:handleRequest', params) as Promise<unknown>;
+        (this.#messenger as any).call(
+          'SnapController:handleRequest',
+          params,
+        ) as Promise<unknown>;
 
       for (const [chainId, assetIds] of byChain) {
         for (
@@ -610,7 +622,10 @@ export class SnapDataSource extends AbstractDataSource<
           i < assetIds.length;
           i += ACCOUNT_ASSET_INFO_SNAP_BATCH_SIZE
         ) {
-          const batch = assetIds.slice(i, i + ACCOUNT_ASSET_INFO_SNAP_BATCH_SIZE);
+          const batch = assetIds.slice(
+            i,
+            i + ACCOUNT_ASSET_INFO_SNAP_BATCH_SIZE,
+          );
           // eslint-disable-next-line no-await-in-loop
           const info = await fetchAccountAssetInfoFromSnap(handleSnapRequest, {
             accountId,
@@ -620,9 +635,16 @@ export class SnapDataSource extends AbstractDataSource<
           });
           if (info) {
             for (const [assetId, assetInfo] of Object.entries(info)) {
-              const row = (accountBalancesAfterFetch as Record<string, AssetBalance | undefined>)[assetId];
+              const row = (
+                accountBalancesAfterFetch as Record<
+                  string,
+                  AssetBalance | undefined
+                >
+              )[assetId];
               if (row) {
-                (accountBalancesAfterFetch as Record<string, unknown>)[assetId] = {
+                (accountBalancesAfterFetch as Record<string, unknown>)[
+                  assetId
+                ] = {
                   ...row,
                   accountAssetInfo: assetInfo,
                 };
