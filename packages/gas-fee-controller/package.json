@@ -64,7 +64,7 @@
     "@types/bn.js": "^5.1.5",
     "@types/uuid": "^8.3.0",
     "bn.js": "^5.2.1",
-    "uuid": "^8.3.2"
+    "uuid": "^14.0.1"
   },
   "devDependencies": {
     "@babel/runtime": "^7.23.9",
