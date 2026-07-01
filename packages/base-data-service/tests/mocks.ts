@@ -9,7 +9,7 @@ export function mockAddFollowerRequest(mockReply?: MockReply): nock.Scope {
   const reply = mockReply ?? {
     status: 200,
     body: {
-      followers: [
+      followed: [
         {
           profileId: '550e8400-e29b-41d4-a716-446655440000',
           address: '0x1234567890abcdef1234567890abcdef12345678',
