@@ -72,6 +72,8 @@ export type {
   ERC721AssetBalance,
   ERC1155AssetBalance,
   AssetBalance,
+  AccountAssetInfo,
+  GetAccountAssetInfoResponse,
   // Data source types
   AccountWithSupportedChains,
   DataType,

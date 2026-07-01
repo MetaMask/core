@@ -94,6 +94,19 @@ export type AssetsControllerGetCustomAssetsAction = {
 };
 
 /**
+ * Marks Stellar classic trustline enrichment as inactive for the given assets.
+ * Sets `extra.limit` to `'0'` rather than deleting `extra`, so UI can distinguish
+ * inactive trustlines from not-yet-enriched state.
+ *
+ * @param accountId - Internal account UUID.
+ * @param assetIds - CAIP-19 asset ids to invalidate.
+ */
+export type AssetsControllerInvalidateAccountAssetExtrasAction = {
+  type: `AssetsController:invalidateAccountAssetExtras`;
+  handler: AssetsController['invalidateAccountAssetExtras'];
+};
+
+/**
  * Hide an asset globally.
  * Hidden assets are excluded from the asset list returned by getAssets.
  * The hidden state is stored in assetPreferences.
@@ -138,6 +151,7 @@ export type AssetsControllerMethodActions =
   | AssetsControllerAddCustomAssetAction
   | AssetsControllerRemoveCustomAssetAction
   | AssetsControllerGetCustomAssetsAction
+  | AssetsControllerInvalidateAccountAssetExtrasAction
   | AssetsControllerHideAssetAction
   | AssetsControllerUnhideAssetAction
   | AssetsControllerSetSelectedCurrencyAction;

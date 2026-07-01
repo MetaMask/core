@@ -270,11 +270,30 @@ export type AssetPrice = FungibleAssetPrice | NFTAssetPrice;
 // ============================================================================
 
 /**
+ * Optional per-asset fields from snap account-asset enrichment.
+ * Stellar classic assets use trustline fields; native XLM may include baseReserve.
+ */
+export type AccountAssetInfo = {
+  limit?: string;
+  authorized?: boolean;
+  sponsored?: boolean;
+  baseReserve?: string;
+};
+
+/** Per-asset enrichment keyed by CAIP-19 asset id from getAccountAssetInfo. */
+export type GetAccountAssetInfoResponse = Record<
+  Caip19AssetId,
+  AccountAssetInfo
+>;
+
+/**
  * Balance data for fungible tokens (native, ERC20, SPL).
  */
 export type FungibleAssetBalance = {
   /** Raw balance amount as string (e.g., "1000000000" for 1000 USDC) */
   amount: string;
+  /** Optional per-asset info from snap account-asset enrichment (e.g. Stellar trustlines). */
+  accountAssetInfo?: AccountAssetInfo;
 };
 
 /**
