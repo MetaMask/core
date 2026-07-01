@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "1082.0.0",
+  "version": "1084.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -22,6 +22,9 @@
     "changelog:validate": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run changelog:validate",
     "create-release-branch": "create-release-branch --formatter oxfmt",
     "create-package": "tsx scripts/create-package",
+    "docs:platform-api:build": "yarn workspace @metamask/platform-api-docs cli ../.. --build --project-label Core",
+    "docs:platform-api:dev": "yarn workspace @metamask/platform-api-docs cli ../.. --dev --project-label Core",
+    "docs:platform-api:serve": "yarn workspace @metamask/platform-api-docs cli ../.. --serve --project-label Core",
     "lint": "yarn lint:eslint && echo && yarn lint:misc --check && yarn constraints && yarn lint:dependencies && yarn lint:teams && yarn messenger-action-types:check && yarn readme-content:check",
     "lint:dependencies": "knip --dependencies && yarn dedupe --check",
     "lint:dependencies:fix": "knip --dependencies && yarn dedupe",

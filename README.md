@@ -106,6 +106,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/permission-log-controller`](packages/permission-log-controller)
 - [`@metamask/perps-controller`](packages/perps-controller)
 - [`@metamask/phishing-controller`](packages/phishing-controller)
+- [`@metamask/platform-api-docs`](packages/platform-api-docs)
 - [`@metamask/polling-controller`](packages/polling-controller)
 - [`@metamask/preferences-controller`](packages/preferences-controller)
 - [`@metamask/profile-metrics-controller`](packages/profile-metrics-controller)
@@ -206,6 +207,7 @@ linkStyle default opacity:0.5
   permission_log_controller(["@metamask/permission-log-controller"]);
   perps_controller(["@metamask/perps-controller"]);
   phishing_controller(["@metamask/phishing-controller"]);
+  platform_api_docs(["@metamask/platform-api-docs"]);
   polling_controller(["@metamask/polling-controller"]);
   preferences_controller(["@metamask/preferences-controller"]);
   profile_metrics_controller(["@metamask/profile-metrics-controller"]);

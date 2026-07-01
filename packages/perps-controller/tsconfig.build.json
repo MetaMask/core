@@ -2,10 +2,10 @@
   "extends": "../../tsconfig.packages.build.json",
   "compilerOptions": {
     "baseUrl": "./",
-    "outDir": "./dist",
-    "rootDir": "./src",
     "module": "ESNext",
-    "moduleResolution": "Bundler"
+    "moduleResolution": "Bundler",
+    "outDir": "./dist",
+    "rootDir": "./src"
   },
   "references": [
     { "path": "../account-tree-controller/tsconfig.build.json" },
