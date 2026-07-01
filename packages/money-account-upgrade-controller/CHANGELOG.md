@@ -7,11 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.2.0]
-
 ### Changed
 
-- Bump `@metamask/authenticated-user-storage` from `^2.0.0` to `^3.0.0` ([#9220](https://github.com/MetaMask/core/pull/9220), [#9342](https://github.com/MetaMask/core/pull/9342))
+- Bump `@metamask/authenticated-user-storage` from `^2.0.0` to `^2.1.0` ([#9220](https://github.com/MetaMask/core/pull/9220))
 
 ## [2.1.0]
 
@@ -134,8 +132,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `MoneyAccountUpgradeController` with `upgradeAccount` method ([#8426](https://github.com/MetaMask/core/pull/8426))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.2.0...HEAD
-[2.2.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.1.0...@metamask/money-account-upgrade-controller@2.2.0
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.1.0...HEAD
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.5...@metamask/money-account-upgrade-controller@2.1.0
 [2.0.5]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.4...@metamask/money-account-upgrade-controller@2.0.5
 [2.0.4]: https://github.com/MetaMask/core/compare/@metamask/money-account-upgrade-controller@2.0.3...@metamask/money-account-upgrade-controller@2.0.4
