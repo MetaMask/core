@@ -162,7 +162,9 @@ jobs:
           is-high-risk-environment: false
           persist-credentials: false
           node-version: 18.x
-      - run: yarn workspace ${{ matrix.package-name }} run test
+      - run: yarn workspace "$PACKAGE_NAME" run test
+        env:
+          PACKAGE_NAME: ${{ matrix.package-name }}
       - name: Require clean working directory
         shell: bash
         run: |
@@ -185,7 +187,9 @@ jobs:
           is-high-risk-environment: false
           persist-credentials: false
           node-version: 20.x
-      - run: yarn workspace ${{ matrix.package-name }} run test
+      - run: yarn workspace "$PACKAGE_NAME" run test
+        env:
+          PACKAGE_NAME: ${{ matrix.package-name }}
       - name: Require clean working directory
         shell: bash
         run: |
@@ -208,7 +212,9 @@ jobs:
           is-high-risk-environment: false
           persist-credentials: false
           node-version: 22.x
-      - run: yarn workspace ${{ matrix.package-name }} run test
+      - run: yarn workspace "$PACKAGE_NAME" run test
+        env:
+          PACKAGE_NAME: ${{ matrix.package-name }}
       - name: Require clean working directory
         shell: bash
         run: |
