@@ -540,7 +540,11 @@ describe('mapApiTransaction', () => {
       hash: '0xd8ca1456ed6305ec3d9c058f28a1ba48eb335ffcffd7d7c4321d3169c29e6a07',
       data: {
         from: subjectAddress,
-        sourceToken: { direction: 'out', symbol: 'ETH', amount: '1000000000000' },
+        sourceToken: {
+          direction: 'out',
+          symbol: 'ETH',
+          amount: '1000000000000',
+        },
         destinationToken: {
           direction: 'in',
           symbol: 'stETH',
