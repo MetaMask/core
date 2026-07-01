@@ -369,12 +369,10 @@ export function mapLocalTransaction(
       // balance, while ERC-20 supplies (e.g. Aave) show a token decrease.
       const isSupply =
         isSupplyContractInteraction &&
-        Boolean(
-          simulationData?.nativeBalanceChange?.isDecrease ||
+        (simulationData?.nativeBalanceChange?.isDecrease === true ||
           simulationData?.tokenBalanceChanges?.some(
             ({ isDecrease, standard }) => isDecrease && standard === 'erc20',
-          ),
-        );
+          ) === true);
       const incomingNftBalanceChange =
         transactionType === TransactionType.contractInteraction &&
         simulationData?.tokenBalanceChanges?.find(
