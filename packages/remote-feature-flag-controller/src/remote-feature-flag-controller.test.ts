@@ -18,7 +18,10 @@ import type {
   RemoteFeatureFlagControllerMessenger,
   RemoteFeatureFlagControllerState,
 } from './remote-feature-flag-controller';
-import { ThresholdVersion, FeatureFlagIdType } from './remote-feature-flag-controller-types';
+import {
+  ThresholdVersion,
+  FeatureFlagIdType,
+} from './remote-feature-flag-controller-types';
 import type { FeatureFlags } from './remote-feature-flag-controller-types';
 
 const MOCK_FLAGS: FeatureFlags = {
@@ -132,9 +135,9 @@ describe('RemoteFeatureFlagController', () => {
         'RemoteFeatureFlagController:updateRemoteFeatureFlags',
       );
 
-      expect(controller.state.remoteFeatureFlags.canonicalThresholdFlag).toStrictEqual(
-        mockFlags.canonicalThresholdFlag,
-      );
+      expect(
+        controller.state.remoteFeatureFlags.canonicalThresholdFlag,
+      ).toStrictEqual(mockFlags.canonicalThresholdFlag);
     });
 
     it('initializes with default state if the disabled parameter is provided', () => {
@@ -841,9 +844,9 @@ describe('RemoteFeatureFlagController', () => {
         'RemoteFeatureFlagController:updateRemoteFeatureFlags',
       );
 
-      expect(
-        controller.state.remoteFeatureFlags.canonicalThresholdFlag,
-      ).toBe('canonicalB');
+      expect(controller.state.remoteFeatureFlags.canonicalThresholdFlag).toBe(
+        'canonicalB',
+      );
       expect(controller.state.thresholdCache).toStrictEqual({
         [`${MOCK_CANONICAL_ID}:canonicalThresholdFlag`]: expect.any(Number),
       });
@@ -873,9 +876,9 @@ describe('RemoteFeatureFlagController', () => {
         'RemoteFeatureFlagController:updateRemoteFeatureFlags',
       );
 
-      expect(controller.state.remoteFeatureFlags.canonicalThresholdFlag).toStrictEqual(
-        mockFlags.canonicalThresholdFlag,
-      );
+      expect(
+        controller.state.remoteFeatureFlags.canonicalThresholdFlag,
+      ).toStrictEqual(mockFlags.canonicalThresholdFlag);
     });
   });
 

@@ -310,7 +310,8 @@ export class RemoteFeatureFlagController extends BaseController<
 
     // Clean up stale entries
     for (const cacheKey of Object.keys(updatedThresholdCache)) {
-      const [cachedSegmentationId, ...cachedFlagNameParts] = cacheKey.split(':');
+      const [cachedSegmentationId, ...cachedFlagNameParts] =
+        cacheKey.split(':');
       const cachedFlagName = cachedFlagNameParts.join(':');
       if (
         (cachedSegmentationId === metaMetricsId ||
