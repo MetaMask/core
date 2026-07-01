@@ -4,12 +4,11 @@ import type { CaipChainId } from '@metamask/utils';
 import type { Caip19AssetId } from '../types';
 import {
   createGetAccountAssetInfoClientRequest,
-  createInvalidatedStellarClassicExtra,
+  createInvalidatedAccountAssetInfo,
   fetchAccountAssetInfoFromSnap,
-  filterStellarClassicAssetsForEnrichment,
+  filterAssetsForAccountAssetEnrichment,
   GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD,
   isAccountAssetInfoEnrichmentAvailable,
-  isStellarClassicAssetId,
   mergeAssetBalanceRow,
 } from './account-asset-enrichment';
 
@@ -39,30 +38,10 @@ describe('account-asset-enrichment utils', () => {
     });
   });
 
-  describe('isStellarClassicAssetId', () => {
-    it('returns true for Stellar classic asset ids', () => {
-      expect(isStellarClassicAssetId(stellarClassic)).toBe(true);
-    });
-
-    it('returns false for EVM erc20 assets', () => {
+  describe('filterAssetsForAccountAssetEnrichment', () => {
+    it('returns assets on the enrichment-enabled chain', () => {
       expect(
-        isStellarClassicAssetId(
-          'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId,
-        ),
-      ).toBe(false);
-    });
-
-    it('returns false for Stellar native slip44', () => {
-      expect(
-        isStellarClassicAssetId('stellar:pubnet/slip44:148' as Caip19AssetId),
-      ).toBe(false);
-    });
-  });
-
-  describe('filterStellarClassicAssetsForEnrichment', () => {
-    it('returns Stellar classic assets on the enrichment-enabled chain', () => {
-      expect(
-        filterStellarClassicAssetsForEnrichment(
+        filterAssetsForAccountAssetEnrichment(
           [stellarClassic],
           'stellar:pubnet' as CaipChainId,
         ),
@@ -71,7 +50,7 @@ describe('account-asset-enrichment utils', () => {
 
     it('returns empty when chain does not support enrichment', () => {
       expect(
-        filterStellarClassicAssetsForEnrichment(
+        filterAssetsForAccountAssetEnrichment(
           [stellarClassic],
           'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as CaipChainId,
         ),
@@ -80,34 +59,24 @@ describe('account-asset-enrichment utils', () => {
 
     it('excludes assets on a different chain than the caller scope', () => {
       expect(
-        filterStellarClassicAssetsForEnrichment(
+        filterAssetsForAccountAssetEnrichment(
           [stellarClassic],
           'stellar:testnet' as CaipChainId,
         ),
       ).toStrictEqual([]);
     });
-
-    it('excludes native slip44 assets', () => {
-      const native = 'stellar:pubnet/slip44:148' as Caip19AssetId;
-      expect(
-        filterStellarClassicAssetsForEnrichment(
-          [native],
-          'stellar:pubnet' as CaipChainId,
-        ),
-      ).toStrictEqual([]);
-    });
   });
 
-  describe('createInvalidatedStellarClassicExtra', () => {
+  describe('createInvalidatedAccountAssetInfo', () => {
     it('sets limit to zero', () => {
-      expect(createInvalidatedStellarClassicExtra()).toStrictEqual({
+      expect(createInvalidatedAccountAssetInfo()).toStrictEqual({
         limit: '0',
       });
     });
 
     it('preserves prior authorized and sponsored fields', () => {
       expect(
-        createInvalidatedStellarClassicExtra({
+        createInvalidatedAccountAssetInfo({
           limit: '1000',
           authorized: true,
           sponsored: false,
@@ -121,27 +90,27 @@ describe('account-asset-enrichment utils', () => {
   });
 
   describe('mergeAssetBalanceRow', () => {
-    it('preserves existing extra when incoming row omits it', () => {
+    it('preserves existing accountAssetInfo when incoming row omits it', () => {
       expect(
         mergeAssetBalanceRow(
-          { amount: '1', extra: { limit: '500' } },
+          { amount: '1', accountAssetInfo: { limit: '500' } },
           { amount: '2' },
         ),
       ).toStrictEqual({
         amount: '2',
-        extra: { limit: '500' },
+        accountAssetInfo: { limit: '500' },
       });
     });
 
-    it('uses incoming extra when provided', () => {
+    it('uses incoming accountAssetInfo when provided', () => {
       expect(
         mergeAssetBalanceRow(
-          { amount: '1', extra: { limit: '500' } },
-          { amount: '2', extra: { limit: '1000' } },
+          { amount: '1', accountAssetInfo: { limit: '500' } },
+          { amount: '2', accountAssetInfo: { limit: '1000' } },
         ),
       ).toStrictEqual({
         amount: '2',
-        extra: { limit: '1000' },
+        accountAssetInfo: { limit: '1000' },
       });
     });
 
