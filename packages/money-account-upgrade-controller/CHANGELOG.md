@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/authenticated-user-storage` from `^2.0.0` to `^2.1.0` ([#9220](https://github.com/MetaMask/core/pull/9220))
+- Bump `@metamask/authenticated-user-storage` from `^2.0.0` to `^3.0.0` ([#9220](https://github.com/MetaMask/core/pull/9220), [#9342](https://github.com/MetaMask/core/pull/9342))
 
 ## [2.1.0]
 
