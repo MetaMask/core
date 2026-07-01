@@ -388,7 +388,7 @@ const rampsControllerMetadata = {
     usedInUi: true,
   },
   countries: {
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     usedInUi: true,
@@ -1384,8 +1384,9 @@ export class RampsController extends BaseController<
    *
    * Idempotent: subsequent calls return the same promise unless forceRefresh is set.
    * Force-refetches the countries catalog on startup (bypassing the in-session
-   * request cache) so the persisted catalog's region preset amounts are always
-   * refreshed. Skips geolocation when userRegion already exists.
+   * request cache) so region preset amounts stay current. The catalog is not
+   * persisted, so a cold start always re-fetches it regardless. Skips
+   * geolocation when userRegion already exists.
    *
    * @param options - Options for cache behavior. forceRefresh bypasses idempotency and re-runs the full flow.
    * @returns Promise that resolves when initialization is complete.
@@ -1413,9 +1414,9 @@ export class RampsController extends BaseController<
   }
 
   async #runInit(options?: ExecuteRequestOptions): Promise<void> {
-    // Force-refetch the catalog on startup so the persisted catalog's region
-    // preset amounts are always refreshed, bypassing the in-session request
-    // cache.
+    // Force-refetch the catalog on startup so region preset amounts stay
+    // current, bypassing the in-session request cache. The catalog is not
+    // persisted, so a cold start always re-fetches it regardless.
     await this.getCountries({ ...options, forceRefresh: true });
 
     // Always prefer the user's persisted region. Geolocation is only used to
