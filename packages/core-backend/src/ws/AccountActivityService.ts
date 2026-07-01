@@ -6,9 +6,9 @@
  */
 
 import type {
-  AccountsControllerGetSelectedAccountAction,
-  AccountsControllerSelectedAccountChangeEvent,
-} from '@metamask/accounts-controller';
+  AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
+  AccountTreeControllerSelectedAccountGroupChangeEvent,
+} from '@metamask/account-tree-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
@@ -48,15 +48,29 @@ const SERVICE_NAME = 'AccountActivityService';
 
 const log = createModuleLogger(projectLogger, SERVICE_NAME);
 
-const MESSENGER_EXPOSED_METHODS = ['subscribe', 'unsubscribe'] as const;
+const MESSENGER_EXPOSED_METHODS = [
+  'subscribe',
+  'subscribeMany',
+  'unsubscribe',
+  'unsubscribeMany',
+] as const;
 
 const SUBSCRIPTION_NAMESPACE = 'account-activity.v1';
 
 /**
- * Account subscription options
+ * Account subscription options for a single account.
  */
 export type SubscriptionOptions = {
-  address: string; // Should be in CAIP-10 format, e.g., "eip155:0:0x1234..." or "solana:0:ABC123..."
+  // Address should be in CAIP-10 format, e.g., "eip155:0:0x1234..." or "solana:0:ABC123..."
+  address: string;
+};
+
+/**
+ * Account subscription options for multiple accounts.
+ */
+export type SubscriptionManyOptions = {
+  // Each address should be in CAIP-10 format, e.g., "eip155:0:0x1234..." or "solana:0:ABC123..."
+  addresses: string[];
 };
 
 /**
@@ -78,7 +92,7 @@ export type AccountActivityServiceActions = AccountActivityServiceMethodActions;
 
 // Allowed actions that AccountActivityService can call on other controllers
 export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
-  'AccountsController:getSelectedAccount',
+  'AccountTreeController:getAccountsFromSelectedAccountGroup',
   'BackendWebSocketService:connect',
   'BackendWebSocketService:forceReconnection',
   'BackendWebSocketService:subscribe',
@@ -92,12 +106,12 @@ export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
 
 // Allowed events that AccountActivityService can listen to
 export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS = [
-  'AccountsController:selectedAccountChange',
+  'AccountTreeController:selectedAccountGroupChange',
   'BackendWebSocketService:connectionStateChanged',
 ] as const;
 
 export type AllowedActions =
-  | AccountsControllerGetSelectedAccountAction
+  | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction
   | BackendWebSocketServiceMethodActions;
 
 // Event types for the messaging system
@@ -135,7 +149,7 @@ export type AccountActivityServiceEvents =
   | AccountActivityServiceStatusChangedEvent;
 
 export type AllowedEvents =
-  | AccountsControllerSelectedAccountChangeEvent
+  | AccountTreeControllerSelectedAccountGroupChangeEvent
   | BackendWebSocketServiceConnectionStateChangedEvent;
 
 export type AccountActivityServiceMessenger = Messenger<
@@ -151,21 +165,24 @@ export type AccountActivityServiceMessenger = Messenger<
 /**
  * High-performance service for real-time account activity monitoring using optimized
  * WebSocket subscriptions with direct callback routing. Automatically subscribes to
- * the currently selected account and switches subscriptions when the selected account changes.
- * Receives transactions and balance updates using the comprehensive AccountActivityMessage format.
+ * every account in the currently selected account group (EVM, Solana, Tron, etc.) and
+ * switches subscriptions when the selected account group changes. Also exposes an
+ * idempotent, multi-address `subscribe`/`subscribeMany` API so other consumers
+ * (e.g. data sources) can subscribe to additional accounts. Receives transactions and
+ * balance updates using the comprehensive AccountActivityMessage format.
  *
  * Performance Features:
  * - Direct callback routing (no EventEmitter overhead)
  * - Minimal subscription tracking (no duplication with BackendWebSocketService)
  * - Optimized cleanup for mobile environments
- * - Single-account subscription (only selected account)
+ * - Multi-address, multichain subscriptions
  * - Comprehensive balance updates with transfer tracking
  *
  * Architecture:
  * - Uses messenger pattern to communicate with BackendWebSocketService
- * - AccountActivityService tracks channel-to-subscriptionId mappings via messenger calls
- * - Automatically subscribes to selected account on initialization
- * - Switches subscriptions when selected account changes
+ * - Automatically subscribes to the selected account group on group change and on reconnect
+ * - Idempotent: `subscribe` skips channels that already have a subscription, so multiple
+ *   callers (auto-subscription and explicit consumers) can call it safely
  * - No direct dependency on BackendWebSocketService (uses messenger instead)
  *
  * @example
@@ -177,9 +194,11 @@ export type AccountActivityServiceMessenger = Messenger<
  * // Service automatically subscribes to the currently selected account
  * // When user switches accounts, service automatically resubscribes
  *
+ * // Consumers can also subscribe to additional accounts (CAIP-10 addresses)
+ * await service.subscribeMany({ addresses: ['eip155:0:0x1234...', 'solana:0:ABC123...'] });
+ *
  * // All transactions and balance updates are received via optimized
- * // WebSocket callbacks and processed with zero-allocation routing
- * // Balance updates include comprehensive transfer details and post-transaction balances
+ * // WebSocket callbacks and published as messenger events
  * ```
  */
 export class AccountActivityService {
@@ -230,11 +249,10 @@ export class AccountActivityService {
       MESSENGER_EXPOSED_METHODS,
     );
     this.#messenger.subscribe(
-      'AccountsController:selectedAccountChange',
+      'AccountTreeController:selectedAccountGroupChange',
       // Promise result intentionally not awaited
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      async (account: InternalAccount) =>
-        await this.#handleSelectedAccountChange(account),
+      async () => await this.#handleSelectedAccountGroupChange(),
     );
     this.#messenger.subscribe(
       'BackendWebSocketService:connectionStateChanged',
@@ -255,31 +273,58 @@ export class AccountActivityService {
   // =============================================================================
 
   /**
-   * Subscribe to account activity (transactions and balance updates)
-   * Address should be in CAIP-10 format (e.g., "eip155:0:0x1234..." or "solana:0:ABC123...")
+   * Subscribe to account activity (transactions and balance updates) for a single
+   * account. Address should be in CAIP-10 format (e.g., "eip155:0:0x1234..." or
+   * "solana:0:ABC123...").
+   *
+   * The call is idempotent: if the address already has an active subscription it
+   * is skipped, so multiple callers can use it safely.
    *
    * @param subscription - Account subscription configuration with address
    */
   async subscribe(subscription: SubscriptionOptions): Promise<void> {
+    await this.subscribeMany({ addresses: [subscription.address] });
+  }
+
+  /**
+   * Subscribe to account activity (transactions and balance updates) for one or
+   * more accounts. Each address should be in CAIP-10 format (e.g.,
+   * "eip155:0:0x1234..." or "solana:0:ABC123...").
+   *
+   * The call is idempotent: addresses that already have an active subscription are
+   * skipped, so multiple consumers (e.g. data sources and the auto-subscription)
+   * can call this safely.
+   *
+   * @param subscription - Account subscription configuration with addresses
+   */
+  async subscribeMany(subscription: SubscriptionManyOptions): Promise<void> {
+    const { addresses } = subscription;
+
+    if (addresses.length === 0) {
+      return;
+    }
+
     try {
       await this.#messenger.call('BackendWebSocketService:connect');
 
-      // Create channel name from address
-      const channel = `${this.#options.subscriptionNamespace}.${subscription.address}`;
+      // Build channels for addresses that are not already subscribed (idempotency)
+      const channels = addresses
+        .map((address) => `${this.#options.subscriptionNamespace}.${address}`)
+        .filter(
+          (channel) =>
+            !this.#messenger.call(
+              'BackendWebSocketService:channelHasSubscription',
+              channel,
+            ),
+        );
 
-      // Check if already subscribed
-      if (
-        this.#messenger.call(
-          'BackendWebSocketService:channelHasSubscription',
-          channel,
-        )
-      ) {
+      if (channels.length === 0) {
         return;
       }
 
       // Create subscription using the proper subscribe method (this will be stored in WebSocketService's internal tracking)
       await this.#messenger.call('BackendWebSocketService:subscribe', {
-        channels: [channel],
+        channels,
         channelType: this.#options.subscriptionNamespace, // e.g., 'account-activity.v1'
         callback: (notification: ServerNotificationMessage) => {
           this.#handleAccountActivityUpdate(
@@ -294,29 +339,39 @@ export class AccountActivityService {
   }
 
   /**
-   * Unsubscribe from account activity for specified address
-   * Address should be in CAIP-10 format (e.g., "eip155:0:0x1234..." or "solana:0:ABC123...")
+   * Unsubscribe from account activity for the specified account.
+   * Address should be in CAIP-10 format (e.g., "eip155:0:0x1234..." or
+   * "solana:0:ABC123...").
    *
    * @param subscription - Account subscription configuration with address to unsubscribe
    */
   async unsubscribe(subscription: SubscriptionOptions): Promise<void> {
-    const { address } = subscription;
+    await this.unsubscribeMany({ addresses: [subscription.address] });
+  }
+
+  /**
+   * Unsubscribe from account activity for the specified accounts.
+   * Each address should be in CAIP-10 format (e.g., "eip155:0:0x1234..." or
+   * "solana:0:ABC123...").
+   *
+   * @param subscription - Account subscription configuration with addresses to unsubscribe
+   */
+  async unsubscribeMany(subscription: SubscriptionManyOptions): Promise<void> {
+    const { addresses } = subscription;
+
     try {
-      // Find channel for the specified address
-      const channel = `${this.#options.subscriptionNamespace}.${address}`;
-      const subscriptions = this.#messenger.call(
-        'BackendWebSocketService:getSubscriptionsByChannel',
-        channel,
-      );
+      for (const address of addresses) {
+        // Find channel for the specified address
+        const channel = `${this.#options.subscriptionNamespace}.${address}`;
+        const subscriptions = this.#messenger.call(
+          'BackendWebSocketService:getSubscriptionsByChannel',
+          channel,
+        );
 
-      if (subscriptions.length === 0) {
-        return;
-      }
-
-      // Fast path: Direct unsubscribe using stored unsubscribe function
-      // Unsubscribe from all matching subscriptions
-      for (const subscriptionInfo of subscriptions) {
-        await subscriptionInfo.unsubscribe();
+        // Unsubscribe from all matching subscriptions
+        for (const subscriptionInfo of subscriptions) {
+          await subscriptionInfo.unsubscribe();
+        }
       }
     } catch (error) {
       log('Unsubscription failed, forcing reconnection', { error });
@@ -392,28 +447,19 @@ export class AccountActivityService {
   }
 
   /**
-   * Handle selected account change event
-   *
-   * @param newAccount - The newly selected account
+   * Handle selected account group change event by switching the
+   * auto-subscription to all accounts in the newly selected account group
+   * (EVM, Solana, Tron, etc.).
    */
-  async #handleSelectedAccountChange(
-    newAccount: InternalAccount | null,
-  ): Promise<void> {
-    if (!newAccount?.address) {
-      return;
-    }
-
+  async #handleSelectedAccountGroupChange(): Promise<void> {
     try {
-      // Convert new account to CAIP-10 format
-      const newAddress = this.#convertToCaip10Address(newAccount);
-
       // First, unsubscribe from all current account activity subscriptions to avoid multiple subscriptions
       await this.#unsubscribeFromAllAccountActivity();
 
-      // Then, subscribe to the new selected account
-      await this.subscribe({ address: newAddress });
+      // Then, subscribe to all accounts in the newly selected group
+      await this.#subscribeToSelectedAccountGroup();
     } catch (error) {
-      log('Account change failed', { error });
+      log('Account group change failed', { error });
     }
   }
 
@@ -473,9 +519,8 @@ export class AccountActivityService {
     const { state } = connectionInfo;
 
     if (state === WebSocketState.CONNECTED) {
-      // WebSocket connected - resubscribe to selected account
-      // The system notification will automatically provide the list of chains that are up
-      await this.#subscribeToSelectedAccount();
+      // WebSocket connected - resubscribe to the selected account group
+      await this.#subscribeToSelectedAccountGroup();
     } else if (state === WebSocketState.DISCONNECTED) {
       // On disconnect, flush all tracked chains as down
       const chainsToMarkDown = Array.from(this.#chainsUp);
@@ -503,20 +548,29 @@ export class AccountActivityService {
   // =============================================================================
 
   /**
-   * Subscribe to the currently selected account only
+   * Subscribe to all accounts in the currently selected account group
+   * (EVM, Solana, Tron, etc.).
    */
-  async #subscribeToSelectedAccount(): Promise<void> {
-    const selectedAccount = this.#messenger.call(
-      'AccountsController:getSelectedAccount',
-    );
+  async #subscribeToSelectedAccountGroup(): Promise<void> {
+    const accounts =
+      this.#messenger.call(
+        'AccountTreeController:getAccountsFromSelectedAccountGroup',
+      ) ?? [];
 
-    if (!selectedAccount?.address) {
+    // Convert each account to its namespace-appropriate CAIP-10 address
+    const addresses = accounts
+      .filter((account) => account?.address)
+      .map((account) => this.#convertToCaip10Address(account))
+      // TODO: Solana, Tron and Bitcoin account activity are not yet supported in
+      // production. Restrict the auto-subscription to EVM accounts for now;
+      // remove this filter once the other namespaces are supported by the backend.
+      .filter((address) => address.startsWith('eip155:'));
+
+    if (addresses.length === 0) {
       return;
     }
 
-    // Convert to CAIP-10 format and subscribe
-    const address = this.#convertToCaip10Address(selectedAccount);
-    await this.subscribe({ address });
+    await this.subscribeMany({ addresses });
   }
 
   /**
@@ -540,26 +594,25 @@ export class AccountActivityService {
   // =============================================================================
 
   /**
-   * Convert an InternalAccount address to CAIP-10 format or raw address
+   * Convert an InternalAccount to a CAIP-10 account-activity address using the
+   * wildcard chain reference (`0`) so we subscribe to all chains in the
+   * account's namespace (e.g. `eip155:0:0x...`, `solana:0:ABC...`,
+   * `tron:0:T...`). EVM addresses are lowercased so the channel matches the
+   * one produced by other consumers (idempotency).
    *
    * @param account - The internal account to convert
-   * @returns The CAIP-10 formatted address or raw address
+   * @returns The CAIP-10 formatted account-activity address
    */
   #convertToCaip10Address(account: InternalAccount): string {
-    // Check if account has EVM scopes
-    if (account.scopes.some((scope) => scope.startsWith('eip155:'))) {
-      // CAIP-10 format: eip155:0:address (subscribe to all EVM chains)
-      return `eip155:0:${account.address}`;
-    }
+    // Derive the namespace from the account's scopes (e.g. "eip155:0" ->
+    // "eip155"), falling back to the account type prefix (e.g. "solana:data-account").
+    const reference = account.scopes?.[0] ?? account.type;
+    const [namespace] = reference.split(':');
 
-    // Check if account has Solana scopes
-    if (account.scopes.some((scope) => scope.startsWith('solana:'))) {
-      // CAIP-10 format: solana:0:address (subscribe to all Solana chains)
-      return `solana:0:${account.address}`;
-    }
+    const address =
+      namespace === 'eip155' ? account.address.toLowerCase() : account.address;
 
-    // For other chains or unknown scopes, return raw address
-    return account.address;
+    return `${namespace}:0:${address}`;
   }
 
   /**

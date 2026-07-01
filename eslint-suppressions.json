@@ -843,7 +843,7 @@
   },
   "packages/core-backend/src/ws/AccountActivityService.test.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/core-backend/src/ws/AccountActivityService.ts": {

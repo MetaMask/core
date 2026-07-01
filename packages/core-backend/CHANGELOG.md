@@ -7,13 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `AccountActivityService.subscribeMany({ addresses: string[] })` and `AccountActivityService.unsubscribeMany({ addresses: string[] })` to subscribe/unsubscribe from account activity for multiple CAIP-10 account addresses in a single call
+  - `subscribeMany` is idempotent: addresses that already have an active subscription are skipped, so multiple consumers can call it safely.
+  - The existing single-address `subscribe({ address })` and `unsubscribe({ address })` methods are unchanged (they now delegate to the `*Many` variants).
+
 ### Changed
 
+- **BREAKING:** `AccountActivityService` now auto-subscribes based on the selected account group rather than the single selected account
+  - The service now requires the `AccountTreeController:getAccountsFromSelectedAccountGroup` action and listens to the `AccountTreeController:selectedAccountGroupChange` event instead of the `AccountsController:selectedAccountChange` event and `AccountsController:getSelectedAccount` action. Consumers must delegate these to the `AccountActivityServiceMessenger`, and no longer need to delegate any `AccountsController` actions or events.
+  - Auto-subscription is currently restricted to EVM (`eip155`) accounts in the group; Solana, Tron and Bitcoin are not yet supported by the backend.
+  - EVM addresses in auto-subscription channels are now lowercased so they match the channels produced by other consumers (idempotency).
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Bump `@metamask/controller-utils` from `^12.1.1` to `^12.3.0` ([#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
 - Bump `@metamask/profile-sync-controller` from `^28.1.1` to `^28.2.0` ([#9119](https://github.com/MetaMask/core/pull/9119))
 - Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
-- Bump `@metamask/accounts-controller` from `^39.0.1` to `^39.0.3` ([#9218](https://github.com/MetaMask/core/pull/9218), [#9231](https://github.com/MetaMask/core/pull/9231))
+
+### Removed
+
+- Remove the direct dependency on `@metamask/accounts-controller`
+  - `AccountActivityService` no longer calls `AccountsController:getSelectedAccount`; it relies solely on `AccountTreeController:getAccountsFromSelectedAccountGroup` for auto-subscription.
 
 ## [6.3.3]
 

@@ -7,7 +7,7 @@
   },
   "references": [
     {
-      "path": "../accounts-controller"
+      "path": "../account-tree-controller"
     },
     {
       "path": "../controller-utils"
