@@ -55,11 +55,14 @@ describe('makeDaemonConnectionError', () => {
     expect(message).toContain('mm daemon status');
   });
 
-  it.each(['EACCES', 'EPERM'])('reports a permission problem for %s', (code) => {
-    const error = Object.assign(new Error('boom'), { code });
-    expect(makeDaemonConnectionError(error)).toContain('permission denied');
-    expect(makeDaemonConnectionError(error)).toContain('MM_DATA_DIR');
-  });
+  it.each(['EACCES', 'EPERM'])(
+    'reports a permission problem for %s',
+    (code) => {
+      const error = Object.assign(new Error('boom'), { code });
+      expect(makeDaemonConnectionError(error)).toContain('permission denied');
+      expect(makeDaemonConnectionError(error)).toContain('MM_DATA_DIR');
+    },
+  );
 
   it('surfaces the raw message of an unrecognized Error', () => {
     expect(makeDaemonConnectionError(new Error('Socket read timed out'))).toBe(
