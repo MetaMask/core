@@ -11,6 +11,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add optional `startTime` to `TraceRequest` to allow backdating a span's start time ([#9315](https://github.com/MetaMask/core/pull/9315))
 
+### Deprecated
+
+- Deprecate `createServicePolicy` and supporting symbols
+  - Full set of deprecated enums, constants, and functions:
+    - `BrokenCircuitError`
+    - `CircuitState`
+    - `CockatielEventEmitter`
+    - `ConstantBackoff`
+    - `DEFAULT_CIRCUIT_BREAK_DURATION`
+    - `DEFAULT_DEGRADED_THRESHOLD`
+    - `DEFAULT_MAX_CONSECUTIVE_FAILURES`
+    - `DEFAULT_MAX_RETRIES`
+    - `ExponentialBackoff`
+    - `createServicePolicy`
+    - `handleAll`
+    - `handleWhen`
+  - Full set of deprecated types:
+    - `CockatielEvent`
+    - `CreateServicePolicyOptions`
+    - `CockatielFailureReason`
+    - `ServicePolicy`
+  - These will be removed in a future major version. Please use equivalent implementations from `@metamask/base-data-service` going forward.
+
 ## [12.3.0]
 
 ### Added
