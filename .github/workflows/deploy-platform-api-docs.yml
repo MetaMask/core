@@ -7,7 +7,10 @@ jobs:
   get-token:
     name: Get access token
     runs-on: ubuntu-latest
-    environment: github-pages
+    # `default-branch` is the environment the Token Exchange Service policies
+    # match on; it's locked to the `main` branch, so a PAT can only be minted
+    # from a `main` run.
+    environment: default-branch
     permissions:
       id-token: write
     outputs:
@@ -25,7 +28,7 @@ jobs:
     name: Deploy to GitHub Pages
     needs: get-token
     runs-on: ubuntu-latest
-    environment: github-pages
+    environment: default-branch
     permissions:
       # Just for the initial `actions/checkout` — the actual push to
       # `gh-pages` uses the PAT from the `get-token` job, not GITHUB_TOKEN.
