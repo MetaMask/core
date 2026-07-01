@@ -1,0 +1,67 @@
+Remote Feature Flag Threshold v2: explicit MetaMetrics ID targeting plan
+
+Goal
+Add optional `metaMetricsIds` support to threshold feature flag entries so
+specific MetaMetrics IDs can be assigned to a chosen group for internal QA and
+Product Manager testing, including in prod environments.
+
+Agreed design
+1. Keep the field name `metaMetricsIds`.
+2. Treat it as an optional `string[]` on each threshold entry.
+3. Apply explicit-ID matching after version filtering, inside the threshold
+   entry selection path.
+4. If the current MetaMetrics ID matches an entry's `metaMetricsIds`, select
+   that entry immediately.
+5. If multiple entries include the same ID, the first matching entry wins.
+6. If no explicit-ID match exists, fall back to the existing hash-based
+   threshold selection.
+7. Explicit-ID matches bypass the threshold cache.
+8. Local overrides still win over explicit-ID targeting.
+9. Only redact the `metaMetricsIds` values in state logs and debug snapshots;
+   keep the rest of the threshold entry visible.
+10. Normalize IDs before matching with `trim().toLowerCase()`.
+11. Ignore malformed `metaMetricsIds` values at runtime and continue processing
+    the rest of the flag.
+12. Document the feature as intended for QA/manual/Product Manager testing, not
+    as a general-purpose segmentation system.
+
+Implementation plan
+1. Update `packages/remote-feature-flag-controller/src/remote-feature-flag-controller-types.ts`
+   to add the optional `metaMetricsIds?: string[]` field to threshold entries.
+2. Update `packages/remote-feature-flag-controller/src/remote-feature-flag-controller.ts`
+   to:
+   - apply explicit-ID matching after version filtering
+   - keep legacy threshold behavior as fallback
+   - leave cache behavior unchanged for fallback selection
+   - add metadata redaction for `metaMetricsIds`
+3. Add or update tests in
+   `packages/remote-feature-flag-controller/src/remote-feature-flag-controller.test.ts`
+   for:
+   - explicit-ID match wins
+   - first-match wins when the same ID appears multiple times
+   - malformed `metaMetricsIds` entries are ignored
+   - fallback hash-based threshold still works
+   - redaction hides only `metaMetricsIds`
+4. Update `packages/remote-feature-flag-controller/CHANGELOG.md` with the
+   user-facing behavior change.
+5. Update contributor docs in
+   `~/repositories/metamask/contributor-docs/docs/remote-feature-flags.md`
+   to document:
+   - `metaMetricsIds`
+   - legacy threshold entries
+   - `thresholdVersion: 2`
+   - the combined explicit-ID + percentage-rollout example
+   - precedence rules and first-match behavior
+6. Update client-facing docs in:
+   - `~/repositories/metamask/metamask-extension/docs/ab-testing.md`
+   - `~/repositories/metamask/metamask-mobile/docs/ab-testing.md`
+   to describe the same authoring pattern for QA and PM use.
+7. Verify with focused tests in core, then validate any docs-only changes in the
+   client repos if needed.
+
+Notes
+- The controller should not fail the whole update because one LaunchDarkly
+  entry is malformed.
+- The explicit-ID path should not introduce a new cache key.
+- The redaction should only affect diagnostics output, not persisted runtime
+  behavior.
