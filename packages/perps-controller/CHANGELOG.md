@@ -9,17 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [9.1.0]
 
-### Uncategorized
-
-- Release/1088.0.0 ([#9349](https://github.com/MetaMask/core/pull/9349))
-- Release/1087.0.0 ([#9348](https://github.com/MetaMask/core/pull/9348))
-- Revert "release/1087.0.0" ([#9346](https://github.com/MetaMask/core/pull/9346))
-- release/1087.0.0 ([#9342](https://github.com/MetaMask/core/pull/9342))
-- Release/1086.0.0 ([#9337](https://github.com/MetaMask/core/pull/9337))
-- feat(aus): add priceAlerts to NotificationPreferences type ([#9316](https://github.com/MetaMask/core/pull/9316))
-- fix: move analytics changes to unreleased ([#9254](https://github.com/MetaMask/core/pull/9254))
-- Release 1068.0.0 ([#9253](https://github.com/MetaMask/core/pull/9253))
-
 ### Added
 
 - Add Auto Close TP/SL RoE sign toggle analytics constants to `PERPS_EVENT_PROPERTY` and `PERPS_EVENT_VALUE` so mobile and extension can import them from `@metamask/perps-controller` instead of local mirrors ([#9322](https://github.com/MetaMask/core/pull/9322))
