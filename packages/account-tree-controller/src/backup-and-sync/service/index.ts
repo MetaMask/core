@@ -442,14 +442,27 @@ export class BackupAndSyncService {
       });
     };
 
-    // Execute the big sync function with tracing and ensure state cleanup
+    // Execute the big sync function and ensure state cleanup.
+    // The sync runs untraced so we can decide afterwards whether it did any
+    // real work; the span is then backdated to preserve the real duration.
+    const { mutationTracker } = this.#context;
+    mutationTracker?.reset();
+    const startTime = Date.now();
     try {
-      await this.#context.traceFn(
-        {
-          name: TraceName.AccountSyncFull,
-        },
-        bigSyncFn,
-      );
+      await bigSyncFn();
+
+      // Only emit a span when the sync actually changed something (local or
+      // remote). The common no-op sync (every login) is not traced. The span
+      // is backdated so the real sync duration is preserved.
+      if (mutationTracker?.hasOccurred()) {
+        await this.#context.traceFn(
+          {
+            name: TraceName.AccountSyncFull,
+            startTime,
+          },
+          () => undefined,
+        );
+      }
     } finally {
       // Always reset state, regardless of success or failure
       this.#context.controllerStateUpdateFn(

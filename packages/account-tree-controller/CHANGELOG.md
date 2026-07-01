@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The `Multichain Account Syncing - Full` trace is now only emitted when a backup-and-sync run actually mutates local or remote state, and the span is backdated to preserve the real sync duration ([#0000](https://github.com/MetaMask/core/pull/0000))
 - Bump `@metamask/keyring-api` from `^23.1.0` to `^23.3.0` ([#9249](https://github.com/MetaMask/core/pull/9249))
 - Bump `@metamask/multichain-account-service` from `^11.0.0` to `^11.1.0` ([#9264](https://github.com/MetaMask/core/pull/9264))
 

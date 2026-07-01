@@ -47,9 +47,11 @@ describe('BackupAndSync - Syncing - Group', () => {
   let mockContext: BackupAndSyncContext;
   let mockLocalGroup: AccountGroupMultichainAccountObject;
   let mockWallet: AccountWalletEntropyObject;
+  let mockMarkOccurred: jest.Mock;
 
   beforeEach(() => {
     mockGetLocalGroupsForEntropyWallet.mockReturnValue([]);
+    mockMarkOccurred = jest.fn();
 
     mockContext = {
       controller: {
@@ -71,6 +73,11 @@ describe('BackupAndSync - Syncing - Group', () => {
         call: jest.fn(),
       },
       emitAnalyticsEventFn: jest.fn(),
+      mutationTracker: {
+        markOccurred: mockMarkOccurred,
+        hasOccurred: jest.fn(),
+        reset: jest.fn(),
+      },
     } as unknown as BackupAndSyncContext;
 
     mockLocalGroup = {
@@ -134,6 +141,7 @@ describe('BackupAndSync - Syncing - Group', () => {
 
       expect(mockContext.messenger.call).toHaveBeenCalledTimes(1);
       expect(mockContext.emitAnalyticsEventFn).not.toHaveBeenCalled();
+      expect(mockMarkOccurred).not.toHaveBeenCalled();
     });
 
     it('emits analytics events for successful creations', async () => {
@@ -155,6 +163,7 @@ describe('BackupAndSync - Syncing - Group', () => {
         action: BackupAndSyncAnalyticsEvent.GroupAdded,
         profileId: 'test-profile',
       });
+      expect(mockMarkOccurred).toHaveBeenCalledTimes(1);
     });
 
     it('only emits analytics for newly created groups, not pre-existing ones', async () => {
@@ -192,6 +201,8 @@ describe('BackupAndSync - Syncing - Group', () => {
         action: BackupAndSyncAnalyticsEvent.GroupAdded,
         profileId: 'test-profile',
       });
+      // markOccurred should fire once per newly created group (1 and 2).
+      expect(mockMarkOccurred).toHaveBeenCalledTimes(2);
     });
   });
 
