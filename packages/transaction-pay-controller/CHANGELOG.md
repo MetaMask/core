@@ -7,10 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.17.3]
+
 ### Changed
 
-- Bump `@metamask/assets-controller` from `^9.1.0` to `^10.0.0` ([#9312](https://github.com/MetaMask/core/pull/9312))
-- Bump `@metamask/bridge-controller` from `^77.1.0` to `^77.2.0` ([#9318](https://github.com/MetaMask/core/pull/9318))
+- Bump `@metamask/assets-controller` from `^9.1.0` to `^10.0.1` ([#9312](https://github.com/MetaMask/core/pull/9312), [#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/transaction-controller` from `^68.2.0` to `^68.2.2` ([#9337](https://github.com/MetaMask/core/pull/9337), [#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/assets-controllers` from `^109.2.2` to `^109.3.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/gas-fee-controller` from `^26.2.3` to `^26.2.4` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/network-controller` from `^33.0.0` to `^34.0.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
+
+### Removed
+
+- **BREAKING:** Remove Bridge and Test pay strategies and all `@metamask/bridge-controller` / `@metamask/bridge-status-controller` dependencies ([#9335](https://github.com/MetaMask/core/pull/9335))
+  - Remove `Bridge` and `Test` values from the `TransactionPayStrategy` enum. Callers passing these to `getStrategy` / `getStrategies` must remove those references.
+  - Remove `TransactionPayBridgeQuote` type export.
+  - Remove `BridgeController:fetchQuotes`, `BridgeStatusController:submitTx`, `BridgeStatusController:getState` actions and `BridgeStatusControllerStateChangeEvent` event from `TransactionPayControllerMessenger`. Clients must remove the corresponding messenger delegations.
 
 ## [23.17.2]
 
@@ -1213,7 +1225,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.17.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.17.3...HEAD
+[23.17.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.17.2...@metamask/transaction-pay-controller@23.17.3
 [23.17.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.17.1...@metamask/transaction-pay-controller@23.17.2
 [23.17.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.17.0...@metamask/transaction-pay-controller@23.17.1
 [23.17.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.16.1...@metamask/transaction-pay-controller@23.17.0

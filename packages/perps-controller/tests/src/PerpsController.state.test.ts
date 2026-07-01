@@ -1159,6 +1159,14 @@ describe('PerpsController', () => {
         pushNotificationsEnabled: false,
         mutedTraderProfileIds: [],
       },
+      agenticCli: {
+        inAppNotificationsEnabled: true,
+        pushNotificationsEnabled: true,
+      },
+      priceAlerts: {
+        inAppNotificationsEnabled: true,
+        pushNotificationsEnabled: true,
+      },
     };
 
     let ausController;

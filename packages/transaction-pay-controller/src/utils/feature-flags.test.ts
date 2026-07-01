@@ -909,8 +909,7 @@ describe('Feature Flags Utils', () => {
         remoteFeatureFlags: {
           confirmations_pay: {
             strategyOrder: [
-              TransactionPayStrategy.Test,
-              TransactionPayStrategy.Bridge,
+              TransactionPayStrategy.Fiat,
               TransactionPayStrategy.Relay,
             ],
           },
@@ -920,8 +919,7 @@ describe('Feature Flags Utils', () => {
       const strategyOrder = getStrategyOrder(messenger);
 
       expect(strategyOrder).toStrictEqual([
-        TransactionPayStrategy.Test,
-        TransactionPayStrategy.Bridge,
+        TransactionPayStrategy.Fiat,
         TransactionPayStrategy.Relay,
       ]);
     });
@@ -932,9 +930,9 @@ describe('Feature Flags Utils', () => {
         remoteFeatureFlags: {
           confirmations_pay: {
             strategyOrder: [
-              TransactionPayStrategy.Test,
+              TransactionPayStrategy.Fiat,
               'unknown-strategy',
-              TransactionPayStrategy.Test,
+              TransactionPayStrategy.Fiat,
               TransactionPayStrategy.Relay,
             ],
           },
@@ -944,7 +942,7 @@ describe('Feature Flags Utils', () => {
       const strategyOrder = getStrategyOrder(messenger);
 
       expect(strategyOrder).toStrictEqual([
-        TransactionPayStrategy.Test,
+        TransactionPayStrategy.Fiat,
         TransactionPayStrategy.Relay,
       ]);
     });
@@ -1004,7 +1002,7 @@ describe('Feature Flags Utils', () => {
             strategyOverrides: {
               default: {
                 chains: {
-                  [CHAIN_ID_MOCK]: [TransactionPayStrategy.Bridge],
+                  [CHAIN_ID_MOCK]: [TransactionPayStrategy.Across],
                 },
               },
             },
