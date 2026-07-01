@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import type { ChildProcess } from 'node:child_process';
 import { closeSync, existsSync, openSync } from 'node:fs';
 
 import { pingDaemon } from './daemon-client';
@@ -21,9 +22,9 @@ const mockEnsureOwnerOnlyDirectory = jest.mocked(ensureOwnerOnlyDirectory);
 const mockPingDaemon = jest.mocked(pingDaemon);
 const mockGetDaemonPaths = jest.mocked(getDaemonPaths);
 
-// Arbitrary fd handed back by the mocked `openSync` so tests can assert it is
-// wired into the child's stdio and later closed in the parent.
-const LOG_FD = 7;
+// Arbitrary file descriptor handed back by the mocked `openSync` so tests can
+// assert it is wired into the child's stdio and later closed in the parent.
+const LOG_FILE_DESCRIPTOR = 7;
 
 const CONFIG: DaemonSpawnConfig = {
   dataDir: '/tmp/data',
@@ -74,7 +75,7 @@ function setupSpawnMock(): SpawnMock {
       listeners.get('exit')?.(code, signal);
     },
   };
-  mockSpawn.mockReturnValue(result as never);
+  mockSpawn.mockReturnValue(result as unknown as ChildProcess);
   return result;
 }
 
@@ -88,7 +89,7 @@ describe('ensureDaemon', () => {
       logPath: '/tmp/test.log',
       dbPath: '/tmp/wallet.db',
     });
-    mockOpenSync.mockReturnValue(LOG_FD);
+    mockOpenSync.mockReturnValue(LOG_FILE_DESCRIPTOR);
     mockEnsureOwnerOnlyDirectory.mockResolvedValue(undefined);
     setupSpawnMock();
   });
@@ -139,7 +140,7 @@ describe('ensureDaemon', () => {
       ['/pkg/dist/daemon/daemon-entry.mjs'],
       expect.objectContaining({
         detached: true,
-        stdio: ['ignore', 'ignore', LOG_FD],
+        stdio: ['ignore', 'ignore', LOG_FILE_DESCRIPTOR],
         env: expect.objectContaining({
           MM_DAEMON_DATA_DIR: '/tmp/data',
           MM_DAEMON_SOCKET_PATH: '/tmp/test.sock',
@@ -152,7 +153,7 @@ describe('ensureDaemon', () => {
     );
   });
 
-  it('redirects the daemon stderr to its log file and closes the parent fd', async () => {
+  it('redirects the daemon stderr to its log file and closes the parent file descriptor', async () => {
     mockPingDaemon
       .mockResolvedValueOnce(ABSENT)
       .mockResolvedValueOnce(RESPONSIVE);
@@ -162,9 +163,23 @@ describe('ensureDaemon', () => {
 
     expect(mockOpenSync).toHaveBeenCalledWith('/tmp/test.log', 'a');
     const spawnOptions = mockSpawn.mock.calls[0][2] as { stdio: unknown };
-    expect(spawnOptions.stdio).toStrictEqual(['ignore', 'ignore', LOG_FD]);
-    // The child dups the fd, so the parent must close its own copy.
-    expect(mockCloseSync).toHaveBeenCalledWith(LOG_FD);
+    expect(spawnOptions.stdio).toStrictEqual([
+      'ignore',
+      'ignore',
+      LOG_FILE_DESCRIPTOR,
+    ]);
+    expect(mockCloseSync).toHaveBeenCalledWith(LOG_FILE_DESCRIPTOR);
+  });
+
+  it('propagates a log-file open failure without spawning', async () => {
+    mockPingDaemon.mockResolvedValue(ABSENT);
+    mockExistsSync.mockReturnValue(true);
+    mockOpenSync.mockImplementation(() => {
+      throw Object.assign(new Error('EACCES'), { code: 'EACCES' });
+    });
+
+    await expect(ensureDaemon(CONFIG)).rejects.toThrow('EACCES');
+    expect(mockSpawn).not.toHaveBeenCalled();
   });
 
   it('creates the data directory before opening the log file', async () => {
@@ -172,16 +187,15 @@ describe('ensureDaemon', () => {
       .mockResolvedValueOnce(ABSENT)
       .mockResolvedValueOnce(RESPONSIVE);
     mockExistsSync.mockReturnValue(true);
-    // The log lives inside the data directory; opening it before the directory
-    // exists would throw ENOENT on a fresh `MM_DATA_DIR`, so the directory must
-    // be created first.
+    // The log lives inside the data dir, so the dir must be created first (else
+    // openSync ENOENTs on a fresh dir).
     const order: string[] = [];
     mockEnsureOwnerOnlyDirectory.mockImplementation(async () => {
       order.push('ensureDir');
     });
     mockOpenSync.mockImplementation(() => {
       order.push('openLog');
-      return LOG_FD;
+      return LOG_FILE_DESCRIPTOR;
     });
 
     await ensureDaemon(CONFIG);
@@ -275,7 +289,10 @@ describe('ensureDaemon', () => {
         }
       },
     );
-    mockSpawn.mockReturnValue({ unref: jest.fn(), on } as never);
+    mockSpawn.mockReturnValue({
+      unref: jest.fn(),
+      on,
+    } as unknown as ChildProcess);
 
     jest.useFakeTimers();
     const promise = ensureDaemon(CONFIG);
@@ -316,7 +333,10 @@ describe('ensureDaemon', () => {
         }
       },
     );
-    mockSpawn.mockReturnValue({ unref: jest.fn(), on } as never);
+    mockSpawn.mockReturnValue({
+      unref: jest.fn(),
+      on,
+    } as unknown as ChildProcess);
 
     jest.useFakeTimers();
     const promise = ensureDaemon(CONFIG);
@@ -330,6 +350,35 @@ describe('ensureDaemon', () => {
     );
     expect((thrownError as Error).message).toContain('spawn ENOENT');
     expect((thrownError as Error).message).toContain('/tmp/test.log');
+  });
+
+  it('reports the spawn error when the child both errors and exits', async () => {
+    mockPingDaemon.mockResolvedValue(ABSENT);
+    mockExistsSync.mockReturnValue(true);
+    const on = jest.fn(
+      (event: string, handler: (...args: unknown[]) => void) => {
+        if (event === 'error') {
+          handler(new Error('spawn ENOENT'));
+        }
+        if (event === 'exit') {
+          handler(1, null);
+        }
+      },
+    );
+    mockSpawn.mockReturnValue({
+      unref: jest.fn(),
+      on,
+    } as unknown as ChildProcess);
+
+    jest.useFakeTimers();
+    const promise = ensureDaemon(CONFIG);
+    const rejection = promise.catch((thrown: unknown) => thrown);
+    await jest.advanceTimersByTimeAsync(200);
+
+    const thrownError = await rejection;
+    expect((thrownError as Error).message).toContain(
+      'Failed to spawn daemon process',
+    );
   });
 
   it('writes spawn errors to stderr', async () => {
@@ -346,7 +395,10 @@ describe('ensureDaemon', () => {
         }
       },
     );
-    mockSpawn.mockReturnValue({ unref: jest.fn(), on } as never);
+    mockSpawn.mockReturnValue({
+      unref: jest.fn(),
+      on,
+    } as unknown as ChildProcess);
 
     await ensureDaemon(CONFIG);
     errorHandler?.(new Error('spawn ENOENT'));

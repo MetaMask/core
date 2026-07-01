@@ -47,9 +47,8 @@ describe('writeLine', () => {
 
     await expect(writeLine(socket, 'hello')).rejects.toThrow('EPIPE');
 
-    // A failed write surfaces both via the callback (above) AND as a separate
-    // 'error' event. A listener must remain so that emission is handled;
-    // otherwise Node throws "Unhandled 'error' event" and crashes the process.
+    // A failed write also emits a trailing 'error' event; a listener must
+    // survive to handle it, or Node crashes with "Unhandled 'error' event".
     expect(socket.listenerCount('error')).toBe(1);
     expect(() => socket.emit('error', writeError)).not.toThrow();
     // Once it fires, the listener detaches itself.
@@ -122,6 +121,20 @@ describe('readLine', () => {
     await expect(promise).rejects.toThrow(
       'Socket closed before response received',
     );
+  });
+
+  it('settles once and cleans up when end is followed by close', async () => {
+    const socket = createMockSocket();
+    const promise = readLine(socket);
+
+    socket.emit('end');
+    socket.emit('close');
+
+    await expect(promise).rejects.toThrow(
+      'Socket closed before response received',
+    );
+    expect(socket.listenerCount('end')).toBe(0);
+    expect(socket.listenerCount('close')).toBe(0);
   });
 
   it('rejects after timeout when no complete line received', async () => {
