@@ -4,34 +4,18 @@ on:
   workflow_call:
 
 jobs:
-  get-token:
-    name: Get access token
+  deploy:
+    name: Deploy to GitHub Pages
     runs-on: ubuntu-latest
-    # `default-branch` is the environment the Token Exchange Service policies
-    # match on; it's locked to the `main` branch, so a PAT can only be minted
+    # `default-branch` is the environment the Token Exchange Service policy
+    # matches on; it's locked to the `main` branch, so a PAT can only be minted
     # from a `main` run.
     environment: default-branch
     permissions:
+      # `id-token: write` lets the job exchange its OIDC token for a PAT via the
+      # Token Exchange Service; `contents: read` is for the checkout. The push
+      # to `gh-pages` uses the exchanged PAT, not GITHUB_TOKEN.
       id-token: write
-    outputs:
-      token: ${{ steps.get-token.outputs.token }}
-    steps:
-      - name: Get access token
-        id: get-token
-        uses: MetaMask/github-tools/.github/actions/get-token@v1
-        with:
-          token-exchange-url: ${{ vars.TOKEN_EXCHANGE_URL }}
-          permissions: |
-            contents: write
-
-  deploy:
-    name: Deploy to GitHub Pages
-    needs: get-token
-    runs-on: ubuntu-latest
-    environment: default-branch
-    permissions:
-      # Just for the initial `actions/checkout` — the actual push to
-      # `gh-pages` uses the PAT from the `get-token` job, not GITHUB_TOKEN.
       contents: read
     steps:
       - name: Checkout
@@ -45,6 +29,17 @@ jobs:
           name: platform-api-docs-build
           path: build/
 
+      - name: Get access token
+        # The token must be requested in the same job that uses it: GitHub drops
+        # secret values passed between jobs, so a separate token job would hand
+        # back an empty string.
+        id: get-token
+        uses: MetaMask/github-tools/.github/actions/get-token@v1
+        with:
+          token-exchange-url: ${{ vars.TOKEN_EXCHANGE_URL }}
+          permissions: |
+            contents: write
+
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e # v4.0.0
         with:
@@ -52,7 +47,7 @@ jobs:
           # default `GITHUB_TOKEN`. `GITHUB_TOKEN` can't be granted branch
           # protections that disallow direct human pushes while still letting
           # this workflow publish, which is what we want for `gh-pages`.
-          personal_token: ${{ needs.get-token.outputs.token }}
+          personal_token: ${{ steps.get-token.outputs.token }}
           publish_dir: ./build
           destination_dir: platform-api
           # Preserve sibling subdirectories (e.g. /package-api/) so this
