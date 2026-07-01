@@ -382,6 +382,85 @@ describe('TerminalMarketService', () => {
       expect(metadata.get('FOO')?.description).toBeUndefined();
       expect(metadata.get('BAR')?.description).toBeUndefined();
     });
+
+    describe('listedAt handling', () => {
+      it('passes through a numeric listedAt as-is', async () => {
+        const epochMs = 1_700_000_000_000;
+        jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          json: () =>
+            Promise.resolve([
+              { symbol: 'BTC', name: 'Bitcoin', listedAt: epochMs },
+            ]),
+        } as Response);
+
+        const { metadata } = await service.fetchMarkets();
+
+        expect(metadata.get('BTC')?.listedAt).toBe(epochMs);
+      });
+
+      it('parses an ISO string listedAt to epoch ms', async () => {
+        const isoString = '2023-11-14T22:13:20.000Z';
+        const expectedMs = Date.parse(isoString);
+        jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          json: () =>
+            Promise.resolve([
+              { symbol: 'ETH', name: 'Ethereum', listedAt: isoString },
+            ]),
+        } as Response);
+
+        const { metadata } = await service.fetchMarkets();
+
+        expect(metadata.get('ETH')?.listedAt).toBe(expectedMs);
+      });
+
+      it('omits listedAt when the string is not a valid date', async () => {
+        jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          json: () =>
+            Promise.resolve([
+              { symbol: 'DOGE', name: 'Dogecoin', listedAt: 'not-a-date' },
+            ]),
+        } as Response);
+
+        const { metadata } = await service.fetchMarkets();
+
+        expect(metadata.get('DOGE')?.listedAt).toBeUndefined();
+      });
+
+      it('omits listedAt when the value is null', async () => {
+        jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          json: () => Promise.resolve([{ symbol: 'SOL', listedAt: null }]),
+        } as Response);
+
+        const { metadata } = await service.fetchMarkets();
+
+        expect(metadata.get('SOL')?.listedAt).toBeUndefined();
+      });
+
+      it('omits listedAt when the field is absent', async () => {
+        jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+          ok: true,
+          status: 200,
+          statusText: 'OK',
+          json: () => Promise.resolve([{ symbol: 'AVAX' }]),
+        } as Response);
+
+        const { metadata } = await service.fetchMarkets();
+
+        expect(metadata.get('AVAX')?.listedAt).toBeUndefined();
+      });
+    });
   });
 
   describe('cache behavior', () => {

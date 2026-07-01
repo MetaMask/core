@@ -1435,6 +1435,30 @@ describe('MarketDataService', () => {
         expect(result[0]?.name).toBe('BTC');
         expect(mockTerminalService.fetchMarkets).not.toHaveBeenCalled();
       });
+
+      it('merges listedAt from terminal metadata onto market data', async () => {
+        const listedAtMs = 1_700_000_000_000;
+        const metadataWithListedAt = new Map<string, TerminalAssetMetadata>([
+          ['BTC', { name: 'Bitcoin', listedAt: listedAtMs }],
+          ['ETH', { name: 'Ethereum' }],
+        ]);
+        mockTerminalService.fetchMarkets.mockResolvedValue({
+          markets: terminalMarkets,
+          metadata: metadataWithListedAt,
+        });
+        mockProvider.getMarketDataWithPrices.mockResolvedValue(
+          providerMarketData,
+        );
+
+        const result = await serviceWithTerminal.getMarketDataWithPrices({
+          provider: mockProvider,
+          params: { useTerminalApi: true },
+          context: mockContext,
+        });
+
+        expect(result[0]?.listedAt).toBe(listedAtMs);
+        expect(result[1]?.listedAt).toBeUndefined();
+      });
     });
   });
 });

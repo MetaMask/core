@@ -1384,6 +1384,7 @@ export class MarketDataService {
         ...(meta.keywords !== undefined && { keywords: meta.keywords }),
         ...(meta.tags !== undefined && { tags: meta.tags }),
         ...(meta.categories !== undefined && { categories: meta.categories }),
+        ...(meta.listedAt !== undefined && { listedAt: meta.listedAt }),
       };
     });
   }

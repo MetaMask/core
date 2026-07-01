@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export `fetchBridgeQuoteStream` and `appendFeesToQuotes` from the package entry point ([#9313](https://github.com/MetaMask/core/pull/9313))
+
+## [77.2.0]
+
+### Added
+
+- Add `DiscountType` and expose `quote.feeData.metabridge.discountType` in quote validation ([#9305](https://github.com/MetaMask/core/pull/9305))
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^9.1.0` to `^10.0.0` ([#9312](https://github.com/MetaMask/core/pull/9312))
+
 ## [77.1.0]
 
 ### Added
@@ -1686,7 +1700,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.2.0...HEAD
+[77.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.1.0...@metamask/bridge-controller@77.2.0
 [77.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.0.0...@metamask/bridge-controller@77.1.0
 [77.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@76.1.0...@metamask/bridge-controller@77.0.0
 [76.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@76.0.0...@metamask/bridge-controller@76.1.0
