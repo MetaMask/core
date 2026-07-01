@@ -8,7 +8,7 @@ import { isProcessAlive, readPidFile } from '../src/daemon/utils';
 
 // Subprocess-level lifecycle test for the `mm daemon` command suite. Unlike the
 // in-process suites (`socket-integration.test.ts` exercises the transport in
-// the test realm; `wallet-factory.e2e.test.ts` constructs a real `Wallet`
+// the test realm; `wallet-factory-integration.test.ts` constructs a real `Wallet`
 // in-process), this spawns the BUILT `mm` CLI as a child process against a temp
 // data directory and drives the real `start → call → status/stop/purge`
 // lifecycle over the Unix socket. It needs `dist/` and the native
