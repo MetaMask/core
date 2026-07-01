@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.5.0]
+
 ### Added
 
 - Add `AccountsApiClient` support for the Accounts API `/v6/multiaccount/balances` endpoint via `fetchV6MultiAccountBalances` / `getV6MultiAccountBalancesQueryOptions`, returning token balances plus optional DeFi positions and spot prices (new types `V6BalancesResponse`, `V6AccountBalancesEntry`, `V6BalanceItem`, `V6BalanceMetadata`, `V6TokenMetadata`, `V6VsCurrency`) ([#9302](https://github.com/MetaMask/core/pull/9302))
@@ -324,7 +326,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.4.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.5.0...HEAD
+[6.5.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.4.0...@metamask/core-backend@6.5.0
 [6.4.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.3...@metamask/core-backend@6.4.0
 [6.3.3]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.2...@metamask/core-backend@6.3.3
 [6.3.2]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.1...@metamask/core-backend@6.3.2

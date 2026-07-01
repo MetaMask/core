@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [41.2.6]
+
 ### Changed
 
 - Bump `@metamask/transaction-controller` from `^68.1.1` to `^68.2.1` ([#9253](https://github.com/MetaMask/core/pull/9253), [#9337](https://github.com/MetaMask/core/pull/9337))
@@ -630,7 +632,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial Release ([#3749](https://github.com/MetaMask/core/pull/3749))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.5...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.6...HEAD
+[41.2.6]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.5...@metamask/user-operation-controller@41.2.6
 [41.2.5]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.4...@metamask/user-operation-controller@41.2.5
 [41.2.4]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.3...@metamask/user-operation-controller@41.2.4
 [41.2.3]: https://github.com/MetaMask/core/compare/@metamask/user-operation-controller@41.2.2...@metamask/user-operation-controller@41.2.3

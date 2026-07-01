@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.3]
+
 ## [5.0.2]
 
 ### Changed
@@ -159,7 +161,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of @metamask/sample-controllers.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@5.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@5.0.3...HEAD
+[5.0.3]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@5.0.2...@metamask/sample-controllers@5.0.3
 [5.0.2]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@5.0.1...@metamask/sample-controllers@5.0.2
 [5.0.1]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@5.0.0...@metamask/sample-controllers@5.0.1
 [5.0.0]: https://github.com/MetaMask/core/compare/@metamask/sample-controllers@4.0.4...@metamask/sample-controllers@5.0.0

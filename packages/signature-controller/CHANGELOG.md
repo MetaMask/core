@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [39.2.7]
+
 ### Uncategorized
 
 - Revert "Release/1064.0.0 (#9228)" ([#9228](https://github.com/MetaMask/core/pull/9228))
@@ -807,7 +809,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1214](https://github.com/MetaMask/core/pull/1214))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.6...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.7...HEAD
+[39.2.7]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.6...@metamask/signature-controller@39.2.7
 [39.2.6]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.5...@metamask/signature-controller@39.2.6
 [39.2.5]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.4...@metamask/signature-controller@39.2.5
 [39.2.4]: https://github.com/MetaMask/core/compare/@metamask/signature-controller@39.2.3...@metamask/signature-controller@39.2.4

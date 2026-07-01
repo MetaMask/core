@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0]
+
 ### Uncategorized
 
 - Revert "Release/1064.0.0 (#9228)" ([#9228](https://github.com/MetaMask/core/pull/9228))
@@ -270,7 +272,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.1.5...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.1.5...@metamask/multichain-api-middleware@4.0.0
 [3.1.5]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.1.4...@metamask/multichain-api-middleware@3.1.5
 [3.1.4]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.1.3...@metamask/multichain-api-middleware@3.1.4
 [3.1.3]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.1.2...@metamask/multichain-api-middleware@3.1.3
