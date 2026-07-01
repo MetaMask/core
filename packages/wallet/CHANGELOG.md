@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Wire `AddressBookController` into the default wallet initialization ([#9291](https://github.com/MetaMask/core/pull/9291))
 
+### Changed
+
+- Pass optional `getCanonicalId` through `RemoteFeatureFlagController` wallet initialization for threshold flags that segment by canonical ID ([#9325](https://github.com/MetaMask/core/pull/9325))
+
 ## [5.0.0]
 
 ### Added

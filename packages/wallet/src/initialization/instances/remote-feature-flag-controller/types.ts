@@ -22,6 +22,11 @@ export type RemoteFeatureFlagControllerInstanceOptions = {
    */
   getMetaMetricsId?: RemoteFeatureFlagControllerOptions['getMetaMetricsId'];
   /**
+   * Returns the canonical client identifier for threshold flags configured
+   * with a non-metametrics idType. Defaults to `() => ''`.
+   */
+  getCanonicalId?: RemoteFeatureFlagControllerOptions['getCanonicalId'];
+  /**
    * The current client version for version-based flag filtering. Must be a
    * valid 3-part SemVer or the controller throws. Defaults to `'0.0.0'`.
    */

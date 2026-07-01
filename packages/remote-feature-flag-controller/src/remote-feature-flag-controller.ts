@@ -9,14 +9,15 @@ import type { Json, SemVerVersion } from '@metamask/utils';
 
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import type { RemoteFeatureFlagControllerMethodActions } from './remote-feature-flag-controller-method-action-types';
-import { ThresholdVersion } from './remote-feature-flag-controller-types';
 import type {
   FeatureFlags,
   ServiceResponse,
   FeatureFlagScopeValue,
 } from './remote-feature-flag-controller-types';
+import { FeatureFlagIdType } from './remote-feature-flag-controller-types';
 import {
   calculateThresholdForFlag,
+  getThresholdIdType,
   isFeatureFlagWithScopeValue,
 } from './utils/user-segmentation-utils';
 import { isVersionFeatureFlag, getVersionData } from './utils/version';
@@ -34,6 +35,7 @@ export type RemoteFeatureFlagControllerState = {
   rawRemoteFeatureFlags?: FeatureFlags;
   cacheTimestamp: number;
   thresholdCache?: Record<string, number>;
+  featureFlagThresholdGroups?: Record<string, string>;
 };
 
 const remoteFeatureFlagControllerMetadata = {
@@ -65,6 +67,12 @@ const remoteFeatureFlagControllerMetadata = {
     includeInStateLogs: false,
     persist: true,
     includeInDebugSnapshot: false,
+    usedInUi: false,
+  },
+  featureFlagThresholdGroups: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
     usedInUi: false,
   },
 };
@@ -119,19 +127,6 @@ export function getDefaultRemoteFeatureFlagControllerState(): RemoteFeatureFlagC
   };
 }
 
-function normalizeThresholdValue(featureFlag: FeatureFlagScopeValue): Json {
-  if (featureFlag.thresholdVersion === ThresholdVersion.DirectValue) {
-    return featureFlag.value;
-  }
-
-  // Unknown threshold versions fall back to the legacy wrapper shape for
-  // backwards compatibility with existing threshold feature flag configs.
-  return {
-    name: featureFlag.name,
-    value: featureFlag.value,
-  };
-}
-
 /**
  * The RemoteFeatureFlagController manages the retrieval and caching of remote feature flags.
  * It fetches feature flags from a remote API, caches them, and provides methods to access
@@ -153,6 +148,8 @@ export class RemoteFeatureFlagController extends BaseController<
 
   readonly #getMetaMetricsId: () => string;
 
+  readonly #getCanonicalId: () => string;
+
   readonly #clientVersion: SemVerVersion;
 
   #processedRemoteFeatureFlags: FeatureFlags = {};
@@ -167,6 +164,8 @@ export class RemoteFeatureFlagController extends BaseController<
    * @param options.fetchInterval - The interval in milliseconds before cached flags expire. Defaults to 1 day.
    * @param options.disabled - Determines if the controller should be disabled initially. Defaults to false.
    * @param options.getMetaMetricsId - Returns metaMetricsId.
+   * @param options.getCanonicalId - Returns the canonical client identifier used
+   * for threshold flags configured with a non-metametrics idType.
    * @param options.clientVersion - The current client version for version-based feature flag filtering. Must be a valid 3-part SemVer version string.
    * @param options.prevClientVersion - The previous client version for feature flag cache invalidation.
    */
@@ -177,6 +176,7 @@ export class RemoteFeatureFlagController extends BaseController<
     fetchInterval = DEFAULT_CACHE_DURATION,
     disabled = false,
     getMetaMetricsId,
+    getCanonicalId = (): string => '',
     clientVersion,
     prevClientVersion,
   }: {
@@ -184,6 +184,7 @@ export class RemoteFeatureFlagController extends BaseController<
     state?: Partial<RemoteFeatureFlagControllerState>;
     clientConfigApiService: AbstractClientConfigApiService;
     getMetaMetricsId: () => string;
+    getCanonicalId?: () => string;
     fetchInterval?: number;
     disabled?: boolean;
     clientVersion: string;
@@ -235,6 +236,7 @@ export class RemoteFeatureFlagController extends BaseController<
     this.#disabled = disabled;
     this.#clientConfigApiService = clientConfigApiService;
     this.#getMetaMetricsId = getMetaMetricsId;
+    this.#getCanonicalId = getCanonicalId;
     this.#clientVersion = clientVersion;
 
     this.messenger.registerMethodActionHandlers(
@@ -288,10 +290,14 @@ export class RemoteFeatureFlagController extends BaseController<
    * @param remoteFeatureFlags - The new feature flags to cache.
    */
   async #updateCache(remoteFeatureFlags: FeatureFlags): Promise<void> {
-    const { processedFlags, thresholdCacheUpdates } =
-      await this.#processRemoteFeatureFlags(remoteFeatureFlags);
+    const {
+      processedFlags,
+      thresholdCacheUpdates,
+      featureFlagThresholdGroupUpdates,
+    } = await this.#processRemoteFeatureFlags(remoteFeatureFlags);
 
     const metaMetricsId = this.#getMetaMetricsId();
+    const canonicalId = this.#getCanonicalId();
     const currentFlagNames = Object.keys(remoteFeatureFlags);
 
     // Build updated threshold cache
@@ -304,13 +310,33 @@ export class RemoteFeatureFlagController extends BaseController<
 
     // Clean up stale entries
     for (const cacheKey of Object.keys(updatedThresholdCache)) {
-      const [cachedMetaMetricsId, ...cachedFlagNameParts] = cacheKey.split(':');
+      const [cachedSegmentationId, ...cachedFlagNameParts] =
+        cacheKey.split(':');
       const cachedFlagName = cachedFlagNameParts.join(':');
       if (
-        cachedMetaMetricsId === metaMetricsId &&
+        (cachedSegmentationId === metaMetricsId ||
+          cachedSegmentationId === canonicalId) &&
         !currentFlagNames.includes(cachedFlagName)
       ) {
         delete updatedThresholdCache[cacheKey];
+      }
+    }
+
+    const updatedFeatureFlagThresholdGroups = {
+      ...(this.state.featureFlagThresholdGroups ?? {}),
+    };
+
+    for (const [flagName, thresholdGroup] of Object.entries(
+      featureFlagThresholdGroupUpdates,
+    )) {
+      if (currentFlagNames.includes(flagName)) {
+        updatedFeatureFlagThresholdGroups[flagName] = thresholdGroup;
+      }
+    }
+
+    for (const flagName of Object.keys(updatedFeatureFlagThresholdGroups)) {
+      if (!currentFlagNames.includes(flagName)) {
+        delete updatedFeatureFlagThresholdGroups[flagName];
       }
     }
 
@@ -327,6 +353,7 @@ export class RemoteFeatureFlagController extends BaseController<
         rawRemoteFeatureFlags: remoteFeatureFlags,
         cacheTimestamp: Date.now(),
         thresholdCache: updatedThresholdCache,
+        featureFlagThresholdGroups: updatedFeatureFlagThresholdGroups,
       };
     });
   }
@@ -345,13 +372,21 @@ export class RemoteFeatureFlagController extends BaseController<
     return getVersionData(flagValue, this.#clientVersion);
   }
 
+  #getSegmentationId(idType: FeatureFlagIdType): string {
+    if (idType === FeatureFlagIdType.MetaMetrics) {
+      return this.#getMetaMetricsId();
+    }
+    return this.#getCanonicalId();
+  }
+
   async #processRemoteFeatureFlags(remoteFeatureFlags: FeatureFlags): Promise<{
     processedFlags: FeatureFlags;
     thresholdCacheUpdates: Record<string, number>;
+    featureFlagThresholdGroupUpdates: Record<string, string>;
   }> {
     const processedFlags: FeatureFlags = {};
-    const metaMetricsId = this.#getMetaMetricsId();
     const thresholdCacheUpdates: Record<string, number> = {};
+    const featureFlagThresholdGroupUpdates: Record<string, string> = {};
 
     for (const [
       remoteFeatureFlagName,
@@ -376,20 +411,22 @@ export class RemoteFeatureFlagController extends BaseController<
           continue;
         }
 
-        // Skip threshold processing if metaMetricsId is not available
-        if (!metaMetricsId) {
-          // Preserve array as-is when user hasn't opted into MetaMetrics
+        // Skip threshold processing if the configured identifier is not available
+        const idType = getThresholdIdType(processedValue);
+        const segmentationId = this.#getSegmentationId(idType);
+
+        if (!segmentationId) {
           processedFlags[remoteFeatureFlagName] = processedValue;
           continue;
         }
 
         // Check cache first, calculate only if needed
-        const cacheKey = `${metaMetricsId}:${remoteFeatureFlagName}` as const;
+        const cacheKey = `${segmentationId}:${remoteFeatureFlagName}` as const;
         let thresholdValue = this.state.thresholdCache?.[cacheKey];
 
         if (thresholdValue === undefined) {
           thresholdValue = await calculateThresholdForFlag(
-            metaMetricsId,
+            segmentationId,
             remoteFeatureFlagName,
           );
 
@@ -409,14 +446,22 @@ export class RemoteFeatureFlagController extends BaseController<
         );
 
         if (selectedGroup) {
-          processedValue = normalizeThresholdValue(selectedGroup);
+          processedValue = selectedGroup.value;
+          if (selectedGroup.name) {
+            featureFlagThresholdGroupUpdates[remoteFeatureFlagName] =
+              selectedGroup.name;
+          }
         }
       }
 
       processedFlags[remoteFeatureFlagName] = processedValue;
     }
 
-    return { processedFlags, thresholdCacheUpdates };
+    return {
+      processedFlags,
+      thresholdCacheUpdates,
+      featureFlagThresholdGroupUpdates,
+    };
   }
 
   /**

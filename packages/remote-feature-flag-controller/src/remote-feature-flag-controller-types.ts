@@ -43,6 +43,11 @@ export enum ThresholdVersion {
   DirectValue = 2,
 }
 
+export enum FeatureFlagIdType {
+  MetaMetrics = 'metametrics',
+  Canonical = 'canonical',
+}
+
 export type FeatureFlagScopeValue = {
   name: string;
   /**
@@ -50,6 +55,11 @@ export type FeatureFlagScopeValue = {
    * v2 configurations and is not emitted in processed controller state.
    */
   thresholdName?: string;
+  /**
+   * Selects which client identifier is used for deterministic threshold
+   * assignment. Defaults to `canonical` when omitted.
+   */
+  idType?: FeatureFlagIdType;
   /**
    * Selects the threshold entry output shape. Unrecognized versions fall back
    * to the legacy `{ name, value }` wrapper for backwards compatibility.
