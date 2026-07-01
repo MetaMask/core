@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [109.3.0]
+
 ### Added
 
 - Snap account-asset enrichment via `getAccountAssetInfo`; balance rows and `Asset.extra` carry chain-specific fields; export `isStellarClassicTrustlineInactiveForDisplay` for Stellar trustline UX ([#8828](https://github.com/MetaMask/core/pull/8828))
@@ -14,9 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/keyring-api` from `^23.1.0` to `^23.3.0` ([#9249](https://github.com/MetaMask/core/pull/9249))
-- Bump `@metamask/transaction-controller` from `^68.1.1` to `^68.2.1` ([#9253](https://github.com/MetaMask/core/pull/9253), [#9337](https://github.com/MetaMask/core/pull/9337))
+- Bump `@metamask/transaction-controller` from `^68.1.1` to `^68.2.2` ([#9253](https://github.com/MetaMask/core/pull/9253), [#9337](https://github.com/MetaMask/core/pull/9337), [#9349](https://github.com/MetaMask/core/pull/9349))
 - Bump `@metamask/multichain-account-service` from `^11.0.0` to `^11.1.0` ([#9264](https://github.com/MetaMask/core/pull/9264))
-- Bump `@metamask/core-backend` from `^6.3.3` to `^6.4.0` ([#9312](https://github.com/MetaMask/core/pull/9312))
+- Bump `@metamask/core-backend` from `^6.3.3` to `^6.5.0` ([#9312](https://github.com/MetaMask/core/pull/9312), [#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/accounts-controller` from `^39.0.3` to `^39.0.4` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/network-controller` from `^33.0.0` to `^34.0.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/network-enablement-controller` from `^5.4.0` to `^5.4.1` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/polling-controller` from `^16.0.7` to `^16.0.8` ([#9349](https://github.com/MetaMask/core/pull/9349))
 
 ## [109.2.2]
 
@@ -3261,7 +3267,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.2.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.3.0...HEAD
+[109.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.2.2...@metamask/assets-controllers@109.3.0
 [109.2.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.2.1...@metamask/assets-controllers@109.2.2
 [109.2.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.2.0...@metamask/assets-controllers@109.2.1
 [109.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.1.0...@metamask/assets-controllers@109.2.0
