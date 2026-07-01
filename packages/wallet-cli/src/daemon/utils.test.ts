@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 
 import {
+  makeDaemonConnectionError,
   isErrorWithCode,
   isProcessAlive,
   readPidFile,
@@ -31,6 +32,34 @@ describe('isErrorWithCode', () => {
     expect(isErrorWithCode('not an error', 'ENOENT')).toBe(false);
     expect(isErrorWithCode(null, 'ENOENT')).toBe(false);
     expect(isErrorWithCode(undefined, 'ENOENT')).toBe(false);
+  });
+});
+
+describe('makeDaemonConnectionError', () => {
+  it.each(['ENOENT', 'ECONNREFUSED', 'ECONNRESET'])(
+    'reports a stopped daemon for %s',
+    (code) => {
+      const error = Object.assign(new Error('boom'), { code });
+      expect(makeDaemonConnectionError(error)).toBe(
+        'Daemon is not running. Start it with `mm daemon start`.',
+      );
+    },
+  );
+
+  it.each(['EACCES', 'EPERM'])('reports a permission problem for %s', (code) => {
+    const error = Object.assign(new Error('boom'), { code });
+    expect(makeDaemonConnectionError(error)).toContain('permission denied');
+    expect(makeDaemonConnectionError(error)).toContain('MM_DAEMON_DATA_DIR');
+  });
+
+  it('surfaces the raw message of an unrecognized Error', () => {
+    expect(makeDaemonConnectionError(new Error('Socket read timed out'))).toBe(
+      'Socket read timed out',
+    );
+  });
+
+  it('stringifies a non-Error throw', () => {
+    expect(makeDaemonConnectionError('kaboom')).toBe('kaboom');
   });
 });
 

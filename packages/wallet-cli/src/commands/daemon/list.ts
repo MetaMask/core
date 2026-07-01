@@ -4,7 +4,7 @@ import { Command } from '@oclif/core';
 
 import { sendCommand } from '../../daemon/daemon-client';
 import { getDaemonPaths } from '../../daemon/paths';
-import { isErrorWithCode } from '../../daemon/utils';
+import { makeDaemonConnectionError } from '../../daemon/utils';
 
 /**
  * Narrow an RPC result to the `string[]` the daemon's `listActions` returns.
@@ -31,13 +31,7 @@ export default class DaemonList extends Command {
     try {
       response = await sendCommand({ socketPath, method: 'listActions' });
     } catch (error) {
-      if (
-        isErrorWithCode(error, 'ENOENT') ||
-        isErrorWithCode(error, 'ECONNREFUSED')
-      ) {
-        this.error('Daemon is not running. Start it with `mm daemon start`.');
-      }
-      this.error(error instanceof Error ? error.message : String(error));
+      this.error(makeDaemonConnectionError(error));
     }
 
     if (isJsonRpcFailure(response)) {

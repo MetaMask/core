@@ -4,7 +4,7 @@ import { Args, Command, Flags } from '@oclif/core';
 
 import { sendCommand } from '../../daemon/daemon-client';
 import { getDaemonPaths } from '../../daemon/paths';
-import { isErrorWithCode } from '../../daemon/utils';
+import { makeDaemonConnectionError } from '../../daemon/utils';
 
 export default class DaemonCall extends Command {
   static override description = 'Call a messenger action on the wallet daemon';
@@ -70,13 +70,7 @@ export default class DaemonCall extends Command {
         ...(timeoutMs === undefined ? {} : { timeoutMs }),
       });
     } catch (error) {
-      if (
-        isErrorWithCode(error, 'ENOENT') ||
-        isErrorWithCode(error, 'ECONNREFUSED')
-      ) {
-        this.error('Daemon is not running. Start it with `mm daemon start`.');
-      }
-      this.error(error instanceof Error ? error.message : String(error));
+      this.error(makeDaemonConnectionError(error));
     }
 
     if (isJsonRpcFailure(response)) {

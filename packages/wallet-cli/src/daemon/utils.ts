@@ -13,6 +13,33 @@ export function isErrorWithCode(error: unknown, code: string): boolean {
 }
 
 /**
+ * Turn an error thrown while contacting the daemon socket into a user-facing
+ * message for `Command.error`, so every command reports the same failure the
+ * same way. Recognizes "daemon not running" and "permission denied" errno
+ * codes, falling back to the raw error message.
+ *
+ * @param error - The value thrown while contacting the daemon.
+ * @returns A human-readable explanation of the failure.
+ */
+export function makeDaemonConnectionError(error: unknown): string {
+  if (
+    isErrorWithCode(error, 'ENOENT') ||
+    isErrorWithCode(error, 'ECONNREFUSED') ||
+    isErrorWithCode(error, 'ECONNRESET')
+  ) {
+    return 'Daemon is not running. Start it with `mm daemon start`.';
+  }
+  if (isErrorWithCode(error, 'EACCES') || isErrorWithCode(error, 'EPERM')) {
+    return (
+      'Cannot connect to the daemon socket: permission denied. ' +
+      'The socket may be owned by another user, or MM_DAEMON_DATA_DIR ' +
+      'may point to a directory you cannot access.'
+    );
+  }
+  return error instanceof Error ? error.message : String(error);
+}
+
+/**
  * Read a PID from a file. The file may contain just the PID, or the PID on
  * the first line followed by additional metadata (e.g. start time written by
  * the daemon).
