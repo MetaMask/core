@@ -199,7 +199,6 @@ describe('AuthenticatedUserStorageService', () => {
         'Failed to get notification preferences: 500',
       );
     });
-
   });
 
   describe('putNotificationPreferences', () => {
