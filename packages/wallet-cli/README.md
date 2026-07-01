@@ -20,12 +20,20 @@ Start the daemon (flags may also be supplied as the `INFURA_PROJECT_ID`, `MM_WAL
 mm daemon start --infura-project-id <key> --password <pw> --srp "<phrase>"
 ```
 
+Discover what the running wallet can do — `list` prints every messenger action currently dispatchable via `call`. This surface grows as more controllers are wired, so treat it as evolving rather than a stability contract:
+
+```sh
+mm daemon list
+```
+
 Call any messenger action on the running wallet (positional JSON array for arguments, optional `--timeout`):
 
 ```sh
-mm daemon call AccountsController:listAccounts
-mm daemon call KeyringController:getState --timeout 10000
+mm daemon call KeyringController:getState
+mm daemon call NetworkController:getState --timeout 10000
 ```
+
+For the exact parameters and return shape of a given action, see the TypeDoc/README of the controller that owns it (e.g. [`@metamask/keyring-controller`](https://github.com/MetaMask/core/tree/main/packages/keyring-controller#readme)).
 
 Inspect or tear it down:
 
