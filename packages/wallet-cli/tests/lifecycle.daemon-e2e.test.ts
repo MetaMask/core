@@ -77,11 +77,7 @@ async function runMm(args: string[], dataDir: string): Promise<RunResult> {
  * Assert that a CLI invocation exited 0.
  *
  * On failure this throws an error embedding the captured stdout/stderr AND the
- * daemon's own log file. The harness otherwise discards all three when only the
- * exit code is asserted, which leaves a CI-only failure (one we cannot
- * reproduce locally) impossible to diagnose from the run output. The daemon log
- * is the only window into the spawned process: it records `Shutting down
- * (...)`, `handle.close() failed`, `Daemon fatal: ...`, etc.
+ * daemon's own log file.
  *
  * @param step - Human-readable label for the CLI step (e.g. `daemon stop`).
  * @param result - The captured run result.
