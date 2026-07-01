@@ -100,6 +100,7 @@
 /packages/multichain-api-middleware        @MetaMask/core-platform
 /packages/permission-controller            @MetaMask/core-platform
 /packages/permission-log-controller        @MetaMask/core-platform
+/packages/platform-api-docs                @MetaMask/core-platform
 /packages/polling-controller               @MetaMask/core-platform
 /packages/preferences-controller           @MetaMask/core-platform
 /packages/rate-limit-controller            @MetaMask/core-platform
@@ -138,6 +139,7 @@
 
 ## Initialization
 /packages/wallet/src/initialization/instances/accounts-controller/ @MetaMask/accounts-engineers
+/packages/wallet/src/initialization/instances/address-book-controller/ @MetaMask/confirmations
 /packages/wallet/src/initialization/instances/approval-controller/ @MetaMask/confirmations
 /packages/wallet/src/initialization/instances/connectivity-controller/ @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/keyring-controller/ @MetaMask/accounts-engineers @MetaMask/core-platform

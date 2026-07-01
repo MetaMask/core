@@ -114,6 +114,7 @@ exports[`BridgeStatusController constructor rehydrates the tx history state 1`] 
         },
       ],
     },
+    "quoteId": undefined,
     "slippagePercentage": 0,
     "startTime": 1729964825189,
     "status": {
@@ -370,6 +371,7 @@ exports[`BridgeStatusController startPollingForBridgeTxStatus sets the inital tx
         },
       ],
     },
+    "quoteId": undefined,
     "slippagePercentage": 0,
     "startTime": 1729964825189,
     "status": {
@@ -584,6 +586,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -899,6 +902,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should delay after submitti
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -1215,6 +1219,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -1521,6 +1526,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -1836,6 +1842,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should not call handleMobil
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -2151,6 +2158,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should reset USDT allowance
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -2486,6 +2494,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -2776,6 +2785,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should successfully submit 
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -3272,6 +3282,7 @@ exports[`BridgeStatusController submitTx: EVM bridge waits for approval tx confi
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -3654,7 +3665,23 @@ exports[`BridgeStatusController submitTx: EVM swap should handle a gasless swap 
     "destChainId": 42161,
     "destTokenAmount": "990654755978612",
     "feeData": {
+      "metabridge": {
+        "amount": "8750000000000",
+        "asset": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:42161/slip44:60",
+          "chainId": 42161,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.7",
+          "symbol": "ETH",
+        },
+      },
       "txFee": {
+        "amount": "0",
         "asset": {
           "address": "0x0000000000000000000000000000000000000000",
           "assetId": "eip155:42161/slip44:60",
@@ -3724,6 +3751,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle a gasless swap 
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -3758,6 +3786,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle a gasless swap 
     "quotedGasInUsd": "2.5778",
     "quotedReturnInUsd": "0.134214",
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -3903,6 +3932,7 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -4362,6 +4392,7 @@ exports[`BridgeStatusController submitTx: EVM swap should successfully submit an
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -4608,6 +4639,19 @@ exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when g
         },
       },
       "txFee": {
+        "amount": "8750000000000",
+        "asset": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:42161/slip44:60",
+          "chainId": 42161,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.7",
+          "symbol": "ETH",
+        },
         "maxFeePerGas": "1395348",
         "maxPriorityFeePerGas": "1000001",
       },
@@ -4669,6 +4713,7 @@ exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when g
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -4758,6 +4803,19 @@ exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when g
         },
       },
       "txFee": {
+        "amount": "8750000000000",
+        "asset": {
+          "address": "0x0000000000000000000000000000000000000000",
+          "assetId": "eip155:42161/slip44:60",
+          "chainId": 42161,
+          "coinKey": "ETH",
+          "decimals": 18,
+          "icon": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "logoURI": "https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2/logo.png",
+          "name": "ETH",
+          "priceUSD": "2478.7",
+          "symbol": "ETH",
+        },
         "maxFeePerGas": "1395348",
         "maxPriorityFeePerGas": "1000001",
       },
@@ -4819,6 +4877,7 @@ exports[`BridgeStatusController submitTx: EVM swap should use quote txFee when g
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -5120,6 +5179,7 @@ exports[`BridgeStatusController submitTx: Solana bridge should successfully subm
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -5533,6 +5593,7 @@ exports[`BridgeStatusController submitTx: Solana swap should successfully submit
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -5941,6 +6002,7 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -6161,6 +6223,7 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
       },
     ],
   },
+  "quoteId": undefined,
   "slippagePercentage": 0,
   "startTime": 1234567890,
   "status": {
@@ -6325,7 +6388,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
     {
       "account_hardware_type": null,
       "action_type": "swapbridge-v1",
-      "actual_time_minutes": 833734.9086166667,
+      "actual_time_minutes": 833734.9086333333,
       "allowance_reset_transaction": undefined,
       "approval_transaction": undefined,
       "chain_id_destination": "eip155:42161",
@@ -6369,7 +6432,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
   {
     "account_hardware_type": null,
     "action_type": "swapbridge-v1",
-    "actual_time_minutes": 833734.9086166667,
+    "actual_time_minutes": 833734.9086333333,
     "allowance_reset_transaction": undefined,
     "approval_transaction": undefined,
     "chain_id_destination": "eip155:10",
@@ -6419,7 +6482,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
   {
     "account_hardware_type": null,
     "action_type": "swapbridge-v1",
-    "actual_time_minutes": 833734.9086166667,
+    "actual_time_minutes": 833734.9086333333,
     "allowance_reset_transaction": undefined,
     "approval_transaction": undefined,
     "batch_id": "0xBatchIdFailed1",
@@ -6472,7 +6535,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
     {
       "account_hardware_type": null,
       "action_type": "swapbridge-v1",
-      "actual_time_minutes": 833734.9086166667,
+      "actual_time_minutes": 833734.9086333333,
       "allowance_reset_transaction": undefined,
       "approval_transaction": "COMPLETE",
       "chain_id_destination": "eip155:10",
@@ -6567,7 +6630,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
     {
       "account_hardware_type": null,
       "action_type": "swapbridge-v1",
-      "actual_time_minutes": 833734.9086166667,
+      "actual_time_minutes": 833734.9086333333,
       "allowance_reset_transaction": undefined,
       "approval_transaction": undefined,
       "chain_id_destination": "eip155:42161",
@@ -6612,7 +6675,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
   {
     "account_hardware_type": null,
     "action_type": "swapbridge-v1",
-    "actual_time_minutes": 833734.9086166667,
+    "actual_time_minutes": 833734.9086333333,
     "allowance_reset_transaction": undefined,
     "approval_transaction": "COMPLETE",
     "chain_id_destination": "eip155:10",

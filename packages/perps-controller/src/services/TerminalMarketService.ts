@@ -8,6 +8,7 @@ import {
   optional,
   string,
   type,
+  union,
 } from '@metamask/superstruct';
 
 import { PERPS_CONSTANTS, TERMINAL_API_CONFIG } from '../constants/perpsConfig';
@@ -43,6 +44,7 @@ const TerminalPerpetualItemStruct = type({
   tags: optional(nullable(array(string()))),
   categories: optional(nullable(array(string()))),
   marketType: optional(nullable(string())),
+  listedAt: optional(nullable(union([number(), string()]))),
 });
 
 type TerminalPerpetualItem = Infer<typeof TerminalPerpetualItemStruct>;
@@ -245,6 +247,16 @@ export class TerminalMarketService {
       ) {
         entry.marketType =
           item.marketType as TerminalAssetMetadata['marketType'];
+      }
+
+      if (item.listedAt !== null && item.listedAt !== undefined) {
+        const listedAtMs =
+          typeof item.listedAt === 'number'
+            ? item.listedAt
+            : Date.parse(item.listedAt);
+        if (isFinite(listedAtMs)) {
+          entry.listedAt = listedAtMs;
+        }
       }
 
       map.set(item.symbol, entry);

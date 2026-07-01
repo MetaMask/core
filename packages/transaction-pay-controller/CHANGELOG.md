@@ -10,7 +10,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Refactor vault deposit utilities into shared `utils/` modules (`chomp`, `ma-vault-deposit`, `relay-post-ma-vault`) to prepare for the Relay Money Account deposit path ([#9303](https://github.com/MetaMask/core/pull/9303))
-- Bump `@metamask/bridge-status-controller` from `^73.0.0` to `^73.1.0` ([#9288](https://github.com/MetaMask/core/pull/9288))
+- Bump `@metamask/assets-controller` from `^9.1.0` to `^10.0.0` ([#9312](https://github.com/MetaMask/core/pull/9312))
+- Bump `@metamask/bridge-controller` from `^77.1.0` to `^77.2.0` ([#9318](https://github.com/MetaMask/core/pull/9318))
+
+## [23.17.2]
+
+### Changed
+
+- Bump `@metamask/bridge-status-controller` from `^73.0.0` to `^74.0.0` ([#9288](https://github.com/MetaMask/core/pull/9288), [#9307](https://github.com/MetaMask/core/pull/9307))
 - Bump `@metamask/bridge-controller` from `^77.0.0` to `^77.1.0` ([#9301](https://github.com/MetaMask/core/pull/9301))
 
 ## [23.17.1]
@@ -1207,7 +1214,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.17.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.17.2...HEAD
+[23.17.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.17.1...@metamask/transaction-pay-controller@23.17.2
 [23.17.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.17.0...@metamask/transaction-pay-controller@23.17.1
 [23.17.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.16.1...@metamask/transaction-pay-controller@23.17.0
 [23.16.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.16.0...@metamask/transaction-pay-controller@23.16.1

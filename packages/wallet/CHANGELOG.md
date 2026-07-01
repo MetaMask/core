@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Wire `AddressBookController` into the default wallet initialization ([#9291](https://github.com/MetaMask/core/pull/9291))
+
 ## [5.0.0]
 
 ### Added

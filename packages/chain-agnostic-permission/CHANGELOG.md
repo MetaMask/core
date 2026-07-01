@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `getSessionProperties` async function that hydrates the persisted session properties of a CAIP-25 caveat value with an `eip155Capabilities` record, mapping each permitted EVM account address to its per-chain capabilities resolved from the provided `getCapabilities` hook ([#9294](https://github.com/MetaMask/core/pull/9294))
+  - `getCapabilities` has the signature `(params: { address: string }) => Promise<Record<Hex, Record<string, Json>>>`.
+
 ### Changed
 
 - Bump `@metamask/controller-utils` from `^12.2.0` to `^12.3.0` ([#9218](https://github.com/MetaMask/core/pull/9218))

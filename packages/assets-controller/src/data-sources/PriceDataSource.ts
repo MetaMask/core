@@ -15,7 +15,7 @@ import type {
   Middleware,
   AssetsControllerStateInternal,
 } from '../types';
-import { fetchWithTimeout } from '../utils';
+import { fetchWithTimeout, normalizeAssetId } from '../utils';
 import { DedupingBatchFetcher } from '../utils/dedupingBatchFetcher';
 import type { SubscriptionRequest } from './AbstractDataSource';
 import { reduceInBatchesSerially } from './evm-rpc-services';
@@ -210,23 +210,36 @@ export class PriceDataSource {
       // Extract response from context
       const { response, request } = ctx;
 
-      // Only fetch prices for detected assets (assets without metadata)
-      // The subscription handles fetching prices for all existing assets
-      if (!response.detectedAssets && !request.assetsForPriceUpdate?.length) {
-        return next(ctx);
-      }
+      const statePrices = (ctx.getAssetsState()?.assetsPrice ?? {}) as Record<
+        string,
+        FungibleAssetPrice
+      >;
 
       const assetIds = new Set<Caip19AssetId>();
+
+      for (const assetId of request.assetsForPriceUpdate ?? []) {
+        assetIds.add(assetId);
+      }
+
+      // Detected assets only need a price fetch when state has none yet.
+      // Explicit assetsForPriceUpdate (e.g. currency change) are always fetched.
       for (const detectedAccountAssets of Object.values(
         response.detectedAssets ?? {},
       )) {
         for (const assetId of detectedAccountAssets) {
-          assetIds.add(assetId);
+          const normalizedAssetId = normalizeAssetId(assetId);
+          const alreadyQueued = request.assetsForPriceUpdate?.some(
+            (queuedId) =>
+              queuedId === assetId || queuedId === normalizedAssetId,
+          );
+          if (
+            statePrices[assetId] === undefined &&
+            statePrices[normalizedAssetId] === undefined &&
+            !alreadyQueued
+          ) {
+            assetIds.add(normalizedAssetId);
+          }
         }
-      }
-
-      for (const assetId of request.assetsForPriceUpdate ?? []) {
-        assetIds.add(assetId);
       }
 
       if (assetIds.size === 0) {
@@ -238,6 +251,10 @@ export class PriceDataSource {
 
       if (priceableAssetIds.length === 0) {
         return next(ctx);
+      }
+
+      if (request.forceUpdate) {
+        this.#deduper.invalidateKeys(priceableAssetIds);
       }
 
       try {
@@ -556,6 +573,8 @@ export class PriceDataSource {
         ) {
           await subscription.onAssetsUpdate({
             ...fetchResponse,
+            // merge overwrites existing spot prices on each poll; update would
+            // seed-only and leave the first price forever.
             updateMode: 'merge',
           });
         }
