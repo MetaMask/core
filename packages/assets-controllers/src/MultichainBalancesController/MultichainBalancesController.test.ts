@@ -27,8 +27,8 @@ import type {
   MultichainBalancesControllerMessenger,
   MultichainBalancesControllerState,
 } from '.';
-import { getDefaultMultichainBalancesControllerState } from './MultichainBalancesController';
 import { GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD } from './account-asset-info';
+import { getDefaultMultichainBalancesControllerState } from './MultichainBalancesController';
 
 const mockBtcAccount = {
   address: 'bc1qssdcp5kvwh6nghzg9tuk99xsflwkdv4hgvq58q',

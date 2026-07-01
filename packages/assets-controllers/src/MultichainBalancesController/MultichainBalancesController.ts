@@ -40,7 +40,10 @@ import type {
   MultichainAccountBalance,
 } from './account-asset-info';
 
-export type { AccountAssetInfo, MultichainAccountBalance } from './account-asset-info';
+export type {
+  AccountAssetInfo,
+  MultichainAccountBalance,
+} from './account-asset-info';
 
 const controllerName = 'MultichainBalancesController';
 

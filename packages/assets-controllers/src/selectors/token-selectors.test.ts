@@ -1277,7 +1277,9 @@ describe('token-selectors', () => {
         ) ?? [];
 
       expect(stellarAssets).toHaveLength(1);
-      expect(stellarAssets[0]?.accountAssetInfo).toStrictEqual({ limit: '1000' });
+      expect(stellarAssets[0]?.accountAssetInfo).toStrictEqual({
+        limit: '1000',
+      });
     });
   });
 });

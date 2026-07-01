@@ -452,7 +452,9 @@ const selectAllMultichainAssets = createAssetListSelector(
               }
             : undefined,
           chainId,
-          ...(balance?.accountAssetInfo !== undefined && { accountAssetInfo: balance.accountAssetInfo }),
+          ...(balance?.accountAssetInfo !== undefined && {
+            accountAssetInfo: balance.accountAssetInfo,
+          }),
         });
       }
     }
