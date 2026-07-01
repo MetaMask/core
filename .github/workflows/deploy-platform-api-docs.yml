@@ -35,9 +35,9 @@ jobs:
       contents: read
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
-          fetch-depth: 1
+          persist-credentials: false
 
       - name: Download build artifact
         uses: actions/download-artifact@v8
