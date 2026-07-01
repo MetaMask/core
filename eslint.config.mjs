@@ -81,6 +81,7 @@ const config = createConfig([
       '.yarn/**',
       'merged-packages/**',
       'scripts/create-package/package-template/**',
+      '.platform-api-docs/**',
     ],
   },
   {
@@ -117,6 +118,7 @@ const config = createConfig([
       '**/tests/**/*.{js,ts}',
       'scripts/*.ts',
       'scripts/create-package/**/*.ts',
+      'packages/platform-api-docs/**/*.ts',
     ],
     extends: [nodejs],
   },
@@ -210,7 +212,7 @@ const config = createConfig([
     },
   },
   {
-    files: ['scripts/*.ts'],
+    files: ['scripts/*.ts', 'packages/platform-api-docs/src/cli.ts'],
     rules: {
       // Scripts may be self-executable and thus have hashbangs.
       'n/hashbang': 'off',
@@ -317,7 +319,10 @@ const config = createConfig([
     },
   },
   {
-    files: ['packages/wallet-cli/src/**/*.test.{js,ts}'],
+    files: [
+      'packages/wallet-cli/src/**/*.test.{js,ts}',
+      'packages/platform-api-docs/**/*.{js,ts}',
+    ],
     rules: {
       'jest/unbound-method': 'off',
       'n/no-process-env': 'off',

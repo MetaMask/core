@@ -1,6 +1,10 @@
 import { createSelector } from 'reselect';
 
-import { MARKET_SORTING_CONFIG, SortOptionId } from './constants/perpsConfig';
+import {
+  MARKET_SORTING_CONFIG,
+  PERPS_CONSTANTS,
+  SortOptionId,
+} from './constants/perpsConfig';
 import type { PerpsControllerState } from './PerpsController';
 import type { PerpsSelectedPaymentToken, SortDirection } from './types';
 
@@ -62,6 +66,29 @@ export const selectIsWatchlistMarket = (
 ): boolean => {
   const watchlist = selectWatchlistMarkets(state);
   return watchlist.includes(symbol);
+};
+
+/**
+ * Select recently viewed markets for the current network.
+ *
+ * Returns up to PERPS_CONSTANTS.RecentlyViewedMarketsLimit symbols, ordered
+ * newest-first, filtered to entries within PERPS_CONSTANTS.RecentlyViewedMarketsTtlMs
+ * (24 hours). Returns an empty array when no qualifying entries exist.
+ *
+ * @param state - PerpsController state
+ * @returns Ordered array of recently viewed market symbols
+ */
+export const selectRecentlyViewedMarkets = (
+  state: PerpsControllerState,
+): string[] => {
+  const network = state?.isTestnet ? 'testnet' : 'mainnet';
+  const entries = state?.recentlyViewedMarkets?.[network] ?? [];
+  const cutoff = Date.now() - PERPS_CONSTANTS.RecentlyViewedMarketsTtlMs;
+
+  return entries
+    .filter((entry) => entry.viewedAt > cutoff)
+    .map((entry) => entry.symbol)
+    .slice(0, PERPS_CONSTANTS.RecentlyViewedMarketsLimit);
 };
 
 /**

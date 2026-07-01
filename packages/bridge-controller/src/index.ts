@@ -172,7 +172,13 @@ export {
 
 export { calcLatestSrcBalance } from './utils/balance';
 
-export { fetchBridgeTokens, getClientHeaders } from './utils/fetch';
+export {
+  fetchBridgeTokens,
+  getClientHeaders,
+  fetchBridgeQuoteStream,
+} from './utils/fetch';
+
+export { appendFeesToQuotes } from './utils/quote-fees';
 
 export {
   formatChainIdToCaip,
