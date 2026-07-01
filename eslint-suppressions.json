@@ -2240,6 +2240,11 @@
       "count": 2
     }
   },
+  "packages/transaction-pay-controller/src/strategy/bridge/bridge-submit.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
   "packages/transaction-pay-controller/src/strategy/relay/hyperliquid-withdraw.ts": {
     "no-restricted-syntax": {
       "count": 1
