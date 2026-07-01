@@ -7,16 +7,11 @@ jobs:
   deploy:
     name: Build and deploy to GitHub Pages
     runs-on: ubuntu-latest
-    # Locked to `main`, matching the Token Exchange Service policy that lets
-    # this job mint a `contents: write` token.
     environment: default-branch
     permissions:
       id-token: write
       contents: read
     steps:
-      # Build fresh rather than reusing the artifact from `lint-build-test`,
-      # which also builds untrusted PR code — publishing its output would be a
-      # supply-chain risk.
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
         with:
@@ -33,7 +28,6 @@ jobs:
             --site-base-url "/${REPO_NAME}/platform-api/"
 
       - name: Get access token
-        # Requested here because GitHub drops secret outputs passed between jobs.
         id: get-token
         uses: MetaMask/github-tools/.github/actions/get-token@v1
         with:
@@ -44,10 +38,7 @@ jobs:
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e # v4.0.0
         with:
-          # Push with the exchanged PAT so `gh-pages` can keep protections that
-          # block direct human pushes.
           personal_token: ${{ steps.get-token.outputs.token }}
           publish_dir: ./.platform-api-docs/build
           destination_dir: platform-api
-          # Only overwrite `/platform-api/`, leaving sibling doc sites intact.
           keep_files: true
