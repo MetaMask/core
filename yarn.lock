@@ -5818,7 +5818,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/authenticated-user-storage@npm:^3.0.0, @metamask/authenticated-user-storage@workspace:packages/authenticated-user-storage":
+"@metamask/authenticated-user-storage@npm:^2.1.0, @metamask/authenticated-user-storage@workspace:packages/authenticated-user-storage":
   version: 0.0.0-use.local
   resolution: "@metamask/authenticated-user-storage@workspace:packages/authenticated-user-storage"
   dependencies:
@@ -7485,7 +7485,7 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/money-account-upgrade-controller@workspace:packages/money-account-upgrade-controller"
   dependencies:
-    "@metamask/authenticated-user-storage": "npm:^3.0.0"
+    "@metamask/authenticated-user-storage": "npm:^2.1.0"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/chomp-api-service": "npm:^3.1.0"
@@ -7770,7 +7770,7 @@ __metadata:
     "@contentful/rich-text-html-renderer": "npm:^16.5.2"
     "@lavamoat/allow-scripts": "npm:^3.0.4"
     "@lavamoat/preinstall-always-fail": "npm:^2.1.0"
-    "@metamask/authenticated-user-storage": "npm:^3.0.0"
+    "@metamask/authenticated-user-storage": "npm:^2.1.0"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/controller-utils": "npm:^12.3.0"
@@ -7923,7 +7923,7 @@ __metadata:
   dependencies:
     "@metamask/abi-utils": "npm:^2.0.3"
     "@metamask/account-tree-controller": "npm:^7.5.3"
-    "@metamask/authenticated-user-storage": "npm:^3.0.0"
+    "@metamask/authenticated-user-storage": "npm:^2.1.0"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/controller-utils": "npm:^12.3.0"
