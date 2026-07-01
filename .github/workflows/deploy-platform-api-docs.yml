@@ -5,7 +5,7 @@ on:
 
 jobs:
   deploy:
-    name: Deploy to GitHub Pages
+    name: Build and deploy to GitHub Pages
     runs-on: ubuntu-latest
     # `default-branch` is the environment the Token Exchange Service policy
     # matches on; it's locked to the `main` branch, so a PAT can only be minted
@@ -18,16 +18,28 @@ jobs:
       id-token: write
       contents: read
     steps:
-      - name: Checkout
-        uses: actions/checkout@v7
+      # Build the site fresh here rather than reusing the artifact from the
+      # `build-platform-api-docs` job in `lint-build-test`: that job also runs
+      # for PRs, so trusting its output (or the caches behind it) for a
+      # production deploy would risk publishing poisoned content.
+      # `is-high-risk-environment` isolates the build.
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v3
         with:
+          is-high-risk-environment: true
           persist-credentials: false
 
-      - name: Download build artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: platform-api-docs-build
-          path: build/
+      - name: Generate and build Platform API docs
+        # The site is published under the `/platform-api/` subdirectory of the
+        # repo's GitHub Pages site so that other doc sites (e.g. package API
+        # docs) can be hosted alongside under sibling paths.
+        env:
+          REPO_OWNER: ${{ github.repository_owner }}
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: |
+          yarn docs:platform-api:build \
+            --site-url "https://${REPO_OWNER}.github.io" \
+            --site-base-url "/${REPO_NAME}/platform-api/"
 
       - name: Get access token
         # The token must be requested in the same job that uses it: GitHub drops
@@ -48,8 +60,8 @@ jobs:
           # protections that disallow direct human pushes while still letting
           # this workflow publish, which is what we want for `gh-pages`.
           personal_token: ${{ steps.get-token.outputs.token }}
-          publish_dir: ./build
+          publish_dir: ./.platform-api-docs/build
           destination_dir: platform-api
-          # Preserve sibling subdirectories (e.g. /package-api/) so this
-          # deploy only overwrites /platform-api/.
+          # Preserve sibling subdirectories (e.g. /package-api/) so this deploy
+          # only overwrites /platform-api/.
           keep_files: true
