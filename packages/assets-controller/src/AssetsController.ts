@@ -47,6 +47,7 @@ import type {
 } from '@metamask/permission-controller';
 import { PhishingControllerBulkScanTokensAction } from '@metamask/phishing-controller';
 import type { PreferencesControllerStateChangeEvent } from '@metamask/preferences-controller';
+import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type {
   SnapControllerGetRunnableSnapsAction,
   SnapControllerHandleRequestAction,
@@ -320,7 +321,9 @@ type AllowedActions =
   // BackendWebsocketDataSource
   | BackendWebSocketServiceActions
   // PhishingController
-  | PhishingControllerBulkScanTokensAction;
+  | PhishingControllerBulkScanTokensAction
+  // AccountsApiDataSource (Accounts API v6 balances feature flag)
+  | RemoteFeatureFlagControllerGetStateAction;
 
 type AllowedEvents =
   // AssetsController
@@ -897,6 +900,7 @@ export class AssetsController extends BaseController<
         this.#getAssetType(assetId),
     });
     this.#accountsApiDataSource = new AccountsApiDataSource({
+      messenger: this.messenger,
       queryApiClient,
       onActiveChainsUpdated: this.#onActiveChainsUpdated,
       ...accountsApiDataSourceConfig,

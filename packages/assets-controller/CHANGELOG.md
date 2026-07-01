@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add Robinhood Chain (`4663`/`0x1237`) in `MulticallClient` ([#9443](https://github.com/MetaMask/core/pull/9443))
+- `AccountsApiDataSource` now selects the Accounts API balances endpoint version from the `RemoteFeatureFlagController` (`assetsAccountsApiV6` flag, read per fetch off the shared messenger, default v5) so the v6 endpoint is gated consistently across clients (extension, mobile) without each client wiring a getter. Adds a required `messenger` option and `RemoteFeatureFlagController:getState` to `AccountsApiDataSourceAllowedActions`. Only `category: 'token'` rows from the v6 response are consumed (DeFi positions are ignored) to preserve parity with v5 ([#9344](https://github.com/MetaMask/core/pull/9344))
+- Add `AccountsApiDataSourceConfig.useBalanceV6` optional getter (`() => boolean`) that overrides the remote-flag-driven endpoint selection (e.g. for tests); when omitted the `assetsAccountsApiV6` remote flag is used ([#9344](https://github.com/MetaMask/core/pull/9344))
 
 ### Changed
 
