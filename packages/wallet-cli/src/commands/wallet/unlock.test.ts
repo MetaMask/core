@@ -88,10 +88,6 @@ describe('wallet unlock', () => {
   });
 
   it('prompts interactively when --password is supplied with an empty value', async () => {
-    // `--password ''` satisfies the flag without giving a real password;
-    // the command treats it the same as "no flag" and prompts. Otherwise
-    // the controller would reject `''` as a wrong password, which is a
-    // worse UX than re-prompting.
     mockPromptPassword.mockResolvedValue('typed-by-user');
 
     await runCommand(WalletUnlock, ['--password', '']);
@@ -102,6 +98,41 @@ describe('wallet unlock', () => {
         params: ['KeyringController:submitPassword', 'typed-by-user'],
       }),
     );
+  });
+
+  it('prompts interactively when MM_WALLET_PASSWORD is set to an empty string', async () => {
+    const savedEnv = process.env;
+    process.env = { ...savedEnv, MM_WALLET_PASSWORD: '' };
+    mockPromptPassword.mockResolvedValue('typed-by-user');
+    try {
+      await runCommand(WalletUnlock, []);
+    } finally {
+      // eslint-disable-next-line require-atomic-updates
+      process.env = savedEnv;
+    }
+
+    expect(mockPromptPassword).toHaveBeenCalledTimes(1);
+    expect(mockSendCommand).toHaveBeenCalledWith(
+      expect.objectContaining({
+        params: ['KeyringController:submitPassword', 'typed-by-user'],
+      }),
+    );
+  });
+
+  it('exits cleanly when the interactive prompt is cancelled', async () => {
+    const savedEnv = process.env;
+    process.env = { ...savedEnv };
+    delete process.env.MM_WALLET_PASSWORD;
+    mockPromptPassword.mockRejectedValue(new Error('User force closed the prompt'));
+    try {
+      const { stdout, error } = await runCommand(WalletUnlock, []);
+      expect(error).toBeUndefined();
+      expect(stdout).toBe('');
+      expect(mockSendCommand).not.toHaveBeenCalled();
+    } finally {
+      // eslint-disable-next-line require-atomic-updates
+      process.env = savedEnv;
+    }
   });
 
   it('returns a friendly hint when the daemon is not running (ENOENT)', async () => {
@@ -122,6 +153,26 @@ describe('wallet unlock', () => {
     const { error } = await runCommand(WalletUnlock, SUCCESS_FLAGS);
 
     expect(error?.message).toContain('Daemon is not running');
+  });
+
+  it('reports a lost connection when the daemon crashes mid-request (ECONNRESET)', async () => {
+    mockSendCommand.mockRejectedValue(
+      Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' }),
+    );
+
+    const { error } = await runCommand(WalletUnlock, SUCCESS_FLAGS);
+
+    expect(error?.message).toContain('Lost the connection to the daemon');
+  });
+
+  it('returns a permission-specific hint for EPERM', async () => {
+    mockSendCommand.mockRejectedValue(
+      Object.assign(new Error('operation not permitted'), { code: 'EPERM' }),
+    );
+
+    const { error } = await runCommand(WalletUnlock, SUCCESS_FLAGS);
+
+    expect(error?.message).toContain('permission denied');
   });
 
   it('surfaces other socket errors with the raw message', async () => {

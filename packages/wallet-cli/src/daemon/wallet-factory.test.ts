@@ -369,7 +369,9 @@ describe('createWallet', () => {
     );
     const closeSpy = jest.spyOn(KeyValueStore.prototype, 'close');
 
-    await expect(createWallet(CONFIG)).rejects.toThrow(failure);
+    await expect(createWallet(CONFIG)).rejects.toThrow(
+      'Failed to unlock the persisted vault',
+    );
 
     const realWallet = MockWallet.mock.results[1]?.value as Wallet;
     expect(realWallet.destroy).toHaveBeenCalledTimes(1);
