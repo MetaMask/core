@@ -21,20 +21,13 @@ module.exports = merge(baseConfig, {
 
   // The test harness in `src/test/` is exercised by the command tests but
   // not all of its error/edge branches are worth driving directly — it's
-  // production code's test infrastructure, not production code itself. The
-  // daemon e2e is skipped from this run (below), so it never executes here and
-  // must also be excluded from coverage, or it would report as 0%-covered
-  // source.
-  coveragePathIgnorePatterns: [
-    '.*/src/test/.*',
-    '.*\\.daemon-e2e\\.test\\.ts$',
-  ],
+  // production code's test infrastructure, not production code itself.
+  coveragePathIgnorePatterns: ['.*/src/test/.*'],
 
-  // The subprocess daemon e2e (`*.daemon-e2e.test.ts`) spawns the built CLI and
-  // the native sqlite addon; it has its own config (`jest.config.e2e.js`, run
-  // via `yarn test:e2e`) and must not run in — or be coverage-gated by — the
-  // fast unit suite.
-  testPathIgnorePatterns: ['/node_modules/', '\\.daemon-e2e\\.test\\.ts$'],
+  // The subprocess e2e suite lives in `tests/` and has its own config
+  // (`jest.config.e2e.js`, run via `yarn test:e2e`); it spawns the built CLI
+  // and must not run in the fast unit suite.
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/tests/'],
 
   // The subprocess e2e suite lives in `tests/` and has its own config
   // (`jest.config.e2e.js`, run via `yarn test:e2e`); it spawns the built CLI
