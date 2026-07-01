@@ -6,14 +6,10 @@ jest.mock('../../daemon/daemon-spawn');
 
 const mockEnsureDaemon = jest.mocked(ensureDaemon);
 
-const FLAGS = [
-  '--infura-project-id',
-  'key',
-  '--password',
-  'pw',
-  '--srp',
-  'phrase',
-];
+const SRP =
+  'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+
+const FLAGS = ['--infura-project-id', 'key', '--password', 'pw', '--srp', SRP];
 
 describe('daemon start', () => {
   it('reports the socket path on a fresh start', async () => {
