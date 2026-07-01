@@ -103,6 +103,32 @@ describe('daemon list', () => {
     writeSpy.mockRestore();
   });
 
+  it('sorts actions lexicographically, including within a shared namespace', async () => {
+    mockSendCommand.mockResolvedValue({
+      jsonrpc: '2.0',
+      id: '1',
+      result: [
+        'KeyringController:getState',
+        'AccountsController:listMultichainAccounts',
+        'KeyringController:addNewAccount',
+      ],
+    });
+    const writeSpy = jest
+      .spyOn(process.stdout, 'write')
+      .mockImplementation(() => true);
+
+    await withTTY(false, async () => {
+      await runCommand(DaemonList);
+    });
+
+    expect(writeSpy).toHaveBeenCalledWith(
+      'AccountsController:listMultichainAccounts\n' +
+        'KeyringController:addNewAccount\n' +
+        'KeyringController:getState\n',
+    );
+    writeSpy.mockRestore();
+  });
+
   it('treats an undefined isTTY as non-TTY', async () => {
     const writeSpy = jest
       .spyOn(process.stdout, 'write')

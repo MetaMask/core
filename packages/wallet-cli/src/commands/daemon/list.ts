@@ -1,22 +1,13 @@
-import type { Json } from '@metamask/utils';
 import { isJsonRpcFailure } from '@metamask/utils';
 import { Command } from '@oclif/core';
 
 import { sendCommand } from '../../daemon/daemon-client';
 import { getDaemonPaths } from '../../daemon/paths';
-import { makeDaemonConnectionError } from '../../daemon/utils';
-
-/**
- * Narrow an RPC result to the `string[]` the daemon's `listActions` returns.
- *
- * @param value - The `result` field of the JSON-RPC response.
- * @returns True if the value is an array of strings.
- */
-function isStringArray(value: Json): value is string[] {
-  return (
-    Array.isArray(value) && value.every((item) => typeof item === 'string')
-  );
-}
+import {
+  formatJsonRpcError,
+  isStringArray,
+  makeDaemonConnectionError,
+} from '../../daemon/utils';
 
 export default class DaemonList extends Command {
   static override description =
@@ -25,6 +16,7 @@ export default class DaemonList extends Command {
   static override examples = ['<%= config.bin %> daemon list'];
 
   public async run(): Promise<void> {
+    await this.parse(DaemonList);
     const { socketPath } = getDaemonPaths(this.config.dataDir);
 
     let response;
@@ -35,9 +27,7 @@ export default class DaemonList extends Command {
     }
 
     if (isJsonRpcFailure(response)) {
-      this.error(
-        `${response.error.message} (code ${String(response.error.code)})`,
-      );
+      this.error(formatJsonRpcError(response.error));
     }
 
     if (!isStringArray(response.result)) {

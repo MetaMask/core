@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Report daemon socket connection errors consistently across `mm daemon call` and `mm daemon list` ([#9343](https://github.com/MetaMask/core/pull/9343))
+- Report daemon socket connection errors consistently across `mm daemon call` and `mm daemon list` ([#9339](https://github.com/MetaMask/core/pull/9339))
 - Bump `@metamask/wallet` from `^3.0.0` to `^6.0.0` ([#9218](https://github.com/MetaMask/core/pull/9218), [#9263](https://github.com/MetaMask/core/pull/9263), [#9349](https://github.com/MetaMask/core/pull/9349))
 
 [Unreleased]: https://github.com/MetaMask/core/

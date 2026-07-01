@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises';
 
 import {
+  formatJsonRpcError,
+  isStringArray,
   makeDaemonConnectionError,
   isErrorWithCode,
   isProcessAlive,
@@ -36,7 +38,7 @@ describe('isErrorWithCode', () => {
 });
 
 describe('makeDaemonConnectionError', () => {
-  it.each(['ENOENT', 'ECONNREFUSED', 'ECONNRESET'])(
+  it.each(['ENOENT', 'ECONNREFUSED'])(
     'reports a stopped daemon for %s',
     (code) => {
       const error = Object.assign(new Error('boom'), { code });
@@ -46,10 +48,17 @@ describe('makeDaemonConnectionError', () => {
     },
   );
 
+  it('reports a lost connection for ECONNRESET', () => {
+    const error = Object.assign(new Error('boom'), { code: 'ECONNRESET' });
+    const message = makeDaemonConnectionError(error);
+    expect(message).toContain('Lost the connection to the daemon');
+    expect(message).toContain('mm daemon status');
+  });
+
   it.each(['EACCES', 'EPERM'])('reports a permission problem for %s', (code) => {
     const error = Object.assign(new Error('boom'), { code });
     expect(makeDaemonConnectionError(error)).toContain('permission denied');
-    expect(makeDaemonConnectionError(error)).toContain('MM_DAEMON_DATA_DIR');
+    expect(makeDaemonConnectionError(error)).toContain('MM_DATA_DIR');
   });
 
   it('surfaces the raw message of an unrecognized Error', () => {
@@ -60,6 +69,31 @@ describe('makeDaemonConnectionError', () => {
 
   it('stringifies a non-Error throw', () => {
     expect(makeDaemonConnectionError('kaboom')).toBe('kaboom');
+  });
+});
+
+describe('formatJsonRpcError', () => {
+  it('annotates the message with its numeric code', () => {
+    expect(
+      formatJsonRpcError({ code: -32601, message: 'Method not found' }),
+    ).toBe('Method not found (code -32601)');
+  });
+});
+
+describe('isStringArray', () => {
+  it('returns true for an array of strings', () => {
+    expect(isStringArray(['a', 'b'])).toBe(true);
+    expect(isStringArray([])).toBe(true);
+  });
+
+  it('returns false for an array with a non-string element', () => {
+    expect(isStringArray(['a', 42])).toBe(false);
+  });
+
+  it('returns false for non-array values', () => {
+    expect(isStringArray('a')).toBe(false);
+    expect(isStringArray({ 0: 'a' })).toBe(false);
+    expect(isStringArray(null)).toBe(false);
   });
 });
 

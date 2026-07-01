@@ -4,7 +4,10 @@ import { Args, Command, Flags } from '@oclif/core';
 
 import { sendCommand } from '../../daemon/daemon-client';
 import { getDaemonPaths } from '../../daemon/paths';
-import { makeDaemonConnectionError } from '../../daemon/utils';
+import {
+  formatJsonRpcError,
+  makeDaemonConnectionError,
+} from '../../daemon/utils';
 
 export default class DaemonCall extends Command {
   static override description = 'Call a messenger action on the wallet daemon';
@@ -18,7 +21,7 @@ export default class DaemonCall extends Command {
   static override args = {
     action: Args.string({
       description:
-        'The messenger action name (e.g. AccountsController:listAccounts)',
+        'The messenger action name (e.g. KeyringController:getState)',
       required: true,
     }),
     params: Args.string({
@@ -74,9 +77,7 @@ export default class DaemonCall extends Command {
     }
 
     if (isJsonRpcFailure(response)) {
-      this.error(
-        `${response.error.message} (code ${String(response.error.code)})`,
-      );
+      this.error(formatJsonRpcError(response.error));
     }
 
     const isTTY = process.stdout.isTTY ?? false;
