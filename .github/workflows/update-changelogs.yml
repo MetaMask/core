@@ -101,7 +101,7 @@ jobs:
     steps:
       - name: Get access token
         id: get-token
-        uses: MetaMask/github-tools/.github/actions/get-token@v1
+        uses: MetaMask/github-tools/.github/actions/get-token@v1.14.0
         with:
           token-exchange-url: ${{ vars.TOKEN_EXCHANGE_URL }}
           permissions: |
@@ -131,7 +131,7 @@ jobs:
     steps:
       - name: Get access token
         id: get-token
-        uses: MetaMask/github-tools/.github/actions/get-token@v1
+        uses: MetaMask/github-tools/.github/actions/get-token@v1.14.0
         with:
           token-exchange-url: ${{ vars.TOKEN_EXCHANGE_URL }}
           permissions: |
