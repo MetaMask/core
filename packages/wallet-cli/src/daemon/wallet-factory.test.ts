@@ -25,7 +25,7 @@ const mockRm = jest.mocked(rm);
 
 const createdTempDbPaths: string[] = [];
 
-const SRP = 'test test test test test test test test test test test ball';
+const SRP = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 
 const CONFIG = {
   databasePath: ':memory:',
