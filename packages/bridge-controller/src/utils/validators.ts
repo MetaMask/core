@@ -31,6 +31,12 @@ export enum FeeType {
   TX_FEE = 'txFee',
 }
 
+export enum DiscountType {
+  VIP = 'vip',
+  PROMO = 'promo',
+  DAO = 'dao',
+}
+
 export enum ActionTypes {
   BRIDGE = 'bridge',
   SWAP = 'swap',
@@ -205,6 +211,7 @@ export const validateSwapsTokenObject = (
 export const FeeDataSchema = type({
   amount: TruthyDigitStringSchema,
   asset: BridgeAssetSchema,
+  discountType: optional(nullable(string())),
 });
 
 export const ProtocolSchema = type({
