@@ -1,4 +1,5 @@
 import { BaseController } from '@metamask/base-controller';
+import { BaseDataService } from '@metamask/base-data-service';
 import type {
   NetworkClientId,
   NetworkClient,
@@ -102,4 +103,14 @@ export const BlockTrackerPollingController = <
 >() =>
   BlockTrackerPollingControllerMixin<typeof BaseController, PollingInput>(
     BaseController,
+  );
+
+export const BlockTrackerPollingDataService = <
+  PollingInput extends BlockTrackerPollingInput,
+  // The return type is inferred from the class defined inside the function
+  // scope, so this can't be easily typed.
+  // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+>() =>
+  BlockTrackerPollingControllerMixin<typeof BaseDataService, PollingInput>(
+    BaseDataService,
   );
