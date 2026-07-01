@@ -58,7 +58,7 @@
     "@metamask/messenger": "^1.2.0",
     "@metamask/polling-controller": "^16.0.7",
     "@metamask/profile-sync-controller": "^28.2.0",
-    "@metamask/transaction-controller": "^68.3.0",
+    "@metamask/transaction-controller": "^68.2.1",
     "@metamask/utils": "^11.11.0",
     "bignumber.js": "^9.1.2"
   },
