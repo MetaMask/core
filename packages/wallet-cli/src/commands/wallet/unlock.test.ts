@@ -123,9 +123,12 @@ describe('wallet unlock', () => {
     const savedEnv = process.env;
     process.env = { ...savedEnv };
     delete process.env.MM_WALLET_PASSWORD;
-    const exitPromptError = Object.assign(new Error('User force closed the prompt'), {
-      name: 'ExitPromptError',
-    });
+    const exitPromptError = Object.assign(
+      new Error('User force closed the prompt'),
+      {
+        name: 'ExitPromptError',
+      },
+    );
     mockPromptPassword.mockRejectedValue(exitPromptError);
     try {
       const { stdout, error } = await runCommand(WalletUnlock, []);

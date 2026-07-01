@@ -25,9 +25,6 @@ export async function confirmPurge(): Promise<boolean> {
  */
 export async function promptPassword(): Promise<string> {
   const { default: password } = await import('@inquirer/password');
-  // @inquirer/password v5 ships a separate CJS build; TypeScript Node16 resolves
-  // the `require` condition and wraps module.exports as `.default`, giving a
-  // non-callable module-namespace type. The cast is safe: the value is a prompt fn.
   return (
     password as unknown as (c: {
       message: string;

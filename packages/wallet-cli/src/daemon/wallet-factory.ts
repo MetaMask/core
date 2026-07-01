@@ -222,7 +222,6 @@ export async function createWallet({
       } catch (error) {
         throw new Error(
           `Failed to unlock the persisted vault: ${String(error)}`,
-          { cause: error },
         );
       }
     }
