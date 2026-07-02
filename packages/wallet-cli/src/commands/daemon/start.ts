@@ -20,7 +20,7 @@ export default class DaemonStart extends Command {
     password: Flags.string({
       description:
         'Wallet password (testing only — use MM_WALLET_PASSWORD env var in production). ' +
-        'Required on first run; on subsequent runs, omit to start with a locked keyring and use `mm wallet unlock`.',
+        'Required on first run; on subsequent runs, omit (and leave MM_WALLET_PASSWORD unset) to start with a locked keyring and use `mm wallet unlock`.',
       env: 'MM_WALLET_PASSWORD',
       required: false,
     }),
