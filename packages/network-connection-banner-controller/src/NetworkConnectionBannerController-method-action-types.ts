@@ -17,9 +17,7 @@ export type NetworkConnectionBannerControllerInitAction = {
 };
 
 /**
- * Clears the banner state regardless of the current rule outcome. The next
- * subscription-driven evaluation will re-show the banner if the conditions
- * still hold.
+ * Clears the banner state such that the banner will be hidden.
  */
 export type NetworkConnectionBannerControllerDismissBannerAction = {
   type: `NetworkConnectionBannerController:dismissBanner`;
