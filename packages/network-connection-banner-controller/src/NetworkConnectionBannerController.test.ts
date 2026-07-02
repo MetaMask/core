@@ -48,7 +48,7 @@ function buildCustomEndpoint(
   };
 }
 
-function buildConfiguration(
+function buildNetworkConfiguration(
   overrides: Partial<NetworkConfiguration> &
     Pick<NetworkConfiguration, 'chainId'>,
 ): NetworkConfiguration {
@@ -123,9 +123,9 @@ describe('NetworkConnectionBannerController', () => {
 
   describe('start / stop', () => {
     it('does not evaluate existing upstream state before start', async () => {
-      const initialState = buildNetworkState({
-        configurations: {
-          '0x89': buildConfiguration({
+      const externalState = buildExternalState({
+        networkConfigurationsByChainId: {
+          '0x89': buildNetworkConfiguration({
             chainId: '0x89',
             name: 'Polygon Mainnet',
             nativeCurrency: 'MATIC',
@@ -137,9 +137,9 @@ describe('NetworkConnectionBannerController', () => {
             ],
           }),
         },
-        enabledChainIds: ['0x89'],
-        metadata: {
-          [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(NetworkStatus.Unavailable),
+        enabledEvmChainIds: ['0x89'],
+        networksMetadata: {
+          [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Unavailable),
         },
       });
 
@@ -149,15 +149,15 @@ describe('NetworkConnectionBannerController', () => {
 
           expect(controller.state.status).toBe('available');
         },
-        initialState,
+        externalState,
         false,
       );
     });
 
     it('evaluates existing upstream state on start', async () => {
-      const initialState = buildNetworkState({
-        configurations: {
-          '0x89': buildConfiguration({
+      const externalState = buildExternalState({
+        networkConfigurationsByChainId: {
+          '0x89': buildNetworkConfiguration({
             chainId: '0x89',
             name: 'Polygon Mainnet',
             nativeCurrency: 'MATIC',
@@ -169,9 +169,9 @@ describe('NetworkConnectionBannerController', () => {
             ],
           }),
         },
-        enabledChainIds: ['0x89'],
-        metadata: {
-          [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(NetworkStatus.Unavailable),
+        enabledEvmChainIds: ['0x89'],
+        networksMetadata: {
+          [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Unavailable),
         },
       });
 
@@ -184,18 +184,18 @@ describe('NetworkConnectionBannerController', () => {
 
           expect(controller.state.status).toBe('degraded');
         },
-        initialState,
+        externalState,
         false,
       );
     });
 
     it('ignores upstream state changes before start', async () => {
       await withController(
-        ({ controller, setNetworkState }) => {
-          setNetworkState(
-            buildNetworkState({
-              configurations: {
-                '0x89': buildConfiguration({
+        ({ controller, publishNetworkStateChanges }) => {
+          publishNetworkStateChanges(
+            buildExternalState({
+              networkConfigurationsByChainId: {
+                '0x89': buildNetworkConfiguration({
                   chainId: '0x89',
                   name: 'Polygon Mainnet',
                   nativeCurrency: 'MATIC',
@@ -207,9 +207,9 @@ describe('NetworkConnectionBannerController', () => {
                   ],
                 }),
               },
-              enabledChainIds: ['0x89'],
-              metadata: {
-                [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(
+              enabledEvmChainIds: ['0x89'],
+              networksMetadata: {
+                [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
                   NetworkStatus.Unavailable,
                 ),
               },
@@ -229,11 +229,11 @@ describe('NetworkConnectionBannerController', () => {
     });
 
     it('cancels a pending banner and resets state on stop', async () => {
-      await withController(({ controller, setNetworkState }) => {
-        setNetworkState(
-          buildNetworkState({
-            configurations: {
-              '0x89': buildConfiguration({
+      await withController(({ controller, publishNetworkStateChanges }) => {
+        publishNetworkStateChanges(
+          buildExternalState({
+            networkConfigurationsByChainId: {
+              '0x89': buildNetworkConfiguration({
                 chainId: '0x89',
                 name: 'Polygon Mainnet',
                 nativeCurrency: 'MATIC',
@@ -245,9 +245,9 @@ describe('NetworkConnectionBannerController', () => {
                 ],
               }),
             },
-            enabledChainIds: ['0x89'],
-            metadata: {
-              [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(
+            enabledEvmChainIds: ['0x89'],
+            networksMetadata: {
+              [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
                 NetworkStatus.Unavailable,
               ),
             },
@@ -267,12 +267,12 @@ describe('NetworkConnectionBannerController', () => {
     });
 
     it('ignores upstream state changes after stop', async () => {
-      await withController(({ controller, setNetworkState }) => {
+      await withController(({ controller, publishNetworkStateChanges }) => {
         controller.stop();
-        setNetworkState(
-          buildNetworkState({
-            configurations: {
-              '0x89': buildConfiguration({
+        publishNetworkStateChanges(
+          buildExternalState({
+            networkConfigurationsByChainId: {
+              '0x89': buildNetworkConfiguration({
                 chainId: '0x89',
                 name: 'Polygon Mainnet',
                 nativeCurrency: 'MATIC',
@@ -284,9 +284,9 @@ describe('NetworkConnectionBannerController', () => {
                 ],
               }),
             },
-            enabledChainIds: ['0x89'],
-            metadata: {
-              [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(
+            enabledEvmChainIds: ['0x89'],
+            networksMetadata: {
+              [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
                 NetworkStatus.Unavailable,
               ),
             },
@@ -299,13 +299,13 @@ describe('NetworkConnectionBannerController', () => {
     });
 
     it('resumes evaluation when start is called again after stop', async () => {
-      await withController(({ controller, setNetworkState }) => {
+      await withController(({ controller, publishNetworkStateChanges }) => {
         controller.stop();
 
-        setNetworkState(
-          buildNetworkState({
-            configurations: {
-              '0x89': buildConfiguration({
+        publishNetworkStateChanges(
+          buildExternalState({
+            networkConfigurationsByChainId: {
+              '0x89': buildNetworkConfiguration({
                 chainId: '0x89',
                 name: 'Polygon Mainnet',
                 nativeCurrency: 'MATIC',
@@ -317,9 +317,9 @@ describe('NetworkConnectionBannerController', () => {
                 ],
               }),
             },
-            enabledChainIds: ['0x89'],
-            metadata: {
-              [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(
+            enabledEvmChainIds: ['0x89'],
+            networksMetadata: {
+              [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
                 NetworkStatus.Unavailable,
               ),
             },
@@ -351,13 +351,13 @@ describe('NetworkConnectionBannerController', () => {
 
     it('bails out when a stateChanged listener calls stop synchronously during refresh', async () => {
       await withController(
-        ({ controller, controllerMessenger, setNetworkState }) => {
+        ({ controller, controllerMessenger, publishNetworkStateChanges }) => {
           // Escalate the banner to `unavailable` so state is non default and the
           // next refresh's pre timer `update` actually mutates state.
-          setNetworkState(
-            buildNetworkState({
-              configurations: {
-                '0x89': buildConfiguration({
+          publishNetworkStateChanges(
+            buildExternalState({
+              networkConfigurationsByChainId: {
+                '0x89': buildNetworkConfiguration({
                   chainId: '0x89',
                   name: 'Polygon Mainnet',
                   nativeCurrency: 'MATIC',
@@ -369,9 +369,9 @@ describe('NetworkConnectionBannerController', () => {
                   ],
                 }),
               },
-              enabledChainIds: ['0x89'],
-              metadata: {
-                [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(
+              enabledEvmChainIds: ['0x89'],
+              networksMetadata: {
+                [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
                   NetworkStatus.Unavailable,
                 ),
               },
@@ -393,10 +393,10 @@ describe('NetworkConnectionBannerController', () => {
 
           // Trigger a refresh whose pre timer `update` will fire `stateChanged`
           // (previous state was `unavailable`/polygon → available/null).
-          setNetworkState(
-            buildNetworkState({
-              configurations: {
-                '0x1': buildConfiguration({
+          publishNetworkStateChanges(
+            buildExternalState({
+              networkConfigurationsByChainId: {
+                '0x1': buildNetworkConfiguration({
                   chainId: '0x1',
                   rpcEndpoints: [
                     buildCustomEndpoint(
@@ -406,9 +406,9 @@ describe('NetworkConnectionBannerController', () => {
                   ],
                 }),
               },
-              enabledChainIds: ['0x1'],
-              metadata: {
-                [ALCHEMY_CLIENT_ID]: makeMetadata(NetworkStatus.Unavailable),
+              enabledEvmChainIds: ['0x1'],
+              networksMetadata: {
+                [ALCHEMY_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Unavailable),
               },
             }),
           );
@@ -424,7 +424,7 @@ describe('NetworkConnectionBannerController', () => {
 
     it('bails out when a stateChanged listener calls stop synchronously at the degraded fire', async () => {
       await withController(
-        ({ controller, controllerMessenger, setNetworkState }) => {
+        ({ controller, controllerMessenger, publishNetworkStateChanges }) => {
           controllerMessenger.subscribe(
             'NetworkConnectionBannerController:stateChanged',
             (state) => {
@@ -434,10 +434,10 @@ describe('NetworkConnectionBannerController', () => {
             },
           );
 
-          setNetworkState(
-            buildNetworkState({
-              configurations: {
-                '0x89': buildConfiguration({
+          publishNetworkStateChanges(
+            buildExternalState({
+              networkConfigurationsByChainId: {
+                '0x89': buildNetworkConfiguration({
                   chainId: '0x89',
                   name: 'Polygon Mainnet',
                   nativeCurrency: 'MATIC',
@@ -449,9 +449,9 @@ describe('NetworkConnectionBannerController', () => {
                   ],
                 }),
               },
-              enabledChainIds: ['0x89'],
-              metadata: {
-                [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(
+              enabledEvmChainIds: ['0x89'],
+              networksMetadata: {
+                [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
                   NetworkStatus.Unavailable,
                 ),
               },
@@ -471,19 +471,19 @@ describe('NetworkConnectionBannerController', () => {
     });
   });
 
-  describe('rule evaluation on NetworkController:stateChange', () => {
+  describe('on NetworkController:stateChange', () => {
     it('does not show the banner when only one Infura network is failing alongside healthy peers (single-provider blip)', async () => {
-      await withController(({ controller, setNetworkState }) => {
-        setNetworkState(
-          buildNetworkState({
-            configurations: {
-              '0x1': buildConfiguration({
+      await withController(({ controller, publishNetworkStateChanges }) => {
+        publishNetworkStateChanges(
+          buildExternalState({
+            networkConfigurationsByChainId: {
+              '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
                   buildInfuraEndpoint(MAINNET_CLIENT_ID, 'mainnet'),
                 ],
               }),
-              '0xaa36a7': buildConfiguration({
+              '0xaa36a7': buildNetworkConfiguration({
                 chainId: '0xaa36a7',
                 name: 'Sepolia',
                 nativeCurrency: 'SepoliaETH',
@@ -492,9 +492,9 @@ describe('NetworkConnectionBannerController', () => {
                 ],
               }),
             },
-            metadata: {
-              [MAINNET_CLIENT_ID]: makeMetadata(NetworkStatus.Unavailable),
-              [SEPOLIA_CLIENT_ID]: makeMetadata(NetworkStatus.Available),
+            networksMetadata: {
+              [MAINNET_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Unavailable),
+              [SEPOLIA_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Available),
             },
           }),
         );
@@ -509,17 +509,17 @@ describe('NetworkConnectionBannerController', () => {
     });
 
     it('does not show the banner when many Infura networks are failing simultaneously alongside a healthy peer on another domain', async () => {
-      await withController(({ controller, setNetworkState }) => {
-        setNetworkState(
-          buildNetworkState({
-            configurations: {
-              '0x1': buildConfiguration({
+      await withController(({ controller, publishNetworkStateChanges }) => {
+        publishNetworkStateChanges(
+          buildExternalState({
+            networkConfigurationsByChainId: {
+              '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
                   buildInfuraEndpoint(MAINNET_CLIENT_ID, 'mainnet'),
                 ],
               }),
-              '0xaa36a7': buildConfiguration({
+              '0xaa36a7': buildNetworkConfiguration({
                 chainId: '0xaa36a7',
                 name: 'Sepolia',
                 nativeCurrency: 'SepoliaETH',
@@ -527,7 +527,7 @@ describe('NetworkConnectionBannerController', () => {
                   buildInfuraEndpoint(SEPOLIA_CLIENT_ID, 'sepolia'),
                 ],
               }),
-              '0x89': buildConfiguration({
+              '0x89': buildNetworkConfiguration({
                 chainId: '0x89',
                 name: 'Polygon Mainnet',
                 nativeCurrency: 'MATIC',
@@ -539,10 +539,10 @@ describe('NetworkConnectionBannerController', () => {
                 ],
               }),
             },
-            metadata: {
-              [MAINNET_CLIENT_ID]: makeMetadata(NetworkStatus.Unavailable),
-              [SEPOLIA_CLIENT_ID]: makeMetadata(NetworkStatus.Unavailable),
-              [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(NetworkStatus.Available),
+            networksMetadata: {
+              [MAINNET_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Unavailable),
+              [SEPOLIA_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Unavailable),
+              [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Available),
             },
           }),
         );
@@ -554,17 +554,17 @@ describe('NetworkConnectionBannerController', () => {
     });
 
     it('shows the banner when failures span two different registrable domains', async () => {
-      await withController(({ controller, setNetworkState }) => {
-        setNetworkState(
-          buildNetworkState({
-            configurations: {
-              '0x1': buildConfiguration({
+      await withController(({ controller, publishNetworkStateChanges }) => {
+        publishNetworkStateChanges(
+          buildExternalState({
+            networkConfigurationsByChainId: {
+              '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
                   buildInfuraEndpoint(MAINNET_CLIENT_ID, 'mainnet'),
                 ],
               }),
-              '0xa4b1': buildConfiguration({
+              '0xa4b1': buildNetworkConfiguration({
                 chainId: '0xa4b1',
                 name: 'Arbitrum One',
                 nativeCurrency: 'ETH',
@@ -576,9 +576,9 @@ describe('NetworkConnectionBannerController', () => {
                 ],
               }),
             },
-            metadata: {
-              [MAINNET_CLIENT_ID]: makeMetadata(NetworkStatus.Unavailable),
-              [ALCHEMY_CLIENT_ID]: makeMetadata(NetworkStatus.Unavailable),
+            networksMetadata: {
+              [MAINNET_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Unavailable),
+              [ALCHEMY_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Unavailable),
             },
           }),
         );
@@ -604,17 +604,17 @@ describe('NetworkConnectionBannerController', () => {
     });
 
     it('shows the banner when a single custom RPC fails amid healthy Infura peers (custom override)', async () => {
-      await withController(({ controller, setNetworkState }) => {
-        setNetworkState(
-          buildNetworkState({
-            configurations: {
-              '0x1': buildConfiguration({
+      await withController(({ controller, publishNetworkStateChanges }) => {
+        publishNetworkStateChanges(
+          buildExternalState({
+            networkConfigurationsByChainId: {
+              '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
                   buildInfuraEndpoint(MAINNET_CLIENT_ID, 'mainnet'),
                 ],
               }),
-              '0x89': buildConfiguration({
+              '0x89': buildNetworkConfiguration({
                 chainId: '0x89',
                 name: 'Polygon Mainnet',
                 nativeCurrency: 'MATIC',
@@ -626,9 +626,9 @@ describe('NetworkConnectionBannerController', () => {
                 ],
               }),
             },
-            metadata: {
-              [MAINNET_CLIENT_ID]: makeMetadata(NetworkStatus.Available),
-              [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(
+            networksMetadata: {
+              [MAINNET_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Available),
+              [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
                 NetworkStatus.Unavailable,
               ),
             },
@@ -646,20 +646,20 @@ describe('NetworkConnectionBannerController', () => {
     });
 
     it('shows the banner when every enabled network is failing on a single domain (all-down escape hatch)', async () => {
-      await withController(({ controller, setNetworkState }) => {
-        setNetworkState(
-          buildNetworkState({
-            configurations: {
-              '0x1': buildConfiguration({
+      await withController(({ controller, publishNetworkStateChanges }) => {
+        publishNetworkStateChanges(
+          buildExternalState({
+            networkConfigurationsByChainId: {
+              '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
                   buildInfuraEndpoint(MAINNET_CLIENT_ID, 'mainnet'),
                 ],
               }),
             },
-            enabledChainIds: ['0x1'],
-            metadata: {
-              [MAINNET_CLIENT_ID]: makeMetadata(NetworkStatus.Unavailable),
+            enabledEvmChainIds: ['0x1'],
+            networksMetadata: {
+              [MAINNET_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Unavailable),
             },
           }),
         );
@@ -675,17 +675,17 @@ describe('NetworkConnectionBannerController', () => {
     });
 
     it('ignores enabled networks with missing metadata when every known network is failing', async () => {
-      await withController(({ controller, setNetworkState }) => {
-        setNetworkState(
-          buildNetworkState({
-            configurations: {
-              '0x1': buildConfiguration({
+      await withController(({ controller, publishNetworkStateChanges }) => {
+        publishNetworkStateChanges(
+          buildExternalState({
+            networkConfigurationsByChainId: {
+              '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
                   buildInfuraEndpoint(MAINNET_CLIENT_ID, 'mainnet'),
                 ],
               }),
-              '0xaa36a7': buildConfiguration({
+              '0xaa36a7': buildNetworkConfiguration({
                 chainId: '0xaa36a7',
                 name: 'Sepolia',
                 nativeCurrency: 'SepoliaETH',
@@ -694,8 +694,8 @@ describe('NetworkConnectionBannerController', () => {
                 ],
               }),
             },
-            metadata: {
-              [MAINNET_CLIENT_ID]: makeMetadata(NetworkStatus.Unavailable),
+            networksMetadata: {
+              [MAINNET_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Unavailable),
             },
           }),
         );
@@ -710,17 +710,17 @@ describe('NetworkConnectionBannerController', () => {
     });
 
     it('prefers a custom failure over an Infura one when surfacing the banner network', async () => {
-      await withController(({ controller, setNetworkState }) => {
-        setNetworkState(
-          buildNetworkState({
-            configurations: {
-              '0x1': buildConfiguration({
+      await withController(({ controller, publishNetworkStateChanges }) => {
+        publishNetworkStateChanges(
+          buildExternalState({
+            networkConfigurationsByChainId: {
+              '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
                   buildInfuraEndpoint(MAINNET_CLIENT_ID, 'mainnet'),
                 ],
               }),
-              '0x89': buildConfiguration({
+              '0x89': buildNetworkConfiguration({
                 chainId: '0x89',
                 name: 'Polygon Mainnet',
                 nativeCurrency: 'MATIC',
@@ -732,9 +732,9 @@ describe('NetworkConnectionBannerController', () => {
                 ],
               }),
             },
-            metadata: {
-              [MAINNET_CLIENT_ID]: makeMetadata(NetworkStatus.Unavailable),
-              [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(
+            networksMetadata: {
+              [MAINNET_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Unavailable),
+              [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
                 NetworkStatus.Unavailable,
               ),
             },
@@ -748,8 +748,8 @@ describe('NetworkConnectionBannerController', () => {
     });
 
     it('only updates the failed-network detail (not the timers) when the same chain keeps failing across re-evaluations', async () => {
-      await withController(({ controller, setNetworkState }) => {
-        const config = buildConfiguration({
+      await withController(({ controller, publishNetworkStateChanges }) => {
+        const config = buildNetworkConfiguration({
           chainId: '0x1',
           rpcEndpoints: [
             buildCustomEndpoint(
@@ -758,12 +758,12 @@ describe('NetworkConnectionBannerController', () => {
             ),
           ],
         });
-        setNetworkState(
-          buildNetworkState({
-            configurations: { '0x1': config },
-            enabledChainIds: ['0x1'],
-            metadata: {
-              [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(
+        publishNetworkStateChanges(
+          buildExternalState({
+            networkConfigurationsByChainId: { '0x1': config },
+            enabledEvmChainIds: ['0x1'],
+            networksMetadata: {
+              [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
                 NetworkStatus.Unavailable,
               ),
             },
@@ -774,12 +774,12 @@ describe('NetworkConnectionBannerController', () => {
         expect(controller.state.status).toBe('degraded');
 
         // Same chain still failing — should be a no-op update (no timer reset).
-        setNetworkState(
-          buildNetworkState({
-            configurations: { '0x1': config },
-            enabledChainIds: ['0x1'],
-            metadata: {
-              [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(NetworkStatus.Blocked),
+        publishNetworkStateChanges(
+          buildExternalState({
+            networkConfigurationsByChainId: { '0x1': config },
+            enabledEvmChainIds: ['0x1'],
+            networksMetadata: {
+              [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Blocked),
             },
           }),
         );
@@ -792,10 +792,10 @@ describe('NetworkConnectionBannerController', () => {
     });
 
     it('does not restart the degraded timer when the same network fails across re-evaluations', async () => {
-      await withController(({ controller, setNetworkState }) => {
-        const failingState = buildNetworkState({
-          configurations: {
-            '0x89': buildConfiguration({
+      await withController(({ controller, publishNetworkStateChanges }) => {
+        const failingState = buildExternalState({
+          networkConfigurationsByChainId: {
+            '0x89': buildNetworkConfiguration({
               chainId: '0x89',
               name: 'Polygon Mainnet',
               nativeCurrency: 'MATIC',
@@ -807,16 +807,16 @@ describe('NetworkConnectionBannerController', () => {
               ],
             }),
           },
-          enabledChainIds: ['0x89'],
-          metadata: {
-            [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(NetworkStatus.Unavailable),
+          enabledEvmChainIds: ['0x89'],
+          networksMetadata: {
+            [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Unavailable),
           },
         });
 
-        setNetworkState(failingState);
+        publishNetworkStateChanges(failingState);
         jest.advanceTimersByTime(4_000);
 
-        setNetworkState(failingState);
+        publishNetworkStateChanges(failingState);
         jest.advanceTimersByTime(1_000);
 
         expect(controller.state.status).toBe('degraded');
@@ -824,11 +824,11 @@ describe('NetworkConnectionBannerController', () => {
     });
 
     it('cancels the banner if the network recovers between the degraded-timer scheduling and its firing', async () => {
-      await withController(({ controller, setNetworkState }) => {
-        setNetworkState(
-          buildNetworkState({
-            configurations: {
-              '0x89': buildConfiguration({
+      await withController(({ controller, publishNetworkStateChanges }) => {
+        publishNetworkStateChanges(
+          buildExternalState({
+            networkConfigurationsByChainId: {
+              '0x89': buildNetworkConfiguration({
                 chainId: '0x89',
                 name: 'Polygon Mainnet',
                 nativeCurrency: 'MATIC',
@@ -840,9 +840,9 @@ describe('NetworkConnectionBannerController', () => {
                 ],
               }),
             },
-            enabledChainIds: ['0x89'],
-            metadata: {
-              [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(
+            enabledEvmChainIds: ['0x89'],
+            networksMetadata: {
+              [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
                 NetworkStatus.Unavailable,
               ),
             },
@@ -854,10 +854,10 @@ describe('NetworkConnectionBannerController', () => {
 
         // Network recovers in the meantime. The next state-change clears
         // the timer.
-        setNetworkState(
-          buildNetworkState({
-            configurations: {
-              '0x89': buildConfiguration({
+        publishNetworkStateChanges(
+          buildExternalState({
+            networkConfigurationsByChainId: {
+              '0x89': buildNetworkConfiguration({
                 chainId: '0x89',
                 name: 'Polygon Mainnet',
                 nativeCurrency: 'MATIC',
@@ -869,9 +869,9 @@ describe('NetworkConnectionBannerController', () => {
                 ],
               }),
             },
-            enabledChainIds: ['0x89'],
-            metadata: {
-              [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(NetworkStatus.Available),
+            enabledEvmChainIds: ['0x89'],
+            networksMetadata: {
+              [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Available),
             },
           }),
         );
@@ -882,20 +882,22 @@ describe('NetworkConnectionBannerController', () => {
     });
 
     it('skips enabled chains that have no network configuration', async () => {
-      await withController(({ controller, setNetworkState }) => {
-        setNetworkState({
-          network: {
+      await withController(({ controller, publishNetworkStateChanges }) => {
+        publishNetworkStateChanges({
+          NetworkController: {
             networkConfigurationsByChainId: {},
             networksMetadata: {},
           },
-          enablement: buildEnablementState({
+          NetworkEnablementController: buildNetworkEnablementControllerState({
             enabledNetworkMap: {
               [KnownCaipNamespace.Eip155]: {
                 '0x1': true,
               },
             },
           }),
-          connectivity: { connectivityStatus: CONNECTIVITY_STATUSES.Online },
+          ConnectivityController: {
+            connectivityStatus: CONNECTIVITY_STATUSES.Online,
+          },
         });
         jest.advanceTimersByTime(30_000);
         expect(controller.state.status).toBe('available');
@@ -903,8 +905,8 @@ describe('NetworkConnectionBannerController', () => {
     });
 
     it('clears banner state when all enabled networks recover', async () => {
-      await withController(({ controller, setNetworkState }) => {
-        const failingConfig = buildConfiguration({
+      await withController(({ controller, publishNetworkStateChanges }) => {
+        const failingConfig = buildNetworkConfiguration({
           chainId: '0x89',
           name: 'Polygon Mainnet',
           nativeCurrency: 'MATIC',
@@ -915,12 +917,12 @@ describe('NetworkConnectionBannerController', () => {
             ),
           ],
         });
-        setNetworkState(
-          buildNetworkState({
-            configurations: { '0x89': failingConfig },
-            enabledChainIds: ['0x89'],
-            metadata: {
-              [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(
+        publishNetworkStateChanges(
+          buildExternalState({
+            networkConfigurationsByChainId: { '0x89': failingConfig },
+            enabledEvmChainIds: ['0x89'],
+            networksMetadata: {
+              [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
                 NetworkStatus.Unavailable,
               ),
             },
@@ -930,12 +932,12 @@ describe('NetworkConnectionBannerController', () => {
         jest.advanceTimersByTime(5_000);
         expect(controller.state.status).toBe('degraded');
 
-        setNetworkState(
-          buildNetworkState({
-            configurations: { '0x89': failingConfig },
-            enabledChainIds: ['0x89'],
-            metadata: {
-              [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(NetworkStatus.Available),
+        publishNetworkStateChanges(
+          buildExternalState({
+            networkConfigurationsByChainId: { '0x89': failingConfig },
+            enabledEvmChainIds: ['0x89'],
+            networksMetadata: {
+              [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Available),
             },
           }),
         );
@@ -948,20 +950,20 @@ describe('NetworkConnectionBannerController', () => {
     });
 
     it('treats an unparseable RPC URL as non-Infura when classifying failures', async () => {
-      await withController(({ controller, setNetworkState }) => {
-        setNetworkState(
-          buildNetworkState({
-            configurations: {
-              '0x1': buildConfiguration({
+      await withController(({ controller, publishNetworkStateChanges }) => {
+        publishNetworkStateChanges(
+          buildExternalState({
+            networkConfigurationsByChainId: {
+              '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
                   buildCustomEndpoint(MAINNET_CLIENT_ID, 'not a valid url'),
                 ],
               }),
             },
-            enabledChainIds: ['0x1'],
-            metadata: {
-              [MAINNET_CLIENT_ID]: makeMetadata(NetworkStatus.Unavailable),
+            enabledEvmChainIds: ['0x1'],
+            networksMetadata: {
+              [MAINNET_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Unavailable),
             },
           }),
         );
@@ -975,14 +977,16 @@ describe('NetworkConnectionBannerController', () => {
     });
 
     it('keeps the banner hidden when the enablement map has no EVM namespace at all', async () => {
-      await withController(({ controller, setNetworkState }) => {
-        setNetworkState({
-          network: {
+      await withController(({ controller, publishNetworkStateChanges }) => {
+        publishNetworkStateChanges({
+          NetworkController: {
             networkConfigurationsByChainId: {},
             networksMetadata: {},
           },
-          enablement: buildEnablementState(),
-          connectivity: { connectivityStatus: CONNECTIVITY_STATUSES.Online },
+          NetworkEnablementController: buildNetworkEnablementControllerState(),
+          ConnectivityController: {
+            connectivityStatus: CONNECTIVITY_STATUSES.Online,
+          },
         });
         jest.advanceTimersByTime(30_000);
         expect(controller.state.status).toBe('available');
@@ -990,10 +994,10 @@ describe('NetworkConnectionBannerController', () => {
     });
 
     it('skips configurations whose default RPC endpoint is missing', async () => {
-      await withController(({ controller, setNetworkState }) => {
-        setNetworkState(
-          buildNetworkState({
-            configurations: {
+      await withController(({ controller, publishNetworkStateChanges }) => {
+        publishNetworkStateChanges(
+          buildExternalState({
+            networkConfigurationsByChainId: {
               '0x1': {
                 chainId: '0x1',
                 name: 'Broken',
@@ -1004,7 +1008,7 @@ describe('NetworkConnectionBannerController', () => {
                 defaultBlockExplorerUrlIndex: 0,
               },
             },
-            enabledChainIds: ['0x1'],
+            enabledEvmChainIds: ['0x1'],
           }),
         );
         jest.advanceTimersByTime(30_000);
@@ -1013,11 +1017,11 @@ describe('NetworkConnectionBannerController', () => {
     });
 
     it('reports the Infura endpoint to switch to when the failing network has one', async () => {
-      await withController(({ controller, setNetworkState }) => {
-        setNetworkState(
-          buildNetworkState({
-            configurations: {
-              '0x1': buildConfiguration({
+      await withController(({ controller, publishNetworkStateChanges }) => {
+        publishNetworkStateChanges(
+          buildExternalState({
+            networkConfigurationsByChainId: {
+              '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
                   buildCustomEndpoint(
@@ -1028,9 +1032,9 @@ describe('NetworkConnectionBannerController', () => {
                 ],
               }),
             },
-            enabledChainIds: ['0x1'],
-            metadata: {
-              [ALCHEMY_CLIENT_ID]: makeMetadata(NetworkStatus.Unavailable),
+            enabledEvmChainIds: ['0x1'],
+            networksMetadata: {
+              [ALCHEMY_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Unavailable),
             },
           }),
         );
@@ -1047,7 +1051,7 @@ describe('NetworkConnectionBannerController', () => {
     });
   });
 
-  describe('ConnectivityController integration', () => {
+  describe('on ConnectivityController:stateChange', () => {
     it('does not touch banner state when going offline while no banner is shown', async () => {
       await withController(({ controller, setConnectivityStatus }) => {
         const before = controller.state;
@@ -1058,11 +1062,11 @@ describe('NetworkConnectionBannerController', () => {
 
     it('suppresses the banner while the device is offline and reinstates it when back online', async () => {
       await withController(
-        ({ controller, setNetworkState, setConnectivityStatus }) => {
-          setNetworkState(
-            buildNetworkState({
-              configurations: {
-                '0x1': buildConfiguration({
+        ({ controller, publishNetworkStateChanges, setConnectivityStatus }) => {
+          publishNetworkStateChanges(
+            buildExternalState({
+              networkConfigurationsByChainId: {
+                '0x1': buildNetworkConfiguration({
                   chainId: '0x1',
                   rpcEndpoints: [
                     buildCustomEndpoint(
@@ -1072,9 +1076,9 @@ describe('NetworkConnectionBannerController', () => {
                   ],
                 }),
               },
-              enabledChainIds: ['0x1'],
-              metadata: {
-                [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(
+              enabledEvmChainIds: ['0x1'],
+              networksMetadata: {
+                [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
                   NetworkStatus.Unavailable,
                 ),
               },
@@ -1106,11 +1110,11 @@ describe('NetworkConnectionBannerController', () => {
     });
 
     it('clears banner state via direct call', async () => {
-      await withController(({ controller, setNetworkState }) => {
-        setNetworkState(
-          buildNetworkState({
-            configurations: {
-              '0x1': buildConfiguration({
+      await withController(({ controller, publishNetworkStateChanges }) => {
+        publishNetworkStateChanges(
+          buildExternalState({
+            networkConfigurationsByChainId: {
+              '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
                   buildCustomEndpoint(
@@ -1120,9 +1124,9 @@ describe('NetworkConnectionBannerController', () => {
                 ],
               }),
             },
-            enabledChainIds: ['0x1'],
-            metadata: {
-              [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(
+            enabledEvmChainIds: ['0x1'],
+            networksMetadata: {
+              [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
                 NetworkStatus.Unavailable,
               ),
             },
@@ -1138,11 +1142,11 @@ describe('NetworkConnectionBannerController', () => {
     });
 
     it('clears banner state via messenger action', async () => {
-      await withController(({ controller, rootMessenger, setNetworkState }) => {
-        setNetworkState(
-          buildNetworkState({
-            configurations: {
-              '0x1': buildConfiguration({
+      await withController(({ controller, rootMessenger, publishNetworkStateChanges }) => {
+        publishNetworkStateChanges(
+          buildExternalState({
+            networkConfigurationsByChainId: {
+              '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
                   buildCustomEndpoint(
@@ -1152,9 +1156,9 @@ describe('NetworkConnectionBannerController', () => {
                 ],
               }),
             },
-            enabledChainIds: ['0x1'],
-            metadata: {
-              [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(
+            enabledEvmChainIds: ['0x1'],
+            networksMetadata: {
+              [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
                 NetworkStatus.Unavailable,
               ),
             },
@@ -1171,8 +1175,8 @@ describe('NetworkConnectionBannerController', () => {
   describe('switchToDefaultInfuraRpcEndpoint', () => {
     it('invokes NetworkController:updateNetwork with the Infura endpoint as the new default', async () => {
       await withController(
-        async ({ rootMessenger, setNetworkState, updateNetwork }) => {
-          const config = buildConfiguration({
+        async ({ rootMessenger, publishNetworkStateChanges, updateNetwork }) => {
+          const config = buildNetworkConfiguration({
             chainId: '0x1',
             rpcEndpoints: [
               buildCustomEndpoint(
@@ -1182,12 +1186,12 @@ describe('NetworkConnectionBannerController', () => {
               buildInfuraEndpoint(MAINNET_CLIENT_ID, 'mainnet'),
             ],
           });
-          setNetworkState(
-            buildNetworkState({
-              configurations: { '0x1': config },
-              enabledChainIds: ['0x1'],
-              metadata: {
-                [ALCHEMY_CLIENT_ID]: makeMetadata(NetworkStatus.Unavailable),
+          publishNetworkStateChanges(
+            buildExternalState({
+              networkConfigurationsByChainId: { '0x1': config },
+              enabledEvmChainIds: ['0x1'],
+              networksMetadata: {
+                [ALCHEMY_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Unavailable),
               },
             }),
           );
@@ -1209,18 +1213,18 @@ describe('NetworkConnectionBannerController', () => {
 
     it('is a no-op when the default is already Infura', async () => {
       await withController(
-        async ({ rootMessenger, setNetworkState, updateNetwork }) => {
-          setNetworkState(
-            buildNetworkState({
-              configurations: {
-                '0x1': buildConfiguration({
+        async ({ rootMessenger, publishNetworkStateChanges, updateNetwork }) => {
+          publishNetworkStateChanges(
+            buildExternalState({
+              networkConfigurationsByChainId: {
+                '0x1': buildNetworkConfiguration({
                   chainId: '0x1',
                   rpcEndpoints: [
                     buildInfuraEndpoint(MAINNET_CLIENT_ID, 'mainnet'),
                   ],
                 }),
               },
-              enabledChainIds: ['0x1'],
+              enabledEvmChainIds: ['0x1'],
             }),
           );
 
@@ -1246,11 +1250,11 @@ describe('NetworkConnectionBannerController', () => {
     });
 
     it('throws when the chain has no Infura endpoint to switch to', async () => {
-      await withController(async ({ rootMessenger, setNetworkState }) => {
-        setNetworkState(
-          buildNetworkState({
-            configurations: {
-              '0x1': buildConfiguration({
+      await withController(async ({ rootMessenger, publishNetworkStateChanges }) => {
+        publishNetworkStateChanges(
+          buildExternalState({
+            networkConfigurationsByChainId: {
+              '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
                   buildCustomEndpoint(
@@ -1260,7 +1264,7 @@ describe('NetworkConnectionBannerController', () => {
                 ],
               }),
             },
-            enabledChainIds: ['0x1'],
+            enabledEvmChainIds: ['0x1'],
           }),
         );
 
@@ -1279,7 +1283,7 @@ describe('NetworkConnectionBannerController', () => {
 // Test helpers
 // ---------------------------------------------------------------------------
 
-function makeMetadata(status: NetworkStatus): {
+function buildNetworkMetadata(status: NetworkStatus): {
   // eslint-disable-next-line @typescript-eslint/naming-convention
   EIPS: Record<number, boolean>;
   status: NetworkStatus;
@@ -1287,26 +1291,19 @@ function makeMetadata(status: NetworkStatus): {
   return { EIPS: {}, status };
 }
 
-type BuildNetworkStateArgs = {
-  configurations: Record<Hex, NetworkConfiguration>;
-  metadata?: Record<
-    string,
-    {
-      // eslint-disable-next-line @typescript-eslint/naming-convention
-      EIPS: Record<number, boolean>;
-      status: NetworkStatus;
-    }
-  >;
-  enabledChainIds?: Hex[];
+type BuildExternalStateArgs = {
+  networkConfigurationsByChainId?: NetworkState['networkConfigurationsByChainId'];
+  networksMetadata?: NetworkState['networksMetadata'];
+  enabledEvmChainIds?: Hex[];
 };
 
-type StubbedState = {
-  network: Partial<NetworkState>;
-  enablement: NetworkEnablementControllerState;
-  connectivity: ConnectivityControllerState;
+type ExternalState = {
+  NetworkController: Partial<NetworkState>;
+  NetworkEnablementController: NetworkEnablementControllerState;
+  ConnectivityController: ConnectivityControllerState;
 };
 
-function buildEnablementState(
+function buildNetworkEnablementControllerState(
   overrides: Partial<NetworkEnablementControllerState> = {},
 ): NetworkEnablementControllerState {
   return {
@@ -1316,25 +1313,24 @@ function buildEnablementState(
   };
 }
 
-function buildNetworkState({
-  configurations,
-  metadata = {},
-  enabledChainIds,
-}: BuildNetworkStateArgs): StubbedState {
-  const allChainIds = enabledChainIds ?? (Object.keys(configurations) as Hex[]);
+function buildExternalState({
+  networkConfigurationsByChainId = {},
+  networksMetadata = {},
+  enabledEvmChainIds = Object.keys(networkConfigurationsByChainId) as Hex[],
+}: BuildExternalStateArgs = {}): ExternalState {
   return {
-    network: {
-      networkConfigurationsByChainId: configurations,
-      networksMetadata: metadata,
+    NetworkController: {
+      networkConfigurationsByChainId,
+      networksMetadata,
     },
-    enablement: buildEnablementState({
+    NetworkEnablementController: buildNetworkEnablementControllerState({
       enabledNetworkMap: {
         [KnownCaipNamespace.Eip155]: Object.fromEntries(
-          allChainIds.map((chainId) => [chainId, true]),
+          enabledEvmChainIds.map((chainId) => [chainId, true]),
         ),
       },
     }),
-    connectivity: {
+    ConnectivityController: {
       connectivityStatus: CONNECTIVITY_STATUSES.Online,
     },
   };
@@ -1355,7 +1351,7 @@ type WithControllerCallback<ReturnValue> = (payload: {
   controller: NetworkConnectionBannerController;
   rootMessenger: RootMessenger;
   controllerMessenger: NetworkConnectionBannerControllerMessenger;
-  setNetworkState: (state: StubbedState) => void;
+  publishNetworkStateChanges: (state: ExternalState) => void;
   setConnectivityStatus: (
     status: ConnectivityControllerState['connectivityStatus'],
   ) => void;
@@ -1364,36 +1360,38 @@ type WithControllerCallback<ReturnValue> = (payload: {
 
 async function withController<ReturnValue>(
   testFunction: WithControllerCallback<ReturnValue>,
-  initialState?: StubbedState,
+  externalState?: ExternalState,
   start = true,
 ): Promise<ReturnValue> {
   const rootMessenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
 
-  let currentState: StubbedState =
-    initialState ??
+  let currentState: ExternalState =
+    externalState ??
     ({
-      network: {
+      NetworkController: {
         networkConfigurationsByChainId: {},
         networksMetadata: {},
       },
-      enablement: buildEnablementState(),
-      connectivity: { connectivityStatus: CONNECTIVITY_STATUSES.Online },
-    } satisfies StubbedState);
+      NetworkEnablementController: buildNetworkEnablementControllerState(),
+      ConnectivityController: {
+        connectivityStatus: CONNECTIVITY_STATUSES.Online,
+      },
+    } satisfies ExternalState);
 
   rootMessenger.registerActionHandler(
     'NetworkController:getState',
-    () => currentState.network as NetworkState,
+    () => currentState.NetworkController as NetworkState,
   );
   rootMessenger.registerActionHandler(
     'NetworkController:getNetworkConfigurationByChainId',
-    (chainId) => currentState.network.networkConfigurationsByChainId?.[chainId],
+    (chainId) => currentState.NetworkController.networkConfigurationsByChainId?.[chainId],
   );
   const updateNetwork = jest.fn(
     async (chainId: Hex): Promise<NetworkConfiguration> =>
-      currentState.network.networkConfigurationsByChainId?.[chainId] ??
-      buildConfiguration({ chainId }),
+      currentState.NetworkController.networkConfigurationsByChainId?.[chainId] ??
+      buildNetworkConfiguration({ chainId }),
   );
   rootMessenger.registerActionHandler(
     'NetworkController:updateNetwork',
@@ -1402,12 +1400,12 @@ async function withController<ReturnValue>(
 
   rootMessenger.registerActionHandler(
     'NetworkEnablementController:getState',
-    () => currentState.enablement,
+    () => currentState.NetworkEnablementController,
   );
 
   rootMessenger.registerActionHandler(
     'ConnectivityController:getState',
-    () => currentState.connectivity,
+    () => currentState.ConnectivityController,
   );
 
   const messenger = new Messenger<
@@ -1446,16 +1444,16 @@ async function withController<ReturnValue>(
     controller.start();
   }
 
-  const setNetworkState = (state: StubbedState): void => {
+  const publishNetworkStateChanges = (state: ExternalState): void => {
     currentState = state;
     rootMessenger.publish(
       'NetworkController:stateChange',
-      currentState.network as NetworkState,
+      currentState.NetworkController as NetworkState,
       [],
     );
     rootMessenger.publish(
       'NetworkEnablementController:stateChange',
-      currentState.enablement,
+      currentState.NetworkEnablementController,
       [],
     );
   };
@@ -1465,11 +1463,11 @@ async function withController<ReturnValue>(
   ): void => {
     currentState = {
       ...currentState,
-      connectivity: { connectivityStatus: status },
+      ConnectivityController: { connectivityStatus: status },
     };
     rootMessenger.publish(
       'ConnectivityController:stateChange',
-      currentState.connectivity,
+      currentState.ConnectivityController,
       [],
     );
   };
@@ -1478,7 +1476,7 @@ async function withController<ReturnValue>(
     controller,
     rootMessenger,
     controllerMessenger: messenger,
-    setNetworkState,
+    publishNetworkStateChanges,
     setConnectivityStatus,
     updateNetwork,
   });
