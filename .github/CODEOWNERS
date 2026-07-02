@@ -100,6 +100,7 @@
 /packages/multichain-api-middleware        @MetaMask/core-platform
 /packages/permission-controller            @MetaMask/core-platform
 /packages/permission-log-controller        @MetaMask/core-platform
+/packages/platform-api-docs                @MetaMask/core-platform
 /packages/polling-controller               @MetaMask/core-platform
 /packages/preferences-controller           @MetaMask/core-platform
 /packages/rate-limit-controller            @MetaMask/core-platform
@@ -127,6 +128,7 @@
 /packages/java-tron-up                          @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks
 /packages/local-node-utils                      @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks
 /packages/solana-test-validator-up              @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks
+/packages/stellar-quickstart-up                 @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks
 /packages/keyring-controller                    @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/multichain-network-controller         @MetaMask/core-platform @MetaMask/accounts-engineers @MetaMask/metamask-assets
 /packages/network-controller                    @MetaMask/core-platform @MetaMask/metamask-assets
@@ -137,6 +139,7 @@
 
 ## Initialization
 /packages/wallet/src/initialization/instances/accounts-controller/ @MetaMask/accounts-engineers
+/packages/wallet/src/initialization/instances/address-book-controller/ @MetaMask/confirmations
 /packages/wallet/src/initialization/instances/approval-controller/ @MetaMask/confirmations
 /packages/wallet/src/initialization/instances/connectivity-controller/ @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/keyring-controller/ @MetaMask/accounts-engineers @MetaMask/core-platform
@@ -238,6 +241,8 @@
 /packages/local-node-utils/CHANGELOG.md @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
 /packages/solana-test-validator-up/package.json @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
 /packages/solana-test-validator-up/CHANGELOG.md @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
+/packages/stellar-quickstart-up/package.json @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
+/packages/stellar-quickstart-up/CHANGELOG.md @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
 /packages/seedless-onboarding-controller/package.json @MetaMask/web3auth @MetaMask/core-platform
 /packages/seedless-onboarding-controller/CHANGELOG.md @MetaMask/web3auth @MetaMask/core-platform
 /packages/shield-controller/package.json @MetaMask/web3auth @MetaMask/core-platform

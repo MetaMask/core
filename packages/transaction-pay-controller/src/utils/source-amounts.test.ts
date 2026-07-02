@@ -54,7 +54,7 @@ describe('Source Amounts Utils', () => {
     jest.resetAllMocks();
 
     getTokenFiatRateMock.mockReturnValue({ fiatRate: '2.0', usdRate: '3.0' });
-    getStrategyMock.mockReturnValue(TransactionPayStrategy.Test);
+    getStrategyMock.mockReturnValue(TransactionPayStrategy.Across);
     getTransactionMock.mockReturnValue({
       id: TRANSACTION_ID_MOCK,
     } as never);

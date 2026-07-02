@@ -150,6 +150,9 @@
       "path": "./packages/messenger-cli"
     },
     {
+      "path": "./packages/platform-api-docs"
+    },
+    {
       "path": "./packages/money-account-balance-service"
     },
     {
@@ -247,6 +250,9 @@
     },
     {
       "path": "./packages/solana-test-validator-up"
+    },
+    {
+      "path": "./packages/stellar-quickstart-up"
     },
     {
       "path": "./packages/subscription-controller"

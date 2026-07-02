@@ -693,7 +693,8 @@ describe('TransactionPayController', () => {
     it('returns callback value if provided', async () => {
       new TransactionPayController({
         getDelegationTransaction: jest.fn(),
-        getStrategy: (): TransactionPayStrategy => TransactionPayStrategy.Test,
+        getStrategy: (): TransactionPayStrategy =>
+          TransactionPayStrategy.Across,
         messenger,
       });
 
@@ -702,14 +703,14 @@ describe('TransactionPayController', () => {
           'TransactionPayController:getStrategy',
           TRANSACTION_META_MOCK,
         ),
-      ).toBe(TransactionPayStrategy.Test);
+      ).toBe(TransactionPayStrategy.Across);
     });
 
     it('does not query feature flag strategy order when getStrategies callback returns values', async () => {
       new TransactionPayController({
         getDelegationTransaction: jest.fn(),
         getStrategies: (): TransactionPayStrategy[] => [
-          TransactionPayStrategy.Test,
+          TransactionPayStrategy.Across,
         ],
         messenger,
       });
@@ -721,13 +722,13 @@ describe('TransactionPayController', () => {
           'TransactionPayController:getStrategy',
           TRANSACTION_META_MOCK,
         ),
-      ).toBe(TransactionPayStrategy.Test);
+      ).toBe(TransactionPayStrategy.Across);
 
       expect(getStrategyOrderMock).not.toHaveBeenCalled();
     });
 
     it('returns relay if getStrategies callback returns empty', async () => {
-      getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Test]);
+      getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Across]);
 
       new TransactionPayController({
         getDelegationTransaction: jest.fn(),
@@ -740,11 +741,11 @@ describe('TransactionPayController', () => {
           'TransactionPayController:getStrategy',
           TRANSACTION_META_MOCK,
         ),
-      ).toBe(TransactionPayStrategy.Test);
+      ).toBe(TransactionPayStrategy.Across);
     });
 
     it('falls back to feature flag if getStrategies callback returns invalid first value', async () => {
-      getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Bridge]);
+      getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Across]);
 
       new TransactionPayController({
         getDelegationTransaction: jest.fn(),
@@ -758,7 +759,7 @@ describe('TransactionPayController', () => {
           'TransactionPayController:getStrategy',
           TRANSACTION_META_MOCK,
         ),
-      ).toBe(TransactionPayStrategy.Bridge);
+      ).toBe(TransactionPayStrategy.Across);
     });
 
     it('returns default strategy order when no callbacks and no strategy order feature flag', async () => {
@@ -776,7 +777,7 @@ describe('TransactionPayController', () => {
 
     it('returns strategy from feature flag when no callbacks are provided', async () => {
       getStrategyOrderMock.mockReturnValue([
-        TransactionPayStrategy.Test,
+        TransactionPayStrategy.Across,
         TransactionPayStrategy.Relay,
       ]);
 
@@ -787,7 +788,7 @@ describe('TransactionPayController', () => {
           'TransactionPayController:getStrategy',
           TRANSACTION_META_MOCK,
         ),
-      ).toBe(TransactionPayStrategy.Test);
+      ).toBe(TransactionPayStrategy.Across);
     });
 
     it('passes payment token route args into feature flag fallback', async () => {

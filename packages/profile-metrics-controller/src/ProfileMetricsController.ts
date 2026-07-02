@@ -319,11 +319,15 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
       )) {
         const normalizedEntropySourceId =
           entropySourceId === 'null' ? null : entropySourceId;
-        const accountsWithProofs = await this.#attachProofs(
-          accounts,
-          fullAccountsByAddress,
-          normalizedEntropySourceId,
-        );
+        // Skip proof-of-ownership for accounts without an entropy source
+        const accountsWithProofs =
+          normalizedEntropySourceId === null
+            ? accounts
+            : await this.#attachProofs(
+                accounts,
+                fullAccountsByAddress,
+                normalizedEntropySourceId,
+              );
         try {
           await this.messenger.call('ProfileMetricsService:submitMetrics', {
             metametricsId: this.#getMetaMetricsId(),
@@ -355,13 +359,15 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
    *
    * @param accounts - The queued accounts for a single batch.
    * @param fullAccountsByAddress - Live `InternalAccount` lookup keyed by address.
-   * @param entropySourceId - The entropy source ID for this batch.
+   * @param entropySourceId - The entropy source ID for this batch. Callers
+   * are expected to short-circuit before invoking this method when the
+   * batch has no entropy source; see `_executePoll` for why.
    * @returns The accounts with `proof` populated where signing succeeded.
    */
   async #attachProofs(
     accounts: AccountWithScopes[],
     fullAccountsByAddress: Map<string, InternalAccount>,
-    entropySourceId: string | null,
+    entropySourceId: string,
   ): Promise<AccountWithScopes[]> {
     const candidates = new Map<
       string,
@@ -409,7 +415,7 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
       });
     } catch (error) {
       console.error(
-        `Failed to fetch proof-of-ownership nonces for entropy source ID ${entropySourceId ?? 'null'}:`,
+        `Failed to fetch proof-of-ownership nonces for entropy source ID ${entropySourceId}:`,
         error,
       );
     }

@@ -42,6 +42,7 @@ import type {
 } from '../src/NetworkController';
 import { RpcEndpointType } from '../src/NetworkController';
 import { RpcServiceOptions } from '../src/rpc-service/rpc-service';
+import type { RpcFailoverMode } from '../src/selectors';
 import type {
   CustomNetworkClientConfiguration,
   InfuraNetworkClientConfiguration,
@@ -89,15 +90,15 @@ export const TESTNET = {
  * @param options - Optional configuration.
  * @param options.connectivityStatus - The connectivity status to return by default.
  * If not provided, defaults to Online.
- * @param options.isRpcFailoverEnabled - The RPC failover feature flag to return, defaults to false.
+ * @param options.rpcFailoverMode - The RPC failover mode to return, defaults to `disabled`.
  * @returns The messenger.
  */
 export function buildRootMessenger({
   connectivityStatus = CONNECTIVITY_STATUSES.Online,
-  isRpcFailoverEnabled = false,
+  rpcFailoverMode = 'disabled',
 }: {
   connectivityStatus?: ConnectivityStatus;
-  isRpcFailoverEnabled?: boolean;
+  rpcFailoverMode?: RpcFailoverMode;
 } = {}): RootMessenger {
   const rootMessenger = new Messenger<
     MockAnyNamespace,
@@ -116,7 +117,7 @@ export function buildRootMessenger({
     'RemoteFeatureFlagController:getState',
     () => ({
       remoteFeatureFlags: {
-        walletFrameworkRpcFailoverEnabled: isRpcFailoverEnabled,
+        corePlatformRpcFailoverMode: rpcFailoverMode,
       },
       cacheTimestamp: 0,
     }),
@@ -631,7 +632,7 @@ type WithControllerCallback<ReturnValue> = ({
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = Partial<NetworkControllerOptions> & {
-  isRpcFailoverEnabled?: boolean;
+  rpcFailoverMode?: RpcFailoverMode;
   initializeController?: boolean;
 };
 
@@ -654,11 +655,13 @@ export async function withController<ReturnValue>(
 ): Promise<ReturnValue> {
   const [{ ...rest }, fn] = args.length === 2 ? args : [{}, args[0]];
   const {
-    isRpcFailoverEnabled,
+    rpcFailoverMode,
     initializeController = true,
     ...controllerOptions
   } = rest;
-  const messenger = buildRootMessenger({ isRpcFailoverEnabled });
+  const messenger = buildRootMessenger({
+    rpcFailoverMode,
+  });
   const networkControllerMessenger = buildNetworkControllerMessenger(messenger);
   const controller = new NetworkController({
     messenger: networkControllerMessenger,

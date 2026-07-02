@@ -16,6 +16,112 @@ const SERVICE_NAME = 'BackendWebSocketService' as const;
 
 const log = createModuleLogger(projectLogger, SERVICE_NAME);
 
+function isAccountActivityChannel(channel: string): boolean {
+  return channel.includes('account-activity');
+}
+
+const ACCOUNT_ACTIVITY_CHANNEL_REGEX =
+  /^account-activity\.v1\.([^:]+):([^:]+):(.+)$/u;
+
+type ParsedAccountActivityChannel = {
+  namespace: string;
+  chainRef: string;
+  address: string;
+};
+
+/**
+ * Parse an account-activity channel name into namespace, chain reference, and address.
+ *
+ * @param channel - Channel name (e.g. account-activity.v1.eip155:42161:0xabc...).
+ * @returns Parsed components, or null when the channel is not account-activity format.
+ */
+function parseAccountActivityChannel(
+  channel: string,
+): ParsedAccountActivityChannel | null {
+  const match = ACCOUNT_ACTIVITY_CHANNEL_REGEX.exec(channel);
+  if (!match) {
+    return null;
+  }
+
+  const [, namespace, chainRef, address] = match;
+  return {
+    namespace,
+    chainRef,
+    address: address.startsWith('0x') ? address.toLowerCase() : address,
+  };
+}
+
+/**
+ * Whether a notification channel matches a subscribed channel.
+ * Subscriptions use chain ref `0` (all chains); notifications often use a specific chain id.
+ *
+ * @param subscribedChannel - Channel registered at subscribe / addChannelCallback time.
+ * @param notificationChannel - Channel from the server notification.
+ * @returns True when the notification should route to the subscribed channel.
+ */
+function accountActivityChannelsMatch(
+  subscribedChannel: string,
+  notificationChannel: string,
+): boolean {
+  if (subscribedChannel === notificationChannel) {
+    return true;
+  }
+
+  const subscribed = parseAccountActivityChannel(subscribedChannel);
+  const notification = parseAccountActivityChannel(notificationChannel);
+  if (!subscribed || !notification) {
+    return false;
+  }
+
+  return (
+    subscribed.namespace === notification.namespace &&
+    subscribed.address === notification.address &&
+    (subscribed.chainRef === '0' ||
+      subscribed.chainRef === notification.chainRef)
+  );
+}
+
+/**
+ * Promote nested channel/subscription fields to the top level when the server
+ * wraps notifications inside `data`.
+ *
+ * @param message - Parsed WebSocket message.
+ * @returns Normalized message for routing.
+ */
+function normalizeIncomingMessage(message: WebSocketMessage): WebSocketMessage {
+  const topLevel = message as Partial<ServerNotificationMessage> &
+    Record<string, unknown>;
+
+  if (typeof topLevel.channel === 'string') {
+    return message;
+  }
+
+  const nestedData = topLevel.data;
+  if (!nestedData || typeof nestedData !== 'object') {
+    return message;
+  }
+
+  const nested = nestedData;
+  if (typeof nested.channel !== 'string') {
+    return message;
+  }
+
+  const payload =
+    nested.data ?? nested.payload ?? nested.message ?? nested.activity;
+
+  return {
+    ...topLevel,
+    channel: nested.channel,
+    subscriptionId:
+      topLevel.subscriptionId ?? (nested.subscriptionId as string | undefined),
+    timestamp:
+      topLevel.timestamp ??
+      (typeof nested.timestamp === 'number' ? nested.timestamp : undefined) ??
+      Date.now(),
+    data: payload && typeof payload === 'object' ? payload : nestedData,
+  } as WebSocketMessage;
+}
+
 // WebSocket close codes and reasons for internal operations
 const MANUAL_DISCONNECT_CODE = 4999 as const;
 const MANUAL_DISCONNECT_REASON = 'Internal: Manual disconnect' as const;
@@ -1093,7 +1199,13 @@ export class BackendWebSocketService {
           // Set up message handler immediately - no need to wait for connection
           ws.onmessage = (event: MessageEvent): void => {
             try {
-              const message = this.#parseMessage(event.data);
+              const rawData =
+                typeof event.data === 'string'
+                  ? event.data
+                  : String(event.data);
+              const message = normalizeIncomingMessage(
+                this.#parseMessage(rawData),
+              );
               this.#handleMessage(message);
             } catch {
               // Silently ignore invalid JSON messages
@@ -1114,26 +1226,34 @@ export class BackendWebSocketService {
    * @param message - The WebSocket message to handle
    */
   #handleMessage(message: WebSocketMessage): void {
+    const isServerResponse = this.#isServerResponse(message);
+    const isSubscriptionNotification =
+      this.#isSubscriptionNotification(message);
+    const isChannelMessage = this.#isChannelMessage(message);
+
     // Handle server responses (correlated with requests) first
-    if (this.#isServerResponse(message)) {
-      this.#handleServerResponse(message);
-      return;
+    if (isServerResponse) {
+      const maybeNotification = message as Partial<ServerNotificationMessage>;
+      if (
+        typeof maybeNotification.channel !== 'string' ||
+        !isAccountActivityChannel(maybeNotification.channel)
+      ) {
+        this.#handleServerResponse(message);
+        return;
+      }
     }
 
     // Handle subscription notifications with valid subscriptionId
-    if (this.#isSubscriptionNotification(message)) {
+    if (isSubscriptionNotification) {
       const notificationMsg = message as ServerNotificationMessage;
-      const handled = this.#handleSubscriptionNotification(notificationMsg);
-      // If subscription notification wasn't handled (falsy subscriptionId), fall through to channel handling
-      if (handled) {
+      if (this.#handleSubscriptionNotification(notificationMsg)) {
         return;
       }
     }
 
     // Trigger channel callbacks for any message with a channel property
-    if (this.#isChannelMessage(message)) {
-      const channelMsg = message;
-      this.#handleChannelMessage(channelMsg);
+    if (isChannelMessage) {
+      this.#handleChannelMessage(message);
     }
   }
 
@@ -1161,7 +1281,19 @@ export class BackendWebSocketService {
    * @returns True if the message is a subscription notification with subscriptionId
    */
   #isSubscriptionNotification(message: WebSocketMessage): boolean {
-    return 'subscriptionId' in message && !this.#isServerResponse(message);
+    if (!('subscriptionId' in message)) {
+      return false;
+    }
+
+    if (this.#isServerResponse(message)) {
+      const maybeNotification = message as Partial<ServerNotificationMessage>;
+      return (
+        typeof maybeNotification.channel === 'string' &&
+        isAccountActivityChannel(maybeNotification.channel)
+      );
+    }
+
+    return true;
   }
 
   /**
@@ -1208,11 +1340,57 @@ export class BackendWebSocketService {
    * @param message - The message with channel property to handle
    */
   #handleChannelMessage(message: ServerNotificationMessage): void {
-    if (this.#channelCallbacks.size === 0) {
-      return;
+    const callback = this.#resolveChannelCallback(message.channel);
+    callback?.(message);
+  }
+
+  /**
+   * Resolve a channel callback by exact name or account-activity wildcard (chain ref 0).
+   *
+   * @param channel - Notification channel from the server.
+   * @returns Matching callback, if registered.
+   */
+  #resolveChannelCallback(
+    channel: string,
+  ): ((notification: ServerNotificationMessage) => void) | undefined {
+    const exactMatch = this.#channelCallbacks.get(channel);
+    if (exactMatch) {
+      return exactMatch.callback;
     }
 
-    this.#channelCallbacks.get(message.channel)?.callback(message);
+    if (!isAccountActivityChannel(channel)) {
+      return undefined;
+    }
+
+    for (const [registeredChannel, channelCallback] of this.#channelCallbacks) {
+      if (accountActivityChannelsMatch(registeredChannel, channel)) {
+        return channelCallback.callback;
+      }
+    }
+
+    return undefined;
+  }
+
+  /**
+   * Find a subscription whose channels match the notification (including chain wildcard).
+   *
+   * @param channel - Notification channel from the server.
+   * @returns Matching subscription entry, if any.
+   */
+  #findSubscriptionForAccountActivityChannel(
+    channel: string,
+  ): WebSocketSubscription | undefined {
+    for (const subscription of this.#subscriptions.values()) {
+      if (
+        subscription.channels.some((subscribedChannel) =>
+          accountActivityChannelsMatch(subscribedChannel, channel),
+        )
+      ) {
+        return subscription;
+      }
+    }
+
+    return undefined;
   }
 
   /**
@@ -1226,8 +1404,18 @@ export class BackendWebSocketService {
 
     // Only handle if subscriptionId is defined and not null (allows "0" as valid ID)
     if (subscriptionId !== null && subscriptionId !== undefined) {
-      const subscription = this.#subscriptions.get(subscriptionId);
+      let subscription = this.#subscriptions.get(subscriptionId);
+      if (!subscription && channel) {
+        subscription = this.#findSubscriptionForAccountActivityChannel(channel);
+      }
+
       if (!subscription) {
+        return false;
+      }
+
+      const activeSubscription = subscription;
+
+      if (!activeSubscription.callback) {
         return false;
       }
 
@@ -1249,11 +1437,11 @@ export class BackendWebSocketService {
           },
           tags: {
             service: SERVICE_NAME,
-            notification_type: subscription.channelType,
+            notification_type: activeSubscription.channelType,
           },
         },
         () => {
-          subscription.callback?.(message);
+          activeSubscription.callback?.(message);
         },
       );
       return true;

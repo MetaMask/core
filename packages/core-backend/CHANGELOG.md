@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.5.0]
+
+### Added
+
+- Add `AccountsApiClient` support for the Accounts API `/v6/multiaccount/balances` endpoint via `fetchV6MultiAccountBalances` / `getV6MultiAccountBalancesQueryOptions`, returning token balances plus optional DeFi positions and spot prices (new types `V6BalancesResponse`, `V6AccountBalancesEntry`, `V6BalanceItem`, `V6BalanceMetadata`, `V6TokenMetadata`, `V6VsCurrency`) ([#9302](https://github.com/MetaMask/core/pull/9302))
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.3` to `^39.0.4` ([#9349](https://github.com/MetaMask/core/pull/9349))
+
+## [6.4.0]
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
@@ -14,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/profile-sync-controller` from `^28.1.1` to `^28.2.0` ([#9119](https://github.com/MetaMask/core/pull/9119))
 - Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
 - Bump `@metamask/accounts-controller` from `^39.0.1` to `^39.0.3` ([#9218](https://github.com/MetaMask/core/pull/9218), [#9231](https://github.com/MetaMask/core/pull/9231))
+
+### Fixed
+
+- `BackendWebSocketService` routes account-activity notifications when subscribed channels use chain wildcard `0` but the server sends a specific chain id, falls back to channel-based subscription lookup when `subscriptionId` is stale, and normalizes nested notification payloads ([#9273](https://github.com/MetaMask/core/pull/9273))
 
 ## [6.3.3]
 
@@ -314,7 +330,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.5.0...HEAD
+[6.5.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.4.0...@metamask/core-backend@6.5.0
+[6.4.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.3...@metamask/core-backend@6.4.0
 [6.3.3]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.2...@metamask/core-backend@6.3.3
 [6.3.2]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.1...@metamask/core-backend@6.3.2
 [6.3.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.0...@metamask/core-backend@6.3.1

@@ -155,6 +155,9 @@
       "path": "./packages/messenger-cli/tsconfig.build.json"
     },
     {
+      "path": "./packages/platform-api-docs/tsconfig.build.json"
+    },
+    {
       "path": "./packages/messenger/tsconfig.build.json"
     },
     {
@@ -255,6 +258,9 @@
     },
     {
       "path": "./packages/solana-test-validator-up/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/stellar-quickstart-up/tsconfig.build.json"
     },
     {
       "path": "./packages/storage-service/tsconfig.build.json"

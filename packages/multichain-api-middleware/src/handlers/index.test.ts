@@ -37,6 +37,7 @@ const makeMockHooks = () =>
     isNonEvmScopeSupported: () => false,
     getNonEvmAccountAddresses: () => [],
     sortAccountIdsByLastSelected: () => [],
+    getCapabilities: () => Promise.resolve({}),
     getCaveatForOrigin: (() => ({}) as unknown) as Hooks['getCaveatForOrigin'],
     getSelectedNetworkClientId: () => 'mainnet',
     handleNonEvmRequestForOrigin: () => Promise.resolve(null),

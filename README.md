@@ -106,6 +106,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/permission-log-controller`](packages/permission-log-controller)
 - [`@metamask/perps-controller`](packages/perps-controller)
 - [`@metamask/phishing-controller`](packages/phishing-controller)
+- [`@metamask/platform-api-docs`](packages/platform-api-docs)
 - [`@metamask/polling-controller`](packages/polling-controller)
 - [`@metamask/preferences-controller`](packages/preferences-controller)
 - [`@metamask/profile-metrics-controller`](packages/profile-metrics-controller)
@@ -123,6 +124,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/snap-account-service`](packages/snap-account-service)
 - [`@metamask/social-controllers`](packages/social-controllers)
 - [`@metamask/solana-test-validator-up`](packages/solana-test-validator-up)
+- [`@metamask/stellar-quickstart-up`](packages/stellar-quickstart-up)
 - [`@metamask/storage-service`](packages/storage-service)
 - [`@metamask/subscription-controller`](packages/subscription-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
@@ -205,6 +207,7 @@ linkStyle default opacity:0.5
   permission_log_controller(["@metamask/permission-log-controller"]);
   perps_controller(["@metamask/perps-controller"]);
   phishing_controller(["@metamask/phishing-controller"]);
+  platform_api_docs(["@metamask/platform-api-docs"]);
   polling_controller(["@metamask/polling-controller"]);
   preferences_controller(["@metamask/preferences-controller"]);
   profile_metrics_controller(["@metamask/profile-metrics-controller"]);
@@ -222,6 +225,7 @@ linkStyle default opacity:0.5
   snap_account_service(["@metamask/snap-account-service"]);
   social_controllers(["@metamask/social-controllers"]);
   solana_test_validator_up(["@metamask/solana-test-validator-up"]);
+  stellar_quickstart_up(["@metamask/stellar-quickstart-up"]);
   storage_service(["@metamask/storage-service"]);
   subscription_controller(["@metamask/subscription-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
@@ -591,8 +595,6 @@ linkStyle default opacity:0.5
   transaction_pay_controller --> assets_controller;
   transaction_pay_controller --> assets_controllers;
   transaction_pay_controller --> base_controller;
-  transaction_pay_controller --> bridge_controller;
-  transaction_pay_controller --> bridge_status_controller;
   transaction_pay_controller --> controller_utils;
   transaction_pay_controller --> gas_fee_controller;
   transaction_pay_controller --> keyring_controller;
@@ -612,6 +614,7 @@ linkStyle default opacity:0.5
   user_operation_controller --> transaction_controller;
   user_operation_controller --> eth_block_tracker;
   wallet --> accounts_controller;
+  wallet --> address_book_controller;
   wallet --> approval_controller;
   wallet --> base_controller;
   wallet --> connectivity_controller;
