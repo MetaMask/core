@@ -36,16 +36,38 @@ import type { NetworkConnectionBannerControllerMethodActions } from './NetworkCo
 import { getDomain } from './url-utils';
 
 /**
+ * Selects `networksMetadata` from the `NetworkController` state.
+ *
+ * @param state - The `NetworkController` state.
+ * @returns The networks metadata map keyed by network client id.
+ */
+const selectNetworksMetadata = (
+  state: NetworkState,
+): NetworkState['networksMetadata'] => state.networksMetadata;
+
+/**
+ * Selects `networkConfigurationsByChainId` from the `NetworkController`
+ * state.
+ *
+ * @param state - The `NetworkController` state.
+ * @returns The network configurations keyed by chain id.
+ */
+const selectNetworkConfigurationsByChainId = (
+  state: NetworkState,
+): NetworkState['networkConfigurationsByChainId'] =>
+  state.networkConfigurationsByChainId;
+
+/**
  * Selects the `NetworkController` state fields that influence the banner
  * rule. Composed with `createSelector` so the return object stays reference
  * stable while unrelated `NetworkController` state (e.g.
  * `selectedNetworkClientId`) changes.
+ *
+ * @param state - The `NetworkController` state.
+ * @returns The relevant network fields.
  */
 const selectNetworkControllerFields = createSelector(
-  [
-    (state: NetworkState) => state.networksMetadata,
-    (state: NetworkState) => state.networkConfigurationsByChainId,
-  ],
+  [selectNetworksMetadata, selectNetworkConfigurationsByChainId],
   (networksMetadata, networkConfigurationsByChainId) => ({
     networksMetadata,
     networkConfigurationsByChainId,
