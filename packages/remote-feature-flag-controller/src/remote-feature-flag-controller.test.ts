@@ -1042,12 +1042,9 @@ describe('RemoteFeatureFlagController', () => {
 
       // When an explicit match is found, the flag is resolved to a single
       // value (not an array), so metaMetricsIds is naturally absent.
-      const processed = controller.state.remoteFeatureFlags.testFlag;
-      if (typeof processed === 'object' && processed !== null) {
-        expect(
-          (processed as Record<string, unknown>).metaMetricsIds,
-        ).toBeUndefined();
-      }
+      const processed = controller.state.remoteFeatureFlags
+        .testFlag as Record<string, unknown>;
+      expect(processed.metaMetricsIds).toBeUndefined();
     });
 
     it('supports ThresholdVersion.DirectValue entries with explicit-ID matching', async () => {
