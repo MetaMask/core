@@ -4,7 +4,10 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
+import {
+  CONNECTIVITY_STATUSES,
+  connectivityControllerSelectors,
+} from '@metamask/connectivity-controller';
 import type {
   ConnectivityControllerGetStateAction,
   ConnectivityControllerStateChangeEvent,
@@ -17,6 +20,7 @@ import type {
   NetworkControllerUpdateNetworkAction,
   NetworkControllerStateChangeEvent,
   NetworkMetadata,
+  NetworkState,
   RpcEndpoint,
 } from '@metamask/network-controller';
 import { NetworkStatus } from '@metamask/network-controller';
@@ -24,11 +28,30 @@ import type {
   NetworkEnablementControllerGetStateAction,
   NetworkEnablementControllerStateChangeEvent,
 } from '@metamask/network-enablement-controller';
+import { selectEnabledNetworkMap } from '@metamask/network-enablement-controller';
 import type { Hex } from '@metamask/utils';
 import { KnownCaipNamespace } from '@metamask/utils';
+import { createSelector } from 'reselect';
 
 import type { NetworkConnectionBannerControllerMethodActions } from './NetworkConnectionBannerController-method-action-types';
 import { getDomain } from './url-utils';
+
+/**
+ * Selects the `NetworkController` state fields that influence the banner
+ * rule. Composed with `createSelector` so the return object stays reference
+ * stable while unrelated `NetworkController` state (e.g.
+ * `selectedNetworkClientId`) changes.
+ */
+const selectNetworkControllerFields = createSelector(
+  [
+    (state: NetworkState) => state.networksMetadata,
+    (state: NetworkState) => state.networkConfigurationsByChainId,
+  ],
+  (networksMetadata, networkConfigurationsByChainId) => ({
+    networksMetadata,
+    networkConfigurationsByChainId,
+  }),
+);
 
 /**
  * The name of the {@link NetworkConnectionBannerController}, used to namespace
@@ -246,34 +269,26 @@ export class NetworkConnectionBannerController extends BaseController<
       state: getDefaultNetworkConnectionBannerControllerState(),
     });
 
-    // Scoped selectors so upstream state changes we don't care about
-    // (e.g. a `NetworkController` selected-network-client update) don't
-    // trigger a re-evaluation. Each subscription needs its own handler
-    // reference — the messenger keys subscribers by handler identity, so
-    // sharing one would collapse the pair for `NetworkController` into a
-    // single subscription.
+    // Scoped selectors per controller guideline so unrelated upstream
+    // `stateChange` events (e.g. a `NetworkController` selected client id
+    // update) do not trigger a re-evaluation.
     // Upstream controllers still expose :stateChange; switch to :stateChanged
     // once those packages migrate their event types.
     /* eslint-disable no-restricted-syntax -- awaiting upstream :stateChanged migration */
     this.messenger.subscribe(
       'NetworkController:stateChange',
       () => this.#onUpstreamChange(),
-      (state) => state.networksMetadata,
-    );
-    this.messenger.subscribe(
-      'NetworkController:stateChange',
-      () => this.#onUpstreamChange(),
-      (state) => state.networkConfigurationsByChainId,
+      selectNetworkControllerFields,
     );
     this.messenger.subscribe(
       'NetworkEnablementController:stateChange',
       () => this.#onUpstreamChange(),
-      (state) => state.enabledNetworkMap,
+      selectEnabledNetworkMap,
     );
     this.messenger.subscribe(
       'ConnectivityController:stateChange',
       () => this.#onUpstreamChange(),
-      (state) => state.connectivityStatus,
+      connectivityControllerSelectors.selectConnectivityStatus,
     );
     /* eslint-enable no-restricted-syntax */
 
