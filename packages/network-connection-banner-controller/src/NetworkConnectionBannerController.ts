@@ -97,8 +97,17 @@ export function getDefaultNetworkConnectionBannerControllerState(): NetworkConne
   };
 }
 
-const DEGRADED_BANNER_TIMEOUT_MS = 5_000;
-const UNAVAILABLE_BANNER_TIMEOUT_MS = 30_000;
+/**
+ * How long (in milliseconds) a failing network must remain in a "failed"
+ * status ("degraded" or "unavailable") before the degraded banner appears.
+ */
+const DEGRADED_BANNER_TIMEOUT = 5_000;
+
+/**
+ * How long (in milliseconds) a failing network must remain in a "failed"
+ * status before the banner escalates to "unavailable".
+ */
+const UNAVAILABLE_BANNER_TIMEOUT = 30_000;
 
 const MESSENGER_EXPOSED_METHODS = [
   'init',
@@ -232,7 +241,7 @@ export class NetworkConnectionBannerController extends BaseController<
 
     const onStateChange = (): void => {
       if (this.#initialized) {
-        this.#evaluate();
+        this.#refreshState();
       }
     };
     // Upstream controllers still expose :stateChange; switch to :stateChanged
@@ -266,14 +275,12 @@ export class NetworkConnectionBannerController extends BaseController<
       return;
     }
 
-    this.#evaluate();
+    this.#refreshState();
     this.#initialized = true;
   }
 
   /**
-   * Clears the banner state regardless of the current rule outcome. The next
-   * subscription-driven evaluation will re-show the banner if the conditions
-   * still hold.
+   * Clears the banner state such that the banner will be hidden.
    */
   dismissBanner(): void {
     this.#resetBanner();
@@ -300,7 +307,7 @@ export class NetworkConnectionBannerController extends BaseController<
     }
 
     const infuraEndpointIndex = networkConfiguration.rpcEndpoints.findIndex(
-      (endpoint) => isInfuraEndpoint(endpoint.url),
+      (endpoint) => getIsInfuraEndpoint(endpoint.url),
     );
     if (infuraEndpointIndex === -1) {
       throw new Error(
@@ -323,7 +330,7 @@ export class NetworkConnectionBannerController extends BaseController<
     );
   }
 
-  #evaluate(): void {
+  #refreshState(): void {
     const { connectivityStatus } = this.messenger.call(
       'ConnectivityController:getState',
     );
@@ -332,58 +339,58 @@ export class NetworkConnectionBannerController extends BaseController<
       return;
     }
 
-    const failed = this.#findFailedNetworkForBanner();
+    const failedNetwork = this.#findFailedNetwork();
 
-    if (!failed) {
+    if (!failedNetwork) {
       this.#resetBanner();
       return;
     }
 
     if (
       this.state.status !== 'available' &&
-      this.state.network?.networkClientId === failed.networkClientId
+      this.state.network?.networkClientId === failedNetwork.networkClientId
     ) {
-      this.update((draft) => {
-        draft.network = failed;
+      this.update((state) => {
+        state.network = failedNetwork;
       });
       return;
     }
 
-    if (this.#pendingNetworkClientId === failed.networkClientId) {
+    if (this.#pendingNetworkClientId === failedNetwork.networkClientId) {
       return;
     }
 
     this.#clearTimers();
-    this.update((draft) => {
-      draft.status = 'available';
-      draft.network = null;
+    this.update((state) => {
+      state.status = 'available';
+      state.network = null;
     });
 
-    this.#pendingNetworkClientId = failed.networkClientId;
+    this.#pendingNetworkClientId = failedNetwork.networkClientId;
     this.#degradedTimer = setTimeout(() => {
       this.#degradedTimer = undefined;
       this.#pendingNetworkClientId = undefined;
-      const stillFailed = this.#findFailedNetworkForBanner();
+      const stillFailed = this.#findFailedNetwork();
       if (!stillFailed) {
         return;
       }
-      this.update((draft) => {
-        draft.status = 'degraded';
-        draft.network = stillFailed;
+      this.update((state) => {
+        state.status = 'degraded';
+        state.network = stillFailed;
       });
       this.#unavailableTimer = setTimeout(() => {
         this.#unavailableTimer = undefined;
-        const stillFailedAtEscalation = this.#findFailedNetworkForBanner();
+        const stillFailedAtEscalation = this.#findFailedNetwork();
         if (!stillFailedAtEscalation) {
           this.#resetBanner();
           return;
         }
-        this.update((draft) => {
-          draft.status = 'unavailable';
-          draft.network = stillFailedAtEscalation;
+        this.update((state) => {
+          state.status = 'unavailable';
+          state.network = stillFailedAtEscalation;
         });
-      }, UNAVAILABLE_BANNER_TIMEOUT_MS - DEGRADED_BANNER_TIMEOUT_MS);
-    }, DEGRADED_BANNER_TIMEOUT_MS);
+      }, UNAVAILABLE_BANNER_TIMEOUT - DEGRADED_BANNER_TIMEOUT);
+    }, DEGRADED_BANNER_TIMEOUT);
   }
 
   /**
@@ -392,16 +399,16 @@ export class NetworkConnectionBannerController extends BaseController<
    */
   #resetBanner(): void {
     this.#clearTimers();
+    this.#pendingNetworkClientId = undefined;
     if (this.state.status !== 'available' || this.state.network !== null) {
-      this.update((draft) => {
-        draft.status = 'available';
-        draft.network = null;
+      this.update((state) => {
+        state.status = 'available';
+        state.network = null;
       });
     }
   }
 
   #clearTimers(): void {
-    this.#pendingNetworkClientId = undefined;
     if (this.#degradedTimer !== undefined) {
       clearTimeout(this.#degradedTimer);
       this.#degradedTimer = undefined;
@@ -412,7 +419,7 @@ export class NetworkConnectionBannerController extends BaseController<
     }
   }
 
-  #findFailedNetworkForBanner(): NetworkConnectionBannerFailedNetwork | null {
+  #findFailedNetwork(): NetworkConnectionBannerFailedNetwork | null {
     const { enabledNetworkMap } = this.messenger.call(
       'NetworkEnablementController:getState',
     );
@@ -444,7 +451,7 @@ export class NetworkConnectionBannerController extends BaseController<
       }
 
       const metadata = networksMetadata[defaultRpcEndpoint.networkClientId];
-      if (metadata === undefined) {
+      if (!metadata) {
         continue;
       }
 
@@ -454,15 +461,15 @@ export class NetworkConnectionBannerController extends BaseController<
         continue;
       }
 
-      const endpointIsInfura = isInfuraEndpoint(defaultRpcEndpoint.url);
+      const isInfuraEndpoint = getIsInfuraEndpoint(defaultRpcEndpoint.url);
 
       // For custom endpoints (non-Infura), find an Infura endpoint on this
       // chain that we could offer to switch to.
       let infuraNetworkClientId: string | null = null;
-      if (!endpointIsInfura) {
+      if (!isInfuraEndpoint) {
         const otherInfura = rpcEndpoints.find(
           (endpoint, index) =>
-            index !== defaultRpcEndpointIndex && isInfuraEndpoint(endpoint.url),
+            index !== defaultRpcEndpointIndex && getIsInfuraEndpoint(endpoint.url),
         );
         infuraNetworkClientId = otherInfura?.networkClientId ?? null;
       }
@@ -472,7 +479,7 @@ export class NetworkConnectionBannerController extends BaseController<
         networkClientId: defaultRpcEndpoint.networkClientId,
         networkName: name,
         rpcUrl: defaultRpcEndpoint.url,
-        isInfuraEndpoint: endpointIsInfura,
+        isInfuraEndpoint: isInfuraEndpoint,
         infuraNetworkClientId,
         domain: getDomain(defaultRpcEndpoint.url),
       });
@@ -516,12 +523,12 @@ export class NetworkConnectionBannerController extends BaseController<
 /**
  * Checks if an RPC URL is hosted on the Infura service. Detection is by
  * hostname suffix rather than the exact MetaMask-key URL pattern, so any
- * `*.infura.io` URL counts. That's the right shape for grouping by provider.
+ * `*.infura.io` URL counts.
  *
  * @param url - The RPC URL to check.
  * @returns True if the URL's host is on `infura.io`.
  */
-function isInfuraEndpoint(url: string): boolean {
+function getIsInfuraEndpoint(url: string): boolean {
   try {
     return new URL(url).hostname.toLowerCase().endsWith('.infura.io');
   } catch {
