@@ -1,4 +1,5 @@
 import { BaseController } from '@metamask/base-controller';
+import { BaseDataService } from '@metamask/base-data-service';
 import type { Json } from '@metamask/utils';
 
 import {
@@ -95,4 +96,12 @@ export const StaticIntervalPollingControllerOnly = <
 export const StaticIntervalPollingController = <PollingInput extends Json>() =>
   StaticIntervalPollingControllerMixin<typeof BaseController, PollingInput>(
     BaseController,
+  );
+
+// The return type is inferred from the class defined inside the function
+// scope, so this can't be easily typed.
+// eslint-disable-next-line @typescript-eslint/explicit-function-return-type
+export const StaticIntervalPollingDataService = <PollingInput extends Json>() =>
+  StaticIntervalPollingControllerMixin<typeof BaseDataService, PollingInput>(
+    BaseDataService,
   );
