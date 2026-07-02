@@ -21,7 +21,6 @@ import type {
   NetworkControllerStateChangeEvent,
   NetworkMetadata,
   NetworkState,
-  RpcEndpoint,
 } from '@metamask/network-controller';
 import { NetworkStatus } from '@metamask/network-controller';
 import type {
@@ -571,7 +570,7 @@ type NetworkWithMetadata = {
   name: string;
   rpcEndpoints: NetworkConfiguration['rpcEndpoints'];
   defaultRpcEndpointIndex: number;
-  defaultRpcEndpoint: RpcEndpoint;
+  defaultRpcEndpoint: NetworkConfiguration['rpcEndpoints'][number];
   metadata: NetworkMetadata;
 };
 
