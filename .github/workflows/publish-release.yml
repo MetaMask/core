@@ -101,6 +101,6 @@ jobs:
           persist-credentials: false
           ref: ${{ github.sha }}
           skip-install: true
-      - uses: MetaMask/action-publish-release@v3
+      - uses: MetaMask/action-publish-release@v3.2.3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
