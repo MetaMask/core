@@ -139,7 +139,7 @@ jobs:
           # relationship required by `--since`. Using `--filter=blob:none`
           # avoids downloading file content — commit and tree metadata is
           # all that `git diff --name-only` needs.
-          git fetch --unshallow --filter=blob:none --no-tags
+          git fetch --unshallow --filter=blob:none --no-tags origin HEAD
 
           echo "merge-base=$MERGE_BASE" >> "$GITHUB_OUTPUT"
         env:
