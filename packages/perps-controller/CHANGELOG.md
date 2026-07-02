@@ -9,21 +9,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add optional `description?: string` to `PerpsMarketData` and `TerminalAssetMetadata`, exposing the human-readable asset description sourced from the Terminal API when available ([#9334](https://github.com/MetaMask/core/pull/9334))
+  - `TerminalMarketService` now reads the `description` field from Terminal API items (ignoring `null`/empty values) and includes it in per-symbol metadata.
+  - `MarketDataService.getMarketDataWithPrices` merges the description into `PerpsMarketData` when the Terminal API backend (`useTerminalApi`) is enabled; markets without a Terminal description keep the field `undefined`.
+
+## [9.1.0]
+
+### Added
+
+- Add Auto Close TP/SL RoE sign toggle analytics constants to `PERPS_EVENT_PROPERTY` and `PERPS_EVENT_VALUE` so mobile and extension can import them from `@metamask/perps-controller` instead of local mirrors ([#9322](https://github.com/MetaMask/core/pull/9322))
+  - New `PERPS_EVENT_PROPERTY` key: `ROE_SIGN` (`roe_sign`)
+  - New `PERPS_EVENT_VALUE.INTERACTION_TYPE` entry: `TPSL_ROE_SIGN_TOGGLED` (`tpsl_roe_sign_toggled`)
+- Add `listedAt` (epoch ms) to `PerpsMarketData` and `TerminalAssetMetadata`, sourced from the Terminal API and normalized from either a numeric epoch value or an ISO 8601 string. Clients can use this field to surface recently added markets (e.g. markets listed within the last 30 days). ([#9308](https://github.com/MetaMask/core/pull/9308))
+- Add recently viewed markets tracking to `PerpsController`: ([#9308](https://github.com/MetaMask/core/pull/9308))
+  - New `recentlyViewedMarkets` persisted state (per-network: `testnet`/`mainnet`), containing `{ symbol, viewedAt }` entries ordered newest-first and capped at 10.
+  - New `recordMarketViewed(symbol)` method — call when the user opens a market. Deduplicates and prepends the entry; no remote sync.
+  - New `getRecentlyViewedMarkets()` method — returns up to 10 symbol strings for the current network, filtered to entries within the last 24 hours, ordered newest-first. Returns `[]` when none qualify.
+  - New `selectRecentlyViewedMarkets` selector that applies the same TTL/limit/ordering logic for Redux subscribers.
+  - New `PerpsControllerRecordMarketViewedAction` and `PerpsControllerGetRecentlyViewedMarketsAction` messenger action types.
+- Consolidate the Perps analytics contract so clients import a single source of truth from `@metamask/perps-controller` ([#9311](https://github.com/MetaMask/core/pull/9311))
+  - Add five new `PerpsAnalyticsEvent` members: `TransactionConsidered` (`Perp Transaction Considered`), `TradeQuoteReceived` (`Perp Trade Quote Received`), `SearchQuery` (`Perp Search Query`), `SearchResultTapped` (`Perp Search Result Tapped`), `SearchAbandoned` (`Perp Search Abandoned`)
+  - Add new `PERPS_EVENT_PROPERTY` keys: `entry_point`, `discovery_source`, `perp_discovery_source`, `utm_source`, `utm_medium`, `utm_campaign`, `utm_content`, `utm_term`, `watchlisted`, `hl_fee_rate`, `bulk_action_id`, `environment_type`, `order_context`, `order_size_percent`, `limit_price_input_type`, `limit_price_input_preset`, `order_has_tp`, `order_has_sl`, `quote_latency_ms`, `error_reason`, `saved_order`, `default_payment_token`, `default_size_amount`, `default_leverage`, `default_auto_close`, `order_execution_latency_ms`, `screen_context`, `from_token`, `from_chain`, `to_token`, `to_chain`, `search_query`, `results_count`, `result_rank`, `mode`, `current_token`, `sort_field`, `sort_direction`, `filter_category`, `time_on_screen_ms`
+  - Add new `PERPS_EVENT_VALUE` entries: `INTERACTION_TYPE.{SORT_APPLIED, FILTER_APPLIED, SEARCH_RESULT_TAPPED, SEARCH_CHIP_TAPPED, SEARCH_SIGNAL_TILE_TAPPED, PAYMENT_TOKEN_SELECTOR_DISMISSED}`, `ACTION.ABANDON_ORDER`, `BUTTON_CLICKED.{PLACE_ORDER, CLOSE, REDUCE_EXPOSURE}`, `SCREEN_TYPE.{SEARCH_RESULTS_SHOWN, SEARCH_NO_RESULTS}`
+  - Add `PerpsAttributionContext` type and `setAttributionContext` / `getAttributionContext` / `clearAttributionContext` / `mergeAttributionContext` on `PerpsController` (with matching messenger actions) for transient UTM attribution propagation
+  - Extend `TrackingData` with `entryPoint`, `discoverySource`, `perpDiscoverySource`, `hlFeeRate`; extend `TPSLTrackingData` with `entryPoint`, `discoverySource`, `perpDiscoverySource`; add optional `trackingData` to `CancelOrderParams`
 - Add Perps Advanced Chart analytics constants to `PERPS_EVENT_PROPERTY` and `PERPS_EVENT_VALUE` so mobile can import chart instrumentation keys from `@metamask/perps-controller` instead of maintaining a local mirror ([#9221](https://github.com/MetaMask/core/pull/9221))
   - New `PERPS_EVENT_PROPERTY` keys: `CHART_LIBRARY`, `ASSET_TYPE`
   - New `PERPS_EVENT_VALUE.CHART_LIBRARY` group: `lightweight`, `advanced`
   - New `PERPS_EVENT_VALUE.ASSET_TYPE` group: `spot`, `perp`
-- Add `fast?: boolean` to `SubscribeOrderBookParams` ([#9160](https://github.com/MetaMask/core/pull/9160)): when set to `true`, the order book subscription uses Hyperliquid's fast l2Book mode (5 levels @ ~0.5 s cadence) instead of the default (20 levels @ ~2 s)
+- Add `fast?: boolean` to `SubscribeOrderBookParams`: when set to `true`, the order book subscription uses Hyperliquid's fast l2Book mode (5 levels @ ~0.5 s cadence) instead of the default (20 levels @ ~2 s) ([#9160](https://github.com/MetaMask/core/pull/9160))
   - No change to `#processOrderBookData` or cumulative-total math; callers opting into `fast: true` receive up to 5 levels per side instead of 20.
 
 ### Changed
 
+- Consolidate the Perps transaction analytics pipeline in `TradingService` ([#9311](https://github.com/MetaMask/core/pull/9311))
+  - Emit a `status: 'submitted'` event before the provider round-trip for trade (`placeOrder`), close (`closePosition`), cancel (`cancelOrder`) and risk-management (`updatePositionTPSL`) operations
+  - Populate `metamask_fee` on successful `flipPosition` trades from `trackingData`
+  - Add `leverage` to `Perp Position Close Transaction` event properties
+  - Add `hl_fee_rate` to trade and close events when present in `trackingData`; omit it entirely when unavailable
+  - Generate a `bulk_action_id` UUID for `closePositions` / `cancelOrders` and attach it to each per-item event and the batch summary event
+  - Propagate `entry_point`, `discovery_source`, `perp_discovery_source` from `trackingData` onto trade/close/cancel/risk events; the legacy `source` field on `TPSLTrackingData` is now deprecated
 - On `subscribeToPrices` calls with `includeMarketData: true` (focused detail/ticket screens), the `price` field in each `PriceUpdate` is now driven by the per-symbol `activeAssetCtx` WebSocket stream (`midPx`, falling back to `markPx`) rather than the main-DEX `allMids` snapshot, which Hyperliquid throttles to a ~5 s push cadence ([#9160](https://github.com/MetaMask/core/pull/9160))
   - Price source selection is **per-subscriber**: focused (`includeMarketData: true`) callbacks receive the fast-stream price; list/overview (`includeMarketData: false`) callbacks always receive the raw `allMids` baseline, even when both subscriber types share the same symbol.
   - The fast-stream price is preferred only while it is fresh (within a 10 s staleness window); `allMids` takes back over automatically once the `activeAssetCtx` stream goes quiet.
   - A startup guard prevents any `'0'` price from being emitted: if `activeAssetCtx` fires before `allMids` with no `midPx`/`markPx`, no notification is sent until a usable price arrives from either source.
   - No new WebSocket subscriptions are created; `activeAssetCtx` was already established for `includeMarketData: true` subscriptions.
-- Bump `@nktkas/hyperliquid` from `^0.32.2` to `^0.33.1` ([#9160](https://github.com/MetaMask/core/pull/9160)): adds support for the `fast` field on `l2Book` subscriptions
+- Bump `@nktkas/hyperliquid` from `^0.32.2` to `^0.33.1`: adds support for the `fast` field on `l2Book` subscriptions ([#9160](https://github.com/MetaMask/core/pull/9160))
 
 ## [9.0.0]
 
@@ -450,7 +481,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@9.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@9.1.0...HEAD
+[9.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@9.0.0...@metamask/perps-controller@9.1.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@8.3.0...@metamask/perps-controller@9.0.0
 [8.3.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@8.2.0...@metamask/perps-controller@8.3.0
 [8.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@8.1.0...@metamask/perps-controller@8.2.0

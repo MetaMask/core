@@ -59,6 +59,10 @@ export const PERPS_CONSTANTS = {
 
   // Historical data fetching constants
   FillsLookbackMs: 90 * 24 * 60 * 60 * 1000, // 3 months in milliseconds - limits REST API fills fetch
+
+  // Recently viewed markets
+  RecentlyViewedMarketsTtlMs: 24 * 60 * 60 * 1000, // 24 hours TTL for recently viewed market entries
+  RecentlyViewedMarketsLimit: 10, // Maximum number of recently viewed markets to track
 } as const;
 
 /**

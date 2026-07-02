@@ -20,6 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/eth-snap-keyring` from `^22.3.0` to `^22.4.0` ([#0000](https://github.com/MetaMask/core/pull/0000))
 - Bump `@metamask/keyring-api` from `^23.3.0` to `^23.4.0` ([#0000](https://github.com/MetaMask/core/pull/0000))
 - Bump `@metamask/keyring-snap-client` from `^9.0.2` to `^9.1.0` ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Adds `MultichainAccountGroup.isProviderAligned(provider)` to check alignment per provider ([#9269](https://github.com/MetaMask/core/pull/9269))
+- Wallet alignment now only creates the missing `(provider, group index)` pairs instead of re-creating the whole range for every provider, avoiding redundant `createAccounts` calls (and their traces) ([#9269](https://github.com/MetaMask/core/pull/9269))
+- Bump `@metamask/accounts-controller` from `^39.0.3` to `^39.0.4` ([#9349](https://github.com/MetaMask/core/pull/9349))
 
 ## [11.1.0]
 

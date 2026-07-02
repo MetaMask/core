@@ -62,7 +62,10 @@ function enoent(): NodeJS.ErrnoException {
 function createMockWallet(): MockCreateWalletResult {
   return {
     wallet: {
-      messenger: { call: jest.fn() },
+      messenger: {
+        call: jest.fn(),
+        getRegisteredActionTypes: jest.fn().mockReturnValue([]),
+      },
       state: {},
     },
     dispose: jest.fn().mockResolvedValue(undefined),
@@ -493,6 +496,28 @@ describe('daemon-entry', () => {
 
     expect(status.pid).toBe(process.pid);
     expect(typeof status.uptime).toBe('number');
+  });
+
+  it('exposes listActions handler that returns the messenger action types', async () => {
+    const mock = createMockWallet();
+    (
+      mock.wallet.messenger.getRegisteredActionTypes as jest.Mock
+    ).mockReturnValue([
+      'NetworkController:getState',
+      'KeyringController:getState',
+    ]);
+    mockCreateWallet.mockResolvedValue(mock);
+    mockStartRpcSocketServer.mockResolvedValue(createMockHandle());
+
+    await importDaemonEntry();
+
+    const { handlers } = mockStartRpcSocketServer.mock.calls[0][0];
+    const actions = await handlers.listActions(null);
+
+    expect(actions).toStrictEqual([
+      'NetworkController:getState',
+      'KeyringController:getState',
+    ]);
   });
 
   it('logs to file via makeLogger', async () => {
