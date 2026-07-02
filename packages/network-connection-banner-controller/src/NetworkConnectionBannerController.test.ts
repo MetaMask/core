@@ -191,30 +191,27 @@ describe('NetworkConnectionBannerController', () => {
 
     it('ignores upstream state changes before start', async () => {
       await withController(
-        ({ controller, publishNetworkStateChanges }) => {
-          publishNetworkStateChanges(
-            buildExternalState({
-              networkConfigurationsByChainId: {
-                '0x89': buildNetworkConfiguration({
-                  chainId: '0x89',
-                  name: 'Polygon Mainnet',
-                  nativeCurrency: 'MATIC',
-                  rpcEndpoints: [
-                    buildCustomEndpoint(
-                      POLYGON_CUSTOM_CLIENT_ID,
-                      'https://polygon-rpc.com',
-                    ),
-                  ],
-                }),
-              },
-              enabledEvmChainIds: ['0x89'],
-              networksMetadata: {
-                [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
-                  NetworkStatus.Unavailable,
-                ),
-              },
-            }),
-          );
+        ({ controller, setNetworkControllerState }) => {
+          setNetworkControllerState({
+            networkConfigurationsByChainId: {
+              '0x89': buildNetworkConfiguration({
+                chainId: '0x89',
+                name: 'Polygon Mainnet',
+                nativeCurrency: 'MATIC',
+                rpcEndpoints: [
+                  buildCustomEndpoint(
+                    POLYGON_CUSTOM_CLIENT_ID,
+                    'https://polygon-rpc.com',
+                  ),
+                ],
+              }),
+            },
+            networksMetadata: {
+              [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
+                NetworkStatus.Unavailable,
+              ),
+            },
+          });
 
           jest.advanceTimersByTime(30_000);
           expect(controller.state.status).toBe('available');
@@ -223,15 +220,15 @@ describe('NetworkConnectionBannerController', () => {
           jest.advanceTimersByTime(5_000);
           expect(controller.state.status).toBe('degraded');
         },
-        undefined,
+        buildExternalState({ enabledEvmChainIds: ['0x89'] }),
         false,
       );
     });
 
     it('cancels a pending banner and resets state on stop', async () => {
-      await withController(({ controller, publishNetworkStateChanges }) => {
-        publishNetworkStateChanges(
-          buildExternalState({
+      await withController(
+        ({ controller, setNetworkControllerState }) => {
+          setNetworkControllerState({
             networkConfigurationsByChainId: {
               '0x89': buildNetworkConfiguration({
                 chainId: '0x89',
@@ -245,32 +242,32 @@ describe('NetworkConnectionBannerController', () => {
                 ],
               }),
             },
-            enabledEvmChainIds: ['0x89'],
             networksMetadata: {
               [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
                 NetworkStatus.Unavailable,
               ),
             },
-          }),
-        );
+          });
 
-        jest.advanceTimersByTime(5_000);
-        expect(controller.state.status).toBe('degraded');
+          jest.advanceTimersByTime(5_000);
+          expect(controller.state.status).toBe('degraded');
 
-        controller.stop();
-        jest.advanceTimersByTime(30_000);
-        expect(controller.state).toStrictEqual({
-          status: 'available',
-          network: null,
-        });
-      });
+          controller.stop();
+          jest.advanceTimersByTime(30_000);
+          expect(controller.state).toStrictEqual({
+            status: 'available',
+            network: null,
+          });
+        },
+        buildExternalState({ enabledEvmChainIds: ['0x89'] }),
+      );
     });
 
     it('ignores upstream state changes after stop', async () => {
-      await withController(({ controller, publishNetworkStateChanges }) => {
-        controller.stop();
-        publishNetworkStateChanges(
-          buildExternalState({
+      await withController(
+        ({ controller, setNetworkControllerState }) => {
+          controller.stop();
+          setNetworkControllerState({
             networkConfigurationsByChainId: {
               '0x89': buildNetworkConfiguration({
                 chainId: '0x89',
@@ -284,26 +281,26 @@ describe('NetworkConnectionBannerController', () => {
                 ],
               }),
             },
-            enabledEvmChainIds: ['0x89'],
             networksMetadata: {
               [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
                 NetworkStatus.Unavailable,
               ),
             },
-          }),
-        );
+          });
 
-        jest.advanceTimersByTime(30_000);
-        expect(controller.state.status).toBe('available');
-      });
+          jest.advanceTimersByTime(30_000);
+          expect(controller.state.status).toBe('available');
+        },
+        buildExternalState({ enabledEvmChainIds: ['0x89'] }),
+      );
     });
 
     it('resumes evaluation when start is called again after stop', async () => {
-      await withController(({ controller, publishNetworkStateChanges }) => {
-        controller.stop();
+      await withController(
+        ({ controller, setNetworkControllerState }) => {
+          controller.stop();
 
-        publishNetworkStateChanges(
-          buildExternalState({
+          setNetworkControllerState({
             networkConfigurationsByChainId: {
               '0x89': buildNetworkConfiguration({
                 chainId: '0x89',
@@ -317,21 +314,21 @@ describe('NetworkConnectionBannerController', () => {
                 ],
               }),
             },
-            enabledEvmChainIds: ['0x89'],
             networksMetadata: {
               [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
                 NetworkStatus.Unavailable,
               ),
             },
-          }),
-        );
+          });
 
-        expect(controller.state.status).toBe('available');
+          expect(controller.state.status).toBe('available');
 
-        controller.start();
-        jest.advanceTimersByTime(5_000);
-        expect(controller.state.status).toBe('degraded');
-      });
+          controller.start();
+          jest.advanceTimersByTime(5_000);
+          expect(controller.state.status).toBe('degraded');
+        },
+        buildExternalState({ enabledEvmChainIds: ['0x89'] }),
+      );
     });
 
     it('stop is idempotent when never started', async () => {
@@ -1051,6 +1048,96 @@ describe('NetworkConnectionBannerController', () => {
     });
   });
 
+  describe('on NetworkEnablementController:stateChange', () => {
+    it('re-evaluates the rule when a failing chain becomes enabled', async () => {
+      await withController(
+        ({ controller, setNetworkEnablementControllerState }) => {
+          jest.advanceTimersByTime(30_000);
+          expect(controller.state.status).toBe('available');
+
+          setNetworkEnablementControllerState(
+            buildNetworkEnablementControllerState({
+              enabledNetworkMap: {
+                [KnownCaipNamespace.Eip155]: {
+                  '0x89': true,
+                },
+              },
+            }),
+          );
+
+          jest.advanceTimersByTime(5_000);
+          expect(controller.state.status).toBe('degraded');
+        },
+        buildExternalState({
+          networkConfigurationsByChainId: {
+            '0x89': buildNetworkConfiguration({
+              chainId: '0x89',
+              name: 'Polygon Mainnet',
+              nativeCurrency: 'MATIC',
+              rpcEndpoints: [
+                buildCustomEndpoint(
+                  POLYGON_CUSTOM_CLIENT_ID,
+                  'https://polygon-rpc.com',
+                ),
+              ],
+            }),
+          },
+          networksMetadata: {
+            [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
+              NetworkStatus.Unavailable,
+            ),
+          },
+          enabledEvmChainIds: [],
+        }),
+      );
+    });
+
+    it('clears the banner when the failing chain gets disabled', async () => {
+      await withController(
+        ({ controller, setNetworkEnablementControllerState }) => {
+          jest.advanceTimersByTime(30_000);
+          expect(controller.state.status).toBe('unavailable');
+
+          setNetworkEnablementControllerState(
+            buildNetworkEnablementControllerState({
+              enabledNetworkMap: {
+                [KnownCaipNamespace.Eip155]: {
+                  '0x89': false,
+                },
+              },
+            }),
+          );
+
+          expect(controller.state).toStrictEqual({
+            status: 'available',
+            network: null,
+          });
+        },
+        buildExternalState({
+          networkConfigurationsByChainId: {
+            '0x89': buildNetworkConfiguration({
+              chainId: '0x89',
+              name: 'Polygon Mainnet',
+              nativeCurrency: 'MATIC',
+              rpcEndpoints: [
+                buildCustomEndpoint(
+                  POLYGON_CUSTOM_CLIENT_ID,
+                  'https://polygon-rpc.com',
+                ),
+              ],
+            }),
+          },
+          networksMetadata: {
+            [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
+              NetworkStatus.Unavailable,
+            ),
+          },
+          enabledEvmChainIds: ['0x89'],
+        }),
+      );
+    });
+  });
+
   describe('on ConnectivityController:stateChange', () => {
     it('does not touch banner state when going offline while no banner is shown', async () => {
       await withController(({ controller, setConnectivityStatus }) => {
@@ -1351,6 +1438,12 @@ type WithControllerCallback<ReturnValue> = (payload: {
   controller: NetworkConnectionBannerController;
   rootMessenger: RootMessenger;
   controllerMessenger: NetworkConnectionBannerControllerMessenger;
+  setNetworkControllerState: (
+    networkControllerState: Partial<NetworkState>,
+  ) => void;
+  setNetworkEnablementControllerState: (
+    networkEnablementControllerState: NetworkEnablementControllerState,
+  ) => void;
   publishNetworkStateChanges: (state: ExternalState) => void;
   setConnectivityStatus: (
     status: ConnectivityControllerState['connectivityStatus'],
@@ -1444,8 +1537,45 @@ async function withController<ReturnValue>(
     controller.start();
   }
 
+  const setNetworkControllerState = (
+    networkControllerState: Partial<NetworkState>,
+  ): void => {
+    currentState = {
+      ...currentState,
+      NetworkController: networkControllerState,
+    };
+    rootMessenger.publish(
+      'NetworkController:stateChange',
+      currentState.NetworkController as NetworkState,
+      [],
+    );
+  };
+
+  const setNetworkEnablementControllerState = (
+    networkEnablementControllerState: NetworkEnablementControllerState,
+  ): void => {
+    currentState = {
+      ...currentState,
+      NetworkEnablementController: networkEnablementControllerState,
+    };
+    rootMessenger.publish(
+      'NetworkEnablementController:stateChange',
+      currentState.NetworkEnablementController,
+      [],
+    );
+  };
+
+  // Setup convenience for tests that want to seed both `NetworkController`
+  // and `NetworkEnablementController` at once. Tests exercising a specific
+  // peer event should reach for `setNetworkControllerState` /
+  // `setNetworkEnablementControllerState` instead so the event they publish
+  // matches the code path they claim to cover.
   const publishNetworkStateChanges = (state: ExternalState): void => {
-    currentState = state;
+    currentState = {
+      ...currentState,
+      NetworkController: state.NetworkController,
+      NetworkEnablementController: state.NetworkEnablementController,
+    };
     rootMessenger.publish(
       'NetworkController:stateChange',
       currentState.NetworkController as NetworkState,
@@ -1476,6 +1606,8 @@ async function withController<ReturnValue>(
     controller,
     rootMessenger,
     controllerMessenger: messenger,
+    setNetworkControllerState,
+    setNetworkEnablementControllerState,
     publishNetworkStateChanges,
     setConnectivityStatus,
     updateNetwork,
