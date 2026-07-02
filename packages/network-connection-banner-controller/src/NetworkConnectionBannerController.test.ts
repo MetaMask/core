@@ -119,8 +119,10 @@ describe('NetworkConnectionBannerController', () => {
         });
       });
     });
+  });
 
-    it('does not evaluate existing upstream state before initialization', async () => {
+  describe('start / stop', () => {
+    it('does not evaluate existing upstream state before start', async () => {
       const initialState = buildNetworkState({
         configurations: {
           '0x89': buildConfiguration({
@@ -152,7 +154,7 @@ describe('NetworkConnectionBannerController', () => {
       );
     });
 
-    it('evaluates existing upstream state on initialization', async () => {
+    it('evaluates existing upstream state on start', async () => {
       const initialState = buildNetworkState({
         configurations: {
           '0x89': buildConfiguration({
@@ -175,8 +177,8 @@ describe('NetworkConnectionBannerController', () => {
 
       await withController(
         ({ controller, rootMessenger }) => {
-          rootMessenger.call('NetworkConnectionBannerController:init');
-          rootMessenger.call('NetworkConnectionBannerController:init');
+          rootMessenger.call('NetworkConnectionBannerController:start');
+          rootMessenger.call('NetworkConnectionBannerController:start');
 
           jest.advanceTimersByTime(5_000);
 
@@ -187,7 +189,7 @@ describe('NetworkConnectionBannerController', () => {
       );
     });
 
-    it('ignores upstream state changes before initialization', async () => {
+    it('ignores upstream state changes before start', async () => {
       await withController(
         ({ controller, setNetworkState }) => {
           setNetworkState(
@@ -217,9 +219,130 @@ describe('NetworkConnectionBannerController', () => {
           jest.advanceTimersByTime(30_000);
           expect(controller.state.status).toBe('available');
 
-          controller.init();
+          controller.start();
           jest.advanceTimersByTime(5_000);
           expect(controller.state.status).toBe('degraded');
+        },
+        undefined,
+        false,
+      );
+    });
+
+    it('cancels a pending banner and resets state on stop', async () => {
+      await withController(({ controller, setNetworkState }) => {
+        setNetworkState(
+          buildNetworkState({
+            configurations: {
+              '0x89': buildConfiguration({
+                chainId: '0x89',
+                name: 'Polygon Mainnet',
+                nativeCurrency: 'MATIC',
+                rpcEndpoints: [
+                  buildCustomEndpoint(
+                    POLYGON_CUSTOM_CLIENT_ID,
+                    'https://polygon-rpc.com',
+                  ),
+                ],
+              }),
+            },
+            enabledChainIds: ['0x89'],
+            metadata: {
+              [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(
+                NetworkStatus.Unavailable,
+              ),
+            },
+          }),
+        );
+
+        jest.advanceTimersByTime(5_000);
+        expect(controller.state.status).toBe('degraded');
+
+        controller.stop();
+        jest.advanceTimersByTime(30_000);
+        expect(controller.state).toStrictEqual({
+          status: 'available',
+          network: null,
+        });
+      });
+    });
+
+    it('ignores upstream state changes after stop', async () => {
+      await withController(({ controller, setNetworkState }) => {
+        controller.stop();
+        setNetworkState(
+          buildNetworkState({
+            configurations: {
+              '0x89': buildConfiguration({
+                chainId: '0x89',
+                name: 'Polygon Mainnet',
+                nativeCurrency: 'MATIC',
+                rpcEndpoints: [
+                  buildCustomEndpoint(
+                    POLYGON_CUSTOM_CLIENT_ID,
+                    'https://polygon-rpc.com',
+                  ),
+                ],
+              }),
+            },
+            enabledChainIds: ['0x89'],
+            metadata: {
+              [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(
+                NetworkStatus.Unavailable,
+              ),
+            },
+          }),
+        );
+
+        jest.advanceTimersByTime(30_000);
+        expect(controller.state.status).toBe('available');
+      });
+    });
+
+    it('resumes evaluation when start is called again after stop', async () => {
+      await withController(({ controller, setNetworkState }) => {
+        controller.stop();
+
+        setNetworkState(
+          buildNetworkState({
+            configurations: {
+              '0x89': buildConfiguration({
+                chainId: '0x89',
+                name: 'Polygon Mainnet',
+                nativeCurrency: 'MATIC',
+                rpcEndpoints: [
+                  buildCustomEndpoint(
+                    POLYGON_CUSTOM_CLIENT_ID,
+                    'https://polygon-rpc.com',
+                  ),
+                ],
+              }),
+            },
+            enabledChainIds: ['0x89'],
+            metadata: {
+              [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(
+                NetworkStatus.Unavailable,
+              ),
+            },
+          }),
+        );
+
+        expect(controller.state.status).toBe('available');
+
+        controller.start();
+        jest.advanceTimersByTime(5_000);
+        expect(controller.state.status).toBe('degraded');
+      });
+    });
+
+    it('stop is idempotent when never started', async () => {
+      await withController(
+        ({ controller }) => {
+          controller.stop();
+          controller.stop();
+          expect(controller.state).toStrictEqual({
+            status: 'available',
+            network: null,
+          });
         },
         undefined,
         false,
@@ -1121,7 +1244,7 @@ type WithControllerCallback<ReturnValue> = (payload: {
 async function withController<ReturnValue>(
   testFunction: WithControllerCallback<ReturnValue>,
   initialState?: StubbedState,
-  initialize = true,
+  start = true,
 ): Promise<ReturnValue> {
   const rootMessenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
@@ -1198,8 +1321,8 @@ async function withController<ReturnValue>(
   const controller = new NetworkConnectionBannerController({
     messenger,
   });
-  if (initialize) {
-    controller.init();
+  if (start) {
+    controller.start();
   }
 
   const setNetworkState = (state: StubbedState): void => {

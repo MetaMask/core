@@ -161,7 +161,8 @@ const DEGRADED_BANNER_TIMEOUT = 5_000;
 const UNAVAILABLE_BANNER_TIMEOUT = 30_000;
 
 const MESSENGER_EXPOSED_METHODS = [
-  'init',
+  'start',
+  'stop',
   'dismissBanner',
   'switchToDefaultInfuraRpc',
 ] as const;
@@ -274,7 +275,7 @@ export class NetworkConnectionBannerController extends BaseController<
 
   #pendingNetworkClientId: string | undefined;
 
-  #initialized = false;
+  #started = false;
 
   /**
    * Constructs a new {@link NetworkConnectionBannerController}.
@@ -320,22 +321,36 @@ export class NetworkConnectionBannerController extends BaseController<
   }
 
   /**
-   * Starts evaluating network connection state.
-   *
-   * This method should be called after the upstream network, network
-   * enablement, and connectivity controllers have been initialized.
+   * Starts evaluating network connection state. Call this when the wallet
+   * UI that consumes the banner becomes active (typically when the wallet
+   * is unlocked and the home surface mounts) so timers do not run while
+   * the user is not looking at the wallet. Idempotent.
    */
-  init(): void {
-    if (this.#initialized) {
+  start(): void {
+    if (this.#started) {
       return;
     }
 
+    this.#started = true;
     this.#refreshState();
-    this.#initialized = true;
+  }
+
+  /**
+   * Stops evaluating network connection state. Clears any pending banner
+   * timers and resets state to `available`. Call this when the UI
+   * consuming the banner is no longer active. Idempotent.
+   */
+  stop(): void {
+    if (!this.#started) {
+      return;
+    }
+
+    this.#started = false;
+    this.#resetBanner();
   }
 
   #onUpstreamChange(): void {
-    if (this.#initialized) {
+    if (this.#started) {
       this.#refreshState();
     }
   }
