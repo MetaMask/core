@@ -226,6 +226,7 @@ jobs:
   build-platform-api-docs:
     name: Build Platform API docs
     runs-on: ubuntu-latest
+    needs: prepare
     permissions:
       contents: read
     steps:
