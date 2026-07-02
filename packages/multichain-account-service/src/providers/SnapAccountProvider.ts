@@ -396,10 +396,10 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
       let groupIndexOffset = 0;
       let snapAccounts: KeyringAccount[] = [];
 
-      // Batching is driven by the Snap's declared capabilities: a Snap that
-      // supports BIP-44 index-range derivation is v2-compliant and uses the
-      // batched `createAccounts` flow.
-      const batched = Boolean(this.capabilities.bip44?.deriveIndexRange);
+      // v2 Snaps expose `createAccounts` but no singular `createAccount`, so
+      // they must always go through the batched flow. v1 Snaps only have the
+      // singular `createAccount`.
+      const batched = this.isV2();
       const { entropySource } = options;
 
       const createAccountV1 = async (
@@ -563,6 +563,13 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
           }
 
           if (this.isV2()) {
+            // The v2 client has no `discoverAccounts`, so discovery is only
+            // possible when the Snap supports `bip44:discover`. Otherwise there
+            // is no way to discover and we report nothing.
+            if (!this.capabilities.bip44?.discover) {
+              return [];
+            }
+
             // v2: the Snap detects on-chain activity and creates the account in
             // a single `createAccounts({ bip44:discover })` call. An empty
             // result means discovery is exhausted at this group index.
