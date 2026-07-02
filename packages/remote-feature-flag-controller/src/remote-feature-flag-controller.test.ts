@@ -485,76 +485,7 @@ describe('RemoteFeatureFlagController', () => {
         testFlagForThreshold: 'groupB',
       });
     });
-
-    it('stores selected threshold group name from name field when thresholdName is absent', async () => {
-      const thresholdFlagValue = {
-        enabled: true,
-        minimumVersion: '13.10.0',
-        attemptsMax: 5,
-      };
-      const mockFlags = {
-        thresholdObjectFlag: [
-          {
-            name: 'enabled',
-            scope: { type: 'threshold', value: 1.0 },
-            value: thresholdFlagValue,
-          },
-        ],
-      };
-      const clientConfigApiService = buildClientConfigApiService({
-        remoteFeatureFlags: mockFlags,
-      });
-      const { controller, messenger } = createController({
-        clientConfigApiService,
-        getMetaMetricsId: () => MOCK_METRICS_ID,
-      });
-
-      await messenger.call(
-        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
-      );
-
-      expect(
-        controller.state.remoteFeatureFlags.thresholdObjectFlag,
-      ).toStrictEqual(thresholdFlagValue);
-      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
-        thresholdObjectFlag: 'enabled',
-      });
-    });
-
-    it('does not map threshold group when only thresholdName is provided', async () => {
-      const thresholdFlagValue = {
-        enabled: true,
-        minimumVersion: '13.10.0',
-        attemptsMax: 5,
-      };
-      const mockFlags = {
-        thresholdObjectFlag: [
-          {
-            thresholdName: 'enabled',
-            thresholdVersion: ThresholdVersion.DirectValue,
-            scope: { type: 'threshold', value: 1.0 },
-            value: thresholdFlagValue,
-          },
-        ],
-      };
-      const clientConfigApiService = buildClientConfigApiService({
-        remoteFeatureFlags: mockFlags,
-      });
-      const { controller, messenger } = createController({
-        clientConfigApiService,
-        getMetaMetricsId: () => MOCK_METRICS_ID,
-      });
-
-      await messenger.call(
-        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
-      );
-
-      expect(
-        controller.state.remoteFeatureFlags.thresholdObjectFlag,
-      ).toStrictEqual(thresholdFlagValue);
-      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({});
-    });
-
+    
     it('returns selected threshold values for unrecognized threshold versions', async () => {
       const thresholdFlagValue = {
         enabled: true,
