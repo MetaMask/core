@@ -383,7 +383,7 @@ export function mapApiTransaction({
       to: transaction.to,
       transactionCategory,
       transactionProtocol: transaction.transactionProtocol,
-      ...(token?.amount ? { token } : {}),
+      ...(token ? { token } : {}),
     },
   };
 }

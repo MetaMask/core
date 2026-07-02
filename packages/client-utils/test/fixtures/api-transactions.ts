@@ -1023,6 +1023,16 @@ const transactions = {
       },
     ],
   },
+  mapsAContractCallWithNoTransfers: {
+    hash: '0xnotransfers',
+    timestamp: '2026-05-12T13:37:47.000Z',
+    chainId: 1,
+    from: addresses.subjectAddress,
+    to: '0x2222222222222222222222222222222222222222',
+    methodId: '0xdeadbeef',
+    transactionCategory: 'CONTRACT_CALL',
+    valueTransfers: [],
+  },
 } as const satisfies Record<string, V1TransactionByHashResponse>;
 
 const mapArgs = {
@@ -1183,6 +1193,10 @@ const mapArgs = {
   mapsAnUnrecognizedCategoryWithOnly: {
     subjectAddress: addresses.subjectAddress,
     transaction: transactions.mapsAnUnrecognizedCategoryWithOnly,
+  },
+  mapsAContractCallWithNoTransfers: {
+    subjectAddress: addresses.subjectAddress,
+    transaction: transactions.mapsAContractCallWithNoTransfers,
   },
 } as const;
 

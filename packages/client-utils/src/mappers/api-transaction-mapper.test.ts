@@ -776,8 +776,23 @@ describe('mapApiTransaction', () => {
         to: bscUniversalRouter,
         transactionCategory: 'CONTRACT_CALL',
         transactionProtocol: 'GENERIC',
+        token: {
+          direction: 'out',
+          symbol: 'BNB',
+        },
       },
     });
+  });
+
+  it('maps a contract interaction with no value transfers without a token', () => {
+    const item = mapApiTransaction(
+      apiTransactionFixtures.mapArgs.mapsAContractCallWithNoTransfers,
+    );
+
+    expect(item.type).toBe('contractInteraction');
+    const token =
+      item.type === 'contractInteraction' ? item.data.token : 'unset';
+    expect(token).toBeUndefined();
   });
 
   it('maps the reported generic contract call to a contract interaction with its token amount', () => {
