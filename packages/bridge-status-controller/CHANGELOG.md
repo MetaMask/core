@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [74.0.2]
+
 ### Fixed
 
 - Only include `sourceAssetId` and `destAssetId` in the snap request options for Stellar trades ([#9366](https://github.com/MetaMask/core/pull/9366))
@@ -1363,7 +1365,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.0.2...HEAD
+[74.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.0.1...@metamask/bridge-status-controller@74.0.2
 [74.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.0.0...@metamask/bridge-status-controller@74.0.1
 [74.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@73.1.0...@metamask/bridge-status-controller@74.0.0
 [73.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@73.0.0...@metamask/bridge-status-controller@73.1.0
