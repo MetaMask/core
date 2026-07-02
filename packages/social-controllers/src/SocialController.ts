@@ -271,12 +271,16 @@ export class SocialController extends BaseController<
     return followingResponse;
   }
 
-  /** Opts the current user out of the PnL leaderboard. */
+  /**
+   * Opts the current user out of the PnL leaderboard.
+   */
   async optOutOfLeaderboard(): Promise<void> {
     await this.messenger.call('SocialService:optOutOfLeaderboard');
   }
 
-  /** Opts the current user back into the PnL leaderboard. */
+  /**
+   * Opts the current user back into the PnL leaderboard.
+   */
   async optInToLeaderboard(): Promise<void> {
     await this.messenger.call('SocialService:optInToLeaderboard');
   }

@@ -56,13 +56,17 @@ export type SocialControllerUpdateFollowingAction = {
   handler: SocialController['updateFollowing'];
 };
 
-/** Opts the current user out of the PnL leaderboard. */
+/**
+ * Opts the current user out of the PnL leaderboard.
+ */
 export type SocialControllerOptOutOfLeaderboardAction = {
   type: `SocialController:optOutOfLeaderboard`;
   handler: SocialController['optOutOfLeaderboard'];
 };
 
-/** Opts the current user back into the PnL leaderboard. */
+/**
+ * Opts the current user back into the PnL leaderboard.
+ */
 export type SocialControllerOptInToLeaderboardAction = {
   type: `SocialController:optInToLeaderboard`;
   handler: SocialController['optInToLeaderboard'];

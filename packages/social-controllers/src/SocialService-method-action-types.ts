@@ -141,13 +141,17 @@ export type SocialServiceUnfollowAction = {
   handler: SocialService['unfollow'];
 };
 
-/** Opts the current user out of the PnL leaderboard. */
+/**
+ * Opts the current user out of the PnL leaderboard.
+ */
 export type SocialServiceOptOutOfLeaderboardAction = {
   type: `SocialService:optOutOfLeaderboard`;
   handler: SocialService['optOutOfLeaderboard'];
 };
 
-/** Opts the current user back into the PnL leaderboard. */
+/**
+ * Opts the current user back into the PnL leaderboard.
+ */
 export type SocialServiceOptInToLeaderboardAction = {
   type: `SocialService:optInToLeaderboard`;
   handler: SocialService['optInToLeaderboard'];
