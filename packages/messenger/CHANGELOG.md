@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `Messenger.getRegisteredActionTypes` method, which returns the action types the messenger can call directly ([#9271](https://github.com/MetaMask/core/pull/9271))
+- Add a `buildChild` utility method to `Messenger` ([#9338](https://github.com/MetaMask/core/pull/9338))
 
 ### Changed
 
