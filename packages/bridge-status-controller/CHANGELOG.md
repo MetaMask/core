@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^77.3.1` to `^77.3.2` ([#9372](https://github.com/MetaMask/core/pull/9372))
+
+## [74.0.2]
+
+### Fixed
+
+- Only include `sourceAssetId` and `destAssetId` in the snap request options for Stellar trades ([#9366](https://github.com/MetaMask/core/pull/9366))
+  - Previously these options were passed for all non-EVM trades, which broke Bitcoin bridging/swapping because the Bitcoin snap strictly validates the request and rejects unexpected fields.
+
 ## [74.0.1]
 
 ### Changed
@@ -1358,7 +1369,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.0.2...HEAD
+[74.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.0.1...@metamask/bridge-status-controller@74.0.2
 [74.0.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.0.0...@metamask/bridge-status-controller@74.0.1
 [74.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@73.1.0...@metamask/bridge-status-controller@74.0.0
 [73.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@73.0.0...@metamask/bridge-status-controller@73.1.0

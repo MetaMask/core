@@ -300,12 +300,6 @@ const config = createConfig([
     },
   },
   {
-    files: ['packages/messenger/src/generate-action-types/**/*.{js,ts}'],
-    rules: {
-      'import-x/no-nodejs-modules': 'off',
-    },
-  },
-  {
     files: ['packages/messenger-cli/src/**/*.{js,ts}'],
     rules: {
       'import-x/no-nodejs-modules': 'off',

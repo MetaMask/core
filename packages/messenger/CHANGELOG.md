@@ -10,10 +10,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add `Messenger.getRegisteredActionTypes` method, which returns the action types the messenger can call directly ([#9271](https://github.com/MetaMask/core/pull/9271))
+- Add a `buildChild` utility method to `Messenger` ([#9338](https://github.com/MetaMask/core/pull/9338))
 
 ### Changed
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+
+### Removed
+
+- **BREAKING:** Remove deprecated `generate-action-types` CLI tool ([#9367](https://github.com/MetaMask/core/pull/9367))
+  - The CLI has been extracted to `@metamask/messenger-cli`. Use `messenger-action-types` from that package instead.
 
 ### Fixed
 

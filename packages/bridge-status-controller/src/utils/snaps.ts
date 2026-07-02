@@ -10,6 +10,7 @@ import {
   formatChainIdToCaip,
   formatChainIdToHex,
   isCrossChain,
+  isStellarTrade,
   isTronTrade,
 } from '@metamask/bridge-controller';
 import { SnapController } from '@metamask/snaps-controllers';
@@ -90,15 +91,20 @@ export const getClientRequest = (
 
   let options: Record<string, unknown> | undefined;
 
-  if (sourceAssetId !== undefined || destAssetId !== undefined) {
-    options = {
-      ...(sourceAssetId !== undefined && {
-        sourceAssetId,
-      }),
-      ...(destAssetId !== undefined && {
-        destAssetId,
-      }),
-    };
+  // Only Stellar trades expect asset IDs in the request options. Passing them
+  // for other non-EVM chains (e.g. Bitcoin) breaks strict snap request
+  // validation and prevents the transaction from being broadcast.
+  if (isStellarTrade(trade)) {
+    if (sourceAssetId !== undefined || destAssetId !== undefined) {
+      options = {
+        ...(sourceAssetId !== undefined && {
+          sourceAssetId,
+        }),
+        ...(destAssetId !== undefined && {
+          destAssetId,
+        }),
+      };
+    }
   }
 
   if (isTronTrade(trade)) {

@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [23.17.4]
+
+### Fixed
+
+- Allow payment token selection without a local fiat rate for post-quote transactions ([#9361](https://github.com/MetaMask/core/pull/9361))
+  - `updatePaymentToken` threw `Payment token not found` when the selected token had no market price or native-currency rate in wallet state, which blocked selecting a withdraw destination token on a chain the wallet does not actively track. For post-quote (withdraw) flows the token now resolves with zeroed fiat rates instead; standard (deposit) flows keep the strict behavior.
+
 ## [23.17.3]
 
 ### Changed
@@ -1225,7 +1232,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.17.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.17.4...HEAD
+[23.17.4]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.17.3...@metamask/transaction-pay-controller@23.17.4
 [23.17.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.17.2...@metamask/transaction-pay-controller@23.17.3
 [23.17.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.17.1...@metamask/transaction-pay-controller@23.17.2
 [23.17.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.17.0...@metamask/transaction-pay-controller@23.17.1

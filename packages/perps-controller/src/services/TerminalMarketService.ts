@@ -34,6 +34,7 @@ const VALID_MARKET_TYPES = new Set<string>(Object.values(MarketCategory));
 const TerminalPerpetualItemStruct = type({
   symbol: string(),
   name: optional(nullable(string())),
+  description: optional(nullable(string())),
   szDecimals: optional(number()),
   maxLeverage: optional(number()),
   marginTableId: optional(number()),
@@ -230,6 +231,10 @@ export class TerminalMarketService {
 
       if (typeof item.name === 'string' && item.name.length > 0) {
         entry.name = item.name;
+      }
+
+      if (typeof item.description === 'string' && item.description.length > 0) {
+        entry.description = item.description;
       }
 
       if (Array.isArray(item.keywords) && item.keywords.length > 0) {
