@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Only include `sourceAssetId` and `destAssetId` in the snap request options for Stellar trades ([#9366](https://github.com/MetaMask/core/pull/9366))
+  - Previously these options were passed for all non-EVM trades, which broke Bitcoin bridging/swapping because the Bitcoin snap strictly validates the request and rejects unexpected fields.
+
 ## [74.0.1]
 
 ### Changed
