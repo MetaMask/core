@@ -130,6 +130,7 @@ jobs:
             BASE_REF="${BASH_REMATCH[1]}"
           fi
 
+          git fetch --unshallow
           git fetch origin "$BASE_REF" --no-tags
           echo "base-ref=$BASE_REF" >> "$GITHUB_OUTPUT"
         env:
