@@ -82,7 +82,7 @@ jobs:
 
       - name: Check if the pull request is a release
         id: is-release
-        uses: MetaMask/action-is-release@v2
+        uses: MetaMask/action-is-release@v2.2.0
         with:
           commit-starts-with: ${{ vars.RELEASE_COMMIT_PREFIX }}
           commit-message: ${{ steps.pr-info.outputs.pr-title }}
