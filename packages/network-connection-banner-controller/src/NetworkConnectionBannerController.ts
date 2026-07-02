@@ -16,7 +16,7 @@ import type {
   NetworkControllerUpdateNetworkAction,
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
-import { NetworkStatus } from '@metamask/network-controller';
+import { NetworkStatus, RpcEndpointType } from '@metamask/network-controller';
 import type {
   NetworkEnablementControllerGetStateAction,
   NetworkEnablementControllerStateChangeEvent,
@@ -311,7 +311,7 @@ export class NetworkConnectionBannerController extends BaseController<
     }
 
     const infuraEndpointIndex = networkConfiguration.rpcEndpoints.findIndex(
-      (endpoint) => getIsInfuraEndpoint(endpoint.url),
+      (endpoint) => endpoint.type === RpcEndpointType.Infura,
     );
     if (infuraEndpointIndex === -1) {
       throw new Error(
@@ -462,7 +462,8 @@ export class NetworkConnectionBannerController extends BaseController<
         continue;
       }
 
-      const isInfuraEndpoint = getIsInfuraEndpoint(defaultRpcEndpoint.url);
+      const isInfuraEndpoint =
+        defaultRpcEndpoint.type === RpcEndpointType.Infura;
 
       // For custom endpoints (non-Infura), find an Infura endpoint on this
       // chain that we could offer to switch to.
@@ -470,7 +471,8 @@ export class NetworkConnectionBannerController extends BaseController<
       if (!isInfuraEndpoint) {
         const otherInfura = rpcEndpoints.find(
           (endpoint, index) =>
-            index !== defaultRpcEndpointIndex && getIsInfuraEndpoint(endpoint.url),
+            index !== defaultRpcEndpointIndex &&
+            endpoint.type === RpcEndpointType.Infura,
         );
         switchableInfuraNetworkClientId = otherInfura?.networkClientId ?? null;
       }
@@ -510,21 +512,5 @@ export class NetworkConnectionBannerController extends BaseController<
     }
 
     return firstCustomFailed ?? failedNetworks[0];
-  }
-}
-
-/**
- * Checks if an RPC URL is hosted on the Infura service. Detection is by
- * hostname suffix rather than the exact MetaMask-key URL pattern, so any
- * `*.infura.io` URL counts.
- *
- * @param url - The RPC URL to check.
- * @returns True if the URL's host is on `infura.io`.
- */
-function getIsInfuraEndpoint(url: string): boolean {
-  try {
-    return new URL(url).hostname.toLowerCase().endsWith('.infura.io');
-  } catch {
-    return false;
   }
 }
