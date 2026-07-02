@@ -15,14 +15,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 
-### Fixed
-
-- Fix `Messenger.delegate` and `Messenger.revoke` to reduce the chance of TS2590 errors when delegatee has large number of actions/events or a large number of actions/events are being delegated ([#8748](https://github.com/MetaMask/core/pull/8748))
-
 ### Removed
 
 - **BREAKING:** Remove deprecated `generate-action-types` CLI tool ([#9367](https://github.com/MetaMask/core/pull/9367))
   - The CLI has been extracted to `@metamask/messenger-cli`. Use `messenger-action-types` from this package instead.
+
+### Fixed
+
+- Fix `Messenger.delegate` and `Messenger.revoke` to reduce the chance of TS2590 errors when delegatee has large number of actions/events or a large number of actions/events are being delegated ([#8748](https://github.com/MetaMask/core/pull/8748))
 
 ## [1.2.0]
 
