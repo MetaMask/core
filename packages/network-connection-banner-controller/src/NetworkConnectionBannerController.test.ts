@@ -105,8 +105,6 @@ describe('NetworkConnectionBannerController', () => {
         networkConfigurationsByChainId: {
           '0x89': buildNetworkConfiguration({
             chainId: '0x89',
-            name: 'Polygon Mainnet',
-            nativeCurrency: 'MATIC',
             rpcEndpoints: [
               buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
             ],
@@ -134,8 +132,6 @@ describe('NetworkConnectionBannerController', () => {
         networkConfigurationsByChainId: {
           '0x89': buildNetworkConfiguration({
             chainId: '0x89',
-            name: 'Polygon Mainnet',
-            nativeCurrency: 'MATIC',
             rpcEndpoints: [
               buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
             ],
@@ -168,8 +164,6 @@ describe('NetworkConnectionBannerController', () => {
             networkConfigurationsByChainId: {
               '0x89': buildNetworkConfiguration({
                 chainId: '0x89',
-                name: 'Polygon Mainnet',
-                nativeCurrency: 'MATIC',
                 rpcEndpoints: [
                   buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
                 ],
@@ -201,8 +195,6 @@ describe('NetworkConnectionBannerController', () => {
             networkConfigurationsByChainId: {
               '0x89': buildNetworkConfiguration({
                 chainId: '0x89',
-                name: 'Polygon Mainnet',
-                nativeCurrency: 'MATIC',
                 rpcEndpoints: [
                   buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
                 ],
@@ -237,8 +229,6 @@ describe('NetworkConnectionBannerController', () => {
             networkConfigurationsByChainId: {
               '0x89': buildNetworkConfiguration({
                 chainId: '0x89',
-                name: 'Polygon Mainnet',
-                nativeCurrency: 'MATIC',
                 rpcEndpoints: [
                   buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
                 ],
@@ -267,8 +257,6 @@ describe('NetworkConnectionBannerController', () => {
             networkConfigurationsByChainId: {
               '0x89': buildNetworkConfiguration({
                 chainId: '0x89',
-                name: 'Polygon Mainnet',
-                nativeCurrency: 'MATIC',
                 rpcEndpoints: [
                   buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
                 ],
@@ -316,8 +304,6 @@ describe('NetworkConnectionBannerController', () => {
               networkConfigurationsByChainId: {
                 '0x89': buildNetworkConfiguration({
                   chainId: '0x89',
-                  name: 'Polygon Mainnet',
-                  nativeCurrency: 'MATIC',
                   rpcEndpoints: [
                     buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
                   ],
@@ -390,8 +376,6 @@ describe('NetworkConnectionBannerController', () => {
               networkConfigurationsByChainId: {
                 '0x89': buildNetworkConfiguration({
                   chainId: '0x89',
-                  name: 'Polygon Mainnet',
-                  nativeCurrency: 'MATIC',
                   rpcEndpoints: [
                     buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
                   ],
@@ -477,8 +461,6 @@ describe('NetworkConnectionBannerController', () => {
               }),
               '0x89': buildNetworkConfiguration({
                 chainId: '0x89',
-                name: 'Polygon Mainnet',
-                nativeCurrency: 'MATIC',
                 rpcEndpoints: [
                   buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
                 ],
@@ -558,8 +540,6 @@ describe('NetworkConnectionBannerController', () => {
               }),
               '0x89': buildNetworkConfiguration({
                 chainId: '0x89',
-                name: 'Polygon Mainnet',
-                nativeCurrency: 'MATIC',
                 rpcEndpoints: [
                   buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
                 ],
@@ -661,8 +641,6 @@ describe('NetworkConnectionBannerController', () => {
               }),
               '0x89': buildNetworkConfiguration({
                 chainId: '0x89',
-                name: 'Polygon Mainnet',
-                nativeCurrency: 'MATIC',
                 rpcEndpoints: [
                   buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
                 ],
@@ -730,8 +708,6 @@ describe('NetworkConnectionBannerController', () => {
           networkConfigurationsByChainId: {
             '0x89': buildNetworkConfiguration({
               chainId: '0x89',
-              name: 'Polygon Mainnet',
-              nativeCurrency: 'MATIC',
               rpcEndpoints: [
                 buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
               ],
@@ -760,8 +736,6 @@ describe('NetworkConnectionBannerController', () => {
             networkConfigurationsByChainId: {
               '0x89': buildNetworkConfiguration({
                 chainId: '0x89',
-                name: 'Polygon Mainnet',
-                nativeCurrency: 'MATIC',
                 rpcEndpoints: [
                   buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
                 ],
@@ -786,8 +760,6 @@ describe('NetworkConnectionBannerController', () => {
             networkConfigurationsByChainId: {
               '0x89': buildNetworkConfiguration({
                 chainId: '0x89',
-                name: 'Polygon Mainnet',
-                nativeCurrency: 'MATIC',
                 rpcEndpoints: [
                   buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
                 ],
@@ -832,8 +804,6 @@ describe('NetworkConnectionBannerController', () => {
       await withController(({ controller, publishNetworkStateChanges }) => {
         const failingConfig = buildNetworkConfiguration({
           chainId: '0x89',
-          name: 'Polygon Mainnet',
-          nativeCurrency: 'MATIC',
           rpcEndpoints: [
             buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
           ],
@@ -993,8 +963,6 @@ describe('NetworkConnectionBannerController', () => {
           networkConfigurationsByChainId: {
             '0x89': buildNetworkConfiguration({
               chainId: '0x89',
-              name: 'Polygon Mainnet',
-              nativeCurrency: 'MATIC',
               rpcEndpoints: [
                 buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
               ],
@@ -1035,8 +1003,6 @@ describe('NetworkConnectionBannerController', () => {
           networkConfigurationsByChainId: {
             '0x89': buildNetworkConfiguration({
               chainId: '0x89',
-              name: 'Polygon Mainnet',
-              nativeCurrency: 'MATIC',
               rpcEndpoints: [
                 buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
               ],
