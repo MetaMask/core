@@ -485,7 +485,10 @@ export class NetworkConnectionBannerController extends BaseController<
       networkEnablementControllerState ??
       this.messenger.call('NetworkEnablementController:getState');
 
-    const failedNetwork = this.#findFailedNetwork(networkState, enablementState);
+    const failedNetwork = this.#findFailedNetwork(
+      networkState,
+      enablementState,
+    );
     if (!failedNetwork) {
       this.#resetBanner();
       return;
