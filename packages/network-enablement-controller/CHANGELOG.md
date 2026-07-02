@@ -7,12 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.4.1]
+
 ### Added
 
 - Add Stellar network enablement: default `enabledNetworkMap` entries for Stellar namespace (pubnet on, testnet off), enable Stellar pubnet during popular-network init when it exists in `MultichainNetworkController`, and include Stellar pubnet in `listPopularMultichainNetworks` ([#8832](https://github.com/MetaMask/core/pull/8832))
 - Export `NetworkEnablementControllerStateChangeEvent` type from the package root ([#9084](https://github.com/MetaMask/core/pull/9084))
-
-## [5.4.1]
 
 ### Changed
 
