@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `getLeaderboardPreferences` and `setLeaderboardPreferences` methods to `AuthenticatedUserStorageService` for reading and persisting the authenticated user's Top Traders leaderboard preferences, along with the corresponding messenger actions (`AuthenticatedUserStorageService:getLeaderboardPreferences`, `AuthenticatedUserStorageService:setLeaderboardPreferences`) and the `LeaderboardPreferences` type ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- Add `getLeaderboardPreferences` and `setLeaderboardPreferences` methods to `AuthenticatedUserStorageService` for reading and persisting the authenticated user's Top Traders leaderboard preferences, along with the corresponding messenger actions (`AuthenticatedUserStorageService:getLeaderboardPreferences`, `AuthenticatedUserStorageService:setLeaderboardPreferences`) and the `LeaderboardPreferences` type ([#9355](https://github.com/MetaMask/core/pull/9355))
   - `getLeaderboardPreferences` returns the leaderboard-preferences blob or `null` on 404, mirroring `getAssetsWatchlist`.
   - The blob (`{ version: 1, optedOut: boolean }`) is stored in its own `/preferences/leaderboard` AUS namespace, independent of `NotificationPreferences`.
 

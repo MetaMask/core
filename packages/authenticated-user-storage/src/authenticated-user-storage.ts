@@ -493,7 +493,10 @@ export class AuthenticatedUserStorageService extends BaseDataService<
     const url = `${getAuthenticatedStorageUrl(this.#environment)}/preferences/leaderboard`;
 
     await this.fetchQuery({
-      queryKey: [`${this.name}:setLeaderboardPreferences`, blob as unknown as Json],
+      queryKey: [
+        `${this.name}:setLeaderboardPreferences`,
+        blob as unknown as Json,
+      ],
       staleTime: 0,
       queryFn: async () => {
         const headers = await this.#getHeaders(clientType);
