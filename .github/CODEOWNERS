@@ -98,6 +98,7 @@
 /packages/messenger                            @MetaMask/core-platform
 /packages/messenger-cli                        @MetaMask/core-platform
 /packages/multichain-api-middleware            @MetaMask/core-platform
+/packages/network-connection-banner-controller @MetaMask/core-platform
 /packages/permission-controller                @MetaMask/core-platform
 /packages/permission-log-controller            @MetaMask/core-platform
 /packages/platform-api-docs                    @MetaMask/core-platform
@@ -110,7 +111,6 @@
 /packages/wallet                               @MetaMask/core-platform
 /packages/wallet-cli                           @MetaMask/core-platform @MetaMask/ocap-kernel
 /packages/wallet-framework-docs                @MetaMask/core-platform
-/packages/network-connection-banner-controller @MetaMask/core-platform
 
 ## Web3Auth Team
 /packages/seedless-onboarding-controller @MetaMask/web3auth
