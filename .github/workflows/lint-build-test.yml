@@ -118,7 +118,31 @@ jobs:
           is-high-risk-environment: false
           persist-credentials: false
           node-version: ${{ matrix.node-version }}
-      - run: yarn build
+      - name: Fetch base branch
+        id: fetch-base-branch
+        if: github.base_ref != '' || github.event.merge_group.base_ref != ''
+        run: |
+          # Strip invalid prefix from `github.event.merge_group.base_ref`
+          # It comes prefixed with `refs/heads/`, but the branch is not checked out in this context
+          # We need to express it as a remote branch
+          PREFIXED_REF_REGEX='refs/heads/(.+)'
+          if [[ "$BASE_REF" =~ $PREFIXED_REF_REGEX ]]; then
+            BASE_REF="${BASH_REMATCH[1]}"
+          fi
+
+          git fetch origin "$BASE_REF" --depth=1
+          echo "base-ref=$BASE_REF" >> "$GITHUB_OUTPUT"
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
+      - name: Build
+        run: |
+          if [[ -n "$BASE_REF" ]]; then
+            yarn workspaces foreach --since="origin/$BASE_REF" --topological --recursive --no-private run build
+          else
+            yarn build
+          fi
+        env:
+          BASE_REF: ${{ steps.fetch-base-branch.outputs.base-ref }}
       - name: Require clean working directory
         shell: bash
         run: |
