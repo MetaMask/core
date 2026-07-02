@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- Remove deprecated `generate-action-types` CLI tool ([#9367](https://github.com/MetaMask/core/pull/9367))
+- **BREAKING:** Remove deprecated `generate-action-types` CLI tool ([#9367](https://github.com/MetaMask/core/pull/9367))
   - The CLI has been extracted to `@metamask/messenger-cli`. Use `messenger-action-types` from this package instead.
 
 ## [1.2.0]
