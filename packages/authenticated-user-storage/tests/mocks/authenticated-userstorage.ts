@@ -5,6 +5,7 @@ import type {
   DelegationSubmission,
   NotificationPreferences,
 } from '../../src/types';
+import { DEFAULT_PRICE_ALERT_PREFERENCES } from '../../src/validators';
 
 export const MOCK_DELEGATIONS_URL = `${getAuthenticatedStorageUrl('prod')}/delegations`;
 export const MOCK_NOTIFICATION_PREFERENCES_URL = `${getAuthenticatedStorageUrl('prod')}/preferences/notifications`;
@@ -68,6 +69,11 @@ export const MOCK_NOTIFICATION_PREFERENCES: NotificationPreferences = {
       'e8f2a1b3-5c4d-4e6f-8a9b-2c3d4e5f6a7b',
     ],
   },
+  agenticCli: {
+    inAppNotificationsEnabled: true,
+    pushNotificationsEnabled: false,
+  },
+  priceAlerts: { ...DEFAULT_PRICE_ALERT_PREFERENCES },
 };
 
 export const MOCK_ASSETS_WATCHLIST_BLOB: AssetsWatchlistBlob = {

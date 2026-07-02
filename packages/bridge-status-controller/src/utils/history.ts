@@ -206,6 +206,7 @@ export const getInitialHistoryItem = (
     originalTransactionId,
     actionId,
     tokenSecurityTypeDestination,
+    inputPrimaryDenomination,
     batchSellData,
     quoteIds,
   } = args;
@@ -218,6 +219,7 @@ export const getInitialHistoryItem = (
     originalTransactionId: originalTransactionId ?? bridgeTxMeta?.id, // Keep original for intent transactions
     batchId: bridgeTxMeta?.batchId,
     quote: quoteResponse.quote,
+    quoteId: quoteResponse.quoteId,
     startTime,
     estimatedProcessingTimeInSeconds:
       quoteResponse.estimatedProcessingTimeInSeconds,
@@ -255,6 +257,9 @@ export const getInitialHistoryItem = (
     ...(activeAbTests && { activeAbTests }),
     ...(tokenSecurityTypeDestination !== undefined && {
       tokenSecurityTypeDestination,
+    }),
+    ...(inputPrimaryDenomination !== undefined && {
+      inputPrimaryDenomination,
     }),
   };
 

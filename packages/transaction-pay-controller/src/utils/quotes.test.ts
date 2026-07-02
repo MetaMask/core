@@ -70,7 +70,7 @@ const QUOTE_MOCK = {
     usd: '1.23',
     fiat: '2.34',
   },
-  strategy: TransactionPayStrategy.Test,
+  strategy: TransactionPayStrategy.Across,
 } as TransactionPayQuote<Json>;
 
 const TOTALS_MOCK = {
@@ -149,7 +149,7 @@ describe('Quotes Utils', () => {
       ],
     });
 
-    getStrategiesMock.mockReturnValue([TransactionPayStrategy.Test]);
+    getStrategiesMock.mockReturnValue([TransactionPayStrategy.Across]);
 
     getStrategyByNameMock.mockReturnValue({
       execute: jest.fn(),
@@ -272,11 +272,11 @@ describe('Quotes Utils', () => {
       };
 
       getStrategiesMock.mockReturnValue([
-        TransactionPayStrategy.Bridge,
+        TransactionPayStrategy.Across,
         TransactionPayStrategy.Relay,
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
-        if (name === TransactionPayStrategy.Bridge) {
+        if (name === TransactionPayStrategy.Across) {
           return firstStrategy as never;
         }
 
@@ -311,11 +311,11 @@ describe('Quotes Utils', () => {
       };
 
       getStrategiesMock.mockReturnValue([
-        TransactionPayStrategy.Bridge,
+        TransactionPayStrategy.Across,
         TransactionPayStrategy.Relay,
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
-        if (name === TransactionPayStrategy.Bridge) {
+        if (name === TransactionPayStrategy.Across) {
           return firstStrategy as never;
         }
 
@@ -348,11 +348,11 @@ describe('Quotes Utils', () => {
       };
 
       getStrategiesMock.mockReturnValue([
-        TransactionPayStrategy.Bridge,
+        TransactionPayStrategy.Across,
         TransactionPayStrategy.Relay,
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
-        if (name === TransactionPayStrategy.Bridge) {
+        if (name === TransactionPayStrategy.Across) {
           return unsupportedStrategy as never;
         }
 
@@ -384,11 +384,11 @@ describe('Quotes Utils', () => {
       };
 
       getStrategiesMock.mockReturnValue([
-        TransactionPayStrategy.Bridge,
+        TransactionPayStrategy.Across,
         TransactionPayStrategy.Relay,
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
-        if (name === TransactionPayStrategy.Bridge) {
+        if (name === TransactionPayStrategy.Across) {
           return unsupportedStrategy as never;
         }
 
@@ -423,11 +423,11 @@ describe('Quotes Utils', () => {
       };
 
       getStrategiesMock.mockReturnValue([
-        TransactionPayStrategy.Bridge,
+        TransactionPayStrategy.Across,
         TransactionPayStrategy.Relay,
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
-        if (name === TransactionPayStrategy.Bridge) {
+        if (name === TransactionPayStrategy.Across) {
           return unsupportedStrategy as never;
         }
 
@@ -468,11 +468,11 @@ describe('Quotes Utils', () => {
       };
 
       getStrategiesMock.mockReturnValue([
-        TransactionPayStrategy.Bridge,
+        TransactionPayStrategy.Across,
         TransactionPayStrategy.Relay,
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
-        if (name === TransactionPayStrategy.Bridge) {
+        if (name === TransactionPayStrategy.Across) {
           return brokenStrategy as never;
         }
 
@@ -504,11 +504,11 @@ describe('Quotes Utils', () => {
       };
 
       getStrategiesMock.mockReturnValue([
-        TransactionPayStrategy.Bridge,
+        TransactionPayStrategy.Across,
         TransactionPayStrategy.Relay,
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
-        if (name === TransactionPayStrategy.Bridge) {
+        if (name === TransactionPayStrategy.Across) {
           return emptyStrategy as never;
         }
 
@@ -558,7 +558,7 @@ describe('Quotes Utils', () => {
         execute: jest.fn(),
       };
 
-      getStrategiesMock.mockReturnValue([TransactionPayStrategy.Bridge]);
+      getStrategiesMock.mockReturnValue([TransactionPayStrategy.Across]);
       getStrategyByNameMock.mockReturnValue(strategy as never);
 
       await run();
@@ -566,7 +566,7 @@ describe('Quotes Utils', () => {
       expect(strategy.getQuotes).toHaveBeenCalled();
     });
 
-    it('clears state if no payment token', async () => {
+    it('clears state if no payment token and no fiat payment', async () => {
       await run({
         transactionData: {
           ...TRANSACTION_DATA_MOCK,
@@ -655,7 +655,7 @@ describe('Quotes Utils', () => {
       await run();
 
       expect(getStrategiesByNameMock).toHaveBeenCalledWith(
-        [TransactionPayStrategy.Test],
+        [TransactionPayStrategy.Across],
         expect.any(Function),
       );
     });
@@ -730,6 +730,47 @@ describe('Quotes Utils', () => {
       );
     });
 
+    it('marks the transaction as externally signed when quotes are available so the publish hook owns submission', async () => {
+      await run();
+
+      const transactionMetaMock = {} as TransactionMeta;
+      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+
+      expect(transactionMetaMock).toMatchObject(
+        expect.objectContaining({ isExternalSign: true }),
+      );
+    });
+
+    it('clears the externally signed flag when no quotes are returned so the transaction falls back to local signing', async () => {
+      getQuotesMock.mockResolvedValue([]);
+
+      await run();
+
+      const transactionMetaMock = {} as TransactionMeta;
+      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+
+      expect(transactionMetaMock).toMatchObject(
+        expect.objectContaining({ isExternalSign: false }),
+      );
+    });
+
+    it('preserves the externally signed flag when no quotes are returned but gas is sponsored', async () => {
+      getQuotesMock.mockResolvedValue([]);
+
+      await run();
+
+      const transactionMetaMock = {
+        isExternalSign: true,
+        isGasFeeSponsored: true,
+      } as TransactionMeta;
+
+      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+
+      expect(transactionMetaMock).toMatchObject(
+        expect.objectContaining({ isExternalSign: true }),
+      );
+    });
+
     it('updates metrics in metadata', async () => {
       await run();
 
@@ -743,6 +784,30 @@ describe('Quotes Utils', () => {
           networkFeeFiat: TOTALS_MOCK.fees.sourceNetwork.estimate.usd,
           targetFiat: TOTALS_MOCK.targetAmount.usd,
           tokenAddress: TRANSACTION_DATA_MOCK.paymentToken?.address,
+          totalFiat: TOTALS_MOCK.total.usd,
+        },
+      });
+    });
+
+    it('updates metrics in metadata for fiat payment with no payment token', async () => {
+      await run({
+        transactionData: {
+          ...TRANSACTION_DATA_MOCK,
+          paymentToken: undefined,
+          fiatPayment: { selectedPaymentMethodId: 'card-123' },
+        },
+      });
+
+      const transactionMetaMock = {} as TransactionMeta;
+      updateTransactionMock.mock.calls[0][1](transactionMetaMock);
+
+      expect(transactionMetaMock).toMatchObject({
+        metamaskPay: {
+          bridgeFeeFiat: TOTALS_MOCK.fees.provider.usd,
+          chainId: undefined,
+          networkFeeFiat: TOTALS_MOCK.fees.sourceNetwork.estimate.usd,
+          targetFiat: TOTALS_MOCK.targetAmount.usd,
+          tokenAddress: undefined,
           totalFiat: TOTALS_MOCK.total.usd,
         },
       });

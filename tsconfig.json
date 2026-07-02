@@ -51,6 +51,9 @@
       "path": "./packages/base-data-service"
     },
     {
+      "path": "./packages/bitcoin-regtest-up"
+    },
+    {
       "path": "./packages/bridge-controller"
     },
     {
@@ -70,6 +73,9 @@
     },
     {
       "path": "./packages/client-controller"
+    },
+    {
+      "path": "./packages/client-utils"
     },
     {
       "path": "./packages/compliance-controller"
@@ -123,6 +129,9 @@
       "path": "./packages/geolocation-controller"
     },
     {
+      "path": "./packages/java-tron-up"
+    },
+    {
       "path": "./packages/json-rpc-engine"
     },
     {
@@ -132,6 +141,9 @@
       "path": "./packages/keyring-controller"
     },
     {
+      "path": "./packages/local-node-utils"
+    },
+    {
       "path": "./packages/message-manager"
     },
     {
@@ -139,6 +151,9 @@
     },
     {
       "path": "./packages/messenger-cli"
+    },
+    {
+      "path": "./packages/platform-api-docs"
     },
     {
       "path": "./packages/money-account-balance-service"
@@ -231,10 +246,19 @@
       "path": "./packages/signature-controller"
     },
     {
+      "path": "./packages/smart-transactions-controller"
+    },
+    {
       "path": "./packages/snap-account-service"
     },
     {
       "path": "./packages/social-controllers"
+    },
+    {
+      "path": "./packages/solana-test-validator-up"
+    },
+    {
+      "path": "./packages/stellar-quickstart-up"
     },
     {
       "path": "./packages/subscription-controller"

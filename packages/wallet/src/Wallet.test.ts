@@ -1,3 +1,4 @@
+import { getDefaultAddressBookControllerState } from '@metamask/address-book-controller';
 import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import { Messenger } from '@metamask/messenger';
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
@@ -27,6 +28,9 @@ async function setupWallet(): Promise<Wallet> {
     instanceOptions: {
       connectivityController: {
         connectivityAdapter: new AlwaysOnlineAdapter(),
+      },
+      networkController: {
+        infuraProjectId: 'fake-infura-project-id',
       },
       storageService: {
         storage: new InMemoryStorageAdapter(),
@@ -88,6 +92,9 @@ describe('Wallet', () => {
         keyringController: {
           encryptor: new MockEncryptor(),
         },
+        networkController: {
+          infuraProjectId: 'fake-infura-project-id',
+        },
         storageService: {
           storage: new InMemoryStorageAdapter(),
         },
@@ -134,6 +141,9 @@ describe('Wallet', () => {
         connectivityController: {
           connectivityAdapter: new AlwaysOnlineAdapter(),
         },
+        networkController: {
+          infuraProjectId: 'fake-infura-project-id',
+        },
         storageService: {
           storage: new InMemoryStorageAdapter(),
         },
@@ -174,6 +184,9 @@ describe('Wallet', () => {
         connectivityController: {
           connectivityAdapter: new AlwaysOnlineAdapter(),
         },
+        networkController: {
+          infuraProjectId: 'fake-infura-project-id',
+        },
         storageService: {
           storage: new InMemoryStorageAdapter(),
         },
@@ -185,6 +198,14 @@ describe('Wallet', () => {
       WithMeta: fakeMetadata,
     });
     expect(Object.keys(wallet.state)).toStrictEqual(['WithMeta', 'NoMeta']);
+  });
+
+  it('calls init on all instances and returns the results', async () => {
+    const wallet = await setupWallet();
+
+    const results = await wallet.init();
+
+    expect(results).toHaveLength(2);
   });
 
   it('disallows modifying the messenger', async () => {
@@ -242,12 +263,71 @@ describe('Wallet', () => {
     });
   });
 
+  describe('AddressBookController', () => {
+    const ADDRESS = '0x1234567890123456789012345678901234567890';
+
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+
+      expect(messenger.call('AddressBookController:getState')).toStrictEqual(
+        getDefaultAddressBookControllerState(),
+      );
+    });
+
+    it('applies initial state passed through the Wallet constructor', () => {
+      const entry = {
+        address: ADDRESS,
+        name: 'Alice',
+        chainId: '0x1' as const,
+        memo: '',
+        isEns: false,
+      };
+
+      const wallet = new Wallet({
+        state: {
+          AddressBookController: {
+            addressBook: { '0x1': { [ADDRESS]: entry } },
+          },
+        },
+        instanceOptions: {
+          connectivityController: {
+            connectivityAdapter: new AlwaysOnlineAdapter(),
+          },
+          networkController: {
+            infuraProjectId: 'fake-infura-project-id',
+          },
+          storageService: {
+            storage: new InMemoryStorageAdapter(),
+          },
+          remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+        },
+      });
+
+      expect(
+        wallet.state.AddressBookController.addressBook['0x1'][ADDRESS],
+      ).toStrictEqual(entry);
+    });
+
+    it('routes its method actions through the wallet messenger', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+
+      messenger.call('AddressBookController:set', ADDRESS, 'Alice');
+
+      expect(messenger.call('AddressBookController:list')).toHaveLength(1);
+    });
+  });
+
   describe('ConnectivityController', () => {
     it('reports online connectivity status', () => {
       const wallet = new Wallet({
         instanceOptions: {
           connectivityController: {
             connectivityAdapter: new AlwaysOnlineAdapter(),
+          },
+          networkController: {
+            infuraProjectId: 'fake-infura-project-id',
           },
           storageService: {
             storage: new InMemoryStorageAdapter(),
@@ -285,6 +365,9 @@ describe('Wallet', () => {
         instanceOptions: {
           connectivityController: {
             connectivityAdapter: new AlwaysOnlineAdapter(),
+          },
+          networkController: {
+            infuraProjectId: 'fake-infura-project-id',
           },
           storageService: {
             storage: new InMemoryStorageAdapter(),
@@ -360,6 +443,9 @@ describe('Wallet', () => {
         instanceOptions: {
           connectivityController: {
             connectivityAdapter: new AlwaysOnlineAdapter(),
+          },
+          networkController: {
+            infuraProjectId: 'fake-infura-project-id',
           },
           keyringController: { encryptor: new MockEncryptor() },
           storageService: { storage: new InMemoryStorageAdapter() },

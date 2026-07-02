@@ -15,6 +15,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
+import { prefixError } from '../../utils/error-prefix';
 import {
   getFeatureFlags,
   getRelayPollingInterval,
@@ -54,6 +55,8 @@ import type {
 const FALLBACK_HASH = '0x0' as Hex;
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
+const RELAY_ERROR_PREFIX = 'Relay: ';
+const RELAY_EXECUTE_ERROR_PREFIX = 'Execute: ';
 
 /**
  * Submits Relay quotes.
@@ -64,9 +67,23 @@ const log = createModuleLogger(projectLogger, 'relay-strategy');
 export async function submitRelayQuotes(
   request: PayStrategyExecuteRequest<RelayQuote>,
 ): Promise<{ transactionHash?: Hex }> {
+  try {
+    return await submitRelayQuotesInternal(request);
+  } catch (error) {
+    throw prefixError(error, RELAY_ERROR_PREFIX);
+  }
+}
+
+async function submitRelayQuotesInternal(
+  request: PayStrategyExecuteRequest<RelayQuote>,
+): Promise<{ transactionHash?: Hex }> {
   log('Executing quotes', request);
 
   const { quotes, messenger, transaction } = request;
+
+  if (!quotes.length) {
+    throw new Error('No quotes to submit');
+  }
 
   let transactionHash: Hex | undefined;
 
@@ -76,6 +93,11 @@ export async function submitRelayQuotes(
       messenger,
       transaction,
     ));
+  }
+
+  /* istanbul ignore if: concrete Relay submit paths return a hash/fallback or throw. */
+  if (transactionHash === undefined) {
+    throw new Error('Missing transaction hash');
   }
 
   return { transactionHash };
@@ -139,7 +161,7 @@ async function executeSingleQuote(
     });
 
     if (completion.status !== 'success') {
-      throw new Error(`Relay request failed with status: ${completion.status}`);
+      throw new Error(`Request failed with status: ${completion.status}`);
     }
   }
 
@@ -234,7 +256,7 @@ async function waitForRelayCompletion(
 
       if (status.status === 'success') {
         const targetHash =
-          (status.txHashes?.slice(-1)[0] as Hex) ?? FALLBACK_HASH;
+          (status.txHashes?.slice(-1)[0] as Hex | undefined) ?? FALLBACK_HASH;
         return { status: 'success', targetHash };
       }
 
@@ -244,9 +266,9 @@ async function waitForRelayCompletion(
             log('Relay ended in failure status (tolerated)', status.status);
             return { status: status.status };
           }
-          throw new Error(`Relay request failed with status: ${status.status}`);
+          throw new Error(`Request failed with status: ${status.status}`);
         }
-        throw new Error(`Relay returned unrecognized status: ${status.status}`);
+        throw new Error(`Unrecognized status: ${status.status}`);
       }
     }
 
@@ -256,7 +278,7 @@ async function waitForRelayCompletion(
         log('Relay polling timed out (tolerated)', statusDetail);
         return { status: 'timeout' };
       }
-      throw new Error(`Relay polling timed out${statusDetail}`);
+      throw new Error(`Polling timed out${statusDetail}`);
     }
 
     await new Promise((resolve) => setTimeout(resolve, pollingInterval));
@@ -575,8 +597,7 @@ async function submitViaRelayExecute(
   try {
     result = await submitRelayExecute(messenger, executeBody);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Relay execute: ${message}`);
+    throw prefixError(error, RELAY_EXECUTE_ERROR_PREFIX);
   }
 
   log('Relay execute response', result);
@@ -640,9 +661,15 @@ async function submitViaTransactionController(
 
   let result: { result: Promise<string> } | undefined;
 
-  const gasFeeToken = quote.fees.isSourceGasFeeToken
-    ? sourceTokenAddress
-    : undefined;
+  const isSourceGasFeeSponsored =
+    transaction.isGasFeeSponsored &&
+    quote.request.sourceChainId === transaction.chainId &&
+    quote.request.targetChainId === transaction.chainId;
+
+  const gasFeeToken =
+    !isSourceGasFeeSponsored && quote.fees.isSourceGasFeeToken
+      ? sourceTokenAddress
+      : undefined;
 
   log('Submitting transactions', {
     isPostQuote,
@@ -680,6 +707,7 @@ async function submitViaTransactionController(
         networkClientId,
         origin: ORIGIN_METAMASK,
         isInternal: true,
+        isGasFeeSponsored: isSourceGasFeeSponsored,
         requireApproval: false,
         type: getRelayDepositType(getEffectiveTransactionType(transaction)),
       },
@@ -724,6 +752,7 @@ async function submitViaTransactionController(
       networkClientId,
       origin: ORIGIN_METAMASK,
       isInternal: true,
+      isGasFeeSponsored: isSourceGasFeeSponsored,
       overwriteUpgrade: true,
       requireApproval: false,
       transactions,
@@ -733,6 +762,10 @@ async function submitViaTransactionController(
   end();
 
   log('Added transactions', transactionIds);
+
+  if (!transactionIds.length) {
+    throw new Error('No transactions submitted');
+  }
 
   if (result) {
     const txHash = await result.result;
@@ -746,6 +779,10 @@ async function submitViaTransactionController(
   log('All transactions confirmed', transactionIds);
 
   const hash = getTransaction(transactionIds.slice(-1)[0], messenger)?.hash;
+
+  if (!hash) {
+    throw new Error('Missing transaction hash');
+  }
 
   return hash as Hex;
 }

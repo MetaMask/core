@@ -1,12 +1,18 @@
 export { BridgeController } from './bridge-controller';
 
 export {
+  BatchSellMetricsEventName,
   UnifiedSwapBridgeEventName,
+  BATCH_SELL_EVENT_CATEGORY,
   UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY,
+  BatchSellMetricsLocation,
   InputAmountPreset,
   MetaMetricsSwapsEventSource,
   PollingStatus,
 } from './utils/metrics/constants';
+
+export type { BridgeControllerMetricsEventName } from './utils/metrics/constants';
+export type { BridgeControllerMetricsLocation } from './utils/metrics/constants';
 
 export type {
   AccountHardwareType,
@@ -18,6 +24,7 @@ export type {
   TxStatusData,
   QuoteFetchData,
   QuoteWarning,
+  InputPrimaryDenominationData,
 } from './utils/metrics/types';
 
 export {
@@ -53,8 +60,10 @@ export type {
   Intent,
   IntentOrderLike,
   BitcoinTradeData,
+  StellarTradeData,
   TronTradeData,
   BridgeControllerState,
+  InputPrimaryDenomination,
   BridgeControllerAction,
   BridgeControllerActions,
   BridgeControllerEvents,
@@ -68,6 +77,8 @@ export type {
   BridgeControllerFetchQuotesAction,
   BridgeControllerStopPollingForQuotesAction,
   BridgeControllerSetLocationAction,
+  BridgeControllerGetLocationAction,
+  BridgeControllerSetInputPrimaryDenominationAction,
   BridgeControllerResetStateAction,
   BridgeControllerSetChainIntervalLengthAction,
   BridgeControllerTrackUnifiedSwapBridgeEventAction,
@@ -91,6 +102,7 @@ export {
 } from './types';
 
 export {
+  DiscountType,
   FeeType,
   ActionTypes,
   BridgeAssetSchema,
@@ -144,6 +156,7 @@ export {
   isSolanaChainId,
   isBitcoinChainId,
   isTronChainId,
+  isStellarChainId,
   isNonEvmChainId,
   getNativeAssetForChainId,
   getDefaultBridgeControllerState,
@@ -159,7 +172,13 @@ export {
 
 export { calcLatestSrcBalance } from './utils/balance';
 
-export { fetchBridgeTokens, getClientHeaders } from './utils/fetch';
+export {
+  fetchBridgeTokens,
+  getClientHeaders,
+  fetchBridgeQuoteStream,
+} from './utils/fetch';
+
+export { appendFeesToQuotes } from './utils/quote-fees';
 
 export {
   formatChainIdToCaip,
@@ -171,6 +190,7 @@ export {
 export {
   extractTradeData,
   isBitcoinTrade,
+  isStellarTrade,
   isTronTrade,
   isEvmTxData,
   type Trade,

@@ -32,6 +32,7 @@ import type {
   AssetRoute,
   PerpsPlatformDependencies,
   PerpsMarketData,
+  TerminalAssetMetadata,
 } from '../types';
 import type { CandleData } from '../types/perps-types';
 import { coalescePerpsRestRequest } from '../utils/coalescePerpsRestRequest';
@@ -711,20 +712,28 @@ export class MarketDataService {
 
   /**
    * Get available markets
-   * Handles full orchestration: tracing, error logging, state management, and provider delegation
+   * Handles full orchestration: tracing, error logging, state management, and provider delegation.
+   * When `useTerminalApi` is true, attempts the Terminal API first; on failure or empty
+   * response, falls back silently to the HyperLiquid provider path.
    *
    * @param options - The configuration options.
    * @param options.provider - The perps provider instance.
    * @param options.params - The operation parameters.
    * @param options.context - The service context for dependencies.
+   * @param options.isMarketAllowed - Optional filter callback applied to
+   * Terminal API results so that allowlist/blocklist rules from the provider
+   * layer are enforced even when the provider is bypassed. Skipped when
+   * `params.skipFilters` is true.
    * @returns The result of the operation.
    */
   async getMarkets(options: {
     provider: PerpsProvider;
     params?: GetMarketsParams;
     context: ServiceContext;
+    isMarketAllowed?: (symbol: string) => boolean;
   }): Promise<MarketInfo[]> {
-    const { provider, params, context } = options;
+    const { provider, params, context, isMarketAllowed } = options;
+    const useTerminalApi = params?.useTerminalApi;
     const traceId = uuidv4();
     let traceData: { success: boolean; error?: string } | undefined;
 
@@ -740,12 +749,74 @@ export class MarketDataService {
             symbolCount: String(params.symbols.length),
           }),
           ...(params?.dex !== undefined && { dex: params.dex }),
+          ...(useTerminalApi !== undefined && {
+            useTerminalApi: String(useTerminalApi),
+          }),
         },
       });
 
+      // Terminal API path: attempt first when flag is enabled
+      if (useTerminalApi && this.#deps.terminalMarketService) {
+        try {
+          const { markets: terminalMarkets } =
+            await this.#deps.terminalMarketService.fetchMarkets();
+          if (terminalMarkets.length > 0) {
+            let filtered = terminalMarkets;
+
+            // Apply allowlist/blocklist filtering (same as provider path)
+            if (!params?.skipFilters && isMarketAllowed) {
+              filtered = filtered.filter((market) =>
+                isMarketAllowed(market.name),
+              );
+            }
+
+            // Filter by specific DEX when requested
+            if (params?.dex !== undefined) {
+              const dexPrefix = params.dex ? `${params.dex}:` : '';
+              filtered = filtered.filter((market) =>
+                dexPrefix
+                  ? market.name.startsWith(dexPrefix)
+                  : !market.name.includes(':'),
+              );
+            }
+
+            // Filter by symbols when requested
+            if (params?.symbols?.length) {
+              filtered = filtered.filter((market) =>
+                (params.symbols as string[]).some(
+                  (sym) => market.name.toLowerCase() === sym.toLowerCase(),
+                ),
+              );
+            }
+
+            // Fall back to provider when a constrained query (symbols or dex)
+            // yields no matches — Terminal partial coverage should not hide
+            // valid provider-backed markets.
+            const isConstrainedQuery =
+              (params?.symbols?.length ?? 0) > 0 || params?.dex !== undefined;
+            if (filtered.length === 0 && isConstrainedQuery) {
+              // Let execution continue to the provider path below.
+            } else {
+              if (context.stateManager) {
+                context.stateManager.update((state) => {
+                  state.lastError = null;
+                  state.lastUpdateTimestamp = Date.now();
+                });
+              }
+              traceData = { success: true };
+              return filtered;
+            }
+          }
+        } catch (terminalError) {
+          this.#deps.terminalMarketService.logError(
+            terminalError,
+            'getMarkets',
+          );
+        }
+      }
+
       const markets = await provider.getMarkets(params);
 
-      // Clear any previous errors on successful call (if stateManager is provided)
       if (context.stateManager) {
         context.stateManager.update((state) => {
           state.lastError = null;
@@ -779,7 +850,6 @@ export class MarketDataService {
         },
       );
 
-      // Update error state (if stateManager is provided)
       if (context.stateManager) {
         context.stateManager.update((state) => {
           state.lastError = errorMessage;
@@ -805,6 +875,8 @@ export class MarketDataService {
   /**
    * Get market data with prices (includes price, volume, 24h change).
    * Applies optional category filtering, sorting, and limit after fetching.
+   * When `useTerminalApi` is true, enriches provider data with Terminal API metadata
+   * (name, keywords, tags, categories). On Terminal API failure, falls back silently.
    *
    * @param options - The configuration options.
    * @param options.provider - The perps provider instance.
@@ -818,6 +890,7 @@ export class MarketDataService {
     context: ServiceContext;
   }): Promise<PerpsMarketData[]> {
     const { provider, params, context } = options;
+    const useTerminalApi = params?.useTerminalApi;
     const traceId = uuidv4();
     let traceData: { success: boolean; error?: string } | undefined;
 
@@ -832,11 +905,38 @@ export class MarketDataService {
           ...(params?.categories && {
             categoryCount: String(params.categories.length),
           }),
+          ...(useTerminalApi !== undefined && {
+            useTerminalApi: String(useTerminalApi),
+          }),
         },
       });
 
+      // Fetch Terminal API metadata before provider data when enabled.
+      // Terminal metadata enriches the provider result (name, keywords, tags,
+      // categories) but never replaces live pricing / funding data.
+      let terminalMetadata: Map<string, TerminalAssetMetadata> | undefined;
+      if (useTerminalApi && this.#deps.terminalMarketService) {
+        try {
+          const result = await this.#deps.terminalMarketService.fetchMarkets();
+          if (result.metadata.size > 0) {
+            terminalMetadata = result.metadata;
+          }
+        } catch (terminalError) {
+          this.#deps.terminalMarketService.logError(
+            terminalError,
+            'getMarketDataWithPrices',
+          );
+        }
+      }
+
       const markets = await provider.getMarketDataWithPrices();
-      const filtered = applyMarketFilters(markets, params);
+
+      // Enrich with terminal metadata when available
+      const enriched = terminalMetadata
+        ? this.#enrichWithTerminalMetadata(markets, terminalMetadata)
+        : markets;
+
+      const filtered = applyMarketFilters(enriched, params);
 
       traceData = { success: true };
       return filtered;
@@ -1251,5 +1351,41 @@ export class MarketDataService {
   }): string {
     const { provider, address } = options;
     return provider.getBlockExplorerUrl(address);
+  }
+
+  /**
+   * Merge Terminal API metadata into provider-sourced PerpsMarketData.
+   * For each market, if the terminal metadata map contains an entry for its
+   * symbol, override name/description/marketType and attach
+   * keywords/tags/categories. Unmatched markets keep their provider-sourced
+   * values.
+   *
+   * @param markets - Markets from the provider.
+   * @param metadata - Per-symbol metadata from the Terminal API.
+   * @returns Enriched market data array.
+   */
+  #enrichWithTerminalMetadata(
+    markets: PerpsMarketData[],
+    metadata: Map<string, TerminalAssetMetadata>,
+  ): PerpsMarketData[] {
+    return markets.map((market) => {
+      const meta = metadata.get(market.symbol);
+      if (!meta) {
+        return market;
+      }
+
+      return {
+        ...market,
+        ...(meta.name !== undefined && { name: meta.name }),
+        ...(meta.description !== undefined && {
+          description: meta.description,
+        }),
+        ...(meta.marketType !== undefined && { marketType: meta.marketType }),
+        ...(meta.keywords !== undefined && { keywords: meta.keywords }),
+        ...(meta.tags !== undefined && { tags: meta.tags }),
+        ...(meta.categories !== undefined && { categories: meta.categories }),
+        ...(meta.listedAt !== undefined && { listedAt: meta.listedAt }),
+      };
+    });
   }
 }

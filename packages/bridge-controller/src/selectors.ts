@@ -329,16 +329,7 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
   [
     ({ quotes }) => quotes,
     selectBridgeFeesPerGas,
-    createBridgeSelector(
-      [
-        (state) => state,
-        ({ quoteRequest: [{ srcChainId, srcTokenAddress }] }) =>
-          srcTokenAddress
-            ? formatAddressToAssetId(srcTokenAddress, srcChainId)
-            : undefined,
-      ],
-      selectExchangeRateByAssetId,
-    ),
+    (state) => state,
     createBridgeSelector(
       [
         (state) => state,
@@ -363,11 +354,20 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
   (
     quotes,
     bridgeFeesPerGas,
-    srcTokenExchangeRate,
+    exchangeRateSources,
     destTokenExchangeRate,
     nativeExchangeRate,
   ) => {
     const newQuotes = quotes.map((quote) => {
+      const sourceAssetId =
+        formatAddressToAssetId(
+          quote.quote.srcAsset.address,
+          quote.quote.srcChainId,
+        ) ?? quote.quote.srcAsset.assetId;
+      const srcTokenExchangeRate = selectExchangeRateByAssetId(
+        exchangeRateSources,
+        sourceAssetId,
+      );
       const sentAmount = calcSentAmount(quote.quote, srcTokenExchangeRate);
       const toTokenAmount = calcToAmount(
         quote.quote.destTokenAmount,
