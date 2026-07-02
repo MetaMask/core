@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Wire `LoggingController` into the default wallet initialization ([#9378](https://github.com/MetaMask/core/pull/9378))
+
 ## [6.0.0]
 
 ### Added

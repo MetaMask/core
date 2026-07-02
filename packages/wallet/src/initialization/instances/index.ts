@@ -3,6 +3,7 @@ export { addressBookController } from './address-book-controller/address-book-co
 export { approvalController } from './approval-controller/approval-controller';
 export { connectivityController } from './connectivity-controller/connectivity-controller';
 export { keyringController } from './keyring-controller/keyring-controller';
+export { loggingController } from './logging-controller/logging-controller';
 export { networkController } from './network-controller/network-controller';
 export { remoteFeatureFlagController } from './remote-feature-flag-controller/remote-feature-flag-controller';
 export { storageService } from './storage-service/storage-service';

@@ -61,6 +61,7 @@
     "@metamask/connectivity-controller": "^0.2.0",
     "@metamask/controller-utils": "^12.3.0",
     "@metamask/keyring-controller": "^27.1.0",
+    "@metamask/logging-controller": "^8.0.2",
     "@metamask/messenger": "^1.2.0",
     "@metamask/network-controller": "^34.0.0",
     "@metamask/remote-feature-flag-controller": "^4.2.2",

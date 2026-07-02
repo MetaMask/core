@@ -620,6 +620,7 @@ linkStyle default opacity:0.5
   wallet --> connectivity_controller;
   wallet --> controller_utils;
   wallet --> keyring_controller;
+  wallet --> logging_controller;
   wallet --> messenger;
   wallet --> network_controller;
   wallet --> remote_feature_flag_controller;

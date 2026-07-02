@@ -1,5 +1,6 @@
 import { getDefaultAddressBookControllerState } from '@metamask/address-book-controller';
 import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
+import { LogType } from '@metamask/logging-controller';
 import { Messenger } from '@metamask/messenger';
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import { Json } from '@metamask/utils';
@@ -316,6 +317,63 @@ describe('Wallet', () => {
       messenger.call('AddressBookController:set', ADDRESS, 'Alice');
 
       expect(messenger.call('AddressBookController:list')).toHaveLength(1);
+    });
+  });
+
+  describe('LoggingController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+
+      expect(messenger.call('LoggingController:getState')).toStrictEqual({
+        logs: {},
+      });
+    });
+
+    it('applies initial state passed through the Wallet constructor', () => {
+      const entry = {
+        id: 'test-id',
+        timestamp: 0,
+        log: { type: LogType.GenericLog, data: { message: 'hello' } },
+      };
+
+      const wallet = new Wallet({
+        state: {
+          LoggingController: {
+            logs: { 'test-id': entry },
+          },
+        },
+        instanceOptions: {
+          connectivityController: {
+            connectivityAdapter: new AlwaysOnlineAdapter(),
+          },
+          networkController: {
+            infuraProjectId: 'fake-infura-project-id',
+          },
+          storageService: {
+            storage: new InMemoryStorageAdapter(),
+          },
+          remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+        },
+      });
+
+      expect(wallet.state.LoggingController.logs['test-id']).toStrictEqual(
+        entry,
+      );
+    });
+
+    it('routes its method actions through the wallet messenger', async () => {
+      const wallet = await setupWallet();
+      const { messenger } = wallet;
+
+      messenger.call('LoggingController:add', {
+        type: LogType.GenericLog,
+        data: { message: 'hello' },
+      });
+
+      expect(Object.values(wallet.state.LoggingController.logs)).toHaveLength(
+        1,
+      );
     });
   });
 

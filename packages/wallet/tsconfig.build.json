@@ -13,6 +13,7 @@
     { "path": "../connectivity-controller/tsconfig.build.json" },
     { "path": "../controller-utils/tsconfig.build.json" },
     { "path": "../keyring-controller/tsconfig.build.json" },
+    { "path": "../logging-controller/tsconfig.build.json" },
     { "path": "../messenger/tsconfig.build.json" },
     { "path": "../network-controller/tsconfig.build.json" },
     { "path": "../remote-feature-flag-controller/tsconfig.build.json" },
