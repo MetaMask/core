@@ -4094,7 +4094,11 @@ describe('TokenDetectionController', () => {
             getSelectedAccount: defaultSelectedAccount,
           },
         },
-        async ({ controller, mockTokenListGetState, mockGetNetworkClientById }) => {
+        async ({
+          controller,
+          mockTokenListGetState,
+          mockGetNetworkClientById,
+        }) => {
           mockTokenListGetState({
             ...getDefaultTokenListState(),
             tokensChainsCache: {
