@@ -10,6 +10,7 @@ import {
 } from '@metamask/connectivity-controller';
 import type {
   ConnectivityControllerGetStateAction,
+  ConnectivityControllerState,
   ConnectivityControllerStateChangeEvent,
 } from '@metamask/connectivity-controller';
 import type { Messenger } from '@metamask/messenger';
@@ -25,6 +26,7 @@ import type {
 import { NetworkStatus } from '@metamask/network-controller';
 import type {
   NetworkEnablementControllerGetStateAction,
+  NetworkEnablementControllerState,
   NetworkEnablementControllerStateChangeEvent,
 } from '@metamask/network-enablement-controller';
 import { selectEnabledNetworkMap } from '@metamask/network-enablement-controller';
@@ -79,6 +81,30 @@ const selectNetworkControllerFields = createSelector(
     networksMetadata,
     networkConfigurationsByChainId,
   }),
+);
+
+/**
+ * Selects the `NetworkEnablementController` state field that influences the
+ * banner rule.
+ *
+ * @param state - The `NetworkEnablementController` state.
+ * @returns The relevant enablement fields.
+ */
+const selectNetworkEnablementControllerFields = createSelector(
+  [selectEnabledNetworkMap],
+  (enabledNetworkMap) => ({ enabledNetworkMap }),
+);
+
+/**
+ * Selects the `ConnectivityController` state field that influences the
+ * banner rule.
+ *
+ * @param state - The `ConnectivityController` state.
+ * @returns The relevant connectivity fields.
+ */
+const selectConnectivityControllerFields = createSelector(
+  [connectivityControllerSelectors.selectConnectivityStatus],
+  (connectivityStatus) => ({ connectivityStatus }),
 );
 
 /**
@@ -315,18 +341,21 @@ export class NetworkConnectionBannerController extends BaseController<
     /* eslint-disable no-restricted-syntax -- awaiting upstream :stateChanged migration */
     this.messenger.subscribe(
       'NetworkController:stateChange',
-      () => this.#onUpstreamChange(),
+      (networkControllerState) =>
+        this.#refreshState({ networkControllerState }),
       selectNetworkControllerFields,
     );
     this.messenger.subscribe(
       'NetworkEnablementController:stateChange',
-      () => this.#onUpstreamChange(),
-      selectEnabledNetworkMap,
+      (networkEnablementControllerState) =>
+        this.#refreshState({ networkEnablementControllerState }),
+      selectNetworkEnablementControllerFields,
     );
     this.messenger.subscribe(
       'ConnectivityController:stateChange',
-      () => this.#onUpstreamChange(),
-      connectivityControllerSelectors.selectConnectivityStatus,
+      (connectivityControllerState) =>
+        this.#refreshState({ connectivityControllerState }),
+      selectConnectivityControllerFields,
     );
     /* eslint-enable no-restricted-syntax */
 
@@ -367,12 +396,6 @@ export class NetworkConnectionBannerController extends BaseController<
 
     this.#isStarted = false;
     this.#resetBanner();
-  }
-
-  #onUpstreamChange(): void {
-    if (this.#isStarted) {
-      this.#refreshState();
-    }
   }
 
   /**
@@ -425,16 +448,44 @@ export class NetworkConnectionBannerController extends BaseController<
     );
   }
 
-  #refreshState(): void {
-    const { connectivityStatus } = this.messenger.call(
-      'ConnectivityController:getState',
-    );
+  #refreshState({
+    networkControllerState,
+    networkEnablementControllerState,
+    connectivityControllerState,
+  }: {
+    networkControllerState?: Pick<
+      NetworkState,
+      'networkConfigurationsByChainId' | 'networksMetadata'
+    >;
+    networkEnablementControllerState?: Pick<
+      NetworkEnablementControllerState,
+      'enabledNetworkMap'
+    >;
+    connectivityControllerState?: Pick<
+      ConnectivityControllerState,
+      'connectivityStatus'
+    >;
+  } = {}): void {
+    if (!this.#isStarted) {
+      return;
+    }
+
+    const { connectivityStatus } =
+      connectivityControllerState ??
+      this.messenger.call('ConnectivityController:getState');
     if (connectivityStatus === CONNECTIVITY_STATUSES.Offline) {
       this.#resetBanner();
       return;
     }
 
-    const failedNetwork = this.#findFailedNetwork();
+    const networkState =
+      networkControllerState ??
+      this.messenger.call('NetworkController:getState');
+    const enablementState =
+      networkEnablementControllerState ??
+      this.messenger.call('NetworkEnablementController:getState');
+
+    const failedNetwork = this.#findFailedNetwork(networkState, enablementState);
     if (!failedNetwork) {
       this.#resetBanner();
       return;
@@ -519,28 +570,47 @@ export class NetworkConnectionBannerController extends BaseController<
     }
   }
 
-  #findFailedNetwork(): FailedNetwork | null {
-    const networksWithMetadata = this.#collectNetworksWithMetadata();
+  #findFailedNetwork(
+    networkState: Pick<
+      NetworkState,
+      'networkConfigurationsByChainId' | 'networksMetadata'
+    >,
+    enablementState: Pick<
+      NetworkEnablementControllerState,
+      'enabledNetworkMap'
+    >,
+  ): FailedNetwork | null {
+    const networksWithMetadata = this.#collectNetworksWithMetadata(
+      networkState,
+      enablementState,
+    );
     const failedNetworks = networksWithMetadata
       .filter(({ metadata }) => metadata.status !== NetworkStatus.Available)
       .map((network) => this.#buildFailedNetwork(network));
     return this.#pickBannerNetwork(failedNetworks, networksWithMetadata.length);
   }
 
-  #getEnabledEvmChainIds(): Hex[] {
-    const { enabledNetworkMap } = this.messenger.call(
-      'NetworkEnablementController:getState',
-    );
+  #getEnabledEvmChainIds(
+    enabledNetworkMap: NetworkEnablementControllerState['enabledNetworkMap'],
+  ): Hex[] {
     return Object.entries(enabledNetworkMap[KnownCaipNamespace.Eip155] ?? {})
       .filter(([, enabled]) => enabled)
       .map(([chainId]) => chainId as Hex);
   }
 
-  #collectNetworksWithMetadata(): NetworkWithMetadata[] {
-    const { networkConfigurationsByChainId, networksMetadata } =
-      this.messenger.call('NetworkController:getState');
-
-    return this.#getEnabledEvmChainIds().flatMap((chainId) => {
+  #collectNetworksWithMetadata(
+    {
+      networkConfigurationsByChainId,
+      networksMetadata,
+    }: Pick<
+      NetworkState,
+      'networkConfigurationsByChainId' | 'networksMetadata'
+    >,
+    {
+      enabledNetworkMap,
+    }: Pick<NetworkEnablementControllerState, 'enabledNetworkMap'>,
+  ): NetworkWithMetadata[] {
+    return this.#getEnabledEvmChainIds(enabledNetworkMap).flatMap((chainId) => {
       const networkConfiguration = networkConfigurationsByChainId[chainId];
       if (!networkConfiguration) {
         return [];
