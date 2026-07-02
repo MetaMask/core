@@ -432,7 +432,8 @@ export class Messenger<
   }
 
   /**
-   * Create a new child messenger that automatically is delegated the specified actions/events from this messenger.
+   * Create a new messenger as a child of this messenger (the "parent").
+   * All actions/events are delegated from the child to the parent, and the specified actions/events are delegated from the parent to the child.
    *
    * @param args - Arguments.
    * @param args.namespace - The child messenger namespace.
