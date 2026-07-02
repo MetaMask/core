@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Allow payment token selection without a local fiat rate for post-quote transactions ([#9366](https://github.com/MetaMask/core/pull/9366))
+  - `updatePaymentToken` threw `Payment token not found` when the selected token had no market price or native-currency rate in wallet state, which blocked selecting a withdraw destination token on a chain the wallet does not actively track. For post-quote (withdraw) flows the token now resolves with zeroed fiat rates instead; standard (deposit) flows keep the strict behavior.
+
 ## [23.17.3]
 
 ### Changed
