@@ -1471,18 +1471,21 @@ describe('RemoteFeatureFlagController', () => {
         });
 
       jest.useFakeTimers();
-      jest.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
 
-      await messenger.call(
-        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
-      );
-      await flushPromises();
+      try {
+        jest.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
 
-      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
-        flagB: 'groupB',
-      });
+        await messenger.call(
+          'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+        );
+        await flushPromises();
 
-      jest.useRealTimers();
+        expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+          flagB: 'groupB',
+        });
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it('preserves threshold cache entries for flags still in server response', async () => {
