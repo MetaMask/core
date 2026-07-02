@@ -485,8 +485,8 @@ describe('RemoteFeatureFlagController', () => {
         testFlagForThreshold: 'groupB',
       });
     });
-    
-    it('returns selected threshold values for unrecognized threshold versions', async () => {
+
+    it('ignores threshold version field, processing threshold values normally', async () => {
       const thresholdFlagValue = {
         enabled: true,
       };
