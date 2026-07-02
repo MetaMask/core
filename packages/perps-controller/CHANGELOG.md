@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `description?: string` to `PerpsMarketData` and `TerminalAssetMetadata`, exposing the human-readable asset description sourced from the Terminal API when available ([#9334](https://github.com/MetaMask/core/pull/9334))
+  - `TerminalMarketService` now reads the `description` field from Terminal API items (ignoring `null`/empty values) and includes it in per-symbol metadata.
+  - `MarketDataService.getMarketDataWithPrices` merges the description into `PerpsMarketData` when the Terminal API backend (`useTerminalApi`) is enabled; markets without a Terminal description keep the field `undefined`.
+
 ## [9.1.0]
 
 ### Added
