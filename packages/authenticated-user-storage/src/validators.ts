@@ -236,3 +236,35 @@ export function assertAssetsWatchlistBlobForWrite(
 ): asserts data is AssetsWatchlistBlob {
   assert(data, AssetsWatchlistBlobWriteSchema);
 }
+
+/**
+ * The authenticated user's Top Traders leaderboard preferences: a mutable
+ * per-user singleton blob.
+ *
+ * The `version` literal is carried inside the blob (not in the URL) so the
+ * schema can evolve in a backwards-compatible way.
+ */
+const LeaderboardPreferencesSchema = type({
+  version: literal(1),
+  optedOut: boolean(),
+});
+
+/**
+ * The authenticated user's Top Traders leaderboard preferences.
+ *
+ * Inferred from {@link LeaderboardPreferencesSchema} so the runtime schema and
+ * the static type stay in lock-step.
+ */
+export type LeaderboardPreferences = Infer<typeof LeaderboardPreferencesSchema>;
+
+/**
+ * Asserts that the given value is a valid `LeaderboardPreferences`.
+ *
+ * @param data - The unknown value to validate.
+ * @throws If the value does not match the expected schema.
+ */
+export function assertLeaderboardPreferences(
+  data: unknown,
+): asserts data is LeaderboardPreferences {
+  assert(data, LeaderboardPreferencesSchema);
+}

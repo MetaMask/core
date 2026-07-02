@@ -17,12 +17,14 @@ import type {
   ClientType,
   DelegationResponse,
   DelegationSubmission,
+  LeaderboardPreferences,
   NotificationPreferences,
 } from './types';
 import {
   assertAssetsWatchlistBlob,
   assertAssetsWatchlistBlobForWrite,
   assertDelegationResponseArray,
+  assertLeaderboardPreferences,
   assertNotificationPreferences,
 } from './validators';
 
@@ -54,6 +56,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'putNotificationPreferences',
   'getAssetsWatchlist',
   'setAssetsWatchlist',
+  'getLeaderboardPreferences',
+  'setLeaderboardPreferences',
 ] as const;
 
 /**
@@ -429,6 +433,89 @@ export class AuthenticatedUserStorageService extends BaseDataService<
 
     await this.invalidateQueries({
       queryKey: [`${this.name}:getAssetsWatchlist`],
+    });
+  }
+
+  /**
+   * Returns the Top Traders leaderboard preferences for the authenticated user.
+   *
+   * @returns The leaderboard preferences blob, or `null` if none has been set
+   * (404).
+   */
+  async getLeaderboardPreferences(): Promise<LeaderboardPreferences | null> {
+    const url = `${getAuthenticatedStorageUrl(this.#environment)}/preferences/leaderboard`;
+
+    const data = await this.fetchQuery({
+      queryKey: [`${this.name}:getLeaderboardPreferences`],
+      queryFn: async () => {
+        const headers = await this.#getHeaders();
+        const response = await fetch(url, { headers });
+
+        if (response.status === 404) {
+          return null;
+        }
+
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Failed to get leaderboard preferences: ${response.status}`,
+          );
+        }
+
+        return response.json();
+      },
+    });
+
+    if (data === null) {
+      return null;
+    }
+
+    assertLeaderboardPreferences(data);
+    return data;
+  }
+
+  /**
+   * Creates or updates the Top Traders leaderboard preferences for the
+   * authenticated user.
+   *
+   * @param blob - The full leaderboard preferences blob.
+   * @param clientType - Optional client type header.
+   * @throws A `StructError` from `@metamask/superstruct` if `blob` is
+   * structurally invalid; an `HttpError` from `@metamask/controller-utils` if
+   * the API responds with a non-2xx status.
+   */
+  async setLeaderboardPreferences(
+    blob: LeaderboardPreferences,
+    clientType?: ClientType,
+  ): Promise<void> {
+    assertLeaderboardPreferences(blob);
+
+    const url = `${getAuthenticatedStorageUrl(this.#environment)}/preferences/leaderboard`;
+
+    await this.fetchQuery({
+      queryKey: [`${this.name}:setLeaderboardPreferences`, blob as unknown as Json],
+      staleTime: 0,
+      queryFn: async () => {
+        const headers = await this.#getHeaders(clientType);
+        const response = await fetch(url, {
+          method: 'PUT',
+          headers,
+          body: JSON.stringify(blob),
+        });
+
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `Failed to put leaderboard preferences: ${response.status}`,
+          );
+        }
+
+        return null;
+      },
+    });
+
+    await this.invalidateQueries({
+      queryKey: [`${this.name}:getLeaderboardPreferences`],
     });
   }
 

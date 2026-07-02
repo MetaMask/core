@@ -136,6 +136,15 @@ export type NotificationPreferences = {
 export type { AssetsWatchlistBlob } from './validators';
 
 // ---------------------------------------------------------------------------
+// Leaderboard preferences
+// ---------------------------------------------------------------------------
+
+// `LeaderboardPreferences` is inferred from `LeaderboardPreferencesSchema` in
+// `./validators` and re-exported here so the public type surface remains in
+// `./types`.
+export type { LeaderboardPreferences } from './validators';
+
+// ---------------------------------------------------------------------------
 // Shared
 // ---------------------------------------------------------------------------
 

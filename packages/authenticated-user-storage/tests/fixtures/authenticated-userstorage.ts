@@ -5,6 +5,8 @@ import {
   MOCK_ASSETS_WATCHLIST_URL,
   MOCK_DELEGATIONS_URL,
   MOCK_DELEGATION_RESPONSE,
+  MOCK_LEADERBOARD_PREFERENCES,
+  MOCK_LEADERBOARD_PREFERENCES_URL,
   MOCK_NOTIFICATION_PREFERENCES,
   MOCK_NOTIFICATION_PREFERENCES_URL,
 } from '../mocks/authenticated-userstorage';
@@ -95,6 +97,34 @@ export function handleMockSetAssetsWatchlist(
 ): nock.Scope {
   const reply = mockReply ?? { status: 200 };
   const interceptor = nock(MOCK_ASSETS_WATCHLIST_URL).persist().put('');
+
+  if (callback) {
+    return interceptor.reply(reply.status, async (uri, requestBody) => {
+      return callback(uri, requestBody);
+    });
+  }
+  return interceptor.reply(reply.status, reply.body);
+}
+
+export function handleMockGetLeaderboardPreferences(
+  mockReply?: MockReply,
+): nock.Scope {
+  const reply = mockReply ?? {
+    status: 200,
+    body: MOCK_LEADERBOARD_PREFERENCES,
+  };
+  return nock(MOCK_LEADERBOARD_PREFERENCES_URL)
+    .persist()
+    .get('')
+    .reply(reply.status, reply.body);
+}
+
+export function handleMockSetLeaderboardPreferences(
+  mockReply?: MockReply,
+  callback?: (uri: string, requestBody: nock.Body) => Promise<void>,
+): nock.Scope {
+  const reply = mockReply ?? { status: 200 };
+  const interceptor = nock(MOCK_LEADERBOARD_PREFERENCES_URL).persist().put('');
 
   if (callback) {
     return interceptor.reply(reply.status, async (uri, requestBody) => {

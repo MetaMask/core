@@ -86,6 +86,32 @@ export type AuthenticatedUserStorageServiceSetAssetsWatchlistAction = {
 };
 
 /**
+ * Returns the Top Traders leaderboard preferences for the authenticated user.
+ *
+ * @returns The leaderboard preferences blob, or `null` if none has been set
+ * (404).
+ */
+export type AuthenticatedUserStorageServiceGetLeaderboardPreferencesAction = {
+  type: `AuthenticatedUserStorageService:getLeaderboardPreferences`;
+  handler: AuthenticatedUserStorageService['getLeaderboardPreferences'];
+};
+
+/**
+ * Creates or updates the Top Traders leaderboard preferences for the
+ * authenticated user.
+ *
+ * @param blob - The full leaderboard preferences blob.
+ * @param clientType - Optional client type header.
+ * @throws A `StructError` from `@metamask/superstruct` if `blob` is
+ * structurally invalid; an `HttpError` from `@metamask/controller-utils` if
+ * the API responds with a non-2xx status.
+ */
+export type AuthenticatedUserStorageServiceSetLeaderboardPreferencesAction = {
+  type: `AuthenticatedUserStorageService:setLeaderboardPreferences`;
+  handler: AuthenticatedUserStorageService['setLeaderboardPreferences'];
+};
+
+/**
  * Union of all AuthenticatedUserStorageService action types.
  */
 export type AuthenticatedUserStorageServiceMethodActions =
@@ -95,4 +121,6 @@ export type AuthenticatedUserStorageServiceMethodActions =
   | AuthenticatedUserStorageServiceGetNotificationPreferencesAction
   | AuthenticatedUserStorageServicePutNotificationPreferencesAction
   | AuthenticatedUserStorageServiceGetAssetsWatchlistAction
-  | AuthenticatedUserStorageServiceSetAssetsWatchlistAction;
+  | AuthenticatedUserStorageServiceSetAssetsWatchlistAction
+  | AuthenticatedUserStorageServiceGetLeaderboardPreferencesAction
+  | AuthenticatedUserStorageServiceSetLeaderboardPreferencesAction;
