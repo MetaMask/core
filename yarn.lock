@@ -7402,7 +7402,6 @@ __metadata:
     "@metamask/utils": "npm:^11.11.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
-    "@types/yargs": "npm:^17.0.32"
     deepmerge: "npm:^4.2.2"
     immer: "npm:^9.0.6"
     jest: "npm:^29.7.0"
