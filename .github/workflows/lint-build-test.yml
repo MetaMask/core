@@ -132,10 +132,15 @@ jobs:
             BASE_REF="${BASH_REMATCH[1]}"
           fi
 
-          # Use the GitHub Compare API to get the exact merge base SHA,
-          # then fetch only that single commit.
+          # Use the GitHub Compare API to get the exact merge base SHA.
           MERGE_BASE=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BASE_REF...$HEAD_SHA" --jq '.merge_base_commit.sha')
-          git fetch origin "$MERGE_BASE" --depth=1 --no-tags
+
+          # Unshallow the checkout so git can confirm the ancestry
+          # relationship required by `--since`. Using `--filter=blob:none`
+          # avoids downloading file content — commit and tree metadata is
+          # all that `git diff --name-only` needs.
+          git fetch --unshallow --filter=blob:none --no-tags
+
           echo "merge-base=$MERGE_BASE" >> "$GITHUB_OUTPUT"
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
