@@ -961,6 +961,34 @@ describe('mapApiTransaction', () => {
     expect(item.type).not.toBe('wrap');
   });
 
+  it('does not map a wrap when `to` is not the chain wrapped-native contract', () => {
+    const { transaction, subjectAddress: fixtureSubjectAddress } =
+      apiTransactionFixtures.mapArgs.mapsAWethDepositToA;
+    const item = mapApiTransaction({
+      subjectAddress: fixtureSubjectAddress,
+      transaction: {
+        ...transaction,
+        to: '0x1111111111111111111111111111111111111111',
+      },
+    });
+
+    expect(item.type).not.toBe('wrap');
+  });
+
+  it('does not map a wrap on a chain without a known wrapped-native contract', () => {
+    const { transaction, subjectAddress: fixtureSubjectAddress } =
+      apiTransactionFixtures.mapArgs.mapsAWethDepositToA;
+    const item = mapApiTransaction({
+      subjectAddress: fixtureSubjectAddress,
+      transaction: {
+        ...transaction,
+        chainId: 999999,
+      },
+    });
+
+    expect(item.type).not.toBe('wrap');
+  });
+
   it('maps an unrecognized category with only an inbound transfer to a contract interaction with an inbound token', () => {
     const item = mapApiTransaction(
       apiTransactionFixtures.mapArgs.mapsAnUnrecognizedCategoryWithOnly,

@@ -14,6 +14,7 @@ import type {
 import {
   nativeTokenAddress,
   supplyMethodIds,
+  swapsWrappedTokensAddresses,
   withdrawMethodIds,
   wrapMethodIds,
 } from './constants';
@@ -313,7 +314,19 @@ export function mapApiTransaction({
     };
   }
 
-  if (receivedTransfer && wrapMethodIds.has(normalizedMethodId)) {
+  const wrappedNativeAddress =
+    swapsWrappedTokensAddresses[
+      `0x${transaction.chainId.toString(
+        16,
+      )}` as keyof typeof swapsWrappedTokensAddresses
+    ];
+
+  if (
+    receivedTransfer &&
+    wrapMethodIds.has(normalizedMethodId) &&
+    wrappedNativeAddress &&
+    equalsIgnoreCase(transaction.to, wrappedNativeAddress)
+  ) {
     return {
       type: 'wrap',
       ...common,
