@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Capability-gated v1/v2 keyring client selection for Snap account providers ([#0000](https://github.com/MetaMask/core/pull/0000))
+  - Providers resolve a Snap's capabilities via `SnapAccountService:getCapabilities` and route account creation and discovery through the v1 or v2 keyring client accordingly (a Snap that declares BIP-44 capabilities is treated as v2).
+  - Account discovery for v2 Snaps flows through `createAccounts({ bip44:discover })`; v1 Snaps keep using the `discoverAccounts` client method.
+
+### Changed
+
+- **BREAKING:** Remove `batched` from `SnapAccountProviderConfig['createAccounts']` ([#0000](https://github.com/MetaMask/core/pull/0000))
+  - Whether accounts are created in a single batched `createAccounts` call is now derived from the Snap's `bip44.deriveIndexRange` capability instead of static config.
+- Bump `@metamask/eth-snap-keyring` from `^22.3.0` to `^22.4.0` ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Bump `@metamask/keyring-api` from `^23.3.0` to `^23.4.0` ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Bump `@metamask/keyring-snap-client` from `^9.0.2` to `^9.1.0` ([#0000](https://github.com/MetaMask/core/pull/0000))
+
 ## [11.1.0]
 
 ### Added
