@@ -33,7 +33,12 @@ function buildNetworkConfiguration(
   return {
     name: 'Ethereum Mainnet',
     nativeCurrency: 'ETH',
-    rpcEndpoints: [buildInfuraEndpoint({ networkClientId: MAINNET_CLIENT_ID, infuraNetworkType: 'mainnet' })],
+    rpcEndpoints: [
+      buildInfuraEndpoint({
+        networkClientId: MAINNET_CLIENT_ID,
+        infuraNetworkType: 'mainnet',
+      }),
+    ],
     defaultRpcEndpointIndex: 0,
     blockExplorerUrls: [],
     defaultBlockExplorerUrlIndex: 0,
@@ -106,24 +111,28 @@ describe('NetworkConnectionBannerController', () => {
           '0x89': buildNetworkConfiguration({
             chainId: '0x89',
             rpcEndpoints: [
-              buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
+              buildCustomEndpoint({
+                networkClientId: POLYGON_CUSTOM_CLIENT_ID,
+                url: 'https://polygon-rpc.com',
+              }),
             ],
           }),
         },
         enabledEvmChainIds: ['0x89'],
         networksMetadata: {
-          [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Unavailable),
+          [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
+            NetworkStatus.Unavailable,
+          ),
         },
       });
 
       await withController(
+        { externalState, start: false },
         ({ controller }) => {
           jest.advanceTimersByTime(30_000);
 
           expect(controller.state.status).toBe('available');
         },
-        externalState,
-        false,
       );
     });
 
@@ -133,17 +142,23 @@ describe('NetworkConnectionBannerController', () => {
           '0x89': buildNetworkConfiguration({
             chainId: '0x89',
             rpcEndpoints: [
-              buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
+              buildCustomEndpoint({
+                networkClientId: POLYGON_CUSTOM_CLIENT_ID,
+                url: 'https://polygon-rpc.com',
+              }),
             ],
           }),
         },
         enabledEvmChainIds: ['0x89'],
         networksMetadata: {
-          [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Unavailable),
+          [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
+            NetworkStatus.Unavailable,
+          ),
         },
       });
 
       await withController(
+        { externalState, start: false },
         ({ controller, rootMessenger }) => {
           rootMessenger.call('NetworkConnectionBannerController:start');
           rootMessenger.call('NetworkConnectionBannerController:start');
@@ -152,20 +167,25 @@ describe('NetworkConnectionBannerController', () => {
 
           expect(controller.state.status).toBe('degraded');
         },
-        externalState,
-        false,
       );
     });
 
     it('ignores upstream state changes before start', async () => {
       await withController(
+        {
+          externalState: buildExternalState({ enabledEvmChainIds: ['0x89'] }),
+          start: false,
+        },
         ({ controller, setNetworkControllerState }) => {
           setNetworkControllerState({
             networkConfigurationsByChainId: {
               '0x89': buildNetworkConfiguration({
                 chainId: '0x89',
                 rpcEndpoints: [
-                  buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
+                  buildCustomEndpoint({
+                    networkClientId: POLYGON_CUSTOM_CLIENT_ID,
+                    url: 'https://polygon-rpc.com',
+                  }),
                 ],
               }),
             },
@@ -183,20 +203,22 @@ describe('NetworkConnectionBannerController', () => {
           jest.advanceTimersByTime(5_000);
           expect(controller.state.status).toBe('degraded');
         },
-        buildExternalState({ enabledEvmChainIds: ['0x89'] }),
-        false,
       );
     });
 
     it('cancels a pending banner and resets state on stop', async () => {
       await withController(
+        { externalState: buildExternalState({ enabledEvmChainIds: ['0x89'] }) },
         ({ controller, setNetworkControllerState }) => {
           setNetworkControllerState({
             networkConfigurationsByChainId: {
               '0x89': buildNetworkConfiguration({
                 chainId: '0x89',
                 rpcEndpoints: [
-                  buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
+                  buildCustomEndpoint({
+                    networkClientId: POLYGON_CUSTOM_CLIENT_ID,
+                    url: 'https://polygon-rpc.com',
+                  }),
                 ],
               }),
             },
@@ -217,12 +239,12 @@ describe('NetworkConnectionBannerController', () => {
             network: null,
           });
         },
-        buildExternalState({ enabledEvmChainIds: ['0x89'] }),
       );
     });
 
     it('ignores upstream state changes after stop', async () => {
       await withController(
+        { externalState: buildExternalState({ enabledEvmChainIds: ['0x89'] }) },
         ({ controller, setNetworkControllerState }) => {
           controller.stop();
           setNetworkControllerState({
@@ -230,7 +252,10 @@ describe('NetworkConnectionBannerController', () => {
               '0x89': buildNetworkConfiguration({
                 chainId: '0x89',
                 rpcEndpoints: [
-                  buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
+                  buildCustomEndpoint({
+                    networkClientId: POLYGON_CUSTOM_CLIENT_ID,
+                    url: 'https://polygon-rpc.com',
+                  }),
                 ],
               }),
             },
@@ -244,12 +269,12 @@ describe('NetworkConnectionBannerController', () => {
           jest.advanceTimersByTime(30_000);
           expect(controller.state.status).toBe('available');
         },
-        buildExternalState({ enabledEvmChainIds: ['0x89'] }),
       );
     });
 
     it('resumes evaluation when start is called again after stop', async () => {
       await withController(
+        { externalState: buildExternalState({ enabledEvmChainIds: ['0x89'] }) },
         ({ controller, setNetworkControllerState }) => {
           controller.stop();
 
@@ -258,7 +283,10 @@ describe('NetworkConnectionBannerController', () => {
               '0x89': buildNetworkConfiguration({
                 chainId: '0x89',
                 rpcEndpoints: [
-                  buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
+                  buildCustomEndpoint({
+                    networkClientId: POLYGON_CUSTOM_CLIENT_ID,
+                    url: 'https://polygon-rpc.com',
+                  }),
                 ],
               }),
             },
@@ -275,23 +303,18 @@ describe('NetworkConnectionBannerController', () => {
           jest.advanceTimersByTime(5_000);
           expect(controller.state.status).toBe('degraded');
         },
-        buildExternalState({ enabledEvmChainIds: ['0x89'] }),
       );
     });
 
     it('stop is idempotent when never started', async () => {
-      await withController(
-        ({ controller }) => {
-          controller.stop();
-          controller.stop();
-          expect(controller.state).toStrictEqual({
-            status: 'available',
-            network: null,
-          });
-        },
-        undefined,
-        false,
-      );
+      await withController({ start: false }, ({ controller }) => {
+        controller.stop();
+        controller.stop();
+        expect(controller.state).toStrictEqual({
+          status: 'available',
+          network: null,
+        });
+      });
     });
 
     it('bails out when a stateChanged listener calls stop synchronously during refresh', async () => {
@@ -305,7 +328,10 @@ describe('NetworkConnectionBannerController', () => {
                 '0x89': buildNetworkConfiguration({
                   chainId: '0x89',
                   rpcEndpoints: [
-                    buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
+                    buildCustomEndpoint({
+                      networkClientId: POLYGON_CUSTOM_CLIENT_ID,
+                      url: 'https://polygon-rpc.com',
+                    }),
                   ],
                 }),
               },
@@ -339,13 +365,18 @@ describe('NetworkConnectionBannerController', () => {
                 '0x1': buildNetworkConfiguration({
                   chainId: '0x1',
                   rpcEndpoints: [
-                    buildCustomEndpoint({ networkClientId: ALCHEMY_CLIENT_ID, url: 'https://eth-mainnet.alchemyapi.io/v2/abc' }),
+                    buildCustomEndpoint({
+                      networkClientId: ALCHEMY_CLIENT_ID,
+                      url: 'https://eth-mainnet.alchemyapi.io/v2/abc',
+                    }),
                   ],
                 }),
               },
               enabledEvmChainIds: ['0x1'],
               networksMetadata: {
-                [ALCHEMY_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Unavailable),
+                [ALCHEMY_CLIENT_ID]: buildNetworkMetadata(
+                  NetworkStatus.Unavailable,
+                ),
               },
             }),
           );
@@ -377,7 +408,10 @@ describe('NetworkConnectionBannerController', () => {
                 '0x89': buildNetworkConfiguration({
                   chainId: '0x89',
                   rpcEndpoints: [
-                    buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
+                    buildCustomEndpoint({
+                      networkClientId: POLYGON_CUSTOM_CLIENT_ID,
+                      url: 'https://polygon-rpc.com',
+                    }),
                   ],
                 }),
               },
@@ -412,7 +446,10 @@ describe('NetworkConnectionBannerController', () => {
               '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
-                  buildInfuraEndpoint({ networkClientId: MAINNET_CLIENT_ID, infuraNetworkType: 'mainnet' }),
+                  buildInfuraEndpoint({
+                    networkClientId: MAINNET_CLIENT_ID,
+                    infuraNetworkType: 'mainnet',
+                  }),
                 ],
               }),
               '0xaa36a7': buildNetworkConfiguration({
@@ -420,13 +457,20 @@ describe('NetworkConnectionBannerController', () => {
                 name: 'Sepolia',
                 nativeCurrency: 'SepoliaETH',
                 rpcEndpoints: [
-                  buildInfuraEndpoint({ networkClientId: SEPOLIA_CLIENT_ID, infuraNetworkType: 'sepolia' }),
+                  buildInfuraEndpoint({
+                    networkClientId: SEPOLIA_CLIENT_ID,
+                    infuraNetworkType: 'sepolia',
+                  }),
                 ],
               }),
             },
             networksMetadata: {
-              [MAINNET_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Unavailable),
-              [SEPOLIA_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Available),
+              [MAINNET_CLIENT_ID]: buildNetworkMetadata(
+                NetworkStatus.Unavailable,
+              ),
+              [SEPOLIA_CLIENT_ID]: buildNetworkMetadata(
+                NetworkStatus.Available,
+              ),
             },
           }),
         );
@@ -448,7 +492,10 @@ describe('NetworkConnectionBannerController', () => {
               '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
-                  buildInfuraEndpoint({ networkClientId: MAINNET_CLIENT_ID, infuraNetworkType: 'mainnet' }),
+                  buildInfuraEndpoint({
+                    networkClientId: MAINNET_CLIENT_ID,
+                    infuraNetworkType: 'mainnet',
+                  }),
                 ],
               }),
               '0xaa36a7': buildNetworkConfiguration({
@@ -456,20 +503,32 @@ describe('NetworkConnectionBannerController', () => {
                 name: 'Sepolia',
                 nativeCurrency: 'SepoliaETH',
                 rpcEndpoints: [
-                  buildInfuraEndpoint({ networkClientId: SEPOLIA_CLIENT_ID, infuraNetworkType: 'sepolia' }),
+                  buildInfuraEndpoint({
+                    networkClientId: SEPOLIA_CLIENT_ID,
+                    infuraNetworkType: 'sepolia',
+                  }),
                 ],
               }),
               '0x89': buildNetworkConfiguration({
                 chainId: '0x89',
                 rpcEndpoints: [
-                  buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
+                  buildCustomEndpoint({
+                    networkClientId: POLYGON_CUSTOM_CLIENT_ID,
+                    url: 'https://polygon-rpc.com',
+                  }),
                 ],
               }),
             },
             networksMetadata: {
-              [MAINNET_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Unavailable),
-              [SEPOLIA_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Unavailable),
-              [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Available),
+              [MAINNET_CLIENT_ID]: buildNetworkMetadata(
+                NetworkStatus.Unavailable,
+              ),
+              [SEPOLIA_CLIENT_ID]: buildNetworkMetadata(
+                NetworkStatus.Unavailable,
+              ),
+              [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
+                NetworkStatus.Available,
+              ),
             },
           }),
         );
@@ -488,7 +547,10 @@ describe('NetworkConnectionBannerController', () => {
               '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
-                  buildInfuraEndpoint({ networkClientId: MAINNET_CLIENT_ID, infuraNetworkType: 'mainnet' }),
+                  buildInfuraEndpoint({
+                    networkClientId: MAINNET_CLIENT_ID,
+                    infuraNetworkType: 'mainnet',
+                  }),
                 ],
               }),
               '0xa4b1': buildNetworkConfiguration({
@@ -496,13 +558,20 @@ describe('NetworkConnectionBannerController', () => {
                 name: 'Arbitrum One',
                 nativeCurrency: 'ETH',
                 rpcEndpoints: [
-                  buildCustomEndpoint({ networkClientId: ALCHEMY_CLIENT_ID, url: 'https://arb-mainnet.g.alchemy.com/v2/abc' }),
+                  buildCustomEndpoint({
+                    networkClientId: ALCHEMY_CLIENT_ID,
+                    url: 'https://arb-mainnet.g.alchemy.com/v2/abc',
+                  }),
                 ],
               }),
             },
             networksMetadata: {
-              [MAINNET_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Unavailable),
-              [ALCHEMY_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Unavailable),
+              [MAINNET_CLIENT_ID]: buildNetworkMetadata(
+                NetworkStatus.Unavailable,
+              ),
+              [ALCHEMY_CLIENT_ID]: buildNetworkMetadata(
+                NetworkStatus.Unavailable,
+              ),
             },
           }),
         );
@@ -535,18 +604,26 @@ describe('NetworkConnectionBannerController', () => {
               '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
-                  buildInfuraEndpoint({ networkClientId: MAINNET_CLIENT_ID, infuraNetworkType: 'mainnet' }),
+                  buildInfuraEndpoint({
+                    networkClientId: MAINNET_CLIENT_ID,
+                    infuraNetworkType: 'mainnet',
+                  }),
                 ],
               }),
               '0x89': buildNetworkConfiguration({
                 chainId: '0x89',
                 rpcEndpoints: [
-                  buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
+                  buildCustomEndpoint({
+                    networkClientId: POLYGON_CUSTOM_CLIENT_ID,
+                    url: 'https://polygon-rpc.com',
+                  }),
                 ],
               }),
             },
             networksMetadata: {
-              [MAINNET_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Available),
+              [MAINNET_CLIENT_ID]: buildNetworkMetadata(
+                NetworkStatus.Available,
+              ),
               [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
                 NetworkStatus.Unavailable,
               ),
@@ -572,13 +649,18 @@ describe('NetworkConnectionBannerController', () => {
               '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
-                  buildInfuraEndpoint({ networkClientId: MAINNET_CLIENT_ID, infuraNetworkType: 'mainnet' }),
+                  buildInfuraEndpoint({
+                    networkClientId: MAINNET_CLIENT_ID,
+                    infuraNetworkType: 'mainnet',
+                  }),
                 ],
               }),
             },
             enabledEvmChainIds: ['0x1'],
             networksMetadata: {
-              [MAINNET_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Unavailable),
+              [MAINNET_CLIENT_ID]: buildNetworkMetadata(
+                NetworkStatus.Unavailable,
+              ),
             },
           }),
         );
@@ -601,7 +683,10 @@ describe('NetworkConnectionBannerController', () => {
               '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
-                  buildInfuraEndpoint({ networkClientId: MAINNET_CLIENT_ID, infuraNetworkType: 'mainnet' }),
+                  buildInfuraEndpoint({
+                    networkClientId: MAINNET_CLIENT_ID,
+                    infuraNetworkType: 'mainnet',
+                  }),
                 ],
               }),
               '0xaa36a7': buildNetworkConfiguration({
@@ -609,12 +694,17 @@ describe('NetworkConnectionBannerController', () => {
                 name: 'Sepolia',
                 nativeCurrency: 'SepoliaETH',
                 rpcEndpoints: [
-                  buildInfuraEndpoint({ networkClientId: SEPOLIA_CLIENT_ID, infuraNetworkType: 'sepolia' }),
+                  buildInfuraEndpoint({
+                    networkClientId: SEPOLIA_CLIENT_ID,
+                    infuraNetworkType: 'sepolia',
+                  }),
                 ],
               }),
             },
             networksMetadata: {
-              [MAINNET_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Unavailable),
+              [MAINNET_CLIENT_ID]: buildNetworkMetadata(
+                NetworkStatus.Unavailable,
+              ),
             },
           }),
         );
@@ -636,18 +726,26 @@ describe('NetworkConnectionBannerController', () => {
               '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
-                  buildInfuraEndpoint({ networkClientId: MAINNET_CLIENT_ID, infuraNetworkType: 'mainnet' }),
+                  buildInfuraEndpoint({
+                    networkClientId: MAINNET_CLIENT_ID,
+                    infuraNetworkType: 'mainnet',
+                  }),
                 ],
               }),
               '0x89': buildNetworkConfiguration({
                 chainId: '0x89',
                 rpcEndpoints: [
-                  buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
+                  buildCustomEndpoint({
+                    networkClientId: POLYGON_CUSTOM_CLIENT_ID,
+                    url: 'https://polygon-rpc.com',
+                  }),
                 ],
               }),
             },
             networksMetadata: {
-              [MAINNET_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Unavailable),
+              [MAINNET_CLIENT_ID]: buildNetworkMetadata(
+                NetworkStatus.Unavailable,
+              ),
               [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
                 NetworkStatus.Unavailable,
               ),
@@ -666,7 +764,10 @@ describe('NetworkConnectionBannerController', () => {
         const config = buildNetworkConfiguration({
           chainId: '0x1',
           rpcEndpoints: [
-            buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
+            buildCustomEndpoint({
+              networkClientId: POLYGON_CUSTOM_CLIENT_ID,
+              url: 'https://polygon-rpc.com',
+            }),
           ],
         });
         publishNetworkStateChanges(
@@ -690,7 +791,9 @@ describe('NetworkConnectionBannerController', () => {
             networkConfigurationsByChainId: { '0x1': config },
             enabledEvmChainIds: ['0x1'],
             networksMetadata: {
-              [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Blocked),
+              [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
+                NetworkStatus.Blocked,
+              ),
             },
           }),
         );
@@ -709,13 +812,18 @@ describe('NetworkConnectionBannerController', () => {
             '0x89': buildNetworkConfiguration({
               chainId: '0x89',
               rpcEndpoints: [
-                buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
+                buildCustomEndpoint({
+                  networkClientId: POLYGON_CUSTOM_CLIENT_ID,
+                  url: 'https://polygon-rpc.com',
+                }),
               ],
             }),
           },
           enabledEvmChainIds: ['0x89'],
           networksMetadata: {
-            [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Unavailable),
+            [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
+              NetworkStatus.Unavailable,
+            ),
           },
         });
 
@@ -737,7 +845,10 @@ describe('NetworkConnectionBannerController', () => {
               '0x89': buildNetworkConfiguration({
                 chainId: '0x89',
                 rpcEndpoints: [
-                  buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
+                  buildCustomEndpoint({
+                    networkClientId: POLYGON_CUSTOM_CLIENT_ID,
+                    url: 'https://polygon-rpc.com',
+                  }),
                 ],
               }),
             },
@@ -761,13 +872,18 @@ describe('NetworkConnectionBannerController', () => {
               '0x89': buildNetworkConfiguration({
                 chainId: '0x89',
                 rpcEndpoints: [
-                  buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
+                  buildCustomEndpoint({
+                    networkClientId: POLYGON_CUSTOM_CLIENT_ID,
+                    url: 'https://polygon-rpc.com',
+                  }),
                 ],
               }),
             },
             enabledEvmChainIds: ['0x89'],
             networksMetadata: {
-              [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Available),
+              [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
+                NetworkStatus.Available,
+              ),
             },
           }),
         );
@@ -805,7 +921,10 @@ describe('NetworkConnectionBannerController', () => {
         const failingConfig = buildNetworkConfiguration({
           chainId: '0x89',
           rpcEndpoints: [
-            buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
+            buildCustomEndpoint({
+              networkClientId: POLYGON_CUSTOM_CLIENT_ID,
+              url: 'https://polygon-rpc.com',
+            }),
           ],
         });
         publishNetworkStateChanges(
@@ -828,7 +947,9 @@ describe('NetworkConnectionBannerController', () => {
             networkConfigurationsByChainId: { '0x89': failingConfig },
             enabledEvmChainIds: ['0x89'],
             networksMetadata: {
-              [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Available),
+              [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
+                NetworkStatus.Available,
+              ),
             },
           }),
         );
@@ -848,13 +969,18 @@ describe('NetworkConnectionBannerController', () => {
               '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
-                  buildCustomEndpoint({ networkClientId: MAINNET_CLIENT_ID, url: 'not a valid url' }),
+                  buildCustomEndpoint({
+                    networkClientId: MAINNET_CLIENT_ID,
+                    url: 'not a valid url',
+                  }),
                 ],
               }),
             },
             enabledEvmChainIds: ['0x1'],
             networksMetadata: {
-              [MAINNET_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Unavailable),
+              [MAINNET_CLIENT_ID]: buildNetworkMetadata(
+                NetworkStatus.Unavailable,
+              ),
             },
           }),
         );
@@ -915,14 +1041,22 @@ describe('NetworkConnectionBannerController', () => {
               '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
-                  buildCustomEndpoint({ networkClientId: ALCHEMY_CLIENT_ID, url: 'https://eth-mainnet.alchemyapi.io/v2/abc' }),
-                  buildInfuraEndpoint({ networkClientId: MAINNET_CLIENT_ID, infuraNetworkType: 'mainnet' }),
+                  buildCustomEndpoint({
+                    networkClientId: ALCHEMY_CLIENT_ID,
+                    url: 'https://eth-mainnet.alchemyapi.io/v2/abc',
+                  }),
+                  buildInfuraEndpoint({
+                    networkClientId: MAINNET_CLIENT_ID,
+                    infuraNetworkType: 'mainnet',
+                  }),
                 ],
               }),
             },
             enabledEvmChainIds: ['0x1'],
             networksMetadata: {
-              [ALCHEMY_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Unavailable),
+              [ALCHEMY_CLIENT_ID]: buildNetworkMetadata(
+                NetworkStatus.Unavailable,
+              ),
             },
           }),
         );
@@ -942,6 +1076,27 @@ describe('NetworkConnectionBannerController', () => {
   describe('on NetworkEnablementController:stateChange', () => {
     it('re-evaluates the rule when a failing chain becomes enabled', async () => {
       await withController(
+        {
+          externalState: buildExternalState({
+            networkConfigurationsByChainId: {
+              '0x89': buildNetworkConfiguration({
+                chainId: '0x89',
+                rpcEndpoints: [
+                  buildCustomEndpoint({
+                    networkClientId: POLYGON_CUSTOM_CLIENT_ID,
+                    url: 'https://polygon-rpc.com',
+                  }),
+                ],
+              }),
+            },
+            networksMetadata: {
+              [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
+                NetworkStatus.Unavailable,
+              ),
+            },
+            enabledEvmChainIds: [],
+          }),
+        },
         ({ controller, setNetworkEnablementControllerState }) => {
           jest.advanceTimersByTime(30_000);
           expect(controller.state.status).toBe('available');
@@ -959,27 +1114,32 @@ describe('NetworkConnectionBannerController', () => {
           jest.advanceTimersByTime(5_000);
           expect(controller.state.status).toBe('degraded');
         },
-        buildExternalState({
-          networkConfigurationsByChainId: {
-            '0x89': buildNetworkConfiguration({
-              chainId: '0x89',
-              rpcEndpoints: [
-                buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
-              ],
-            }),
-          },
-          networksMetadata: {
-            [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
-              NetworkStatus.Unavailable,
-            ),
-          },
-          enabledEvmChainIds: [],
-        }),
       );
     });
 
     it('clears the banner when the failing chain gets disabled', async () => {
       await withController(
+        {
+          externalState: buildExternalState({
+            networkConfigurationsByChainId: {
+              '0x89': buildNetworkConfiguration({
+                chainId: '0x89',
+                rpcEndpoints: [
+                  buildCustomEndpoint({
+                    networkClientId: POLYGON_CUSTOM_CLIENT_ID,
+                    url: 'https://polygon-rpc.com',
+                  }),
+                ],
+              }),
+            },
+            networksMetadata: {
+              [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
+                NetworkStatus.Unavailable,
+              ),
+            },
+            enabledEvmChainIds: ['0x89'],
+          }),
+        },
         ({ controller, setNetworkEnablementControllerState }) => {
           jest.advanceTimersByTime(30_000);
           expect(controller.state.status).toBe('unavailable');
@@ -999,22 +1159,6 @@ describe('NetworkConnectionBannerController', () => {
             network: null,
           });
         },
-        buildExternalState({
-          networkConfigurationsByChainId: {
-            '0x89': buildNetworkConfiguration({
-              chainId: '0x89',
-              rpcEndpoints: [
-                buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
-              ],
-            }),
-          },
-          networksMetadata: {
-            [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
-              NetworkStatus.Unavailable,
-            ),
-          },
-          enabledEvmChainIds: ['0x89'],
-        }),
       );
     });
   });
@@ -1037,7 +1181,10 @@ describe('NetworkConnectionBannerController', () => {
                 '0x1': buildNetworkConfiguration({
                   chainId: '0x1',
                   rpcEndpoints: [
-                    buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
+                    buildCustomEndpoint({
+                      networkClientId: POLYGON_CUSTOM_CLIENT_ID,
+                      url: 'https://polygon-rpc.com',
+                    }),
                   ],
                 }),
               },
@@ -1082,7 +1229,10 @@ describe('NetworkConnectionBannerController', () => {
               '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
-                  buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
+                  buildCustomEndpoint({
+                    networkClientId: POLYGON_CUSTOM_CLIENT_ID,
+                    url: 'https://polygon-rpc.com',
+                  }),
                 ],
               }),
             },
@@ -1104,42 +1254,57 @@ describe('NetworkConnectionBannerController', () => {
     });
 
     it('clears banner state via messenger action', async () => {
-      await withController(({ controller, rootMessenger, publishNetworkStateChanges }) => {
-        publishNetworkStateChanges(
-          buildExternalState({
-            networkConfigurationsByChainId: {
-              '0x1': buildNetworkConfiguration({
-                chainId: '0x1',
-                rpcEndpoints: [
-                  buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
-                ],
-              }),
-            },
-            enabledEvmChainIds: ['0x1'],
-            networksMetadata: {
-              [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
-                NetworkStatus.Unavailable,
-              ),
-            },
-          }),
-        );
-        jest.advanceTimersByTime(5_000);
+      await withController(
+        ({ controller, rootMessenger, publishNetworkStateChanges }) => {
+          publishNetworkStateChanges(
+            buildExternalState({
+              networkConfigurationsByChainId: {
+                '0x1': buildNetworkConfiguration({
+                  chainId: '0x1',
+                  rpcEndpoints: [
+                    buildCustomEndpoint({
+                      networkClientId: POLYGON_CUSTOM_CLIENT_ID,
+                      url: 'https://polygon-rpc.com',
+                    }),
+                  ],
+                }),
+              },
+              enabledEvmChainIds: ['0x1'],
+              networksMetadata: {
+                [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
+                  NetworkStatus.Unavailable,
+                ),
+              },
+            }),
+          );
+          jest.advanceTimersByTime(5_000);
 
-        rootMessenger.call('NetworkConnectionBannerController:dismissBanner');
-        expect(controller.state.status).toBe('available');
-      });
+          rootMessenger.call('NetworkConnectionBannerController:dismissBanner');
+          expect(controller.state.status).toBe('available');
+        },
+      );
     });
   });
 
   describe('switchToDefaultInfuraRpcEndpoint', () => {
     it('invokes NetworkController:updateNetwork with the Infura endpoint as the new default', async () => {
       await withController(
-        async ({ rootMessenger, publishNetworkStateChanges, updateNetwork }) => {
+        async ({
+          rootMessenger,
+          publishNetworkStateChanges,
+          updateNetwork,
+        }) => {
           const config = buildNetworkConfiguration({
             chainId: '0x1',
             rpcEndpoints: [
-              buildCustomEndpoint({ networkClientId: ALCHEMY_CLIENT_ID, url: 'https://eth-mainnet.alchemyapi.io/v2/abc' }),
-              buildInfuraEndpoint({ networkClientId: MAINNET_CLIENT_ID, infuraNetworkType: 'mainnet' }),
+              buildCustomEndpoint({
+                networkClientId: ALCHEMY_CLIENT_ID,
+                url: 'https://eth-mainnet.alchemyapi.io/v2/abc',
+              }),
+              buildInfuraEndpoint({
+                networkClientId: MAINNET_CLIENT_ID,
+                infuraNetworkType: 'mainnet',
+              }),
             ],
           });
           publishNetworkStateChanges(
@@ -1147,7 +1312,9 @@ describe('NetworkConnectionBannerController', () => {
               networkConfigurationsByChainId: { '0x1': config },
               enabledEvmChainIds: ['0x1'],
               networksMetadata: {
-                [ALCHEMY_CLIENT_ID]: buildNetworkMetadata(NetworkStatus.Unavailable),
+                [ALCHEMY_CLIENT_ID]: buildNetworkMetadata(
+                  NetworkStatus.Unavailable,
+                ),
               },
             }),
           );
@@ -1169,14 +1336,21 @@ describe('NetworkConnectionBannerController', () => {
 
     it('is a no-op when the default is already Infura', async () => {
       await withController(
-        async ({ rootMessenger, publishNetworkStateChanges, updateNetwork }) => {
+        async ({
+          rootMessenger,
+          publishNetworkStateChanges,
+          updateNetwork,
+        }) => {
           publishNetworkStateChanges(
             buildExternalState({
               networkConfigurationsByChainId: {
                 '0x1': buildNetworkConfiguration({
                   chainId: '0x1',
                   rpcEndpoints: [
-                    buildInfuraEndpoint({ networkClientId: MAINNET_CLIENT_ID, infuraNetworkType: 'mainnet' }),
+                    buildInfuraEndpoint({
+                      networkClientId: MAINNET_CLIENT_ID,
+                      infuraNetworkType: 'mainnet',
+                    }),
                   ],
                 }),
               },
@@ -1206,28 +1380,33 @@ describe('NetworkConnectionBannerController', () => {
     });
 
     it('throws when the chain has no Infura endpoint to switch to', async () => {
-      await withController(async ({ rootMessenger, publishNetworkStateChanges }) => {
-        publishNetworkStateChanges(
-          buildExternalState({
-            networkConfigurationsByChainId: {
-              '0x1': buildNetworkConfiguration({
-                chainId: '0x1',
-                rpcEndpoints: [
-                  buildCustomEndpoint({ networkClientId: ALCHEMY_CLIENT_ID, url: 'https://eth-mainnet.alchemyapi.io/v2/abc' }),
-                ],
-              }),
-            },
-            enabledEvmChainIds: ['0x1'],
-          }),
-        );
+      await withController(
+        async ({ rootMessenger, publishNetworkStateChanges }) => {
+          publishNetworkStateChanges(
+            buildExternalState({
+              networkConfigurationsByChainId: {
+                '0x1': buildNetworkConfiguration({
+                  chainId: '0x1',
+                  rpcEndpoints: [
+                    buildCustomEndpoint({
+                      networkClientId: ALCHEMY_CLIENT_ID,
+                      url: 'https://eth-mainnet.alchemyapi.io/v2/abc',
+                    }),
+                  ],
+                }),
+              },
+              enabledEvmChainIds: ['0x1'],
+            }),
+          );
 
-        await expect(
-          rootMessenger.call(
-            'NetworkConnectionBannerController:switchToDefaultInfuraRpcEndpoint',
-            '0x1',
-          ),
-        ).rejects.toThrow(/No Infura endpoint available/u);
-      });
+          await expect(
+            rootMessenger.call(
+              'NetworkConnectionBannerController:switchToDefaultInfuraRpcEndpoint',
+              '0x1',
+            ),
+          ).rejects.toThrow(/No Infura endpoint available/u);
+        },
+      );
     });
   });
 });
@@ -1317,11 +1496,18 @@ type WithControllerCallback<ReturnValue> = (payload: {
   updateNetwork: jest.Mock;
 }) => Promise<ReturnValue> | ReturnValue;
 
+type WithControllerOptions = {
+  externalState?: ExternalState;
+  start?: boolean;
+};
+
 async function withController<ReturnValue>(
-  testFunction: WithControllerCallback<ReturnValue>,
-  externalState?: ExternalState,
-  start = true,
+  ...args:
+    | [WithControllerCallback<ReturnValue>]
+    | [WithControllerOptions, WithControllerCallback<ReturnValue>]
 ): Promise<ReturnValue> {
+  const [{ externalState, start = true }, testFunction] =
+    args.length === 2 ? args : [{}, args[0]];
   const rootMessenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
@@ -1345,12 +1531,14 @@ async function withController<ReturnValue>(
   );
   rootMessenger.registerActionHandler(
     'NetworkController:getNetworkConfigurationByChainId',
-    (chainId) => currentState.NetworkController.networkConfigurationsByChainId?.[chainId],
+    (chainId) =>
+      currentState.NetworkController.networkConfigurationsByChainId?.[chainId],
   );
   const updateNetwork = jest.fn(
     async (chainId: Hex): Promise<NetworkConfiguration> =>
-      currentState.NetworkController.networkConfigurationsByChainId?.[chainId] ??
-      buildNetworkConfiguration({ chainId }),
+      currentState.NetworkController.networkConfigurationsByChainId?.[
+        chainId
+      ] ?? buildNetworkConfiguration({ chainId }),
   );
   rootMessenger.registerActionHandler(
     'NetworkController:updateNetwork',
