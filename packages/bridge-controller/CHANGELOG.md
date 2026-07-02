@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/keyring-api` from `^23.3.0` to `^23.4.0` ([#9377](https://github.com/MetaMask/core/pull/9377))
+
 ## [77.3.2]
 
 ### Fixed
