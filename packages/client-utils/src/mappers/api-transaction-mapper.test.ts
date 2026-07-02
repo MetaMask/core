@@ -400,6 +400,22 @@ describe('mapApiTransaction', () => {
     });
   });
 
+  it('maps an inbound NFT with an unrelated native send to a Receive activity', () => {
+    const item = mapApiTransaction(
+      apiTransactionFixtures.mapArgs.mapsAnNftReceiveWithUnrelatedNativeSend,
+    );
+
+    expect(item).toMatchObject({
+      type: 'receive',
+      data: {
+        from: nftSellerAddress,
+        to: nftBuyerAddress,
+        token: { direction: 'in', symbol: 'FLUF World' },
+      },
+    });
+    expect(item.type).not.toBe('nftBuy');
+  });
+
   it('maps a plain NFT send (no NFT exchange, no payment) to a Send activity', () => {
     const item = mapApiTransaction(
       apiTransactionFixtures.mapArgs.mapsAPlainNftSendNo,

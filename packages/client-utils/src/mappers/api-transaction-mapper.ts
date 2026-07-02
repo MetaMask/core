@@ -139,6 +139,7 @@ export function mapApiTransaction({
         sentTransfer,
         sentNativeTransfer,
         nftCounterparty: receivedNftTransfer.from,
+        transactionTo: transaction.to,
         subjectAddress,
       });
 

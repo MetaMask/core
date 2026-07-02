@@ -539,6 +539,33 @@ const transactions = {
       },
     ],
   },
+  nftReceiveWithUnrelatedNativeSend: {
+    timestamp: '2026-06-04T19:31:47.000Z',
+    chainId: 1,
+    from: addresses.nftBuyerAddress,
+    to: '0x0000000000000068f116a894984e2db1123eb395',
+    transactionCategory: 'CONTRACT_CALL',
+    valueTransfers: [
+      {
+        from: addresses.nftSellerAddress,
+        to: addresses.nftBuyerAddress,
+        amount: 1,
+        tokenId: '57',
+        contractAddress: '0x6fad73936527d2a82aea5384d252462941b44042',
+        name: 'FLUF World',
+        transferType: 'erc1155',
+      },
+      {
+        from: addresses.nftBuyerAddress,
+        to: '0x1111111111111111111111111111111111111111',
+        amount: '89992880000000',
+        decimal: 18,
+        symbol: 'ETH',
+        name: 'Ether',
+        transferType: 'normal',
+      },
+    ],
+  },
   mapsAPlainNftSendNo: {
     timestamp: '2026-02-23T22:04:23.000Z',
     chainId: 1,
@@ -1064,6 +1091,10 @@ const mapArgs = {
   mapsAnNftTransferReceivedWithout: {
     subjectAddress: addresses.subjectAddress,
     transaction: transactions.mapsAnNftTransferReceivedWithout,
+  },
+  mapsAnNftReceiveWithUnrelatedNativeSend: {
+    subjectAddress: addresses.nftBuyerAddress,
+    transaction: transactions.nftReceiveWithUnrelatedNativeSend,
   },
   mapsAPlainNftSendNo: {
     subjectAddress: addresses.subjectAddress,

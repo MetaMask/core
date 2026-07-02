@@ -191,6 +191,7 @@ export function getNftPaymentTransfer({
   sentNativeTransfer,
   nftCounterparty,
   transactionFrom,
+  transactionTo,
   subjectAddress,
 }: {
   side: 'buy' | 'sell';
@@ -199,6 +200,7 @@ export function getNftPaymentTransfer({
   sentNativeTransfer?: ValueTransfer;
   nftCounterparty: string;
   transactionFrom?: string;
+  transactionTo?: string;
   subjectAddress: string;
 }): ValueTransfer | undefined {
   const isFungible = (transfer?: ValueTransfer): boolean =>
@@ -210,9 +212,12 @@ export function getNftPaymentTransfer({
         continue;
       }
 
+      // Only count a payment that goes to the NFT counterparty (direct sale) or
+      // to the contract being called (marketplace/router). This avoids treating
+      // an unrelated native send in the same transaction as the NFT payment.
       if (
         equalsIgnoreCase(transfer.to, nftCounterparty) ||
-        transfer.transferType === 'normal'
+        equalsIgnoreCase(transfer.to, transactionTo as string)
       ) {
         return transfer;
       }
