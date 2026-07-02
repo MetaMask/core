@@ -23,18 +23,21 @@ import { createWallet } from './wallet-factory';
  * whose first element is the messenger action name; remaining elements are
  * positional action arguments forwarded as-is to `messenger.call`.
  */
-const callParamsStruct = define<[string, ...unknown[]]>('CallParams', (value) => {
-  if (!Array.isArray(value)) {
-    return 'Expected an array';
-  }
-  if (value.length === 0) {
-    return 'Expected a non-empty array';
-  }
-  if (typeof value[0] !== 'string') {
-    return 'Expected the first element to be a string action name';
-  }
-  return true;
-});
+const callParamsStruct = define<[string, ...unknown[]]>(
+  'CallParams',
+  (value) => {
+    if (!Array.isArray(value)) {
+      return 'Expected an array';
+    }
+    if (value.length === 0) {
+      return 'Expected a non-empty array';
+    }
+    if (typeof value[0] !== 'string') {
+      return 'Expected the first element to be a string action name';
+    }
+    return true;
+  },
+);
 
 const startTime = Date.now();
 

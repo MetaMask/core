@@ -650,7 +650,9 @@ describe('daemon-entry', () => {
 
   it('logs dispose error during shutdown without aborting cleanup', async () => {
     const result = createMockWallet();
-    (result.dispose as jest.Mock).mockRejectedValue(new Error('dispose failed'));
+    (result.dispose as jest.Mock).mockRejectedValue(
+      new Error('dispose failed'),
+    );
     mockCreateWallet.mockResolvedValue(result);
     const handle = createMockHandle();
     mockStartRpcSocketServer.mockResolvedValue(handle);

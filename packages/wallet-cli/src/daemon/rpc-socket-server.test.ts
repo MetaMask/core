@@ -788,9 +788,7 @@ describe('startRpcSocketServer', () => {
 
       await flushPromises();
 
-      expect(log).toHaveBeenCalledWith(
-        expect.stringContaining('failing'),
-      );
+      expect(log).toHaveBeenCalledWith(expect.stringContaining('failing'));
     });
 
     it('wraps thrown object with code but no message as internal error', async () => {

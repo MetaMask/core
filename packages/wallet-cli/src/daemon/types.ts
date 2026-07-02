@@ -67,10 +67,7 @@ export function defineHandler<TParams, TResult extends Json | void>(
  * the unsafe cast into a single, documented escape hatch instead of repeating
  * it at each call site.
  */
-export type RpcDispatcher = (
-  action: string,
-  ...args: Json[]
-) => Promise<Json>;
+export type RpcDispatcher = (action: string, ...args: Json[]) => Promise<Json>;
 
 /**
  * Resolved paths for daemon state files.
