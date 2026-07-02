@@ -6,7 +6,7 @@ import type {
 } from '@metamask/phishing-controller';
 import { TokenScanResultType } from '@metamask/phishing-controller';
 import { KnownCaipNamespace, parseCaipAssetType } from '@metamask/utils';
-import type { CaipAssetType } from '@metamask/utils';
+import type { CaipAssetType, CaipChainId } from '@metamask/utils';
 
 import type { AssetsControllerMessenger } from '../AssetsController';
 import { projectLogger, createModuleLogger } from '../logger';
@@ -43,6 +43,12 @@ const BULK_SCAN_BATCH_SIZE = 100;
  * pass the spam filter. Non-EVM tokens are filtered via Blockaid bulk scan instead.
  */
 const MIN_TOKEN_OCCURRENCES = 3;
+
+const MIN_TOKEN_OCCURRENCES_PER_CHAIN_OVERRIDE: { [key: CaipChainId]: number } =
+  {
+    // Arc: Chain not yet released so some important tokens (ex: EURC) have low occurrences.
+    'eip155:5042': 1,
+  };
 
 /** CAIP-19 `assetNamespace` segments used across filtering logic. */
 export enum CaipAssetNamespace {
@@ -415,7 +421,7 @@ export class TokenDataSource {
           metadataResponse.map((a) => [a.assetId, a.occurrences]),
         );
 
-        const evmErc20Ids: string[] = [];
+        const evmErc20Ids: Caip19AssetId[] = [];
         const nonEvmTokenIds: string[] = [];
 
         for (const assetData of metadataResponse) {
@@ -440,12 +446,18 @@ export class TokenDataSource {
         // can import whatever they want and we must keep their metadata even
         // if the API has fewer than `MIN_TOKEN_OCCURRENCES` aggregator hits.
         const allowedEvmIds = new Set(
-          evmErc20Ids.filter(
-            (id) =>
+          evmErc20Ids.filter((id) => {
+            // No exception handling herea as we already managed to parse it upstream.
+            const { chainId } = parseCaipAssetType(id);
+            const minOccurrences =
+              MIN_TOKEN_OCCURRENCES_PER_CHAIN_OVERRIDE[chainId] ??
+              MIN_TOKEN_OCCURRENCES;
+            return (
               customAssetIds.has(id.toLowerCase()) ||
-              (occurrencesByAssetId.get(id) ?? 0) >= MIN_TOKEN_OCCURRENCES ||
-              id.includes(`/erc20:${MUSD_ADDRESS_LOWERCASE}`),
-          ),
+              (occurrencesByAssetId.get(id) ?? 0) >= minOccurrences ||
+              id.includes(`/erc20:${MUSD_ADDRESS_LOWERCASE}`)
+            );
+          }),
         );
 
         // Non-EVM: Blockaid bulk scan.
