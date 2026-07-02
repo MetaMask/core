@@ -1042,8 +1042,10 @@ describe('RemoteFeatureFlagController', () => {
 
       // When an explicit match is found, the flag is resolved to a single
       // value (not an array), so metaMetricsIds is naturally absent.
-      const processed = controller.state.remoteFeatureFlags
-        .testFlag as Record<string, unknown>;
+      const processed = controller.state.remoteFeatureFlags.testFlag as Record<
+        string,
+        unknown
+      >;
       expect(processed.metaMetricsIds).toBeUndefined();
     });
 
