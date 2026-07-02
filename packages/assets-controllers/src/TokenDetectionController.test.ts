@@ -4236,7 +4236,11 @@ describe('TokenDetectionController', () => {
             },
           },
         },
-        async ({ controller, callActionSpy, mockFindNetworkClientIdByChainId }) => {
+        async ({
+          controller,
+          callActionSpy,
+          mockFindNetworkClientIdByChainId,
+        }) => {
           mockFindNetworkClientIdByChainId(() => 'mainnet');
 
           deprecated = true;
@@ -4275,7 +4279,11 @@ describe('TokenDetectionController', () => {
             },
           },
         },
-        async ({ controller, callActionSpy, mockFindNetworkClientIdByChainId }) => {
+        async ({
+          controller,
+          callActionSpy,
+          mockFindNetworkClientIdByChainId,
+        }) => {
           mockFindNetworkClientIdByChainId(() => 'mainnet');
 
           deprecated = true;
