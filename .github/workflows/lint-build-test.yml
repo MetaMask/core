@@ -232,7 +232,7 @@ jobs:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
         with:
-          is-high-risk-environment: true
+          is-high-risk-environment: false
           persist-credentials: false
 
       - name: Generate and build Platform API docs
