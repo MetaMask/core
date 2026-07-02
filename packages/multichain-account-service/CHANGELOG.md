@@ -9,17 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Capability-gated v1/v2 keyring client selection for Snap account providers ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Capability-gated v1/v2 keyring client selection for Snap account providers ([#9377](https://github.com/MetaMask/core/pull/9377))
   - Providers resolve a Snap's capabilities via `SnapAccountService:getCapabilities` and route account creation and discovery through the v1 or v2 keyring client accordingly (a Snap that declares BIP-44 capabilities is treated as v2).
   - Account discovery for v2 Snaps that declare `bip44.discover` flows through `createAccounts({ bip44:discover })`; v1 Snaps keep using the `discoverAccounts` client method.
 
 ### Changed
 
-- **BREAKING:** Remove `batched` from `SnapAccountProviderConfig['createAccounts']` ([#0000](https://github.com/MetaMask/core/pull/0000))
+- **BREAKING:** Remove `batched` from `SnapAccountProviderConfig['createAccounts']` ([#9377](https://github.com/MetaMask/core/pull/9377))
   - Batching is now derived from the Snap's capabilities (v2 Snaps that declare `bip44` use the `createAccounts` flow, since they expose no singular `createAccount`) instead of static config.
-- Bump `@metamask/eth-snap-keyring` from `^22.3.0` to `^22.4.0` ([#0000](https://github.com/MetaMask/core/pull/0000))
-- Bump `@metamask/keyring-api` from `^23.3.0` to `^23.4.0` ([#0000](https://github.com/MetaMask/core/pull/0000))
-- Bump `@metamask/keyring-snap-client` from `^9.0.2` to `^9.1.0` ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Bump `@metamask/eth-snap-keyring` from `^22.3.0` to `^22.4.0` ([#9377](https://github.com/MetaMask/core/pull/9377))
+- Bump `@metamask/keyring-api` from `^23.3.0` to `^23.4.0` ([#9377](https://github.com/MetaMask/core/pull/9377))
+- Bump `@metamask/keyring-snap-client` from `^9.0.2` to `^9.1.0` ([#9377](https://github.com/MetaMask/core/pull/9377))
 - Adds `MultichainAccountGroup.isProviderAligned(provider)` to check alignment per provider ([#9269](https://github.com/MetaMask/core/pull/9269))
 - Wallet alignment now only creates the missing `(provider, group index)` pairs instead of re-creating the whole range for every provider, avoiding redundant `createAccounts` calls (and their traces) ([#9269](https://github.com/MetaMask/core/pull/9269))
 - Bump `@metamask/accounts-controller` from `^39.0.3` to `^39.0.4` ([#9349](https://github.com/MetaMask/core/pull/9349))
