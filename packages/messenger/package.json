@@ -15,9 +15,6 @@
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
-  "bin": {
-    "messenger-generate-action-types": "./dist/generate-action-types/cli.mjs"
-  },
   "files": [
     "dist/"
   ],
@@ -54,8 +51,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/utils": "^11.11.0",
-    "yargs": "^17.7.2"
+    "@metamask/utils": "^11.11.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
