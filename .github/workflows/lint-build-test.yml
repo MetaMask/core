@@ -235,6 +235,7 @@ jobs:
         with:
           is-high-risk-environment: false
           persist-credentials: false
+          node-version: 24.x
 
       - name: Generate and build Platform API docs
         run: yarn docs:platform-api:build
