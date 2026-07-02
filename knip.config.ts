@@ -223,7 +223,7 @@ const config: KnipConfig = {
       // `docusaurus.config.ts` and `sidebars.ts` are seen and the matching
       // devDeps don't get flagged as unused.
       entry: ['site/docusaurus.config.ts', 'site/sidebars.ts'],
-      project: ['site/**/*.{ts,tsx}'],
+      project: ['content/**/*.{ts,tsx}', 'site/**/*.{ts,tsx}'],
       ignoreDependencies: [
         // Loaded by docusaurus as a plugin name string (themes[0]); knip
         // doesn't trace string-referenced plugins.
