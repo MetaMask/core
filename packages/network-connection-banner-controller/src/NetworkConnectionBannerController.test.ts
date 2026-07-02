@@ -348,6 +348,127 @@ describe('NetworkConnectionBannerController', () => {
         false,
       );
     });
+
+    it('bails out when a stateChanged listener calls stop synchronously during refresh', async () => {
+      await withController(
+        ({ controller, controllerMessenger, setNetworkState }) => {
+          // Escalate the banner to `unavailable` so state is non default and the
+          // next refresh's pre timer `update` actually mutates state.
+          setNetworkState(
+            buildNetworkState({
+              configurations: {
+                '0x89': buildConfiguration({
+                  chainId: '0x89',
+                  name: 'Polygon Mainnet',
+                  nativeCurrency: 'MATIC',
+                  rpcEndpoints: [
+                    buildCustomEndpoint(
+                      POLYGON_CUSTOM_CLIENT_ID,
+                      'https://polygon-rpc.com',
+                    ),
+                  ],
+                }),
+              },
+              enabledChainIds: ['0x89'],
+              metadata: {
+                [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(
+                  NetworkStatus.Unavailable,
+                ),
+              },
+            }),
+          );
+          jest.advanceTimersByTime(30_000);
+          expect(controller.state.status).toBe('unavailable');
+
+          let stopped = false;
+          controllerMessenger.subscribe(
+            'NetworkConnectionBannerController:stateChanged',
+            () => {
+              if (!stopped) {
+                stopped = true;
+                controller.stop();
+              }
+            },
+          );
+
+          // Trigger a refresh whose pre timer `update` will fire `stateChanged`
+          // (previous state was `unavailable`/polygon → available/null).
+          setNetworkState(
+            buildNetworkState({
+              configurations: {
+                '0x1': buildConfiguration({
+                  chainId: '0x1',
+                  rpcEndpoints: [
+                    buildCustomEndpoint(
+                      ALCHEMY_CLIENT_ID,
+                      'https://eth-mainnet.alchemyapi.io/v2/abc',
+                    ),
+                  ],
+                }),
+              },
+              enabledChainIds: ['0x1'],
+              metadata: {
+                [ALCHEMY_CLIENT_ID]: makeMetadata(NetworkStatus.Unavailable),
+              },
+            }),
+          );
+
+          jest.advanceTimersByTime(30_000);
+          expect(controller.state).toStrictEqual({
+            status: 'available',
+            network: null,
+          });
+        },
+      );
+    });
+
+    it('bails out when a stateChanged listener calls stop synchronously at the degraded fire', async () => {
+      await withController(
+        ({ controller, controllerMessenger, setNetworkState }) => {
+          controllerMessenger.subscribe(
+            'NetworkConnectionBannerController:stateChanged',
+            (state) => {
+              if (state.status === 'degraded') {
+                controller.stop();
+              }
+            },
+          );
+
+          setNetworkState(
+            buildNetworkState({
+              configurations: {
+                '0x89': buildConfiguration({
+                  chainId: '0x89',
+                  name: 'Polygon Mainnet',
+                  nativeCurrency: 'MATIC',
+                  rpcEndpoints: [
+                    buildCustomEndpoint(
+                      POLYGON_CUSTOM_CLIENT_ID,
+                      'https://polygon-rpc.com',
+                    ),
+                  ],
+                }),
+              },
+              enabledChainIds: ['0x89'],
+              metadata: {
+                [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(
+                  NetworkStatus.Unavailable,
+                ),
+              },
+            }),
+          );
+
+          // Advance to fire the degraded timer; its `update` triggers the
+          // listener, which calls stop(). The guard should bail before
+          // scheduling the unavailable escalation.
+          jest.advanceTimersByTime(30_000);
+          expect(controller.state).toStrictEqual({
+            status: 'available',
+            network: null,
+          });
+        },
+      );
+    });
   });
 
   describe('rule evaluation on NetworkController:stateChange', () => {

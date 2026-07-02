@@ -442,6 +442,12 @@ export class NetworkConnectionBannerController extends BaseController<
       state.network = null;
     });
 
+    // A synchronous listener on our `stateChanged` event above may have
+    // called `stop()` re-entrantly. Bail before scheduling anything.
+    if (!this.#started) {
+      return;
+    }
+
     // Capture the failing network at schedule time. We trust the messenger
     // contract: if the failure resolves or the target changes during the
     // wait, our upstream subscriptions will have cancelled or replaced this
@@ -454,6 +460,11 @@ export class NetworkConnectionBannerController extends BaseController<
         state.status = 'degraded';
         state.network = failedNetwork;
       });
+      // A synchronous listener on our `stateChanged` event above may have
+      // called `stop()` re-entrantly. Bail before scheduling the escalation.
+      if (!this.#started) {
+        return;
+      }
       this.#unavailableTimer = setTimeout(() => {
         this.#unavailableTimer = undefined;
         this.update((state) => {
