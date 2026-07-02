@@ -20,6 +20,7 @@ import {
   KeyringEvent,
 } from '@metamask/keyring-api';
 import { KeyringType } from '@metamask/keyring-api/v2';
+import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerStateChangeEvent,
@@ -55,6 +56,7 @@ import { projectLogger as log } from './logger';
 import type {
   SnapAccountServiceEnsureReadyAction,
   SnapAccountServiceEnsureMigratedAction,
+  SnapAccountServiceGetCapabilitiesAction,
   SnapAccountServiceGetSnapsAction,
   SnapAccountServiceHandleKeyringSnapMessageAction,
 } from './SnapAccountService-method-action-types';
@@ -84,6 +86,7 @@ export const serviceName = 'SnapAccountService';
 const MESSENGER_EXPOSED_METHODS = [
   'ensureMigrated',
   'ensureReady',
+  'getCapabilities',
   'getSnaps',
   'handleKeyringSnapMessage',
 ] as const;
@@ -94,6 +97,7 @@ const MESSENGER_EXPOSED_METHODS = [
 export type SnapAccountServiceActions =
   | SnapAccountServiceEnsureMigratedAction
   | SnapAccountServiceEnsureReadyAction
+  | SnapAccountServiceGetCapabilitiesAction
   | SnapAccountServiceGetSnapsAction
   | SnapAccountServiceHandleKeyringSnapMessageAction;
 
@@ -559,6 +563,25 @@ export class SnapAccountService {
       'KeyringController:withKeyringV2Unsafe',
       snapId,
       operation,
+    );
+  }
+
+  /**
+   * Returns the keyring capabilities declared by the given Snap. These are
+   * populated by the bridge keyring from the Snap's manifest, and describe
+   * which keyring features the Snap supports (scopes, BIP-44 options, etc.).
+   *
+   * Consumers use this to decide whether to drive the Snap through the v1 or
+   * v2 keyring path. Reading capabilities does not mutate state, so the
+   * lock-free keyring access is used.
+   *
+   * @param snapId - ID of the Snap.
+   * @returns The Snap's keyring capabilities.
+   */
+  async getCapabilities(snapId: SnapId): Promise<KeyringCapabilities> {
+    return this.#withKeyringV2Unsafe(
+      snapId,
+      async (keyring) => keyring.capabilities,
     );
   }
 

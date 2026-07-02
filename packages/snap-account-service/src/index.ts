@@ -12,6 +12,7 @@ export type {
 export type {
   SnapAccountServiceEnsureMigratedAction,
   SnapAccountServiceEnsureReadyAction,
+  SnapAccountServiceGetCapabilitiesAction,
   SnapAccountServiceGetSnapsAction,
   SnapAccountServiceHandleKeyringSnapMessageAction,
 } from './SnapAccountService-method-action-types';
