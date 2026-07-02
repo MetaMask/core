@@ -246,22 +246,34 @@ export class NetworkConnectionBannerController extends BaseController<
       state: getDefaultNetworkConnectionBannerControllerState(),
     });
 
-    const onStateChange = (): void => {
-      if (this.#initialized) {
-        this.#refreshState();
-      }
-    };
+    // Scoped selectors so upstream state changes we don't care about
+    // (e.g. a `NetworkController` selected-network-client update) don't
+    // trigger a re-evaluation. Each subscription needs its own handler
+    // reference — the messenger keys subscribers by handler identity, so
+    // sharing one would collapse the pair for `NetworkController` into a
+    // single subscription.
     // Upstream controllers still expose :stateChange; switch to :stateChanged
     // once those packages migrate their event types.
     /* eslint-disable no-restricted-syntax -- awaiting upstream :stateChanged migration */
-    this.messenger.subscribe('NetworkController:stateChange', onStateChange);
+    this.messenger.subscribe(
+      'NetworkController:stateChange',
+      () => this.#onUpstreamChange(),
+      (state) => state.networksMetadata,
+    );
+    this.messenger.subscribe(
+      'NetworkController:stateChange',
+      () => this.#onUpstreamChange(),
+      (state) => state.networkConfigurationsByChainId,
+    );
     this.messenger.subscribe(
       'NetworkEnablementController:stateChange',
-      onStateChange,
+      () => this.#onUpstreamChange(),
+      (state) => state.enabledNetworkMap,
     );
     this.messenger.subscribe(
       'ConnectivityController:stateChange',
-      onStateChange,
+      () => this.#onUpstreamChange(),
+      (state) => state.connectivityStatus,
     );
     /* eslint-enable no-restricted-syntax */
 
@@ -284,6 +296,12 @@ export class NetworkConnectionBannerController extends BaseController<
 
     this.#refreshState();
     this.#initialized = true;
+  }
+
+  #onUpstreamChange(): void {
+    if (this.#initialized) {
+      this.#refreshState();
+    }
   }
 
   /**
