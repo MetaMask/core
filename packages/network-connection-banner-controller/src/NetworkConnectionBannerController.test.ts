@@ -26,28 +26,6 @@ const SEPOLIA_CLIENT_ID = 'sepolia' satisfies BuiltInNetworkClientId;
 const POLYGON_CUSTOM_CLIENT_ID = 'polygon-custom';
 const ALCHEMY_CLIENT_ID = 'eth-alchemy';
 
-function buildInfuraEndpoint(
-  networkClientId: BuiltInNetworkClientId,
-  infuraNetworkType: BuiltInNetworkClientId,
-): InfuraRpcEndpoint {
-  return {
-    networkClientId,
-    type: RpcEndpointType.Infura,
-    url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
-  };
-}
-
-function buildCustomEndpoint(
-  networkClientId: string,
-  url: string,
-): NetworkConfiguration['rpcEndpoints'][number] {
-  return {
-    networkClientId,
-    type: RpcEndpointType.Custom,
-    url,
-  };
-}
-
 function buildNetworkConfiguration(
   overrides: Partial<NetworkConfiguration> &
     Pick<NetworkConfiguration, 'chainId'>,
@@ -55,7 +33,7 @@ function buildNetworkConfiguration(
   return {
     name: 'Ethereum Mainnet',
     nativeCurrency: 'ETH',
-    rpcEndpoints: [buildInfuraEndpoint(MAINNET_CLIENT_ID, 'mainnet')],
+    rpcEndpoints: [buildInfuraEndpoint({ networkClientId: MAINNET_CLIENT_ID, infuraNetworkType: 'mainnet' })],
     defaultRpcEndpointIndex: 0,
     blockExplorerUrls: [],
     defaultBlockExplorerUrlIndex: 0,
@@ -130,10 +108,7 @@ describe('NetworkConnectionBannerController', () => {
             name: 'Polygon Mainnet',
             nativeCurrency: 'MATIC',
             rpcEndpoints: [
-              buildCustomEndpoint(
-                POLYGON_CUSTOM_CLIENT_ID,
-                'https://polygon-rpc.com',
-              ),
+              buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
             ],
           }),
         },
@@ -162,10 +137,7 @@ describe('NetworkConnectionBannerController', () => {
             name: 'Polygon Mainnet',
             nativeCurrency: 'MATIC',
             rpcEndpoints: [
-              buildCustomEndpoint(
-                POLYGON_CUSTOM_CLIENT_ID,
-                'https://polygon-rpc.com',
-              ),
+              buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
             ],
           }),
         },
@@ -199,10 +171,7 @@ describe('NetworkConnectionBannerController', () => {
                 name: 'Polygon Mainnet',
                 nativeCurrency: 'MATIC',
                 rpcEndpoints: [
-                  buildCustomEndpoint(
-                    POLYGON_CUSTOM_CLIENT_ID,
-                    'https://polygon-rpc.com',
-                  ),
+                  buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
                 ],
               }),
             },
@@ -235,10 +204,7 @@ describe('NetworkConnectionBannerController', () => {
                 name: 'Polygon Mainnet',
                 nativeCurrency: 'MATIC',
                 rpcEndpoints: [
-                  buildCustomEndpoint(
-                    POLYGON_CUSTOM_CLIENT_ID,
-                    'https://polygon-rpc.com',
-                  ),
+                  buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
                 ],
               }),
             },
@@ -274,10 +240,7 @@ describe('NetworkConnectionBannerController', () => {
                 name: 'Polygon Mainnet',
                 nativeCurrency: 'MATIC',
                 rpcEndpoints: [
-                  buildCustomEndpoint(
-                    POLYGON_CUSTOM_CLIENT_ID,
-                    'https://polygon-rpc.com',
-                  ),
+                  buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
                 ],
               }),
             },
@@ -307,10 +270,7 @@ describe('NetworkConnectionBannerController', () => {
                 name: 'Polygon Mainnet',
                 nativeCurrency: 'MATIC',
                 rpcEndpoints: [
-                  buildCustomEndpoint(
-                    POLYGON_CUSTOM_CLIENT_ID,
-                    'https://polygon-rpc.com',
-                  ),
+                  buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
                 ],
               }),
             },
@@ -359,10 +319,7 @@ describe('NetworkConnectionBannerController', () => {
                   name: 'Polygon Mainnet',
                   nativeCurrency: 'MATIC',
                   rpcEndpoints: [
-                    buildCustomEndpoint(
-                      POLYGON_CUSTOM_CLIENT_ID,
-                      'https://polygon-rpc.com',
-                    ),
+                    buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
                   ],
                 }),
               },
@@ -396,10 +353,7 @@ describe('NetworkConnectionBannerController', () => {
                 '0x1': buildNetworkConfiguration({
                   chainId: '0x1',
                   rpcEndpoints: [
-                    buildCustomEndpoint(
-                      ALCHEMY_CLIENT_ID,
-                      'https://eth-mainnet.alchemyapi.io/v2/abc',
-                    ),
+                    buildCustomEndpoint({ networkClientId: ALCHEMY_CLIENT_ID, url: 'https://eth-mainnet.alchemyapi.io/v2/abc' }),
                   ],
                 }),
               },
@@ -439,10 +393,7 @@ describe('NetworkConnectionBannerController', () => {
                   name: 'Polygon Mainnet',
                   nativeCurrency: 'MATIC',
                   rpcEndpoints: [
-                    buildCustomEndpoint(
-                      POLYGON_CUSTOM_CLIENT_ID,
-                      'https://polygon-rpc.com',
-                    ),
+                    buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
                   ],
                 }),
               },
@@ -477,7 +428,7 @@ describe('NetworkConnectionBannerController', () => {
               '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
-                  buildInfuraEndpoint(MAINNET_CLIENT_ID, 'mainnet'),
+                  buildInfuraEndpoint({ networkClientId: MAINNET_CLIENT_ID, infuraNetworkType: 'mainnet' }),
                 ],
               }),
               '0xaa36a7': buildNetworkConfiguration({
@@ -485,7 +436,7 @@ describe('NetworkConnectionBannerController', () => {
                 name: 'Sepolia',
                 nativeCurrency: 'SepoliaETH',
                 rpcEndpoints: [
-                  buildInfuraEndpoint(SEPOLIA_CLIENT_ID, 'sepolia'),
+                  buildInfuraEndpoint({ networkClientId: SEPOLIA_CLIENT_ID, infuraNetworkType: 'sepolia' }),
                 ],
               }),
             },
@@ -513,7 +464,7 @@ describe('NetworkConnectionBannerController', () => {
               '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
-                  buildInfuraEndpoint(MAINNET_CLIENT_ID, 'mainnet'),
+                  buildInfuraEndpoint({ networkClientId: MAINNET_CLIENT_ID, infuraNetworkType: 'mainnet' }),
                 ],
               }),
               '0xaa36a7': buildNetworkConfiguration({
@@ -521,7 +472,7 @@ describe('NetworkConnectionBannerController', () => {
                 name: 'Sepolia',
                 nativeCurrency: 'SepoliaETH',
                 rpcEndpoints: [
-                  buildInfuraEndpoint(SEPOLIA_CLIENT_ID, 'sepolia'),
+                  buildInfuraEndpoint({ networkClientId: SEPOLIA_CLIENT_ID, infuraNetworkType: 'sepolia' }),
                 ],
               }),
               '0x89': buildNetworkConfiguration({
@@ -529,10 +480,7 @@ describe('NetworkConnectionBannerController', () => {
                 name: 'Polygon Mainnet',
                 nativeCurrency: 'MATIC',
                 rpcEndpoints: [
-                  buildCustomEndpoint(
-                    POLYGON_CUSTOM_CLIENT_ID,
-                    'https://polygon-rpc.com',
-                  ),
+                  buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
                 ],
               }),
             },
@@ -558,7 +506,7 @@ describe('NetworkConnectionBannerController', () => {
               '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
-                  buildInfuraEndpoint(MAINNET_CLIENT_ID, 'mainnet'),
+                  buildInfuraEndpoint({ networkClientId: MAINNET_CLIENT_ID, infuraNetworkType: 'mainnet' }),
                 ],
               }),
               '0xa4b1': buildNetworkConfiguration({
@@ -566,10 +514,7 @@ describe('NetworkConnectionBannerController', () => {
                 name: 'Arbitrum One',
                 nativeCurrency: 'ETH',
                 rpcEndpoints: [
-                  buildCustomEndpoint(
-                    ALCHEMY_CLIENT_ID,
-                    'https://arb-mainnet.g.alchemy.com/v2/abc',
-                  ),
+                  buildCustomEndpoint({ networkClientId: ALCHEMY_CLIENT_ID, url: 'https://arb-mainnet.g.alchemy.com/v2/abc' }),
                 ],
               }),
             },
@@ -608,7 +553,7 @@ describe('NetworkConnectionBannerController', () => {
               '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
-                  buildInfuraEndpoint(MAINNET_CLIENT_ID, 'mainnet'),
+                  buildInfuraEndpoint({ networkClientId: MAINNET_CLIENT_ID, infuraNetworkType: 'mainnet' }),
                 ],
               }),
               '0x89': buildNetworkConfiguration({
@@ -616,10 +561,7 @@ describe('NetworkConnectionBannerController', () => {
                 name: 'Polygon Mainnet',
                 nativeCurrency: 'MATIC',
                 rpcEndpoints: [
-                  buildCustomEndpoint(
-                    POLYGON_CUSTOM_CLIENT_ID,
-                    'https://polygon-rpc.com',
-                  ),
+                  buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
                 ],
               }),
             },
@@ -650,7 +592,7 @@ describe('NetworkConnectionBannerController', () => {
               '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
-                  buildInfuraEndpoint(MAINNET_CLIENT_ID, 'mainnet'),
+                  buildInfuraEndpoint({ networkClientId: MAINNET_CLIENT_ID, infuraNetworkType: 'mainnet' }),
                 ],
               }),
             },
@@ -679,7 +621,7 @@ describe('NetworkConnectionBannerController', () => {
               '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
-                  buildInfuraEndpoint(MAINNET_CLIENT_ID, 'mainnet'),
+                  buildInfuraEndpoint({ networkClientId: MAINNET_CLIENT_ID, infuraNetworkType: 'mainnet' }),
                 ],
               }),
               '0xaa36a7': buildNetworkConfiguration({
@@ -687,7 +629,7 @@ describe('NetworkConnectionBannerController', () => {
                 name: 'Sepolia',
                 nativeCurrency: 'SepoliaETH',
                 rpcEndpoints: [
-                  buildInfuraEndpoint(SEPOLIA_CLIENT_ID, 'sepolia'),
+                  buildInfuraEndpoint({ networkClientId: SEPOLIA_CLIENT_ID, infuraNetworkType: 'sepolia' }),
                 ],
               }),
             },
@@ -714,7 +656,7 @@ describe('NetworkConnectionBannerController', () => {
               '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
-                  buildInfuraEndpoint(MAINNET_CLIENT_ID, 'mainnet'),
+                  buildInfuraEndpoint({ networkClientId: MAINNET_CLIENT_ID, infuraNetworkType: 'mainnet' }),
                 ],
               }),
               '0x89': buildNetworkConfiguration({
@@ -722,10 +664,7 @@ describe('NetworkConnectionBannerController', () => {
                 name: 'Polygon Mainnet',
                 nativeCurrency: 'MATIC',
                 rpcEndpoints: [
-                  buildCustomEndpoint(
-                    POLYGON_CUSTOM_CLIENT_ID,
-                    'https://polygon-rpc.com',
-                  ),
+                  buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
                 ],
               }),
             },
@@ -749,10 +688,7 @@ describe('NetworkConnectionBannerController', () => {
         const config = buildNetworkConfiguration({
           chainId: '0x1',
           rpcEndpoints: [
-            buildCustomEndpoint(
-              POLYGON_CUSTOM_CLIENT_ID,
-              'https://polygon-rpc.com',
-            ),
+            buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
           ],
         });
         publishNetworkStateChanges(
@@ -797,10 +733,7 @@ describe('NetworkConnectionBannerController', () => {
               name: 'Polygon Mainnet',
               nativeCurrency: 'MATIC',
               rpcEndpoints: [
-                buildCustomEndpoint(
-                  POLYGON_CUSTOM_CLIENT_ID,
-                  'https://polygon-rpc.com',
-                ),
+                buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
               ],
             }),
           },
@@ -830,10 +763,7 @@ describe('NetworkConnectionBannerController', () => {
                 name: 'Polygon Mainnet',
                 nativeCurrency: 'MATIC',
                 rpcEndpoints: [
-                  buildCustomEndpoint(
-                    POLYGON_CUSTOM_CLIENT_ID,
-                    'https://polygon-rpc.com',
-                  ),
+                  buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
                 ],
               }),
             },
@@ -859,10 +789,7 @@ describe('NetworkConnectionBannerController', () => {
                 name: 'Polygon Mainnet',
                 nativeCurrency: 'MATIC',
                 rpcEndpoints: [
-                  buildCustomEndpoint(
-                    POLYGON_CUSTOM_CLIENT_ID,
-                    'https://polygon-rpc.com',
-                  ),
+                  buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
                 ],
               }),
             },
@@ -908,10 +835,7 @@ describe('NetworkConnectionBannerController', () => {
           name: 'Polygon Mainnet',
           nativeCurrency: 'MATIC',
           rpcEndpoints: [
-            buildCustomEndpoint(
-              POLYGON_CUSTOM_CLIENT_ID,
-              'https://polygon-rpc.com',
-            ),
+            buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
           ],
         });
         publishNetworkStateChanges(
@@ -954,7 +878,7 @@ describe('NetworkConnectionBannerController', () => {
               '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
-                  buildCustomEndpoint(MAINNET_CLIENT_ID, 'not a valid url'),
+                  buildCustomEndpoint({ networkClientId: MAINNET_CLIENT_ID, url: 'not a valid url' }),
                 ],
               }),
             },
@@ -1021,11 +945,8 @@ describe('NetworkConnectionBannerController', () => {
               '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
-                  buildCustomEndpoint(
-                    ALCHEMY_CLIENT_ID,
-                    'https://eth-mainnet.alchemyapi.io/v2/abc',
-                  ),
-                  buildInfuraEndpoint(MAINNET_CLIENT_ID, 'mainnet'),
+                  buildCustomEndpoint({ networkClientId: ALCHEMY_CLIENT_ID, url: 'https://eth-mainnet.alchemyapi.io/v2/abc' }),
+                  buildInfuraEndpoint({ networkClientId: MAINNET_CLIENT_ID, infuraNetworkType: 'mainnet' }),
                 ],
               }),
             },
@@ -1075,10 +996,7 @@ describe('NetworkConnectionBannerController', () => {
               name: 'Polygon Mainnet',
               nativeCurrency: 'MATIC',
               rpcEndpoints: [
-                buildCustomEndpoint(
-                  POLYGON_CUSTOM_CLIENT_ID,
-                  'https://polygon-rpc.com',
-                ),
+                buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
               ],
             }),
           },
@@ -1120,10 +1038,7 @@ describe('NetworkConnectionBannerController', () => {
               name: 'Polygon Mainnet',
               nativeCurrency: 'MATIC',
               rpcEndpoints: [
-                buildCustomEndpoint(
-                  POLYGON_CUSTOM_CLIENT_ID,
-                  'https://polygon-rpc.com',
-                ),
+                buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
               ],
             }),
           },
@@ -1156,10 +1071,7 @@ describe('NetworkConnectionBannerController', () => {
                 '0x1': buildNetworkConfiguration({
                   chainId: '0x1',
                   rpcEndpoints: [
-                    buildCustomEndpoint(
-                      POLYGON_CUSTOM_CLIENT_ID,
-                      'https://polygon-rpc.com',
-                    ),
+                    buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
                   ],
                 }),
               },
@@ -1204,10 +1116,7 @@ describe('NetworkConnectionBannerController', () => {
               '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
-                  buildCustomEndpoint(
-                    POLYGON_CUSTOM_CLIENT_ID,
-                    'https://polygon-rpc.com',
-                  ),
+                  buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
                 ],
               }),
             },
@@ -1236,10 +1145,7 @@ describe('NetworkConnectionBannerController', () => {
               '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
-                  buildCustomEndpoint(
-                    POLYGON_CUSTOM_CLIENT_ID,
-                    'https://polygon-rpc.com',
-                  ),
+                  buildCustomEndpoint({ networkClientId: POLYGON_CUSTOM_CLIENT_ID, url: 'https://polygon-rpc.com' }),
                 ],
               }),
             },
@@ -1266,11 +1172,8 @@ describe('NetworkConnectionBannerController', () => {
           const config = buildNetworkConfiguration({
             chainId: '0x1',
             rpcEndpoints: [
-              buildCustomEndpoint(
-                ALCHEMY_CLIENT_ID,
-                'https://eth-mainnet.alchemyapi.io/v2/abc',
-              ),
-              buildInfuraEndpoint(MAINNET_CLIENT_ID, 'mainnet'),
+              buildCustomEndpoint({ networkClientId: ALCHEMY_CLIENT_ID, url: 'https://eth-mainnet.alchemyapi.io/v2/abc' }),
+              buildInfuraEndpoint({ networkClientId: MAINNET_CLIENT_ID, infuraNetworkType: 'mainnet' }),
             ],
           });
           publishNetworkStateChanges(
@@ -1307,7 +1210,7 @@ describe('NetworkConnectionBannerController', () => {
                 '0x1': buildNetworkConfiguration({
                   chainId: '0x1',
                   rpcEndpoints: [
-                    buildInfuraEndpoint(MAINNET_CLIENT_ID, 'mainnet'),
+                    buildInfuraEndpoint({ networkClientId: MAINNET_CLIENT_ID, infuraNetworkType: 'mainnet' }),
                   ],
                 }),
               },
@@ -1344,10 +1247,7 @@ describe('NetworkConnectionBannerController', () => {
               '0x1': buildNetworkConfiguration({
                 chainId: '0x1',
                 rpcEndpoints: [
-                  buildCustomEndpoint(
-                    ALCHEMY_CLIENT_ID,
-                    'https://eth-mainnet.alchemyapi.io/v2/abc',
-                  ),
+                  buildCustomEndpoint({ networkClientId: ALCHEMY_CLIENT_ID, url: 'https://eth-mainnet.alchemyapi.io/v2/abc' }),
                 ],
               }),
             },
@@ -1612,4 +1512,32 @@ async function withController<ReturnValue>(
     setConnectivityStatus,
     updateNetwork,
   });
+}
+
+function buildInfuraEndpoint({
+  networkClientId,
+  infuraNetworkType,
+}: {
+  networkClientId: BuiltInNetworkClientId;
+  infuraNetworkType: BuiltInNetworkClientId;
+}): InfuraRpcEndpoint {
+  return {
+    networkClientId,
+    type: RpcEndpointType.Infura,
+    url: `https://${infuraNetworkType}.infura.io/v3/{infuraProjectId}`,
+  };
+}
+
+function buildCustomEndpoint({
+  networkClientId,
+  url,
+}: {
+  networkClientId: string;
+  url: string;
+}): NetworkConfiguration['rpcEndpoints'][number] {
+  return {
+    networkClientId,
+    type: RpcEndpointType.Custom,
+    url,
+  };
 }
