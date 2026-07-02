@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [77.3.2]
+
 ### Fixed
 
 - Fix Arc native token symbol from `USDC-native` to `USDC` ([#9364](https://github.com/MetaMask/core/pull/9364))
@@ -1719,7 +1721,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.3.2...HEAD
+[77.3.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.3.1...@metamask/bridge-controller@77.3.2
 [77.3.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.3.0...@metamask/bridge-controller@77.3.1
 [77.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.2.0...@metamask/bridge-controller@77.3.0
 [77.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.1.0...@metamask/bridge-controller@77.2.0
