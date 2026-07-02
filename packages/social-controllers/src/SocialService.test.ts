@@ -1029,4 +1029,54 @@ describe('SocialService', () => {
       );
     });
   });
+
+  describe('optOutOfLeaderboard', () => {
+    it('sends POST to /leaderboard/opt-out with the bearer token and resolves to void', async () => {
+      mockFetch.mockResolvedValue({ ok: true, status: 204 });
+
+      const service = createService();
+      const result = await service.optOutOfLeaderboard();
+
+      expect(result).toBeUndefined();
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/leaderboard/opt-out`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 401 });
+
+      const service = createService();
+
+      await expect(service.optOutOfLeaderboard()).rejects.toThrow(
+        `${SocialServiceErrorMessage.LEADERBOARD_OPT_OUT_FAILED}: 401`,
+      );
+    });
+  });
+
+  describe('optInToLeaderboard', () => {
+    it('sends POST to /leaderboard/opt-in with the bearer token and resolves to void', async () => {
+      mockFetch.mockResolvedValue({ ok: true, status: 204 });
+
+      const service = createService();
+      const result = await service.optInToLeaderboard();
+
+      expect(result).toBeUndefined();
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/leaderboard/opt-in`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 500 });
+
+      const service = createService();
+
+      await expect(service.optInToLeaderboard()).rejects.toThrow(
+        `${SocialServiceErrorMessage.LEADERBOARD_OPT_IN_FAILED}: 500`,
+      );
+    });
+  });
 });
