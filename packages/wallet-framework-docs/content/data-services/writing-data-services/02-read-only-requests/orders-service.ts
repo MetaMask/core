@@ -10,12 +10,11 @@ import type { Messenger } from '@metamask/messenger';
 import type { Infer } from '@metamask/superstruct';
 import {
   array,
+  integer,
   intersection,
   literal,
-  number,
   optional,
   record,
-  refine,
   string,
   type,
   union,
@@ -97,21 +96,11 @@ export type OrdersServiceMessenger = Messenger<
 >;
 
 /**
- * A struct that represents a timestamp (number of seconds since the UNIX
- * epoch).
- */
-const TimestampStruct = refine(number(), 'timestamp', (value) => {
-  if (new Date(value).toString() === 'Invalid Date') {
-    return 'Expected a valid timestamp';
-  }
-  return true;
-});
-
-/**
  * Struct to validate an order object that the Orders API returns.
  */
 const ResponseOrderStruct = intersection([
-  // Need to list this first, otherwise the inferred type is never
+  // Need to list this first in the intersection,
+  // otherwise the inferred type is `never`.
   // See: <https://github.com/ianstormtaylor/superstruct/issues/1180>
   union([
     type({
@@ -124,7 +113,7 @@ const ResponseOrderStruct = intersection([
     }),
   ]),
   type({
-    createdTime: TimestampStruct,
+    createdTime: integer(),
     details: optional(record(string(), unknown())),
     from: CaipAccountIdStruct,
     orderId: string(),
@@ -134,7 +123,7 @@ const ResponseOrderStruct = intersection([
       literal('canceled'),
     ]),
     to: CaipAccountIdStruct,
-    updatedTime: TimestampStruct,
+    updatedTime: integer(),
   }),
 ]);
 
