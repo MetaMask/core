@@ -521,6 +521,28 @@ describe('daemon-entry', () => {
     ]);
   });
 
+  it('getStatus paramsStruct rejects non-null params', async () => {
+    mockCreateWallet.mockResolvedValue(createMockWallet());
+    mockStartRpcSocketServer.mockResolvedValue(createMockHandle());
+
+    await importDaemonEntry();
+
+    const { handlers } = mockStartRpcSocketServer.mock.calls[0][0];
+    const [error] = validate(['unexpected'], handlers.getStatus.paramsStruct);
+    expect(error).toBeDefined();
+  });
+
+  it('listActions paramsStruct rejects non-null params', async () => {
+    mockCreateWallet.mockResolvedValue(createMockWallet());
+    mockStartRpcSocketServer.mockResolvedValue(createMockHandle());
+
+    await importDaemonEntry();
+
+    const { handlers } = mockStartRpcSocketServer.mock.calls[0][0];
+    const [error] = validate(['unexpected'], handlers.listActions.paramsStruct);
+    expect(error).toBeDefined();
+  });
+
   it('logs to file via makeLogger', async () => {
     mockCreateWallet.mockResolvedValue(createMockWallet());
     mockStartRpcSocketServer.mockResolvedValue(createMockHandle());
@@ -623,6 +645,26 @@ describe('daemon-entry', () => {
     expect(mockAppendFile).toHaveBeenCalledWith(
       '/tmp/daemon.log',
       expect.stringContaining('handle.close() failed'),
+    );
+  });
+
+  it('logs dispose error during shutdown without aborting cleanup', async () => {
+    const result = createMockWallet();
+    (result.dispose as jest.Mock).mockRejectedValue(new Error('dispose failed'));
+    mockCreateWallet.mockResolvedValue(result);
+    const handle = createMockHandle();
+    mockStartRpcSocketServer.mockResolvedValue(handle);
+
+    await importDaemonEntry();
+
+    const callArgs = mockStartRpcSocketServer.mock.calls[0][0];
+    const onShutdown = callArgs.onShutdown as () => Promise<void>;
+    await onShutdown();
+
+    expect(handle.close).toHaveBeenCalled();
+    expect(mockAppendFile).toHaveBeenCalledWith(
+      '/tmp/daemon.log',
+      expect.stringContaining('dispose() failed during shutdown'),
     );
   });
 

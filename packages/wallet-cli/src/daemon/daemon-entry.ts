@@ -23,7 +23,7 @@ import { createWallet } from './wallet-factory';
  * whose first element is the messenger action name; remaining elements are
  * positional action arguments forwarded as-is to `messenger.call`.
  */
-const callParamsStruct = define<[string, ...Json[]]>('CallParams', (value) => {
+const callParamsStruct = define<[string, ...unknown[]]>('CallParams', (value) => {
   if (!Array.isArray(value)) {
     return 'Expected an array';
   }
@@ -144,7 +144,7 @@ async function main(): Promise<void> {
       ),
       call: defineHandler(callParamsStruct, async (params) => {
         const [action, ...args] = params;
-        return await dispatch(action, ...args);
+        return await dispatch(action, ...(args as Json[]));
       }),
       // Exposes the callable surface for discovery: it grows silently as
       // controllers are wired, so consumers need a way to see it without a
@@ -205,7 +205,11 @@ async function main(): Promise<void> {
         } catch (closeError) {
           log(`handle.close() failed: ${String(closeError)}`);
         }
-        await activeDispose();
+        try {
+          await activeDispose();
+        } catch (disposeError) {
+          log(`dispose() failed during shutdown: ${String(disposeError)}`);
+        }
         await Promise.all([
           removeOwnedPidFile(pidPath, pidFileContents).catch(
             (rmError: unknown) => {

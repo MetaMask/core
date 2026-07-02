@@ -7,14 +7,7 @@ import type { Server, Socket } from 'node:net';
 import { startRpcSocketServer } from './rpc-socket-server';
 import type { RpcHandlerDefinition, RpcHandlerMap } from './types';
 
-/**
- * Wrap a `jest.fn` as an {@link RpcHandlerDefinition} so existing tests can
- * register a handler without writing out the `{ paramsStruct, run }` shape.
- * Defaults to `any()` so the struct guard never rejects the test inputs.
- *
- * @param run - The mocked handler function.
- * @returns A handler definition with an `any()` paramsStruct.
- */
+// any() paramsStruct so the struct guard never rejects test inputs.
 function asHandler(run: jest.Mock): RpcHandlerDefinition<unknown, never> {
   return {
     paramsStruct: any(),
@@ -742,6 +735,62 @@ describe('startRpcSocketServer', () => {
         }),
       );
       expect(run).not.toHaveBeenCalled();
+    });
+
+    it('returns -32602 when params are absent and struct rejects null', async () => {
+      const { simulateConnection } = createMockServer();
+      const run = jest.fn();
+      const handlers: RpcHandlerMap = {
+        strict: {
+          paramsStruct: literal('expected'),
+          run: run as unknown as RpcHandlerMap[string]['run'],
+        },
+      };
+
+      await startRpcSocketServer({
+        socketPath: '/tmp/test.sock',
+        handlers,
+      });
+
+      const socket = createMockSocket();
+      simulateConnection(socket);
+      sendRequest(socket, { jsonrpc: '2.0', id: '1', method: 'strict' });
+
+      await flushPromises();
+
+      expect(getResponse(socket).error).toStrictEqual(
+        expect.objectContaining({
+          code: -32602,
+          message: expect.stringContaining('Invalid params for strict'),
+        }),
+      );
+      expect(run).not.toHaveBeenCalled();
+    });
+
+    it('logs the method name when a handler throws', async () => {
+      const { simulateConnection } = createMockServer();
+      const log = jest.fn();
+      const handlers: RpcHandlerMap = {
+        failing: asHandler(
+          jest.fn().mockRejectedValue(new Error('handler failed')),
+        ),
+      };
+
+      await startRpcSocketServer({
+        socketPath: '/tmp/test.sock',
+        handlers,
+        log,
+      });
+
+      const socket = createMockSocket();
+      simulateConnection(socket);
+      sendRequest(socket, { jsonrpc: '2.0', id: '1', method: 'failing' });
+
+      await flushPromises();
+
+      expect(log).toHaveBeenCalledWith(
+        expect.stringContaining('failing'),
+      );
     });
 
     it('wraps thrown object with code but no message as internal error', async () => {

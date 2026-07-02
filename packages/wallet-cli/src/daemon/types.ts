@@ -63,13 +63,14 @@ export function defineHandler<TParams, TResult extends Json | void>(
  * Typed wrapper around `wallet.messenger.call` used by the `call` RPC.
  *
  * The messenger is strongly typed by action name; the daemon exposes the full
- * messenger surface over the socket and dispatches by string, so we narrow it
- * to a single, documented escape hatch instead of casting at each call site.
+ * messenger surface over the socket and dispatches by string, so we consolidate
+ * the unsafe cast into a single, documented escape hatch instead of repeating
+ * it at each call site.
  */
 export type RpcDispatcher = (
   action: string,
   ...args: Json[]
-) => Json | Promise<Json>;
+) => Promise<Json>;
 
 /**
  * Resolved paths for daemon state files.
