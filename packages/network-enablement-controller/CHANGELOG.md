@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore(network-enablement-controller): move misplaced Stellar changelog entries to Unreleased ([#9356](https://github.com/MetaMask/core/pull/9356))
+
 ## [5.4.1]
 
 ### Added
