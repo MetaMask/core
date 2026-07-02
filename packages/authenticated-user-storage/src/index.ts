@@ -23,6 +23,8 @@ export type {
   AuthenticatedUserStorageServicePutNotificationPreferencesAction,
   AuthenticatedUserStorageServiceGetAssetsWatchlistAction,
   AuthenticatedUserStorageServiceSetAssetsWatchlistAction,
+  AuthenticatedUserStorageServiceGetLeaderboardPreferencesAction,
+  AuthenticatedUserStorageServiceSetLeaderboardPreferencesAction,
 } from './authenticated-user-storage-method-action-types';
 export { getUserStorageApiUrl } from './env';
 export type { Environment } from './env';
@@ -43,5 +45,6 @@ export type {
   PriceAlertPreference,
   NotificationPreferences,
   AssetsWatchlistBlob,
+  LeaderboardPreferences,
   ClientType,
 } from './types';

@@ -14,6 +14,8 @@ import {
   handleMockPutNotificationPreferences,
   handleMockGetAssetsWatchlist,
   handleMockSetAssetsWatchlist,
+  handleMockGetLeaderboardPreferences,
+  handleMockSetLeaderboardPreferences,
 } from '../tests/fixtures/authenticated-userstorage';
 import {
   MOCK_DELEGATION_RESPONSE,
@@ -22,6 +24,9 @@ import {
   MOCK_NOTIFICATION_PREFERENCES,
   MOCK_ASSETS_WATCHLIST_BLOB,
   MOCK_ASSETS_WATCHLIST_URL,
+  MOCK_LEADERBOARD_PREFERENCES,
+  MOCK_LEADERBOARD_PREFERENCES_URL,
+  MOCK_INVALID_LEADERBOARD_PREFERENCES,
 } from '../tests/mocks/authenticated-userstorage';
 import type { AuthenticatedUserStorageMessenger } from './authenticated-user-storage';
 import {
@@ -463,6 +468,182 @@ describe('AuthenticatedUserStorageService', () => {
     });
   });
 
+  describe('AuthenticatedUserStorageService:getLeaderboardPreferences', () => {
+    it('returns the leaderboard preferences via the messenger', async () => {
+      handleMockGetLeaderboardPreferences();
+      const { rootMessenger } = createService();
+
+      const result = await rootMessenger.call(
+        'AuthenticatedUserStorageService:getLeaderboardPreferences',
+      );
+
+      expect(result).toStrictEqual(MOCK_LEADERBOARD_PREFERENCES);
+    });
+  });
+
+  describe('AuthenticatedUserStorageService:setLeaderboardPreferences', () => {
+    it('sets the leaderboard preferences via the messenger', async () => {
+      const mock = handleMockSetLeaderboardPreferences();
+      const { rootMessenger } = createService();
+
+      await rootMessenger.call(
+        'AuthenticatedUserStorageService:setLeaderboardPreferences',
+        MOCK_LEADERBOARD_PREFERENCES,
+      );
+
+      expect(mock.isDone()).toBe(true);
+    });
+  });
+
+  describe('getLeaderboardPreferences', () => {
+    it('returns the leaderboard preferences from the API', async () => {
+      const mock = handleMockGetLeaderboardPreferences();
+      const { service } = createService();
+
+      const result = await service.getLeaderboardPreferences();
+
+      expect(mock.isDone()).toBe(true);
+      expect(result).toStrictEqual(MOCK_LEADERBOARD_PREFERENCES);
+    });
+
+    it('sends the Authorization header', async () => {
+      const scope = nock(MOCK_LEADERBOARD_PREFERENCES_URL, {
+        reqheaders: {
+          authorization: 'Bearer mock-access-token',
+        },
+      })
+        .get('')
+        .reply(200, MOCK_LEADERBOARD_PREFERENCES);
+
+      const { service } = createService();
+      const result = await service.getLeaderboardPreferences();
+
+      expect(scope.isDone()).toBe(true);
+      expect(result).toStrictEqual(MOCK_LEADERBOARD_PREFERENCES);
+    });
+
+    it('returns null when the leaderboard preferences are not found', async () => {
+      handleMockGetLeaderboardPreferences({ status: 404 });
+      const { service } = createService();
+
+      const result = await service.getLeaderboardPreferences();
+
+      expect(result).toBeNull();
+    });
+
+    it('throws when the API returns a non-200/404 status', async () => {
+      handleMockGetLeaderboardPreferences({ status: 500 });
+      const { service } = createService();
+
+      await expect(service.getLeaderboardPreferences()).rejects.toThrow(
+        'Failed to get leaderboard preferences: 500',
+      );
+    });
+
+    it('throws when the response body is malformed', async () => {
+      handleMockGetLeaderboardPreferences({
+        status: 200,
+        body: MOCK_INVALID_LEADERBOARD_PREFERENCES,
+      });
+      const { service } = createService();
+
+      await expect(service.getLeaderboardPreferences()).rejects.toThrow(
+        /Expected.*but received/u,
+      );
+    });
+
+    it('caches the result so a second call within staleTime does not re-fetch', async () => {
+      const scope = nock(MOCK_LEADERBOARD_PREFERENCES_URL)
+        .get('')
+        .once()
+        .reply(200, MOCK_LEADERBOARD_PREFERENCES);
+      const { service } = createService();
+
+      const first = await service.getLeaderboardPreferences();
+      const second = await service.getLeaderboardPreferences();
+
+      expect(scope.isDone()).toBe(true);
+      expect(first).toStrictEqual(MOCK_LEADERBOARD_PREFERENCES);
+      expect(second).toStrictEqual(MOCK_LEADERBOARD_PREFERENCES);
+    });
+  });
+
+  describe('setLeaderboardPreferences', () => {
+    it('submits the leaderboard preferences to the API', async () => {
+      const mock = handleMockSetLeaderboardPreferences();
+      const { service } = createService();
+
+      await service.setLeaderboardPreferences(MOCK_LEADERBOARD_PREFERENCES);
+
+      expect(mock.isDone()).toBe(true);
+    });
+
+    it('sends the correct request body', async () => {
+      handleMockSetLeaderboardPreferences(undefined, async (_, requestBody) => {
+        expect(requestBody).toStrictEqual(MOCK_LEADERBOARD_PREFERENCES);
+      });
+      const { service } = createService();
+
+      await service.setLeaderboardPreferences(MOCK_LEADERBOARD_PREFERENCES);
+    });
+
+    it('sends Content-Type and Authorization headers but no X-Client-Type when clientType is omitted', async () => {
+      const scope = nock(MOCK_LEADERBOARD_PREFERENCES_URL, {
+        reqheaders: {
+          'content-type': 'application/json',
+          authorization: 'Bearer mock-access-token',
+        },
+        badheaders: ['x-client-type'],
+      })
+        .put('')
+        .reply(200);
+      const { service } = createService();
+
+      await service.setLeaderboardPreferences(MOCK_LEADERBOARD_PREFERENCES);
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('includes X-Client-Type header when clientType is provided', async () => {
+      const scope = nock(MOCK_LEADERBOARD_PREFERENCES_URL, {
+        reqheaders: {
+          'x-client-type': 'mobile',
+        },
+      })
+        .put('')
+        .reply(200);
+      const { service } = createService();
+
+      await service.setLeaderboardPreferences(
+        MOCK_LEADERBOARD_PREFERENCES,
+        'mobile',
+      );
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('throws when the API returns a non-200 status', async () => {
+      handleMockSetLeaderboardPreferences({ status: 400 });
+      const { service } = createService();
+
+      await expect(
+        service.setLeaderboardPreferences(MOCK_LEADERBOARD_PREFERENCES),
+      ).rejects.toThrow('Failed to put leaderboard preferences: 400');
+    });
+
+    it('throws a structural error before sending the request when the blob is malformed', async () => {
+      const { service } = createService();
+      const malformed = {
+        version: 2,
+        optedOut: true,
+      } as unknown as Parameters<typeof service.setLeaderboardPreferences>[0];
+
+      await expect(
+        service.setLeaderboardPreferences(malformed),
+      ).rejects.toThrow(/At path: version -- Expected the literal/u);
+    });
+  });
+
   describe('cache invalidation', () => {
     it('invalidates listDelegations cache after createDelegation', async () => {
       handleMockCreateDelegation();
@@ -540,6 +721,42 @@ describe('AuthenticatedUserStorageService', () => {
 
       expect(getScope.isDone()).toBe(true);
       expect(first).toStrictEqual(MOCK_ASSETS_WATCHLIST_BLOB);
+      expect(second).toStrictEqual(updatedBlob);
+    });
+
+    it('invalidates getLeaderboardPreferences cache after setLeaderboardPreferences', async () => {
+      handleMockSetLeaderboardPreferences();
+      handleMockGetLeaderboardPreferences();
+      const { service } = createService();
+      const invalidateSpy = jest.spyOn(service, 'invalidateQueries');
+
+      await service.setLeaderboardPreferences(MOCK_LEADERBOARD_PREFERENCES);
+
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: ['AuthenticatedUserStorageService:getLeaderboardPreferences'],
+      });
+    });
+
+    it('causes a subsequent getLeaderboardPreferences to refetch after setLeaderboardPreferences', async () => {
+      const updatedBlob = {
+        version: 1 as const,
+        optedOut: false,
+      };
+      const getScope = nock(MOCK_LEADERBOARD_PREFERENCES_URL)
+        .get('')
+        .reply(200, MOCK_LEADERBOARD_PREFERENCES)
+        .put('')
+        .reply(200)
+        .get('')
+        .reply(200, updatedBlob);
+
+      const { service } = createService();
+      const first = await service.getLeaderboardPreferences();
+      await service.setLeaderboardPreferences(updatedBlob);
+      const second = await service.getLeaderboardPreferences();
+
+      expect(getScope.isDone()).toBe(true);
+      expect(first).toStrictEqual(MOCK_LEADERBOARD_PREFERENCES);
       expect(second).toStrictEqual(updatedBlob);
     });
   });
