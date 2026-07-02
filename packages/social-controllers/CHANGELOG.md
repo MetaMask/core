@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `optOutOfLeaderboard` and `optInToLeaderboard` methods to `SocialController` and `SocialService`, with corresponding messenger actions (`SocialController:optOutOfLeaderboard`, `SocialController:optInToLeaderboard`, `SocialService:optOutOfLeaderboard`, `SocialService:optInToLeaderboard`). These call `POST /leaderboard/opt-out` and `POST /leaderboard/opt-in` respectively (JWT-authed, `204 No Content` on success) ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- Add `optOutOfLeaderboard` and `optInToLeaderboard` methods to `SocialController` and `SocialService`, with corresponding messenger actions (`SocialController:optOutOfLeaderboard`, `SocialController:optInToLeaderboard`, `SocialService:optOutOfLeaderboard`, `SocialService:optInToLeaderboard`). These call `POST /leaderboard/opt-out` and `POST /leaderboard/opt-in` respectively (JWT-authed, `204 No Content` on success) ([#9354](https://github.com/MetaMask/core/pull/9354))
 
 ### Changed
 
