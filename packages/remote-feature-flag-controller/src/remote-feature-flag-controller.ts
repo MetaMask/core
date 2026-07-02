@@ -149,7 +149,8 @@ function findExplicitIdMatch(
       continue;
     }
     const hasMatch = metaMetricsIds.some(
-      (id) => typeof id === 'string' && id.trim().toLowerCase() === normalizedId,
+      (id) =>
+        typeof id === 'string' && id.trim().toLowerCase() === normalizedId,
     );
     if (hasMatch) {
       return entry;
@@ -175,11 +176,7 @@ function redactMetaMetricsIds(flags: FeatureFlags): FeatureFlags {
       continue;
     }
     result[name] = value.map((entry) => {
-      if (
-        typeof entry !== 'object' ||
-        entry === null ||
-        Array.isArray(entry)
-      ) {
+      if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
         return entry;
       }
       const entryRecord = entry as Record<string, Json>;
@@ -380,14 +377,20 @@ export class RemoteFeatureFlagController extends BaseController<
       }
     }
 
+    // Strip metaMetricsIds from processed flags so they never appear in
+    // remoteFeatureFlags state or #processedRemoteFeatureFlags.  Arrays that
+    // were preserved as-is (e.g. when metaMetricsId is missing) would
+    // otherwise leak explicit-targeting IDs into diagnostics.
+    const redactedProcessedFlags = redactMetaMetricsIds(processedFlags);
+
     // Single state update with all changes batched together
-    this.#processedRemoteFeatureFlags = processedFlags;
+    this.#processedRemoteFeatureFlags = redactedProcessedFlags;
 
     this.update(() => {
       return {
         ...this.state,
         remoteFeatureFlags: {
-          ...processedFlags,
+          ...redactedProcessedFlags,
           ...this.state.localOverrides,
         },
         rawRemoteFeatureFlags: redactMetaMetricsIds(remoteFeatureFlags),
@@ -467,8 +470,7 @@ export class RemoteFeatureFlagController extends BaseController<
           }
         } else {
           // Fall back to hash-based threshold selection with cache
-          const cacheKey =
-            `${metaMetricsId}:${remoteFeatureFlagName}` as const;
+          const cacheKey = `${metaMetricsId}:${remoteFeatureFlagName}` as const;
           let thresholdValue = this.state.thresholdCache?.[cacheKey];
 
           if (thresholdValue === undefined) {

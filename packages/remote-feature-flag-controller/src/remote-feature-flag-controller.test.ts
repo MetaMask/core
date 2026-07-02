@@ -1005,6 +1005,51 @@ describe('RemoteFeatureFlagController', () => {
       ).toBe(true);
     });
 
+    it('does not include metaMetricsIds values in remoteFeatureFlags state when metaMetricsId is unavailable', async () => {
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: MOCK_FLAGS_WITH_EXPLICIT_IDS,
+      });
+      // No metaMetricsId → threshold arrays are preserved as-is, but
+      // metaMetricsIds must still be stripped from the processed output.
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => '',
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      const processedEntries = controller.state.remoteFeatureFlags
+        .testFlag as Record<string, unknown>[];
+      expect(
+        processedEntries.every((entry) => entry.metaMetricsIds === undefined),
+      ).toBe(true);
+    });
+
+    it('does not include metaMetricsIds values in remoteFeatureFlags state when explicit match is found', async () => {
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: MOCK_FLAGS_WITH_EXPLICIT_IDS,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      // When an explicit match is found, the flag is resolved to a single
+      // value (not an array), so metaMetricsIds is naturally absent.
+      const processed = controller.state.remoteFeatureFlags.testFlag;
+      if (typeof processed === 'object' && processed !== null) {
+        expect(
+          (processed as Record<string, unknown>).metaMetricsIds,
+        ).toBeUndefined();
+      }
+    });
+
     it('supports ThresholdVersion.DirectValue entries with explicit-ID matching', async () => {
       const mockFlags = {
         testFlag: [
