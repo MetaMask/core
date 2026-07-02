@@ -637,104 +637,6 @@ describe('NetworkConnectionBannerController', () => {
       });
     });
 
-    it('bails out at the degraded timer if the underlying state has silently recovered', async () => {
-      await withController(
-        ({ controller, setNetworkState, setNetworkStateSilently }) => {
-          const config = buildConfiguration({
-            chainId: '0x89',
-            name: 'Polygon Mainnet',
-            nativeCurrency: 'MATIC',
-            rpcEndpoints: [
-              buildCustomEndpoint(
-                POLYGON_CUSTOM_CLIENT_ID,
-                'https://polygon-rpc.com',
-              ),
-            ],
-          });
-          setNetworkState(
-            buildNetworkState({
-              configurations: { '0x89': config },
-              enabledChainIds: ['0x89'],
-              metadata: {
-                [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(
-                  NetworkStatus.Unavailable,
-                ),
-              },
-            }),
-          );
-
-          // Underlying state recovers but no event fires; the scheduled
-          // degraded timer must re-check and skip the update.
-          setNetworkStateSilently(
-            buildNetworkState({
-              configurations: { '0x89': config },
-              enabledChainIds: ['0x89'],
-              metadata: {
-                [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(
-                  NetworkStatus.Available,
-                ),
-              },
-            }),
-          );
-
-          jest.advanceTimersByTime(5_000);
-          expect(controller.state.status).toBe('available');
-        },
-      );
-    });
-
-    it('clears the banner at the unavailable timer if the underlying state has silently recovered', async () => {
-      await withController(
-        ({ controller, setNetworkState, setNetworkStateSilently }) => {
-          const config = buildConfiguration({
-            chainId: '0x89',
-            name: 'Polygon Mainnet',
-            nativeCurrency: 'MATIC',
-            rpcEndpoints: [
-              buildCustomEndpoint(
-                POLYGON_CUSTOM_CLIENT_ID,
-                'https://polygon-rpc.com',
-              ),
-            ],
-          });
-          setNetworkState(
-            buildNetworkState({
-              configurations: { '0x89': config },
-              enabledChainIds: ['0x89'],
-              metadata: {
-                [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(
-                  NetworkStatus.Unavailable,
-                ),
-              },
-            }),
-          );
-
-          jest.advanceTimersByTime(5_000);
-          expect(controller.state.status).toBe('degraded');
-
-          // Underlying state recovers but no event fires; the scheduled
-          // unavailable timer must re-check and skip the escalation.
-          setNetworkStateSilently(
-            buildNetworkState({
-              configurations: { '0x89': config },
-              enabledChainIds: ['0x89'],
-              metadata: {
-                [POLYGON_CUSTOM_CLIENT_ID]: makeMetadata(
-                  NetworkStatus.Available,
-                ),
-              },
-            }),
-          );
-
-          jest.advanceTimersByTime(25_000);
-          expect(controller.state).toStrictEqual({
-            status: 'available',
-            network: null,
-          });
-        },
-      );
-    });
-
     it('skips enabled chains that have no network configuration', async () => {
       await withController(({ controller, setNetworkState }) => {
         setNetworkState({
@@ -1210,7 +1112,6 @@ type WithControllerCallback<ReturnValue> = (payload: {
   rootMessenger: RootMessenger;
   controllerMessenger: NetworkConnectionBannerControllerMessenger;
   setNetworkState: (state: StubbedState) => void;
-  setNetworkStateSilently: (state: StubbedState) => void;
   setConnectivityStatus: (
     status: ConnectivityControllerState['connectivityStatus'],
   ) => void;
@@ -1315,13 +1216,6 @@ async function withController<ReturnValue>(
     );
   };
 
-  // Update the upstream state visible to the controller WITHOUT publishing a
-  // stateChange event. Used to exercise the defensive re-evaluation inside
-  // the degraded / unavailable timer callbacks.
-  const setNetworkStateSilently = (state: StubbedState): void => {
-    currentState = state;
-  };
-
   const setConnectivityStatus = (
     status: ConnectivityControllerState['connectivityStatus'],
   ): void => {
@@ -1341,7 +1235,6 @@ async function withController<ReturnValue>(
     rootMessenger,
     controllerMessenger: messenger,
     setNetworkState,
-    setNetworkStateSilently,
     setConnectivityStatus,
     updateNetwork,
   });

@@ -406,28 +406,23 @@ export class NetworkConnectionBannerController extends BaseController<
       state.network = null;
     });
 
+    // Capture the failing network at schedule time. We trust the messenger
+    // contract: if the failure resolves or the target changes during the
+    // wait, our upstream subscriptions will have cancelled or replaced this
+    // timer via `#clearTimers` before it fires.
     this.#pendingNetworkClientId = failedNetwork.networkClientId;
     this.#degradedTimer = setTimeout(() => {
       this.#degradedTimer = undefined;
       this.#pendingNetworkClientId = undefined;
-      const stillFailed = this.#findFailedNetwork();
-      if (!stillFailed) {
-        return;
-      }
       this.update((state) => {
         state.status = 'degraded';
-        state.network = stillFailed;
+        state.network = failedNetwork;
       });
       this.#unavailableTimer = setTimeout(() => {
         this.#unavailableTimer = undefined;
-        const stillFailedAtEscalation = this.#findFailedNetwork();
-        if (!stillFailedAtEscalation) {
-          this.#resetBanner();
-          return;
-        }
         this.update((state) => {
           state.status = 'unavailable';
-          state.network = stillFailedAtEscalation;
+          state.network = failedNetwork;
         });
       }, UNAVAILABLE_BANNER_TIMEOUT - DEGRADED_BANNER_TIMEOUT);
     }, DEGRADED_BANNER_TIMEOUT);
