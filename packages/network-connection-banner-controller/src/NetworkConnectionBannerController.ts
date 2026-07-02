@@ -435,58 +435,62 @@ export class NetworkConnectionBannerController extends BaseController<
     const { networkConfigurationsByChainId, networksMetadata } =
       this.messenger.call('NetworkController:getState');
 
-    const failedNetworks: FailedNetwork[] = [];
-    let totalNetworksWithMetadata = 0;
-
-    for (const chainId of enabledEvmChainIds) {
+    const networksWithMetadata = enabledEvmChainIds.flatMap((chainId) => {
       const networkConfiguration = networkConfigurationsByChainId[chainId];
       if (!networkConfiguration) {
-        continue;
+        return [];
       }
-
       const { rpcEndpoints, defaultRpcEndpointIndex, name } =
         networkConfiguration;
       const defaultRpcEndpoint = rpcEndpoints[defaultRpcEndpointIndex];
       if (!defaultRpcEndpoint) {
-        continue;
+        return [];
       }
-
       const metadata = networksMetadata[defaultRpcEndpoint.networkClientId];
       if (!metadata) {
-        continue;
+        return [];
       }
+      return [
+        {
+          chainId,
+          name,
+          rpcEndpoints,
+          defaultRpcEndpointIndex,
+          defaultRpcEndpoint,
+          metadata,
+        },
+      ];
+    });
 
-      totalNetworksWithMetadata += 1;
+    const failedNetworks: FailedNetwork[] = networksWithMetadata
+      .filter(({ metadata }) => metadata.status !== NetworkStatus.Available)
+      .map(({ chainId, name, rpcEndpoints, defaultRpcEndpointIndex, defaultRpcEndpoint }) => {
+        const isInfuraEndpoint =
+          defaultRpcEndpoint.type === RpcEndpointType.Infura;
 
-      if (metadata.status === NetworkStatus.Available) {
-        continue;
-      }
+        // For custom endpoints (non-Infura), find an Infura endpoint on this
+        // chain that we could offer to switch to.
+        let switchableInfuraNetworkClientId: string | null = null;
+        if (!isInfuraEndpoint) {
+          const otherInfura = rpcEndpoints.find(
+            (endpoint, index) =>
+              index !== defaultRpcEndpointIndex &&
+              endpoint.type === RpcEndpointType.Infura,
+          );
+          switchableInfuraNetworkClientId =
+            otherInfura?.networkClientId ?? null;
+        }
 
-      const isInfuraEndpoint =
-        defaultRpcEndpoint.type === RpcEndpointType.Infura;
-
-      // For custom endpoints (non-Infura), find an Infura endpoint on this
-      // chain that we could offer to switch to.
-      let switchableInfuraNetworkClientId: string | null = null;
-      if (!isInfuraEndpoint) {
-        const otherInfura = rpcEndpoints.find(
-          (endpoint, index) =>
-            index !== defaultRpcEndpointIndex &&
-            endpoint.type === RpcEndpointType.Infura,
-        );
-        switchableInfuraNetworkClientId = otherInfura?.networkClientId ?? null;
-      }
-
-      failedNetworks.push({
-        chainId,
-        networkClientId: defaultRpcEndpoint.networkClientId,
-        name,
-        rpcUrl: defaultRpcEndpoint.url,
-        isInfuraEndpoint,
-        switchableInfuraNetworkClientId,
-        domain: getDomain(defaultRpcEndpoint.url),
+        return {
+          chainId,
+          networkClientId: defaultRpcEndpoint.networkClientId,
+          name,
+          rpcUrl: defaultRpcEndpoint.url,
+          isInfuraEndpoint,
+          switchableInfuraNetworkClientId,
+          domain: getDomain(defaultRpcEndpoint.url),
+        };
       });
-    }
 
     if (failedNetworks.length === 0) {
       return null;
@@ -501,7 +505,7 @@ export class NetworkConnectionBannerController extends BaseController<
         .filter((domain): domain is string => domain !== null),
     ).size;
     const areAllKnownNetworksFailed =
-      failedNetworks.length === totalNetworksWithMetadata;
+      failedNetworks.length === networksWithMetadata.length;
 
     if (
       !firstCustomFailed &&
