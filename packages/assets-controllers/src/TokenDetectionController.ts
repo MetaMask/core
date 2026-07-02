@@ -204,6 +204,8 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
   readonly #useExternalServices: () => boolean;
 
+  readonly #isDeprecated: () => boolean;
+
   readonly #getBalancesInSingleCall: AssetsContractController['getBalancesInSingleCall'];
 
   readonly #trackMetaMetricsEvent: (options: {
@@ -230,6 +232,12 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    * @param options.trackMetaMetricsEvent - Sets options for MetaMetrics event tracking.
    * @param options.useTokenDetection - Feature Switch for using token detection (default: true)
    * @param options.useExternalServices - Feature Switch for using external services (default: false)
+   * @param options.isDeprecated - Optional function that returns true to completely
+   * disable this controller (no requests, no polling). When it returns `true`,
+   * polling is stopped at construction and at every entry point. The function is
+   * evaluated dynamically on each entry point so it can be toggled at runtime.
+   * Intended for use when a higher-level controller (e.g. AssetsController)
+   * supersedes this one.
    */
   constructor({
     interval = DEFAULT_INTERVAL,
@@ -240,6 +248,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     tokenListService,
     useTokenDetection = (): boolean => true,
     useExternalServices = (): boolean => true,
+    isDeprecated = (): boolean => false,
   }: {
     interval?: number;
     disabled?: boolean;
@@ -259,6 +268,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     tokenListService: TokenListService;
     useTokenDetection?: () => boolean;
     useExternalServices?: () => boolean;
+    isDeprecated?: () => boolean;
   }) {
     super({
       name: controllerName,
@@ -290,8 +300,25 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
 
     this.#useTokenDetection = useTokenDetection;
     this.#useExternalServices = useExternalServices;
+    this.#isDeprecated = isDeprecated;
+
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+    }
 
     this.#registerEventListeners();
+  }
+
+  /**
+   * Stops polling and blocks network activity so the controller is fully inactive.
+   *
+   * Called from every entry point when `isDeprecated()` is true so that a
+   * runtime toggle propagates immediately, even if the controller was originally
+   * constructed while it was enabled.
+   */
+  #enforceDisabledState(): void {
+    this.#stopPolling();
+    this.#disabled = true;
   }
 
   /**
@@ -390,6 +417,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    * Start polling for detected tokens.
    */
   async start(): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     this.enable();
     await this.#startPolling();
   }
@@ -412,6 +443,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    * Starts a new polling interval.
    */
   async #startPolling(): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     if (!this.isActive) {
       return;
     }
@@ -459,6 +494,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     chainIds,
     address,
   }: TokenDetectionPollingInput): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     if (!this.isActive) {
       return;
     }
@@ -483,6 +522,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     selectedAddress?: string;
     chainIds?: Hex[];
   } = {}): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     await this.detectTokens({
       chainIds,
       selectedAddress,
@@ -574,6 +617,10 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     selectedAddress?: string;
     forceRpc?: boolean;
   } = {}): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     if (!this.isActive) {
       return;
     }
@@ -886,6 +933,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     tokensSlice: string[];
     chainId: Hex;
   }): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
     // Check if token detection is enabled via preferences
     if (!this.#useTokenDetection()) {
       return;
@@ -992,6 +1044,11 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     tokensSlice: string[];
     chainId: Hex;
   }): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
     // Check if token detection is enabled via preferences
     if (!this.#useTokenDetection()) {
       return;

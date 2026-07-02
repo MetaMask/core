@@ -4061,6 +4061,276 @@ describe('TokenDetectionController', () => {
       );
     });
   });
+
+  describe('isDeprecated', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('stops polling at construction when isDeprecated() returns true', async () => {
+      await withController(
+        {
+          isKeyringUnlocked: true,
+          options: { disabled: false, isDeprecated: () => true },
+        },
+        async ({ controller }) => {
+          const mockDetectTokens = jest
+            .spyOn(controller, 'detectTokens')
+            .mockImplementation();
+
+          await controller.start();
+          await jestAdvanceTime({ duration: DEFAULT_INTERVAL * 2 });
+
+          expect(mockDetectTokens).not.toHaveBeenCalled();
+          expect(controller.isActive).toBe(false);
+        },
+      );
+    });
+
+    it('does not throw at construction when isDeprecated() returns true', async () => {
+      await withController(
+        {
+          options: { isDeprecated: () => true },
+        },
+        ({ controller }) => {
+          expect(controller.state).toStrictEqual({});
+        },
+      );
+    });
+
+    it('does not make any detection requests when isDeprecated() returns true from construction', async () => {
+      const mockGetBalancesInSingleCall = jest.fn();
+      await withController(
+        {
+          isKeyringUnlocked: true,
+          options: {
+            disabled: false,
+            isDeprecated: () => true,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+          },
+        },
+        async ({ controller }) => {
+          await controller.detectTokens({ chainIds: ['0xa86a'] });
+
+          expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does not detect tokens and stops polling when isDeprecated toggles to true at runtime via detectTokens', async () => {
+      let deprecated = false;
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({});
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
+      await withController(
+        {
+          isKeyringUnlocked: true,
+          options: {
+            disabled: false,
+            isDeprecated: () => deprecated,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
+          },
+        },
+        async ({ controller, mockTokenListGetState, mockNetworkState }) => {
+          const defaultState = getDefaultNetworkControllerState();
+          mockNetworkState({
+            ...defaultState,
+            networkConfigurationsByChainId: {
+              ...defaultState.networkConfigurationsByChainId,
+              ...mockNetworkConfigurationsByChainId,
+            },
+          });
+          mockTokenListGetState({
+            ...getDefaultTokenListState(),
+            tokensChainsCache: {
+              '0xa86a': {
+                timestamp: 0,
+                data: {
+                  [sampleTokenA.address]: {
+                    name: sampleTokenA.name,
+                    symbol: sampleTokenA.symbol,
+                    decimals: sampleTokenA.decimals,
+                    address: sampleTokenA.address,
+                    occurrences: 1,
+                    aggregators: sampleTokenA.aggregators,
+                    iconUrl: sampleTokenA.image,
+                  },
+                },
+              },
+            },
+          });
+
+          await controller.detectTokens({
+            chainIds: ['0xa86a'],
+            selectedAddress: selectedAccount.address,
+          });
+          expect(mockGetBalancesInSingleCall).toHaveBeenCalled();
+
+          mockGetBalancesInSingleCall.mockClear();
+          deprecated = true;
+
+          await controller.detectTokens({
+            chainIds: ['0xa86a'],
+            selectedAddress: selectedAccount.address,
+          });
+
+          expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
+          expect(controller.isActive).toBe(false);
+        },
+      );
+    });
+
+    it('does not poll when isDeprecated toggles to true at runtime via start', async () => {
+      let deprecated = false;
+      await withController(
+        {
+          isKeyringUnlocked: true,
+          options: { disabled: false, isDeprecated: () => deprecated },
+        },
+        async ({ controller }) => {
+          const mockDetectTokens = jest
+            .spyOn(controller, 'detectTokens')
+            .mockImplementation();
+
+          await controller.start();
+          expect(mockDetectTokens).toHaveBeenCalledTimes(1);
+
+          deprecated = true;
+          mockDetectTokens.mockClear();
+
+          await controller.start();
+          await jestAdvanceTime({ duration: DEFAULT_INTERVAL * 2 });
+
+          expect(mockDetectTokens).not.toHaveBeenCalled();
+          expect(controller.isActive).toBe(false);
+        },
+      );
+    });
+
+    it('does not add tokens when isDeprecated toggles to true at runtime via addDetectedTokensViaWs', async () => {
+      let deprecated = false;
+      await withController(
+        {
+          options: { isDeprecated: () => deprecated },
+          mockTokenListState: {
+            tokensChainsCache: {
+              [ChainId.mainnet]: {
+                timestamp: Date.now(),
+                data: {
+                  [tokenAFromList.address.toLowerCase()]: {
+                    ...tokenAFromList,
+                    aggregators: formattedSampleAggregators,
+                    iconUrl: '',
+                  },
+                },
+              },
+            },
+          },
+        },
+        async ({ controller, callActionSpy, mockFindNetworkClientIdByChainId }) => {
+          mockFindNetworkClientIdByChainId(() => 'mainnet');
+
+          deprecated = true;
+
+          await controller.addDetectedTokensViaWs({
+            tokensSlice: [tokenAFromList.address],
+            chainId: ChainId.mainnet,
+          });
+
+          expect(callActionSpy).not.toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            expect.anything(),
+            expect.anything(),
+          );
+        },
+      );
+    });
+
+    it('does not add tokens when isDeprecated toggles to true at runtime via addDetectedTokensViaPolling', async () => {
+      let deprecated = false;
+      await withController(
+        {
+          options: { isDeprecated: () => deprecated },
+          mockTokenListState: {
+            tokensChainsCache: {
+              [ChainId.mainnet]: {
+                timestamp: Date.now(),
+                data: {
+                  [tokenAFromList.address.toLowerCase()]: {
+                    ...tokenAFromList,
+                    aggregators: formattedSampleAggregators,
+                    iconUrl: '',
+                  },
+                },
+              },
+            },
+          },
+        },
+        async ({ controller, callActionSpy, mockFindNetworkClientIdByChainId }) => {
+          mockFindNetworkClientIdByChainId(() => 'mainnet');
+
+          deprecated = true;
+
+          await controller.addDetectedTokensViaPolling({
+            tokensSlice: [tokenAFromList.address],
+            chainId: ChainId.mainnet,
+          });
+
+          expect(callActionSpy).not.toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            expect.anything(),
+            expect.anything(),
+          );
+        },
+      );
+    });
+
+    it('does not detect tokens on KeyringController:unlock when deprecated', async () => {
+      await withController(
+        {
+          isKeyringUnlocked: false,
+          options: { disabled: false, isDeprecated: () => true },
+        },
+        async ({ controller, triggerKeyringUnlock }) => {
+          const mockDetectTokens = jest
+            .spyOn(controller, 'detectTokens')
+            .mockImplementation();
+
+          triggerKeyringUnlock();
+
+          expect(mockDetectTokens).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does not detect tokens on TransactionController:transactionConfirmed when deprecated', async () => {
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({});
+      await withController(
+        {
+          isKeyringUnlocked: true,
+          options: {
+            disabled: false,
+            isDeprecated: () => true,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+          },
+        },
+        async ({ triggerTransactionConfirmed }) => {
+          triggerTransactionConfirmed({ chainId: ChainId.mainnet });
+
+          expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
+        },
+      );
+    });
+  });
 });
 
 /**

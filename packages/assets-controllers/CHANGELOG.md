@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `isDeprecated` option to `TokenDetectionController` constructor
+  - When `isDeprecated()` returns `true`, no token detection requests are sent and polling is stopped at construction and at every entry point (`detectTokens`, `addDetectedTokensViaWs`, `addDetectedTokensViaPolling`, `start`, `_executePoll`, and event-driven restarts), so the controller is fully inactive.
+  - The function is re-evaluated on each entry point so it can be toggled at runtime without reconstructing the controller.
+
 ## [109.3.0]
 
 ### Added
