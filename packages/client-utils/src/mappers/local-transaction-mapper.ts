@@ -387,14 +387,13 @@ export function mapLocalTransaction(
         );
 
       if (incomingNftBalanceChange && hasNativeValue) {
+        // Keep this mapper thin: classify the activity as an NFT buy and let the
+        // API mapper provide the token/payment details.
         return {
           type: 'nftBuy',
           ...common,
           data: {
             from,
-            token: {
-              direction: 'in',
-            },
           },
         };
       }

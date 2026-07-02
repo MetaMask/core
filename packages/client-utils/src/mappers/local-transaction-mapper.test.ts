@@ -687,9 +687,6 @@ describe('mapLocalTransaction', () => {
       hash: '0x2fda37c5b591c30367649c3c317621429bb5c59ff6a77b0a8cd48b56897168bc',
       data: {
         from,
-        token: {
-          direction: 'in',
-        },
       },
     });
   });
