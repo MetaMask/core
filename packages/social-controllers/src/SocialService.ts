@@ -186,6 +186,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchPositionById',
   'follow',
   'unfollow',
+  'optOutOfLeaderboard',
+  'optInToLeaderboard',
 ] as const;
 
 export type SocialServiceActions =
@@ -582,6 +584,46 @@ export class SocialService extends BaseDataService<
     });
 
     return unfollowResponse;
+  }
+
+  /** Opts the current user out of the PnL leaderboard. */
+  async optOutOfLeaderboard(): Promise<void> {
+    await this.fetchQuery({
+      queryKey: [`${this.name}:optOutOfLeaderboard`],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = `${this.#v1Url}/leaderboard/opt-out`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.LEADERBOARD_OPT_OUT_FAILED,
+        );
+      },
+    });
+  }
+
+  /** Opts the current user back into the PnL leaderboard. */
+  async optInToLeaderboard(): Promise<void> {
+    await this.fetchQuery({
+      queryKey: [`${this.name}:optInToLeaderboard`],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = `${this.#v1Url}/leaderboard/opt-in`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.LEADERBOARD_OPT_IN_FAILED,
+        );
+      },
+    });
   }
 
   /**
