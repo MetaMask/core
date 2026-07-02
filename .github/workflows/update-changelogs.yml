@@ -62,7 +62,7 @@ jobs:
             >> "$GITHUB_OUTPUT"
 
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
@@ -139,7 +139,7 @@ jobs:
             pull_requests: write
 
       - name: Check out the base branch
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.is-release.outputs.merge-base }}
           token: ${{ steps.get-token.outputs.token }}

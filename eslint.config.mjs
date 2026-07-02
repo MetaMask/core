@@ -300,12 +300,6 @@ const config = createConfig([
     },
   },
   {
-    files: ['packages/messenger/src/generate-action-types/**/*.{js,ts}'],
-    rules: {
-      'import-x/no-nodejs-modules': 'off',
-    },
-  },
-  {
     files: ['packages/messenger-cli/src/**/*.{js,ts}'],
     rules: {
       'import-x/no-nodejs-modules': 'off',
@@ -321,6 +315,7 @@ const config = createConfig([
   {
     files: [
       'packages/wallet-cli/src/**/*.test.{js,ts}',
+      'packages/wallet-cli/tests/**/*.{js,ts}',
       'packages/platform-api-docs/**/*.{js,ts}',
     ],
     rules: {

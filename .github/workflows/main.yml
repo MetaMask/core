@@ -37,7 +37,7 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v7
         with:
           persist-credentials: false
       - name: Download actionlint
@@ -93,6 +93,7 @@ jobs:
   deploy-platform-api-docs:
     name: Deploy Platform API Docs
     needs: lint-build-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     permissions:
       contents: read
       id-token: write
@@ -157,7 +158,6 @@ jobs:
     needs:
       - analyse-code
       - check-release
-      - deploy-platform-api-docs
       - lint-build-test
     outputs:
       passed: ${{ steps.set-output.outputs.passed }}
