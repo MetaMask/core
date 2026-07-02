@@ -310,24 +310,6 @@ export class RemoteFeatureFlagController extends BaseController<
       }
     }
 
-    const updatedFeatureFlagThresholdGroups = {
-      ...(this.state.featureFlagThresholdGroups ?? {}),
-    };
-
-    for (const [flagName, thresholdGroup] of Object.entries(
-      featureFlagThresholdGroupUpdates,
-    )) {
-      if (currentFlagNames.includes(flagName)) {
-        updatedFeatureFlagThresholdGroups[flagName] = thresholdGroup;
-      }
-    }
-
-    for (const flagName of Object.keys(updatedFeatureFlagThresholdGroups)) {
-      if (!currentFlagNames.includes(flagName)) {
-        delete updatedFeatureFlagThresholdGroups[flagName];
-      }
-    }
-
     // Single state update with all changes batched together
     this.#processedRemoteFeatureFlags = processedFlags;
 
@@ -341,7 +323,7 @@ export class RemoteFeatureFlagController extends BaseController<
         rawRemoteFeatureFlags: remoteFeatureFlags,
         cacheTimestamp: Date.now(),
         thresholdCache: updatedThresholdCache,
-        featureFlagThresholdGroups: updatedFeatureFlagThresholdGroups,
+        featureFlagThresholdGroups: featureFlagThresholdGroupUpdates,
       };
     });
   }
