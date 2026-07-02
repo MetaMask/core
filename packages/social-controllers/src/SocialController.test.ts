@@ -529,9 +529,9 @@ describe('SocialController', () => {
 
       const { messenger } = createController({ rootMessenger });
 
-      await expect(
-        messenger.call('SocialController:optOutOfLeaderboard'),
-      ).resolves.toBeUndefined();
+      expect(
+        await messenger.call('SocialController:optOutOfLeaderboard'),
+      ).toBeUndefined();
     });
 
     it('propagates service errors', async () => {
@@ -578,9 +578,9 @@ describe('SocialController', () => {
 
       const { messenger } = createController({ rootMessenger });
 
-      await expect(
-        messenger.call('SocialController:optInToLeaderboard'),
-      ).resolves.toBeUndefined();
+      expect(
+        await messenger.call('SocialController:optInToLeaderboard'),
+      ).toBeUndefined();
     });
 
     it('propagates service errors', async () => {
