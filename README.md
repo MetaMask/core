@@ -340,6 +340,9 @@ linkStyle default opacity:0.5
   claims_controller --> profile_sync_controller;
   client_controller --> base_controller;
   client_controller --> messenger;
+  client_utils --> controller_utils;
+  client_utils --> core_backend;
+  client_utils --> transaction_controller;
   compliance_controller --> base_controller;
   compliance_controller --> controller_utils;
   compliance_controller --> messenger;
