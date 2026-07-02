@@ -1477,7 +1477,6 @@ describe('RampsService', () => {
         .query({
           provider: 'paypal',
           crypto: 'ETH',
-          fiat: 'USD',
           payments: 'card',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
@@ -1489,7 +1488,6 @@ describe('RampsService', () => {
       const providersPromise = service.getProviders('us', {
         provider: 'paypal',
         crypto: 'ETH',
-        fiat: 'USD',
         payments: 'card',
       });
       await jest.runAllTimersAsync();
@@ -1526,14 +1524,13 @@ describe('RampsService', () => {
       expect(providersResponse.providers).toStrictEqual([]);
     });
 
-    it('handles single value filter options for fiat and payments', async () => {
+    it('handles single value filter options for payments', async () => {
       const mockProviders = {
         providers: [],
       };
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/v2/regions/us/providers')
         .query({
-          fiat: 'USD',
           payments: 'card',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
@@ -1543,7 +1540,6 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const providersPromise = service.getProviders('us', {
-        fiat: 'USD',
         payments: 'card',
       });
       await jest.runAllTimersAsync();
@@ -1553,14 +1549,13 @@ describe('RampsService', () => {
       expect(providersResponse.providers).toStrictEqual([]);
     });
 
-    it('handles array filter options for fiat and payments', async () => {
+    it('handles array filter options for payments', async () => {
       const mockProviders = {
         providers: [],
       };
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/v2/regions/us/providers')
         .query({
-          fiat: ['USD', 'EUR'],
           payments: ['card', 'bank'],
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
@@ -1570,7 +1565,6 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const providersPromise = service.getProviders('us', {
-        fiat: ['USD', 'EUR'],
         payments: ['card', 'bank'],
       });
       await jest.runAllTimersAsync();
@@ -1702,7 +1696,6 @@ describe('RampsService', () => {
         .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
-          fiat: 'usd',
           crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
@@ -1714,7 +1707,6 @@ describe('RampsService', () => {
 
       const paymentMethodsPromise = service.getPaymentMethods({
         region: 'us-al',
-        fiat: 'usd',
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
@@ -1732,12 +1724,11 @@ describe('RampsService', () => {
       ]);
     });
 
-    it('normalizes region and fiat case', async () => {
+    it('normalizes region case', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
-          fiat: 'usd',
           crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
@@ -1749,7 +1740,6 @@ describe('RampsService', () => {
 
       const paymentMethodsPromise = service.getPaymentMethods({
         region: 'US-AL',
-        fiat: 'USD',
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
@@ -1765,7 +1755,6 @@ describe('RampsService', () => {
         .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
-          fiat: 'usd',
           crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
@@ -1777,7 +1766,6 @@ describe('RampsService', () => {
 
       const paymentMethodsPromise = service.getPaymentMethods({
         region: 'us-al',
-        fiat: 'usd',
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
@@ -1794,7 +1782,6 @@ describe('RampsService', () => {
         .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
-          fiat: 'usd',
           crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
@@ -1806,7 +1793,6 @@ describe('RampsService', () => {
 
       const paymentMethodsPromise = service.getPaymentMethods({
         region: 'us-al',
-        fiat: 'usd',
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
@@ -1823,7 +1809,6 @@ describe('RampsService', () => {
         .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
-          fiat: 'usd',
           crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
@@ -1835,7 +1820,6 @@ describe('RampsService', () => {
 
       const paymentMethodsPromise = service.getPaymentMethods({
         region: 'us-al',
-        fiat: 'usd',
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
@@ -1852,7 +1836,6 @@ describe('RampsService', () => {
         .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
-          fiat: 'usd',
           crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
@@ -1868,7 +1851,6 @@ describe('RampsService', () => {
 
       const paymentMethodsPromise = service.getPaymentMethods({
         region: 'us-al',
-        fiat: 'usd',
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
@@ -1876,8 +1858,62 @@ describe('RampsService', () => {
       await flushPromises();
 
       await expect(paymentMethodsPromise).rejects.toThrow(
-        `Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/v2/regions/us-al/payments?sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios&region=us-al&fiat=usd&crypto=eip155%3A1%2Fslip44%3A60&provider=%2Fproviders%2Fstripe' failed with status '500'`,
+        `Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/v2/regions/us-al/payments?sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios&region=us-al&crypto=eip155%3A1%2Fslip44%3A60&provider=%2Fproviders%2Fstripe' failed with status '500'`,
       );
+    });
+
+    it('does not request a bearer token', async () => {
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/v2/regions/us-al/payments')
+        .query({
+          region: 'us-al',
+          crypto: 'eip155:1/slip44:60',
+          provider: '/providers/stripe',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, mockPaymentMethodsResponse);
+      const { service, mockGetBearerToken } = getService();
+
+      const paymentMethodsPromise = service.getPaymentMethods({
+        region: 'us-al',
+        assetId: 'eip155:1/slip44:60',
+        provider: '/providers/stripe',
+      });
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      await paymentMethodsPromise;
+
+      expect(mockGetBearerToken).not.toHaveBeenCalled();
+    });
+
+    it('does not send an Authorization header', async () => {
+      const scope = nock('https://on-ramp-cache.uat-api.cx.metamask.io', {
+        badheaders: ['authorization'],
+      })
+        .get('/v2/regions/us-al/payments')
+        .query({
+          region: 'us-al',
+          crypto: 'eip155:1/slip44:60',
+          provider: '/providers/stripe',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, mockPaymentMethodsResponse);
+      const { service } = getService();
+
+      const paymentMethodsPromise = service.getPaymentMethods({
+        region: 'us-al',
+        assetId: 'eip155:1/slip44:60',
+        provider: '/providers/stripe',
+      });
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      await paymentMethodsPromise;
+
+      expect(scope.isDone()).toBe(true);
     });
   });
 
@@ -2463,6 +2499,105 @@ describe('RampsService', () => {
       const quotesResponse = await quotesPromise;
 
       expect(quotesResponse.success).toHaveLength(2);
+    });
+
+    it('sends an Authorization header containing the bearer token', async () => {
+      const scope = nock('https://on-ramp.uat-api.cx.metamask.io', {
+        reqheaders: {
+          Authorization: 'Bearer mock-bearer-token',
+        },
+      })
+        .get('/v2/quotes')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
+          amount: '100',
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          payments: '/payments/debit-credit-card',
+        })
+        .reply(200, mockQuotesResponse);
+      const { service } = getService();
+
+      const quotesPromise = service.getQuotes({
+        region: 'us',
+        fiat: 'usd',
+        assetId: 'eip155:1/slip44:60',
+        amount: 100,
+        walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        paymentMethods: ['/payments/debit-credit-card'],
+      });
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      await quotesPromise;
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('requests a bearer token exactly once per call', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io', {
+        reqheaders: {
+          Authorization: 'Bearer mock-bearer-token',
+        },
+      })
+        .get('/v2/quotes')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
+          amount: '100',
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          payments: '/payments/debit-credit-card',
+        })
+        .reply(200, mockQuotesResponse);
+      const { service, mockGetBearerToken } = getService();
+
+      const quotesPromise = service.getQuotes({
+        region: 'us',
+        fiat: 'usd',
+        assetId: 'eip155:1/slip44:60',
+        amount: 100,
+        walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        paymentMethods: ['/payments/debit-credit-card'],
+      });
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      await quotesPromise;
+
+      expect(mockGetBearerToken).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects without making an HTTP call when the bearer token cannot be retrieved', async () => {
+      const interceptor = nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/quotes')
+        .query(true)
+        .reply(200, mockQuotesResponse);
+      const { service } = getService({
+        mockGetBearerToken: jest
+          .fn()
+          .mockRejectedValue(new Error('Wallet is locked')),
+      });
+
+      await expect(
+        service.getQuotes({
+          region: 'us',
+          fiat: 'usd',
+          assetId: 'eip155:1/slip44:60',
+          amount: 100,
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          paymentMethods: ['/payments/debit-credit-card'],
+        }),
+      ).rejects.toThrow('Wallet is locked');
+      expect(interceptor.isDone()).toBe(false);
+      cleanAll();
     });
   });
 

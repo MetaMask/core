@@ -20,12 +20,17 @@ export type SnapAccountServiceGetSnapsAction = {
 /**
  * Ensures everything is ready to use Snap accounts for the given Snap.
  * 1. Validates that `snapId` is a tracked account-management Snap.
- * 2. Waits for the Snap platform to be fully started.
+ * 2. Asserts that the legacy -> v2 migration has been triggered (expected to
+ * happen at `KeyringController:unlock` time).
+ * 3. Atomically creates the v2 keyring for this Snap if it doesn't exist
+ * yet.
+ * 4. Waits for the Snap platform to be fully started.
  *
  * Safe to call concurrently — each step is idempotent or mutex-protected.
  *
  * @param snapId - ID of the Snap to ensure readiness for.
  * @throws If `snapId` is not a tracked account-management Snap.
+ * @throws If the migration has not been triggered yet (wallet not unlocked).
  */
 export type SnapAccountServiceEnsureReadyAction = {
   type: `SnapAccountService:ensureReady`;
@@ -33,14 +38,16 @@ export type SnapAccountServiceEnsureReadyAction = {
 };
 
 /**
- * Atomically gets-or-creates the legacy (v1) Snap keyring — the keyring
- * associated with {@link KeyringTypes.snap}.
+ * Migrate the legacy Snap keyring to the new (per-snap) Snap keyring v2.
+ * Expected to be triggered at `KeyringController:unlock` time.
+ * Safe to call concurrently — the migration runs only once; all callers
+ * await the same promise.
  *
- * @returns The existing or newly-created Snap keyring instance.
+ * @returns A promise that resolves when the migration is complete.
  */
-export type SnapAccountServiceGetLegacySnapKeyringAction = {
-  type: `SnapAccountService:getLegacySnapKeyring`;
-  handler: SnapAccountService['getLegacySnapKeyring'];
+export type SnapAccountServiceEnsureMigratedAction = {
+  type: `SnapAccountService:ensureMigrated`;
+  handler: SnapAccountService['ensureMigrated'];
 };
 
 /**
@@ -61,5 +68,5 @@ export type SnapAccountServiceHandleKeyringSnapMessageAction = {
 export type SnapAccountServiceMethodActions =
   | SnapAccountServiceGetSnapsAction
   | SnapAccountServiceEnsureReadyAction
-  | SnapAccountServiceGetLegacySnapKeyringAction
+  | SnapAccountServiceEnsureMigratedAction
   | SnapAccountServiceHandleKeyringSnapMessageAction;

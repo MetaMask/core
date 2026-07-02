@@ -4,7 +4,6 @@ export type {
   TransactionControllerActions,
   TransactionControllerEvents,
   TransactionControllerGetStateAction,
-  TransactionControllerIncomingTransactionsReceivedEvent,
   TransactionControllerPostTransactionBalanceUpdatedEvent,
   TransactionControllerSpeedupTransactionAddedEvent,
   TransactionControllerState,
@@ -39,9 +38,6 @@ export type {
   TransactionControllerUpdateTransactionAction,
   TransactionControllerHandleMethodDataAction,
   TransactionControllerIsAtomicBatchSupportedAction,
-  TransactionControllerStartIncomingTransactionPollingAction,
-  TransactionControllerStopIncomingTransactionPollingAction,
-  TransactionControllerUpdateIncomingTransactionsAction,
   TransactionControllerStopTransactionAction,
   TransactionControllerSpeedUpTransactionAction,
   TransactionControllerEstimateGasBufferedAction,
@@ -68,7 +64,6 @@ export {
 export type {
   AddTransactionOptions,
   AfterAddHook,
-  AfterSimulateHook,
   Authorization,
   AuthorizationList,
   BatchTransaction,
@@ -102,7 +97,6 @@ export type {
   RequiredAsset,
   SavedGasFees,
   SecurityAlertResponse,
-  SecurityProviderRequest,
   SendFlowHistoryEntry,
   SimulationBalanceChange,
   SimulationData,
@@ -140,10 +134,10 @@ export {
   normalizeTransactionParams,
 } from './utils/utils';
 export { CHAIN_IDS } from './constants';
-export { SUPPORTED_CHAIN_IDS as INCOMING_TRANSACTIONS_SUPPORTED_CHAIN_IDS } from './helpers/AccountsApiRemoteTransactionSource';
 export { HARDFORK } from './utils/prepare';
 export { getAccountAddressRelationship } from './api/accounts-api';
 export type {
   GetAccountAddressRelationshipRequest,
   AccountAddressRelationshipResult,
 } from './api/accounts-api';
+export { generateBatchId } from './utils/batch';

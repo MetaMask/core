@@ -7,8 +7,8 @@ import type {
 } from '@metamask/messenger';
 
 import { flushPromises } from '../../../tests/helpers';
-import mockBridgeQuotesErc20Erc20 from '../tests/mock-quotes-erc20-erc20.json';
-import mockBridgeQuotesNativeErc20 from '../tests/mock-quotes-native-erc20.json';
+import { mockBridgeQuotesErc20Erc20V1 } from '../tests/mock-quotes-erc20-erc20';
+import { mockBridgeQuotesNativeErc20V1 } from '../tests/mock-quotes-native-erc20';
 import {
   advanceToNthTimerThenFlush,
   mockSseBatchSellEventSource,
@@ -20,8 +20,8 @@ import {
   DEFAULT_BRIDGE_CONTROLLER_STATE,
 } from './constants/bridge';
 import * as selectors from './selectors';
-import { ChainId, RequestStatus } from './types';
-import type { BridgeControllerMessenger, QuoteResponse } from './types';
+import { ChainId, RequestStatus, FeatureId } from './types';
+import type { BridgeControllerMessenger } from './types';
 import * as balanceUtils from './utils/balance';
 import * as featureFlagUtils from './utils/feature-flags';
 import * as fetchUtils from './utils/fetch';
@@ -62,6 +62,7 @@ const quoteRequest = {
   resetApproval: false,
 };
 const metricsContext = {
+  feature_id: FeatureId.BATCH_SELL,
   token_symbol_source: 'ETH',
   token_symbol_destination: 'USDC',
   usd_amount_source: 100,
@@ -224,8 +225,8 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
         }) => {
           mockFetchFn.mockImplementationOnce(async () => {
             return mockSseBatchSellEventSource([
-              mockBridgeQuotesNativeErc20 as QuoteResponse[],
-              mockBridgeQuotesErc20Erc20 as QuoteResponse[],
+              mockBridgeQuotesNativeErc20V1,
+              mockBridgeQuotesErc20Erc20V1,
             ]);
           });
           hasSufficientBalanceSpy.mockResolvedValue(true);
@@ -238,37 +239,37 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           const quoteRequest0 = {
             ...quoteRequest,
             srcTokenAddress:
-              mockBridgeQuotesNativeErc20[0].quote.srcAsset.address,
+              mockBridgeQuotesNativeErc20V1[0].quote.srcAsset.address,
             destTokenAddress:
-              mockBridgeQuotesNativeErc20[0].quote.destAsset.address,
+              mockBridgeQuotesNativeErc20V1[0].quote.destAsset.address,
             srcChainId:
-              mockBridgeQuotesNativeErc20[0].quote.srcAsset.chainId.toString(),
+              mockBridgeQuotesNativeErc20V1[0].quote.srcAsset.chainId.toString(),
             destChainId:
-              mockBridgeQuotesNativeErc20[0].quote.destAsset.chainId.toString(),
+              mockBridgeQuotesNativeErc20V1[0].quote.destAsset.chainId.toString(),
             srcTokenAmount: '100000000000000000',
           };
           const quoteRequest1 = {
             ...quoteRequest,
             srcTokenAddress:
-              mockBridgeQuotesErc20Erc20[0].quote.srcAsset.address,
+              mockBridgeQuotesErc20Erc20V1[0].quote.srcAsset.address,
             destTokenAddress:
-              mockBridgeQuotesErc20Erc20[0].quote.destAsset.address,
+              mockBridgeQuotesErc20Erc20V1[0].quote.destAsset.address,
             srcChainId:
-              mockBridgeQuotesErc20Erc20[0].quote.srcAsset.chainId.toString(),
+              mockBridgeQuotesErc20Erc20V1[0].quote.srcAsset.chainId.toString(),
             destChainId:
-              mockBridgeQuotesErc20Erc20[0].quote.destAsset.chainId.toString(),
+              mockBridgeQuotesErc20Erc20V1[0].quote.destAsset.chainId.toString(),
             srcTokenAmount: '1000000000000000000',
           };
           const quoteRequest2 = {
             ...quoteRequest,
             srcTokenAddress:
-              mockBridgeQuotesNativeErc20[0].quote.srcAsset.address,
+              mockBridgeQuotesNativeErc20V1[0].quote.srcAsset.address,
             destTokenAddress:
-              mockBridgeQuotesNativeErc20[0].quote.destAsset.address,
+              mockBridgeQuotesNativeErc20V1[0].quote.destAsset.address,
             srcChainId:
-              mockBridgeQuotesNativeErc20[0].quote.srcAsset.chainId.toString(),
+              mockBridgeQuotesNativeErc20V1[0].quote.srcAsset.chainId.toString(),
             destChainId:
-              mockBridgeQuotesNativeErc20[0].quote.destAsset.chainId.toString(),
+              mockBridgeQuotesNativeErc20V1[0].quote.destAsset.chainId.toString(),
             srcTokenAmount: '1000000000000000000',
           };
 
@@ -375,6 +376,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
               },
             ],
             expect.any(AbortSignal),
+            FeatureId.BATCH_SELL,
             BridgeClientId.EXTENSION,
             'AUTH_TOKEN',
             BRIDGE_PROD_API_BASE_URL,
@@ -417,23 +419,22 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
                 resetApproval: false,
               },
             ],
-            quotes: mockBridgeQuotesNativeErc20
+            quotes: mockBridgeQuotesNativeErc20V1
               .map((quote) => ({
                 ...quote,
                 l1GasFeesInHexWei: '0x1',
                 resetApproval: undefined,
                 quoteRequestIndex: 0,
+                featureId: FeatureId.BATCH_SELL,
               }))
               .concat(
-                mockBridgeQuotesErc20Erc20.map(
-                  (quote) =>
-                    ({
-                      ...quote,
-                      l1GasFeesInHexWei: '0x2',
-                      resetApproval: undefined,
-                      quoteRequestIndex: 1,
-                    }) as never,
-                ),
+                mockBridgeQuotesErc20Erc20V1.map((quote) => ({
+                  ...quote,
+                  l1GasFeesInHexWei: '0x2',
+                  resetApproval: undefined,
+                  quoteRequestIndex: 1,
+                  featureId: FeatureId.BATCH_SELL,
+                })),
               ),
             quotesRefreshCount: 1,
             quotesLoadingStatus: 1,
@@ -526,6 +527,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           await rootMessenger.call(
             'BridgeController:updateBatchSellTrades',
             [],
+            false,
           );
 
           await jest.advanceTimersByTimeAsync(1000);
@@ -637,10 +639,12 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           await rootMessenger.call(
             'BridgeController:updateBatchSellTrades',
             [],
+            false,
           );
           await rootMessenger.call(
             'BridgeController:updateBatchSellTrades',
-            mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[],
+            mockBridgeQuotesErc20Erc20V1,
+            false,
           );
 
           await jest.advanceTimersByTimeAsync(1000);
@@ -670,6 +674,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           expect(fetchBatchSellTradesSpy).toHaveBeenCalledTimes(2);
           expect(fetchBatchSellTradesSpy.mock.calls[0]).toStrictEqual([
             [],
+            false,
             expect.any(AbortSignal),
             'extension',
             'AUTH_TOKEN',
@@ -678,7 +683,8 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
             '13.8.0',
           ]);
           expect(fetchBatchSellTradesSpy.mock.calls[1]).toStrictEqual([
-            mockBridgeQuotesErc20Erc20,
+            mockBridgeQuotesErc20Erc20V1,
+            false,
             expect.any(AbortSignal),
             'extension',
             'AUTH_TOKEN',
@@ -748,6 +754,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           await rootMessenger.call(
             'BridgeController:updateBatchSellTrades',
             [],
+            false,
           );
           rootMessenger.call('BridgeController:resetState');
 
@@ -774,6 +781,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           expect(fetchBatchSellTradesSpy).toHaveBeenCalledTimes(1);
           expect(fetchBatchSellTradesSpy.mock.calls[0]).toStrictEqual([
             [],
+            false,
             expect.any(AbortSignal),
             'extension',
             'AUTH_TOKEN',
@@ -845,6 +853,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           await rootMessenger.call(
             'BridgeController:updateBatchSellTrades',
             [],
+            false,
           );
 
           await jest.advanceTimersByTimeAsync(1000);
@@ -871,7 +880,8 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           // 2nd fetch
           await rootMessenger.call(
             'BridgeController:updateBatchSellTrades',
-            mockBridgeQuotesErc20Erc20 as unknown as QuoteResponse[],
+            mockBridgeQuotesErc20Erc20V1,
+            false,
           );
 
           await jest.advanceTimersByTimeAsync(2000);
@@ -880,7 +890,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           expect(stopAllPollingSpy).toHaveBeenCalledTimes(0);
           expect(abortControllerSpy).toHaveBeenCalledTimes(1);
           expect(fetchBatchSellTradesSpy.mock.calls[1][0]).toStrictEqual(
-            mockBridgeQuotesErc20Erc20,
+            mockBridgeQuotesErc20Erc20V1,
           );
           expect(startPollingSpy).not.toHaveBeenCalled();
           expect(bridgeController.state.batchSellTrades).toBeNull();

@@ -1,5 +1,8 @@
 import { Interface } from '@ethersproject/abi';
-import { createServicePolicy } from '@metamask/controller-utils';
+import {
+  createServicePolicy,
+  encodeFunctionData,
+} from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
 import { ZERO_ADDRESS } from '../../../utils/constants';
@@ -369,6 +372,8 @@ const MULTICALL3_ADDRESS_BY_CHAIN: Record<Hex, Hex> = {
   '0x1079': '0xcA11bde05977b3631167028862bE2a173976CA11',
   // Tempo Testnet Moderato
   '0xa5bf': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Arc (5042)
+  '0x13b2': '0xcA11bde05977b3631167028862bE2a173976CA11',
 };
 
 // =============================================================================
@@ -382,9 +387,7 @@ const MULTICALL3_ADDRESS_BY_CHAIN: Record<Hex, Hex> = {
  * @returns The encoded call data.
  */
 function encodeBalanceOf(accountAddress: Address): Hex {
-  return erc20Interface.encodeFunctionData('balanceOf', [
-    accountAddress,
-  ]) as Hex;
+  return encodeFunctionData(erc20Interface, 'balanceOf', [accountAddress]);
 }
 
 /**
@@ -394,9 +397,9 @@ function encodeBalanceOf(accountAddress: Address): Hex {
  * @returns The encoded call data.
  */
 function encodeGetEthBalance(accountAddress: Address): Hex {
-  return multicall3Interface.encodeFunctionData('getEthBalance', [
+  return encodeFunctionData(multicall3Interface, 'getEthBalance', [
     accountAddress,
-  ]) as Hex;
+  ]);
 }
 
 /**
@@ -408,13 +411,13 @@ function encodeGetEthBalance(accountAddress: Address): Hex {
 export function encodeAggregate3(
   calls: readonly { target: Address; allowFailure: boolean; callData: Hex }[],
 ): Hex {
-  return multicall3Interface.encodeFunctionData('aggregate3', [
+  return encodeFunctionData(multicall3Interface, 'aggregate3', [
     calls.map((call) => ({
       target: call.target,
       allowFailure: call.allowFailure,
       callData: call.callData,
     })),
-  ]) as Hex;
+  ]);
 }
 
 /**

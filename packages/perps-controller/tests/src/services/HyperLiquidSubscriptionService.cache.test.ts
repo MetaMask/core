@@ -1192,7 +1192,7 @@ describe('HyperLiquidSubscriptionService', () => {
       unsubscribe();
     });
 
-    it('includes spot balance in webData2 (single-DEX) account updates without flickering', async () => {
+    it('includes spot balance in single-DEX account updates without flickering', async () => {
       jest.mocked(adaptAccountStateFromSDK).mockImplementation(() => ({
         spendableBalance: '50',
         withdrawableBalance: '50',
@@ -1202,24 +1202,25 @@ describe('HyperLiquidSubscriptionService', () => {
         returnOnEquity: '0.05',
       }));
 
-      let webData2Callback: ((data: any) => void) | undefined;
-      mockSubscriptionClient.webData2.mockImplementation(
+      // HIP-3 disabled now uses the per-DEX clearinghouseState subscription
+      // (not the deprecated webData2 channel) for account updates.
+      const clearinghouseData = {
+        dex: '',
+        clearinghouseState: {
+          assetPositions: [],
+          marginSummary: {
+            accountValue: '200',
+            totalMarginUsed: '10',
+          },
+          withdrawable: '50',
+        },
+      };
+
+      let clearinghouseCallback: ((data: any) => void) | undefined;
+      mockSubscriptionClient.clearinghouseState.mockImplementation(
         (_params: any, callback: any) => {
-          webData2Callback = callback;
-          setTimeout(() => {
-            callback({
-              clearinghouseState: {
-                assetPositions: [],
-                marginSummary: {
-                  accountValue: '200',
-                  totalMarginUsed: '10',
-                },
-                withdrawable: '50',
-              },
-              openOrders: [],
-              perpsAtOpenInterestCap: [],
-            });
-          }, 0);
+          clearinghouseCallback = callback;
+          setTimeout(() => callback(clearinghouseData), 0);
           return Promise.resolve({
             unsubscribe: jest.fn().mockResolvedValue(undefined),
           });
@@ -1240,6 +1241,7 @@ describe('HyperLiquidSubscriptionService', () => {
 
       await jest.runAllTimersAsync();
 
+      expect(mockSubscriptionClient.webData2).not.toHaveBeenCalled();
       expect(mockCallback).toHaveBeenCalled();
       const firstUpdate = mockCallback.mock.calls.at(-1)[0];
       // Unified-mode default: freeSpot ($100.77) folds into spendable and
@@ -1254,20 +1256,9 @@ describe('HyperLiquidSubscriptionService', () => {
       // Simulate a second WebSocket tick — should still include spot balance,
       // not revert to perps-only 200.
       mockCallback.mockClear();
-      expect(webData2Callback).toBeDefined();
+      expect(clearinghouseCallback).toBeDefined();
 
-      webData2Callback!({
-        clearinghouseState: {
-          assetPositions: [],
-          marginSummary: {
-            accountValue: '200',
-            totalMarginUsed: '10',
-          },
-          withdrawable: '50',
-        },
-        openOrders: [],
-        perpsAtOpenInterestCap: [],
-      });
+      clearinghouseCallback!(clearinghouseData);
 
       await jest.runAllTimersAsync();
 
@@ -1929,7 +1920,7 @@ describe('HyperLiquidSubscriptionService', () => {
       await jest.runAllTimersAsync();
 
       expect(mockSubscriptionClient.l2Book).toHaveBeenCalledWith(
-        { coin: 'BTC', nSigFigs: 5, mantissa: undefined },
+        { coin: 'BTC', nSigFigs: 5, mantissa: undefined, fast: undefined },
         expect.any(Function),
       );
 
@@ -2285,6 +2276,69 @@ describe('HyperLiquidSubscriptionService', () => {
       // Should only have 3 levels on each side
       expect(orderBookData.bids.length).toBe(3);
       expect(orderBookData.asks.length).toBe(3);
+    });
+
+    it('forwards fast: true to the SDK l2Book call', async () => {
+      const mockCallback = jest.fn();
+      mockSubscriptionClient.l2Book.mockImplementation(
+        (_params: any, callback: any) => {
+          setTimeout(() => {
+            callback({
+              coin: 'BTC',
+              levels: [
+                [{ px: '49900', sz: '1.0', n: 1 }],
+                [{ px: '50100', sz: '1.0', n: 1 }],
+              ],
+            });
+          }, 0);
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      service.subscribeToOrderBook({
+        symbol: 'BTC',
+        fast: true,
+        callback: mockCallback,
+      });
+
+      await jest.runAllTimersAsync();
+
+      expect(mockSubscriptionClient.l2Book).toHaveBeenCalledWith(
+        expect.objectContaining({ coin: 'BTC', fast: true }),
+        expect.any(Function),
+      );
+    });
+
+    it('does not send fast flag when fast is omitted', async () => {
+      const mockCallback = jest.fn();
+      mockSubscriptionClient.l2Book.mockImplementation(
+        (_params: any, callback: any) => {
+          setTimeout(() => {
+            callback({
+              coin: 'BTC',
+              levels: [
+                [{ px: '49900', sz: '1.0', n: 1 }],
+                [{ px: '50100', sz: '1.0', n: 1 }],
+              ],
+            });
+          }, 0);
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      service.subscribeToOrderBook({
+        symbol: 'BTC',
+        callback: mockCallback,
+      });
+
+      await jest.runAllTimersAsync();
+
+      const calledWith = mockSubscriptionClient.l2Book.mock.calls[0][0];
+      expect(calledWith.fast).toBeUndefined();
     });
   });
 

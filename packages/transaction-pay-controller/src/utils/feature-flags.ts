@@ -1,6 +1,7 @@
 import type { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 import { uniq } from 'lodash';
 
 import { isTransactionPayStrategy, TransactionPayStrategy } from '../constants';
@@ -9,6 +10,7 @@ import type { TransactionPayFiatAsset } from '../strategy/fiat/constants';
 import {
   ETH_MAINNET_FIAT_ASSET,
   FIAT_ASSET_ID_BY_TX_TYPE,
+  FIAT_ENABLED_TYPES,
 } from '../strategy/fiat/constants';
 import {
   RELAY_EXECUTE_URL,
@@ -25,6 +27,11 @@ const log = createModuleLogger(projectLogger, 'feature-flags');
 
 type StrategyOrder = TransactionPayStrategy[];
 
+export const DEFAULT_FEE_RESERVE_MULTIPLIER = 1.2;
+export const DEFAULT_MAX_RATE_DRIFT_PERCENT = 10;
+export const DEFAULT_ORDER_POLL_INTERVAL_MS = 1000;
+export const DEFAULT_ORDER_POLL_TIMEOUT_MS = 10 * 60 * 1000;
+
 export const DEFAULT_GAS_BUFFER = 1.0;
 export const DEFAULT_FALLBACK_GAS_ESTIMATE = 900000;
 export const DEFAULT_FALLBACK_GAS_MAX = 1500000;
@@ -32,6 +39,7 @@ export const DEFAULT_RELAY_EXECUTE_URL = RELAY_EXECUTE_URL;
 export const DEFAULT_RELAY_QUOTE_URL = RELAY_QUOTE_URL;
 export const DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD = '300000';
 export const DEFAULT_SLIPPAGE = 0.005;
+export const DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD = 1;
 export const DEFAULT_ACROSS_API_BASE = 'https://app.across.to/api';
 export const DEFAULT_SERVER_BASE_URL = SERVER_URL_BASE;
 export const DEFAULT_STRATEGY_ORDER: StrategyOrder = [
@@ -91,6 +99,32 @@ type FiatFlags = {
   assetPerTransactionType?: Partial<
     Record<TransactionType, TransactionPayFiatAsset>
   >;
+  directMoneyMusdEnabled?: boolean;
+  enabledTransactionTypes: TransactionType[];
+  feeReserveMultiplier?: number;
+  maxRateDriftPercent?: number;
+  orderPollIntervalMs?: number;
+  orderPollTimeoutMs?: number;
+  vaultDisabled?: boolean;
+};
+
+type HyperliquidActivationFeeFlag = {
+  enabled?: boolean;
+  amountUsd?: number;
+};
+
+type PostQuoteConfig = {
+  hyperliquidActivationFee?: HyperliquidActivationFeeFlag;
+};
+
+type PostQuoteFeatureFlags = {
+  default?: PostQuoteConfig;
+  overrides?: Record<string, PostQuoteConfig>;
+};
+
+export type HyperliquidActivationFeeConfig = {
+  enabled: boolean;
+  amountUsd: number;
 };
 
 type StrategyRoutingConfig = {
@@ -149,6 +183,7 @@ export type PayStrategiesConfigRaw = {
 };
 
 type FeatureFlagsExtendedRaw = {
+  excludeChainIdsFromInfura?: Hex[];
   payStrategies?: {
     relay?: {
       gaslessEnabled?: boolean;
@@ -455,10 +490,13 @@ export function getFeatureFlags(
       | FeatureFlagsRaw
       | undefined) ?? {};
 
-  const estimate =
-    featureFlags.relayFallbackGas?.estimate ?? DEFAULT_FALLBACK_GAS_ESTIMATE;
+  const estimate = new BigNumber(
+    featureFlags.relayFallbackGas?.estimate ?? DEFAULT_FALLBACK_GAS_ESTIMATE,
+  ).toNumber();
 
-  const max = featureFlags.relayFallbackGas?.max ?? DEFAULT_FALLBACK_GAS_MAX;
+  const max = new BigNumber(
+    featureFlags.relayFallbackGas?.max ?? DEFAULT_FALLBACK_GAS_MAX,
+  ).toNumber();
 
   const relayExecuteUrl =
     featureFlags.relayExecuteUrl ?? DEFAULT_RELAY_EXECUTE_URL;
@@ -554,6 +592,33 @@ export function isRelayExecuteEnabled(
       | FeatureFlagsExtendedRaw
       | undefined) ?? {};
   return featureFlags.payStrategies?.relay?.gaslessEnabled ?? false;
+}
+
+/**
+ * Whether a chain is excluded from preferring Infura for balance queries.
+ *
+ * When a chain ID appears in the `confirmations_pay_extended.excludeChainIdsFromInfura`
+ * feature flag array, the Infura RPC endpoint should not be forced for that chain.
+ *
+ * @param messenger - Controller messenger.
+ * @param chainId - Chain ID to check.
+ * @returns True if the chain should skip the Infura preference.
+ */
+export function isChainExcludedFromInfura(
+  messenger: TransactionPayControllerMessenger,
+  chainId: Hex,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags =
+    (state.remoteFeatureFlags?.confirmations_pay_extended as
+      | FeatureFlagsExtendedRaw
+      | undefined) ?? {};
+
+  const excludedChains = featureFlags.excludeChainIdsFromInfura ?? [];
+
+  return excludedChains.some(
+    (excluded) => excluded.toLowerCase() === chainId.toLowerCase(),
+  );
 }
 
 /**
@@ -791,6 +856,183 @@ export function getFiatAssetPerTransactionType(
     FIAT_ASSET_ID_BY_TX_TYPE[transactionType] ??
     ETH_MAINNET_FIAT_ASSET
   );
+}
+
+/**
+ * Get the enabled fiat transaction types.
+ *
+ * @param messenger - Controller messenger.
+ * @returns The enabled fiat transaction types.
+ */
+export function getFiatEnabledTypes(
+  messenger: TransactionPayControllerMessenger,
+): TransactionType[] {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+
+  return fiatFlags?.enabledTransactionTypes ?? FIAT_ENABLED_TYPES;
+}
+
+/**
+ * Returns the fee reserve multiplier for fiat three-phase submit.
+ *
+ * Controls how much of the original relay fee is reserved from the discovery
+ * quote source amount to prevent EXACT_OUTPUT cost overruns.
+ *
+ * @param messenger - Controller messenger.
+ * @returns The fee reserve multiplier.
+ */
+export function getFiatFeeReserveMultiplier(
+  messenger: TransactionPayControllerMessenger,
+): number {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+
+  const multiplier = fiatFlags?.feeReserveMultiplier;
+
+  return typeof multiplier === 'number' && multiplier > 0
+    ? multiplier
+    : DEFAULT_FEE_RESERVE_MULTIPLIER;
+}
+
+/**
+ * Returns the maximum allowed relay rate drift percentage for fiat submit.
+ *
+ * Controls how much the relay exchange rate can drift between the original
+ * quoting phase and the post-settlement discovery quote before failing.
+ * Defaults to 10%.
+ *
+ * @param messenger - Controller messenger.
+ * @returns The maximum rate drift percentage.
+ */
+export function getFiatMaxRateDriftPercent(
+  messenger: TransactionPayControllerMessenger,
+): number {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+
+  const maxDrift = fiatFlags?.maxRateDriftPercent;
+
+  return typeof maxDrift === 'number' && maxDrift > 0
+    ? maxDrift
+    : DEFAULT_MAX_RATE_DRIFT_PERCENT;
+}
+
+export function getDirectMoneyMusdEnabled(
+  messenger: TransactionPayControllerMessenger,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+  return fiatFlags?.directMoneyMusdEnabled === true;
+}
+
+export function getFiatVaultDisabled(
+  messenger: TransactionPayControllerMessenger,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+  return fiatFlags?.vaultDisabled === true;
+}
+
+/**
+ * Returns the fiat order poll interval in milliseconds.
+ *
+ * Controls how frequently the fiat order status is polled during
+ * the on-ramp completion wait loop. Defaults to 1 000 ms.
+ *
+ * @param messenger - Controller messenger.
+ * @returns The poll interval in milliseconds.
+ */
+export function getFiatOrderPollIntervalMs(
+  messenger: TransactionPayControllerMessenger,
+): number {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+
+  const interval = fiatFlags?.orderPollIntervalMs;
+
+  return typeof interval === 'number' && interval > 0
+    ? interval
+    : DEFAULT_ORDER_POLL_INTERVAL_MS;
+}
+
+/**
+ * Returns the fiat order poll timeout in milliseconds.
+ *
+ * Controls how long the fiat order polling loop waits for a terminal
+ * status before timing out. Defaults to 600 000 ms (10 minutes).
+ *
+ * @param messenger - Controller messenger.
+ * @returns The poll timeout in milliseconds.
+ */
+export function getFiatOrderPollTimeoutMs(
+  messenger: TransactionPayControllerMessenger,
+): number {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+
+  const timeout = fiatFlags?.orderPollTimeoutMs;
+
+  return typeof timeout === 'number' && timeout > 0
+    ? timeout
+    : DEFAULT_ORDER_POLL_TIMEOUT_MS;
+}
+
+/**
+ * Get the HyperLiquid activation-fee configuration from the
+ * `confirmations_pay_post_quote` feature flag for a transaction type.
+ *
+ * Resolves the transaction type's
+ * `overrides.<transactionType>.hyperliquidActivationFee`, falling back to
+ * `default.hyperliquidActivationFee`.
+ *
+ * When enabled, an unactivated HyperCore account withdrawing via Pay has the
+ * one-time activation fee reserved from the amount sent to HyperLiquid (so the
+ * `sendAsset` step retains enough balance) and surfaced as part of the
+ * provider fee. Defaults to disabled with a $1 fee.
+ *
+ * @param messenger - Controller messenger.
+ * @param transactionType - Parent transaction type used to resolve overrides.
+ * @returns The activation-fee configuration.
+ */
+export function getHyperliquidActivationFeeConfig(
+  messenger: TransactionPayControllerMessenger,
+  transactionType?: string,
+): HyperliquidActivationFeeConfig {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags = state.remoteFeatureFlags
+    ?.confirmations_pay_post_quote as PostQuoteFeatureFlags | undefined;
+
+  const override = transactionType
+    ? featureFlags?.overrides?.[transactionType]
+    : undefined;
+  const config =
+    override?.hyperliquidActivationFee ??
+    featureFlags?.default?.hyperliquidActivationFee;
+
+  const { amountUsd } = config ?? {};
+
+  return {
+    enabled: config?.enabled ?? false,
+    amountUsd:
+      typeof amountUsd === 'number' && amountUsd > 0
+        ? amountUsd
+        : DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD,
+  };
 }
 
 /**

@@ -84,6 +84,10 @@ export async function getRelayMaxGasStationQuote(
 
   const phase1Quote = await getSingleQuote(request, fullRequest);
 
+  if (phase1Quote.original.metamask?.isExecute) {
+    return phase1Quote;
+  }
+
   const nativeBalanceCheck = checkEnoughNativeBalanceIfSourceGasFeeTokenNotUsed(
     phase1Quote,
     messenger,

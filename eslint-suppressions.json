@@ -158,11 +158,6 @@
       "count": 6
     }
   },
-  "packages/assets-controller/src/AssetsController.ts": {
-    "no-restricted-syntax": {
-      "count": 7
-    }
-  },
   "packages/assets-controller/src/__fixtures__/MockAssetControllerMessenger.ts": {
     "no-restricted-syntax": {
       "count": 4
@@ -236,11 +231,6 @@
     },
     "no-restricted-syntax": {
       "count": 2
-    }
-  },
-  "packages/assets-controllers/src/CurrencyRateController.test.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 10
     }
   },
   "packages/assets-controllers/src/CurrencyRateController.ts": {
@@ -715,9 +705,6 @@
   "packages/bridge-controller/src/utils/trade-utils.ts": {
     "no-restricted-globals": {
       "count": 1
-    },
-    "no-restricted-syntax": {
-      "count": 5
     }
   },
   "packages/bridge-controller/tests/mock-sse.ts": {
@@ -855,11 +842,6 @@
     }
   },
   "packages/core-backend/src/ws/AccountActivityService.ts": {
-    "no-restricted-syntax": {
-      "count": 1
-    }
-  },
-  "packages/core-backend/src/ws/BackendWebSocketService.test.ts": {
     "no-restricted-syntax": {
       "count": 1
     }
@@ -1278,6 +1260,11 @@
     }
   },
   "packages/multichain-account-service/src/providers/TrxAccountProvider.ts": {
+    "@typescript-eslint/naming-convention": {
+      "count": 2
+    }
+  },
+  "packages/multichain-account-service/src/providers/XlmAccountProvider.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 2
     }
@@ -2136,6 +2123,76 @@
       "count": 2
     }
   },
+  "packages/smart-transactions-controller/src/SmartTransactionsController.test.ts": {
+    "@typescript-eslint/explicit-function-return-type": {
+      "count": 12
+    },
+    "@typescript-eslint/no-explicit-any": {
+      "count": 3
+    },
+    "no-restricted-syntax": {
+      "count": 12
+    }
+  },
+  "packages/smart-transactions-controller/src/SmartTransactionsController.ts": {
+    "@typescript-eslint/explicit-function-return-type": {
+      "count": 10
+    },
+    "@typescript-eslint/no-floating-promises": {
+      "count": 4
+    },
+    "no-restricted-syntax": {
+      "count": 4
+    }
+  },
+  "packages/smart-transactions-controller/src/featureFlags/feature-flags.ts": {
+    "@typescript-eslint/naming-convention": {
+      "count": 1
+    }
+  },
+  "packages/smart-transactions-controller/src/selectors.ts": {
+    "@typescript-eslint/explicit-function-return-type": {
+      "count": 2
+    }
+  },
+  "packages/smart-transactions-controller/src/types.ts": {
+    "@typescript-eslint/naming-convention": {
+      "count": 25
+    },
+    "@typescript-eslint/no-explicit-any": {
+      "count": 7
+    },
+    "@typescript-eslint/prefer-enum-initializers": {
+      "count": 6
+    }
+  },
+  "packages/smart-transactions-controller/src/utils.test.ts": {
+    "@typescript-eslint/explicit-function-return-type": {
+      "count": 7
+    }
+  },
+  "packages/smart-transactions-controller/src/utils.ts": {
+    "@typescript-eslint/explicit-function-return-type": {
+      "count": 10
+    },
+    "@typescript-eslint/naming-convention": {
+      "count": 1
+    },
+    "@typescript-eslint/no-explicit-any": {
+      "count": 4
+    },
+    "@typescript-eslint/prefer-nullish-coalescing": {
+      "count": 1
+    },
+    "jsdoc/require-param-description": {
+      "count": 1
+    }
+  },
+  "packages/smart-transactions-controller/tests/helpers.ts": {
+    "@typescript-eslint/explicit-function-return-type": {
+      "count": 2
+    }
+  },
   "packages/snap-account-service/src/SnapAccountService.test.ts": {
     "no-restricted-syntax": {
       "count": 2
@@ -2143,12 +2200,12 @@
   },
   "packages/snap-account-service/src/SnapPlatformWatcher.test.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/snap-account-service/src/SnapPlatformWatcher.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 1
     }
   },
   "packages/subscription-controller/src/SubscriptionController.test.ts": {
@@ -2164,11 +2221,6 @@
   "packages/subscription-controller/src/index.ts": {
     "no-restricted-syntax": {
       "count": 2
-    }
-  },
-  "packages/transaction-controller/src/TransactionController.ts": {
-    "no-restricted-syntax": {
-      "count": 7
     }
   },
   "packages/transaction-controller/src/TransactionControllerIntegration.test.ts": {

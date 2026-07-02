@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.1]
+
+### Changed
+
+- Preserve the pre-consent event queue when calling `resetConsentDecision`, matching extension behavior for undecided consent resets during onboarding restarts ([#9284](https://github.com/MetaMask/core/pull/9284))
+
+## [1.2.0]
+
+### Added
+
+- Add optional pre-consent event queue to `AnalyticsController` (disabled by default via `isPreConsentQueueEnabled`), with a `consentDecisionMade` state field, `selectConsentDecisionMade` selector, and `resetConsentDecision` action ([#9252](https://github.com/MetaMask/core/pull/9252))
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+
+## [1.1.1]
+
+### Fixed
+
+- Clear persisted analytics event queue entries after the delivery callback runs, including when the callback reports an error. ([#8934](https://github.com/MetaMask/core/pull/8934))
+
 ## [1.1.0]
 
 ### Added
@@ -35,7 +57,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of @metamask/analytics-controller. ([#7017](https://github.com/MetaMask/core/pull/7017), [#7202](https://github.com/MetaMask/core/pull/7202))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.2.1...HEAD
+[1.2.1]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.2.0...@metamask/analytics-controller@1.2.1
+[1.2.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.1.1...@metamask/analytics-controller@1.2.0
+[1.1.1]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.1.0...@metamask/analytics-controller@1.1.1
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.0.1...@metamask/analytics-controller@1.1.0
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.0.0...@metamask/analytics-controller@1.0.1
 [1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/analytics-controller@1.0.0

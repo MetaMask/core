@@ -227,7 +227,7 @@ export type BlockExplorerUrl =
   (typeof BlockExplorerUrl)[keyof typeof BlockExplorerUrl];
 
 export const NetworkNickname = {
-  [BuiltInNetworkName.Mainnet]: 'Ethereum Mainnet',
+  [BuiltInNetworkName.Mainnet]: 'Ethereum',
   [BuiltInNetworkName.Goerli]: 'Goerli',
   [BuiltInNetworkName.Sepolia]: 'Sepolia',
   [BuiltInNetworkName.LineaGoerli]: 'Linea Goerli',
@@ -239,14 +239,14 @@ export const NetworkNickname = {
   [BuiltInNetworkName.MegaETHTestnet]: 'Mega Testnet',
   [BuiltInNetworkName.MegaETHTestnetV2]: 'MegaETH Testnet',
   [BuiltInNetworkName.MonadTestnet]: 'Monad Testnet',
-  [BuiltInNetworkName.BaseMainnet]: 'Base Mainnet',
-  [BuiltInNetworkName.ArbitrumOne]: 'Arbitrum One',
-  [BuiltInNetworkName.BscMainnet]: 'BSC Mainnet',
-  [BuiltInNetworkName.OptimismMainnet]: 'Optimism Mainnet',
-  [BuiltInNetworkName.PolygonMainnet]: 'Polygon Mainnet',
+  [BuiltInNetworkName.BaseMainnet]: 'Base',
+  [BuiltInNetworkName.ArbitrumOne]: 'Arbitrum',
+  [BuiltInNetworkName.BscMainnet]: 'BNB Chain',
+  [BuiltInNetworkName.OptimismMainnet]: 'OP',
+  [BuiltInNetworkName.PolygonMainnet]: 'Polygon',
   [BuiltInNetworkName.SeiMainnet]: 'Sei Mainnet',
   [BuiltInNetworkName.MegaETHMainnet]: 'MegaETH Mainnet',
-  [BuiltInNetworkName.MonadMainnet]: 'Monad Mainnet',
+  [BuiltInNetworkName.MonadMainnet]: 'Monad',
   [BuiltInNetworkName.AvalancheMainnet]: 'Avalanche Mainnet',
   [BuiltInNetworkName.ZksyncMainnet]: 'ZKsync Era',
 } as const satisfies Record<BuiltInNetworkType, string>;
@@ -285,6 +285,12 @@ export type TraceRequest = {
 
   /** Additional tags to include in the trace to filter results. */
   tags?: Record<string, number | string | boolean>;
+
+  /**
+   * Override the start time of the trace, in milliseconds.
+   * Useful to backdate a span when the traced work has already completed.
+   */
+  startTime?: number;
 };
 
 /** Callback that traces the performance of an operation. */

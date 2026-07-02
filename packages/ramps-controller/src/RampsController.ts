@@ -739,6 +739,31 @@ export function normalizeProviderCode(providerCode: string): string {
   return providerCode.replace(/^\/providers\//u, '');
 }
 
+/**
+ * Returns the internal MetaMask order code used for state lookups and polling.
+ * Prefers the code embedded in the canonical order `id` path over `providerOrderId`,
+ * which may contain the provider's native order identifier.
+ *
+ * @param orderOrId - Order fields or a full order id / order code string.
+ * @returns The internal order code.
+ */
+export function getInternalOrderCode(
+  orderOrId: Pick<RampsOrder, 'id' | 'providerOrderId'> | string,
+): string {
+  if (typeof orderOrId === 'string') {
+    return orderOrId.includes('/orders/')
+      ? orderOrId.split('/orders/')[1]
+      : orderOrId;
+  }
+
+  const { id, providerOrderId } = orderOrId;
+  if (id?.includes('/orders/')) {
+    return id.split('/orders/')[1];
+  }
+
+  return providerOrderId;
+}
+
 // === ORDER POLLING CONSTANTS ===
 
 const TERMINAL_ORDER_STATUSES = new Set<RampsOrderStatus>([
@@ -1538,7 +1563,6 @@ export class RampsController extends BaseController<
    * @param options - Options for cache behavior and query filters.
    * @param options.provider - Provider ID(s) to filter by.
    * @param options.crypto - Crypto currency ID(s) to filter by.
-   * @param options.fiat - Fiat currency ID(s) to filter by.
    * @param options.payments - Payment method ID(s) to filter by.
    * @returns The providers response containing providers array.
    */
@@ -1547,7 +1571,6 @@ export class RampsController extends BaseController<
     options?: ExecuteRequestOptions & {
       provider?: string | string[];
       crypto?: string | string[];
-      fiat?: string | string[];
       payments?: string | string[];
     },
   ): Promise<{ providers: Provider[] }> {
@@ -1558,7 +1581,6 @@ export class RampsController extends BaseController<
       normalizedRegion,
       options?.provider,
       options?.crypto,
-      options?.fiat,
       options?.payments,
     ]);
 
@@ -1571,7 +1593,6 @@ export class RampsController extends BaseController<
           {
             provider: options?.provider,
             crypto: options?.crypto,
-            fiat: options?.fiat,
             payments: options?.payments,
           },
         );
@@ -1600,7 +1621,6 @@ export class RampsController extends BaseController<
    *
    * @param region - User's region code (e.g. "fr", "us-ny").
    * @param options - Query parameters for filtering payment methods.
-   * @param options.fiat - Fiat currency code (e.g., "usd"). If not provided, uses the user's region currency.
    * @param options.assetId - CAIP-19 cryptocurrency identifier.
    * @param options.provider - Provider ID path.
    * @returns The payment methods response containing payments array.
@@ -1608,30 +1628,19 @@ export class RampsController extends BaseController<
   async getPaymentMethods(
     region?: string,
     options?: ExecuteRequestOptions & {
-      fiat?: string;
       assetId?: string;
       provider?: string;
     },
   ): Promise<PaymentMethodsResponse> {
     const regionCode = region ?? this.#requireRegion();
-    const fiatToUse =
-      options?.fiat ?? this.state.userRegion?.country?.currency ?? null;
     const assetIdToUse =
       options?.assetId ?? this.state.tokens.selected?.assetId ?? '';
     const providerToUse =
       options?.provider ?? this.state.providers.selected?.id ?? '';
 
-    if (!fiatToUse) {
-      throw new Error(
-        'Fiat currency is required. Either provide a fiat parameter or ensure userRegion is set in controller state.',
-      );
-    }
-
     const normalizedRegion = regionCode.toLowerCase().trim();
-    const normalizedFiat = fiatToUse.toLowerCase().trim();
     const cacheKey = createCacheKey('getPaymentMethods', [
       normalizedRegion,
-      normalizedFiat,
       assetIdToUse,
       providerToUse,
     ]);
@@ -1641,7 +1650,6 @@ export class RampsController extends BaseController<
       async () => {
         return this.messenger.call('RampsService:getPaymentMethods', {
           region: normalizedRegion,
-          fiat: normalizedFiat,
           assetId: assetIdToUse,
           provider: providerToUse,
         });
@@ -1736,6 +1744,18 @@ export class RampsController extends BaseController<
    * @param options.walletAddress - The destination wallet address.
    * @param options.paymentMethods - Array of payment method IDs. If not provided, uses paymentMethods from state.
    * @param options.providers - Optional provider IDs to filter quotes.
+   * @param options.autoSelectProvider - When true and `providers` is omitted,
+   *   resolves a provider that supports `assetId` for this request only (no
+   *   state mutation). Ignored when `providers` is passed.
+   * @param options.preferredProviderIds - Optional provider IDs to prefer
+   *   during auto-selection, in priority order (e.g. derived by the caller
+   *   from completed-order history). Only used when `autoSelectProvider` is
+   *   true and `providers` is omitted.
+   * @param options.restrictToKnownOrNativeProviders - Headless-buy v0 gating. When
+   *   true, auto-selection resolves only a native provider, and an explicitly
+   *   passed `providers` list is filtered to those supporting the region and
+   *   asset. If nothing qualifies, `getQuotes` returns an empty response
+   *   instead of quoting other providers.
    * @param options.redirectUrl - Optional redirect URL after order completion.
    * @param options.action - The ramp action type. Defaults to 'buy'.
    * @param options.forceRefresh - Whether to bypass cache.
@@ -1750,6 +1770,9 @@ export class RampsController extends BaseController<
     walletAddress: string;
     paymentMethods?: string[];
     providers?: string[];
+    autoSelectProvider?: boolean;
+    preferredProviderIds?: string[];
+    restrictToKnownOrNativeProviders?: boolean;
     redirectUrl?: string;
     action?: RampAction;
     forceRefresh?: boolean;
@@ -1760,9 +1783,6 @@ export class RampsController extends BaseController<
     const paymentMethodsToUse =
       options.paymentMethods ??
       this.state.paymentMethods.data.map((pm: PaymentMethod) => pm.id);
-    const providersToUse =
-      options.providers ??
-      this.state.providers.data.map((provider: Provider) => provider.id);
     const action = options.action ?? 'buy';
     const assetIdToUse = options.assetId ?? this.state.tokens.selected?.assetId;
 
@@ -1775,6 +1795,34 @@ export class RampsController extends BaseController<
     const normalizedAssetIdForValidation = (assetIdToUse ?? '').trim();
     if (normalizedAssetIdForValidation === '') {
       throw new Error('assetId is required.');
+    }
+
+    let providersToUse: string[];
+    if (options.providers) {
+      providersToUse = options.restrictToKnownOrNativeProviders
+        ? await this.#filterProviderIdsBySupport({
+            providerIds: options.providers,
+            assetId: normalizedAssetIdForValidation,
+            region: regionToUse,
+          })
+        : options.providers;
+    } else if (
+      options.autoSelectProvider ||
+      options.restrictToKnownOrNativeProviders
+    ) {
+      // The restriction flag implies resolution: it must narrow the provider
+      // set even when `autoSelectProvider` was not explicitly passed, otherwise
+      // it would be silently ignored and every provider quoted.
+      providersToUse = await this.#resolveProviderIdsForQuote({
+        assetId: normalizedAssetIdForValidation,
+        region: regionToUse,
+        preferredProviderIds: options.preferredProviderIds,
+        restrictToKnownOrNative: options.restrictToKnownOrNativeProviders,
+      });
+    } else {
+      providersToUse = this.state.providers.data.map(
+        (provider: Provider) => provider.id,
+      );
     }
 
     if (
@@ -1793,6 +1841,17 @@ export class RampsController extends BaseController<
 
     if (!options.walletAddress || options.walletAddress.trim() === '') {
       throw new Error('walletAddress is required.');
+    }
+
+    // Under headless-buy gating, an empty resolved provider list means no
+    // eligible (native/supporting) provider exists. Return an empty response
+    // rather than passing `[]` to the service, which omits the provider filter
+    // and would quote every provider.
+    if (
+      options.restrictToKnownOrNativeProviders &&
+      providersToUse.length === 0
+    ) {
+      return { success: [], sorted: [], error: [], customActions: [] };
     }
 
     const normalizedRegion = regionToUse.toLowerCase().trim();
@@ -1836,27 +1895,230 @@ export class RampsController extends BaseController<
     );
   }
 
+  /**
+   * Returns the region's providers that support the given asset, plus the full
+   * region provider list. Uses cached providers only when the request targets
+   * the current region; otherwise fetches for the requested region, since
+   * `getProviders` does not persist results for a non-current region. Does not
+   * mutate state.
+   *
+   * @param options - The options.
+   * @param options.assetId - CAIP-19 asset type identifier to resolve for.
+   * @param options.region - Region to resolve providers for.
+   * @returns The supporting providers and the full region provider list.
+   */
+  async #getSupportingProvidersForRegion({
+    assetId,
+    region,
+  }: {
+    assetId: string;
+    region: string;
+  }): Promise<{ supporting: Provider[]; all: Provider[] }> {
+    const normalizedRegion = region.toLowerCase().trim();
+
+    let providers: Provider[];
+    if (
+      this.#isRegionCurrent(normalizedRegion) &&
+      this.state.providers.data.length > 0
+    ) {
+      providers = this.state.providers.data;
+    } else {
+      ({ providers } = await this.getProviders(normalizedRegion));
+    }
+
+    // EVM CAIP-19 asset IDs may arrive checksummed or lowercased, and the
+    // providers API returns both forms, so match case-insensitively on both
+    // sides. Only the lowercased forms are compared (the original IDs are never
+    // returned), so case-sensitive non-EVM asset IDs are not corrupted.
+    const normalizedAssetId = assetId.toLowerCase();
+    const supporting = providers.filter((provider) => {
+      const map = provider?.supportedCryptoCurrencies;
+      if (!map) {
+        return false;
+      }
+      return Object.keys(map).some(
+        (key) => key.toLowerCase() === normalizedAssetId,
+      );
+    });
+
+    return { supporting, all: providers };
+  }
+
+  /**
+   * Filters an explicitly-requested provider ID list down to those that support
+   * the asset in the region. Used for headless-buy gating so an explicitly
+   * passed provider that cannot serve the region/asset yields no providers
+   * rather than being trusted blindly.
+   *
+   * @param options - The options.
+   * @param options.providerIds - Explicitly requested provider IDs.
+   * @param options.assetId - CAIP-19 asset type identifier to resolve for.
+   * @param options.region - Region to resolve providers for.
+   * @returns The subset of `providerIds` supporting the asset in the region.
+   */
+  async #filterProviderIdsBySupport({
+    providerIds,
+    assetId,
+    region,
+  }: {
+    providerIds: string[];
+    assetId: string;
+    region: string;
+  }): Promise<string[]> {
+    const { supporting } = await this.#getSupportingProvidersForRegion({
+      assetId,
+      region,
+    });
+    const supportingIds = new Set(supporting.map((provider) => provider.id));
+    return providerIds.filter((id) => supportingIds.has(id));
+  }
+
+  /**
+   * Resolves the provider IDs to use for a single quote request, scoped to the
+   * given asset and region. Does not mutate `providers.selected` or any other
+   * state.
+   *
+   * Resolves against the region's supporting providers using this precedence:
+   * 1. The currently selected provider, if it is in the supporting set.
+   * 2. The first preferred provider that supports the asset, where the
+   *    preference is taken from `preferredProviderIds` when supplied, otherwise
+   *    derived from the user's completed-order history (most recent first).
+   *    This takes priority over Transak Native to preserve an existing KYC
+   *    relationship.
+   * 3. A native provider (e.g. Transak Native).
+   * 4. The first supporting provider — unless `restrictToKnownOrNative` is set, in
+   *    which case no further provider is introduced and nothing is returned.
+   *
+   * When `restrictToKnownOrNative` is unset and no provider supports the asset, falls
+   * back to all known provider IDs so the request behaves as if no
+   * auto-selection occurred.
+   *
+   * @param options - The options.
+   * @param options.assetId - CAIP-19 asset type identifier to resolve for.
+   * @param options.region - Region to resolve providers for.
+   * @param options.preferredProviderIds - Provider IDs to prefer, in order.
+   * @param options.restrictToKnownOrNative - When true, resolve only a native provider
+   *   (or no providers when none supports the asset).
+   * @returns Provider IDs for this request only.
+   */
+  async #resolveProviderIdsForQuote({
+    assetId,
+    region,
+    preferredProviderIds,
+    restrictToKnownOrNative,
+  }: {
+    assetId: string;
+    region: string;
+    preferredProviderIds?: string[];
+    restrictToKnownOrNative?: boolean;
+  }): Promise<string[]> {
+    const { supporting, all } = await this.#getSupportingProvidersForRegion({
+      assetId,
+      region,
+    });
+
+    // When not restricted and nothing supports the asset, behave as if no
+    // auto-selection occurred (quote against all known providers).
+    if (!restrictToKnownOrNative && supporting.length === 0) {
+      return all.map((provider) => provider.id);
+    }
+
+    // 1. The currently selected provider, if it supports the asset.
+    const { selected } = this.state.providers;
+    if (
+      selected &&
+      supporting.some((provider) => provider.id === selected.id)
+    ) {
+      return [selected.id];
+    }
+
+    // 2. A provider the user has transacted with before — from
+    //    `preferredProviderIds` when supplied, otherwise completed-order
+    //    history. Takes priority over Transak Native to preserve an existing
+    //    KYC relationship and avoid churn.
+    const preferred =
+      preferredProviderIds ?? this.#getPreferredProviderIdsFromOrders();
+
+    for (const preferredId of preferred) {
+      const match = supporting.find((provider) => provider.id === preferredId);
+      if (match) {
+        return [match.id];
+      }
+    }
+
+    // 3. A native provider (e.g. Transak Native).
+    const nativeProvider = supporting.find(
+      (provider) => provider.type === 'native',
+    );
+    if (nativeProvider) {
+      return [nativeProvider.id];
+    }
+
+    // 4. Fallback. Under headless gating, introduce no other provider — return
+    //    nothing so the caller surfaces an "unavailable" state. Otherwise the
+    //    aggregator and all other providers are treated equally: first wins.
+    if (restrictToKnownOrNative) {
+      return [];
+    }
+    return [supporting[0].id];
+  }
+
+  /**
+   * Derives an ordered list of provider IDs from the user's completed-order
+   * history, most recently completed first, with duplicates removed.
+   *
+   * Reads only this controller's own normalized order state, so it carries no
+   * dependency on any client-specific order representation.
+   *
+   * @returns Provider IDs ordered by most recent completed order.
+   */
+  #getPreferredProviderIdsFromOrders(): string[] {
+    const orderedIds: string[] = [];
+
+    const completedOrders = this.state.orders
+      .filter(
+        (order) =>
+          order.status === RampsOrderStatus.Completed && order.provider?.id,
+      )
+      .sort((orderA, orderB) => orderB.createdAt - orderA.createdAt);
+
+    for (const order of completedOrders) {
+      const id = order.provider?.id;
+      if (id && !orderedIds.includes(id)) {
+        orderedIds.push(id);
+      }
+    }
+
+    return orderedIds;
+  }
+
   // === ORDER MANAGEMENT ===
 
   /**
    * Adds or updates a V2 order in controller state.
-   * If an order with the same providerOrderId already exists, the incoming
+   * If an order with the same internal order code already exists, the incoming
    * fields are merged on top of the existing order so that fields not present
    * in the update (e.g. paymentDetails from the Transak API) are preserved.
    *
    * @param order - The RampsOrder to add or update.
    */
   addOrder(order: RampsOrder): void {
+    const internalOrderCode = getInternalOrderCode(order);
+    const healedOrder = {
+      ...order,
+      providerOrderId: internalOrderCode,
+    };
+
     this.update((state) => {
       const idx = state.orders.findIndex(
-        (existing) => existing.providerOrderId === order.providerOrderId,
+        (existing) => getInternalOrderCode(existing) === internalOrderCode,
       );
       if (idx === -1) {
-        state.orders.push(order as Draft<RampsOrder>);
+        state.orders.push(healedOrder as Draft<RampsOrder>);
       } else {
         state.orders[idx] = {
           ...state.orders[idx],
-          ...order,
+          ...healedOrder,
         } as Draft<RampsOrder>;
       }
     });
@@ -2058,9 +2320,7 @@ export class RampsController extends BaseController<
   }): void {
     const { orderId, providerCode, walletAddress, chainId } = params;
 
-    const orderCode = orderId.includes('/orders/')
-      ? orderId.split('/orders/')[1]
-      : orderId;
+    const orderCode = getInternalOrderCode(orderId);
     if (!orderCode?.trim()) {
       return;
     }
@@ -2120,15 +2380,20 @@ export class RampsController extends BaseController<
     );
 
     const healedWalletAddress = order.walletAddress || wallet;
+    const internalOrderCode = getInternalOrderCode({
+      id: order.id,
+      providerOrderId: orderCode,
+    });
     const healedOrder = {
       ...order,
       walletAddress: healedWalletAddress,
-      providerOrderId: orderCode,
+      providerOrderId: internalOrderCode,
     };
 
     this.update((state) => {
       const idx = state.orders.findIndex(
-        (existing: RampsOrder) => existing.providerOrderId === orderCode,
+        (existing: RampsOrder) =>
+          getInternalOrderCode(existing) === internalOrderCode,
       );
       if (idx === -1) {
         state.orders.push(healedOrder as Draft<RampsOrder>);

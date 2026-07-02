@@ -53,6 +53,7 @@ export type {
   PerpsControllerClearWithdrawResultAction,
   PerpsControllerClosePositionAction,
   PerpsControllerClosePositionsAction,
+  PerpsControllerClearAttributionContextAction,
   PerpsControllerCompleteWithdrawalFromHistoryAction,
   PerpsControllerDepositWithConfirmationAction,
   PerpsControllerDepositWithOrderAction,
@@ -63,6 +64,7 @@ export type {
   PerpsControllerGetAccountStateAction,
   PerpsControllerGetActiveProviderAction,
   PerpsControllerGetActiveProviderOrNullAction,
+  PerpsControllerGetAttributionContextAction,
   PerpsControllerGetAvailableDexsAction,
   PerpsControllerGetBlockExplorerUrlAction,
   PerpsControllerGetCachedMarketDataForActiveProviderAction,
@@ -82,6 +84,7 @@ export type {
   PerpsControllerGetPendingTradeConfigurationAction,
   PerpsControllerGetPositionsAction,
   PerpsControllerGetTradeConfigurationAction,
+  PerpsControllerGetRecentlyViewedMarketsAction,
   PerpsControllerGetWatchlistMarketsAction,
   PerpsControllerGetWebSocketConnectionStateAction,
   PerpsControllerGetWithdrawalProgressAction,
@@ -94,6 +97,7 @@ export type {
   PerpsControllerMarkTutorialCompletedAction,
   PerpsControllerPlaceOrderAction,
   PerpsControllerReconnectAction,
+  PerpsControllerRecordMarketViewedAction,
   PerpsControllerRefreshEligibilityAction,
   PerpsControllerResetFirstTimeUserStateAction,
   PerpsControllerResetSelectedPaymentTokenAction,
@@ -101,6 +105,7 @@ export type {
   PerpsControllerSaveOrderBookGroupingAction,
   PerpsControllerSavePendingTradeConfigurationAction,
   PerpsControllerSaveTradeConfigurationAction,
+  PerpsControllerSetAttributionContextAction,
   PerpsControllerSetLiveDataConfigAction,
   PerpsControllerSetSelectedPaymentTokenAction,
   PerpsControllerStartEligibilityMonitoringAction,
@@ -233,6 +238,7 @@ export type {
   PerpsTraceName,
   PerpsTraceValue,
   PerpsAnalyticsProperties,
+  PerpsAttributionContext,
   PerpsMetrics,
   PerpsDebugLogger,
   PerpsStreamManager,
@@ -244,6 +250,8 @@ export type {
   PerpsInternalAccount,
   PerpsRemoteFeatureFlagState,
   PerpsPlatformDependencies,
+  PerpsTerminalMarketService,
+  TerminalAssetMetadata,
   PerpsCacheType,
   InvalidateCacheParams,
   PerpsCacheInvalidator,
@@ -470,6 +478,7 @@ export {
 } from './utils';
 export {
   calculateOpenInterestUSD,
+  isMarketTradable,
   transformMarketData,
   formatChange,
 } from './utils';
@@ -491,7 +500,14 @@ export {
   calculateFundingCountdown,
   calculate24hHighLow,
   filterMarketsByQuery,
+  matchesCategory,
+  getMarketTypeFilter,
+  applyMarketFilters,
+  isHip3Market,
+  rankMarketsByQuery,
+  getMarketMatchRank,
 } from './utils';
+export { MarketMatchRank } from './utils';
 export type { MarketPatternMatcher, CompiledMarketPattern } from './utils';
 export type {
   OrderCalculationsDebugLogger,
@@ -568,6 +584,7 @@ export {
   selectHasPlacedFirstOrder,
   selectWatchlistMarkets,
   selectIsWatchlistMarket,
+  selectRecentlyViewedMarkets,
   selectTradeConfiguration,
   selectPendingTradeConfiguration,
   selectMarketFilterPreferences,

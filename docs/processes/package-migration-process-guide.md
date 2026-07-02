@@ -65,6 +65,17 @@ This document outlines the process for migrating a MetaMask library into the cor
 
 - [Example PR](https://github.com/MetaMask/core/pull/1872)
 
+#### After PR#6 lands: tag the latest source-repo release in core
+
+`action-publish-release` checks GitHub for an existing tag before publishing. If the latest version published from the source repo has no matching tag in `core`, the action will try to release that version again and fail. Create a tag in `core` for the last source-repo release and push it to `origin`:
+
+```shell
+git tag -a @metamask/<package-name>@<latest-version> <release-commit-sha-in-core>
+git push origin @metamask/<package-name>@<latest-version>
+```
+
+Find the release commit SHA with `git log --oneline merged-packages/<package-name>` and match the release commit message from the source repo.
+
 ### **[PR#7]** 2. Reset the CHANGELOG, adding a link to the old repository
 
 - Create a fresh CHANGELOG file with no releases
@@ -73,7 +84,7 @@ This document outlines the process for migrating a MetaMask library into the cor
 
 ### **[PR#8]** 3. Remove files and directories that will be replaced by files in the monorepo root directory
 
-- **Remove**: `.github/`, `.git*`, `scripts/`, `.depcheckrc.json`, `.yarn/`, `.yarnrc.yml`, `yarn.lock`, `.editorconfig`, `.eslint*`, `.prettier*`, `.nvm*`.
+- **Remove**: `.github/`, `.git*`, `scripts/`, `knip.config.ts`, `.yarn/`, `.yarnrc.yml`, `yarn.lock`, `.editorconfig`, `.eslint*`, `.prettier*`, `.nvm*`.
 - **Keep**: `src/`, `tests/`, `CHANGELOG.md`, `LICENSE`, `package.json`, `README.md`, `jest.config.js`, `tsconfig*.json`, `typedoc.json`
 - [Example PR](https://github.com/MetaMask/core/pull/1764)
 

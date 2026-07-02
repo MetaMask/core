@@ -79,20 +79,24 @@ export function createMockAssetControllerMessenger(): {
     events: [
       // AssetsController
       'AccountTreeController:selectedAccountGroupChange',
+      'AccountTreeController:stateChanged',
+      'ClientController:stateChanged',
       'KeyringController:lock',
       'KeyringController:unlock',
       'PreferencesController:stateChange',
       // RpcDataSource, StakedBalanceDataSource
       'NetworkController:stateChange',
       'TransactionController:transactionConfirmed',
-      'TransactionController:incomingTransactionsReceived',
       // StakedBalanceDataSource
       'NetworkEnablementController:stateChange',
+      'NetworkEnablementController:stateChanged',
       // SnapDataSource
       'AccountsController:accountBalancesUpdated',
       'PermissionController:stateChange',
       // BackendWebsocketDataSource
       'BackendWebSocketService:connectionStateChanged',
+      // AccountActivityService
+      'AccountActivityService:balanceUpdated',
     ],
   });
 

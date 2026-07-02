@@ -5,6 +5,7 @@ import type {
 import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 
+import { TRANSAK_ERROR_CODES } from './transakErrorCodes';
 import type { TransakServiceMethodActions } from './TransakService-method-action-types';
 
 // === TYPES ===
@@ -354,8 +355,10 @@ export type TransakServiceMessenger = Messenger<
  * (e.g., "credit_debit_card").
  *
  * The translation endpoint only understands the deposit-format IDs.
- * If no mapping exists, the input is returned as-is (it may already be
- * in the deposit format).
+ * Canonical IDs may arrive either with the "/payments/" prefix
+ * (e.g., "/payments/apple-pay") or without it (e.g., "apple-pay"), so both
+ * forms are accepted. If no mapping exists, the input is returned as-is (it
+ * may already be in the deposit format).
  */
 const RAMPS_TO_DEPOSIT_PAYMENT_METHOD: Record<string, string> = {
   '/payments/debit-credit-card': 'credit_debit_card',
@@ -366,13 +369,22 @@ const RAMPS_TO_DEPOSIT_PAYMENT_METHOD: Record<string, string> = {
   '/payments/gbp-bank-transfer': 'gbp_bank_transfer',
 };
 
+const PAYMENTS_PREFIX = '/payments/';
+
 function normalizePaymentMethodForTranslation(
   paymentMethod: string | undefined,
 ): string | undefined {
   if (!paymentMethod) {
     return undefined;
   }
-  return RAMPS_TO_DEPOSIT_PAYMENT_METHOD[paymentMethod] ?? paymentMethod;
+  const prefixed = paymentMethod.startsWith(PAYMENTS_PREFIX)
+    ? paymentMethod
+    : `${PAYMENTS_PREFIX}${paymentMethod}`;
+  return (
+    RAMPS_TO_DEPOSIT_PAYMENT_METHOD[paymentMethod] ??
+    RAMPS_TO_DEPOSIT_PAYMENT_METHOD[prefixed] ??
+    paymentMethod
+  );
 }
 
 function getTransakApiBaseUrl(environment: TransakEnvironment): string {
@@ -417,8 +429,6 @@ function getPaymentWidgetBaseUrl(environment: TransakEnvironment): string {
 }
 
 // === TRANSAK API ERROR ===
-
-const TRANSAK_ORDER_EXISTS_CODE = '4005';
 
 export class TransakApiError extends HttpError {
   readonly errorCode: string | undefined;
@@ -904,7 +914,7 @@ export class TransakService {
       if (
         error instanceof TransakApiError &&
         error.httpStatus === 409 &&
-        error.errorCode === TRANSAK_ORDER_EXISTS_CODE
+        error.errorCode === TRANSAK_ERROR_CODES.ORDER_EXISTS
       ) {
         await this.cancelAllActiveOrders();
         await new Promise((resolve) =>

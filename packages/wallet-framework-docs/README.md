@@ -1,14 +1,8 @@
 # `@metamask/wallet-framework-docs`
 
-Documentation for the Wallet Framework
+Documentation for the Wallet Framework.
 
-## Installation
-
-`yarn add @metamask/wallet-framework-docs`
-
-or
-
-`npm install @metamask/wallet-framework-docs`
+This package is not published to NPM currently.
 
 ## Contributing
 

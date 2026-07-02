@@ -1,10 +1,8 @@
 import { TransactionPayStrategy } from '../constants';
 import { AcrossStrategy } from '../strategy/across/AcrossStrategy';
-import { BridgeStrategy } from '../strategy/bridge/BridgeStrategy';
 import { FiatStrategy } from '../strategy/fiat/FiatStrategy';
 import { RelayStrategy } from '../strategy/relay/RelayStrategy';
 import { ServerStrategy } from '../strategy/server/ServerStrategy';
-import { TestStrategy } from '../strategy/test/TestStrategy';
 import type {
   PayStrategy,
   PayStrategyCheckQuoteSupportRequest,
@@ -29,9 +27,6 @@ export function getStrategyByName(
     case TransactionPayStrategy.Across:
       return new AcrossStrategy() as never;
 
-    case TransactionPayStrategy.Bridge:
-      return new BridgeStrategy() as never;
-
     case TransactionPayStrategy.Relay:
       return new RelayStrategy() as never;
 
@@ -40,9 +35,6 @@ export function getStrategyByName(
 
     case TransactionPayStrategy.Server:
       return new ServerStrategy() as never;
-
-    case TransactionPayStrategy.Test:
-      return new TestStrategy() as never;
 
     default:
       throw new Error(`Unknown strategy: ${strategyName as string}`);

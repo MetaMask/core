@@ -19,6 +19,7 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
+import { HandlerType } from '@metamask/snaps-utils';
 import { v4 as uuidv4 } from 'uuid';
 
 import { MultichainBalancesController } from '.';
@@ -26,6 +27,7 @@ import type {
   MultichainBalancesControllerMessenger,
   MultichainBalancesControllerState,
 } from '.';
+import { GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD } from './account-asset-info';
 import { getDefaultMultichainBalancesControllerState } from './MultichainBalancesController';
 
 const mockBtcAccount = {
@@ -102,6 +104,41 @@ const mockBalanceResult = {
   },
 };
 
+const mockStellarAccount: InternalAccount = {
+  type: 'stellar:data-account',
+  id: 'stellar-account-uuid',
+  address: 'GXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX',
+  scopes: ['stellar:pubnet'],
+  options: {},
+  methods: [],
+  metadata: {
+    name: 'Stellar Account',
+    importTime: 1737022568097,
+    keyring: {
+      type: KeyringTypes.snap,
+    },
+    snap: {
+      id: 'local:stellar-snap',
+      name: 'Stellar',
+      enabled: true,
+    },
+    lastSelected: 0,
+  },
+};
+
+const STELLAR_CLASSIC_USDC =
+  'stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN' as CaipAssetType;
+
+function isGetAccountAssetInfoCall(params: {
+  handler: string;
+  request?: { method?: string };
+}): boolean {
+  return (
+    params.handler === HandlerType.OnClientRequest &&
+    params.request?.method === GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD
+  );
+}
+
 /**
  * The union of actions that the root messenger allows.
  */
@@ -165,9 +202,11 @@ function getRestrictedMessenger(
 
 const setupController = ({
   state = getDefaultMultichainBalancesControllerState(),
+  isDeprecated,
   mocks,
 }: {
   state?: MultichainBalancesControllerState;
+  isDeprecated?: () => boolean;
   mocks?: {
     listMultichainAccounts?: InternalAccount[];
     handleRequestReturnValue?: Record<CaipAssetType, Balance>;
@@ -219,6 +258,7 @@ const setupController = ({
   const controller = new MultichainBalancesController({
     messenger: multichainBalancesMessenger,
     state,
+    ...(isDeprecated ? { isDeprecated } : {}),
   });
 
   return {
@@ -410,6 +450,43 @@ describe('MultichainBalancesController', () => {
 
     expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(
       mockBalanceResult,
+    );
+  });
+
+  it('preserves balance accountAssetInfo when accountBalancesUpdated overwrites amount', async () => {
+    const assetId = mockBtcNativeAsset;
+    const { controller, messenger } = setupController({
+      state: {
+        balances: {
+          [mockBtcAccount.id]: {
+            [assetId]: {
+              amount: '1',
+              unit: 'BTC',
+              accountAssetInfo: { limit: '500' },
+            },
+          },
+        },
+      },
+    });
+
+    await waitForAllPromises();
+
+    messenger.publish('AccountsController:accountBalancesUpdated', {
+      balances: {
+        [mockBtcAccount.id]: {
+          [assetId]: { amount: '2', unit: 'BTC' },
+        },
+      },
+    });
+
+    await waitForAllPromises();
+
+    expect(controller.state.balances[mockBtcAccount.id][assetId]).toStrictEqual(
+      {
+        amount: '2',
+        unit: 'BTC',
+        accountAssetInfo: { limit: '500' },
+      },
     );
   });
 
@@ -732,148 +809,6 @@ describe('MultichainBalancesController', () => {
         },
       });
     });
-
-    it('removes stale balances that are no longer present in MultichainAssetsController state', async () => {
-      const mockSolanaAccountId1 = mockListSolanaAccounts[0].id;
-
-      const existingBalancesState = {
-        [mockSolanaAccountId1]: {
-          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:removedToken': {
-            amount: '5.00000000',
-            unit: 'SOL',
-          },
-          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:keptToken': {
-            amount: '6.00000000',
-            unit: 'SOL',
-          },
-        },
-      };
-
-      const {
-        controller,
-        messenger,
-        mockGetAssetsState,
-        mockSnapHandleRequest,
-        mockListMultichainAccounts,
-      } = setupController({
-        state: {
-          balances: existingBalancesState,
-        },
-        mocks: {
-          handleMockGetAssetsState: {
-            accountsAssets: {
-              [mockSolanaAccountId1]: [
-                'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:removedToken',
-                'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:keptToken',
-              ],
-            },
-          },
-          handleRequestReturnValue: {
-            'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:keptToken': {
-              amount: '6.00000000',
-              unit: 'SOL',
-            },
-          },
-          listMultichainAccounts: [],
-        },
-      });
-
-      mockSnapHandleRequest.mockReset();
-      mockListMultichainAccounts.mockReset();
-
-      mockListMultichainAccounts.mockReturnValue(mockListSolanaAccounts);
-      mockGetAssetsState.mockReturnValue({
-        accountsAssets: {
-          [mockSolanaAccountId1]: [
-            'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:keptToken',
-          ],
-        },
-      });
-      mockSnapHandleRequest.mockResolvedValueOnce({
-        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:keptToken': {
-          amount: '6.00000000',
-          unit: 'SOL',
-        },
-      });
-
-      messenger.publish('MultichainAssetsController:accountAssetListUpdated', {
-        assets: {
-          [mockSolanaAccountId1]: {
-            added: ['solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:keptToken'],
-            removed: [
-              'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:removedToken',
-            ],
-          },
-        },
-      });
-
-      await waitForAllPromises();
-
-      expect(controller.state.balances).toStrictEqual({
-        [mockSolanaAccountId1]: {
-          'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:keptToken': {
-            amount: '6.00000000',
-            unit: 'SOL',
-          },
-        },
-      });
-    });
-
-    it('clears balances when an account no longer has any assets after the update', async () => {
-      const mockSolanaAccountId1 = mockListSolanaAccounts[0].id;
-
-      const {
-        controller,
-        messenger,
-        mockGetAssetsState,
-        mockListMultichainAccounts,
-      } = setupController({
-        state: {
-          balances: {
-            [mockSolanaAccountId1]: {
-              'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:removedToken': {
-                amount: '5.00000000',
-                unit: 'SOL',
-              },
-            },
-          },
-        },
-        mocks: {
-          listMultichainAccounts: [],
-          handleMockGetAssetsState: {
-            accountsAssets: {
-              [mockSolanaAccountId1]: [],
-            },
-          },
-          handleRequestReturnValue: {},
-        },
-      });
-
-      mockGetAssetsState.mockReturnValue({
-        accountsAssets: {
-          [mockSolanaAccountId1]: [],
-        },
-      });
-      mockListMultichainAccounts.mockReset();
-      mockListMultichainAccounts.mockReturnValue(mockListSolanaAccounts);
-
-      messenger.publish('MultichainAssetsController:accountAssetListUpdated', {
-        assets: {
-          [mockSolanaAccountId1]: {
-            added: [],
-            removed: [
-              'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:removedToken',
-            ],
-          },
-        },
-      });
-
-      await waitForAllPromises();
-
-      expect(controller.state.balances).toStrictEqual({
-        [mockSolanaAccountId1]: {},
-      });
-    });
   });
 
   it('resumes updating balances after unlocking KeyringController', async () => {
@@ -890,6 +825,381 @@ describe('MultichainBalancesController', () => {
     expect(controller.state.balances[mockBtcAccount.id]).toStrictEqual(
       mockBalanceResult,
     );
+  });
+
+  describe('Stellar account-asset enrichment', () => {
+    it('stores balances without accountAssetInfo when enrichment fails', async () => {
+      const { controller, messenger, mockSnapHandleRequest } = setupController({
+        state: {
+          balances: {
+            [mockStellarAccount.id]: {},
+          },
+        },
+        mocks: {
+          listMultichainAccounts: [mockStellarAccount],
+          handleRequestReturnValue: {
+            [STELLAR_CLASSIC_USDC]: { amount: '5', unit: 'USDC' },
+          },
+          handleMockGetAssetsState: {
+            accountsAssets: {
+              [mockStellarAccount.id]: [STELLAR_CLASSIC_USDC],
+            },
+          },
+        },
+      });
+
+      mockSnapHandleRequest.mockImplementation(
+        (params: { handler: string; request?: { method?: string } }) => {
+          if (isGetAccountAssetInfoCall(params)) {
+            return Promise.reject(new Error('snap enrichment failed'));
+          }
+          return Promise.resolve({
+            [STELLAR_CLASSIC_USDC]: { amount: '5', unit: 'USDC' },
+          });
+        },
+      );
+
+      await waitForAllPromises();
+
+      messenger.publish('MultichainAssetsController:accountAssetListUpdated', {
+        assets: {
+          [mockStellarAccount.id]: {
+            added: [STELLAR_CLASSIC_USDC],
+            removed: [],
+          },
+        },
+      });
+
+      await waitForAllPromises();
+
+      expect(
+        controller.state.balances[mockStellarAccount.id][STELLAR_CLASSIC_USDC],
+      ).toStrictEqual({
+        amount: '5',
+        unit: 'USDC',
+      });
+    });
+
+    it('enriches added Stellar classics after accountAssetListUpdated', async () => {
+      const { controller, messenger, mockSnapHandleRequest } = setupController({
+        state: {
+          balances: {
+            [mockStellarAccount.id]: {},
+          },
+        },
+        mocks: {
+          listMultichainAccounts: [mockStellarAccount],
+          handleRequestReturnValue: {},
+          handleMockGetAssetsState: {
+            accountsAssets: {
+              [mockStellarAccount.id]: [STELLAR_CLASSIC_USDC],
+            },
+          },
+        },
+      });
+
+      mockSnapHandleRequest.mockImplementation(
+        (params: { handler: string; request?: { method?: string } }) => {
+          if (isGetAccountAssetInfoCall(params)) {
+            return Promise.resolve({
+              [STELLAR_CLASSIC_USDC]: { limit: '0' },
+            });
+          }
+          return Promise.resolve({});
+        },
+      );
+
+      await waitForAllPromises();
+
+      messenger.publish('MultichainAssetsController:accountAssetListUpdated', {
+        assets: {
+          [mockStellarAccount.id]: {
+            added: [STELLAR_CLASSIC_USDC],
+            removed: [],
+          },
+        },
+      });
+
+      await waitForAllPromises();
+
+      expect(
+        controller.state.balances[mockStellarAccount.id][STELLAR_CLASSIC_USDC],
+      ).toStrictEqual({
+        amount: '0',
+        unit: '',
+        accountAssetInfo: { limit: '0' },
+      });
+    });
+
+    it('does not enrich accountAssetInfo when accountBalancesUpdated fires', async () => {
+      const { controller, messenger, mockSnapHandleRequest } = setupController({
+        state: {
+          balances: {
+            [mockStellarAccount.id]: {
+              [STELLAR_CLASSIC_USDC]: {
+                amount: '0',
+                unit: 'USDC',
+                accountAssetInfo: { limit: '0' },
+              },
+            },
+          },
+        },
+        mocks: {
+          listMultichainAccounts: [mockStellarAccount],
+        },
+      });
+
+      await waitForAllPromises();
+      mockSnapHandleRequest.mockClear();
+
+      messenger.publish('AccountsController:accountBalancesUpdated', {
+        balances: {
+          [mockStellarAccount.id]: {
+            [STELLAR_CLASSIC_USDC]: { amount: '5', unit: 'USDC' },
+          },
+        },
+      });
+
+      await waitForAllPromises();
+
+      expect(
+        mockSnapHandleRequest.mock.calls.some(([params]) =>
+          isGetAccountAssetInfoCall(params),
+        ),
+      ).toBe(false);
+      expect(
+        controller.state.balances[mockStellarAccount.id][STELLAR_CLASSIC_USDC],
+      ).toStrictEqual({
+        amount: '5',
+        unit: 'USDC',
+        accountAssetInfo: { limit: '0' },
+      });
+    });
+
+    it('enriches refreshed Stellar classics after accountAssetListUpdated', async () => {
+      const { controller, messenger, mockSnapHandleRequest } = setupController({
+        state: {
+          balances: {
+            [mockStellarAccount.id]: {
+              [STELLAR_CLASSIC_USDC]: {
+                amount: '0',
+                unit: 'USDC',
+                accountAssetInfo: { limit: '0' },
+              },
+            },
+          },
+        },
+        mocks: {
+          listMultichainAccounts: [mockStellarAccount],
+          handleRequestReturnValue: {},
+          handleMockGetAssetsState: {
+            accountsAssets: {
+              [mockStellarAccount.id]: [STELLAR_CLASSIC_USDC],
+            },
+          },
+        },
+      });
+
+      mockSnapHandleRequest.mockImplementation(
+        (params: { handler: string; request?: { method?: string } }) => {
+          if (isGetAccountAssetInfoCall(params)) {
+            return Promise.resolve({
+              [STELLAR_CLASSIC_USDC]: { limit: '1000' },
+            });
+          }
+          return Promise.resolve({
+            [STELLAR_CLASSIC_USDC]: { amount: '0', unit: 'USDC' },
+          });
+        },
+      );
+
+      await waitForAllPromises();
+
+      messenger.publish('MultichainAssetsController:accountAssetListUpdated', {
+        assets: {
+          [mockStellarAccount.id]: {
+            added: [],
+            removed: [],
+            refreshed: [STELLAR_CLASSIC_USDC],
+          },
+        },
+      });
+
+      await waitForAllPromises();
+
+      expect(
+        controller.state.balances[mockStellarAccount.id][STELLAR_CLASSIC_USDC],
+      ).toStrictEqual({
+        amount: '0',
+        unit: 'USDC',
+        accountAssetInfo: { limit: '1000' },
+      });
+    });
+
+    it('does not call getAccountAssetInfo on balance sync', async () => {
+      const { messenger, mockSnapHandleRequest } = setupController({
+        state: {
+          balances: {
+            [mockStellarAccount.id]: {
+              [STELLAR_CLASSIC_USDC]: {
+                amount: '10',
+                unit: 'USDC',
+                accountAssetInfo: { limit: '1000' },
+              },
+            },
+          },
+        },
+        mocks: {
+          listMultichainAccounts: [mockStellarAccount],
+          handleMockGetAssetsState: {
+            accountsAssets: {
+              [mockStellarAccount.id]: [],
+            },
+          },
+        },
+      });
+
+      mockSnapHandleRequest.mockImplementation(
+        (params: { handler: string; request?: { method?: string } }) => {
+          if (isGetAccountAssetInfoCall(params)) {
+            return Promise.resolve({
+              [STELLAR_CLASSIC_USDC]: { limit: '1000' },
+            });
+          }
+          return Promise.resolve(mockBalanceResult);
+        },
+      );
+
+      await waitForAllPromises();
+      mockSnapHandleRequest.mockClear();
+
+      messenger.publish('AccountsController:accountBalancesUpdated', {
+        balances: {
+          [mockStellarAccount.id]: {
+            [STELLAR_CLASSIC_USDC]: { amount: '10', unit: 'USDC' },
+          },
+        },
+      });
+
+      await waitForAllPromises();
+
+      expect(
+        mockSnapHandleRequest.mock.calls.some(([params]) =>
+          isGetAccountAssetInfoCall(params),
+        ),
+      ).toBe(false);
+    });
+  });
+
+  describe('isDeprecated', () => {
+    const initialState: MultichainBalancesControllerState = {
+      balances: {
+        [mockBtcAccount.id]: mockBalanceResult,
+      },
+    };
+
+    it('clears persisted balances at construction when isDeprecated() returns true', () => {
+      const { controller } = setupController({
+        state: initialState,
+        isDeprecated: () => true,
+      });
+
+      expect(controller.state.balances).toStrictEqual({});
+    });
+
+    it('preserves persisted balances at construction when isDeprecated() returns false', () => {
+      const { controller } = setupController({
+        state: initialState,
+        isDeprecated: () => false,
+      });
+
+      expect(controller.state.balances).toStrictEqual(initialState.balances);
+    });
+
+    it('does not fetch initial balances at construction when isDeprecated() returns true', async () => {
+      const { mockSnapHandleRequest } = setupController({
+        isDeprecated: () => true,
+      });
+
+      await waitForAllPromises();
+
+      expect(mockSnapHandleRequest).not.toHaveBeenCalled();
+    });
+
+    it('does not fetch and clears stale balances when isDeprecated returns true', async () => {
+      let deprecated = false;
+      const { controller, mockSnapHandleRequest } = setupController({
+        state: initialState,
+        isDeprecated: () => deprecated,
+      });
+
+      await waitForAllPromises();
+      mockSnapHandleRequest.mockClear();
+
+      deprecated = true;
+
+      await controller.updateBalance(mockBtcAccount.id);
+
+      expect(mockSnapHandleRequest).not.toHaveBeenCalled();
+      expect(controller.state.balances).toStrictEqual({});
+    });
+
+    it('clears stale balances on MultichainAssetsController:accountAssetListUpdated when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      const { controller, messenger } = setupController({
+        state: initialState,
+        isDeprecated: () => deprecated,
+      });
+
+      await waitForAllPromises();
+
+      deprecated = true;
+
+      messenger.publish('MultichainAssetsController:accountAssetListUpdated', {
+        assets: {
+          [mockBtcAccount.id]: {
+            added: [mockBtcNativeAsset],
+            removed: [],
+          },
+        },
+      });
+
+      await waitForAllPromises();
+
+      expect(controller.state.balances).toStrictEqual({});
+    });
+
+    it('clears stale balances on AccountsController:accountBalancesUpdated when isDeprecated toggles to true at runtime', () => {
+      let deprecated = false;
+      const { controller, messenger } = setupController({
+        state: initialState,
+        isDeprecated: () => deprecated,
+      });
+
+      deprecated = true;
+
+      messenger.publish('AccountsController:accountBalancesUpdated', {
+        balances: {
+          [mockBtcAccount.id]: mockBalanceResult,
+        },
+      });
+
+      expect(controller.state.balances).toStrictEqual({});
+    });
+
+    it('clears stale balances on AccountsController:accountRemoved when isDeprecated toggles to true at runtime', () => {
+      let deprecated = false;
+      const { controller, messenger } = setupController({
+        state: initialState,
+        isDeprecated: () => deprecated,
+      });
+
+      deprecated = true;
+
+      messenger.publish('AccountsController:accountRemoved', mockBtcAccount.id);
+
+      expect(controller.state.balances).toStrictEqual({});
+    });
   });
 
   describe('metadata', () => {

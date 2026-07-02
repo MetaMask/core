@@ -1,6 +1,7 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
+import type { Json } from '@metamask/utils';
 
 import {
   AnalyticsController,
@@ -25,6 +26,7 @@ type SetupControllerOptions = {
   platformAdapter?: AnalyticsPlatformAdapter;
   isAnonymousEventsFeatureEnabled?: boolean;
   isEventQueuePersistenceEnabled?: boolean;
+  isPreConsentQueueEnabled?: boolean;
 };
 
 type SetupControllerReturn = {
@@ -47,6 +49,7 @@ type MockAnalyticsPlatformAdapter = AnalyticsPlatformAdapter & {
  * @param options.platformAdapter - Optional platform adapter
  * @param options.isAnonymousEventsFeatureEnabled - Optional anonymous events feature flag (default: false)
  * @param options.isEventQueuePersistenceEnabled - Optional event queue persistence flag (default: false)
+ * @param options.isPreConsentQueueEnabled - Optional pre-consent queue flag (default: false)
  * @returns The controller and messenger
  */
 async function setupController(
@@ -57,6 +60,7 @@ async function setupController(
     platformAdapter,
     isAnonymousEventsFeatureEnabled = false,
     isEventQueuePersistenceEnabled = false,
+    isPreConsentQueueEnabled = false,
   } = options;
 
   const adapter =
@@ -90,6 +94,7 @@ async function setupController(
     state,
     isAnonymousEventsFeatureEnabled,
     isEventQueuePersistenceEnabled,
+    isPreConsentQueueEnabled,
   });
 
   controller.init();
@@ -164,6 +169,7 @@ describe('AnalyticsController', () => {
 
       expect(defaults).toStrictEqual({
         optedIn: false,
+        consentDecisionMade: false,
       });
       expect('analyticsId' in defaults).toBe(false);
     });
@@ -179,6 +185,7 @@ describe('AnalyticsController', () => {
   describe('metadata', () => {
     const metadataFixtureState: AnalyticsControllerState = {
       optedIn: true,
+      consentDecisionMade: true,
       analyticsId: '6ba7b810-9dad-41d4-80b5-0c4f5a7c1e2d',
     };
 
@@ -196,6 +203,7 @@ describe('AnalyticsController', () => {
       ).toMatchInlineSnapshot(`
         {
           "analyticsId": "6ba7b810-9dad-41d4-80b5-0c4f5a7c1e2d",
+          "consentDecisionMade": true,
           "optedIn": true,
         }
       `);
@@ -215,6 +223,7 @@ describe('AnalyticsController', () => {
       ).toMatchInlineSnapshot(`
         {
           "analyticsId": "6ba7b810-9dad-41d4-80b5-0c4f5a7c1e2d",
+          "consentDecisionMade": true,
           "optedIn": true,
         }
       `);
@@ -234,6 +243,7 @@ describe('AnalyticsController', () => {
       ).toMatchInlineSnapshot(`
         {
           "analyticsId": "6ba7b810-9dad-41d4-80b5-0c4f5a7c1e2d",
+          "consentDecisionMade": true,
           "optedIn": true,
         }
       `);
@@ -286,6 +296,59 @@ describe('AnalyticsController', () => {
       ).toHaveProperty('eventQueue', state.eventQueue);
     });
 
+    it('persists preConsentEventQueue but excludes it from logs, snapshots, and UI', async () => {
+      // Undecided + queue enabled, so init() leaves the queue untouched.
+      const state: AnalyticsControllerState = {
+        ...metadataFixtureState,
+        optedIn: false,
+        consentDecisionMade: false,
+        preConsentEventQueue: {
+          'message-id-1': {
+            type: 'track',
+            eventName: 'test_event',
+            messageId: 'message-id-1',
+            timestamp: '2026-01-01T00:00:00.000Z',
+            properties: {
+              sensitive_prop: 'sensitive value',
+            },
+          },
+        },
+      };
+      const { controller } = await setupController({
+        state,
+        isPreConsentQueueEnabled: true,
+      });
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).not.toHaveProperty('preConsentEventQueue');
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).not.toHaveProperty('preConsentEventQueue');
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).not.toHaveProperty('preConsentEventQueue');
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toHaveProperty('preConsentEventQueue', state.preConsentEventQueue);
+    });
+
     it('exposes expected state to UI', async () => {
       const { controller } = await setupController({
         state: metadataFixtureState,
@@ -299,6 +362,7 @@ describe('AnalyticsController', () => {
         ),
       ).toMatchInlineSnapshot(`
         {
+          "consentDecisionMade": true,
           "optedIn": true,
         }
       `);
@@ -1301,7 +1365,7 @@ describe('AnalyticsController', () => {
       expect(controller.state.eventQueue).toStrictEqual({});
     });
 
-    it('keeps queued payloads when the adapter callback receives an error', async () => {
+    it('clears queued payloads when the adapter callback receives an error', async () => {
       const mockAdapter = createMockAdapter();
       const { controller } = await setupController({
         state: {
@@ -1317,14 +1381,7 @@ describe('AnalyticsController', () => {
       const deliveryOptions = getDeliveryOptions(mockAdapter.track);
       deliveryOptions.callback?.(new Error('Segment failed'));
 
-      const [messageId] = Object.keys(controller.state.eventQueue ?? {});
-
-      expect(controller.state.eventQueue).toHaveProperty(messageId);
-      expect(controller.state.eventQueue?.[messageId]).toMatchObject({
-        type: 'track',
-        eventName: 'test_event',
-        properties: { prop: 'value' },
-      });
+      expect(controller.state.eventQueue).toStrictEqual({});
     });
 
     it('keeps queued payloads when the platform adapter throws', async () => {
@@ -1360,7 +1417,7 @@ describe('AnalyticsController', () => {
       let adapterMutationCompleted = false;
       jest
         .spyOn(mockAdapter, 'track')
-        .mockImplementation((_eventName, properties, context, options) => {
+        .mockImplementation((_eventName, properties, context) => {
           (
             properties as { nested: { adapterNormalized?: boolean } }
           ).nested.adapterNormalized = true;
@@ -1368,9 +1425,6 @@ describe('AnalyticsController', () => {
             context as { page: { adapterNormalized?: boolean } }
           ).page.adapterNormalized = true;
           adapterMutationCompleted = true;
-          (options as AnalyticsDeliveryOptions).callback?.(
-            new Error('Segment failed'),
-          );
         });
       const { controller } = await setupController({
         state: {
@@ -1867,7 +1921,7 @@ describe('AnalyticsController', () => {
   });
 
   describe('optIn', () => {
-    it('sets optedIn to true', async () => {
+    it('sets optedIn to true and records the consent decision', async () => {
       const { controller } = await setupController({
         state: {
           ...getDefaultAnalyticsControllerState(),
@@ -1878,14 +1932,16 @@ describe('AnalyticsController', () => {
       controller.optIn();
 
       expect(controller.state.optedIn).toBe(true);
+      expect(controller.state.consentDecisionMade).toBe(true);
     });
   });
 
   describe('optOut', () => {
-    it('sets optedIn to false', async () => {
+    it('sets optedIn to false and records the consent decision', async () => {
       const { controller } = await setupController({
         state: {
           optedIn: true,
+          consentDecisionMade: true,
           analyticsId: '01234567-89ab-4cde-8f01-23456789abcd',
         },
       });
@@ -1893,6 +1949,355 @@ describe('AnalyticsController', () => {
       controller.optOut();
 
       expect(controller.state.optedIn).toBe(false);
+      expect(controller.state.consentDecisionMade).toBe(true);
+    });
+  });
+
+  describe('pre-consent event queue', () => {
+    const ANALYTICS_ID = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee';
+
+    /**
+     * Sets up an undecided controller with the pre-consent queue enabled and
+     * queues a single track event.
+     *
+     * @returns The controller, mock adapter, and the queued event name.
+     */
+    async function setupControllerWithQueuedEvent(): Promise<{
+      controller: AnalyticsController;
+      mockAdapter: MockAnalyticsPlatformAdapter;
+    }> {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          ...getDefaultAnalyticsControllerState(),
+          analyticsId: ANALYTICS_ID,
+        },
+        platformAdapter: mockAdapter,
+        isPreConsentQueueEnabled: true,
+      });
+
+      controller.trackEvent(createTestEvent('queued_event', { foo: 'bar' }));
+
+      return { controller, mockAdapter };
+    }
+
+    it('queues track events while the user is undecided', async () => {
+      const { controller, mockAdapter } =
+        await setupControllerWithQueuedEvent();
+
+      expect(mockAdapter.track).not.toHaveBeenCalled();
+
+      const entries = Object.values(
+        controller.state.preConsentEventQueue ?? {},
+      );
+      expect(entries).toHaveLength(1);
+      expect(entries[0]).toMatchObject({
+        type: 'track',
+        eventName: 'queued_event',
+        properties: { foo: 'bar' },
+      });
+    });
+
+    it('does not queue events when the pre-consent queue is disabled', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          ...getDefaultAnalyticsControllerState(),
+          analyticsId: ANALYTICS_ID,
+        },
+        platformAdapter: mockAdapter,
+      });
+
+      controller.trackEvent(createTestEvent('event', { foo: 'bar' }));
+
+      expect(mockAdapter.track).not.toHaveBeenCalled();
+      expect(controller.state.preConsentEventQueue).toBeUndefined();
+    });
+
+    it('drops a stale persisted queue on init when the queue is disabled', async () => {
+      // A queue persisted while the feature was enabled...
+      const { controller: enabled } = await setupControllerWithQueuedEvent();
+      const persistedQueue = enabled.state.preConsentEventQueue;
+
+      // ...is dropped on init if the feature is later disabled, so it can never
+      // be replayed by a future enabled instance.
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: false,
+          consentDecisionMade: false,
+          analyticsId: ANALYTICS_ID,
+          preConsentEventQueue: persistedQueue,
+        },
+        platformAdapter: mockAdapter,
+        // isPreConsentQueueEnabled defaults to false
+      });
+
+      expect(controller.state.preConsentEventQueue).toStrictEqual({});
+
+      controller.optIn();
+
+      expect(controller.state.optedIn).toBe(true);
+      expect(mockAdapter.track).not.toHaveBeenCalled();
+    });
+
+    it('opting in is a no-op when the queue is enabled but empty', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          ...getDefaultAnalyticsControllerState(),
+          analyticsId: ANALYTICS_ID,
+        },
+        platformAdapter: mockAdapter,
+        isPreConsentQueueEnabled: true,
+      });
+
+      controller.optIn();
+
+      expect(controller.state.optedIn).toBe(true);
+      expect(controller.state.consentDecisionMade).toBe(true);
+      expect(mockAdapter.track).not.toHaveBeenCalled();
+    });
+
+    it('drops events once a decision is made (opted out), without queuing', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: false,
+          consentDecisionMade: true,
+          analyticsId: ANALYTICS_ID,
+        },
+        platformAdapter: mockAdapter,
+        isPreConsentQueueEnabled: true,
+      });
+
+      controller.trackEvent(createTestEvent('event', { foo: 'bar' }));
+
+      expect(mockAdapter.track).not.toHaveBeenCalled();
+      expect(controller.state.preConsentEventQueue ?? {}).toStrictEqual({});
+    });
+
+    it('replays queued events on opt-in and clears the queue', async () => {
+      const { controller, mockAdapter } =
+        await setupControllerWithQueuedEvent();
+
+      controller.optIn();
+
+      expect(controller.state.optedIn).toBe(true);
+      expect(controller.state.consentDecisionMade).toBe(true);
+      expect(controller.state.preConsentEventQueue).toStrictEqual({});
+      expect(mockAdapter.track).toHaveBeenCalledTimes(1);
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'queued_event',
+        { foo: 'bar' },
+        undefined,
+        expect.objectContaining({ messageId: expect.any(String) }),
+      );
+    });
+
+    it('moves replayed events into the delivery queue when persistence is enabled', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          ...getDefaultAnalyticsControllerState(),
+          analyticsId: ANALYTICS_ID,
+        },
+        platformAdapter: mockAdapter,
+        isPreConsentQueueEnabled: true,
+        isEventQueuePersistenceEnabled: true,
+      });
+
+      controller.trackEvent(createTestEvent('queued_event', { foo: 'bar' }));
+      // Held in the pre-consent queue, not yet in the delivery queue.
+      expect(controller.state.eventQueue ?? {}).toStrictEqual({});
+
+      controller.optIn();
+
+      // The pre-consent queue is drained and the event is now tracked for
+      // delivery (the mock adapter never acks, so it remains in eventQueue).
+      expect(controller.state.preConsentEventQueue).toStrictEqual({});
+      expect(Object.values(controller.state.eventQueue ?? {})).toHaveLength(1);
+      expect(mockAdapter.track).toHaveBeenCalledTimes(1);
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'queued_event',
+        { foo: 'bar' },
+        undefined,
+        expect.objectContaining({ messageId: expect.any(String) }),
+      );
+    });
+
+    it('discards queued events on opt-out without delivering them', async () => {
+      const { controller, mockAdapter } =
+        await setupControllerWithQueuedEvent();
+
+      controller.optOut();
+
+      expect(controller.state.consentDecisionMade).toBe(true);
+      expect(controller.state.preConsentEventQueue).toStrictEqual({});
+      expect(controller.state.eventQueue ?? {}).toStrictEqual({});
+      expect(mockAdapter.track).not.toHaveBeenCalled();
+    });
+
+    it('preserves the pre-consent queue and resets the decision on resetConsentDecision', async () => {
+      const { controller, mockAdapter } =
+        await setupControllerWithQueuedEvent();
+      const queuedEvents = controller.state.preConsentEventQueue;
+
+      controller.resetConsentDecision();
+
+      expect(controller.state.optedIn).toBe(false);
+      expect(controller.state.consentDecisionMade).toBe(false);
+      expect(controller.state.preConsentEventQueue).toStrictEqual(queuedEvents);
+      expect(mockAdapter.track).not.toHaveBeenCalled();
+    });
+
+    it('clears the delivery queue on resetConsentDecision', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          consentDecisionMade: true,
+          analyticsId: ANALYTICS_ID,
+        },
+        platformAdapter: mockAdapter,
+        isPreConsentQueueEnabled: true,
+        isEventQueuePersistenceEnabled: true,
+      });
+
+      // Opted in: this event lands in the persisted delivery queue.
+      controller.trackEvent(createTestEvent('delivery_event', { foo: 'bar' }));
+      expect(Object.values(controller.state.eventQueue ?? {})).toHaveLength(1);
+
+      controller.resetConsentDecision();
+
+      expect(controller.state.optedIn).toBe(false);
+      expect(controller.state.consentDecisionMade).toBe(false);
+      expect(controller.state.eventQueue).toStrictEqual({});
+    });
+
+    it('replays a persisted queue on init when already opted in', async () => {
+      // Build a persisted queue via a first, undecided controller.
+      const { controller: undecided } = await setupControllerWithQueuedEvent();
+      const persistedQueue = undecided.state.preConsentEventQueue;
+
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: true,
+          consentDecisionMade: true,
+          analyticsId: ANALYTICS_ID,
+          preConsentEventQueue: persistedQueue,
+        },
+        platformAdapter: mockAdapter,
+        isPreConsentQueueEnabled: true,
+      });
+
+      // init() runs in setupController and reconciles the leftover queue.
+      expect(mockAdapter.track).toHaveBeenCalledTimes(1);
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'queued_event',
+        { foo: 'bar' },
+        undefined,
+        expect.objectContaining({ messageId: expect.any(String) }),
+      );
+      expect(controller.state.preConsentEventQueue).toStrictEqual({});
+    });
+
+    it('clears a persisted queue on init when already opted out', async () => {
+      const { controller: undecided } = await setupControllerWithQueuedEvent();
+      const persistedQueue = undecided.state.preConsentEventQueue;
+
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: false,
+          consentDecisionMade: true,
+          analyticsId: ANALYTICS_ID,
+          preConsentEventQueue: persistedQueue,
+        },
+        platformAdapter: mockAdapter,
+        isPreConsentQueueEnabled: true,
+      });
+
+      expect(mockAdapter.track).not.toHaveBeenCalled();
+      expect(controller.state.preConsentEventQueue).toStrictEqual({});
+    });
+
+    it('queues multiple events and replays them with their context preserved', async () => {
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          ...getDefaultAnalyticsControllerState(),
+          analyticsId: ANALYTICS_ID,
+        },
+        platformAdapter: mockAdapter,
+        isPreConsentQueueEnabled: true,
+      });
+
+      controller.trackEvent(createTestEvent('first_event', { a: 1 }), {
+        source: 'onboarding',
+      });
+      controller.trackEvent(createTestEvent('second_event', { b: 2 }));
+
+      expect(
+        Object.values(controller.state.preConsentEventQueue ?? {}),
+      ).toHaveLength(2);
+
+      controller.optIn();
+
+      expect(mockAdapter.track).toHaveBeenCalledTimes(2);
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'first_event',
+        { a: 1 },
+        { source: 'onboarding' },
+        expect.objectContaining({ messageId: expect.any(String) }),
+      );
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'second_event',
+        { b: 2 },
+        undefined,
+        expect.objectContaining({ messageId: expect.any(String) }),
+      );
+      expect(controller.state.preConsentEventQueue).toStrictEqual({});
+    });
+
+    it('skips invalid entries when replaying the queue', async () => {
+      // Start from a valid persisted entry, then add malformed entries that are
+      // not valid queued events.
+      const { controller: undecided } = await setupControllerWithQueuedEvent();
+      const queueWithInvalid: Record<string, Json> = {
+        ...undecided.state.preConsentEventQueue,
+        'not-a-record': 'just a string',
+        'unknown-type': {
+          type: 'mystery',
+          messageId: 'unknown-type',
+          timestamp: '2026-01-01T00:00:00.000Z',
+        },
+      };
+
+      const mockAdapter = createMockAdapter();
+      const { controller } = await setupController({
+        state: {
+          optedIn: false,
+          consentDecisionMade: false,
+          analyticsId: ANALYTICS_ID,
+          preConsentEventQueue: queueWithInvalid,
+        },
+        platformAdapter: mockAdapter,
+        isPreConsentQueueEnabled: true,
+      });
+
+      controller.optIn();
+
+      // Only the valid entry is replayed; every malformed entry is dropped.
+      expect(mockAdapter.track).toHaveBeenCalledTimes(1);
+      expect(mockAdapter.track).toHaveBeenCalledWith(
+        'queued_event',
+        { foo: 'bar' },
+        undefined,
+        expect.objectContaining({ messageId: expect.any(String) }),
+      );
+      expect(controller.state.preConsentEventQueue).toStrictEqual({});
     });
   });
 });

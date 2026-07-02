@@ -11,6 +11,7 @@ import type { TransactionPayFiatAsset } from './constants';
 import {
   deriveFiatAssetForFiatPayment,
   getRawSourceAmountFromOrderCryptoAmount,
+  isMoneyAccountDepositTransaction,
   resolveSourceAmountRaw,
 } from './utils';
 
@@ -197,6 +198,51 @@ describe('Fiat Utils', () => {
 
       expect(result).toStrictEqual(ETH_MAINNET_FIAT_ASSET);
     });
+
+    it('uses feature flag enabled types to filter nested transactions in batch', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {
+            enabledTransactionTypes: [TransactionType.predictDeposit],
+          },
+        },
+      });
+
+      const transaction = {
+        nestedTransactions: [
+          { type: TransactionType.perpsDeposit },
+          { type: TransactionType.predictDeposit },
+        ],
+        type: TransactionType.batch,
+      } as TransactionMeta;
+
+      const result = deriveFiatAssetForFiatPayment(transaction, messenger);
+
+      expect(result).toStrictEqual(
+        FIAT_ASSET_ID_BY_TX_TYPE[TransactionType.predictDeposit],
+      );
+    });
+
+    it('falls back to batch type when no nested transaction matches enabled types', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay_fiat: {
+            enabledTransactionTypes: [TransactionType.predictDeposit],
+          },
+        },
+      });
+
+      const transaction = {
+        nestedTransactions: [{ type: TransactionType.perpsDeposit }],
+        type: TransactionType.batch,
+      } as TransactionMeta;
+
+      const result = deriveFiatAssetForFiatPayment(transaction, messenger);
+
+      expect(result).toStrictEqual(ETH_MAINNET_FIAT_ASSET);
+    });
   });
 
   describe('resolveSourceAmountRaw', () => {
@@ -245,8 +291,9 @@ describe('Fiat Utils', () => {
       } as never);
     });
 
-    it('returns on-chain ERC-20 amount from receipt logs', async () => {
+    it('returns on-chain ERC-20 amount and block number from receipt', async () => {
       PROVIDER_MOCK.request.mockResolvedValue({
+        blockNumber: '0x1a2b3c',
         logs: [
           {
             address: ERC20_ADDRESS_MOCK,
@@ -267,7 +314,8 @@ describe('Fiat Utils', () => {
         walletAddress: WALLET_ADDRESS_MOCK,
       });
 
-      expect(result).toBe('7000000');
+      expect(result.amountRaw).toBe('7000000');
+      expect(result.fromBlock).toBe('0x1a2b3c');
     });
 
     it('falls back to cryptoAmount when txHash is missing', async () => {
@@ -278,7 +326,8 @@ describe('Fiat Utils', () => {
         walletAddress: WALLET_ADDRESS_MOCK,
       });
 
-      expect(result).toBe('1500000');
+      expect(result.amountRaw).toBe('1500000');
+      expect(result.fromBlock).toBeUndefined();
       expect(PROVIDER_MOCK.request).not.toHaveBeenCalled();
     });
 
@@ -292,7 +341,8 @@ describe('Fiat Utils', () => {
         walletAddress: WALLET_ADDRESS_MOCK,
       });
 
-      expect(result).toBe('1500000');
+      expect(result.amountRaw).toBe('1500000');
+      expect(result.fromBlock).toBeUndefined();
     });
 
     it('falls back to cryptoAmount when on-chain read throws', async () => {
@@ -305,7 +355,8 @@ describe('Fiat Utils', () => {
         walletAddress: WALLET_ADDRESS_MOCK,
       });
 
-      expect(result).toBe('1500000');
+      expect(result.amountRaw).toBe('1500000');
+      expect(result.fromBlock).toBeUndefined();
     });
 
     it('returns native amount from debug_traceTransaction', async () => {
@@ -322,7 +373,8 @@ describe('Fiat Utils', () => {
         walletAddress: WALLET_ADDRESS_MOCK,
       });
 
-      expect(result).toBe('2000000000000000000');
+      expect(result.amountRaw).toBe('2000000000000000000');
+      expect(result.fromBlock).toBeUndefined();
     });
 
     it('falls back to tx.value for native when trace is unsupported', async () => {
@@ -345,7 +397,7 @@ describe('Fiat Utils', () => {
         walletAddress: WALLET_ADDRESS_MOCK,
       });
 
-      expect(result).toBe('2000000000000000000');
+      expect(result.amountRaw).toBe('2000000000000000000');
     });
 
     it('throws when token info cannot be resolved for fallback', async () => {
@@ -405,6 +457,37 @@ describe('Fiat Utils', () => {
           decimals: 18,
         }),
       ).toThrow('Computed fiat order source amount is not positive');
+    });
+  });
+
+  describe('isMoneyAccountDepositTransaction', () => {
+    it('returns true for batch transaction with moneyAccountDeposit nested type', () => {
+      const transaction = {
+        type: TransactionType.batch,
+        nestedTransactions: [
+          { type: TransactionType.tokenMethodApprove },
+          { type: TransactionType.moneyAccountDeposit },
+        ],
+      } as unknown as TransactionMeta;
+
+      expect(isMoneyAccountDepositTransaction(transaction)).toBe(true);
+    });
+
+    it('returns false for non-money-account transaction types', () => {
+      const transaction = {
+        type: TransactionType.predictDeposit,
+      } as TransactionMeta;
+
+      expect(isMoneyAccountDepositTransaction(transaction)).toBe(false);
+    });
+
+    it('returns false for batch transaction without moneyAccountDeposit nested type', () => {
+      const transaction = {
+        type: TransactionType.batch,
+        nestedTransactions: [{ type: TransactionType.tokenMethodApprove }],
+      } as unknown as TransactionMeta;
+
+      expect(isMoneyAccountDepositTransaction(transaction)).toBe(false);
     });
   });
 });

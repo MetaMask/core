@@ -142,6 +142,22 @@ export type SocialServiceUnfollowAction = {
 };
 
 /**
+ * Opts the current user out of the PnL leaderboard.
+ */
+export type SocialServiceOptOutOfLeaderboardAction = {
+  type: `SocialService:optOutOfLeaderboard`;
+  handler: SocialService['optOutOfLeaderboard'];
+};
+
+/**
+ * Opts the current user back into the PnL leaderboard.
+ */
+export type SocialServiceOptInToLeaderboardAction = {
+  type: `SocialService:optInToLeaderboard`;
+  handler: SocialService['optInToLeaderboard'];
+};
+
+/**
  * Union of all SocialService action types.
  */
 export type SocialServiceMethodActions =
@@ -153,4 +169,6 @@ export type SocialServiceMethodActions =
   | SocialServiceFetchPositionByIdAction
   | SocialServiceFetchFollowingAction
   | SocialServiceFollowAction
-  | SocialServiceUnfollowAction;
+  | SocialServiceUnfollowAction
+  | SocialServiceOptOutOfLeaderboardAction
+  | SocialServiceOptInToLeaderboardAction;

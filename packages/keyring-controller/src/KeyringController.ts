@@ -48,6 +48,7 @@ import { KeyringControllerError } from './errors';
 import type { KeyringControllerMethodActions } from './KeyringController-method-action-types';
 import type {
   Eip7702AuthorizationParams,
+  Credentials,
   PersonalMessageParams,
   TypedMessageParams,
 } from './types';
@@ -1046,6 +1047,56 @@ export class KeyringController<
   }
 
   /**
+   * Method to verify a given encryption key validity. Throws an error if the
+   * encryption key is invalid, i.e. it cannot decrypt the vault.
+   *
+   * @param encryptionKey - Serialized vault encryption key.
+   * @param encryptionSalt - Optional salt to verify against the vault. When
+   * omitted, the salt serialized alongside the vault is used.
+   */
+  async #verifyEncryptionKey(
+    encryptionKey: string,
+    encryptionSalt?: string,
+  ): Promise<void> {
+    if (!this.state.vault) {
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.VaultError,
+      );
+    }
+
+    const parsedEncryptedVault = JSON.parse(this.state.vault);
+    const salt = encryptionSalt ?? parsedEncryptedVault.salt;
+
+    if (parsedEncryptedVault.salt !== salt) {
+      throw new KeyringControllerError(
+        KeyringControllerErrorMessage.ExpiredCredentials,
+      );
+    }
+
+    const key = await this.#encryptor.importKey(encryptionKey);
+    await this.#encryptor.decryptWithKey(key, parsedEncryptedVault);
+  }
+
+  /**
+   * Verifies export credentials by checking either the wallet password or the
+   * vault encryption key.
+   *
+   * @param credentials - Object holding either the `password` or the vault
+   * `encryptionKey`.
+   */
+  async #verifyCredentials(credentials: Credentials): Promise<void> {
+    // eslint-disable-next-line no-restricted-syntax
+    if ('password' in credentials) {
+      await this.verifyPassword(credentials.password);
+    } else {
+      await this.#verifyEncryptionKey(
+        credentials.encryptionKey,
+        credentials.encryptionSalt,
+      );
+    }
+  }
+
+  /**
    * Returns the status of the vault.
    *
    * @returns Boolean returning true if the vault is unlocked.
@@ -1057,16 +1108,19 @@ export class KeyringController<
   /**
    * Gets the seed phrase of the HD keyring.
    *
-   * @param password - Password of the keyring.
+   * @param credentials - Object holding either the `password` or the vault
+   * `encryptionKey`.
    * @param keyringId - The id of the keyring.
    * @returns Promise resolving to the seed phrase.
    */
   async exportSeedPhrase(
-    password: string,
+    credentials: Credentials,
     keyringId?: string,
   ): Promise<Uint8Array> {
     this.#assertIsUnlocked();
-    await this.verifyPassword(password);
+
+    await this.#verifyCredentials(credentials);
+
     const selectedKeyring = this.#getKeyringByIdOrDefault(keyringId);
     if (!selectedKeyring) {
       throw new KeyringControllerError('Keyring not found');
@@ -1079,12 +1133,18 @@ export class KeyringController<
   /**
    * Gets the private key from the keyring controlling an address.
    *
-   * @param password - Password of the keyring.
+   * @param credentials - Object holding either the `password` or the vault
+   * `encryptionKey`.
    * @param address - Address to export.
    * @returns Promise resolving to the private key for an address.
    */
-  async exportAccount(password: string, address: string): Promise<string> {
-    await this.verifyPassword(password);
+  async exportAccount(
+    credentials: Credentials,
+    address: string,
+  ): Promise<string> {
+    this.#assertIsUnlocked();
+
+    await this.#verifyCredentials(credentials);
 
     const keyring = (await this.getKeyringForAccount(address)) as EthKeyring;
     if (!keyring.exportAccount) {
@@ -2669,16 +2729,7 @@ export class KeyringController<
    * @param credentials - The credentials to unlock the keyrings.
    * @returns A promise resolving to the deserialized keyrings array.
    */
-  async #unlockKeyrings(
-    credentials:
-      | {
-          password: string;
-        }
-      | {
-          encryptionKey: string;
-          encryptionSalt?: string;
-        },
-  ): Promise<{
+  async #unlockKeyrings(credentials: Credentials): Promise<{
     keyrings: { keyring: EthKeyring; metadata: KeyringMetadata }[];
     hasChanged: boolean;
   }> {

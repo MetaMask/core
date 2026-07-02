@@ -4,17 +4,8 @@ import { themes } from 'prism-react-renderer';
 
 const codeTheme = themes.dracula;
 const commitSha = process.env.DOCS_COMMIT_SHA;
-const navbarItemsDependentOnCommit = commitSha
-  ? [
-      {
-        href: 'https://github.com/MetaMask/core',
-        label: `commit ${commitSha}`,
-        position: 'right' as const,
-      },
-    ]
-  : [];
 
-const config: Config = {
+const config = {
   baseUrl: '/core/wallet-framework-docs',
   favicon: 'images/metamask-dev-logo.svg',
   onBrokenLinks: 'throw',
@@ -75,11 +66,10 @@ const config: Config = {
     navbar: {
       hideOnScroll: true,
       items: [
-        ...navbarItemsDependentOnCommit,
         {
-          href: 'https://github.com/MetaMask/core',
+          href: `https://github.com/MetaMask/core/tree/${commitSha ?? 'main'}/packages/wallet-framework-docs/content`,
           label: 'GitHub',
-          position: 'right',
+          position: 'right' as const,
         },
       ],
       logo: {

@@ -3,13 +3,16 @@ export type {
   SnapAccountServiceActions,
   SnapAccountServiceConfig,
   SnapAccountServiceEvents,
+  SnapAccountServiceAccountBalancesUpdatedEvent,
+  SnapAccountServiceAccountTransactionsUpdatedEvent,
+  SnapAccountServiceAccountAssetListUpdatedEvent,
   SnapAccountServiceMessenger,
   SnapAccountServiceOptions,
 } from './SnapAccountService';
 export type {
+  SnapAccountServiceEnsureMigratedAction,
   SnapAccountServiceEnsureReadyAction,
   SnapAccountServiceGetSnapsAction,
-  SnapAccountServiceGetLegacySnapKeyringAction,
   SnapAccountServiceHandleKeyringSnapMessageAction,
 } from './SnapAccountService-method-action-types';
 export { SnapPlatformWatcher } from './SnapPlatformWatcher';

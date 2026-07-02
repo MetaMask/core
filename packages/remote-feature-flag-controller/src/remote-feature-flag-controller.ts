@@ -9,6 +9,7 @@ import type { Json, SemVerVersion } from '@metamask/utils';
 
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import type { RemoteFeatureFlagControllerMethodActions } from './remote-feature-flag-controller-method-action-types';
+import { ThresholdVersion } from './remote-feature-flag-controller-types';
 import type {
   FeatureFlags,
   ServiceResponse,
@@ -118,6 +119,19 @@ export function getDefaultRemoteFeatureFlagControllerState(): RemoteFeatureFlagC
   };
 }
 
+function normalizeThresholdValue(featureFlag: FeatureFlagScopeValue): Json {
+  if (featureFlag.thresholdVersion === ThresholdVersion.DirectValue) {
+    return featureFlag.value;
+  }
+
+  // Unknown threshold versions fall back to the legacy wrapper shape for
+  // backwards compatibility with existing threshold feature flag configs.
+  return {
+    name: featureFlag.name,
+    value: featureFlag.value,
+  };
+}
+
 /**
  * The RemoteFeatureFlagController manages the retrieval and caching of remote feature flags.
  * It fetches feature flags from a remote API, caches them, and provides methods to access
@@ -140,6 +154,8 @@ export class RemoteFeatureFlagController extends BaseController<
   readonly #getMetaMetricsId: () => string;
 
   readonly #clientVersion: SemVerVersion;
+
+  #processedRemoteFeatureFlags: FeatureFlags = {};
 
   /**
    * Constructs a new RemoteFeatureFlagController instance.
@@ -188,17 +204,32 @@ export class RemoteFeatureFlagController extends BaseController<
       isValidSemVerVersion(prevClientVersion) &&
       prevClientVersion !== clientVersion;
 
+    const localOverrides = initialState.localOverrides ?? {};
+
     super({
       name: controllerName,
       metadata: remoteFeatureFlagControllerMetadata,
       messenger,
       state: {
         ...initialState,
+        remoteFeatureFlags: {
+          ...initialState.remoteFeatureFlags,
+          ...localOverrides,
+        },
         cacheTimestamp: hasClientVersionChanged
           ? 0
           : initialState.cacheTimestamp,
       },
     });
+
+    this.#processedRemoteFeatureFlags = {
+      ...initialState.remoteFeatureFlags,
+    };
+    for (const [flagName, overrideValue] of Object.entries(localOverrides)) {
+      if (this.#processedRemoteFeatureFlags[flagName] === overrideValue) {
+        delete this.#processedRemoteFeatureFlags[flagName];
+      }
+    }
 
     this.#fetchInterval = fetchInterval;
     this.#disabled = disabled;
@@ -284,10 +315,15 @@ export class RemoteFeatureFlagController extends BaseController<
     }
 
     // Single state update with all changes batched together
+    this.#processedRemoteFeatureFlags = processedFlags;
+
     this.update(() => {
       return {
         ...this.state,
-        remoteFeatureFlags: processedFlags,
+        remoteFeatureFlags: {
+          ...processedFlags,
+          ...this.state.localOverrides,
+        },
         rawRemoteFeatureFlags: remoteFeatureFlags,
         cacheTimestamp: Date.now(),
         thresholdCache: updatedThresholdCache,
@@ -371,11 +407,9 @@ export class RemoteFeatureFlagController extends BaseController<
             return threshold <= featureFlag.scope.value;
           },
         );
+
         if (selectedGroup) {
-          processedValue = {
-            name: selectedGroup.name,
-            value: selectedGroup.value,
-          };
+          processedValue = normalizeThresholdValue(selectedGroup);
         }
       }
 
@@ -407,10 +441,16 @@ export class RemoteFeatureFlagController extends BaseController<
    */
   setFlagOverride(flagName: string, value: Json): void {
     this.update(() => {
+      const localOverrides = {
+        ...this.state.localOverrides,
+        [flagName]: value,
+      };
+
       return {
         ...this.state,
-        localOverrides: {
-          ...this.state.localOverrides,
+        localOverrides,
+        remoteFeatureFlags: {
+          ...this.state.remoteFeatureFlags,
           [flagName]: value,
         },
       };
@@ -425,10 +465,21 @@ export class RemoteFeatureFlagController extends BaseController<
   removeFlagOverride(flagName: string): void {
     const newLocalOverrides = { ...this.state.localOverrides };
     delete newLocalOverrides[flagName];
+
+    const remoteFeatureFlags = { ...this.state.remoteFeatureFlags };
+    const processedValue = this.#processedRemoteFeatureFlags[flagName];
+
+    if (processedValue === undefined) {
+      delete remoteFeatureFlags[flagName];
+    } else {
+      remoteFeatureFlags[flagName] = processedValue;
+    }
+
     this.update(() => {
       return {
         ...this.state,
         localOverrides: newLocalOverrides,
+        remoteFeatureFlags,
       };
     });
   }
@@ -441,6 +492,7 @@ export class RemoteFeatureFlagController extends BaseController<
       return {
         ...this.state,
         localOverrides: {},
+        remoteFeatureFlags: { ...this.#processedRemoteFeatureFlags },
       };
     });
   }

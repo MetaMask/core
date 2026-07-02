@@ -13,7 +13,12 @@ import {
   type,
 } from '@metamask/superstruct';
 
-import type { DelegationResponse, NotificationPreferences } from './types';
+import type {
+  AgenticCliPreference,
+  DelegationResponse,
+  NotificationPreferences,
+  PriceAlertPreference,
+} from './types';
 
 /**
  * Matches a 0x-prefixed hex string with zero or more hex digits.
@@ -91,12 +96,42 @@ const SocialAIPreferenceSchema = type({
   mutedTraderProfileIds: array(string()),
 });
 
+const AgenticCliPreferenceSchema = type({
+  inAppNotificationsEnabled: boolean(),
+  pushNotificationsEnabled: boolean(),
+});
+
+const PriceAlertPreferenceSchema = type({
+  inAppNotificationsEnabled: boolean(),
+  pushNotificationsEnabled: boolean(),
+});
+
 const NotificationPreferencesSchema = type({
   walletActivity: WalletActivityPreferenceSchema,
   marketing: MarketingPreferenceSchema,
   perps: PerpsPreferenceSchema,
   socialAI: SocialAIPreferenceSchema,
+  agenticCli: AgenticCliPreferenceSchema,
+  priceAlerts: PriceAlertPreferenceSchema,
 });
+
+/**
+ * Default Agentic CLI notification preferences for consumers building a
+ * fresh `NotificationPreferences` object.
+ */
+export const DEFAULT_AGENTIC_CLI_PREFERENCES: AgenticCliPreference = {
+  inAppNotificationsEnabled: true,
+  pushNotificationsEnabled: true,
+};
+
+/**
+ * Default price-alert notification preferences for consumers building a
+ * fresh `NotificationPreferences` object.
+ */
+export const DEFAULT_PRICE_ALERT_PREFERENCES: PriceAlertPreference = {
+  inAppNotificationsEnabled: true,
+  pushNotificationsEnabled: true,
+};
 
 /**
  * Maximum number of entries allowed in an assets-watchlist on write. Reads

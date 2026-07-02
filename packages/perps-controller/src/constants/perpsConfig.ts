@@ -41,6 +41,9 @@ export const PERPS_CONSTANTS = {
   BalanceUpdateThrottleMs: 15000, // Update at most every 15 seconds to reduce state updates in PerpsConnectionManager
   InitialDataDelayMs: 100, // Delay to allow initial data to load after connection establishment
 
+  // Order submission timing
+  PlaceOrderTimeoutMs: 60_000, // Hard timeout for provider round-trip in TradingService.placeOrder
+
   // Deposit toast timing
   DepositTakingLongerToastDelayMs: 30_000, // Delay before showing "Deposit taking longer than usual" toast
 
@@ -56,6 +59,10 @@ export const PERPS_CONSTANTS = {
 
   // Historical data fetching constants
   FillsLookbackMs: 90 * 24 * 60 * 60 * 1000, // 3 months in milliseconds - limits REST API fills fetch
+
+  // Recently viewed markets
+  RecentlyViewedMarketsTtlMs: 24 * 60 * 60 * 1000, // 24 hours TTL for recently viewed market entries
+  RecentlyViewedMarketsLimit: 10, // Maximum number of recently viewed markets to track
 } as const;
 
 /**
@@ -323,6 +330,17 @@ export const MARGIN_ADJUSTMENT_CONFIG = {
 export const DATA_LAKE_API_CONFIG = {
   // Order reporting endpoint - only used for mainnet perps trading
   OrdersEndpoint: 'https://perps.api.cx.metamask.io/api/v1/orders',
+} as const;
+
+/**
+ * Terminal API configuration.
+ * The full endpoint URL is injected at runtime via
+ * `PerpsPlatformDependencies.terminalApiUrl` from each client build
+ * (dev/uat/prd); only cache settings live here.
+ */
+export const TERMINAL_API_CONFIG = {
+  CacheTtlMs: 5 * 60 * 1000, // 5 minutes
+  FetchTimeoutMs: 10_000, // 10 seconds – degrade to provider on slow Terminal
 } as const;
 
 /**

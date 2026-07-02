@@ -224,6 +224,13 @@ async function withController<ReturnValue>(
     onActiveChainsUpdated,
     getNativeAssetForChain: (chainId: ChainId): Caip19AssetId =>
       defaultNativeAssetMap[chainId],
+    getAssetType: (assetId: Caip19AssetId): 'native' | 'erc20' | 'spl' => {
+      const isNative =
+        Object.values(defaultNativeAssetMap).some(
+          (id) => id.toLowerCase() === assetId.toLowerCase(),
+        ) || assetId.includes('/slip44:');
+      return isNative ? 'native' : 'erc20';
+    },
     ...options,
   });
 
@@ -1449,7 +1456,13 @@ describe('RpcDataSource', () => {
 
       expect(onAssetsUpdate).toHaveBeenCalled();
       const [response] = onAssetsUpdate.mock.calls[0];
-      expect(response.assetsInfo[normalizedId]).toStrictEqual(existingMetadata);
+      // Existing ERC-20 metadata is already in state; the response must not
+      // re-emit it to avoid overwriting richer entries with stale data.
+      expect(response.assetsInfo?.[normalizedId]).toBeUndefined();
+      // The balance must still be computed correctly via stateMetadata decimals.
+      expect(
+        response.assetsBalance?.[MOCK_ACCOUNT_ID]?.[normalizedId],
+      ).toStrictEqual({ amount: '1' });
     });
 
     it('omits unknown ERC-20 from assetsInfo when not in existing state', async () => {
@@ -1651,7 +1664,7 @@ describe('RpcDataSource', () => {
       ).toBe('1');
     });
 
-    it('keeps existing native metadata when decimals is 0 (valid)', async () => {
+    it('does not re-emit existing native metadata when decimals is 0 (valid)', async () => {
       const onAssetsUpdate = jest.fn();
       const existing = {
         decimals: 0,
@@ -1662,10 +1675,12 @@ describe('RpcDataSource', () => {
       await subscribeAndEmit(existing, onAssetsUpdate);
 
       const [response] = onAssetsUpdate.mock.calls[0];
-      expect(response.assetsInfo?.[NATIVE_ASSET_ID]).toStrictEqual(existing);
+      // Valid metadata already exists in state; the response must not re-emit
+      // it so we never overwrite richer entries with a simpler stub.
+      expect(response.assetsInfo?.[NATIVE_ASSET_ID]).toBeUndefined();
     });
 
-    it('keeps existing native metadata when name/symbol are missing but decimals is valid', async () => {
+    it('does not re-emit existing native metadata when name/symbol are missing but decimals is valid', async () => {
       const onAssetsUpdate = jest.fn();
       const existing = {
         decimals: 18,
@@ -1674,7 +1689,9 @@ describe('RpcDataSource', () => {
       await subscribeAndEmit(existing, onAssetsUpdate);
 
       const [response] = onAssetsUpdate.mock.calls[0];
-      expect(response.assetsInfo?.[NATIVE_ASSET_ID]).toStrictEqual(existing);
+      // Valid metadata already exists in state; the response must not re-emit
+      // it so we never overwrite richer entries with a simpler stub.
+      expect(response.assetsInfo?.[NATIVE_ASSET_ID]).toBeUndefined();
     });
 
     it('falls back to chain-status stub when state native metadata has negative decimals', async () => {
@@ -1877,21 +1894,43 @@ describe('RpcDataSource', () => {
   });
 
   describe('transaction events', () => {
-    it('refreshes balance when transaction confirmed', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        await controller.subscribe({
-          request: createDataRequest(),
-          subscriptionId: 'test-sub',
-          isUpdate: false,
-          onAssetsUpdate: jest.fn(),
+    it('refreshes balance with merge mode when transaction confirmed', async () => {
+      const onAssetsUpdate = jest.fn().mockResolvedValue(undefined);
+      const fetchSpy = jest
+        .spyOn(RpcDataSource.prototype, 'fetch')
+        .mockResolvedValue({
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              'eip155:1/slip44:60': { amount: '2' },
+            },
+          },
+          updateMode: 'merge',
         });
 
-        rootMessenger.publish('TransactionController:transactionConfirmed', {
-          chainId: MOCK_CHAIN_ID_HEX,
-        } as unknown as TransactionMeta);
-        await new Promise(process.nextTick);
-        expect(controller).toBeDefined();
-      });
+      try {
+        await withController(async ({ controller, rootMessenger }) => {
+          await controller.subscribe({
+            request: createDataRequest(),
+            subscriptionId: 'test-sub',
+            isUpdate: false,
+            onAssetsUpdate,
+          });
+
+          rootMessenger.publish('TransactionController:transactionConfirmed', {
+            chainId: MOCK_CHAIN_ID_HEX,
+            txParams: { from: MOCK_ADDRESS },
+          } as unknown as TransactionMeta);
+          await new Promise(process.nextTick);
+
+          expect(fetchSpy).toHaveBeenCalled();
+          expect(onAssetsUpdate).toHaveBeenCalledWith(
+            expect.objectContaining({ updateMode: 'merge' }),
+            expect.objectContaining({ dataTypes: ['balance'] }),
+          );
+        });
+      } finally {
+        fetchSpy.mockRestore();
+      }
     });
 
     it('does not refresh when transaction confirmed has no chainId', async () => {
@@ -1902,42 +1941,6 @@ describe('RpcDataSource', () => {
         );
         await new Promise(process.nextTick);
         expect(true).toBe(true);
-      });
-    });
-
-    it('refreshes balance when incoming transactions received', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        await controller.subscribe({
-          request: createDataRequest(),
-          subscriptionId: 'test-sub',
-          isUpdate: false,
-          onAssetsUpdate: jest.fn(),
-        });
-
-        rootMessenger.publish(
-          'TransactionController:incomingTransactionsReceived',
-          [{ chainId: MOCK_CHAIN_ID_HEX }] as unknown as TransactionMeta[],
-        );
-        await new Promise(process.nextTick);
-        expect(controller).toBeDefined();
-      });
-    });
-
-    it('refreshes all active chains when incoming transactions empty', async () => {
-      await withController(async ({ controller, rootMessenger }) => {
-        await controller.subscribe({
-          request: createDataRequest(),
-          subscriptionId: 'test-sub',
-          isUpdate: false,
-          onAssetsUpdate: jest.fn(),
-        });
-
-        rootMessenger.publish(
-          'TransactionController:incomingTransactionsReceived',
-          [] as TransactionMeta[],
-        );
-        await new Promise(process.nextTick);
-        expect(controller).toBeDefined();
       });
     });
   });
@@ -2009,6 +2012,7 @@ describe('RpcDataSource', () => {
         messenger: assetsControllerMessenger,
         onActiveChainsUpdated: jest.fn(),
         getNativeAssetForChain: jest.fn(),
+        getAssetType: jest.fn().mockReturnValue('erc20'),
       });
       controller.destroy();
       expect(controller).toBeDefined();

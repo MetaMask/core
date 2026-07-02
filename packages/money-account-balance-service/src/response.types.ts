@@ -15,6 +15,15 @@ export type MusdEquivalentValueResponse = {
 };
 
 /**
+ * Response from {@link MoneyAccountBalanceService.getMoneyAccountBalance}.
+ */
+export type MoneyAccountBalanceResponse = {
+  musdBalance: string;
+  vmusdValueInMusd: string;
+  totalBalance: string;
+};
+
+/**
  * Response from {@link MoneyAccountBalanceService.getVaultApy}.
  * All APY / fee values are decimals (multiply by 100 for percentage).
  *
