@@ -294,7 +294,7 @@ export class NetworkConnectionBannerController extends BaseController<
 
   #pendingNetworkClientId: string | undefined;
 
-  #started = false;
+  #isStarted = false;
 
   /**
    * Constructs a new {@link NetworkConnectionBannerController}.
@@ -347,11 +347,11 @@ export class NetworkConnectionBannerController extends BaseController<
    * `ConnectivityController` have been initialized. Idempotent.
    */
   start(): void {
-    if (this.#started) {
+    if (this.#isStarted) {
       return;
     }
 
-    this.#started = true;
+    this.#isStarted = true;
     this.#refreshState();
   }
 
@@ -361,16 +361,16 @@ export class NetworkConnectionBannerController extends BaseController<
    * consuming the banner is no longer active. Idempotent.
    */
   stop(): void {
-    if (!this.#started) {
+    if (!this.#isStarted) {
       return;
     }
 
-    this.#started = false;
+    this.#isStarted = false;
     this.#resetBanner();
   }
 
   #onUpstreamChange(): void {
-    if (this.#started) {
+    if (this.#isStarted) {
       this.#refreshState();
     }
   }
@@ -462,7 +462,7 @@ export class NetworkConnectionBannerController extends BaseController<
 
     // A synchronous listener on our `stateChanged` event above may have
     // called `stop()` re-entrantly. Bail before scheduling anything.
-    if (!this.#started) {
+    if (!this.#isStarted) {
       return;
     }
 
@@ -480,7 +480,7 @@ export class NetworkConnectionBannerController extends BaseController<
       });
       // A synchronous listener on our `stateChanged` event above may have
       // called `stop()` re-entrantly. Bail before scheduling the escalation.
-      if (!this.#started) {
+      if (!this.#isStarted) {
         return;
       }
       this.#unavailableTimer = setTimeout(() => {
