@@ -118,10 +118,12 @@ jobs:
           is-high-risk-environment: false
           persist-credentials: false
           node-version: ${{ matrix.node-version }}
-      - name: Fetch base branch
-        id: fetch-base-branch
+      - name: Fetch merge base
+        id: fetch-merge-base
         if: github.base_ref != '' || github.event.merge_group.base_ref != ''
         run: |
+          set -euo pipefail
+
           # Strip invalid prefix from `github.event.merge_group.base_ref`
           # It comes prefixed with `refs/heads/`, but the branch is not checked out in this context
           # We need to express it as a remote branch
@@ -130,20 +132,24 @@ jobs:
             BASE_REF="${BASH_REMATCH[1]}"
           fi
 
-          git fetch --unshallow
-          git fetch origin "$BASE_REF" --no-tags
-          echo "base-ref=$BASE_REF" >> "$GITHUB_OUTPUT"
+          # Use the GitHub Compare API to get the exact merge base SHA,
+          # then fetch only that single commit.
+          MERGE_BASE=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BASE_REF...$HEAD_SHA" --jq '.merge_base_commit.sha')
+          git fetch origin "$MERGE_BASE" --depth=1 --no-tags
+          echo "merge-base=$MERGE_BASE" >> "$GITHUB_OUTPUT"
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
+          GH_TOKEN: ${{ github.token }}
       - name: Build
         run: |
-          if [[ -n "$BASE_REF" ]]; then
-            yarn workspaces foreach --since="origin/$BASE_REF" --topological --recursive --no-private run build
+          if [[ -n "$MERGE_BASE" ]]; then
+            yarn workspaces foreach --since="$MERGE_BASE" --topological --recursive --no-private run build
           else
             yarn build
           fi
         env:
-          BASE_REF: ${{ steps.fetch-base-branch.outputs.base-ref }}
+          MERGE_BASE: ${{ steps.fetch-merge-base.outputs.merge-base }}
       - name: Require clean working directory
         shell: bash
         run: |
