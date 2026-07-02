@@ -56,11 +56,13 @@ export function mapLocalTransaction(
     id: primaryId,
   } = primaryTransaction;
   const methodId = txData?.slice(0, 10);
-  // Permit2 approvals encode the approved ERC-20 as the first calldata argument;
-  // `to` is the Permit2 contract, so decode the real token from calldata instead.
+  // Permit2 approvals use the Permit2 contract as `to`, not the approved token.
+  // Keep this mapper thin: still classify the activity as an approve, but omit
+  // the token rather than surfacing the wrong one — the API mapper provides
+  // accurate token data.
   const isPermit2Approve = methodId === permit2ApproveMethodId;
   const tokenContractAddress = isPermit2Approve
-    ? `0x${(txData as string).slice(34, 74)}`
+    ? undefined
     : (transferInformation?.contractAddress ?? (to || undefined));
   const chainId = toCaipChainId(
     KnownCaipNamespace.Eip155,

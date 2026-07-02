@@ -167,25 +167,14 @@ describe('mapLocalTransaction', () => {
       },
     });
   });
-  it('resolves Permit2 approval token address from calldata', () => {
+  it('maps a Permit2 approve to an approve spending cap without the Permit2 contract as the token', () => {
     const item = mapLocalTransaction(
-      localTransactionFixtures.mapInputs
-        .resolvesPermit2ApprovalTokenAddressFrom,
+      localTransactionFixtures.mapInputs.mapsAPermit2Approve,
     );
-    expect(item).toMatchObject({
-      type: 'approveSpendingCap',
-      data: {
-        token: {
-          direction: 'out',
-          symbol: 'mUSD',
-          decimals: 18,
-          assetId: formatAddressToAssetId(
-            localTransactionFixtures.addresses.lineaMusd,
-            'eip155:59144',
-          ),
-        },
-      },
-    });
+    expect(item.type).toBe('approveSpendingCap');
+    const token =
+      item.type === 'approveSpendingCap' ? item.data.token : 'unset';
+    expect(token).toBeUndefined();
   });
   it('falls back to transferInformation when txParams.to is not a valid address', () => {
     const item = mapLocalTransaction(

@@ -613,7 +613,7 @@ const mapInputs = {
       },
     ],
   },
-  resolvesPermit2ApprovalTokenAddressFrom: {
+  mapsAPermit2Approve: {
     hasCancelled: false,
     hasRetried: false,
     initialTransaction: {
@@ -673,7 +673,6 @@ const mapInputs = {
         },
       },
     ],
-    contractTokenMetadata: { symbol: 'mUSD', decimals: 18 },
   },
   fallsBackToTransferinformationWhenTxparams: {
     hasCancelled: false,
