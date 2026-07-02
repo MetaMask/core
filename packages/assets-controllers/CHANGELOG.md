@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Extend `TokenBalancesController` `isDeprecated` handling to `startPolling`, `updateChainPollingConfigs`, and `TransactionController:transactionConfirmed`, so polling and post-transaction balance fetches are skipped and stale `tokenBalances` are cleared when the controller is deprecated ([#9327](https://github.com/MetaMask/core/pull/9327))
 - Bump `@metamask/keyring-api` from `^23.1.0` to `^23.3.0` ([#9249](https://github.com/MetaMask/core/pull/9249))
 - Bump `@metamask/transaction-controller` from `^68.1.1` to `^68.2.2` ([#9253](https://github.com/MetaMask/core/pull/9253), [#9337](https://github.com/MetaMask/core/pull/9337), [#9349](https://github.com/MetaMask/core/pull/9349))
 - Bump `@metamask/multichain-account-service` from `^11.0.0` to `^11.1.0` ([#9264](https://github.com/MetaMask/core/pull/9264))

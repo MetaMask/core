@@ -516,13 +516,7 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
 
     this.messenger.subscribe(
       'TransactionController:transactionConfirmed',
-      (transactionMeta) => {
-        this.updateBalances({
-          chainIds: [transactionMeta.chainId],
-        }).catch(() => {
-          // Silently handle balance update errors
-        });
-      },
+      this.#onTransactionConfirmed,
     );
   }
 
@@ -630,6 +624,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
   };
 
   override _startPolling({ chainIds }: { chainIds: ChainIdHex[] }): void {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     this.#requestedChainIds = [...chainIds];
     this.#isControllerPollingActive = true;
     this.#startIntervalGroupPolling(chainIds, true);
@@ -759,6 +757,10 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     configs: Record<ChainIdHex, ChainPollingConfig>,
     options: UpdateChainPollingConfigsOptions = { immediateUpdate: true },
   ): void {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     Object.assign(this.#chainPollingConfig, configs);
 
     if (this.#isControllerPollingActive) {
@@ -1425,6 +1427,20 @@ export class TokenBalancesController extends StaticIntervalPollingController<{
     }
     this.update((currentState) => {
       delete currentState.tokenBalances[addr];
+    });
+  };
+
+  readonly #onTransactionConfirmed = (transactionMeta: {
+    chainId: ChainIdHex;
+  }): void => {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+    this.updateBalances({
+      chainIds: [transactionMeta.chainId],
+    }).catch(() => {
+      // Silently handle balance update errors
     });
   };
 
