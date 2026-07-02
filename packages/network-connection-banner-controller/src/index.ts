@@ -6,7 +6,7 @@ export type {
   NetworkConnectionBannerControllerEvents,
   NetworkConnectionBannerControllerMessenger,
   NetworkConnectionBannerControllerOptions,
-  NetworkConnectionBannerFailedNetwork,
+  FailedNetwork,
   NetworkConnectionBannerStatus,
 } from './NetworkConnectionBannerController';
 export type {

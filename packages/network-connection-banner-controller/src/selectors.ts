@@ -2,7 +2,7 @@ import { createSelector } from 'reselect';
 
 import type {
   NetworkConnectionBannerControllerState,
-  NetworkConnectionBannerFailedNetwork,
+  FailedNetwork,
   NetworkConnectionBannerStatus,
 } from './NetworkConnectionBannerController';
 
@@ -25,7 +25,7 @@ const selectNetworkConnectionBannerStatus = (
  */
 const selectNetworkConnectionBannerNetwork = (
   state: NetworkConnectionBannerControllerState,
-): NetworkConnectionBannerFailedNetwork | null => state.network;
+): FailedNetwork | null => state.network;
 
 /**
  * Selects whether the banner is visible (status is `degraded` or

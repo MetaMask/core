@@ -1,16 +1,17 @@
 import type {
   NetworkConnectionBannerControllerState,
-  NetworkConnectionBannerFailedNetwork,
+  FailedNetwork,
 } from './NetworkConnectionBannerController';
 import { networkConnectionBannerControllerSelectors } from './selectors';
 
-const failedNetwork: NetworkConnectionBannerFailedNetwork = {
+const failedNetwork: FailedNetwork = {
   chainId: '0x1',
   networkClientId: 'mainnet',
-  networkName: 'Ethereum Mainnet',
+  name: 'Ethereum Mainnet',
   rpcUrl: 'https://mainnet.infura.io/v3/abc',
   isInfuraEndpoint: true,
-  infuraNetworkClientId: null,
+  switchableInfuraNetworkClientId: null,
+  domain: 'infura.io',
 };
 
 describe('networkConnectionBannerControllerSelectors', () => {

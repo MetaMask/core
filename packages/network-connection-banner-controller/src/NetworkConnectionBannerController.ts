@@ -45,21 +45,25 @@ export type NetworkConnectionBannerStatus =
   | 'unavailable';
 
 /**
- * Details of the failing network the banner should describe. Populated when
- * {@link NetworkConnectionBannerControllerState.status} is `degraded` or
- * `unavailable`, `null` otherwise.
- *
- * `infuraNetworkClientId` is the networkClientId of an Infura endpoint on the
- * same chain that the user can switch to. `null` when the failing endpoint is
- * already Infura, or when no Infura alternative exists.
+ * Details of a failing network the banner describes.
  */
-export type NetworkConnectionBannerFailedNetwork = {
+export type FailedNetwork = {
   chainId: Hex;
   networkClientId: string;
-  networkName: string;
+  name: string;
   rpcUrl: string;
   isInfuraEndpoint: boolean;
-  infuraNetworkClientId: string | null;
+  /**
+   * The networkClientId of an Infura endpoint on the same chain that the user
+   * can switch to. `null` when the failing endpoint is already Infura or when
+   * no Infura alternative exists.
+   */
+  switchableInfuraNetworkClientId: string | null;
+  /**
+   * The registrable domain (eTLD+1) of `rpcUrl`, used to group endpoints by
+   * provider. `null` when the URL is invalid.
+   */
+  domain: string | null;
 };
 
 /**
@@ -67,7 +71,7 @@ export type NetworkConnectionBannerFailedNetwork = {
  */
 export type NetworkConnectionBannerControllerState = {
   status: NetworkConnectionBannerStatus;
-  network: NetworkConnectionBannerFailedNetwork | null;
+  network: FailedNetwork | null;
 };
 
 const networkConnectionBannerControllerMetadata = {
@@ -419,7 +423,7 @@ export class NetworkConnectionBannerController extends BaseController<
     }
   }
 
-  #findFailedNetwork(): NetworkConnectionBannerFailedNetwork | null {
+  #findFailedNetwork(): FailedNetwork | null {
     const { enabledNetworkMap } = this.messenger.call(
       'NetworkEnablementController:getState',
     );
@@ -431,10 +435,7 @@ export class NetworkConnectionBannerController extends BaseController<
     const { networkConfigurationsByChainId, networksMetadata } =
       this.messenger.call('NetworkController:getState');
 
-    type EnrichedFailedNetwork = NetworkConnectionBannerFailedNetwork & {
-      domain: string | null;
-    };
-    const failedNetworks: EnrichedFailedNetwork[] = [];
+    const failedNetworks: FailedNetwork[] = [];
     let totalNetworksWithMetadata = 0;
 
     for (const chainId of enabledEvmChainIds) {
@@ -465,22 +466,22 @@ export class NetworkConnectionBannerController extends BaseController<
 
       // For custom endpoints (non-Infura), find an Infura endpoint on this
       // chain that we could offer to switch to.
-      let infuraNetworkClientId: string | null = null;
+      let switchableInfuraNetworkClientId: string | null = null;
       if (!isInfuraEndpoint) {
         const otherInfura = rpcEndpoints.find(
           (endpoint, index) =>
             index !== defaultRpcEndpointIndex && getIsInfuraEndpoint(endpoint.url),
         );
-        infuraNetworkClientId = otherInfura?.networkClientId ?? null;
+        switchableInfuraNetworkClientId = otherInfura?.networkClientId ?? null;
       }
 
       failedNetworks.push({
         chainId,
         networkClientId: defaultRpcEndpoint.networkClientId,
-        networkName: name,
+        name,
         rpcUrl: defaultRpcEndpoint.url,
-        isInfuraEndpoint: isInfuraEndpoint,
-        infuraNetworkClientId,
+        isInfuraEndpoint,
+        switchableInfuraNetworkClientId,
         domain: getDomain(defaultRpcEndpoint.url),
       });
     }
@@ -508,15 +509,7 @@ export class NetworkConnectionBannerController extends BaseController<
       return null;
     }
 
-    const selected = firstCustomFailed ?? failedNetworks[0];
-    return {
-      chainId: selected.chainId,
-      networkClientId: selected.networkClientId,
-      networkName: selected.networkName,
-      rpcUrl: selected.rpcUrl,
-      isInfuraEndpoint: selected.isInfuraEndpoint,
-      infuraNetworkClientId: selected.infuraNetworkClientId,
-    };
+    return firstCustomFailed ?? failedNetworks[0];
   }
 }
 

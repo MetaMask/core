@@ -894,7 +894,7 @@ describe('NetworkConnectionBannerController', () => {
         expect(controller.state.network).toMatchObject({
           chainId: '0x1',
           isInfuraEndpoint: false,
-          infuraNetworkClientId: MAINNET_CLIENT_ID,
+          switchableInfuraNetworkClientId: MAINNET_CLIENT_ID,
           // Sanity-check: not null when there's an Infura endpoint to offer.
         });
       });
