@@ -19,7 +19,7 @@ import type {
   NetworkMetadata,
   RpcEndpoint,
 } from '@metamask/network-controller';
-import { NetworkStatus, RpcEndpointType } from '@metamask/network-controller';
+import { NetworkStatus } from '@metamask/network-controller';
 import type {
   NetworkEnablementControllerGetStateAction,
   NetworkEnablementControllerStateChangeEvent,
@@ -332,7 +332,7 @@ export class NetworkConnectionBannerController extends BaseController<
     }
 
     const infuraEndpointIndex = networkConfiguration.rpcEndpoints.findIndex(
-      (endpoint) => endpoint.type === RpcEndpointType.Infura,
+      (endpoint) => getIsInfuraEndpoint(endpoint.url),
     );
     if (infuraEndpointIndex === -1) {
       throw new Error(
@@ -500,8 +500,7 @@ export class NetworkConnectionBannerController extends BaseController<
     defaultRpcEndpointIndex,
     defaultRpcEndpoint,
   }: NetworkWithMetadata): FailedNetwork {
-    const isInfuraEndpoint =
-      defaultRpcEndpoint.type === RpcEndpointType.Infura;
+    const isInfuraEndpoint = getIsInfuraEndpoint(defaultRpcEndpoint.url);
 
     // For custom endpoints (non-Infura), find an Infura endpoint on this
     // chain that we could offer to switch to.
@@ -510,7 +509,7 @@ export class NetworkConnectionBannerController extends BaseController<
       const otherInfura = rpcEndpoints.find(
         (endpoint, index) =>
           index !== defaultRpcEndpointIndex &&
-          endpoint.type === RpcEndpointType.Infura,
+          getIsInfuraEndpoint(endpoint.url),
       );
       switchableInfuraNetworkClientId = otherInfura?.networkClientId ?? null;
     }
@@ -565,3 +564,18 @@ type NetworkWithMetadata = {
   defaultRpcEndpoint: RpcEndpoint;
   metadata: NetworkMetadata;
 };
+
+/**
+ * Whether an RPC URL is a MetaMask Infura endpoint. Matches the
+ * `{infuraProjectId}` placeholder form that lives on stored network
+ * configurations before the wallet substitutes the real project id at
+ * request time. URLs that already carry a substituted key are treated as
+ * custom (we do not have the project id in this package).
+ *
+ * @param url - The RPC URL to check.
+ * @returns True if the URL is the placeholder form of a MetaMask Infura
+ * endpoint.
+ */
+function getIsInfuraEndpoint(url: string): boolean {
+  return /^https:\/\/[^./]+\.infura\.io\/v3\/\{infuraProjectId\}$/u.test(url);
+}
