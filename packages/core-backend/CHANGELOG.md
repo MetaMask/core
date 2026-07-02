@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `AccountActivityService` subscribes to all supported scopes for a given account ([#0000](https://github.com/MetaMask/core/pull/0000))
+
 ## [6.5.0]
 
 ### Added

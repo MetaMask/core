@@ -9,6 +9,7 @@ import type {
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerSelectedAccountChangeEvent,
 } from '@metamask/accounts-controller';
+import type { MultichainAccountServiceGetMultichainAccountGroupAction } from '@metamask/multichain-account-service';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
@@ -52,6 +53,8 @@ const MESSENGER_EXPOSED_METHODS = ['subscribe', 'unsubscribe'] as const;
 
 const SUBSCRIPTION_NAMESPACE = 'account-activity.v1';
 
+const SUPPORTED_CHAIN_PREFIXES = ['eip155', 'solana'] as const;
+
 /**
  * Account subscription options
  */
@@ -88,6 +91,7 @@ export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
   'BackendWebSocketService:findSubscriptionsByChannelPrefix',
   'BackendWebSocketService:addChannelCallback',
   'BackendWebSocketService:removeChannelCallback',
+  'MultichainAccountService:getMultichainAccountGroup',
 ] as const;
 
 // Allowed events that AccountActivityService can listen to
@@ -98,7 +102,8 @@ export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS = [
 
 export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
-  | BackendWebSocketServiceMethodActions;
+  | BackendWebSocketServiceMethodActions
+  | MultichainAccountServiceGetMultichainAccountGroupAction;
 
 // Event types for the messaging system
 
@@ -404,14 +409,15 @@ export class AccountActivityService {
     }
 
     try {
-      // Convert new account to CAIP-10 format
-      const newAddress = this.#convertToCaip10Address(newAccount);
-
       // First, unsubscribe from all current account activity subscriptions to avoid multiple subscriptions
       await this.#unsubscribeFromAllAccountActivity();
 
-      // Then, subscribe to the new selected account
-      await this.subscribe({ address: newAddress });
+      for (const address of this.#getSupportedMultichainCaip10Addresses(
+        newAccount,
+      )) {
+        // Subscribe to the new selected account in CAIP-10 format
+        await this.subscribe({ address });
+      }
     } catch (error) {
       log('Account change failed', { error });
     }
@@ -514,9 +520,11 @@ export class AccountActivityService {
       return;
     }
 
-    // Convert to CAIP-10 format and subscribe
-    const address = this.#convertToCaip10Address(selectedAccount);
-    await this.subscribe({ address });
+    for (const address of this.#getSupportedMultichainCaip10Addresses(
+      selectedAccount,
+    )) {
+      await this.subscribe({ address });
+    }
   }
 
   /**
@@ -543,9 +551,14 @@ export class AccountActivityService {
    * Convert an InternalAccount address to CAIP-10 format or raw address
    *
    * @param account - The internal account to convert
+   * @param account.address - The raw address of the account
+   * @param account.scopes - The scopes of the account (used to determine chain type)
    * @returns The CAIP-10 formatted address or raw address
    */
-  #convertToCaip10Address(account: InternalAccount): string {
+  #convertToCaip10Address(account: {
+    address: InternalAccount['address'];
+    scopes: InternalAccount['scopes'];
+  }): string {
     // Check if account has EVM scopes
     if (account.scopes.some((scope) => scope.startsWith('eip155:'))) {
       // CAIP-10 format: eip155:0:address (subscribe to all EVM chains)
@@ -560,6 +573,30 @@ export class AccountActivityService {
 
     // For other chains or unknown scopes, return raw address
     return account.address;
+  }
+
+  /**
+   * Get all supported multichain CAIP-10 addresses for a given account
+   * This is used to determine which accounts to subscribe to for activity updates
+   *
+   * @param account - The internal account to get supported addresses for
+   * @returns An array of CAIP-10 formatted addresses that are supported for subscription
+   */
+  #getSupportedMultichainCaip10Addresses(account: InternalAccount): string[] {
+    const multichainAccounts =
+      account.options.entropy?.type === 'mnemonic'
+        ? this.#messenger
+            .call('MultichainAccountService:getMultichainAccountGroup', {
+              entropySource: account.options.entropy.id,
+              groupIndex: account.options.entropy.groupIndex,
+            })
+            .getAccounts()
+        : [account];
+    return multichainAccounts
+      .map((acct) => this.#convertToCaip10Address(acct))
+      .filter((address) =>
+        SUPPORTED_CHAIN_PREFIXES.some((prefix) => address.startsWith(prefix)),
+      );
   }
 
   /**

@@ -20,6 +20,9 @@
     },
     {
       "path": "../profile-sync-controller"
+    },
+    {
+      "path": "../multichain-account-service"
     }
   ],
   "include": ["../../types", "./src"]
