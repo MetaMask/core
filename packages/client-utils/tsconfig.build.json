@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.packages.build.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "references": [
+    { "path": "../controller-utils/tsconfig.build.json" },
+    { "path": "../core-backend/tsconfig.build.json" },
+    { "path": "../transaction-controller/tsconfig.build.json" }
+  ],
+  "include": ["../../types", "./src"]
+}
