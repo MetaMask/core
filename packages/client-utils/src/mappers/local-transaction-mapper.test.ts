@@ -177,8 +177,10 @@ describe('mapLocalTransaction', () => {
       data: {
         token: {
           direction: 'out',
+          symbol: 'mUSD',
+          decimals: 18,
           assetId: formatAddressToAssetId(
-            localTransactionFixtures.addresses.permit2Address,
+            localTransactionFixtures.addresses.lineaMusd,
             'eip155:59144',
           ),
         },

@@ -25,6 +25,8 @@ export const withdrawMethodIds = new Set([
 export const wrapMethodIds = new Set(['0xd0e30db0']);
 export const unwrapMethodIds = new Set(['0x2e1a7d4d']);
 
+export const permit2ApproveMethodId = '0x87517c45';
+
 export const tokenTransferLogTopicHash =
   '0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef';
 
