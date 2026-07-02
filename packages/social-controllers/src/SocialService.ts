@@ -602,6 +602,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.LEADERBOARD_OPT_OUT_FAILED,
         );
+        return null;
       },
     });
   }
@@ -622,6 +623,7 @@ export class SocialService extends BaseDataService<
           response,
           SocialServiceErrorMessage.LEADERBOARD_OPT_IN_FAILED,
         );
+        return null;
       },
     });
   }
