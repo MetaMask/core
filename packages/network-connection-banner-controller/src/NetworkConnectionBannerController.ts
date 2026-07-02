@@ -36,6 +36,13 @@ import type { NetworkConnectionBannerControllerMethodActions } from './NetworkCo
 import { getDomain } from './url-utils';
 
 /**
+ * The name of the {@link NetworkConnectionBannerController}, used to namespace
+ * the controller's actions and events and to namespace the controller's state
+ * data when composed with other controllers.
+ */
+const CONTROLLER_NAME = 'NetworkConnectionBannerController';
+
+/**
  * Selects `networksMetadata` from the `NetworkController` state.
  *
  * @param state - The `NetworkController` state.
@@ -75,13 +82,6 @@ const selectNetworkControllerFields = createSelector(
 );
 
 /**
- * The name of the {@link NetworkConnectionBannerController}, used to namespace
- * the controller's actions and events and to namespace the controller's state
- * data when composed with other controllers.
- */
-const controllerName = 'NetworkConnectionBannerController';
-
-/**
  * Status the banner can be in. `available` means no banner is shown; the
  * `degraded` and `unavailable` values mirror the two-tier escalation that the
  * UI renders.
@@ -92,13 +92,32 @@ export type NetworkConnectionBannerStatus =
   | 'unavailable';
 
 /**
+ * A network from `NetworkController` state that has a default RPC endpoint
+ * with a known metadata status. Used as the input to the failed-network
+ * detection pipeline.
+ */
+type NetworkWithMetadata = {
+  chainId: Hex;
+  name: string;
+  rpcEndpoints: NetworkConfiguration['rpcEndpoints'];
+  defaultRpcEndpointIndex: number;
+  defaultRpcEndpoint: NetworkConfiguration['rpcEndpoints'][number];
+  metadata: NetworkMetadata;
+};
+
+/**
  * Details of a failing network the banner describes.
  */
 export type FailedNetwork = {
+  /** The chain id of the failing network. */
   chainId: Hex;
+  /** The `networkClientId` of the failing default RPC endpoint. */
   networkClientId: string;
+  /** The display name for the failing network. */
   name: string;
+  /** The URL of the failing default RPC endpoint. */
   rpcUrl: string;
+  /** Whether the failing endpoint is a MetaMask Infura endpoint. */
   isInfuraEndpoint: boolean;
   /**
    * The networkClientId of an Infura endpoint on the same chain that the user
@@ -164,7 +183,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'start',
   'stop',
   'dismissBanner',
-  'switchToDefaultInfuraRpc',
+  'switchToDefaultInfuraRpcEndpoint',
 ] as const;
 
 /**
@@ -172,7 +191,7 @@ const MESSENGER_EXPOSED_METHODS = [
  */
 export type NetworkConnectionBannerControllerGetStateAction =
   ControllerGetStateAction<
-    typeof controllerName,
+    typeof CONTROLLER_NAME,
     NetworkConnectionBannerControllerState
   >;
 
@@ -201,7 +220,7 @@ type AllowedActions =
  */
 export type NetworkConnectionBannerControllerStateChangedEvent =
   ControllerStateChangedEvent<
-    typeof controllerName,
+    typeof CONTROLLER_NAME,
     NetworkConnectionBannerControllerState
   >;
 
@@ -226,7 +245,7 @@ type AllowedEvents =
  * {@link NetworkConnectionBannerController}.
  */
 export type NetworkConnectionBannerControllerMessenger = Messenger<
-  typeof controllerName,
+  typeof CONTROLLER_NAME,
   NetworkConnectionBannerControllerActions | AllowedActions,
   NetworkConnectionBannerControllerEvents | AllowedEvents
 >;
@@ -262,10 +281,10 @@ export type NetworkConnectionBannerControllerOptions = {
  * can act on.
  *
  * Clients only need to render the banner from the controller's state and wire
- * click handlers to {@link dismissBanner} or {@link switchToDefaultInfuraRpc}.
+ * click handlers to {@link dismissBanner} or {@link switchToDefaultInfuraRpcEndpoint}.
  */
 export class NetworkConnectionBannerController extends BaseController<
-  typeof controllerName,
+  typeof CONTROLLER_NAME,
   NetworkConnectionBannerControllerState,
   NetworkConnectionBannerControllerMessenger
 > {
@@ -287,13 +306,10 @@ export class NetworkConnectionBannerController extends BaseController<
     super({
       messenger,
       metadata: networkConnectionBannerControllerMetadata,
-      name: controllerName,
+      name: CONTROLLER_NAME,
       state: getDefaultNetworkConnectionBannerControllerState(),
     });
 
-    // Scoped selectors per controller guideline so unrelated upstream
-    // `stateChange` events (e.g. a `NetworkController` selected client id
-    // update) do not trigger a re-evaluation.
     // Upstream controllers still expose :stateChange; switch to :stateChanged
     // once those packages migrate their event types.
     /* eslint-disable no-restricted-syntax -- awaiting upstream :stateChanged migration */
@@ -321,10 +337,14 @@ export class NetworkConnectionBannerController extends BaseController<
   }
 
   /**
-   * Starts evaluating network connection state. Call this when the wallet
-   * UI that consumes the banner becomes active (typically when the wallet
-   * is unlocked and the home surface mounts) so timers do not run while
-   * the user is not looking at the wallet. Idempotent.
+   * Look for a failed network, if any, and populate the initial state of the
+   * banner. Reacts to upstream state changes from this point on.
+   *
+   * Call this when the wallet UI that consumes the banner becomes active
+   * (typically when the wallet is unlocked and the home surface mounts) so
+   * timers do not run while the user is not looking at the wallet. Should
+   * be called after `NetworkController`, `NetworkEnablementController`, and
+   * `ConnectivityController` have been initialized. Idempotent.
    */
   start(): void {
     if (this.#started) {
@@ -363,15 +383,14 @@ export class NetworkConnectionBannerController extends BaseController<
   }
 
   /**
-   * Switches the chain's default RPC endpoint to its first Infura endpoint,
+   * Switches the chain's default RPC endpoint to its Infura endpoint,
    * causing the banner to clear once the network becomes available again.
    *
-   * @param args - The arguments to this action.
-   * @param args.chainId - The chain whose default RPC should be switched.
+   * @param chainId - The chain whose default RPC endpoint should be switched.
    * @throws If the chain configuration cannot be found, or if it has no
    * Infura endpoint to switch to, or if the default is already Infura.
    */
-  async switchToDefaultInfuraRpc({ chainId }: { chainId: Hex }): Promise<void> {
+  async switchToDefaultInfuraRpcEndpoint(chainId: Hex): Promise<void> {
     const networkConfiguration = this.messenger.call(
       'NetworkController:getNetworkConfigurationByChainId',
       chainId,
@@ -416,7 +435,6 @@ export class NetworkConnectionBannerController extends BaseController<
     }
 
     const failedNetwork = this.#findFailedNetwork();
-
     if (!failedNetwork) {
       this.#resetBanner();
       return;
@@ -563,12 +581,12 @@ export class NetworkConnectionBannerController extends BaseController<
     // chain that we could offer to switch to.
     let switchableInfuraNetworkClientId: string | null = null;
     if (!isInfuraEndpoint) {
-      const otherInfura = rpcEndpoints.find(
+      const infuraEndpoint = rpcEndpoints.find(
         (endpoint, index) =>
           index !== defaultRpcEndpointIndex &&
           getIsInfuraEndpoint(endpoint.url),
       );
-      switchableInfuraNetworkClientId = otherInfura?.networkClientId ?? null;
+      switchableInfuraNetworkClientId = infuraEndpoint?.networkClientId ?? null;
     }
 
     return {
@@ -612,15 +630,6 @@ export class NetworkConnectionBannerController extends BaseController<
     return firstCustomFailed ?? failedNetworks[0];
   }
 }
-
-type NetworkWithMetadata = {
-  chainId: Hex;
-  name: string;
-  rpcEndpoints: NetworkConfiguration['rpcEndpoints'];
-  defaultRpcEndpointIndex: number;
-  defaultRpcEndpoint: NetworkConfiguration['rpcEndpoints'][number];
-  metadata: NetworkMetadata;
-};
 
 /**
  * Whether an RPC URL is a MetaMask Infura endpoint. Matches the

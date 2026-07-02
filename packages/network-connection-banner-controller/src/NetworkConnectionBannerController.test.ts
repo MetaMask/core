@@ -1168,7 +1168,7 @@ describe('NetworkConnectionBannerController', () => {
     });
   });
 
-  describe('switchToDefaultInfuraRpc', () => {
+  describe('switchToDefaultInfuraRpcEndpoint', () => {
     it('invokes NetworkController:updateNetwork with the Infura endpoint as the new default', async () => {
       await withController(
         async ({ rootMessenger, setNetworkState, updateNetwork }) => {
@@ -1193,8 +1193,8 @@ describe('NetworkConnectionBannerController', () => {
           );
 
           await rootMessenger.call(
-            'NetworkConnectionBannerController:switchToDefaultInfuraRpc',
-            { chainId: '0x1' },
+            'NetworkConnectionBannerController:switchToDefaultInfuraRpcEndpoint',
+            '0x1',
           );
 
           expect(updateNetwork).toHaveBeenCalledTimes(1);
@@ -1225,8 +1225,8 @@ describe('NetworkConnectionBannerController', () => {
           );
 
           await rootMessenger.call(
-            'NetworkConnectionBannerController:switchToDefaultInfuraRpc',
-            { chainId: '0x1' },
+            'NetworkConnectionBannerController:switchToDefaultInfuraRpcEndpoint',
+            '0x1',
           );
 
           expect(updateNetwork).not.toHaveBeenCalled();
@@ -1238,8 +1238,8 @@ describe('NetworkConnectionBannerController', () => {
       await withController(async ({ rootMessenger }) => {
         await expect(
           rootMessenger.call(
-            'NetworkConnectionBannerController:switchToDefaultInfuraRpc',
-            { chainId: '0xdeadbeef' },
+            'NetworkConnectionBannerController:switchToDefaultInfuraRpcEndpoint',
+            '0xdeadbeef',
           ),
         ).rejects.toThrow(/No network configuration found/u);
       });
@@ -1266,8 +1266,8 @@ describe('NetworkConnectionBannerController', () => {
 
         await expect(
           rootMessenger.call(
-            'NetworkConnectionBannerController:switchToDefaultInfuraRpc',
-            { chainId: '0x1' },
+            'NetworkConnectionBannerController:switchToDefaultInfuraRpcEndpoint',
+            '0x1',
           ),
         ).rejects.toThrow(/No Infura endpoint available/u);
       });

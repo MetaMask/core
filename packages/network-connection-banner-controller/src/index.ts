@@ -13,7 +13,7 @@ export type {
   NetworkConnectionBannerControllerStartAction,
   NetworkConnectionBannerControllerStopAction,
   NetworkConnectionBannerControllerDismissBannerAction,
-  NetworkConnectionBannerControllerSwitchToDefaultInfuraRpcAction,
+  NetworkConnectionBannerControllerSwitchToDefaultInfuraRpcEndpointAction,
 } from './NetworkConnectionBannerController-method-action-types';
 export {
   NetworkConnectionBannerController,

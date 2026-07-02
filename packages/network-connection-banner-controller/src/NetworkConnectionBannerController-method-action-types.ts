@@ -6,10 +6,14 @@
 import type { NetworkConnectionBannerController } from './NetworkConnectionBannerController';
 
 /**
- * Starts evaluating network connection state. Call this when the wallet
- * UI that consumes the banner becomes active (typically when the wallet
- * is unlocked and the home surface mounts) so timers do not run while
- * the user is not looking at the wallet. Idempotent.
+ * Look for a failed network, if any, and populate the initial state of the
+ * banner. Reacts to upstream state changes from this point on.
+ *
+ * Call this when the wallet UI that consumes the banner becomes active
+ * (typically when the wallet is unlocked and the home surface mounts) so
+ * timers do not run while the user is not looking at the wallet. Should
+ * be called after `NetworkController`, `NetworkEnablementController`, and
+ * `ConnectivityController` have been initialized. Idempotent.
  */
 export type NetworkConnectionBannerControllerStartAction = {
   type: `NetworkConnectionBannerController:start`;
@@ -35,18 +39,18 @@ export type NetworkConnectionBannerControllerDismissBannerAction = {
 };
 
 /**
- * Switches the chain's default RPC endpoint to its first Infura endpoint,
+ * Switches the chain's default RPC endpoint to its Infura endpoint,
  * causing the banner to clear once the network becomes available again.
  *
- * @param args - The arguments to this action.
- * @param args.chainId - The chain whose default RPC should be switched.
+ * @param chainId - The chain whose default RPC endpoint should be switched.
  * @throws If the chain configuration cannot be found, or if it has no
  * Infura endpoint to switch to, or if the default is already Infura.
  */
-export type NetworkConnectionBannerControllerSwitchToDefaultInfuraRpcAction = {
-  type: `NetworkConnectionBannerController:switchToDefaultInfuraRpc`;
-  handler: NetworkConnectionBannerController['switchToDefaultInfuraRpc'];
-};
+export type NetworkConnectionBannerControllerSwitchToDefaultInfuraRpcEndpointAction =
+  {
+    type: `NetworkConnectionBannerController:switchToDefaultInfuraRpcEndpoint`;
+    handler: NetworkConnectionBannerController['switchToDefaultInfuraRpcEndpoint'];
+  };
 
 /**
  * Union of all NetworkConnectionBannerController action types.
@@ -55,4 +59,4 @@ export type NetworkConnectionBannerControllerMethodActions =
   | NetworkConnectionBannerControllerStartAction
   | NetworkConnectionBannerControllerStopAction
   | NetworkConnectionBannerControllerDismissBannerAction
-  | NetworkConnectionBannerControllerSwitchToDefaultInfuraRpcAction;
+  | NetworkConnectionBannerControllerSwitchToDefaultInfuraRpcEndpointAction;
