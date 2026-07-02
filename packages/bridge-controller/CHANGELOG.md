@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix Arc native token symbol from `USDC-native` to `USDC` ([#9364](https://github.com/MetaMask/core/pull/9364))
+
 ## [77.3.1]
 
 ### Changed
