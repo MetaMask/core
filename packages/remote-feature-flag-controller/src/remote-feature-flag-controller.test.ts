@@ -741,10 +741,9 @@ describe('RemoteFeatureFlagController', () => {
         'RemoteFeatureFlagController:updateRemoteFeatureFlags',
       );
 
-      // Legacy format (no thresholdVersion): wrapped as { name, value }
-      expect(controller.state.remoteFeatureFlags.testFlag).toStrictEqual({
-        name: 'qaGroup',
-        value: 'qa-value',
+      expect(controller.state.remoteFeatureFlags.testFlag).toBe('qa-value');
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        testFlag: 'qaGroup',
       });
     });
 
@@ -777,9 +776,9 @@ describe('RemoteFeatureFlagController', () => {
         'RemoteFeatureFlagController:updateRemoteFeatureFlags',
       );
 
-      expect(controller.state.remoteFeatureFlags.testFlag).toStrictEqual({
-        name: 'first',
-        value: 'first-value',
+      expect(controller.state.remoteFeatureFlags.testFlag).toBe('first-value');
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        testFlag: 'first',
       });
     });
 
@@ -817,9 +816,9 @@ describe('RemoteFeatureFlagController', () => {
       );
 
       // With MOCK_METRICS_ID + 'testFlag' hashed: threshold 0.496587 → groupA (≤ 0.5)
-      expect(controller.state.remoteFeatureFlags.testFlag).toStrictEqual({
-        name: 'groupA',
-        value: 'valueA',
+      expect(controller.state.remoteFeatureFlags.testFlag).toBe('valueA');
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        testFlag: 'groupA',
       });
     });
 
@@ -857,9 +856,9 @@ describe('RemoteFeatureFlagController', () => {
       );
 
       // Malformed entry ignored; hash-based selects groupA
-      expect(controller.state.remoteFeatureFlags.testFlag).toStrictEqual({
-        name: 'groupA',
-        value: 'valueA',
+      expect(controller.state.remoteFeatureFlags.testFlag).toBe('valueA');
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        testFlag: 'groupA',
       });
     });
 
@@ -892,9 +891,9 @@ describe('RemoteFeatureFlagController', () => {
       );
 
       // String MOCK_METRICS_ID in the array still matches
-      expect(controller.state.remoteFeatureFlags.testFlag).toStrictEqual({
-        name: 'badGroup',
-        value: 'bad-value',
+      expect(controller.state.remoteFeatureFlags.testFlag).toBe('bad-value');
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        testFlag: 'badGroup',
       });
     });
 
@@ -927,9 +926,9 @@ describe('RemoteFeatureFlagController', () => {
         'RemoteFeatureFlagController:updateRemoteFeatureFlags',
       );
 
-      expect(controller.state.remoteFeatureFlags.testFlag).toStrictEqual({
-        name: 'qaGroup',
-        value: 'qa-value',
+      expect(controller.state.remoteFeatureFlags.testFlag).toBe('qa-value');
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        testFlag: 'qaGroup',
       });
     });
 

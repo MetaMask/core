@@ -191,7 +191,6 @@ function redactMetaMetricsIds(flags: FeatureFlags): FeatureFlags {
   return result;
 }
 
-
 /**
  * The RemoteFeatureFlagController manages the retrieval and caching of remote feature flags.
  * It fetches feature flags from a remote API, caches them, and provides methods to access
