@@ -27,15 +27,9 @@ export type Data_ERC721Received = components['schemas']['Data_ERC721Received'];
 export type NetworkMetadata = components['schemas']['NetworkMetadata'];
 export type BlockExplorer = components['schemas']['BlockExplorer'];
 
-type Notification = components['schemas']['NotificationOutputV3'][number];
-type PlatformNotification = Extract<
-  Notification,
-  { notification_type: 'platform' }
->;
-type OnChainNotification = Extract<
-  Notification,
-  { notification_type: 'on-chain' }
->;
+export type Notification = components['schemas']['NotificationOutputV4'][number];
+export type PlatformNotification = components['schemas']['PlatformNotificationV4'];
+export type OnChainNotification = components['schemas']['OnChainNotificationV4'];
 
 type ConvertToEnum<Kind> = {
   [K in TRIGGER_TYPES]: Kind extends `${K}` ? K : never;
