@@ -149,9 +149,10 @@ jobs:
       - name: Build
         run: |
           if [[ -n "$MERGE_BASE" ]]; then
-            TSCONFIG=$(mktemp --suffix=.json)
+            TSCONFIG=$(mktemp --tmpdir="$GITHUB_WORKSPACE" --suffix=.json)
             yarn tsx scripts/generate-partial-build-tsconfig.mts "$MERGE_BASE" > "$TSCONFIG"
             yarn ts-bridge --project "$TSCONFIG" --verbose
+            rm -f "$TSCONFIG"
           else
             yarn build
           fi
