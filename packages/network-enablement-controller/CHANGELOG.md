@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
+### Fixed
 
 - Revert Stellar from the Network Enablement Controller enabled network map to unblock release due to E2E failures in extension ([#9381](https://github.com/MetaMask/core/pull/9381))
 
