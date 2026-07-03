@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.4.2]
+
+### Uncategorized
+
+- chore(network-enablement-controller): move misplaced Stellar changelog entries to Unreleased ([#9356](https://github.com/MetaMask/core/pull/9356))
+
 ### Fixed
 
 - Revert Stellar from the Network Enablement Controller enabled network map to unblock release due to E2E failures in extension ([#9381](https://github.com/MetaMask/core/pull/9381))
@@ -339,7 +345,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6028](https://github.com/MetaMask/core/pull/6028))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.4.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.4.2...HEAD
+[5.4.2]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.4.1...@metamask/network-enablement-controller@5.4.2
 [5.4.1]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.4.0...@metamask/network-enablement-controller@5.4.1
 [5.4.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.3.0...@metamask/network-enablement-controller@5.4.0
 [5.3.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.2.0...@metamask/network-enablement-controller@5.3.0

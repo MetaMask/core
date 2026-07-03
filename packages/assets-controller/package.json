@@ -69,7 +69,7 @@
     "@metamask/keyring-snap-client": "^9.0.2",
     "@metamask/messenger": "^1.2.0",
     "@metamask/network-controller": "^34.0.0",
-    "@metamask/network-enablement-controller": "^5.4.1",
+    "@metamask/network-enablement-controller": "^5.4.2",
     "@metamask/permission-controller": "^13.1.1",
     "@metamask/phishing-controller": "^17.2.0",
     "@metamask/polling-controller": "^16.0.8",
