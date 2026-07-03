@@ -2,6 +2,7 @@ import { AccountWalletType } from '@metamask/account-api';
 
 import { BackupAndSyncService } from '.';
 import type { AccountGroupObject } from '../../group';
+import type { AccountTreeControllerState } from '../../types';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import { TraceName } from '../analytics';
 import { getProfileId } from '../authentication';
@@ -403,6 +404,36 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       const [, tracedCallback] = (mockContext.traceFn as jest.Mock).mock
         .calls[0];
       expect(tracedCallback()).toBeUndefined();
+    });
+
+    it('clears the in-progress flag even when the trace emit fails', async () => {
+      mockGetLocalEntropyWallets.mockReturnValue([
+        {
+          id: 'entropy:wallet-1',
+          metadata: { entropy: { id: 'test-entropy-id' } },
+        } as unknown as AccountWalletEntropyObject,
+      ]);
+      mockGetAllGroupsFromUserStorage.mockResolvedValue([]);
+      mockSyncWalletMetadata.mockImplementation(async (context) => {
+        context.mutationTracker?.setLocalWrite(true);
+      });
+      // Tracing is best-effort: a rejected trace must not fail the sync nor
+      // leave the controller stuck mid-sync.
+      (mockContext.traceFn as jest.Mock).mockRejectedValue(
+        new Error('trace boom'),
+      );
+
+      expect(await backupAndSyncService.performFullSync()).toBeUndefined();
+
+      // Replay every state update; the in-progress flag must end up cleared.
+      const state = {
+        isAccountTreeSyncingInProgress: true,
+      } as AccountTreeControllerState;
+      for (const [updater] of (mockContext.controllerStateUpdateFn as jest.Mock)
+        .mock.calls) {
+        updater(state);
+      }
+      expect(state.isAccountTreeSyncingInProgress).toBe(false);
     });
 
     it('emits an AccountSyncFull span for a durable remote write even if the wallet is rolled back', async () => {
