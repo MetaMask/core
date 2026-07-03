@@ -35,10 +35,10 @@ const mockCreateMultichainAccountGroupsBatch =
 
 describe('BackupAndSync - Syncing - Legacy', () => {
   let mockContext: BackupAndSyncContext;
-  let mockMarkOccurred: jest.Mock;
+  let mockSetLocalWrite: jest.Mock;
 
   beforeEach(() => {
-    mockMarkOccurred = jest.fn();
+    mockSetLocalWrite = jest.fn();
 
     mockContext = {
       controller: {
@@ -46,9 +46,7 @@ describe('BackupAndSync - Syncing - Legacy', () => {
       },
       emitAnalyticsEventFn: jest.fn(),
       mutationTracker: {
-        markOccurred: mockMarkOccurred,
-        hasOccurred: jest.fn(),
-        reset: jest.fn(),
+        setLocalWrite: mockSetLocalWrite,
       },
     } as unknown as BackupAndSyncContext;
   });
@@ -160,7 +158,7 @@ describe('BackupAndSync - Syncing - Legacy', () => {
         true,
       );
       // Two renames -> two mutations marked.
-      expect(mockMarkOccurred).toHaveBeenCalledTimes(2);
+      expect(mockSetLocalWrite).toHaveBeenCalledTimes(2);
     });
 
     it('skips legacy accounts with missing name or address', async () => {
@@ -208,7 +206,7 @@ describe('BackupAndSync - Syncing - Legacy', () => {
       );
 
       expect(mockContext.controller.setAccountGroupName).not.toHaveBeenCalled();
-      expect(mockMarkOccurred).not.toHaveBeenCalled();
+      expect(mockSetLocalWrite).not.toHaveBeenCalled();
     });
 
     it('emits analytics event on completion', async () => {

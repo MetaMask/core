@@ -78,16 +78,24 @@ export type LegacyUserStorageSyncedAccount = Infer<
 >;
 
 /**
- * Tracks whether the current full sync run performed a real write (a local
- * mutation or a remote push), so the service can gate emission of the
- * full-sync trace.
+ * Tracks whether the current full sync run performed a real write, so the
+ * service can gate emission of the full-sync trace.
+ *
+ * Writes are split by durability:
+ * - Remote writes (pushes to user storage) are durable and always count.
+ * - Local writes can be reverted by a per-wallet rollback, so the service
+ *   reads the flag before a wallet and writes it back if that wallet rolls back.
  */
 export type SyncMutationTracker = {
-  /** Records that a real write happened during the current sync run. */
-  markOccurred: () => void;
-  /** Whether a real write has been recorded since the last reset. */
+  /** Sets (or clears) the durable remote-write flag — a push to user storage. */
+  setRemoteWrite: (value: boolean) => void;
+  /** Gets the local-write flag — a write a per-wallet rollback would revert. */
+  getLocalWrite: () => boolean;
+  /** Sets, clears, or restores the local-write flag. */
+  setLocalWrite: (value: boolean) => void;
+  /** Whether any write (remote or local) is currently recorded. */
   hasOccurred: () => boolean;
-  /** Clears the tracker at the start of a sync run. */
+  /** Clears all recorded writes at the start of a sync run. */
   reset: () => void;
 };
 
@@ -100,8 +108,8 @@ export type BackupAndSyncContext = {
   emitAnalyticsEventFn: (event: BackupAndSyncEmitAnalyticsEventParams) => void;
   /**
    * Tracks whether the current sync run performed a real write (a local
-   * mutation or a remote push). Sync helpers call `markOccurred()`; the service
-   * reads it to gate emission of the full-sync trace.
+   * mutation or a remote push). Sync helpers set the relevant write flag; the
+   * service reads it to gate emission of the full-sync trace.
    */
   mutationTracker?: SyncMutationTracker;
 };

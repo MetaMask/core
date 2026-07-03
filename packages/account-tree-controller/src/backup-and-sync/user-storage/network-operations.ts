@@ -88,7 +88,7 @@ export const pushWalletToUserStorage = async (
       stringifiedWallet,
       entropySourceId,
     );
-    context.mutationTracker?.markOccurred();
+    context.mutationTracker?.setRemoteWrite(true);
     return result;
   });
 };
@@ -201,7 +201,7 @@ export const pushGroupToUserStorage = async (
       stringifiedGroup,
       entropySourceId,
     );
-    context.mutationTracker?.markOccurred();
+    context.mutationTracker?.setRemoteWrite(true);
     return result;
   });
 };
@@ -242,7 +242,7 @@ export const pushGroupToUserStorageBatch = async (
       entries,
       entropySourceId,
     );
-    context.mutationTracker?.markOccurred();
+    context.mutationTracker?.setRemoteWrite(true);
     return result;
   });
 };

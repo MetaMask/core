@@ -61,19 +61,17 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
   let mockContext: BackupAndSyncContext;
   let mockWallet: AccountWalletEntropyObject;
   let mockGroup: AccountGroupMultichainAccountObject;
-  let mockMarkOccurred: jest.Mock;
+  let mockSetRemoteWrite: jest.Mock;
 
   beforeEach(() => {
-    mockMarkOccurred = jest.fn();
+    mockSetRemoteWrite = jest.fn();
 
     mockContext = {
       messenger: {
         call: jest.fn(),
       },
       mutationTracker: {
-        markOccurred: mockMarkOccurred,
-        hasOccurred: jest.fn(),
-        reset: jest.fn(),
+        setRemoteWrite: mockSetRemoteWrite,
       },
     } as unknown as BackupAndSyncContext;
 
@@ -212,7 +210,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         JSON.stringify(formattedWallet),
         'test-entropy-id',
       );
-      expect(mockMarkOccurred).toHaveBeenCalledTimes(1);
+      expect(mockSetRemoteWrite).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -445,7 +443,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         JSON.stringify(formattedGroup),
         'test-entropy-id',
       );
-      expect(mockMarkOccurred).toHaveBeenCalledTimes(1);
+      expect(mockSetRemoteWrite).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -476,7 +474,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         ],
         'test-entropy-id',
       );
-      expect(mockMarkOccurred).toHaveBeenCalledTimes(1);
+      expect(mockSetRemoteWrite).toHaveBeenCalledTimes(1);
     });
   });
 

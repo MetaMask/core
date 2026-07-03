@@ -5,10 +5,11 @@ import type { AccountGroupObject } from '../../group';
 import type { AccountWalletEntropyObject } from '../../wallet';
 import { TraceName } from '../analytics';
 import { getProfileId } from '../authentication';
-import { syncWalletMetadata } from '../syncing';
-import type { BackupAndSyncContext } from '../types';
+import { performLegacyAccountSyncing, syncWalletMetadata } from '../syncing';
+import type { BackupAndSyncContext, SyncMutationTracker } from '../types';
+import { getAllGroupsFromUserStorage } from '../user-storage';
 // We only need to import the functions we actually spy on
-import { getLocalEntropyWallets } from '../utils';
+import { createStateSnapshot, getLocalEntropyWallets } from '../utils';
 
 // Mock the sync functions and all external dependencies
 jest.mock('../syncing');
@@ -25,17 +26,34 @@ const mockGetLocalEntropyWallets =
 const mockSyncWalletMetadata = syncWalletMetadata as jest.MockedFunction<
   typeof syncWalletMetadata
 >;
+const mockPerformLegacyAccountSyncing =
+  performLegacyAccountSyncing as jest.MockedFunction<
+    typeof performLegacyAccountSyncing
+  >;
+const mockGetAllGroupsFromUserStorage =
+  getAllGroupsFromUserStorage as jest.MockedFunction<
+    typeof getAllGroupsFromUserStorage
+  >;
+const mockCreateStateSnapshot = createStateSnapshot as jest.MockedFunction<
+  typeof createStateSnapshot
+>;
 
 // Local tracker (the real factory lives in the auto-mocked `../utils`).
-const createTestMutationTracker = () => {
-  let occurred = false;
+const createTestMutationTracker = (): SyncMutationTracker => {
+  let remoteWrite = false;
+  let localWrite = false;
   return {
-    markOccurred: () => {
-      occurred = true;
+    setRemoteWrite: (value: boolean): void => {
+      remoteWrite = value;
     },
-    hasOccurred: () => occurred,
-    reset: () => {
-      occurred = false;
+    getLocalWrite: (): boolean => localWrite,
+    setLocalWrite: (value: boolean): void => {
+      localWrite = value;
+    },
+    hasOccurred: (): boolean => remoteWrite || localWrite,
+    reset: (): void => {
+      remoteWrite = false;
+      localWrite = false;
     },
   };
 };
@@ -85,6 +103,11 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
     // Setup default mock returns
     mockGetLocalEntropyWallets.mockReturnValue([]);
     mockGetProfileId.mockResolvedValue('test-profile-id');
+    // Return a truthy snapshot so the per-wallet rollback path runs (the real
+    // implementation always returns a snapshot object).
+    mockCreateStateSnapshot.mockReturnValue(
+      {} as ReturnType<typeof createStateSnapshot>,
+    );
 
     backupAndSyncService = new BackupAndSyncService(mockContext);
   });
@@ -135,8 +158,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
     });
 
     it('returns early when a full sync has not completed at least once', () => {
-      mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce =
-        false;
+      mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce = false;
       backupAndSyncService.enqueueSingleWalletSync('entropy:wallet-1');
       // Should not have called any messenger functions beyond the state check
       expect(mockContext.messenger.call).toHaveBeenCalledTimes(1);
@@ -149,8 +171,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
     });
 
     it('enqueues single wallet sync when enabled and synced at least once', async () => {
-      mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce =
-        true;
+      mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce = true;
 
       // Add a mock wallet to the context so the sync can find it
       mockContext.controller.state.accountTree.wallets = {
@@ -234,8 +255,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
     });
 
     it('returns early when a full sync has not completed at least once', () => {
-      mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce =
-        false;
+      mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce = false;
 
       backupAndSyncService.enqueueSingleGroupSync('entropy:wallet-1/1');
 
@@ -250,8 +270,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
     });
 
     it('enqueues group sync when enabled and synced at least once', async () => {
-      mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce =
-        true;
+      mockContext.controller.state.hasAccountTreeSyncingSyncedAtLeastOnce = true;
 
       // Set up the group mapping and wallet context
       mockContext.groupIdToWalletId.set(
@@ -353,18 +372,21 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       expect(mockGetLocalEntropyWallets).toHaveBeenCalled();
     });
 
-    it('emits a backdated AccountSyncFull span when the sync mutates state', async () => {
+    it('emits a backdated AccountSyncFull span when the sync mutates local state', async () => {
       mockGetLocalEntropyWallets.mockReturnValue([
         {
           id: 'entropy:wallet-1',
           metadata: { entropy: { id: 'test-entropy-id' } },
         } as unknown as AccountWalletEntropyObject,
       ]);
+      // Empty remote groups makes the wallet run complete cleanly (push + skip)
+      // without hitting the rollback path.
+      mockGetAllGroupsFromUserStorage.mockResolvedValue([]);
 
-      // Simulate a real write happening during the sync by having a mocked
+      // Simulate a local write happening during the sync by having a mocked
       // helper report a mutation through the context.
       mockSyncWalletMetadata.mockImplementation(async (context) => {
-        context.mutationTracker?.markOccurred();
+        context.mutationTracker?.setLocalWrite(true);
       });
 
       await backupAndSyncService.performFullSync();
@@ -381,6 +403,90 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       const [, tracedCallback] = (mockContext.traceFn as jest.Mock).mock
         .calls[0];
       expect(tracedCallback()).toBeUndefined();
+    });
+
+    it('emits an AccountSyncFull span for a durable remote write even if the wallet is rolled back', async () => {
+      mockGetLocalEntropyWallets.mockReturnValue([
+        {
+          id: 'entropy:wallet-1',
+          metadata: { entropy: { id: 'test-entropy-id' } },
+        } as unknown as AccountWalletEntropyObject,
+      ]);
+
+      // A remote push happens, then the wallet fails and is rolled back. Remote
+      // writes are durable, so the run must still emit.
+      mockSyncWalletMetadata.mockImplementation(async (context) => {
+        context.mutationTracker?.setRemoteWrite(true);
+        throw new Error('boom');
+      });
+
+      await backupAndSyncService.performFullSync();
+
+      expect(mockContext.traceFn).toHaveBeenCalledTimes(1);
+      expect(mockContext.traceFn).toHaveBeenCalledWith(
+        {
+          name: TraceName.AccountSyncFull,
+          startTime: expect.any(Number),
+        },
+        expect.any(Function),
+      );
+    });
+
+    it("does not emit an AccountSyncFull span when a wallet's local changes are rolled back", async () => {
+      mockGetLocalEntropyWallets.mockReturnValue([
+        {
+          id: 'entropy:wallet-1',
+          metadata: { entropy: { id: 'test-entropy-id' } },
+        } as unknown as AccountWalletEntropyObject,
+      ]);
+
+      // A local write happens, then the wallet fails and is rolled back. The
+      // local change is reverted, so the run must not emit.
+      mockSyncWalletMetadata.mockImplementation(async (context) => {
+        context.mutationTracker?.setLocalWrite(true);
+        throw new Error('boom');
+      });
+
+      await backupAndSyncService.performFullSync();
+
+      expect(mockContext.traceFn).not.toHaveBeenCalled();
+    });
+
+    it('emits an AccountSyncFull span when the run throws after doing durable work', async () => {
+      mockGetLocalEntropyWallets.mockReturnValue([
+        {
+          id: 'entropy:wallet-1',
+          metadata: { entropy: { id: 'test-entropy-id' } },
+        } as unknown as AccountWalletEntropyObject,
+        {
+          id: 'entropy:wallet-2',
+          metadata: { entropy: { id: 'test-entropy-id-2' } },
+        } as unknown as AccountWalletEntropyObject,
+      ]);
+      mockGetAllGroupsFromUserStorage.mockResolvedValue([]);
+
+      // Wallet 1 performs a durable remote write and completes; wallet 2's
+      // legacy sync then fails and aborts the whole run.
+      mockSyncWalletMetadata.mockImplementation(async (context) => {
+        context.mutationTracker?.setRemoteWrite(true);
+      });
+      mockPerformLegacyAccountSyncing
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error('legacy boom'));
+
+      await expect(backupAndSyncService.performFullSync()).rejects.toThrow(
+        'Legacy syncing failed',
+      );
+
+      // The span is still recorded despite the failure.
+      expect(mockContext.traceFn).toHaveBeenCalledTimes(1);
+      expect(mockContext.traceFn).toHaveBeenCalledWith(
+        {
+          name: TraceName.AccountSyncFull,
+          startTime: expect.any(Number),
+        },
+        expect.any(Function),
+      );
     });
 
     it('does not emit an AccountSyncFull span when the sync is a no-op', async () => {

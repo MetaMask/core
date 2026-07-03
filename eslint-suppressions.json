@@ -37,7 +37,7 @@
       "count": 1
     },
     "n/no-sync": {
-      "count": 22
+      "count": 28
     }
   },
   "packages/account-tree-controller/src/backup-and-sync/service/index.ts": {

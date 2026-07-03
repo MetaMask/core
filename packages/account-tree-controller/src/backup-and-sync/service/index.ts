@@ -359,6 +359,12 @@ export class BackupAndSyncService {
           // 3. Execute multichain account syncing
           let stateSnapshot: StateSnapshot | undefined;
 
+          // Capture the local-write flag so it can be reverted together with
+          // the state snapshot if this wallet is rolled back. Remote writes are
+          // durable and intentionally excluded.
+          const localWriteBeforeWallet =
+            this.#context.mutationTracker?.getLocalWrite() ?? false;
+
           try {
             // 3.1 Wallet syncing
             // Create a state snapshot before processing each wallet for potential rollback
@@ -416,6 +422,11 @@ export class BackupAndSyncService {
                 );
               }
               restoreStateFromSnapshot(this.#context, stateSnapshot);
+              // Revert the local-write flag too, so a rolled-back wallet does
+              // not keep the run marked as having changed local state.
+              this.#context.mutationTracker?.setLocalWrite(
+                localWriteBeforeWallet,
+              );
               backupAndSyncLogger(
                 `Rolled back state changes for wallet ${wallet.id}`,
               );
@@ -450,10 +461,12 @@ export class BackupAndSyncService {
     const startTime = Date.now();
     try {
       await bigSyncFn();
-
-      // Only emit a span when the sync actually changed something (local or
-      // remote). The common no-op sync (every login) is not traced. The span
-      // is backdated so the real sync duration is preserved.
+    } finally {
+      // Emit a span whenever the run changed something (local or remote), even
+      // if it later threw - a failed sync that already did durable work is
+      // exactly the kind of anomaly we want visible. No-op syncs (the common
+      // per-login case) are not traced. The span is backdated so the real sync
+      // duration is preserved.
       if (mutationTracker?.hasOccurred()) {
         await this.#context.traceFn(
           {
@@ -463,7 +476,7 @@ export class BackupAndSyncService {
           () => undefined,
         );
       }
-    } finally {
+
       // Always reset state, regardless of success or failure
       this.#context.controllerStateUpdateFn(
         (state: AccountTreeControllerState) => {
