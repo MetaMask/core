@@ -66,6 +66,7 @@ jobs:
   validate-changelog:
     name: Validate changelog
     runs-on: ubuntu-latest
+    if: needs.get-changed-packages.outputs.package-names != '[]'
     needs:
       - prepare
       - get-changed-packages
@@ -228,6 +229,7 @@ jobs:
   test-18:
     name: Test (18.x)
     runs-on: ubuntu-latest
+    if: needs.get-changed-packages.outputs.package-names != '[]'
     needs:
       - prepare
       - get-changed-packages
@@ -255,6 +257,7 @@ jobs:
   test-20:
     name: Test (20.x)
     runs-on: ubuntu-latest
+    if: needs.get-changed-packages.outputs.package-names != '[]'
     needs:
       - prepare
       - get-changed-packages
@@ -282,6 +285,7 @@ jobs:
   test-22:
     name: Test (22.x)
     runs-on: ubuntu-latest
+    if: needs.get-changed-packages.outputs.package-names != '[]'
     needs:
       - prepare
       - get-changed-packages
