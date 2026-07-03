@@ -533,76 +533,7 @@ describe('RemoteFeatureFlagController', () => {
       });
     });
 
-    it('stores selected threshold group name from name field when thresholdName is absent', async () => {
-      const thresholdFlagValue = {
-        enabled: true,
-        minimumVersion: '13.10.0',
-        attemptsMax: 5,
-      };
-      const mockFlags = {
-        thresholdObjectFlag: [
-          {
-            name: 'enabled',
-            scope: { type: 'threshold', value: 1.0 },
-            value: thresholdFlagValue,
-          },
-        ],
-      };
-      const clientConfigApiService = buildClientConfigApiService({
-        remoteFeatureFlags: mockFlags,
-      });
-      const { controller, messenger } = createController({
-        clientConfigApiService,
-        getMetaMetricsId: () => MOCK_METRICS_ID,
-      });
-
-      await messenger.call(
-        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
-      );
-
-      expect(
-        controller.state.remoteFeatureFlags.thresholdObjectFlag,
-      ).toStrictEqual(thresholdFlagValue);
-      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
-        thresholdObjectFlag: 'enabled',
-      });
-    });
-
-    it('does not map threshold group when only thresholdName is provided', async () => {
-      const thresholdFlagValue = {
-        enabled: true,
-        minimumVersion: '13.10.0',
-        attemptsMax: 5,
-      };
-      const mockFlags = {
-        thresholdObjectFlag: [
-          {
-            thresholdName: 'enabled',
-            thresholdVersion: ThresholdVersion.DirectValue,
-            scope: { type: 'threshold', value: 1.0 },
-            value: thresholdFlagValue,
-          },
-        ],
-      };
-      const clientConfigApiService = buildClientConfigApiService({
-        remoteFeatureFlags: mockFlags,
-      });
-      const { controller, messenger } = createController({
-        clientConfigApiService,
-        getMetaMetricsId: () => MOCK_METRICS_ID,
-      });
-
-      await messenger.call(
-        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
-      );
-
-      expect(
-        controller.state.remoteFeatureFlags.thresholdObjectFlag,
-      ).toStrictEqual(thresholdFlagValue);
-      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({});
-    });
-
-    it('returns selected threshold values for unrecognized threshold versions', async () => {
+    it('ignores threshold version field, processing threshold values normally', async () => {
       const thresholdFlagValue = {
         enabled: true,
       };
@@ -1600,18 +1531,21 @@ describe('RemoteFeatureFlagController', () => {
         });
 
       jest.useFakeTimers();
-      jest.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
 
-      await messenger.call(
-        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
-      );
-      await flushPromises();
+      try {
+        jest.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
 
-      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
-        flagB: 'groupB',
-      });
+        await messenger.call(
+          'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+        );
+        await flushPromises();
 
-      jest.useRealTimers();
+        expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+          flagB: 'groupB',
+        });
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it('preserves threshold cache entries for flags still in server response', async () => {

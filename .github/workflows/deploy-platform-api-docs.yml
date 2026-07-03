@@ -4,21 +4,21 @@ on:
   workflow_call:
 
 jobs:
-  build-docs:
-    name: Build Platform API docs
+  deploy:
+    name: Build and deploy to GitHub Pages
     runs-on: ubuntu-latest
+    environment: default-branch
     permissions:
+      id-token: write
       contents: read
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: true
+          persist-credentials: false
 
       - name: Generate and build Platform API docs
-        # The site is published under the `/platform-api/` subdirectory of
-        # the repo's GitHub Pages site so that other doc sites (e.g.
-        # package API docs) can be hosted alongside under sibling paths.
         env:
           REPO_OWNER: ${{ github.repository_owner }}
           REPO_NAME: ${{ github.event.repository.name }}
@@ -27,24 +27,6 @@ jobs:
             --site-url "https://${REPO_OWNER}.github.io" \
             --site-base-url "/${REPO_NAME}/platform-api/"
 
-      - name: Upload build artifact
-        uses: actions/upload-artifact@v7
-        with:
-          name: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' && 'platform-api-docs-build' || 'platform-api-docs' }}
-          path: .platform-api-docs/build/
-          retention-days: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' && 1 || 7 }}
-
-  get-token:
-    name: Get access token
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: build-docs
-    runs-on: ubuntu-latest
-    environment: github-pages
-    permissions:
-      id-token: write
-    outputs:
-      token: ${{ steps.get-token.outputs.token }}
-    steps:
       - name: Get access token
         id: get-token
         uses: MetaMask/github-tools/.github/actions/get-token@v1
@@ -53,40 +35,10 @@ jobs:
           permissions: |
             contents: write
 
-  deploy:
-    name: Deploy to GitHub Pages
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs:
-      - build-docs
-      - get-token
-    runs-on: ubuntu-latest
-    environment: github-pages
-    permissions:
-      # Just for the initial `actions/checkout` — the actual push to
-      # `gh-pages` uses the PAT from the `get-token` job, not GITHUB_TOKEN.
-      contents: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 1
-
-      - name: Download build artifact
-        uses: actions/download-artifact@v8
-        with:
-          name: platform-api-docs-build
-          path: build/
-
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@4f9cc6602d3f66b9c108549d475ec49e8ef4d45e # v4.0.0
+        uses: peaceiris/actions-gh-pages@84c30a85c19949d7eee79c4ff27748b70285e453 # v4.1.0
         with:
-          # Use a PAT obtained via Token Exchange Service rather than the
-          # default `GITHUB_TOKEN`. `GITHUB_TOKEN` can't be granted branch
-          # protections that disallow direct human pushes while still letting
-          # this workflow publish, which is what we want for `gh-pages`.
-          personal_token: ${{ needs.get-token.outputs.token }}
-          publish_dir: ./build
+          personal_token: ${{ steps.get-token.outputs.token }}
+          publish_dir: ./.platform-api-docs/build
           destination_dir: platform-api
-          # Preserve sibling subdirectories (e.g. /package-api/) so this
-          # deploy only overwrites /platform-api/.
           keep_files: true

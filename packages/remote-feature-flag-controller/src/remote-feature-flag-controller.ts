@@ -353,7 +353,7 @@ export class RemoteFeatureFlagController extends BaseController<
         rawRemoteFeatureFlags: remoteFeatureFlags,
         cacheTimestamp: Date.now(),
         thresholdCache: updatedThresholdCache,
-        featureFlagThresholdGroups: updatedFeatureFlagThresholdGroups,
+        featureFlagThresholdGroups: featureFlagThresholdGroupUpdates,
       };
     });
   }
