@@ -8797,7 +8797,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/transaction-controller@npm:^68.2.2, @metamask/transaction-controller@workspace:packages/transaction-controller":
+"@metamask/transaction-controller@npm:^68.2.0, @metamask/transaction-controller@npm:^68.2.2, @metamask/transaction-controller@workspace:packages/transaction-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/transaction-controller@workspace:packages/transaction-controller"
   dependencies:
