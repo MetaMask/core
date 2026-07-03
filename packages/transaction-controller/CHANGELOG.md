@@ -98,8 +98,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - **BREAKING:** Remove incoming transaction support from `TransactionController` ([#9012](https://github.com/MetaMask/core/pull/9012))
-  - The constructor option `incomingTransactions` is ignored for backwards compatibility.
-  - Removed public method `updateIncomingTransactions`; `startIncomingTransactionPolling` and `stopIncomingTransactionPolling` are retained as no-ops for backwards compatibility.
+  - Removed constructor option `incomingTransactions`.
+  - Removed public methods `startIncomingTransactionPolling`, `stopIncomingTransactionPolling`, `updateIncomingTransactions`.
   - Removed event `TransactionController:incomingTransactionsReceived`.
   - Removed exported constant `INCOMING_TRANSACTIONS_SUPPORTED_CHAIN_IDS`.
   - Removed exported types `TransactionControllerIncomingTransactionsReceivedEvent`, `TransactionControllerStartIncomingTransactionPollingAction`, `TransactionControllerStopIncomingTransactionPollingAction`, `TransactionControllerUpdateIncomingTransactionsAction`, `TransactionResponse`, `GetAccountTransactionsRequest`, `GetAccountTransactionsResponse`.

@@ -294,7 +294,17 @@ function getUserFeeLevel(request: GetGasFeeRequest): string | undefined {
   const { initialParams, savedGasFees, suggestedGasFees, txMeta } = request;
 
   if (savedGasFees) {
-    return savedGasFees.level ?? UserFeeLevel.CUSTOM;
+    const hasCustomOverride =
+      savedGasFees.maxBaseFee !== undefined ||
+      savedGasFees.priorityFee !== undefined ||
+      savedGasFees.gasPrice !== undefined;
+
+    // A custom override on any field means the fee is no longer purely
+    // level-derived, so it must not be tracked as a live estimate level by
+    // the gas fee poller, which would otherwise overwrite the override.
+    return hasCustomOverride
+      ? UserFeeLevel.CUSTOM
+      : (savedGasFees.level ?? UserFeeLevel.CUSTOM);
   }
 
   if (

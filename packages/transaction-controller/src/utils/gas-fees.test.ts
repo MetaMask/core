@@ -299,6 +299,24 @@ describe('gas-fees', () => {
       );
     });
 
+    it('sets userFeeLevel to custom if saved gas fees include both a level and a custom override', async () => {
+      updateGasFeeRequest.txMeta.type = TransactionType.simpleSend;
+      updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce({
+        level: GasFeeEstimateLevel.High,
+        maxBaseFee: '123',
+      });
+      mockGasFeeFlowMockResponse(FLOW_RESPONSE_FEE_MARKET_MOCK);
+
+      await updateGasFees(updateGasFeeRequest);
+
+      expect(updateGasFeeRequest.txMeta.txParams.maxFeePerGas).toBe(
+        '0x1ca35f0e00', // 123 gwei
+      );
+      expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(
+        UserFeeLevel.CUSTOM,
+      );
+    });
+
     it('uses saved gasPrice if saved gas fees include a legacy custom value', async () => {
       updateGasFeeRequest.eip1559 = false;
       updateGasFeeRequest.txMeta.type = TransactionType.simpleSend;
