@@ -41,16 +41,24 @@ async function getWorkspaces(): Promise<Workspace[]> {
   ).filter((workspace): workspace is Workspace => workspace !== null);
 }
 
+type DependencyGraph = {
+  dependants: Record<string, Set<string>>;
+  dependencies: Record<string, Set<string>>;
+};
+
 /**
- * Get a map of package name -> names of packages that depend on it.
+ * Get dependency and dependant maps for all workspaces.
  *
  * @param workspaces - The workspaces in the monorepo.
- * @returns A map of package name -> names of packages that depend on it.
+ * @returns Maps of package name -> dependants and package name -> dependencies.
  */
 async function getWorkspaceDependencies(
   workspaces: Workspace[],
-): Promise<Record<string, Set<string>>> {
+): Promise<DependencyGraph> {
   const dependants: Record<string, Set<string>> = Object.fromEntries(
+    workspaces.map(({ name }) => [name, new Set<string>()]),
+  );
+  const dependencies: Record<string, Set<string>> = Object.fromEntries(
     workspaces.map(({ name }) => [name, new Set<string>()]),
   );
 
@@ -65,23 +73,30 @@ async function getWorkspaceDependencies(
       ...pkg.dependencies,
       ...pkg.devDependencies,
     })) {
-      dependants[dependency]?.add(name);
+      if (dependants[dependency] !== undefined) {
+        dependants[dependency].add(name);
+        dependencies[name].add(dependency);
+      }
     }
   }
 
-  return dependants;
+  return { dependants, dependencies };
 }
 
 /**
- * Get the list of files changed since the given merge base.
+ * Get the list of files changed between the merge base and the PR head.
  *
- * @param mergeBase - The merge base SHA to diff against.
+ * @param mergeBase - The merge base SHA.
+ * @param headRef - The PR branch tip SHA (or "HEAD" as fallback).
  * @returns A list of changed file paths.
  */
-async function getChangedFiles(mergeBase: string): Promise<string[]> {
+async function getChangedFiles(
+  mergeBase: string,
+  headRef: string,
+): Promise<string[]> {
   const { stdout } = await execa(
     'git',
-    ['diff', '--name-only', `${mergeBase}...HEAD`],
+    ['diff', '--name-only', `${mergeBase}...${headRef}`],
     {
       cwd: ROOT_WORKSPACE,
       encoding: 'utf8',
@@ -98,20 +113,25 @@ async function getChangedFiles(mergeBase: string): Promise<string[]> {
  * packages that changed since that commit plus their transitive dependants.
  * Pipe the output to a temp file and pass it to `ts-bridge --project`.
  *
- * Usage: `tsx scripts/generate-partial-build-tsconfig.ts <merge-base-sha>`.
+ * Usage: `tsx scripts/generate-partial-build-tsconfig.ts <merge-base-sha> [head-sha]`.
  */
 async function main() {
   const mergeBase = process.argv[2];
   if (!mergeBase) {
-    console.error('Usage: generate-partial-build-tsconfig.ts <merge-base-sha>');
+    console.error(
+      'Usage: generate-partial-build-tsconfig.ts <merge-base-sha> [head-sha]',
+    );
 
     process.exitCode = 1;
     return;
   }
 
+  const headRef = process.argv[3] ?? 'HEAD';
+
   const workspaces = await getWorkspaces();
-  const changedFiles = await getChangedFiles(mergeBase);
-  const dependants = await getWorkspaceDependencies(workspaces);
+  const changedFiles = await getChangedFiles(mergeBase, headRef);
+  const { dependants, dependencies } =
+    await getWorkspaceDependencies(workspaces);
 
   const packagesToBuild = new Set(
     changedFiles.flatMap((file) => {
@@ -123,15 +143,28 @@ async function main() {
     }),
   );
 
+  // Expand to transitive dependants (packages that depend on what changed).
   for (const packageToBuild of packagesToBuild) {
     for (const dependant of dependants[packageToBuild] ?? []) {
       packagesToBuild.add(dependant);
     }
   }
 
+  // Expand to transitive dependencies (dist files must exist to build
+  // dependants).
+  for (const packageToBuild of packagesToBuild) {
+    for (const dependency of dependencies[packageToBuild] ?? []) {
+      packagesToBuild.add(dependency);
+    }
+  }
+
   const references = workspaces
     .filter(({ name }) => packagesToBuild.has(name))
     .map(({ location }) => ({ path: `./${location}/tsconfig.build.json` }));
+
+  if (references.length === 0) {
+    return;
+  }
 
   console.log(JSON.stringify({ files: [], include: [], references }, null, 2));
 }

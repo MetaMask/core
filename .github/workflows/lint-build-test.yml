@@ -150,14 +150,17 @@ jobs:
         run: |
           if [[ -n "$MERGE_BASE" ]]; then
             TSCONFIG=$(mktemp --tmpdir="$GITHUB_WORKSPACE" --suffix=.json)
-            yarn tsx scripts/generate-partial-build-tsconfig.mts "$MERGE_BASE" > "$TSCONFIG"
-            yarn ts-bridge --project "$TSCONFIG" --verbose
+            yarn tsx scripts/generate-partial-build-tsconfig.mts "$MERGE_BASE" "$HEAD_SHA" > "$TSCONFIG"
+            if [[ -s "$TSCONFIG" ]]; then
+              yarn ts-bridge --project "$TSCONFIG" --verbose
+            fi
             rm -f "$TSCONFIG"
           else
             yarn build
           fi
         env:
           MERGE_BASE: ${{ steps.fetch-merge-base.outputs.merge-base }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
       - name: Require clean working directory
         shell: bash
         run: |
