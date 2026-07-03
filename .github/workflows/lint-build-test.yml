@@ -149,7 +149,9 @@ jobs:
       - name: Build
         run: |
           if [[ -n "$MERGE_BASE" ]]; then
-            yarn workspaces foreach --since="$MERGE_BASE" --topological --recursive --no-private run build
+            TSCONFIG=$(mktemp --suffix=.json)
+            yarn tsx scripts/generate-partial-build-tsconfig.mts "$MERGE_BASE" > "$TSCONFIG"
+            yarn ts-bridge --project "$TSCONFIG" --verbose
           else
             yarn build
           fi
