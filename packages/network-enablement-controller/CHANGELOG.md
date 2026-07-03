@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Restore Stellar to the Network Enablement Controller enabled network map by reverting the temporary rollback, as the corresponding Extension issue has already been resolved.
+- Restore Stellar to the Network Enablement Controller enabled network map by reverting the temporary rollback, as the corresponding Extension issue has already been resolved ([#9385](https://github.com/MetaMask/core/pull/9385))
 
 ## [5.4.1]
 
