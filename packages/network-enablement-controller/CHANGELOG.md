@@ -9,12 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [5.4.2]
 
-### Uncategorized
-
-- chore(network-enablement-controller): move misplaced Stellar changelog entries to Unreleased ([#9356](https://github.com/MetaMask/core/pull/9356))
-
 ### Fixed
 
+- chore(network-enablement-controller): move misplaced Stellar changelog entries to Unreleased ([#9356](https://github.com/MetaMask/core/pull/9356))
 - Revert Stellar from the Network Enablement Controller enabled network map to unblock release due to E2E failures in extension ([#9381](https://github.com/MetaMask/core/pull/9381))
 
 ## [5.4.1]
