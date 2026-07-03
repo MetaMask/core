@@ -3,7 +3,10 @@ import type {
   AccountTreeControllerSelectedAccountGroupChangeEvent,
   AccountTreeControllerState,
 } from '@metamask/account-tree-controller';
-import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
+import type {
+  AccountsControllerGetSelectedAccountAction,
+  AccountsControllerSelectedEvmAccountChangeEvent,
+} from '@metamask/accounts-controller';
 import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerGetStateAction,
@@ -359,6 +362,7 @@ type AllowedEvents =
   | NetworkEnablementControllerStateChangedEvent
   // SnapDataSource
   | AccountsControllerAccountBalancesUpdatedEvent
+  | AccountsControllerSelectedEvmAccountChangeEvent
   | PermissionControllerStateChange
   | SnapControllerSnapInstalledEvent
   // BackendWebsocketDataSource
@@ -1079,6 +1083,14 @@ export class AssetsController extends BaseController<
       },
     );
 
+    // Switching EVM address within the same account group (e.g. Account 1 → Account 2).
+    this.messenger.subscribe(
+      'AccountsController:selectedEvmAccountChange',
+      (account) => {
+        this.#handleSelectedEvmAccountChanged(account).catch(console.error);
+      },
+    );
+
     // Catch the initial tree build. On returning users,
     // `selectedAccountGroupChange` does NOT fire when the persisted group
     // is unchanged, and `accountTreeChange` doesn't fire either (init()
@@ -1329,10 +1341,14 @@ export class AssetsController extends BaseController<
         currentCount: currentIds.size,
       });
 
+      const newAccounts = accounts.filter(
+        (account) => !this.#lastKnownAccountIds.has(account.id),
+      );
+
       this.#lastKnownAccountIds = currentIds;
       this.#ensureNativeBalancesDefaultZero();
       this.#ensureDefaultTrackedAssetsSeeded();
-      this.#runAccountTreeRefresh(accounts).catch((error) => {
+      this.#runAccountTreeRefresh(accounts, newAccounts).catch((error) => {
         log('Failed to refresh assets after tree change', error);
       });
     } else {
@@ -1340,7 +1356,10 @@ export class AssetsController extends BaseController<
     }
   }
 
-  async #runAccountTreeRefresh(accounts: InternalAccount[]): Promise<void> {
+  async #runAccountTreeRefresh(
+    accounts: InternalAccount[],
+    newAccounts: InternalAccount[] = [],
+  ): Promise<void> {
     const releaseLock = await this.#accountRefreshMutex.acquire();
     try {
       await this.getAssets(accounts, {
@@ -1348,12 +1367,53 @@ export class AssetsController extends BaseController<
         forceUpdate: true,
       });
       this.#subscribeAssets();
+      if (newAccounts.length > 0) {
+        await this.#fetchAccountBalancesViaRpc(newAccounts, [
+          ...this.#enabledChains,
+        ]);
+      }
     } catch (error) {
       log('Failed to fetch assets after tree change', error);
       this.#subscribeAssets();
     } finally {
       releaseLock();
     }
+  }
+
+  /**
+   * Fetch balances via RpcDataSource and merge into state.
+   *
+   * @param accounts - Accounts to fetch for.
+   * @param chainIds - Chains to fetch on.
+   */
+  async #fetchAccountBalancesViaRpc(
+    accounts: InternalAccount[],
+    chainIds: ChainId[],
+  ): Promise<void> {
+    if (accounts.length === 0 || chainIds.length === 0) {
+      return;
+    }
+
+    const rpcChains = chainIds.filter((chainId) =>
+      this.#rpcDataSource.getActiveChainsSync().includes(chainId),
+    );
+    if (rpcChains.length === 0) {
+      return;
+    }
+
+    const request = this.#buildDataRequest(accounts, rpcChains, {
+      dataTypes: ['balance'],
+      forceUpdate: true,
+    });
+    const { response } = await this.#executeMiddlewares(
+      [
+        createParallelBalanceMiddleware([this.#rpcDataSource]),
+        this.#detectionMiddleware,
+      ],
+      request,
+    );
+
+    await this.#updateState({ ...response, updateMode: 'merge' });
   }
 
   /**
@@ -3320,8 +3380,45 @@ export class AssetsController extends BaseController<
       // Subscribe after fetch so WS notifications can recover state
       this.#subscribeAssets();
 
+      await this.#fetchAccountBalancesViaRpc(accounts, [
+        ...this.#enabledChains,
+      ]);
+
       this.#ensureNativeBalancesDefaultZero();
       this.#ensureDefaultTrackedAssetsSeeded();
+    } finally {
+      releaseLock();
+    }
+  }
+
+  /**
+   * Handle EVM account selection within the current account group.
+   * Fires when the user picks a different address under the same logical
+   * account (not when switching account groups).
+   *
+   * @param account - Newly selected EVM account.
+   */
+  async #handleSelectedEvmAccountChanged(
+    account: InternalAccount,
+  ): Promise<void> {
+    if (!this.#uiOpen || !this.#keyringUnlocked || !this.#isEnabled()) {
+      return;
+    }
+
+    const releaseLock = await this.#accountRefreshMutex.acquire();
+    try {
+      await this.getAssets([account], {
+        chainIds: [...this.#enabledChains],
+        forceUpdate: true,
+      });
+
+      this.#subscribeAssets();
+
+      await this.#fetchAccountBalancesViaRpc([account], [
+        ...this.#enabledChains,
+      ]);
+
+      this.#ensureNativeBalancesDefaultZero();
     } finally {
       releaseLock();
     }
@@ -3364,12 +3461,15 @@ export class AssetsController extends BaseController<
     this.#subscribeAssets();
 
     // Do one-time fetch for newly enabled chains; merge so we keep existing chain balances
-    if (addedChains.length > 0 && this.#getSelectedAccounts().length > 0) {
-      await this.getAssets(this.#getSelectedAccounts(), {
+    const accounts = this.#getSelectedAccounts();
+    if (addedChains.length > 0 && accounts.length > 0) {
+      await this.getAssets(accounts, {
         chainIds: addedChains,
         forceUpdate: true,
         updateMode: 'merge',
       });
+
+      await this.#fetchAccountBalancesViaRpc(accounts, addedChains);
     }
 
     this.#ensureNativeBalancesDefaultZero();
@@ -3486,6 +3586,8 @@ export class AssetsController extends BaseController<
         forceUpdate: true,
         dataTypes: ['balance', 'metadata', 'price'],
       });
+
+      await this.#fetchAccountBalancesViaRpc(accounts, [selectedChainId]);
 
       this.#ensureNativeBalancesDefaultZero();
       this.#fetchMissingPricesWithoutCache(accounts, [selectedChainId]);
