@@ -9,12 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Export `isOnChainNotification` and `isPlatformNotification` type guards for discriminating v4 API notification shapes
-- Export `PlatformNotification` and `OnChainNotification` types derived from the v4 Notification API schema
+- Export `isOnChainNotification` and `isPlatformNotification` type guards for discriminating v4 API notification shapes ([#9384](https://github.com/MetaMask/core/pull/9384))
+- Export `PlatformNotification` and `OnChainNotification` types derived from the v4 Notification API schema ([#9384](https://github.com/MetaMask/core/pull/9384))
 
 ### Changed
 
-- **BREAKING:** Moved Notification API from v3 to v4
+- **BREAKING:** Moved Notification API from v3 to v4 ([#9384](https://github.com/MetaMask/core/pull/9384))
   - API Endpoint Changes: Updated from `/api/v3/notifications` to `/api/v4/notifications` for listing notifications and marking as read
   - Response Structure: `notification_type` and `notification_subtype` now reflect producer-set database fields instead of fixed enum values
     - On-chain notifications: `notification_type` is now `"wallet_activity"` (was `"on-chain"`), with `notification_subtype` set to the on-chain kind (e.g. `"metamask_swap_completed"`)
