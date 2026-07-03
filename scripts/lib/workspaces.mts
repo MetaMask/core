@@ -32,7 +32,7 @@ export type DependencyGraph = {
  * @returns All workspaces.
  */
 export async function getAllWorkspaces(): Promise<Workspace[]> {
-  const { stdout } = await execa('yarn', ['workspaces', 'list', '--json'], {
+  const { stdout } = await execa('yarn', ['workspaces', 'list', '--no-private', '--json'], {
     cwd: ROOT_WORKSPACE,
     encoding: 'utf8',
   });
