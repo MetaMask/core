@@ -8,7 +8,7 @@
  * Script: `npx openapi-typescript <PATH_TO_API_SPEC> -o ./schema.ts`
  */
 
-export interface paths {
+export type paths = {
   '/api/v4/notifications': {
     parameters: {
       query?: never;
@@ -384,9 +384,9 @@ export interface paths {
     patch?: never;
     trace?: never;
   };
-}
+};
 export type webhooks = Record<string, never>;
-export interface components {
+export type components = {
   schemas: {
     /**
      * @example mobile
@@ -787,6 +787,6 @@ export interface components {
   requestBodies: never;
   headers: never;
   pathItems: never;
-}
+};
 export type $defs = Record<string, never>;
 export type operations = Record<string, never>;

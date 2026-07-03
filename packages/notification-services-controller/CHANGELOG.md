@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Export `isOnChainNotification` and `isPlatformNotification` type guards for discriminating v4 API notification shapes
-- Export `Notification`, `PlatformNotification`, and `OnChainNotification` types derived from the v4 Notification API schema
+- Export `PlatformNotification` and `OnChainNotification` types derived from the v4 Notification API schema
 
 ### Changed
 

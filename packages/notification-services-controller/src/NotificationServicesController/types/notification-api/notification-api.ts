@@ -27,7 +27,8 @@ export type Data_ERC721Received = components['schemas']['Data_ERC721Received'];
 export type NetworkMetadata = components['schemas']['NetworkMetadata'];
 export type BlockExplorer = components['schemas']['BlockExplorer'];
 
-export type Notification = components['schemas']['NotificationOutputV4'][number];
+export type UnprocessedRawNotification =
+  components['schemas']['NotificationOutputV4'][number];
 export type PlatformNotification = components['schemas']['PlatformNotificationV4'];
 export type OnChainNotification = components['schemas']['OnChainNotificationV4'];
 
@@ -78,8 +79,6 @@ export type OnChainRawNotification = Compute<
 export type PlatformRawNotification = Compute<
   NormalizePlatformNotification<PlatformNotification>
 >;
-
-export type UnprocessedRawNotification = Notification;
 
 export type NormalisedAPINotification =
   | OnChainRawNotification
