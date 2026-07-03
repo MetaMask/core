@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export `isOnChainNotification` and `isPlatformNotification` type guards for discriminating v4 API notification shapes
+- Export `Notification`, `PlatformNotification`, and `OnChainNotification` types derived from the v4 Notification API schema
+
+### Changed
+
+- **BREAKING:** Moved Notification API from v3 to v4
+  - API Endpoint Changes: Updated from `/api/v3/notifications` to `/api/v4/notifications` for listing notifications and marking as read
+  - Response Structure: `notification_type` and `notification_subtype` now reflect producer-set database fields instead of fixed enum values
+    - On-chain notifications: `notification_type` is now `"wallet_activity"` (was `"on-chain"`), with `notification_subtype` set to the on-chain kind (e.g. `"metamask_swap_completed"`)
+    - Platform notifications: `notification_type` is now a producer-set value (e.g. `"perps"`, was `"platform"`), with `notification_subtype` set to the platform subtype (e.g. `"position_liquidated"`)
+    - Clients should use the `isOnChainNotification` / `isPlatformNotification` type guards to distinguish on-chain vs platform notifications
+  - Type System:
+    - `UnprocessedRawNotification` now uses `NotificationOutputV4` shapes (`PlatformNotificationV4` | `OnChainNotificationV4`)
+    - `toRawAPINotification()` now normalises v4 notifications, mapping on-chain `notification_subtype` to the `type` field
+    - Regenerated `schema.ts` from the latest Notification API OpenAPI spec, including v4 paths and legacy v1–v3 schemas
+    - `AppPlatform` now includes `"portfolio"` in addition to `"extension"` and `"mobile"`
+
 ## [24.3.0]
 
 ### Added
