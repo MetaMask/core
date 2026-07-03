@@ -4,6 +4,7 @@ import type {
   OnChainRawNotification,
   PlatformRawNotification,
 } from 'src/NotificationServicesController/types/notification-api';
+import { TRIGGER_TYPES } from '../NotificationServicesController/constants/notification-schema';
 import { isOnChainNotification } from './notification-api-type-guards';
 
 /**
@@ -31,6 +32,6 @@ export function toRawAPINotification(
 
   return {
     ...data,
-    type: data.notification_type,
+    type: TRIGGER_TYPES.PLATFORM,
   } as PlatformRawNotification;
 }

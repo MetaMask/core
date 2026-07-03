@@ -1,4 +1,4 @@
-import type { TRIGGER_TYPES } from '../../constants/notification-schema';
+import { TRIGGER_TYPES } from '../../constants/notification-schema';
 import type { Compute } from '../type-utils';
 // Types derived from external Notification API schema - naming follows API conventions
 /* eslint-disable @typescript-eslint/naming-convention */
@@ -65,14 +65,11 @@ type NormalizeOnChainNotification<
  */
 type NormalizePlatformNotification<
   N extends PlatformNotification = PlatformNotification,
-  NotificationKind extends string = N['notification_type'],
-> = {
-  [K in NotificationKind]: Compute<
-    N & {
-      type: ConvertToEnum<K>;
-    }
-  >;
-}[NotificationKind];
+> = Compute<
+  N & {
+    type: TRIGGER_TYPES.PLATFORM;
+  }
+>;
 
 export type OnChainRawNotification = Compute<
   NormalizeOnChainNotification<OnChainNotification>
