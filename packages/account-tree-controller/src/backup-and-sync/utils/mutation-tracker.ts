@@ -2,9 +2,7 @@ import type { SyncMutationTracker } from '../types';
 
 /**
  * Creates a tracker that records whether the current full sync run performed a
- * real write. Remote writes (pushes to user storage) are durable; local writes
- * can be reverted by a per-wallet rollback. Runs are serialized, so a single
- * tracker is reset at the start of each run.
+ * real write.
  *
  * @returns A fresh mutation tracker.
  */

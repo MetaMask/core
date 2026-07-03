@@ -106,11 +106,6 @@ export type BackupAndSyncContext = {
   traceFn: TraceCallback;
   groupIdToWalletId: Map<AccountGroupId, AccountWalletId>;
   emitAnalyticsEventFn: (event: BackupAndSyncEmitAnalyticsEventParams) => void;
-  /**
-   * Tracks whether the current sync run performed a real write (a local
-   * mutation or a remote push). Sync helpers set the relevant write flag; the
-   * service reads it to gate emission of the full-sync trace.
-   */
   mutationTracker?: SyncMutationTracker;
 };
 

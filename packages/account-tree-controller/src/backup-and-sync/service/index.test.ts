@@ -7,7 +7,7 @@ import type { AccountWalletEntropyObject } from '../../wallet';
 import { TraceName } from '../analytics';
 import { getProfileId } from '../authentication';
 import { performLegacyAccountSyncing, syncWalletMetadata } from '../syncing';
-import type { BackupAndSyncContext, SyncMutationTracker } from '../types';
+import type { BackupAndSyncContext } from '../types';
 import { getAllGroupsFromUserStorage } from '../user-storage';
 // We only need to import the functions we actually spy on
 import { createStateSnapshot, getLocalEntropyWallets } from '../utils';
@@ -39,25 +39,11 @@ const mockCreateStateSnapshot = createStateSnapshot as jest.MockedFunction<
   typeof createStateSnapshot
 >;
 
-// Local tracker (the real factory lives in the auto-mocked `../utils`).
-const createTestMutationTracker = (): SyncMutationTracker => {
-  let remoteWrite = false;
-  let localWrite = false;
-  return {
-    setRemoteWrite: (value: boolean): void => {
-      remoteWrite = value;
-    },
-    getLocalWrite: (): boolean => localWrite,
-    setLocalWrite: (value: boolean): void => {
-      localWrite = value;
-    },
-    hasOccurred: (): boolean => remoteWrite || localWrite,
-    reset: (): void => {
-      remoteWrite = false;
-      localWrite = false;
-    },
-  };
-};
+// `jest.mock('../utils')` auto-mocks every export, including the tracker
+// factory. Grab the real one so tests use the actual tracker behaviour rather
+// than a hand-rolled duplicate.
+const { createSyncMutationTracker } =
+  jest.requireActual<typeof import('../utils')>('../utils');
 
 describe('BackupAndSync - Service - BackupAndSyncService', () => {
   let mockContext: BackupAndSyncContext;
@@ -95,7 +81,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       },
       traceFn: jest.fn().mockImplementation((_config, fn) => fn()),
       groupIdToWalletId: new Map(),
-      mutationTracker: createTestMutationTracker(),
+      mutationTracker: createSyncMutationTracker(),
     } as unknown as BackupAndSyncContext;
 
     // Default setup - backup and sync enabled

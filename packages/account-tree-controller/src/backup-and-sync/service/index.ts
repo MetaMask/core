@@ -462,22 +462,12 @@ export class BackupAndSyncService {
     try {
       await bigSyncFn();
     } finally {
-      // Always clear the in-progress flag first, regardless of success or
-      // failure. Doing this before the (awaited) trace below guarantees a
-      // failing trace can never leave the controller stuck mid-sync and block
-      // later full sync attempts.
       this.#context.controllerStateUpdateFn(
         (state: AccountTreeControllerState) => {
           state.isAccountTreeSyncingInProgress = false;
         },
       );
 
-      // Emit a span whenever the run changed something (local or remote), even
-      // if it later threw - a failed sync that already did durable work is
-      // exactly the kind of anomaly we want visible. No-op syncs (the common
-      // per-login case) are not traced. The span is backdated so the real sync
-      // duration is preserved. Tracing is best-effort: a trace failure must not
-      // affect the sync outcome or mask the sync's own error.
       if (mutationTracker?.hasOccurred()) {
         try {
           await this.#context.traceFn(
