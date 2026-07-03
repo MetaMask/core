@@ -29,8 +29,10 @@ export type BlockExplorer = components['schemas']['BlockExplorer'];
 
 export type UnprocessedRawNotification =
   components['schemas']['NotificationOutputV4'][number];
-export type PlatformNotification = components['schemas']['PlatformNotificationV4'];
-export type OnChainNotification = components['schemas']['OnChainNotificationV4'];
+export type PlatformNotification =
+  components['schemas']['PlatformNotificationV4'];
+export type OnChainNotification =
+  components['schemas']['OnChainNotificationV4'];
 
 type ConvertToEnum<Kind> = {
   [K in TRIGGER_TYPES]: Kind extends `${K}` ? K : never;
