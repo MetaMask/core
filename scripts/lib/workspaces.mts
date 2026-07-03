@@ -5,6 +5,17 @@ import { join } from 'node:path';
 
 export const ROOT_WORKSPACE = new URL('../..', import.meta.url).pathname;
 
+// Files that can change without requiring a full rebuild/test run.
+const IGNORED_ROOT_FILES = new Set([
+  '.gitignore',
+  'AGENTS.md',
+  'CLAUDE.md',
+  'README.md',
+  'eslint-suppressions.json',
+  'teams.json',
+  'yarn.lock',
+]);
+
 export type Workspace = {
   location: string;
   name: string;
@@ -137,6 +148,18 @@ export async function computeChangedWorkspaces(
   const changedFiles = await getChangedFiles(mergeBase, headRef);
   const { dependants, dependencies } =
     await getWorkspaceDependencies(workspaces);
+
+  // If any changed file lives outside all package directories (e.g. root
+  // configs, workflow files, scripts), rebuild and test everything.
+  const hasRootChange = changedFiles.some(
+    (file) =>
+      !IGNORED_ROOT_FILES.has(file) &&
+      !workspaces.some(({ location }) => file.startsWith(`${location}/`)),
+  );
+
+  if (hasRootChange) {
+    return new Set(workspaces.map(({ name }) => name));
+  }
 
   const result = new Set(
     changedFiles.flatMap((file) => {
