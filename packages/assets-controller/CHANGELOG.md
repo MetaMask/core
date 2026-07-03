@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/network-enablement-controller` from `^5.4.1` to `^5.4.2` ([#9383](https://github.com/MetaMask/core/pull/9383))
-- Bump `@metamask/assets-controllers` from `^109.3.0` to `^109.4.0` ([#9383](https://github.com/MetaMask/core/pull/9383))
+- Bump `@metamask/assets-controllers` from `^109.3.0` to `^109.3.1` ([#9383](https://github.com/MetaMask/core/pull/9383))
 
 ## [10.0.1]
 
@@ -691,7 +691,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
 [Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@10.0.2...HEAD
-[10.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@10.0.1...@metamask/assets-controller@10.0.2
+[10.1.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@10.0.1...@metamask/assets-controller@10.0.2
 [10.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@10.0.0...@metamask/assets-controller@10.0.1
 [10.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@9.1.0...@metamask/assets-controller@10.0.0
 [9.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@9.0.2...@metamask/assets-controller@9.1.0
