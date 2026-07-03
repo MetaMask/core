@@ -333,7 +333,10 @@ jobs:
   test-wallet-cli-e2e:
     name: Test wallet-cli daemon e2e (${{ matrix.node-version }})
     runs-on: ubuntu-latest
-    needs: prepare
+    if: needs.get-changed-packages.outputs.package-names == '' || contains(fromJson(needs.get-changed-packages.outputs.package-names), '@metamask/wallet-cli')
+    needs:
+      - prepare
+      - get-changed-packages
     strategy:
       matrix:
         node-version: [20.x, 22.x, 24.x]
