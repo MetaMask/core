@@ -22,7 +22,7 @@ const TRANSACTION_META_MOCK = {
 } as TransactionMeta;
 
 const QUOTE_MOCK = {
-  strategy: TransactionPayStrategy.Test,
+  strategy: TransactionPayStrategy.Across,
 } as TransactionPayQuote<unknown>;
 
 describe('TransactionPayPublishHook', () => {
