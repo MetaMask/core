@@ -1429,11 +1429,14 @@ type BuildExternalStateArgs = {
   enabledEvmChainIds?: Hex[];
 };
 
+// Keys match the messenger namespace of each upstream controller.
+/* eslint-disable @typescript-eslint/naming-convention */
 type ExternalState = {
   NetworkController: Partial<NetworkState>;
   NetworkEnablementController: NetworkEnablementControllerState;
   ConnectivityController: ConnectivityControllerState;
 };
+/* eslint-enable @typescript-eslint/naming-convention */
 
 function buildNetworkEnablementControllerState(
   overrides: Partial<NetworkEnablementControllerState> = {},
