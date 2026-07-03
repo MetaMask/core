@@ -132,11 +132,6 @@ jobs:
         run: |
           if [[ -n "$MERGE_BASE" ]]; then
             PACKAGES=$(yarn tsx scripts/get-changed-workspaces.mts "$MERGE_BASE" "$HEAD_SHA")
-            # Fall back to all packages if no packages changed (e.g. CI-only PRs),
-            # to ensure required status checks are not skipped.
-            if [[ "$PACKAGES" == "[]" ]]; then
-              PACKAGES=$(yarn workspaces list --no-private --json | jq --slurp --raw-output 'map(.name) | @json')
-            fi
           else
             PACKAGES=$(yarn workspaces list --no-private --json | jq --slurp --raw-output 'map(.name) | @json')
           fi
