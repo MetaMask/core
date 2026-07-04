@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fetch account balances via RPC when switching EVM accounts, enabling RPC-only networks, switching account groups, or after a new account is added to the account tree
+- Fetch account balances via RPC when switching EVM accounts, enabling RPC-only networks, switching account groups, or after a new account is added to the account tree ([#9388](https://github.com/MetaMask/core/pull/9388))
   - Integrators must delegate `AccountsController:selectedEvmAccountChange` to the AssetsController messenger
 
 ## [10.0.1]

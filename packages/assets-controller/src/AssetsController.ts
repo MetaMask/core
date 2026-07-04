@@ -3414,9 +3414,10 @@ export class AssetsController extends BaseController<
 
       this.#subscribeAssets();
 
-      await this.#fetchAccountBalancesViaRpc([account], [
-        ...this.#enabledChains,
-      ]);
+      await this.#fetchAccountBalancesViaRpc(
+        [account],
+        [...this.#enabledChains],
+      );
 
       this.#ensureNativeBalancesDefaultZero();
     } finally {
