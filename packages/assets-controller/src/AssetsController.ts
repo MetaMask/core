@@ -2,6 +2,7 @@ import type {
   AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
   AccountTreeControllerSelectedAccountGroupChangeEvent,
   AccountTreeControllerState,
+  AccountTreeControllerStateChangeEvent,
 } from '@metamask/account-tree-controller';
 import type {
   AccountsControllerGetSelectedAccountAction,
@@ -14,7 +15,10 @@ import type {
   ControllerStateChangedEvent,
   StateMetadata,
 } from '@metamask/base-controller';
-import type { ClientControllerState } from '@metamask/client-controller';
+import type {
+  ClientControllerState,
+  ClientControllerStateChangeEvent,
+} from '@metamask/client-controller';
 import { clientControllerSelectors } from '@metamask/client-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type {
@@ -42,8 +46,8 @@ import type {
 } from '@metamask/network-controller';
 import type {
   NetworkEnablementControllerGetStateAction,
-  NetworkEnablementControllerEvents,
   NetworkEnablementControllerState,
+  NetworkEnablementControllerStateChangeEvent,
 } from '@metamask/network-enablement-controller';
 import type {
   GetPermissions,
@@ -324,26 +328,16 @@ type AllowedActions =
   // PhishingController
   | PhishingControllerBulkScanTokensAction;
 
-type AccountTreeControllerStateChangedEvent = ControllerStateChangedEvent<
-  'AccountTreeController',
-  AccountTreeControllerState
->;
-
-type ClientControllerStateChangedEvent = ControllerStateChangedEvent<
-  'ClientController',
-  ClientControllerState
->;
-
-type NetworkEnablementControllerStateChangedEvent = ControllerStateChangedEvent<
-  'NetworkEnablementController',
-  NetworkEnablementControllerState
->;
-
 type AllowedEvents =
   // AssetsController
   | AccountTreeControllerSelectedAccountGroupChangeEvent
-  | AccountTreeControllerStateChangedEvent
-  | ClientControllerStateChangedEvent
+  | AccountTreeControllerStateChangeEvent
+  | ControllerStateChangedEvent<
+      'AccountTreeController',
+      AccountTreeControllerState
+    >
+  | ClientControllerStateChangeEvent
+  | ControllerStateChangedEvent<'ClientController', ClientControllerState>
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
   | PreferencesControllerStateChangeEvent
@@ -358,8 +352,11 @@ type AllowedEvents =
   | NetworkControllerNetworkDidChangeEvent
   | NetworkControllerNetworkRemovedEvent
   // StakedBalanceDataSource
-  | NetworkEnablementControllerEvents
-  | NetworkEnablementControllerStateChangedEvent
+  | NetworkEnablementControllerStateChangeEvent
+  | ControllerStateChangedEvent<
+      'NetworkEnablementController',
+      NetworkEnablementControllerState
+    >
   // SnapDataSource
   | AccountsControllerAccountBalancesUpdatedEvent
   | AccountsControllerSelectedEvmAccountChangeEvent
