@@ -201,8 +201,8 @@ const MEGAETH_SWAPS_TOKEN_OBJECT = {
 
 // Leaving for code consistency but we won't display it in the asset picker
 const ARC_SWAPS_TOKEN_OBJECT = {
-  symbol: 'USDC-native',
-  name: 'USDC-native',
+  symbol: 'USDC',
+  name: 'USDC',
   address: '0x0000000000000000000000000000000000000000',
   decimals: 18,
   iconUrl: '',
@@ -259,5 +259,5 @@ export const SYMBOL_TO_SLIP44_MAP: Record<
   MON: 'slip44:268435779',
   HYPE: 'slip44:2457',
   // It won't be displayed - hidden on UI client side
-  'USDC-native': 'erc20:0x0000000000000000000000000000000000000000',
+  USDC: 'erc20:0x0000000000000000000000000000000000000000',
 };

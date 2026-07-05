@@ -390,7 +390,7 @@ const rampsControllerMetadata = {
     usedInUi: true,
   },
   countries: {
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     usedInUi: true,
@@ -1413,8 +1413,10 @@ export class RampsController extends BaseController<
    * This should be called once at app startup to set up the initial region.
    *
    * Idempotent: subsequent calls return the same promise unless forceRefresh is set.
-   * Skips getCountries when countries are already loaded; skips geolocation when
-   * userRegion already exists.
+   * Force-refetches the countries catalog on startup (bypassing the in-session
+   * request cache) so region preset amounts stay current. The catalog is not
+   * persisted, so a cold start always re-fetches it regardless. Skips
+   * geolocation when userRegion already exists.
    *
    * @param options - Options for cache behavior. forceRefresh bypasses idempotency and re-runs the full flow.
    * @returns Promise that resolves when initialization is complete.
@@ -1442,18 +1444,18 @@ export class RampsController extends BaseController<
   }
 
   async #runInit(options?: ExecuteRequestOptions): Promise<void> {
-    const forceRefresh = options?.forceRefresh === true;
-    const hasCountries = this.state.countries.data.length > 0;
-
-    if (forceRefresh || !hasCountries) {
-      await this.getCountries(options);
-    }
+    // Force-refetch the catalog on startup so region preset amounts stay
+    // current, bypassing the in-session request cache. The catalog is not
+    // persisted, so a cold start always re-fetches it regardless.
+    await this.getCountries({ ...options, forceRefresh: true });
 
     // Always prefer the user's persisted region. Geolocation is only used to
     // seed the initial value; once the user (or a prior init) has set a region
     // we must respect that choice — even on forceRefresh.
-    let regionCode: string | undefined = this.state.userRegion?.regionCode;
-    regionCode ??= await this.messenger.call('RampsService:getGeolocation');
+    const persistedRegionCode = this.state.userRegion?.regionCode;
+    const regionCode =
+      persistedRegionCode ??
+      (await this.messenger.call('RampsService:getGeolocation'));
 
     if (!regionCode) {
       throw new Error(
@@ -1461,7 +1463,43 @@ export class RampsController extends BaseController<
       );
     }
 
+    // For an already-persisted region, getCountries() has already re-synced it
+    // from the fresh catalog (see #syncUserRegionFromCountriesCatalog). Calling
+    // setUserRegion here would re-validate against that catalog and, if it is
+    // momentarily empty or no longer lists the region (e.g. a transient/partial
+    // catalog response or a region with no current provider coverage), throw and
+    // wipe the persisted region via #cleanupState. Preserve the existing region
+    // instead; only resolve a brand-new region (from geolocation) strictly.
+    if (persistedRegionCode) {
+      return;
+    }
+
     await this.setUserRegion(regionCode, options);
+  }
+
+  /**
+   * Re-applies `userRegion` from the current countries catalog so preset
+   * amounts and support flags stay in sync after a catalog refresh.
+   */
+  #syncUserRegionFromCountriesCatalog(): void {
+    const regionCode = this.state.userRegion?.regionCode;
+    if (!regionCode) {
+      return;
+    }
+
+    const countriesData = this.state.countries.data;
+    if (!countriesData.length) {
+      return;
+    }
+
+    const userRegion = findRegionFromCode(regionCode, countriesData);
+    if (!userRegion) {
+      return;
+    }
+
+    this.update((state) => {
+      state.userRegion = userRegion;
+    });
   }
 
   /**
@@ -1486,6 +1524,8 @@ export class RampsController extends BaseController<
     this.update((state) => {
       state.countries.data = Array.isArray(countries) ? [...countries] : [];
     });
+
+    this.#syncUserRegionFromCountriesCatalog();
 
     return countries;
   }

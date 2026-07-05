@@ -1533,12 +1533,6 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
-            "countries": {
-              "data": [],
-              "error": null,
-              "isLoading": false,
-              "selected": null,
-            },
             "orders": [],
             "providerAutoSelected": false,
             "userRegion": null,
@@ -2492,6 +2486,166 @@ describe('RampsController', () => {
       });
     });
 
+    it('re-syncs userRegion preset amounts after getCountries', async () => {
+      const staleCountries: Country[] = [
+        {
+          isoCode: 'CR',
+          id: '/regions/cr',
+          flag: '🇨🇷',
+          name: 'Costa Rica',
+          phone: {
+            prefix: '+506',
+            placeholder: '8312 3456',
+            template: 'XXXX XXXX',
+          },
+          currency: 'CRC',
+          supported: { buy: true, sell: true },
+          defaultAmount: 100,
+          quickAmounts: [20, 50, 100],
+        },
+      ];
+      const freshCountries: Country[] = [
+        {
+          ...staleCountries[0],
+          defaultAmount: 25000,
+          quickAmounts: [10000, 25000, 50000],
+        },
+      ];
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: {
+                country: staleCountries[0],
+                state: null,
+                regionCode: 'cr',
+              },
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => freshCountries,
+          );
+
+          await rootMessenger.call('RampsController:getCountries');
+
+          expect(controller.state.userRegion?.country.defaultAmount).toBe(
+            25000,
+          );
+          expect(
+            controller.state.userRegion?.country.quickAmounts,
+          ).toStrictEqual([10000, 25000, 50000]);
+        },
+      );
+    });
+
+    it('leaves userRegion unchanged when the refreshed catalog is empty', async () => {
+      const userRegionCountry: Country = {
+        isoCode: 'CR',
+        id: '/regions/cr',
+        flag: '🇨🇷',
+        name: 'Costa Rica',
+        phone: {
+          prefix: '+506',
+          placeholder: '8312 3456',
+          template: 'XXXX XXXX',
+        },
+        currency: 'CRC',
+        supported: { buy: true, sell: true },
+        defaultAmount: 100,
+        quickAmounts: [20, 50, 100],
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: {
+                country: userRegionCountry,
+                state: null,
+                regionCode: 'cr',
+              },
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => [],
+          );
+
+          await rootMessenger.call('RampsController:getCountries');
+
+          expect(controller.state.countries.data).toStrictEqual([]);
+          expect(controller.state.userRegion?.country.defaultAmount).toBe(100);
+        },
+      );
+    });
+
+    it('leaves userRegion unchanged when its region is absent from the refreshed catalog', async () => {
+      const userRegionCountry: Country = {
+        isoCode: 'CR',
+        id: '/regions/cr',
+        flag: '🇨🇷',
+        name: 'Costa Rica',
+        phone: {
+          prefix: '+506',
+          placeholder: '8312 3456',
+          template: 'XXXX XXXX',
+        },
+        currency: 'CRC',
+        supported: { buy: true, sell: true },
+        defaultAmount: 100,
+        quickAmounts: [20, 50, 100],
+      };
+      const otherCountries: Country[] = [
+        {
+          isoCode: 'US',
+          id: '/regions/us',
+          flag: '🇺🇸',
+          name: 'United States',
+          phone: {
+            prefix: '+1',
+            placeholder: '201 555 0123',
+            template: 'XXX XXX XXXX',
+          },
+          currency: 'USD',
+          supported: { buy: true, sell: true },
+          defaultAmount: 100,
+          quickAmounts: [100, 300, 1000],
+        },
+      ];
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: {
+                country: userRegionCountry,
+                state: null,
+                regionCode: 'cr',
+              },
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => otherCountries,
+          );
+
+          await rootMessenger.call('RampsController:getCountries');
+
+          expect(controller.state.countries.data).toStrictEqual(otherCountries);
+          expect(controller.state.userRegion?.country.isoCode).toBe('CR');
+          expect(controller.state.userRegion?.country.defaultAmount).toBe(100);
+        },
+      );
+    });
+
     it('throws when updating resource field and resource is null', async () => {
       const stateWithNullCountries = {
         ...getDefaultRampsControllerState(),
@@ -2722,7 +2876,7 @@ describe('RampsController', () => {
       });
     });
 
-    it('skips getCountries and geolocation when userRegion and countries exist', async () => {
+    it('refetches countries on init but skips geolocation when userRegion exists', async () => {
       let getCountriesCalled = false;
       let getGeolocationCalled = false;
       await withController(
@@ -2760,7 +2914,7 @@ describe('RampsController', () => {
 
           await rootMessenger.call('RampsController:init');
 
-          expect(getCountriesCalled).toBe(false);
+          expect(getCountriesCalled).toBe(true);
           expect(getGeolocationCalled).toBe(false);
           expect(controller.state.userRegion?.regionCode).toBe('us-ca');
         },
@@ -2837,6 +2991,81 @@ describe('RampsController', () => {
           });
 
           expect(getGeolocationCalled).toBe(false);
+          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
+        },
+      );
+    });
+
+    it('preserves a persisted userRegion when the startup catalog refresh is empty', async () => {
+      let getGeolocationCalled = false;
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => [],
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getGeolocation',
+            async () => {
+              getGeolocationCalled = true;
+              return 'us-ca';
+            },
+          );
+
+          expect(
+            await rootMessenger.call('RampsController:init'),
+          ).toBeUndefined();
+
+          // A transient empty catalog must not fall back to geolocation nor
+          // wipe the persisted region via setUserRegion's cleanup.
+          expect(getGeolocationCalled).toBe(false);
+          expect(controller.state.countries.data).toStrictEqual([]);
+          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
+        },
+      );
+    });
+
+    it('preserves a persisted userRegion when the startup catalog no longer lists the region', async () => {
+      const catalogWithoutUs: Country[] = [
+        {
+          isoCode: 'FR',
+          name: 'France',
+          flag: '🇫🇷',
+          currency: 'EUR',
+          phone: { prefix: '+33', placeholder: '', template: '' },
+          supported: { buy: true, sell: true },
+        },
+      ];
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => catalogWithoutUs,
+          );
+
+          expect(
+            await rootMessenger.call('RampsController:init'),
+          ).toBeUndefined();
+
+          // The region is absent from the refreshed catalog, but the previously
+          // valid region must be preserved rather than wiped.
+          expect(controller.state.countries.data).toStrictEqual(
+            catalogWithoutUs,
+          );
           expect(controller.state.userRegion?.regionCode).toBe('us-ca');
         },
       );

@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Restore Stellar to the Network Enablement Controller enabled network map by reverting the temporary rollback, as the corresponding Extension issue has already been resolved ([#9385](https://github.com/MetaMask/core/pull/9385))
+
 ## [5.4.1]
+
+### Added
+
+- Add Stellar network enablement: default `enabledNetworkMap` entries for Stellar namespace (pubnet on, testnet off), enable Stellar pubnet during popular-network init when it exists in `MultichainNetworkController`, and include Stellar pubnet in `listPopularMultichainNetworks` ([#8832](https://github.com/MetaMask/core/pull/8832))
 
 ### Changed
 
@@ -20,7 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add Stellar network enablement: default `enabledNetworkMap` entries for Stellar namespace (pubnet on, testnet off), enable Stellar pubnet during popular-network init when it exists in `MultichainNetworkController`, and include Stellar pubnet in `listPopularMultichainNetworks` ([#8832](https://github.com/MetaMask/core/pull/8832))
 - Export `NetworkEnablementControllerStateChangeEvent` type from the package root ([#9084](https://github.com/MetaMask/core/pull/9084))
 
 ### Changed

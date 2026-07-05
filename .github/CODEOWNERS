@@ -60,8 +60,8 @@
 ## Networks Team
 /packages/config-registry-controller        @MetaMask/networks
 
-## Notifications Team
-/packages/notification-services-controller     @MetaMask/notifications
+## Engagement Team
+/packages/notification-services-controller     @MetaMask/engagement
 
 ## Perps Team
 /packages/compliance-controller             @MetaMask/perps
@@ -120,6 +120,7 @@
 
 ## Joint team ownership
 /packages/announcement-controller               @MetaMask/core-extension-ux @MetaMask/mobile-core-ux
+/packages/client-utils                          @MetaMask/core-extension-ux @MetaMask/mobile-core-ux
 /packages/core-backend                          @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/eth-json-rpc-middleware/src/methods   @MetaMask/confirmations @MetaMask/core-platform
 /packages/eth-json-rpc-middleware/src/wallet.*  @MetaMask/confirmations @MetaMask/core-platform
@@ -159,6 +160,8 @@
 /packages/address-book-controller/CHANGELOG.md    @MetaMask/confirmations @MetaMask/core-platform
 /packages/announcement-controller/package.json    @MetaMask/core-extension-ux @MetaMask/mobile-core-ux @MetaMask/core-platform
 /packages/announcement-controller/CHANGELOG.md    @MetaMask/core-extension-ux @MetaMask/mobile-core-ux @MetaMask/core-platform
+/packages/client-utils/package.json               @MetaMask/core-extension-ux @MetaMask/mobile-core-ux @MetaMask/core-platform
+/packages/client-utils/CHANGELOG.md               @MetaMask/core-extension-ux @MetaMask/mobile-core-ux @MetaMask/core-platform
 /packages/approval-controller/package.json        @MetaMask/confirmations @MetaMask/core-platform
 /packages/approval-controller/CHANGELOG.md        @MetaMask/confirmations @MetaMask/core-platform
 /packages/assets-controllers/package.json         @MetaMask/metamask-assets @MetaMask/core-platform
@@ -193,8 +196,8 @@
 /packages/multichain-account-service/CHANGELOG.md @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/name-controller/package.json            @MetaMask/confirmations @MetaMask/core-platform
 /packages/name-controller/CHANGELOG.md            @MetaMask/confirmations @MetaMask/core-platform
-/packages/notification-services-controller/package.json @MetaMask/notifications @MetaMask/core-platform
-/packages/notification-services-controller/CHANGELOG.md @MetaMask/notifications @MetaMask/core-platform
+/packages/notification-services-controller/package.json @MetaMask/engagement @MetaMask/core-platform
+/packages/notification-services-controller/CHANGELOG.md @MetaMask/engagement @MetaMask/core-platform
 /packages/compliance-controller/package.json   @MetaMask/perps @MetaMask/core-platform
 /packages/compliance-controller/CHANGELOG.md   @MetaMask/perps @MetaMask/core-platform
 /packages/perps-controller/package.json       @MetaMask/perps @MetaMask/core-platform

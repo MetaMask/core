@@ -14,6 +14,12 @@ module.exports = merge(baseConfig, {
   // The display name when running multiple projects
   displayName,
 
+  // Test fixtures and shared test helpers are not part of the package surface.
+  coveragePathIgnorePatterns: [
+    ...baseConfig.coveragePathIgnorePatterns,
+    '.*/test/.*',
+  ],
+
   // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
     global: {
