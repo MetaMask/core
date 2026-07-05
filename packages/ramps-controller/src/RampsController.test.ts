@@ -555,6 +555,39 @@ describe('RampsController', () => {
       );
     });
 
+    it('keeps the native provider as a valid in-app candidate and selects it when it ranks first', async () => {
+      const response: QuotesResponse = {
+        success: [inAppScopeQuote(NATIVE, 90), inAppScopeQuote(MOONPAY, 80)],
+        // Transak Native is the most reliable in-app quote, so it wins: the
+        // in-app scope must not exclude native providers.
+        sorted: [{ sortBy: 'reliability', ids: [NATIVE, MOONPAY] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            state: scopeState([
+              buildScopeProvider(NATIVE, 'native'),
+              buildScopeProvider(MOONPAY, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => response,
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          expect(quotes.success[0]?.provider).toBe(NATIVE);
+        },
+      );
+    });
+
     it('falls back to the price order when there is no reliability order', async () => {
       const response: QuotesResponse = {
         success: [inAppScopeQuote(MOONPAY, 90), inAppScopeQuote(REVOLUT, 80)],
