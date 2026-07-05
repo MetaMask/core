@@ -804,7 +804,8 @@ describe('RampsController', () => {
 
     it('excludes a quote carrying an inline isCustomAction flag', async () => {
       const inlineCustom = inAppScopeQuote(MOONPAY, 90);
-      (inlineCustom.quote as { isCustomAction?: boolean }).isCustomAction = true;
+      (inlineCustom.quote as { isCustomAction?: boolean }).isCustomAction =
+        true;
       const response: QuotesResponse = {
         success: [inlineCustom, inAppScopeQuote(REVOLUT, 80)],
         sorted: [{ sortBy: 'reliability', ids: [MOONPAY, REVOLUT] }],
@@ -871,7 +872,10 @@ describe('RampsController', () => {
 
     it('with scope all, does not exclude external or custom-action quotes', async () => {
       const response: QuotesResponse = {
-        success: [externalScopeQuote(COINBASE, 99), inAppScopeQuote(MOONPAY, 80)],
+        success: [
+          externalScopeQuote(COINBASE, 99),
+          inAppScopeQuote(MOONPAY, 80),
+        ],
         sorted: [{ sortBy: 'reliability', ids: [COINBASE, MOONPAY] }],
         error: [],
         customActions: [
@@ -975,7 +979,10 @@ describe('RampsController', () => {
 
     it('does not widen for a non-off scope when neither autoSelect nor restrict is set', async () => {
       const response: QuotesResponse = {
-        success: [inAppScopeQuote(MOONPAY, 90), externalScopeQuote(COINBASE, 99)],
+        success: [
+          inAppScopeQuote(MOONPAY, 90),
+          externalScopeQuote(COINBASE, 99),
+        ],
         sorted: [{ sortBy: 'reliability', ids: [COINBASE, MOONPAY] }],
         error: [],
         customActions: [],
