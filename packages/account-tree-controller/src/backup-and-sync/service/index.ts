@@ -359,6 +359,12 @@ export class BackupAndSyncService {
           // 3. Execute multichain account syncing
           let stateSnapshot: StateSnapshot | undefined;
 
+          // Capture the local-write flag so it can be reverted together with
+          // the state snapshot if this wallet is rolled back. Remote writes are
+          // durable and intentionally excluded.
+          const localWriteBeforeWallet =
+            this.#context.mutationTracker?.getLocalWrite() ?? false;
+
           try {
             // 3.1 Wallet syncing
             // Create a state snapshot before processing each wallet for potential rollback
@@ -416,6 +422,11 @@ export class BackupAndSyncService {
                 );
               }
               restoreStateFromSnapshot(this.#context, stateSnapshot);
+              // Revert the local-write flag too, so a rolled-back wallet does
+              // not keep the run marked as having changed local state.
+              this.#context.mutationTracker?.setLocalWrite(
+                localWriteBeforeWallet,
+              );
               backupAndSyncLogger(
                 `Rolled back state changes for wallet ${wallet.id}`,
               );
@@ -442,21 +453,37 @@ export class BackupAndSyncService {
       });
     };
 
-    // Execute the big sync function with tracing and ensure state cleanup
+    // Execute the big sync function and ensure state cleanup.
+    // The sync runs untraced so we can decide afterwards whether it did any
+    // real work; the span is then backdated to preserve the real duration.
+    const { mutationTracker } = this.#context;
+    mutationTracker?.reset();
+    const startTime = Date.now();
     try {
-      await this.#context.traceFn(
-        {
-          name: TraceName.AccountSyncFull,
-        },
-        bigSyncFn,
-      );
+      await bigSyncFn();
     } finally {
-      // Always reset state, regardless of success or failure
       this.#context.controllerStateUpdateFn(
         (state: AccountTreeControllerState) => {
           state.isAccountTreeSyncingInProgress = false;
         },
       );
+
+      if (mutationTracker?.hasOccurred()) {
+        try {
+          await this.#context.traceFn(
+            {
+              name: TraceName.AccountSyncFull,
+              startTime,
+            },
+            () => undefined,
+          );
+        } catch (traceError) {
+          backupAndSyncLogger(
+            'Failed to emit AccountSyncFull trace:',
+            traceError,
+          );
+        }
+      }
     }
   }
 

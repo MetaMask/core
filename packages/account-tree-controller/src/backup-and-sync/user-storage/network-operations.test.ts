@@ -61,11 +61,17 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
   let mockContext: BackupAndSyncContext;
   let mockWallet: AccountWalletEntropyObject;
   let mockGroup: AccountGroupMultichainAccountObject;
+  let mockSetRemoteWrite: jest.Mock;
 
   beforeEach(() => {
+    mockSetRemoteWrite = jest.fn();
+
     mockContext = {
       messenger: {
         call: jest.fn(),
+      },
+      mutationTracker: {
+        setRemoteWrite: mockSetRemoteWrite,
       },
     } as unknown as BackupAndSyncContext;
 
@@ -204,6 +210,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         JSON.stringify(formattedWallet),
         'test-entropy-id',
       );
+      expect(mockSetRemoteWrite).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -436,6 +443,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         JSON.stringify(formattedGroup),
         'test-entropy-id',
       );
+      expect(mockSetRemoteWrite).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -466,6 +474,7 @@ describe('BackupAndSync - UserStorage - NetworkOperations', () => {
         ],
         'test-entropy-id',
       );
+      expect(mockSetRemoteWrite).toHaveBeenCalledTimes(1);
     });
   });
 
