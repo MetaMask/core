@@ -681,6 +681,48 @@ describe('RampsController', () => {
       );
     });
 
+    it('returns an empty response on the widened path when no provider supports the asset, even without restrictToKnownOrNativeProviders', async () => {
+      // A provider is present (so `#getSupportingProvidersForRegion` reads state
+      // instead of hydrating), but it supports a different asset than
+      // `SCOPE_ASSET_ID`, leaving the supporting set empty.
+      const nonSupportingProvider: Provider = {
+        ...buildScopeProvider(MOONPAY, 'aggregator'),
+        supportedCryptoCurrencies: { 'eip155:1/slip44:0': true },
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            state: scopeState([nonSupportingProvider]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          const getQuotesMock = jest.fn();
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            getQuotesMock,
+          );
+
+          // `autoSelectProvider` alone triggers widening; without
+          // `restrictToKnownOrNativeProviders` the empty guard is reached via the
+          // `|| widenToInAppProviders` branch.
+          const quotes = await callScopedGetQuotes(messenger, {
+            autoSelectProvider: true,
+            restrictToKnownOrNativeProviders: false,
+          });
+
+          expect(quotes).toStrictEqual({
+            success: [],
+            sorted: [],
+            error: [],
+            customActions: [],
+          });
+          expect(getQuotesMock).not.toHaveBeenCalled();
+        },
+      );
+    });
+
     it('excludes custom-action providers from selection', async () => {
       const response: QuotesResponse = {
         success: [inAppScopeQuote(MOONPAY, 90), inAppScopeQuote(REVOLUT, 80)],

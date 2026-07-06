@@ -1963,9 +1963,13 @@ export class RampsController extends BaseController<
     // Under headless-buy gating, an empty resolved provider list means no
     // eligible (native/supporting) provider exists. Return an empty response
     // rather than passing `[]` to the service, which omits the provider filter
-    // and would quote every provider.
+    // and would quote every provider. This also guards the widened in-app path:
+    // a caller may trigger widening with `autoSelectProvider` alone (no
+    // `restrictToKnownOrNativeProviders`), and an empty supporting set must not
+    // fall through to unfiltered quotes from providers that do not support the
+    // asset.
     if (
-      options.restrictToKnownOrNativeProviders &&
+      (options.restrictToKnownOrNativeProviders || widenToInAppProviders) &&
       providersToUse.length === 0
     ) {
       return { success: [], sorted: [], error: [], customActions: [] };
