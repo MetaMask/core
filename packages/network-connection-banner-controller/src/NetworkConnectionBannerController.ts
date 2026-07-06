@@ -538,6 +538,9 @@ export class NetworkConnectionBannerController extends BaseController<
       return;
     }
 
+    // A degraded timer is already counting down for this same network.
+    // Repeated `stateChange` events must not clear and restart it, or a
+    // steady stream of updates could postpone the banner indefinitely.
     if (this.#pendingNetworkClientId === failedNetwork.networkClientId) {
       return;
     }
@@ -553,10 +556,11 @@ export class NetworkConnectionBannerController extends BaseController<
       return;
     }
 
-    // Capture the failing network at schedule time. We trust the messenger
-    // contract: if the failure resolves or the target changes during the
-    // wait, our upstream subscriptions will have cancelled or replaced this
-    // timer via `#clearTimers` before it fires.
+    // Remember which network the pending timer is for (see the guard above)
+    // and capture the failing network at schedule time. If the failure
+    // resolves or a different network becomes the banner target while we
+    // wait, the subscription handlers re-enter this method and cancel or
+    // replace the timer before it fires.
     this.#pendingNetworkClientId = failedNetwork.networkClientId;
     this.#degradedTimer = setTimeout(() => {
       this.#degradedTimer = undefined;
