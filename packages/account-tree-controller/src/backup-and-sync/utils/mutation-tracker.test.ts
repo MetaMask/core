@@ -33,6 +33,7 @@ describe('BackupAndSync - Utils - createSyncMutationTracker', () => {
     tracker.reset();
 
     expect(tracker.hasOccurred()).toBe(false);
+    expect(tracker.getLocalWrite()).toBe(false);
   });
 
   it('reverts local writes to a captured value', () => {
