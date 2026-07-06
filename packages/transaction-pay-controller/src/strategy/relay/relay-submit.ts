@@ -47,6 +47,7 @@ import {
 import { getRelayStatus } from './relay-api';
 import { submitViaRelayExecute } from './relay-submit-execute';
 import type {
+  RelayCompletionOutcome,
   RelayQuote,
   RelayStatus,
   RelayStatusResponse,
@@ -201,11 +202,6 @@ function setRelaySourceHash(
     },
   );
 }
-
-type RelayCompletionOutcome = {
-  status: RelayStatus | 'timeout';
-  targetHash?: Hex;
-};
 
 async function waitForRelayCompletion(
   quote: RelayQuote,

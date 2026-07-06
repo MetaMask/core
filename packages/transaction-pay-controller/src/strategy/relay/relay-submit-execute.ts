@@ -103,7 +103,9 @@ function stripRelayExecuteMarker(requestId: string): string {
 function getRelayExecuteRequestId(quote: RelayQuote): string {
   const requestId = quote.steps?.[0]?.requestId;
   if (!requestId) {
-    throw new Error('Relay: Execute: Missing requestId in quote step');
+    throw new Error(
+      `${RELAY_EXECUTE_ERROR_PREFIX}Missing requestId in quote step`,
+    );
   }
   return stripRelayExecuteMarker(requestId);
 }
@@ -119,7 +121,7 @@ function getRelayExecuteMetamask(
   const signature = quote.metamask?.signature;
   if (!signature) {
     throw new Error(
-      'Relay: Execute: Missing metamask.signature — cannot submit to /relay/execute without the HMAC token',
+      `${RELAY_EXECUTE_ERROR_PREFIX}Missing metamask.signature — cannot submit to /relay/execute without the HMAC token`,
     );
   }
   return {
@@ -162,7 +164,7 @@ function replaceFirstStepRequestId(quote: RelayQuote, requestId: string): void {
   /* istanbul ignore if: requestId is read from steps[0] earlier, so steps is non-empty here; defensive guard. */
   if (steps.length === 0) {
     throw new Error(
-      'Relay: Execute: Cannot update requestId — quote has no steps',
+      `${RELAY_EXECUTE_ERROR_PREFIX}Cannot update requestId — quote has no steps`,
     );
   }
 
