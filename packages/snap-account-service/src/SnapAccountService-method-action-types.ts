@@ -51,18 +51,6 @@ export type SnapAccountServiceEnsureMigratedAction = {
 };
 
 /**
- * Handle a message from a Snap.
- *
- * @param snapId - ID of the Snap.
- * @param message - Message sent by the Snap.
- * @returns The execution result.
- */
-export type SnapAccountServiceHandleKeyringSnapMessageAction = {
-  type: `SnapAccountService:handleKeyringSnapMessage`;
-  handler: SnapAccountService['handleKeyringSnapMessage'];
-};
-
-/**
  * Returns the CAIP-19 asset type/ID list supported by an account.
  *
  * @param snapId - ID of the Snap.
@@ -130,6 +118,18 @@ export type SnapAccountServiceSetSelectedAccountsAction = {
 };
 
 /**
+ * Handle a message from a Snap.
+ *
+ * @param snapId - ID of the Snap.
+ * @param message - Message sent by the Snap.
+ * @returns The execution result.
+ */
+export type SnapAccountServiceHandleKeyringSnapMessageAction = {
+  type: `SnapAccountService:handleKeyringSnapMessage`;
+  handler: SnapAccountService['handleKeyringSnapMessage'];
+};
+
+/**
  * Union of all SnapAccountService action types.
  */
 export type SnapAccountServiceMethodActions =
@@ -139,6 +139,6 @@ export type SnapAccountServiceMethodActions =
   | SnapAccountServiceGetAccountAssetsAction
   | SnapAccountServiceGetAccountBalancesAction
   | SnapAccountServiceGetAccountTransactionsAction
-  | SnapAccountServiceHandleKeyringSnapMessageAction
   | SnapAccountServiceResolveAccountAddressAction
-  | SnapAccountServiceSetSelectedAccountsAction;
+  | SnapAccountServiceSetSelectedAccountsAction
+  | SnapAccountServiceHandleKeyringSnapMessageAction;
