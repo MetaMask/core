@@ -548,8 +548,7 @@ export class NetworkConnectionBannerController extends BaseController<
       state.networkConnectionBannerNetwork = null;
     });
 
-    // A synchronous listener on our `stateChanged` event above may have
-    // called `stop()` re-entrantly. Bail before scheduling anything.
+    // If `stop` is called before scheduling timers, bail early.
     if (!this.#isStarted) {
       return;
     }
@@ -566,8 +565,7 @@ export class NetworkConnectionBannerController extends BaseController<
         state.networkConnectionBannerStatus = 'degraded';
         state.networkConnectionBannerNetwork = failedNetwork;
       });
-      // A synchronous listener on our `stateChanged` event above may have
-      // called `stop()` re-entrantly. Bail before scheduling the escalation.
+      // If `stop` is called before scheduling timers, bail early.
       if (!this.#isStarted) {
         return;
       }
