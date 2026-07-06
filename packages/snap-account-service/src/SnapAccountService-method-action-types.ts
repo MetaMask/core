@@ -115,6 +115,21 @@ export type SnapAccountServiceResolveAccountAddressAction = {
 };
 
 /**
+ * Notifies a Snap of the currently selected accounts.
+ *
+ * For v1 Snaps the call goes through the keyring (signing interface); for
+ * v2 Snaps it is routed via the RPC client because the keyring only covers
+ * keyring-only operations (signing, account lifecycle).
+ *
+ * @param snapId - ID of the Snap.
+ * @param accounts - IDs of the accounts to mark as selected.
+ */
+export type SnapAccountServiceSetSelectedAccountsAction = {
+  type: `SnapAccountService:setSelectedAccounts`;
+  handler: SnapAccountService['setSelectedAccounts'];
+};
+
+/**
  * Union of all SnapAccountService action types.
  */
 export type SnapAccountServiceMethodActions =
@@ -125,4 +140,5 @@ export type SnapAccountServiceMethodActions =
   | SnapAccountServiceGetAccountBalancesAction
   | SnapAccountServiceGetAccountTransactionsAction
   | SnapAccountServiceHandleKeyringSnapMessageAction
-  | SnapAccountServiceResolveAccountAddressAction;
+  | SnapAccountServiceResolveAccountAddressAction
+  | SnapAccountServiceSetSelectedAccountsAction;

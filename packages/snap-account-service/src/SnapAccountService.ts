@@ -74,6 +74,7 @@ import type {
   SnapAccountServiceGetSnapsAction,
   SnapAccountServiceHandleKeyringSnapMessageAction,
   SnapAccountServiceResolveAccountAddressAction,
+  SnapAccountServiceSetSelectedAccountsAction,
 } from './SnapAccountService-method-action-types';
 import { SnapPlatformWatcher } from './SnapPlatformWatcher';
 import type { SnapPlatformWatcherConfig } from './SnapPlatformWatcher';
@@ -107,6 +108,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getSnaps',
   'handleKeyringSnapMessage',
   'resolveAccountAddress',
+  'setSelectedAccounts',
 ] as const;
 
 /**
@@ -120,7 +122,8 @@ export type SnapAccountServiceActions =
   | SnapAccountServiceGetAccountTransactionsAction
   | SnapAccountServiceGetSnapsAction
   | SnapAccountServiceHandleKeyringSnapMessageAction
-  | SnapAccountServiceResolveAccountAddressAction;
+  | SnapAccountServiceResolveAccountAddressAction
+  | SnapAccountServiceSetSelectedAccountsAction;
 
 /**
  * Actions from other messengers that {@link SnapAccountService} calls.
@@ -668,6 +671,51 @@ export class SnapAccountService {
   }
 
   /**
+   * Notifies a Snap of the currently selected accounts.
+   *
+   * For v1 Snaps the call goes through the keyring (signing interface); for
+   * v2 Snaps it is routed via the RPC client because the keyring only covers
+   * keyring-only operations (signing, account lifecycle).
+   *
+   * @param snapId - ID of the Snap.
+   * @param accounts - IDs of the accounts to mark as selected.
+   */
+  async setSelectedAccounts(
+    snapId: SnapId,
+    accounts: AccountId[],
+  ): Promise<void> {
+    await this.ensureReady(snapId);
+    await this.#withKeyringV2Unsafe(snapId, async (keyring) => {
+      await this.#setSelectedAccountsForKeyring(snapId, keyring, accounts);
+    });
+  }
+
+  /**
+   * Dispatches a `setSelectedAccounts` call to the correct layer based on
+   * whether the keyring has a v1 interface or not.
+   *
+   * The keyring is a pure interface for keyring-only operations (signing,
+   * account lifecycle). Extra Snap-level methods like `setSelectedAccounts`
+   * are invoked via the client for v2 Snaps, which communicates with the Snap
+   * over RPC.
+   *
+   * @param snapId - ID of the Snap.
+   * @param keyring - The Snap keyring (v2) instance.
+   * @param accounts - IDs of the accounts to mark as selected.
+   */
+  async #setSelectedAccountsForKeyring(
+    snapId: SnapId,
+    keyring: SnapKeyring,
+    accounts: AccountId[],
+  ): Promise<void> {
+    if (keyring.v1) {
+      await keyring.v1.setSelectedAccounts(accounts);
+    } else {
+      await this.#client.withSnapId(snapId).setSelectedAccounts(accounts);
+    }
+  }
+
+  /**
    * Handle a message from a Snap.
    *
    * @param snapId - ID of the Snap.
@@ -844,8 +892,13 @@ export class SnapAccountService {
               // forward the subset this Snap actually owns. An empty
               // subset still gets forwarded to explicitly clear the
               // Snap selected accounts.
-              await keyring.setSelectedAccounts(
-                accounts.filter((id) => keyring.hasAccount(id)),
+              const snapAccounts = accounts.filter((id) =>
+                keyring.hasAccount(id),
+              );
+              await this.#setSelectedAccountsForKeyring(
+                snapId,
+                keyring,
+                snapAccounts,
               );
             });
           } catch (error) {

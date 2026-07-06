@@ -9,9 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING:** Add `SnapAccountService:getAccount{Assets,Balances,Transactions}` and `SnapAccountService:resolveAccountAddress` messenger actions ([#9390](https://github.com/MetaMask/core/pull/9390))
+- **BREAKING:** Add `SnapAccountService:getAccount{Assets,Balances,Transactions}`, `SnapAccountService:resolveAccountAddress`, and `SnapAccountService:setSelectedAccounts` messenger actions ([#9390](https://github.com/MetaMask/core/pull/9390))
   - These actions proxy the corresponding `KeyringClient` (v2) methods, with `snapId` as the first parameter to identify the target Snap.
   - Each call goes through `ensureReady` to guarantee the Snap is ready before the request is sent.
+  - `setSelectedAccounts` routes through the keyring's v1 interface for v1 Snaps, and via the RPC client for v2 Snaps.
   - The service messenger now additionally requires `SnapController:handleRequest`.
 
 ### Changed
