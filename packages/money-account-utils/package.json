@@ -52,6 +52,10 @@
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
+  "dependencies": {
+    "@metamask/transaction-controller": "^68.2.2",
+    "@metamask/utils": "^11.11.0"
+  },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
     "@ts-bridge/cli": "^0.6.4",
@@ -66,9 +70,5 @@
   },
   "engines": {
     "node": "^18.18 || >=20"
-  },
-  "dependencies": {
-    "@metamask/transaction-controller": "^68.2.2",
-    "@metamask/utils": "^11.11.0"
   }
 }
