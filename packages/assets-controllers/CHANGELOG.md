@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add exported `getAssetId` in `codefi-v2.ts` for CAIP-19 asset ID derivation - extracted from existing `fetchTokenPrices` ([#9386](https://github.com/MetaMask/core/pull/9386))
+
 ## [109.3.0]
 
 ### Added

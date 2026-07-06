@@ -15,6 +15,7 @@ import {
   fetchSupportedNetworks,
   getSupportedNetworks,
   resetSupportedNetworksCache,
+  getAssetId,
 } from './codefi-v2';
 
 // We're not customizing the default max delay
@@ -2181,6 +2182,74 @@ describe('CodefiTokenPricesServiceV2', () => {
       const service = new CodefiTokenPricesServiceV2();
       // Some random chain ID that's not supported
       expect(service.validateChainIdSupported('0xdeadbeef')).toBe(false);
+    });
+  });
+
+  describe('getAssetId', () => {
+    it('returns a CAIP-19 erc20 id with a lowercased address for ERC20 tokens', () => {
+      expect(getAssetId({ chainId: '0x1', tokenAddress: '0xABCDEF' })).toBe(
+        'eip155:1/erc20:0xabcdef',
+      );
+    });
+
+    it('returns the hardcoded id for native tokens on supported chains', () => {
+      expect(getAssetId({ chainId: '0x1', tokenAddress: ZERO_ADDRESS })).toBe(
+        'eip155:1/slip44:60',
+      );
+    });
+
+    it('detects native tokens on chains with a custom native address', () => {
+      expect(
+        getAssetId({
+          chainId: '0x89',
+          tokenAddress: '0x0000000000000000000000000000000000001010',
+        }),
+      ).toBe('eip155:137/slip44:966');
+    });
+
+    it('matches native token addresses case-insensitively', () => {
+      expect(
+        getAssetId({
+          chainId: '0x89',
+          tokenAddress: '0x0000000000000000000000000000000000001010'
+            .toUpperCase()
+            .replace('0X', '0x'),
+        }),
+      ).toBe('eip155:137/slip44:966');
+    });
+
+    it('falls back to nativeAssetIdentifiers when the chain has no hardcoded entry', () => {
+      // 0x42 (OKXChain) is not in SPOT_PRICES_SUPPORT_INFO
+      expect(
+        getAssetId({
+          chainId: '0x42',
+          tokenAddress: ZERO_ADDRESS,
+          nativeAssetIdentifiers: { 'eip155:66': 'eip155:66/slip44:996' },
+        }),
+      ).toBe('eip155:66/slip44:996');
+    });
+
+    it('prefers the hardcoded entry over nativeAssetIdentifiers', () => {
+      expect(
+        getAssetId({
+          chainId: '0x1',
+          tokenAddress: ZERO_ADDRESS,
+          nativeAssetIdentifiers: { 'eip155:1': 'eip155:1/erc20:0xwrong' },
+        }),
+      ).toBe('eip155:1/slip44:60');
+    });
+
+    it('returns undefined for a native token with no hardcoded entry and no identifier', () => {
+      expect(
+        getAssetId({ chainId: '0x42', tokenAddress: ZERO_ADDRESS }),
+      ).toBeUndefined();
+    });
+
+    it('returns undefined instead of throwing when given a malformed chain ID', () => {
+      expect(
+        // @ts-expect-error Testing runtime behavior with invalid input
+        getAssetId({ chainId: 'not-a-hex-string', tokenAddress: '0xAAA' }),
+      ).toBeUndefined();
     });
   });
 });

@@ -589,31 +589,36 @@ export function resetSupportedCurrenciesCache(): void {
 export function getAssetId({
   chainId,
   tokenAddress,
-  nativeAssetIdentifiers,
+  nativeAssetIdentifiers = {},
 }: {
   chainId: Hex;
   tokenAddress: string;
-  nativeAssetIdentifiers: NativeAssetIdentifiersMap;
+  nativeAssetIdentifiers?: NativeAssetIdentifiersMap;
 }): CaipAssetType | undefined {
-  const caipChainId = toCaipChainId(
-    KnownCaipNamespace.Eip155,
-    hexToNumber(chainId).toString(),
-  );
+  try {
+    const caipChainId = toCaipChainId(
+      KnownCaipNamespace.Eip155,
+      hexToNumber(chainId).toString(),
+    );
 
-  const nativeAddress = getNativeTokenAddress(chainId);
-  const isNativeToken =
-    nativeAddress.toLowerCase() === tokenAddress.toLowerCase();
+    const nativeAddress = getNativeTokenAddress(chainId);
+    const isNativeToken =
+      nativeAddress.toLowerCase() === tokenAddress.toLowerCase();
 
-  if (isNativeToken) {
-    const hardcodedId = (
-      SPOT_PRICES_SUPPORT_INFO as Partial<Record<Hex, string>>
-    )[chainId];
-    return (hardcodedId ?? nativeAssetIdentifiers[caipChainId]) as
-      | CaipAssetType
-      | undefined;
+    if (isNativeToken) {
+      const hardcodedId = (
+        SPOT_PRICES_SUPPORT_INFO as Partial<Record<Hex, string>>
+      )[chainId];
+      return (hardcodedId ?? nativeAssetIdentifiers[caipChainId]) as
+        | CaipAssetType
+        | undefined;
+    }
+
+    return `${caipChainId}/erc20:${tokenAddress.toLowerCase()}` as CaipAssetType;
+  } catch {
+    // This block should never be reached as long as using Typescript, but added for safety.
+    return undefined;
   }
-
-  return `${caipChainId}/erc20:${tokenAddress.toLowerCase()}` as CaipAssetType;
 }
 
 /**
