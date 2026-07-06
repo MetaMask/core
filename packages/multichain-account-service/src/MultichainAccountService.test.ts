@@ -10,6 +10,7 @@ import {
   EthAccountType,
   SolAccountType,
   TrxAccountType,
+  XlmAccountType,
 } from '@metamask/keyring-api';
 import type { Keyring } from '@metamask/keyring-api/v2';
 import { KeyringType } from '@metamask/keyring-api/v2';
@@ -41,6 +42,10 @@ import {
   TRX_ACCOUNT_PROVIDER_NAME,
   TrxAccountProvider,
 } from './providers/TrxAccountProvider';
+import {
+  XLM_ACCOUNT_PROVIDER_NAME,
+  XlmAccountProvider,
+} from './providers/XlmAccountProvider';
 import type { RootMessenger, MockAccountProvider } from './tests';
 import {
   MOCK_HARDWARE_ACCOUNT_1,
@@ -94,6 +99,12 @@ jest.mock('./providers/TrxAccountProvider', () => {
     TrxAccountProvider: jest.fn(),
   };
 });
+jest.mock('./providers/XlmAccountProvider', () => {
+  return {
+    ...jest.requireActual('./providers/XlmAccountProvider'),
+    XlmAccountProvider: jest.fn(),
+  };
+});
 
 type Mocks = {
   // eslint-disable-next-line @typescript-eslint/naming-convention
@@ -123,6 +134,8 @@ type Mocks = {
   BtcAccountProvider: MockAccountProvider;
   // eslint-disable-next-line @typescript-eslint/naming-convention
   TrxAccountProvider: MockAccountProvider;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  XlmAccountProvider: MockAccountProvider;
 };
 
 function mockAccountProvider<Provider extends Bip44AccountProvider>(
@@ -163,6 +176,11 @@ function mockAccountProvider<Provider extends Bip44AccountProvider>(
     mocks.getName.mockReturnValue(TRX_ACCOUNT_PROVIDER_NAME);
     mocks.isAccountCompatible?.mockImplementation(
       (account: KeyringAccount) => account.type === TrxAccountType.Eoa,
+    );
+  } else if (providerClass === (XlmAccountProvider as unknown)) {
+    mocks.getName.mockReturnValue(XLM_ACCOUNT_PROVIDER_NAME);
+    mocks.isAccountCompatible?.mockImplementation(
+      (account: KeyringAccount) => account.type === XlmAccountType.DataAccount,
     );
   }
 
@@ -221,6 +239,7 @@ async function setup({
     SolAccountProvider: makeMockAccountProvider(),
     BtcAccountProvider: makeMockAccountProvider(),
     TrxAccountProvider: makeMockAccountProvider(),
+    XlmAccountProvider: makeMockAccountProvider(),
   };
 
   // Required for the `assert` on `MultichainAccountWallet.createMultichainAccountGroup`.
@@ -277,6 +296,7 @@ async function setup({
     SolAccountProvider.NAME = SOL_ACCOUNT_PROVIDER_NAME;
     BtcAccountProvider.NAME = BTC_ACCOUNT_PROVIDER_NAME;
     TrxAccountProvider.NAME = TRX_ACCOUNT_PROVIDER_NAME;
+    XlmAccountProvider.NAME = XLM_ACCOUNT_PROVIDER_NAME;
 
     mockAccountProvider<EvmAccountProvider>(
       EvmAccountProvider,
@@ -305,6 +325,13 @@ async function setup({
       accounts,
       3,
       TrxAccountType.Eoa,
+    );
+    mockAccountProvider<XlmAccountProvider>(
+      XlmAccountProvider,
+      mocks.XlmAccountProvider,
+      accounts,
+      4,
+      XlmAccountType.DataAccount,
     );
   }
 
@@ -1031,6 +1058,7 @@ describe('MultichainAccountService', () => {
           entropySource: MOCK_HD_KEYRING_1.metadata.id,
         }),
       ).toThrow('Unknown wallet, no wallet matching this entropy source');
+      expect(mocks.XlmAccountProvider.deleteAccount).not.toHaveBeenCalled();
     });
 
     it('continues with remaining accounts and removes the wallet when one provider deleteAccount call throws', async () => {
@@ -1217,7 +1245,7 @@ describe('MultichainAccountService', () => {
       });
 
       // Turning basic functionality off disables the snap-backed provider
-      // wrappers (Sol/Btc/Trx). EVM is intentionally left enabled.
+      // wrappers (Sol/Btc/Trx/Xlm). EVM is intentionally left enabled.
       await service.setBasicFunctionality(false);
 
       await service.removeMultichainAccountWallet(

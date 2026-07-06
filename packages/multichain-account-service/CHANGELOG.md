@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Auto-register `XlmAccountProvider` in `MultichainAccountService`, matching other non-EVM ([#9380](https://github.com/MetaMask/core/pull/9380))
 - Adds `MultichainAccountGroup.isProviderAligned(provider)` to check alignment per provider ([#9269](https://github.com/MetaMask/core/pull/9269))
 
 ### Changed
