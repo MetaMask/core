@@ -69,6 +69,7 @@ import {
 } from './utils/bridge';
 import {
   fetchBridgeTxStatus,
+  fetchBridgeQuoteStatus,
   getStatusRequestWithSrcTxHash,
   shouldSkipFetchDueToFetchFailures,
   shouldWaitForFinalBridgeStatus,
@@ -893,13 +894,20 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           historyItem.quote,
           srcTxHash,
         );
-        const response = await fetchBridgeTxStatus(
-          statusRequest,
-          this.#clientId,
-          await getJwt(this.messenger),
-          this.#fetchFn,
-          this.#config.customBridgeApiBaseUrl,
-        );
+        const response =
+          (historyItem.quoteId
+            ? await fetchBridgeQuoteStatus(
+                this.#quoteStatusManager,
+                historyItem.quoteId,
+              )
+            : null) ??
+          (await fetchBridgeTxStatus(
+            statusRequest,
+            this.#clientId,
+            await getJwt(this.messenger),
+            this.#fetchFn,
+            this.#config.customBridgeApiBaseUrl,
+          ));
         status = response.status;
         validationFailures = response.validationFailures;
       }

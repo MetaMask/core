@@ -7,9 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Source transaction status from the `/getQuoteStatus` backend during polling for history items with an associated `quoteId`, falling back to the `/getTxStatus` bridge-api endpoint when no quote-status backend status is available yet or the QuoteStatusManager is disabled. ([#9389](https://github.com/MetaMask/core/pull/9389))
+
 ### Changed
 
 - Bump `@metamask/bridge-controller` from `^77.3.1` to `^77.3.2` ([#9372](https://github.com/MetaMask/core/pull/9372))
+
+### Fixed
+
+- Remove the redundant quote-status fetch previously issued after a `FINALIZED_SUCCESS`/`FINALIZED_FAILED` quote-status update was accepted. ([#9389](https://github.com/MetaMask/core/pull/9389))
 
 ## [74.0.2]
 
