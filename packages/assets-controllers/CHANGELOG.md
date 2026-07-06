@@ -13,7 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Modified native asset addresses for Stable (`988`) and Gnosis (`100`) in `codefi-v2.ts` ([#9386](https://github.com/MetaMask/core/pull/9386))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Modified native asset addresses for Stable (`988`), Rootstock (`30`) and Gnosis (`100`) in `codefi-v2.ts` ([#9386](https://github.com/MetaMask/core/pull/9386))
 
 ## [109.3.0]
 
