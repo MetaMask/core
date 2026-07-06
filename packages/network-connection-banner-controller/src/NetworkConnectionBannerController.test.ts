@@ -104,7 +104,7 @@ describe('NetworkConnectionBannerController', () => {
     });
   });
 
-  describe('start / stop', () => {
+  describe('start', () => {
     it('does not evaluate existing upstream state before start', async () => {
       const externalState = buildExternalState({
         networkConfigurationsByChainId: {
@@ -214,6 +214,46 @@ describe('NetworkConnectionBannerController', () => {
       );
     });
 
+    it('resumes evaluation when start is called again after stop', async () => {
+      await withController(
+        { externalState: buildExternalState({ enabledEvmChainIds: ['0x89'] }) },
+        ({ controller, setNetworkControllerState }) => {
+          controller.stop();
+
+          setNetworkControllerState({
+            networkConfigurationsByChainId: {
+              '0x89': buildNetworkConfiguration({
+                chainId: '0x89',
+                rpcEndpoints: [
+                  buildCustomEndpoint({
+                    networkClientId: POLYGON_CUSTOM_CLIENT_ID,
+                    url: 'https://polygon-rpc.com',
+                  }),
+                ],
+              }),
+            },
+            networksMetadata: {
+              [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
+                NetworkStatus.Unavailable,
+              ),
+            },
+          });
+
+          expect(controller.state.networkConnectionBannerStatus).toBe(
+            'available',
+          );
+
+          controller.start();
+          jest.advanceTimersByTime(5_000);
+          expect(controller.state.networkConnectionBannerStatus).toBe(
+            'degraded',
+          );
+        },
+      );
+    });
+  });
+
+  describe('stop', () => {
     it('cancels a pending banner and resets state on stop', async () => {
       await withController(
         { externalState: buildExternalState({ enabledEvmChainIds: ['0x89'] }) },
@@ -284,45 +324,7 @@ describe('NetworkConnectionBannerController', () => {
       );
     });
 
-    it('resumes evaluation when start is called again after stop', async () => {
-      await withController(
-        { externalState: buildExternalState({ enabledEvmChainIds: ['0x89'] }) },
-        ({ controller, setNetworkControllerState }) => {
-          controller.stop();
-
-          setNetworkControllerState({
-            networkConfigurationsByChainId: {
-              '0x89': buildNetworkConfiguration({
-                chainId: '0x89',
-                rpcEndpoints: [
-                  buildCustomEndpoint({
-                    networkClientId: POLYGON_CUSTOM_CLIENT_ID,
-                    url: 'https://polygon-rpc.com',
-                  }),
-                ],
-              }),
-            },
-            networksMetadata: {
-              [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
-                NetworkStatus.Unavailable,
-              ),
-            },
-          });
-
-          expect(controller.state.networkConnectionBannerStatus).toBe(
-            'available',
-          );
-
-          controller.start();
-          jest.advanceTimersByTime(5_000);
-          expect(controller.state.networkConnectionBannerStatus).toBe(
-            'degraded',
-          );
-        },
-      );
-    });
-
-    it('stop is idempotent when never started', async () => {
+    it('does nothing when called before start', async () => {
       await withController({ start: false }, ({ controller }) => {
         controller.stop();
         controller.stop();
