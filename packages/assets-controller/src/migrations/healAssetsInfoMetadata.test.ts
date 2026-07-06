@@ -1,4 +1,4 @@
-import type { Caip19AssetId } from '../types';
+import type { AssetsControllerStateInternal, Caip19AssetId } from '../types';
 import type { CurrentAssetsState } from './healAssetsInfoMetadata';
 import {
   healAssetsInfoMetadata,
@@ -499,62 +499,88 @@ describe('healAssetsInfoMetadata', () => {
 });
 
 describe('tempHealAssetsInfoMetadata', () => {
-  it('returns a state callback that applies the healing patch to the draft', () => {
-    const state = buildCurrentState();
+  /**
+   * Build a full controller state for tempHealAssetsInfoMetadata tests.
+   *
+   * @param overrides - Partial state slices to merge over the defaults.
+   * @returns Full controller state.
+   */
+  function buildFullState(
+    overrides: Partial<CurrentAssetsState> = {},
+  ): AssetsControllerStateInternal {
+    return {
+      assetsInfo: {},
+      assetsBalance: {},
+      assetsPrice: {},
+      customAssets: {},
+      assetPreferences: {},
+      selectedCurrency: 'usd',
+      ...overrides,
+    };
+  }
 
-    const applyHealing = tempHealAssetsInfoMetadata({
+  it('returns healed state with the healing patch applied', () => {
+    const state = buildFullState();
+
+    const healedState = tempHealAssetsInfoMetadata({
       state,
       getMigrationState: () => buildLegacyState(VALID_TOKEN),
     });
-    applyHealing(state);
 
-    expect(state.assetsInfo[FLARE_ASSET_ID]).toStrictEqual({
+    expect(healedState.assetsInfo[FLARE_ASSET_ID]).toStrictEqual({
       type: 'erc20',
       symbol: 'TST',
       name: 'Test Token',
       decimals: 18,
     });
-    expect(state.customAssets[ACCOUNT_ID]).toStrictEqual([FLARE_ASSET_ID]);
+    expect(healedState.customAssets[ACCOUNT_ID]).toStrictEqual([
+      FLARE_ASSET_ID,
+    ]);
+    expect(state).toStrictEqual(buildFullState());
   });
 
-  it('leaves the draft untouched when there is nothing to heal', () => {
-    const state = buildCurrentState();
+  it('returns the original state when there is nothing to heal', () => {
+    const state = buildFullState();
 
-    const applyHealing = tempHealAssetsInfoMetadata({
+    const healedState = tempHealAssetsInfoMetadata({
       state,
       getMigrationState: () => ({ unrelated: true }),
     });
-    applyHealing(state);
 
-    expect(state).toStrictEqual(buildCurrentState());
+    expect(healedState).toBe(state);
   });
 
   it('is idempotent: re-running never duplicates or overwrites entries', () => {
     const otherAssetId =
       'eip155:14/erc20:0x0000000000000000000000000000000000000001' as Caip19AssetId;
-    const state = buildCurrentState({
+    const state = buildFullState({
       customAssets: { [ACCOUNT_ID]: [otherAssetId] },
     });
     const getMigrationState = (): unknown => buildLegacyState(VALID_TOKEN);
 
-    tempHealAssetsInfoMetadata({ state, getMigrationState })(state);
-    const afterFirstRun = JSON.parse(JSON.stringify(state));
-    tempHealAssetsInfoMetadata({ state, getMigrationState })(state);
+    const afterFirstRun = tempHealAssetsInfoMetadata({
+      state,
+      getMigrationState,
+    });
+    const afterSecondRun = tempHealAssetsInfoMetadata({
+      state: afterFirstRun,
+      getMigrationState,
+    });
 
-    expect(state).toStrictEqual(afterFirstRun);
-    expect(state.customAssets[ACCOUNT_ID]).toStrictEqual([
+    expect(afterSecondRun).toStrictEqual(afterFirstRun);
+    expect(afterSecondRun.customAssets[ACCOUNT_ID]).toStrictEqual([
       otherAssetId,
       FLARE_ASSET_ID,
     ]);
   });
 
   it('reports errors thrown by getMigrationState via captureException without throwing', () => {
-    const state = buildCurrentState();
+    const state = buildFullState();
     const captureException = jest.fn();
 
-    let applyHealing: ((state: unknown) => void) | undefined;
+    let healedState: AssetsControllerStateInternal | undefined;
     expect(() => {
-      applyHealing = tempHealAssetsInfoMetadata({
+      healedState = tempHealAssetsInfoMetadata({
         state,
         getMigrationState: () => {
           throw new Error('legacy state unavailable');
@@ -563,8 +589,7 @@ describe('tempHealAssetsInfoMetadata', () => {
       });
     }).not.toThrow();
 
-    expect(() => applyHealing?.(state)).not.toThrow();
-    expect(state).toStrictEqual(buildCurrentState());
+    expect(healedState).toBe(state);
     expect(captureException).toHaveBeenCalledWith(
       expect.objectContaining({
         message: expect.stringContaining('legacy state unavailable'),
@@ -573,16 +598,15 @@ describe('tempHealAssetsInfoMetadata', () => {
   });
 
   it('swallows errors even when captureException is not provided', () => {
-    const state = buildCurrentState();
+    const state = buildFullState();
 
     expect(() => {
-      const applyHealing = tempHealAssetsInfoMetadata({
+      tempHealAssetsInfoMetadata({
         state,
         getMigrationState: () => {
           throw new Error('legacy state unavailable');
         },
       });
-      applyHealing(state);
     }).not.toThrow();
   });
 });

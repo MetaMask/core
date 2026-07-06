@@ -11,9 +11,9 @@ import {
 import { createModuleLogger, projectLogger } from '../logger';
 import type {
   AccountId,
-  AssetsControllerStateInternal,
   Caip19AssetId,
   FungibleAssetMetadata,
+  AssetsControllerStateInternal,
 } from '../types';
 
 /**
@@ -96,7 +96,7 @@ const log = createModuleLogger(projectLogger, 'tempHealAssetsInfoMetadata');
 
 export type TempHealAssetsInfoMetadataOptions = {
   /** Current `AssetsController` state the healing patch is computed against. */
-  state: CurrentAssetsState;
+  state: AssetsControllerStateInternal;
   /**
    * Host-provided getter for the untrusted legacy state root (see
    * `AssetsControllerOptions.tempMigrateAssetsInfoMetadataAssets3346`).
@@ -113,13 +113,14 @@ export type TempHealAssetsInfoMetadataOptions = {
  * @param options.state - Current controller state to compute the patch against.
  * @param options.getMigrationState - Getter for the untrusted legacy state root.
  * @param options.captureException - Optional reporter for healing failures.
- * @returns The state callback to pass to the controller's `update` method.
+ * @returns Updated controller state with the healing patch applied, or the
+ * original state when there is nothing to heal or healing fails.
  */
 export function tempHealAssetsInfoMetadata({
   state,
   getMigrationState,
   captureException,
-}: TempHealAssetsInfoMetadataOptions): (state: unknown) => void {
+}: TempHealAssetsInfoMetadataOptions): AssetsControllerStateInternal {
   const reportError = (error: unknown): void => {
     log('Failed to heal assetsInfo metadata', error);
     captureException?.(
@@ -138,22 +139,29 @@ export function tempHealAssetsInfoMetadata({
     reportError(error);
   }
 
-  return (draft) => {
-    if (!patch) {
-      return;
-    }
+  if (!patch) {
+    return state;
+  }
 
-    try {
-      applyHealingPatch(draft as CurrentAssetsState, patch);
+  try {
+    const nextState: AssetsControllerStateInternal = {
+      ...state,
+      assetsInfo: { ...state.assetsInfo },
+      customAssets: { ...state.customAssets },
+    };
 
-      log('Healed wiped assetsInfo metadata for niche-chain tokens', {
-        healedAssetsInfoCount: Object.keys(patch.assetsInfo).length,
-        healedCustomAssetsAccounts: Object.keys(patch.customAssets).length,
-      });
-    } catch (error) {
-      reportError(error);
-    }
-  };
+    applyHealingPatch(nextState, patch);
+
+    log('Healed wiped assetsInfo metadata for niche-chain tokens', {
+      healedAssetsInfoCount: Object.keys(patch.assetsInfo).length,
+      healedCustomAssetsAccounts: Object.keys(patch.customAssets).length,
+    });
+
+    return nextState;
+  } catch (error) {
+    reportError(error);
+    return state;
+  }
 }
 
 /**
