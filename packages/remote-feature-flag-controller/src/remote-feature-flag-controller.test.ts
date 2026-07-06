@@ -1116,8 +1116,13 @@ describe('RemoteFeatureFlagController', () => {
         'RemoteFeatureFlagController:updateRemoteFeatureFlags',
       );
 
-      const rawEntries = controller.state.rawRemoteFeatureFlags!
-        .testFlag as Record<string, unknown>[];
+      expect(controller.state.rawRemoteFeatureFlags).toBeDefined();
+      const rawRemoteFeatureFlags =
+        controller.state.rawRemoteFeatureFlags as FeatureFlags;
+      const rawEntries = rawRemoteFeatureFlags.testFlag as Record<
+        string,
+        unknown
+      >[];
       expect(
         rawEntries.every((entry) => entry.metaMetricsIds === undefined),
       ).toBe(true);
