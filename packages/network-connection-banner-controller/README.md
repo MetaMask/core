@@ -1,9 +1,9 @@
 # `@metamask/network-connection-banner-controller`
 
 NetworkConnectionBannerController decides when and how to surface the network
-connection banner based on RPC endpoint health. It encapsulates the shared
-rule, the 5s/30s timer state machine, and the eTLD+1 grouping previously
-duplicated across MetaMask clients.
+connection banner based on RPC endpoint health. It encapsulates the rule, the
+5s/30s timer state machine, and the eTLD+1 grouping used to decide when a
+wider provider outage is in play.
 
 ## Lifecycle
 

@@ -35,7 +35,7 @@ import { KnownCaipNamespace } from '@metamask/utils';
 import { createSelector } from 'reselect';
 
 import type { NetworkConnectionBannerControllerMethodActions } from './NetworkConnectionBannerController-method-action-types';
-import { getDomain } from './url-utils';
+import { getDomain, getIsInfuraEndpoint } from './url-utils';
 
 /**
  * The name of the {@link NetworkConnectionBannerController}, used to namespace
@@ -290,7 +290,7 @@ export type NetworkConnectionBannerControllerOptions = {
  * NetworkConnectionBannerController decides whether the network connection
  * banner should be shown for the user, and which failing network it should
  * describe. It encapsulates the rule, the 5s / 30s timer escalation, and the
- * eTLD+1 grouping that was previously duplicated across MetaMask clients.
+ * eTLD+1 grouping used to decide when a wider provider outage is in play.
  *
  * The banner shows when:
  *
@@ -702,19 +702,4 @@ export class NetworkConnectionBannerController extends BaseController<
 
     return firstCustomFailed ?? failedNetworks[0];
   }
-}
-
-/**
- * Whether an RPC URL is a MetaMask Infura endpoint. Matches the
- * `{infuraProjectId}` placeholder form that lives on stored network
- * configurations before the wallet substitutes the real project id at
- * request time. URLs that already carry a substituted key are treated as
- * custom (we do not have the project id in this package).
- *
- * @param url - The RPC URL to check.
- * @returns True if the URL is the placeholder form of a MetaMask Infura
- * endpoint.
- */
-function getIsInfuraEndpoint(url: string): boolean {
-  return /^https:\/\/[^./]+\.infura\.io\/v3\/\{infuraProjectId\}$/u.test(url);
 }
