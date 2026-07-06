@@ -423,6 +423,16 @@ describe('Wallet', () => {
     });
   });
 
+  describe('TransactionController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+
+      expect(
+        wallet.messenger.call('TransactionController:getState'),
+      ).toStrictEqual(expect.objectContaining({ transactions: [] }));
+    });
+  });
+
   describe('RemoteFeatureFlagController', () => {
     it('is wired and exposes its state on the wallet messenger', async () => {
       const wallet = await setupWallet();

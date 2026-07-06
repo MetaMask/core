@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Wire `TransactionController` into the default wallet initialization ([#8975](https://github.com/MetaMask/core/pull/8975))
+
 ## [6.0.0]
 
 ### Added
