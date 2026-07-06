@@ -112,7 +112,9 @@ class MockSnapAccountProvider extends SnapAccountProvider {
     options: { entropySource: EntropySourceId; groupIndex: number },
   ): Promise<KeyringAccount> {
     if (!keyring.v1) {
-      throw new Error('Snap is v2-only and does not support v1 account creation');
+      throw new Error(
+        'Snap is v2-only and does not support v1 account creation',
+      );
     }
     // Forward to the mocked keyring (no real purposes apart from implementing
     // this abstract method).

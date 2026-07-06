@@ -1,6 +1,7 @@
 import { assertIsBip44Account } from '@metamask/account-api';
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
+import { SnapKeyringV1 } from '@metamask/eth-snap-keyring';
 import type { SnapKeyring as SnapKeyringV2 } from '@metamask/eth-snap-keyring/v2';
 import { isSnapKeyring } from '@metamask/eth-snap-keyring/v2';
 import {
@@ -41,7 +42,7 @@ export type RestrictedSnapKeyring = {
    *   if (!keyring.v1) { throw new Error('Snap is v2-only'); }
    *   keyring.v1.createAccount(options);
    */
-  v1: { createAccount(options: Record<string, Json>): Promise<KeyringAccount> } | undefined;
+  v1?: { createAccount: SnapKeyringV1['createAccount'] };
   createAccounts: SnapKeyringV2['createAccounts'];
   deleteAccount: SnapKeyringV2['deleteAccount'];
 };
