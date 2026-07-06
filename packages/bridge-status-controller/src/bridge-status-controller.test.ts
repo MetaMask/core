@@ -1430,6 +1430,143 @@ describe('BridgeStatusController', () => {
       bridgeStatusController.stopAllPolling();
     });
 
+    describe('quote status manager integration', () => {
+      it('fetches status via the quote status manager instead of the bridge API when the history item has a quoteId', async () => {
+        jest.useFakeTimers();
+        const fetchBridgeTxStatusSpy = jest.spyOn(
+          bridgeStatusUtils,
+          'fetchBridgeTxStatus',
+        );
+        const fetchBridgeQuoteStatusSpy = jest
+          .spyOn(bridgeStatusUtils, 'fetchBridgeQuoteStatus')
+          .mockResolvedValueOnce({
+            status: MockStatusResponse.getPending(),
+            validationFailures: [],
+          });
+
+        await withController(
+          {
+            options: {
+              isQuoteStatusManagerEnabled: () => true,
+              state: {
+                txHistory: {
+                  bridgeTxMetaId1: {
+                    ...MockTxHistory.getPending().bridgeTxMetaId1,
+                    quoteId: 'quote-1',
+                  },
+                },
+              },
+            },
+          },
+          async ({ controller, rootMessenger }) => {
+            registerDefaultActionHandlers(rootMessenger);
+            controller.startPolling({ bridgeTxMetaId: 'bridgeTxMetaId1' });
+
+            jest.advanceTimersByTime(10000);
+            await flushPromises();
+
+            expect(fetchBridgeQuoteStatusSpy).toHaveBeenCalledWith(
+              expect.anything(),
+              'quote-1',
+            );
+            expect(fetchBridgeTxStatusSpy).not.toHaveBeenCalled();
+            expect(
+              controller.state.txHistory.bridgeTxMetaId1.status.status,
+            ).toBe(StatusTypes.PENDING);
+
+            controller.stopAllPolling();
+            jest.restoreAllMocks();
+          },
+        );
+      });
+
+      it('falls back to the bridge API when the quote status manager has no status yet', async () => {
+        jest.useFakeTimers();
+        const fetchBridgeTxStatusSpy = jest
+          .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
+          .mockResolvedValueOnce({
+            status: MockStatusResponse.getPending(),
+            validationFailures: [],
+          });
+        const fetchBridgeQuoteStatusSpy = jest
+          .spyOn(bridgeStatusUtils, 'fetchBridgeQuoteStatus')
+          .mockResolvedValueOnce(null);
+
+        await withController(
+          {
+            options: {
+              isQuoteStatusManagerEnabled: () => true,
+              state: {
+                txHistory: {
+                  bridgeTxMetaId1: {
+                    ...MockTxHistory.getPending().bridgeTxMetaId1,
+                    quoteId: 'quote-1',
+                  },
+                },
+              },
+            },
+          },
+          async ({ controller, rootMessenger }) => {
+            registerDefaultActionHandlers(rootMessenger);
+            controller.startPolling({ bridgeTxMetaId: 'bridgeTxMetaId1' });
+
+            jest.advanceTimersByTime(10000);
+            await flushPromises();
+
+            expect(fetchBridgeQuoteStatusSpy).toHaveBeenCalledWith(
+              expect.anything(),
+              'quote-1',
+            );
+            expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
+            expect(
+              controller.state.txHistory.bridgeTxMetaId1.status.status,
+            ).toBe(StatusTypes.PENDING);
+
+            controller.stopAllPolling();
+            jest.restoreAllMocks();
+          },
+        );
+      });
+
+      it('does not call the quote status manager when the history item has no quoteId', async () => {
+        jest.useFakeTimers();
+        const fetchBridgeTxStatusSpy = jest
+          .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
+          .mockResolvedValueOnce({
+            status: MockStatusResponse.getPending(),
+            validationFailures: [],
+          });
+        const fetchBridgeQuoteStatusSpy = jest.spyOn(
+          bridgeStatusUtils,
+          'fetchBridgeQuoteStatus',
+        );
+
+        await withController(
+          {
+            options: {
+              isQuoteStatusManagerEnabled: () => true,
+              state: {
+                txHistory: MockTxHistory.getPending(),
+              },
+            },
+          },
+          async ({ controller, rootMessenger }) => {
+            registerDefaultActionHandlers(rootMessenger);
+            controller.startPolling({ bridgeTxMetaId: 'bridgeTxMetaId1' });
+
+            jest.advanceTimersByTime(10000);
+            await flushPromises();
+
+            expect(fetchBridgeQuoteStatusSpy).not.toHaveBeenCalled();
+            expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
+
+            controller.stopAllPolling();
+            jest.restoreAllMocks();
+          },
+        );
+      });
+    });
+
     it('stops polling when the status response is complete', async () => {
       // Setup
       jest.useFakeTimers();

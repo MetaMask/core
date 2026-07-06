@@ -340,6 +340,9 @@ linkStyle default opacity:0.5
   claims_controller --> profile_sync_controller;
   client_controller --> base_controller;
   client_controller --> messenger;
+  client_utils --> controller_utils;
+  client_utils --> core_backend;
+  client_utils --> transaction_controller;
   compliance_controller --> base_controller;
   compliance_controller --> controller_utils;
   compliance_controller --> messenger;
@@ -626,6 +629,7 @@ linkStyle default opacity:0.5
   wallet --> network_controller;
   wallet --> remote_feature_flag_controller;
   wallet --> storage_service;
+  wallet --> transaction_controller;
   wallet_cli --> base_controller;
   wallet_cli --> remote_feature_flag_controller;
   wallet_cli --> storage_service;
