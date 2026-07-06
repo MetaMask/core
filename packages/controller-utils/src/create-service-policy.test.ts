@@ -117,7 +117,7 @@ describe('createServicePolicy', () => {
       });
     });
 
-    describe('when the service fails, and the error has an httpStatus property', () => {
+    describe('when the service throws an error which has an httpStatus property', () => {
       it('treats errors with httpStatus >= 500 as service failures, making them circuit-breakable', async () => {
         const error = Object.assign(new Error('server error'), {
           httpStatus: 500,
@@ -125,13 +125,7 @@ describe('createServicePolicy', () => {
         const mockService = createErroringService({ error });
         const onBreakListener = jest.fn();
         const policy = createServicePolicyForTestingRetries({
-          // Setting the number of attempts (maxRetries + 1) equal to the
-          // maximum number of consecutive failures causes the circuit to open
-          // after calling `.execute` only once
-          options: {
-            maxRetries: 2,
-            maxConsecutiveFailures: 3,
-          },
+          breakAfterFirstExecution: true,
         });
         policy.onBreak(onBreakListener);
 
@@ -147,13 +141,7 @@ describe('createServicePolicy', () => {
         const mockService = createErroringService({ error });
         const onBreakListener = jest.fn();
         const policy = createServicePolicyForTestingRetries({
-          // Setting the number of attempts (maxRetries + 1) equal to the
-          // maximum number of consecutive failures causes the circuit to open
-          // after calling `.execute` only once
-          options: {
-            maxRetries: 2,
-            maxConsecutiveFailures: 3,
-          },
+          breakAfterFirstExecution: true,
         });
         policy.onBreak(onBreakListener);
 
@@ -163,63 +151,15 @@ describe('createServicePolicy', () => {
       });
     });
 
-    describe('when the service fails, but retryFilterPolicy filters out the thrown error', () => {
-      it('throws the error immediately without retrying', async () => {
-        const error = new Error('failure');
-        const mockService = jest.fn(() => {
-          throw error;
-        });
-        const policy = createServicePolicyForTestingRetries({
-          options: {
-            retryFilterPolicy: handleWhen(
-              (caughtError) => caughtError.message !== 'failure',
-            ),
-          },
-        });
-
-        await expect(policy.execute(mockService)).rejects.toThrow(error);
-        expect(mockService).toHaveBeenCalledTimes(1);
-      });
-
-      it('does not fire onRetry, onBreak, onDegraded, or onAvailable', async () => {
-        const error = new Error('failure');
-        const mockService = jest.fn(() => {
-          throw error;
-        });
-        const onRetryListener = jest.fn();
-        const onBreakListener = jest.fn();
-        const onDegradedListener = jest.fn();
-        const onAvailableListener = jest.fn();
-        const policy = createServicePolicyForTestingRetries({
-          options: {
-            retryFilterPolicy: handleWhen(
-              (caughtError) => caughtError.message !== 'failure',
-            ),
-          },
-        });
-        policy.onRetry(onRetryListener);
-        policy.onBreak(onBreakListener);
-        policy.onDegraded(onDegradedListener);
-        policy.onAvailable(onAvailableListener);
-
-        await ignoreRejection(policy.execute(mockService));
-
-        expect(onRetryListener).not.toHaveBeenCalled();
-        expect(onBreakListener).not.toHaveBeenCalled();
-        expect(onDegradedListener).not.toHaveBeenCalled();
-        expect(onAvailableListener).not.toHaveBeenCalled();
-      });
-    });
-
-    describe('when the service always fails', () => {
+    describe('when the service always throws', () => {
       describe.each([
         {
-          desc: `default maxRetries (${DEFAULT_MAX_RETRIES})`,
+          desc: `using a default maxRetries (of ${DEFAULT_MAX_RETRIES})`,
           maxRetries: DEFAULT_MAX_RETRIES,
           options: {},
         },
         {
-          desc: 'custom maxRetries',
+          desc: 'using a custom maxRetries',
           maxRetries: 5,
           options: { maxRetries: 5 },
         },
@@ -475,10 +415,10 @@ describe('createServicePolicy', () => {
       });
     });
 
-    describe('when the service fails at first but succeeds on the final attempt', () => {
+    describe('when the service throws at first but succeeds on the final attempt', () => {
       it('returns the eventual successful result from the service', async () => {
         const mockService = createErroringService({
-          succeedOnAttempt: DEFAULT_MAX_RETRIES + 1,
+          failUntilNthAttempt: DEFAULT_MAX_RETRIES + 1,
         });
         const policy = createServicePolicyForTestingRetries();
 
@@ -489,21 +429,23 @@ describe('createServicePolicy', () => {
 
       it('fires onAvailable on the first successful (fast) execution and not again on subsequent successful (fast) executions', async () => {
         const mockService = createErroringService({
-          succeedOnAttempt: DEFAULT_MAX_RETRIES + 1,
+          failUntilNthAttempt: DEFAULT_MAX_RETRIES + 1,
         });
         const onAvailableListener = jest.fn();
         const policy = createServicePolicyForTestingRetries();
         policy.onAvailable(onAvailableListener);
 
         await policy.execute(mockService);
-        await policy.execute(jest.fn());
+        await policy.execute(() => {
+          // dummy function
+        });
 
         expect(onAvailableListener).toHaveBeenCalledTimes(1);
       });
 
       it('does not fire onDegraded if the final attempt takes less time than the degraded threshold', async () => {
         const mockService = createErroringService({
-          succeedOnAttempt: DEFAULT_MAX_RETRIES + 1,
+          failUntilNthAttempt: DEFAULT_MAX_RETRIES + 1,
         });
         const onDegradedListener = jest.fn();
         const policy = createServicePolicyForTestingRetries();
@@ -696,6 +638,127 @@ describe('createServicePolicy', () => {
         expect(onAvailableListener).toHaveBeenCalledTimes(1);
       });
     });
+
+    describe('using a custom retryFilterPolicy', () => {
+      it('throws the error immediately without retrying if retryFilterPolicy filters the error out', async () => {
+        const error = new Error('failure');
+        const mockService = jest.fn(() => {
+          throw error;
+        });
+        const policy = createServicePolicyForTestingRetries({
+          options: {
+            retryFilterPolicy: handleWhen(
+              (caughtError) => caughtError.message !== 'failure',
+            ),
+          },
+        });
+
+        await expect(policy.execute(mockService)).rejects.toThrow(error);
+        expect(mockService).toHaveBeenCalledTimes(1);
+      });
+
+      it('does not fire onRetry, onBreak, onDegraded, or onAvailable if retryFilterPolicy filters the error out', async () => {
+        const error = new Error('failure');
+        const mockService = jest.fn(() => {
+          throw error;
+        });
+        const onRetryListener = jest.fn();
+        const onBreakListener = jest.fn();
+        const onDegradedListener = jest.fn();
+        const onAvailableListener = jest.fn();
+        const policy = createServicePolicyForTestingRetries({
+          options: {
+            retryFilterPolicy: handleWhen(
+              (caughtError) => caughtError.message !== 'failure',
+            ),
+          },
+        });
+        policy.onRetry(onRetryListener);
+        policy.onBreak(onBreakListener);
+        policy.onDegraded(onDegradedListener);
+        policy.onAvailable(onAvailableListener);
+
+        await ignoreRejection(policy.execute(mockService));
+
+        expect(onRetryListener).not.toHaveBeenCalled();
+        expect(onBreakListener).not.toHaveBeenCalled();
+        expect(onDegradedListener).not.toHaveBeenCalled();
+        expect(onAvailableListener).not.toHaveBeenCalled();
+      });
+
+      it('throws the error after retrying if retryFilterPolicy filters the error in', async () => {
+        const error = new Error('failure');
+        const mockService = jest.fn(() => {
+          throw error;
+        });
+        const policy = createServicePolicyForTestingRetries({
+          options: {
+            retryFilterPolicy: handleWhen(
+              (caughtError) => caughtError.message === 'failure',
+            ),
+          },
+        });
+
+        await expect(policy.execute(mockService)).rejects.toThrow(error);
+        expect(mockService).toHaveBeenCalledTimes(DEFAULT_MAX_RETRIES + 1);
+      });
+
+      it('fires onRetry if retryFilterPolicy filters the error in', async () => {
+        const error = new Error('failure');
+        const mockService = jest.fn(() => {
+          throw error;
+        });
+        const onRetryListener = jest.fn();
+        const policy = createServicePolicyForTestingRetries({
+          options: {
+            retryFilterPolicy: handleWhen(
+              (caughtError) => caughtError.message === 'failure',
+            ),
+          },
+        });
+        policy.onRetry(onRetryListener);
+
+        await ignoreRejection(policy.execute(mockService));
+        expect(onRetryListener).toHaveBeenCalled();
+      });
+    });
+
+    describe('using a custom isServiceFailure predicate', () => {
+      it('opens the circuit when the predicate treats the error as a service failure', async () => {
+        const error = new Error('failure');
+        const mockService = createErroringService({ error });
+        const onBreakListener = jest.fn();
+        const policy = createServicePolicyForTestingRetries({
+          options: {
+            isServiceFailure: () => true,
+          },
+          breakAfterFirstExecution: true,
+        });
+        policy.onBreak(onBreakListener);
+
+        await ignoreRejection(policy.execute(mockService));
+
+        expect(onBreakListener).toHaveBeenCalledTimes(1);
+        expect(onBreakListener).toHaveBeenCalledWith({ error });
+      });
+
+      it('never opens the circuit when the predicate does not treat the error as a service failure', async () => {
+        const error = new Error('failure');
+        const mockService = createErroringService({ error });
+        const onBreakListener = jest.fn();
+        const policy = createServicePolicyForTestingRetries({
+          options: {
+            isServiceFailure: () => false,
+          },
+          breakAfterFirstExecution: true,
+        });
+        policy.onBreak(onBreakListener);
+
+        await ignoreRejection(policy.execute(mockService));
+
+        expect(onBreakListener).not.toHaveBeenCalled();
+      });
+    });
   });
 
   describe('getRemainingCircuitOpenDuration', () => {
@@ -816,118 +879,6 @@ describe('createServicePolicy', () => {
       expect(onAvailableListener).toHaveBeenCalledTimes(2);
     });
   });
-
-  describe('using a custom isServiceFailure predicate', () => {
-    it('opens the circuit when the predicate treats the error as a service failure', async () => {
-      const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
-      const error = new Error('failure');
-      const mockService = jest.fn(() => {
-        throw error;
-      });
-      const onBreakListener = jest.fn();
-      const policy = createServicePolicy({
-        maxConsecutiveFailures,
-        isServiceFailure: () => true,
-      });
-      policy.onBreak(onBreakListener);
-
-      const promise = policy.execute(mockService);
-      // It's safe not to await this promise; adding it to the promise
-      // queue is enough to prevent this test from running indefinitely.
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      jest.runAllTimersAsync();
-      await ignoreRejection(promise);
-
-      expect(onBreakListener).toHaveBeenCalledTimes(1);
-      expect(onBreakListener).toHaveBeenCalledWith({ error });
-    });
-
-    it('never opens the circuit when the predicate does not treat the error as a service failure', async () => {
-      const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
-      const error = new Error('failure');
-      const mockService = jest.fn(() => {
-        throw error;
-      });
-      const onBreakListener = jest.fn();
-      const policy = createServicePolicy({
-        maxConsecutiveFailures,
-        isServiceFailure: () => false,
-      });
-      policy.onBreak(onBreakListener);
-
-      // Execute more times than the max consecutive failures so that the
-      // circuit would open if these errors were counted as failures.
-      for (let i = 0; i < maxConsecutiveFailures + 1; i++) {
-        const promise = policy.execute(mockService);
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        jest.runAllTimersAsync();
-        await ignoreRejection(promise);
-      }
-
-      expect(onBreakListener).not.toHaveBeenCalled();
-    });
-
-    it('calls the predicate with the error thrown by the service', async () => {
-      const error = new Error('failure');
-      const mockService = jest.fn(() => {
-        throw error;
-      });
-      const isServiceFailure = jest.fn(() => true);
-      const policy = createServicePolicy({
-        maxConsecutiveFailures: DEFAULT_MAX_RETRIES + 1,
-        isServiceFailure,
-      });
-
-      const promise = policy.execute(mockService);
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      jest.runAllTimersAsync();
-      await ignoreRejection(promise);
-
-      expect(isServiceFailure).toHaveBeenCalledWith(error);
-    });
-  });
-
-  describe('using the default isServiceFailure predicate', () => {
-    it('opens the circuit for an error with an HTTP status >= 500', async () => {
-      const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
-      const error = Object.assign(new Error('failure'), { httpStatus: 500 });
-      const mockService = jest.fn(() => {
-        throw error;
-      });
-      const onBreakListener = jest.fn();
-      const policy = createServicePolicy({ maxConsecutiveFailures });
-      policy.onBreak(onBreakListener);
-
-      const promise = policy.execute(mockService);
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      jest.runAllTimersAsync();
-      await ignoreRejection(promise);
-
-      expect(onBreakListener).toHaveBeenCalledTimes(1);
-    });
-
-    it('never opens the circuit for an error with an HTTP status < 500', async () => {
-      const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
-      const error = Object.assign(new Error('failure'), { httpStatus: 400 });
-      const mockService = jest.fn(() => {
-        throw error;
-      });
-      const onBreakListener = jest.fn();
-      const policy = createServicePolicy({ maxConsecutiveFailures });
-      policy.onBreak(onBreakListener);
-
-      // Execute more times than the max consecutive failures so that the
-      // circuit would open if these errors were counted as failures.
-      for (let i = 0; i < maxConsecutiveFailures + 1; i++) {
-        const promise = policy.execute(mockService);
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        jest.runAllTimersAsync();
-        await ignoreRejection(promise);
-      }
-
-      expect(onBreakListener).not.toHaveBeenCalled();
-    });
-  });
 });
 
 /**
@@ -949,22 +900,31 @@ async function ignoreRejection<Type>(promise: Promise<Type>): Promise<void> {
  * - using a zero-delay constant backoff so tests do not need to account for
  *   jitter when advancing timers
  * - advancing timers automatically whenever retries occur
+ * - allowing for the service to break on first execution
  *
  * @param args - The arguments.
  * @param args.options - Any additional options to pass to `createServicePolicy`.
  * @param args.onRetryListener - The onRetry callback to register.
  * @returns The service policy.
+ * @param args.breakAfterFirstExecution - Assuming that the service always
+ * error, causes the policy's circuit to break the first time the service is
+ * executed.
  */
 function createServicePolicyForTestingRetries({
   options,
   onRetryListener = (): ReturnType<Parameters<ServicePolicy['onRetry']>[0]> =>
     jest.advanceTimersToNextTimer(),
+  breakAfterFirstExecution = false,
 }: {
   options?: Parameters<typeof createServicePolicy>[0];
   onRetryListener?: Parameters<ServicePolicy['onRetry']>[0];
+  breakAfterFirstExecution?: boolean;
 } = {}): ReturnType<typeof createServicePolicy> {
   const policy = createServicePolicy({
     backoff: new ConstantBackoff(0),
+    ...(breakAfterFirstExecution
+      ? { maxRetries: 0, maxConsecutiveFailures: 1 }
+      : {}),
     ...options,
   });
   policy.onRetry(onRetryListener);
@@ -972,12 +932,12 @@ function createServicePolicyForTestingRetries({
 }
 
 /**
- * Builds a mock service that throws `error` on every call up to (but not
- * including) the `succeedOnAttempt`-th call, then returns `result`.
+ * Builds a mock service that throws `error` on every call before some number of
+ * attempts, then returns `result`.
  *
  * @param options - Options.
- * @param options.succeedOnAttempt - The 1-based attempt number on which the
- * service should succeed (default: Infinity — never succeeds).
+ * @param options.failUntilNthAttempt - The 1-based attempt number at which the
+ * service should start succeeding (default: Infinity — never succeeds).
  * @param options.error - The error to throw on failure (default: `new
  * Error('failure')`).
  * @param options.result - The value to return on success (default: `{ some:
@@ -985,18 +945,18 @@ function createServicePolicyForTestingRetries({
  * @returns A Jest mock function.
  */
 function createErroringService({
-  succeedOnAttempt = Infinity,
+  failUntilNthAttempt = Infinity,
   error = new Error('failure'),
   result = { some: 'data' },
 }: {
-  succeedOnAttempt?: number;
+  failUntilNthAttempt?: number;
   error?: Error;
   result?: unknown;
 } = {}): jest.Mock {
   let attempts = 0;
   return jest.fn(() => {
     attempts += 1;
-    if (attempts >= succeedOnAttempt) {
+    if (attempts >= failUntilNthAttempt) {
       return result;
     }
     throw error;
