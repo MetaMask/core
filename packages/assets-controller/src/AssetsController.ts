@@ -100,6 +100,8 @@ import {
 } from './defaults';
 import { AssetsDataSourceError } from './errors';
 import { projectLogger, createModuleLogger } from './logger';
+import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetadata';
+import { tempHealAssetsInfoMetadata } from './migrations/healAssetsInfoMetadata';
 import { CustomAssetGraduationMiddleware } from './middlewares/CustomAssetGraduationMiddleware';
 import { DetectionMiddleware } from './middlewares/DetectionMiddleware';
 import {
@@ -435,6 +437,12 @@ export type AssetsControllerOptions = {
    * Defaults to () => true.
    */
   isOnboarded?: () => boolean;
+
+  /**
+   * TEMPORARY — will be removed in a future release.
+   * Issue: https://consensyssoftware.atlassian.net/browse/ASSETS-3346
+   */
+  tempMigrateAssetsInfoMetadataAssets3346?: () => Assets3346MigrationState;
 };
 
 // ============================================================================
@@ -849,6 +857,7 @@ export class AssetsController extends BaseController<
     priceDataSourceConfig,
     stakedBalanceDataSourceConfig,
     isOnboarded,
+    tempMigrateAssetsInfoMetadataAssets3346,
   }: AssetsControllerOptions) {
     super({
       name: CONTROLLER_NAME,
@@ -867,6 +876,18 @@ export class AssetsController extends BaseController<
     this.#captureException = captureException;
     this.#queryApiClient = queryApiClient;
     const rpcConfig = rpcDataSourceConfig ?? {};
+
+    // TEMPORARY: heal assetsInfo metadata wiped by a prior defect
+    // (see extension migration #215 / ASSETS-3346). Remove in a future release.
+    if (tempMigrateAssetsInfoMetadataAssets3346) {
+      this.update(
+        tempHealAssetsInfoMetadata({
+          state: this.state,
+          getMigrationState: tempMigrateAssetsInfoMetadataAssets3346,
+          captureException,
+        }),
+      );
+    }
 
     this.#initializeNativeAssetsMap(queryApiClient);
 
