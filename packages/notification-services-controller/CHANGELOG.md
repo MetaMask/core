@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `toRawAPINotification()` now normalises v4 notifications, mapping on-chain `notification_subtype` to the `type` field
     - Regenerated `schema.ts` from the latest Notification API OpenAPI spec, including v4 paths and legacy v1–v3 schemas
     - `AppPlatform` now includes `"portfolio"` in addition to `"extension"` and `"mobile"`
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 
 ## [24.3.0]
 
