@@ -318,5 +318,4 @@ describe('user-segmentation-utils', () => {
       ).toBe(false);
     });
   });
-
 });

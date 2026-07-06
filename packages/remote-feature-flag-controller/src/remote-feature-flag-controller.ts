@@ -482,9 +482,7 @@ export class RemoteFeatureFlagController extends BaseController<
               explicitMatch.name;
           }
         } else {
-          const segmentationId = this.#getSegmentationId(
-            remoteFeatureFlagName,
-          );
+          const segmentationId = this.#getSegmentationId(remoteFeatureFlagName);
 
           if (!segmentationId) {
             processedFlags[remoteFeatureFlagName] = processedValue;
