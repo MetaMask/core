@@ -118,17 +118,17 @@ export type NetworkConnectionBannerStatus =
   | 'unavailable';
 
 /**
- * A network from `NetworkController` state that has a default RPC endpoint
- * with a known metadata status. Used as the input to the failed-network
- * detection pipeline.
+ * An enabled network from `NetworkController` state with a default RPC
+ * endpoint. Used as the input to the failed-network detection pipeline.
+ * `metadata` is missing until the network's connectivity has been looked up.
  */
-type NetworkWithMetadata = {
+type EnabledNetwork = {
   chainId: Hex;
   name: string;
   rpcEndpoints: NetworkConfiguration['rpcEndpoints'];
   defaultRpcEndpointIndex: number;
   defaultRpcEndpoint: NetworkConfiguration['rpcEndpoints'][number];
-  metadata: NetworkMetadata;
+  metadata: NetworkMetadata | undefined;
 };
 
 /**
@@ -295,7 +295,7 @@ export type NetworkConnectionBannerControllerOptions = {
  *
  * - A failing network's default RPC is a custom (non-Infura) endpoint —
  *   users always want to be informed about errors with RPCs they've chosen.
- * - Every enabled EVM network with known connectivity status is failing
+ * - Every enabled EVM network is reporting a failed connectivity status
  *   (escape hatch so Infura-only setups still get a signal).
  *
  * A partial Infura outage alongside healthy peers is suppressed since it
@@ -614,16 +614,20 @@ export class NetworkConnectionBannerController extends BaseController<
       'enabledNetworkMap'
     >,
   ): FailedNetwork | null {
-    const networksWithMetadata = this.#collectNetworksWithMetadata(
+    const enabledNetworks = this.#collectEnabledNetworks(
       networkState,
       enablementState,
     );
-    const failedNetworks = networksWithMetadata
-      .filter(({ metadata }) => metadata.status !== NetworkStatus.Available)
+    // Networks whose connectivity has not been looked up yet are not failed.
+    const failedNetworks = enabledNetworks
+      .filter(
+        ({ metadata }) =>
+          metadata !== undefined && metadata.status !== NetworkStatus.Available,
+      )
       .map((network) => this.#buildFailedNetwork(network));
     return this.#pickFailedNetworkToDisplay(
       failedNetworks,
-      networksWithMetadata.length,
+      enabledNetworks.length,
     );
   }
 
@@ -635,7 +639,7 @@ export class NetworkConnectionBannerController extends BaseController<
       .map(([chainId]) => chainId as Hex);
   }
 
-  #collectNetworksWithMetadata(
+  #collectEnabledNetworks(
     {
       networkConfigurationsByChainId,
       networksMetadata,
@@ -646,7 +650,7 @@ export class NetworkConnectionBannerController extends BaseController<
     {
       enabledNetworkMap,
     }: Pick<NetworkEnablementControllerState, 'enabledNetworkMap'>,
-  ): NetworkWithMetadata[] {
+  ): EnabledNetwork[] {
     return this.#getEnabledEvmChainIds(enabledNetworkMap).flatMap((chainId) => {
       const networkConfiguration = networkConfigurationsByChainId[chainId];
       if (!networkConfiguration) {
@@ -658,10 +662,6 @@ export class NetworkConnectionBannerController extends BaseController<
       if (!defaultRpcEndpoint) {
         return [];
       }
-      const metadata = networksMetadata[defaultRpcEndpoint.networkClientId];
-      if (!metadata) {
-        return [];
-      }
       return [
         {
           chainId,
@@ -669,7 +669,7 @@ export class NetworkConnectionBannerController extends BaseController<
           rpcEndpoints,
           defaultRpcEndpointIndex,
           defaultRpcEndpoint,
-          metadata,
+          metadata: networksMetadata[defaultRpcEndpoint.networkClientId],
         },
       ];
     });
@@ -681,7 +681,7 @@ export class NetworkConnectionBannerController extends BaseController<
     rpcEndpoints,
     defaultRpcEndpointIndex,
     defaultRpcEndpoint,
-  }: NetworkWithMetadata): FailedNetwork {
+  }: EnabledNetwork): FailedNetwork {
     const isInfuraEndpoint = getIsInfuraEndpoint(defaultRpcEndpoint.url);
 
     // For custom endpoints (non-Infura), find an Infura endpoint on this
@@ -708,7 +708,7 @@ export class NetworkConnectionBannerController extends BaseController<
 
   #pickFailedNetworkToDisplay(
     failedNetworks: FailedNetwork[],
-    totalNetworksWithMetadata: number,
+    totalEnabledNetworks: number,
   ): FailedNetwork | null {
     if (failedNetworks.length === 0) {
       return null;
@@ -717,10 +717,10 @@ export class NetworkConnectionBannerController extends BaseController<
     const firstCustomFailed = failedNetworks.find(
       (entry) => !entry.isInfuraEndpoint,
     );
-    const areAllKnownNetworksFailed =
-      failedNetworks.length === totalNetworksWithMetadata;
+    const areAllEnabledNetworksFailed =
+      failedNetworks.length === totalEnabledNetworks;
 
-    if (!firstCustomFailed && !areAllKnownNetworksFailed) {
+    if (!firstCustomFailed && !areAllEnabledNetworksFailed) {
       return null;
     }
 

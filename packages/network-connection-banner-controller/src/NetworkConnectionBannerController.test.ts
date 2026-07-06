@@ -701,7 +701,7 @@ describe('NetworkConnectionBannerController', () => {
       });
     });
 
-    it('ignores enabled networks with missing metadata when every known network is failing', async () => {
+    it('does not show the banner when an Infura network fails while another enabled network still has unknown status', async () => {
       await withController(({ controller, publishNetworkStateChanges }) => {
         publishNetworkStateChanges(
           buildExternalState({
@@ -735,12 +735,13 @@ describe('NetworkConnectionBannerController', () => {
           }),
         );
 
-        jest.advanceTimersByTime(5_000);
+        // The network without metadata has not been looked up yet, so it does
+        // not count as failed and the all-down escape hatch must not trigger.
+        jest.advanceTimersByTime(30_000);
 
-        expect(controller.state.networkConnectionBannerStatus).toBe('degraded');
-        expect(controller.state.networkConnectionBannerNetwork).toMatchObject({
-          networkClientId: MAINNET_CLIENT_ID,
-        });
+        expect(controller.state.networkConnectionBannerStatus).toBe(
+          'available',
+        );
       });
     });
 
