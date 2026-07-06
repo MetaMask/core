@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [4.0.1]
 
+### Changed
+
+- Bump `@metamask/chain-agnostic-permission` from `^1.6.2` to `^1.7.0` ([#9399](https://github.com/MetaMask/core/pull/9399))
+  - This aligns the declared dependency range with the version that provides `getSessionProperties`, which this package requires.
+
 ## [4.0.0]
 
 ### Added
