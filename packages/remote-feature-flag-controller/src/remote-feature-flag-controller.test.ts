@@ -1117,8 +1117,8 @@ describe('RemoteFeatureFlagController', () => {
       );
 
       expect(controller.state.rawRemoteFeatureFlags).toBeDefined();
-      const rawRemoteFeatureFlags =
-        controller.state.rawRemoteFeatureFlags as FeatureFlags;
+      const rawRemoteFeatureFlags = controller.state
+        .rawRemoteFeatureFlags as FeatureFlags;
       const rawEntries = rawRemoteFeatureFlags.testFlag as Record<
         string,
         unknown
