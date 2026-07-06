@@ -468,29 +468,12 @@ export class RemoteFeatureFlagController extends BaseController<
           continue;
         }
 
-        // Skip threshold processing if the configured identifier is not available
-        const segmentationId = this.#getSegmentationId(remoteFeatureFlagName);
-
-        if (!segmentationId) {
-          processedFlags[remoteFeatureFlagName] = processedValue;
-          continue;
-        }
-
-        // Check cache first, calculate only if needed
-        const cacheKey = `${segmentationId}:${remoteFeatureFlagName}` as const;
-        let thresholdValue = this.state.thresholdCache?.[cacheKey];
-
-        if (thresholdValue === undefined) {
-          thresholdValue = await calculateThresholdForFlag(
-            segmentationId,
-            remoteFeatureFlagName,
-          );
         // Explicit-ID matching: check before hash-based threshold, bypasses cache
+        const metaMetricsId = this.#getMetaMetricsId();
         const normalizedMetaMetricsId = metaMetricsId.trim().toLowerCase();
-        const explicitMatch = findExplicitIdMatch(
-          processedValue,
-          normalizedMetaMetricsId,
-        );
+        const explicitMatch = normalizedMetaMetricsId
+          ? findExplicitIdMatch(processedValue, normalizedMetaMetricsId)
+          : undefined;
 
         if (explicitMatch) {
           processedValue = explicitMatch.value;
@@ -499,13 +482,23 @@ export class RemoteFeatureFlagController extends BaseController<
               explicitMatch.name;
           }
         } else {
+          const segmentationId = this.#getSegmentationId(
+            remoteFeatureFlagName,
+          );
+
+          if (!segmentationId) {
+            processedFlags[remoteFeatureFlagName] = processedValue;
+            continue;
+          }
+
           // Fall back to hash-based threshold selection with cache
-          const cacheKey = `${metaMetricsId}:${remoteFeatureFlagName}` as const;
+          const cacheKey =
+            `${segmentationId}:${remoteFeatureFlagName}` as const;
           let thresholdValue = this.state.thresholdCache?.[cacheKey];
 
           if (thresholdValue === undefined) {
             thresholdValue = await calculateThresholdForFlag(
-              metaMetricsId,
+              segmentationId,
               remoteFeatureFlagName,
             );
 
