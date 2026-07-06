@@ -550,6 +550,23 @@ describe('tempHealAssetsInfoMetadata', () => {
     expect(healedState).toBe(state);
   });
 
+  it('does not mutate existing customAssets arrays on the input state', () => {
+    const otherAssetId =
+      'eip155:14/erc20:0x0000000000000000000000000000000000000001' as Caip19AssetId;
+    const existingCustomAssets = [otherAssetId];
+    const state = buildFullState({
+      customAssets: { [ACCOUNT_ID]: existingCustomAssets },
+    });
+
+    tempHealAssetsInfoMetadata({
+      state,
+      getMigrationState: () => buildLegacyState(VALID_TOKEN),
+    });
+
+    expect(existingCustomAssets).toStrictEqual([otherAssetId]);
+    expect(state.customAssets[ACCOUNT_ID]).toBe(existingCustomAssets);
+  });
+
   it('is idempotent: re-running never duplicates or overwrites entries', () => {
     const otherAssetId =
       'eip155:14/erc20:0x0000000000000000000000000000000000000001' as Caip19AssetId;

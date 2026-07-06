@@ -7,6 +7,7 @@ import {
   hasProperty,
   isObject,
 } from '@metamask/utils';
+import { cloneDeep } from 'lodash';
 
 import { createModuleLogger, projectLogger } from '../logger';
 import type {
@@ -144,12 +145,7 @@ export function tempHealAssetsInfoMetadata({
   }
 
   try {
-    const nextState: AssetsControllerStateInternal = {
-      ...state,
-      assetsInfo: { ...state.assetsInfo },
-      customAssets: { ...state.customAssets },
-    };
-
+    const nextState = cloneDeep(state);
     applyHealingPatch(nextState, patch);
 
     log('Healed wiped assetsInfo metadata for niche-chain tokens', {
@@ -169,7 +165,7 @@ export function tempHealAssetsInfoMetadata({
  * concurrent writes: fills `assetsInfo` gaps only and dedupes `customAssets`
  * against the current draft rather than trusting the patch blindly.
  *
- * @param state - Mutable controller state (an Immer draft).
+ * @param state - Mutable controller state copy.
  * @param patch - The additions computed by {@link healAssetsInfoMetadata}.
  */
 function applyHealingPatch(
