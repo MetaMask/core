@@ -103,6 +103,11 @@ async function main(): Promise<void> {
         pid: process.pid,
         uptime: Math.floor((Date.now() - startTime) / 1000),
       }),
+      // Exposes the callable surface for discovery: it grows silently as
+      // controllers are wired, so consumers need a way to see it without a
+      // hand-kept catalog that would rot.
+      listActions: async (): Promise<Json> =>
+        constructedWallet.messenger.getRegisteredActionTypes(),
       // Arbitrary messenger dispatch is intentional: the CLI exposes the full
       // messenger surface over a Unix socket inside the per-user oclif data
       // directory. The dataDir is chmodded to 0o700 above and the socket to

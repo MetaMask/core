@@ -13,6 +13,8 @@ export {
 
 export type {
   SocialControllerFollowTraderAction,
+  SocialControllerOptInToLeaderboardAction,
+  SocialControllerOptOutOfLeaderboardAction,
   SocialControllerUnfollowTraderAction,
   SocialControllerUpdateFollowingAction,
   SocialControllerUpdateLeaderboardAction,
@@ -34,6 +36,8 @@ export type {
   SocialServiceFetchPositionByIdAction,
   SocialServiceFetchTraderProfileAction,
   SocialServiceFollowAction,
+  SocialServiceOptInToLeaderboardAction,
+  SocialServiceOptOutOfLeaderboardAction,
   SocialServiceUnfollowAction,
 } from './SocialService-method-action-types';
 

@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Wallet alignment now only creates the missing `(provider, group index)` pairs instead of re-creating the whole range for every provider, avoiding redundant `createAccounts` calls (and their traces) ([#9269](https://github.com/MetaMask/core/pull/9269))
+- Bump `@metamask/accounts-controller` from `^39.0.3` to `^39.0.4` ([#9349](https://github.com/MetaMask/core/pull/9349))
 
 ## [11.1.0]
 
