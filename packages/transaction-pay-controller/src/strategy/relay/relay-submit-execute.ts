@@ -27,6 +27,24 @@ export async function submitViaRelayExecute(
   messenger: TransactionPayControllerMessenger,
   allParams: TransactionParams[],
 ): Promise<Hex> {
+  try {
+    return await submitViaRelayExecuteInternal(
+      quote,
+      transaction,
+      messenger,
+      allParams,
+    );
+  } catch (error) {
+    throw prefixError(error, RELAY_EXECUTE_ERROR_PREFIX);
+  }
+}
+
+async function submitViaRelayExecuteInternal(
+  quote: TransactionPayQuote<RelayQuote>,
+  transaction: TransactionMeta,
+  messenger: TransactionPayControllerMessenger,
+  allParams: TransactionParams[],
+): Promise<Hex> {
   const isSubsidized = isSubsidizedRelayQuote(quote.original);
   const requestId = getRelayExecuteRequestId(quote.original);
   const metamask = getRelayExecuteMetamask(quote.original, isSubsidized);
@@ -74,12 +92,7 @@ export async function submitViaRelayExecute(
 
   log('Submitting to Relay execute', { executeBody, from: quote.request.from });
 
-  let result;
-  try {
-    result = await submitRelayExecute(messenger, executeBody);
-  } catch (error) {
-    throw prefixError(error, RELAY_EXECUTE_ERROR_PREFIX);
-  }
+  const result = await submitRelayExecute(messenger, executeBody);
 
   log('Relay execute response', result);
 
@@ -103,9 +116,7 @@ function stripRelayExecuteMarker(requestId: string): string {
 function getRelayExecuteRequestId(quote: RelayQuote): string {
   const requestId = quote.steps?.[0]?.requestId;
   if (!requestId) {
-    throw new Error(
-      `${RELAY_EXECUTE_ERROR_PREFIX}Missing requestId in quote step`,
-    );
+    throw new Error('Missing requestId in quote step');
   }
   return stripRelayExecuteMarker(requestId);
 }
@@ -121,7 +132,7 @@ function getRelayExecuteMetamask(
   const signature = quote.metamask?.signature;
   if (!signature) {
     throw new Error(
-      `${RELAY_EXECUTE_ERROR_PREFIX}Missing metamask.signature — cannot submit to /relay/execute without the HMAC token`,
+      'Missing metamask.signature — cannot submit to /relay/execute without the HMAC token',
     );
   }
   return {
@@ -163,9 +174,7 @@ function replaceFirstStepRequestId(quote: RelayQuote, requestId: string): void {
   const steps = quote.steps ?? [];
   /* istanbul ignore if: requestId is read from steps[0] earlier, so steps is non-empty here; defensive guard. */
   if (steps.length === 0) {
-    throw new Error(
-      `${RELAY_EXECUTE_ERROR_PREFIX}Cannot update requestId — quote has no steps`,
-    );
+    throw new Error('Cannot update requestId — quote has no steps');
   }
 
   const existingStep = steps[0];
