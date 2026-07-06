@@ -1,9 +1,9 @@
+import type { Caip19AssetId } from '../types';
 import type { CurrentAssetsState } from './healAssetsInfoMetadata';
 import {
   healAssetsInfoMetadata,
   tempHealAssetsInfoMetadata,
 } from './healAssetsInfoMetadata';
-import type { Caip19AssetId } from '../types';
 
 const ACCOUNT_ID = 'account-uuid-1';
 const ACCOUNT_ADDRESS = '0x1111111111111111111111111111111111111111';
@@ -80,8 +80,9 @@ describe('healAssetsInfoMetadata', () => {
       ['a missing allTokens', { TokensController: {} }],
       ['a non-object allTokens', { TokensController: { allTokens: [] } }],
     ])('returns null when legacy state is %s', (_description, legacyState) => {
-      expect(healAssetsInfoMetadata(legacyState, buildCurrentState())).toBeNull(
-        );
+      expect(
+        healAssetsInfoMetadata(legacyState, buildCurrentState()),
+      ).toBeNull();
     });
 
     it('skips chain entries that are not objects', () => {
@@ -91,8 +92,9 @@ describe('healAssetsInfoMetadata', () => {
         },
       };
 
-      expect(healAssetsInfoMetadata(legacyState, buildCurrentState())).toBeNull(
-        );
+      expect(
+        healAssetsInfoMetadata(legacyState, buildCurrentState()),
+      ).toBeNull();
     });
 
     it('skips account entries that are not arrays', () => {
@@ -104,8 +106,9 @@ describe('healAssetsInfoMetadata', () => {
         },
       };
 
-      expect(healAssetsInfoMetadata(legacyState, buildCurrentState())).toBeNull(
-        );
+      expect(
+        healAssetsInfoMetadata(legacyState, buildCurrentState()),
+      ).toBeNull();
     });
 
     it.each([
@@ -135,8 +138,9 @@ describe('healAssetsInfoMetadata', () => {
         },
       };
 
-      expect(healAssetsInfoMetadata(legacyState, buildCurrentState())).toBeNull(
-        );
+      expect(
+        healAssetsInfoMetadata(legacyState, buildCurrentState()),
+      ).toBeNull();
     });
 
     it('skips hex chain keys too large to represent as a number', () => {
@@ -148,8 +152,9 @@ describe('healAssetsInfoMetadata', () => {
         },
       };
 
-      expect(healAssetsInfoMetadata(legacyState, buildCurrentState())).toBeNull(
-        );
+      expect(
+        healAssetsInfoMetadata(legacyState, buildCurrentState()),
+      ).toBeNull();
     });
 
     it('tolerates a malformed AccountsController and still heals assetsInfo', () => {
@@ -317,8 +322,7 @@ describe('healAssetsInfoMetadata', () => {
     });
 
     it('dedupes the same token across accounts (metadata once, tracking per account)', () => {
-      const otherAccountAddress =
-        '0x2222222222222222222222222222222222222222';
+      const otherAccountAddress = '0x2222222222222222222222222222222222222222';
       const otherAccountId = 'account-uuid-2';
       const legacyState = {
         TokensController: {
@@ -361,8 +365,9 @@ describe('healAssetsInfoMetadata', () => {
         },
       };
 
-      expect(healAssetsInfoMetadata(legacyState, buildCurrentState())).toBeNull(
-        );
+      expect(
+        healAssetsInfoMetadata(legacyState, buildCurrentState()),
+      ).toBeNull();
     });
 
     it('skips ERC-721 tokens', () => {
@@ -390,8 +395,9 @@ describe('healAssetsInfoMetadata', () => {
         },
       };
 
-      expect(healAssetsInfoMetadata(legacyState, buildCurrentState())).toBeNull(
-        );
+      expect(
+        healAssetsInfoMetadata(legacyState, buildCurrentState()),
+      ).toBeNull();
     });
 
     it('skips tokens hidden via current assetPreferences (case-insensitive)', () => {

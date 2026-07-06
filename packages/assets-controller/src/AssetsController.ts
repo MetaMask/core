@@ -100,8 +100,6 @@ import {
 } from './defaults';
 import { AssetsDataSourceError } from './errors';
 import { projectLogger, createModuleLogger } from './logger';
-import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetadata';
-import { tempHealAssetsInfoMetadata } from './migrations/healAssetsInfoMetadata';
 import { CustomAssetGraduationMiddleware } from './middlewares/CustomAssetGraduationMiddleware';
 import { DetectionMiddleware } from './middlewares/DetectionMiddleware';
 import {
@@ -109,6 +107,8 @@ import {
   createParallelMiddleware,
 } from './middlewares/ParallelMiddleware';
 import { RpcFallbackMiddleware } from './middlewares/RpcFallbackMiddleware';
+import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetadata';
+import { tempHealAssetsInfoMetadata } from './migrations/healAssetsInfoMetadata';
 import type {
   AccountId,
   AssetPreferences,

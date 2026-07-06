@@ -18,11 +18,11 @@ import type {
   AssetsControllerMessenger,
   AssetsControllerState,
 } from './AssetsController';
-import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetadata';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
 import { PriceDataSource } from './data-sources/PriceDataSource';
 import { TokenDataSource } from './data-sources/TokenDataSource';
 import { buildDefaultAssetsInfo } from './defaults';
+import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetadata';
 import type {
   Caip19AssetId,
   AccountId,
