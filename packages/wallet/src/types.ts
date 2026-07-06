@@ -11,6 +11,7 @@ import type { KeyringControllerInstanceOptions } from './initialization/instance
 import type { NetworkControllerInstanceOptions } from './initialization/instances/network-controller/types';
 import type { RemoteFeatureFlagControllerInstanceOptions } from './initialization/instances/remote-feature-flag-controller/types';
 import type { StorageServiceInstanceOptions } from './initialization/instances/storage-service/types';
+import type { TransactionControllerInstanceOptions } from './initialization/instances/transaction-controller/types';
 import type { InitializationConfiguration } from './initialization/types';
 
 export type WalletOptions = {
@@ -30,4 +31,5 @@ export type InstanceSpecificOptions = {
   networkController: NetworkControllerInstanceOptions;
   remoteFeatureFlagController: RemoteFeatureFlagControllerInstanceOptions;
   storageService: StorageServiceInstanceOptions;
+  transactionController?: TransactionControllerInstanceOptions;
 };

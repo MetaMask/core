@@ -62,6 +62,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/chomp-api-service`](packages/chomp-api-service)
 - [`@metamask/claims-controller`](packages/claims-controller)
 - [`@metamask/client-controller`](packages/client-controller)
+- [`@metamask/client-utils`](packages/client-utils)
 - [`@metamask/compliance-controller`](packages/compliance-controller)
 - [`@metamask/composable-controller`](packages/composable-controller)
 - [`@metamask/config-registry-controller`](packages/config-registry-controller)
@@ -106,6 +107,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/permission-log-controller`](packages/permission-log-controller)
 - [`@metamask/perps-controller`](packages/perps-controller)
 - [`@metamask/phishing-controller`](packages/phishing-controller)
+- [`@metamask/platform-api-docs`](packages/platform-api-docs)
 - [`@metamask/polling-controller`](packages/polling-controller)
 - [`@metamask/preferences-controller`](packages/preferences-controller)
 - [`@metamask/profile-metrics-controller`](packages/profile-metrics-controller)
@@ -162,6 +164,7 @@ linkStyle default opacity:0.5
   chomp_api_service(["@metamask/chomp-api-service"]);
   claims_controller(["@metamask/claims-controller"]);
   client_controller(["@metamask/client-controller"]);
+  client_utils(["@metamask/client-utils"]);
   compliance_controller(["@metamask/compliance-controller"]);
   composable_controller(["@metamask/composable-controller"]);
   config_registry_controller(["@metamask/config-registry-controller"]);
@@ -206,6 +209,7 @@ linkStyle default opacity:0.5
   permission_log_controller(["@metamask/permission-log-controller"]);
   perps_controller(["@metamask/perps-controller"]);
   phishing_controller(["@metamask/phishing-controller"]);
+  platform_api_docs(["@metamask/platform-api-docs"]);
   polling_controller(["@metamask/polling-controller"]);
   preferences_controller(["@metamask/preferences-controller"]);
   profile_metrics_controller(["@metamask/profile-metrics-controller"]);
@@ -593,8 +597,6 @@ linkStyle default opacity:0.5
   transaction_pay_controller --> assets_controller;
   transaction_pay_controller --> assets_controllers;
   transaction_pay_controller --> base_controller;
-  transaction_pay_controller --> bridge_controller;
-  transaction_pay_controller --> bridge_status_controller;
   transaction_pay_controller --> controller_utils;
   transaction_pay_controller --> gas_fee_controller;
   transaction_pay_controller --> keyring_controller;
@@ -624,6 +626,7 @@ linkStyle default opacity:0.5
   wallet --> network_controller;
   wallet --> remote_feature_flag_controller;
   wallet --> storage_service;
+  wallet --> transaction_controller;
   wallet_cli --> base_controller;
   wallet_cli --> remote_feature_flag_controller;
   wallet_cli --> storage_service;

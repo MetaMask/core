@@ -71,6 +71,7 @@ export const createMultichainAccountGroupsBatch = async (
         const didGroupAlreadyExist = existingGroupIndices.has(group.groupIndex);
 
         if (!didGroupAlreadyExist) {
+          context.mutationTracker?.setLocalWrite(true);
           context.emitAnalyticsEventFn({
             action: analyticsAction,
             profileId,

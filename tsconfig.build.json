@@ -74,6 +74,9 @@
       "path": "./packages/client-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/client-utils/tsconfig.build.json"
+    },
+    {
       "path": "./packages/compliance-controller/tsconfig.build.json"
     },
     {
@@ -153,6 +156,9 @@
     },
     {
       "path": "./packages/messenger-cli/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/platform-api-docs/tsconfig.build.json"
     },
     {
       "path": "./packages/messenger/tsconfig.build.json"

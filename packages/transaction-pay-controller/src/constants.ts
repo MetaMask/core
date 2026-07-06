@@ -71,11 +71,9 @@ export enum PaymentOverride {
 
 export enum TransactionPayStrategy {
   Across = 'across',
-  Bridge = 'bridge',
   Fiat = 'fiat',
   Relay = 'relay',
   Server = 'server',
-  Test = 'test',
 }
 
 const VALID_STRATEGIES = new Set(Object.values(TransactionPayStrategy));

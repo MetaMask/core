@@ -2,11 +2,15 @@ import { AccountWalletType } from '@metamask/account-api';
 
 import { BackupAndSyncService } from '.';
 import type { AccountGroupObject } from '../../group';
+import type { AccountTreeControllerState } from '../../types';
 import type { AccountWalletEntropyObject } from '../../wallet';
+import { TraceName } from '../analytics';
 import { getProfileId } from '../authentication';
+import { performLegacyAccountSyncing, syncWalletMetadata } from '../syncing';
 import type { BackupAndSyncContext } from '../types';
+import { getAllGroupsFromUserStorage } from '../user-storage';
 // We only need to import the functions we actually spy on
-import { getLocalEntropyWallets } from '../utils';
+import { createStateSnapshot, getLocalEntropyWallets } from '../utils';
 
 // Mock the sync functions and all external dependencies
 jest.mock('../syncing');
@@ -20,6 +24,26 @@ const mockGetProfileId = getProfileId as jest.MockedFunction<
 >;
 const mockGetLocalEntropyWallets =
   getLocalEntropyWallets as jest.MockedFunction<typeof getLocalEntropyWallets>;
+const mockSyncWalletMetadata = syncWalletMetadata as jest.MockedFunction<
+  typeof syncWalletMetadata
+>;
+const mockPerformLegacyAccountSyncing =
+  performLegacyAccountSyncing as jest.MockedFunction<
+    typeof performLegacyAccountSyncing
+  >;
+const mockGetAllGroupsFromUserStorage =
+  getAllGroupsFromUserStorage as jest.MockedFunction<
+    typeof getAllGroupsFromUserStorage
+  >;
+const mockCreateStateSnapshot = createStateSnapshot as jest.MockedFunction<
+  typeof createStateSnapshot
+>;
+
+// `jest.mock('../utils')` auto-mocks every export, including the tracker
+// factory. Grab the real one so tests use the actual tracker behaviour rather
+// than a hand-rolled duplicate.
+const { createSyncMutationTracker } =
+  jest.requireActual<typeof import('../utils')>('../utils');
 
 describe('BackupAndSync - Service - BackupAndSyncService', () => {
   let mockContext: BackupAndSyncContext;
@@ -57,6 +81,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       },
       traceFn: jest.fn().mockImplementation((_config, fn) => fn()),
       groupIdToWalletId: new Map(),
+      mutationTracker: createSyncMutationTracker(),
     } as unknown as BackupAndSyncContext;
 
     // Default setup - backup and sync enabled
@@ -65,6 +90,11 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
     // Setup default mock returns
     mockGetLocalEntropyWallets.mockReturnValue([]);
     mockGetProfileId.mockResolvedValue('test-profile-id');
+    // Return a truthy snapshot so the per-wallet rollback path runs (the real
+    // implementation always returns a snapshot object).
+    mockCreateStateSnapshot.mockReturnValue(
+      {} as ReturnType<typeof createStateSnapshot>,
+    );
 
     backupAndSyncService = new BackupAndSyncService(mockContext);
   });
@@ -325,11 +355,169 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       // Should have updated controller state to mark sync in progress and then completed
       expect(mockContext.controllerStateUpdateFn).toHaveBeenCalled();
 
-      // Should have called traceFn to wrap the sync operation
-      expect(mockContext.traceFn).toHaveBeenCalled();
-
       // The key difference: full sync should call getLocalEntropyWallets
       expect(mockGetLocalEntropyWallets).toHaveBeenCalled();
+    });
+
+    it('emits a backdated AccountSyncFull span when the sync mutates local state', async () => {
+      mockGetLocalEntropyWallets.mockReturnValue([
+        {
+          id: 'entropy:wallet-1',
+          metadata: { entropy: { id: 'test-entropy-id' } },
+        } as unknown as AccountWalletEntropyObject,
+      ]);
+      // Empty remote groups makes the wallet run complete cleanly (push + skip)
+      // without hitting the rollback path.
+      mockGetAllGroupsFromUserStorage.mockResolvedValue([]);
+
+      // Simulate a local write happening during the sync by having a mocked
+      // helper report a mutation through the context.
+      mockSyncWalletMetadata.mockImplementation(async (context) => {
+        context.mutationTracker?.setLocalWrite(true);
+      });
+
+      await backupAndSyncService.performFullSync();
+
+      expect(mockContext.traceFn).toHaveBeenCalledTimes(1);
+      expect(mockContext.traceFn).toHaveBeenCalledWith(
+        {
+          name: TraceName.AccountSyncFull,
+          startTime: expect.any(Number),
+        },
+        expect.any(Function),
+      );
+      // The traced callback is empty (the span is backdated, work already ran).
+      const [, tracedCallback] = (mockContext.traceFn as jest.Mock).mock
+        .calls[0];
+      expect(tracedCallback()).toBeUndefined();
+    });
+
+    it('clears the in-progress flag even when the trace emit fails', async () => {
+      mockGetLocalEntropyWallets.mockReturnValue([
+        {
+          id: 'entropy:wallet-1',
+          metadata: { entropy: { id: 'test-entropy-id' } },
+        } as unknown as AccountWalletEntropyObject,
+      ]);
+      mockGetAllGroupsFromUserStorage.mockResolvedValue([]);
+      mockSyncWalletMetadata.mockImplementation(async (context) => {
+        context.mutationTracker?.setLocalWrite(true);
+      });
+      // Tracing is best-effort: a rejected trace must not fail the sync nor
+      // leave the controller stuck mid-sync.
+      (mockContext.traceFn as jest.Mock).mockRejectedValue(
+        new Error('trace boom'),
+      );
+
+      expect(await backupAndSyncService.performFullSync()).toBeUndefined();
+
+      // Replay every state update; the in-progress flag must end up cleared.
+      const state = {
+        isAccountTreeSyncingInProgress: true,
+      } as AccountTreeControllerState;
+      for (const [updater] of (mockContext.controllerStateUpdateFn as jest.Mock)
+        .mock.calls) {
+        updater(state);
+      }
+      expect(state.isAccountTreeSyncingInProgress).toBe(false);
+    });
+
+    it('emits an AccountSyncFull span for a durable remote write even if the wallet is rolled back', async () => {
+      mockGetLocalEntropyWallets.mockReturnValue([
+        {
+          id: 'entropy:wallet-1',
+          metadata: { entropy: { id: 'test-entropy-id' } },
+        } as unknown as AccountWalletEntropyObject,
+      ]);
+
+      // A remote push happens, then the wallet fails and is rolled back. Remote
+      // writes are durable, so the run must still emit.
+      mockSyncWalletMetadata.mockImplementation(async (context) => {
+        context.mutationTracker?.setRemoteWrite(true);
+        throw new Error('boom');
+      });
+
+      await backupAndSyncService.performFullSync();
+
+      expect(mockContext.traceFn).toHaveBeenCalledTimes(1);
+      expect(mockContext.traceFn).toHaveBeenCalledWith(
+        {
+          name: TraceName.AccountSyncFull,
+          startTime: expect.any(Number),
+        },
+        expect.any(Function),
+      );
+    });
+
+    it("does not emit an AccountSyncFull span when a wallet's local changes are rolled back", async () => {
+      mockGetLocalEntropyWallets.mockReturnValue([
+        {
+          id: 'entropy:wallet-1',
+          metadata: { entropy: { id: 'test-entropy-id' } },
+        } as unknown as AccountWalletEntropyObject,
+      ]);
+
+      // A local write happens, then the wallet fails and is rolled back. The
+      // local change is reverted, so the run must not emit.
+      mockSyncWalletMetadata.mockImplementation(async (context) => {
+        context.mutationTracker?.setLocalWrite(true);
+        throw new Error('boom');
+      });
+
+      await backupAndSyncService.performFullSync();
+
+      expect(mockContext.traceFn).not.toHaveBeenCalled();
+    });
+
+    it('emits an AccountSyncFull span when the run throws after doing durable work', async () => {
+      mockGetLocalEntropyWallets.mockReturnValue([
+        {
+          id: 'entropy:wallet-1',
+          metadata: { entropy: { id: 'test-entropy-id' } },
+        } as unknown as AccountWalletEntropyObject,
+        {
+          id: 'entropy:wallet-2',
+          metadata: { entropy: { id: 'test-entropy-id-2' } },
+        } as unknown as AccountWalletEntropyObject,
+      ]);
+      mockGetAllGroupsFromUserStorage.mockResolvedValue([]);
+
+      // Wallet 1 performs a durable remote write and completes; wallet 2's
+      // legacy sync then fails and aborts the whole run.
+      mockSyncWalletMetadata.mockImplementation(async (context) => {
+        context.mutationTracker?.setRemoteWrite(true);
+      });
+      mockPerformLegacyAccountSyncing
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error('legacy boom'));
+
+      await expect(backupAndSyncService.performFullSync()).rejects.toThrow(
+        'Legacy syncing failed',
+      );
+
+      // The span is still recorded despite the failure.
+      expect(mockContext.traceFn).toHaveBeenCalledTimes(1);
+      expect(mockContext.traceFn).toHaveBeenCalledWith(
+        {
+          name: TraceName.AccountSyncFull,
+          startTime: expect.any(Number),
+        },
+        expect.any(Function),
+      );
+    });
+
+    it('does not emit an AccountSyncFull span when the sync is a no-op', async () => {
+      mockGetLocalEntropyWallets.mockReturnValue([
+        {
+          id: 'entropy:wallet-1',
+          metadata: { entropy: { id: 'test-entropy-id' } },
+        } as unknown as AccountWalletEntropyObject,
+      ]);
+
+      // No mocked helper reports a mutation, so the sync is a no-op.
+      await backupAndSyncService.performFullSync();
+
+      expect(mockContext.traceFn).not.toHaveBeenCalled();
     });
 
     it('awaits the ongoing promise if a second call is made during sync', async () => {
@@ -341,17 +529,14 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
         } as unknown as AccountWalletEntropyObject,
       ]);
 
-      // Make traceFn actually async to simulate real sync work
-      let resolveTrace: (() => void) | undefined;
-      const tracePromise = new Promise<void>((resolve) => {
-        resolveTrace = resolve;
+      // Make the sync work stay pending so the second call lands mid-sync.
+      let resolveSync: (() => void) | undefined;
+      const syncPromise = new Promise<void>((resolve) => {
+        resolveSync = resolve;
       });
-      (mockContext.traceFn as jest.Mock).mockImplementation(
-        (_: unknown, fn: () => unknown) => {
-          fn();
-          return tracePromise;
-        },
-      );
+      mockSyncWalletMetadata.mockImplementation(async () => {
+        await syncPromise;
+      });
 
       // Start first sync
       const firstSyncPromise = backupAndSyncService.performFullSync();
@@ -362,8 +547,8 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       // Both promises should be the same reference
       expect(firstSyncPromise).toStrictEqual(secondSyncPromise);
 
-      // Resolve the trace to complete the sync
-      resolveTrace?.();
+      // Resolve the sync work to complete the run
+      resolveSync?.();
 
       // Both should resolve to the same value
       const [firstResult, secondResult] = await Promise.all([
@@ -385,15 +570,6 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
         } as unknown as AccountWalletEntropyObject,
       ]);
 
-      // Track how many times the actual sync logic runs
-      let syncExecutionCount = 0;
-      (mockContext.traceFn as jest.Mock).mockImplementation(
-        (_: unknown, fn: () => unknown) => {
-          syncExecutionCount += 1;
-          return fn();
-        },
-      );
-
       // Fire multiple syncs rapidly
       const promises = [
         backupAndSyncService.performFullSync(),
@@ -409,9 +585,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       await Promise.all(promises);
 
       // Should only have executed the sync logic once
-      expect(syncExecutionCount).toBe(1);
-
-      // getLocalEntropyWallets should only be called once
+      // (getLocalEntropyWallets runs once per sync run)
       expect(mockGetLocalEntropyWallets).toHaveBeenCalledTimes(1);
 
       // All promises should resolve successfully to the same value
@@ -429,15 +603,6 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
         } as unknown as AccountWalletEntropyObject,
       ]);
 
-      // Track how many times the actual sync logic runs
-      let syncExecutionCount = 0;
-      (mockContext.traceFn as jest.Mock).mockImplementation(
-        (_: unknown, fn: () => unknown) => {
-          syncExecutionCount += 1;
-          return fn();
-        },
-      );
-
       // Start first sync and wait for it to complete
       const firstSyncPromise = backupAndSyncService.performFullSync();
       await firstSyncPromise;
@@ -452,9 +617,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       await secondSyncPromise;
 
       // Should have executed the sync logic twice (once for each call)
-      expect(syncExecutionCount).toBe(2);
-
-      // getLocalEntropyWallets should be called twice (once for each sync)
+      // (getLocalEntropyWallets runs once per sync run)
       expect(mockGetLocalEntropyWallets).toHaveBeenCalledTimes(2);
 
       // Both promises should resolve successfully
@@ -471,15 +634,6 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
         } as unknown as AccountWalletEntropyObject,
       ]);
 
-      // Track sync execution
-      let syncExecutionCount = 0;
-      (mockContext.traceFn as jest.Mock).mockImplementation(
-        (_: unknown, fn: () => unknown) => {
-          syncExecutionCount += 1;
-          return fn();
-        },
-      );
-
       // Perform first sync
       const firstSyncPromise = backupAndSyncService.performFullSync();
 
@@ -493,7 +647,8 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       await Promise.all([firstSyncPromise, atLeastOncePromise]);
 
       // Should only have executed once
-      expect(syncExecutionCount).toBe(1);
+      // (getLocalEntropyWallets runs once per sync run)
+      expect(mockGetLocalEntropyWallets).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -525,22 +680,12 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
         } as unknown as AccountWalletEntropyObject,
       ]);
 
-      // Track sync execution
-      let syncExecutionCount = 0;
-      (mockContext.traceFn as jest.Mock).mockImplementation(
-        (_: unknown, fn: () => unknown) => {
-          syncExecutionCount += 1;
-          return fn();
-        },
-      );
-
       const syncPromise = backupAndSyncService.performFullSyncAtLeastOnce();
 
       expect(syncPromise).toBeInstanceOf(Promise);
 
       await syncPromise;
 
-      expect(syncExecutionCount).toBe(1);
       expect(mockGetLocalEntropyWallets).toHaveBeenCalledTimes(1);
     });
 
@@ -552,15 +697,6 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
           metadata: { entropy: { id: 'test-entropy-id' } },
         } as unknown as AccountWalletEntropyObject,
       ]);
-
-      // Track sync execution
-      let syncExecutionCount = 0;
-      (mockContext.traceFn as jest.Mock).mockImplementation(
-        (_: unknown, fn: () => unknown) => {
-          syncExecutionCount += 1;
-          return fn();
-        },
-      );
 
       // Fire multiple calls rapidly
       const promises = [
@@ -577,7 +713,6 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       await Promise.all(promises);
 
       // Should only have executed the sync logic once
-      expect(syncExecutionCount).toBe(1);
       expect(mockGetLocalEntropyWallets).toHaveBeenCalledTimes(1);
 
       // All promises should resolve successfully to the same value
@@ -595,15 +730,6 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
         } as unknown as AccountWalletEntropyObject,
       ]);
 
-      // Track sync execution
-      let syncExecutionCount = 0;
-      (mockContext.traceFn as jest.Mock).mockImplementation(
-        (_: unknown, fn: () => unknown) => {
-          syncExecutionCount += 1;
-          return fn();
-        },
-      );
-
       // Start first sync and wait for it to complete
       const firstSyncPromise =
         backupAndSyncService.performFullSyncAtLeastOnce();
@@ -620,7 +746,6 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       await secondSyncPromise;
 
       // Should only have executed the sync logic once (no new sync created)
-      expect(syncExecutionCount).toBe(1);
       expect(mockGetLocalEntropyWallets).toHaveBeenCalledTimes(1);
 
       // Both promises should resolve successfully
@@ -637,22 +762,12 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
         } as unknown as AccountWalletEntropyObject,
       ]);
 
-      // Track sync execution
-      let syncExecutionCount = 0;
-      (mockContext.traceFn as jest.Mock).mockImplementation(
-        (_: unknown, fn: () => unknown) => {
-          syncExecutionCount += 1;
-          return fn();
-        },
-      );
-
       // Multiple sequential calls
       await backupAndSyncService.performFullSyncAtLeastOnce();
       await backupAndSyncService.performFullSyncAtLeastOnce();
       await backupAndSyncService.performFullSyncAtLeastOnce();
 
       // Should only have executed once, regardless of how many times it's called
-      expect(syncExecutionCount).toBe(1);
       expect(mockGetLocalEntropyWallets).toHaveBeenCalledTimes(1);
     });
 
@@ -664,15 +779,6 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
           metadata: { entropy: { id: 'test-entropy-id' } },
         } as unknown as AccountWalletEntropyObject,
       ]);
-
-      // Track sync execution
-      let syncExecutionCount = 0;
-      (mockContext.traceFn as jest.Mock).mockImplementation(
-        (_: unknown, fn: () => unknown) => {
-          syncExecutionCount += 1;
-          return fn();
-        },
-      );
 
       // Call performFullSyncAtLeastOnce first
       const atLeastOncePromise =
@@ -687,7 +793,8 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       await Promise.all([atLeastOncePromise, fullSyncPromise]);
 
       // Should only have executed once
-      expect(syncExecutionCount).toBe(1);
+      // (getLocalEntropyWallets runs once per sync run)
+      expect(mockGetLocalEntropyWallets).toHaveBeenCalledTimes(1);
 
       // Now call performFullSync again after completion
       const secondFullSyncPromise = backupAndSyncService.performFullSync();
@@ -698,7 +805,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
       await secondFullSyncPromise;
 
       // Should have executed twice now (one for each performFullSync call)
-      expect(syncExecutionCount).toBe(2);
+      expect(mockGetLocalEntropyWallets).toHaveBeenCalledTimes(2);
 
       // But performFullSyncAtLeastOnce should still return the original promise
       const laterAtLeastOncePromise =
@@ -707,7 +814,7 @@ describe('BackupAndSync - Service - BackupAndSyncService', () => {
 
       // And should not trigger another sync
       await laterAtLeastOncePromise;
-      expect(syncExecutionCount).toBe(2); // Still only 2
+      expect(mockGetLocalEntropyWallets).toHaveBeenCalledTimes(2); // Still only 2
     }, 15000); // Increase timeout to 15 seconds
   });
 });

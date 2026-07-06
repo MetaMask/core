@@ -24,7 +24,6 @@ import {
   assertAssetsWatchlistBlobForWrite,
   assertDelegationResponseArray,
   assertNotificationPreferences,
-  DEFAULT_AGENTIC_CLI_PREFERENCES,
 } from './validators';
 
 // === GENERAL ===
@@ -272,12 +271,6 @@ export class AuthenticatedUserStorageService extends BaseDataService<
   /**
    * Returns the notification preferences for the authenticated user.
    *
-   * Legacy payloads that omit `agenticCli` are coerced with
-   * {@link DEFAULT_AGENTIC_CLI_PREFERENCES} on read. When this method returns
-   * a non-`null` value, `agenticCli` is always present (backfilled), even
-   * though {@link NotificationPreferences} marks it optional until the next
-   * major release.
-   *
    * @returns The notification preferences object, or `null` if none have been
    * set (404).
    */
@@ -309,14 +302,8 @@ export class AuthenticatedUserStorageService extends BaseDataService<
       return null;
     }
 
-    // backfill agenticCli preferences if it is undefined
-    const backfilledData = {
-      ...data,
-      agenticCli: data.agenticCli ?? { ...DEFAULT_AGENTIC_CLI_PREFERENCES },
-    };
-
-    assertNotificationPreferences(backfilledData);
-    return backfilledData;
+    assertNotificationPreferences(data);
+    return data;
   }
 
   /**

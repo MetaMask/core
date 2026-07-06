@@ -75,6 +75,9 @@
       "path": "./packages/client-controller"
     },
     {
+      "path": "./packages/client-utils"
+    },
+    {
       "path": "./packages/compliance-controller"
     },
     {
@@ -148,6 +151,9 @@
     },
     {
       "path": "./packages/messenger-cli"
+    },
+    {
+      "path": "./packages/platform-api-docs"
     },
     {
       "path": "./packages/money-account-balance-service"
