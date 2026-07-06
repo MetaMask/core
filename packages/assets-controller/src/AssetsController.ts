@@ -2,12 +2,8 @@ import type {
   AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
   AccountTreeControllerSelectedAccountGroupChangeEvent,
   AccountTreeControllerState,
-  AccountTreeControllerStateChangeEvent,
 } from '@metamask/account-tree-controller';
-import type {
-  AccountsControllerGetSelectedAccountAction,
-  AccountsControllerSelectedEvmAccountChangeEvent,
-} from '@metamask/accounts-controller';
+import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
 import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerGetStateAction,
@@ -15,10 +11,7 @@ import type {
   ControllerStateChangedEvent,
   StateMetadata,
 } from '@metamask/base-controller';
-import type {
-  ClientControllerState,
-  ClientControllerStateChangeEvent,
-} from '@metamask/client-controller';
+import type { ClientControllerState } from '@metamask/client-controller';
 import { clientControllerSelectors } from '@metamask/client-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type {
@@ -46,8 +39,8 @@ import type {
 } from '@metamask/network-controller';
 import type {
   NetworkEnablementControllerGetStateAction,
+  NetworkEnablementControllerEvents,
   NetworkEnablementControllerState,
-  NetworkEnablementControllerStateChangeEvent,
 } from '@metamask/network-enablement-controller';
 import type {
   GetPermissions,
@@ -328,16 +321,26 @@ type AllowedActions =
   // PhishingController
   | PhishingControllerBulkScanTokensAction;
 
+type AccountTreeControllerStateChangedEvent = ControllerStateChangedEvent<
+  'AccountTreeController',
+  AccountTreeControllerState
+>;
+
+type ClientControllerStateChangedEvent = ControllerStateChangedEvent<
+  'ClientController',
+  ClientControllerState
+>;
+
+type NetworkEnablementControllerStateChangedEvent = ControllerStateChangedEvent<
+  'NetworkEnablementController',
+  NetworkEnablementControllerState
+>;
+
 type AllowedEvents =
   // AssetsController
   | AccountTreeControllerSelectedAccountGroupChangeEvent
-  | AccountTreeControllerStateChangeEvent
-  | ControllerStateChangedEvent<
-      'AccountTreeController',
-      AccountTreeControllerState
-    >
-  | ClientControllerStateChangeEvent
-  | ControllerStateChangedEvent<'ClientController', ClientControllerState>
+  | AccountTreeControllerStateChangedEvent
+  | ClientControllerStateChangedEvent
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
   | PreferencesControllerStateChangeEvent
@@ -352,14 +355,10 @@ type AllowedEvents =
   | NetworkControllerNetworkDidChangeEvent
   | NetworkControllerNetworkRemovedEvent
   // StakedBalanceDataSource
-  | NetworkEnablementControllerStateChangeEvent
-  | ControllerStateChangedEvent<
-      'NetworkEnablementController',
-      NetworkEnablementControllerState
-    >
+  | NetworkEnablementControllerEvents
+  | NetworkEnablementControllerStateChangedEvent
   // SnapDataSource
   | AccountsControllerAccountBalancesUpdatedEvent
-  | AccountsControllerSelectedEvmAccountChangeEvent
   | PermissionControllerStateChange
   | SnapControllerSnapInstalledEvent
   // BackendWebsocketDataSource
@@ -1080,14 +1079,6 @@ export class AssetsController extends BaseController<
       },
     );
 
-    // Switching EVM address within the same account group (e.g. Account 1 → Account 2).
-    this.messenger.subscribe(
-      'AccountsController:selectedEvmAccountChange',
-      (account) => {
-        this.#handleSelectedEvmAccountChanged(account).catch(console.error);
-      },
-    );
-
     // Catch the initial tree build. On returning users,
     // `selectedAccountGroupChange` does NOT fire when the persisted group
     // is unchanged, and `accountTreeChange` doesn't fire either (init()
@@ -1365,9 +1356,10 @@ export class AssetsController extends BaseController<
       });
       this.#subscribeAssets();
       if (newAccounts.length > 0) {
-        await this.#fetchAccountBalancesViaRpc(newAccounts, [
-          ...this.#enabledChains,
-        ]);
+        await this.getAssets(newAccounts, {
+          chainIds: [...this.#enabledChains],
+          forceUpdate: true,
+        });
       }
     } catch (error) {
       log('Failed to fetch assets after tree change', error);
@@ -3388,40 +3380,6 @@ export class AssetsController extends BaseController<
     }
   }
 
-  /**
-   * Handle EVM account selection within the current account group.
-   * Fires when the user picks a different address under the same logical
-   * account (not when switching account groups).
-   *
-   * @param account - Newly selected EVM account.
-   */
-  async #handleSelectedEvmAccountChanged(
-    account: InternalAccount,
-  ): Promise<void> {
-    if (!this.#uiOpen || !this.#keyringUnlocked || !this.#isEnabled()) {
-      return;
-    }
-
-    const releaseLock = await this.#accountRefreshMutex.acquire();
-    try {
-      await this.getAssets([account], {
-        chainIds: [...this.#enabledChains],
-        forceUpdate: true,
-      });
-
-      this.#subscribeAssets();
-
-      await this.#fetchAccountBalancesViaRpc(
-        [account],
-        [...this.#enabledChains],
-      );
-
-      this.#ensureNativeBalancesDefaultZero();
-    } finally {
-      releaseLock();
-    }
-  }
-
   async #handleEnabledNetworksChanged(
     enabledNetworkMap: NetworkEnablementControllerState['enabledNetworkMap'],
   ): Promise<void> {
@@ -3584,8 +3542,6 @@ export class AssetsController extends BaseController<
         forceUpdate: true,
         dataTypes: ['balance', 'metadata', 'price'],
       });
-
-      await this.#fetchAccountBalancesViaRpc(accounts, [selectedChainId]);
 
       this.#ensureNativeBalancesDefaultZero();
       this.#fetchMissingPricesWithoutCache(accounts, [selectedChainId]);
