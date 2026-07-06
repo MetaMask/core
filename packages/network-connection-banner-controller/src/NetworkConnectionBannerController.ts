@@ -530,6 +530,9 @@ export class NetworkConnectionBannerController extends BaseController<
         failedNetwork.networkClientId
     ) {
       this.update((state) => {
+        // Even if the network client ID has not changed, save the current
+        // version of the failed network to state in case the user has updated
+        // its RPC URL.
         state.networkConnectionBannerNetwork = failedNetwork;
       });
       return;
