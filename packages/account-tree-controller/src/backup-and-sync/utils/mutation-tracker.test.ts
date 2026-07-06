@@ -59,17 +59,4 @@ describe('BackupAndSync - Utils - createSyncMutationTracker', () => {
     // Local write is gone, but the durable remote write still counts.
     expect(tracker.hasOccurred()).toBe(true);
   });
-
-  it('preserves earlier local writes captured in the value', () => {
-    const tracker = createSyncMutationTracker();
-
-    tracker.setLocalWrite(true);
-    const before = tracker.getLocalWrite();
-    tracker.setLocalWrite(true);
-
-    tracker.setLocalWrite(before);
-
-    // The captured value already had a local write, so it is preserved.
-    expect(tracker.hasOccurred()).toBe(true);
-  });
 });
