@@ -33,7 +33,15 @@ import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
 import { withTimeout } from './utils';
 
 export type RestrictedSnapKeyring = {
-  createAccount: SnapKeyringV2['createAccount'];
+  /**
+   * V1 interface, present only when the Snap does not declare v2 capabilities.
+   * `undefined` for v2-only Snaps.
+   *
+   * Use this to make v1 calls explicit:
+   *   if (!keyring.v1) { throw new Error('Snap is v2-only'); }
+   *   keyring.v1.createAccount(options);
+   */
+  v1: { createAccount(options: Record<string, Json>): Promise<KeyringAccount> } | undefined;
   createAccounts: SnapKeyringV2['createAccounts'];
   deleteAccount: SnapKeyringV2['deleteAccount'];
 };
@@ -154,29 +162,20 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     // Also, creating account that way won't invalidate the Snap keyring state. The
     // account will get created and persisted properly with the Snap account creation
     // flow "asynchronously" (with `notify:accountCreated`).
-    const { createAccount, createAccounts } = await this.#withSnapKeyring<{
-      createAccount: SnapKeyringV2['createAccount'];
-      createAccounts: SnapKeyringV2['createAccounts'];
-    }>(async ({ keyring }) => ({
-      createAccount: keyring.createAccount.bind(keyring),
-      createAccounts: keyring.createAccounts.bind(keyring),
-    }));
+    return this.#withSnapKeyring(async ({ keyring }) => {
+      let v1: RestrictedSnapKeyring['v1'];
+      if (keyring.v1) {
+        v1 = {
+          createAccount: keyring.v1.createAccount.bind(keyring.v1),
+        };
+      }
 
-    return {
-      createAccount: async (options) =>
-        // We use the "unguarded" account creation here (see explanation above).
-        await createAccount(options, {
-          displayAccountNameSuggestion: false,
-          displayConfirmation: false,
-          setSelectedAccount: false,
-        }),
-      createAccounts: async (options) => await createAccounts(options),
-      deleteAccount: async (id: string) =>
-        // Though, when removing account, we can use the normal flow.
-        await this.#withSnapKeyring(async ({ keyring }) => {
-          await keyring.deleteAccount(id);
-        }),
-    };
+      return {
+        v1,
+        createAccounts: keyring.createAccounts.bind(keyring),
+        deleteAccount: keyring.deleteAccount.bind(keyring),
+      };
+    });
   }
 
   #getKeyringClientFromSnapId(snapId: string): KeyringClient {

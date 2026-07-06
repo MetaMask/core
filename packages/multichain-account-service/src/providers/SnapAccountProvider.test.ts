@@ -111,9 +111,12 @@ class MockSnapAccountProvider extends SnapAccountProvider {
     keyring: RestrictedSnapKeyring,
     options: { entropySource: EntropySourceId; groupIndex: number },
   ): Promise<KeyringAccount> {
+    if (!keyring.v1) {
+      throw new Error('Snap is v2-only and does not support v1 account creation');
+    }
     // Forward to the mocked keyring (no real purposes apart from implementing
-    // this abstract method)..
-    return await keyring.createAccount(options);
+    // this abstract method).
+    return await keyring.v1.createAccount(options);
   }
 
   async createAccounts(
@@ -244,7 +247,9 @@ const setup = ({
   const keyring = {
     type: keyringOverrides.type ?? 'snap',
     snapId: keyringOverrides.snapId ?? TEST_SNAP_ID,
-    createAccount: jest.fn(),
+    v1: {
+      createAccount: jest.fn(),
+    },
     createAccounts: jest.fn(),
     deleteAccount: jest.fn().mockResolvedValue(undefined),
     lookupByAddress: jest
