@@ -53,15 +53,12 @@ export function getDomain(urlString: string): string | null {
 }
 
 /**
- * Whether an RPC URL is a MetaMask Infura endpoint. Matches the
- * `{infuraProjectId}` placeholder form that lives on stored network
- * configurations before the wallet substitutes the real project id at
- * request time. URLs that already carry a substituted key are treated as
- * custom (we do not have the project id in this package).
+ * Whether an RPC URL is a MetaMask Infura endpoint. Stored network
+ * configurations keep the `{infuraProjectId}` placeholder (substitution
+ * happens at request time), so we match that shape.
  *
  * @param url - The RPC URL to check.
- * @returns True if the URL is the placeholder form of a MetaMask Infura
- * endpoint.
+ * @returns True if the URL is a MetaMask Infura endpoint.
  */
 export function getIsInfuraEndpoint(url: string): boolean {
   return /^https:\/\/[^./]+\.infura\.io\/v3\/\{infuraProjectId\}$/u.test(url);
