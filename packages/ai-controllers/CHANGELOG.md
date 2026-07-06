@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `AiDigestController.fetchFrontPageItem(id)` (and the underlying `AiDigestService.fetchFrontPageItem`) which fetches a single market overview "front page" by id from `GET /market-overview/front-page/:id`, exposed via the `AiDigestController:fetchFrontPageItem` messenger action ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Add `MarketOverviewFrontPage` and `MarketOverviewItem` types ([#0000](https://github.com/MetaMask/core/pull/0000))
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
