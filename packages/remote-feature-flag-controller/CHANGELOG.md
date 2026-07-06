@@ -10,7 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Add optional `featureFlagThresholdGroups` field to `RemoteFeatureFlagControllerState` to map feature flag names to their selected threshold group names ([#9325](https://github.com/MetaMask/core/pull/9325))
-- Add optional `getCanonicalId` constructor callback and `FeatureFlagIdType` enum so threshold flags segment users by canonical ID by default, or by MetaMetrics ID when configured with `idType: "metametrics"` ([#9325](https://github.com/MetaMask/core/pull/9325))
+- Add optional `getCanonicalProfileId` constructor callback and `metaMetricsFlags` map so threshold flags segment users by canonical profile ID by default, or by MetaMetrics ID when the flag name is present in `metaMetricsFlags` ([#9325](https://github.com/MetaMask/core/pull/9325))
 
 ### Changed
 

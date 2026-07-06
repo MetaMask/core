@@ -1,10 +1,8 @@
 import { v4 as uuidV4 } from 'uuid';
 
-import { FeatureFlagIdType } from '../remote-feature-flag-controller-types';
 import {
   calculateThresholdForFlag,
   generateDeterministicRandomNumber,
-  getThresholdIdType,
   isFeatureFlagWithScopeValue,
 } from './user-segmentation-utils';
 
@@ -126,15 +124,15 @@ describe('user-segmentation-utils', () => {
       expect(threshold).toBeLessThanOrEqual(1);
     });
 
-    it('throws error when metaMetricsId is empty', async () => {
+    it('throws error when segmentation ID is empty', async () => {
       // Arrange
-      const emptyMetaMetricsId = '';
+      const emptySegmentationId = '';
       const flagName = 'testFlag';
 
       // Act & Assert
       await expect(
-        calculateThresholdForFlag(emptyMetaMetricsId, flagName),
-      ).rejects.toThrow('MetaMetrics ID cannot be empty');
+        calculateThresholdForFlag(emptySegmentationId, flagName),
+      ).rejects.toThrow('Segmentation ID cannot be empty');
     });
 
     it('throws error when featureFlagName is empty', async () => {
@@ -321,34 +319,4 @@ describe('user-segmentation-utils', () => {
     });
   });
 
-  describe('getThresholdIdType', () => {
-    it('defaults to canonical when idType is absent', () => {
-      expect(
-        getThresholdIdType([
-          {
-            name: 'groupA',
-            scope: { type: 'threshold', value: 1.0 },
-            value: true,
-          },
-        ]),
-      ).toBe(FeatureFlagIdType.Canonical);
-    });
-
-    it('returns metametrics when configured on threshold entries', () => {
-      expect(
-        getThresholdIdType([
-          {
-            idType: FeatureFlagIdType.MetaMetrics,
-            name: 'groupA',
-            scope: { type: 'threshold', value: 1.0 },
-            value: true,
-          },
-        ]),
-      ).toBe(FeatureFlagIdType.MetaMetrics);
-    });
-
-    it('defaults to canonical for non-array flag values', () => {
-      expect(getThresholdIdType(true)).toBe(FeatureFlagIdType.Canonical);
-    });
-  });
 });

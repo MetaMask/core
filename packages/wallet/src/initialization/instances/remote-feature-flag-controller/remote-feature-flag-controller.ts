@@ -17,7 +17,9 @@ export const remoteFeatureFlagController: InitializationConfiguration<
       messenger,
       clientConfigApiService: options.clientConfigApiService,
       getMetaMetricsId: options.getMetaMetricsId ?? ((): string => ''),
-      getCanonicalId: options.getCanonicalId ?? ((): string => ''),
+      getCanonicalProfileId:
+        options.getCanonicalProfileId ?? ((): string => ''),
+      metaMetricsFlags: options.metaMetricsFlags,
       clientVersion: options.clientVersion ?? '0.0.0',
       prevClientVersion: options.prevClientVersion,
       fetchInterval: options.fetchInterval,

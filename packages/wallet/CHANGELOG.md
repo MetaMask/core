@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Pass optional `getCanonicalId` through `RemoteFeatureFlagController` wallet initialization for threshold flags that segment by canonical ID ([#9325](https://github.com/MetaMask/core/pull/9325))
+- Pass optional `getCanonicalProfileId` and `metaMetricsFlags` through `RemoteFeatureFlagController` wallet initialization for threshold flag segmentation ([#9325](https://github.com/MetaMask/core/pull/9325))
 - Bump `@metamask/accounts-controller` from `^39.0.3` to `^39.0.4` ([#9349](https://github.com/MetaMask/core/pull/9349))
 - Bump `@metamask/network-controller` from `^33.0.0` to `^34.0.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
 

@@ -14,10 +14,8 @@ import type {
   ServiceResponse,
   FeatureFlagScopeValue,
 } from './remote-feature-flag-controller-types';
-import { FeatureFlagIdType } from './remote-feature-flag-controller-types';
 import {
   calculateThresholdForFlag,
-  getThresholdIdType,
   isFeatureFlagWithScopeValue,
 } from './utils/user-segmentation-utils';
 import { isVersionFeatureFlag, getVersionData } from './utils/version';
@@ -148,7 +146,9 @@ export class RemoteFeatureFlagController extends BaseController<
 
   readonly #getMetaMetricsId: () => string;
 
-  readonly #getCanonicalId: () => string;
+  readonly #getCanonicalProfileId: () => string;
+
+  readonly #metaMetricsFlags: Record<string, boolean>;
 
   readonly #clientVersion: SemVerVersion;
 
@@ -164,8 +164,8 @@ export class RemoteFeatureFlagController extends BaseController<
    * @param options.fetchInterval - The interval in milliseconds before cached flags expire. Defaults to 1 day.
    * @param options.disabled - Determines if the controller should be disabled initially. Defaults to false.
    * @param options.getMetaMetricsId - Returns metaMetricsId.
-   * @param options.getCanonicalId - Returns the canonical client identifier used
-   * for threshold flags configured with a non-metametrics idType.
+   * @param options.getCanonicalProfileId - Returns the canonical profile identifier used for threshold flags by default.
+   * @param options.metaMetricsFlags - Map of feature flag names that should use MetaMetrics ID for threshold assignment.
    * @param options.clientVersion - The current client version for version-based feature flag filtering. Must be a valid 3-part SemVer version string.
    * @param options.prevClientVersion - The previous client version for feature flag cache invalidation.
    */
@@ -176,7 +176,8 @@ export class RemoteFeatureFlagController extends BaseController<
     fetchInterval = DEFAULT_CACHE_DURATION,
     disabled = false,
     getMetaMetricsId,
-    getCanonicalId = (): string => '',
+    getCanonicalProfileId = (): string => '',
+    metaMetricsFlags = {},
     clientVersion,
     prevClientVersion,
   }: {
@@ -184,7 +185,8 @@ export class RemoteFeatureFlagController extends BaseController<
     state?: Partial<RemoteFeatureFlagControllerState>;
     clientConfigApiService: AbstractClientConfigApiService;
     getMetaMetricsId: () => string;
-    getCanonicalId?: () => string;
+    getCanonicalProfileId?: () => string;
+    metaMetricsFlags?: Record<string, boolean>;
     fetchInterval?: number;
     disabled?: boolean;
     clientVersion: string;
@@ -236,7 +238,8 @@ export class RemoteFeatureFlagController extends BaseController<
     this.#disabled = disabled;
     this.#clientConfigApiService = clientConfigApiService;
     this.#getMetaMetricsId = getMetaMetricsId;
-    this.#getCanonicalId = getCanonicalId;
+    this.#getCanonicalProfileId = getCanonicalProfileId;
+    this.#metaMetricsFlags = metaMetricsFlags;
     this.#clientVersion = clientVersion;
 
     this.messenger.registerMethodActionHandlers(
@@ -297,7 +300,7 @@ export class RemoteFeatureFlagController extends BaseController<
     } = await this.#processRemoteFeatureFlags(remoteFeatureFlags);
 
     const metaMetricsId = this.#getMetaMetricsId();
-    const canonicalId = this.#getCanonicalId();
+    const canonicalProfileId = this.#getCanonicalProfileId();
     const currentFlagNames = Object.keys(remoteFeatureFlags);
 
     // Build updated threshold cache
@@ -315,28 +318,10 @@ export class RemoteFeatureFlagController extends BaseController<
       const cachedFlagName = cachedFlagNameParts.join(':');
       if (
         (cachedSegmentationId === metaMetricsId ||
-          cachedSegmentationId === canonicalId) &&
+          cachedSegmentationId === canonicalProfileId) &&
         !currentFlagNames.includes(cachedFlagName)
       ) {
         delete updatedThresholdCache[cacheKey];
-      }
-    }
-
-    const updatedFeatureFlagThresholdGroups = {
-      ...(this.state.featureFlagThresholdGroups ?? {}),
-    };
-
-    for (const [flagName, thresholdGroup] of Object.entries(
-      featureFlagThresholdGroupUpdates,
-    )) {
-      if (currentFlagNames.includes(flagName)) {
-        updatedFeatureFlagThresholdGroups[flagName] = thresholdGroup;
-      }
-    }
-
-    for (const flagName of Object.keys(updatedFeatureFlagThresholdGroups)) {
-      if (!currentFlagNames.includes(flagName)) {
-        delete updatedFeatureFlagThresholdGroups[flagName];
       }
     }
 
@@ -372,11 +357,11 @@ export class RemoteFeatureFlagController extends BaseController<
     return getVersionData(flagValue, this.#clientVersion);
   }
 
-  #getSegmentationId(idType: FeatureFlagIdType): string {
-    if (idType === FeatureFlagIdType.MetaMetrics) {
+  #getSegmentationId(featureFlagName: string): string {
+    if (featureFlagName in this.#metaMetricsFlags) {
       return this.#getMetaMetricsId();
     }
-    return this.#getCanonicalId();
+    return this.#getCanonicalProfileId();
   }
 
   async #processRemoteFeatureFlags(remoteFeatureFlags: FeatureFlags): Promise<{
@@ -412,8 +397,7 @@ export class RemoteFeatureFlagController extends BaseController<
         }
 
         // Skip threshold processing if the configured identifier is not available
-        const idType = getThresholdIdType(processedValue);
-        const segmentationId = this.#getSegmentationId(idType);
+        const segmentationId = this.#getSegmentationId(remoteFeatureFlagName);
 
         if (!segmentationId) {
           processedFlags[remoteFeatureFlagName] = processedValue;

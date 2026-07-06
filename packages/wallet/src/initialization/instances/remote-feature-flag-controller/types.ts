@@ -22,10 +22,15 @@ export type RemoteFeatureFlagControllerInstanceOptions = {
    */
   getMetaMetricsId?: RemoteFeatureFlagControllerOptions['getMetaMetricsId'];
   /**
-   * Returns the canonical client identifier for threshold flags configured
-   * with a non-metametrics idType. Defaults to `() => ''`.
+   * Returns the canonical profile identifier used for threshold flags by
+   * default. Defaults to `() => ''`.
    */
-  getCanonicalId?: RemoteFeatureFlagControllerOptions['getCanonicalId'];
+  getCanonicalProfileId?: RemoteFeatureFlagControllerOptions['getCanonicalProfileId'];
+  /**
+   * Map of feature flag names that should use MetaMetrics ID for threshold
+   * assignment. Flags not present in this map use the canonical profile ID.
+   */
+  metaMetricsFlags?: RemoteFeatureFlagControllerOptions['metaMetricsFlags'];
   /**
    * The current client version for version-based flag filtering. Must be a
    * valid 3-part SemVer or the controller throws. Defaults to `'0.0.0'`.

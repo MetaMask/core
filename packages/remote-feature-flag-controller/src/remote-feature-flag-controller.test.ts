@@ -18,10 +18,7 @@ import type {
   RemoteFeatureFlagControllerMessenger,
   RemoteFeatureFlagControllerState,
 } from './remote-feature-flag-controller';
-import {
-  ThresholdVersion,
-  FeatureFlagIdType,
-} from './remote-feature-flag-controller-types';
+import { ThresholdVersion } from './remote-feature-flag-controller-types';
 import type { FeatureFlags } from './remote-feature-flag-controller-types';
 
 const MOCK_FLAGS: FeatureFlags = {
@@ -36,19 +33,16 @@ const MOCK_FLAGS_WITH_THRESHOLD = {
   ...MOCK_FLAGS,
   testFlagForThreshold: [
     {
-      idType: FeatureFlagIdType.MetaMetrics,
       name: 'groupA',
       scope: { type: 'threshold', value: 0.3 },
       value: 'valueA',
     },
     {
-      idType: FeatureFlagIdType.MetaMetrics,
       name: 'groupB',
       scope: { type: 'threshold', value: 0.5 },
       value: 'valueB',
     },
     {
-      idType: FeatureFlagIdType.MetaMetrics,
       name: 'groupC',
       scope: { type: 'threshold', value: 1 },
       value: 'valueC',
@@ -69,7 +63,8 @@ const MOCK_BASE_VERSION = '13.10.0';
  * @param options.clientConfigApiService - The client config API service instance
  * @param options.disabled - Whether the controller should start disabled
  * @param options.getMetaMetricsId - Returns metaMetricsId
- * @param options.getCanonicalId - Returns canonicalId
+ * @param options.getCanonicalProfileId - Returns canonicalProfileId
+ * @param options.metaMetricsFlags - Feature flags that should use MetaMetrics ID
  * @param options.clientVersion - The client version string
  * @param options.prevClientVersion - The previous client version string
  * @returns The controller and the root messenger
@@ -80,7 +75,8 @@ function createController(
     clientConfigApiService: AbstractClientConfigApiService;
     disabled: boolean;
     getMetaMetricsId: () => string;
-    getCanonicalId: () => string;
+    getCanonicalProfileId: () => string;
+    metaMetricsFlags: Record<string, boolean>;
     clientVersion: string;
     prevClientVersion: string;
   }> = {},
@@ -95,9 +91,10 @@ function createController(
     getMetaMetricsId:
       options.getMetaMetricsId ??
       ((): typeof MOCK_METRICS_ID => MOCK_METRICS_ID),
-    getCanonicalId:
-      options.getCanonicalId ??
+    getCanonicalProfileId:
+      options.getCanonicalProfileId ??
       ((): typeof MOCK_CANONICAL_ID => MOCK_CANONICAL_ID),
+    metaMetricsFlags: options.metaMetricsFlags,
     clientVersion: options.clientVersion ?? MOCK_BASE_VERSION,
     prevClientVersion: options.prevClientVersion,
   });
@@ -117,11 +114,10 @@ describe('RemoteFeatureFlagController', () => {
       });
     });
 
-    it('defaults getCanonicalId to an empty string when omitted', async () => {
+    it('defaults getCanonicalProfileId to an empty string when omitted', async () => {
       const mockFlags = {
         canonicalThresholdFlag: [
           {
-            idType: FeatureFlagIdType.Canonical,
             name: 'groupA',
             scope: { type: 'threshold', value: 1.0 },
             value: 'canonicalA',
@@ -518,6 +514,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
+        metaMetricsFlags: { testFlagForThreshold: true },
       });
       await messenger.call(
         'RemoteFeatureFlagController:updateRemoteFeatureFlags',
@@ -589,13 +586,11 @@ describe('RemoteFeatureFlagController', () => {
       const mockFlags = {
         featureA: [
           {
-            idType: FeatureFlagIdType.MetaMetrics,
             name: 'groupA1',
             scope: { type: 'threshold', value: 0.5 },
             value: 'A1',
           },
           {
-            idType: FeatureFlagIdType.MetaMetrics,
             name: 'groupA2',
             scope: { type: 'threshold', value: 1.0 },
             value: 'A2',
@@ -603,13 +598,11 @@ describe('RemoteFeatureFlagController', () => {
         ],
         featureB: [
           {
-            idType: FeatureFlagIdType.MetaMetrics,
             name: 'groupB1',
             scope: { type: 'threshold', value: 0.5 },
             value: 'B1',
           },
           {
-            idType: FeatureFlagIdType.MetaMetrics,
             name: 'groupB2',
             scope: { type: 'threshold', value: 1.0 },
             value: 'B2',
@@ -622,6 +615,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
+        metaMetricsFlags: { featureA: true, featureB: true },
       });
 
       // Act
@@ -678,7 +672,6 @@ describe('RemoteFeatureFlagController', () => {
         mixedArray: [
           { name: 'invalid', value: 'no scope' }, // Invalid - missing scope property
           {
-            idType: FeatureFlagIdType.MetaMetrics,
             name: 'validGroup',
             scope: { type: 'threshold', value: 1.0 },
             value: 'selectedValue',
@@ -691,6 +684,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
+        metaMetricsFlags: { mixedArray: true },
       });
 
       // Act
@@ -712,13 +706,11 @@ describe('RemoteFeatureFlagController', () => {
       const mockFlags = {
         testFlag: [
           {
-            idType: FeatureFlagIdType.MetaMetrics,
             name: 'control',
             scope: { type: 'threshold', value: 0.5 },
             value: false,
           },
           {
-            idType: FeatureFlagIdType.MetaMetrics,
             name: 'treatment',
             scope: { type: 'threshold', value: 1.0 },
             value: true,
@@ -734,6 +726,7 @@ describe('RemoteFeatureFlagController', () => {
         createController({
           clientConfigApiService,
           getMetaMetricsId: () => MOCK_METRICS_ID,
+          metaMetricsFlags: { testFlag: true },
         });
       await messenger1.call(
         'RemoteFeatureFlagController:updateRemoteFeatureFlags',
@@ -744,6 +737,7 @@ describe('RemoteFeatureFlagController', () => {
         createController({
           clientConfigApiService,
           getMetaMetricsId: () => MOCK_METRICS_ID,
+          metaMetricsFlags: { testFlag: true },
         });
       await messenger2.call(
         'RemoteFeatureFlagController:updateRemoteFeatureFlags',
@@ -759,17 +753,15 @@ describe('RemoteFeatureFlagController', () => {
       });
     });
 
-    it('uses getCanonicalId for threshold flags with canonical idType', async () => {
+    it('uses getCanonicalProfileId for threshold flags absent from metaMetricsFlags', async () => {
       const mockFlags = {
         canonicalThresholdFlag: [
           {
-            idType: FeatureFlagIdType.Canonical,
             name: 'groupA',
             scope: { type: 'threshold', value: 0.5 },
             value: 'canonicalA',
           },
           {
-            idType: FeatureFlagIdType.Canonical,
             name: 'groupB',
             scope: { type: 'threshold', value: 1.0 },
             value: 'canonicalB',
@@ -782,7 +774,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => '',
-        getCanonicalId: () => MOCK_CANONICAL_ID,
+        getCanonicalProfileId: () => MOCK_CANONICAL_ID,
       });
 
       await messenger.call(
@@ -797,11 +789,10 @@ describe('RemoteFeatureFlagController', () => {
       });
     });
 
-    it('preserves threshold arrays when canonical id is empty for canonical idType flags', async () => {
+    it('preserves threshold arrays when canonical profile id is empty', async () => {
       const mockFlags = {
         canonicalThresholdFlag: [
           {
-            idType: FeatureFlagIdType.Canonical,
             name: 'groupA',
             scope: { type: 'threshold', value: 1.0 },
             value: 'canonicalA',
@@ -814,7 +805,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
-        getCanonicalId: () => '',
+        getCanonicalProfileId: () => '',
       });
 
       await messenger.call(
@@ -1082,19 +1073,16 @@ describe('RemoteFeatureFlagController', () => {
           versions: {
             '13.1.0': [
               {
-                idType: FeatureFlagIdType.MetaMetrics,
                 name: 'groupA',
                 scope: { type: 'threshold', value: 0.3 },
                 value: { feature: 'A', enabled: true },
               },
               {
-                idType: FeatureFlagIdType.MetaMetrics,
                 name: 'groupB',
                 scope: { type: 'threshold', value: 0.7 },
                 value: { feature: 'B', enabled: false },
               },
               {
-                idType: FeatureFlagIdType.MetaMetrics,
                 name: 'groupC',
                 scope: { type: 'threshold', value: 1.0 },
                 value: { feature: 'C', enabled: true },
@@ -1102,13 +1090,11 @@ describe('RemoteFeatureFlagController', () => {
             ],
             '13.2.0': [
               {
-                idType: FeatureFlagIdType.MetaMetrics,
                 name: 'newGroupA',
                 scope: { type: 'threshold', value: 0.5 },
                 value: { feature: 'NewA', enabled: false },
               },
               {
-                idType: FeatureFlagIdType.MetaMetrics,
                 name: 'newGroupB',
                 scope: { type: 'threshold', value: 1.0 },
                 value: { feature: 'NewB', enabled: true },
@@ -1128,6 +1114,7 @@ describe('RemoteFeatureFlagController', () => {
         clientConfigApiService: mockApiService,
         clientVersion: '13.1.5', // Qualifies for 13.1.0 version but not 13.2.0
         getMetaMetricsId: () => MOCK_METRICS_ID, // This generates threshold > 0.7
+        metaMetricsFlags: { multiVersionABFlag: true },
       });
 
       await messenger.call(
@@ -1415,7 +1402,6 @@ describe('RemoteFeatureFlagController', () => {
         remoteFeatureFlags: {
           flagA: [
             {
-              idType: FeatureFlagIdType.MetaMetrics,
               name: 'groupA',
               scope: { type: 'threshold', value: 1.0 },
               value: true,
@@ -1423,7 +1409,6 @@ describe('RemoteFeatureFlagController', () => {
           ],
           flagB: [
             {
-              idType: FeatureFlagIdType.MetaMetrics,
               name: 'groupB',
               scope: { type: 'threshold', value: 1.0 },
               value: false,
@@ -1434,6 +1419,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
+        metaMetricsFlags: { flagA: true, flagB: true },
       });
 
       // Act - First update: both flags processed
@@ -1450,7 +1436,6 @@ describe('RemoteFeatureFlagController', () => {
           remoteFeatureFlags: {
             flagB: [
               {
-                idType: FeatureFlagIdType.MetaMetrics,
                 name: 'groupB',
                 scope: { type: 'threshold', value: 1.0 },
                 value: false,
@@ -1553,7 +1538,6 @@ describe('RemoteFeatureFlagController', () => {
       const mockFlags = {
         persistentFlag: [
           {
-            idType: FeatureFlagIdType.MetaMetrics,
             name: 'group',
             scope: { type: 'threshold', value: 1.0 },
             value: true,
@@ -1566,6 +1550,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
+        metaMetricsFlags: { persistentFlag: true },
       });
 
       // Act - Multiple updates with same flag
@@ -1597,7 +1582,6 @@ describe('RemoteFeatureFlagController', () => {
       const mockFlags = {
         testFlag: [
           {
-            idType: FeatureFlagIdType.MetaMetrics,
             name: 'group',
             scope: { type: 'threshold', value: 1.0 },
             value: true,
@@ -1613,6 +1597,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
+        metaMetricsFlags: { testFlag: true },
         state: {
           thresholdCache: {
             [`${differentUserId}:oldFlag`]: 0.123, // Different user's cache
@@ -1637,7 +1622,6 @@ describe('RemoteFeatureFlagController', () => {
       const mockFlags = {
         newFlag: [
           {
-            idType: FeatureFlagIdType.MetaMetrics,
             name: 'group',
             scope: { type: 'threshold', value: 1.0 },
             value: true,
@@ -1650,6 +1634,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
+        metaMetricsFlags: { newFlag: true },
       });
 
       // Act - Process with empty cache
@@ -1669,7 +1654,6 @@ describe('RemoteFeatureFlagController', () => {
         remoteFeatureFlags: {
           oldFlag: [
             {
-              idType: FeatureFlagIdType.MetaMetrics,
               name: 'group',
               scope: { type: 'threshold', value: 1.0 },
               value: true,
@@ -1680,6 +1664,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
+        metaMetricsFlags: { oldFlag: true, newFlag: true },
       });
 
       await messenger.call(
@@ -1696,7 +1681,6 @@ describe('RemoteFeatureFlagController', () => {
           remoteFeatureFlags: {
             newFlag: [
               {
-                idType: FeatureFlagIdType.MetaMetrics,
                 name: 'group',
                 scope: { type: 'threshold', value: 1.0 },
                 value: false,
@@ -1726,13 +1710,11 @@ describe('RemoteFeatureFlagController', () => {
       const mockFlags = {
         thresholdFlag: [
           {
-            idType: FeatureFlagIdType.MetaMetrics,
             name: 'groupA',
             scope: { type: 'threshold', value: 0.5 },
             value: 'A',
           },
           {
-            idType: FeatureFlagIdType.MetaMetrics,
             name: 'groupB',
             scope: { type: 'threshold', value: 1.0 },
             value: 'B',
@@ -1745,6 +1727,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => '', // Empty metaMetricsId
+        metaMetricsFlags: { thresholdFlag: true },
       });
 
       // Act
@@ -1763,7 +1746,6 @@ describe('RemoteFeatureFlagController', () => {
       const mockFlags = {
         'feature:v2': [
           {
-            idType: FeatureFlagIdType.MetaMetrics,
             name: 'group',
             scope: { type: 'threshold', value: 1.0 },
             value: true,
@@ -1776,6 +1758,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
+        metaMetricsFlags: { 'feature:v2': true },
       });
 
       // Act
@@ -1807,7 +1790,6 @@ describe('RemoteFeatureFlagController', () => {
         remoteFeatureFlags: {
           flagA: [
             {
-              idType: FeatureFlagIdType.MetaMetrics,
               name: 'groupA',
               scope: { type: 'threshold', value: 1.0 },
               value: true,
@@ -1815,7 +1797,6 @@ describe('RemoteFeatureFlagController', () => {
           ],
           flagB: [
             {
-              idType: FeatureFlagIdType.MetaMetrics,
               name: 'groupB',
               scope: { type: 'threshold', value: 1.0 },
               value: false,
@@ -1826,6 +1807,7 @@ describe('RemoteFeatureFlagController', () => {
       const { controller, messenger } = createController({
         clientConfigApiService,
         getMetaMetricsId: () => MOCK_METRICS_ID,
+        metaMetricsFlags: { flagA: true, flagB: true },
       });
 
       // Act - First update populates cache
