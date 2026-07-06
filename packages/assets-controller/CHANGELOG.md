@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
+### Fixed
+
+- Fetch balances when switching account groups, enabling RPC-only networks, or after a new account is added to the account tree ([#9388](https://github.com/MetaMask/core/pull/9388))
+
 ## [10.0.1]
 
 ### Changed

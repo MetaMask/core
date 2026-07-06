@@ -55,7 +55,7 @@
   "dependencies": {
     "@metamask/base-controller": "^9.1.0",
     "@metamask/controller-utils": "^12.3.0",
-    "@metamask/messenger": "^1.2.0",
+    "@metamask/messenger": "^2.0.0",
     "@metamask/utils": "^11.11.0"
   },
   "devDependencies": {
