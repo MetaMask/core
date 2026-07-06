@@ -1,5 +1,5 @@
-import { adaptOrderFromSDK } from '../../../src/utils/hyperLiquidAdapter';
 import type { FrontendOrder } from '../../../src/types/hyperliquid-types';
+import { adaptOrderFromSDK } from '../../../src/utils/hyperLiquidAdapter';
 
 /**
  * Builds a minimal valid `FrontendOrder` fixture, overridable per test.
