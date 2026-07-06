@@ -786,7 +786,6 @@ export type GetDelegationTransactionCallback = ({
   isSubsidized,
 }: {
   transaction: TransactionMeta;
-  /** Optional flag to indicate the delegation should use subsidized caveats. */
   isSubsidized?: boolean;
 }) => Promise<{
   authorizationList?: AuthorizationList;
