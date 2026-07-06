@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fetch account balances via RPC when switching account groups, enabling RPC-only networks, or after a new account is added to the account tree ([#9388](https://github.com/MetaMask/core/pull/9388))
+- Fetch balances when switching account groups, enabling RPC-only networks, or after a new account is added to the account tree ([#9388](https://github.com/MetaMask/core/pull/9388))
 
 ## [10.0.1]
 

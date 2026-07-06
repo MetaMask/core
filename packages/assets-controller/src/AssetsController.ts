@@ -1370,42 +1370,6 @@ export class AssetsController extends BaseController<
   }
 
   /**
-   * Fetch balances via RpcDataSource and merge into state.
-   *
-   * @param accounts - Accounts to fetch for.
-   * @param chainIds - Chains to fetch on.
-   */
-  async #fetchAccountBalancesViaRpc(
-    accounts: InternalAccount[],
-    chainIds: ChainId[],
-  ): Promise<void> {
-    if (accounts.length === 0 || chainIds.length === 0) {
-      return;
-    }
-
-    const rpcChains = chainIds.filter((chainId) =>
-      this.#rpcDataSource.getActiveChainsSync().includes(chainId),
-    );
-    if (rpcChains.length === 0) {
-      return;
-    }
-
-    const request = this.#buildDataRequest(accounts, rpcChains, {
-      dataTypes: ['balance'],
-      forceUpdate: true,
-    });
-    const { response } = await this.#executeMiddlewares(
-      [
-        createParallelBalanceMiddleware([this.#rpcDataSource]),
-        this.#detectionMiddleware,
-      ],
-      request,
-    );
-
-    await this.#updateState({ ...response, updateMode: 'merge' });
-  }
-
-  /**
    * Force-fetch balances then subscribe. Used on unlock / first startup.
    *
    * @param accounts - Selected accounts to refresh.
@@ -3369,10 +3333,6 @@ export class AssetsController extends BaseController<
       // Subscribe after fetch so WS notifications can recover state
       this.#subscribeAssets();
 
-      await this.#fetchAccountBalancesViaRpc(accounts, [
-        ...this.#enabledChains,
-      ]);
-
       this.#ensureNativeBalancesDefaultZero();
       this.#ensureDefaultTrackedAssetsSeeded();
     } finally {
@@ -3424,8 +3384,6 @@ export class AssetsController extends BaseController<
         forceUpdate: true,
         updateMode: 'merge',
       });
-
-      await this.#fetchAccountBalancesViaRpc(accounts, addedChains);
     }
 
     this.#ensureNativeBalancesDefaultZero();
