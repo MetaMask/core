@@ -720,9 +720,19 @@ export class SnapAccountService {
       // 1: withKeyring(..., ({ keyring }) => { keyring.removeAccount(...) })
       // 2. removeAccount(...) -> handleKeyringSnapMessage(..., { method: 'accountRemoved', ... })
       // 3. handleKeyringSnapMessage tries to acquire the same lock again via withKeyringV2 -> deadlock.
-      return await this.#withKeyringV2Unsafe(snapId, async (keyring) =>
-        keyring.handleKeyringSnapMessage(message),
-      );
+      return await this.#withKeyringV2Unsafe(snapId, async (keyring) => {
+        if (!keyring.v1) {
+          log(
+            `Received message "${event}" for Snap "${snapId}", but that's a v2 keyring... Rejecting.`,
+          );
+
+          throw new Error(
+            `Cannot delegate keyring Snap message, keyring for Snap "${snapId}" is v2, not v1.`,
+          );
+        }
+
+        return await keyring.v1.handleKeyringSnapMessage(message);
+      });
     } catch (error) {
       if (isKeyringNotFoundError(error)) {
         log(

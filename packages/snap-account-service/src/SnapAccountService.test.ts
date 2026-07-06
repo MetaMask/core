@@ -835,13 +835,13 @@ describe('SnapAccountService', () => {
       '00000000-0000-0000-0000-000000000002',
     ];
 
-    it('forwards the message to the matching v2 Snap keyring and returns its result', async () => {
+    it('forwards the message to the v1 layer of the Snap keyring and returns its result', async () => {
       const { service, mocks } = await setup();
       const handleKeyringSnapMessage = jest
         .fn()
         .mockResolvedValue({ ok: true });
       mockWithKeyringV2Unsafe(mocks, {
-        [MOCK_SNAP_ID]: { handleKeyringSnapMessage },
+        [MOCK_SNAP_ID]: { v1: { handleKeyringSnapMessage } },
       });
 
       const result = await service.handleKeyringSnapMessage(
@@ -851,6 +851,19 @@ describe('SnapAccountService', () => {
 
       expect(handleKeyringSnapMessage).toHaveBeenCalledWith(MOCK_MESSAGE);
       expect(result).toStrictEqual({ ok: true });
+    });
+
+    it('throws when the keyring is v2-only (no v1 layer)', async () => {
+      const { service, mocks } = await setup();
+      mockWithKeyringV2Unsafe(mocks, {
+        [MOCK_SNAP_ID]: { v1: undefined },
+      });
+
+      await expect(
+        service.handleKeyringSnapMessage(MOCK_SNAP_ID, MOCK_MESSAGE),
+      ).rejects.toThrow(
+        `Cannot delegate keyring Snap message, keyring for Snap "${MOCK_SNAP_ID}" is v2, not v1.`,
+      );
     });
 
     it('short-circuits GetSelectedAccounts by returning only the selected group accounts the Snap actually owns', async () => {
@@ -949,7 +962,7 @@ describe('SnapAccountService', () => {
       const error = new Error('snap boom');
       const handleKeyringSnapMessage = jest.fn().mockRejectedValue(error);
       mockWithKeyringV2Unsafe(mocks, {
-        [MOCK_SNAP_ID]: { handleKeyringSnapMessage },
+        [MOCK_SNAP_ID]: { v1: { handleKeyringSnapMessage } },
       });
 
       await expect(
@@ -966,7 +979,7 @@ describe('SnapAccountService', () => {
       const { addNewKeyring } = mockWithController(mocks, []);
       const handleKeyringSnapMessage = jest.fn().mockResolvedValue(null);
       mockWithKeyringV2Unsafe(mocks, {
-        [MOCK_SNAP_ID]: { handleKeyringSnapMessage },
+        [MOCK_SNAP_ID]: { v1: { handleKeyringSnapMessage } },
       });
 
       await service.ensureMigrated();
@@ -988,7 +1001,7 @@ describe('SnapAccountService', () => {
       const { service, mocks, messenger } = await setup();
       const handleKeyringSnapMessage = jest.fn().mockResolvedValue('pong');
       mockWithKeyringV2Unsafe(mocks, {
-        [MOCK_SNAP_ID]: { handleKeyringSnapMessage },
+        [MOCK_SNAP_ID]: { v1: { handleKeyringSnapMessage } },
       });
 
       // Reference `service` so it isn't flagged as unused; constructing it
