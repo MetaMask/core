@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `RestrictedSnapKeyring.createAccount` has been replaced by `RestrictedSnapKeyring.v1`, which is `undefined` for v2-only Snaps ([#43446](https://github.com/MetaMask/core/pull/43446))
+  - Any subclass implementing `SnapAccountProvider.createAccountV1` must now check `keyring.v1` guard followed by `keyring.v1.createAccount(options)`.
 - Wallet alignment now only creates the missing `(provider, group index)` pairs instead of re-creating the whole range for every provider, avoiding redundant `createAccounts` calls (and their traces) ([#9269](https://github.com/MetaMask/core/pull/9269))
 - Bump `@metamask/accounts-controller` from `^39.0.3` to `^39.0.4` ([#9349](https://github.com/MetaMask/core/pull/9349))
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
