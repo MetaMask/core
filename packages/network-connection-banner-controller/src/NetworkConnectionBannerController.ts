@@ -629,7 +629,7 @@ export class NetworkConnectionBannerController extends BaseController<
     const failedNetworks = networksWithMetadata
       .filter(({ metadata }) => metadata.status !== NetworkStatus.Available)
       .map((network) => this.#buildFailedNetwork(network));
-    return this.#pickBannerNetwork(failedNetworks, networksWithMetadata.length);
+    return this.#pickFailedNetworkToDisplay(failedNetworks, networksWithMetadata.length);
   }
 
   #getEnabledEvmChainIds(
@@ -712,7 +712,7 @@ export class NetworkConnectionBannerController extends BaseController<
     };
   }
 
-  #pickBannerNetwork(
+  #pickFailedNetworkToDisplay(
     failedNetworks: FailedNetwork[],
     totalNetworksWithMetadata: number,
   ): FailedNetwork | null {
