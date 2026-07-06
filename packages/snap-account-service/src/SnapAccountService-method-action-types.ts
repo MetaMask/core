@@ -63,10 +63,66 @@ export type SnapAccountServiceHandleKeyringSnapMessageAction = {
 };
 
 /**
+ * Returns the CAIP-19 asset type/ID list supported by an account.
+ *
+ * @param snapId - ID of the Snap.
+ * @param id - ID of the account.
+ * @returns A promise resolving to the list of supported CAIP-19 asset type/IDs.
+ */
+export type SnapAccountServiceGetAccountAssetsAction = {
+  type: `SnapAccountService:getAccountAssets`;
+  handler: SnapAccountService['getAccountAssets'];
+};
+
+/**
+ * Returns the balances for an account for the requested asset types.
+ *
+ * @param snapId - ID of the Snap.
+ * @param id - ID of the account.
+ * @param assets - List of CAIP-19 fungible asset types to fetch balances for.
+ * @returns A promise resolving to a map of asset type to balance.
+ */
+export type SnapAccountServiceGetAccountBalancesAction = {
+  type: `SnapAccountService:getAccountBalances`;
+  handler: SnapAccountService['getAccountBalances'];
+};
+
+/**
+ * Returns a page of transactions for an account.
+ *
+ * @param snapId - ID of the Snap.
+ * @param id - ID of the account.
+ * @param pagination - Pagination options.
+ * @returns A promise resolving to a page of transactions.
+ */
+export type SnapAccountServiceGetAccountTransactionsAction = {
+  type: `SnapAccountService:getAccountTransactions`;
+  handler: SnapAccountService['getAccountTransactions'];
+};
+
+/**
+ * Resolves the account address to use for routing a signing request.
+ *
+ * @param snapId - ID of the Snap.
+ * @param scope - CAIP-2 chain ID of the signing request.
+ * @param request - The signing JSON-RPC request.
+ * @returns A promise resolving to the resolved address, or `null` if the
+ * Snap cannot determine an address for this request.
+ */
+export type SnapAccountServiceResolveAccountAddressAction = {
+  type: `SnapAccountService:resolveAccountAddress`;
+  handler: SnapAccountService['resolveAccountAddress'];
+};
+
+/**
  * Union of all SnapAccountService action types.
  */
 export type SnapAccountServiceMethodActions =
   | SnapAccountServiceGetSnapsAction
   | SnapAccountServiceEnsureReadyAction
   | SnapAccountServiceEnsureMigratedAction
-  | SnapAccountServiceHandleKeyringSnapMessageAction;
+  | SnapAccountServiceGetAccountAssetsAction
+  | SnapAccountServiceGetAccountBalancesAction
+  | SnapAccountServiceGetAccountTransactionsAction
+  | SnapAccountServiceHandleKeyringSnapMessageAction
+  | SnapAccountServiceResolveAccountAddressAction;

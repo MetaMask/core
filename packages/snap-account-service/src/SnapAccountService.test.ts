@@ -6,9 +6,17 @@ import type {
   AccountAssetListUpdatedEventPayload,
   AccountBalancesUpdatedEventPayload,
   AccountTransactionsUpdatedEventPayload,
+  Balance,
+  CaipAssetType,
+  CaipAssetTypeOrId,
+  CaipChainId,
+  Pagination,
+  ResolvedAccountAddress,
+  TransactionsPage,
 } from '@metamask/keyring-api';
 import { KeyringEvent } from '@metamask/keyring-api';
 import { KeyringType } from '@metamask/keyring-api/v2';
+import { KeyringInternalSnapClient } from '@metamask/keyring-internal-snap-client/v2';
 import {
   KeyringControllerError,
   KeyringControllerErrorMessage,
@@ -37,6 +45,8 @@ import type {
 import { SnapAccountService } from './SnapAccountService';
 import type { AccountGroupObject } from './types';
 
+jest.mock('@metamask/keyring-internal-snap-client/v2');
+
 type RootMessenger = Messenger<
   MockAnyNamespace,
   MessengerActions<SnapAccountServiceMessenger>,
@@ -57,6 +67,7 @@ type Mocks = {
   SnapController: {
     getState: jest.MockedFunction<() => SnapControllerState>;
     getRunnableSnaps: jest.MockedFunction<() => TruncatedSnap[]>;
+    handleRequest: jest.Mock;
   };
   // eslint-disable-next-line @typescript-eslint/naming-convention
   KeyringController: {
@@ -103,6 +114,7 @@ function getMessenger(
       'SnapController:getState',
       'SnapController:getSnap',
       'SnapController:getRunnableSnaps',
+      'SnapController:handleRequest',
       'KeyringController:getState',
       'KeyringController:withController',
       'KeyringController:withKeyringV2',
@@ -406,6 +418,7 @@ async function setup({
         .fn()
         .mockReturnValue({ isReady: snapIsReady } as SnapControllerState),
       getRunnableSnaps: jest.fn().mockReturnValue(runnableSnaps),
+      handleRequest: jest.fn(),
     },
     KeyringController: {
       getState: jest.fn().mockReturnValue({ keyrings: [] }),
@@ -426,6 +439,10 @@ async function setup({
   rootMessenger.registerActionHandler(
     'SnapController:getRunnableSnaps',
     mocks.SnapController.getRunnableSnaps,
+  );
+  rootMessenger.registerActionHandler(
+    'SnapController:handleRequest',
+    mocks.SnapController.handleRequest,
   );
   rootMessenger.registerActionHandler(
     'KeyringController:getState',
@@ -459,6 +476,35 @@ async function setup({
 
 const MOCK_SNAP_ID = 'npm:@metamask/mock-snap' as SnapId;
 const MOCK_OTHER_SNAP_ID = 'npm:@metamask/other-snap' as SnapId;
+
+/**
+ * Configures `KeyringInternalSnapClient` (mocked via `jest.mock`) so that
+ * `withSnapId` returns an object whose methods can be controlled per-test.
+ *
+ * @returns The per-snap client methods as individual jest fns.
+ */
+function buildKeyringClientMock(): {
+  getAccountAssets: jest.Mock;
+  getAccountBalances: jest.Mock;
+  getAccountTransactions: jest.Mock;
+  resolveAccountAddress: jest.Mock;
+} {
+  const clientMethods = {
+    getAccountAssets: jest.fn(),
+    getAccountBalances: jest.fn(),
+    getAccountTransactions: jest.fn(),
+    resolveAccountAddress: jest.fn(),
+  };
+  (
+    KeyringInternalSnapClient as jest.MockedClass<typeof KeyringInternalSnapClient>
+  ).mockImplementation(
+    () =>
+      ({
+        withSnapId: jest.fn().mockReturnValue(clientMethods),
+      }) as unknown as KeyringInternalSnapClient,
+  );
+  return clientMethods;
+}
 
 describe('SnapAccountService', () => {
   describe('getSnaps', () => {
@@ -1524,6 +1570,249 @@ describe('SnapAccountService', () => {
         mocks.KeyringController.withKeyringV2Unsafe,
       ).not.toHaveBeenCalled();
       expect(service).toBeDefined();
+    });
+  });
+
+  describe('getAccountAssets', () => {
+    const MOCK_ACCOUNT_ID = '00000000-0000-4000-8000-000000000001';
+    const MOCK_ASSETS: CaipAssetTypeOrId[] = [
+      'eip155:1/slip44:60',
+      'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
+    ];
+
+    it('returns the list of assets from the client', async () => {
+      const clientMethods = buildKeyringClientMock();
+      const { service, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
+      });
+      clientMethods.getAccountAssets.mockResolvedValue(MOCK_ASSETS);
+      await triggerMigration(service, mocks);
+
+      const result = await service.getAccountAssets(MOCK_SNAP_ID, MOCK_ACCOUNT_ID);
+
+      expect(clientMethods.getAccountAssets).toHaveBeenCalledWith(MOCK_ACCOUNT_ID);
+      expect(result).toStrictEqual(MOCK_ASSETS);
+    });
+
+    it('calls ensureReady before delegating to the client', async () => {
+      buildKeyringClientMock();
+      const { service } = await setup();
+
+      await expect(
+        service.getAccountAssets(MOCK_SNAP_ID, MOCK_ACCOUNT_ID),
+      ).rejects.toThrow(`Unknown snap: "${MOCK_SNAP_ID}"`);
+    });
+
+    it('is exposed as a messenger action', async () => {
+      const clientMethods = buildKeyringClientMock();
+      const { service, messenger, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
+      });
+      clientMethods.getAccountAssets.mockResolvedValue(MOCK_ASSETS);
+      await triggerMigration(service, mocks);
+
+      expect(service).toBeDefined();
+      const result = await messenger.call(
+        'SnapAccountService:getAccountAssets',
+        MOCK_SNAP_ID,
+        MOCK_ACCOUNT_ID,
+      );
+
+      expect(result).toStrictEqual(MOCK_ASSETS);
+    });
+  });
+
+  describe('getAccountBalances', () => {
+    const MOCK_ACCOUNT_ID = '00000000-0000-4000-8000-000000000001';
+    const MOCK_ASSET_TYPES: CaipAssetType[] = ['eip155:1/slip44:60'];
+    const MOCK_BALANCES: Record<CaipAssetType, Balance> = {
+      'eip155:1/slip44:60': { amount: '1.5', unit: 'ETH' },
+    };
+
+    it('returns the balances from the client', async () => {
+      const clientMethods = buildKeyringClientMock();
+      const { service, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
+      });
+      clientMethods.getAccountBalances.mockResolvedValue(MOCK_BALANCES);
+      await triggerMigration(service, mocks);
+
+      const result = await service.getAccountBalances(
+        MOCK_SNAP_ID,
+        MOCK_ACCOUNT_ID,
+        MOCK_ASSET_TYPES,
+      );
+
+      expect(clientMethods.getAccountBalances).toHaveBeenCalledWith(
+        MOCK_ACCOUNT_ID,
+        MOCK_ASSET_TYPES,
+      );
+      expect(result).toStrictEqual(MOCK_BALANCES);
+    });
+
+    it('calls ensureReady before delegating to the client', async () => {
+      buildKeyringClientMock();
+      const { service } = await setup();
+
+      await expect(
+        service.getAccountBalances(MOCK_SNAP_ID, MOCK_ACCOUNT_ID, MOCK_ASSET_TYPES),
+      ).rejects.toThrow(`Unknown snap: "${MOCK_SNAP_ID}"`);
+    });
+
+    it('is exposed as a messenger action', async () => {
+      const clientMethods = buildKeyringClientMock();
+      const { service, messenger, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
+      });
+      clientMethods.getAccountBalances.mockResolvedValue(MOCK_BALANCES);
+      await triggerMigration(service, mocks);
+
+      expect(service).toBeDefined();
+      const result = await messenger.call(
+        'SnapAccountService:getAccountBalances',
+        MOCK_SNAP_ID,
+        MOCK_ACCOUNT_ID,
+        MOCK_ASSET_TYPES,
+      );
+
+      expect(result).toStrictEqual(MOCK_BALANCES);
+    });
+  });
+
+  describe('getAccountTransactions', () => {
+    const MOCK_ACCOUNT_ID = '00000000-0000-4000-8000-000000000001';
+    const MOCK_PAGINATION: Pagination = { limit: 10, next: null };
+    const MOCK_TRANSACTIONS_PAGE: TransactionsPage = {
+      data: [],
+      next: null,
+    };
+
+    it('returns the transactions page from the client', async () => {
+      const clientMethods = buildKeyringClientMock();
+      const { service, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
+      });
+      clientMethods.getAccountTransactions.mockResolvedValue(MOCK_TRANSACTIONS_PAGE);
+      await triggerMigration(service, mocks);
+
+      const result = await service.getAccountTransactions(
+        MOCK_SNAP_ID,
+        MOCK_ACCOUNT_ID,
+        MOCK_PAGINATION,
+      );
+
+      expect(clientMethods.getAccountTransactions).toHaveBeenCalledWith(
+        MOCK_ACCOUNT_ID,
+        MOCK_PAGINATION,
+      );
+      expect(result).toStrictEqual(MOCK_TRANSACTIONS_PAGE);
+    });
+
+    it('calls ensureReady before delegating to the client', async () => {
+      buildKeyringClientMock();
+      const { service } = await setup();
+
+      await expect(
+        service.getAccountTransactions(MOCK_SNAP_ID, MOCK_ACCOUNT_ID, MOCK_PAGINATION),
+      ).rejects.toThrow(`Unknown snap: "${MOCK_SNAP_ID}"`);
+    });
+
+    it('is exposed as a messenger action', async () => {
+      const clientMethods = buildKeyringClientMock();
+      const { service, messenger, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
+      });
+      clientMethods.getAccountTransactions.mockResolvedValue(MOCK_TRANSACTIONS_PAGE);
+      await triggerMigration(service, mocks);
+
+      expect(service).toBeDefined();
+      const result = await messenger.call(
+        'SnapAccountService:getAccountTransactions',
+        MOCK_SNAP_ID,
+        MOCK_ACCOUNT_ID,
+        MOCK_PAGINATION,
+      );
+
+      expect(result).toStrictEqual(MOCK_TRANSACTIONS_PAGE);
+    });
+  });
+
+  describe('resolveAccountAddress', () => {
+    const MOCK_SCOPE = 'eip155:1' as CaipChainId;
+    const MOCK_REQUEST = {
+      jsonrpc: '2.0' as const,
+      id: 1,
+      method: 'eth_signTypedData_v4',
+      params: [],
+    };
+    const MOCK_RESOLVED: ResolvedAccountAddress = {
+      address: 'eip155:1:0xabcdef1234567890abcdef1234567890abcdef12',
+    };
+
+    it('returns the resolved address from the client', async () => {
+      const clientMethods = buildKeyringClientMock();
+      const { service, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
+      });
+      clientMethods.resolveAccountAddress.mockResolvedValue(MOCK_RESOLVED);
+      await triggerMigration(service, mocks);
+
+      const result = await service.resolveAccountAddress(
+        MOCK_SNAP_ID,
+        MOCK_SCOPE,
+        MOCK_REQUEST,
+      );
+
+      expect(clientMethods.resolveAccountAddress).toHaveBeenCalledWith(
+        MOCK_SCOPE,
+        MOCK_REQUEST,
+      );
+      expect(result).toStrictEqual(MOCK_RESOLVED);
+    });
+
+    it('returns null when the Snap cannot determine an address', async () => {
+      const clientMethods = buildKeyringClientMock();
+      const { service, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
+      });
+      clientMethods.resolveAccountAddress.mockResolvedValue(null);
+      await triggerMigration(service, mocks);
+
+      const result = await service.resolveAccountAddress(
+        MOCK_SNAP_ID,
+        MOCK_SCOPE,
+        MOCK_REQUEST,
+      );
+
+      expect(result).toBeNull();
+    });
+
+    it('calls ensureReady before delegating to the client', async () => {
+      buildKeyringClientMock();
+      const { service } = await setup();
+
+      await expect(
+        service.resolveAccountAddress(MOCK_SNAP_ID, MOCK_SCOPE, MOCK_REQUEST),
+      ).rejects.toThrow(`Unknown snap: "${MOCK_SNAP_ID}"`);
+    });
+
+    it('is exposed as a messenger action', async () => {
+      const clientMethods = buildKeyringClientMock();
+      const { service, messenger, mocks } = await setup({
+        runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
+      });
+      clientMethods.resolveAccountAddress.mockResolvedValue(MOCK_RESOLVED);
+      await triggerMigration(service, mocks);
+
+      expect(service).toBeDefined();
+      const result = await messenger.call(
+        'SnapAccountService:resolveAccountAddress',
+        MOCK_SNAP_ID,
+        MOCK_SCOPE,
+        MOCK_REQUEST,
+      );
+
+      expect(result).toStrictEqual(MOCK_RESOLVED);
     });
   });
 });

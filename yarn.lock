@@ -8531,6 +8531,7 @@ __metadata:
     "@metamask/eth-snap-keyring": "npm:^22.3.0"
     "@metamask/keyring-api": "npm:^23.3.0"
     "@metamask/keyring-controller": "npm:^27.1.0"
+    "@metamask/keyring-internal-snap-client": "npm:^10.0.4"
     "@metamask/keyring-snap-sdk": "npm:^9.0.2"
     "@metamask/keyring-utils": "npm:^3.3.1"
     "@metamask/messenger": "npm:^2.0.0"

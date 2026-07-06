@@ -12,6 +12,13 @@ import type {
   AccountAssetListUpdatedEventPayload,
   AccountBalancesUpdatedEventPayload,
   AccountTransactionsUpdatedEventPayload,
+  Balance,
+  CaipAssetType,
+  CaipAssetTypeOrId,
+  CaipChainId,
+  Pagination,
+  ResolvedAccountAddress,
+  TransactionsPage,
 } from '@metamask/keyring-api';
 import {
   AccountAssetListUpdatedEventStruct,
@@ -32,13 +39,15 @@ import {
   isKeyringNotFoundError,
   KeyringTypes,
 } from '@metamask/keyring-controller';
+import { KeyringInternalSnapClient } from '@metamask/keyring-internal-snap-client/v2';
 import { SnapManageAccountsMethod } from '@metamask/keyring-snap-sdk';
-import type { AccountId, BaseKeyring } from '@metamask/keyring-utils';
+import type { AccountId, BaseKeyring, JsonRpcRequest } from '@metamask/keyring-utils';
 import type { Messenger } from '@metamask/messenger';
 import type {
   SnapControllerGetRunnableSnapsAction,
   SnapControllerGetSnapAction,
   SnapControllerGetStateAction,
+  SnapControllerHandleRequestAction,
   SnapControllerSnapBlockedEvent,
   SnapControllerSnapDisabledEvent,
   SnapControllerSnapEnabledEvent,
@@ -55,8 +64,12 @@ import { projectLogger as log } from './logger';
 import type {
   SnapAccountServiceEnsureReadyAction,
   SnapAccountServiceEnsureMigratedAction,
+  SnapAccountServiceGetAccountAssetsAction,
+  SnapAccountServiceGetAccountBalancesAction,
+  SnapAccountServiceGetAccountTransactionsAction,
   SnapAccountServiceGetSnapsAction,
   SnapAccountServiceHandleKeyringSnapMessageAction,
+  SnapAccountServiceResolveAccountAddressAction,
 } from './SnapAccountService-method-action-types';
 import { SnapPlatformWatcher } from './SnapPlatformWatcher';
 import type { SnapPlatformWatcherConfig } from './SnapPlatformWatcher';
@@ -84,8 +97,12 @@ export const serviceName = 'SnapAccountService';
 const MESSENGER_EXPOSED_METHODS = [
   'ensureMigrated',
   'ensureReady',
+  'getAccountAssets',
+  'getAccountBalances',
+  'getAccountTransactions',
   'getSnaps',
   'handleKeyringSnapMessage',
+  'resolveAccountAddress',
 ] as const;
 
 /**
@@ -94,8 +111,12 @@ const MESSENGER_EXPOSED_METHODS = [
 export type SnapAccountServiceActions =
   | SnapAccountServiceEnsureMigratedAction
   | SnapAccountServiceEnsureReadyAction
+  | SnapAccountServiceGetAccountAssetsAction
+  | SnapAccountServiceGetAccountBalancesAction
+  | SnapAccountServiceGetAccountTransactionsAction
   | SnapAccountServiceGetSnapsAction
-  | SnapAccountServiceHandleKeyringSnapMessageAction;
+  | SnapAccountServiceHandleKeyringSnapMessageAction
+  | SnapAccountServiceResolveAccountAddressAction;
 
 /**
  * Actions from other messengers that {@link SnapAccountService} calls.
@@ -104,6 +125,7 @@ type AllowedActions =
   | SnapControllerGetStateAction
   | SnapControllerGetSnapAction
   | SnapControllerGetRunnableSnapsAction
+  | SnapControllerHandleRequestAction
   | KeyringControllerGetStateAction
   | KeyringControllerWithControllerAction
   | KeyringControllerWithKeyringV2Action
@@ -231,6 +253,8 @@ export class SnapAccountService {
 
   readonly #tracker: SnapTracker;
 
+  readonly #client: KeyringInternalSnapClient;
+
   #migrated = false;
 
   #migratePromise: Promise<void> | null = null;
@@ -250,6 +274,12 @@ export class SnapAccountService {
       config?.snapPlatformWatcher,
     );
     this.#tracker = new SnapTracker(messenger);
+    this.#client = new KeyringInternalSnapClient({
+      messenger: messenger.buildChild({
+        namespace: 'KeyringInternalSnapClient',
+        actions: ['SnapController:handleRequest'],
+      }),
+    });
 
     this.#messenger.registerMethodActionHandlers(
       this,
@@ -560,6 +590,73 @@ export class SnapAccountService {
       snapId,
       operation,
     );
+  }
+
+  /**
+   * Returns the CAIP-19 asset type/ID list supported by an account.
+   *
+   * @param snapId - ID of the Snap.
+   * @param id - ID of the account.
+   * @returns A promise resolving to the list of supported CAIP-19 asset type/IDs.
+   */
+  async getAccountAssets(
+    snapId: SnapId,
+    id: AccountId,
+  ): Promise<CaipAssetTypeOrId[]> {
+    await this.ensureReady(snapId);
+    return this.#client.withSnapId(snapId).getAccountAssets(id);
+  }
+
+  /**
+   * Returns the balances for an account for the requested asset types.
+   *
+   * @param snapId - ID of the Snap.
+   * @param id - ID of the account.
+   * @param assets - List of CAIP-19 fungible asset types to fetch balances for.
+   * @returns A promise resolving to a map of asset type to balance.
+   */
+  async getAccountBalances(
+    snapId: SnapId,
+    id: AccountId,
+    assets: CaipAssetType[],
+  ): Promise<Record<CaipAssetType, Balance>> {
+    await this.ensureReady(snapId);
+    return this.#client.withSnapId(snapId).getAccountBalances(id, assets);
+  }
+
+  /**
+   * Returns a page of transactions for an account.
+   *
+   * @param snapId - ID of the Snap.
+   * @param id - ID of the account.
+   * @param pagination - Pagination options.
+   * @returns A promise resolving to a page of transactions.
+   */
+  async getAccountTransactions(
+    snapId: SnapId,
+    id: AccountId,
+    pagination: Pagination,
+  ): Promise<TransactionsPage> {
+    await this.ensureReady(snapId);
+    return this.#client.withSnapId(snapId).getAccountTransactions(id, pagination);
+  }
+
+  /**
+   * Resolves the account address to use for routing a signing request.
+   *
+   * @param snapId - ID of the Snap.
+   * @param scope - CAIP-2 chain ID of the signing request.
+   * @param request - The signing JSON-RPC request.
+   * @returns A promise resolving to the resolved address, or `null` if the
+   * Snap cannot determine an address for this request.
+   */
+  async resolveAccountAddress(
+    snapId: SnapId,
+    scope: CaipChainId,
+    request: JsonRpcRequest,
+  ): Promise<ResolvedAccountAddress | null> {
+    await this.ensureReady(snapId);
+    return this.#client.withSnapId(snapId).resolveAccountAddress(scope, request);
   }
 
   /**
