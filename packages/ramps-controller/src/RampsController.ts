@@ -689,6 +689,16 @@ export type RampsControllerOptions = {
    * (native-only) when omitted.
    */
   getProviderScope?: () => ProviderScope;
+  /**
+   * Optional callback returning the default redirect URL to use for the widened
+   * in-app quote fetch when the caller omits `redirectUrl`. The quotes API only
+   * embeds a `buyURL`/`buyWidget` (the WebView page a non-native provider needs)
+   * when a `redirectUrl` is present, so supplying this default lets widened
+   * in-app aggregator quotes carry a usable widget URL. Only applied on the
+   * widened path; an explicit caller `redirectUrl` always wins and scope `off`
+   * never injects. Defaults to a callback returning `undefined` when omitted.
+   */
+  getDefaultRedirectUrl?: () => string | undefined;
 };
 
 // === HELPER FUNCTIONS ===
@@ -885,6 +895,13 @@ export class RampsController extends BaseController<
   readonly #getProviderScope: () => ProviderScope;
 
   /**
+   * Resolves the default redirect URL for the widened in-app quote fetch when
+   * the caller omits `redirectUrl`. Defaults to `() => undefined` when no
+   * callback is injected.
+   */
+  readonly #getDefaultRedirectUrl: () => string | undefined;
+
+  /**
    * Map of pending requests for deduplication.
    * Key is the cache key, value is the pending request with abort controller.
    */
@@ -952,6 +969,9 @@ export class RampsController extends BaseController<
    * @param args.requestCacheMaxSize - Maximum number of entries in the request cache.
    * @param args.getProviderScope - Optional callback returning the current
    * provider-class scope for fiat quote widening. Defaults to `off`.
+   * @param args.getDefaultRedirectUrl - Optional callback returning the default
+   * redirect URL used for the widened in-app quote fetch when the caller omits
+   * `redirectUrl`. Defaults to a callback returning `undefined`.
    */
   constructor({
     messenger,
@@ -959,6 +979,7 @@ export class RampsController extends BaseController<
     requestCacheTTL = DEFAULT_REQUEST_CACHE_TTL,
     requestCacheMaxSize = DEFAULT_REQUEST_CACHE_MAX_SIZE,
     getProviderScope,
+    getDefaultRedirectUrl,
   }: RampsControllerOptions) {
     super({
       messenger,
@@ -975,6 +996,8 @@ export class RampsController extends BaseController<
     this.#requestCacheTTL = requestCacheTTL;
     this.#requestCacheMaxSize = requestCacheMaxSize;
     this.#getProviderScope = getProviderScope ?? ((): ProviderScope => 'off');
+    this.#getDefaultRedirectUrl =
+      getDefaultRedirectUrl ?? ((): string | undefined => undefined);
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -1953,6 +1976,14 @@ export class RampsController extends BaseController<
     const normalizedAssetId = normalizedAssetIdForValidation;
     const normalizedWalletAddress = options.walletAddress.trim();
 
+    // The quotes API only embeds a `buyURL`/`buyWidget` when a `redirectUrl` is
+    // present, so on the widened in-app path (where MM Pay omits one) supply the
+    // injected default so aggregator quotes carry a usable widget URL. An
+    // explicit caller `redirectUrl` always wins, and scope `off` never injects.
+    const effectiveRedirectUrl =
+      options.redirectUrl ??
+      (widenToInAppProviders ? this.#getDefaultRedirectUrl() : undefined);
+
     const cacheKey = createCacheKey('getQuotes', [
       normalizedRegion,
       normalizedFiat,
@@ -1961,7 +1992,7 @@ export class RampsController extends BaseController<
       normalizedWalletAddress,
       [...paymentMethodsToUse].sort().join(','),
       [...providersToUse].sort().join(','),
-      options.redirectUrl,
+      effectiveRedirectUrl,
       action,
     ]);
 
@@ -1973,7 +2004,7 @@ export class RampsController extends BaseController<
       walletAddress: normalizedWalletAddress,
       paymentMethods: paymentMethodsToUse,
       providers: providersToUse,
-      redirectUrl: options.redirectUrl,
+      redirectUrl: effectiveRedirectUrl,
       action,
     };
 

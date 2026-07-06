@@ -1048,6 +1048,154 @@ describe('RampsController', () => {
         },
       );
     });
+
+    it('forwards the injected default redirectUrl on the widened path when the caller omits one', async () => {
+      const response: QuotesResponse = {
+        success: [inAppScopeQuote(MOONPAY, 90)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
+        error: [],
+        customActions: [],
+      };
+      const DEFAULT_REDIRECT = 'https://default.example/callback';
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            getDefaultRedirectUrl: () => DEFAULT_REDIRECT,
+            state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          let forwardedRedirectUrl: string | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { redirectUrl?: string }) => {
+              forwardedRedirectUrl = params.redirectUrl;
+              return response;
+            },
+          );
+
+          await callScopedGetQuotes(messenger);
+
+          // The caller omitted redirectUrl, so the widened path supplies the
+          // injected default and forwards it to the service.
+          expect(forwardedRedirectUrl).toBe(DEFAULT_REDIRECT);
+        },
+      );
+    });
+
+    it('prefers an explicit caller redirectUrl over the injected default on the widened path', async () => {
+      const response: QuotesResponse = {
+        success: [inAppScopeQuote(MOONPAY, 90)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
+        error: [],
+        customActions: [],
+      };
+      const DEFAULT_REDIRECT = 'https://default.example/callback';
+      const EXPLICIT_REDIRECT = 'https://explicit.example/callback';
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            getDefaultRedirectUrl: () => DEFAULT_REDIRECT,
+            state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          let forwardedRedirectUrl: string | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { redirectUrl?: string }) => {
+              forwardedRedirectUrl = params.redirectUrl;
+              return response;
+            },
+          );
+
+          await callScopedGetQuotes(messenger, {
+            redirectUrl: EXPLICIT_REDIRECT,
+          });
+
+          // An explicit caller redirectUrl always wins; the default is not
+          // applied.
+          expect(forwardedRedirectUrl).toBe(EXPLICIT_REDIRECT);
+        },
+      );
+    });
+
+    it('does not inject the default redirectUrl when the scope is off', async () => {
+      const response: QuotesResponse = {
+        success: [inAppScopeQuote(NATIVE, 70)],
+        sorted: [{ sortBy: 'reliability', ids: [NATIVE] }],
+        error: [],
+        customActions: [],
+      };
+      const DEFAULT_REDIRECT = 'https://default.example/callback';
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'off',
+            getDefaultRedirectUrl: () => DEFAULT_REDIRECT,
+            state: scopeState([buildScopeProvider(NATIVE, 'native')]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          let forwardedRedirectUrl: string | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { redirectUrl?: string }) => {
+              forwardedRedirectUrl = params.redirectUrl;
+              return response;
+            },
+          );
+
+          await callScopedGetQuotes(messenger);
+
+          // Scope `off` never widens, so the default is not injected even when a
+          // `getDefaultRedirectUrl` callback is present.
+          expect(forwardedRedirectUrl).toBeUndefined();
+        },
+      );
+    });
+
+    it('forwards undefined on the widened path when no getDefaultRedirectUrl option is provided', async () => {
+      const response: QuotesResponse = {
+        success: [inAppScopeQuote(MOONPAY, 90)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          let forwardedRedirectUrl: string | undefined;
+          let redirectUrlWasSeen = false;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { redirectUrl?: string }) => {
+              forwardedRedirectUrl = params.redirectUrl;
+              redirectUrlWasSeen = true;
+              return response;
+            },
+          );
+
+          await callScopedGetQuotes(messenger);
+
+          // With no injected callback, the constructor default returns
+          // undefined, so the widened path forwards undefined.
+          expect(redirectUrlWasSeen).toBe(true);
+          expect(forwardedRedirectUrl).toBeUndefined();
+        },
+      );
+    });
   });
 
   describe('getProviders', () => {
