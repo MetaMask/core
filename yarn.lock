@@ -7410,7 +7410,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/messenger@npm:^1.0.0, @metamask/messenger@npm:^1.1.0, @metamask/messenger@npm:^1.1.1":
+"@metamask/messenger@npm:^1.0.0, @metamask/messenger@npm:^1.1.0, @metamask/messenger@npm:^1.1.1, @metamask/messenger@npm:^1.2.0":
   version: 1.2.0
   resolution: "@metamask/messenger@npm:1.2.0"
   dependencies:
