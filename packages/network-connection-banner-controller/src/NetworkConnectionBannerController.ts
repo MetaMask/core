@@ -347,19 +347,43 @@ export class NetworkConnectionBannerController extends BaseController<
     this.messenger.subscribe(
       'NetworkController:stateChange',
       (networkControllerState) =>
-        this.#refreshState({ networkControllerState }),
+        this.#refreshState({
+          networkControllerState,
+          networkEnablementControllerState: this.messenger.call(
+            'NetworkEnablementController:getState',
+          ),
+          connectivityControllerState: this.messenger.call(
+            'ConnectivityController:getState',
+          ),
+        }),
       selectNetworkControllerFields,
     );
     this.messenger.subscribe(
       'NetworkEnablementController:stateChange',
       (networkEnablementControllerState) =>
-        this.#refreshState({ networkEnablementControllerState }),
+        this.#refreshState({
+          networkControllerState: this.messenger.call(
+            'NetworkController:getState',
+          ),
+          networkEnablementControllerState,
+          connectivityControllerState: this.messenger.call(
+            'ConnectivityController:getState',
+          ),
+        }),
       selectNetworkEnablementControllerFields,
     );
     this.messenger.subscribe(
       'ConnectivityController:stateChange',
       (connectivityControllerState) =>
-        this.#refreshState({ connectivityControllerState }),
+        this.#refreshState({
+          networkControllerState: this.messenger.call(
+            'NetworkController:getState',
+          ),
+          networkEnablementControllerState: this.messenger.call(
+            'NetworkEnablementController:getState',
+          ),
+          connectivityControllerState,
+        }),
       selectConnectivityControllerFields,
     );
     /* eslint-enable no-restricted-syntax */
@@ -386,7 +410,15 @@ export class NetworkConnectionBannerController extends BaseController<
     }
 
     this.#isStarted = true;
-    this.#refreshState();
+    this.#refreshState({
+      networkControllerState: this.messenger.call('NetworkController:getState'),
+      networkEnablementControllerState: this.messenger.call(
+        'NetworkEnablementController:getState',
+      ),
+      connectivityControllerState: this.messenger.call(
+        'ConnectivityController:getState',
+      ),
+    });
   }
 
   /**
@@ -458,41 +490,34 @@ export class NetworkConnectionBannerController extends BaseController<
     networkEnablementControllerState,
     connectivityControllerState,
   }: {
-    networkControllerState?: Pick<
+    networkControllerState: Pick<
       NetworkState,
       'networkConfigurationsByChainId' | 'networksMetadata'
     >;
-    networkEnablementControllerState?: Pick<
+    networkEnablementControllerState: Pick<
       NetworkEnablementControllerState,
       'enabledNetworkMap'
     >;
-    connectivityControllerState?: Pick<
+    connectivityControllerState: Pick<
       ConnectivityControllerState,
       'connectivityStatus'
     >;
-  } = {}): void {
+  }): void {
     if (!this.#isStarted) {
       return;
     }
 
-    const { connectivityStatus } =
-      connectivityControllerState ??
-      this.messenger.call('ConnectivityController:getState');
-    if (connectivityStatus === CONNECTIVITY_STATUSES.Offline) {
+    if (
+      connectivityControllerState.connectivityStatus ===
+      CONNECTIVITY_STATUSES.Offline
+    ) {
       this.#resetBanner();
       return;
     }
 
-    const networkState =
-      networkControllerState ??
-      this.messenger.call('NetworkController:getState');
-    const enablementState =
-      networkEnablementControllerState ??
-      this.messenger.call('NetworkEnablementController:getState');
-
     const failedNetwork = this.#findFailedNetwork(
-      networkState,
-      enablementState,
+      networkControllerState,
+      networkEnablementControllerState,
     );
     if (!failedNetwork) {
       this.#resetBanner();
