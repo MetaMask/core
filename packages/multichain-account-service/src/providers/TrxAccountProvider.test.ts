@@ -18,7 +18,10 @@ import {
 } from '../tests';
 import type { RootMessenger, DeepPartial } from '../tests';
 import { AccountProviderWrapper } from './AccountProviderWrapper';
-import type { SnapAccountProviderConfig } from './SnapAccountProvider';
+import type {
+  RestrictedSnapKeyring,
+  SnapAccountProviderConfig,
+} from './SnapAccountProvider';
 import {
   TRX_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
   TRX_ACCOUNT_PROVIDER_NAME,
@@ -106,7 +109,7 @@ class MockTronKeyring {
 
   deleteAccount = jest.fn().mockResolvedValue(undefined);
 
-  get v1() {
+  get v1(): Required<RestrictedSnapKeyring['v1']> {
     return { createAccount: this.createAccount };
   }
 }
