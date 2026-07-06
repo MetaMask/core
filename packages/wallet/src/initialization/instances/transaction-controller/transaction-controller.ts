@@ -12,9 +12,11 @@ export const transactionController: InitializationConfiguration<
 > = {
   name: 'TransactionController',
   init: ({ state, messenger, options }) => {
+    const { disableSwaps = false, ...rest } = options;
+
     return new TransactionController({
-      disableSwaps: false,
-      ...options,
+      ...rest,
+      disableSwaps,
       messenger,
       state,
     });
