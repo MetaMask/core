@@ -41,7 +41,11 @@ import {
 } from '@metamask/keyring-controller';
 import { KeyringInternalSnapClient } from '@metamask/keyring-internal-snap-client/v2';
 import { SnapManageAccountsMethod } from '@metamask/keyring-snap-sdk';
-import type { AccountId, BaseKeyring, JsonRpcRequest } from '@metamask/keyring-utils';
+import type {
+  AccountId,
+  BaseKeyring,
+  JsonRpcRequest,
+} from '@metamask/keyring-utils';
 import type { Messenger } from '@metamask/messenger';
 import type {
   SnapControllerGetRunnableSnapsAction,
@@ -638,7 +642,9 @@ export class SnapAccountService {
     pagination: Pagination,
   ): Promise<TransactionsPage> {
     await this.ensureReady(snapId);
-    return this.#client.withSnapId(snapId).getAccountTransactions(id, pagination);
+    return this.#client
+      .withSnapId(snapId)
+      .getAccountTransactions(id, pagination);
   }
 
   /**
@@ -656,7 +662,9 @@ export class SnapAccountService {
     request: JsonRpcRequest,
   ): Promise<ResolvedAccountAddress | null> {
     await this.ensureReady(snapId);
-    return this.#client.withSnapId(snapId).resolveAccountAddress(scope, request);
+    return this.#client
+      .withSnapId(snapId)
+      .resolveAccountAddress(scope, request);
   }
 
   /**

@@ -16,7 +16,6 @@ import type {
 } from '@metamask/keyring-api';
 import { KeyringEvent } from '@metamask/keyring-api';
 import { KeyringType } from '@metamask/keyring-api/v2';
-import { KeyringInternalSnapClient } from '@metamask/keyring-internal-snap-client/v2';
 import {
   KeyringControllerError,
   KeyringControllerErrorMessage,
@@ -27,6 +26,7 @@ import type {
   KeyringSelectorV2,
   RestrictedController,
 } from '@metamask/keyring-controller';
+import { KeyringInternalSnapClient } from '@metamask/keyring-internal-snap-client/v2';
 import { SnapManageAccountsMethod } from '@metamask/keyring-snap-sdk';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -496,7 +496,9 @@ function buildKeyringClientMock(): {
     resolveAccountAddress: jest.fn(),
   };
   (
-    KeyringInternalSnapClient as jest.MockedClass<typeof KeyringInternalSnapClient>
+    KeyringInternalSnapClient as jest.MockedClass<
+      typeof KeyringInternalSnapClient
+    >
   ).mockImplementation(
     () =>
       ({
@@ -1601,9 +1603,14 @@ describe('SnapAccountService', () => {
       clientMethods.getAccountAssets.mockResolvedValue(MOCK_ASSETS);
       await triggerMigration(service, mocks);
 
-      const result = await service.getAccountAssets(MOCK_SNAP_ID, MOCK_ACCOUNT_ID);
+      const result = await service.getAccountAssets(
+        MOCK_SNAP_ID,
+        MOCK_ACCOUNT_ID,
+      );
 
-      expect(clientMethods.getAccountAssets).toHaveBeenCalledWith(MOCK_ACCOUNT_ID);
+      expect(clientMethods.getAccountAssets).toHaveBeenCalledWith(
+        MOCK_ACCOUNT_ID,
+      );
       expect(result).toStrictEqual(MOCK_ASSETS);
     });
 
@@ -1668,7 +1675,11 @@ describe('SnapAccountService', () => {
       const { service } = await setup();
 
       await expect(
-        service.getAccountBalances(MOCK_SNAP_ID, MOCK_ACCOUNT_ID, MOCK_ASSET_TYPES),
+        service.getAccountBalances(
+          MOCK_SNAP_ID,
+          MOCK_ACCOUNT_ID,
+          MOCK_ASSET_TYPES,
+        ),
       ).rejects.toThrow(`Unknown snap: "${MOCK_SNAP_ID}"`);
     });
 
@@ -1705,7 +1716,9 @@ describe('SnapAccountService', () => {
       const { service, mocks } = await setup({
         runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
       });
-      clientMethods.getAccountTransactions.mockResolvedValue(MOCK_TRANSACTIONS_PAGE);
+      clientMethods.getAccountTransactions.mockResolvedValue(
+        MOCK_TRANSACTIONS_PAGE,
+      );
       await triggerMigration(service, mocks);
 
       const result = await service.getAccountTransactions(
@@ -1726,7 +1739,11 @@ describe('SnapAccountService', () => {
       const { service } = await setup();
 
       await expect(
-        service.getAccountTransactions(MOCK_SNAP_ID, MOCK_ACCOUNT_ID, MOCK_PAGINATION),
+        service.getAccountTransactions(
+          MOCK_SNAP_ID,
+          MOCK_ACCOUNT_ID,
+          MOCK_PAGINATION,
+        ),
       ).rejects.toThrow(`Unknown snap: "${MOCK_SNAP_ID}"`);
     });
 
@@ -1735,7 +1752,9 @@ describe('SnapAccountService', () => {
       const { service, messenger, mocks } = await setup({
         runnableSnaps: [buildSnap(MOCK_SNAP_ID)],
       });
-      clientMethods.getAccountTransactions.mockResolvedValue(MOCK_TRANSACTIONS_PAGE);
+      clientMethods.getAccountTransactions.mockResolvedValue(
+        MOCK_TRANSACTIONS_PAGE,
+      );
       await triggerMigration(service, mocks);
 
       expect(service).toBeDefined();
