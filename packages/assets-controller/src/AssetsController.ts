@@ -130,6 +130,7 @@ import type {
   Middleware,
   SubscriptionResponse,
   Asset,
+  GetAccountAssetInfoResponse,
 } from './types';
 import {
   normalizeAmountString,
@@ -143,6 +144,10 @@ import type {
   BridgeExchangeRatesFormat,
   TransactionPayLegacyFormat,
 } from './utils';
+import {
+  createInvalidatedAccountAssetInfo,
+  mergeAssetBalanceRow,
+} from './utils/account-asset-enrichment';
 import { ZERO_ADDRESS } from './utils/constants';
 import { pickRpcCustomAssetsSupplement } from './utils/customAssetsRpcSupplement';
 import { processAccountActivityBalanceUpdates } from './utils/processAccountActivityBalanceUpdates';
@@ -189,6 +194,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'hideAsset',
   'unhideAsset',
   'setSelectedCurrency',
+  'invalidateAccountAssetExtras',
 ] as const;
 
 /** Default polling interval hint for data sources (30 seconds) */
@@ -560,6 +566,11 @@ function normalizeResponse(response: DataResponse): DataResponse {
 /**
  * Merge account balances from a data-source response into prior state.
  *
+ * Snap/RPC balance sync responses are amount-only and must not erase separately
+ * stored account-asset enrichment (e.g. Stellar trustline `accountAssetInfo`), so
+ * each incoming row is merged with its prior row via {@link mergeAssetBalanceRow}
+ * rather than overwritten wholesale.
+ *
  * @param previousBalances - Balances already in state for this account.
  * @param accountBalances - Balances from the incoming response.
  * @param customAssetIds - Custom assets to preserve when replacing covered chains.
@@ -574,7 +585,11 @@ function mergeAccountBalances(
   replaceCoveredChains: boolean,
 ): Record<string, AssetBalance> {
   if (!replaceCoveredChains) {
-    return { ...previousBalances, ...accountBalances };
+    const next: Record<string, AssetBalance> = { ...previousBalances };
+    for (const [assetId, incoming] of Object.entries(accountBalances)) {
+      next[assetId] = mergeAssetBalanceRow(previousBalances[assetId], incoming);
+    }
+    return next;
   }
 
   const coveredChains = new Set(
@@ -588,7 +603,9 @@ function mergeAccountBalances(
     }
   }
 
-  Object.assign(next, accountBalances);
+  for (const [assetId, incoming] of Object.entries(accountBalances)) {
+    next[assetId] = mergeAssetBalanceRow(previousBalances[assetId], incoming);
+  }
 
   for (const customId of customAssetIds) {
     if (!Object.prototype.hasOwnProperty.call(next, customId)) {
@@ -1958,6 +1975,8 @@ export class AssetsController extends BaseController<
       }
     });
 
+    this.invalidateAccountAssetExtras(accountId, [normalizedAssetId]);
+
     // Re-evaluate subscriptions so the supplemental RPC poll for that chain
     // is torn down when no more customAssets remain there.
     this.#subscribeAssets();
@@ -1971,6 +1990,52 @@ export class AssetsController extends BaseController<
    */
   getCustomAssets(accountId: AccountId): Caip19AssetId[] {
     return this.state.customAssets[accountId] ?? [];
+  }
+
+  // ============================================================================
+  // ACCOUNT-ASSET ENRICHMENT (Stellar classic trustline)
+  // ============================================================================
+
+  /**
+   * Marks Stellar classic trustline enrichment as inactive for the given assets.
+   * Sets `extra.limit` to `'0'` rather than deleting `extra`, so UI can distinguish
+   * inactive trustlines from not-yet-enriched state.
+   *
+   * @param accountId - Internal account UUID.
+   * @param assetIds - CAIP-19 asset ids to invalidate.
+   */
+  invalidateAccountAssetExtras(
+    accountId: AccountId,
+    assetIds: Caip19AssetId[],
+  ): void {
+    if (assetIds.length === 0) {
+      return;
+    }
+
+    this.update((state) => {
+      const balances = state.assetsBalance as Record<
+        string,
+        Record<string, AssetBalance>
+      >;
+      balances[accountId] ??= {};
+
+      for (const assetId of assetIds) {
+        const normalizedAssetId = normalizeAssetId(assetId);
+        const existing = balances[accountId][normalizedAssetId] as
+          | {
+              amount: string;
+              accountAssetInfo?: GetAccountAssetInfoResponse[Caip19AssetId];
+            }
+          | undefined;
+
+        balances[accountId][normalizedAssetId] = {
+          amount: existing?.amount ?? '0',
+          accountAssetInfo: createInvalidatedAccountAssetInfo(
+            existing?.accountAssetInfo,
+          ),
+        };
+      }
+    });
   }
 
   // ============================================================================
@@ -2529,6 +2594,11 @@ export class AssetsController extends BaseController<
                 accountId
               ] ?? [];
 
+            // Full: response is authoritative for the chains it covered;
+            //   balances for chains not in the response are preserved from
+            //   previous state so unsupported chains (e.g. Ink on AccountsAPI)
+            //   are never inadvertently reset to zero.
+            // Merge: response overlays previous balances.
             const replaceCoveredChains =
               mode === 'full' ||
               normalizedResponse.replaceCoveredChainBalances === true;
