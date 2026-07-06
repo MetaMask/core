@@ -14,7 +14,7 @@ import type {
  */
 const selectNetworkConnectionBannerStatus = (
   state: NetworkConnectionBannerControllerState,
-): NetworkConnectionBannerStatus => state.status;
+): NetworkConnectionBannerStatus => state.networkConnectionBannerStatus;
 
 /**
  * Selects the failing network the banner describes, or `null` when no banner
@@ -25,7 +25,7 @@ const selectNetworkConnectionBannerStatus = (
  */
 const selectNetworkConnectionBannerNetwork = (
   state: NetworkConnectionBannerControllerState,
-): FailedNetwork | null => state.network;
+): FailedNetwork | null => state.networkConnectionBannerNetwork;
 
 /**
  * Selects whether the banner is visible (status is `degraded` or

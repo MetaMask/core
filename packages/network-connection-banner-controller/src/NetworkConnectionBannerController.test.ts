@@ -73,8 +73,8 @@ describe('NetworkConnectionBannerController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
-            "network": null,
-            "status": "available",
+            "networkConnectionBannerNetwork": null,
+            "networkConnectionBannerStatus": "available",
           }
         `);
         expect(
@@ -85,8 +85,8 @@ describe('NetworkConnectionBannerController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
-            "network": null,
-            "status": "available",
+            "networkConnectionBannerNetwork": null,
+            "networkConnectionBannerStatus": "available",
           }
         `);
       });
@@ -97,8 +97,8 @@ describe('NetworkConnectionBannerController', () => {
     it('starts with status "available" and no network selected', async () => {
       await withController(({ controller }) => {
         expect(controller.state).toStrictEqual({
-          status: 'available',
-          network: null,
+          networkConnectionBannerStatus: 'available',
+          networkConnectionBannerNetwork: null,
         });
       });
     });
@@ -131,7 +131,9 @@ describe('NetworkConnectionBannerController', () => {
         ({ controller }) => {
           jest.advanceTimersByTime(30_000);
 
-          expect(controller.state.status).toBe('available');
+          expect(controller.state.networkConnectionBannerStatus).toBe(
+            'available',
+          );
         },
       );
     });
@@ -165,7 +167,9 @@ describe('NetworkConnectionBannerController', () => {
 
           jest.advanceTimersByTime(5_000);
 
-          expect(controller.state.status).toBe('degraded');
+          expect(controller.state.networkConnectionBannerStatus).toBe(
+            'degraded',
+          );
         },
       );
     });
@@ -197,11 +201,15 @@ describe('NetworkConnectionBannerController', () => {
           });
 
           jest.advanceTimersByTime(30_000);
-          expect(controller.state.status).toBe('available');
+          expect(controller.state.networkConnectionBannerStatus).toBe(
+            'available',
+          );
 
           controller.start();
           jest.advanceTimersByTime(5_000);
-          expect(controller.state.status).toBe('degraded');
+          expect(controller.state.networkConnectionBannerStatus).toBe(
+            'degraded',
+          );
         },
       );
     });
@@ -230,13 +238,15 @@ describe('NetworkConnectionBannerController', () => {
           });
 
           jest.advanceTimersByTime(5_000);
-          expect(controller.state.status).toBe('degraded');
+          expect(controller.state.networkConnectionBannerStatus).toBe(
+            'degraded',
+          );
 
           controller.stop();
           jest.advanceTimersByTime(30_000);
           expect(controller.state).toStrictEqual({
-            status: 'available',
-            network: null,
+            networkConnectionBannerStatus: 'available',
+            networkConnectionBannerNetwork: null,
           });
         },
       );
@@ -267,7 +277,9 @@ describe('NetworkConnectionBannerController', () => {
           });
 
           jest.advanceTimersByTime(30_000);
-          expect(controller.state.status).toBe('available');
+          expect(controller.state.networkConnectionBannerStatus).toBe(
+            'available',
+          );
         },
       );
     });
@@ -297,11 +309,15 @@ describe('NetworkConnectionBannerController', () => {
             },
           });
 
-          expect(controller.state.status).toBe('available');
+          expect(controller.state.networkConnectionBannerStatus).toBe(
+            'available',
+          );
 
           controller.start();
           jest.advanceTimersByTime(5_000);
-          expect(controller.state.status).toBe('degraded');
+          expect(controller.state.networkConnectionBannerStatus).toBe(
+            'degraded',
+          );
         },
       );
     });
@@ -311,8 +327,8 @@ describe('NetworkConnectionBannerController', () => {
         controller.stop();
         controller.stop();
         expect(controller.state).toStrictEqual({
-          status: 'available',
-          network: null,
+          networkConnectionBannerStatus: 'available',
+          networkConnectionBannerNetwork: null,
         });
       });
     });
@@ -344,7 +360,9 @@ describe('NetworkConnectionBannerController', () => {
             }),
           );
           jest.advanceTimersByTime(30_000);
-          expect(controller.state.status).toBe('unavailable');
+          expect(controller.state.networkConnectionBannerStatus).toBe(
+            'unavailable',
+          );
 
           let stopped = false;
           controllerMessenger.subscribe(
@@ -383,8 +401,8 @@ describe('NetworkConnectionBannerController', () => {
 
           jest.advanceTimersByTime(30_000);
           expect(controller.state).toStrictEqual({
-            status: 'available',
-            network: null,
+            networkConnectionBannerStatus: 'available',
+            networkConnectionBannerNetwork: null,
           });
         },
       );
@@ -396,7 +414,7 @@ describe('NetworkConnectionBannerController', () => {
           controllerMessenger.subscribe(
             'NetworkConnectionBannerController:stateChanged',
             (state) => {
-              if (state.status === 'degraded') {
+              if (state.networkConnectionBannerStatus === 'degraded') {
                 controller.stop();
               }
             },
@@ -429,8 +447,8 @@ describe('NetworkConnectionBannerController', () => {
           // scheduling the unavailable escalation.
           jest.advanceTimersByTime(30_000);
           expect(controller.state).toStrictEqual({
-            status: 'available',
-            network: null,
+            networkConnectionBannerStatus: 'available',
+            networkConnectionBannerNetwork: null,
           });
         },
       );
@@ -478,8 +496,8 @@ describe('NetworkConnectionBannerController', () => {
         jest.advanceTimersByTime(30_000);
 
         expect(controller.state).toStrictEqual({
-          status: 'available',
-          network: null,
+          networkConnectionBannerStatus: 'available',
+          networkConnectionBannerNetwork: null,
         });
       });
     });
@@ -535,7 +553,9 @@ describe('NetworkConnectionBannerController', () => {
 
         jest.advanceTimersByTime(30_000);
 
-        expect(controller.state.status).toBe('available');
+        expect(controller.state.networkConnectionBannerStatus).toBe(
+          'available',
+        );
       });
     });
 
@@ -578,13 +598,15 @@ describe('NetworkConnectionBannerController', () => {
 
         // Below the degraded threshold — banner still hidden.
         jest.advanceTimersByTime(4_999);
-        expect(controller.state.status).toBe('available');
+        expect(controller.state.networkConnectionBannerStatus).toBe(
+          'available',
+        );
 
         // Cross the 5s mark — degraded banner appears. Custom override surfaces
         // the Alchemy network so the "Switch to Infura" CTA targets it.
         jest.advanceTimersByTime(1);
-        expect(controller.state.status).toBe('degraded');
-        expect(controller.state.network).toMatchObject({
+        expect(controller.state.networkConnectionBannerStatus).toBe('degraded');
+        expect(controller.state.networkConnectionBannerNetwork).toMatchObject({
           chainId: '0xa4b1',
           isInfuraEndpoint: false,
           rpcUrl: 'https://arb-mainnet.g.alchemy.com/v2/abc',
@@ -592,7 +614,9 @@ describe('NetworkConnectionBannerController', () => {
 
         // Cross the 30s mark — escalates to unavailable.
         jest.advanceTimersByTime(25_000);
-        expect(controller.state.status).toBe('unavailable');
+        expect(controller.state.networkConnectionBannerStatus).toBe(
+          'unavailable',
+        );
       });
     });
 
@@ -633,8 +657,8 @@ describe('NetworkConnectionBannerController', () => {
 
         jest.advanceTimersByTime(5_000);
 
-        expect(controller.state.status).toBe('degraded');
-        expect(controller.state.network).toMatchObject({
+        expect(controller.state.networkConnectionBannerStatus).toBe('degraded');
+        expect(controller.state.networkConnectionBannerNetwork).toMatchObject({
           chainId: '0x89',
           isInfuraEndpoint: false,
         });
@@ -667,8 +691,8 @@ describe('NetworkConnectionBannerController', () => {
 
         jest.advanceTimersByTime(5_000);
 
-        expect(controller.state.status).toBe('degraded');
-        expect(controller.state.network).toMatchObject({
+        expect(controller.state.networkConnectionBannerStatus).toBe('degraded');
+        expect(controller.state.networkConnectionBannerNetwork).toMatchObject({
           chainId: '0x1',
           isInfuraEndpoint: true,
         });
@@ -711,8 +735,8 @@ describe('NetworkConnectionBannerController', () => {
 
         jest.advanceTimersByTime(5_000);
 
-        expect(controller.state.status).toBe('degraded');
-        expect(controller.state.network).toMatchObject({
+        expect(controller.state.networkConnectionBannerStatus).toBe('degraded');
+        expect(controller.state.networkConnectionBannerNetwork).toMatchObject({
           networkClientId: MAINNET_CLIENT_ID,
         });
       });
@@ -755,7 +779,9 @@ describe('NetworkConnectionBannerController', () => {
 
         jest.advanceTimersByTime(5_000);
 
-        expect(controller.state.network).toMatchObject({ chainId: '0x89' });
+        expect(controller.state.networkConnectionBannerNetwork).toMatchObject({
+          chainId: '0x89',
+        });
       });
     });
 
@@ -783,7 +809,7 @@ describe('NetworkConnectionBannerController', () => {
         );
 
         jest.advanceTimersByTime(5_000);
-        expect(controller.state.status).toBe('degraded');
+        expect(controller.state.networkConnectionBannerStatus).toBe('degraded');
 
         // Same chain still failing — should be a no-op update (no timer reset).
         publishNetworkStateChanges(
@@ -801,7 +827,9 @@ describe('NetworkConnectionBannerController', () => {
         // 25s after the original degraded fire — the unavailable escalation
         // should still happen on schedule (timers were not restarted).
         jest.advanceTimersByTime(25_000);
-        expect(controller.state.status).toBe('unavailable');
+        expect(controller.state.networkConnectionBannerStatus).toBe(
+          'unavailable',
+        );
       });
     });
 
@@ -833,7 +861,7 @@ describe('NetworkConnectionBannerController', () => {
         publishNetworkStateChanges(failingState);
         jest.advanceTimersByTime(1_000);
 
-        expect(controller.state.status).toBe('degraded');
+        expect(controller.state.networkConnectionBannerStatus).toBe('degraded');
       });
     });
 
@@ -889,7 +917,9 @@ describe('NetworkConnectionBannerController', () => {
         );
 
         jest.advanceTimersByTime(30_000);
-        expect(controller.state.status).toBe('available');
+        expect(controller.state.networkConnectionBannerStatus).toBe(
+          'available',
+        );
       });
     });
 
@@ -912,7 +942,9 @@ describe('NetworkConnectionBannerController', () => {
           },
         });
         jest.advanceTimersByTime(30_000);
-        expect(controller.state.status).toBe('available');
+        expect(controller.state.networkConnectionBannerStatus).toBe(
+          'available',
+        );
       });
     });
 
@@ -940,7 +972,7 @@ describe('NetworkConnectionBannerController', () => {
         );
 
         jest.advanceTimersByTime(5_000);
-        expect(controller.state.status).toBe('degraded');
+        expect(controller.state.networkConnectionBannerStatus).toBe('degraded');
 
         publishNetworkStateChanges(
           buildExternalState({
@@ -955,8 +987,8 @@ describe('NetworkConnectionBannerController', () => {
         );
 
         expect(controller.state).toStrictEqual({
-          status: 'available',
-          network: null,
+          networkConnectionBannerStatus: 'available',
+          networkConnectionBannerNetwork: null,
         });
       });
     });
@@ -986,8 +1018,8 @@ describe('NetworkConnectionBannerController', () => {
         );
 
         jest.advanceTimersByTime(5_000);
-        expect(controller.state.status).toBe('degraded');
-        expect(controller.state.network).toMatchObject({
+        expect(controller.state.networkConnectionBannerStatus).toBe('degraded');
+        expect(controller.state.networkConnectionBannerNetwork).toMatchObject({
           isInfuraEndpoint: false,
         });
       });
@@ -1006,7 +1038,9 @@ describe('NetworkConnectionBannerController', () => {
           },
         });
         jest.advanceTimersByTime(30_000);
-        expect(controller.state.status).toBe('available');
+        expect(controller.state.networkConnectionBannerStatus).toBe(
+          'available',
+        );
       });
     });
 
@@ -1029,7 +1063,9 @@ describe('NetworkConnectionBannerController', () => {
           }),
         );
         jest.advanceTimersByTime(30_000);
-        expect(controller.state.status).toBe('available');
+        expect(controller.state.networkConnectionBannerStatus).toBe(
+          'available',
+        );
       });
     });
 
@@ -1063,7 +1099,7 @@ describe('NetworkConnectionBannerController', () => {
 
         jest.advanceTimersByTime(5_000);
 
-        expect(controller.state.network).toMatchObject({
+        expect(controller.state.networkConnectionBannerNetwork).toMatchObject({
           chainId: '0x1',
           isInfuraEndpoint: false,
           switchableInfuraNetworkClientId: MAINNET_CLIENT_ID,
@@ -1099,7 +1135,9 @@ describe('NetworkConnectionBannerController', () => {
         },
         ({ controller, setNetworkEnablementControllerState }) => {
           jest.advanceTimersByTime(30_000);
-          expect(controller.state.status).toBe('available');
+          expect(controller.state.networkConnectionBannerStatus).toBe(
+            'available',
+          );
 
           setNetworkEnablementControllerState(
             buildNetworkEnablementControllerState({
@@ -1112,7 +1150,9 @@ describe('NetworkConnectionBannerController', () => {
           );
 
           jest.advanceTimersByTime(5_000);
-          expect(controller.state.status).toBe('degraded');
+          expect(controller.state.networkConnectionBannerStatus).toBe(
+            'degraded',
+          );
         },
       );
     });
@@ -1142,7 +1182,9 @@ describe('NetworkConnectionBannerController', () => {
         },
         ({ controller, setNetworkEnablementControllerState }) => {
           jest.advanceTimersByTime(30_000);
-          expect(controller.state.status).toBe('unavailable');
+          expect(controller.state.networkConnectionBannerStatus).toBe(
+            'unavailable',
+          );
 
           setNetworkEnablementControllerState(
             buildNetworkEnablementControllerState({
@@ -1155,8 +1197,8 @@ describe('NetworkConnectionBannerController', () => {
           );
 
           expect(controller.state).toStrictEqual({
-            status: 'available',
-            network: null,
+            networkConnectionBannerStatus: 'available',
+            networkConnectionBannerNetwork: null,
           });
         },
       );
@@ -1198,15 +1240,21 @@ describe('NetworkConnectionBannerController', () => {
           );
 
           jest.advanceTimersByTime(5_000);
-          expect(controller.state.status).toBe('degraded');
+          expect(controller.state.networkConnectionBannerStatus).toBe(
+            'degraded',
+          );
 
           setConnectivityStatus(CONNECTIVITY_STATUSES.Offline);
-          expect(controller.state.status).toBe('available');
-          expect(controller.state.network).toBeNull();
+          expect(controller.state.networkConnectionBannerStatus).toBe(
+            'available',
+          );
+          expect(controller.state.networkConnectionBannerNetwork).toBeNull();
 
           setConnectivityStatus(CONNECTIVITY_STATUSES.Online);
           jest.advanceTimersByTime(5_000);
-          expect(controller.state.status).toBe('degraded');
+          expect(controller.state.networkConnectionBannerStatus).toBe(
+            'degraded',
+          );
         },
       );
     });
@@ -1245,11 +1293,13 @@ describe('NetworkConnectionBannerController', () => {
           }),
         );
         jest.advanceTimersByTime(5_000);
-        expect(controller.state.status).toBe('degraded');
+        expect(controller.state.networkConnectionBannerStatus).toBe('degraded');
 
         controller.dismissBanner();
-        expect(controller.state.status).toBe('available');
-        expect(controller.state.network).toBeNull();
+        expect(controller.state.networkConnectionBannerStatus).toBe(
+          'available',
+        );
+        expect(controller.state.networkConnectionBannerNetwork).toBeNull();
       });
     });
 
@@ -1280,7 +1330,9 @@ describe('NetworkConnectionBannerController', () => {
           jest.advanceTimersByTime(5_000);
 
           rootMessenger.call('NetworkConnectionBannerController:dismissBanner');
-          expect(controller.state.status).toBe('available');
+          expect(controller.state.networkConnectionBannerStatus).toBe(
+            'available',
+          );
         },
       );
     });

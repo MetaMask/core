@@ -160,20 +160,25 @@ export type FailedNetwork = {
 
 /**
  * State for the {@link NetworkConnectionBannerController}.
+ *
+ * The keys carry the controller-domain prefix (like
+ * `ConnectivityController`'s `connectivityStatus`) because some clients merge
+ * all controller states into one flat object, where generic names like
+ * `status` collide across controllers.
  */
 export type NetworkConnectionBannerControllerState = {
-  status: NetworkConnectionBannerStatus;
-  network: FailedNetwork | null;
+  networkConnectionBannerStatus: NetworkConnectionBannerStatus;
+  networkConnectionBannerNetwork: FailedNetwork | null;
 };
 
 const networkConnectionBannerControllerMetadata = {
-  status: {
+  networkConnectionBannerStatus: {
     persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     usedInUi: true,
   },
-  network: {
+  networkConnectionBannerNetwork: {
     persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
@@ -188,8 +193,8 @@ const networkConnectionBannerControllerMetadata = {
  */
 export function getDefaultNetworkConnectionBannerControllerState(): NetworkConnectionBannerControllerState {
   return {
-    status: 'available',
-    network: null,
+    networkConnectionBannerStatus: 'available',
+    networkConnectionBannerNetwork: null,
   };
 }
 
@@ -495,11 +500,12 @@ export class NetworkConnectionBannerController extends BaseController<
     }
 
     if (
-      this.state.status !== 'available' &&
-      this.state.network?.networkClientId === failedNetwork.networkClientId
+      this.state.networkConnectionBannerStatus !== 'available' &&
+      this.state.networkConnectionBannerNetwork?.networkClientId ===
+        failedNetwork.networkClientId
     ) {
       this.update((state) => {
-        state.network = failedNetwork;
+        state.networkConnectionBannerNetwork = failedNetwork;
       });
       return;
     }
@@ -510,8 +516,8 @@ export class NetworkConnectionBannerController extends BaseController<
 
     this.#clearTimers();
     this.update((state) => {
-      state.status = 'available';
-      state.network = null;
+      state.networkConnectionBannerStatus = 'available';
+      state.networkConnectionBannerNetwork = null;
     });
 
     // A synchronous listener on our `stateChanged` event above may have
@@ -529,8 +535,8 @@ export class NetworkConnectionBannerController extends BaseController<
       this.#degradedTimer = undefined;
       this.#pendingNetworkClientId = undefined;
       this.update((state) => {
-        state.status = 'degraded';
-        state.network = failedNetwork;
+        state.networkConnectionBannerStatus = 'degraded';
+        state.networkConnectionBannerNetwork = failedNetwork;
       });
       // A synchronous listener on our `stateChanged` event above may have
       // called `stop()` re-entrantly. Bail before scheduling the escalation.
@@ -540,8 +546,8 @@ export class NetworkConnectionBannerController extends BaseController<
       this.#unavailableTimer = setTimeout(() => {
         this.#unavailableTimer = undefined;
         this.update((state) => {
-          state.status = 'unavailable';
-          state.network = failedNetwork;
+          state.networkConnectionBannerStatus = 'unavailable';
+          state.networkConnectionBannerNetwork = failedNetwork;
         });
       }, UNAVAILABLE_BANNER_TIMEOUT - DEGRADED_BANNER_TIMEOUT);
     }, DEGRADED_BANNER_TIMEOUT);
@@ -554,10 +560,13 @@ export class NetworkConnectionBannerController extends BaseController<
   #resetBanner(): void {
     this.#clearTimers();
     this.#pendingNetworkClientId = undefined;
-    if (this.state.status !== 'available' || this.state.network !== null) {
+    if (
+      this.state.networkConnectionBannerStatus !== 'available' ||
+      this.state.networkConnectionBannerNetwork !== null
+    ) {
       this.update((state) => {
-        state.status = 'available';
-        state.network = null;
+        state.networkConnectionBannerStatus = 'available';
+        state.networkConnectionBannerNetwork = null;
       });
     }
   }

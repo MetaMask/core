@@ -20,8 +20,9 @@ describe('networkConnectionBannerControllerSelectors', () => {
       'returns %s when status is %s',
       (status) => {
         const state: NetworkConnectionBannerControllerState = {
-          status,
-          network: status === 'available' ? null : failedNetwork,
+          networkConnectionBannerStatus: status,
+          networkConnectionBannerNetwork:
+            status === 'available' ? null : failedNetwork,
         };
 
         const result =
@@ -37,8 +38,8 @@ describe('networkConnectionBannerControllerSelectors', () => {
   describe('selectNetworkConnectionBannerNetwork', () => {
     it('returns null when no banner is shown', () => {
       const state: NetworkConnectionBannerControllerState = {
-        status: 'available',
-        network: null,
+        networkConnectionBannerStatus: 'available',
+        networkConnectionBannerNetwork: null,
       };
 
       const result =
@@ -51,8 +52,8 @@ describe('networkConnectionBannerControllerSelectors', () => {
 
     it('returns the failing network details when a banner is shown', () => {
       const state: NetworkConnectionBannerControllerState = {
-        status: 'degraded',
-        network: failedNetwork,
+        networkConnectionBannerStatus: 'degraded',
+        networkConnectionBannerNetwork: failedNetwork,
       };
 
       const result =
@@ -67,8 +68,8 @@ describe('networkConnectionBannerControllerSelectors', () => {
   describe('selectIsNetworkConnectionBannerVisible', () => {
     it('returns false when status is available', () => {
       const state: NetworkConnectionBannerControllerState = {
-        status: 'available',
-        network: null,
+        networkConnectionBannerStatus: 'available',
+        networkConnectionBannerNetwork: null,
       };
 
       const result =
@@ -83,8 +84,8 @@ describe('networkConnectionBannerControllerSelectors', () => {
       'returns true when status is %s',
       (status) => {
         const state: NetworkConnectionBannerControllerState = {
-          status,
-          network: failedNetwork,
+          networkConnectionBannerStatus: status,
+          networkConnectionBannerNetwork: failedNetwork,
         };
 
         const result =
