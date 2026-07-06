@@ -50,6 +50,7 @@
 /packages/money-account-api-data-service    @MetaMask/earn
 /packages/chomp-api-service                 @MetaMask/earn @MetaMask/delegation
 /packages/money-account-upgrade-controller  @MetaMask/earn @MetaMask/delegation
+/packages/money-account-utils               @MetaMask/earn
 
 ## Social AI Team
 /packages/ai-controllers                    @MetaMask/social-ai
@@ -275,5 +276,7 @@
 /packages/chomp-api-service/CHANGELOG.md @MetaMask/earn @MetaMask/delegation @MetaMask/core-platform
 /packages/money-account-upgrade-controller/package.json @MetaMask/earn @MetaMask/delegation @MetaMask/core-platform
 /packages/money-account-upgrade-controller/CHANGELOG.md @MetaMask/earn @MetaMask/delegation @MetaMask/core-platform
+/packages/money-account-utils/package.json @MetaMask/earn @MetaMask/core-platform
+/packages/money-account-utils/CHANGELOG.md @MetaMask/earn @MetaMask/core-platform
 /packages/snap-account-service/package.json @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/snap-account-service/CHANGELOG.md @MetaMask/accounts-engineers @MetaMask/core-platform
