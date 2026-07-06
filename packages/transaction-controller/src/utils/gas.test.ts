@@ -23,6 +23,7 @@ import {
   addGasBuffer,
   estimateGas,
   estimateGasBatch,
+  getProvidedBatchGasLimits,
   updateGas,
   FIXED_GAS,
   DEFAULT_GAS_MULTIPLIER,
@@ -536,6 +537,29 @@ describe('gas', () => {
           },
         });
       });
+
+      it('sets revert.gas when the estimate error carries revert data', async () => {
+        const data =
+          '0x08c379a00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002645524332303a207472616e7366657220616d6f756e7420657863656564732062616c616e63650000000000000000000000000000000000000000000000000000';
+
+        mockQuery({
+          getBlockByNumberResponse: {
+            gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+            number: BLOCK_NUMBER_MOCK,
+          },
+          estimateGasError: {
+            message: 'execution reverted',
+            data,
+          },
+        });
+
+        await updateGas(updateGasRequest);
+
+        expect(updateGasRequest.txMeta.revert?.gas).toStrictEqual({
+          message: 'ERC20: transfer amount exceeds balance',
+          data,
+        });
+      });
     });
   });
 
@@ -558,6 +582,7 @@ describe('gas', () => {
         estimatedGas: toHex(GAS_MOCK),
         blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
         simulationFails: undefined,
+        gasRevert: undefined,
         isUpgradeWithData: false,
       });
     });
@@ -582,6 +607,7 @@ describe('gas', () => {
       expect(result).toStrictEqual({
         estimatedGas: expect.any(String),
         blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+        gasRevert: undefined,
         isUpgradeWithData: false,
         simulationFails: {
           reason: 'TestError',
@@ -592,6 +618,55 @@ describe('gas', () => {
           },
         },
       });
+    });
+
+    it('returns gasRevert decoded from estimate error data', async () => {
+      mockQuery({
+        getBlockByNumberResponse: {
+          gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+          number: BLOCK_NUMBER_MOCK,
+        },
+        estimateGasError: {
+          message: 'execution reverted',
+          data: '0x08c379a00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002645524332303a207472616e7366657220616d6f756e7420657863656564732062616c616e63650000000000000000000000000000000000000000000000000000',
+        },
+      });
+
+      const result = await estimateGas({
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        isSimulationEnabled: false,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        messenger: MESSENGER_MOCK,
+        txParams: TRANSACTION_META_MOCK.txParams,
+      });
+
+      expect(result.gasRevert).toStrictEqual({
+        message: 'ERC20: transfer amount exceeds balance',
+        data: '0x08c379a00000000000000000000000000000000000000000000000000000000000000020000000000000000000000000000000000000000000000000000000000000002645524332303a207472616e7366657220616d6f756e7420657863656564732062616c616e63650000000000000000000000000000000000000000000000000000',
+      });
+    });
+
+    it('returns no gasRevert when error has only a message and no data', async () => {
+      mockQuery({
+        getBlockByNumberResponse: {
+          gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+          number: BLOCK_NUMBER_MOCK,
+        },
+        estimateGasError: {
+          message:
+            'execution reverted: NativeBalanceChangeEnforcer:exceeded-balance-decrease',
+        },
+      });
+
+      const result = await estimateGas({
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        isSimulationEnabled: false,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        messenger: MESSENGER_MOCK,
+        txParams: TRANSACTION_META_MOCK.txParams,
+      });
+
+      expect(result.gasRevert).toBeUndefined();
     });
 
     it('returns estimated gas as 35% of block gas limit on error', async () => {
@@ -618,6 +693,7 @@ describe('gas', () => {
         estimatedGas: toHex(fallbackGas),
         blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
         simulationFails: expect.any(Object),
+        gasRevert: undefined,
         isUpgradeWithData: false,
       });
     });
@@ -643,8 +719,87 @@ describe('gas', () => {
         estimatedGas: toHex(FIXED_ESTIMATE_GAS_MOCK),
         blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
         simulationFails: expect.any(Object),
+        gasRevert: undefined,
         isUpgradeWithData: false,
       });
+    });
+
+    it('clamps the percentage-derived fallback to maxGasLimit when it exceeds the chain per-tx cap on error', async () => {
+      const maxGasLimit =
+        Math.floor(BLOCK_GAS_LIMIT_MOCK * FALLBACK_MULTIPLIER_35_PERCENT) - 1;
+
+      getGasEstimateFallbackMock.mockReturnValue({
+        percentage: DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK,
+        fixed: undefined,
+        maxGasLimit,
+      });
+
+      mockQuery({
+        getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+        estimateGasError: { message: 'TestError', errorKey: 'TestKey' },
+      });
+
+      const result = await estimateGas({
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        isSimulationEnabled: false,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        messenger: MESSENGER_MOCK,
+        txParams: TRANSACTION_META_MOCK.txParams,
+      });
+
+      expect(result.estimatedGas).toBe(toHex(maxGasLimit));
+    });
+
+    it('does not clamp the fallback when it is below maxGasLimit on error', async () => {
+      const fallbackGas = Math.floor(
+        BLOCK_GAS_LIMIT_MOCK * FALLBACK_MULTIPLIER_35_PERCENT,
+      );
+
+      getGasEstimateFallbackMock.mockReturnValue({
+        percentage: DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK,
+        fixed: undefined,
+        maxGasLimit: BLOCK_GAS_LIMIT_MOCK,
+      });
+
+      mockQuery({
+        getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+        estimateGasError: { message: 'TestError', errorKey: 'TestKey' },
+      });
+
+      const result = await estimateGas({
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        isSimulationEnabled: false,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        messenger: MESSENGER_MOCK,
+        txParams: TRANSACTION_META_MOCK.txParams,
+      });
+
+      expect(result.estimatedGas).toBe(toHex(fallbackGas));
+    });
+
+    it('clamps the fixed fallback to maxGasLimit when it exceeds the chain per-tx cap on error', async () => {
+      const maxGasLimit = FIXED_ESTIMATE_GAS_MOCK - 1;
+
+      getGasEstimateFallbackMock.mockReturnValue({
+        percentage: DEFAULT_GAS_ESTIMATE_FALLBACK_MOCK,
+        fixed: FIXED_ESTIMATE_GAS_MOCK,
+        maxGasLimit,
+      });
+
+      mockQuery({
+        getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+        estimateGasError: { message: 'TestError', errorKey: 'TestKey' },
+      });
+
+      const result = await estimateGas({
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        isSimulationEnabled: false,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        messenger: MESSENGER_MOCK,
+        txParams: TRANSACTION_META_MOCK.txParams,
+      });
+
+      expect(result.estimatedGas).toBe(toHex(maxGasLimit));
     });
 
     it('removes gas fee properties from estimate request', async () => {
@@ -808,6 +963,7 @@ describe('gas', () => {
           estimatedGas: toHex(SIMULATE_GAS_MOCK),
           blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
           simulationFails: undefined,
+          gasRevert: undefined,
           isUpgradeWithData: false,
         });
       });
@@ -860,6 +1016,7 @@ describe('gas', () => {
           estimatedGas: toHex(GAS_2_MOCK + SIMULATE_GAS_MOCK - INTRINSIC_GAS),
           blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
           simulationFails: undefined,
+          gasRevert: undefined,
           isUpgradeWithData: true,
         });
       });
@@ -993,6 +1150,7 @@ describe('gas', () => {
           estimatedGas: toHex(GAS_2_MOCK),
           blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
           simulationFails: undefined,
+          gasRevert: undefined,
           isUpgradeWithData: true,
         });
       });
@@ -1028,6 +1186,7 @@ describe('gas', () => {
         expect(result).toStrictEqual({
           estimatedGas: toHex(GAS_2_MOCK + SIMULATE_GAS_MOCK - INTRINSIC_GAS),
           blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+          gasRevert: undefined,
           isUpgradeWithData: true,
           simulationFails: undefined,
         });
@@ -1064,6 +1223,7 @@ describe('gas', () => {
         expect(result).toStrictEqual({
           estimatedGas: expect.any(String),
           blockGasLimit: toHex(BLOCK_GAS_LIMIT_MOCK),
+          gasRevert: undefined,
           isUpgradeWithData: true,
           simulationFails: {
             debug: {
@@ -1244,6 +1404,116 @@ describe('gas', () => {
       });
     });
 
+    it('prefers 7702 simulated gas over provided gas when simulation succeeds', async () => {
+      // The bundled 7702 call has no per-tx intrinsic gas cost so the
+      // simulated estimate is typically lower than the sum of provided per-tx
+      // limits — prefer it when available.
+      const isAtomicBatchSupportedMock = jest.fn().mockResolvedValue([
+        {
+          chainId: CHAIN_ID_MOCK,
+          isSupported: true,
+          upgradeContractAddress: UPGRADE_CONTRACT_ADDRESS_MOCK,
+        },
+      ]);
+
+      generateEIP7702BatchTransactionMock.mockReturnValue({
+        to: TO_MOCK,
+        data: DATA_MOCK,
+      } as BatchTransactionParams);
+
+      mockQuery({
+        getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+        estimateGasResponse: toHex(GAS_MOCK),
+      });
+
+      const result = await estimateGasBatch({
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        from: FROM_MOCK,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        isAtomicBatchSupported: isAtomicBatchSupportedMock,
+        messenger: MESSENGER_MOCK,
+        transactions: BATCH_TX_PARAMS_WITH_GAS_MOCK,
+      });
+
+      expect(result).toStrictEqual({
+        totalGasLimit: GAS_MOCK,
+        gasLimits: [GAS_MOCK],
+      });
+    });
+
+    it('falls back to provided gas in 7702 path when simulation fails', async () => {
+      // Callers that submit batches whose individual sub-calls cannot be
+      // simulated standalone (e.g. predict-withdraw, where the batch's first
+      // sub-call provides token balance to the rest) rely on this fallback —
+      // otherwise simulation reverts and falls back to the block gas limit.
+      const isAtomicBatchSupportedMock = jest.fn().mockResolvedValue([
+        {
+          chainId: CHAIN_ID_MOCK,
+          isSupported: true,
+          upgradeContractAddress: UPGRADE_CONTRACT_ADDRESS_MOCK,
+        },
+      ]);
+
+      generateEIP7702BatchTransactionMock.mockReturnValue({
+        to: TO_MOCK,
+        data: DATA_MOCK,
+      } as BatchTransactionParams);
+
+      mockQuery({
+        getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+        estimateGasError: new Error('execution reverted'),
+      });
+
+      const result = await estimateGasBatch({
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        from: FROM_MOCK,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        isAtomicBatchSupported: isAtomicBatchSupportedMock,
+        messenger: MESSENGER_MOCK,
+        transactions: BATCH_TX_PARAMS_WITH_GAS_MOCK,
+      });
+
+      expect(result).toStrictEqual({
+        totalGasLimit: 521000,
+        gasLimits: [521000],
+      });
+    });
+
+    it('preserves requiresAuthorizationList when 7702 fallback fires for upgrade-required account', async () => {
+      const isAtomicBatchSupportedMock = jest.fn().mockResolvedValue([
+        {
+          chainId: CHAIN_ID_MOCK,
+          isSupported: false,
+          upgradeContractAddress: UPGRADE_CONTRACT_ADDRESS_MOCK,
+        },
+      ]);
+
+      generateEIP7702BatchTransactionMock.mockReturnValue({
+        to: TO_MOCK,
+        data: DATA_MOCK,
+      } as BatchTransactionParams);
+
+      mockQuery({
+        getBlockByNumberResponse: { gasLimit: toHex(BLOCK_GAS_LIMIT_MOCK) },
+        estimateGasError: new Error('execution reverted'),
+      });
+
+      const result = await estimateGasBatch({
+        networkClientId: NETWORK_CLIENT_ID_MOCK,
+        from: FROM_MOCK,
+        getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
+        isAtomicBatchSupported: isAtomicBatchSupportedMock,
+        messenger: MESSENGER_MOCK,
+        transactions: BATCH_TX_PARAMS_WITH_GAS_MOCK,
+      });
+
+      expect(result).toStrictEqual({
+        totalGasLimit: 521000,
+        gasLimits: [521000],
+        requiresAuthorizationList: true,
+      });
+    });
+
     it('throws error when upgrade contract address not found', async () => {
       const isAtomicBatchSupportedMock = jest.fn().mockResolvedValue([
         {
@@ -1406,6 +1676,48 @@ describe('gas', () => {
 
       expect(generateEIP7702BatchTransactionMock).not.toHaveBeenCalled();
       expect(result.gasLimits).toHaveLength(2);
+    });
+  });
+
+  describe('getProvidedBatchGasLimits', () => {
+    it('returns parsed limits + sum when every transaction has a gas value', () => {
+      expect(
+        getProvidedBatchGasLimits(BATCH_TX_PARAMS_WITH_GAS_MOCK),
+      ).toStrictEqual({
+        gasLimits: [21000, 500000],
+        totalGasLimit: 521000,
+      });
+    });
+
+    it('returns undefined when none of the transactions have gas', () => {
+      expect(getProvidedBatchGasLimits(BATCH_TX_PARAMS_MOCK)).toBeUndefined();
+    });
+
+    it('returns undefined when only some transactions have gas', () => {
+      const mixed = [BATCH_TX_PARAMS_WITH_GAS_MOCK[0], BATCH_TX_PARAMS_MOCK[0]];
+      expect(getProvidedBatchGasLimits(mixed)).toBeUndefined();
+    });
+
+    it('parses hex gas values correctly', () => {
+      const txWithHexGas = [
+        { ...BATCH_TX_PARAMS_MOCK[0], gas: '0x5208' as Hex },
+        { ...BATCH_TX_PARAMS_MOCK[1], gas: '0x7a120' as Hex },
+      ];
+      expect(getProvidedBatchGasLimits(txWithHexGas)).toStrictEqual({
+        gasLimits: [21000, 500000],
+        totalGasLimit: 521000,
+      });
+    });
+
+    it('returns zero-length result for an empty batch', () => {
+      // `every` on empty array returns true, so the function returns a valid
+      // (but empty) result rather than `undefined`. Callers of `estimateGasBatch`
+      // always pass at least one transaction, so this is documenting current
+      // behaviour rather than a guarantee.
+      expect(getProvidedBatchGasLimits([])).toStrictEqual({
+        gasLimits: [],
+        totalGasLimit: 0,
+      });
     });
   });
 

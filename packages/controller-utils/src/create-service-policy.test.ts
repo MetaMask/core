@@ -816,6 +816,118 @@ describe('createServicePolicy', () => {
       expect(onAvailableListener).toHaveBeenCalledTimes(2);
     });
   });
+
+  describe('using a custom isServiceFailure predicate', () => {
+    it('opens the circuit when the predicate treats the error as a service failure', async () => {
+      const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
+      const error = new Error('failure');
+      const mockService = jest.fn(() => {
+        throw error;
+      });
+      const onBreakListener = jest.fn();
+      const policy = createServicePolicy({
+        maxConsecutiveFailures,
+        isServiceFailure: () => true,
+      });
+      policy.onBreak(onBreakListener);
+
+      const promise = policy.execute(mockService);
+      // It's safe not to await this promise; adding it to the promise
+      // queue is enough to prevent this test from running indefinitely.
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      jest.runAllTimersAsync();
+      await ignoreRejection(promise);
+
+      expect(onBreakListener).toHaveBeenCalledTimes(1);
+      expect(onBreakListener).toHaveBeenCalledWith({ error });
+    });
+
+    it('never opens the circuit when the predicate does not treat the error as a service failure', async () => {
+      const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
+      const error = new Error('failure');
+      const mockService = jest.fn(() => {
+        throw error;
+      });
+      const onBreakListener = jest.fn();
+      const policy = createServicePolicy({
+        maxConsecutiveFailures,
+        isServiceFailure: () => false,
+      });
+      policy.onBreak(onBreakListener);
+
+      // Execute more times than the max consecutive failures so that the
+      // circuit would open if these errors were counted as failures.
+      for (let i = 0; i < maxConsecutiveFailures + 1; i++) {
+        const promise = policy.execute(mockService);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        jest.runAllTimersAsync();
+        await ignoreRejection(promise);
+      }
+
+      expect(onBreakListener).not.toHaveBeenCalled();
+    });
+
+    it('calls the predicate with the error thrown by the service', async () => {
+      const error = new Error('failure');
+      const mockService = jest.fn(() => {
+        throw error;
+      });
+      const isServiceFailure = jest.fn(() => true);
+      const policy = createServicePolicy({
+        maxConsecutiveFailures: DEFAULT_MAX_RETRIES + 1,
+        isServiceFailure,
+      });
+
+      const promise = policy.execute(mockService);
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      jest.runAllTimersAsync();
+      await ignoreRejection(promise);
+
+      expect(isServiceFailure).toHaveBeenCalledWith(error);
+    });
+  });
+
+  describe('using the default isServiceFailure predicate', () => {
+    it('opens the circuit for an error with an HTTP status >= 500', async () => {
+      const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
+      const error = Object.assign(new Error('failure'), { httpStatus: 500 });
+      const mockService = jest.fn(() => {
+        throw error;
+      });
+      const onBreakListener = jest.fn();
+      const policy = createServicePolicy({ maxConsecutiveFailures });
+      policy.onBreak(onBreakListener);
+
+      const promise = policy.execute(mockService);
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      jest.runAllTimersAsync();
+      await ignoreRejection(promise);
+
+      expect(onBreakListener).toHaveBeenCalledTimes(1);
+    });
+
+    it('never opens the circuit for an error with an HTTP status < 500', async () => {
+      const maxConsecutiveFailures = DEFAULT_MAX_RETRIES + 1;
+      const error = Object.assign(new Error('failure'), { httpStatus: 400 });
+      const mockService = jest.fn(() => {
+        throw error;
+      });
+      const onBreakListener = jest.fn();
+      const policy = createServicePolicy({ maxConsecutiveFailures });
+      policy.onBreak(onBreakListener);
+
+      // Execute more times than the max consecutive failures so that the
+      // circuit would open if these errors were counted as failures.
+      for (let i = 0; i < maxConsecutiveFailures + 1; i++) {
+        const promise = policy.execute(mockService);
+        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+        jest.runAllTimersAsync();
+        await ignoreRejection(promise);
+      }
+
+      expect(onBreakListener).not.toHaveBeenCalled();
+    });
+  });
 });
 
 /**

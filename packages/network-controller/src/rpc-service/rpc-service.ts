@@ -30,6 +30,15 @@ import type {
 } from './shared';
 
 /**
+ * Options for the RpcService constructor with some properties omitted and made optional as they have defaults.
+ */
+export type RpcServiceOptionsWithDefaults = Omit<
+  RpcServiceOptions,
+  'failoverService' | 'endpointUrl' | 'isOffline' | 'btoa' | 'fetch'
+> &
+  Partial<Pick<RpcServiceOptions, 'isOffline' | 'btoa' | 'fetch'>>;
+
+/**
  * Options for the RpcService constructor.
  */
 export type RpcServiceOptions = {
@@ -58,13 +67,17 @@ export type RpcServiceOptions = {
    */
   logger?: Pick<Logger, 'warn'>;
   /**
-   * Options to pass to `createServicePolicy`. Note that `retryFilterPolicy` is
-   * not accepted, as it is overwritten. See {@link createServicePolicy}.
+   * Options to pass to `createServicePolicy`. Note that `retryFilterPolicy` and `isServiceFailure`
+   * are not accepted, as they are overwritten. See {@link createServicePolicy}.
    */
-  policyOptions?: Omit<CreateServicePolicyOptions, 'retryFilterPolicy'>;
+  policyOptions?: Omit<
+    CreateServicePolicyOptions,
+    'retryFilterPolicy' | 'isServiceFailure'
+  >;
   /**
-   * A function that checks if the user is currently offline. If it returns
-   * true, onDegraded and onBreak callbacks will not be called.
+   * A function that checks if the user is currently offline. If it returns true,
+   * connection errors will not be retried, preventing degraded and break
+   * callbacks from being triggered.
    */
   isOffline: () => boolean;
 };
@@ -74,6 +87,8 @@ const log = createModuleLogger(projectLogger, 'RpcService');
 /**
  * The maximum number of times that a failing service should be re-run before
  * giving up.
+ *
+ * Note: This is not used in production and should be removed.
  */
 export const DEFAULT_MAX_RETRIES = 4;
 
@@ -272,6 +287,31 @@ function stripCredentialsFromUrl(url: URL): URL {
   return strippedUrl;
 }
 
+const INFURA_NON_FAILURE_HTTP_STATUS_CODES = [400, 429];
+
+/**
+ * Predicate function that determines if an error from Infura is treated as a service failure.
+ *
+ * @param error - The error.
+ * @returns True if the error should be treated as a service policy failure. Most errors are treated like failures,
+ * with the exception of certain HTTP status codes.
+ */
+function isServiceFailureInfura(error: unknown): boolean {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    hasProperty(error, 'httpStatus') &&
+    typeof error.httpStatus === 'number'
+  ) {
+    return !INFURA_NON_FAILURE_HTTP_STATUS_CODES.includes(error.httpStatus);
+  }
+
+  // If the error is not an object, or doesn't have a numeric httpStatus
+  // property, consider it a service failure (e.g., network errors, timeouts,
+  // etc.)
+  return true;
+}
+
 /**
  * This class is responsible for making a request to an endpoint that implements
  * the JSON-RPC protocol. It is designed to gracefully handle network and server
@@ -302,6 +342,15 @@ export class RpcService {
   #currentRpcMethodName = '';
 
   /**
+   * The trace ID from the `X-Trace-Id` response header of the most recent
+   * request. Passed to `onDegraded` event listeners for debugging.
+   *
+   * `undefined` when no response has been received yet or when the response
+   * did not include the header.
+   */
+  #currentTraceId: string | undefined;
+
+  /**
    * The function used to make an HTTP request.
    */
   readonly #fetch: typeof fetch;
@@ -310,12 +359,6 @@ export class RpcService {
    * A common set of options that the request options will extend.
    */
   readonly #fetchOptions: FetchOptions;
-
-  /**
-   * A function that checks if the user is currently offline. If it returns
-   * true, onDegraded and onBreak callbacks will not be called.
-   */
-  readonly #isOffline: () => boolean;
 
   /**
    * A `loglevel` logger.
@@ -352,13 +395,21 @@ export class RpcService {
     );
     this.endpointUrl = stripCredentialsFromUrl(normalizedUrl);
     this.#logger = logger;
-    this.#isOffline = isOffline;
+
+    const isInfura = normalizedUrl.hostname.endsWith('.infura.io');
 
     this.#policy = createServicePolicy({
       maxRetries: DEFAULT_MAX_RETRIES,
       maxConsecutiveFailures: DEFAULT_MAX_CONSECUTIVE_FAILURES,
       ...policyOptions,
+      isServiceFailure: isInfura ? isServiceFailureInfura : undefined,
       retryFilterPolicy: handleWhen((error) => {
+        // If user is offline, don't retry any errors
+        // This prevents degraded/break callbacks from being triggered
+        if (isOffline()) {
+          return false;
+        }
+
         return (
           // Ignore errors where the request failed to establish
           isConnectionError(error) ||
@@ -442,7 +493,7 @@ export class RpcService {
       // doesn't function the way it is intended, at least in the context of an
       // RpcService. However, we are making a bet that we won't need to use it
       // other than how we are already using it.
-      if (!hasProperty(data, 'isolated') && !this.#isOffline()) {
+      if (!('isolated' in data)) {
         listener({
           ...data,
           endpointUrl: this.endpointUrl.toString(),
@@ -462,22 +513,21 @@ export class RpcService {
   onDegraded(
     listener: CockatielEventToEventListenerWithData<
       ServicePolicy['onDegraded'],
-      { endpointUrl: string; rpcMethodName: string }
+      {
+        duration?: number;
+        endpointUrl: string;
+        rpcMethodName: string;
+        traceId?: string;
+      }
     >,
   ): ReturnType<ServicePolicy['onDegraded']> {
     return this.#policy.onDegraded((data) => {
-      if (data === undefined) {
-        listener({
-          endpointUrl: this.endpointUrl.toString(),
-          rpcMethodName: this.#currentRpcMethodName,
-        });
-      } else if (!this.#isOffline()) {
-        listener({
-          ...data,
-          endpointUrl: this.endpointUrl.toString(),
-          rpcMethodName: this.#currentRpcMethodName,
-        });
-      }
+      listener({
+        ...data,
+        endpointUrl: this.endpointUrl.toString(),
+        rpcMethodName: this.#currentRpcMethodName,
+        traceId: this.#currentTraceId,
+      });
     });
   }
 
@@ -645,6 +695,10 @@ export class RpcService {
       );
       const jsonDecodedResponse = await this.#policy.execute(
         async (context) => {
+          // Reset response so that if this attempt throws before
+          // assigning a new response, the finally block does not read
+          // a stale response from a previous attempt.
+          response = undefined;
           try {
             log(
               'REQUEST INITIATED:',
@@ -666,21 +720,24 @@ export class RpcService {
             );
             return await response.json();
           } finally {
-            // Track the RPC method for the request that has just taken place.
-            // We pass this property to `onDegraded` event listeners.
+            // Track the RPC method and trace ID for the request that has just
+            // taken place. We pass these properties to `onDegraded` event
+            // listeners.
             //
-            // We set this property after the request completes and not before
-            // the request starts to account for race conditions. That is, if
-            // there are two requests that are being performed concurrently, and
-            // the second request fails fast but the first request succeeds
-            // slowly, when `onDegraded` is called we want it to include the
-            // first request as the RPC method, not the second.
+            // We set these properties after the request completes and not
+            // before the request starts to account for race conditions. That
+            // is, if there are two requests that are being performed
+            // concurrently, and the second request fails fast but the first
+            // request succeeds slowly, when `onDegraded` is called we want it
+            // to include the first request as the RPC method, not the second.
             //
-            // Also, we set this property within a `finally` block inside of the
-            // function passed to `policy.execute` to ensure that it is set
-            // before `onDegraded` gets called, no matter the outcome of the
-            // request.
+            // Also, we set these properties within a `finally` block inside of
+            // the function passed to `policy.execute` to ensure that they are
+            // set before `onDegraded` gets called, no matter the outcome of
+            // the request.
             this.#currentRpcMethodName = rpcMethodName;
+            this.#currentTraceId =
+              response?.headers.get('X-Trace-Id') ?? undefined;
           }
         },
       );

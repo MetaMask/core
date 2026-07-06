@@ -21,19 +21,16 @@ import type {
   KeyringControllerGetKeyringsByTypeAction,
   KeyringControllerGetStateAction,
   KeyringControllerRemoveAccountAction,
-  KeyringControllerStateChangeEvent,
   KeyringControllerWithKeyringAction,
+  KeyringControllerWithKeyringV2Action,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
 } from '@metamask/network-controller';
-import type {
-  SnapControllerHandleRequestAction,
-  SnapControllerGetStateAction,
-  SnapControllerStateChangeEvent,
-} from '@metamask/snaps-controllers';
+import type { SnapAccountServiceEnsureReadyAction } from '@metamask/snap-account-service';
+import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 
 import type { serviceName } from './MultichainAccountService';
 import type { MultichainAccountServiceMethodActions } from './MultichainAccountService-method-action-types';
@@ -79,6 +76,7 @@ type AllowedActions =
   | AccountsControllerGetAccountAction
   | AccountsControllerGetAccountByAddressAction
   | KeyringControllerWithKeyringAction
+  | KeyringControllerWithKeyringV2Action
   | KeyringControllerGetStateAction
   | KeyringControllerGetKeyringsByTypeAction
   | KeyringControllerAddNewKeyringAction
@@ -87,8 +85,8 @@ type AllowedActions =
   | KeyringControllerCreateNewVaultAndKeychainAction
   | KeyringControllerCreateNewVaultAndRestoreAction
   | KeyringControllerRemoveAccountAction
-  | SnapControllerGetStateAction
-  | SnapControllerHandleRequestAction;
+  | SnapControllerHandleRequestAction
+  | SnapAccountServiceEnsureReadyAction;
 
 /**
  * All events published by other modules that {@link MultichainAccountService}
@@ -96,9 +94,7 @@ type AllowedActions =
  */
 type AllowedEvents =
   | AccountsControllerAccountAddedEvent
-  | AccountsControllerAccountRemovedEvent
-  | KeyringControllerStateChangeEvent
-  | SnapControllerStateChangeEvent;
+  | AccountsControllerAccountRemovedEvent;
 
 /**
  * The messenger restricted to actions and events that
@@ -110,17 +106,6 @@ export type MultichainAccountServiceMessenger = Messenger<
   MultichainAccountServiceEvents | AllowedEvents
 >;
 
-/**
- * Config for the Snap platform watcher (SnapPlatformWatcher).
- */
-export type SnapPlatformWatcherConfig = {
-  /**
-   * How long to wait for the Snap keyring to appear before rejecting (ms).
-   */
-  timeoutMs?: number;
-};
-
 export type MultichainAccountServiceConfig = {
   trace?: TraceCallback;
-  snapPlatformWatcher?: SnapPlatformWatcherConfig;
 };

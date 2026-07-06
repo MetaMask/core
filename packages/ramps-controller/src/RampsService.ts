@@ -4,6 +4,7 @@ import type {
 } from '@metamask/controller-utils';
 import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
 
 import packageJson from '../package.json';
 import type { RampsServiceMethodActions } from './RampsService-method-action-types';
@@ -108,6 +109,12 @@ export type ProviderLimits = {
 export type Provider = {
   id: string;
   name: string;
+  /**
+   * Provider classification from the v2 API: 'native' (first-party
+   * integration, e.g. Transak Native) or 'aggregator' (third-party redirect).
+   * May be absent on responses that predate the v2 type field.
+   */
+  type?: 'aggregator' | 'native';
   environmentType: string;
   description: string;
   hqAddress: string;
@@ -684,7 +691,8 @@ export type RampsServiceActions = RampsServiceMethodActions;
 /**
  * Actions from other messengers that {@link RampsService} calls.
  */
-type AllowedActions = never;
+type AllowedActions =
+  AuthenticationController.AuthenticationControllerGetBearerTokenAction;
 
 /**
  * Events that {@link RampsService} exposes to other consumers.
@@ -889,6 +897,24 @@ export class RampsService {
       return this.#baseUrlOverride;
     }
     return getBaseUrl(this.#environment, service);
+  }
+
+  /**
+   * Builds the request headers for authenticated ramps API calls.
+   *
+   * Fetches a bearer token from `AuthenticationController` and returns it as
+   * an `Authorization` header. Throws if the token is unavailable (e.g. the
+   * wallet is locked or the user is signed out).
+   *
+   * @returns Headers containing the `Authorization: Bearer <token>` entry.
+   */
+  async #getRequestHeaders(): Promise<Record<string, string>> {
+    const bearerToken = await this.#messenger.call(
+      'AuthenticationController:getBearerToken',
+    );
+    return {
+      Authorization: `Bearer ${bearerToken}`,
+    };
   }
 
   /**
@@ -1110,13 +1136,13 @@ export class RampsService {
 
   /**
    * Fetches the list of providers for a given region.
-   * Supports optional query filters: provider, crypto, fiat, payments.
+   * Supports optional query filters: provider, crypto, payments.
+   * Region local fiat filtering is applied server-side when `fiat` is omitted.
    *
    * @param regionCode - The region code (e.g., "us", "fr", "us-ny").
    * @param options - Optional query parameters for filtering providers.
    * @param options.provider - Provider ID(s) to filter by.
    * @param options.crypto - Crypto currency ID(s) to filter by.
-   * @param options.fiat - Fiat currency ID(s) to filter by.
    * @param options.payments - Payment method ID(s) to filter by.
    * @returns The providers response containing providers array.
    */
@@ -1125,7 +1151,6 @@ export class RampsService {
     options?: {
       provider?: string | string[];
       crypto?: string | string[];
-      fiat?: string | string[];
       payments?: string | string[];
     },
   ): Promise<{ providers: Provider[] }> {
@@ -1148,13 +1173,6 @@ export class RampsService {
         ? options.crypto
         : [options.crypto];
       cryptoIds.forEach((id) => url.searchParams.append('crypto', id));
-    }
-
-    if (options?.fiat) {
-      const fiatIds = Array.isArray(options.fiat)
-        ? options.fiat
-        : [options.fiat];
-      fiatIds.forEach((id) => url.searchParams.append('fiat', id));
     }
 
     if (options?.payments) {
@@ -1189,16 +1207,16 @@ export class RampsService {
   /**
    * Fetches the list of payment methods for a given region, asset, and provider.
    *
+   * Region local fiat filtering is applied server-side when `fiat` is omitted.
+   *
    * @param options - Query parameters for filtering payment methods.
    * @param options.region - User's region code (e.g., "us-al").
-   * @param options.fiat - Fiat currency code (e.g., "usd").
    * @param options.assetId - CAIP-19 cryptocurrency identifier.
    * @param options.provider - Provider ID path.
    * @returns The payment methods response containing payments array.
    */
   async getPaymentMethods(options: {
     region: string;
-    fiat: string;
     assetId: string;
     provider: string;
   }): Promise<PaymentMethodsResponse> {
@@ -1210,7 +1228,6 @@ export class RampsService {
     this.#addCommonParams(url);
 
     url.searchParams.set('region', options.region.toLowerCase().trim());
-    url.searchParams.set('fiat', options.fiat.toLowerCase().trim());
     url.searchParams.set('crypto', options.assetId);
     url.searchParams.set('provider', options.provider);
 
@@ -1270,6 +1287,8 @@ export class RampsService {
     url.searchParams.set('amount', String(params.amount));
     url.searchParams.set('walletAddress', params.walletAddress);
 
+    const headers = await this.#getRequestHeaders();
+
     // Add payment methods as array parameters
     params.paymentMethods.forEach((paymentMethod) => {
       url.searchParams.append('payments', paymentMethod);
@@ -1286,7 +1305,7 @@ export class RampsService {
     }
 
     const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url);
+      const fetchResponse = await this.#fetch(url, { headers });
       if (!fetchResponse.ok) {
         throw new HttpError(
           fetchResponse.status,
@@ -1324,8 +1343,10 @@ export class RampsService {
     const url = new URL(buyUrl);
     this.#addCommonParams(url);
 
+    const headers = await this.#getRequestHeaders();
+
     const response = await this.#policy.execute(async () => {
-      const fetchResponse = await this.#fetch(url);
+      const fetchResponse = await this.#fetch(url, { headers });
       if (!fetchResponse.ok) {
         throw new HttpError(
           fetchResponse.status,

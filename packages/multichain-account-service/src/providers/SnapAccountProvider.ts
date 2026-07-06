@@ -1,7 +1,8 @@
 import { assertIsBip44Account } from '@metamask/account-api';
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
-import type { SnapKeyring } from '@metamask/eth-snap-keyring';
+import type { SnapKeyring as SnapKeyringV2 } from '@metamask/eth-snap-keyring/v2';
+import { isSnapKeyring } from '@metamask/eth-snap-keyring/v2';
 import {
   AccountCreationType,
   assertCreateAccountOptionIsSupported,
@@ -14,7 +15,6 @@ import type {
   KeyringAccount,
 } from '@metamask/keyring-api';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
-import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { KeyringClient } from '@metamask/keyring-snap-client';
 import type { Json, JsonRpcRequest, SnapId } from '@metamask/snaps-sdk';
@@ -33,9 +33,9 @@ import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
 import { withTimeout } from './utils';
 
 export type RestrictedSnapKeyring = {
-  createAccount: (options: Record<string, Json>) => Promise<KeyringAccount>;
-  createAccounts: (options: CreateAccountOptions) => Promise<KeyringAccount[]>;
-  removeAccount: (address: string) => Promise<void>;
+  createAccount: SnapKeyringV2['createAccount'];
+  createAccounts: SnapKeyringV2['createAccounts'];
+  deleteAccount: SnapKeyringV2['deleteAccount'];
 };
 
 export type SnapAccountProviderConfig = {
@@ -114,15 +114,13 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   }
 
   /**
-   * Ensures that the Snap platform is ready to be used.
+   * Ensures that the Snap is ready to be used.
    *
-   * @returns A promise that resolves when the platform is ready.
-   * @throws An error if the platform is not ready (only effective once the platform has been ready at least once).
+   * @returns A promise that resolves when the Snap is ready.
+   * @throws An error if the Snap could not become ready.
    */
-  async ensureCanUseSnapPlatform(): Promise<void> {
-    return this.messenger.call(
-      'MultichainAccountService:ensureCanUseSnapPlatform',
-    );
+  async ensureReady(): Promise<void> {
+    return this.messenger.call('SnapAccountService:ensureReady', this.snapId);
   }
 
   /**
@@ -150,15 +148,15 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   }
 
   async #getRestrictedSnapKeyring(): Promise<RestrictedSnapKeyring> {
-    // NOTE: We're not supposed to make the keyring instance escape `withKeyring` but
-    // we have to use the `SnapKeyring` instance to be able to create Solana account
+    // NOTE: We're not supposed to make the keyring instance escape `withKeyringV2` but
+    // we have to use the `SnapKeyringV2` instance to be able to create Solana account
     // without triggering UI confirmation.
     // Also, creating account that way won't invalidate the Snap keyring state. The
     // account will get created and persisted properly with the Snap account creation
     // flow "asynchronously" (with `notify:accountCreated`).
     const { createAccount, createAccounts } = await this.#withSnapKeyring<{
-      createAccount: SnapKeyring['createAccount'];
-      createAccounts: SnapKeyring['createAccounts'];
+      createAccount: SnapKeyringV2['createAccount'];
+      createAccounts: SnapKeyringV2['createAccounts'];
     }>(async ({ keyring }) => ({
       createAccount: keyring.createAccount.bind(keyring),
       createAccounts: keyring.createAccounts.bind(keyring),
@@ -167,17 +165,16 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     return {
       createAccount: async (options) =>
         // We use the "unguarded" account creation here (see explanation above).
-        await createAccount(this.snapId, options, {
+        await createAccount(options, {
           displayAccountNameSuggestion: false,
           displayConfirmation: false,
           setSelectedAccount: false,
         }),
-      createAccounts: async (options) =>
-        await createAccounts(this.snapId, options),
-      removeAccount: async (address: string) =>
+      createAccounts: async (options) => await createAccounts(options),
+      deleteAccount: async (id: string) =>
         // Though, when removing account, we can use the normal flow.
         await this.#withSnapKeyring(async ({ keyring }) => {
-          await keyring.removeAccount(address);
+          await keyring.deleteAccount(id);
         }),
     };
   }
@@ -267,7 +264,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
                 // We still need to remove the accounts from the Snap keyring since we're
                 // about to create the same account again, which will use a new ID, but will
                 // keep using the same address, and the Snap keyring does not allow this.
-                await keyring.removeAccount(account.address);
+                await keyring.deleteAccount(account.id);
                 // The Snap has no account in its state for this one, we re-create it.
                 await this.createAccounts({
                   type: AccountCreationType.Bip44DeriveIndex,
@@ -292,15 +289,16 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
       keyring,
       metadata,
     }: {
-      keyring: SnapKeyring;
+      keyring: SnapKeyringV2;
       metadata: KeyringMetadata;
     }) => Promise<CallbackResult>,
   ): Promise<CallbackResult> {
-    return this.withKeyring<SnapKeyring, CallbackResult>(
-      { type: KeyringTypes.snap },
-      (args) => {
-        return operation(args);
+    return this.withKeyringV2<SnapKeyringV2, CallbackResult>(
+      {
+        filter: (keyring) =>
+          isSnapKeyring(keyring) && keyring.snapId === this.snapId,
       },
+      (args) => operation(args),
     );
   }
 
@@ -310,7 +308,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
       keyring: RestrictedSnapKeyring;
     }) => Promise<CallbackResult>,
   ): Promise<CallbackResult> {
-    await this.ensureCanUseSnapPlatform();
+    await this.ensureReady();
 
     return await operation({
       client: this.#client,
@@ -447,6 +445,26 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     return this.withSnap(async ({ keyring }) =>
       this.createBip44Accounts(keyring, options),
     );
+  }
+
+  /**
+   * Delete a snap account by id.
+   *
+   * Resolves the account's address from the tracked account, then forwards to
+   * the legacy `SnapKeyring.removeAccount(address)`. The Snap keyring takes
+   * care of notifying the snap to clean up its own state through the normal
+   * account-removal flow (same path used by `resyncAccounts`).
+   *
+   * @param id - The id of the account to delete.
+   */
+  async deleteAccount(id: Bip44Account<KeyringAccount>['id']): Promise<void> {
+    const account = this.getAccount(id);
+
+    await this.#withSnapKeyring(async ({ keyring }) => {
+      await keyring.deleteAccount(account.id);
+    });
+
+    this.accounts.delete(id);
   }
 
   abstract discoverAccounts(options: {

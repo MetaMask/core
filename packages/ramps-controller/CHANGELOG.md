@@ -7,10 +7,95 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.1.0]
+
+### Added
+
+- Add an optional `getProviderScope` callback to `RampsControllerOptions` and export the `ProviderScope` type (`'off' | 'in-app' | 'all'`); when it returns a non-`off` scope, `RampsController.getQuotes` widens its native-only auto-selection (the `autoSelectProvider` / `restrictToKnownOrNativeProviders` path) to every supporting provider and returns the best in-app quote at `success[0]`, excluding external-browser and custom-action quotes and enforcing per-provider fiat limits, while the default stays native-only and explicit-`providers` callers are unaffected ([#9353](https://github.com/MetaMask/core/pull/9353))
+- Add an optional `getDefaultRedirectUrl` callback to `RampsControllerOptions`; on the widened in-app auto-selection path, when the caller omits `redirectUrl`, `RampsController.getQuotes` now supplies this default so aggregator quotes carry the `buyURL`/`buyWidget` widget URL the app needs, while an explicit caller `redirectUrl` always wins and scope `off` never injects a default ([#9353](https://github.com/MetaMask/core/pull/9353))
+
+### Changed
+
+- Refetch the countries catalog on every app startup via `init()` so region preset amounts (e.g. default amounts) stay current ([#9261](https://github.com/MetaMask/core/pull/9261))
+- Re-sync `userRegion` preset amounts from the countries catalog after each `getCountries()` call ([#9261](https://github.com/MetaMask/core/pull/9261))
+- On startup, `init()` now preserves an already-persisted `userRegion` when the refreshed countries catalog is momentarily empty or no longer lists that region, instead of clearing it ([#9261](https://github.com/MetaMask/core/pull/9261))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
+## [15.0.0]
+
+### Changed
+
+- **BREAKING:** `RampsController.getProviders`, `RampsService.getProviders`, `RampsController.getPaymentMethods`, and `RampsService.getPaymentMethods` no longer accept a `fiat` query filter; region local fiat filtering is applied server-side when omitted ([#9245](https://github.com/MetaMask/core/pull/9245))
+- Bump `@metamask/controller-utils` from `^12.2.0` to `^12.3.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+
+## [14.3.0]
+
+### Added
+
+- Export `getTransakApiMessage` and `isTransakPhoneRegisteredError` for consumers handling `TransakApiError`, and centralize known Transak API error codes in `transakErrorCodes.ts` ([#9135](https://github.com/MetaMask/core/pull/9135))
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^28.1.1` to `^28.2.0` ([#9119](https://github.com/MetaMask/core/pull/9119))
+
+### Fixed
+
+- Compare internal order codes (from canonical order `id`) instead of provider-native `providerOrderId` when merging orders in `RampsController.addOrder` and `RampsController.getOrder` ([#9159](https://github.com/MetaMask/core/pull/9159))
+
+## [14.2.0]
+
+### Changed
+
+- `RampsService.getQuotes` now sends an `Authorization: Bearer <token>` header, sourcing the token from `AuthenticationController:getBearerToken` (already a required messenger action since `14.0.0`); the call throws if no token is available (e.g. the wallet is locked or the user is signed out) ([#8888](https://github.com/MetaMask/core/pull/8888))
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.2.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083))
+
+## [14.1.1]
+
+### Fixed
+
+- Fix Transak Native deposits failing on staging/UAT with a 400 `paymentMethod is required parameter` error by mapping canonical payment method IDs supplied without the `/payments/` prefix (e.g. `apple-pay`) to their deposit-format equivalents, in addition to the prefixed forms (e.g. `/payments/apple-pay`) ([#8980](https://github.com/MetaMask/core/pull/8980))
+
+## [14.1.0]
+
+### Added
+
+- Add `autoSelectProvider`, `preferredProviderIds`, and `restrictToKnownOrNativeProviders` options to the `getQuotes` method (and `RampsController:getQuotes` messenger action) ([#8949](https://github.com/MetaMask/core/pull/8949))
+  - When `autoSelectProvider` is `true` and `providers` is omitted, `getQuotes` resolves a provider supporting the requested `assetId` for that request only, against the provider list for the requested region. It prefers the currently selected provider (when it supports the asset), then preferred providers — taken from `preferredProviderIds` when supplied, otherwise derived from the user's completed-order history (most recent first) — then a native provider (identified by the API's `type` field, e.g. Transak Native), then the first supporting provider. The selected-provider state is never mutated.
+  - When `restrictToKnownOrNativeProviders` is `true`, auto-selection still honors a previously-used provider (selected, then completed-order history) but otherwise resolves only a native provider, introducing no other provider; an explicitly passed `providers` list is filtered to those supporting the region/asset. If nothing qualifies, `getQuotes` returns an empty response instead of quoting other providers.
+- Add an optional `type` field (`'native' | 'aggregator'`) to the `Provider` type, mirroring the v2 providers API ([#8949](https://github.com/MetaMask/core/pull/8949))
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^28.1.0` to `^28.1.1` ([#8912](https://github.com/MetaMask/core/pull/8912))
+
+## [14.0.0]
+
+### Added
+
+- Authenticate ramps requests by sourcing a bearer token from `AuthenticationController:getBearerToken` and sending it as an `Authorization: Bearer <token>` header for `getBuyWidgetUrl` ([#8843](https://github.com/MetaMask/core/pull/8843))
+- Add `@metamask/profile-sync-controller` `^28.1.0` as a runtime dependency ([#8843](https://github.com/MetaMask/core/pull/8843))
+
+### Changed
+
+- **BREAKING:** `RampsServiceMessenger` now requires the `AuthenticationController:getBearerToken` action to be delegated to it; consumers must register this action handler before calling `getBuyWidgetUrl`, otherwise the call will throw ([#8843](https://github.com/MetaMask/core/pull/8843))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+
+## [13.3.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+
+## [13.3.0]
+
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
 - `RampsService` routes `RampsEnvironment.Development` to dev-api base URLs; regions requests in development omit the `-cache` hostname segment used in staging and production ([#8574](https://github.com/MetaMask/core/pull/8574))
+
+### Fixed
+
+- Tag circuit-breaker errors in `RampsController` with a stable `CIRCUIT_BREAKER_OPEN` error key so clients can localize the fallback copy without depending on internal Cockatiel text. ([#8596](https://github.com/MetaMask/core/pull/8596))
 
 ## [13.2.0]
 
@@ -326,7 +411,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@15.1.0...HEAD
+[15.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@15.0.0...@metamask/ramps-controller@15.1.0
+[15.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.3.0...@metamask/ramps-controller@15.0.0
+[14.3.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.2.0...@metamask/ramps-controller@14.3.0
+[14.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.1.1...@metamask/ramps-controller@14.2.0
+[14.1.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.1.0...@metamask/ramps-controller@14.1.1
+[14.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.0.0...@metamask/ramps-controller@14.1.0
+[14.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.3.1...@metamask/ramps-controller@14.0.0
+[13.3.1]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.3.0...@metamask/ramps-controller@13.3.1
+[13.3.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.2.0...@metamask/ramps-controller@13.3.0
 [13.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.1.0...@metamask/ramps-controller@13.2.0
 [13.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@13.0.0...@metamask/ramps-controller@13.1.0
 [13.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@12.1.0...@metamask/ramps-controller@13.0.0

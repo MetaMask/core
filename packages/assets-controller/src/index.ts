@@ -39,6 +39,7 @@ export type {
   AssetsControllerUnhideAssetAction,
   AssetsControllerGetExchangeRatesForBridgeAction,
   AssetsControllerGetStateForTransactionPayAction,
+  AssetsControllerSetSelectedCurrencyAction,
 } from './AssetsController-method-action-types';
 
 // Core types
@@ -182,14 +183,21 @@ export type {
 
 // Selectors
 export {
+  calculateBalanceForAllWallets,
+  calculateBalanceChangeForAccountGroup,
   getAggregatedBalanceForAccount,
   getGroupIdForAccount,
   getInternalAccountsForGroup,
 } from './selectors/balance';
 
 export type {
+  AccountGroupBalance,
   AccountsById,
   AggregatedBalanceEntry,
   AggregatedBalanceForAccount,
+  AllWalletsBalance,
+  BalanceChangePeriod,
+  BalanceChangeResult,
   EnabledNetworkMap,
+  WalletBalance,
 } from './selectors/balance';

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/passkey-controller",
-  "version": "1.0.0",
+  "version": "2.0.1",
   "description": "Controller and utilities for passkey-based wallet unlock",
   "keywords": [
     "Ethereum",
@@ -54,8 +54,8 @@
   "dependencies": {
     "@levischuck/tiny-cbor": "^0.3.3",
     "@metamask/base-controller": "^9.1.0",
-    "@metamask/messenger": "^1.2.0",
-    "@metamask/utils": "^11.9.0",
+    "@metamask/messenger": "^2.0.0",
+    "@metamask/utils": "^11.11.0",
     "@noble/ciphers": "^1.3.0",
     "@noble/curves": "^1.9.2",
     "@noble/hashes": "^1.8.0"

@@ -11,7 +11,15 @@ import { associateAddressStep } from './associate-address';
 
 const MOCK_ADDRESS = '0xabcdef1234567890abcdef1234567890abcdef12' as Hex;
 const MOCK_CHAIN_ID = '0x1' as Hex;
+const MOCK_DELEGATE = '0x1111111111111111111111111111111111111111' as Hex;
 const MOCK_DELEGATOR_IMPL = '0x2222222222222222222222222222222222222222' as Hex;
+const MOCK_TOKEN = '0x3333333333333333333333333333333333333333' as Hex;
+const MOCK_VAULT_ADAPTER = '0x4444444444444444444444444444444444444444' as Hex;
+const MOCK_ERC20_ENFORCER = '0x5555555555555555555555555555555555555555' as Hex;
+const MOCK_REDEEMER_ENFORCER =
+  '0x6666666666666666666666666666666666666666' as Hex;
+const MOCK_VALUE_LTE_ENFORCER =
+  '0x7777777777777777777777777777777777777777' as Hex;
 const MOCK_SIGNATURE = '0xdeadbeefcafebabe';
 const MOCK_NOW = new Date('2026-04-17T12:00:00.000Z').getTime();
 
@@ -64,6 +72,24 @@ function setup(): {
   return { messenger, mocks };
 }
 
+async function run(
+  messenger: MoneyAccountUpgradeControllerMessenger,
+): ReturnType<typeof associateAddressStep.run> {
+  return associateAddressStep.run({
+    messenger,
+    address: MOCK_ADDRESS,
+    chainId: MOCK_CHAIN_ID,
+    boringVaultAddress: '0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee' as Hex,
+    delegateAddress: MOCK_DELEGATE,
+    delegatorImplAddress: MOCK_DELEGATOR_IMPL,
+    erc20TransferAmountEnforcer: MOCK_ERC20_ENFORCER,
+    musdTokenAddress: MOCK_TOKEN,
+    redeemerEnforcer: MOCK_REDEEMER_ENFORCER,
+    valueLteEnforcer: MOCK_VALUE_LTE_ENFORCER,
+    vedaVaultAdapterAddress: MOCK_VAULT_ADAPTER,
+  });
+}
+
 describe('associateAddressStep', () => {
   beforeEach(() => {
     jest.useFakeTimers();
@@ -81,12 +107,7 @@ describe('associateAddressStep', () => {
   it('signs the CHOMP Authentication message with the given address', async () => {
     const { messenger, mocks } = setup();
 
-    await associateAddressStep.run({
-      messenger,
-      address: MOCK_ADDRESS,
-      chainId: MOCK_CHAIN_ID,
-      delegatorImplAddress: MOCK_DELEGATOR_IMPL,
-    });
+    await run(messenger);
 
     expect(mocks.signPersonalMessage).toHaveBeenCalledWith({
       data: `CHOMP Authentication ${MOCK_NOW}`,
@@ -97,12 +118,7 @@ describe('associateAddressStep', () => {
   it('submits the signature, timestamp, and address to the CHOMP API', async () => {
     const { messenger, mocks } = setup();
 
-    await associateAddressStep.run({
-      messenger,
-      address: MOCK_ADDRESS,
-      chainId: MOCK_CHAIN_ID,
-      delegatorImplAddress: MOCK_DELEGATOR_IMPL,
-    });
+    await run(messenger);
 
     expect(mocks.associateAddress).toHaveBeenCalledWith({
       signature: MOCK_SIGNATURE,
@@ -114,12 +130,7 @@ describe('associateAddressStep', () => {
   it('returns "completed" when CHOMP creates the association', async () => {
     const { messenger } = setup();
 
-    const result = await associateAddressStep.run({
-      messenger,
-      address: MOCK_ADDRESS,
-      chainId: MOCK_CHAIN_ID,
-      delegatorImplAddress: MOCK_DELEGATOR_IMPL,
-    });
+    const result = await run(messenger);
 
     expect(result).toBe('completed');
   });
@@ -131,12 +142,7 @@ describe('associateAddressStep', () => {
       status: 'active',
     });
 
-    const result = await associateAddressStep.run({
-      messenger,
-      address: MOCK_ADDRESS,
-      chainId: MOCK_CHAIN_ID,
-      delegatorImplAddress: MOCK_DELEGATOR_IMPL,
-    });
+    const result = await run(messenger);
 
     expect(result).toBe('already-done');
   });
@@ -145,14 +151,7 @@ describe('associateAddressStep', () => {
     const { messenger, mocks } = setup();
     mocks.signPersonalMessage.mockRejectedValue(new Error('signing failed'));
 
-    await expect(
-      associateAddressStep.run({
-        messenger,
-        address: MOCK_ADDRESS,
-        chainId: MOCK_CHAIN_ID,
-        delegatorImplAddress: MOCK_DELEGATOR_IMPL,
-      }),
-    ).rejects.toThrow('signing failed');
+    await expect(run(messenger)).rejects.toThrow('signing failed');
     expect(mocks.associateAddress).not.toHaveBeenCalled();
   });
 
@@ -160,13 +159,6 @@ describe('associateAddressStep', () => {
     const { messenger, mocks } = setup();
     mocks.associateAddress.mockRejectedValue(new Error('api failed'));
 
-    await expect(
-      associateAddressStep.run({
-        messenger,
-        address: MOCK_ADDRESS,
-        chainId: MOCK_CHAIN_ID,
-        delegatorImplAddress: MOCK_DELEGATOR_IMPL,
-      }),
-    ).rejects.toThrow('api failed');
+    await expect(run(messenger)).rejects.toThrow('api failed');
   });
 });

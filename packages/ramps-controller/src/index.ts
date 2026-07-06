@@ -7,6 +7,7 @@ export type {
   RampsControllerStateChangeEvent,
   RampsControllerOrderStatusChangedEvent,
   RampsControllerOptions,
+  ProviderScope,
   UserRegion,
   ResourceState,
   TransakState,
@@ -64,6 +65,7 @@ export type {
 export {
   RampsController,
   getDefaultRampsControllerState,
+  getInternalOrderCode,
   normalizeProviderCode,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
 } from './RampsController';
@@ -126,6 +128,7 @@ export type {
   PendingRequest,
   ResourceType,
 } from './RequestCache';
+export type { RampsErrorCode } from './rampsErrorCodes';
 export {
   RequestStatus,
   DEFAULT_REQUEST_CACHE_TTL,
@@ -136,6 +139,7 @@ export {
   createSuccessState,
   createErrorState,
 } from './RequestCache';
+export { RAMPS_ERROR_CODES } from './rampsErrorCodes';
 export type { RequestSelectorResult } from './selectors';
 export { createRequestSelector } from './selectors';
 export type {
@@ -170,6 +174,10 @@ export {
   TransakEnvironment,
   TransakOrderIdTransformer,
 } from './TransakService';
+export {
+  getTransakApiMessage,
+  isTransakPhoneRegisteredError,
+} from './transakApiErrorUtils';
 export type {
   TransakServiceMethodActions,
   TransakServiceSendUserOtpAction,

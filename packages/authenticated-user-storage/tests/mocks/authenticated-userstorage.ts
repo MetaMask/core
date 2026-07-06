@@ -1,12 +1,15 @@
 import { getAuthenticatedStorageUrl } from '../../src/authenticated-user-storage';
 import type {
+  AssetsWatchlistBlob,
   DelegationResponse,
   DelegationSubmission,
   NotificationPreferences,
 } from '../../src/types';
+import { DEFAULT_PRICE_ALERT_PREFERENCES } from '../../src/validators';
 
 export const MOCK_DELEGATIONS_URL = `${getAuthenticatedStorageUrl('prod')}/delegations`;
 export const MOCK_NOTIFICATION_PREFERENCES_URL = `${getAuthenticatedStorageUrl('prod')}/preferences/notifications`;
+export const MOCK_ASSETS_WATCHLIST_URL = `${getAuthenticatedStorageUrl('prod')}/assets-watchlist`;
 
 export const MOCK_DELEGATION_SUBMISSION: DelegationSubmission = {
   signedDelegation: {
@@ -40,7 +43,8 @@ export const MOCK_DELEGATION_RESPONSE: DelegationResponse =
 
 export const MOCK_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   walletActivity: {
-    enabled: true,
+    inAppNotificationsEnabled: true,
+    pushNotificationsEnabled: true,
     accounts: [
       {
         address: '0x1234567890abcdef1234567890abcdef12345678',
@@ -48,14 +52,39 @@ export const MOCK_NOTIFICATION_PREFERENCES: NotificationPreferences = {
       },
     ],
   },
-  marketing: { enabled: false },
-  perps: { enabled: true },
+  marketing: {
+    inAppNotificationsEnabled: false,
+    pushNotificationsEnabled: false,
+  },
+  perps: {
+    inAppNotificationsEnabled: true,
+    pushNotificationsEnabled: true,
+  },
   socialAI: {
-    enabled: true,
+    inAppNotificationsEnabled: true,
+    pushNotificationsEnabled: true,
     txAmountLimit: 100,
     mutedTraderProfileIds: [
       'b3a7c9d1-4e2f-4a8b-9c6d-1f2e3a4b5c6d',
       'e8f2a1b3-5c4d-4e6f-8a9b-2c3d4e5f6a7b',
     ],
   },
+  agenticCli: {
+    inAppNotificationsEnabled: true,
+    pushNotificationsEnabled: false,
+  },
+  priceAlerts: { ...DEFAULT_PRICE_ALERT_PREFERENCES },
 };
+
+export const MOCK_ASSETS_WATCHLIST_BLOB: AssetsWatchlistBlob = {
+  version: 1,
+  assets: [
+    'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+    'eip155:1/slip44:60',
+  ],
+};
+
+export const MOCK_INVALID_ASSETS_WATCHLIST_BLOB = {
+  version: 2,
+  assets: 'not-an-array',
+} as const;

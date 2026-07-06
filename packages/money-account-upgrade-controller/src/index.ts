@@ -1,4 +1,8 @@
-export type { InitConfig, UpgradeConfig } from './types';
+export type { UpgradeConfig } from './types';
+export {
+  MoneyAccountUpgradeStepError,
+  isMoneyAccountUpgradeStepError,
+} from './errors';
 export { MoneyAccountUpgradeController } from './MoneyAccountUpgradeController';
 export type {
   MoneyAccountUpgradeControllerState,

@@ -53,6 +53,37 @@ const mockPosition = {
   tokenImageUrl: 'https://assets.daylight.xyz/images/token-eth.png',
 };
 
+const mockPerpTrade = {
+  direction: 'buy',
+  intent: 'enter',
+  classification: 'perp',
+  perpPositionType: 'long',
+  perpLeverage: 10,
+  tokenAmount: 1.5,
+  usdCost: 3000,
+  timestamp: 1700000000,
+  transactionHash:
+    '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef1234567890',
+};
+
+const mockPerpPosition = {
+  positionId: 'position-perp-1',
+  tokenSymbol: 'BTC',
+  tokenName: 'Bitcoin',
+  tokenAddress: 'BTC',
+  chain: 'hyperliquid',
+  positionAmount: 2.5,
+  boughtUsd: 112500,
+  soldUsd: 0,
+  realizedPnl: 0,
+  costBasis: 112500,
+  trades: [mockPerpTrade],
+  lastTradeAt: 1700000000,
+  perpPositionType: 'long',
+  perpLeverage: 10,
+  positionAmountWithLeverage: 25,
+};
+
 const MOCK_TOKEN = 'mock-bearer-token';
 
 type RootMessenger = Messenger<
@@ -373,6 +404,51 @@ describe('SocialService', () => {
 
       expect(result.stats).toStrictEqual({});
     });
+
+    it('accepts and returns the optional 7-day per-chain breakdown', async () => {
+      const withPerChain7d = {
+        ...mockProfileResponse,
+        perChainBreakdown: {
+          perChainPnl: { base: 30000, hyperliquid: 900000 },
+          perChainRoi: { base: 2.5, hyperliquid: null },
+          perChainVolume: { base: 100000, hyperliquid: 0 },
+          perChainPnl7d: { base: 5000, hyperliquid: 120000 },
+          perChainRoi7d: { base: 1.1, hyperliquid: null },
+          perChainVolume7d: { base: 20000, hyperliquid: 0 },
+        },
+      };
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(withPerChain7d),
+      });
+
+      const service = createService();
+      const result = await service.fetchTraderProfile({
+        addressOrId: '0x1234',
+      });
+
+      expect(result.perChainBreakdown).toStrictEqual(
+        withPerChain7d.perChainBreakdown,
+      );
+    });
+
+    it('accepts a profile without the optional 7-day per-chain breakdown', async () => {
+      // The 30-day-only shape older social-api versions return.
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockProfileResponse),
+      });
+
+      const service = createService();
+      const result = await service.fetchTraderProfile({
+        addressOrId: '0x1234',
+      });
+
+      expect(result.perChainBreakdown.perChainPnl7d).toBeUndefined();
+    });
   });
 
   describe('fetchOpenPositions', () => {
@@ -485,6 +561,86 @@ describe('SocialService', () => {
                 trades: [{ ...mockTrade, tokenAmount: 'not-a-number' }],
               },
             ],
+            pagination: { hasMore: false },
+          }),
+      });
+
+      const service = createService();
+
+      await expect(
+        service.fetchOpenPositions({ addressOrId: '0x1234' }),
+      ).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_OPEN_POSITIONS_INVALID_RESPONSE,
+      );
+    });
+
+    it('passes through perp metadata on positions and trades', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            positions: [mockPerpPosition],
+            pagination: { hasMore: false },
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchOpenPositions({
+        addressOrId: '0x1234',
+      });
+
+      expect(result.positions[0]).toStrictEqual(mockPerpPosition);
+      expect(result.positions[0].perpPositionType).toBe('long');
+      expect(result.positions[0].perpLeverage).toBe(10);
+      expect(result.positions[0].positionAmountWithLeverage).toBe(25);
+      expect(result.positions[0].trades[0].classification).toBe('perp');
+      expect(result.positions[0].trades[0].perpPositionType).toBe('long');
+      expect(result.positions[0].trades[0].perpLeverage).toBe(10);
+    });
+
+    it('accepts null perp fields for spot positions', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            positions: [
+              {
+                ...mockPosition,
+                perpPositionType: null,
+                perpLeverage: null,
+                positionAmountWithLeverage: null,
+                trades: [
+                  {
+                    ...mockTrade,
+                    classification: null,
+                    perpPositionType: null,
+                    perpLeverage: null,
+                  },
+                ],
+              },
+            ],
+            pagination: { hasMore: false },
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchOpenPositions({
+        addressOrId: '0x1234',
+      });
+
+      expect(result.positions[0].perpPositionType).toBeNull();
+      expect(result.positions[0].trades[0].classification).toBeNull();
+    });
+
+    it('rejects an invalid perpPositionType', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            positions: [{ ...mockPerpPosition, perpPositionType: 'sideways' }],
             pagination: { hasMore: false },
           }),
       });
@@ -870,6 +1026,56 @@ describe('SocialService', () => {
 
       await expect(service.unfollow({ targets: ['0xaaaa'] })).rejects.toThrow(
         SocialServiceErrorMessage.UNFOLLOW_INVALID_RESPONSE,
+      );
+    });
+  });
+
+  describe('optOutOfLeaderboard', () => {
+    it('sends POST to /leaderboard/opt-out with the bearer token and resolves to void', async () => {
+      mockFetch.mockResolvedValue({ ok: true, status: 204 });
+
+      const service = createService();
+      const result = await service.optOutOfLeaderboard();
+
+      expect(result).toBeUndefined();
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/leaderboard/opt-out`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 401 });
+
+      const service = createService();
+
+      await expect(service.optOutOfLeaderboard()).rejects.toThrow(
+        `${SocialServiceErrorMessage.LEADERBOARD_OPT_OUT_FAILED}: 401`,
+      );
+    });
+  });
+
+  describe('optInToLeaderboard', () => {
+    it('sends POST to /leaderboard/opt-in with the bearer token and resolves to void', async () => {
+      mockFetch.mockResolvedValue({ ok: true, status: 204 });
+
+      const service = createService();
+      const result = await service.optInToLeaderboard();
+
+      expect(result).toBeUndefined();
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/leaderboard/opt-in`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 500 });
+
+      const service = createService();
+
+      await expect(service.optInToLeaderboard()).rejects.toThrow(
+        `${SocialServiceErrorMessage.LEADERBOARD_OPT_IN_FAILED}: 500`,
       );
     });
   });

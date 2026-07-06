@@ -22,7 +22,7 @@ const TRANSACTION_META_MOCK = {
 } as TransactionMeta;
 
 const QUOTE_MOCK = {
-  strategy: TransactionPayStrategy.Test,
+  strategy: TransactionPayStrategy.Across,
 } as TransactionPayQuote<unknown>;
 
 describe('TransactionPayPublishHook', () => {
@@ -115,6 +115,26 @@ describe('TransactionPayPublishHook', () => {
     expect(executeMock).not.toHaveBeenCalled();
   });
 
+  it('throws if fiat payment is selected but no quotes are in state', async () => {
+    getControllerStateMock.mockReturnValue({
+      transactionData: {
+        [TRANSACTION_META_MOCK.id]: {
+          fiatPayment: {
+            selectedPaymentMethodId: 'debit-card',
+          },
+          isLoading: false,
+          tokens: [],
+        },
+      },
+    } as TransactionPayControllerState);
+
+    await expect(runHook()).rejects.toThrow(
+      'MetaMask Pay: Fiat: Missing quote',
+    );
+    expect(executeMock).not.toHaveBeenCalled();
+    expect(updateTransactionMock).not.toHaveBeenCalled();
+  });
+
   it('sets submittedTime on the transaction before executing strategy', async () => {
     await runHook();
 
@@ -190,9 +210,48 @@ describe('TransactionPayPublishHook', () => {
     );
   });
 
-  it('throws errors from submit', async () => {
-    executeMock.mockRejectedValue(new Error('Test error'));
+  it('sets accountSupports7702 true for money keyring', async () => {
+    getKeyringControllerStateMock.mockReturnValue({
+      isUnlocked: true,
+      keyrings: [
+        {
+          type: 'Money Keyring',
+          accounts: ['0xabc'],
+          metadata: { id: 'money-keyring', name: 'Money Keyring' },
+        },
+      ],
+    });
 
-    await expect(runHook()).rejects.toThrow('Test error');
+    await runHook();
+
+    expect(executeMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accountSupports7702: true,
+      }),
+    );
+  });
+
+  it('throws errors from submit prefixed with MetaMask Pay', async () => {
+    const error = new Error('Test error');
+    executeMock.mockRejectedValue(error);
+
+    const thrown = await runHook().catch((caught) => caught);
+
+    expect(thrown).toBe(error);
+    expect(thrown.message).toBe('MetaMask Pay: Test error');
+  });
+
+  it('cascades MetaMask Pay prefix on top of strategy-level prefixes', async () => {
+    executeMock.mockRejectedValue(new Error('Relay: Execute: backend boom'));
+
+    await expect(runHook()).rejects.toThrow(
+      'MetaMask Pay: Relay: Execute: backend boom',
+    );
+  });
+
+  it('wraps non-Error throws with the MetaMask Pay prefix', async () => {
+    executeMock.mockRejectedValue('boom');
+
+    await expect(runHook()).rejects.toThrow('MetaMask Pay: boom');
   });
 });

@@ -1,7 +1,11 @@
 import { is } from '@metamask/superstruct';
 
+import { mockBridgeQuotesNativeErc20EthV1 } from '../../tests/mock-quotes-native-erc20-eth';
 import {
+  DiscountType,
+  FeeDataSchema,
   validateFeatureFlagsResponse,
+  validateQuoteResponseV1,
   validateQuoteStreamComplete,
   QuoteStreamCompleteReason,
   IntentSchema,
@@ -10,6 +14,45 @@ import {
 describe('validators', () => {
   describe('validateFeatureFlagsResponse', () => {
     it.each([
+      {
+        response: {
+          chains: {
+            '1': {
+              isActiveDest: true,
+              isActiveSrc: true,
+              batchSellDestStablecoins: [
+                'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+                'eip155:1/slip44:60',
+              ],
+            },
+          },
+          maxRefreshCount: 5,
+          refreshRate: 30000,
+          support: true,
+          minimumVersion: '0.0.0',
+          chainRanking: [{ chainId: 'eip155:1', name: 'Ethereum' }],
+        },
+        type: 'batch sell destination stablecoins',
+        expected: true,
+      },
+      {
+        response: {
+          chains: {
+            '1': {
+              isActiveDest: true,
+              isActiveSrc: true,
+              batchSellDestStablecoins: ['not-a-caip-asset-type'],
+            },
+          },
+          maxRefreshCount: 5,
+          refreshRate: 30000,
+          support: true,
+          minimumVersion: '0.0.0',
+          chainRanking: [{ chainId: 'eip155:1', name: 'Ethereum' }],
+        },
+        type: 'malformed batch sell destination stablecoins',
+        expected: false,
+      },
       {
         response: {
           chains: {
@@ -446,6 +489,55 @@ describe('validators', () => {
           },
           IntentSchema,
         ),
+      ).toBe(true);
+    });
+  });
+
+  describe('FeeDataSchema', () => {
+    const metabridgeFee =
+      mockBridgeQuotesNativeErc20EthV1[0].quote.feeData.metabridge;
+
+    it.each([
+      ['absent', undefined],
+      ['null', null],
+      ['vip', DiscountType.VIP],
+      ['promo', DiscountType.PROMO],
+      ['dao', DiscountType.DAO],
+      ['future value', 'seasonal'],
+    ])('accepts %s discountType', (_label, discountType) => {
+      expect(
+        is(
+          discountType === undefined
+            ? metabridgeFee
+            : { ...metabridgeFee, discountType },
+          FeeDataSchema,
+        ),
+      ).toBe(true);
+    });
+
+    it('rejects non-string discountType values', () => {
+      expect(is({ ...metabridgeFee, discountType: 123 }, FeeDataSchema)).toBe(
+        false,
+      );
+    });
+  });
+
+  describe('validateQuoteResponseV1', () => {
+    it('accepts a quote with metabridge discountType', () => {
+      expect(
+        validateQuoteResponseV1({
+          ...mockBridgeQuotesNativeErc20EthV1[0],
+          quote: {
+            ...mockBridgeQuotesNativeErc20EthV1[0].quote,
+            feeData: {
+              ...mockBridgeQuotesNativeErc20EthV1[0].quote.feeData,
+              metabridge: {
+                ...mockBridgeQuotesNativeErc20EthV1[0].quote.feeData.metabridge,
+                discountType: DiscountType.PROMO,
+              },
+            },
+          },
+        }),
       ).toBe(true);
     });
   });

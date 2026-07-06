@@ -11,6 +11,7 @@ import type { AuthenticationController } from '@metamask/profile-sync-controller
 import {
   array,
   boolean,
+  enums,
   is,
   nullable,
   number,
@@ -76,6 +77,9 @@ const PositionStruct = structType({
   currentValueUSD: optional(nullable(number())),
   pnlValueUsd: optional(nullable(number())),
   pnlPercent: optional(nullable(number())),
+  perpPositionType: optional(nullable(enums(['long', 'short']))),
+  perpLeverage: optional(nullable(number())),
+  positionAmountWithLeverage: optional(nullable(number())),
 });
 
 const PaginationStruct = structType({
@@ -130,6 +134,9 @@ const PerChainBreakdownStruct = structType({
   perChainPnl: record(string(), number()),
   perChainRoi: record(string(), nullable(number())),
   perChainVolume: record(string(), number()),
+  perChainPnl7d: optional(record(string(), number())),
+  perChainRoi7d: optional(record(string(), nullable(number()))),
+  perChainVolume7d: optional(record(string(), number())),
 });
 
 const TraderProfileResponseStruct = structType({
@@ -179,6 +186,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchPositionById',
   'follow',
   'unfollow',
+  'optOutOfLeaderboard',
+  'optInToLeaderboard',
 ] as const;
 
 export type SocialServiceActions =
@@ -575,6 +584,52 @@ export class SocialService extends BaseDataService<
     });
 
     return unfollowResponse;
+  }
+
+  /**
+   * Opts the current user out of the PnL leaderboard.
+   */
+  async optOutOfLeaderboard(): Promise<void> {
+    await this.fetchQuery({
+      queryKey: [`${this.name}:optOutOfLeaderboard`],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = `${this.#v1Url}/leaderboard/opt-out`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.LEADERBOARD_OPT_OUT_FAILED,
+        );
+        return null;
+      },
+    });
+  }
+
+  /**
+   * Opts the current user back into the PnL leaderboard.
+   */
+  async optInToLeaderboard(): Promise<void> {
+    await this.fetchQuery({
+      queryKey: [`${this.name}:optInToLeaderboard`],
+      staleTime: 0,
+      queryFn: async () => {
+        const url = `${this.#v1Url}/leaderboard/opt-in`;
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.LEADERBOARD_OPT_IN_FAILED,
+        );
+        return null;
+      },
+    });
   }
 
   /**

@@ -5,6 +5,9 @@
   },
   "references": [
     {
+      "path": "../authenticated-user-storage"
+    },
+    {
       "path": "../base-controller"
     },
     {

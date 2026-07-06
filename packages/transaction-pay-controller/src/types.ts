@@ -1,26 +1,37 @@
-import type { AssetsControllerGetStateForTransactionPayAction } from '@metamask/assets-controller';
 import type {
-  CurrencyRateControllerActions,
+  AssetsControllerGetStateForTransactionPayAction,
+  AssetsControllerStateChangeEvent,
+} from '@metamask/assets-controller';
+import type {
+  CurrencyRateControllerGetStateAction,
+  CurrencyRateStateChange,
   TokenBalancesControllerGetStateAction,
 } from '@metamask/assets-controllers';
 import type { TokenRatesControllerGetStateAction } from '@metamask/assets-controllers';
-import type { TokensControllerGetStateAction } from '@metamask/assets-controllers';
+import type { TokenRatesControllerStateChangeEvent } from '@metamask/assets-controllers';
+import type {
+  TokensControllerGetStateAction,
+  TokensControllerStateChangeEvent,
+} from '@metamask/assets-controllers';
 import type { AccountTrackerControllerGetStateAction } from '@metamask/assets-controllers';
 import type { ControllerStateChangeEvent } from '@metamask/base-controller';
 import type { ControllerGetStateAction } from '@metamask/base-controller';
-import type { BridgeControllerActions } from '@metamask/bridge-controller';
-import type { BridgeStatusControllerStateChangeEvent } from '@metamask/bridge-status-controller';
-import type { BridgeStatusControllerActions } from '@metamask/bridge-status-controller';
-import type { GasFeeControllerActions } from '@metamask/gas-fee-controller';
+import type { GetGasFeeState } from '@metamask/gas-fee-controller';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerSignTypedMessageAction,
+  KeyringControllerUnlockEvent,
   KeyringTypes,
 } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '@metamask/network-controller';
 import type { NetworkControllerGetNetworkClientByIdAction } from '@metamask/network-controller';
-import type { RampsControllerGetQuotesAction } from '@metamask/ramps-controller';
+import type { NetworkControllerGetNetworkConfigurationByChainIdAction } from '@metamask/network-controller';
+import type { Quote as RampsQuote } from '@metamask/ramps-controller';
+import type {
+  RampsControllerGetOrderAction,
+  RampsControllerGetQuotesAction,
+} from '@metamask/ramps-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type {
   AuthorizationList,
@@ -31,6 +42,7 @@ import type {
 } from '@metamask/transaction-controller';
 import type {
   BatchTransaction,
+  BatchTransactionParams,
   TransactionControllerAddTransactionAction,
   TransactionControllerGetGasFeeTokensAction,
   TransactionControllerGetStateAction,
@@ -41,20 +53,24 @@ import type {
 import type { Hex, Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
-import type { CONTROLLER_NAME, TransactionPayStrategy } from './constants';
+import type {
+  CONTROLLER_NAME,
+  PaymentOverride,
+  TransactionPayStrategy,
+} from './constants';
 import type { TransactionPayControllerMethodActions } from './TransactionPayController-method-action-types';
 
 export type AllowedActions =
   | AccountTrackerControllerGetStateAction
   | AssetsControllerGetStateForTransactionPayAction
-  | BridgeControllerActions
-  | BridgeStatusControllerActions
-  | CurrencyRateControllerActions
-  | GasFeeControllerActions
+  | CurrencyRateControllerGetStateAction
+  | GetGasFeeState
   | KeyringControllerGetStateAction
   | KeyringControllerSignTypedMessageAction
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
+  | NetworkControllerGetNetworkConfigurationByChainIdAction
+  | RampsControllerGetOrderAction
   | RampsControllerGetQuotesAction
   | RemoteFeatureFlagControllerGetStateAction
   | TokenBalancesControllerGetStateAction
@@ -69,7 +85,11 @@ export type AllowedActions =
   | TransactionControllerUpdateTransactionAction;
 
 export type AllowedEvents =
-  | BridgeStatusControllerStateChangeEvent
+  | AssetsControllerStateChangeEvent
+  | CurrencyRateStateChange
+  | KeyringControllerUnlockEvent
+  | TokenRatesControllerStateChangeEvent
+  | TokensControllerStateChangeEvent
   | TransactionControllerStateChangeEvent
   | TransactionControllerUnapprovedTransactionAddedEvent;
 
@@ -81,11 +101,21 @@ export type TransactionPayControllerGetStateAction = ControllerGetStateAction<
 /** Configurable properties of a transaction. */
 export type TransactionConfig = {
   /**
+   * Optional address to override the default account used by the transaction.
+   * When `isPostQuote` is true, used as the recipient of the MM Pay transfer.
+   * When `isPostQuote` is false, it provides the funds and pays for gas.
+   */
+  accountOverride?: Hex;
+
+  /**
    * Whether the source of funds is HyperLiquid (HyperCore).
    * When true, the Relay strategy uses the HyperLiquid 2-step withdrawal
    * flow: (1) authorize nonce-mapping, (2) sendAsset to Relay solver.
    */
   isHyperliquidSource?: boolean;
+
+  /** Whether the source of funds is a Polymarket deposit wallet. */
+  isPolymarketDepositWallet?: boolean;
 
   /** Whether the user has selected the maximum amount. */
   isMaxAmount?: boolean;
@@ -97,25 +127,79 @@ export type TransactionConfig = {
    */
   isPostQuote?: boolean;
 
+  /** Overrides the payment source for the transaction. */
+  paymentOverride?: PaymentOverride;
+
+  /** When true, a quote is always fetched even when the source and target tokens are identical. */
+  isQuoteRequired?: boolean;
+
   /**
-   * Optional address to receive refunds if the Relay transaction fails.
-   * When set, overrides the default refund recipient (EOA) in the Relay quote
+   * Optional address to receive refunds if the quote provider transaction fails.
+   * When set, overrides the default refund recipient (EOA) in the quote
    * request. Use this for post-quote flows where the user's funds originate
    * from a smart contract account (e.g. Predict Safe proxy) so that refunds
    * go back to that account rather than the EOA.
    */
   refundTo?: Hex;
-
-  /**
-   * Optional address to override the default account used by the transaction.
-   * When `isPostQuote` is true, used as the recipient of the MM Pay transfer.
-   * When `isPostQuote` is false, it provides the funds and pays for gas.
-   */
-  accountOverride?: Hex;
 };
 
 /** Callback to update transaction config. */
 export type TransactionConfigCallback = (config: TransactionConfig) => void;
+
+/** Request passed to {@link GetPaymentOverrideDataCallback}. */
+export type GetPaymentOverrideDataRequest = {
+  /** Amount of the source token in human-readable format. */
+  amount: string;
+
+  /** Metadata of the original transaction. */
+  transaction: TransactionMeta;
+
+  /** Pay-controller state for the transaction. */
+  transactionData: TransactionData;
+};
+
+/** Response returned by {@link GetPaymentOverrideDataCallback}. */
+export type GetPaymentOverrideDataResponse = {
+  /** Batch transaction params to prepend to the submit batch. */
+  calls: BatchTransactionParams[];
+
+  /** Optional recipient address for the funding token transfer. */
+  recipient?: Hex;
+
+  /** Optional EIP-7702 authorization list from delegation. */
+  authorizationList?: AuthorizationList;
+};
+
+/**
+ * Callback invoked during submit when `paymentOverride` is defined.
+ * Returns batch transaction params to prepend to the submit batch.
+ */
+export type GetPaymentOverrideDataCallback = (
+  request: GetPaymentOverrideDataRequest,
+) => Promise<GetPaymentOverrideDataResponse>;
+
+export type GetAmountDataRequest = {
+  /** Raw token amount (atomic units) to encode into calldata. */
+  amount: string;
+
+  /** Metadata of the transaction whose nested calls need updating. */
+  transaction: TransactionMeta;
+};
+
+export type GetAmountDataResponse = {
+  /** Per-nested-call data updates; empty when no update is needed. */
+  updates: { nestedTransactionIndex: number; data: Hex }[];
+};
+
+/**
+ * Optional callback that re-encodes nested transaction calldata for a given
+ * token amount. Used by transaction types with non-standard nested data
+ * (e.g. vault approve + deposit) that cannot be derived from the amount alone
+ * without client-side context (vault config, RPC providers, etc.).
+ */
+export type GetAmountDataCallback = (
+  request: GetAmountDataRequest,
+) => Promise<GetAmountDataResponse>;
 
 /** Callback to update fiat payment state. */
 export type TransactionFiatPaymentCallback = (
@@ -143,17 +227,30 @@ export type TransactionPayControllerMessenger = Messenger<
 
 /**
  * Keyring types that support EIP-7702 authorization signing.
- * Hardware wallets, snap keyrings, and money keyrings do not support 7702.
+ * Hardware wallets, snap keyrings, and custody keyrings are excluded.
  */
 export const KEYRING_TYPES_SUPPORTING_7702: `${KeyringTypes}`[] = [
   'HD Key Tree',
   'Simple Key Pair',
+  'Money Keyring',
 ];
 
 /** Options for the TransactionPayController. */
 export type TransactionPayControllerOptions = {
+  /** Optional callback to re-encode nested transaction calldata for a given amount. */
+  getAmountData?: GetAmountDataCallback;
+
   /** Callback to convert a transaction into a redeem delegation. */
   getDelegationTransaction: GetDelegationTransactionCallback;
+
+  /** Optional fiat execution configuration. */
+  fiatOptions?: TransactionPayFiatOptions;
+
+  /**
+   * Optional callback invoked during quote execution when `paymentOverride` is defined.
+   * Returns additional transactions to be submitted alongside the quote batch.
+   */
+  getPaymentOverrideData?: GetPaymentOverrideDataCallback;
 
   /** Callback to select the PayStrategy for a transaction. */
   getStrategy?: (transaction: TransactionMeta) => TransactionPayStrategy;
@@ -163,6 +260,9 @@ export type TransactionPayControllerOptions = {
 
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
+
+  /** Callbacks for the Polymarket relayer; required only for the Polymarket deposit-wallet flow. */
+  polymarket?: PolymarketCallbacks;
 
   /** Initial state of the controller. */
   state?: Partial<TransactionPayControllerState>;
@@ -174,8 +274,24 @@ export type TransactionPayControllerState = {
   transactionData: Record<string, TransactionData>;
 };
 
+/** Optional fiat execution configuration. */
+export type TransactionPayFiatOptions = {
+  /** Test funding source used to bypass fiat on-ramp execution during local QA. */
+  testFundingSource?: Hex;
+
+  /** Optional human amount to transfer from the test funding source. */
+  testAmountOverride?: string;
+};
+
 /** State relating to a single transaction. */
 export type TransactionData = {
+  /**
+   * Optional address to override the default account used by the transaction.
+   * When `isPostQuote` is true, used as the recipient of the MM Pay transfer.
+   * When `isPostQuote` is false, it provides the funds and pays for gas.
+   */
+  accountOverride?: Hex;
+
   /** Fiat payment method state. */
   fiatPayment?: TransactionFiatPayment;
 
@@ -197,19 +313,21 @@ export type TransactionData = {
   /** Whether the source of funds is HyperLiquid (HyperCore). */
   isHyperliquidSource?: boolean;
 
+  /** Whether the source of funds is a Polymarket deposit wallet. */
+  isPolymarketDepositWallet?: boolean;
+
+  /** Overrides the payment source for the transaction. */
+  paymentOverride?: PaymentOverride;
+
+  /** When true, a quote is always fetched even when the source and target tokens are identical. */
+  isQuoteRequired?: boolean;
+
   /**
-   * Optional address to receive refunds if the Relay transaction fails.
-   * When set, overrides the default refund recipient (EOA) in the Relay quote
+   * Optional address to receive refunds if the quote provider transaction fails.
+   * When set, overrides the default refund recipient (EOA) in the quote
    * request.
    */
   refundTo?: Hex;
-
-  /**
-   * Optional address to override the default account used by the transaction.
-   * When `isPostQuote` is true, used as the recipient of the MM Pay transfer.
-   * When `isPostQuote` is false, it provides the funds and pays for gas.
-   */
-  accountOverride?: Hex;
 
   /**
    * Token selected for the transaction.
@@ -238,6 +356,15 @@ export type TransactionData = {
 export type TransactionFiatPayment = {
   /** Entered fiat amount for the selected payment method. */
   amountFiat?: string;
+
+  /** CAIP-19 asset id derived from the transaction type for the fiat on-ramp. */
+  caipAssetId?: string;
+
+  /** Order identifier in normalized format (/providers/{provider}/orders/{id}). */
+  orderId?: string;
+
+  /** The ramps quote received from the ramps provider. */
+  rampsQuote?: RampsQuote;
 
   /** Selected fiat payment method ID. */
   selectedPaymentMethodId?: string;
@@ -367,12 +494,27 @@ export type QuoteRequest = {
   /** Whether the source of funds is HyperLiquid (HyperCore). */
   isHyperliquidSource?: boolean;
 
+  /** Whether the source of funds is a Polymarket deposit wallet. */
+  isPolymarketDepositWallet?: boolean;
+
+  /** Whether this quote is the direct mUSD-to-Money-Account fiat flow. */
+  isDirectMusdMoneyAccount?: boolean;
+
+  /** Overrides the payment source for the transaction. */
+  paymentOverride?: PaymentOverride;
+
+  /** Optional recipient address for Relay requests. When set, overrides the default `from` address. */
+  recipient?: Hex;
+
   /**
-   * Optional address to receive refunds if the Relay transaction fails.
-   * When set, overrides the default refund recipient (EOA) in the Relay quote
+   * Optional address to receive refunds if the quote provider transaction fails.
+   * When set, overrides the default refund recipient (EOA) in the quote
    * request.
    */
   refundTo?: Hex;
+
+  /** Whether to skip processTransactions in relay-quotes. Defaults to `isPostQuote`. */
+  skipProcessTransactions?: boolean;
 
   /** Balance of the source token in atomic format without factoring token decimals. */
   sourceBalanceRaw: string;
@@ -394,6 +536,14 @@ export type QuoteRequest = {
 
   /** Address of the target token. */
   targetTokenAddress: Hex;
+
+  /**
+   * One-time HyperLiquid activation fee (USD) reserved from the source amount
+   * for an unactivated HyperCore account. The source amount sent to the
+   * provider is reduced by this amount so HyperLiquid retains enough balance
+   * for the fee, and the amount is surfaced as part of the provider fee.
+   */
+  hyperliquidActivationFeeUsd?: string;
 };
 
 /** Fees associated with a transaction pay quote. */
@@ -457,6 +607,13 @@ export type PayStrategyGetQuotesRequest = {
 
   /** Selected fiat payment method ID, if applicable. */
   fiatPaymentMethod?: string;
+
+  /**
+   * Resolved wallet address for the transaction.
+   * This is `accountOverride ?? txParams.from`, pre-computed by the quote
+   * orchestrator so that individual strategies do not need to re-derive it.
+   */
+  from: Hex;
 
   /** Controller messenger. */
   messenger: TransactionPayControllerMessenger;
@@ -634,6 +791,19 @@ export type GetDelegationTransactionCallback = ({
   to: Hex;
   value: Hex;
 }>;
+
+/** Client-supplied callbacks for the Polymarket relayer protocol. */
+export type PolymarketCallbacks = {
+  /** Derive the deposit-wallet address (CREATE2) for the given EOA. */
+  getDepositWalletAddress: (params: { eoa: Hex }) => Promise<Hex>;
+
+  /** Sign and broadcast a deposit-wallet batch, returning the source hash. */
+  submitDepositWalletBatch: (params: {
+    eoa: Hex;
+    depositWallet: Hex;
+    calls: { target: Hex; data: Hex; value: string }[];
+  }) => Promise<{ sourceHash: Hex }>;
+};
 
 /** Single amount in alternate formats. */
 export type Amount = FiatValue & {

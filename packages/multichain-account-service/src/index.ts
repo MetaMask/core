@@ -8,7 +8,6 @@ export type {
 } from './types';
 export type {
   MultichainAccountServiceResyncAccountsAction,
-  MultichainAccountServiceEnsureCanUseSnapPlatformAction,
   MultichainAccountServiceGetMultichainAccountWalletAction,
   MultichainAccountServiceGetMultichainAccountWalletsAction,
   MultichainAccountServiceCreateMultichainAccountWalletAction,
@@ -21,6 +20,7 @@ export type {
   MultichainAccountServiceSetBasicFunctionalityAction,
   MultichainAccountServiceAlignWalletsAction,
   MultichainAccountServiceAlignWalletAction,
+  MultichainAccountServiceInitAction,
 } from './MultichainAccountService-method-action-types';
 export {
   AccountProviderWrapper,
@@ -35,6 +35,8 @@ export {
   BtcAccountProvider,
   TRX_ACCOUNT_PROVIDER_NAME,
   TrxAccountProvider,
+  XLM_ACCOUNT_PROVIDER_NAME,
+  XlmAccountProvider,
 } from './providers';
 export { MultichainAccountWallet } from './MultichainAccountWallet';
 export { MultichainAccountGroup } from './MultichainAccountGroup';

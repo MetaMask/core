@@ -1,11 +1,7 @@
 import { isBip44Account } from '@metamask/account-api';
-import type { SnapKeyring } from '@metamask/eth-snap-keyring';
 import { AccountCreationType } from '@metamask/keyring-api';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
-import type {
-  EthKeyring,
-  InternalAccount,
-} from '@metamask/keyring-internal-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { SnapControllerState } from '@metamask/snaps-controllers';
 import deepmerge from 'deepmerge';
 
@@ -68,64 +64,60 @@ class MockSolanaKeyring {
     return Number(index);
   }
 
-  createAccount: SnapKeyring['createAccount'] = jest
-    .fn()
-    .mockImplementation((_, { derivationPath }) => {
-      if (derivationPath !== undefined) {
-        const index = this.#getIndexFromDerivationPath(derivationPath);
-        const found = this.accounts.find(
-          (account) =>
-            isBip44Account(account) &&
-            account.options.entropy.groupIndex === index,
-        );
+  createAccount = jest.fn().mockImplementation(({ derivationPath }) => {
+    if (derivationPath !== undefined) {
+      const index = this.#getIndexFromDerivationPath(derivationPath);
+      const found = this.accounts.find(
+        (account) =>
+          isBip44Account(account) &&
+          account.options.entropy.groupIndex === index,
+      );
 
-        if (found) {
-          return found; // Idempotent.
-        }
+      if (found) {
+        return found; // Idempotent.
+      }
+    }
+
+    const account = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
+      .withUuid()
+      .withAddressSuffix(`${this.accounts.length}`)
+      .withGroupIndex(this.accounts.length)
+      .get();
+    this.accounts.push(account);
+
+    return account;
+  });
+
+  createAccounts = jest.fn().mockImplementation((options) => {
+    const groupIndices =
+      options.type === 'bip44:derive-index'
+        ? [options.groupIndex]
+        : toGroupIndexRangeArray(options.range);
+
+    return groupIndices.map((groupIndex) => {
+      const found = this.accounts.find(
+        (account) =>
+          isBip44Account(account) &&
+          account.options.entropy.groupIndex === groupIndex,
+      );
+
+      if (found) {
+        return found; // Idempotent.
       }
 
       const account = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
         .withUuid()
-        .withAddressSuffix(`${this.accounts.length}`)
-        .withGroupIndex(this.accounts.length)
+        .withAddressSuffix(`${groupIndex}`)
+        .withGroupIndex(groupIndex)
         .get();
       this.accounts.push(account);
-
       return account;
     });
-
-  createAccounts: SnapKeyring['createAccounts'] = jest
-    .fn()
-    .mockImplementation((_, options) => {
-      const groupIndices =
-        options.type === 'bip44:derive-index'
-          ? [options.groupIndex]
-          : toGroupIndexRangeArray(options.range);
-
-      return groupIndices.map((groupIndex) => {
-        const found = this.accounts.find(
-          (account) =>
-            isBip44Account(account) &&
-            account.options.entropy.groupIndex === groupIndex,
-        );
-
-        if (found) {
-          return found; // Idempotent.
-        }
-
-        const account = MockAccountBuilder.from(MOCK_SOL_ACCOUNT_1)
-          .withUuid()
-          .withAddressSuffix(`${groupIndex}`)
-          .withGroupIndex(groupIndex)
-          .get();
-        this.accounts.push(account);
-        return account;
-      });
-    });
+  });
 }
 
 class MockSolAccountProvider extends SolAccountProvider {
-  override async ensureCanUseSnapPlatform(): Promise<void> {
+  override async ensureReady(): Promise<void> {
     // Override to avoid waiting during tests.
   }
 }
@@ -201,12 +193,10 @@ function setup({
   );
 
   messenger.registerActionHandler(
-    'KeyringController:withKeyring',
+    'KeyringController:withKeyringV2',
     async (_, operation) =>
       operation({
-        // We type-cast here, since `withKeyring` defaults to `EthKeyring` and the
-        // Snap keyring doesn't really implement this interface (this is expected).
-        keyring: keyring as unknown as EthKeyring,
+        keyring,
         metadata: keyring.metadata,
       }),
   );
@@ -228,8 +218,8 @@ function setup({
     mocks: {
       handleRequest: mockHandleRequest,
       keyring: {
-        createAccount: keyring.createAccount as jest.Mock,
-        createAccounts: keyring.createAccounts as jest.Mock,
+        createAccount: keyring.createAccount,
+        createAccounts: keyring.createAccounts,
       },
       trace: mockTrace,
     },
@@ -465,14 +455,11 @@ describe('SolAccountProvider', () => {
       });
       expect(newAccounts).toHaveLength(1);
       // Batch endpoint must be called, NOT the singular one.
-      expect(mocks.keyring.createAccounts).toHaveBeenCalledWith(
-        SolAccountProvider.SOLANA_SNAP_ID,
-        {
-          type: AccountCreationType.Bip44DeriveIndex,
-          entropySource: MOCK_HD_KEYRING_1.metadata.id,
-          groupIndex: newGroupIndex,
-        },
-      );
+      expect(mocks.keyring.createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: newGroupIndex,
+      });
       expect(mocks.keyring.createAccount).not.toHaveBeenCalled();
     });
 

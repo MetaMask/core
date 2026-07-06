@@ -10,6 +10,7 @@ import type {
 import type {
   SnapControllerGetRunnableSnapsAction,
   SnapControllerHandleRequestAction,
+  SnapControllerSnapInstalledEvent,
 } from '@metamask/snaps-controllers';
 import type { Snap, SnapId } from '@metamask/snaps-sdk';
 import { HandlerType, SnapCaveatType } from '@metamask/snaps-utils';
@@ -144,7 +145,8 @@ const defaultSnapState: SnapDataSourceState = {
  */
 export type SnapDataSourceAllowedEvents =
   | AccountsControllerAccountBalancesUpdatedEvent
-  | PermissionControllerStateChange;
+  | PermissionControllerStateChange
+  | SnapControllerSnapInstalledEvent;
 
 export type SnapDataSourceAllowedActions =
   | SnapControllerGetRunnableSnapsAction
@@ -254,6 +256,10 @@ export class SnapDataSource extends AbstractDataSource<
       'PermissionController:stateChange',
       this.#handlePermissionStateChangeBound,
     );
+    // Rediscover keyring snaps when any snap gets installed
+    messenger.subscribe('SnapController:snapInstalled', () => {
+      this.#discoverKeyringSnaps();
+    });
   }
 
   /**
@@ -439,13 +445,13 @@ export class SnapDataSource extends AbstractDataSource<
       return {};
     }
     if (!request?.accountsWithSupportedChains?.length) {
-      return { assetsBalance: {}, assetsInfo: {}, updateMode: 'full' };
+      return { assetsBalance: {}, assetsInfo: {}, updateMode: 'merge' };
     }
 
     const results: DataResponse = {
       assetsBalance: {},
       assetsInfo: {},
-      updateMode: 'full',
+      updateMode: 'merge',
     };
 
     // Fetch balances for each account using its snap ID from metadata

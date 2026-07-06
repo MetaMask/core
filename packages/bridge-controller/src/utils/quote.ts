@@ -13,12 +13,12 @@ import type {
   L1GasFees,
   Quote,
   QuoteMetadata,
-  QuoteResponse,
+  QuoteResponseV1,
   NonEvmFees,
   TxData,
 } from '../types';
+import { FeatureId } from '../types';
 import { isNativeAddress, isNonEvmChainId } from './bridge';
-import { FeatureId } from './validators';
 
 export const isValidQuoteRequest = (
   partialRequest: Partial<GenericQuoteRequest>,
@@ -83,13 +83,19 @@ export const isValidQuoteRequest = (
   );
 };
 
+export const isValidBatchSellQuoteRequest = (
+  quoteRequests: Partial<GenericQuoteRequest>[],
+  requireAmount = true,
+): quoteRequests is GenericQuoteRequest[] =>
+  quoteRequests.every((req) => isValidQuoteRequest(req, requireAmount));
+
 /**
  * Generates a pseudo-unique string that identifies each quote by aggregator, bridge, and steps
  *
  * @param quote - The quote to generate an identifier for
  * @returns A pseudo-unique string that identifies the quote
  */
-export const getQuoteIdentifier = (quote: QuoteResponse['quote']) =>
+export const getQuoteIdentifier = (quote: QuoteResponseV1['quote']) =>
   `${quote.bridgeId}-${quote.bridges[0]}-${quote.steps.length}`;
 
 const calcTokenAmount = (value: string | BigNumber, decimals: number) => {
@@ -98,7 +104,7 @@ const calcTokenAmount = (value: string | BigNumber, decimals: number) => {
 };
 
 export const calcNonEvmTotalNetworkFee = (
-  bridgeQuote: QuoteResponse & NonEvmFees,
+  bridgeQuote: QuoteResponseV1 & NonEvmFees,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
   const { nonEvmFeesInNative } = bridgeQuote;
@@ -135,17 +141,24 @@ export const calcToAmount = (
 };
 
 export const calcSentAmount = (
-  { srcTokenAmount, srcAsset, feeData }: Quote,
+  { srcTokenAmount, srcAsset, feeData, intent }: Quote,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
-  // Find all fees that will be taken from the src token
-  const srcTokenFees = Object.values(feeData).filter(
-    (fee) => fee && fee.amount && fee.asset?.assetId === srcAsset.assetId,
-  );
-  const sentAmount = srcTokenFees.reduce(
-    (acc, { amount }) => acc.plus(amount),
-    new BigNumber(srcTokenAmount),
-  );
+  // For intent-based swaps (e.g. CoW Protocol), srcTokenAmount is the total
+  // fixed commitment the user makes to the protocol — the protocol fee is
+  // already baked in. Adding feeData fees on top would double-count them.
+  // For conventional swaps, srcTokenAmount is the net routing amount (fees
+  // excluded), so the src-token fees must be added to get the wallet deduction.
+  const sentAmount = intent
+    ? new BigNumber(srcTokenAmount)
+    : Object.values(feeData)
+        .filter(
+          (fee) => fee && fee.amount && fee.asset?.assetId === srcAsset.assetId,
+        )
+        .reduce(
+          (acc, { amount }) => acc.plus(amount),
+          new BigNumber(srcTokenAmount),
+        );
   const normalizedSentAmount = calcTokenAmount(sentAmount, srcAsset.decimals);
   return {
     amount: normalizedSentAmount.toString(),
@@ -158,8 +171,27 @@ export const calcSentAmount = (
   };
 };
 
+export const calcBatchFees = (
+  amount: string,
+  asset: BridgeAsset,
+  { exchangeRate, usdExchangeRate }: ExchangeRate,
+) => {
+  const normalizedAmount = calcTokenAmount(amount, asset.decimals);
+
+  return {
+    amount: normalizedAmount.toString(),
+    valueInCurrency: exchangeRate
+      ? normalizedAmount.times(exchangeRate).toString()
+      : null,
+    usd: usdExchangeRate
+      ? normalizedAmount.times(usdExchangeRate).toString()
+      : null,
+    asset,
+  };
+};
+
 export const calcRelayerFee = (
-  quoteResponse: QuoteResponse<TxData, TxData>,
+  quoteResponse: QuoteResponseV1<TxData, TxData>,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
   const { quote, trade } = quoteResponse;
@@ -234,7 +266,7 @@ export const calcEstimatedAndMaxTotalGasFee = ({
   exchangeRate: nativeToDisplayCurrencyExchangeRate,
   usdExchangeRate: nativeToUsdExchangeRate,
 }: {
-  bridgeQuote: QuoteResponse<TxData, TxData> & L1GasFees;
+  bridgeQuote: QuoteResponseV1<TxData, TxData> & L1GasFees;
   maxFeePerGasInDecGwei?: string;
   feePerGasInDecGwei?: string;
 } & ExchangeRate): QuoteMetadata['gasFee'] => {
@@ -465,7 +497,7 @@ export const formatEtaInMinutes = (
 };
 
 export const sortQuotes = (
-  quotes: QuoteResponse[],
+  quotes: QuoteResponseV1[],
   featureId: FeatureId | null,
 ) => {
   // Sort perps quotes by increasing estimated processing time (fastest first)

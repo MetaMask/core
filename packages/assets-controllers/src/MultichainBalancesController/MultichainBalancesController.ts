@@ -23,13 +23,27 @@ import type { Messenger } from '@metamask/messenger';
 import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
-import type { Json, JsonRpcRequest } from '@metamask/utils';
+import type { CaipChainId, Json, JsonRpcRequest } from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import type {
   MultichainAssetsControllerGetStateAction,
   MultichainAssetsControllerAccountAssetListUpdatedEvent,
 } from '../MultichainAssetsController';
+import {
+  buildBalanceRowsWithAccountAssetInfo,
+  fetchAccountAssetInfoFromSnap,
+  filterAssetsForAccountAssetEnrichment,
+} from './account-asset-info';
+import type {
+  GetAccountAssetInfoResponse,
+  MultichainAccountBalance,
+} from './account-asset-info';
+
+export type {
+  AccountAssetInfo,
+  MultichainAccountBalance,
+} from './account-asset-info';
 
 const controllerName = 'MultichainBalancesController';
 
@@ -39,10 +53,7 @@ const controllerName = 'MultichainBalancesController';
 export type MultichainBalancesControllerState = {
   balances: {
     [account: string]: {
-      [asset: string]: {
-        amount: string;
-        unit: string;
-      };
+      [asset: string]: MultichainAccountBalance;
     };
   };
 };
@@ -141,12 +152,29 @@ export class MultichainBalancesController extends BaseController<
   MultichainBalancesControllerState,
   MultichainBalancesControllerMessenger
 > {
+  readonly #isDeprecated: () => boolean;
+
+  /**
+   * Creates a MultichainBalancesController instance.
+   *
+   * @param options - Constructor options.
+   * @param options.messenger - A reference to the messenger.
+   * @param options.state - The initial state.
+   * @param options.isDeprecated - Optional function that returns true to completely
+   * disable this controller (no requests, no state updates). When it returns
+   * `true`, `balances` is reset to `{}` at construction and at every entry point,
+   * so no stale balances remain in state. The function is evaluated dynamically
+   * on each entry point so it can be toggled at runtime. Intended for use when
+   * a higher-level controller (e.g. AssetsController) supersedes this one.
+   */
   constructor({
     messenger,
     state = {},
+    isDeprecated = (): boolean => false,
   }: {
     messenger: MultichainBalancesControllerMessenger;
     state?: Partial<MultichainBalancesControllerState>;
+    isDeprecated?: () => boolean;
   }) {
     super({
       messenger,
@@ -158,11 +186,17 @@ export class MultichainBalancesController extends BaseController<
       },
     });
 
-    // Fetch initial balances for all non-EVM accounts
-    for (const account of this.#listAccounts()) {
-      // Fetching the balance is asynchronous and we cannot use `await` here.
-      // eslint-disable-next-line no-void
-      void this.updateBalance(account.id);
+    this.#isDeprecated = isDeprecated;
+
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+    } else {
+      // Fetch initial balances for all non-EVM accounts
+      for (const account of this.#listAccounts()) {
+        // Fetching the balance is asynchronous and we cannot use `await` here.
+        // eslint-disable-next-line no-void
+        void this.updateBalance(account.id);
+      }
     }
 
     this.messenger.subscribe(
@@ -180,10 +214,11 @@ export class MultichainBalancesController extends BaseController<
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async ({ assets }) => {
         const updatedAccountAssets = Object.entries(assets).map(
-          ([accountId, { added, removed }]) => ({
+          ([accountId, { added, removed, refreshed }]) => ({
             accountId,
             added: [...added],
             removed: [...removed],
+            refreshed: refreshed ? [...refreshed] : [],
           }),
         );
 
@@ -193,11 +228,28 @@ export class MultichainBalancesController extends BaseController<
   }
 
   /**
+   * Clears all persisted `balances` so that no stale balances remain in state.
+   *
+   * Called from every entry point when `isDeprecated()` is true so that a
+   * runtime toggle propagates to state immediately, even if the controller was
+   * originally constructed while it was enabled. The update is skipped when
+   * `balances` is already empty to avoid emitting redundant state changes.
+   */
+  #enforceDisabledState(): void {
+    if (Object.keys(this.state.balances).length === 0) {
+      return;
+    }
+    this.update((state) => {
+      state.balances = {};
+    });
+  }
+
+  /**
    * Reconciles cached balances after a multichain asset-list update event.
    *
    * The event payload is treated as a delta:
    * - balances for `removed` assets are deleted so stale entries cannot remain
-   * - balances for `added` assets are fetched from the snap and merged in
+   * - balances for `added` and `refreshed` assets are fetched from the snap and merged in
    * - if an added asset is not returned by the snap, a zero placeholder is stored
    *   so the asset can still be represented in state
    *
@@ -208,8 +260,14 @@ export class MultichainBalancesController extends BaseController<
       accountId: string;
       added: CaipAssetType[];
       removed: CaipAssetType[];
+      refreshed: CaipAssetType[];
     }[],
   ): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
     const { isUnlocked } = this.messenger.call('KeyringController:getState');
 
     if (!isUnlocked) {
@@ -217,29 +275,47 @@ export class MultichainBalancesController extends BaseController<
     }
     const balancesToAdd: MultichainBalancesControllerState['balances'] = {};
 
-    for (const { accountId, added } of accounts) {
-      if (added.length === 0) {
+    for (const { accountId, added, refreshed } of accounts) {
+      const assetsToFetch = [...added, ...refreshed];
+      if (assetsToFetch.length === 0) {
         continue;
       }
 
       const account = this.#getAccount(accountId);
-      if (account.metadata.snap) {
-        const accountBalance = await this.#getBalances(
-          account.id,
-          account.metadata.snap.id,
-          added,
-        );
+      const snapId = account.metadata.snap?.id;
 
-        balancesToAdd[accountId] = accountBalance;
+      if (!snapId) {
+        continue;
       }
+
+      const accountBalance = await this.#getBalances(
+        account.id,
+        snapId,
+        assetsToFetch,
+      );
+      const chainId = account.scopes[0];
+
+      const enrichment = chainId
+        ? await this.#fetchAccountAssetInfo(
+            accountId,
+            chainId,
+            snapId as SnapId,
+            assetsToFetch,
+          ).catch(() => undefined)
+        : undefined;
+
+      balancesToAdd[accountId] = buildBalanceRowsWithAccountAssetInfo(
+        assetsToFetch,
+        accountBalance,
+        enrichment,
+      );
     }
 
     this.update((state: Draft<MultichainBalancesControllerState>) => {
       for (const { accountId, added, removed } of accounts) {
-        const accountBalances = state.balances[accountId] ?? {};
         const addedBalances = balancesToAdd[accountId] ?? {};
 
-        state.balances[accountId] = accountBalances;
+        state.balances[accountId] = state.balances[accountId] ?? {};
 
         // Remove balances for assets that disappeared from the account asset list
         // so stale entries cannot remain in state.
@@ -249,7 +325,13 @@ export class MultichainBalancesController extends BaseController<
 
         // Merge the balances returned by the snap for the newly added assets.
         for (const [assetId, balance] of Object.entries(addedBalances)) {
-          state.balances[accountId][assetId] = balance;
+          state.balances[accountId][assetId] = {
+            ...(state.balances[accountId][assetId] ?? {
+              amount: '0',
+              unit: '',
+            }),
+            ...balance,
+          };
         }
 
         // If the asset list was updated but the snap did not return a balance for
@@ -274,6 +356,11 @@ export class MultichainBalancesController extends BaseController<
     accountId: string,
     assets: CaipAssetType[],
   ): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
     const { isUnlocked } = this.messenger.call('KeyringController:getState');
 
     if (!isUnlocked) {
@@ -291,7 +378,10 @@ export class MultichainBalancesController extends BaseController<
         );
 
         this.update((state: Draft<MultichainBalancesControllerState>) => {
-          state.balances[accountId] = accountBalance;
+          state.balances[accountId] = mergeAccountBalances(
+            state.balances[accountId] ?? {},
+            accountBalance,
+          );
         });
       }
     } catch (error) {
@@ -389,15 +479,58 @@ export class MultichainBalancesController extends BaseController<
   #handleOnAccountBalancesUpdated(
     balanceUpdate: AccountBalancesUpdatedEventPayload,
   ): void {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
     this.update((state: Draft<MultichainBalancesControllerState>) => {
-      Object.entries(balanceUpdate.balances).forEach(
-        ([accountId, assetBalances]) => {
-          if (accountId in state.balances) {
-            Object.assign(state.balances[accountId], assetBalances);
-          }
-        },
-      );
+      for (const [accountId, assetBalances] of Object.entries(
+        balanceUpdate.balances,
+      )) {
+        if (!(accountId in state.balances)) {
+          continue;
+        }
+        state.balances[accountId] = mergeAccountBalances(
+          state.balances[accountId],
+          assetBalances,
+        );
+      }
     });
+  }
+
+  /**
+   * Fetches snap account-asset enrichment for the given assets.
+   *
+   * @param accountId - Account id.
+   * @param chainId - CAIP-2 chain id for enrichment.
+   * @param snapId - Wallet snap id.
+   * @param assetIds - Assets to enrich.
+   * @returns Per-asset enrichment fields, or undefined when unavailable.
+   */
+  async #fetchAccountAssetInfo(
+    accountId: string,
+    chainId: CaipChainId,
+    snapId: SnapId,
+    assetIds: CaipAssetType[],
+  ): Promise<GetAccountAssetInfoResponse | undefined> {
+    const enrichmentAssets = filterAssetsForAccountAssetEnrichment(
+      assetIds,
+      chainId,
+    );
+    if (enrichmentAssets.length === 0) {
+      return undefined;
+    }
+
+    return await fetchAccountAssetInfoFromSnap(
+      (params) => this.messenger.call('SnapController:handleRequest', params),
+      {
+        accountId,
+        snapId,
+        chainId,
+        assets: enrichmentAssets,
+      },
+    );
   }
 
   /**
@@ -406,6 +539,11 @@ export class MultichainBalancesController extends BaseController<
    * @param accountId - The account ID being removed.
    */
   async #handleOnAccountRemoved(accountId: string): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
     if (accountId in this.state.balances) {
       this.update((state: Draft<MultichainBalancesControllerState>) => {
         delete state.balances[accountId];
@@ -449,4 +587,20 @@ export class MultichainBalancesController extends BaseController<
         })) as Promise<Json>,
     });
   }
+}
+
+function mergeAccountBalances(
+  previous: Record<string, MultichainAccountBalance>,
+  incoming: Record<string, Partial<MultichainAccountBalance>>,
+): Record<string, MultichainAccountBalance> {
+  const merged = { ...previous };
+
+  for (const [assetId, balance] of Object.entries(incoming)) {
+    merged[assetId] = {
+      ...(merged[assetId] ?? { amount: '0', unit: '' }),
+      ...balance,
+    };
+  }
+
+  return merged;
 }

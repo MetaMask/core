@@ -54,7 +54,7 @@ describe('Source Amounts Utils', () => {
     jest.resetAllMocks();
 
     getTokenFiatRateMock.mockReturnValue({ fiatRate: '2.0', usdRate: '3.0' });
-    getStrategyMock.mockReturnValue(TransactionPayStrategy.Test);
+    getStrategyMock.mockReturnValue(TransactionPayStrategy.Across);
     getTransactionMock.mockReturnValue({
       id: TRANSACTION_ID_MOCK,
     } as never);
@@ -140,6 +140,53 @@ describe('Source Amounts Utils', () => {
             ...TRANSACTION_TOKEN_MOCK,
             address: ARBITRUM_USDC_ADDRESS,
             chainId: CHAIN_ID_ARBITRUM,
+          },
+        ],
+      };
+
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+      expect(transactionData.sourceAmounts).toHaveLength(1);
+    });
+
+    it('does not return empty array if payment token matches but perps deposit and order and across strategy', () => {
+      getStrategyMock.mockReturnValue(TransactionPayStrategy.Across);
+      getTransactionMock.mockReturnValue({
+        id: TRANSACTION_ID_MOCK,
+        type: TransactionType.perpsDepositAndOrder,
+      } as never);
+
+      const transactionData: TransactionData = {
+        isLoading: false,
+        paymentToken: {
+          ...PAYMENT_TOKEN_MOCK,
+          address: ARBITRUM_USDC_ADDRESS,
+          chainId: CHAIN_ID_ARBITRUM,
+        },
+        tokens: [
+          {
+            ...TRANSACTION_TOKEN_MOCK,
+            address: ARBITRUM_USDC_ADDRESS,
+            chainId: CHAIN_ID_ARBITRUM,
+          },
+        ],
+      };
+
+      updateSourceAmounts(TRANSACTION_ID_MOCK, transactionData, messenger);
+
+      expect(transactionData.sourceAmounts).toHaveLength(1);
+    });
+
+    it('does not return empty array if payment token matches but isQuoteRequired is true', () => {
+      const transactionData: TransactionData = {
+        isLoading: false,
+        isQuoteRequired: true,
+        paymentToken: PAYMENT_TOKEN_MOCK,
+        tokens: [
+          {
+            ...TRANSACTION_TOKEN_MOCK,
+            address: PAYMENT_TOKEN_MOCK.address,
+            chainId: PAYMENT_TOKEN_MOCK.chainId,
           },
         ],
       };

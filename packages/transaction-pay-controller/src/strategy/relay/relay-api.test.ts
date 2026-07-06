@@ -1,5 +1,3 @@
-import { successfulFetch } from '@metamask/controller-utils';
-
 import type { FeatureFlags } from '../../utils/feature-flags';
 import { getFeatureFlags } from '../../utils/feature-flags';
 import { RELAY_STATUS_URL } from './constants';
@@ -12,13 +10,22 @@ import type { RelayQuoteRequest } from './types';
 
 jest.mock('../../utils/feature-flags');
 
-jest.mock('@metamask/controller-utils', () => ({
-  ...jest.requireActual('@metamask/controller-utils'),
-  successfulFetch: jest.fn(),
-}));
-
-const successfulFetchMock = jest.mocked(successfulFetch);
 const getFeatureFlagsMock = jest.mocked(getFeatureFlags);
+
+let fetchMock: jest.SpyInstance;
+
+const mockOkResponse = (body: unknown): jest.SpyInstance =>
+  fetchMock.mockResolvedValueOnce({
+    ok: true,
+    json: async () => body,
+  } as Response);
+
+const mockErrorResponse = (status: number, body: unknown): jest.SpyInstance =>
+  fetchMock.mockResolvedValueOnce({
+    ok: false,
+    status,
+    json: async () => body,
+  } as Response);
 
 const QUOTE_URL_MOCK = 'https://proxy.test/relay/quote';
 const EXECUTE_URL_MOCK = 'https://proxy.test/relay/execute';
@@ -27,12 +34,16 @@ const MESSENGER_MOCK = {} as Parameters<typeof fetchRelayQuote>[0];
 
 describe('relay-api', () => {
   beforeEach(() => {
-    jest.resetAllMocks();
+    fetchMock = jest.spyOn(global, 'fetch');
 
     getFeatureFlagsMock.mockReturnValue({
       relayQuoteUrl: QUOTE_URL_MOCK,
       relayExecuteUrl: EXECUTE_URL_MOCK,
     } as FeatureFlags);
+  });
+
+  afterEach(() => {
+    fetchMock.mockRestore();
   });
 
   describe('fetchRelayQuote', () => {
@@ -53,13 +64,11 @@ describe('relay-api', () => {
     };
 
     it('posts to the quote URL from feature flags', async () => {
-      successfulFetchMock.mockResolvedValue({
-        json: async () => QUOTE_RESPONSE_MOCK,
-      } as Response);
+      mockOkResponse(QUOTE_RESPONSE_MOCK);
 
       await fetchRelayQuote(MESSENGER_MOCK, QUOTE_REQUEST_MOCK);
 
-      expect(successfulFetchMock).toHaveBeenCalledWith(QUOTE_URL_MOCK, {
+      expect(fetchMock).toHaveBeenCalledWith(QUOTE_URL_MOCK, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(QUOTE_REQUEST_MOCK),
@@ -67,9 +76,7 @@ describe('relay-api', () => {
     });
 
     it('attaches the request body to the returned quote', async () => {
-      successfulFetchMock.mockResolvedValue({
-        json: async () => ({ ...QUOTE_RESPONSE_MOCK }),
-      } as Response);
+      mockOkResponse({ ...QUOTE_RESPONSE_MOCK });
 
       const quote = await fetchRelayQuote(MESSENGER_MOCK, QUOTE_REQUEST_MOCK);
 
@@ -77,9 +84,7 @@ describe('relay-api', () => {
     });
 
     it('returns the parsed quote', async () => {
-      successfulFetchMock.mockResolvedValue({
-        json: async () => QUOTE_RESPONSE_MOCK,
-      } as Response);
+      mockOkResponse(QUOTE_RESPONSE_MOCK);
 
       const quote = await fetchRelayQuote(MESSENGER_MOCK, QUOTE_REQUEST_MOCK);
 
@@ -87,9 +92,7 @@ describe('relay-api', () => {
     });
 
     it('forwards the abort signal to the underlying fetch', async () => {
-      successfulFetchMock.mockResolvedValue({
-        json: async () => QUOTE_RESPONSE_MOCK,
-      } as Response);
+      mockOkResponse(QUOTE_RESPONSE_MOCK);
 
       const controller = new AbortController();
       await fetchRelayQuote(
@@ -98,10 +101,40 @@ describe('relay-api', () => {
         controller.signal,
       );
 
-      expect(successfulFetchMock).toHaveBeenCalledWith(
+      expect(fetchMock).toHaveBeenCalledWith(
         QUOTE_URL_MOCK,
         expect.objectContaining({ signal: controller.signal }),
       );
+    });
+
+    it('throws an error containing status code and the response body message field on non-OK', async () => {
+      mockErrorResponse(422, { message: 'Insufficient liquidity' });
+
+      await expect(
+        fetchRelayQuote(MESSENGER_MOCK, QUOTE_REQUEST_MOCK),
+      ).rejects.toThrow('422 - Insufficient liquidity');
+    });
+
+    it('falls back to the response body error field when message is absent', async () => {
+      mockErrorResponse(429, { error: 'rate limit exceeded' });
+
+      await expect(
+        fetchRelayQuote(MESSENGER_MOCK, QUOTE_REQUEST_MOCK),
+      ).rejects.toThrow('429 - rate limit exceeded');
+    });
+
+    it('falls back to the status code only when the body has neither message nor error', async () => {
+      fetchMock.mockResolvedValueOnce({
+        ok: false,
+        status: 500,
+        json: async () => {
+          throw new Error('not json');
+        },
+      } as Response);
+
+      await expect(
+        fetchRelayQuote(MESSENGER_MOCK, QUOTE_REQUEST_MOCK),
+      ).rejects.toThrow('500');
     });
   });
 
@@ -124,13 +157,11 @@ describe('relay-api', () => {
     };
 
     it('posts to the execute URL from feature flags', async () => {
-      successfulFetchMock.mockResolvedValue({
-        json: async () => EXECUTE_RESPONSE_MOCK,
-      } as Response);
+      mockOkResponse(EXECUTE_RESPONSE_MOCK);
 
       await submitRelayExecute(MESSENGER_MOCK, EXECUTE_REQUEST_MOCK);
 
-      expect(successfulFetchMock).toHaveBeenCalledWith(EXECUTE_URL_MOCK, {
+      expect(fetchMock).toHaveBeenCalledWith(EXECUTE_URL_MOCK, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(EXECUTE_REQUEST_MOCK),
@@ -138,9 +169,7 @@ describe('relay-api', () => {
     });
 
     it('returns the parsed response', async () => {
-      successfulFetchMock.mockResolvedValue({
-        json: async () => EXECUTE_RESPONSE_MOCK,
-      } as Response);
+      mockOkResponse(EXECUTE_RESPONSE_MOCK);
 
       const result = await submitRelayExecute(
         MESSENGER_MOCK,
@@ -160,22 +189,18 @@ describe('relay-api', () => {
     };
 
     it('fetches the status URL with the request ID', async () => {
-      successfulFetchMock.mockResolvedValue({
-        json: async () => STATUS_RESPONSE_MOCK,
-      } as Response);
+      mockOkResponse(STATUS_RESPONSE_MOCK);
 
       await getRelayStatus(REQUEST_ID_MOCK);
 
-      expect(successfulFetchMock).toHaveBeenCalledWith(
+      expect(fetchMock).toHaveBeenCalledWith(
         `${RELAY_STATUS_URL}?requestId=${REQUEST_ID_MOCK}`,
         { method: 'GET' },
       );
     });
 
     it('returns the parsed status', async () => {
-      successfulFetchMock.mockResolvedValue({
-        json: async () => STATUS_RESPONSE_MOCK,
-      } as Response);
+      mockOkResponse(STATUS_RESPONSE_MOCK);
 
       const result = await getRelayStatus(REQUEST_ID_MOCK);
 

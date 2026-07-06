@@ -1,6 +1,6 @@
 {
   "name": "@metamask/delegation-controller",
-  "version": "3.0.0",
+  "version": "3.0.2",
   "description": "Manages delegations for MetaMask",
   "keywords": [
     "Ethereum",
@@ -54,9 +54,9 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^9.1.0",
-    "@metamask/keyring-controller": "^25.3.0",
-    "@metamask/messenger": "^1.2.0",
-    "@metamask/utils": "^11.9.0"
+    "@metamask/keyring-controller": "^27.1.0",
+    "@metamask/messenger": "^2.0.0",
+    "@metamask/utils": "^11.11.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",

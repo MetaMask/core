@@ -53,6 +53,7 @@ export type {
   PerpsControllerClearWithdrawResultAction,
   PerpsControllerClosePositionAction,
   PerpsControllerClosePositionsAction,
+  PerpsControllerClearAttributionContextAction,
   PerpsControllerCompleteWithdrawalFromHistoryAction,
   PerpsControllerDepositWithConfirmationAction,
   PerpsControllerDepositWithOrderAction,
@@ -63,6 +64,7 @@ export type {
   PerpsControllerGetAccountStateAction,
   PerpsControllerGetActiveProviderAction,
   PerpsControllerGetActiveProviderOrNullAction,
+  PerpsControllerGetAttributionContextAction,
   PerpsControllerGetAvailableDexsAction,
   PerpsControllerGetBlockExplorerUrlAction,
   PerpsControllerGetCachedMarketDataForActiveProviderAction,
@@ -72,6 +74,7 @@ export type {
   PerpsControllerGetHistoricalPortfolioAction,
   PerpsControllerGetMarketDataWithPricesAction,
   PerpsControllerGetMarketFilterPreferencesAction,
+  PerpsControllerGetMarketCategoriesAction,
   PerpsControllerGetMarketsAction,
   PerpsControllerGetMaxLeverageAction,
   PerpsControllerGetOpenOrdersAction,
@@ -81,6 +84,7 @@ export type {
   PerpsControllerGetPendingTradeConfigurationAction,
   PerpsControllerGetPositionsAction,
   PerpsControllerGetTradeConfigurationAction,
+  PerpsControllerGetRecentlyViewedMarketsAction,
   PerpsControllerGetWatchlistMarketsAction,
   PerpsControllerGetWebSocketConnectionStateAction,
   PerpsControllerGetWithdrawalProgressAction,
@@ -93,6 +97,7 @@ export type {
   PerpsControllerMarkTutorialCompletedAction,
   PerpsControllerPlaceOrderAction,
   PerpsControllerReconnectAction,
+  PerpsControllerRecordMarketViewedAction,
   PerpsControllerRefreshEligibilityAction,
   PerpsControllerResetFirstTimeUserStateAction,
   PerpsControllerResetSelectedPaymentTokenAction,
@@ -100,6 +105,7 @@ export type {
   PerpsControllerSaveOrderBookGroupingAction,
   PerpsControllerSavePendingTradeConfigurationAction,
   PerpsControllerSaveTradeConfigurationAction,
+  PerpsControllerSetAttributionContextAction,
   PerpsControllerSetLiveDataConfigAction,
   PerpsControllerSetSelectedPaymentTokenAction,
   PerpsControllerStartEligibilityMonitoringAction,
@@ -132,7 +138,12 @@ export type {
 export { HyperLiquidProvider } from './providers/HyperLiquidProvider';
 
 // Type definitions (explicit named exports)
-export { WebSocketConnectionState, PerpsAnalyticsEvent } from './types';
+export {
+  WebSocketConnectionState,
+  PerpsAnalyticsEvent,
+  MARKET_CATEGORIES,
+  MarketCategory,
+} from './types';
 export type {
   RawLedgerUpdate,
   UserHistoryItem,
@@ -195,6 +206,9 @@ export type {
   GetSupportedPathsParams,
   GetAvailableDexsParams,
   GetMarketsParams,
+  GetMarketDataWithPricesParams,
+  SortField,
+  SortDirection,
   SubscribePricesParams,
   SubscribePositionsParams,
   SubscribeOrderFillsParams,
@@ -224,6 +238,7 @@ export type {
   PerpsTraceName,
   PerpsTraceValue,
   PerpsAnalyticsProperties,
+  PerpsAttributionContext,
   PerpsMetrics,
   PerpsDebugLogger,
   PerpsStreamManager,
@@ -235,6 +250,8 @@ export type {
   PerpsInternalAccount,
   PerpsRemoteFeatureFlagState,
   PerpsPlatformDependencies,
+  PerpsTerminalMarketService,
+  TerminalAssetMetadata,
   PerpsCacheType,
   InvalidateCacheParams,
   PerpsCacheInvalidator,
@@ -409,6 +426,7 @@ export {
   WITHDRAWAL_CONSTANTS,
   VALIDATION_THRESHOLDS,
   ORDER_SLIPPAGE_CONFIG,
+  MAX_SLIPPAGE_BOUNDS,
   PERFORMANCE_CONFIG,
   TP_SL_CONFIG,
   HYPERLIQUID_ORDER_LIMITS,
@@ -460,6 +478,7 @@ export {
 } from './utils';
 export {
   calculateOpenInterestUSD,
+  isMarketTradable,
   transformMarketData,
   formatChange,
 } from './utils';
@@ -481,7 +500,14 @@ export {
   calculateFundingCountdown,
   calculate24hHighLow,
   filterMarketsByQuery,
+  matchesCategory,
+  getMarketTypeFilter,
+  applyMarketFilters,
+  isHip3Market,
+  rankMarketsByQuery,
+  getMarketMatchRank,
 } from './utils';
+export { MarketMatchRank } from './utils';
 export type { MarketPatternMatcher, CompiledMarketPattern } from './utils';
 export type {
   OrderCalculationsDebugLogger,
@@ -510,7 +536,7 @@ export {
   hasExceededSignificantFigures,
   roundToSignificantFigures,
 } from './utils';
-export type { SortField, SortDirection, SortMarketsParams } from './utils';
+export type { SortMarketsParams } from './utils';
 export { parseVolume, sortMarkets } from './utils';
 export type { StandaloneInfoClientOptions } from './utils';
 export {
@@ -558,6 +584,7 @@ export {
   selectHasPlacedFirstOrder,
   selectWatchlistMarkets,
   selectIsWatchlistMarket,
+  selectRecentlyViewedMarkets,
   selectTradeConfiguration,
   selectPendingTradeConfiguration,
   selectMarketFilterPreferences,

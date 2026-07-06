@@ -15,7 +15,6 @@ export type RelayQuoteRequest = {
   originChainId: number;
   originCurrency: Hex;
   originGasOverhead?: string;
-  /** Required for HyperLiquid withdrawals (value: 'v2'). */
   protocolVersion?: string;
   recipient: Hex;
   refundTo?: Hex;
@@ -26,6 +25,8 @@ export type RelayQuoteRequest = {
     data: Hex;
     value: Hex;
   }[];
+  useDepositAddress?: boolean;
+  strict?: boolean;
   user: Hex;
 };
 
@@ -209,4 +210,9 @@ export type RelayStatusResponse = {
   updatedAt: number;
   originChainId: number;
   destinationChainId: number;
+};
+
+export type RelayCompletionOutcome = {
+  status: RelayStatus | 'timeout';
+  targetHash?: Hex;
 };

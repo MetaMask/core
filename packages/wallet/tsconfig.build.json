@@ -1,0 +1,23 @@
+{
+  "extends": "../../tsconfig.packages.build.json",
+  "compilerOptions": {
+    "baseUrl": "./",
+    "outDir": "./dist",
+    "rootDir": "./src"
+  },
+  "references": [
+    { "path": "../accounts-controller/tsconfig.build.json" },
+    { "path": "../address-book-controller/tsconfig.build.json" },
+    { "path": "../approval-controller/tsconfig.build.json" },
+    { "path": "../base-controller/tsconfig.build.json" },
+    { "path": "../connectivity-controller/tsconfig.build.json" },
+    { "path": "../controller-utils/tsconfig.build.json" },
+    { "path": "../keyring-controller/tsconfig.build.json" },
+    { "path": "../messenger/tsconfig.build.json" },
+    { "path": "../network-controller/tsconfig.build.json" },
+    { "path": "../remote-feature-flag-controller/tsconfig.build.json" },
+    { "path": "../storage-service/tsconfig.build.json" },
+    { "path": "../transaction-controller/tsconfig.build.json" }
+  ],
+  "include": ["../../types", "./src"]
+}

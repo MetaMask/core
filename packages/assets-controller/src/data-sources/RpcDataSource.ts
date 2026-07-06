@@ -9,7 +9,6 @@ import type {
   NetworkStatus,
 } from '@metamask/network-controller';
 import type {
-  TransactionControllerIncomingTransactionsReceivedEvent,
   TransactionControllerTransactionConfirmedEvent,
   TransactionMeta,
 } from '@metamask/transaction-controller';
@@ -52,6 +51,7 @@ import {
 import type {
   BalancePollingInput,
   DetectionPollingInput,
+  TokenListQueryClient,
 } from './evm-rpc-services';
 import type {
   Address,
@@ -60,6 +60,7 @@ import type {
   BalanceFetchResult,
   TokenDetectionResult,
 } from './evm-rpc-services/types';
+import { shouldSkipNativeForCaipChainId } from './evm-rpc-services/utils/assets';
 
 const CONTROLLER_NAME = 'RpcDataSource';
 const DEFAULT_BALANCE_INTERVAL = 30_000; // 30 seconds
@@ -76,8 +77,7 @@ export type RpcDataSourceAllowedActions =
 // Allowed events that RpcDataSource can subscribe to
 export type RpcDataSourceAllowedEvents =
   | NetworkControllerStateChangeEvent
-  | TransactionControllerTransactionConfirmedEvent
-  | TransactionControllerIncomingTransactionsReceivedEvent;
+  | TransactionControllerTransactionConfirmedEvent;
 
 /** Network status for each chain */
 export type ChainStatus = {
@@ -103,6 +103,12 @@ export type RpcDataSourceConfig = {
   /** Function returning whether onboarding is complete. When false, fetch and subscribe are no-ops. Defaults to () => true. */
   isOnboarded?: () => boolean;
   timeout?: number;
+  /**
+   * Optional shared TanStack Query client used by `TokensApiClient` to cache
+   * token-list responses across detector polls. Pass `apiPlatformClient.queryClient`
+   * to share the cache with other API clients in the host app.
+   */
+  queryClient?: TokenListQueryClient;
 };
 
 export type RpcDataSourceOptions = {
@@ -128,6 +134,14 @@ export type RpcDataSourceOptions = {
   useExternalService?: () => boolean;
   /** Function returning whether onboarding is complete. When false, fetch and subscribe are no-ops. Defaults to () => true. */
   isOnboarded?: () => boolean;
+  /**
+   * Optional shared TanStack Query client used by `TokensApiClient` to cache
+   * token-list responses across detector polls.
+   */
+  queryClient?: TokenListQueryClient;
+
+  /** Returns the asset type ('native' | 'erc20' | 'spl') for the given CAIP-19 asset ID */
+  getAssetType: (assetId: Caip19AssetId) => 'native' | 'erc20' | 'spl';
 };
 
 /**
@@ -221,8 +235,6 @@ export class RpcDataSource extends AbstractDataSource<
 
   #unsubscribeTransactionConfirmed: (() => void) | undefined = undefined;
 
-  #unsubscribeIncomingTransactions: (() => void) | undefined = undefined;
-
   // Rpc-datasource components
   readonly #multicallClient: MulticallClient;
 
@@ -230,11 +242,16 @@ export class RpcDataSource extends AbstractDataSource<
 
   readonly #tokenDetector: TokenDetector;
 
+  readonly #getAssetType: (
+    assetId: Caip19AssetId,
+  ) => 'native' | 'erc20' | 'spl';
+
   constructor(options: RpcDataSourceOptions) {
     super(CONTROLLER_NAME, { activeChains: [] });
     this.#messenger = options.messenger;
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
     this.#getNativeAssetForChain = options.getNativeAssetForChain;
+    this.#getAssetType = options.getAssetType;
     this.#timeout = options.timeout ?? 10_000;
     this.#tokenDetectionEnabled =
       options.tokenDetectionEnabled ?? ((): boolean => true);
@@ -300,8 +317,13 @@ export class RpcDataSource extends AbstractDataSource<
       }
     });
 
-    // Initialize TokenDetector with polling interval
-    const tokensApiClient = new TokensApiClient();
+    // Initialize TokenDetector with polling interval. The TokensApiClient is
+    // configured with the shared TanStack Query client (when the controller
+    // provides one) so concurrent detector polls/accounts/instances share a
+    // single in-flight request and cached result per chain.
+    const tokensApiClient = new TokensApiClient({
+      queryClient: options.queryClient,
+    });
     this.#tokenDetector = new TokenDetector(
       this.#multicallClient,
       tokensApiClient,
@@ -328,12 +350,30 @@ export class RpcDataSource extends AbstractDataSource<
   /**
    * Convert a raw balance to human-readable format using decimals.
    *
+   * Returns `'0'` when either input is invalid (e.g. `decimals` is `null`,
+   * `NaN`, negative or non-finite, or `rawBalance` cannot be parsed as a
+   * number). Defaulting to a fixed decimals value would silently produce
+   * wrong amounts; `'0'` keeps state safe and never lets `NaN` leak in.
+   *
    * @param rawBalance - The raw balance string.
    * @param decimals - The number of decimals for the token.
-   * @returns The human-readable balance string.
+   * @returns The human-readable balance string, or `'0'` when inputs are invalid.
    */
   #convertToHumanReadable(rawBalance: string, decimals: number): string {
+    if (!Number.isFinite(decimals) || decimals < 0) {
+      log('Invalid decimals — defaulting balance to "0"', {
+        rawBalance,
+        decimals,
+      });
+      return '0';
+    }
+
     const rawAmount = new BigNumberJS(rawBalance);
+    if (!rawAmount.isFinite()) {
+      log('Invalid raw balance — defaulting to "0"', { rawBalance, decimals });
+      return '0';
+    }
+
     const divisor = new BigNumberJS(10).pow(decimals);
     return rawAmount.dividedBy(divisor).toFixed();
   }
@@ -356,12 +396,18 @@ export class RpcDataSource extends AbstractDataSource<
 
     const nativeAssetId = this.#getNativeAssetForChain(chainId);
     for (const balance of balances) {
+      const existingMeta = existingMetadata[balance.assetId];
       const isNative =
-        existingMetadata[balance.assetId]?.type === 'native' ||
-        balance.assetId.toLowerCase() === nativeAssetId?.toLowerCase();
-      if (isNative) {
-        const chainStatus = this.#chainStatuses[chainId];
+        existingMeta?.type === 'native' ||
+        balance.assetId.toLowerCase() === nativeAssetId?.toLowerCase() ||
+        this.#getAssetType(balance.assetId) === 'native';
 
+      if (isNative && !this.#hasValidDecimals(existingMeta)) {
+        // Only emit a stub when no valid metadata exists in state yet.
+        // Re-emitting existing metadata into the response would overwrite
+        // richer entries (e.g. image/description added by AccountsAPI) with
+        // a simpler stub on every balance poll cycle.
+        const chainStatus = this.#chainStatuses[chainId];
         if (chainStatus) {
           assetsInfo[balance.assetId] = {
             type: 'native',
@@ -370,17 +416,58 @@ export class RpcDataSource extends AbstractDataSource<
             decimals: 18,
           };
         }
-      } else {
-        // For ERC20 tokens, use existing metadata from state if available.
-        // Unknown ERC-20s are omitted until TokenDataSource enriches them.
-        const existingMeta = existingMetadata[balance.assetId];
-        if (existingMeta) {
-          assetsInfo[balance.assetId] = existingMeta;
-        }
       }
+      // For ERC-20 tokens and native tokens with existing valid metadata:
+      // do not re-emit — the existing state entry is already correct.
+      // Decimals for balance conversion are resolved via stateMetadata in
+      // the callers (pickValidDecimals(stateMetadata, pipelineMetadata)).
     }
 
     return assetsInfo;
+  }
+
+  /**
+   * Type guard for metadata whose `decimals` is safe to use for balance
+   * conversion.
+   *
+   * Mirrors the validity rules in `#convertToHumanReadable` (finite and
+   * non-negative). Keeping these in sync ensures that whenever the metadata
+   * guard accepts a value, the balance guard will also accept it — so we
+   * never end up emitting metadata with `decimals: -1` while silently
+   * defaulting the balance to `'0'`.
+   *
+   * @param metadata - The metadata to check.
+   * @returns `true` if `decimals` is a finite, non-negative number.
+   */
+  #hasValidDecimals(
+    metadata: AssetMetadata | undefined,
+  ): metadata is AssetMetadata {
+    return Boolean(
+      metadata && Number.isFinite(metadata.decimals) && metadata.decimals >= 0,
+    );
+  }
+
+  /**
+   * Pick the first valid `decimals` value from a list of metadata sources.
+   *
+   * `??` only short-circuits on `null`/`undefined`, so a stale state entry
+   * with `decimals: NaN` would otherwise win over a later source that holds
+   * a correct value (e.g. the chain-status stub produced by
+   * `#collectMetadataForBalances`). This helper treats `NaN`, negative, and
+   * non-finite values as missing so the next source can supply a usable one.
+   *
+   * @param metadatas - Metadata candidates in priority order.
+   * @returns The first finite `decimals` value, or `undefined` if none are valid.
+   */
+  #pickValidDecimals(
+    ...metadatas: (AssetMetadata | undefined)[]
+  ): number | undefined {
+    for (const metadata of metadatas) {
+      if (this.#hasValidDecimals(metadata)) {
+        return metadata.decimals;
+      }
+    }
+    return undefined;
   }
 
   /**
@@ -413,7 +500,7 @@ export class RpcDataSource extends AbstractDataSource<
     for (const balance of normalizedBalances) {
       const stateMetadata = existingMetadata[balance.assetId];
       const pipelineMetadata = assetsInfo[balance.assetId];
-      const decimals = stateMetadata?.decimals ?? pipelineMetadata?.decimals;
+      const decimals = this.#pickValidDecimals(stateMetadata, pipelineMetadata);
 
       if (decimals === undefined) {
         continue;
@@ -474,7 +561,7 @@ export class RpcDataSource extends AbstractDataSource<
         // Only include if we have metadata (symbol and decimals at minimum)
         if (asset.symbol && asset.decimals !== undefined) {
           newMetadata[asset.assetId] = {
-            type: 'erc20',
+            type: this.#getAssetType(asset.assetId),
             symbol: asset.symbol,
             name: asset.name ?? asset.symbol,
             decimals: asset.decimals,
@@ -552,13 +639,6 @@ export class RpcDataSource extends AbstractDataSource<
     );
     this.#unsubscribeTransactionConfirmed =
       typeof unsubConfirmed === 'function' ? unsubConfirmed : undefined;
-
-    const unsubIncoming = this.#messenger.subscribe(
-      'TransactionController:incomingTransactionsReceived',
-      this.#onIncomingTransactions.bind(this),
-    );
-    this.#unsubscribeIncomingTransactions =
-      typeof unsubIncoming === 'function' ? unsubIncoming : undefined;
   }
 
   #onTransactionConfirmed(payload: TransactionMeta): void {
@@ -567,27 +647,11 @@ export class RpcDataSource extends AbstractDataSource<
       return;
     }
     const caipChainId = `eip155:${parseInt(hexChainId, 16)}` as ChainId;
-    this.#refreshBalanceForChains([caipChainId]).catch((error) => {
-      log('Failed to refresh balance after transaction confirmed', { error });
-    });
-  }
-
-  #onIncomingTransactions(payload: TransactionMeta[]): void {
-    const chainIds = Array.from(
-      new Set(
-        (payload ?? [])
-          .map((item) => item?.chainId)
-          .filter((id): id is Hex => Boolean(id)),
-      ),
+    this.#refreshBalanceForChains([caipChainId], 'transactionConfirmed').catch(
+      (error) => {
+        log('Failed to refresh balance after transaction confirmed', { error });
+      },
     );
-    const caipChainIds = chainIds.map(
-      (hexChainId) => `eip155:${parseInt(hexChainId, 16)}` as ChainId,
-    );
-    const toRefresh =
-      caipChainIds.length > 0 ? caipChainIds : [...this.#activeChains];
-    this.#refreshBalanceForChains(toRefresh).catch((error) => {
-      log('Failed to refresh balance after incoming transactions', { error });
-    });
   }
 
   /**
@@ -595,15 +659,22 @@ export class RpcDataSource extends AbstractDataSource<
    * push updates to the controller.
    *
    * @param chainIds - CAIP-2 chain IDs to refresh.
+   * @param context - Why the refresh was triggered (for logging).
    */
-  async #refreshBalanceForChains(chainIds: ChainId[]): Promise<void> {
+  async #refreshBalanceForChains(
+    chainIds: ChainId[],
+    context: 'transactionConfirmed' | 'polling' = 'polling',
+  ): Promise<void> {
     const chainIdsSet = new Set(chainIds);
     const chainsToFetch = chainIds.filter((chainId) =>
       this.#activeChains.includes(chainId),
     );
+
     if (chainsToFetch.length === 0) {
       return;
     }
+
+    let appliedCount = 0;
 
     for (const subscription of this.#activeSubscriptions.values()) {
       const subscriptionChains = subscription.chains.filter((chainId) =>
@@ -624,22 +695,38 @@ export class RpcDataSource extends AbstractDataSource<
 
       try {
         const response = await this.fetch(request);
-        if (
-          response.assetsBalance &&
-          Object.keys(response.assetsBalance).length > 0
-        ) {
-          subscription.onAssetsUpdate(response)?.catch((error) => {
-            log('Failed to report balance update after transaction', {
-              error,
-            });
-          });
+        const balanceCount = response.assetsBalance
+          ? Object.values(response.assetsBalance).reduce(
+              (sum, accountBalances) =>
+                sum + Object.keys(accountBalances).length,
+              0,
+            )
+          : 0;
+
+        if (balanceCount === 0) {
+          continue;
         }
+
+        const responseWithMode: DataResponse = {
+          ...response,
+          updateMode: response.updateMode ?? 'merge',
+        };
+
+        await subscription.onAssetsUpdate(responseWithMode, request);
+        appliedCount += 1;
       } catch (error) {
         log('Failed to fetch balance after transaction', {
+          context,
           chains: subscriptionChains,
           error,
         });
       }
+    }
+
+    if (appliedCount === 0 && context === 'transactionConfirmed') {
+      log('No RpcDataSource subscription covers chain after transaction', {
+        chainsToFetch,
+      });
     }
   }
 
@@ -651,6 +738,14 @@ export class RpcDataSource extends AbstractDataSource<
     } catch (error) {
       log('Failed to initialize from NetworkController', error);
     }
+  }
+
+  /**
+   * Re-read NetworkController state and refresh Rpc `activeChains` (e.g. when
+   * network availability metadata changes after an EVM network switch).
+   */
+  refreshActiveChainsFromNetworkState(): void {
+    this.#initializeFromNetworkController();
   }
 
   #updateFromNetworkState(networkState: NetworkState): void {
@@ -919,12 +1014,14 @@ export class RpcDataSource extends AbstractDataSource<
 
       for (const chainId of chainsForAccount) {
         const hexChainId = caipChainIdToHex(chainId);
-
-        // Build a single AssetFetchEntry[] for native + custom ERC-20s
         const nativeAssetId = this.#getNativeAssetForChain(chainId);
-        const assetsToFetch: AssetFetchEntry[] = [
-          { assetId: nativeAssetId, address: ZERO_ADDRESS },
-        ];
+
+        const shouldSkipNative = shouldSkipNativeForCaipChainId(chainId);
+        const assetsToFetch: AssetFetchEntry[] = [];
+        if (!shouldSkipNative) {
+          // Build a single AssetFetchEntry[] for native + custom ERC-20s
+          assetsToFetch.push({ assetId: nativeAssetId, address: ZERO_ADDRESS });
+        }
 
         if (request.customAssets) {
           const existingMetadata = this.#getExistingAssetsMetadata();
@@ -935,7 +1032,7 @@ export class RpcDataSource extends AbstractDataSource<
               const assetChainId = `${parsed.chain.namespace}:${parsed.chain.reference}`;
               if (
                 assetChainId === chainId &&
-                parsed.assetNamespace === 'erc20'
+                this.#getAssetType(assetId) === 'erc20'
               ) {
                 const tokenAddress =
                   parsed.assetReference.toLowerCase() as Address;
@@ -987,12 +1084,14 @@ export class RpcDataSource extends AbstractDataSource<
           for (const balance of normalizedBalances) {
             const stateMetadata = existingMetadata[balance.assetId];
             const pipelineMetadata = assetsInfo[balance.assetId];
-            let decimals: number | undefined =
-              stateMetadata?.decimals ?? pipelineMetadata?.decimals;
+            let decimals: number | undefined = this.#pickValidDecimals(
+              stateMetadata,
+              pipelineMetadata,
+            );
 
             if (decimals === undefined) {
               const parsed = parseCaipAssetType(balance.assetId);
-              if (parsed.assetNamespace === 'erc20') {
+              if (this.#getAssetType(balance.assetId) === 'erc20') {
                 decimals = await this.#fetchDecimalsViaRpc(
                   chainId,
                   parsed.assetReference,
@@ -1019,17 +1118,25 @@ export class RpcDataSource extends AbstractDataSource<
           if (!assetsBalance[accountId]) {
             assetsBalance[accountId] = {};
           }
-          assetsBalance[accountId][nativeAssetId] = { amount: '0' };
 
-          // Even on error, include native token metadata
-          const chainStatus = this.#chainStatuses[chainId];
-          if (chainStatus) {
-            assetsInfo[nativeAssetId] = {
-              type: 'native',
-              symbol: chainStatus.nativeCurrency,
-              name: chainStatus.nativeCurrency,
-              decimals: 18,
-            };
+          if (!shouldSkipNative) {
+            assetsBalance[accountId][nativeAssetId] = { amount: '0' };
+          }
+          // On error, emit a stub only when no valid metadata exists in state
+          // yet. Re-emitting existing metadata would overwrite richer entries
+          // (e.g. image/description added by AccountsAPI) with a simpler stub.
+          const existingNativeMeta =
+            this.#getExistingAssetsMetadata()[nativeAssetId];
+          if (!this.#hasValidDecimals(existingNativeMeta)) {
+            const chainStatus = this.#chainStatuses[chainId];
+            if (chainStatus) {
+              assetsInfo[nativeAssetId] = {
+                type: 'native',
+                symbol: chainStatus.nativeCurrency,
+                name: chainStatus.nativeCurrency,
+                decimals: 18,
+              };
+            }
           }
 
           if (!failedChains.includes(chainId)) {
@@ -1064,6 +1171,8 @@ export class RpcDataSource extends AbstractDataSource<
     if (Object.keys(assetsInfo).length > 0) {
       response.assetsInfo = assetsInfo;
     }
+
+    response.updateMode = 'merge';
 
     return response;
   }
@@ -1118,7 +1227,7 @@ export class RpcDataSource extends AbstractDataSource<
       for (const asset of result.detectedAssets) {
         if (asset.symbol && asset.decimals !== undefined) {
           assetsInfo[asset.assetId] = {
-            type: 'erc20',
+            type: this.#getAssetType(asset.assetId),
             symbol: asset.symbol,
             name: asset.name ?? asset.symbol,
             decimals: asset.decimals,
@@ -1402,7 +1511,6 @@ export class RpcDataSource extends AbstractDataSource<
     log('Destroying RpcDataSource');
 
     this.#unsubscribeTransactionConfirmed?.();
-    this.#unsubscribeIncomingTransactions?.();
 
     // Stop all polling
     this.#balanceFetcher.stopAllPolling();

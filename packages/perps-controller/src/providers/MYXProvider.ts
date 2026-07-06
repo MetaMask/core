@@ -499,6 +499,8 @@ export class MYXProvider implements PerpsProvider {
           price,
           timestamp: Date.now(),
           percentChange24h: change24h.toFixed(2),
+          // MYX has no oracle-deviation tradability rule yet, so always report tradable.
+          isTradable: true,
           providerId: 'myx',
         };
       });
@@ -687,7 +689,8 @@ export class MYXProvider implements PerpsProvider {
         ...this.#getErrorContext('getAccountState'),
       });
       return {
-        availableBalance: '0',
+        spendableBalance: '0',
+        withdrawableBalance: '0',
         totalBalance: '0',
         marginUsed: '0',
         unrealizedPnl: '0',
@@ -958,7 +961,8 @@ export class MYXProvider implements PerpsProvider {
     setTimeout(
       () =>
         params.callback({
-          availableBalance: '0',
+          spendableBalance: '0',
+          withdrawableBalance: '0',
           totalBalance: '0',
           marginUsed: '0',
           unrealizedPnl: '0',

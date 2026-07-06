@@ -25,7 +25,7 @@ describe('History Utils', () => {
 
     it('returns false when history item missing', () => {
       const state = makeState();
-      const result = rekeyHistoryItemInState(state, 'missing', {
+      const result = rekeyHistoryItemInState(state, 'missing', 'tx1', {
         id: 'tx1',
         hash: '0xhash',
       });
@@ -52,7 +52,7 @@ describe('History Utils', () => {
         },
       });
 
-      const result = rekeyHistoryItemInState(state, 'action1', {
+      const result = rekeyHistoryItemInState(state, 'action1', 'tx1', {
         id: 'tx1',
         hash: '0xnew',
       });
@@ -82,7 +82,9 @@ describe('History Utils', () => {
         },
       });
 
-      const result = rekeyHistoryItemInState(state, 'action1', { id: 'tx1' });
+      const result = rekeyHistoryItemInState(state, 'action1', 'tx1', {
+        id: 'tx1',
+      });
 
       expect(result).toBe(true);
       expect(state.txHistory.tx1.status.srcChain.txHash).toBe('0xold');
@@ -126,7 +128,7 @@ describe('History Utils', () => {
     } as unknown as StartPollingForBridgeTxStatusArgsSerialized;
 
     it('omits tokenSecurityTypeDestination when not provided', () => {
-      const { txHistoryItem } = getInitialHistoryItem(baseArgs);
+      const txHistoryItem = getInitialHistoryItem(baseArgs);
       expect(
         Object.prototype.hasOwnProperty.call(
           txHistoryItem,
@@ -136,7 +138,7 @@ describe('History Utils', () => {
     });
 
     it('persists a non-null tokenSecurityTypeDestination', () => {
-      const { txHistoryItem } = getInitialHistoryItem({
+      const txHistoryItem = getInitialHistoryItem({
         ...baseArgs,
         tokenSecurityTypeDestination: 'Malicious',
       });
@@ -144,11 +146,19 @@ describe('History Utils', () => {
     });
 
     it('persists a null tokenSecurityTypeDestination', () => {
-      const { txHistoryItem } = getInitialHistoryItem({
+      const txHistoryItem = getInitialHistoryItem({
         ...baseArgs,
         tokenSecurityTypeDestination: null,
       });
       expect(txHistoryItem.tokenSecurityTypeDestination).toBeNull();
+    });
+
+    it('persists inputPrimaryDenomination when provided', () => {
+      const txHistoryItem = getInitialHistoryItem({
+        ...baseArgs,
+        inputPrimaryDenomination: 'fiat_value',
+      });
+      expect(txHistoryItem.inputPrimaryDenomination).toBe('fiat_value');
     });
   });
 });

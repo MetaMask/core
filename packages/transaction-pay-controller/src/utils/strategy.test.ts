@@ -1,9 +1,8 @@
 import { TransactionPayStrategy } from '../constants';
 import { AcrossStrategy } from '../strategy/across/AcrossStrategy';
-import { BridgeStrategy } from '../strategy/bridge/BridgeStrategy';
 import { FiatStrategy } from '../strategy/fiat/FiatStrategy';
 import { RelayStrategy } from '../strategy/relay/RelayStrategy';
-import { TestStrategy } from '../strategy/test/TestStrategy';
+import { ServerStrategy } from '../strategy/server/ServerStrategy';
 import type { PayStrategyGetQuotesRequest } from '../types';
 import {
   checkStrategyQuoteSupport,
@@ -19,16 +18,6 @@ describe('Strategy Utils', () => {
       expect(strategy).toBeInstanceOf(AcrossStrategy);
     });
 
-    it('returns TestStrategy if strategy name is Test', () => {
-      const strategy = getStrategyByName(TransactionPayStrategy.Test);
-      expect(strategy).toBeInstanceOf(TestStrategy);
-    });
-
-    it('returns BridgeStrategy if strategy name is Bridge', () => {
-      const strategy = getStrategyByName(TransactionPayStrategy.Bridge);
-      expect(strategy).toBeInstanceOf(BridgeStrategy);
-    });
-
     it('returns RelayStrategy if strategy name is Relay', () => {
       const strategy = getStrategyByName(TransactionPayStrategy.Relay);
       expect(strategy).toBeInstanceOf(RelayStrategy);
@@ -37,6 +26,11 @@ describe('Strategy Utils', () => {
     it('returns FiatStrategy if strategy name is Fiat', () => {
       const strategy = getStrategyByName(TransactionPayStrategy.Fiat);
       expect(strategy).toBeInstanceOf(FiatStrategy);
+    });
+
+    it('returns ServerStrategy if strategy name is Server', () => {
+      const strategy = getStrategyByName(TransactionPayStrategy.Server);
+      expect(strategy).toBeInstanceOf(ServerStrategy);
     });
 
     it('throws if strategy name is unknown', () => {
@@ -49,21 +43,21 @@ describe('Strategy Utils', () => {
   describe('getStrategiesByName', () => {
     it('returns strategies in input order', () => {
       const strategies = getStrategiesByName([
-        TransactionPayStrategy.Test,
-        TransactionPayStrategy.Bridge,
+        TransactionPayStrategy.Across,
         TransactionPayStrategy.Relay,
         TransactionPayStrategy.Fiat,
+        TransactionPayStrategy.Server,
       ]);
 
       expect(strategies).toHaveLength(4);
-      expect(strategies[0].name).toBe(TransactionPayStrategy.Test);
-      expect(strategies[1].name).toBe(TransactionPayStrategy.Bridge);
-      expect(strategies[2].name).toBe(TransactionPayStrategy.Relay);
-      expect(strategies[3].name).toBe(TransactionPayStrategy.Fiat);
-      expect(strategies[0].strategy).toBeInstanceOf(TestStrategy);
-      expect(strategies[1].strategy).toBeInstanceOf(BridgeStrategy);
-      expect(strategies[2].strategy).toBeInstanceOf(RelayStrategy);
-      expect(strategies[3].strategy).toBeInstanceOf(FiatStrategy);
+      expect(strategies[0].name).toBe(TransactionPayStrategy.Across);
+      expect(strategies[1].name).toBe(TransactionPayStrategy.Relay);
+      expect(strategies[2].name).toBe(TransactionPayStrategy.Fiat);
+      expect(strategies[3].name).toBe(TransactionPayStrategy.Server);
+      expect(strategies[0].strategy).toBeInstanceOf(AcrossStrategy);
+      expect(strategies[1].strategy).toBeInstanceOf(RelayStrategy);
+      expect(strategies[2].strategy).toBeInstanceOf(FiatStrategy);
+      expect(strategies[3].strategy).toBeInstanceOf(ServerStrategy);
     });
 
     it('skips unknown strategies and calls callback', () => {
@@ -71,7 +65,7 @@ describe('Strategy Utils', () => {
 
       const strategies = getStrategiesByName(
         [
-          TransactionPayStrategy.Test,
+          TransactionPayStrategy.Across,
           'UnknownStrategy' as TransactionPayStrategy,
           TransactionPayStrategy.Relay,
         ],
@@ -79,7 +73,7 @@ describe('Strategy Utils', () => {
       );
 
       expect(strategies.map(({ name }) => name)).toStrictEqual([
-        TransactionPayStrategy.Test,
+        TransactionPayStrategy.Across,
         TransactionPayStrategy.Relay,
       ]);
       expect(onUnknownStrategy).toHaveBeenCalledWith('UnknownStrategy');

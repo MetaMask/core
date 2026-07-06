@@ -6,9 +6,10 @@ import type {
   GenericQuoteRequest,
   QuoteMetadata,
   QuoteRequest,
-  QuoteResponse,
+  QuoteResponseV1,
   TxData,
 } from '../../types';
+import { FeatureId } from '../../types';
 import { getNativeAssetForChainId, isCrossChain } from '../bridge';
 import {
   formatAddressToAssetId,
@@ -75,7 +76,7 @@ export const getSwapTypeFromQuote = (
 export const formatProviderLabel = ({
   bridgeId,
   bridges,
-}: QuoteResponse<TxData | string>['quote']): `${string}_${string}` =>
+}: QuoteResponseV1<TxData | string>['quote']): `${string}_${string}` =>
   `${bridgeId}_${bridges[0]}`;
 
 /**
@@ -87,8 +88,9 @@ export const formatProviderLabel = ({
  * @param tokenSecurityTypeDestination - The security classification of the destination token,
  * supplied by the client (e.g. from token security/scanning data). Pass `null` when no
  * security data is available for the selected destination token.
- * @returns The analytics request params derived from the quote request, minus token symbols
- * which the caller provides separately.
+ * @returns The analytics request params derived from the quote request. Token symbols are
+ * omitted because the quote request only stores addresses; use
+ * {@link getQuotesReceivedProperties} when building a `QuotesReceived` payload.
  */
 export const getRequestParams = (
   {
@@ -151,15 +153,16 @@ export const isHardwareWallet = (
  * @deprecated This function should not be used. Use {@link selectDefaultSlippagePercentage} instead.
  */
 export const isCustomSlippage = (slippage: GenericQuoteRequest['slippage']) => {
-  return slippage !== DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest.slippage;
+  return slippage !== DEFAULT_BRIDGE_CONTROLLER_STATE.quoteRequest[0]?.slippage;
 };
 
 export const getQuotesReceivedProperties = (
-  activeQuote: null | (QuoteResponse & Partial<QuoteMetadata>),
+  activeQuote: null | (QuoteResponseV1 & QuoteMetadata),
   warnings: QuoteWarning[] = [],
   isSubmittable: boolean = true,
-  recommendedQuote?: null | (QuoteResponse & Partial<QuoteMetadata>),
+  recommendedQuote?: null | (QuoteResponseV1 & QuoteMetadata),
   usdBalanceSource?: number,
+  hasSufficientGasForQuote?: boolean | null,
 ) => {
   const provider = activeQuote ? formatProviderLabel(activeQuote.quote) : '_';
   return {
@@ -176,7 +179,13 @@ export const getQuotesReceivedProperties = (
       ? formatProviderLabel(recommendedQuote.quote)
       : provider,
     provider,
+    token_symbol_source: activeQuote?.quote.srcAsset.symbol ?? '',
+    token_symbol_destination: activeQuote?.quote.destAsset.symbol ?? null,
     warnings,
     price_impact: Number(activeQuote?.quote.priceData?.priceImpact ?? 0),
+    ...(hasSufficientGasForQuote !== undefined && {
+      has_sufficient_gas_for_quote: hasSufficientGasForQuote,
+    }),
+    feature_id: activeQuote?.featureId ?? FeatureId.UNIFIED_SWAP_BRIDGE,
   };
 };

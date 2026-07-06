@@ -4,7 +4,7 @@ import type {
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import { BuiltInNetworkName, ChainId } from '@metamask/controller-utils';
-import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope, TrxScope, XlmScope } from '@metamask/keyring-api';
 import type { Messenger } from '@metamask/messenger';
 import type { MultichainNetworkControllerGetStateAction } from '@metamask/multichain-network-controller';
 import { toEvmCaipChainId } from '@metamask/multichain-network-controller';
@@ -167,6 +167,7 @@ const getDefaultNetworkEnablementControllerState =
         [ChainId[BuiltInNetworkName.OptimismMainnet]]: true,
         [ChainId[BuiltInNetworkName.PolygonMainnet]]: true,
         [ChainId[BuiltInNetworkName.SeiMainnet]]: true,
+        [ChainId[BuiltInNetworkName.MonadMainnet]]: true,
       },
       [KnownCaipNamespace.Solana]: {
         [SolScope.Mainnet]: true,
@@ -182,6 +183,10 @@ const getDefaultNetworkEnablementControllerState =
         [TrxScope.Mainnet]: true,
         [TrxScope.Nile]: false,
         [TrxScope.Shasta]: false,
+      },
+      [KnownCaipNamespace.Stellar]: {
+        [XlmScope.Pubnet]: true,
+        [XlmScope.Testnet]: false,
       },
     },
     // nativeAssetIdentifiers is initialized as empty and should be populated
@@ -417,6 +422,18 @@ export class NetworkEnablementController extends BaseController<
         this.#ensureNamespaceBucket(state, tronKeys.namespace);
         // Enable Tron mainnet
         state.enabledNetworkMap[tronKeys.namespace][tronKeys.storageKey] = true;
+      }
+
+      // Enable Stellar mainnet if it exists in MultichainNetworkController configurations
+      const stellarKeys = deriveKeys(XlmScope.Pubnet as CaipChainId);
+      if (
+        multichainState.multichainNetworkConfigurationsByChainId[
+          XlmScope.Pubnet
+        ]
+      ) {
+        this.#ensureNamespaceBucket(state, stellarKeys.namespace);
+        state.enabledNetworkMap[stellarKeys.namespace][stellarKeys.storageKey] =
+          true;
       }
     });
   }
@@ -768,11 +785,11 @@ export class NetworkEnablementController extends BaseController<
   }
 
   /**
-   * Returns popular multichain (Bitcoin, Solana, Tron) mainnet chain IDs in
+   * Returns popular multichain (Bitcoin, Solana, Tron, Stellar) mainnet chain IDs in
    * CAIP-2 form, restricted to networks that exist in MultichainNetworkController
    * (multichainNetworkConfigurationsByChainId).
    *
-   * @returns CAIP-2 chain IDs for Bitcoin, Solana, and Tron mainnets that are configured.
+   * @returns CAIP-2 chain IDs for Bitcoin, Solana, Tron, and Stellar mainnets that are configured.
    */
   listPopularMultichainNetworks(): CaipChainId[] {
     const multichainState = this.messenger.call(
@@ -782,6 +799,7 @@ export class NetworkEnablementController extends BaseController<
       BtcScope.Mainnet,
       SolScope.Mainnet,
       TrxScope.Mainnet,
+      XlmScope.Pubnet,
     ] as const;
     return multichainMainnets.filter(
       (chainId) =>
@@ -794,7 +812,7 @@ export class NetworkEnablementController extends BaseController<
    * networks that exist in NetworkController (networkConfigurationsByChainId) and
    * MultichainNetworkController (multichainNetworkConfigurationsByChainId). EVM
    * popular networks come from POPULAR_NETWORKS; multichain popular are Bitcoin,
-   * Solana, and Tron mainnets.
+   * Solana, Tron, and Stellar mainnets.
    *
    * @returns CAIP-2 chain IDs for popular EVM networks and multichain mainnets that are configured.
    */

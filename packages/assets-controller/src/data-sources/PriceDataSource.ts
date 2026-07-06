@@ -15,7 +15,8 @@ import type {
   Middleware,
   AssetsControllerStateInternal,
 } from '../types';
-import { fetchWithTimeout } from '../utils';
+import { fetchWithTimeout, normalizeAssetId } from '../utils';
+import { DedupingBatchFetcher } from '../utils/dedupingBatchFetcher';
 import type { SubscriptionRequest } from './AbstractDataSource';
 import { reduceInBatchesSerially } from './evm-rpc-services';
 
@@ -26,6 +27,14 @@ import { reduceInBatchesSerially } from './evm-rpc-services';
 const CONTROLLER_NAME = 'PriceDataSource';
 const DEFAULT_POLL_INTERVAL = 60_000; // 1 minute for price updates
 const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
+
+/**
+ * Fraction of the poll interval used to cap the freshness TTL. Kept strictly
+ * below 1 so an asset fetched on one poll is reliably stale by the next poll;
+ * the margin absorbs network latency and timer jitter (see the cap in
+ * `subscribe`).
+ */
+const FRESHNESS_TTL_POLL_RATIO = 0.9;
 
 /** Maximum number of asset IDs per Price API request. */
 const PRICE_API_BATCH_SIZE = 50;
@@ -45,6 +54,13 @@ export type PriceDataSourceConfig = {
    * the batch rejects so the caller can proceed without prices.
    */
   fetchTimeoutMs?: number;
+  /**
+   * Minimum age (ms) before a price is considered stale and re-fetched.
+   * Assets fetched more recently than this are skipped to avoid redundant
+   * API calls from overlapping middleware / subscription / manual triggers.
+   * Defaults to pollInterval (60 000 ms).
+   */
+  priceFreshnessTtlMs?: number;
 };
 
 export type PriceDataSourceOptions = PriceDataSourceConfig & {
@@ -137,6 +153,14 @@ export class PriceDataSource {
 
   readonly #fetchTimeoutMs: number;
 
+  /**
+   * Deduplicates price fetches by asset ID: skips assets fetched within the
+   * freshness TTL and joins concurrent in-flight fetches for the same asset so
+   * overlapping triggers (middleware + subscription poll) don't issue duplicate
+   * API requests.
+   */
+  readonly #deduper: DedupingBatchFetcher<Caip19AssetId, FungibleAssetPrice>;
+
   /** Active subscriptions by ID */
   readonly #activeSubscriptions: Map<
     string,
@@ -153,6 +177,13 @@ export class PriceDataSource {
     this.#pollInterval = options.pollInterval ?? DEFAULT_POLL_INTERVAL;
     this.#apiClient = options.queryApiClient;
     this.#fetchTimeoutMs = options.fetchTimeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
+    this.#deduper = new DedupingBatchFetcher({
+      fetchBatch: (
+        assetIds,
+      ): Promise<Record<Caip19AssetId, FungibleAssetPrice>> =>
+        this.#executeBatchFetch(assetIds),
+      freshnessTtlMs: options.priceFreshnessTtlMs ?? this.#pollInterval,
+    });
   }
 
   // ============================================================================
@@ -179,23 +210,36 @@ export class PriceDataSource {
       // Extract response from context
       const { response, request } = ctx;
 
-      // Only fetch prices for detected assets (assets without metadata)
-      // The subscription handles fetching prices for all existing assets
-      if (!response.detectedAssets && !request.assetsForPriceUpdate?.length) {
-        return next(ctx);
-      }
+      const statePrices = (ctx.getAssetsState()?.assetsPrice ?? {}) as Record<
+        string,
+        FungibleAssetPrice
+      >;
 
       const assetIds = new Set<Caip19AssetId>();
+
+      for (const assetId of request.assetsForPriceUpdate ?? []) {
+        assetIds.add(assetId);
+      }
+
+      // Detected assets only need a price fetch when state has none yet.
+      // Explicit assetsForPriceUpdate (e.g. currency change) are always fetched.
       for (const detectedAccountAssets of Object.values(
         response.detectedAssets ?? {},
       )) {
         for (const assetId of detectedAccountAssets) {
-          assetIds.add(assetId);
+          const normalizedAssetId = normalizeAssetId(assetId);
+          const alreadyQueued = request.assetsForPriceUpdate?.some(
+            (queuedId) =>
+              queuedId === assetId || queuedId === normalizedAssetId,
+          );
+          if (
+            statePrices[assetId] === undefined &&
+            statePrices[normalizedAssetId] === undefined &&
+            !alreadyQueued
+          ) {
+            assetIds.add(normalizedAssetId);
+          }
         }
-      }
-
-      for (const assetId of request.assetsForPriceUpdate ?? []) {
-        assetIds.add(assetId);
       }
 
       if (assetIds.size === 0) {
@@ -207,6 +251,10 @@ export class PriceDataSource {
 
       if (priceableAssetIds.length === 0) {
         return next(ctx);
+      }
+
+      if (request.forceUpdate) {
+        this.#deduper.invalidateKeys(priceableAssetIds);
       }
 
       try {
@@ -277,14 +325,16 @@ export class PriceDataSource {
   }
 
   /**
-   * Fetch spot prices for all provided asset IDs, splitting into batches of
-   * PRICE_API_BATCH_SIZE to respect API limits.
+   * Execute the actual batched API call for a set of asset IDs and return
+   * parsed price results. Used as the `fetchBatch` callback for the deduper,
+   * so it does NOT check freshness or inflight state — that is handled by
+   * {@link DedupingBatchFetcher}.
    *
-   * @param assetIds - Array of CAIP-19 asset IDs
-   * @returns Spot prices response
+   * @param assetIds - Asset IDs to fetch (already filtered/deduplicated).
+   * @returns Parsed prices keyed by CAIP-19 asset ID.
    */
-  async #fetchSpotPrices(
-    assetIds: string[],
+  async #executeBatchFetch(
+    assetIds: Caip19AssetId[],
   ): Promise<Record<Caip19AssetId, FungibleAssetPrice>> {
     const selectedCurrency = this.#getSelectedCurrency();
 
@@ -306,6 +356,7 @@ export class PriceDataSource {
       initialResult: [],
     });
 
+    const fetchedAt = Date.now();
     const prices: Record<Caip19AssetId, FungibleAssetPrice> = {};
 
     for (const { selectedCurrencyPrices, usdPrices } of batchResults) {
@@ -321,17 +372,30 @@ export class PriceDataSource {
           continue;
         }
 
-        const caipAssetId = assetId as Caip19AssetId;
-        prices[caipAssetId] = {
+        prices[assetId as Caip19AssetId] = {
           ...marketData,
           assetPriceType: 'fungible',
           usdPrice: usdMarketData.price,
-          lastUpdated: Date.now(),
+          lastUpdated: fetchedAt,
         };
       }
     }
 
     return prices;
+  }
+
+  /**
+   * Fetch spot prices for all provided asset IDs, deduplicating via the
+   * deduper (freshness TTL + per-asset inflight coalescing).
+   *
+   * @param assetIds - Array of CAIP-19 asset IDs.
+   * @returns Spot prices response (only contains entries for assets that were
+   * actually fetched or joined from inflight).
+   */
+  async #fetchSpotPrices(
+    assetIds: Caip19AssetId[],
+  ): Promise<Record<Caip19AssetId, FungibleAssetPrice>> {
+    return this.#deduper.fetch(assetIds);
   }
 
   /**
@@ -474,7 +538,22 @@ export class PriceDataSource {
 
     const pollInterval = request.updateInterval ?? this.#pollInterval;
 
-    // Create poll function - fetches prices using getAssetsState from subscription
+    // Cap the freshness TTL strictly below the effective poll interval.
+    // `fetchedAt` is stamped when a fetch completes (slightly after the tick
+    // that triggered it), so a TTL equal to the poll interval would leave the
+    // asset still "fresh" at the next tick, making the subscription re-fetch
+    // only every other poll. The margin also absorbs network latency / jitter.
+    this.#deduper.freshnessTtlMs = Math.min(
+      this.#deduper.freshnessTtlMs,
+      Math.floor(pollInterval * FRESHNESS_TTL_POLL_RATIO),
+    );
+
+    // Create poll function - fetches prices using getAssetsState from subscription.
+    // The freshness TTL naturally gates re-fetches: assets fetched less than
+    // `priceFreshnessTtlMs` ago are skipped, preventing duplicates when middleware
+    // or other triggers already fetched the same assets between polls.
+    // Concurrent middleware calls will join the inflight promise rather than
+    // issuing duplicate requests.
     const pollFn = async (): Promise<void> => {
       try {
         const subscription = this.#activeSubscriptions.get(subscriptionId);
@@ -482,7 +561,6 @@ export class PriceDataSource {
           return;
         }
 
-        // Fetch prices for all assets in balance state (uses subscription's getAssetsState)
         const fetchResponse = await this.fetch(
           subscription.request,
           subscription.getAssetsState,
@@ -495,6 +573,8 @@ export class PriceDataSource {
         ) {
           await subscription.onAssetsUpdate({
             ...fetchResponse,
+            // merge overwrites existing spot prices on each poll; update would
+            // seed-only and leave the first price forever.
             updateMode: 'merge',
           });
         }
@@ -536,6 +616,15 @@ export class PriceDataSource {
   }
 
   /**
+   * Invalidate the price freshness cache, forcing the next fetch to call the
+   * API regardless of TTL. Use when external state changes (e.g. selected
+   * currency) require a full refresh.
+   */
+  invalidatePriceCache(): void {
+    this.#deduper.invalidate();
+  }
+
+  /**
    * Destroy the data source and clean up all subscriptions.
    */
   destroy(): void {
@@ -543,5 +632,6 @@ export class PriceDataSource {
       subscription.cleanup();
     }
     this.#activeSubscriptions.clear();
+    this.#deduper.destroy();
   }
 }

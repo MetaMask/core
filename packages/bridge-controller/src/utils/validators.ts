@@ -31,10 +31,10 @@ export enum FeeType {
   TX_FEE = 'txFee',
 }
 
-export enum FeatureId {
-  PERPS = 'perps',
-  QUICK_BUY = 'quickBuy',
-  DAPP_SWAP = 'dappSwap',
+export enum DiscountType {
+  VIP = 'vip',
+  PROMO = 'promo',
+  DAO = 'dao',
 }
 
 export enum ActionTypes {
@@ -43,23 +43,26 @@ export enum ActionTypes {
   REFUEL = 'refuel',
 }
 
-const HexAddressSchema = define<string>('HexAddress', (v: unknown) =>
-  isValidHexAddress(v as string, { allowNonPrefixed: false }),
+const HexAddressSchema = define<`0x${string}`>('HexAddress', (value: unknown) =>
+  isValidHexAddress(value as string, { allowNonPrefixed: false }),
 );
 
-const HexStringSchema = define<string>('HexString', (v: unknown) =>
-  isStrictHexString(v as string),
+const HexStringSchema = define<`0x${string}`>('HexString', isStrictHexString);
+
+const NumberStringSchema = define<string>(
+  'NumberString',
+  (value: unknown) => typeof value === 'string' && /^\d+$/u.test(value),
 );
 
 const VersionStringSchema = define<string>(
   'VersionString',
-  (v: unknown) =>
-    typeof v === 'string' &&
-    /^(\d+\.*){2}\d+$/u.test(v) &&
-    v.split('.').length === 3,
+  (value: unknown) =>
+    typeof value === 'string' &&
+    /^(\d+\.*){2}\d+$/u.test(value) &&
+    value.split('.').length === 3,
 );
 
-export const truthyString = (s: string) => Boolean(s?.length);
+export const truthyString = (value: string): boolean => Boolean(value?.length);
 const TruthyDigitStringSchema = pattern(string(), /^\d+$/u);
 
 const ChainIdSchema = number();
@@ -128,6 +131,7 @@ export const ChainConfigurationSchema = type({
   refreshRate: optional(number()),
   topAssets: optional(array(string())),
   stablecoins: optional(array(string())),
+  batchSellDestStablecoins: optional(array(CaipAssetTypeStruct)),
   isUnifiedUIEnabled: optional(boolean()),
   isSingleSwapBridgeButtonEnabled: optional(boolean()),
   isGaslessSwapEnabled: optional(boolean()),
@@ -158,15 +162,13 @@ const GenericQuoteRequestSchema = type({
   fee: optional(number()),
 });
 
-const FeatureIdSchema = enums(Object.values(FeatureId));
-
 /**
  * This is the schema for the feature flags response from the RemoteFeatureFlagController
  */
 export const PlatformConfigSchema = type({
   priceImpactThreshold: optional(PriceImpactThresholdSchema),
   quoteRequestOverrides: optional(
-    record(FeatureIdSchema, optional(GenericQuoteRequestSchema)),
+    record(string(), optional(GenericQuoteRequestSchema)),
   ),
   minimumVersion: string(),
   refreshRate: number(),
@@ -209,6 +211,7 @@ export const validateSwapsTokenObject = (
 export const FeeDataSchema = type({
   amount: TruthyDigitStringSchema,
   asset: BridgeAssetSchema,
+  discountType: optional(nullable(string())),
 });
 
 export const ProtocolSchema = type({
@@ -368,64 +371,69 @@ export const IntentSchema = type({
   }),
 });
 
-export const QuoteSchema = type({
-  requestId: string(),
-  srcChainId: ChainIdSchema,
-  srcAsset: BridgeAssetSchema,
-  /**
-   * The amount sent, in atomic amount: amount sent - fees
-   * Some tokens have a fee of 0, so sometimes it's equal to amount sent
-   */
-  srcTokenAmount: string(),
-  destChainId: ChainIdSchema,
-  destAsset: BridgeAssetSchema,
-  /**
-   * The amount received, in atomic amount
-   */
-  destTokenAmount: string(),
-  /**
-   * The minimum amount that will be received, in atomic amount
-   */
-  minDestTokenAmount: string(),
-  feeData: type({
-    [FeeType.METABRIDGE]: FeeDataSchema,
-    /**
-     * This is the fee for the swap transaction taken from either the
-     * src or dest token if the quote has gas fees included or "gasless"
-     */
-    [FeeType.TX_FEE]: optional(
-      intersection([
-        FeeDataSchema,
-        type({
-          maxFeePerGas: string(),
-          maxPriorityFeePerGas: string(),
-        }),
-      ]),
-    ),
-  }),
+export const TxFeeGasLimitsSchema = type({
+  maxFeePerGas: NumberStringSchema,
+  maxPriorityFeePerGas: NumberStringSchema,
+});
+
+export const GaslessPropertiesSchema = type({
   gasIncluded: optional(boolean()),
   /**
    * Whether the quote can use EIP-7702 delegated gasless execution
    */
   gasIncluded7702: optional(boolean()),
-  bridgeId: string(),
-  bridges: array(string()),
-  steps: array(StepSchema),
-  refuel: optional(RefuelDataSchema),
-  priceData: optional(
-    type({
-      totalFromAmountUsd: optional(string()),
-      totalToAmountUsd: optional(string()),
-      priceImpact: optional(string()),
-      totalFeeAmountUsd: optional(string()),
-    }),
-  ),
-  intent: optional(IntentSchema),
   /**
    * A third party sponsors the gas. If true, then gasIncluded7702 is also true.
    */
   gasSponsored: optional(boolean()),
 });
+
+export const QuoteSchema = intersection([
+  GaslessPropertiesSchema,
+  type({
+    requestId: string(),
+    srcChainId: ChainIdSchema,
+    srcAsset: BridgeAssetSchema,
+    /**
+     * The amount sent, in atomic amount: amount sent - fees
+     * Some tokens have a fee of 0, so sometimes it's equal to amount sent
+     */
+    srcTokenAmount: string(),
+    destChainId: ChainIdSchema,
+    destAsset: BridgeAssetSchema,
+    /**
+     * The amount received, in atomic amount
+     */
+    destTokenAmount: string(),
+    /**
+     * The minimum amount that will be received, in atomic amount
+     */
+    minDestTokenAmount: string(),
+    feeData: type({
+      [FeeType.METABRIDGE]: FeeDataSchema,
+      /**
+       * This is the fee for the swap transaction taken from either the
+       * src or dest token if the quote has gas fees included or "gasless"
+       */
+      [FeeType.TX_FEE]: optional(
+        intersection([FeeDataSchema, TxFeeGasLimitsSchema]),
+      ),
+    }),
+    bridgeId: string(),
+    bridges: array(string()),
+    steps: array(StepSchema),
+    refuel: optional(RefuelDataSchema),
+    priceData: optional(
+      type({
+        totalFromAmountUsd: optional(string()),
+        totalToAmountUsd: optional(string()),
+        priceImpact: optional(string()),
+        totalFeeAmountUsd: optional(string()),
+      }),
+    ),
+    intent: optional(IntentSchema),
+  }),
+]);
 
 export const TxDataSchema = type({
   chainId: number(),
@@ -461,7 +469,16 @@ export const TronTradeDataSchema = type({
   ),
 });
 
+/**
+ * Stellar bridge quote: unsigned transaction envelope as XDR (base64).
+ */
+export const StellarTradeDataSchema = union([
+  type({ xdrBase64: string() }),
+  type({ xdr: string() }),
+]);
+
 export const QuoteResponseSchema = type({
+  quoteId: optional(string()),
   quote: QuoteSchema,
   estimatedProcessingTimeInSeconds: number(),
   approval: optional(union([TxDataSchema, TronTradeDataSchema])),
@@ -469,11 +486,12 @@ export const QuoteResponseSchema = type({
     TxDataSchema,
     BitcoinTradeDataSchema,
     TronTradeDataSchema,
+    StellarTradeDataSchema,
     string(),
   ]),
 });
 
-export const validateQuoteResponse = (
+export const validateQuoteResponseV1 = (
   data: unknown,
 ): data is Infer<typeof QuoteResponseSchema> => {
   assert(data, QuoteResponseSchema);
@@ -523,5 +541,42 @@ export const validateQuoteStreamComplete = (
   data: unknown,
 ): data is Infer<typeof QuoteStreamCompleteSchema> => {
   assert(data, QuoteStreamCompleteSchema);
+  return true;
+};
+
+export enum BatchSellTransactionType {
+  TRADE = 'trade',
+  APPROVAL = 'approval',
+  TRANSFER = 'transfer',
+}
+
+export const SimulatedGasFeeLimitsSchema = type({
+  maxFeePerGas: HexStringSchema,
+  maxPriorityFeePerGas: HexStringSchema,
+});
+
+export const BatchSellTradesResponseSchema = intersection([
+  type({
+    transactions: array(
+      intersection([
+        TxDataSchema,
+        SimulatedGasFeeLimitsSchema,
+        type({ type: enums(Object.values(BatchSellTransactionType)) }),
+      ]),
+    ),
+    fee: optional(
+      type({
+        asset: BridgeAssetSchema,
+        amount: NumberStringSchema,
+      }),
+    ),
+  }),
+  GaslessPropertiesSchema,
+]);
+
+export const validateBatchSellTradesResponse = (
+  data: unknown,
+): data is Infer<typeof BatchSellTradesResponseSchema> => {
+  assert(data, BatchSellTradesResponseSchema);
   return true;
 };

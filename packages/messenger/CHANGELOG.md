@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0]
+
+### Added
+
+- Add `Messenger.getRegisteredActionTypes` method, which returns the action types the messenger can call directly ([#9271](https://github.com/MetaMask/core/pull/9271))
+- Add a `buildChild` utility method to `Messenger` ([#9338](https://github.com/MetaMask/core/pull/9338))
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+
+### Removed
+
+- **BREAKING:** Remove deprecated `generate-action-types` CLI tool ([#9367](https://github.com/MetaMask/core/pull/9367))
+  - The CLI has been extracted to `@metamask/messenger-cli`. Use `messenger-action-types` from that package instead.
+
+### Fixed
+
+- Fix `Messenger.delegate` and `Messenger.revoke` to reduce the chance of TS2590 errors when delegatee has large number of actions/events or a large number of actions/events are being delegated ([#8748](https://github.com/MetaMask/core/pull/8748))
+
 ## [1.2.0]
 
 ### Added
@@ -96,7 +116,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Existing `RestrictedMessenger` instances should be replaced with a `Messenger` with the `parent` constructor parameter set to the global messenger. We can now use the same class everywhere, passing capabilities using `delegate`.
   - See this ADR for details: https://github.com/MetaMask/decisions/blob/main/decisions/core/0012-messenger-delegation.md
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/messenger@1.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/messenger@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/messenger@1.2.0...@metamask/messenger@2.0.0
 [1.2.0]: https://github.com/MetaMask/core/compare/@metamask/messenger@1.1.1...@metamask/messenger@1.2.0
 [1.1.1]: https://github.com/MetaMask/core/compare/@metamask/messenger@1.1.0...@metamask/messenger@1.1.1
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/messenger@1.0.0...@metamask/messenger@1.1.0

@@ -69,13 +69,20 @@ export type WalletActivityAccount = {
   enabled: boolean;
 };
 
+export type AgenticCliPreference = {
+  inAppNotificationsEnabled: boolean;
+  pushNotificationsEnabled: boolean;
+};
+
 export type WalletActivityPreference = {
-  enabled: boolean;
+  inAppNotificationsEnabled: boolean;
+  pushNotificationsEnabled: boolean;
   accounts: WalletActivityAccount[];
 };
 
 export type MarketingPreference = {
-  enabled: boolean;
+  inAppNotificationsEnabled: boolean;
+  pushNotificationsEnabled: boolean;
 };
 
 export type PerpsWatchlistExchange = {
@@ -89,23 +96,44 @@ export type PerpsWatchlistMarkets = {
 };
 
 export type PerpsPreference = {
-  enabled: boolean;
+  inAppNotificationsEnabled: boolean;
+  pushNotificationsEnabled: boolean;
   watchlistMarkets?: PerpsWatchlistMarkets;
 };
 
 export type SocialAIPreference = {
-  enabled: boolean;
+  inAppNotificationsEnabled: boolean;
+  pushNotificationsEnabled: boolean;
   txAmountLimit?: number;
   mutedTraderProfileIds: string[];
 };
 
-/** Notification preferences for the authenticated user. */
+export type PriceAlertPreference = {
+  inAppNotificationsEnabled: boolean;
+  pushNotificationsEnabled: boolean;
+};
+
+/**
+ * Notification preferences for the authenticated user.
+ */
 export type NotificationPreferences = {
   walletActivity: WalletActivityPreference;
   marketing: MarketingPreference;
   perps: PerpsPreference;
   socialAI: SocialAIPreference;
+  agenticCli: AgenticCliPreference;
+  priceAlerts: PriceAlertPreference;
 };
+
+// ---------------------------------------------------------------------------
+// Assets watchlist
+// ---------------------------------------------------------------------------
+
+// `AssetsWatchlistBlob` is inferred from `AssetsWatchlistBlobSchema` in
+// `./validators` and re-exported here so the public type surface remains in
+// `./types`. Keeping the runtime schema and the static type co-located in
+// one file keeps the two in lock-step.
+export type { AssetsWatchlistBlob } from './validators';
 
 // ---------------------------------------------------------------------------
 // Shared
