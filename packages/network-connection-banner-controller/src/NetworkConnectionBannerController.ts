@@ -35,7 +35,7 @@ import { KnownCaipNamespace } from '@metamask/utils';
 import { createSelector } from 'reselect';
 
 import type { NetworkConnectionBannerControllerMethodActions } from './NetworkConnectionBannerController-method-action-types';
-import { getDomain, getIsInfuraEndpoint } from './url-utils';
+import { getIsInfuraEndpoint } from './url-utils';
 
 /**
  * The name of the {@link NetworkConnectionBannerController}, used to namespace
@@ -151,11 +151,6 @@ export type FailedNetwork = {
    * no Infura alternative exists.
    */
   switchableInfuraNetworkClientId: string | null;
-  /**
-   * The registrable domain (eTLD+1) of `rpcUrl`, used to group endpoints by
-   * provider. `null` when the URL is invalid.
-   */
-  domain: string | null;
 };
 
 /**
@@ -294,22 +289,19 @@ export type NetworkConnectionBannerControllerOptions = {
 /**
  * NetworkConnectionBannerController decides whether the network connection
  * banner should be shown for the user, and which failing network it should
- * describe. It encapsulates the rule, the 5s / 30s timer escalation, and the
- * eTLD+1 grouping used to decide when a wider provider outage is in play.
+ * describe. It encapsulates the rule and the 5s / 30s timer escalation.
  *
  * The banner shows when:
  *
- * - The first failing network's default RPC is a custom (non-Infura) endpoint
- *   — users always want to be informed about errors with RPCs they've chosen.
- * - Failed RPCs span more than one registrable domain (likely client-side).
+ * - A failing network's default RPC is a custom (non-Infura) endpoint —
+ *   users always want to be informed about errors with RPCs they've chosen.
  * - Every enabled EVM network with known connectivity status is failing
- *   (escape hatch for single-network setups so they still get a signal).
+ *   (escape hatch so Infura-only setups still get a signal).
  *
- * A wide single-provider outage (e.g. every `*.infura.io` network goes down at
- * once) collapses to one domain and is suppressed, except in the all-down
- * single-network case. When a custom failure is present, it's surfaced first
- * so the "Switch to MetaMask default RPC" CTA targets the network the user
- * can act on.
+ * A partial Infura outage alongside healthy peers is suppressed since it
+ * usually resolves on its own and the user cannot act on it. When a custom
+ * failure is present, it's surfaced first so the "Switch to MetaMask default
+ * RPC" CTA targets the network the user can act on.
  *
  * Clients only need to render the banner from the controller's state and wire
  * click handlers to {@link dismissBanner} or {@link switchToDefaultInfuraRpcEndpoint}.
@@ -629,7 +621,10 @@ export class NetworkConnectionBannerController extends BaseController<
     const failedNetworks = networksWithMetadata
       .filter(({ metadata }) => metadata.status !== NetworkStatus.Available)
       .map((network) => this.#buildFailedNetwork(network));
-    return this.#pickFailedNetworkToDisplay(failedNetworks, networksWithMetadata.length);
+    return this.#pickFailedNetworkToDisplay(
+      failedNetworks,
+      networksWithMetadata.length,
+    );
   }
 
   #getEnabledEvmChainIds(
@@ -708,7 +703,6 @@ export class NetworkConnectionBannerController extends BaseController<
       rpcUrl: defaultRpcEndpoint.url,
       isInfuraEndpoint,
       switchableInfuraNetworkClientId,
-      domain: getDomain(defaultRpcEndpoint.url),
     };
   }
 
@@ -723,19 +717,10 @@ export class NetworkConnectionBannerController extends BaseController<
     const firstCustomFailed = failedNetworks.find(
       (entry) => !entry.isInfuraEndpoint,
     );
-    const distinctDomains = new Set(
-      failedNetworks
-        .map((entry) => entry.domain)
-        .filter((domain): domain is string => domain !== null),
-    ).size;
     const areAllKnownNetworksFailed =
       failedNetworks.length === totalNetworksWithMetadata;
 
-    if (
-      !firstCustomFailed &&
-      distinctDomains <= 1 &&
-      !areAllKnownNetworksFailed
-    ) {
+    if (!firstCustomFailed && !areAllKnownNetworksFailed) {
       return null;
     }
 

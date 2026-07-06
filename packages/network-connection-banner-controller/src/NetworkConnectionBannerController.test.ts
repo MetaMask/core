@@ -504,7 +504,7 @@ describe('NetworkConnectionBannerController', () => {
       });
     });
 
-    it('does not show the banner when many Infura networks are failing simultaneously alongside a healthy peer on another domain', async () => {
+    it('does not show the banner when many Infura networks are failing simultaneously alongside a healthy custom peer', async () => {
       await withController(({ controller, publishNetworkStateChanges }) => {
         publishNetworkStateChanges(
           buildExternalState({
@@ -561,7 +561,7 @@ describe('NetworkConnectionBannerController', () => {
       });
     });
 
-    it('shows the banner when failures span two different registrable domains', async () => {
+    it('walks the full degraded-to-unavailable escalation when Infura and custom networks fail together', async () => {
       await withController(({ controller, publishNetworkStateChanges }) => {
         publishNetworkStateChanges(
           buildExternalState({
@@ -667,7 +667,7 @@ describe('NetworkConnectionBannerController', () => {
       });
     });
 
-    it('shows the banner when every enabled network is failing on a single domain (all-down escape hatch)', async () => {
+    it('shows the banner when every enabled network is failing (all-down escape hatch)', async () => {
       await withController(({ controller, publishNetworkStateChanges }) => {
         publishNetworkStateChanges(
           buildExternalState({

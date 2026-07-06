@@ -11,7 +11,6 @@ const failedNetwork: FailedNetwork = {
   rpcUrl: 'https://mainnet.infura.io/v3/abc',
   isInfuraEndpoint: true,
   switchableInfuraNetworkClientId: null,
-  domain: 'infura.io',
 };
 
 describe('networkConnectionBannerControllerSelectors', () => {
