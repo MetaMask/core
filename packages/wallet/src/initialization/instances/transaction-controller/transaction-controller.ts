@@ -1,8 +1,5 @@
 import { Messenger } from '@metamask/messenger';
-import type {
-  TransactionControllerMessenger,
-  TransactionControllerOptions,
-} from '@metamask/transaction-controller';
+import type { TransactionControllerMessenger } from '@metamask/transaction-controller';
 import { TransactionController } from '@metamask/transaction-controller';
 
 import type { InitializationConfiguration } from '../../types';
@@ -16,10 +13,11 @@ export const transactionController: InitializationConfiguration<
   name: 'TransactionController',
   init: ({ state, messenger, options }) => {
     return new TransactionController({
+      disableSwaps: false,
       ...options,
       messenger,
       state,
-    } as TransactionControllerOptions);
+    });
   },
   getMessenger: (parent) => {
     const messenger: TransactionControllerMessenger = new Messenger({

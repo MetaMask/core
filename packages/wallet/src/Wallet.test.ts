@@ -8,7 +8,6 @@ import { webcrypto } from 'crypto';
 import MockEncryptor from '../../keyring-controller/tests/mocks/mockEncryptor';
 import * as initializationModule from './initialization/initialization';
 import { AlwaysOnlineAdapter } from './initialization/instances/connectivity-controller/always-online-adapter';
-import type { WalletOptions } from './types';
 import { importSecretRecoveryPhrase } from './utilities';
 import { Wallet } from './Wallet';
 
@@ -24,25 +23,8 @@ const REMOTE_FEATURE_FLAG_OPTIONS = {
   },
 };
 
-const TEST_TRANSACTION_CONTROLLER_CONFIGURATION = {
-  name: 'TransactionController',
-  getMessenger: (): Messenger<string> =>
-    new Messenger({ namespace: 'TransactionController' }),
-  init: (): Record<string, never> => ({}),
-};
-
-function createWallet(options: WalletOptions): Wallet {
-  return new Wallet({
-    ...options,
-    initializationConfigurations: [
-      ...(options.initializationConfigurations ?? []),
-      TEST_TRANSACTION_CONTROLLER_CONFIGURATION,
-    ],
-  });
-}
-
 async function setupWallet(): Promise<Wallet> {
-  const wallet = createWallet({
+  const wallet = new Wallet({
     instanceOptions: {
       connectivityController: {
         connectivityAdapter: new AlwaysOnlineAdapter(),
@@ -102,7 +84,7 @@ describe('Wallet', () => {
   });
 
   it('supports passing instance options', async () => {
-    const wallet = createWallet({
+    const wallet = new Wallet({
       instanceOptions: {
         connectivityController: {
           connectivityAdapter: new AlwaysOnlineAdapter(),
@@ -140,7 +122,7 @@ describe('Wallet', () => {
 
     class DummyService {}
 
-    const wallet = createWallet({
+    const wallet = new Wallet({
       initializationConfigurations: [
         {
           name: 'KeyringController',
@@ -197,7 +179,7 @@ describe('Wallet', () => {
       NoMeta: { state: {} },
     });
 
-    const wallet = createWallet({
+    const wallet = new Wallet({
       instanceOptions: {
         connectivityController: {
           connectivityAdapter: new AlwaysOnlineAdapter(),
@@ -339,7 +321,7 @@ describe('Wallet', () => {
 
   describe('ConnectivityController', () => {
     it('reports online connectivity status', () => {
-      const wallet = createWallet({
+      const wallet = new Wallet({
         instanceOptions: {
           connectivityController: {
             connectivityAdapter: new AlwaysOnlineAdapter(),
@@ -374,7 +356,7 @@ describe('Wallet', () => {
       const vault =
         '{"data":"iOD5pIcPeRZYQ4WdEMsNYoZ3xBxWBafIU8Cr4nD0X4zBvrOA06tGen3sKQ/ValasXSweLnzH9Fk2frkPYmqeJWBtTNYFwdHPe7P970ThZwreSXN1Sqrx9Ad+YzmIN0y89Yg3KrUodPWaRgIZmgWbfDon6ADPgeEDkX0/GAEYET39O7Rx/gL+rcaTpxnpHPTgHiLbhRHWGsS3z+JVomSqoLAO5XVvrJWenO6R3Nzm62BaJaSPrf/pwstZqhSvxTq8hnQf7aR81hWfwYTxNBVG7TC/dniSQ8K5So6PvUN5nzAqvtzzHT2TagOuxQkX88Zi17P8os21jNmNdA90IGYroD+b/mppyRIgRYWtAUQZH9ji36atEuFupszbg8Qw1iaL3EQyUogC30Cpj9ko5bbqhYgqmFHF0J/kflhPHKuO6d4tgSmhYpTumydQRjxaPnlghIS5YI4W+7p9HVBpb+c6IPUz9y/x3Ngbp+ukJwOnXt2U/eZhXrJzi2z1x/nzPg4fzDJoM7k=","iv":"yrZsyC7dso/q7pQ48YX3vw==","keyMetadata":{"algorithm":"PBKDF2","params":{"iterations":600000}},"salt":"s7nIrMWK1lcZVjfdmES1DBML8Uz4ja2fpm8zUz1lWI0="}';
 
-      const wallet = createWallet({
+      const wallet = new Wallet({
         state: {
           KeyringController: {
             vault,
@@ -441,6 +423,16 @@ describe('Wallet', () => {
     });
   });
 
+  describe('TransactionController', () => {
+    it('is wired and exposes its state on the wallet messenger', async () => {
+      const wallet = await setupWallet();
+
+      expect(
+        wallet.messenger.call('TransactionController:getState'),
+      ).toStrictEqual(expect.objectContaining({ transactions: [] }));
+    });
+  });
+
   describe('RemoteFeatureFlagController', () => {
     it('is wired and exposes its state on the wallet messenger', async () => {
       const wallet = await setupWallet();
@@ -457,7 +449,7 @@ describe('Wallet', () => {
     });
 
     it('routes injected instanceOptions through to the controller', async () => {
-      const wallet = createWallet({
+      const wallet = new Wallet({
         instanceOptions: {
           connectivityController: {
             connectivityAdapter: new AlwaysOnlineAdapter(),
