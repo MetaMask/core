@@ -21,6 +21,7 @@ import type { Hex } from '@metamask/utils';
 import type { NetworkConnectionBannerControllerMessenger } from './NetworkConnectionBannerController';
 import { NetworkConnectionBannerController } from './NetworkConnectionBannerController';
 
+const TEST_INFURA_PROJECT_ID = 'test-infura-project-id';
 const MAINNET_CLIENT_ID = 'mainnet' satisfies BuiltInNetworkClientId;
 const SEPOLIA_CLIENT_ID = 'sepolia' satisfies BuiltInNetworkClientId;
 const POLYGON_CUSTOM_CLIENT_ID = 'polygon-custom';
@@ -637,6 +638,53 @@ describe('NetworkConnectionBannerController', () => {
         jest.advanceTimersByTime(25_000);
         expect(controller.state.networkConnectionBannerStatus).toBe(
           'unavailable',
+        );
+      });
+    });
+
+    it('treats a custom endpoint carrying our substituted Infura URL as Infura (popular network add)', async () => {
+      await withController(({ controller, publishNetworkStateChanges }) => {
+        publishNetworkStateChanges(
+          buildExternalState({
+            networkConfigurationsByChainId: {
+              '0xa86a': buildNetworkConfiguration({
+                chainId: '0xa86a',
+                name: 'Avalanche',
+                nativeCurrency: 'AVAX',
+                rpcEndpoints: [
+                  buildCustomEndpoint({
+                    networkClientId: 'avalanche-popular',
+                    url: `https://avalanche-mainnet.infura.io/v3/${TEST_INFURA_PROJECT_ID}`,
+                  }),
+                ],
+              }),
+              '0x1': buildNetworkConfiguration({
+                chainId: '0x1',
+                rpcEndpoints: [
+                  buildInfuraEndpoint({
+                    networkClientId: MAINNET_CLIENT_ID,
+                    infuraNetworkType: 'mainnet',
+                  }),
+                ],
+              }),
+            },
+            enabledEvmChainIds: ['0xa86a', '0x1'],
+            networksMetadata: {
+              'avalanche-popular': buildNetworkMetadata(
+                NetworkStatus.Unavailable,
+              ),
+              [MAINNET_CLIENT_ID]: buildNetworkMetadata(
+                NetworkStatus.Available,
+              ),
+            },
+          }),
+        );
+
+        // A single failing MetaMask Infura endpoint amid healthy peers is a
+        // provider blip, not a custom failure, so no banner.
+        jest.advanceTimersByTime(30_000);
+        expect(controller.state.networkConnectionBannerStatus).toBe(
+          'available',
         );
       });
     });
@@ -1727,6 +1775,7 @@ async function withController<ReturnValue>(
 
   const controller = new NetworkConnectionBannerController({
     messenger,
+    infuraProjectId: TEST_INFURA_PROJECT_ID,
   });
 
   const setUiOpen = (isUiOpen: boolean): void => {

@@ -303,6 +303,12 @@ export type NetworkConnectionBannerControllerOptions = {
    * The messenger for inter-controller communication.
    */
   messenger: NetworkConnectionBannerControllerMessenger;
+
+  /**
+   * The wallet's Infura project id, used to recognize MetaMask Infura
+   * endpoints whose URL was persisted with the id already substituted.
+   */
+  infuraProjectId: string;
 };
 
 /**
@@ -347,19 +353,27 @@ export class NetworkConnectionBannerController extends BaseController<
   /** Whether the keyring is unlocked. Combined with {@link #isUiOpen}. */
   #isUnlocked = false;
 
+  readonly #infuraProjectId: string;
+
   /**
    * Constructs a new {@link NetworkConnectionBannerController}.
    *
    * @param args - The arguments to this controller.
    * @param args.messenger - The messenger suited for this controller.
+   * @param args.infuraProjectId - The wallet's Infura project id.
    */
-  constructor({ messenger }: NetworkConnectionBannerControllerOptions) {
+  constructor({
+    messenger,
+    infuraProjectId,
+  }: NetworkConnectionBannerControllerOptions) {
     super({
       messenger,
       metadata: networkConnectionBannerControllerMetadata,
       name: CONTROLLER_NAME,
       state: getDefaultNetworkConnectionBannerControllerState(),
     });
+
+    this.#infuraProjectId = infuraProjectId;
 
     // Upstream controllers still expose :stateChange; switch to :stateChanged
     // once those packages migrate their event types.
@@ -503,7 +517,7 @@ export class NetworkConnectionBannerController extends BaseController<
     }
 
     const infuraEndpointIndex = networkConfiguration.rpcEndpoints.findIndex(
-      (endpoint) => getIsInfuraEndpoint(endpoint.url),
+      (endpoint) => getIsInfuraEndpoint(endpoint.url, this.#infuraProjectId),
     );
     if (infuraEndpointIndex === -1) {
       throw new Error(
@@ -740,7 +754,10 @@ export class NetworkConnectionBannerController extends BaseController<
     defaultRpcEndpointIndex,
     defaultRpcEndpoint,
   }: EnabledNetwork): FailedNetwork {
-    const isInfuraEndpoint = getIsInfuraEndpoint(defaultRpcEndpoint.url);
+    const isInfuraEndpoint = getIsInfuraEndpoint(
+      defaultRpcEndpoint.url,
+      this.#infuraProjectId,
+    );
 
     // For custom endpoints (non-Infura), find an Infura endpoint on this
     // chain that we could offer to switch to.
@@ -749,7 +766,7 @@ export class NetworkConnectionBannerController extends BaseController<
       const infuraEndpoint = rpcEndpoints.find(
         (endpoint, index) =>
           index !== defaultRpcEndpointIndex &&
-          getIsInfuraEndpoint(endpoint.url),
+          getIsInfuraEndpoint(endpoint.url, this.#infuraProjectId),
       );
       switchableInfuraNetworkClientId = infuraEndpoint?.networkClientId ?? null;
     }
