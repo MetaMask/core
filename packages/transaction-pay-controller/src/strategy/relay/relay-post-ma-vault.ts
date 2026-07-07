@@ -4,16 +4,39 @@ import { createModuleLogger } from '@metamask/utils';
 
 import { projectLogger } from '../../logger';
 import type {
+  QuoteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
 import { submitMoneyAccountVaultDeposit } from '../../utils/ma-vault-deposit';
 import { getTransferredAmountFromTxHash } from '../../utils/transaction';
 import { MUSD_MONAD_FIAT_ASSET } from '../fiat/constants';
+import { isMoneyAccountDepositTransaction } from '../fiat/utils';
 import { FALLBACK_HASH } from './constants';
 import type { RelayCompletionOutcome, RelayQuote } from './types';
 
 const log = createModuleLogger(projectLogger, 'relay-post-ma-vault');
+
+/**
+ * Whether a request is a max-amount deposit into the Money Account vault.
+ * Such flows skip atomic vault embedding: Relay settles mUSD into the Money
+ * Account, then a post-Relay vault deposit runs (see below). Keyed on the
+ * transaction type (resolving nested batch types) rather than `paymentOverride`,
+ * which is not set on every Money Account deposit entry path.
+ *
+ * @param request - The quote request to test.
+ * @param transaction - The parent transaction metadata.
+ * @returns True when the request is a max-amount Money Account deposit.
+ */
+export function isMaxAmountMoneyAccountDeposit(
+  request: QuoteRequest,
+  transaction: TransactionMeta,
+): boolean {
+  return (
+    Boolean(request.isMaxAmount) &&
+    isMoneyAccountDepositTransaction(transaction)
+  );
+}
 
 /**
  * Runs the Money Account vault deposit after a max-amount Relay bridge has

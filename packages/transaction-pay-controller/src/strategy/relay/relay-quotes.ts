@@ -61,6 +61,7 @@ import { applyHyperliquidActivationFee } from './hyperliquid-activation';
 import { applyPolymarketDepositWalletOverrides } from './polymarket/withdraw';
 import { fetchRelayQuote } from './relay-api';
 import { getRelayMaxGasStationQuote } from './relay-max-gas-station';
+import { isMaxAmountMoneyAccountDeposit } from './relay-post-ma-vault';
 import type {
   RelayQuote,
   RelayQuoteMetamask,
@@ -290,6 +291,17 @@ async function getSingleQuote(
   );
 
   try {
+    const isMoneyAccountMaxDeposit = isMaxAmountMoneyAccountDeposit(
+      request,
+      transaction,
+    );
+
+    // Redirect the bridged mUSD to the Money Account (a separate account from the
+    // funding EOA) so the post-Relay vault deposit can move it into the vault.
+    if (isMoneyAccountMaxDeposit) {
+      request.recipient = transaction.txParams.from as Hex;
+    }
+
     // For post-quote or max amount flows, use EXACT_INPUT - user specifies how much to send,
     // and we show them how much they'll receive after fees.
     // For regular flows with a target amount, use EXPECTED_OUTPUT.
@@ -329,7 +341,11 @@ async function getSingleQuote(
       !(request.skipProcessTransactions ?? request.isPostQuote) &&
       !request.isPolymarketDepositWallet;
 
-    if (shouldProcessTransactions) {
+    if (isMoneyAccountMaxDeposit) {
+      log(
+        'Max-amount Money Account deposit: skipping atomic vault embedding; mUSD settles to the Money Account for a post-Relay vault deposit',
+      );
+    } else if (shouldProcessTransactions) {
       await processTransactions(transaction, request, body, messenger);
     } else if (
       request.isPostQuote &&
