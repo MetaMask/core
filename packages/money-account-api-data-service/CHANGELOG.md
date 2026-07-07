@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat(money): scaffold a data service package which talks to Money Account API ([#9278](https://github.com/MetaMask/core/pull/9278))
+
 ### Added
 
 - Add `MoneyAccountApiDataService` data service ([#9402](https://github.com/MetaMask/core/pull/9402))
