@@ -108,7 +108,7 @@ export {
 export type { QuoteResponseV1 as QuoteResponse } from './validators/quote-response-v1';
 export type { Quote } from './validators/quote';
 export { FeeType, DiscountType } from './validators/quote';
-export type { ActionTypes } from './validators/step';
+export { ActionTypes } from './validators/step';
 export {
   validateQuoteStreamComplete,
   QuoteStreamCompleteReason,

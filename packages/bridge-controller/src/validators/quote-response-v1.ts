@@ -7,11 +7,9 @@ import {
   enums,
   union,
   assert,
-  StructError,
 } from '@metamask/superstruct';
 import { StrictHexStruct } from '@metamask/utils';
 
-import { formatStructErrors } from '../utils/struct-error';
 import { FeatureId } from './feature-flags';
 import { FloatStringSchema } from './number';
 import { QuoteSchema } from './quote';
