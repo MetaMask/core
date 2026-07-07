@@ -9,7 +9,11 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import { submitMoneyAccountVaultDeposit } from '../../utils/ma-vault-deposit';
-import { getTransferredAmountFromTxHash } from '../../utils/transaction';
+import {
+  getTransferredAmountFromTxHash,
+  isPerpsWithdrawTransaction,
+  isPredictWithdrawTransaction,
+} from '../../utils/transaction';
 import { MUSD_MONAD_FIAT_ASSET } from '../fiat/constants';
 import { isMoneyAccountDepositTransaction } from '../fiat/utils';
 import { FALLBACK_HASH } from './constants';
@@ -18,23 +22,38 @@ import type { RelayCompletionOutcome, RelayQuote } from './types';
 const log = createModuleLogger(projectLogger, 'relay-post-ma-vault');
 
 /**
- * Whether a request is a max-amount deposit into the Money Account vault.
- * Such flows skip atomic vault embedding: Relay settles mUSD into the Money
- * Account, then a post-Relay vault deposit runs (see below). Keyed on the
- * transaction type (resolving nested batch types) rather than `paymentOverride`,
- * which is not set on every Money Account deposit entry path.
+ * Whether a quote must settle into the Money Account vault via a post-Relay
+ * vault deposit (Relay lands mUSD on the Money Account, then a separate
+ * sponsored deposit mints vmUSD) instead of embedding the deposit atomically.
+ *
+ * Two cases, both keyed on transaction type (resolving nested batch types):
+ * - Crypto/fiat Money Account deposits, but only for max amount — non-max
+ *   deposits embed a fixed-amount vault batch (EXACT_OUTPUT).
+ * - Perps/Predict withdraws whose destination is mUSD on Monad. These are
+ *   EXACT_INPUT post-quote flows whose settled mUSD is only known after Relay
+ *   completes, so they always use the post-Relay deposit.
  *
  * @param request - The quote request to test.
  * @param transaction - The parent transaction metadata.
- * @returns True when the request is a max-amount Money Account deposit.
+ * @returns True when the quote uses the post-Relay Money Account vault deposit.
  */
-export function isMaxAmountMoneyAccountDeposit(
+export function usesPostRelayMoneyAccountVaultDeposit(
   request: QuoteRequest,
   transaction: TransactionMeta,
 ): boolean {
-  return (
+  if (
     Boolean(request.isMaxAmount) &&
     isMoneyAccountDepositTransaction(transaction)
+  ) {
+    return true;
+  }
+
+  return (
+    (isPerpsWithdrawTransaction(transaction) ||
+      isPredictWithdrawTransaction(transaction)) &&
+    request.targetChainId === MUSD_MONAD_FIAT_ASSET.chainId &&
+    request.targetTokenAddress.toLowerCase() ===
+      MUSD_MONAD_FIAT_ASSET.address.toLowerCase()
   );
 }
 

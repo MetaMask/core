@@ -46,8 +46,8 @@ import {
 } from './polymarket/withdraw';
 import { getRelayStatus, submitRelayExecute } from './relay-api';
 import {
-  isMaxAmountMoneyAccountDeposit,
   submitPostRelayVaultDeposit,
+  usesPostRelayMoneyAccountVaultDeposit,
 } from './relay-post-ma-vault';
 import type {
   RelayCompletionOutcome,
@@ -180,12 +180,13 @@ async function executeSingleQuote(
     },
   );
 
-  // Max-amount deposits leave mUSD on the Money Account rather than embedding the
-  // vault deposit in the Relay batch. Once Relay has settled, move the settled
-  // mUSD into the vault via a separate sponsored deposit and return its hash.
+  // Money Account vault flows leave mUSD on the Money Account rather than
+  // embedding the vault deposit in the Relay batch. Once Relay has settled, move
+  // the settled mUSD into the vault via a separate sponsored deposit and return
+  // its hash.
   if (
     completion.status === 'success' &&
-    isMaxAmountMoneyAccountDeposit(quote.request, transaction)
+    usesPostRelayMoneyAccountVaultDeposit(quote.request, transaction)
   ) {
     const { transactionHash } = await submitPostRelayVaultDeposit({
       completion,
@@ -441,9 +442,9 @@ async function submitTransactions(
 
   let allParams = normalizedParams;
 
-  if (isMaxAmountMoneyAccountDeposit(quote.request, transaction)) {
+  if (usesPostRelayMoneyAccountVaultDeposit(quote.request, transaction)) {
     log(
-      'Max-amount Money Account deposit: submitting Relay bridge only; vault deposit runs post-completion',
+      'Money Account vault deposit: submitting Relay bridge only; vault deposit runs post-completion',
     );
   } else if (quote.request.paymentOverride) {
     const { transactionData } = messenger.call(

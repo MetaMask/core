@@ -328,6 +328,27 @@ export function isPredictWithdrawTransaction(
 }
 
 /**
+ * Check whether a transaction is a Perps withdrawal.
+ *
+ * Returns `true` when the transaction's own type is `perpsWithdraw`, or
+ * when any of its nested transactions has that type.
+ *
+ * @param transaction - Transaction metadata.
+ * @returns `true` when the transaction is a Perps withdrawal.
+ */
+export function isPerpsWithdrawTransaction(
+  transaction: TransactionMeta,
+): boolean {
+  return (
+    transaction.type === TransactionType.perpsWithdraw ||
+    (transaction.nestedTransactions?.some(
+      (nt) => nt.type === TransactionType.perpsWithdraw,
+    ) ??
+      false)
+  );
+}
+
+/**
  * Handle a transaction change by updating its associated data.
  *
  * @param transaction - Transaction metadata.
