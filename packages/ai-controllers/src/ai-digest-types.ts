@@ -188,6 +188,33 @@ export type MarketOverview = {
   metadata?: AIResponseMetadata[];
 };
 
+/**
+ * A single market overview item. Shares the exact same schema as a
+ * {@link MarketOverviewTrend} — i.e. one entry of `MarketOverview.trends`.
+ */
+export type MarketOverviewItem = MarketOverviewTrend;
+
+/**
+ * A market overview "front page": a single AI-selected item (mirroring the
+ * front page of a newspaper) plus its call-to-action copy, addressable by id.
+ *
+ * Returned by `GET /market-overview/front-page/:id` (and `.../latest`). Unlike
+ * `/market-overview`, which only ever returns the latest report, this lets
+ * clients fetch an older item that has since dropped out of the report.
+ */
+export type MarketOverviewFrontPage = {
+  /** Unique identifier of the front-page row (UUID). */
+  id: string;
+  /** The selected item — same schema as an individual market overview item. */
+  item: MarketOverviewItem;
+  /** Call-to-action title for the front-page item. */
+  ctaTitle: string;
+  /** Call-to-action description for the front-page item. */
+  ctaDescription: string;
+  /** ISO date string when the front-page row was created. */
+  createdAt: string;
+};
+
 // ---------------------------------------------------------------------------
 // Controller state
 // ---------------------------------------------------------------------------
@@ -223,4 +250,13 @@ export type DigestService = {
    * @returns The market overview report, or `null` if none exists (404).
    */
   fetchMarketOverview(): Promise<MarketOverview | null>;
+
+  /**
+   * Fetch a single market overview front page by id.
+   * Calls `GET /market-overview/front-page/:id`.
+   *
+   * @param id - The front-page identifier (UUID).
+   * @returns The market overview front page, or `null` if none exists (404).
+   */
+  fetchFrontPageItem(id: string): Promise<MarketOverviewFrontPage | null>;
 };
