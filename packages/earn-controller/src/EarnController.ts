@@ -415,13 +415,41 @@ export class EarnController extends BaseController<
     this.messenger.subscribe(
       'AccountTreeController:selectedAccountGroupChange',
       () => {
+        const gutoStart = Date.now();
+        console.log(
+          '[GUTO PERFORMANCE LOG] EarnController selectedAccountGroupChange handler START',
+        );
         const address = this.#getSelectedEvmAccountAddress();
 
         // TODO: temp solution, this will refresh lending eligibility also
         // we could have a more general check, as what is happening is a compliance address check
-        this.refreshEarnEligibility({ address }).catch(console.error);
-        this.refreshPooledStakes({ address }).catch(console.error);
-        this.refreshLendingPositions({ address }).catch(console.error);
+        this.refreshEarnEligibility({ address })
+          .then(() =>
+            console.log(
+              `[GUTO PERFORMANCE LOG] EarnController.refreshEarnEligibility resolved in ${
+                Date.now() - gutoStart
+              }ms`,
+            ),
+          )
+          .catch(console.error);
+        this.refreshPooledStakes({ address })
+          .then(() =>
+            console.log(
+              `[GUTO PERFORMANCE LOG] EarnController.refreshPooledStakes resolved in ${
+                Date.now() - gutoStart
+              }ms`,
+            ),
+          )
+          .catch(console.error);
+        this.refreshLendingPositions({ address })
+          .then(() =>
+            console.log(
+              `[GUTO PERFORMANCE LOG] EarnController.refreshLendingPositions resolved in ${
+                Date.now() - gutoStart
+              }ms`,
+            ),
+          )
+          .catch(console.error);
       },
     );
 
