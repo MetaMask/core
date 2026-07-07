@@ -163,20 +163,28 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     // Also, creating account that way won't invalidate the Snap keyring state. The
     // account will get created and persisted properly with the Snap account creation
     // flow "asynchronously" (with `notify:accountCreated`).
-    return this.#withSnapKeyring(async ({ keyring }) => {
-      let v1: RestrictedSnapKeyring['v1'];
+    const createAccount = await this.#withSnapKeyring(async ({ keyring }) => {
       if (keyring.v1) {
-        v1 = {
-          createAccount: keyring.v1.createAccount.bind(keyring.v1),
-        };
+        return keyring.v1.createAccount.bind(keyring.v1);
       }
 
-      return {
-        v1,
-        createAccounts: keyring.createAccounts.bind(keyring),
-        deleteAccount: keyring.deleteAccount.bind(keyring),
-      };
+      // This method does not exist in v2.
+      return undefined;
     });
+
+    return {
+      // V1 interface is only present for v1 Snaps, otherwise it's `undefined`.
+      v1: createAccount ? { createAccount } : undefined,
+      // Every v2 operations must be done through the `#withSnapKeyring` transaction:
+      createAccounts: async (options) =>
+        await this.#withSnapKeyring(
+          async ({ keyring }) => await keyring.createAccounts(options),
+        ),
+      deleteAccount: async (id: string) =>
+        await this.#withSnapKeyring(async ({ keyring }) => {
+          await keyring.deleteAccount(id);
+        }),
+    };
   }
 
   #getKeyringClientFromSnapId(snapId: string): KeyringClient {
