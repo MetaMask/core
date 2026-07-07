@@ -1238,6 +1238,139 @@ describe('RampsController', () => {
         },
       );
     });
+
+    it('prefers a completed-order provider over the reliability winner on the widened pick', async () => {
+      const response: QuotesResponse = {
+        success: [
+          inAppScopeQuote(MOONPAY, 90),
+          inAppScopeQuote(REVOLUT, 80),
+        ],
+        // MoonPay is the most reliable, but the user last completed an order
+        // with Revolut, so the order-history rung fed into
+        // `getSmartSelectedQuote` should win.
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY, REVOLUT] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            state: {
+              ...scopeState([
+                buildScopeProvider(NATIVE, 'native'),
+                buildScopeProvider(MOONPAY, 'aggregator'),
+                buildScopeProvider(REVOLUT, 'aggregator'),
+              ]),
+              orders: [
+                createMockOrder({
+                  provider: buildScopeProvider(REVOLUT, 'aggregator'),
+                  createdAt: 2000,
+                  status: RampsOrderStatus.Completed,
+                }),
+                createMockOrder({
+                  provider: buildScopeProvider(MOONPAY, 'aggregator'),
+                  createdAt: 1000,
+                  status: RampsOrderStatus.Completed,
+                }),
+              ],
+            },
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => response,
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          expect(quotes.success[0]?.provider).toBe(REVOLUT);
+        },
+      );
+    });
+
+    it('does not widen and stays native-only when the scope is off even with the deprecated restrict flag', async () => {
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'off',
+            state: scopeState([
+              buildScopeProvider(NATIVE, 'native'),
+              buildScopeProvider(MOONPAY, 'aggregator'),
+              buildScopeProvider(REVOLUT, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          let quotedProviders: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { providers?: string[] }) => {
+              quotedProviders = params.providers;
+              return {
+                success: [inAppScopeQuote(NATIVE, 70)],
+                sorted: [{ sortBy: 'reliability', ids: [NATIVE] }],
+                error: [],
+                customActions: [],
+              } satisfies QuotesResponse;
+            },
+          );
+
+          await callScopedGetQuotes(messenger, {
+            autoSelectProvider: true,
+            restrictToKnownOrNativeProviders: true,
+          });
+
+          // Scope `off` keeps the native-only resolution: only the native
+          // provider is quoted, not the widened supporting set.
+          expect(quotedProviders).toStrictEqual([NATIVE]);
+        },
+      );
+    });
+
+    it('still honors the deprecated restrict flag alone (no autoSelectProvider) under a widening scope', async () => {
+      const response: QuotesResponse = {
+        success: [inAppScopeQuote(MOONPAY, 90), inAppScopeQuote(REVOLUT, 80)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY, REVOLUT] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            state: scopeState([
+              buildScopeProvider(NATIVE, 'native'),
+              buildScopeProvider(MOONPAY, 'aggregator'),
+              buildScopeProvider(REVOLUT, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          let quotedProviders: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { providers?: string[] }) => {
+              quotedProviders = params.providers;
+              return response;
+            },
+          );
+
+          const quotes = await callScopedGetQuotes(messenger, {
+            autoSelectProvider: undefined,
+            restrictToKnownOrNativeProviders: true,
+          });
+
+          // The deprecated flag alone still routes through the widened/gated
+          // path: every supporting provider is quoted and the pick is returned.
+          expect(quotedProviders).toStrictEqual([NATIVE, MOONPAY, REVOLUT]);
+          expect(quotes.success[0]?.provider).toBe(MOONPAY);
+        },
+      );
+    });
   });
 
   describe('getProviders', () => {

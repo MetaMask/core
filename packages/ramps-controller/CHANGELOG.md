@@ -9,13 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add pure quote-selection helpers `getSmartSelectedQuote` and `fitsProviderLimits`, the amount validator `validateBuyAmount`, and a `BuyAmountValidation` type so headless-buy consumers can share the controller's provider-agnostic quote ranking (`preferredProviderIds` then reliability then price then first surviving candidate), scope-aware in-app filtering, and per-provider fiat-limit enforcement instead of re-deriving them ([#9414](https://github.com/MetaMask/core/pull/9414))
 - Add pure provider-availability helpers `providerServesAsset`, `getProvidersServingAsset`, `regionHasProviderForAsset`, and `isFiatDepositAvailable` so headless-buy consumers can share the controller's case-insensitive CAIP-19 asset matching and scope-aware region/availability gating instead of re-deriving it, keeping the two from disagreeing ([#9409](https://github.com/MetaMask/core/pull/9409))
 - Add pure quote-classification helpers `isExternalBrowserQuote`, `isCustomActionQuote`, and `isInAppOnlyQuote` so consumers can share the controller's in-app-vs-external browser-mode classification without owning host redirect/deeplink concerns ([#9409](https://github.com/MetaMask/core/pull/9409))
 - Add pure error-normalization helpers `getErrorMessage`, `extractExplicitTypedError`, and `normalizeToTypedError` (with a `TypedError<Code>` type) so consumers can share error-shape extraction while keeping their own error-code taxonomy ([#9409](https://github.com/MetaMask/core/pull/9409))
 
 ### Changed
 
+- `RampsController.getQuotes` now derives its provider-widening decision from the `getProviderScope` scope (`off` stays native-only; `in-app`/`all` widen) rather than the `restrictToKnownOrNativeProviders` flag, and picks the widened auto-selected quote via the shared `getSmartSelectedQuote`, feeding in the user's completed-order provider preference so a returning user's previously-used provider is preferred over the reliability/price winner ([#9414](https://github.com/MetaMask/core/pull/9414))
 - `RampsController` now derives its internal region provider-asset matching and quote in-app/custom-action/external filtering from the shared `providerAvailability` and `quoteClassification` helpers, so the exposed helpers stay behaviourally identical to the controller's own selection ([#9409](https://github.com/MetaMask/core/pull/9409))
+
+### Deprecated
+
+- **`RampsController.getQuotes`'s `restrictToKnownOrNativeProviders` option is deprecated** in favor of provider-class scope (`getProviderScope`): `off` keeps native-only auto-selection and `in-app`/`all` widen, so the flag is redundant. It is still honored for one release (like `autoSelectProvider`, it routes a no-`providers` request through the gated path) and will be removed in a later major ([#9414](https://github.com/MetaMask/core/pull/9414))
 
 ## [15.1.0]
 
