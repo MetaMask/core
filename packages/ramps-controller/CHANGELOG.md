@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add pure provider-availability helpers `providerServesAsset`, `getProvidersServingAsset`, `regionHasProviderForAsset`, and `isFiatDepositAvailable` so headless-buy consumers can share the controller's case-insensitive CAIP-19 asset matching and scope-aware region/availability gating instead of re-deriving it, keeping the two from disagreeing ([#9409](https://github.com/MetaMask/core/pull/9409))
+- Add pure quote-classification helpers `isExternalBrowserQuote`, `isCustomActionQuote`, and `isInAppOnlyQuote` so consumers can share the controller's in-app-vs-external browser-mode classification without owning host redirect/deeplink concerns ([#9409](https://github.com/MetaMask/core/pull/9409))
+- Add pure error-normalization helpers `getErrorMessage`, `extractExplicitTypedError`, and `normalizeToTypedError` (with a `TypedError<Code>` type) so consumers can share error-shape extraction while keeping their own error-code taxonomy ([#9409](https://github.com/MetaMask/core/pull/9409))
+
+### Changed
+
+- `RampsController` now derives its internal region provider-asset matching and quote in-app/custom-action/external filtering from the shared `providerAvailability` and `quoteClassification` helpers, so the exposed helpers stay behaviourally identical to the controller's own selection ([#9409](https://github.com/MetaMask/core/pull/9409))
+
 ## [15.1.0]
 
 ### Added

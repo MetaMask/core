@@ -142,6 +142,23 @@ export {
 export { RAMPS_ERROR_CODES } from './rampsErrorCodes';
 export type { RequestSelectorResult } from './selectors';
 export { createRequestSelector } from './selectors';
+export {
+  providerServesAsset,
+  getProvidersServingAsset,
+  regionHasProviderForAsset,
+  isFiatDepositAvailable,
+} from './providerAvailability';
+export {
+  isExternalBrowserQuote,
+  isCustomActionQuote,
+  isInAppOnlyQuote,
+} from './quoteClassification';
+export type { TypedError } from './errorNormalization';
+export {
+  getErrorMessage,
+  extractExplicitTypedError,
+  normalizeToTypedError,
+} from './errorNormalization';
 export type {
   TransakServiceActions,
   TransakServiceEvents,

@@ -9,6 +9,8 @@ import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
+import { getProvidersServingAsset } from './providerAvailability';
+import { isCustomActionQuote, isExternalBrowserQuote } from './quoteClassification';
 import type { RampsControllerMethodActions } from './RampsController-method-action-types';
 import type { RampsErrorCode } from './rampsErrorCodes';
 import { RAMPS_ERROR_CODES } from './rampsErrorCodes';
@@ -2121,14 +2123,9 @@ export class RampsController extends BaseController<
         if (customActionProviderCodes.has(providerCode)) {
           return false;
         }
-        // Defensive: the wire may carry an inline `isCustomAction` flag that is
-        // absent from the published `Quote` type.
-        if (
-          (quote.quote as { isCustomAction?: boolean }).isCustomAction === true
-        ) {
-          return false;
-        }
-        if (quote.quote.buyWidget?.browser === 'IN_APP_OS_BROWSER') {
+        // Custom-action and external-browser classification is shared with the
+        // consuming client via `quoteClassification` so both filter identically.
+        if (isCustomActionQuote(quote) || isExternalBrowserQuote(quote)) {
           return false;
         }
       }
@@ -2199,20 +2196,10 @@ export class RampsController extends BaseController<
       ({ providers } = await this.getProviders(normalizedRegion));
     }
 
-    // EVM CAIP-19 asset IDs may arrive checksummed or lowercased, and the
-    // providers API returns both forms, so match case-insensitively on both
-    // sides. Only the lowercased forms are compared (the original IDs are never
-    // returned), so case-sensitive non-EVM asset IDs are not corrupted.
-    const normalizedAssetId = assetId.toLowerCase();
-    const supporting = providers.filter((provider) => {
-      const map = provider?.supportedCryptoCurrencies;
-      if (!map) {
-        return false;
-      }
-      return Object.keys(map).some(
-        (key) => key.toLowerCase() === normalizedAssetId,
-      );
-    });
+    // Case-insensitive CAIP-19 matching is shared with headless-buy consumers
+    // via `getProvidersServingAsset`, so the controller and the UI region gate
+    // cannot disagree about which providers serve the asset.
+    const supporting = getProvidersServingAsset(providers, assetId);
 
     return { supporting, all: providers };
   }
