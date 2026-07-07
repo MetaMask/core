@@ -51,6 +51,8 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
       steps: [
         {
           action: ActionTypes.SWAP,
+          srcChainId: 10,
+          destChainId: 10,
           srcAsset: {
             chainId: 10,
             address: '0x0000000000000000000000000000000000000000',
@@ -73,6 +75,8 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
         },
         {
           action: ActionTypes.BRIDGE,
+          srcChainId: 10,
+          destChainId: 137,
           srcAsset: {
             chainId: 10,
             address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
@@ -97,6 +101,8 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
       ],
       refuel: {
         action: ActionTypes.REFUEL,
+        srcChainId: 10,
+        destChainId: 137,
         srcAsset: {
           chainId: 10,
           address: '0x0000000000000000000000000000000000000000',
@@ -171,6 +177,8 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
       steps: [
         {
           action: ActionTypes.SWAP,
+          srcChainId: 10,
+          destChainId: 137,
           srcAsset: {
             chainId: 10,
             address: '0x0000000000000000000000000000000000000000',
@@ -193,6 +201,8 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
         },
         {
           action: ActionTypes.BRIDGE,
+          srcChainId: 10,
+          destChainId: 137,
           srcAsset: {
             chainId: 10,
             address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
@@ -217,6 +227,8 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
       ],
       refuel: {
         action: ActionTypes.REFUEL,
+        srcChainId: 10,
+        destChainId: 137,
         srcAsset: {
           chainId: 10,
           address: '0x0000000000000000000000000000000000000000',

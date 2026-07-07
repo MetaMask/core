@@ -51,6 +51,8 @@ export const mockBridgeQuotesNativeErc20EthV1: QuoteResponseV1[] = [
       steps: [
         {
           action: ActionTypes.SWAP,
+          srcChainId: 1,
+          destChainId: 1,
           srcAsset: {
             address: '0x0000000000000000000000000000000000000000',
             assetId: 'eip155:1/slip44:60',
@@ -71,6 +73,8 @@ export const mockBridgeQuotesNativeErc20EthV1: QuoteResponseV1[] = [
         },
         {
           action: ActionTypes.BRIDGE,
+          srcChainId: 1,
+          destChainId: 42161,
           srcAsset: {
             address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
             assetId:
@@ -148,6 +152,8 @@ export const mockBridgeQuotesNativeErc20EthV1: QuoteResponseV1[] = [
       steps: [
         {
           action: ActionTypes.SWAP,
+          srcChainId: 1,
+          destChainId: 1,
           srcAsset: {
             address: '0x0000000000000000000000000000000000000000',
             assetId: 'eip155:1/slip44:60',
@@ -168,6 +174,8 @@ export const mockBridgeQuotesNativeErc20EthV1: QuoteResponseV1[] = [
         },
         {
           action: ActionTypes.BRIDGE,
+          srcChainId: 1,
+          destChainId: 42161,
           srcAsset: {
             address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
             assetId:

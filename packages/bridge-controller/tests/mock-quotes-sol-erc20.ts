@@ -56,6 +56,8 @@ export const mockBridgeQuotesSolErc20V1: QuoteResponseV1[] = [
       steps: [
         {
           action: ActionTypes.BRIDGE,
+          srcChainId: 1151111081099710,
+          destChainId: 10,
           srcAsset: {
             address: '0x0000000000000000000000000000000000000000',
             assetId:
@@ -140,6 +142,8 @@ export const mockBridgeQuotesSolErc20V1: QuoteResponseV1[] = [
       steps: [
         {
           action: ActionTypes.BRIDGE,
+          srcChainId: 1151111081099710,
+          destChainId: 10,
           srcAsset: {
             address: '0x0000000000000000000000000000000000000000',
             assetId:

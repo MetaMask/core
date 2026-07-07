@@ -59,6 +59,8 @@ export const mockBridgeQuotesErc20Erc20V1: QuoteResponseV1[] = [
       steps: [
         {
           action: ActionTypes.BRIDGE,
+          srcChainId: 10,
+          destChainId: 137,
           srcAsset: {
             chainId: 10,
             address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
@@ -146,6 +148,8 @@ export const mockBridgeQuotesErc20Erc20V1: QuoteResponseV1[] = [
       steps: [
         {
           action: ActionTypes.BRIDGE,
+          srcChainId: 10,
+          destChainId: 137,
           srcAsset: {
             chainId: 10,
             address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
