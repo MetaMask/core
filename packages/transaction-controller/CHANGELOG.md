@@ -7,9 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `failTransaction` method and corresponding `TransactionController:failTransaction` messenger action ([#9400](https://github.com/MetaMask/core/pull/9400))
+  - Marks a transaction as failed through the standard failure path, emitting the `transactionFailed`, `transactionStatusUpdated`, and `transactionFinished` events so downstream subscribers (e.g. bridge status, metrics) are notified.
+  - Intended for callers that finalize a transaction out-of-band, such as the smart transactions controller when the relay cancels a smart transaction.
+
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
+### Fixed
+
+- Only apply user-saved (advanced) gas fees to dApp transactions ([#9401](https://github.com/MetaMask/core/pull/9401))
+  - Saved advanced gas fees are now ignored for internal transactions (`isInternal`), such as swaps and bridges, whose gas fees are dictated by the aggregator or relay. Previously they were only ignored for swaps, so a user's saved gas fees (e.g. a low max base fee) could underprice a bridge transaction and cause it to fail or get stuck as pending.
 
 ## [68.2.2]
 
