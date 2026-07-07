@@ -55,7 +55,7 @@
   "dependencies": {
     "@metamask/base-controller": "^9.1.0",
     "@metamask/controller-utils": "^12.3.0",
-    "@metamask/keyring-api": "^23.3.0",
+    "@metamask/keyring-api": "^23.5.0",
     "@metamask/messenger": "^2.0.0",
     "@metamask/multichain-network-controller": "^3.2.1",
     "@metamask/network-controller": "^34.0.0",
