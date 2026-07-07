@@ -270,7 +270,9 @@ describe('isPostRelayMoneyAccountVaultDeposit', () => {
   const isMoneyAccountDepositTransactionMock = jest.mocked(
     isMoneyAccountDepositTransaction,
   );
-  const isPerpsWithdrawTransactionMock = jest.mocked(isPerpsWithdrawTransaction);
+  const isPerpsWithdrawTransactionMock = jest.mocked(
+    isPerpsWithdrawTransaction,
+  );
   const isPredictWithdrawTransactionMock = jest.mocked(
     isPredictWithdrawTransaction,
   );
@@ -287,9 +289,7 @@ describe('isPostRelayMoneyAccountVaultDeposit', () => {
     isPredictWithdrawTransactionMock.mockReturnValue(false);
   });
 
-  function buildRequest(
-    overrides: Partial<QuoteRequest> = {},
-  ): QuoteRequest {
+  function buildRequest(overrides: Partial<QuoteRequest> = {}): QuoteRequest {
     return {
       isMaxAmount: false,
       targetChainId: MUSD_MONAD_FIAT_ASSET.chainId,
@@ -379,7 +379,8 @@ describe('isPostRelayMoneyAccountVaultDeposit', () => {
       expect(
         isPostRelayMoneyAccountVaultDeposit(
           buildRequest({
-            targetTokenAddress: '0xdeadbeef00000000000000000000000000000001' as Hex,
+            targetTokenAddress:
+              '0xdeadbeef00000000000000000000000000000001' as Hex,
           }),
           TRANSACTION_MOCK_2,
         ),
@@ -402,10 +403,7 @@ describe('isPostRelayMoneyAccountVaultDeposit', () => {
 
     it('returns false when neither Perps nor Predict withdraw nor MA deposit', () => {
       expect(
-        isPostRelayMoneyAccountVaultDeposit(
-          buildRequest(),
-          TRANSACTION_MOCK_2,
-        ),
+        isPostRelayMoneyAccountVaultDeposit(buildRequest(), TRANSACTION_MOCK_2),
       ).toBe(false);
     });
   });

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `isPerpsWithdrawTransaction` utility and `isPostRelayMoneyAccountVaultDeposit` predicate to support a post-Relay vault deposit path for max-amount Money Account deposits and Perps/Predict withdrawals to mUSD on Monad ([#9404](https://github.com/MetaMask/core/pull/9404))
+
 ### Changed
 
 - Refactor vault deposit utilities into shared `utils/` modules (`chomp`, `ma-vault-deposit`, `relay-post-ma-vault`) to prepare for the Relay Money Account deposit path ([#9303](https://github.com/MetaMask/core/pull/9303))
