@@ -24,6 +24,7 @@ import {
   collectTransactionIds,
   getTransaction,
   getTransferredAmountFromTxHash,
+  isPerpsWithdrawTransaction,
   isPredictWithdrawTransaction,
   subscribeAssetChanges,
   subscribeTransactionChanges,
@@ -654,6 +655,64 @@ describe('Transaction Utils', () => {
       } as TransactionMeta;
 
       expect(isPredictWithdrawTransaction(transaction)).toBe(false);
+    });
+  });
+
+  describe('isPerpsWithdrawTransaction', () => {
+    it('returns true when the transaction type is perpsWithdraw', () => {
+      const transaction = {
+        ...TRANSACTION_META_MOCK,
+        type: TransactionType.perpsWithdraw,
+      } as TransactionMeta;
+
+      expect(isPerpsWithdrawTransaction(transaction)).toBe(true);
+    });
+
+    it('returns true when a nested transaction has type perpsWithdraw', () => {
+      const transaction = {
+        ...TRANSACTION_META_MOCK,
+        nestedTransactions: [{ type: TransactionType.perpsWithdraw }],
+      } as TransactionMeta;
+
+      expect(isPerpsWithdrawTransaction(transaction)).toBe(true);
+    });
+
+    it('returns true when one of multiple nested transactions has type perpsWithdraw', () => {
+      const transaction = {
+        ...TRANSACTION_META_MOCK,
+        nestedTransactions: [
+          { type: TransactionType.simpleSend },
+          { type: TransactionType.perpsWithdraw },
+        ],
+      } as TransactionMeta;
+
+      expect(isPerpsWithdrawTransaction(transaction)).toBe(true);
+    });
+
+    it('returns false when nested transactions have different types', () => {
+      const transaction = {
+        ...TRANSACTION_META_MOCK,
+        nestedTransactions: [{ type: TransactionType.simpleSend }],
+      } as TransactionMeta;
+
+      expect(isPerpsWithdrawTransaction(transaction)).toBe(false);
+    });
+
+    it('returns false when nestedTransactions is undefined', () => {
+      const transaction = {
+        ...TRANSACTION_META_MOCK,
+      } as TransactionMeta;
+
+      expect(isPerpsWithdrawTransaction(transaction)).toBe(false);
+    });
+
+    it('returns false when nestedTransactions is empty', () => {
+      const transaction = {
+        ...TRANSACTION_META_MOCK,
+        nestedTransactions: [],
+      } as TransactionMeta;
+
+      expect(isPerpsWithdrawTransaction(transaction)).toBe(false);
     });
   });
 });

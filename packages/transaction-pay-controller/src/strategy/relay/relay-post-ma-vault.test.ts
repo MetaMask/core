@@ -2,18 +2,28 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
 import type {
+  QuoteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
 import { submitMoneyAccountVaultDeposit } from '../../utils/ma-vault-deposit';
-import { getTransferredAmountFromTxHash } from '../../utils/transaction';
+import {
+  getTransferredAmountFromTxHash,
+  isPerpsWithdrawTransaction,
+  isPredictWithdrawTransaction,
+} from '../../utils/transaction';
 import { MUSD_MONAD_FIAT_ASSET } from '../fiat/constants';
+import { isMoneyAccountDepositTransaction } from '../fiat/utils';
 import { FALLBACK_HASH } from './constants';
-import { submitPostRelayVaultDeposit } from './relay-post-ma-vault';
+import {
+  isPostRelayMoneyAccountVaultDeposit,
+  submitPostRelayVaultDeposit,
+} from './relay-post-ma-vault';
 import type { RelayCompletionOutcome, RelayQuote } from './types';
 
 jest.mock('../../utils/transaction');
 jest.mock('../../utils/ma-vault-deposit');
+jest.mock('../fiat/utils');
 
 const TRANSACTION_ID_MOCK = 'tx-id';
 const MONEY_ACCOUNT_ADDRESS_MOCK =
@@ -252,6 +262,151 @@ describe('submitPostRelayVaultDeposit', () => {
       });
 
       expect(result).toStrictEqual({ transactionHash: VAULT_HASH_MOCK });
+    });
+  });
+});
+
+describe('isPostRelayMoneyAccountVaultDeposit', () => {
+  const isMoneyAccountDepositTransactionMock = jest.mocked(
+    isMoneyAccountDepositTransaction,
+  );
+  const isPerpsWithdrawTransactionMock = jest.mocked(isPerpsWithdrawTransaction);
+  const isPredictWithdrawTransactionMock = jest.mocked(
+    isPredictWithdrawTransaction,
+  );
+
+  const TRANSACTION_MOCK_2 = {
+    id: 'tx-id-2',
+    txParams: { from: '0xabc' as Hex },
+  } as unknown as TransactionMeta;
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+    isMoneyAccountDepositTransactionMock.mockReturnValue(false);
+    isPerpsWithdrawTransactionMock.mockReturnValue(false);
+    isPredictWithdrawTransactionMock.mockReturnValue(false);
+  });
+
+  function buildRequest(
+    overrides: Partial<QuoteRequest> = {},
+  ): QuoteRequest {
+    return {
+      isMaxAmount: false,
+      targetChainId: MUSD_MONAD_FIAT_ASSET.chainId,
+      targetTokenAddress: MUSD_MONAD_FIAT_ASSET.address,
+      ...overrides,
+    } as unknown as QuoteRequest;
+  }
+
+  describe('Money Account deposit path', () => {
+    it('returns true when isMaxAmount is true and transaction is a Money Account deposit', () => {
+      isMoneyAccountDepositTransactionMock.mockReturnValue(true);
+
+      expect(
+        isPostRelayMoneyAccountVaultDeposit(
+          buildRequest({ isMaxAmount: true }),
+          TRANSACTION_MOCK_2,
+        ),
+      ).toBe(true);
+    });
+
+    it('returns false when isMaxAmount is false even if transaction is a Money Account deposit', () => {
+      isMoneyAccountDepositTransactionMock.mockReturnValue(true);
+
+      expect(
+        isPostRelayMoneyAccountVaultDeposit(
+          buildRequest({ isMaxAmount: false }),
+          TRANSACTION_MOCK_2,
+        ),
+      ).toBe(false);
+    });
+
+    it('returns false when isMaxAmount is true but transaction is not a Money Account deposit', () => {
+      isMoneyAccountDepositTransactionMock.mockReturnValue(false);
+
+      expect(
+        isPostRelayMoneyAccountVaultDeposit(
+          buildRequest({ isMaxAmount: true }),
+          TRANSACTION_MOCK_2,
+        ),
+      ).toBe(false);
+    });
+  });
+
+  describe('Perps/Predict withdraw path', () => {
+    it('returns true when transaction is a Perps withdrawal targeting mUSD on Monad', () => {
+      isPerpsWithdrawTransactionMock.mockReturnValue(true);
+
+      expect(
+        isPostRelayMoneyAccountVaultDeposit(
+          buildRequest({
+            targetChainId: MUSD_MONAD_FIAT_ASSET.chainId,
+            targetTokenAddress: MUSD_MONAD_FIAT_ASSET.address,
+          }),
+          TRANSACTION_MOCK_2,
+        ),
+      ).toBe(true);
+    });
+
+    it('returns true when transaction is a Predict withdrawal targeting mUSD on Monad', () => {
+      isPredictWithdrawTransactionMock.mockReturnValue(true);
+
+      expect(
+        isPostRelayMoneyAccountVaultDeposit(
+          buildRequest({
+            targetChainId: MUSD_MONAD_FIAT_ASSET.chainId,
+            targetTokenAddress: MUSD_MONAD_FIAT_ASSET.address,
+          }),
+          TRANSACTION_MOCK_2,
+        ),
+      ).toBe(true);
+    });
+
+    it('returns false when transaction is a Perps withdrawal but targetChainId does not match Monad', () => {
+      isPerpsWithdrawTransactionMock.mockReturnValue(true);
+
+      expect(
+        isPostRelayMoneyAccountVaultDeposit(
+          buildRequest({ targetChainId: '0x1' as Hex }),
+          TRANSACTION_MOCK_2,
+        ),
+      ).toBe(false);
+    });
+
+    it('returns false when transaction is a Perps withdrawal but targetTokenAddress does not match mUSD', () => {
+      isPerpsWithdrawTransactionMock.mockReturnValue(true);
+
+      expect(
+        isPostRelayMoneyAccountVaultDeposit(
+          buildRequest({
+            targetTokenAddress: '0xdeadbeef00000000000000000000000000000001' as Hex,
+          }),
+          TRANSACTION_MOCK_2,
+        ),
+      ).toBe(false);
+    });
+
+    it('matches targetTokenAddress case-insensitively', () => {
+      isPerpsWithdrawTransactionMock.mockReturnValue(true);
+
+      expect(
+        isPostRelayMoneyAccountVaultDeposit(
+          buildRequest({
+            targetTokenAddress:
+              MUSD_MONAD_FIAT_ASSET.address.toUpperCase() as Hex,
+          }),
+          TRANSACTION_MOCK_2,
+        ),
+      ).toBe(true);
+    });
+
+    it('returns false when neither Perps nor Predict withdraw nor MA deposit', () => {
+      expect(
+        isPostRelayMoneyAccountVaultDeposit(
+          buildRequest(),
+          TRANSACTION_MOCK_2,
+        ),
+      ).toBe(false);
     });
   });
 });
