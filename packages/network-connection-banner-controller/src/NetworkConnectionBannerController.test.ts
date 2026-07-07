@@ -263,7 +263,7 @@ describe('NetworkConnectionBannerController', () => {
     it('cancels a pending banner and resets state on lock', async () => {
       await withController(
         { externalState: buildExternalState({ enabledEvmChainIds: ['0x89'] }) },
-        ({ controller, setNetworkControllerState }) => {
+        ({ controller, setNetworkControllerState, setKeyringUnlocked }) => {
           setNetworkControllerState({
             networkConfigurationsByChainId: {
               '0x89': buildNetworkConfiguration({
