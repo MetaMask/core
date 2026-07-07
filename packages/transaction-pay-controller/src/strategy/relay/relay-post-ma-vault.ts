@@ -168,12 +168,11 @@ export function isPostRelayMoneyAccountVaultDeposit(
     return true;
   }
 
-  return false;
-  // return (
-  //   (isPerpsWithdrawTransaction(transaction) ||
-  //     isPredictWithdrawTransaction(transaction)) &&
-  //   request.targetChainId === MUSD_MONAD_FIAT_ASSET.chainId &&
-  //   request.targetTokenAddress.toLowerCase() ===
-  //     MUSD_MONAD_FIAT_ASSET.address.toLowerCase()
-  // );
+  return (
+    (isPerpsWithdrawTransaction(transaction) ||
+      isPredictWithdrawTransaction(transaction)) &&
+    request.targetChainId === MUSD_MONAD_FIAT_ASSET.chainId &&
+    request.targetTokenAddress.toLowerCase() ===
+      MUSD_MONAD_FIAT_ASSET.address.toLowerCase()
+  );
 }
