@@ -130,6 +130,51 @@ describe('gas-fees', () => {
       );
     });
 
+    describe('saved (advanced) gas fees', () => {
+      const SAVED_GAS_FEES_MOCK = { maxBaseFee: '123', priorityFee: '456' };
+
+      it('are applied for non-swap, non-bridge transactions', async () => {
+        updateGasFeeRequest.txMeta.type = TransactionType.simpleSend;
+        updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce(
+          SAVED_GAS_FEES_MOCK,
+        );
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.getSavedGasFees).toHaveBeenCalledTimes(1);
+        expect(updateGasFeeRequest.txMeta.txParams.maxFeePerGas).toBe(
+          '0x1ca35f0e00', // 123 gwei
+        );
+        expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(
+          UserFeeLevel.CUSTOM,
+        );
+      });
+
+      it.each([
+        TransactionType.swap,
+        TransactionType.swapAndSend,
+        TransactionType.swapApproval,
+        TransactionType.bridge,
+        TransactionType.bridgeApproval,
+      ])('are ignored for %s transactions', async (type) => {
+        mockGasFeeFlowMockResponse(FLOW_RESPONSE_FEE_MARKET_MOCK);
+        updateGasFeeRequest.txMeta.type = type;
+        updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce(
+          SAVED_GAS_FEES_MOCK,
+        );
+
+        await updateGasFees(updateGasFeeRequest);
+
+        expect(updateGasFeeRequest.getSavedGasFees).not.toHaveBeenCalled();
+        expect(updateGasFeeRequest.txMeta.txParams.maxFeePerGas).toBe(
+          GAS_HEX_WEI_MOCK,
+        );
+        expect(updateGasFeeRequest.txMeta.userFeeLevel).not.toBe(
+          UserFeeLevel.CUSTOM,
+        );
+      });
+    });
+
     it('deletes gasPrice property if maxPriorityFeePerGas set', async () => {
       updateGasFeeRequest.txMeta.txParams.maxPriorityFeePerGas = GAS_HEX_MOCK;
       updateGasFeeRequest.txMeta.txParams.gasPrice = GAS_HEX_MOCK;
