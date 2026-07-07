@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add an optional `isSubsidized` flag to `GetDelegationTransactionCallback`, send `metamask.executeVersion: 2` on Relay execute quote requests, and include a signed `metamask` envelope on Relay executes ([#9298](https://github.com/MetaMask/core/pull/9298))
+- **BREAKING:** Add an optional `isSubsidized` flag to `GetDelegationTransactionCallback`, send `metamask.executeVersion: 2` on Relay execute quote requests, and include a signed `metamask` envelope on Relay executes ([#9298](https://github.com/MetaMask/core/pull/9298))
 
 ### Changed
 
@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/ramps-controller` from `^15.0.0` to `^15.1.0` ([#9395](https://github.com/MetaMask/core/pull/9395))
 - Bump `@metamask/assets-controller` from `^10.0.1` to `^10.1.0` ([#9411](https://github.com/MetaMask/core/pull/9411))
 - Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.3.0` ([#9421](https://github.com/MetaMask/core/pull/9421))
+
+### Fixed
+
+- Regenerate `txParams` (`to`, `value`, `data`) from the current quote's nested transactions before requesting the delegation transaction on Relay executes, so delegation caveats are built from the transactions actually being redeemed instead of stale `txParams` from a previous quote ([#9298](https://github.com/MetaMask/core/pull/9298))
 
 ## [23.17.4]
 

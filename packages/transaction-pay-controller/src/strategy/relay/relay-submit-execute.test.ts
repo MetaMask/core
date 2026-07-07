@@ -1,3 +1,4 @@
+import { generateEIP7702BatchTransaction } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
@@ -188,6 +189,73 @@ describe('Relay Submit Execute', () => {
         }),
         isSubsidized: false,
       });
+    });
+
+    it('regenerates txParams from the single nested transaction', async () => {
+      await submitViaRelayExecute(quote, transaction, messenger, allParams);
+
+      expect(getDelegationTransactionMock).toHaveBeenCalledWith({
+        transaction: expect.objectContaining({
+          txParams: expect.objectContaining({
+            from: FROM_MOCK,
+            to: '0xfedcb',
+            data: '0x1234',
+            value: '0x4d2',
+          }),
+        }),
+        isSubsidized: false,
+      });
+    });
+
+    it('regenerates txParams as an EIP-7702 batch for multiple nested transactions', async () => {
+      const batchFrom = '0x1111111111111111111111111111111111111111' as Hex;
+      quote.request.from = batchFrom;
+
+      const multiParams = [
+        {
+          to: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex,
+          data: '0x1111' as Hex,
+          value: '0x1' as Hex,
+        },
+        {
+          to: '0xbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb' as Hex,
+          data: '0x2222' as Hex,
+          value: '0x2' as Hex,
+        },
+      ];
+
+      const expectedBatch = generateEIP7702BatchTransaction(
+        batchFrom,
+        multiParams,
+      );
+
+      await submitViaRelayExecute(quote, transaction, messenger, multiParams);
+
+      expect(getDelegationTransactionMock).toHaveBeenCalledWith({
+        transaction: expect.objectContaining({
+          txParams: expect.objectContaining({
+            from: batchFrom,
+            to: expectedBatch.to,
+            data: expectedBatch.data,
+            value: '0x0',
+          }),
+        }),
+        isSubsidized: false,
+      });
+    });
+
+    it('does not use stale txParams.data from the incoming transaction', async () => {
+      transaction.txParams.data = '0xstaledata' as Hex;
+      transaction.txParams.to = '0xstaleto' as Hex;
+
+      await submitViaRelayExecute(quote, transaction, messenger, allParams);
+
+      const call = getDelegationTransactionMock.mock.calls[0][0] as {
+        transaction: TransactionMeta;
+      };
+
+      expect(call.transaction.txParams.data).toBe('0x1234');
+      expect(call.transaction.txParams.to).toBe('0xfedcb');
     });
 
     it('submits to /execute with delegation data and metamask envelope', async () => {

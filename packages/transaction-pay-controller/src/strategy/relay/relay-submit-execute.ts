@@ -1,3 +1,4 @@
+import { generateEIP7702BatchTransaction } from '@metamask/transaction-controller';
 import type { TransactionParams } from '@metamask/transaction-controller';
 import type {
   AuthorizationList,
@@ -52,18 +53,33 @@ async function submitViaRelayExecuteInternal(
   const { from, sourceChainId } = quote.request;
   const networkClientId = getNetworkClientId(messenger, sourceChainId);
 
+  const nestedTransactions = allParams.map((param) => ({
+    data: (param.data ?? '0x') as Hex,
+    to: param.to as Hex,
+    value: (param.value ?? '0x0') as Hex,
+  }));
+
+  // Regenerate `txParams` so it matches the current quote's nested transactions.
+  // The original `transaction.txParams` may be stale (from a previous quote), and
+  // downstream delegation caveats are built from `txParams.data`, so it must reflect
+  // the transactions being redeemed. A single nested transaction is used directly;
+  // multiple are wrapped into an atomic EIP-7702 (ERC-7821) batch.
+  const batchParams =
+    nestedTransactions.length === 1
+      ? nestedTransactions[0]
+      : generateEIP7702BatchTransaction(from, nestedTransactions);
+
   const executionTransaction: TransactionMeta = {
     ...transaction,
     chainId: sourceChainId,
     networkClientId,
-    nestedTransactions: allParams.map((param) => ({
-      data: (param.data ?? '0x') as Hex,
-      to: param.to as Hex,
-      value: (param.value ?? '0x0') as Hex,
-    })),
+    nestedTransactions,
     txParams: {
       ...transaction.txParams,
       from,
+      to: batchParams.to,
+      value: batchParams.value ?? '0x0',
+      data: batchParams.data,
     },
   } as TransactionMeta;
 
