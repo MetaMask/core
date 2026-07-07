@@ -6,31 +6,6 @@
 import type { NetworkConnectionBannerController } from './NetworkConnectionBannerController';
 
 /**
- * Look for a failed network, if any, and populate the initial state of the
- * banner. Reacts to upstream state changes from this point on.
- *
- * Call this when the wallet UI that consumes the banner becomes active
- * (typically when the wallet is unlocked and the home surface mounts) so
- * timers do not run while the user is not looking at the wallet. Should
- * be called after `NetworkController`, `NetworkEnablementController`, and
- * `ConnectivityController` have been initialized. Idempotent.
- */
-export type NetworkConnectionBannerControllerStartAction = {
-  type: `NetworkConnectionBannerController:start`;
-  handler: NetworkConnectionBannerController['start'];
-};
-
-/**
- * Stops evaluating network connection state. Clears any pending banner
- * timers and resets state to `available`. Call this when the UI
- * consuming the banner is no longer active. Idempotent.
- */
-export type NetworkConnectionBannerControllerStopAction = {
-  type: `NetworkConnectionBannerController:stop`;
-  handler: NetworkConnectionBannerController['stop'];
-};
-
-/**
  * Clears the banner state such that the banner will be hidden.
  */
 export type NetworkConnectionBannerControllerDismissBannerAction = {
@@ -56,7 +31,5 @@ export type NetworkConnectionBannerControllerSwitchToDefaultInfuraRpcEndpointAct
  * Union of all NetworkConnectionBannerController action types.
  */
 export type NetworkConnectionBannerControllerMethodActions =
-  | NetworkConnectionBannerControllerStartAction
-  | NetworkConnectionBannerControllerStopAction
   | NetworkConnectionBannerControllerDismissBannerAction
   | NetworkConnectionBannerControllerSwitchToDefaultInfuraRpcEndpointAction;

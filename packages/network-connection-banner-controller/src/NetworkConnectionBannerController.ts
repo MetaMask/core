@@ -4,6 +4,8 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import { clientControllerSelectors } from '@metamask/client-controller';
+import type { ClientControllerState } from '@metamask/client-controller';
 import {
   CONNECTIVITY_STATUSES,
   connectivityControllerSelectors,
@@ -13,6 +15,10 @@ import type {
   ConnectivityControllerState,
   ConnectivityControllerStateChangeEvent,
 } from '@metamask/connectivity-controller';
+import type {
+  KeyringControllerLockEvent,
+  KeyringControllerUnlockEvent,
+} from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkConfiguration,
@@ -206,8 +212,6 @@ const DEGRADED_BANNER_TIMEOUT = 5_000;
 const UNAVAILABLE_BANNER_TIMEOUT = 30_000;
 
 const MESSENGER_EXPOSED_METHODS = [
-  'start',
-  'stop',
   'dismissBanner',
   'switchToDefaultInfuraRpcEndpoint',
 ] as const;
@@ -258,13 +262,26 @@ export type NetworkConnectionBannerControllerEvents =
   NetworkConnectionBannerControllerStateChangedEvent;
 
 /**
+ * Published when the state of `ClientController` changes. Defined here
+ * because the `client-controller` package still exports the legacy
+ * `:stateChange` event type.
+ */
+type ClientControllerStateChangedEvent = ControllerStateChangedEvent<
+  'ClientController',
+  ClientControllerState
+>;
+
+/**
  * Events from other messengers that
  * {@link NetworkConnectionBannerControllerMessenger} subscribes to.
  */
 type AllowedEvents =
   | NetworkControllerStateChangeEvent
   | NetworkEnablementControllerStateChangeEvent
-  | ConnectivityControllerStateChangeEvent;
+  | ConnectivityControllerStateChangeEvent
+  | ClientControllerStateChangedEvent
+  | KeyringControllerUnlockEvent
+  | KeyringControllerLockEvent;
 
 /**
  * The messenger restricted to actions and events accessed by
@@ -303,6 +320,9 @@ export type NetworkConnectionBannerControllerOptions = {
  * failure is present, it's surfaced first so the "Switch to MetaMask default
  * RPC" CTA targets the network the user can act on.
  *
+ * The controller manages its own lifecycle: it evaluates RPC health (and
+ * runs the escalation timers) only while the client UI is open
+ * (`ClientController`) and the wallet is unlocked (`KeyringController`).
  * Clients only need to render the banner from the controller's state and wire
  * click handlers to {@link dismissBanner} or {@link switchToDefaultInfuraRpcEndpoint}.
  */
@@ -318,6 +338,12 @@ export class NetworkConnectionBannerController extends BaseController<
   #pendingNetworkClientId: string | undefined;
 
   #isStarted = false;
+
+  /** Whether the client UI is open. Combined with {@link #isUnlocked}. */
+  #isUiOpen = false;
+
+  /** Whether the keyring is unlocked. Combined with {@link #isUiOpen}. */
+  #isUnlocked = false;
 
   /**
    * Constructs a new {@link NetworkConnectionBannerController}.
@@ -380,23 +406,44 @@ export class NetworkConnectionBannerController extends BaseController<
     );
     /* eslint-enable no-restricted-syntax */
 
+    // Lifecycle: evaluate RPC health (and run the banner escalation timers)
+    // only while the client UI is open on an unlocked wallet.
+    this.messenger.subscribe(
+      'ClientController:stateChanged',
+      (isUiOpen) => {
+        this.#isUiOpen = isUiOpen;
+        this.#updateLifecycle();
+      },
+      clientControllerSelectors.selectIsUiOpen,
+    );
+    this.messenger.subscribe('KeyringController:unlock', () => {
+      this.#isUnlocked = true;
+      this.#updateLifecycle();
+    });
+    this.messenger.subscribe('KeyringController:lock', () => {
+      this.#isUnlocked = false;
+      this.#updateLifecycle();
+    });
+
     this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
   }
 
+  #updateLifecycle(): void {
+    if (this.#isUiOpen && this.#isUnlocked) {
+      this.#start();
+    } else {
+      this.#stop();
+    }
+  }
+
   /**
    * Look for a failed network, if any, and populate the initial state of the
-   * banner. Reacts to upstream state changes from this point on.
-   *
-   * Call this when the wallet UI that consumes the banner becomes active
-   * (typically when the wallet is unlocked and the home surface mounts) so
-   * timers do not run while the user is not looking at the wallet. Should
-   * be called after `NetworkController`, `NetworkEnablementController`, and
-   * `ConnectivityController` have been initialized. Idempotent.
+   * banner. Reacts to upstream state changes from this point on. Idempotent.
    */
-  start(): void {
+  #start(): void {
     if (this.#isStarted) {
       return;
     }
@@ -415,10 +462,9 @@ export class NetworkConnectionBannerController extends BaseController<
 
   /**
    * Stops evaluating network connection state. Clears any pending banner
-   * timers and resets state to `available`. Call this when the UI
-   * consuming the banner is no longer active. Idempotent.
+   * timers and resets state to `available`. Idempotent.
    */
-  stop(): void {
+  #stop(): void {
     if (!this.#isStarted) {
       return;
     }

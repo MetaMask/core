@@ -457,7 +457,9 @@ linkStyle default opacity:0.5
   name_controller --> controller_utils;
   name_controller --> messenger;
   network_connection_banner_controller --> base_controller;
+  network_connection_banner_controller --> client_controller;
   network_connection_banner_controller --> connectivity_controller;
+  network_connection_banner_controller --> keyring_controller;
   network_connection_banner_controller --> messenger;
   network_connection_banner_controller --> network_controller;
   network_connection_banner_controller --> network_enablement_controller;

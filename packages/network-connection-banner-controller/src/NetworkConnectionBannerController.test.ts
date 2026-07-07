@@ -104,8 +104,8 @@ describe('NetworkConnectionBannerController', () => {
     });
   });
 
-  describe('start', () => {
-    it('does not evaluate existing upstream state before start', async () => {
+  describe('lifecycle', () => {
+    it('does not evaluate existing upstream state before the UI opens on an unlocked wallet', async () => {
       const externalState = buildExternalState({
         networkConfigurationsByChainId: {
           '0x89': buildNetworkConfiguration({
@@ -138,7 +138,7 @@ describe('NetworkConnectionBannerController', () => {
       );
     });
 
-    it('evaluates existing upstream state on start', async () => {
+    it('evaluates existing upstream state once the UI is open and the wallet unlocked', async () => {
       const externalState = buildExternalState({
         networkConfigurationsByChainId: {
           '0x89': buildNetworkConfiguration({
@@ -161,9 +161,11 @@ describe('NetworkConnectionBannerController', () => {
 
       await withController(
         { externalState, start: false },
-        ({ controller, rootMessenger }) => {
-          rootMessenger.call('NetworkConnectionBannerController:start');
-          rootMessenger.call('NetworkConnectionBannerController:start');
+        ({ controller, setUiOpen, setKeyringUnlocked }) => {
+          setUiOpen(true);
+          setKeyringUnlocked(true);
+          // Repeated signals must not restart the evaluation.
+          setKeyringUnlocked(true);
 
           jest.advanceTimersByTime(5_000);
 
@@ -174,13 +176,19 @@ describe('NetworkConnectionBannerController', () => {
       );
     });
 
-    it('ignores upstream state changes before start', async () => {
+    it('ignores upstream state changes while the wallet is locked', async () => {
       await withController(
         {
           externalState: buildExternalState({ enabledEvmChainIds: ['0x89'] }),
           start: false,
         },
-        ({ controller, setNetworkControllerState }) => {
+        ({
+          controller,
+          setNetworkControllerState,
+          setUiOpen,
+          setKeyringUnlocked,
+        }) => {
+          setUiOpen(true);
           setNetworkControllerState({
             networkConfigurationsByChainId: {
               '0x89': buildNetworkConfiguration({
@@ -205,7 +213,7 @@ describe('NetworkConnectionBannerController', () => {
             'available',
           );
 
-          controller.start();
+          setKeyringUnlocked(true);
           jest.advanceTimersByTime(5_000);
           expect(controller.state.networkConnectionBannerStatus).toBe(
             'degraded',
@@ -214,11 +222,11 @@ describe('NetworkConnectionBannerController', () => {
       );
     });
 
-    it('resumes evaluation when start is called again after stop', async () => {
+    it('resumes evaluation when the UI reopens', async () => {
       await withController(
         { externalState: buildExternalState({ enabledEvmChainIds: ['0x89'] }) },
-        ({ controller, setNetworkControllerState }) => {
-          controller.stop();
+        ({ controller, setNetworkControllerState, setUiOpen }) => {
+          setUiOpen(false);
 
           setNetworkControllerState({
             networkConfigurationsByChainId: {
@@ -243,7 +251,7 @@ describe('NetworkConnectionBannerController', () => {
             'available',
           );
 
-          controller.start();
+          setUiOpen(true);
           jest.advanceTimersByTime(5_000);
           expect(controller.state.networkConnectionBannerStatus).toBe(
             'degraded',
@@ -251,10 +259,8 @@ describe('NetworkConnectionBannerController', () => {
         },
       );
     });
-  });
 
-  describe('stop', () => {
-    it('cancels a pending banner and resets state on stop', async () => {
+    it('cancels a pending banner and resets state on lock', async () => {
       await withController(
         { externalState: buildExternalState({ enabledEvmChainIds: ['0x89'] }) },
         ({ controller, setNetworkControllerState }) => {
@@ -282,7 +288,7 @@ describe('NetworkConnectionBannerController', () => {
             'degraded',
           );
 
-          controller.stop();
+          setKeyringUnlocked(false);
           jest.advanceTimersByTime(30_000);
           expect(controller.state).toStrictEqual({
             networkConnectionBannerStatus: 'available',
@@ -292,11 +298,11 @@ describe('NetworkConnectionBannerController', () => {
       );
     });
 
-    it('ignores upstream state changes after stop', async () => {
+    it('ignores upstream state changes after the UI closes', async () => {
       await withController(
         { externalState: buildExternalState({ enabledEvmChainIds: ['0x89'] }) },
-        ({ controller, setNetworkControllerState }) => {
-          controller.stop();
+        ({ controller, setNetworkControllerState, setUiOpen }) => {
+          setUiOpen(false);
           setNetworkControllerState({
             networkConfigurationsByChainId: {
               '0x89': buildNetworkConfiguration({
@@ -324,20 +330,28 @@ describe('NetworkConnectionBannerController', () => {
       );
     });
 
-    it('does nothing when called before start', async () => {
-      await withController({ start: false }, ({ controller }) => {
-        controller.stop();
-        controller.stop();
-        expect(controller.state).toStrictEqual({
-          networkConnectionBannerStatus: 'available',
-          networkConnectionBannerNetwork: null,
-        });
-      });
+    it('stays dormant when the wallet locks without ever having started', async () => {
+      await withController(
+        { start: false },
+        ({ controller, setKeyringUnlocked }) => {
+          setKeyringUnlocked(false);
+          setKeyringUnlocked(false);
+          expect(controller.state).toStrictEqual({
+            networkConnectionBannerStatus: 'available',
+            networkConnectionBannerNetwork: null,
+          });
+        },
+      );
     });
 
-    it('bails out when a stateChanged listener calls stop synchronously during refresh', async () => {
+    it('bails out when a stateChanged listener locks the wallet synchronously during refresh', async () => {
       await withController(
-        ({ controller, controllerMessenger, publishNetworkStateChanges }) => {
+        ({
+          controller,
+          controllerMessenger,
+          publishNetworkStateChanges,
+          setKeyringUnlocked,
+        }) => {
           // Escalate the banner to `unavailable` so state is non default and the
           // next refresh's pre timer `update` actually mutates state.
           publishNetworkStateChanges(
@@ -372,7 +386,7 @@ describe('NetworkConnectionBannerController', () => {
             () => {
               if (!stopped) {
                 stopped = true;
-                controller.stop();
+                setKeyringUnlocked(false);
               }
             },
           );
@@ -410,14 +424,19 @@ describe('NetworkConnectionBannerController', () => {
       );
     });
 
-    it('bails out when a stateChanged listener calls stop synchronously at the degraded fire', async () => {
+    it('bails out when a stateChanged listener locks the wallet synchronously at the degraded fire', async () => {
       await withController(
-        ({ controller, controllerMessenger, publishNetworkStateChanges }) => {
+        ({
+          controller,
+          controllerMessenger,
+          publishNetworkStateChanges,
+          setKeyringUnlocked,
+        }) => {
           controllerMessenger.subscribe(
             'NetworkConnectionBannerController:stateChanged',
             (state) => {
               if (state.networkConnectionBannerStatus === 'degraded') {
-                controller.stop();
+                setKeyringUnlocked(false);
               }
             },
           );
@@ -445,7 +464,7 @@ describe('NetworkConnectionBannerController', () => {
           );
 
           // Advance to fire the degraded timer; its `update` triggers the
-          // listener, which calls stop(). The guard should bail before
+          // listener, which locks the wallet. The guard should bail before
           // scheduling the unavailable escalation.
           jest.advanceTimersByTime(30_000);
           expect(controller.state).toStrictEqual({
@@ -1551,6 +1570,8 @@ type WithControllerCallback<ReturnValue> = (payload: {
   setConnectivityStatus: (
     status: ConnectivityControllerState['connectivityStatus'],
   ) => void;
+  setUiOpen: (isUiOpen: boolean) => void;
+  setKeyringUnlocked: (isUnlocked: boolean) => void;
   updateNetwork: jest.Mock;
 }) => Promise<ReturnValue> | ReturnValue;
 
@@ -1639,14 +1660,28 @@ async function withController<ReturnValue>(
       'NetworkEnablementController:stateChange',
       // eslint-disable-next-line no-restricted-syntax -- awaiting upstream :stateChanged migration
       'ConnectivityController:stateChange',
+      'ClientController:stateChanged',
+      'KeyringController:unlock',
+      'KeyringController:lock',
     ],
   });
 
   const controller = new NetworkConnectionBannerController({
     messenger,
   });
+
+  const setUiOpen = (isUiOpen: boolean): void => {
+    rootMessenger.publish('ClientController:stateChanged', { isUiOpen }, []);
+  };
+  const setKeyringUnlocked = (isUnlocked: boolean): void => {
+    rootMessenger.publish(
+      isUnlocked ? 'KeyringController:unlock' : 'KeyringController:lock',
+    );
+  };
+
   if (start) {
-    controller.start();
+    setUiOpen(true);
+    setKeyringUnlocked(true);
   }
 
   const setNetworkControllerState = (
@@ -1722,6 +1757,8 @@ async function withController<ReturnValue>(
     setNetworkEnablementControllerState,
     publishNetworkStateChanges,
     setConnectivityStatus,
+    setUiOpen,
+    setKeyringUnlocked,
     updateNetwork,
   });
 }
