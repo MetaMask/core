@@ -19,10 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/assets-controller` from `^10.0.1` to `^10.1.0` ([#9411](https://github.com/MetaMask/core/pull/9411))
 - Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.3.0` ([#9421](https://github.com/MetaMask/core/pull/9421))
 
-### Fixed
-
-- Regenerate `txParams` (`to`, `value`, `data`) from the current quote's nested transactions before requesting the delegation transaction on Relay executes, so delegation caveats are built from the transactions actually being redeemed instead of stale `txParams` from a previous quote ([#9298](https://github.com/MetaMask/core/pull/9298))
-
 ## [23.17.4]
 
 ### Fixed
