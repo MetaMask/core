@@ -27,6 +27,7 @@ import {
   formatChainIdToDec,
 } from './caip-formatters';
 import { fetchServerEvents } from './fetch-server-events';
+import { formatStructErrors } from './struct-error';
 
 export const getClientHeaders = ({
   clientId,
@@ -398,6 +399,7 @@ export async function fetchBridgeQuoteStream(
       }
     } catch (error) {
       if (error instanceof StructError) {
+        console.warn('Quote validation failed', formatStructErrors(error));
         error.failures().forEach(({ branch, path }) => {
           const aggregatorId =
             branch?.[0]?.quote?.bridgeId ??
@@ -411,7 +413,6 @@ export async function fetchBridgeQuoteStream(
       }
       const validationFailures = Array.from(uniqueValidationFailures);
       if (uniqueValidationFailures.size > 0) {
-        console.warn('Quote validation failed', validationFailures);
         return serverEventHandlers.onQuoteValidationFailure(validationFailures);
       }
       // Rethrow any unexpected errors

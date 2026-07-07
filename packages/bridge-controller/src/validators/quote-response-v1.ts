@@ -48,17 +48,8 @@ export const QuoteResponseSchemaV1 = type({
 export const validateQuoteResponseV1 = (
   data: unknown,
 ): data is Infer<typeof QuoteResponseSchemaV1> => {
-  try {
-    assert(data, QuoteResponseSchemaV1);
-    return true;
-  } catch (error) {
-    if (error instanceof StructError) {
-      console.warn('Quote validation failed', formatStructErrors(error));
-    } else {
-      console.warn(JSON.stringify(error, null, 2));
-    }
-    throw error;
-  }
+  assert(data, QuoteResponseSchemaV1);
+  return true;
 };
 
 /**

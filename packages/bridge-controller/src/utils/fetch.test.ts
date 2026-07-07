@@ -273,7 +273,17 @@ describe('fetch', () => {
         'lifi|approval',
         'socket|trade',
       ]);
-      expect(mockConsoleWarn).toHaveBeenCalledTimes(1);
+      expect(mockConsoleWarn.mock.calls).toMatchInlineSnapshot(`
+        [
+          [
+            "Quote validation failed",
+            [
+              "lifi|approval",
+              "socket|trade",
+            ],
+          ],
+        ]
+      `);
       mockConsoleWarn.mockRestore();
     });
 

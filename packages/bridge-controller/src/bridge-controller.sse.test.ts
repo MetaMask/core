@@ -1239,18 +1239,20 @@ describe('BridgeController SSE', function () {
           [
             "Quote validation failed",
             [
-              "lifi|trade",
-              "lifi|trade.chainId",
-              "lifi|trade.to",
-              "lifi|trade.from",
-              "lifi|trade.value",
-              "lifi|trade.data",
-              "lifi|trade.gasLimit",
-              "lifi|trade.unsignedPsbtBase64",
-              "lifi|trade.inputsToSign",
-              "lifi|trade.raw_data_hex",
-              "lifi|trade.xdrBase64",
-              "lifi|trade.xdr",
+              "At path: trade (union) -- Expected the value to satisfy a union of \`type | type | type | union | string\`, but received: [object Object]",
+              "At path: trade.chainId (union) -- Expected a number, but received: undefined",
+              "At path: trade.to (union) -- Expected a value of type \`HexString\`, but received: \`undefined\`",
+              "At path: trade.from (union) -- Expected a value of type \`HexString\`, but received: \`undefined\`",
+              "At path: trade.value (union) -- Expected a value of type \`HexString\`, but received: \`undefined\`",
+              "At path: trade.data (union) -- Expected a value of type \`HexString\`, but received: \`undefined\`",
+              "At path: trade.gasLimit (union) -- Expected a number, but received: undefined",
+              "At path: trade.unsignedPsbtBase64 (union) -- Expected a string, but received: undefined",
+              "At path: trade.inputsToSign (union) -- Expected an array value, but received: undefined",
+              "At path: trade.raw_data_hex (union) -- Expected a string, but received: undefined",
+              "At path: trade (union) -- Expected the value to satisfy a union of \`type | type\`, but received: [object Object]",
+              "At path: trade.xdrBase64 (union) -- Expected a string, but received: undefined",
+              "At path: trade.xdr (union) -- Expected a string, but received: undefined",
+              "At path: trade (union) -- Expected a string, but received: [object Object]",
             ],
           ]
         `);
@@ -1268,21 +1270,21 @@ describe('BridgeController SSE', function () {
         );
         expect(consoleWarnSpy.mock.calls).toHaveLength(3);
         expect(consoleWarnSpy.mock.calls[1]).toMatchInlineSnapshot(`
-                  [
-                    "Quote validation failed",
-                    [
-                      "unknown|unknown",
-                    ],
-                  ]
-              `);
+          [
+            "Quote validation failed",
+            [
+              "At path: <root> (type) -- Expected an object, but received: """,
+            ],
+          ]
+        `);
         expect(consoleWarnSpy.mock.calls[2]).toMatchInlineSnapshot(`
-                  [
-                    "Quote validation failed",
-                    [
-                      "unknown|quote",
-                    ],
-                  ]
-              `);
+          [
+            "Quote validation failed",
+            [
+              "At path: quote (type) -- Expected an object, but received: undefined",
+            ],
+          ]
+        `);
 
         expect(consoleLogSpy).toHaveBeenCalledTimes(1);
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(5);
