@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add optional `getCanonicalProfileId` constructor callback and `metaMetricsFlags` map so threshold flags segment users by canonical profile ID by default, or by MetaMetrics ID when the flag name is present in `metaMetricsFlags` ([#9325](https://github.com/MetaMask/core/pull/9325))
 - Add optional `featureFlagThresholdGroups` field to `RemoteFeatureFlagControllerState` to map feature flag names to their selected threshold group names ([#9289](https://github.com/MetaMask/core/pull/9289))
 - Add optional `metaMetricsIds` field to threshold feature flag entries for explicit user targeting ([#9340](https://github.com/MetaMask/core/pull/9340))
   - When a threshold entry includes `metaMetricsIds: string[]`, the entry is selected immediately if the current user's MetaMetrics ID appears in that list, bypassing hash-based rollout. This is intended for QA and Product Manager testing in any environment, including production.
