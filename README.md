@@ -416,6 +416,9 @@ linkStyle default opacity:0.5
   message_manager --> base_controller;
   message_manager --> controller_utils;
   message_manager --> messenger;
+  money_account_api_data_service --> base_data_service;
+  money_account_api_data_service --> controller_utils;
+  money_account_api_data_service --> messenger;
   money_account_balance_service --> base_data_service;
   money_account_balance_service --> controller_utils;
   money_account_balance_service --> messenger;

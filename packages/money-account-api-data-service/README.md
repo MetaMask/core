@@ -1,6 +1,6 @@
 # `@metamask/money-account-api-data-service`
 
-Data service for fetching Money account positions, interest, cash-flow history, and vault rate history from the Money Account API
+Data service for fetching Money account positions, interest, cash-flow history, and vault rate history from the Money Account API.
 
 ## Installation
 
