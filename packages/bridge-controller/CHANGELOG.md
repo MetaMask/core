@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Bump `@metamask/assets-controller` from `^10.0.1` to `^10.1.0` ([#9408](https://github.com/MetaMask/core/pull/9408))
 
 ## [77.3.2]
 
