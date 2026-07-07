@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
+## [68.2.2]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.3` to `^39.0.4` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/core-backend` from `^6.4.0` to `^6.5.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/gas-fee-controller` from `^26.2.3` to `^26.2.4` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/network-controller` from `^33.0.0` to `^34.0.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
+
+## [68.2.1]
+
+### Changed
+
+- Bump `@metamask/core-backend` from `^6.3.3` to `^6.4.0` ([#9312](https://github.com/MetaMask/core/pull/9312))
+
+### Fixed
+
+- Resimulate the latest transaction data instead of stale data captured when resimulation started, fixing flickering simulation results after a transaction is updated ([#9287](https://github.com/MetaMask/core/pull/9287))
+
 ## [68.2.0]
 
 ### Added
@@ -2535,7 +2558,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.2.2...HEAD
+[68.2.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.2.1...@metamask/transaction-controller@68.2.2
+[68.2.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.2.0...@metamask/transaction-controller@68.2.1
 [68.2.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.1.1...@metamask/transaction-controller@68.2.0
 [68.1.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.1.0...@metamask/transaction-controller@68.1.1
 [68.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.0.1...@metamask/transaction-controller@68.1.0

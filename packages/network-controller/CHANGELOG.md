@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
+## [34.0.0]
+
+### Changed
+
+- **BREAKING:** Drive RPC failover from the single `corePlatformRpcFailoverMode` remote feature flag ([#9175](https://github.com/MetaMask/core/pull/9175))
+  - The flag is a string with three values: `disabled` (failover off), `enabled` (divert to failover URLs when the primary endpoint is unavailable), and `forced` (Infura endpoints that have failover URLs route all traffic to those URLs, bypassing Infura entirely). Custom endpoints are unaffected, and the value defaults to `disabled` when the flag is absent or unrecognized.
+  - `NetworkController` no longer reads the `walletFrameworkRpcFailoverEnabled` flag; the `enabled` mode replaces it. Update your remote feature flag configuration to set `corePlatformRpcFailoverMode`.
+
+### Removed
+
+- **BREAKING:** Remove the `NetworkController.enableRpcFailover` and `NetworkController.disableRpcFailover` methods, their `NetworkController:enableRpcFailover` / `NetworkController:disableRpcFailover` messenger actions, and the `NetworkControllerEnableRpcFailoverAction` / `NetworkControllerDisableRpcFailoverAction` types ([#9175](https://github.com/MetaMask/core/pull/9175))
+  - RPC failover is now driven entirely by the `corePlatformRpcFailoverMode` remote feature flag, so there is no longer an imperative toggle.
+
 ## [33.0.0]
 
 ### Added
@@ -1225,7 +1242,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@33.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-controller@34.0.0...HEAD
+[34.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@33.0.0...@metamask/network-controller@34.0.0
 [33.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@32.0.0...@metamask/network-controller@33.0.0
 [32.0.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@31.1.0...@metamask/network-controller@32.0.0
 [31.1.0]: https://github.com/MetaMask/core/compare/@metamask/network-controller@31.0.0...@metamask/network-controller@31.1.0

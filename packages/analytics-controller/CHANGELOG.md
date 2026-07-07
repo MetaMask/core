@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
+## [1.2.1]
+
+### Changed
+
+- Preserve the pre-consent event queue when calling `resetConsentDecision`, matching extension behavior for undecided consent resets during onboarding restarts ([#9284](https://github.com/MetaMask/core/pull/9284))
+
 ## [1.2.0]
 
 ### Added
@@ -51,7 +61,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of @metamask/analytics-controller. ([#7017](https://github.com/MetaMask/core/pull/7017), [#7202](https://github.com/MetaMask/core/pull/7202))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.2.1...HEAD
+[1.2.1]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.2.0...@metamask/analytics-controller@1.2.1
 [1.2.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.1.1...@metamask/analytics-controller@1.2.0
 [1.1.1]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.1.0...@metamask/analytics-controller@1.1.1
 [1.1.0]: https://github.com/MetaMask/core/compare/@metamask/analytics-controller@1.0.1...@metamask/analytics-controller@1.1.0

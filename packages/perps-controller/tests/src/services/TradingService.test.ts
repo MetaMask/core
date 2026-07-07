@@ -2400,6 +2400,33 @@ describe('TradingService', () => {
       );
     });
 
+    it('propagates attribution properties on failure', async () => {
+      mockProvider.placeOrder.mockRejectedValue(new Error('Network error'));
+
+      await expect(
+        tradingService.flipPosition({
+          provider: mockProvider,
+          position: mockPosition,
+          trackingData: {
+            entryPoint: 'position_view',
+            discoverySource: 'banner',
+            hlFeeRate: 0.00045,
+          },
+          context: mockContext,
+        }),
+      ).rejects.toThrow('Network error');
+
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+        PerpsAnalyticsEvent.TradeTransaction,
+        expect.objectContaining({
+          status: 'failed',
+          entry_point: 'position_view',
+          discovery_source: 'banner',
+          hl_fee_rate: 0.00045,
+        }),
+      );
+    });
+
     it('updates state on success', async () => {
       const mockResult: OrderResult = { success: true, orderId: 'flip-123' };
       mockProvider.placeOrder.mockResolvedValue(mockResult);
@@ -2449,6 +2476,401 @@ describe('TradingService', () => {
         orderType: 'market',
         leverage: 10,
       });
+    });
+  });
+
+  describe('consolidated analytics pipeline (TAT-3463)', () => {
+    const mockClosePosition: Position = {
+      symbol: 'BTC',
+      size: '0.5',
+      entryPrice: '50000',
+      liquidationPrice: '45000',
+      leverage: { type: 'cross', value: 10 },
+      marginUsed: '2500',
+      maxLeverage: 20,
+      positionValue: '25000',
+      returnOnEquity: '0.2',
+      unrealizedPnl: '5000',
+      cumulativeFunding: { allTime: '0', sinceOpen: '0', sinceChange: '0' },
+      takeProfitCount: 0,
+      stopLossCount: 0,
+    };
+
+    const findCall = (event: PerpsAnalyticsEvent, status: string) =>
+      (mockDeps.metrics.trackPerpsEvent as jest.Mock).mock.calls.find(
+        ([calledEvent, props]) =>
+          calledEvent === event && props.status === status,
+      );
+
+    describe('status=submitted before provider round-trip (TAT-3134)', () => {
+      it('emits a submitted trade event before placeOrder', async () => {
+        mockProvider.placeOrder.mockResolvedValue({
+          success: true,
+          orderId: 'order-1',
+        });
+
+        await tradingService.placeOrder({
+          provider: mockProvider,
+          params: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.1',
+            orderType: 'market',
+          },
+          context: mockContext,
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+          PerpsAnalyticsEvent.TradeTransaction,
+          expect.objectContaining({ status: 'submitted', asset: 'BTC' }),
+        );
+      });
+
+      it('emits a submitted close event before closePosition', async () => {
+        mockGetPositions.mockResolvedValue([mockClosePosition]);
+        mockProvider.closePosition.mockResolvedValue({
+          success: true,
+          orderId: 'close-1',
+        });
+
+        await tradingService.closePosition({
+          provider: mockProvider,
+          params: { symbol: 'BTC' },
+          context: { ...mockContext, getPositions: mockGetPositions },
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+          PerpsAnalyticsEvent.PositionCloseTransaction,
+          expect.objectContaining({ status: 'submitted', asset: 'BTC' }),
+        );
+      });
+
+      it('emits a submitted cancel event before cancelOrder', async () => {
+        mockProvider.cancelOrder.mockResolvedValue({ success: true });
+
+        await tradingService.cancelOrder({
+          provider: mockProvider,
+          params: { symbol: 'BTC', orderId: 'order-1' },
+          context: mockContext,
+        });
+
+        expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+          PerpsAnalyticsEvent.OrderCancelTransaction,
+          expect.objectContaining({ status: 'submitted', asset: 'BTC' }),
+        );
+      });
+
+      it('emits a submitted risk-management event before updatePositionTPSL', async () => {
+        mockProvider.updatePositionTPSL.mockResolvedValue({ success: true });
+
+        await tradingService.updatePositionTPSL({
+          provider: mockProvider,
+          params: {
+            symbol: 'BTC',
+            takeProfitPrice: '60000',
+            trackingData: {
+              direction: 'long',
+              source: 'tp_sl_view',
+              positionSize: 0.5,
+            },
+          },
+          context: mockContext,
+        });
+
+        expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+          PerpsAnalyticsEvent.RiskManagement,
+          expect.objectContaining({ status: 'submitted', asset: 'BTC' }),
+        );
+      });
+
+      it('emits a submitted trade event before flipPosition', async () => {
+        mockProvider.placeOrder.mockResolvedValue({
+          success: true,
+          orderId: 'flip-1',
+        });
+
+        await tradingService.flipPosition({
+          provider: mockProvider,
+          position: mockClosePosition,
+          context: mockContext,
+        });
+
+        expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+          PerpsAnalyticsEvent.TradeTransaction,
+          expect.objectContaining({ status: 'submitted', asset: 'BTC' }),
+        );
+      });
+
+      it('emits a terminal failed event when the flip is rejected without throwing', async () => {
+        mockProvider.placeOrder.mockResolvedValue({
+          success: false,
+          error: 'insufficient margin',
+        });
+
+        await tradingService.flipPosition({
+          provider: mockProvider,
+          position: mockClosePosition,
+          context: mockContext,
+        });
+
+        expect(
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'failed')?.[1],
+        ).toEqual(
+          expect.objectContaining({
+            status: 'failed',
+            asset: 'BTC',
+            error_message: 'insufficient margin',
+          }),
+        );
+      });
+    });
+
+    it('emits a terminal close event when no local position is found', async () => {
+      mockGetPositions.mockResolvedValue([]);
+      mockProvider.closePosition.mockResolvedValue({
+        success: true,
+        orderId: 'close-1',
+      });
+
+      await tradingService.closePosition({
+        provider: mockProvider,
+        params: { symbol: 'BTC' },
+        context: { ...mockContext, getPositions: mockGetPositions },
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      // Submitted event still fires, and a matching terminal event is emitted
+      // even though no local position metrics are available.
+      expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+        PerpsAnalyticsEvent.PositionCloseTransaction,
+        expect.objectContaining({ status: 'submitted', asset: 'BTC' }),
+      );
+      expect(
+        findCall(PerpsAnalyticsEvent.PositionCloseTransaction, 'executed')?.[1],
+      ).toEqual(expect.objectContaining({ asset: 'BTC', status: 'executed' }));
+    });
+
+    it('populates metamask_fee on flip success from trackingData (TAT-3146)', async () => {
+      mockProvider.placeOrder.mockResolvedValue({
+        success: true,
+        orderId: 'flip-1',
+        averagePrice: '50000',
+      });
+
+      await tradingService.flipPosition({
+        provider: mockProvider,
+        position: mockClosePosition,
+        trackingData: { totalFee: 1, marketPrice: 50000, metamaskFee: 2.5 },
+        context: mockContext,
+      });
+
+      expect(
+        findCall(PerpsAnalyticsEvent.TradeTransaction, 'executed')?.[1],
+      ).toEqual(expect.objectContaining({ metamask_fee: 2.5 }));
+    });
+
+    it('adds leverage to the close event properties (TAT-3147)', async () => {
+      mockGetPositions.mockResolvedValue([mockClosePosition]);
+      mockProvider.closePosition.mockResolvedValue({
+        success: true,
+        orderId: 'close-1',
+        filledSize: '0.5',
+        averagePrice: '55000',
+      });
+
+      await tradingService.closePosition({
+        provider: mockProvider,
+        params: { symbol: 'BTC' },
+        context: { ...mockContext, getPositions: mockGetPositions },
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      expect(
+        findCall(PerpsAnalyticsEvent.PositionCloseTransaction, 'executed')?.[1],
+      ).toEqual(expect.objectContaining({ leverage: 10 }));
+    });
+
+    describe('hl_fee_rate on trade + close (TAT-3149)', () => {
+      it('includes hl_fee_rate when present in trackingData', async () => {
+        mockProvider.placeOrder.mockResolvedValue({
+          success: true,
+          orderId: 'order-1',
+          filledSize: '0.1',
+          averagePrice: '50000',
+        });
+
+        await tradingService.placeOrder({
+          provider: mockProvider,
+          params: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.1',
+            orderType: 'market',
+            trackingData: {
+              totalFee: 1,
+              marketPrice: 50000,
+              hlFeeRate: 0.00045,
+            },
+          },
+          context: mockContext,
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        expect(
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'executed')?.[1],
+        ).toEqual(expect.objectContaining({ hl_fee_rate: 0.00045 }));
+      });
+
+      it('omits hl_fee_rate when unavailable', async () => {
+        mockProvider.placeOrder.mockResolvedValue({
+          success: true,
+          orderId: 'order-1',
+          filledSize: '0.1',
+          averagePrice: '50000',
+        });
+
+        await tradingService.placeOrder({
+          provider: mockProvider,
+          params: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.1',
+            orderType: 'market',
+            trackingData: { totalFee: 1, marketPrice: 50000 },
+          },
+          context: mockContext,
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        expect(
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'executed')?.[1],
+        ).not.toHaveProperty('hl_fee_rate');
+      });
+    });
+
+    describe('bulk_action_id on batch close/cancel (TAT-3150)', () => {
+      it('attaches bulk_action_id to the batch close summary event', async () => {
+        mockGetPositions.mockResolvedValue([mockClosePosition]);
+        (mockProvider.closePositions as jest.Mock).mockResolvedValue({
+          success: true,
+          successCount: 1,
+          failureCount: 0,
+          results: [{ success: true, orderId: 'close-1', symbol: 'BTC' }],
+        });
+
+        await tradingService.closePositions({
+          provider: mockProvider,
+          params: { closeAll: true },
+          context: { ...mockContext, getPositions: mockGetPositions },
+        });
+
+        expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+          PerpsAnalyticsEvent.PositionCloseTransaction,
+          expect.objectContaining({ bulk_action_id: 'mock-trace-id' }),
+        );
+      });
+
+      it('attaches bulk_action_id to per-item close events in the fallback path', async () => {
+        (
+          mockProvider as unknown as { closePositions?: unknown }
+        ).closePositions = undefined;
+        mockGetPositions.mockResolvedValue([mockClosePosition]);
+        mockProvider.closePosition.mockResolvedValue({
+          success: true,
+          orderId: 'close-1',
+          filledSize: '0.5',
+          averagePrice: '55000',
+        });
+
+        await tradingService.closePositions({
+          provider: mockProvider,
+          params: { closeAll: true },
+          context: { ...mockContext, getPositions: mockGetPositions },
+        });
+
+        expect(
+          findCall(
+            PerpsAnalyticsEvent.PositionCloseTransaction,
+            'executed',
+          )?.[1],
+        ).toEqual(expect.objectContaining({ bulk_action_id: 'mock-trace-id' }));
+      });
+
+      it('attaches bulk_action_id to the batch cancel summary event', async () => {
+        mockGetOpenOrders.mockResolvedValue([
+          {
+            orderId: 'order-1',
+            symbol: 'BTC',
+            side: 'buy',
+            orderType: 'limit',
+            price: '50000',
+            size: '0.1',
+            originalSize: '0.1',
+            filledSize: '0',
+            remainingSize: '0.1',
+            status: 'open',
+            timestamp: 1,
+          } as Order,
+        ]);
+        (mockProvider.cancelOrders as jest.Mock).mockResolvedValue({
+          success: true,
+          successCount: 1,
+          failureCount: 0,
+          results: [{ success: true, orderId: 'order-1', symbol: 'BTC' }],
+        });
+
+        await tradingService.cancelOrders({
+          provider: mockProvider,
+          params: { cancelAll: true },
+          context: { ...mockContext, getOpenOrders: mockGetOpenOrders },
+          withStreamPause: mockWithStreamPause,
+        });
+
+        expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+          PerpsAnalyticsEvent.OrderCancelTransaction,
+          expect.objectContaining({ bulk_action_id: 'mock-trace-id' }),
+        );
+      });
+    });
+
+    it('propagates entry_point/discovery_source/perp_discovery_source on trade events (TAT-3080)', async () => {
+      mockProvider.placeOrder.mockResolvedValue({
+        success: true,
+        orderId: 'order-1',
+        filledSize: '0.1',
+        averagePrice: '50000',
+      });
+
+      await tradingService.placeOrder({
+        provider: mockProvider,
+        params: {
+          symbol: 'BTC',
+          isBuy: true,
+          size: '0.1',
+          orderType: 'market',
+          trackingData: {
+            totalFee: 1,
+            marketPrice: 50000,
+            entryPoint: 'perps_home',
+            discoverySource: 'watchlist',
+            perpDiscoverySource: 'top_movers',
+          },
+        },
+        context: mockContext,
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      expect(
+        findCall(PerpsAnalyticsEvent.TradeTransaction, 'executed')?.[1],
+      ).toEqual(
+        expect.objectContaining({
+          entry_point: 'perps_home',
+          discovery_source: 'watchlist',
+          perp_discovery_source: 'top_movers',
+        }),
+      );
     });
   });
 });

@@ -9,13 +9,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^68.1.1` to `^68.2.0` ([#9253](https://github.com/MetaMask/core/pull/9253))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 
 ### Fixed
 
-- Fix stale token balances after transactions when switching accounts or when websocket subscriptions reconnect; `AssetsController` now fetches before re-subscribing on account switch, serializes overlapping refresh work, treats `getAssets({ forceUpdate: true })` as authoritative over recent websocket freshness guards, and prevents passive polling from overwriting websocket balances for 120 seconds ([#9265](https://github.com/MetaMask/core/pull/9265))
+- Fetch balances when switching account groups, enabling RPC-only networks, or after a new account is added to the account tree ([#9388](https://github.com/MetaMask/core/pull/9388))
+- Add temporary `tempMigrateAssetsInfoMetadataAssets3346` constructor option that heals `assetsInfo` metadata (and custom-asset tracking) wiped by a prior defect for tokens on niche EVM chains, using legacy `TokensController` state provided by the host ([#9393](https://github.com/MetaMask/core/pull/9393))
+
+## [10.0.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^68.2.0` to `^68.2.2` ([#9337](https://github.com/MetaMask/core/pull/9337), [#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/accounts-controller` from `^39.0.3` to `^39.0.4` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/assets-controllers` from `^109.2.2` to `^109.3.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/core-backend` from `^6.4.0` to `^6.5.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/network-controller` from `^33.0.0` to `^34.0.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/network-enablement-controller` from `^5.4.0` to `^5.4.1` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/polling-controller` from `^16.0.7` to `^16.0.8` ([#9349](https://github.com/MetaMask/core/pull/9349))
+
+## [10.0.0]
+
+### Changed
+
+- **BREAKING:** `AssetsController` messenger must now allow `AccountActivityService:balanceUpdated` so unified `assetsBalance` state receives real-time websocket balance updates when `AccountActivityService` owns the server subscription ([#9273](https://github.com/MetaMask/core/pull/9273))
+- Bump `@metamask/transaction-controller` from `^68.1.1` to `^68.2.0` ([#9253](https://github.com/MetaMask/core/pull/9253))
+- Bump `@metamask/core-backend` from `^6.3.3` to `^6.4.0` ([#9312](https://github.com/MetaMask/core/pull/9312))
+
+### Fixed
+
+- Fix stale token balances after transactions when switching accounts or when websocket subscriptions reconnect; `AssetsController` now fetches before re-subscribing on account switch and serializes overlapping refresh work ([#9265](https://github.com/MetaMask/core/pull/9265))
 - `AccountsApiDataSource` bypasses the TanStack Query balance cache when `forceUpdate` is true so forced refreshes return up-to-date balances instead of 60-second cached values ([#9265](https://github.com/MetaMask/core/pull/9265))
-- `BackendWebsocketDataSource` re-subscribes when subscribed accounts change (case-insensitive EVM address matching), serializes subscribe/unsubscribe to prevent races on account switch, and registers optional channel callbacks for more reliable notification delivery ([#9265](https://github.com/MetaMask/core/pull/9265))
+- `BackendWebsocketDataSource` re-subscribes when subscribed accounts change (case-insensitive EVM address matching), serializes subscribe/unsubscribe to prevent races on account switch, and registers channel callbacks as a fallback when server `subscriptionId` values do not match ([#9265](https://github.com/MetaMask/core/pull/9265))
+- Remove the 120-second websocket balance freshness guard that blocked force-refresh and polling updates from correcting stale websocket balances ([#9273](https://github.com/MetaMask/core/pull/9273))
+- `BackendWebsocketDataSource` registers subscription handlers before the subscribe handshake so in-flight account-activity notifications are not dropped, cleans up subscription state on subscribe failure, and resolves balance updates from stored subscription state when notifications arrive with stale subscription IDs ([#9273](https://github.com/MetaMask/core/pull/9273))
+- `AssetsController` refreshes data-source `activeChains`, re-subscribes, and force-fetches balances for the newly selected EVM chain when the user switches networks via `NetworkController:networkDidChange`
+- `AssetsController` bypasses the price deduper cache and fetches spot prices for assets on a newly selected or added EVM network only when those assets have no entry in `assetsPrice` yet; `DetectionMiddleware` queues newly detected assets for the same pipeline price fetch so RPC-detected tokens are priced without waiting for the poll interval
+- `AssetsController` merge updates from `getAssets({ forceUpdate: true })` now replace balances on API-covered chains so unlock/startup reflects the fresh Accounts API snapshot instead of preserving stale pre-lock tokens; subscription-driven merges are unchanged
 
 ## [9.1.0]
 
@@ -662,7 +692,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@9.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@10.0.1...HEAD
+[10.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@10.0.0...@metamask/assets-controller@10.0.1
+[10.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@9.1.0...@metamask/assets-controller@10.0.0
 [9.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@9.0.2...@metamask/assets-controller@9.1.0
 [9.0.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@9.0.1...@metamask/assets-controller@9.0.2
 [9.0.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@9.0.0...@metamask/assets-controller@9.0.1

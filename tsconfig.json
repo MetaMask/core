@@ -75,6 +75,9 @@
       "path": "./packages/client-controller"
     },
     {
+      "path": "./packages/client-utils"
+    },
+    {
       "path": "./packages/compliance-controller"
     },
     {
@@ -150,6 +153,9 @@
       "path": "./packages/messenger-cli"
     },
     {
+      "path": "./packages/money-account-api-data-service"
+    },
+    {
       "path": "./packages/money-account-balance-service"
     },
     {
@@ -201,6 +207,9 @@
       "path": "./packages/phishing-controller"
     },
     {
+      "path": "./packages/platform-api-docs"
+    },
+    {
       "path": "./packages/polling-controller"
     },
     {
@@ -250,6 +259,9 @@
     },
     {
       "path": "./packages/solana-test-validator-up"
+    },
+    {
+      "path": "./packages/stellar-quickstart-up"
     },
     {
       "path": "./packages/subscription-controller"

@@ -61,8 +61,8 @@
 ## Networks Team
 /packages/config-registry-controller        @MetaMask/networks
 
-## Notifications Team
-/packages/notification-services-controller     @MetaMask/notifications
+## Engagement Team
+/packages/notification-services-controller     @MetaMask/engagement
 
 ## Perps Team
 /packages/compliance-controller             @MetaMask/perps
@@ -101,6 +101,7 @@
 /packages/multichain-api-middleware        @MetaMask/core-platform
 /packages/permission-controller            @MetaMask/core-platform
 /packages/permission-log-controller        @MetaMask/core-platform
+/packages/platform-api-docs                @MetaMask/core-platform
 /packages/polling-controller               @MetaMask/core-platform
 /packages/preferences-controller           @MetaMask/core-platform
 /packages/rate-limit-controller            @MetaMask/core-platform
@@ -120,6 +121,7 @@
 
 ## Joint team ownership
 /packages/announcement-controller               @MetaMask/core-extension-ux @MetaMask/mobile-core-ux
+/packages/client-utils                          @MetaMask/core-extension-ux @MetaMask/mobile-core-ux
 /packages/core-backend                          @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/eth-json-rpc-middleware/src/methods   @MetaMask/confirmations @MetaMask/core-platform
 /packages/eth-json-rpc-middleware/src/wallet.*  @MetaMask/confirmations @MetaMask/core-platform
@@ -128,6 +130,7 @@
 /packages/java-tron-up                          @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks
 /packages/local-node-utils                      @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks
 /packages/solana-test-validator-up              @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks
+/packages/stellar-quickstart-up                 @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks
 /packages/keyring-controller                    @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/multichain-network-controller         @MetaMask/core-platform @MetaMask/accounts-engineers @MetaMask/metamask-assets
 /packages/network-controller                    @MetaMask/core-platform @MetaMask/metamask-assets
@@ -138,11 +141,13 @@
 
 ## Initialization
 /packages/wallet/src/initialization/instances/accounts-controller/ @MetaMask/accounts-engineers
+/packages/wallet/src/initialization/instances/address-book-controller/ @MetaMask/confirmations
 /packages/wallet/src/initialization/instances/approval-controller/ @MetaMask/confirmations
 /packages/wallet/src/initialization/instances/connectivity-controller/ @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/keyring-controller/ @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/remote-feature-flag-controller/ @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/storage-service/ @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
+/packages/wallet/src/initialization/instances/transaction-controller/ @MetaMask/confirmations
 
 ## Package Release related
 /packages/account-tree-controller/package.json  @MetaMask/accounts-engineers @MetaMask/core-platform
@@ -157,6 +162,8 @@
 /packages/address-book-controller/CHANGELOG.md    @MetaMask/confirmations @MetaMask/core-platform
 /packages/announcement-controller/package.json    @MetaMask/core-extension-ux @MetaMask/mobile-core-ux @MetaMask/core-platform
 /packages/announcement-controller/CHANGELOG.md    @MetaMask/core-extension-ux @MetaMask/mobile-core-ux @MetaMask/core-platform
+/packages/client-utils/package.json               @MetaMask/core-extension-ux @MetaMask/mobile-core-ux @MetaMask/core-platform
+/packages/client-utils/CHANGELOG.md               @MetaMask/core-extension-ux @MetaMask/mobile-core-ux @MetaMask/core-platform
 /packages/approval-controller/package.json        @MetaMask/confirmations @MetaMask/core-platform
 /packages/approval-controller/CHANGELOG.md        @MetaMask/confirmations @MetaMask/core-platform
 /packages/assets-controllers/package.json         @MetaMask/metamask-assets @MetaMask/core-platform
@@ -193,8 +200,8 @@
 /packages/multichain-account-service/CHANGELOG.md @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/name-controller/package.json            @MetaMask/confirmations @MetaMask/core-platform
 /packages/name-controller/CHANGELOG.md            @MetaMask/confirmations @MetaMask/core-platform
-/packages/notification-services-controller/package.json @MetaMask/notifications @MetaMask/core-platform
-/packages/notification-services-controller/CHANGELOG.md @MetaMask/notifications @MetaMask/core-platform
+/packages/notification-services-controller/package.json @MetaMask/engagement @MetaMask/core-platform
+/packages/notification-services-controller/CHANGELOG.md @MetaMask/engagement @MetaMask/core-platform
 /packages/compliance-controller/package.json   @MetaMask/perps @MetaMask/core-platform
 /packages/compliance-controller/CHANGELOG.md   @MetaMask/perps @MetaMask/core-platform
 /packages/perps-controller/package.json       @MetaMask/perps @MetaMask/core-platform
@@ -241,6 +248,8 @@
 /packages/local-node-utils/CHANGELOG.md @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
 /packages/solana-test-validator-up/package.json @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
 /packages/solana-test-validator-up/CHANGELOG.md @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
+/packages/stellar-quickstart-up/package.json @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
+/packages/stellar-quickstart-up/CHANGELOG.md @MetaMask/mobile-platform @MetaMask/extension-platform @MetaMask/networks @MetaMask/core-platform
 /packages/seedless-onboarding-controller/package.json @MetaMask/web3auth @MetaMask/core-platform
 /packages/seedless-onboarding-controller/CHANGELOG.md @MetaMask/web3auth @MetaMask/core-platform
 /packages/shield-controller/package.json @MetaMask/web3auth @MetaMask/core-platform

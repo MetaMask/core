@@ -1,3 +1,4 @@
+import type { SupportedCurrency } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { CaipAssetType, CaipChainId, Json } from '@metamask/utils';
 
@@ -372,12 +373,13 @@ export type DataResponse = {
    */
   updateMode?: AssetsUpdateMode;
   /**
-   * Set by AssetsController when applying updates. Data sources must
-   * not populate this field.
-   *
-   * @internal
+   * When set with `updateMode: 'merge'`, balances on chains present in
+   * `assetsBalance` replace the prior chain slice (stale tokens on those chains
+   * are dropped). Custom assets on covered chains are preserved. Used for
+   * `getAssets({ forceUpdate: true })` so unlock/startup reflects the API snapshot
+   * without switching to `updateMode: 'full'`.
    */
-  sourceId?: string;
+  replaceCoveredChainBalances?: boolean;
 };
 
 /**
@@ -385,10 +387,18 @@ export type DataResponse = {
  *
  * - **full**: Response is the full set for the scope. Assets in state but not in the
  *   response are cleared (except custom assets). Use for initial fetch or full refresh.
- * - **merge**: Only assets present in the response are updated; nothing is removed.
- *   Use for event-driven or incremental updates.
+ * - **merge**: By default only assets present in the response are updated;
+ *   nothing is removed. When {@link DataResponse.replaceCoveredChainBalances}
+ *   is true, balances on chains present in the response replace the prior chain
+ *   slice (stale tokens on those chains are dropped; custom assets preserved).
+ *   Metadata and prices from the response are applied. Use for event-driven updates.
+ * - **update**: Balance-only overlay — incoming balance amounts are patched in place;
+ *   existing balances, metadata, and prices are never removed or overwritten.
+ *   Missing metadata and prices from the response are seeded so RPC-only chains
+ *   can render on first fetch. Use for force refresh when the API may return a
+ *   partial chain snapshot.
  */
-export type AssetsUpdateMode = 'full' | 'merge';
+export type AssetsUpdateMode = 'full' | 'merge' | 'update';
 
 // ============================================================================
 // DATA SOURCE <-> CONTROLLER (DIRECT CALLS, NO MESSENGER PER SOURCE)
@@ -466,6 +476,8 @@ export type AssetsControllerStateInternal = {
   customAssets: Record<AccountId, Caip19AssetId[]>;
   /** UI preferences per asset (e.g. hidden) - separate from metadata */
   assetPreferences: Record<Caip19AssetId, AssetPreferences>;
+  /** Currently-active ISO 4217 currency code */
+  selectedCurrency: SupportedCurrency;
 };
 
 /**

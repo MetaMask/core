@@ -7,6 +7,7 @@ import type {
   Caip19AssetId,
   AssetsControllerStateInternal,
 } from '../types';
+import { normalizeAssetId } from '../utils';
 import { DetectionMiddleware } from './DetectionMiddleware';
 
 const MOCK_ADDRESS = '0x1234567890123456789012345678901234567890';
@@ -56,26 +57,35 @@ function createDataRequest(
 
 function createAssetsState(
   metadataAssets: Caip19AssetId[] = [],
+  assetsPrice: Caip19AssetId[] = [],
 ): AssetsControllerStateInternal {
   const assetsInfo: Record<Caip19AssetId, { name: string }> = {};
   for (const assetId of metadataAssets) {
     assetsInfo[assetId] = { name: `Asset ${assetId}` };
   }
+  const priceState: Record<Caip19AssetId, { price: number }> = {};
+  for (const assetId of assetsPrice) {
+    priceState[assetId] = { price: 1 };
+  }
   return {
     assetsInfo,
     assetsBalance: {},
     customAssets: {},
+    assetsPrice: priceState,
   } as AssetsControllerStateInternal;
 }
 
 function createMiddlewareContext(
   overrides?: Partial<Context>,
   stateMetadata: Caip19AssetId[] = [],
+  stateAssetsPrice: Caip19AssetId[] = [],
 ): Context {
   return {
     request: createDataRequest(),
     response: {},
-    getAssetsState: jest.fn().mockReturnValue(createAssetsState(stateMetadata)),
+    getAssetsState: jest
+      .fn()
+      .mockReturnValue(createAssetsState(stateMetadata, stateAssetsPrice)),
     ...overrides,
   };
 }
@@ -148,6 +158,10 @@ describe('DetectionMiddleware', () => {
     expect(context.response.detectedAssets).toStrictEqual({
       [MOCK_ACCOUNT_ID]: [MOCK_ASSET_1, MOCK_ASSET_2],
     });
+    expect(context.request.assetsForPriceUpdate).toStrictEqual([
+      normalizeAssetId(MOCK_ASSET_1),
+      normalizeAssetId(MOCK_ASSET_2),
+    ]);
     expect(next).toHaveBeenCalledWith(context);
   });
 
@@ -337,6 +351,61 @@ describe('DetectionMiddleware', () => {
     await middleware.assetsMiddleware(context, next);
 
     expect(context.response.detectedAssets).toBeUndefined();
+    expect(next).toHaveBeenCalledWith(context);
+  });
+
+  it('queues assetsForPriceUpdate for detected assets missing a price', async () => {
+    const { middleware } = setupController();
+    const context = createMiddlewareContext(
+      {
+        response: {
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              [MOCK_ASSET_1]: { amount: '1000' },
+              [MOCK_ASSET_2]: { amount: '2000' },
+            },
+          },
+        },
+      },
+      [],
+      [MOCK_ASSET_1],
+    );
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+
+    await middleware.assetsMiddleware(context, next);
+
+    expect(context.response.detectedAssets).toStrictEqual({
+      [MOCK_ACCOUNT_ID]: [MOCK_ASSET_1, MOCK_ASSET_2],
+    });
+    expect(context.request.assetsForPriceUpdate).toStrictEqual([
+      normalizeAssetId(MOCK_ASSET_2),
+    ]);
+    expect(next).toHaveBeenCalledWith(context);
+  });
+
+  it('does not queue assetsForPriceUpdate when all detected assets have prices', async () => {
+    const { middleware } = setupController();
+    const context = createMiddlewareContext(
+      {
+        response: {
+          assetsBalance: {
+            [MOCK_ACCOUNT_ID]: {
+              [MOCK_ASSET_1]: { amount: '1000' },
+            },
+          },
+        },
+      },
+      [],
+      [MOCK_ASSET_1],
+    );
+    const next = jest.fn().mockImplementation((ctx) => Promise.resolve(ctx));
+
+    await middleware.assetsMiddleware(context, next);
+
+    expect(context.response.detectedAssets).toStrictEqual({
+      [MOCK_ACCOUNT_ID]: [MOCK_ASSET_1],
+    });
+    expect(context.request.assetsForPriceUpdate).toBeUndefined();
     expect(next).toHaveBeenCalledWith(context);
   });
 

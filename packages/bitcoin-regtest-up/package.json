@@ -1,6 +1,6 @@
 {
   "name": "@metamask/bitcoin-regtest-up",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Bitcoin Core regtest runtime installer for MetaMask E2E tests",
   "keywords": [
     "Ethereum",
@@ -54,7 +54,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/local-node-utils": "^0.0.0"
+    "@metamask/local-node-utils": "^1.0.0"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",

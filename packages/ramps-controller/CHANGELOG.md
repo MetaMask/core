@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [15.1.0]
+
+### Added
+
+- Add an optional `getProviderScope` callback to `RampsControllerOptions` and export the `ProviderScope` type (`'off' | 'in-app' | 'all'`); when it returns a non-`off` scope, `RampsController.getQuotes` widens its native-only auto-selection (the `autoSelectProvider` / `restrictToKnownOrNativeProviders` path) to every supporting provider and returns the best in-app quote at `success[0]`, excluding external-browser and custom-action quotes and enforcing per-provider fiat limits, while the default stays native-only and explicit-`providers` callers are unaffected ([#9353](https://github.com/MetaMask/core/pull/9353))
+- Add an optional `getDefaultRedirectUrl` callback to `RampsControllerOptions`; on the widened in-app auto-selection path, when the caller omits `redirectUrl`, `RampsController.getQuotes` now supplies this default so aggregator quotes carry the `buyURL`/`buyWidget` widget URL the app needs, while an explicit caller `redirectUrl` always wins and scope `off` never injects a default ([#9353](https://github.com/MetaMask/core/pull/9353))
+
+### Changed
+
+- Refetch the countries catalog on every app startup via `init()` so region preset amounts (e.g. default amounts) stay current ([#9261](https://github.com/MetaMask/core/pull/9261))
+- Re-sync `userRegion` preset amounts from the countries catalog after each `getCountries()` call ([#9261](https://github.com/MetaMask/core/pull/9261))
+- On startup, `init()` now preserves an already-persisted `userRegion` when the refreshed countries catalog is momentarily empty or no longer lists that region, instead of clearing it ([#9261](https://github.com/MetaMask/core/pull/9261))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
 ## [15.0.0]
 
 ### Changed
@@ -397,7 +411,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@15.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@15.1.0...HEAD
+[15.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@15.0.0...@metamask/ramps-controller@15.1.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.3.0...@metamask/ramps-controller@15.0.0
 [14.3.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.2.0...@metamask/ramps-controller@14.3.0
 [14.2.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.1.1...@metamask/ramps-controller@14.2.0
