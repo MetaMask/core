@@ -529,13 +529,10 @@ export class NetworkConnectionBannerController extends BaseController<
       return;
     }
 
-    await this.messenger.call('NetworkController:updateNetwork', chainId, {
-      ...networkConfiguration,
-      defaultRpcEndpointIndex: infuraEndpointIndex,
-    });
-
-    // Move the active connection onto the Infura endpoint too, so the user
-    // is no longer connected to the failing endpoint.
+    // Move the active connection onto the Infura endpoint first, then make
+    // it the default. In this order a partial failure leaves the failing
+    // default in place and the banner visible, rather than hiding the banner
+    // while the wallet is still connected to the broken endpoint.
     const infuraNetworkClientId =
       networkConfiguration.rpcEndpoints[infuraEndpointIndex].networkClientId;
     const { selectedNetworkClientId } = this.messenger.call(
@@ -547,6 +544,11 @@ export class NetworkConnectionBannerController extends BaseController<
         infuraNetworkClientId,
       );
     }
+
+    await this.messenger.call('NetworkController:updateNetwork', chainId, {
+      ...networkConfiguration,
+      defaultRpcEndpointIndex: infuraEndpointIndex,
+    });
   }
 
   #refreshState({

@@ -1459,6 +1459,11 @@ describe('NetworkConnectionBannerController', () => {
           );
           expect(setActiveNetwork).toHaveBeenCalledTimes(1);
           expect(setActiveNetwork).toHaveBeenCalledWith(MAINNET_CLIENT_ID);
+          // The active connection moves first so a partial failure keeps the
+          // failing default in place and the banner visible.
+          expect(setActiveNetwork.mock.invocationCallOrder[0]).toBeLessThan(
+            updateNetwork.mock.invocationCallOrder[0],
+          );
         },
       );
     });
