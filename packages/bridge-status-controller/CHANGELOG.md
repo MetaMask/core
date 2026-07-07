@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Source transaction status from the `/getQuoteStatus` backend during polling for history items with an associated `quoteId`, falling back to the `/getTxStatus` bridge-api endpoint when no quote-status backend status is available yet or the QuoteStatusManager is disabled. ([#9389](https://github.com/MetaMask/core/pull/9389))
+- Seed missing quote-status entries from persisted transaction history on startup, so quotes submitted before the client closed still get their status reported to the backend. Entries are rebuilt from the history item's `quoteId`, source transaction hash (falling back to the transaction's hash), and `txMetaId`; history items older than the quote-status entry TTL are skipped.
 
 ### Changed
 

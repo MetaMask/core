@@ -316,6 +316,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       },
     );
 
+    // Seed any missing quote-status entries from persisted history before
+    // init(), so init()'s reconciliation loop can finalize quotes whose
+    // deferred entry was never created (e.g. the client closed before
+    // reportSubmitted ran).
+    this.#seedQuoteStatusEntriesFromHistory();
+
     // Replay swap/bridge finalizations that resolved while the client was
     // closed, before resuming polling (which recovers in-flight bridges).
     this.#quoteStatusManager.init();
@@ -482,6 +488,9 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     if (!historyItem?.quoteId) {
       return;
     }
+    // `reportedSubmittedTxHash` is set once `reportSubmitted` is called.
+    // This avoids processing multiple `eportSubmitted` for the
+    // same swap/bridge.
     if (historyItem.reportedSubmittedTxHash === srcTxHash) {
       return;
     }
@@ -612,6 +621,48 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     txMetaId: string,
   ): BridgeHistoryItem | undefined => {
     return this.state.txHistory[txMetaId];
+  };
+
+  /**
+   * Seeds missing quote-status entries from persisted history on startup.
+   *
+   * The deferred quote-status entry (keyed by `${quoteId}:${srcTxHash}`) is only
+   * created when `reportSubmitted` runs. If the client closes after a swap/bridge
+   * is submitted but before that happens, the entry is never created and
+   * `QuoteStatusManager.init()` has nothing to reconcile. The persisted history
+   * item carries the `quoteId`, source tx hash, and `txMetaId` needed to rebuild
+   * the entry, so we replay `reportSubmitted` here (idempotent via
+   * `#reportSubmittedOnce`) before `init()` runs.
+   */
+  readonly #seedQuoteStatusEntriesFromHistory = (): void => {
+    for (const [historyKey, historyItem] of Object.entries(
+      this.state.txHistory,
+    )) {
+      const { quoteId, txMetaId } = historyItem;
+      if (!quoteId || !txMetaId) {
+        continue;
+      }
+
+      // Skip items older than the entry TTL: the backend would reject them, so
+      // there is no point creating an entry or making a request.
+      if (Date.now() - historyItem.startTime > QUOTE_STATUS_UPDATE_ENTRY_TTL) {
+        continue;
+      }
+
+      // Prefer the history hash; fall back to the tx hash (covers STX swaps
+      // confirmed while closed, where the history hash was never written).
+      const srcTxHash =
+        historyItem.status.srcChain.txHash ??
+        getTransactionMetaById(this.messenger, txMetaId)?.hash;
+      if (!srcTxHash) {
+        continue;
+      }
+
+      // Call `reportSubmittedOnce` for each history item that satisfies
+      // the above criteria. The method will then take care the rest
+      // (ie. if it actually needs to be reported or not because it already has been).
+      this.#reportSubmittedOnce(historyKey, srcTxHash, txMetaId);
+    }
   };
 
   /**
