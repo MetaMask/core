@@ -37,8 +37,8 @@ import {
   getTokenBalance,
   getTokenFiatRate,
 } from '../../utils/token';
-import { getRelayQuotes } from './relay-quotes';
 import { isPostRelayMoneyAccountVaultDeposit } from './relay-post-ma-vault';
+import { getRelayQuotes } from './relay-quotes';
 import type { RelayQuote, RelayTransactionStep } from './types';
 
 jest.mock('./relay-post-ma-vault');
