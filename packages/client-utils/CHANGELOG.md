@@ -16,4 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `mapLocalTransaction` for mapping local transaction groups to activity items
   - Shared activity types (`ActivityItem`, `ActivityKind`, `Status`, etc.)
 
+### Changed
+
+- Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
+
 [Unreleased]: https://github.com/MetaMask/core/
