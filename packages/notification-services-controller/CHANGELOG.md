@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [25.0.0]
+
 ### Added
 
 - Export `isOnChainNotification` and `isPlatformNotification` type guards for discriminating v4 API notification shapes ([#9384](https://github.com/MetaMask/core/pull/9384))
@@ -817,7 +819,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@25.0.0...HEAD
+[25.0.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.3.0...@metamask/notification-services-controller@25.0.0
 [24.3.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.2.0...@metamask/notification-services-controller@24.3.0
 [24.2.0]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.1.3...@metamask/notification-services-controller@24.2.0
 [24.1.3]: https://github.com/MetaMask/core/compare/@metamask/notification-services-controller@24.1.2...@metamask/notification-services-controller@24.1.3
