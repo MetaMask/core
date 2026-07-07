@@ -14,10 +14,9 @@ import type {
   TransactionMeta,
   GasFeeFlow,
 } from '../types';
-import { GasFeeEstimateType, TransactionType, UserFeeLevel } from '../types';
+import { GasFeeEstimateType, UserFeeLevel } from '../types';
 import { getGasFeeFlow } from './gas-flow';
 import { rpcRequest } from './provider';
-import { SWAP_TRANSACTION_TYPES } from './swaps';
 
 export type UpdateGasFeesRequest = {
   eip1559: boolean;
@@ -45,18 +44,6 @@ type SuggestedGasFees = {
 const log = createModuleLogger(projectLogger, 'gas-fees');
 
 /**
- * Transaction types whose gas fees are managed by the Swaps or Bridge feature.
- * Any user-saved (advanced) gas fees are ignored for these types, since the
- * fees are dictated by the swap/bridge aggregator or relay; applying saved gas
- * fees could underprice the transaction and cause it to fail or get stuck.
- */
-const SAVED_GAS_FEES_IGNORED_TRANSACTION_TYPES: TransactionType[] = [
-  ...SWAP_TRANSACTION_TYPES,
-  TransactionType.bridge,
-  TransactionType.bridgeApproval,
-];
-
-/**
  * Update the gas fee properties of the provided transaction meta.
  *
  * @param request - The request object.
@@ -67,10 +54,11 @@ export async function updateGasFees(
   const { txMeta } = request;
   const initialParams = { ...txMeta.txParams };
 
-  const ignoreSavedGasFees = SAVED_GAS_FEES_IGNORED_TRANSACTION_TYPES.includes(
-    txMeta.type as TransactionType,
-  );
-  const savedGasFees = ignoreSavedGasFees
+  // User-saved (advanced) gas fees only apply to dApp transactions. Internal
+  // transactions (e.g. swaps and bridges) have their fees dictated by the
+  // aggregator or relay, so applying saved gas fees could underprice them and
+  // cause them to fail or get stuck.
+  const savedGasFees = txMeta.isInternal
     ? undefined
     : request.getSavedGasFees(txMeta.chainId);
 

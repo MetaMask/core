@@ -133,8 +133,8 @@ describe('gas-fees', () => {
     describe('saved (advanced) gas fees', () => {
       const SAVED_GAS_FEES_MOCK = { maxBaseFee: '123', priorityFee: '456' };
 
-      it('are applied for non-swap, non-bridge transactions', async () => {
-        updateGasFeeRequest.txMeta.type = TransactionType.simpleSend;
+      it('are applied for dApp (non-internal) transactions', async () => {
+        updateGasFeeRequest.txMeta.isInternal = false;
         updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce(
           SAVED_GAS_FEES_MOCK,
         );
@@ -150,15 +150,9 @@ describe('gas-fees', () => {
         );
       });
 
-      it.each([
-        TransactionType.swap,
-        TransactionType.swapAndSend,
-        TransactionType.swapApproval,
-        TransactionType.bridge,
-        TransactionType.bridgeApproval,
-      ])('are ignored for %s transactions', async (type) => {
+      it('are ignored for internal transactions (e.g. swaps and bridges)', async () => {
         mockGasFeeFlowMockResponse(FLOW_RESPONSE_FEE_MARKET_MOCK);
-        updateGasFeeRequest.txMeta.type = type;
+        updateGasFeeRequest.txMeta.isInternal = true;
         updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce(
           SAVED_GAS_FEES_MOCK,
         );
