@@ -1844,17 +1844,17 @@ export class RampsController extends BaseController<
    *   during auto-selection, in priority order (e.g. derived by the caller
    *   from completed-order history). Only used when `autoSelectProvider` is
    *   true and `providers` is omitted.
-   * @param options.restrictToKnownOrNativeProviders - Headless-buy v0 gating. When
-   *   true, auto-selection resolves only a native provider, and an explicitly
-   *   passed `providers` list is filtered to those supporting the region and
-   *   asset. If nothing qualifies, `getQuotes` returns an empty response
-   *   instead of quoting other providers.
-   * @deprecated Provider-class scope (`getProviderScope`) is now the gate:
-   *   `off` keeps native-only auto-selection and `in-app`/`all` widen, so this
-   *   flag is redundant. It is still honored for one release (it, like
-   *   `autoSelectProvider`, routes a no-`providers` request through the gated
-   *   path) and will be removed in a later major. New callers should rely on
-   *   the scope instead of passing this flag.
+   * @param options.restrictToKnownOrNativeProviders - **Deprecated** (still
+   *   honored for one release). Headless-buy v0 gating: when true,
+   *   auto-selection resolves only a native provider, and an explicitly passed
+   *   `providers` list is filtered to those supporting the region and asset; if
+   *   nothing qualifies, `getQuotes` returns an empty response instead of
+   *   quoting other providers. Provider-class scope (`getProviderScope`) is now
+   *   the gate (`off` stays native-only; `in-app`/`all` widen), so this flag is
+   *   redundant and will be removed in a later major. Like `autoSelectProvider`,
+   *   it still routes a no-`providers` request through the gated path so
+   *   existing callers keep working; new callers should rely on the scope
+   *   instead of passing this flag.
    * @param options.redirectUrl - Optional redirect URL after order completion.
    * @param options.action - The ramp action type. Defaults to 'buy'.
    * @param options.forceRefresh - Whether to bypass cache.
