@@ -315,6 +315,34 @@ describe('gas-fees', () => {
       expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(UserFeeLevel.CUSTOM);
     });
 
+    it('sets userFeeLevel to custom if saved gas fees include a level but flow returns a flat gas price estimate', async () => {
+      updateGasFeeRequest.txMeta.type = TransactionType.simpleSend;
+      updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce({
+        level: GasFeeEstimateLevel.High,
+      });
+      mockGasFeeFlowMockResponse(FLOW_RESPONSE_GAS_PRICE_MOCK);
+
+      await updateGasFees(updateGasFeeRequest);
+
+      expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(UserFeeLevel.CUSTOM);
+    });
+
+    it('sets userFeeLevel to custom if saved gas fees include a level but getGasFeeEstimates throws', async () => {
+      updateGasFeeRequest.txMeta.type = TransactionType.simpleSend;
+      updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce({
+        level: GasFeeEstimateLevel.High,
+      });
+      updateGasFeeRequest.getGasFeeEstimates.mockReset();
+      updateGasFeeRequest.getGasFeeEstimates.mockRejectedValueOnce(
+        new Error('TestError'),
+      );
+      rpcRequestMock.mockResolvedValueOnce(GAS_HEX_MOCK);
+
+      await updateGasFees(updateGasFeeRequest);
+
+      expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(UserFeeLevel.CUSTOM);
+    });
+
     it('uses saved gasPrice if saved gas fees include a legacy custom value', async () => {
       updateGasFeeRequest.eip1559 = false;
       updateGasFeeRequest.txMeta.type = TransactionType.simpleSend;

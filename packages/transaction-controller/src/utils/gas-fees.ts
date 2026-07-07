@@ -45,6 +45,14 @@ type SuggestedGasFees = {
   maxFeePerGas?: string;
   maxPriorityFeePerGas?: string;
   gasPrice?: string;
+
+  /**
+   * Whether the suggested fee was derived from a specific estimate level,
+   * such as `low`/`medium`/`high`. This is `false` for estimate types that
+   * do not support per-level pricing, such as a flat `eth_gasPrice` value,
+   * or when the gas fee flow failed and a raw RPC fallback was used.
+   */
+  isEstimateLevelApplied?: boolean;
 };
 
 const log = createModuleLogger(projectLogger, 'gas-fees');
@@ -299,12 +307,17 @@ function getUserFeeLevel(request: GetGasFeeRequest): string | undefined {
       savedGasFees.priorityFee !== undefined ||
       savedGasFees.gasPrice !== undefined;
 
-    // A custom override on any field means the fee is no longer purely
-    // level-derived, so it must not be tracked as a live estimate level by
-    // the gas fee poller, which would otherwise overwrite the override.
-    return hasCustomOverride
-      ? UserFeeLevel.CUSTOM
-      : (savedGasFees.level ?? UserFeeLevel.CUSTOM);
+    const canUseSavedLevel =
+      !hasCustomOverride &&
+      savedGasFees.level !== undefined &&
+      suggestedGasFees.isEstimateLevelApplied;
+
+    // A custom override on any field, or an estimate type that does not
+    // support per-level pricing (e.g. a flat eth_gasPrice value), means the
+    // fee is no longer purely level-derived, so it must not be tracked as a
+    // live estimate level by the gas fee poller, which would otherwise
+    // overwrite the override or misrepresent the fee as matching the level.
+    return canUseSavedLevel ? savedGasFees.level : UserFeeLevel.CUSTOM;
   }
 
   if (
@@ -405,18 +418,23 @@ async function getSuggestedGasFees(
 
     switch (gasFeeEstimateType) {
       case GasFeeEstimateType.FeeMarket:
-        return (
-          response.estimates[savedGasFeeEstimateLevel] ??
-          response.estimates.medium
-        );
+        return {
+          ...(response.estimates[savedGasFeeEstimateLevel] ??
+            response.estimates.medium),
+          isEstimateLevelApplied: true,
+        };
       case GasFeeEstimateType.Legacy:
         return {
           gasPrice:
             response.estimates[savedGasFeeEstimateLevel] ??
             response.estimates.medium,
+          isEstimateLevelApplied: true,
         };
       case GasFeeEstimateType.GasPrice:
-        return { gasPrice: response.estimates.gasPrice };
+        return {
+          gasPrice: response.estimates.gasPrice,
+          isEstimateLevelApplied: false,
+        };
       default:
         throw new Error(
           // TODO: Either fix this lint violation or explain why it's necessary to ignore.
