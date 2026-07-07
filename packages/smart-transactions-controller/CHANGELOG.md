@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: mark cancelled-STX failure change as breaking ([#9420](https://github.com/MetaMask/core/pull/9420))
+
 ### Changed
 
 - **BREAKING:** Fail the associated regular transaction via the new `TransactionController:failTransaction` action instead of `TransactionController:updateTransaction` when a smart transaction is cancelled ([#9400](https://github.com/MetaMask/core/pull/9400))
