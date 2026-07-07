@@ -28,6 +28,10 @@ import {
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
 import { RELAY_STATUS_URL } from './constants';
+import {
+  isPostRelayMoneyAccountVaultDeposit,
+  submitPostRelayVaultDeposit,
+} from './relay-post-ma-vault';
 import { submitRelayQuotes } from './relay-submit';
 import type { RelayQuote } from './types';
 
@@ -36,6 +40,7 @@ jest.mock('../../utils/transaction');
 jest.mock('../../utils/feature-flags');
 jest.mock('./hyperliquid-withdraw');
 jest.mock('./polymarket/withdraw');
+jest.mock('./relay-post-ma-vault');
 
 const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
 const TRANSACTION_HASH_MOCK = '0x1234';
@@ -140,6 +145,12 @@ describe('Relay Submit Utils', () => {
   const normalizeTokenAddressMock = jest.mocked(normalizeTokenAddress);
   const getRelayPollingIntervalMock = jest.mocked(getRelayPollingInterval);
   const getRelayPollingTimeoutMock = jest.mocked(getRelayPollingTimeout);
+  const isPostRelayMoneyAccountVaultDepositMock = jest.mocked(
+    isPostRelayMoneyAccountVaultDeposit,
+  );
+  const submitPostRelayVaultDepositMock = jest.mocked(
+    submitPostRelayVaultDeposit,
+  );
 
   const {
     addTransactionMock,
@@ -164,6 +175,8 @@ describe('Relay Submit Utils', () => {
 
     getRelayPollingIntervalMock.mockReturnValue(1);
     getRelayPollingTimeoutMock.mockReturnValue(undefined);
+    isPostRelayMoneyAccountVaultDepositMock.mockReturnValue(false);
+    submitPostRelayVaultDepositMock.mockResolvedValue({});
 
     getLiveTokenBalanceMock.mockResolvedValue('9999999999');
     normalizeTokenAddressMock.mockImplementation(
@@ -1074,6 +1087,71 @@ describe('Relay Submit Utils', () => {
             type: TransactionType.relayDeposit,
           }),
         );
+      });
+    });
+
+    describe('post-Relay Money Account vault deposit', () => {
+      const VAULT_HASH_MOCK =
+        '0xvaulthash000000000000000000000000000000000000000000000000000001' as Hex;
+      const TARGET_HASH_MOCK =
+        '0xtargethash00000000000000000000000000000000000000000000000000001' as Hex;
+
+      beforeEach(() => {
+        successfulFetchMock.mockResolvedValue({
+          ok: true,
+          json: async () => ({
+            ...STATUS_RESPONSE_MOCK,
+            txHashes: [TARGET_HASH_MOCK],
+          }),
+        } as Response);
+      });
+
+      it('calls submitPostRelayVaultDeposit and returns its hash when relay completes successfully', async () => {
+        isPostRelayMoneyAccountVaultDepositMock.mockReturnValue(true);
+        submitPostRelayVaultDepositMock.mockResolvedValue({
+          transactionHash: VAULT_HASH_MOCK,
+        });
+
+        const result = await submitRelayQuotes(request);
+
+        expect(submitPostRelayVaultDepositMock).toHaveBeenCalledWith(
+          expect.objectContaining({
+            completion: expect.objectContaining({ status: 'success' }),
+            messenger,
+            quote: request.quotes[0],
+            transaction: request.transaction,
+          }),
+        );
+        expect(result.transactionHash).toBe(VAULT_HASH_MOCK);
+      });
+
+      it('falls back to completion.targetHash when submitPostRelayVaultDeposit returns no hash', async () => {
+        isPostRelayMoneyAccountVaultDepositMock.mockReturnValue(true);
+        submitPostRelayVaultDepositMock.mockResolvedValue({
+          transactionHash: undefined,
+        });
+
+        const result = await submitRelayQuotes(request);
+
+        expect(result.transactionHash).toBe(TARGET_HASH_MOCK);
+      });
+
+      it('does not call submitPostRelayVaultDeposit when isPostRelayMoneyAccountVaultDeposit returns false', async () => {
+        isPostRelayMoneyAccountVaultDepositMock.mockReturnValue(false);
+
+        await submitRelayQuotes(request);
+
+        expect(submitPostRelayVaultDepositMock).not.toHaveBeenCalled();
+      });
+
+      it('skips paymentOverride path when isPostRelayMoneyAccountVaultDeposit returns true', async () => {
+        isPostRelayMoneyAccountVaultDepositMock.mockReturnValue(true);
+        request.quotes[0].request.paymentOverride =
+          PaymentOverride.MoneyAccount;
+
+        await submitRelayQuotes(request);
+
+        expect(getPaymentOverrideDataMock).not.toHaveBeenCalled();
       });
     });
 

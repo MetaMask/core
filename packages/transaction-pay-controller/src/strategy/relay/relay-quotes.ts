@@ -341,7 +341,7 @@ async function getSingleQuote(
       !(request.skipProcessTransactions ?? request.isPostQuote) &&
       !request.isPolymarketDepositWallet;
 
-    if (usesPostRelayVaultDeposit) {
+    if (usePostRelayVaultDeposit) {
       log(
         'Money Account vault deposit: skipping atomic embedding; mUSD settles to the Money Account for a post-Relay vault deposit',
       );

@@ -38,8 +38,10 @@ import {
   getTokenFiatRate,
 } from '../../utils/token';
 import { getRelayQuotes } from './relay-quotes';
+import { isPostRelayMoneyAccountVaultDeposit } from './relay-post-ma-vault';
 import type { RelayQuote, RelayTransactionStep } from './types';
 
+jest.mock('./relay-post-ma-vault');
 jest.mock('../../utils/token', () => ({
   ...jest.createMockFromModule<typeof import('../../utils/token')>(
     '../../utils/token',
@@ -175,6 +177,9 @@ describe('Relay Quotes Utils', () => {
   const isRelayExecuteEnabledMock = jest.mocked(isRelayExecuteEnabled);
   const getGasBufferMock = jest.mocked(getGasBuffer);
   const getSlippageMock = jest.mocked(getSlippage);
+  const isPostRelayMoneyAccountVaultDepositMock = jest.mocked(
+    isPostRelayMoneyAccountVaultDeposit,
+  );
 
   const {
     messenger,
@@ -232,6 +237,7 @@ describe('Relay Quotes Utils', () => {
     getNativeTokenMock.mockReturnValue(NATIVE_TOKEN_ADDRESS);
     isEIP7702ChainMock.mockReturnValue(true);
     isRelayExecuteEnabledMock.mockReturnValue(false);
+    isPostRelayMoneyAccountVaultDepositMock.mockReturnValue(false);
     getGasBufferMock.mockReturnValue(1.0);
     getSlippageMock.mockReturnValue(DEFAULT_SLIPPAGE);
     getDelegationTransactionMock.mockResolvedValue(DELEGATION_RESULT_MOCK);
@@ -933,6 +939,64 @@ describe('Relay Quotes Utils', () => {
 
       expect(body.recipient).toBe(recipientOverride);
       expect(body.user).toBe(FROM_MOCK);
+    });
+
+    it('overrides request.recipient with transaction.txParams.from when isPostRelayMoneyAccountVaultDeposit returns true', async () => {
+      const moneyAccountAddress =
+        '0xmoneyaccount00000000000000000000000001' as Hex;
+
+      isPostRelayMoneyAccountVaultDepositMock.mockReturnValue(true);
+
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: { from: moneyAccountAddress },
+        } as TransactionMeta,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.recipient).toBe(moneyAccountAddress);
+    });
+
+    it('does not override request.recipient when isPostRelayMoneyAccountVaultDeposit returns false', async () => {
+      const explicitRecipient =
+        '0xexplicitrecipient0000000000000000000001' as Hex;
+
+      isPostRelayMoneyAccountVaultDepositMock.mockReturnValue(false);
+
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [{ ...QUOTE_REQUEST_MOCK, recipient: explicitRecipient }],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            from: '0xdifferentaddress0000000000000000000001' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      const body = JSON.parse(
+        successfulFetchMock.mock.calls[0][1]?.body as string,
+      );
+
+      expect(body.recipient).toBe(explicitRecipient);
     });
 
     it('does not set refundTo in request body for post-quote when not provided', async () => {
