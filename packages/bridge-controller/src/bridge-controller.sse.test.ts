@@ -36,7 +36,6 @@ import { formatChainIdToDec } from './utils/caip-formatters';
 import * as featureFlagUtils from './utils/feature-flags';
 import * as fetchUtils from './utils/fetch';
 import { FeatureId } from './validators/feature-flags';
-import { validateQuoteResponseV1 } from './validators/quote-response-v1';
 import { QuoteStreamCompleteReason } from './validators/quote-stream-complete';
 import { TokenFeatureType } from './validators/token-feature';
 import type { TxData } from './validators/trade';
