@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Ignore user-saved (advanced) gas fees for bridge transactions ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Ignore user-saved (advanced) gas fees for bridge transactions ([#9401](https://github.com/MetaMask/core/pull/9401))
   - `bridge` and `bridgeApproval` transactions now ignore saved advanced gas fees, matching the existing behavior for swaps. Previously a user's saved gas fees (e.g. a low max base fee) could underprice a bridge transaction, causing it to fail or get stuck as pending.
 
 ## [68.2.2]
