@@ -22,42 +22,6 @@ import type { RelayCompletionOutcome, RelayQuote } from './types';
 const log = createModuleLogger(projectLogger, 'relay-post-ma-vault');
 
 /**
- * Whether a quote must settle into the Money Account vault via a post-Relay
- * vault deposit (Relay lands mUSD on the Money Account, then a separate
- * sponsored deposit mints vmUSD) instead of embedding the deposit atomically.
- *
- * Two cases, both keyed on transaction type (resolving nested batch types):
- * - Crypto/fiat Money Account deposits, but only for max amount — non-max
- *   deposits embed a fixed-amount vault batch (EXACT_OUTPUT).
- * - Perps/Predict withdraws whose destination is mUSD on Monad. These are
- *   EXACT_INPUT post-quote flows whose settled mUSD is only known after Relay
- *   completes, so they always use the post-Relay deposit.
- *
- * @param request - The quote request to test.
- * @param transaction - The parent transaction metadata.
- * @returns True when the quote uses the post-Relay Money Account vault deposit.
- */
-export function usesPostRelayMoneyAccountVaultDeposit(
-  request: QuoteRequest,
-  transaction: TransactionMeta,
-): boolean {
-  if (
-    Boolean(request.isMaxAmount) &&
-    isMoneyAccountDepositTransaction(transaction)
-  ) {
-    return true;
-  }
-
-  return (
-    (isPerpsWithdrawTransaction(transaction) ||
-      isPredictWithdrawTransaction(transaction)) &&
-    request.targetChainId === MUSD_MONAD_FIAT_ASSET.chainId &&
-    request.targetTokenAddress.toLowerCase() ===
-      MUSD_MONAD_FIAT_ASSET.address.toLowerCase()
-  );
-}
-
-/**
  * Runs the Money Account vault deposit after a max-amount Relay bridge has
  * settled mUSD into the Money Account. Resolves the actually-settled amount,
  * then delegates to the shared `submitMoneyAccountVaultDeposit` util.
@@ -175,4 +139,41 @@ async function resolvePostRelayAmount({
   });
 
   return fallback;
+}
+
+/**
+ * Whether a quote must settle into the Money Account vault via a post-Relay
+ * vault deposit (Relay lands mUSD on the Money Account, then a separate
+ * sponsored deposit mints vmUSD) instead of embedding the deposit atomically.
+ *
+ * Two cases, both keyed on transaction type (resolving nested batch types):
+ * - Crypto/fiat Money Account deposits, but only for max amount — non-max
+ *   deposits embed a fixed-amount vault batch (EXACT_OUTPUT).
+ * - Perps/Predict withdraws whose destination is mUSD on Monad. These are
+ *   EXACT_INPUT post-quote flows whose settled mUSD is only known after Relay
+ *   completes, so they always use the post-Relay deposit.
+ *
+ * @param request - The quote request to test.
+ * @param transaction - The parent transaction metadata.
+ * @returns True when the quote uses the post-Relay Money Account vault deposit.
+ */
+export function isPostRelayMoneyAccountVaultDeposit(
+  request: QuoteRequest,
+  transaction: TransactionMeta,
+): boolean {
+  if (
+    Boolean(request.isMaxAmount) &&
+    isMoneyAccountDepositTransaction(transaction)
+  ) {
+    return true;
+  }
+
+  return false;
+  // return (
+  //   (isPerpsWithdrawTransaction(transaction) ||
+  //     isPredictWithdrawTransaction(transaction)) &&
+  //   request.targetChainId === MUSD_MONAD_FIAT_ASSET.chainId &&
+  //   request.targetTokenAddress.toLowerCase() ===
+  //     MUSD_MONAD_FIAT_ASSET.address.toLowerCase()
+  // );
 }

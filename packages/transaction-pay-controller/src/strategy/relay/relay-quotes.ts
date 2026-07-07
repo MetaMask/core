@@ -61,7 +61,7 @@ import { applyHyperliquidActivationFee } from './hyperliquid-activation';
 import { applyPolymarketDepositWalletOverrides } from './polymarket/withdraw';
 import { fetchRelayQuote } from './relay-api';
 import { getRelayMaxGasStationQuote } from './relay-max-gas-station';
-import { usesPostRelayMoneyAccountVaultDeposit } from './relay-post-ma-vault';
+import { isPostRelayMoneyAccountVaultDeposit } from './relay-post-ma-vault';
 import type {
   RelayQuote,
   RelayQuoteMetamask,
@@ -291,14 +291,14 @@ async function getSingleQuote(
   );
 
   try {
-    const usesPostRelayVaultDeposit = usesPostRelayMoneyAccountVaultDeposit(
+    const usePostRelayVaultDeposit = isPostRelayMoneyAccountVaultDeposit(
       request,
       transaction,
     );
 
     // Redirect the bridged mUSD to the Money Account (a separate account from the
     // funding EOA) so the post-Relay vault deposit can move it into the vault.
-    if (usesPostRelayVaultDeposit) {
+    if (usePostRelayVaultDeposit) {
       request.recipient = transaction.txParams.from as Hex;
     }
 

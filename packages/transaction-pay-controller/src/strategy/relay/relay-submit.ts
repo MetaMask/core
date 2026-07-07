@@ -47,7 +47,7 @@ import {
 import { getRelayStatus, submitRelayExecute } from './relay-api';
 import {
   submitPostRelayVaultDeposit,
-  usesPostRelayMoneyAccountVaultDeposit,
+  isPostRelayMoneyAccountVaultDeposit,
 } from './relay-post-ma-vault';
 import type {
   RelayCompletionOutcome,
@@ -186,7 +186,7 @@ async function executeSingleQuote(
   // its hash.
   if (
     completion.status === 'success' &&
-    usesPostRelayMoneyAccountVaultDeposit(quote.request, transaction)
+    isPostRelayMoneyAccountVaultDeposit(quote.request, transaction)
   ) {
     const { transactionHash } = await submitPostRelayVaultDeposit({
       completion,
@@ -442,7 +442,7 @@ async function submitTransactions(
 
   let allParams = normalizedParams;
 
-  if (usesPostRelayMoneyAccountVaultDeposit(quote.request, transaction)) {
+  if (isPostRelayMoneyAccountVaultDeposit(quote.request, transaction)) {
     log(
       'Money Account vault deposit: submitting Relay bridge only; vault deposit runs post-completion',
     );
