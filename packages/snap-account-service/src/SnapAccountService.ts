@@ -709,10 +709,9 @@ export class SnapAccountService {
     accounts: AccountId[],
   ): Promise<void> {
     if (keyring.v1) {
-      console.log('@@ SnapAccountService: setSelectedAccounts for v1 snap', { snapId, accounts });
+      // We used to keep track of selected accounts in the v1 keyring, so we need to forward the call there for v1 Snaps.
       await keyring.v1.setSelectedAccounts(accounts);
     } else {
-      console.log('@@ SnapAccountService: setSelectedAccounts for v2 snap @@', { snapId, accounts });
       await this.#client.withSnapId(snapId).setSelectedAccounts(accounts);
     }
   }
