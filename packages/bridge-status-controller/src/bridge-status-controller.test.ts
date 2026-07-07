@@ -7073,6 +7073,13 @@ describe('BridgeStatusController', () => {
         },
         async ({ controller }) => {
           expect(controller.state.quoteUpdateStatusStore).toStrictEqual({});
+          // The guard must not persist `reportedSubmittedTxHash`: doing so
+          // would mark the history item as already reported even though no
+          // store entry or backend update was ever created, so it could never
+          // be seeded once the manager is re-enabled.
+          expect(
+            controller.state.txHistory.seedTx8.reportedSubmittedTxHash,
+          ).toBeUndefined();
         },
       );
     });

@@ -635,6 +635,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * `#reportSubmittedOnce`) before `init()` runs.
    */
   readonly #seedQuoteStatusEntriesFromHistory = (): void => {
+    if (!this.#quoteStatusManager.enabled) {
+      // Skip seeding to prevent `#reportSubmittedOnce` from persisting
+      // `reportedSubmittedTxHash` so recent bridge history cannot be marked as
+      //  already reported with no store entry or backend update.
+      return
+    }
+
     for (const [historyKey, historyItem] of Object.entries(
       this.state.txHistory,
     )) {
