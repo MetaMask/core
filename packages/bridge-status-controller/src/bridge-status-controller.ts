@@ -639,7 +639,7 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       // Skip seeding to prevent `#reportSubmittedOnce` from persisting
       // `reportedSubmittedTxHash` so recent bridge history cannot be marked as
       //  already reported with no store entry or backend update.
-      return
+      return;
     }
 
     for (const [historyKey, historyItem] of Object.entries(
