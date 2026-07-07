@@ -10,7 +10,8 @@ import type { Infer } from '@metamask/superstruct';
 import { StrictHexStruct } from '@metamask/utils';
 
 import { BridgeAssetSchema } from './bridge-asset';
-import { NumberStringSchema, GaslessPropertiesSchema } from './quote-response';
+import { NumberStringSchema } from './number';
+import { GaslessPropertiesSchema } from './quote';
 import { TxDataSchema } from './trade';
 
 export enum BatchSellTransactionType {

@@ -1,5 +1,3 @@
-import { DiscountType } from './validators/quote-response';
-
 export { BridgeController } from './bridge-controller';
 
 export {
@@ -48,15 +46,12 @@ export type {
   FeatureFlagResponse,
   BridgeAsset,
   GenericQuoteRequest,
-  Protocol,
   BatchSellTradesResponse,
   GaslessProperties,
   SimulatedGasFeeLimits,
   TokenAmountValues,
   Step,
   RefuelData,
-  Quote,
-  QuoteResponseV1 as QuoteResponse,
   FeeData,
   Intent,
   IntentOrderLike,
@@ -111,11 +106,10 @@ export {
   isEvmTxData,
   isStellarTrade,
 } from './validators/trade';
-export {
-  DiscountType,
-  FeeType,
-  ActionTypes,
-} from './validators/quote-response';
+export type { QuoteResponseV1 as QuoteResponse } from './validators/quote-response-v1';
+export type { Quote } from './validators/quote';
+export type { DiscountType, FeeType } from './validators/quote';
+export type { ActionTypes } from './validators/step';
 export {
   validateQuoteStreamComplete,
   QuoteStreamCompleteReason,
