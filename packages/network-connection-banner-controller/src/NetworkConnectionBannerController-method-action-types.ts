@@ -14,8 +14,9 @@ export type NetworkConnectionBannerControllerDismissBannerAction = {
 };
 
 /**
- * Switches the chain's default RPC endpoint to its Infura endpoint,
- * causing the banner to clear once the network becomes available again.
+ * Switches the chain's default RPC endpoint to its Infura endpoint and
+ * makes it the active network, causing the banner to clear once the
+ * network becomes available again.
  *
  * @param chainId - The chain whose default RPC endpoint should be switched.
  * @throws If the chain configuration cannot be found, or if it has no

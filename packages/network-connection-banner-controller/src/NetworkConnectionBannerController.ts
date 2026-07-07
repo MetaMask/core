@@ -25,6 +25,7 @@ import type {
   NetworkControllerGetNetworkConfigurationByChainIdAction,
   NetworkControllerGetStateAction,
   NetworkControllerUpdateNetworkAction,
+  NetworkControllerSetActiveNetworkAction,
   NetworkControllerStateChangeEvent,
   NetworkMetadata,
   NetworkState,
@@ -241,6 +242,7 @@ type AllowedActions =
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkConfigurationByChainIdAction
   | NetworkControllerUpdateNetworkAction
+  | NetworkControllerSetActiveNetworkAction
   | NetworkEnablementControllerGetStateAction
   | ConnectivityControllerGetStateAction;
 
@@ -481,8 +483,9 @@ export class NetworkConnectionBannerController extends BaseController<
   }
 
   /**
-   * Switches the chain's default RPC endpoint to its Infura endpoint,
-   * causing the banner to clear once the network becomes available again.
+   * Switches the chain's default RPC endpoint to its Infura endpoint and
+   * makes it the active network, causing the banner to clear once the
+   * network becomes available again.
    *
    * @param chainId - The chain whose default RPC endpoint should be switched.
    * @throws If the chain configuration cannot be found, or if it has no
@@ -512,15 +515,24 @@ export class NetworkConnectionBannerController extends BaseController<
       return;
     }
 
-    await this.messenger.call(
-      'NetworkController:updateNetwork',
-      chainId,
-      {
-        ...networkConfiguration,
-        defaultRpcEndpointIndex: infuraEndpointIndex,
-      },
-      { replacementSelectedRpcEndpointIndex: infuraEndpointIndex },
+    await this.messenger.call('NetworkController:updateNetwork', chainId, {
+      ...networkConfiguration,
+      defaultRpcEndpointIndex: infuraEndpointIndex,
+    });
+
+    // Move the active connection onto the Infura endpoint too, so the user
+    // is no longer connected to the failing endpoint.
+    const infuraNetworkClientId =
+      networkConfiguration.rpcEndpoints[infuraEndpointIndex].networkClientId;
+    const { selectedNetworkClientId } = this.messenger.call(
+      'NetworkController:getState',
     );
+    if (infuraNetworkClientId !== selectedNetworkClientId) {
+      await this.messenger.call(
+        'NetworkController:setActiveNetwork',
+        infuraNetworkClientId,
+      );
+    }
   }
 
   #refreshState({

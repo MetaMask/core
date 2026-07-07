@@ -7,7 +7,9 @@
   },
   "references": [
     { "path": "../base-controller/tsconfig.build.json" },
+    { "path": "../client-controller/tsconfig.build.json" },
     { "path": "../connectivity-controller/tsconfig.build.json" },
+    { "path": "../keyring-controller/tsconfig.build.json" },
     { "path": "../messenger/tsconfig.build.json" },
     { "path": "../network-controller/tsconfig.build.json" },
     { "path": "../network-enablement-controller/tsconfig.build.json" }

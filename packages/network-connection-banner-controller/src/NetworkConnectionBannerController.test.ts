@@ -1366,12 +1366,13 @@ describe('NetworkConnectionBannerController', () => {
   });
 
   describe('switchToDefaultInfuraRpcEndpoint', () => {
-    it('invokes NetworkController:updateNetwork with the Infura endpoint as the new default', async () => {
+    it('makes the Infura endpoint the new default and switches the active network onto it', async () => {
       await withController(
         async ({
           rootMessenger,
           publishNetworkStateChanges,
           updateNetwork,
+          setActiveNetwork,
         }) => {
           const config = buildNetworkConfiguration({
             chainId: '0x1',
@@ -1407,8 +1408,54 @@ describe('NetworkConnectionBannerController', () => {
           expect(updateNetwork).toHaveBeenCalledWith(
             '0x1',
             expect.objectContaining({ defaultRpcEndpointIndex: 1 }),
-            { replacementSelectedRpcEndpointIndex: 1 },
           );
+          expect(setActiveNetwork).toHaveBeenCalledTimes(1);
+          expect(setActiveNetwork).toHaveBeenCalledWith(MAINNET_CLIENT_ID);
+        },
+      );
+    });
+
+    it('does not switch the active network when the Infura endpoint is already selected', async () => {
+      await withController(
+        async ({
+          rootMessenger,
+          publishNetworkStateChanges,
+          setNetworkControllerState,
+          updateNetwork,
+          setActiveNetwork,
+        }) => {
+          const config = buildNetworkConfiguration({
+            chainId: '0x1',
+            rpcEndpoints: [
+              buildCustomEndpoint({
+                networkClientId: ALCHEMY_CLIENT_ID,
+                url: 'https://eth-mainnet.alchemyapi.io/v2/abc',
+              }),
+              buildInfuraEndpoint({
+                networkClientId: MAINNET_CLIENT_ID,
+                infuraNetworkType: 'mainnet',
+              }),
+            ],
+          });
+          publishNetworkStateChanges(
+            buildExternalState({
+              networkConfigurationsByChainId: { '0x1': config },
+              enabledEvmChainIds: ['0x1'],
+            }),
+          );
+          setNetworkControllerState({
+            networkConfigurationsByChainId: { '0x1': config },
+            networksMetadata: {},
+            selectedNetworkClientId: MAINNET_CLIENT_ID,
+          });
+
+          await rootMessenger.call(
+            'NetworkConnectionBannerController:switchToDefaultInfuraRpcEndpoint',
+            '0x1',
+          );
+
+          expect(updateNetwork).toHaveBeenCalledTimes(1);
+          expect(setActiveNetwork).not.toHaveBeenCalled();
         },
       );
     });
@@ -1578,6 +1625,7 @@ type WithControllerCallback<ReturnValue> = (payload: {
   setUiOpen: (isUiOpen: boolean) => void;
   setKeyringUnlocked: (isUnlocked: boolean) => void;
   updateNetwork: jest.Mock;
+  setActiveNetwork: jest.Mock;
 }) => Promise<ReturnValue> | ReturnValue;
 
 type WithControllerOptions = {
@@ -1628,6 +1676,11 @@ async function withController<ReturnValue>(
     'NetworkController:updateNetwork',
     updateNetwork,
   );
+  const setActiveNetwork = jest.fn(async (): Promise<void> => undefined);
+  rootMessenger.registerActionHandler(
+    'NetworkController:setActiveNetwork',
+    setActiveNetwork,
+  );
 
   rootMessenger.registerActionHandler(
     'NetworkEnablementController:getState',
@@ -1655,6 +1708,7 @@ async function withController<ReturnValue>(
       'NetworkController:getState',
       'NetworkController:getNetworkConfigurationByChainId',
       'NetworkController:updateNetwork',
+      'NetworkController:setActiveNetwork',
       'NetworkEnablementController:getState',
       'ConnectivityController:getState',
     ],
@@ -1765,6 +1819,7 @@ async function withController<ReturnValue>(
     setUiOpen,
     setKeyringUnlocked,
     updateNetwork,
+    setActiveNetwork,
   });
 }
 
