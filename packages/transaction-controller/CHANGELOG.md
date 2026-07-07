@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `failTransaction` method and corresponding `TransactionController:failTransaction` messenger action ([#0000](https://github.com/MetaMask/core/pull/0000))
+  - Marks a transaction as failed through the standard failure path, emitting the `transactionFailed`, `transactionStatusUpdated`, and `transactionFinished` events so downstream subscribers (e.g. bridge status, metrics) are notified.
+  - Intended for callers that finalize a transaction out-of-band, such as the smart transactions controller when the relay cancels a smart transaction.
+
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
