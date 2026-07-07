@@ -9,5 +9,5 @@
     { "path": "../storage-service/tsconfig.json" },
     { "path": "../wallet/tsconfig.json" }
   ],
-  "include": ["../../types", "./bin", "./src"]
+  "include": ["../../types", "./bin", "./src", "./tests"]
 }

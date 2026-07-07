@@ -62,6 +62,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/chomp-api-service`](packages/chomp-api-service)
 - [`@metamask/claims-controller`](packages/claims-controller)
 - [`@metamask/client-controller`](packages/client-controller)
+- [`@metamask/client-utils`](packages/client-utils)
 - [`@metamask/compliance-controller`](packages/compliance-controller)
 - [`@metamask/composable-controller`](packages/composable-controller)
 - [`@metamask/config-registry-controller`](packages/config-registry-controller)
@@ -90,6 +91,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/message-manager`](packages/message-manager)
 - [`@metamask/messenger`](packages/messenger)
 - [`@metamask/messenger-cli`](packages/messenger-cli)
+- [`@metamask/money-account-api-data-service`](packages/money-account-api-data-service)
 - [`@metamask/money-account-balance-service`](packages/money-account-balance-service)
 - [`@metamask/money-account-controller`](packages/money-account-controller)
 - [`@metamask/money-account-upgrade-controller`](packages/money-account-upgrade-controller)
@@ -106,6 +108,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/permission-log-controller`](packages/permission-log-controller)
 - [`@metamask/perps-controller`](packages/perps-controller)
 - [`@metamask/phishing-controller`](packages/phishing-controller)
+- [`@metamask/platform-api-docs`](packages/platform-api-docs)
 - [`@metamask/polling-controller`](packages/polling-controller)
 - [`@metamask/preferences-controller`](packages/preferences-controller)
 - [`@metamask/profile-metrics-controller`](packages/profile-metrics-controller)
@@ -123,6 +126,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/snap-account-service`](packages/snap-account-service)
 - [`@metamask/social-controllers`](packages/social-controllers)
 - [`@metamask/solana-test-validator-up`](packages/solana-test-validator-up)
+- [`@metamask/stellar-quickstart-up`](packages/stellar-quickstart-up)
 - [`@metamask/storage-service`](packages/storage-service)
 - [`@metamask/subscription-controller`](packages/subscription-controller)
 - [`@metamask/transaction-controller`](packages/transaction-controller)
@@ -161,6 +165,7 @@ linkStyle default opacity:0.5
   chomp_api_service(["@metamask/chomp-api-service"]);
   claims_controller(["@metamask/claims-controller"]);
   client_controller(["@metamask/client-controller"]);
+  client_utils(["@metamask/client-utils"]);
   compliance_controller(["@metamask/compliance-controller"]);
   composable_controller(["@metamask/composable-controller"]);
   config_registry_controller(["@metamask/config-registry-controller"]);
@@ -189,6 +194,7 @@ linkStyle default opacity:0.5
   message_manager(["@metamask/message-manager"]);
   messenger(["@metamask/messenger"]);
   messenger_cli(["@metamask/messenger-cli"]);
+  money_account_api_data_service(["@metamask/money-account-api-data-service"]);
   money_account_balance_service(["@metamask/money-account-balance-service"]);
   money_account_controller(["@metamask/money-account-controller"]);
   money_account_upgrade_controller(["@metamask/money-account-upgrade-controller"]);
@@ -205,6 +211,7 @@ linkStyle default opacity:0.5
   permission_log_controller(["@metamask/permission-log-controller"]);
   perps_controller(["@metamask/perps-controller"]);
   phishing_controller(["@metamask/phishing-controller"]);
+  platform_api_docs(["@metamask/platform-api-docs"]);
   polling_controller(["@metamask/polling-controller"]);
   preferences_controller(["@metamask/preferences-controller"]);
   profile_metrics_controller(["@metamask/profile-metrics-controller"]);
@@ -222,6 +229,7 @@ linkStyle default opacity:0.5
   snap_account_service(["@metamask/snap-account-service"]);
   social_controllers(["@metamask/social-controllers"]);
   solana_test_validator_up(["@metamask/solana-test-validator-up"]);
+  stellar_quickstart_up(["@metamask/stellar-quickstart-up"]);
   storage_service(["@metamask/storage-service"]);
   subscription_controller(["@metamask/subscription-controller"]);
   transaction_controller(["@metamask/transaction-controller"]);
@@ -334,6 +342,9 @@ linkStyle default opacity:0.5
   claims_controller --> profile_sync_controller;
   client_controller --> base_controller;
   client_controller --> messenger;
+  client_utils --> controller_utils;
+  client_utils --> core_backend;
+  client_utils --> transaction_controller;
   compliance_controller --> base_controller;
   compliance_controller --> controller_utils;
   compliance_controller --> messenger;
@@ -405,6 +416,9 @@ linkStyle default opacity:0.5
   message_manager --> base_controller;
   message_manager --> controller_utils;
   message_manager --> messenger;
+  money_account_api_data_service --> base_data_service;
+  money_account_api_data_service --> controller_utils;
+  money_account_api_data_service --> messenger;
   money_account_balance_service --> base_data_service;
   money_account_balance_service --> controller_utils;
   money_account_balance_service --> messenger;
@@ -591,8 +605,6 @@ linkStyle default opacity:0.5
   transaction_pay_controller --> assets_controller;
   transaction_pay_controller --> assets_controllers;
   transaction_pay_controller --> base_controller;
-  transaction_pay_controller --> bridge_controller;
-  transaction_pay_controller --> bridge_status_controller;
   transaction_pay_controller --> controller_utils;
   transaction_pay_controller --> gas_fee_controller;
   transaction_pay_controller --> keyring_controller;
@@ -612,6 +624,7 @@ linkStyle default opacity:0.5
   user_operation_controller --> transaction_controller;
   user_operation_controller --> eth_block_tracker;
   wallet --> accounts_controller;
+  wallet --> address_book_controller;
   wallet --> approval_controller;
   wallet --> base_controller;
   wallet --> connectivity_controller;
@@ -621,6 +634,7 @@ linkStyle default opacity:0.5
   wallet --> network_controller;
   wallet --> remote_feature_flag_controller;
   wallet --> storage_service;
+  wallet --> transaction_controller;
   wallet_cli --> base_controller;
   wallet_cli --> remote_feature_flag_controller;
   wallet_cli --> storage_service;

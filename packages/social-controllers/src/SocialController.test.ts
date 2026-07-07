@@ -58,6 +58,8 @@ function getMessenger(rootMessenger: RootMessenger): SocialControllerMessenger {
       'SocialService:follow',
       'SocialService:unfollow',
       'SocialService:fetchFollowing',
+      'SocialService:optOutOfLeaderboard',
+      'SocialService:optInToLeaderboard',
     ],
     events: [],
     messenger,
@@ -496,6 +498,104 @@ describe('SocialController', () => {
       const result = await messenger.call('SocialController:updateFollowing');
 
       expect(result.following).toStrictEqual([mockProfileSummary]);
+    });
+  });
+
+  describe('optOutOfLeaderboard', () => {
+    it('delegates to the service via messenger and resolves to void', async () => {
+      const rootMessenger = getRootMessenger();
+      const optOut = jest.fn().mockResolvedValue(undefined);
+      mockServiceAction(
+        rootMessenger,
+        'SocialService:optOutOfLeaderboard',
+        optOut,
+      );
+
+      const { controller } = createController({ rootMessenger });
+
+      const result = await controller.optOutOfLeaderboard();
+
+      expect(optOut).toHaveBeenCalledTimes(1);
+      expect(result).toBeUndefined();
+    });
+
+    it('is callable via messenger action', async () => {
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'SocialService:optOutOfLeaderboard',
+        jest.fn().mockResolvedValue(undefined),
+      );
+
+      const { messenger } = createController({ rootMessenger });
+
+      expect(
+        await messenger.call('SocialController:optOutOfLeaderboard'),
+      ).toBeUndefined();
+    });
+
+    it('propagates service errors', async () => {
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'SocialService:optOutOfLeaderboard',
+        jest.fn().mockRejectedValue(new Error('opt-out failed')),
+      );
+
+      const { controller } = createController({ rootMessenger });
+
+      await expect(controller.optOutOfLeaderboard()).rejects.toThrow(
+        'opt-out failed',
+      );
+    });
+  });
+
+  describe('optInToLeaderboard', () => {
+    it('delegates to the service via messenger and resolves to void', async () => {
+      const rootMessenger = getRootMessenger();
+      const optIn = jest.fn().mockResolvedValue(undefined);
+      mockServiceAction(
+        rootMessenger,
+        'SocialService:optInToLeaderboard',
+        optIn,
+      );
+
+      const { controller } = createController({ rootMessenger });
+
+      const result = await controller.optInToLeaderboard();
+
+      expect(optIn).toHaveBeenCalledTimes(1);
+      expect(result).toBeUndefined();
+    });
+
+    it('is callable via messenger action', async () => {
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'SocialService:optInToLeaderboard',
+        jest.fn().mockResolvedValue(undefined),
+      );
+
+      const { messenger } = createController({ rootMessenger });
+
+      expect(
+        await messenger.call('SocialController:optInToLeaderboard'),
+      ).toBeUndefined();
+    });
+
+    it('propagates service errors', async () => {
+      const rootMessenger = getRootMessenger();
+      mockServiceAction(
+        rootMessenger,
+        'SocialService:optInToLeaderboard',
+        jest.fn().mockRejectedValue(new Error('opt-in failed')),
+      );
+
+      const { controller } = createController({ rootMessenger });
+
+      await expect(controller.optInToLeaderboard()).rejects.toThrow(
+        'opt-in failed',
+      );
     });
   });
 

@@ -184,10 +184,12 @@ export function adaptOrderFromSDK(
 
   // TODO: We assume that there can only be 1 TP and 1 SL as children but there can be several TPSLs as children
   if (rawOrder.children && rawOrder.children.length > 0) {
-    rawOrder.children.forEach((childUnknown) => {
-      const child = childUnknown as FrontendOrder;
+    rawOrder.children.forEach((child) => {
       if (child.isTrigger && child.orderType) {
         if (child.orderType.includes('Take Profit')) {
+          // HyperLiquid represents "no trigger price" as an empty string, not
+          // null/undefined, so `||` (not `??`) is required to fall back to
+          // limitPx when triggerPx is ''.
           takeProfitPrice = child.triggerPx || child.limitPx;
           takeProfitOrderId = child.oid.toString();
         } else if (child.orderType.includes('Stop')) {
