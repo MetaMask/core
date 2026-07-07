@@ -312,27 +312,39 @@ export type NetworkConnectionBannerControllerOptions = {
 };
 
 /**
- * NetworkConnectionBannerController decides whether the network connection
- * banner should be shown for the user, and which failing network it should
- * describe. It encapsulates the rule and the 5s / 30s timer escalation.
+ * Drives the "network connection banner", a notice that appears within clients
+ * whose goal is to inform users about networks which have exhibited repeated
+ * request failures and offer potential workarounds.
  *
- * The banner shows when:
+ * Some terminology: A "network" in this case is an RPC endpoint, and a network
+ * that has exhibited repeated request failures has entered a "failed" state (or
+ * is a "failed network").
  *
- * - A failing network's default RPC is a custom (non-Infura) endpoint —
- *   users always want to be informed about errors with RPCs they've chosen.
- * - Every enabled EVM network is reporting a failed connectivity status
- *   (escape hatch so Infura-only setups still get a signal).
+ * For simplicity, the banner always represents a single failed network. If
+ * multiple networks are failing, the first custom network takes priority over
+ * the first Infura network.
  *
- * A partial Infura outage alongside healthy peers is suppressed since it
- * usually resolves on its own and the user cannot act on it. When a custom
- * failure is present, it's surfaced first so the "Switch to MetaMask default
- * RPC" CTA targets the network the user can act on.
+ * To ensure that the banner is actionable, the banner does not always appear
+ * even if there is a failed network to display. Instead it appears under these
+ * conditions:
  *
- * The controller manages its own lifecycle: it evaluates RPC health (and
- * runs the escalation timers) only while the client UI is open
- * (`ClientController`) and the wallet is unlocked (`KeyringController`).
- * Clients only need to render the banner from the controller's state and wire
- * click handlers to {@link dismissBanner} or {@link switchToDefaultInfuraRpcEndpoint}.
+ * - The failed network is a custom (non-Infura) endpoint (we want to inform
+ *   users about endpoints they've added so they don't cast blame on MetaMask).
+ * - Every enabled EVM network has entered a failed state (this indicates a
+ *   broad connectivity issue).
+ *
+ * Assuming that these conditions have been met, there are two variants of the
+ * banner which will be displayed at different times.
+ *
+ * - A "degraded" variant which will appear when 5 seconds has elapsed and there
+ *   is an eligible failed network to display
+ * - An "unavailable" variant which will appear when 30 seconds have elapsed and
+ *   there is an eligible failed network to display
+ *
+ * Finally, the controller contains actions that drive interactions with the
+ * banner. Namely, if the banner represents a custom network, then it will offer
+ * the user a way to switch to the default Infura network. The controller
+ * contains the logic to carry out that action.
  */
 export class NetworkConnectionBannerController extends BaseController<
   typeof CONTROLLER_NAME,
