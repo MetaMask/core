@@ -7,6 +7,7 @@ export type {
   RampsControllerStateChangeEvent,
   RampsControllerOrderStatusChangedEvent,
   RampsControllerOptions,
+  ProviderScope,
   UserRegion,
   ResourceState,
   TransakState,

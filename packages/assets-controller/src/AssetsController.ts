@@ -1329,10 +1329,14 @@ export class AssetsController extends BaseController<
         currentCount: currentIds.size,
       });
 
+      const newAccounts = accounts.filter(
+        (account) => !this.#lastKnownAccountIds.has(account.id),
+      );
+
       this.#lastKnownAccountIds = currentIds;
       this.#ensureNativeBalancesDefaultZero();
       this.#ensureDefaultTrackedAssetsSeeded();
-      this.#runAccountTreeRefresh(accounts).catch((error) => {
+      this.#runAccountTreeRefresh(accounts, newAccounts).catch((error) => {
         log('Failed to refresh assets after tree change', error);
       });
     } else {
@@ -1340,7 +1344,10 @@ export class AssetsController extends BaseController<
     }
   }
 
-  async #runAccountTreeRefresh(accounts: InternalAccount[]): Promise<void> {
+  async #runAccountTreeRefresh(
+    accounts: InternalAccount[],
+    newAccounts: InternalAccount[] = [],
+  ): Promise<void> {
     const releaseLock = await this.#accountRefreshMutex.acquire();
     try {
       await this.getAssets(accounts, {
@@ -1348,6 +1355,12 @@ export class AssetsController extends BaseController<
         forceUpdate: true,
       });
       this.#subscribeAssets();
+      if (newAccounts.length > 0) {
+        await this.getAssets(newAccounts, {
+          chainIds: [...this.#enabledChains],
+          forceUpdate: true,
+        });
+      }
     } catch (error) {
       log('Failed to fetch assets after tree change', error);
       this.#subscribeAssets();
@@ -3364,8 +3377,9 @@ export class AssetsController extends BaseController<
     this.#subscribeAssets();
 
     // Do one-time fetch for newly enabled chains; merge so we keep existing chain balances
-    if (addedChains.length > 0 && this.#getSelectedAccounts().length > 0) {
-      await this.getAssets(this.#getSelectedAccounts(), {
+    const accounts = this.#getSelectedAccounts();
+    if (addedChains.length > 0 && accounts.length > 0) {
+      await this.getAssets(accounts, {
         chainIds: addedChains,
         forceUpdate: true,
         updateMode: 'merge',

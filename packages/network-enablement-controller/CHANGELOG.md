@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/keyring-api` from `^23.3.0` to `^23.4.0` ([#9377](https://github.com/MetaMask/core/pull/9377))
+- Restore Stellar to the Network Enablement Controller enabled network map by reverting the temporary rollback, as the corresponding Extension issue has already been resolved ([#9385](https://github.com/MetaMask/core/pull/9385))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 
 ## [5.4.1]
 
