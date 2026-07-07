@@ -857,30 +857,35 @@ describe('NetworkConnectionBannerController', () => {
 
     it('does not restart the degraded timer when the same network fails across re-evaluations', async () => {
       await withController(({ controller, publishNetworkStateChanges }) => {
-        const failingState = buildExternalState({
-          networkConfigurationsByChainId: {
-            '0x89': buildNetworkConfiguration({
-              chainId: '0x89',
-              rpcEndpoints: [
-                buildCustomEndpoint({
-                  networkClientId: POLYGON_CUSTOM_CLIENT_ID,
-                  url: 'https://polygon-rpc.com',
-                }),
-              ],
-            }),
-          },
-          enabledEvmChainIds: ['0x89'],
-          networksMetadata: {
-            [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
-              NetworkStatus.Unavailable,
-            ),
-          },
-        });
+        const buildFailingState = (status: NetworkStatus): ExternalState =>
+          buildExternalState({
+            networkConfigurationsByChainId: {
+              '0x89': buildNetworkConfiguration({
+                chainId: '0x89',
+                rpcEndpoints: [
+                  buildCustomEndpoint({
+                    networkClientId: POLYGON_CUSTOM_CLIENT_ID,
+                    url: 'https://polygon-rpc.com',
+                  }),
+                ],
+              }),
+            },
+            enabledEvmChainIds: ['0x89'],
+            networksMetadata: {
+              [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(status),
+            },
+          });
 
-        publishNetworkStateChanges(failingState);
+        publishNetworkStateChanges(buildFailingState(NetworkStatus.Unknown));
         jest.advanceTimersByTime(4_000);
 
-        publishNetworkStateChanges(failingState);
+        // A changed NetworkController state that still resolves to the same
+        // failing network must not clear and restart the pending countdown.
+        // (A republished identical state would be deduped by the
+        // subscription selector and never reach the controller.)
+        publishNetworkStateChanges(
+          buildFailingState(NetworkStatus.Unavailable),
+        );
         jest.advanceTimersByTime(1_000);
 
         expect(controller.state.networkConnectionBannerStatus).toBe('degraded');
