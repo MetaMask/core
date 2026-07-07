@@ -10,7 +10,7 @@ import type { Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import { getProvidersServingAsset } from './providerAvailability';
-import { isCustomActionQuote, isExternalBrowserQuote } from './quoteClassification';
+import { getSmartSelectedQuote } from './quoteSelection';
 import type { RampsControllerMethodActions } from './RampsController-method-action-types';
 import type { RampsErrorCode } from './rampsErrorCodes';
 import { RAMPS_ERROR_CODES } from './rampsErrorCodes';
@@ -25,8 +25,6 @@ import type {
   PaymentMethodsResponse,
   QuotesResponse,
   Quote,
-  QuoteSortBy,
-  QuoteCustomAction,
   RampsToken,
   RampsServiceActions,
   RampsOrder,
@@ -1851,6 +1849,12 @@ export class RampsController extends BaseController<
    *   passed `providers` list is filtered to those supporting the region and
    *   asset. If nothing qualifies, `getQuotes` returns an empty response
    *   instead of quoting other providers.
+   * @deprecated Provider-class scope (`getProviderScope`) is now the gate:
+   *   `off` keeps native-only auto-selection and `in-app`/`all` widen, so this
+   *   flag is redundant. It is still honored for one release (it, like
+   *   `autoSelectProvider`, routes a no-`providers` request through the gated
+   *   path) and will be removed in a later major. New callers should rely on
+   *   the scope instead of passing this flag.
    * @param options.redirectUrl - Optional redirect URL after order completion.
    * @param options.action - The ramp action type. Defaults to 'buy'.
    * @param options.forceRefresh - Whether to bypass cache.
@@ -1892,18 +1896,25 @@ export class RampsController extends BaseController<
       throw new Error('assetId is required.');
     }
 
-    // When a non-`off` provider scope is active, widen the native-only
-    // auto-selection path to every supporting provider and pick the best in-app
-    // quote from the results (in-app vs external is only knowable per-quote via
-    // `buyWidget.browser`). Only the auto-select/restrict path that MM Pay's
+    // Provider-class scope is the gate (P2.M8): `off` keeps native-only
+    // auto-selection (the kill switch); `in-app`/`all` widen the auto-selection
+    // path to every supporting provider and pick the best quote from the
+    // results (in-app vs external is only knowable per-quote via
+    // `buyWidget.browser`). Only the auto-select path that MM Pay's
     // `getRampsQuote` uses is affected; explicit-`providers` callers and the
     // plain all-provider path are untouched.
     const providerScope = this.#getProviderScope();
-    const widenToInAppProviders =
-      providerScope !== 'off' &&
+    const scopeWidens = providerScope !== 'off';
+    // The auto-select entry path. `restrictToKnownOrNativeProviders` is
+    // `@deprecated` (P2.M8) but still honored here: like `autoSelectProvider`,
+    // it routes a no-explicit-`providers` request through the resolved/gated
+    // path, so existing callers (TPC `getRampsQuote`) are unaffected until the
+    // option is removed in a later major.
+    const usesAutoSelectPath =
       !options.providers &&
       (options.autoSelectProvider === true ||
         options.restrictToKnownOrNativeProviders === true);
+    const widenToInAppProviders = scopeWidens && usesAutoSelectPath;
 
     let providersToUse: string[];
     let inAppProviderCatalog: Provider[] = this.state.providers.data;
@@ -1971,7 +1982,8 @@ export class RampsController extends BaseController<
     // fall through to unfiltered quotes from providers that do not support the
     // asset.
     if (
-      (options.restrictToKnownOrNativeProviders || widenToInAppProviders) &&
+      (widenToInAppProviders ||
+        options.restrictToKnownOrNativeProviders === true) &&
       providersToUse.length === 0
     ) {
       return { success: [], sorted: [], error: [], customActions: [] };
@@ -2063,10 +2075,12 @@ export class RampsController extends BaseController<
   /**
    * Selects the best in-app quote from a widened multi-provider response.
    *
-   * Applies the Phase 1 in-app filter (drops custom-action providers and
-   * external-browser quotes), enforces per-provider fiat limits up front, then
-   * orders by reliability and falls back to price using the server-provided
-   * `sorted` order. Returns `undefined` when no in-app quote is usable.
+   * Thin wrapper over the pure, public `getSmartSelectedQuote`, feeding it the
+   * controller-owned order-history preference (`#getPreferredProviderIdsFromOrders`)
+   * as the top ranking rung so a returning user's previously-used provider wins
+   * over reliability/price. All the provider-agnostic selection logic (in-app
+   * filter, per-provider limit enforcement, reliability/price ranking) lives in
+   * `getSmartSelectedQuote` so this path and headless consumers pick identically.
    *
    * @param response - The multi-provider quotes response.
    * @param options - Selection inputs.
@@ -2090,79 +2104,13 @@ export class RampsController extends BaseController<
       providers: Provider[];
     },
   ): Quote | undefined {
-    const providerByCode = new Map(
-      providers.map((provider) => [
-        normalizeProviderCode(provider.id),
-        provider,
-      ]),
-    );
-    const customActionProviderCodes = new Set(
-      response.customActions.map((action: QuoteCustomAction) =>
-        normalizeProviderCode(action.buy.providerId),
-      ),
-    );
-
-    const fitsProviderLimits = (quote: Quote): boolean => {
-      const provider = providerByCode.get(
-        normalizeProviderCode(quote.provider),
-      );
-      const limit = provider?.limits?.fiat?.[fiat]?.[quote.quote.paymentMethod];
-      if (!limit) {
-        // No published limits for this provider/payment method: treat as
-        // eligible and let the provider enforce limits at checkout.
-        return true;
-      }
-      return amount >= limit.minAmount && amount <= limit.maxAmount;
-    };
-
-    const isEligible = (quote: Quote): boolean => {
-      // `all` (Phase 2) skips the in-app-only exclusions; both scopes still
-      // enforce provider limits up front.
-      if (scope !== 'all') {
-        const providerCode = normalizeProviderCode(quote.provider);
-        if (customActionProviderCodes.has(providerCode)) {
-          return false;
-        }
-        // Custom-action and external-browser classification is shared with the
-        // consuming client via `quoteClassification` so both filter identically.
-        if (isCustomActionQuote(quote) || isExternalBrowserQuote(quote)) {
-          return false;
-        }
-      }
-      return fitsProviderLimits(quote);
-    };
-
-    const candidates = response.success.filter(isEligible);
-    if (candidates.length === 0) {
-      return undefined;
-    }
-
-    const candidateByCode = new Map(
-      candidates.map((quote) => [normalizeProviderCode(quote.provider), quote]),
-    );
-
-    const pickBySortOrder = (sortBy: QuoteSortBy): Quote | undefined => {
-      const order = response.sorted.find(
-        (entry) => entry.sortBy === sortBy,
-      )?.ids;
-      if (!order) {
-        return undefined;
-      }
-      for (const providerId of order) {
-        const match = candidateByCode.get(normalizeProviderCode(providerId));
-        if (match) {
-          return match;
-        }
-      }
-      return undefined;
-    };
-
-    // Reliability first, then price, then the first surviving candidate.
-    return (
-      pickBySortOrder('reliability') ??
-      pickBySortOrder('price') ??
-      candidates[0]
-    );
+    return getSmartSelectedQuote(response, {
+      scope,
+      amount,
+      fiat,
+      providers,
+      preferredProviderIds: this.#getPreferredProviderIdsFromOrders(),
+    });
   }
 
   /**

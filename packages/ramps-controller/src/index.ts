@@ -153,6 +153,12 @@ export {
   isCustomActionQuote,
   isInAppOnlyQuote,
 } from './quoteClassification';
+export type { BuyAmountValidation } from './quoteSelection';
+export {
+  getSmartSelectedQuote,
+  validateBuyAmount,
+  fitsProviderLimits,
+} from './quoteSelection';
 export type { TypedError } from './errorNormalization';
 export {
   getErrorMessage,
