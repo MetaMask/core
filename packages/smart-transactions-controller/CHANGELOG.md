@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Consumers must now grant the smart transactions controller messenger access to the `TransactionController:failTransaction` action (previously `TransactionController:updateTransaction`).
   - `updateTransaction` only patches state and does not emit transaction lifecycle events, so consumers that react to `transactionFailed`/`transactionStatusUpdated` (e.g. the bridge status controller and metrics) were never notified, leaving cancelled smart transactions — such as bridges — stuck as pending indefinitely.
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.3.0` ([#9421](https://github.com/MetaMask/core/pull/9421))
 
 ## [24.2.4]
 
