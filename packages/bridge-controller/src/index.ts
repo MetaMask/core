@@ -63,6 +63,18 @@ export type {
   BridgeControllerMessenger,
   FeatureFlagsPlatformConfig,
   TxFeeGasLimits,
+  TokenFeature,
+  QuoteStreamCompleteData,
+  BridgeControllerGetStateAction,
+  BridgeControllerStateChangeEvent,
+} from './types';
+
+export {
+  AssetType,
+  SortOrder,
+  ChainId,
+  RequestStatus,
+  StatusTypes,
 } from './types';
 
 export type {
@@ -80,19 +92,6 @@ export type {
 
 export { AbortReason } from './utils/metrics/constants';
 
-export { StatusTypes } from './types';
-
-export {
-  AssetType,
-  SortOrder,
-  ChainId,
-  RequestStatus,
-  type TokenFeature,
-  type QuoteStreamCompleteData,
-  type BridgeControllerGetStateAction,
-  type BridgeControllerStateChangeEvent,
-} from './types';
-
 export type {
   TxData,
   BitcoinTradeData,
@@ -108,7 +107,7 @@ export {
 } from './validators/trade';
 export type { QuoteResponseV1 as QuoteResponse } from './validators/quote-response-v1';
 export type { Quote } from './validators/quote';
-export type { DiscountType, FeeType } from './validators/quote';
+export { FeeType, DiscountType } from './validators/quote';
 export type { ActionTypes } from './validators/step';
 export {
   validateQuoteStreamComplete,
