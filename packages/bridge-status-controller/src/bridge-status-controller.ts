@@ -41,6 +41,7 @@ import {
   REFRESH_INTERVAL_MS,
 } from './constants';
 import {
+  QUOTE_STATUS_BACKFILL_WINDOW_MS,
   QUOTE_STATUS_UPDATE_ENTRY_TTL,
   QUOTE_STATUS_UPDATE_RETRY_INTERVAL_MS,
 } from './quote-status-manager/constants';
@@ -650,9 +651,13 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
         continue;
       }
 
-      // Skip items older than the entry TTL: the backend would reject them, so
-      // there is no point creating an entry or making a request.
-      if (Date.now() - historyItem.startTime > QUOTE_STATUS_UPDATE_ENTRY_TTL) {
+      // Skip items older than the backfill window: the backend would reject
+      // a status report for a quote that old, so there is no point creating
+      // an entry or making a request.
+      if (
+        Date.now() - historyItem.startTime >
+        QUOTE_STATUS_BACKFILL_WINDOW_MS
+      ) {
         continue;
       }
 

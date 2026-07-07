@@ -50,7 +50,7 @@ import {
   DEFAULT_MAX_PENDING_HISTORY_ITEM_AGE_MS,
   MAX_ATTEMPTS,
 } from './constants';
-import { QUOTE_STATUS_UPDATE_ENTRY_TTL } from './quote-status-manager/constants';
+import { QUOTE_STATUS_BACKFILL_WINDOW_MS } from './quote-status-manager/constants';
 import { BridgeClientId } from './types';
 import type {
   BridgeId,
@@ -6927,7 +6927,7 @@ describe('BridgeStatusController', () => {
       );
     });
 
-    it('skips history items older than the entry TTL', async () => {
+    it('skips history items older than the backfill window', async () => {
       await withController(
         {
           options: {
@@ -6938,7 +6938,8 @@ describe('BridgeStatusController', () => {
                   txMetaId: 'seedTx3',
                   quoteId: 'seed-quote-3',
                   srcTxHash: '0xseedHash3',
-                  startTime: Date.now() - QUOTE_STATUS_UPDATE_ENTRY_TTL - 1000,
+                  startTime:
+                    Date.now() - QUOTE_STATUS_BACKFILL_WINDOW_MS - 1000,
                 }),
               },
             },
