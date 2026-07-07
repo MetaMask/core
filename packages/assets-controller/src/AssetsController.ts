@@ -574,7 +574,14 @@ function mergeAccountBalances(
   replaceCoveredChains: boolean,
 ): Record<string, AssetBalance> {
   if (!replaceCoveredChains) {
-    return { ...previousBalances, ...accountBalances };
+    const next: Record<string, AssetBalance> = { ...previousBalances };
+    for (const [assetId, balance] of Object.entries(accountBalances)) {
+      next[assetId] = {
+        ...(previousBalances[assetId] ?? { amount: '0' }),
+        ...balance,
+      };
+    }
+    return next;
   }
 
   const coveredChains = new Set(

@@ -25,6 +25,7 @@ import type {
   Caip19AssetId,
   DataRequest,
   DataResponse,
+  GetAccountAssetInfoResponse,
   Middleware,
 } from '../types';
 import { AbstractDataSource } from './AbstractDataSource';
@@ -74,6 +75,28 @@ export const KEYRING_PERMISSION = 'endowment:keyring';
 /** The permission name for snap assets endowment (contains chainIds) */
 export const ASSETS_PERMISSION = 'endowment:assets';
 
+/** Snap clientRequest method for per-(account, asset) enrichment data. */
+const GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD = 'getAccountAssetInfo';
+
+/**
+ * Max assets per snap getAccountAssetInfo request. Large batches can terminate
+ * the Stellar wallet snap on mobile when many trustlines are fetched at once.
+ */
+const ACCOUNT_ASSET_INFO_SNAP_BATCH_SIZE = 3;
+
+/** Per-batch snap client request timeout (ms). Hung requests must not block apply. */
+const ACCOUNT_ASSET_INFO_SNAP_TIMEOUT_MS = 15_000;
+
+/**
+ * Chains whose wallet snap implements getAccountAssetInfo.
+ */
+const ACCOUNT_ASSET_INFO_ENRICHMENT_BY_CHAIN: Partial<
+  Record<ChainId, boolean>
+> = {
+  'stellar:pubnet': true,
+  'stellar:testnet': true,
+};
+
 // ============================================================================
 // PERMISSION UTILITIES
 // ============================================================================
@@ -113,6 +136,10 @@ export function getChainIdsCaveat(
 export function extractChainFromAssetId(assetId: string): ChainId {
   const parsed = parseCaipAssetType(assetId as CaipAssetType);
   return parsed.chainId;
+}
+
+function isAccountAssetInfoEnrichmentAvailable(chainId: ChainId): boolean {
+  return ACCOUNT_ASSET_INFO_ENRICHMENT_BY_CHAIN[chainId] === true;
 }
 
 // ============================================================================
@@ -266,6 +293,11 @@ export class SnapDataSource extends AbstractDataSource<
    * Handle snap balance updates from the keyring.
    * Transforms the payload and publishes to AssetsController.
    *
+   * Push updates carry amounts only. Per-asset snap enrichment (e.g. Stellar
+   * trustline fields) is applied in {@link SnapDataSource.fetch} when clients
+   * call `getAssets` after trustline-related events such as
+   * `AccountsController:accountAssetListUpdated`.
+   *
    * @param payload - The balance update payload from AccountsController.
    */
   #handleSnapBalancesUpdated(
@@ -303,11 +335,13 @@ export class SnapDataSource extends AbstractDataSource<
     }
 
     // Only report if we have snap-related updates
-    if (assetsBalance) {
-      const response: DataResponse = { assetsBalance, updateMode: 'merge' };
-      for (const subscription of this.activeSubscriptions.values()) {
-        subscription.onAssetsUpdate(response)?.catch(console.error);
-      }
+    if (!assetsBalance) {
+      return;
+    }
+
+    const response: DataResponse = { assetsBalance, updateMode: 'merge' };
+    for (const subscription of this.activeSubscriptions.values()) {
+      subscription.onAssetsUpdate(response)?.catch(console.error);
     }
   }
 
@@ -319,6 +353,150 @@ export class SnapDataSource extends AbstractDataSource<
    */
   #isChainSupportedBySnap(chainId: ChainId): boolean {
     return this.state.activeChains.includes(chainId);
+  }
+
+  async #enrichAccountAssetInfo(
+    assetsBalance: NonNullable<DataResponse['assetsBalance']>,
+  ): Promise<void> {
+    for (const [accountId, accountAssets] of Object.entries(assetsBalance)) {
+      const assetsByChain = new Map<ChainId, Caip19AssetId[]>();
+
+      for (const assetId of Object.keys(accountAssets) as Caip19AssetId[]) {
+        let chainId: ChainId;
+        try {
+          chainId = extractChainFromAssetId(assetId);
+        } catch {
+          continue;
+        }
+        if (!isAccountAssetInfoEnrichmentAvailable(chainId)) {
+          continue;
+        }
+
+        const assetIds = assetsByChain.get(chainId) ?? [];
+        assetIds.push(assetId);
+        assetsByChain.set(chainId, assetIds);
+      }
+
+      for (const [chainId, assetIds] of assetsByChain) {
+        const snapId = this.getSnapIdForChain(chainId);
+        if (!snapId) {
+          continue;
+        }
+
+        for (
+          let i = 0;
+          i < assetIds.length;
+          i += ACCOUNT_ASSET_INFO_SNAP_BATCH_SIZE
+        ) {
+          const batch = assetIds.slice(
+            i,
+            i + ACCOUNT_ASSET_INFO_SNAP_BATCH_SIZE,
+          );
+          const accountAssetInfo = await this.#fetchAccountAssetInfoFromSnap({
+            accountId,
+            snapId,
+            chainId,
+            assets: batch,
+          });
+
+          if (!accountAssetInfo) {
+            break;
+          }
+
+          for (const [assetId, assetInfo] of Object.entries(accountAssetInfo)) {
+            const row = accountAssets[assetId as Caip19AssetId];
+            if (!row) {
+              continue;
+            }
+
+            accountAssets[assetId as Caip19AssetId] = {
+              ...row,
+              accountAssetInfo: assetInfo,
+            };
+          }
+        }
+      }
+    }
+  }
+
+  async #fetchAccountAssetInfoFromSnap({
+    accountId,
+    snapId,
+    chainId,
+    assets,
+  }: {
+    accountId: string;
+    snapId: SnapId;
+    chainId: ChainId;
+    assets: Caip19AssetId[];
+  }): Promise<GetAccountAssetInfoResponse | undefined> {
+    if (assets.length === 0) {
+      return undefined;
+    }
+
+    try {
+      const request = {
+        snapId,
+        origin: 'metamask',
+        handler: HandlerType.OnClientRequest,
+        request: {
+          jsonrpc: '2.0',
+          method: GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD,
+          params: {
+            accountId,
+            scope: chainId,
+            assets,
+          },
+        },
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const snapRequest = (this.#messenger as any).call(
+        'SnapController:handleRequest',
+        request,
+      ) as Promise<unknown>;
+
+      const timedOut = Symbol('timedOut');
+      const result = await Promise.race([
+        snapRequest,
+        new Promise<typeof timedOut>((resolve) =>
+          setTimeout(() => resolve(timedOut), ACCOUNT_ASSET_INFO_SNAP_TIMEOUT_MS),
+        ),
+      ]);
+
+      if (result === timedOut) {
+        snapRequest
+          .then(() =>
+            log('Snap account asset info resolved after timeout', {
+              accountId,
+              snapId,
+              chainId,
+              assetCount: assets.length,
+            }),
+          )
+          .catch((error) =>
+            log('Snap account asset info failed after timeout', {
+              accountId,
+              snapId,
+              chainId,
+              assetCount: assets.length,
+              error,
+            }),
+          );
+        return undefined;
+      }
+
+      return result as GetAccountAssetInfoResponse | undefined;
+    } catch (error) {
+      log('Failed to enrich snap account asset info', {
+        accountId,
+        snapId,
+        chainId,
+        assetCount: assets.length,
+        error,
+      });
+      return undefined;
+    }
   }
 
   // ============================================================================
@@ -475,35 +653,55 @@ export class SnapDataSource extends AbstractDataSource<
         const client = this.#getKeyringClient(snapId);
 
         // Step 1: Get the list of assets for this account
-        const accountAssets = await client.listAccountAssets(accountId);
+        const listedAssets = (await client.listAccountAssets(accountId)) ?? [];
 
-        // If no assets, skip to next account
-        if (!accountAssets || accountAssets.length === 0) {
+        // Include custom assets on enrichment chains (e.g. Stellar) so trustline
+        // fields refresh even when a deactivated asset drops off listAccountAssets.
+        const assetsToFetch = new Set<CaipAssetType>(
+          listedAssets as CaipAssetType[],
+        );
+        if (request.customAssets) {
+          for (const assetId of request.customAssets) {
+            try {
+              const assetChainId = extractChainFromAssetId(assetId);
+              if (
+                request.chainIds.includes(assetChainId) &&
+                isAccountAssetInfoEnrichmentAvailable(assetChainId)
+              ) {
+                assetsToFetch.add(assetId as CaipAssetType);
+              }
+            } catch {
+              // Ignore malformed custom asset ids.
+            }
+          }
+        }
+
+        const assetList = [...assetsToFetch];
+        if (assetList.length === 0) {
           continue;
         }
 
         // Step 2: Get balances for those specific assets
         const balances: Record<CaipAssetType, Balance> =
-          await client.getAccountBalances(
-            accountId,
-            accountAssets as CaipAssetType[],
-          );
+          await client.getAccountBalances(accountId, assetList);
 
         // Transform keyring response to DataResponse format
-        if (balances && typeof balances === 'object' && results.assetsBalance) {
-          for (const [assetId, balance] of Object.entries(balances)) {
-            results.assetsBalance[accountId] ??= {};
-            const accountBalances = results.assetsBalance[accountId];
-            if (accountBalances) {
-              (accountBalances as Record<string, unknown>)[assetId] = {
-                amount: balance.amount,
-              };
-            }
-          }
+        results.assetsBalance ??= {};
+        const accountBalances = results.assetsBalance[accountId] ?? {};
+        for (const assetId of assetList) {
+          const balance = balances?.[assetId];
+          (accountBalances as Record<string, unknown>)[assetId] = {
+            amount: balance?.amount ?? '0',
+          };
         }
+        results.assetsBalance[accountId] = accountBalances;
       } catch {
         // Expected when account doesn't belong to this snap
       }
+    }
+
+    if (results.assetsBalance) {
+      await this.#enrichAccountAssetInfo(results.assetsBalance);
     }
 
     return results;
@@ -676,6 +874,17 @@ export class SnapDataSource extends AbstractDataSource<
     } catch (error) {
       log('Initial fetch failed', { subscriptionId, error });
     }
+  }
+
+  /**
+   * Returns the snap id responsible for a given chain, if any.
+   *
+   * @param chainId - CAIP-2 chain id.
+   * @returns Snap id when a keyring snap supports the chain.
+   */
+  getSnapIdForChain(chainId: ChainId): SnapId | undefined {
+    const snapId = this.state.chainToSnap[chainId];
+    return snapId ? (snapId as SnapId) : undefined;
   }
 
   // ============================================================================
