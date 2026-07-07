@@ -153,10 +153,13 @@
       "path": "./packages/messenger-cli"
     },
     {
-      "path": "./packages/platform-api-docs"
+      "path": "./packages/money-account-api-data-service"
     },
     {
       "path": "./packages/money-account-balance-service"
+    },
+    {
+      "path": "./packages/money-account-api-data-service"
     },
     {
       "path": "./packages/money-account-controller"
@@ -205,6 +208,9 @@
     },
     {
       "path": "./packages/phishing-controller"
+    },
+    {
+      "path": "./packages/platform-api-docs"
     },
     {
       "path": "./packages/polling-controller"

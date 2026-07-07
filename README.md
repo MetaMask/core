@@ -91,6 +91,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/message-manager`](packages/message-manager)
 - [`@metamask/messenger`](packages/messenger)
 - [`@metamask/messenger-cli`](packages/messenger-cli)
+- [`@metamask/money-account-api-data-service`](packages/money-account-api-data-service)
 - [`@metamask/money-account-balance-service`](packages/money-account-balance-service)
 - [`@metamask/money-account-controller`](packages/money-account-controller)
 - [`@metamask/money-account-upgrade-controller`](packages/money-account-upgrade-controller)
@@ -194,6 +195,7 @@ linkStyle default opacity:0.5
   message_manager(["@metamask/message-manager"]);
   messenger(["@metamask/messenger"]);
   messenger_cli(["@metamask/messenger-cli"]);
+  money_account_api_data_service(["@metamask/money-account-api-data-service"]);
   money_account_balance_service(["@metamask/money-account-balance-service"]);
   money_account_controller(["@metamask/money-account-controller"]);
   money_account_upgrade_controller(["@metamask/money-account-upgrade-controller"]);
@@ -342,6 +344,9 @@ linkStyle default opacity:0.5
   claims_controller --> profile_sync_controller;
   client_controller --> base_controller;
   client_controller --> messenger;
+  client_utils --> controller_utils;
+  client_utils --> core_backend;
+  client_utils --> transaction_controller;
   compliance_controller --> base_controller;
   compliance_controller --> controller_utils;
   compliance_controller --> messenger;
@@ -413,6 +418,9 @@ linkStyle default opacity:0.5
   message_manager --> base_controller;
   message_manager --> controller_utils;
   message_manager --> messenger;
+  money_account_api_data_service --> base_data_service;
+  money_account_api_data_service --> controller_utils;
+  money_account_api_data_service --> messenger;
   money_account_balance_service --> base_data_service;
   money_account_balance_service --> controller_utils;
   money_account_balance_service --> messenger;

@@ -26,6 +26,7 @@
   "metamask/eip-7702-internal-rpc-middleware": "team-delegation",
   "metamask/earn-controller": "team-earn",
   "metamask/money-account-balance-service": "team-earn",
+  "metamask/money-account-api-data-service": "team-earn",
   "metamask/notification-services-controller": "team-assets",
   "metamask/compliance-controller": "team-perps",
   "metamask/perps-controller": "team-perps",
