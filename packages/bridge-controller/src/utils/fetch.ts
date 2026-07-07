@@ -3,7 +3,6 @@ import { StructError } from '@metamask/superstruct';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
 import type {
-  QuoteResponseV1,
   FetchFunction,
   GenericQuoteRequest,
   QuoteRequest,
@@ -16,7 +15,8 @@ import type {
 import { validateBatchSellTradesResponse } from '../validators/batch-sell';
 import { validateBridgeAsset } from '../validators/bridge-asset';
 import type { FeatureId } from '../validators/feature-flags';
-import { validateQuoteResponseV1 } from '../validators/quote-response';
+import type { QuoteResponseV1 } from '../validators/quote-response-v1';
+import { validateQuoteResponseV1 } from '../validators/quote-response-v1';
 import { validateQuoteStreamComplete } from '../validators/quote-stream-complete';
 import { validateTokenFeature } from '../validators/token-feature';
 import { isEvmTxData } from '../validators/trade';

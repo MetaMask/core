@@ -31,7 +31,6 @@ import type {
   GenericQuoteRequest,
   NonEvmFees,
   QuoteRequest,
-  QuoteResponseV1,
   BridgeControllerState,
   BridgeControllerMessenger,
   FetchFunction,
@@ -95,6 +94,7 @@ import {
 import { appendFeesToQuotes } from './utils/quote-fees';
 import { getMinimumBalanceForRentExemptionInLamports } from './utils/snaps';
 import type { FeatureId } from './validators/feature-flags';
+import type { QuoteResponseV1 } from './validators/quote-response-v1';
 
 const metadata: StateMetadata<BridgeControllerState> = {
   quoteRequest: {

@@ -1,10 +1,11 @@
 import { merge } from 'lodash';
 
-import type { QuoteResponseV1, DeepPartial } from '../src/types';
+import type { DeepPartial } from '../src/types';
 import {
   ActionTypes,
   validateQuoteResponseV1,
-} from '../src/validators/quote-response';
+  QuoteResponseV1,
+} from '../src/validators/quote-response-v1';
 
 export const mockBridgeQuotesErc20Erc20V1: QuoteResponseV1[] = [
   {
@@ -58,13 +59,6 @@ export const mockBridgeQuotesErc20Erc20V1: QuoteResponseV1[] = [
       steps: [
         {
           action: ActionTypes.BRIDGE,
-          srcChainId: 10,
-          destChainId: 137,
-          protocol: {
-            name: 'across',
-            displayName: 'Across',
-            icon: 'https://miro.medium.com/max/800/1*PN_F5yW4VMBgs_xX-fsyzQ.png',
-          },
           srcAsset: {
             chainId: 10,
             address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
@@ -85,8 +79,6 @@ export const mockBridgeQuotesErc20Erc20V1: QuoteResponseV1[] = [
             decimals: 6,
             icon: 'https://assets.polygon.technology/tokenAssets/usdc.svg',
           },
-          srcAmount: '14000000',
-          destAmount: '13984280',
         },
       ],
     },
@@ -154,13 +146,6 @@ export const mockBridgeQuotesErc20Erc20V1: QuoteResponseV1[] = [
       steps: [
         {
           action: ActionTypes.BRIDGE,
-          srcChainId: 10,
-          destChainId: 137,
-          protocol: {
-            name: 'cctp',
-            displayName: 'Circle CCTP',
-            icon: 'https://movricons.s3.ap-south-1.amazonaws.com/CCTP.svg',
-          },
           srcAsset: {
             chainId: 10,
             address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
@@ -181,8 +166,6 @@ export const mockBridgeQuotesErc20Erc20V1: QuoteResponseV1[] = [
             decimals: 6,
             icon: 'https://assets.polygon.technology/tokenAssets/usdc.svg',
           },
-          srcAmount: '14000000',
-          destAmount: '13800000',
         },
       ],
     },

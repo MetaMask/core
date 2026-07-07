@@ -1,10 +1,11 @@
 import { merge } from 'lodash';
 
-import type { QuoteResponseV1, DeepPartial } from '../src/types';
+import type { DeepPartial } from '../src/types';
+import type { QuoteResponseV1 } from '../src/validators/quote-response-v1';
 import {
   ActionTypes,
   validateQuoteResponseV1,
-} from '../src/validators/quote-response';
+} from '../src/validators/quote-response-v1';
 
 export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
   {
@@ -52,13 +53,6 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
       steps: [
         {
           action: ActionTypes.SWAP,
-          srcChainId: 10,
-          destChainId: 10,
-          protocol: {
-            name: 'zerox',
-            displayName: '0x',
-            icon: 'https://media.socket.tech/dexes/0x.svg',
-          },
           srcAsset: {
             chainId: 10,
             address: '0x0000000000000000000000000000000000000000',
@@ -78,18 +72,9 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
             decimals: 6,
             icon: 'https://assets.polygon.technology/tokenAssets/usdc.svg',
           },
-          srcAmount: '9912500000000000',
-          destAmount: '24456223',
         },
         {
           action: ActionTypes.BRIDGE,
-          srcChainId: 10,
-          destChainId: 137,
-          protocol: {
-            name: 'across',
-            displayName: 'Across',
-            icon: 'https://miro.medium.com/max/800/1*PN_F5yW4VMBgs_xX-fsyzQ.png',
-          },
           srcAsset: {
             chainId: 10,
             address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
@@ -110,19 +95,10 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
             decimals: 6,
             icon: 'https://assets.polygon.technology/tokenAssets/usdc.svg',
           },
-          srcAmount: '24456223',
-          destAmount: '24438902',
         },
       ],
       refuel: {
         action: ActionTypes.REFUEL,
-        srcChainId: 10,
-        destChainId: 137,
-        protocol: {
-          name: 'refuel',
-          displayName: 'Refuel',
-          icon: '',
-        },
         srcAsset: {
           chainId: 10,
           address: '0x0000000000000000000000000000000000000000',
@@ -139,8 +115,6 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
           name: 'Matic',
           decimals: 18,
         },
-        srcAmount: '1000000000000000',
-        destAmount: '4405865573929566208',
       },
     },
     trade: {
@@ -199,13 +173,6 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
       steps: [
         {
           action: ActionTypes.SWAP,
-          srcChainId: 10,
-          destChainId: 137,
-          protocol: {
-            name: 'zerox',
-            displayName: '0x',
-            icon: 'https://media.socket.tech/dexes/0x.svg',
-          },
           srcAsset: {
             chainId: 10,
             address: '0x0000000000000000000000000000000000000000',
@@ -225,18 +192,9 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
             decimals: 6,
             icon: 'https://assets.polygon.technology/tokenAssets/usdc.svg',
           },
-          srcAmount: '9912500000000000',
-          destAmount: '24456223',
         },
         {
           action: ActionTypes.BRIDGE,
-          srcChainId: 10,
-          destChainId: 137,
-          protocol: {
-            name: 'cctp',
-            displayName: 'Circle CCTP',
-            icon: 'https://movricons.s3.ap-south-1.amazonaws.com/CCTP.svg',
-          },
           srcAsset: {
             chainId: 10,
             address: '0x0b2c639c533813f4aa9d7837caf62653d097ff85',
@@ -257,19 +215,10 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
             decimals: 6,
             icon: 'https://assets.polygon.technology/tokenAssets/usdc.svg',
           },
-          srcAmount: '24456223',
-          destAmount: '24256223',
         },
       ],
       refuel: {
         action: ActionTypes.REFUEL,
-        srcChainId: 10,
-        destChainId: 137,
-        protocol: {
-          name: 'refuel',
-          displayName: 'Refuel',
-          icon: '',
-        },
         srcAsset: {
           chainId: 10,
           address: '0x0000000000000000000000000000000000000000',
@@ -286,8 +235,6 @@ export const mockBridgeQuotesNativeErc20V1: QuoteResponseV1[] = [
           name: 'Matic',
           decimals: 18,
         },
-        srcAmount: '1000000000000000',
-        destAmount: '4405865573929566208',
       },
     },
     trade: {

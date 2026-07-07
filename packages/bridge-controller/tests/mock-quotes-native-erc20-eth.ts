@@ -1,10 +1,11 @@
 import { merge } from 'lodash';
 
-import type { QuoteResponseV1, DeepPartial } from '../src/types';
+import type { DeepPartial } from '../src/types';
+import type { QuoteResponseV1 } from '../src/validators/quote-response-v1';
 import {
   ActionTypes,
   validateQuoteResponseV1,
-} from '../src/validators/quote-response';
+} from '../src/validators/quote-response-v1';
 
 export const mockBridgeQuotesNativeErc20EthV1: QuoteResponseV1[] = [
   {
@@ -52,13 +53,6 @@ export const mockBridgeQuotesNativeErc20EthV1: QuoteResponseV1[] = [
       steps: [
         {
           action: ActionTypes.SWAP,
-          srcChainId: 1,
-          destChainId: 1,
-          protocol: {
-            name: '0x',
-            displayName: '0x',
-            icon: 'https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/exchanges/zerox.png',
-          },
           srcAsset: {
             address: '0x0000000000000000000000000000000000000000',
             assetId: 'eip155:1/slip44:60',
@@ -76,18 +70,9 @@ export const mockBridgeQuotesNativeErc20EthV1: QuoteResponseV1[] = [
             decimals: 6,
             name: 'USD Coin',
           },
-          srcAmount: '991250000000000000',
-          destAmount: '3104701473',
         },
         {
           action: ActionTypes.BRIDGE,
-          srcChainId: 1,
-          destChainId: 42161,
-          protocol: {
-            name: 'across',
-            displayName: 'Across',
-            icon: 'https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/acrossv2.png',
-          },
           srcAsset: {
             address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
             assetId:
@@ -106,8 +91,6 @@ export const mockBridgeQuotesNativeErc20EthV1: QuoteResponseV1[] = [
             decimals: 6,
             name: 'USD Coin',
           },
-          srcAmount: '3104701473',
-          destAmount: '3104367033',
         },
       ],
     },
@@ -167,13 +150,6 @@ export const mockBridgeQuotesNativeErc20EthV1: QuoteResponseV1[] = [
       steps: [
         {
           action: ActionTypes.SWAP,
-          srcChainId: 1,
-          destChainId: 1,
-          protocol: {
-            name: '0x',
-            displayName: '0x',
-            icon: 'https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/exchanges/zerox.png',
-          },
           srcAsset: {
             address: '0x0000000000000000000000000000000000000000',
             assetId: 'eip155:1/slip44:60',
@@ -191,18 +167,9 @@ export const mockBridgeQuotesNativeErc20EthV1: QuoteResponseV1[] = [
             decimals: 6,
             name: 'USD Coin',
           },
-          srcAmount: '991250000000000000',
-          destAmount: '3104701473',
         },
         {
           action: ActionTypes.BRIDGE,
-          srcChainId: 1,
-          destChainId: 42161,
-          protocol: {
-            name: 'celercircle',
-            displayName: 'Circle CCTP',
-            icon: 'https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/circle.png',
-          },
           srcAsset: {
             address: '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48',
             assetId:
@@ -221,8 +188,6 @@ export const mockBridgeQuotesNativeErc20EthV1: QuoteResponseV1[] = [
             decimals: 6,
             name: 'USD Coin',
           },
-          srcAmount: '3104701473',
-          destAmount: '3104601473',
         },
       ],
     },

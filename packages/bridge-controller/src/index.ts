@@ -1,5 +1,3 @@
-import { DiscountType } from './validators/quote-response';
-
 export { BridgeController } from './bridge-controller';
 
 export {
@@ -55,8 +53,6 @@ export type {
   TokenAmountValues,
   Step,
   RefuelData,
-  Quote,
-  QuoteResponseV1 as QuoteResponse,
   FeeData,
   Intent,
   IntentOrderLike,
@@ -111,11 +107,15 @@ export {
   isEvmTxData,
   isStellarTrade,
 } from './validators/trade';
+export type {
+  Quote,
+  QuoteResponseV1 as QuoteResponse,
+} from './validators/quote-response-v1';
 export {
   DiscountType,
   FeeType,
   ActionTypes,
-} from './validators/quote-response';
+} from './validators/quote-response-v1';
 export {
   validateQuoteStreamComplete,
   QuoteStreamCompleteReason,

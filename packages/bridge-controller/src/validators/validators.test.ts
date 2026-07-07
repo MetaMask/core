@@ -7,7 +7,7 @@ import {
   validateQuoteResponseV1,
   FeeDataSchema,
   DiscountType,
-} from './quote-response';
+} from './quote-response-v1';
 import {
   validateQuoteStreamComplete,
   QuoteStreamCompleteReason,

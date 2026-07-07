@@ -11,13 +11,12 @@ import type {
   ExchangeRate,
   GenericQuoteRequest,
   L1GasFees,
-  Quote,
   QuoteMetadata,
-  QuoteResponseV1,
   NonEvmFees,
 } from '../types';
 import { FeatureId } from '../validators/feature-flags';
-import type { TxData } from '../validators/trade';
+import type { Quote, QuoteResponseV1 } from '../validators/quote-response-v1';
+import { TxData } from '../validators/trade';
 import { isNativeAddress, isNonEvmChainId } from './bridge';
 
 export const isValidQuoteRequest = (

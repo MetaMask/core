@@ -56,6 +56,7 @@ import {
   UnifiedSwapBridgeEventName,
 } from './utils/metrics/constants';
 import { FeatureId } from './validators/feature-flags';
+import type { QuoteResponseV1 } from './validators/quote-response-v1';
 
 const EMPTY_INIT_STATE = DEFAULT_BRIDGE_CONTROLLER_STATE;
 

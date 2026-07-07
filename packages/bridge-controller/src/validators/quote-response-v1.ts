@@ -15,23 +15,34 @@ import {
   assert,
   pattern,
   intersection,
+  StructError,
   nullable,
 } from '@metamask/superstruct';
 import { StrictHexStruct } from '@metamask/utils';
 
+import { formatStructErrors } from '../utils/struct-error';
 import { BridgeAssetSchema, ChainIdSchema } from './bridge-asset';
+import { FeatureId } from './feature-flags';
 import {
   TxDataSchema,
   TronTradeDataSchema,
   BitcoinTradeDataSchema,
-  HexAddressOrChecksumAddressSchema,
   StellarTradeDataSchema,
+  HexString,
+} from './trade';
+import type {
+  BitcoinTradeData,
+  StellarTradeData,
+  TronTradeData,
+  TxData,
 } from './trade';
 
 export enum FeeType {
   METABRIDGE = 'metabridge',
   REFUEL = 'refuel',
   TX_FEE = 'txFee',
+  NETWORK = 'network',
+  RELAYER = 'relayer',
 }
 
 export enum DiscountType {
@@ -54,6 +65,11 @@ export const NumberStringSchema = define<string>(
 export const truthyString = (value: string): boolean => Boolean(value?.length);
 const TruthyDigitStringSchema = pattern(string(), /^\d+$/u);
 
+export const FloatStringSchema = define<string>(
+  'FloatString',
+  (value: unknown) => typeof value === 'string' && /^-*\d*\.*\d+$/u.test(value),
+);
+
 export const FeeDataSchema = type({
   amount: TruthyDigitStringSchema,
   asset: BridgeAssetSchema,
@@ -68,13 +84,8 @@ export const ProtocolSchema = type({
 
 export const StepSchema = type({
   action: enums(Object.values(ActionTypes)),
-  srcChainId: ChainIdSchema,
-  destChainId: optional(ChainIdSchema),
-  srcAsset: BridgeAssetSchema,
-  destAsset: BridgeAssetSchema,
-  srcAmount: string(),
-  destAmount: string(),
-  protocol: ProtocolSchema,
+  srcAsset: optional(BridgeAssetSchema),
+  destAsset: optional(BridgeAssetSchema),
 });
 
 const RefuelDataSchema = StepSchema;
@@ -101,18 +112,18 @@ export const IntentOrderSchema = type({
   /**
    * Address of the token being sold.
    */
-  sellToken: HexAddressOrChecksumAddressSchema,
+  sellToken: HexString,
 
   /**
    * Address of the token being bought.
    */
-  buyToken: HexAddressOrChecksumAddressSchema,
+  buyToken: HexString,
 
   /**
    * Optional receiver of the bought tokens.
    * If omitted, defaults to the signer / order owner.
    */
-  receiver: optional(HexAddressOrChecksumAddressSchema),
+  receiver: optional(HexString),
 
   /**
    * Order expiration time.
@@ -130,7 +141,7 @@ export const IntentOrderSchema = type({
   /**
    * Hash of the `appData` field, used for EIP-712 signing.
    */
-  appDataHash: StrictHexStruct,
+  appDataHash: HexString,
 
   /**
    * Fee amount paid for order execution, expressed as a digit string.
@@ -169,7 +180,7 @@ export const IntentOrderSchema = type({
    *
    * Provided for convenience when building the EIP-712 domain and message.
    */
-  from: optional(HexAddressOrChecksumAddressSchema),
+  from: optional(HexString),
 });
 
 /**
@@ -192,7 +203,7 @@ export const IntentSchema = type({
   /**
    * Optional settlement contract address used for execution.
    */
-  settlementContract: optional(HexAddressOrChecksumAddressSchema),
+  settlementContract: optional(HexString),
 
   /**
    * Optional EIP-712 typed data payload for signing.
@@ -256,7 +267,13 @@ export const QuoteSchema = intersection([
      */
     minDestTokenAmount: string(),
     feeData: type({
-      [FeeType.METABRIDGE]: FeeDataSchema,
+      [FeeType.METABRIDGE]: intersection([
+        FeeDataSchema,
+        type({
+          quoteBpsFee: optional(number()),
+          baseBpsFee: optional(number()),
+        }),
+      ]),
       /**
        * This is the fee for the swap transaction taken from either the
        * src or dest token if the quote has gas fees included or "gasless"
@@ -278,10 +295,17 @@ export const QuoteSchema = intersection([
       }),
     ),
     intent: optional(IntentSchema),
+    walletAddress: optional(string()),
+    destWalletAddress: optional(string()),
+    slippage: optional(number()),
+    protocols: optional(array(string())),
   }),
 ]);
 
-export const QuoteResponseSchema = type({
+export type Quote = Infer<typeof QuoteSchema>;
+
+export const QuoteResponseSchemaV1 = type({
+  featureId: optional(enums(Object.values(FeatureId))),
   quoteId: optional(string()),
   quote: QuoteSchema,
   estimatedProcessingTimeInSeconds: number(),
@@ -293,11 +317,56 @@ export const QuoteResponseSchema = type({
     StellarTradeDataSchema,
     string(),
   ]),
+  l1GasFeesInHexWei: optional(StrictHexStruct),
+  nonEvmFeesInNative: optional(FloatStringSchema),
 });
 
 export const validateQuoteResponseV1 = (
   data: unknown,
-): data is Infer<typeof QuoteResponseSchema> => {
-  assert(data, QuoteResponseSchema);
-  return true;
+): data is Infer<typeof QuoteResponseSchemaV1> => {
+  try {
+    assert(data, QuoteResponseSchemaV1);
+    return true;
+  } catch (error) {
+    if (error instanceof StructError) {
+      console.warn('Quote validation failed', formatStructErrors(error));
+    } else {
+      console.warn(JSON.stringify(error, null, 2));
+    }
+    throw error;
+  }
+};
+
+/**
+ * This is the type for the quote response from the bridge-api
+ * TxDataType can be overriden to be a string when the quote is non-evm
+ * ApprovalType can be overriden when you know the specific approval type (e.g., TxData for EVM-only contexts)
+ *
+ * @deprecated Use `QuoteResponseV2` instead
+ */
+export type QuoteResponseV1<
+  TxDataType =
+    | TxData
+    | string
+    | BitcoinTradeData
+    | TronTradeData
+    | StellarTradeData,
+  ApprovalType = TxData | TronTradeData,
+> = Infer<typeof QuoteResponseSchemaV1> & {
+  trade: TxDataType;
+  approval?: ApprovalType;
+  /**
+   * Appended to the quote response based on the quote request
+   */
+  featureId?: FeatureId;
+  /**
+   * Appended to the quote response based on the quote request resetApproval flag
+   * If defined, the quote's total network fee will include the reset approval's gas limit.
+   */
+  resetApproval?: TxData;
+  /**
+   * Appended to the quote if there are multiple quote requests in a batch. This
+   * indicates which quoteRequest the quote is for
+   */
+  quoteRequestIndex?: number;
 };

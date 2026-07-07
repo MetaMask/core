@@ -4,11 +4,11 @@ import { numberToHex } from '@metamask/utils';
 
 import { CHAIN_IDS } from '../constants/chains';
 import type {
-  QuoteResponseV1,
   L1GasFees,
   NonEvmFees,
   BridgeControllerMessenger,
 } from '../types';
+import type { QuoteResponseV1 } from '../validators/quote-response-v1';
 import { isTronTrade } from '../validators/trade';
 import type { TxData } from '../validators/trade';
 import { isNonEvmChainId, sumHexes } from './bridge';

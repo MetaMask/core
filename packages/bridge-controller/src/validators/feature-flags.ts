@@ -7,7 +7,6 @@ import {
   array,
   boolean,
   number,
-  enums,
   is,
   define,
 } from '@metamask/superstruct';
@@ -89,20 +88,20 @@ export const PriceImpactThresholdSchema = type({
   warning: optional(number()), // Percentage value in decimal format
   error: optional(number()), // Percentage value in decimal format
 });
+
 const GenericQuoteRequestSchema = type({
   aggIds: optional(array(string())),
   bridgeIds: optional(array(string())),
   fee: optional(number()),
 });
-const FeatureIdSchema = enums(Object.values(FeatureId));
+
 /**
  * This is the schema for the feature flags response from the RemoteFeatureFlagController
  */
-
 export const PlatformConfigSchema = type({
   priceImpactThreshold: optional(PriceImpactThresholdSchema),
   quoteRequestOverrides: optional(
-    record(FeatureIdSchema, optional(GenericQuoteRequestSchema)),
+    record(string(), optional(GenericQuoteRequestSchema)),
   ),
   minimumVersion: string(),
   refreshRate: number(),

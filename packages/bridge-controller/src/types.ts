@@ -33,7 +33,6 @@ import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge';
 import type { SimulatedGasFeeLimitsSchema } from './validators/batch-sell';
 import type { BatchSellTradesResponseSchema } from './validators/batch-sell';
 import type { BridgeAssetSchema } from './validators/bridge-asset';
-import type { FeatureId } from './validators/feature-flags';
 import type {
   ChainConfigurationSchema,
   ChainRankingSchema,
@@ -43,20 +42,13 @@ import type {
   FeeDataSchema,
   IntentSchema,
   ProtocolSchema,
-  QuoteResponseSchema,
-  QuoteSchema,
-  StepSchema,
   GaslessPropertiesSchema,
   TxFeeGasLimitsSchema,
-} from './validators/quote-response';
+  QuoteResponseV1,
+  StepSchema,
+} from './validators/quote-response-v1';
 import type { QuoteStreamCompleteSchema } from './validators/quote-stream-complete';
 import type { TokenFeatureSchema } from './validators/token-feature';
-import type {
-  BitcoinTradeData,
-  StellarTradeData,
-  TronTradeData,
-  TxData,
-} from './validators/trade';
 
 export type FetchFunction = (
   input: RequestInfo | URL | string,
@@ -85,10 +77,16 @@ export type ChainConfiguration = Infer<typeof ChainConfigurationSchema>;
 
 export type ChainRanking = Infer<typeof ChainRankingSchema>;
 
+/**
+ * @deprecated Avoid introducing new usages and use the QuoteResponseV2 feeData.network value instead
+ */
 export type L1GasFees = {
-  l1GasFeesInHexWei?: string; // l1 fees for approval and trade in hex wei, appended by BridgeController.#appendL1GasFees
+  l1GasFeesInHexWei?: Hex; // l1 fees for approval and trade in hex wei, appended by BridgeController.#appendL1GasFees
 };
 
+/**
+ * @deprecated Avoid introducing new usages and use the QuoteResponseV2 feeData.network value instead
+ */
 export type NonEvmFees = {
   nonEvmFeesInNative?: string; // Non-EVM chain fees in native units (SOL for Solana, BTC for Bitcoin)
 };
@@ -126,6 +124,8 @@ export type ExchangeRate = { exchangeRate?: string; usdExchangeRate?: string };
 
 /**
  * Values derived from the quote response
+ *
+ * @deprecated Avoid introducing new usages and use the QuoteResponse V2 type instead
  */
 export type QuoteMetadata = {
   /**
@@ -284,42 +284,8 @@ export type RefuelData = Step;
 
 export type FeeData = Infer<typeof FeeDataSchema>;
 
-export type Quote = Infer<typeof QuoteSchema>;
-
 export type Intent = Infer<typeof IntentSchema>;
 export type IntentOrderLike = Intent['order'];
-
-/**
- * This is the type for the quote response from the bridge-api
- * TxDataType can be overriden to be a string when the quote is non-evm
- * ApprovalType can be overriden when you know the specific approval type (e.g., TxData for EVM-only contexts)
- */
-export type QuoteResponseV1<
-  TxDataType =
-    | TxData
-    | string
-    | BitcoinTradeData
-    | TronTradeData
-    | StellarTradeData,
-  ApprovalType = TxData | TronTradeData,
-> = Infer<typeof QuoteResponseSchema> & {
-  trade: TxDataType;
-  approval?: ApprovalType;
-  /**
-   * Appended to the quote response based on the quote request
-   */
-  featureId?: FeatureId;
-  /**
-   * Appended to the quote response based on the quote request resetApproval flag
-   * If defined, the quote's total network fee will include the reset approval's gas limit.
-   */
-  resetApproval?: TxData;
-  /**
-   * Appended to the quote if there are multiple quote requests in a batch. This
-   * indicates which quoteRequest the quote is for
-   */
-  quoteRequestIndex?: number;
-};
 
 export type BatchSellTradesRequest = {
   quotes: QuoteResponseV1[];
