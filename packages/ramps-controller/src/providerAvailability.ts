@@ -118,3 +118,71 @@ export function isFiatDepositAvailable({
   }
   return providers.length > 0;
 }
+
+/**
+ * The resolved on-ramp asset a region should buy for a fiat deposit whose end
+ * goal is a single target asset (e.g. mUSD).
+ */
+export type FiatDepositRoute = {
+  /** CAIP-19 asset id to actually purchase from an on-ramp provider. */
+  assetId: string;
+  /**
+   * `false` when the region can buy the preferred (target) asset directly;
+   * `true` when it falls back to a convertible asset (e.g. native ETH that a
+   * downstream step swaps/bridges into the target).
+   */
+  isFallback: boolean;
+};
+
+/**
+ * Resolves which asset a region should buy for a fiat deposit, preferring the
+ * target asset and otherwise falling back to a convertible one.
+ *
+ * The intent (from the "buy ETH, convert to mUSD" flow): when a region has an
+ * on-ramp provider serving the target deposit asset (`preferredAssetId`, e.g.
+ * mUSD), buy it directly. When it does not but a provider serves a fallback
+ * asset (e.g. native ETH), buy that instead and let a downstream step convert
+ * it into the target. The conversion itself is out of scope here; this only
+ * picks the purchasable asset.
+ *
+ * Reuses `regionHasProviderForAsset`, so it obeys the same scope semantics:
+ * under scope `off` only a native provider counts, so an aggregator-only
+ * fallback asset is not reachable until scope is widened to `in-app`/`all`.
+ * `fallbackAssetIds` is tried in order; the first with a serving provider under
+ * scope wins. Returns `undefined` when neither the preferred nor any fallback
+ * asset has a serving provider (the caller should show no providers).
+ *
+ * @param options - The options.
+ * @param options.providers - The region's providers (native and aggregator).
+ * @param options.preferredAssetId - CAIP-19 id of the target deposit asset.
+ * @param options.fallbackAssetIds - Ordered CAIP-19 ids of convertible assets
+ * to try when the preferred asset has no provider.
+ * @param options.scope - The effective provider-class scope.
+ * @returns The resolved route, or `undefined` when no asset is purchasable.
+ */
+export function resolveFiatDepositRoute({
+  providers,
+  preferredAssetId,
+  fallbackAssetIds,
+  scope,
+}: {
+  providers: Provider[];
+  preferredAssetId: string;
+  fallbackAssetIds: string[];
+  scope: ProviderScope;
+}): FiatDepositRoute | undefined {
+  if (
+    preferredAssetId &&
+    regionHasProviderForAsset({ providers, assetId: preferredAssetId, scope })
+  ) {
+    return { assetId: preferredAssetId, isFallback: false };
+  }
+
+  for (const assetId of fallbackAssetIds) {
+    if (regionHasProviderForAsset({ providers, assetId, scope })) {
+      return { assetId, isFallback: true };
+    }
+  }
+
+  return undefined;
+}

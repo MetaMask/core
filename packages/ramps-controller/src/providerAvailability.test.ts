@@ -3,10 +3,13 @@ import {
   isFiatDepositAvailable,
   providerServesAsset,
   regionHasProviderForAsset,
+  resolveFiatDepositRoute,
 } from './providerAvailability';
 import type { Provider } from './RampsService';
 
 const ASSET_ID = 'eip155:1/erc20:0xtoken';
+const MUSD_ASSET_ID = 'eip155:143/erc20:0xmusd';
+const ETH_ASSET_ID = 'eip155:1/slip44:60';
 
 const buildProvider = (
   id: string,
@@ -171,5 +174,95 @@ describe('isFiatDepositAvailable', () => {
         scope: 'all',
       }),
     ).toBe(false);
+  });
+});
+
+describe('resolveFiatDepositRoute', () => {
+  it('buys the preferred asset directly when a provider serves it', () => {
+    const musdProvider = buildProvider('moonpay', 'aggregator', {
+      [MUSD_ASSET_ID]: true,
+    });
+    const ethProvider = buildProvider('banxa', 'aggregator', {
+      [ETH_ASSET_ID]: true,
+    });
+    expect(
+      resolveFiatDepositRoute({
+        providers: [musdProvider, ethProvider],
+        preferredAssetId: MUSD_ASSET_ID,
+        fallbackAssetIds: [ETH_ASSET_ID],
+        scope: 'in-app',
+      }),
+    ).toStrictEqual({ assetId: MUSD_ASSET_ID, isFallback: false });
+  });
+
+  it('falls back to a convertible asset when the preferred asset has no provider', () => {
+    const ethProvider = buildProvider('banxa', 'aggregator', {
+      [ETH_ASSET_ID]: true,
+    });
+    expect(
+      resolveFiatDepositRoute({
+        providers: [ethProvider],
+        preferredAssetId: MUSD_ASSET_ID,
+        fallbackAssetIds: [ETH_ASSET_ID],
+        scope: 'in-app',
+      }),
+    ).toStrictEqual({ assetId: ETH_ASSET_ID, isFallback: true });
+  });
+
+  it('tries fallback assets in order and returns the first with a provider', () => {
+    const secondFallback = 'eip155:1/erc20:0xusdc';
+    const usdcProvider = buildProvider('banxa', 'aggregator', {
+      [secondFallback]: true,
+    });
+    expect(
+      resolveFiatDepositRoute({
+        providers: [usdcProvider],
+        preferredAssetId: MUSD_ASSET_ID,
+        fallbackAssetIds: [ETH_ASSET_ID, secondFallback],
+        scope: 'all',
+      }),
+    ).toStrictEqual({ assetId: secondFallback, isFallback: true });
+  });
+
+  it('returns undefined when neither preferred nor fallback assets have a provider', () => {
+    const otherProvider = buildProvider('banxa', 'aggregator', {
+      'eip155:1/erc20:0xother': true,
+    });
+    expect(
+      resolveFiatDepositRoute({
+        providers: [otherProvider],
+        preferredAssetId: MUSD_ASSET_ID,
+        fallbackAssetIds: [ETH_ASSET_ID],
+        scope: 'all',
+      }),
+    ).toBeUndefined();
+  });
+
+  it('does not reach an aggregator-only fallback under scope off (native-only)', () => {
+    const ethProvider = buildProvider('banxa', 'aggregator', {
+      [ETH_ASSET_ID]: true,
+    });
+    expect(
+      resolveFiatDepositRoute({
+        providers: [ethProvider],
+        preferredAssetId: MUSD_ASSET_ID,
+        fallbackAssetIds: [ETH_ASSET_ID],
+        scope: 'off',
+      }),
+    ).toBeUndefined();
+  });
+
+  it('reaches a native fallback provider under scope off', () => {
+    const ethNativeProvider = buildProvider('native', 'native', {
+      [ETH_ASSET_ID]: true,
+    });
+    expect(
+      resolveFiatDepositRoute({
+        providers: [ethNativeProvider],
+        preferredAssetId: MUSD_ASSET_ID,
+        fallbackAssetIds: [ETH_ASSET_ID],
+        scope: 'off',
+      }),
+    ).toStrictEqual({ assetId: ETH_ASSET_ID, isFallback: true });
   });
 });
