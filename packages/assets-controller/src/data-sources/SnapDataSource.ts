@@ -530,21 +530,18 @@ export class SnapDataSource extends AbstractDataSource<
     // Post-fetch enrichment stage: assetsBalance above already matches the
     // standard (unenriched) balance shape. When the feature flag is enabled
     // and there are eligible assets, apply accountAssetInfo enrichment once.
-    const getSnapIdForChain = (chainId: ChainId): SnapId | undefined =>
-      this.state.chainToSnap[chainId] as SnapId | undefined;
-
     if (
       this.#assetEnrichmentEnabled() &&
       results.assetsBalance &&
       hasAccountAssetInfoEnrichmentCandidate({
         assetsBalance: results.assetsBalance,
-        getSnapIdForChain,
+        chainToSnap: this.state.chainToSnap,
       })
     ) {
       // TODO(STELLAR): Remove this Snap-side accountAssetInfo enrichment path once the Accounts API returns account-asset enrichment directly.
       await enrichAccountAssetInfo({
         assetsBalance: results.assetsBalance,
-        getSnapIdForChain,
+        chainToSnap: this.state.chainToSnap,
         callSnapRequest: (request) =>
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (this.#messenger as any).call('SnapController:handleRequest', request),
