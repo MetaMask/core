@@ -606,6 +606,57 @@ describe('SnapDataSource', () => {
     cleanup();
   });
 
+  it('fetch does not call getAccountAssetInfo when no snap is available for enrichment chain', async () => {
+    const { controller, mockHandleRequest, cleanup } = setupController({
+      installedSnaps: {
+        [STELLAR_SNAP_ID]: { version: '1.0.0', chainIds: [STELLAR_PUBNET] },
+      },
+      accountAssets: [MOCK_STELLAR_USDC_ASSET],
+      balances: {
+        [MOCK_STELLAR_USDC_ASSET]: { amount: '25', unit: 'USDC' },
+      },
+      accountAssetInfo: {
+        [MOCK_STELLAR_USDC_ASSET]: {
+          limit: '1000',
+          authorized: true,
+        },
+      },
+    });
+    await new Promise(process.nextTick);
+
+    jest.spyOn(controller, 'getSnapIdForChain').mockReturnValue(undefined);
+
+    const response = await controller.fetch(
+      createDataRequest({
+        chainIds: [STELLAR_PUBNET],
+        accounts: [
+          createMockAccount({
+            scopes: [STELLAR_PUBNET],
+            metadata: {
+              name: 'Stellar Account',
+              importTime: Date.now(),
+              keyring: { type: 'Snap Keyring' },
+              snap: { id: STELLAR_SNAP_ID, name: 'Stellar Snap' },
+            },
+          }),
+        ],
+      }),
+    );
+
+    expect(mockHandleRequest).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        request: expect.objectContaining({
+          method: 'getAccountAssetInfo',
+        }),
+      }),
+    );
+    expect(
+      response.assetsBalance?.['mock-account-id']?.[MOCK_STELLAR_USDC_ASSET],
+    ).toStrictEqual({ amount: '25' });
+
+    cleanup();
+  });
+
   it('fetch enriches custom Stellar assets missing from listAccountAssets', async () => {
     const { controller, mockHandleRequest, cleanup } = setupController({
       installedSnaps: {

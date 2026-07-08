@@ -7,6 +7,7 @@ import {
   GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD,
   enrichAccountAssetInfo,
   getAssetsToFetchWithEligibleCustomAssets,
+  hasAccountAssetInfoEnrichmentCandidate,
   isAccountAssetInfoEnrichmentAvailable,
 } from './snap-account-asset-info-enrichment';
 
@@ -78,6 +79,62 @@ describe('snap-account-asset-info-enrichment', () => {
       });
 
       expect(result).toStrictEqual([MOCK_STELLAR_USDC_ASSET]);
+    });
+  });
+
+  describe('hasAccountAssetInfoEnrichmentCandidate', () => {
+    const accountId = 'mock-account-id';
+
+    it('returns true for Stellar asset when Snap ID exists', () => {
+      const result = hasAccountAssetInfoEnrichmentCandidate({
+        assetsBalance: {
+          [accountId]: {
+            [MOCK_STELLAR_USDC_ASSET]: { amount: '25' },
+          },
+        },
+        getSnapIdForChain: () => STELLAR_SNAP_ID,
+      });
+
+      expect(result).toBe(true);
+    });
+
+    it('returns false for Stellar asset when no Snap ID exists', () => {
+      const result = hasAccountAssetInfoEnrichmentCandidate({
+        assetsBalance: {
+          [accountId]: {
+            [MOCK_STELLAR_USDC_ASSET]: { amount: '25' },
+          },
+        },
+        getSnapIdForChain: () => undefined,
+      });
+
+      expect(result).toBe(false);
+    });
+
+    it('returns false for non-Stellar asset', () => {
+      const result = hasAccountAssetInfoEnrichmentCandidate({
+        assetsBalance: {
+          [accountId]: {
+            [MOCK_SOL_ASSET]: { amount: '100' },
+          },
+        },
+        getSnapIdForChain: () => STELLAR_SNAP_ID,
+      });
+
+      expect(result).toBe(false);
+    });
+
+    it('ignores malformed asset IDs', () => {
+      const result = hasAccountAssetInfoEnrichmentCandidate({
+        assetsBalance: {
+          [accountId]: {
+            ['not-a-caip-asset' as Caip19AssetId]: { amount: '1' },
+          },
+        },
+        getSnapIdForChain: () => STELLAR_SNAP_ID,
+      });
+
+      expect(result).toBe(false);
     });
   });
 

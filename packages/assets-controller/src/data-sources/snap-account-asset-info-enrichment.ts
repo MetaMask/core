@@ -50,6 +50,33 @@ export function isAccountAssetInfoEnrichmentAvailable(chainId: ChainId): boolean
   return ACCOUNT_ASSET_INFO_ENRICHMENT_BY_CHAIN[chainId] === true;
 }
 
+export function hasAccountAssetInfoEnrichmentCandidate(params: {
+  assetsBalance: NonNullable<DataResponse['assetsBalance']>;
+  getSnapIdForChain: (chainId: ChainId) => SnapId | undefined;
+}): boolean {
+  const { assetsBalance, getSnapIdForChain } = params;
+
+  for (const accountAssets of Object.values(assetsBalance)) {
+    for (const assetId of Object.keys(accountAssets) as Caip19AssetId[]) {
+      let chainId: ChainId;
+      try {
+        chainId = extractChainFromAssetId(assetId);
+      } catch {
+        continue;
+      }
+
+      if (
+        isAccountAssetInfoEnrichmentAvailable(chainId) &&
+        getSnapIdForChain(chainId)
+      ) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 export function getAssetsToFetchWithEligibleCustomAssets(params: {
   listedAssets: CaipAssetType[];
   customAssets?: Caip19AssetId[];

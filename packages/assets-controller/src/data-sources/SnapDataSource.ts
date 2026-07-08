@@ -31,6 +31,7 @@ import { AbstractDataSource } from './AbstractDataSource';
 import {
   enrichAccountAssetInfo,
   getAssetsToFetchWithEligibleCustomAssets,
+  hasAccountAssetInfoEnrichmentCandidate,
 } from './snap-account-asset-info-enrichment';
 import type {
   DataSourceState,
@@ -517,7 +518,13 @@ export class SnapDataSource extends AbstractDataSource<
       }
     }
 
-    if (results.assetsBalance) {
+    if (
+      results.assetsBalance &&
+      hasAccountAssetInfoEnrichmentCandidate({
+        assetsBalance: results.assetsBalance,
+        getSnapIdForChain: (chainId) => this.getSnapIdForChain(chainId),
+      })
+    ) {
       // TODO(STELLAR): Remove this Snap-side accountAssetInfo enrichment path once the Accounts API returns account-asset enrichment directly.
       await enrichAccountAssetInfo({
         assetsBalance: results.assetsBalance,
