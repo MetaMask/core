@@ -215,10 +215,10 @@ describe('MulticallClient', () => {
 
       it('encodes balance call data once per account address in a batch', async () => {
         const encodeSpy = jest.spyOn(controllerUtils, 'encodeFunctionData');
-        const countBalanceOf = () =>
+        const countBalanceOf = (): number =>
           encodeSpy.mock.calls.filter(([, method]) => method === 'balanceOf')
             .length;
-        const countGetEthBalance = () =>
+        const countGetEthBalance = (): number =>
           encodeSpy.mock.calls.filter(
             ([, method]) => method === 'getEthBalance',
           ).length;
