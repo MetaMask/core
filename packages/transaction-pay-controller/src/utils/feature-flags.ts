@@ -1,6 +1,7 @@
 import type { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
+import { BigNumber } from 'bignumber.js';
 import { uniq } from 'lodash';
 
 import { isTransactionPayStrategy, TransactionPayStrategy } from '../constants';
@@ -38,6 +39,7 @@ export const DEFAULT_RELAY_EXECUTE_URL = RELAY_EXECUTE_URL;
 export const DEFAULT_RELAY_QUOTE_URL = RELAY_QUOTE_URL;
 export const DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD = '300000';
 export const DEFAULT_SLIPPAGE = 0.005;
+export const DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD = 1;
 export const DEFAULT_ACROSS_API_BASE = 'https://app.across.to/api';
 export const DEFAULT_SERVER_BASE_URL = SERVER_URL_BASE;
 export const DEFAULT_STRATEGY_ORDER: StrategyOrder = [
@@ -97,11 +99,32 @@ type FiatFlags = {
   assetPerTransactionType?: Partial<
     Record<TransactionType, TransactionPayFiatAsset>
   >;
+  directMoneyMusdEnabled?: boolean;
   enabledTransactionTypes: TransactionType[];
   feeReserveMultiplier?: number;
   maxRateDriftPercent?: number;
   orderPollIntervalMs?: number;
   orderPollTimeoutMs?: number;
+  vaultDisabled?: boolean;
+};
+
+type HyperliquidActivationFeeFlag = {
+  enabled?: boolean;
+  amountUsd?: number;
+};
+
+type PostQuoteConfig = {
+  hyperliquidActivationFee?: HyperliquidActivationFeeFlag;
+};
+
+type PostQuoteFeatureFlags = {
+  default?: PostQuoteConfig;
+  overrides?: Record<string, PostQuoteConfig>;
+};
+
+export type HyperliquidActivationFeeConfig = {
+  enabled: boolean;
+  amountUsd: number;
 };
 
 type StrategyRoutingConfig = {
@@ -467,10 +490,13 @@ export function getFeatureFlags(
       | FeatureFlagsRaw
       | undefined) ?? {};
 
-  const estimate =
-    featureFlags.relayFallbackGas?.estimate ?? DEFAULT_FALLBACK_GAS_ESTIMATE;
+  const estimate = new BigNumber(
+    featureFlags.relayFallbackGas?.estimate ?? DEFAULT_FALLBACK_GAS_ESTIMATE,
+  ).toNumber();
 
-  const max = featureFlags.relayFallbackGas?.max ?? DEFAULT_FALLBACK_GAS_MAX;
+  const max = new BigNumber(
+    featureFlags.relayFallbackGas?.max ?? DEFAULT_FALLBACK_GAS_MAX,
+  ).toNumber();
 
   const relayExecuteUrl =
     featureFlags.relayExecuteUrl ?? DEFAULT_RELAY_EXECUTE_URL;
@@ -898,6 +924,26 @@ export function getFiatMaxRateDriftPercent(
     : DEFAULT_MAX_RATE_DRIFT_PERCENT;
 }
 
+export function getDirectMoneyMusdEnabled(
+  messenger: TransactionPayControllerMessenger,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+  return fiatFlags?.directMoneyMusdEnabled === true;
+}
+
+export function getFiatVaultDisabled(
+  messenger: TransactionPayControllerMessenger,
+): boolean {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const fiatFlags = state.remoteFeatureFlags?.confirmations_pay_fiat as
+    | FiatFlags
+    | undefined;
+  return fiatFlags?.vaultDisabled === true;
+}
+
 /**
  * Returns the fiat order poll interval in milliseconds.
  *
@@ -944,6 +990,49 @@ export function getFiatOrderPollTimeoutMs(
   return typeof timeout === 'number' && timeout > 0
     ? timeout
     : DEFAULT_ORDER_POLL_TIMEOUT_MS;
+}
+
+/**
+ * Get the HyperLiquid activation-fee configuration from the
+ * `confirmations_pay_post_quote` feature flag for a transaction type.
+ *
+ * Resolves the transaction type's
+ * `overrides.<transactionType>.hyperliquidActivationFee`, falling back to
+ * `default.hyperliquidActivationFee`.
+ *
+ * When enabled, an unactivated HyperCore account withdrawing via Pay has the
+ * one-time activation fee reserved from the amount sent to HyperLiquid (so the
+ * `sendAsset` step retains enough balance) and surfaced as part of the
+ * provider fee. Defaults to disabled with a $1 fee.
+ *
+ * @param messenger - Controller messenger.
+ * @param transactionType - Parent transaction type used to resolve overrides.
+ * @returns The activation-fee configuration.
+ */
+export function getHyperliquidActivationFeeConfig(
+  messenger: TransactionPayControllerMessenger,
+  transactionType?: string,
+): HyperliquidActivationFeeConfig {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const featureFlags = state.remoteFeatureFlags
+    ?.confirmations_pay_post_quote as PostQuoteFeatureFlags | undefined;
+
+  const override = transactionType
+    ? featureFlags?.overrides?.[transactionType]
+    : undefined;
+  const config =
+    override?.hyperliquidActivationFee ??
+    featureFlags?.default?.hyperliquidActivationFee;
+
+  const { amountUsd } = config ?? {};
+
+  return {
+    enabled: config?.enabled ?? false,
+    amountUsd:
+      typeof amountUsd === 'number' && amountUsd > 0
+        ? amountUsd
+        : DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD,
+  };
 }
 
 /**

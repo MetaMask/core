@@ -11,6 +11,7 @@ import { deriveFiatAssetForFiatPayment } from './strategy/fiat/utils';
 import { getMessengerMock } from './tests/messenger-mock';
 import type {
   TransactionPayControllerMessenger,
+  TransactionPayControllerOptions,
   TransactionPaySourceAmount,
   UpdateTransactionDataCallback,
 } from './types';
@@ -35,7 +36,6 @@ const TRANSACTION_ID_MOCK = '123-456';
 const TRANSACTION_META_MOCK = { id: TRANSACTION_ID_MOCK } as TransactionMeta;
 const TOKEN_ADDRESS_MOCK = '0xabc' as Hex;
 const CHAIN_ID_MOCK = '0x1' as Hex;
-
 describe('TransactionPayController', () => {
   const updateFiatPaymentMock = jest.mocked(updateFiatPayment);
   const updatePaymentTokenMock = jest.mocked(updatePaymentToken);
@@ -56,10 +56,14 @@ describe('TransactionPayController', () => {
   /**
    * Create a TransactionPayController.
    *
+   * @param options - Controller options.
    * @returns The created controller.
    */
-  function createController(): TransactionPayController {
+  function createController(
+    options: Partial<TransactionPayControllerOptions> = {},
+  ): TransactionPayController {
     return new TransactionPayController({
+      ...options,
       getDelegationTransaction: jest.fn(),
       messenger,
     });
@@ -563,6 +567,29 @@ describe('TransactionPayController', () => {
     });
   });
 
+  describe('getFiatOptions', () => {
+    it('returns configured fiat options', () => {
+      const fiatOptions = {
+        testFundingSource: '0x1111111111111111111111111111111111111111' as Hex,
+        testAmountOverride: '0.1',
+      };
+
+      createController({ fiatOptions });
+
+      const result = messenger.call('TransactionPayController:getFiatOptions');
+
+      expect(result).toBe(fiatOptions);
+    });
+
+    it('returns undefined when no fiat options are configured', () => {
+      createController();
+
+      const result = messenger.call('TransactionPayController:getFiatOptions');
+
+      expect(result).toBeUndefined();
+    });
+  });
+
   describe('polymarket callbacks', () => {
     const EOA_MOCK = '0x1111111111111111111111111111111111111111' as Hex;
     const DEPOSIT_WALLET_MOCK =
@@ -666,7 +693,8 @@ describe('TransactionPayController', () => {
     it('returns callback value if provided', async () => {
       new TransactionPayController({
         getDelegationTransaction: jest.fn(),
-        getStrategy: (): TransactionPayStrategy => TransactionPayStrategy.Test,
+        getStrategy: (): TransactionPayStrategy =>
+          TransactionPayStrategy.Across,
         messenger,
       });
 
@@ -675,14 +703,14 @@ describe('TransactionPayController', () => {
           'TransactionPayController:getStrategy',
           TRANSACTION_META_MOCK,
         ),
-      ).toBe(TransactionPayStrategy.Test);
+      ).toBe(TransactionPayStrategy.Across);
     });
 
     it('does not query feature flag strategy order when getStrategies callback returns values', async () => {
       new TransactionPayController({
         getDelegationTransaction: jest.fn(),
         getStrategies: (): TransactionPayStrategy[] => [
-          TransactionPayStrategy.Test,
+          TransactionPayStrategy.Across,
         ],
         messenger,
       });
@@ -694,13 +722,13 @@ describe('TransactionPayController', () => {
           'TransactionPayController:getStrategy',
           TRANSACTION_META_MOCK,
         ),
-      ).toBe(TransactionPayStrategy.Test);
+      ).toBe(TransactionPayStrategy.Across);
 
       expect(getStrategyOrderMock).not.toHaveBeenCalled();
     });
 
     it('returns relay if getStrategies callback returns empty', async () => {
-      getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Test]);
+      getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Across]);
 
       new TransactionPayController({
         getDelegationTransaction: jest.fn(),
@@ -713,11 +741,11 @@ describe('TransactionPayController', () => {
           'TransactionPayController:getStrategy',
           TRANSACTION_META_MOCK,
         ),
-      ).toBe(TransactionPayStrategy.Test);
+      ).toBe(TransactionPayStrategy.Across);
     });
 
     it('falls back to feature flag if getStrategies callback returns invalid first value', async () => {
-      getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Bridge]);
+      getStrategyOrderMock.mockReturnValue([TransactionPayStrategy.Across]);
 
       new TransactionPayController({
         getDelegationTransaction: jest.fn(),
@@ -731,7 +759,7 @@ describe('TransactionPayController', () => {
           'TransactionPayController:getStrategy',
           TRANSACTION_META_MOCK,
         ),
-      ).toBe(TransactionPayStrategy.Bridge);
+      ).toBe(TransactionPayStrategy.Across);
     });
 
     it('returns default strategy order when no callbacks and no strategy order feature flag', async () => {
@@ -749,7 +777,7 @@ describe('TransactionPayController', () => {
 
     it('returns strategy from feature flag when no callbacks are provided', async () => {
       getStrategyOrderMock.mockReturnValue([
-        TransactionPayStrategy.Test,
+        TransactionPayStrategy.Across,
         TransactionPayStrategy.Relay,
       ]);
 
@@ -760,7 +788,7 @@ describe('TransactionPayController', () => {
           'TransactionPayController:getStrategy',
           TRANSACTION_META_MOCK,
         ),
-      ).toBe(TransactionPayStrategy.Test);
+      ).toBe(TransactionPayStrategy.Across);
     });
 
     it('passes payment token route args into feature flag fallback', async () => {
@@ -944,7 +972,6 @@ describe('TransactionPayController', () => {
   });
 
   describe('fiat token selection', () => {
-    const CAIP_ASSET_ID_MOCK = 'eip155:137/slip44:966';
     const FIAT_ASSET_MOCK = {
       address: '0x0000000000000000000000000000000000001010' as Hex,
       chainId: '0x89' as Hex,
@@ -984,7 +1011,7 @@ describe('TransactionPayController', () => {
       ).toBeUndefined();
     });
 
-    it('stores caipAssetId in fiatPayment when payment method changes', () => {
+    it('does not set caipAssetId when payment method changes (set by quote functions instead)', () => {
       getTransactionMock.mockReturnValue(TRANSACTION_META_MOCK);
       deriveFiatAssetForFiatPaymentMock.mockReturnValue(FIAT_ASSET_MOCK);
 
@@ -998,7 +1025,7 @@ describe('TransactionPayController', () => {
       expect(
         controller.state.transactionData[TRANSACTION_ID_MOCK]?.fiatPayment
           ?.caipAssetId,
-      ).toBe(CAIP_ASSET_ID_MOCK);
+      ).toBeUndefined();
     });
 
     it('triggers quote update when fiat payment changes', () => {

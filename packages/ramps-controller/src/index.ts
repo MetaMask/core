@@ -7,6 +7,7 @@ export type {
   RampsControllerStateChangeEvent,
   RampsControllerOrderStatusChangedEvent,
   RampsControllerOptions,
+  ProviderScope,
   UserRegion,
   ResourceState,
   TransakState,
@@ -64,6 +65,7 @@ export type {
 export {
   RampsController,
   getDefaultRampsControllerState,
+  getInternalOrderCode,
   normalizeProviderCode,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
 } from './RampsController';
@@ -172,6 +174,10 @@ export {
   TransakEnvironment,
   TransakOrderIdTransformer,
 } from './TransakService';
+export {
+  getTransakApiMessage,
+  isTransakPhoneRegisteredError,
+} from './transakApiErrorUtils';
 export type {
   TransakServiceMethodActions,
   TransakServiceSendUserOtpAction,

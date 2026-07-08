@@ -9,6 +9,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Adds `MultichainAccountGroup.isProviderAligned(provider)` to check alignment per provider ([#9269](https://github.com/MetaMask/core/pull/9269))
+
+### Changed
+
+- **BREAKING:** `RestrictedSnapKeyring.createAccount` has been replaced by `RestrictedSnapKeyring.v1`, which is `undefined` for v2-only Snaps ([#9390](https://github.com/MetaMask/core/pull/9390))
+  - Any subclass implementing `SnapAccountProvider.createAccountV1` must now check `keyring.v1` guard followed by `keyring.v1.createAccount(options)`.
+- Wallet alignment now only creates the missing `(provider, group index)` pairs instead of re-creating the whole range for every provider, avoiding redundant `createAccounts` calls (and their traces) ([#9269](https://github.com/MetaMask/core/pull/9269))
+- Bump `@metamask/accounts-controller` from `^39.0.3` to `^39.0.4` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Bump `@metamask/eth-snap-keyring` from `^22.3.0` to `^23.0.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
+- Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
+- Bump `@metamask/keyring-snap-client` from `^9.0.2` to `^9.2.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
+
+## [11.1.0]
+
+### Added
+
+- Add `XlmAccountProvider` for Stellar account support ([#8830](https://github.com/MetaMask/core/pull/8830))
+  - Export `XlmAccountProvider`, `XLM_ACCOUNT_PROVIDER_NAME`, and `XlmAccountProviderConfig`.
+
+### Changed
+
+- Bump `@metamask/keyring-api` from `^23.1.0` to `^23.3.0` ([#9249](https://github.com/MetaMask/core/pull/9249))
+- Bump `@metamask/keyring-utils` from `^3.2.1` to `^3.3.1` ([#9249](https://github.com/MetaMask/core/pull/9249))
+
+## [11.0.0]
+
+### Added
+
 - Added `Bip44AccountProvider.deleteAccount(id)` method ([#8960](https://github.com/MetaMask/core/pull/8960))
   - The `KeyringController` will automatically prunes the non-primary empty keyrings when the last EVM account is getting removed.
   - `AccountProviderWrapper.deleteAccount(id)` always removes the account, even if disabled.
@@ -22,6 +51,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Replace `KeyringController:withKeyring` with `KeyringController:withKeyringV2` for the Snap account providers ([#8732](https://github.com/MetaMask/core/pull/8732))
+- Bump `@metamask/eth-snap-keyring` from `^22.0.1` to `^22.3.0` ([#8732](https://github.com/MetaMask/core/pull/8732))
 - **BREAKING:** `MultichainAccountService.removeMultichainAccountWallet` (and messenger action) now takes a single `entropySource` argument ([#8960](https://github.com/MetaMask/core/pull/8960))
   - The previous `accountAddress` parameter has been removed.
   - All accounts are now unconditionally removed from the wallet and providers (even for disabled `AccountProviderWrapper`).
@@ -29,6 +60,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Errors are aggregated and reported in case of failure.
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Bump `@metamask/controller-utils` from `^12.1.1` to `^12.2.0` ([#9083](https://github.com/MetaMask/core/pull/9083))
+- Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
+- Bump `@metamask/accounts-controller` from `^39.0.1` to `^39.0.3` ([#9218](https://github.com/MetaMask/core/pull/9218), [#9231](https://github.com/MetaMask/core/pull/9231))
+- Bump `@metamask/snap-account-service` from `^0.3.1` to `^1.0.0` ([#9231](https://github.com/MetaMask/core/pull/9231))
 
 ## [10.0.3]
 
@@ -531,7 +565,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141), [#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@10.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@11.1.0...HEAD
+[11.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@11.0.0...@metamask/multichain-account-service@11.1.0
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@10.0.3...@metamask/multichain-account-service@11.0.0
 [10.0.3]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@10.0.2...@metamask/multichain-account-service@10.0.3
 [10.0.2]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@10.0.1...@metamask/multichain-account-service@10.0.2
 [10.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@10.0.0...@metamask/multichain-account-service@10.0.1

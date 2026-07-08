@@ -92,8 +92,10 @@ export type RampsControllerSetSelectedProviderAction = {
  * This should be called once at app startup to set up the initial region.
  *
  * Idempotent: subsequent calls return the same promise unless forceRefresh is set.
- * Skips getCountries when countries are already loaded; skips geolocation when
- * userRegion already exists.
+ * Force-refetches the countries catalog on startup (bypassing the in-session
+ * request cache) so region preset amounts stay current. The catalog is not
+ * persisted, so a cold start always re-fetches it regardless. Skips
+ * geolocation when userRegion already exists.
  *
  * @param options - Options for cache behavior. forceRefresh bypasses idempotency and re-runs the full flow.
  * @returns Promise that resolves when initialization is complete.
@@ -152,7 +154,6 @@ export type RampsControllerSetSelectedTokenAction = {
  * @param options - Options for cache behavior and query filters.
  * @param options.provider - Provider ID(s) to filter by.
  * @param options.crypto - Crypto currency ID(s) to filter by.
- * @param options.fiat - Fiat currency ID(s) to filter by.
  * @param options.payments - Payment method ID(s) to filter by.
  * @returns The providers response containing providers array.
  */
@@ -167,7 +168,6 @@ export type RampsControllerGetProvidersAction = {
  *
  * @param region - User's region code (e.g. "fr", "us-ny").
  * @param options - Query parameters for filtering payment methods.
- * @param options.fiat - Fiat currency code (e.g., "usd"). If not provided, uses the user's region currency.
  * @param options.assetId - CAIP-19 cryptocurrency identifier.
  * @param options.provider - Provider ID path.
  * @returns The payment methods response containing payments array.
@@ -229,7 +229,7 @@ export type RampsControllerGetQuotesAction = {
 
 /**
  * Adds or updates a V2 order in controller state.
- * If an order with the same providerOrderId already exists, the incoming
+ * If an order with the same internal order code already exists, the incoming
  * fields are merged on top of the existing order so that fields not present
  * in the update (e.g. paymentDetails from the Transak API) are preserved.
  *

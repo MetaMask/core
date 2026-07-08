@@ -177,6 +177,87 @@ describe('Update Payment Token Action', () => {
     ).toThrow('Payment token not found');
   });
 
+  it('resolves with zeroed fiat when rate not found and transaction is post-quote', () => {
+    getTokenFiatRateMock.mockReturnValue(undefined);
+
+    const updateTransactionDataMock = jest.fn();
+    const messenger = createMessengerMock({
+      [TRANSACTION_ID_MOCK]: { isPostQuote: true },
+    });
+
+    updatePaymentToken(
+      {
+        chainId: CHAIN_ID_MOCK,
+        tokenAddress: TOKEN_ADDRESS_MOCK,
+        transactionId: TRANSACTION_ID_MOCK,
+      },
+      {
+        messenger,
+        updateTransactionData: updateTransactionDataMock,
+      },
+    );
+
+    expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
+
+    const transactionDataMock = {} as TransactionData;
+    updateTransactionDataMock.mock.calls[0][1](transactionDataMock);
+
+    expect(transactionDataMock.paymentToken).toStrictEqual({
+      address: TOKEN_ADDRESS_MOCK,
+      balanceFiat: '0',
+      balanceHuman: '1.23',
+      balanceRaw: '1230000',
+      balanceUsd: '0',
+      chainId: CHAIN_ID_MOCK,
+      decimals: 6,
+      symbol: 'TST',
+    });
+  });
+
+  it('uses actual fiat rate when available and transaction is post-quote', () => {
+    const updateTransactionDataMock = jest.fn();
+    const messenger = createMessengerMock({
+      [TRANSACTION_ID_MOCK]: { isPostQuote: true },
+    });
+
+    updatePaymentToken(
+      {
+        chainId: CHAIN_ID_MOCK,
+        tokenAddress: TOKEN_ADDRESS_MOCK,
+        transactionId: TRANSACTION_ID_MOCK,
+      },
+      {
+        messenger,
+        updateTransactionData: updateTransactionDataMock,
+      },
+    );
+
+    const transactionDataMock = {} as TransactionData;
+    updateTransactionDataMock.mock.calls[0][1](transactionDataMock);
+
+    expect(transactionDataMock.paymentToken).toStrictEqual(PAYMENT_TOKEN_MOCK);
+  });
+
+  it('throws if token info not found even when transaction is post-quote', () => {
+    getTokenInfoMock.mockReturnValue(undefined);
+
+    expect(() =>
+      updatePaymentToken(
+        {
+          chainId: CHAIN_ID_MOCK,
+          tokenAddress: TOKEN_ADDRESS_MOCK,
+          transactionId: TRANSACTION_ID_MOCK,
+        },
+        {
+          messenger: createMessengerMock({
+            [TRANSACTION_ID_MOCK]: { isPostQuote: true },
+          }),
+          updateTransactionData: noop,
+        },
+      ),
+    ).toThrow('Payment token not found');
+  });
+
   it('throws if transaction not found', () => {
     getTransactionMock.mockReturnValue(undefined);
 

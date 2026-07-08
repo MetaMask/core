@@ -405,6 +405,841 @@ describe('RampsController', () => {
     });
   });
 
+  describe('getQuotes provider-scope widening (in-app)', () => {
+    const SCOPE_ASSET_ID = 'eip155:1/slip44:60';
+    const SCOPE_PAYMENT_METHOD = '/payments/debit-credit-card';
+    const SCOPE_WALLET = '0x1234567890abcdef1234567890abcdef12345678';
+    const NATIVE = '/providers/transak-native';
+    const MOONPAY = '/providers/moonpay';
+    const REVOLUT = '/providers/revolut';
+    const COINBASE = '/providers/coinbase';
+
+    const buildScopeProvider = (
+      id: string,
+      type: 'native' | 'aggregator',
+      limits?: Provider['limits'],
+    ): Provider => ({
+      id,
+      name: id,
+      type,
+      environmentType: 'STAGING',
+      description: '',
+      hqAddress: '',
+      links: [],
+      logos: { light: '', dark: '', height: 24, width: 77 },
+      supportedCryptoCurrencies: { [SCOPE_ASSET_ID]: true },
+      ...(limits ? { limits } : {}),
+    });
+
+    const fiatLimit = (
+      minAmount: number,
+      maxAmount: number,
+    ): Provider['limits'] => ({
+      fiat: {
+        usd: {
+          [SCOPE_PAYMENT_METHOD]: {
+            minAmount,
+            maxAmount,
+            feeFixedRate: 0,
+            feeDynamicRate: 0,
+          },
+        },
+      },
+    });
+
+    const inAppScopeQuote = (provider: string, reliability: number): Quote => ({
+      provider,
+      quote: {
+        amountIn: 100,
+        amountOut: '0.05',
+        paymentMethod: SCOPE_PAYMENT_METHOD,
+        buyWidget: {
+          url: 'https://widget.example/checkout',
+          browser: 'APP_BROWSER',
+        },
+      },
+      metadata: { reliability },
+    });
+
+    const externalScopeQuote = (
+      provider: string,
+      reliability: number,
+    ): Quote => ({
+      provider,
+      quote: {
+        amountIn: 100,
+        amountOut: '0.05',
+        paymentMethod: SCOPE_PAYMENT_METHOD,
+        buyWidget: {
+          url: 'https://widget.example/checkout',
+          browser: 'IN_APP_OS_BROWSER',
+        },
+      },
+      metadata: { reliability },
+    });
+
+    const scopeState = (
+      providers: Provider[],
+    ): Partial<RampsControllerState> => ({
+      userRegion: createMockUserRegion('us-ca'),
+      providers: createResourceState(providers, null),
+    });
+
+    const callScopedGetQuotes = async (
+      messenger: RampsControllerMessenger,
+      overrides: Record<string, unknown> = {},
+    ): Promise<QuotesResponse> =>
+      messenger.call('RampsController:getQuotes', {
+        action: 'buy',
+        amount: 100,
+        assetId: SCOPE_ASSET_ID,
+        fiat: 'USD',
+        paymentMethods: [SCOPE_PAYMENT_METHOD],
+        region: 'us-ca',
+        walletAddress: SCOPE_WALLET,
+        autoSelectProvider: true,
+        restrictToKnownOrNativeProviders: true,
+        ...overrides,
+      });
+
+    it('widens to all supporting providers and returns the reliability winner at success[0], excluding external quotes', async () => {
+      const response: QuotesResponse = {
+        success: [
+          inAppScopeQuote(MOONPAY, 90),
+          inAppScopeQuote(REVOLUT, 80),
+          externalScopeQuote(COINBASE, 99),
+          inAppScopeQuote(NATIVE, 70),
+        ],
+        // Coinbase is the most reliable but external, so it is skipped and the
+        // next in-app provider (MoonPay) wins.
+        sorted: [
+          { sortBy: 'reliability', ids: [COINBASE, MOONPAY, REVOLUT, NATIVE] },
+        ],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            state: scopeState([
+              buildScopeProvider(NATIVE, 'native'),
+              buildScopeProvider(MOONPAY, 'aggregator'),
+              buildScopeProvider(REVOLUT, 'aggregator'),
+              buildScopeProvider(COINBASE, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          let quotedProviders: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { providers?: string[] }) => {
+              quotedProviders = params.providers;
+              return response;
+            },
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          // Widened beyond native-only: every supporting provider was quoted.
+          expect(quotedProviders).toStrictEqual([
+            NATIVE,
+            MOONPAY,
+            REVOLUT,
+            COINBASE,
+          ]);
+          expect(quotes.success[0]?.provider).toBe(MOONPAY);
+        },
+      );
+    });
+
+    it('keeps the native provider as a valid in-app candidate and selects it when it ranks first', async () => {
+      const response: QuotesResponse = {
+        success: [inAppScopeQuote(NATIVE, 90), inAppScopeQuote(MOONPAY, 80)],
+        // Transak Native is the most reliable in-app quote, so it wins: the
+        // in-app scope must not exclude native providers.
+        sorted: [{ sortBy: 'reliability', ids: [NATIVE, MOONPAY] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            state: scopeState([
+              buildScopeProvider(NATIVE, 'native'),
+              buildScopeProvider(MOONPAY, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => response,
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          expect(quotes.success[0]?.provider).toBe(NATIVE);
+        },
+      );
+    });
+
+    it('falls back to the price order when there is no reliability order', async () => {
+      const response: QuotesResponse = {
+        success: [inAppScopeQuote(MOONPAY, 90), inAppScopeQuote(REVOLUT, 80)],
+        sorted: [{ sortBy: 'price', ids: [REVOLUT, MOONPAY] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            state: scopeState([
+              buildScopeProvider(MOONPAY, 'aggregator'),
+              buildScopeProvider(REVOLUT, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => response,
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          expect(quotes.success[0]?.provider).toBe(REVOLUT);
+        },
+      );
+    });
+
+    it('skips a provider whose fiat limits do not fit the amount and picks the next', async () => {
+      const response: QuotesResponse = {
+        success: [inAppScopeQuote(MOONPAY, 90), inAppScopeQuote(REVOLUT, 80)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY, REVOLUT] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            state: scopeState([
+              // MoonPay's minimum is above the $100 amount, so it is skipped.
+              buildScopeProvider(MOONPAY, 'aggregator', fiatLimit(200, 1000)),
+              // Revolut publishes no limits, so it stays eligible.
+              buildScopeProvider(REVOLUT, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => response,
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          expect(quotes.success[0]?.provider).toBe(REVOLUT);
+        },
+      );
+    });
+
+    it('returns an empty success list when no in-app quote is usable', async () => {
+      const response: QuotesResponse = {
+        success: [externalScopeQuote(COINBASE, 99)],
+        sorted: [{ sortBy: 'reliability', ids: [COINBASE] }],
+        error: [{ provider: MOONPAY, error: 'unavailable' }],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            state: scopeState([buildScopeProvider(COINBASE, 'aggregator')]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => response,
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          expect(quotes.success).toStrictEqual([]);
+          expect(quotes.error).toStrictEqual(response.error);
+        },
+      );
+    });
+
+    it('returns an empty response on the widened path when no provider supports the asset, even without restrictToKnownOrNativeProviders', async () => {
+      // A provider is present (so `#getSupportingProvidersForRegion` reads state
+      // instead of hydrating), but it supports a different asset than
+      // `SCOPE_ASSET_ID`, leaving the supporting set empty.
+      const nonSupportingProvider: Provider = {
+        ...buildScopeProvider(MOONPAY, 'aggregator'),
+        supportedCryptoCurrencies: { 'eip155:1/slip44:0': true },
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            state: scopeState([nonSupportingProvider]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          const getQuotesMock = jest.fn();
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            getQuotesMock,
+          );
+
+          // `autoSelectProvider` alone triggers widening; without
+          // `restrictToKnownOrNativeProviders` the empty guard is reached via the
+          // `|| widenToInAppProviders` branch.
+          const quotes = await callScopedGetQuotes(messenger, {
+            autoSelectProvider: true,
+            restrictToKnownOrNativeProviders: false,
+          });
+
+          expect(quotes).toStrictEqual({
+            success: [],
+            sorted: [],
+            error: [],
+            customActions: [],
+          });
+          expect(getQuotesMock).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('excludes custom-action providers from selection', async () => {
+      const response: QuotesResponse = {
+        success: [inAppScopeQuote(MOONPAY, 90), inAppScopeQuote(REVOLUT, 80)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY, REVOLUT] }],
+        error: [],
+        customActions: [
+          {
+            buy: { providerId: MOONPAY },
+            paymentMethodId: SCOPE_PAYMENT_METHOD,
+            supportedPaymentMethodIds: [SCOPE_PAYMENT_METHOD],
+          },
+        ],
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            state: scopeState([
+              buildScopeProvider(MOONPAY, 'aggregator'),
+              buildScopeProvider(REVOLUT, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => response,
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          // MoonPay is a custom action, so Revolut wins despite ranking higher.
+          expect(quotes.success[0]?.provider).toBe(REVOLUT);
+        },
+      );
+    });
+
+    it('does not widen and does not mutate providers.selected when the scope is off', async () => {
+      const response: QuotesResponse = {
+        success: [inAppScopeQuote(NATIVE, 70)],
+        sorted: [{ sortBy: 'reliability', ids: [NATIVE] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'off',
+            state: scopeState([
+              buildScopeProvider(NATIVE, 'native'),
+              buildScopeProvider(MOONPAY, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ controller, messenger, rootMessenger }) => {
+          let quotedProviders: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { providers?: string[] }) => {
+              quotedProviders = params.providers;
+              return response;
+            },
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          // Native-only auto-selection is preserved: only the native provider
+          // is quoted and the response is returned untouched.
+          expect(quotedProviders).toStrictEqual([NATIVE]);
+          expect(quotes).toStrictEqual(response);
+          expect(controller.state.providers.selected).toBeNull();
+        },
+      );
+    });
+
+    it('does not widen when the caller passes an explicit providers list', async () => {
+      const response: QuotesResponse = {
+        success: [inAppScopeQuote(MOONPAY, 90)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            state: scopeState([
+              buildScopeProvider(MOONPAY, 'aggregator'),
+              buildScopeProvider(REVOLUT, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          let quotedProviders: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { providers?: string[] }) => {
+              quotedProviders = params.providers;
+              return response;
+            },
+          );
+
+          const quotes = await callScopedGetQuotes(messenger, {
+            providers: [MOONPAY],
+          });
+
+          expect(quotedProviders).toStrictEqual([MOONPAY]);
+          expect(quotes).toStrictEqual(response);
+        },
+      );
+    });
+
+    it('hydrates the provider catalog via getProviders when state is empty', async () => {
+      const response: QuotesResponse = {
+        success: [inAppScopeQuote(MOONPAY, 90)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            state: { userRegion: createMockUserRegion('us-ca') },
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getProviders',
+            async () => ({
+              providers: [buildScopeProvider(MOONPAY, 'aggregator')],
+            }),
+          );
+          let quotedProviders: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { providers?: string[] }) => {
+              quotedProviders = params.providers;
+              return response;
+            },
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          expect(quotedProviders).toStrictEqual([MOONPAY]);
+          expect(quotes.success[0]?.provider).toBe(MOONPAY);
+        },
+      );
+    });
+
+    it('excludes a quote carrying an inline isCustomAction flag', async () => {
+      const inlineCustom = inAppScopeQuote(MOONPAY, 90);
+      (inlineCustom.quote as { isCustomAction?: boolean }).isCustomAction =
+        true;
+      const response: QuotesResponse = {
+        success: [inlineCustom, inAppScopeQuote(REVOLUT, 80)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY, REVOLUT] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            state: scopeState([
+              buildScopeProvider(MOONPAY, 'aggregator'),
+              buildScopeProvider(REVOLUT, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => response,
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          // The inline-flagged MoonPay quote is dropped, so Revolut wins.
+          expect(quotes.success[0]?.provider).toBe(REVOLUT);
+        },
+      );
+    });
+
+    it('falls through to the first candidate when the sort orders reference no surviving provider', async () => {
+      const response: QuotesResponse = {
+        success: [inAppScopeQuote(MOONPAY, 90)],
+        // Neither order lists MoonPay, so both walks fall through to
+        // the first surviving candidate.
+        sorted: [
+          { sortBy: 'reliability', ids: [COINBASE] },
+          { sortBy: 'price', ids: [REVOLUT] },
+        ],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => response,
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          expect(quotes.success[0]?.provider).toBe(MOONPAY);
+        },
+      );
+    });
+
+    it('with scope all, does not exclude external or custom-action quotes', async () => {
+      const response: QuotesResponse = {
+        success: [
+          externalScopeQuote(COINBASE, 99),
+          inAppScopeQuote(MOONPAY, 80),
+        ],
+        sorted: [{ sortBy: 'reliability', ids: [COINBASE, MOONPAY] }],
+        error: [],
+        customActions: [
+          {
+            buy: { providerId: MOONPAY },
+            paymentMethodId: SCOPE_PAYMENT_METHOD,
+            supportedPaymentMethodIds: [SCOPE_PAYMENT_METHOD],
+          },
+        ],
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'all',
+            state: scopeState([
+              buildScopeProvider(COINBASE, 'aggregator'),
+              buildScopeProvider(MOONPAY, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => response,
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          // `all` keeps the external Coinbase quote (top reliability) eligible.
+          expect(quotes.success[0]?.provider).toBe(COINBASE);
+        },
+      );
+    });
+
+    it('widens on restrictToKnownOrNativeProviders alone and selects a provider whose limits fit', async () => {
+      const response: QuotesResponse = {
+        success: [inAppScopeQuote(MOONPAY, 90)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            state: scopeState([
+              buildScopeProvider(MOONPAY, 'aggregator', fiatLimit(10, 1000)),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => response,
+          );
+
+          // No autoSelectProvider flag: widening relies on the restrict flag,
+          // and MoonPay's limits (10-1000) accommodate the $100 amount.
+          const quotes = await callScopedGetQuotes(messenger, {
+            autoSelectProvider: undefined,
+          });
+
+          expect(quotes.success[0]?.provider).toBe(MOONPAY);
+        },
+      );
+    });
+
+    it('skips a provider whose maximum limit is below the amount', async () => {
+      const response: QuotesResponse = {
+        success: [inAppScopeQuote(MOONPAY, 90), inAppScopeQuote(REVOLUT, 80)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY, REVOLUT] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            state: scopeState([
+              buildScopeProvider(MOONPAY, 'aggregator', fiatLimit(10, 50)),
+              buildScopeProvider(REVOLUT, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => response,
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          // MoonPay's max (50) is below the $100 amount, so Revolut wins.
+          expect(quotes.success[0]?.provider).toBe(REVOLUT);
+        },
+      );
+    });
+
+    it('does not widen for a non-off scope when neither autoSelect nor restrict is set', async () => {
+      const response: QuotesResponse = {
+        success: [
+          inAppScopeQuote(MOONPAY, 90),
+          externalScopeQuote(COINBASE, 99),
+        ],
+        sorted: [{ sortBy: 'reliability', ids: [COINBASE, MOONPAY] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            state: scopeState([
+              buildScopeProvider(MOONPAY, 'aggregator'),
+              buildScopeProvider(COINBASE, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => response,
+          );
+
+          // Neither flag and no explicit providers: the plain all-provider path
+          // runs and the response is returned unfiltered even under `in-app`.
+          const quotes = await callScopedGetQuotes(messenger, {
+            autoSelectProvider: undefined,
+            restrictToKnownOrNativeProviders: undefined,
+          });
+
+          expect(quotes).toStrictEqual(response);
+        },
+      );
+    });
+
+    it('forwards the injected default redirectUrl on the widened path when the caller omits one', async () => {
+      const response: QuotesResponse = {
+        success: [inAppScopeQuote(MOONPAY, 90)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
+        error: [],
+        customActions: [],
+      };
+      const DEFAULT_REDIRECT = 'https://default.example/callback';
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            getDefaultRedirectUrl: () => DEFAULT_REDIRECT,
+            state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          let forwardedRedirectUrl: string | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { redirectUrl?: string }) => {
+              forwardedRedirectUrl = params.redirectUrl;
+              return response;
+            },
+          );
+
+          await callScopedGetQuotes(messenger);
+
+          // The caller omitted redirectUrl, so the widened path supplies the
+          // injected default and forwards it to the service.
+          expect(forwardedRedirectUrl).toBe(DEFAULT_REDIRECT);
+        },
+      );
+    });
+
+    it('prefers an explicit caller redirectUrl over the injected default on the widened path', async () => {
+      const response: QuotesResponse = {
+        success: [inAppScopeQuote(MOONPAY, 90)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
+        error: [],
+        customActions: [],
+      };
+      const DEFAULT_REDIRECT = 'https://default.example/callback';
+      const EXPLICIT_REDIRECT = 'https://explicit.example/callback';
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            getDefaultRedirectUrl: () => DEFAULT_REDIRECT,
+            state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          let forwardedRedirectUrl: string | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { redirectUrl?: string }) => {
+              forwardedRedirectUrl = params.redirectUrl;
+              return response;
+            },
+          );
+
+          await callScopedGetQuotes(messenger, {
+            redirectUrl: EXPLICIT_REDIRECT,
+          });
+
+          // An explicit caller redirectUrl always wins; the default is not
+          // applied.
+          expect(forwardedRedirectUrl).toBe(EXPLICIT_REDIRECT);
+        },
+      );
+    });
+
+    it('does not inject the default redirectUrl when the scope is off', async () => {
+      const response: QuotesResponse = {
+        success: [inAppScopeQuote(NATIVE, 70)],
+        sorted: [{ sortBy: 'reliability', ids: [NATIVE] }],
+        error: [],
+        customActions: [],
+      };
+      const DEFAULT_REDIRECT = 'https://default.example/callback';
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'off',
+            getDefaultRedirectUrl: () => DEFAULT_REDIRECT,
+            state: scopeState([buildScopeProvider(NATIVE, 'native')]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          let forwardedRedirectUrl: string | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { redirectUrl?: string }) => {
+              forwardedRedirectUrl = params.redirectUrl;
+              return response;
+            },
+          );
+
+          await callScopedGetQuotes(messenger);
+
+          // Scope `off` never widens, so the default is not injected even when a
+          // `getDefaultRedirectUrl` callback is present.
+          expect(forwardedRedirectUrl).toBeUndefined();
+        },
+      );
+    });
+
+    it('forwards undefined on the widened path when no getDefaultRedirectUrl option is provided', async () => {
+      const response: QuotesResponse = {
+        success: [inAppScopeQuote(MOONPAY, 90)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          let forwardedRedirectUrl: string | undefined;
+          let redirectUrlWasSeen = false;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { redirectUrl?: string }) => {
+              forwardedRedirectUrl = params.redirectUrl;
+              redirectUrlWasSeen = true;
+              return response;
+            },
+          );
+
+          await callScopedGetQuotes(messenger);
+
+          // With no injected callback, the constructor default returns
+          // undefined, so the widened path forwards undefined.
+          expect(redirectUrlWasSeen).toBe(true);
+          expect(forwardedRedirectUrl).toBeUndefined();
+        },
+      );
+    });
+  });
+
   describe('getProviders', () => {
     const mockProviders: Provider[] = [
       {
@@ -699,7 +1534,6 @@ describe('RampsController', () => {
           | {
               provider?: string | string[];
               crypto?: string | string[];
-              fiat?: string | string[];
               payments?: string | string[];
             }
           | undefined;
@@ -710,7 +1544,6 @@ describe('RampsController', () => {
             options?: {
               provider?: string | string[];
               crypto?: string | string[];
-              fiat?: string | string[];
               payments?: string | string[];
             },
           ) => {
@@ -722,14 +1555,12 @@ describe('RampsController', () => {
         await rootMessenger.call('RampsController:getProviders', 'us-ca', {
           provider: 'paypal',
           crypto: 'ETH',
-          fiat: 'USD',
           payments: 'card',
         });
 
         expect(receivedOptions).toStrictEqual({
           provider: 'paypal',
           crypto: 'ETH',
-          fiat: 'USD',
           payments: 'card',
         });
       });
@@ -925,12 +1756,6 @@ describe('RampsController', () => {
           ),
         ).toMatchInlineSnapshot(`
           {
-            "countries": {
-              "data": [],
-              "error": null,
-              "isLoading": false,
-              "selected": null,
-            },
             "orders": [],
             "providerAutoSelected": false,
             "userRegion": null,
@@ -1884,6 +2709,166 @@ describe('RampsController', () => {
       });
     });
 
+    it('re-syncs userRegion preset amounts after getCountries', async () => {
+      const staleCountries: Country[] = [
+        {
+          isoCode: 'CR',
+          id: '/regions/cr',
+          flag: '🇨🇷',
+          name: 'Costa Rica',
+          phone: {
+            prefix: '+506',
+            placeholder: '8312 3456',
+            template: 'XXXX XXXX',
+          },
+          currency: 'CRC',
+          supported: { buy: true, sell: true },
+          defaultAmount: 100,
+          quickAmounts: [20, 50, 100],
+        },
+      ];
+      const freshCountries: Country[] = [
+        {
+          ...staleCountries[0],
+          defaultAmount: 25000,
+          quickAmounts: [10000, 25000, 50000],
+        },
+      ];
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: {
+                country: staleCountries[0],
+                state: null,
+                regionCode: 'cr',
+              },
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => freshCountries,
+          );
+
+          await rootMessenger.call('RampsController:getCountries');
+
+          expect(controller.state.userRegion?.country.defaultAmount).toBe(
+            25000,
+          );
+          expect(
+            controller.state.userRegion?.country.quickAmounts,
+          ).toStrictEqual([10000, 25000, 50000]);
+        },
+      );
+    });
+
+    it('leaves userRegion unchanged when the refreshed catalog is empty', async () => {
+      const userRegionCountry: Country = {
+        isoCode: 'CR',
+        id: '/regions/cr',
+        flag: '🇨🇷',
+        name: 'Costa Rica',
+        phone: {
+          prefix: '+506',
+          placeholder: '8312 3456',
+          template: 'XXXX XXXX',
+        },
+        currency: 'CRC',
+        supported: { buy: true, sell: true },
+        defaultAmount: 100,
+        quickAmounts: [20, 50, 100],
+      };
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: {
+                country: userRegionCountry,
+                state: null,
+                regionCode: 'cr',
+              },
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => [],
+          );
+
+          await rootMessenger.call('RampsController:getCountries');
+
+          expect(controller.state.countries.data).toStrictEqual([]);
+          expect(controller.state.userRegion?.country.defaultAmount).toBe(100);
+        },
+      );
+    });
+
+    it('leaves userRegion unchanged when its region is absent from the refreshed catalog', async () => {
+      const userRegionCountry: Country = {
+        isoCode: 'CR',
+        id: '/regions/cr',
+        flag: '🇨🇷',
+        name: 'Costa Rica',
+        phone: {
+          prefix: '+506',
+          placeholder: '8312 3456',
+          template: 'XXXX XXXX',
+        },
+        currency: 'CRC',
+        supported: { buy: true, sell: true },
+        defaultAmount: 100,
+        quickAmounts: [20, 50, 100],
+      };
+      const otherCountries: Country[] = [
+        {
+          isoCode: 'US',
+          id: '/regions/us',
+          flag: '🇺🇸',
+          name: 'United States',
+          phone: {
+            prefix: '+1',
+            placeholder: '201 555 0123',
+            template: 'XXX XXX XXXX',
+          },
+          currency: 'USD',
+          supported: { buy: true, sell: true },
+          defaultAmount: 100,
+          quickAmounts: [100, 300, 1000],
+        },
+      ];
+
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: {
+                country: userRegionCountry,
+                state: null,
+                regionCode: 'cr',
+              },
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => otherCountries,
+          );
+
+          await rootMessenger.call('RampsController:getCountries');
+
+          expect(controller.state.countries.data).toStrictEqual(otherCountries);
+          expect(controller.state.userRegion?.country.isoCode).toBe('CR');
+          expect(controller.state.userRegion?.country.defaultAmount).toBe(100);
+        },
+      );
+    });
+
     it('throws when updating resource field and resource is null', async () => {
       const stateWithNullCountries = {
         ...getDefaultRampsControllerState(),
@@ -2114,7 +3099,7 @@ describe('RampsController', () => {
       });
     });
 
-    it('skips getCountries and geolocation when userRegion and countries exist', async () => {
+    it('refetches countries on init but skips geolocation when userRegion exists', async () => {
       let getCountriesCalled = false;
       let getGeolocationCalled = false;
       await withController(
@@ -2152,7 +3137,7 @@ describe('RampsController', () => {
 
           await rootMessenger.call('RampsController:init');
 
-          expect(getCountriesCalled).toBe(false);
+          expect(getCountriesCalled).toBe(true);
           expect(getGeolocationCalled).toBe(false);
           expect(controller.state.userRegion?.regionCode).toBe('us-ca');
         },
@@ -2229,6 +3214,81 @@ describe('RampsController', () => {
           });
 
           expect(getGeolocationCalled).toBe(false);
+          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
+        },
+      );
+    });
+
+    it('preserves a persisted userRegion when the startup catalog refresh is empty', async () => {
+      let getGeolocationCalled = false;
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => [],
+          );
+          rootMessenger.registerActionHandler(
+            'RampsService:getGeolocation',
+            async () => {
+              getGeolocationCalled = true;
+              return 'us-ca';
+            },
+          );
+
+          expect(
+            await rootMessenger.call('RampsController:init'),
+          ).toBeUndefined();
+
+          // A transient empty catalog must not fall back to geolocation nor
+          // wipe the persisted region via setUserRegion's cleanup.
+          expect(getGeolocationCalled).toBe(false);
+          expect(controller.state.countries.data).toStrictEqual([]);
+          expect(controller.state.userRegion?.regionCode).toBe('us-ca');
+        },
+      );
+    });
+
+    it('preserves a persisted userRegion when the startup catalog no longer lists the region', async () => {
+      const catalogWithoutUs: Country[] = [
+        {
+          isoCode: 'FR',
+          name: 'France',
+          flag: '🇫🇷',
+          currency: 'EUR',
+          phone: { prefix: '+33', placeholder: '', template: '' },
+          supported: { buy: true, sell: true },
+        },
+      ];
+      await withController(
+        {
+          options: {
+            state: {
+              userRegion: createMockUserRegion('us-ca'),
+            },
+          },
+        },
+        async ({ controller, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getCountries',
+            async () => catalogWithoutUs,
+          );
+
+          expect(
+            await rootMessenger.call('RampsController:init'),
+          ).toBeUndefined();
+
+          // The region is absent from the refreshed catalog, but the previously
+          // valid region must be preserved rather than wiped.
+          expect(controller.state.countries.data).toStrictEqual(
+            catalogWithoutUs,
+          );
           expect(controller.state.userRegion?.regionCode).toBe('us-ca');
         },
       );
@@ -4468,7 +5528,6 @@ describe('RampsController', () => {
             'RampsService:getPaymentMethods',
             async (options: {
               region: string;
-              fiat: string;
               assetId: string;
               provider: string;
             }) => {
@@ -4487,37 +5546,49 @@ describe('RampsController', () => {
       );
     });
 
-    it('throws error when fiat is not provided and userRegion has no currency', async () => {
-      const regionWithoutCurrency: UserRegion = {
-        country: {
-          isoCode: 'US',
-          name: 'United States',
-          flag: '🇺🇸',
-          currency: undefined as unknown as string,
-          phone: { prefix: '+1', placeholder: '', template: '' },
-          supported: { buy: true, sell: true },
-        },
-        state: null,
-        regionCode: 'us-ca',
-      };
-
+    it('does not pass fiat to the service', async () => {
       await withController(
         {
           options: {
             state: {
-              userRegion: regionWithoutCurrency,
+              userRegion: createMockUserRegion('us-ca'),
             },
           },
         },
         async ({ rootMessenger }) => {
-          await expect(
-            rootMessenger.call('RampsController:getPaymentMethods', 'us-ca', {
+          let receivedOptions:
+            | {
+                region: string;
+                assetId: string;
+                provider: string;
+              }
+            | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getPaymentMethods',
+            async (options: {
+              region: string;
+              assetId: string;
+              provider: string;
+            }) => {
+              receivedOptions = options;
+              return { payments: [] };
+            },
+          );
+
+          await rootMessenger.call(
+            'RampsController:getPaymentMethods',
+            'us-ca',
+            {
               assetId: 'eip155:1/slip44:60',
               provider: '/providers/stripe',
-            }),
-          ).rejects.toThrow(
-            'Fiat currency is required. Either provide a fiat parameter or ensure userRegion is set in controller state.',
+            },
           );
+
+          expect(receivedOptions).toStrictEqual({
+            region: 'us-ca',
+            assetId: 'eip155:1/slip44:60',
+            provider: '/providers/stripe',
+          });
         },
       );
     });
@@ -4548,7 +5619,6 @@ describe('RampsController', () => {
             'RampsService:getPaymentMethods',
             async (options: {
               region: string;
-              fiat: string;
               assetId: string;
               provider: string;
             }) => {
@@ -4601,7 +5671,6 @@ describe('RampsController', () => {
             'RampsService:getPaymentMethods',
             async (options: {
               region: string;
-              fiat: string;
               assetId: string;
               provider: string;
             }) => {
@@ -4638,7 +5707,6 @@ describe('RampsController', () => {
             'RampsService:getPaymentMethods',
             async (options: {
               region: string;
-              fiat: string;
               assetId: string;
               provider: string;
             }) => {
@@ -4736,7 +5804,6 @@ describe('RampsController', () => {
             'RampsService:getPaymentMethods',
             async (options: {
               region: string;
-              fiat: string;
               assetId: string;
               provider: string;
             }) => {
@@ -7100,10 +8167,37 @@ describe('RampsController', () => {
         rootMessenger.call('RampsController:addOrder', mockOrder);
         rootMessenger.call('RampsController:addOrder', {
           ...mockOrder,
+          id: '/providers/transak-staging/orders/def-456',
           providerOrderId: 'def-456',
         });
 
         expect(controller.state.orders).toHaveLength(2);
+      });
+    });
+
+    it('merges orders using internal order id when providerOrderId differs', async () => {
+      await withController(({ controller, rootMessenger }) => {
+        const precreatedOrder = createMockOrder({
+          id: '/providers/paypal/orders/internal-order-123',
+          providerOrderId: 'internal-order-123',
+          status: RampsOrderStatus.Precreated,
+        });
+        rootMessenger.call('RampsController:addOrder', precreatedOrder);
+
+        const apiOrder = createMockOrder({
+          id: '/providers/paypal/orders/internal-order-123',
+          providerOrderId: 'provider-native-order-456',
+          status: RampsOrderStatus.Pending,
+        });
+        rootMessenger.call('RampsController:addOrder', apiOrder);
+
+        expect(controller.state.orders).toHaveLength(1);
+        expect(controller.state.orders[0]?.status).toBe(
+          RampsOrderStatus.Pending,
+        );
+        expect(controller.state.orders[0]?.providerOrderId).toBe(
+          'internal-order-123',
+        );
       });
     });
   });
@@ -7334,6 +8428,42 @@ describe('RampsController', () => {
       });
     });
 
+    it('merges precreated order when API returns a different providerOrderId', async () => {
+      await withController(async ({ controller, rootMessenger }) => {
+        const precreatedOrder = createMockOrder({
+          id: '/providers/paypal/orders/internal-order-123',
+          providerOrderId: 'internal-order-123',
+          status: RampsOrderStatus.Precreated,
+        });
+        rootMessenger.call('RampsController:addOrder', precreatedOrder);
+
+        const apiOrder = createMockOrder({
+          id: '/providers/paypal/orders/internal-order-123',
+          providerOrderId: 'provider-native-order-456',
+          status: RampsOrderStatus.Pending,
+        });
+        rootMessenger.registerActionHandler(
+          'RampsService:getOrder',
+          async () => apiOrder,
+        );
+
+        await rootMessenger.call(
+          'RampsController:getOrder',
+          'paypal',
+          'internal-order-123',
+          '0xabc',
+        );
+
+        expect(controller.state.orders).toHaveLength(1);
+        expect(controller.state.orders[0]?.status).toBe(
+          RampsOrderStatus.Pending,
+        );
+        expect(controller.state.orders[0]?.providerOrderId).toBe(
+          'internal-order-123',
+        );
+      });
+    });
+
     it('uses wallet param when updating existing order and API omits walletAddress', async () => {
       await withController(async ({ controller, rootMessenger }) => {
         const existingOrder = createMockOrder({
@@ -7509,6 +8639,7 @@ describe('RampsController', () => {
     it('publishes orderStatusChanged when order status transitions', async () => {
       await withController(async ({ rootMessenger, messenger }) => {
         const pendingOrder = createMockOrder({
+          id: '/providers/transak/orders/status-change-1',
           providerOrderId: 'status-change-1',
           status: RampsOrderStatus.Pending,
           provider: createMockProvider({
@@ -7538,7 +8669,10 @@ describe('RampsController', () => {
         await jest.advanceTimersByTimeAsync(0);
 
         expect(statusChangedListener).toHaveBeenCalledWith({
-          order: updatedOrder,
+          order: {
+            ...updatedOrder,
+            providerOrderId: 'status-change-1',
+          },
           previousStatus: RampsOrderStatus.Pending,
         });
 
@@ -7701,6 +8835,7 @@ describe('RampsController', () => {
     it('skips orders without providerOrderId', async () => {
       await withController(async ({ rootMessenger }) => {
         const orderNoId = createMockOrder({
+          id: undefined,
           providerOrderId: '',
           status: RampsOrderStatus.Pending,
           provider: createMockProvider({
@@ -7751,6 +8886,7 @@ describe('RampsController', () => {
     it('passes provider id through to service without stripping prefix', async () => {
       await withController(async ({ rootMessenger }) => {
         const order = createMockOrder({
+          id: '/providers/transak/orders/strip-prefix-1',
           providerOrderId: 'strip-prefix-1',
           status: RampsOrderStatus.Pending,
           provider: createMockProvider({

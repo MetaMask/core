@@ -20,12 +20,17 @@ export type SnapAccountServiceGetSnapsAction = {
 /**
  * Ensures everything is ready to use Snap accounts for the given Snap.
  * 1. Validates that `snapId` is a tracked account-management Snap.
- * 2. Waits for the Snap platform to be fully started.
+ * 2. Asserts that the legacy -> v2 migration has been triggered (expected to
+ * happen at `KeyringController:unlock` time).
+ * 3. Atomically creates the v2 keyring for this Snap if it doesn't exist
+ * yet.
+ * 4. Waits for the Snap platform to be fully started.
  *
  * Safe to call concurrently — each step is idempotent or mutex-protected.
  *
  * @param snapId - ID of the Snap to ensure readiness for.
  * @throws If `snapId` is not a tracked account-management Snap.
+ * @throws If the migration has not been triggered yet (wallet not unlocked).
  */
 export type SnapAccountServiceEnsureReadyAction = {
   type: `SnapAccountService:ensureReady`;
@@ -33,14 +38,83 @@ export type SnapAccountServiceEnsureReadyAction = {
 };
 
 /**
- * Atomically gets-or-creates the legacy (v1) Snap keyring — the keyring
- * associated with {@link KeyringTypes.snap}.
+ * Migrate the legacy Snap keyring to the new (per-snap) Snap keyring v2.
+ * Expected to be triggered at `KeyringController:unlock` time.
+ * Safe to call concurrently — the migration runs only once; all callers
+ * await the same promise.
  *
- * @returns The existing or newly-created Snap keyring instance.
+ * @returns A promise that resolves when the migration is complete.
  */
-export type SnapAccountServiceGetLegacySnapKeyringAction = {
-  type: `SnapAccountService:getLegacySnapKeyring`;
-  handler: SnapAccountService['getLegacySnapKeyring'];
+export type SnapAccountServiceEnsureMigratedAction = {
+  type: `SnapAccountService:ensureMigrated`;
+  handler: SnapAccountService['ensureMigrated'];
+};
+
+/**
+ * Returns the CAIP-19 asset type/ID list supported by an account.
+ *
+ * @param snapId - ID of the Snap.
+ * @param id - ID of the account.
+ * @returns A promise resolving to the list of supported CAIP-19 asset type/IDs.
+ */
+export type SnapAccountServiceGetAccountAssetsAction = {
+  type: `SnapAccountService:getAccountAssets`;
+  handler: SnapAccountService['getAccountAssets'];
+};
+
+/**
+ * Returns the balances for an account for the requested asset types.
+ *
+ * @param snapId - ID of the Snap.
+ * @param id - ID of the account.
+ * @param assets - List of CAIP-19 fungible asset types to fetch balances for.
+ * @returns A promise resolving to a map of asset type to balance.
+ */
+export type SnapAccountServiceGetAccountBalancesAction = {
+  type: `SnapAccountService:getAccountBalances`;
+  handler: SnapAccountService['getAccountBalances'];
+};
+
+/**
+ * Returns a page of transactions for an account.
+ *
+ * @param snapId - ID of the Snap.
+ * @param id - ID of the account.
+ * @param pagination - Pagination options.
+ * @returns A promise resolving to a page of transactions.
+ */
+export type SnapAccountServiceGetAccountTransactionsAction = {
+  type: `SnapAccountService:getAccountTransactions`;
+  handler: SnapAccountService['getAccountTransactions'];
+};
+
+/**
+ * Resolves the account address to use for routing a signing request.
+ *
+ * @param snapId - ID of the Snap.
+ * @param scope - CAIP-2 chain ID of the signing request.
+ * @param request - The signing JSON-RPC request.
+ * @returns A promise resolving to the resolved address, or `null` if the
+ * Snap cannot determine an address for this request.
+ */
+export type SnapAccountServiceResolveAccountAddressAction = {
+  type: `SnapAccountService:resolveAccountAddress`;
+  handler: SnapAccountService['resolveAccountAddress'];
+};
+
+/**
+ * Notifies a Snap of the currently selected accounts.
+ *
+ * For v1 Snaps the call goes through the keyring (signing interface); for
+ * v2 Snaps it is routed via the RPC client because the keyring only covers
+ * keyring-only operations (signing, account lifecycle).
+ *
+ * @param snapId - ID of the Snap.
+ * @param accounts - IDs of the accounts to mark as selected.
+ */
+export type SnapAccountServiceSetSelectedAccountsAction = {
+  type: `SnapAccountService:setSelectedAccounts`;
+  handler: SnapAccountService['setSelectedAccounts'];
 };
 
 /**
@@ -61,5 +135,10 @@ export type SnapAccountServiceHandleKeyringSnapMessageAction = {
 export type SnapAccountServiceMethodActions =
   | SnapAccountServiceGetSnapsAction
   | SnapAccountServiceEnsureReadyAction
-  | SnapAccountServiceGetLegacySnapKeyringAction
+  | SnapAccountServiceEnsureMigratedAction
+  | SnapAccountServiceGetAccountAssetsAction
+  | SnapAccountServiceGetAccountBalancesAction
+  | SnapAccountServiceGetAccountTransactionsAction
+  | SnapAccountServiceResolveAccountAddressAction
+  | SnapAccountServiceSetSelectedAccountsAction
   | SnapAccountServiceHandleKeyringSnapMessageAction;

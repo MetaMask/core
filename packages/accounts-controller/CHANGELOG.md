@@ -9,8 +9,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Bump `@metamask/eth-snap-keyring` from `^22.3.0` to `^23.0.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
+- Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
+
+## [39.0.4]
+
+### Changed
+
+- Bump `@metamask/keyring-api` from `^23.1.0` to `^23.3.0` ([#9249](https://github.com/MetaMask/core/pull/9249))
+- Bump `@metamask/keyring-sdk` from `^2.1.1` to `^2.2.0` ([#9249](https://github.com/MetaMask/core/pull/9249))
+- Bump `@metamask/keyring-utils` from `^3.2.1` to `^3.3.1` ([#9249](https://github.com/MetaMask/core/pull/9249))
+- Bump `@metamask/network-controller` from `^33.0.0` to `^34.0.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
+
+## [39.0.3]
+
+### Changed
+
+- Bump `@metamask/eth-snap-keyring` from `^22.0.1` to `^22.3.0` ([#8732](https://github.com/MetaMask/core/pull/8732))
+
+## [39.0.2]
+
+### Changed
+
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Bump `@metamask/controller-utils` from `^12.1.1` to `^12.2.0` ([#9083](https://github.com/MetaMask/core/pull/9083))
+- Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
+- Bump `@metamask/network-controller` from `^32.0.0` to `^33.0.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+
+### Fixed
+
 - The `state` option of the `AccountsController` constructor is now optional, defaulting to the controller's default state when omitted ([#8924](https://github.com/MetaMask/core/pull/8924))
 
 ## [39.0.1]
@@ -825,7 +853,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#1637](https://github.com/MetaMask/core/pull/1637))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.0.4...HEAD
+[39.0.4]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.0.3...@metamask/accounts-controller@39.0.4
+[39.0.3]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.0.2...@metamask/accounts-controller@39.0.3
+[39.0.2]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.0.1...@metamask/accounts-controller@39.0.2
 [39.0.1]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@39.0.0...@metamask/accounts-controller@39.0.1
 [39.0.0]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@38.1.2...@metamask/accounts-controller@39.0.0
 [38.1.2]: https://github.com/MetaMask/core/compare/@metamask/accounts-controller@38.1.1...@metamask/accounts-controller@38.1.2

@@ -8,8 +8,14 @@ import type {
 import { hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import type { MoneyAccountUpgradeControllerMessenger } from '.';
-import { MoneyAccountUpgradeController } from '.';
+import type {
+  MoneyAccountUpgradeControllerMessenger,
+  MoneyAccountUpgradeStepError,
+} from '.';
+import {
+  MoneyAccountUpgradeController,
+  isMoneyAccountUpgradeStepError,
+} from '.';
 
 const MOCK_CHAIN_ID = '0x1' as Hex; // mainnet, supported in delegation-deployments@1.3.0
 const UNSUPPORTED_CHAIN_ID = '0x539' as Hex; // 1337 — local dev, not in registry
@@ -437,6 +443,71 @@ describe('MoneyAccountUpgradeController', () => {
       await expect(
         controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS),
       ).rejects.toThrow('signing failed');
+    });
+
+    it('wraps a step failure in a MoneyAccountUpgradeStepError that records the step and cause', async () => {
+      const { controller, mocks } = setup();
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      const cause = new Error('signing failed');
+      // The associate-address step (first in the sequence) signs a personal
+      // message before calling CHOMP, so failing this surfaces that step.
+      mocks.signPersonalMessage.mockRejectedValue(cause);
+
+      const error = await controller
+        .upgradeAccount(MOCK_ACCOUNT_ADDRESS)
+        .catch((thrown: unknown) => thrown);
+
+      expect(isMoneyAccountUpgradeStepError(error)).toBe(true);
+      expect(error).toMatchObject({
+        step: 'associate-address',
+        cause,
+      });
+      expect((error as MoneyAccountUpgradeStepError).message).toBe(
+        'Money Account upgrade failed at step "associate-address": signing failed',
+      );
+    });
+
+    it('records the name of the specific step that failed', async () => {
+      const { controller, mocks } = setup();
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      // The first step (associate-address) passes; fail at the second step
+      // (eip-7702-authorization), which signs the authorization.
+      mocks.signEip7702Authorization.mockRejectedValue(
+        new Error('authorization rejected'),
+      );
+
+      const error = await controller
+        .upgradeAccount(MOCK_ACCOUNT_ADDRESS)
+        .catch((thrown: unknown) => thrown);
+
+      expect(error).toMatchObject({ step: 'eip-7702-authorization' });
+    });
+
+    it('wraps a non-Error thrown by a step, stringifying it as the cause message', async () => {
+      const { controller, mocks } = setup();
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      mocks.signPersonalMessage.mockRejectedValue('plain string failure');
+
+      const error = await controller
+        .upgradeAccount(MOCK_ACCOUNT_ADDRESS)
+        .catch((thrown: unknown) => thrown);
+
+      expect(error).toMatchObject({
+        step: 'associate-address',
+        cause: 'plain string failure',
+      });
+      expect((error as MoneyAccountUpgradeStepError).message).toBe(
+        'Money Account upgrade failed at step "associate-address": plain string failure',
+      );
     });
   });
 });

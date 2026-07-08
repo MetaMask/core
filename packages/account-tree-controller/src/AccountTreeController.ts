@@ -27,6 +27,7 @@ import {
 } from './backup-and-sync/analytics';
 import { BackupAndSyncService } from './backup-and-sync/service';
 import type { BackupAndSyncContext } from './backup-and-sync/types';
+import { createSyncMutationTracker } from './backup-and-sync/utils';
 import type { AccountGroupObject, AccountTypeOrderKey } from './group';
 import {
   ACCOUNT_TYPE_TO_SORT_ORDER,
@@ -1895,6 +1896,7 @@ export class AccountTreeController extends BaseController<
       controllerStateUpdateFn: this.update.bind(this),
       traceFn: this.#trace.bind(this),
       groupIdToWalletId: this.#groupIdToWalletId,
+      mutationTracker: createSyncMutationTracker(),
     };
   }
 }

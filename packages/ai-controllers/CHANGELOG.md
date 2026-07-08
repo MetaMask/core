@@ -7,9 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0]
+
+### Added
+
+- Add `AiDigestController.fetchFrontPageItem(id)` (and the underlying `AiDigestService.fetchFrontPageItem`) which fetches a single market overview "front page" by id from `GET /market-overview/front-page/:id`, exposed via the `AiDigestController:fetchFrontPageItem` messenger action ([#9394](https://github.com/MetaMask/core/pull/9394))
+- Add `MarketOverviewFrontPage` and `MarketOverviewItem` types ([#9394](https://github.com/MetaMask/core/pull/9394))
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 
 ## [0.7.0]
 
@@ -111,7 +119,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Removes `fetchDigest`, `clearDigest`, and `clearAllDigests` actions from the controller action surface.
   - Removes `DigestData`/`DigestEntry` types and the `digests` state branch.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.7.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.8.0...HEAD
+[0.8.0]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.7.0...@metamask/ai-controllers@0.8.0
 [0.7.0]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.6.3...@metamask/ai-controllers@0.7.0
 [0.6.3]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.6.2...@metamask/ai-controllers@0.6.3
 [0.6.2]: https://github.com/MetaMask/core/compare/@metamask/ai-controllers@0.6.1...@metamask/ai-controllers@0.6.2

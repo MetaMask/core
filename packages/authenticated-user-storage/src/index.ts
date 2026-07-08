@@ -2,7 +2,11 @@ export {
   getAuthenticatedStorageUrl,
   AuthenticatedUserStorageService,
 } from './authenticated-user-storage';
-export { ASSETS_WATCHLIST_MAX_ASSETS } from './validators';
+export {
+  ASSETS_WATCHLIST_MAX_ASSETS,
+  DEFAULT_AGENTIC_CLI_PREFERENCES,
+  DEFAULT_PRICE_ALERT_PREFERENCES,
+} from './validators';
 export type {
   AuthenticatedUserStorageActions,
   AuthenticatedUserStorageCacheUpdatedEvent,
@@ -35,6 +39,8 @@ export type {
   PerpsWatchlistMarkets,
   PerpsPreference,
   SocialAIPreference,
+  AgenticCliPreference,
+  PriceAlertPreference,
   NotificationPreferences,
   AssetsWatchlistBlob,
   ClientType,

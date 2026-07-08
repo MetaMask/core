@@ -44,7 +44,9 @@ import {
 } from './mocks/mock-feature-announcements';
 import { createMockNotificationEthSent } from './mocks/mock-raw-notifications';
 import {
+  DEFAULT_AGENTIC_CLI_PREFERENCES,
   DEFAULT_PERPS_PREFERENCES,
+  DEFAULT_PRICE_ALERT_PREFERENCES,
   DEFAULT_SOCIAL_AI_PREFERENCES,
   NotificationServicesController,
   ACCOUNTS_UPDATE_DEBOUNCE_TIME_MS,
@@ -105,6 +107,8 @@ const prefsFromAddresses = (
     pushNotificationsEnabled: true,
     mutedTraderProfileIds: [],
   },
+  agenticCli: { ...DEFAULT_AGENTIC_CLI_PREFERENCES },
+  priceAlerts: { ...DEFAULT_PRICE_ALERT_PREFERENCES },
 });
 
 const prefsFromAddressesWithMarketingInAppNotifications = (
@@ -565,6 +569,8 @@ describe('NotificationServicesController', () => {
           },
           perps: { ...DEFAULT_PERPS_PREFERENCES },
           socialAI: { ...DEFAULT_SOCIAL_AI_PREFERENCES },
+          agenticCli: { ...DEFAULT_AGENTIC_CLI_PREFERENCES },
+          priceAlerts: { ...DEFAULT_PRICE_ALERT_PREFERENCES },
         });
         expect(mockEnablePushNotifications).toHaveBeenCalledWith([
           ADDRESS_1.toLowerCase(),

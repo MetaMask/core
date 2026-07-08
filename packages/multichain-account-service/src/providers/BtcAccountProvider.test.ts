@@ -1,11 +1,7 @@
 import { isBip44Account } from '@metamask/account-api';
-import type { SnapKeyring } from '@metamask/eth-snap-keyring';
 import { AccountCreationType, BtcAccountType } from '@metamask/keyring-api';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
-import type {
-  EthKeyring,
-  InternalAccount,
-} from '@metamask/keyring-internal-api';
+import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { SnapControllerState } from '@metamask/snaps-controllers';
 import deepmerge from 'deepmerge';
 
@@ -28,7 +24,10 @@ import {
   BTC_ACCOUNT_PROVIDER_NAME,
   BtcAccountProvider,
 } from './BtcAccountProvider';
-import type { SnapAccountProviderConfig } from './SnapAccountProvider';
+import type {
+  RestrictedSnapKeyring,
+  SnapAccountProviderConfig,
+} from './SnapAccountProvider';
 
 function asConfig(
   partial: DeepPartial<SnapAccountProviderConfig>,
@@ -69,9 +68,9 @@ class MockBtcKeyring {
     return Number(index);
   }
 
-  createAccount: SnapKeyring['createAccount'] = jest
+  createAccount = jest
     .fn()
-    .mockImplementation((_, { derivationPath, index, ...options }) => {
+    .mockImplementation(({ derivationPath, index, ...options }) => {
       // Determine the group index to use - either from derivationPath parsing, explicit index, or fallback
       let groupIndex: number;
 
@@ -110,34 +109,38 @@ class MockBtcKeyring {
       return account;
     });
 
-  createAccounts: SnapKeyring['createAccounts'] = jest
-    .fn()
-    .mockImplementation((_, options) => {
-      const groupIndices =
-        options.type === 'bip44:derive-index'
-          ? [options.groupIndex]
-          : toGroupIndexRangeArray(options.range);
+  createAccounts = jest.fn().mockImplementation((options) => {
+    const groupIndices =
+      options.type === 'bip44:derive-index'
+        ? [options.groupIndex]
+        : toGroupIndexRangeArray(options.range);
 
-      return groupIndices.map((groupIndex) => {
-        const found = this.accounts.find(
-          (account) =>
-            isBip44Account(account) &&
-            account.options.entropy.groupIndex === groupIndex,
-        );
+    return groupIndices.map((groupIndex) => {
+      const found = this.accounts.find(
+        (account) =>
+          isBip44Account(account) &&
+          account.options.entropy.groupIndex === groupIndex,
+      );
 
-        if (found) {
-          return found; // Idempotent.
-        }
+      if (found) {
+        return found; // Idempotent.
+      }
 
-        const account = MockAccountBuilder.from(MOCK_BTC_P2WPKH_ACCOUNT_1)
-          .withUuid()
-          .withAddressSuffix(`${groupIndex}`)
-          .withGroupIndex(groupIndex)
-          .get();
-        this.accounts.push(account);
-        return account;
-      });
+      const account = MockAccountBuilder.from(MOCK_BTC_P2WPKH_ACCOUNT_1)
+        .withUuid()
+        .withAddressSuffix(`${groupIndex}`)
+        .withGroupIndex(groupIndex)
+        .get();
+      this.accounts.push(account);
+      return account;
     });
+  });
+
+  deleteAccount = jest.fn().mockResolvedValue(undefined);
+
+  get v1(): Required<RestrictedSnapKeyring['v1']> {
+    return { createAccount: this.createAccount };
+  }
 }
 
 class MockBtcAccountProvider extends BtcAccountProvider {
@@ -212,12 +215,10 @@ function setup({
   );
 
   messenger.registerActionHandler(
-    'KeyringController:withKeyring',
+    'KeyringController:withKeyringV2',
     async (_, operation) =>
       operation({
-        // We type-cast here, since `withKeyring` defaults to `EthKeyring` and the
-        // Snap keyring doesn't really implement this interface (this is expected).
-        keyring: keyring as unknown as EthKeyring,
+        keyring,
         metadata: keyring.metadata,
       }),
   );
@@ -243,8 +244,8 @@ function setup({
     mocks: {
       handleRequest: mockHandleRequest,
       keyring: {
-        createAccount: keyring.createAccount as jest.Mock,
-        createAccounts: keyring.createAccounts as jest.Mock,
+        createAccount: keyring.createAccount,
+        createAccounts: keyring.createAccounts,
       },
       trace: mockTrace,
     },
@@ -465,6 +466,19 @@ describe('BtcAccountProvider', () => {
       // Provider should now expose one account (newly created)
       expect(provider.getAccounts()).toHaveLength(1);
     });
+
+    it('throws when the Snap is v2-only and does not support v1 account creation', async () => {
+      const { provider, keyring } = setup({ accounts: [] });
+      jest.spyOn(keyring, 'v1', 'get').mockReturnValue(undefined);
+
+      await expect(
+        provider.createAccounts({
+          type: AccountCreationType.Bip44DeriveIndex,
+          entropySource: MOCK_HD_KEYRING_1.metadata.id,
+          groupIndex: 0,
+        }),
+      ).rejects.toThrow('is v2-only and does not support v1 account creation');
+    });
   });
 
   describe('v2 - batched', () => {
@@ -483,14 +497,11 @@ describe('BtcAccountProvider', () => {
       });
       expect(newAccounts).toHaveLength(1);
       // Batch endpoint must be called, NOT the singular one.
-      expect(mocks.keyring.createAccounts).toHaveBeenCalledWith(
-        BtcAccountProvider.BTC_SNAP_ID,
-        {
-          type: AccountCreationType.Bip44DeriveIndex,
-          entropySource: MOCK_HD_KEYRING_1.metadata.id,
-          groupIndex: newGroupIndex,
-        },
-      );
+      expect(mocks.keyring.createAccounts).toHaveBeenCalledWith({
+        type: AccountCreationType.Bip44DeriveIndex,
+        entropySource: MOCK_HD_KEYRING_1.metadata.id,
+        groupIndex: newGroupIndex,
+      });
       expect(mocks.keyring.createAccount).not.toHaveBeenCalled();
     });
 

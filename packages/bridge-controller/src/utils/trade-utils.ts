@@ -1,45 +1,11 @@
-import type { BitcoinTradeData, TronTradeData, TxData } from '../types';
-
-// Union type representing all possible trade formats (EVM, Solana, Bitcoin, Tron)
-export type Trade = TxData | string | BitcoinTradeData | TronTradeData;
-
-/**
- * Type guard to check if a trade is an EVM TxData object
- *
- * @param trade - The trade object to check
- * @returns True if the trade is a TxData object with data property
- */
-export const isEvmTxData = (trade: Trade): trade is TxData => {
-  return (
-    typeof trade === 'object' &&
-    trade !== null &&
-    'data' in trade &&
-    'chainId' in trade &&
-    'to' in trade
-  );
-};
-
-/**
- * Type guard to check if a trade is a Bitcoin trade with unsignedPsbtBase64
- *
- * @param trade - The trade object to check
- * @returns True if the trade is a Bitcoin trade with unsignedPsbtBase64 property
- */
-export const isBitcoinTrade = (trade: Trade): trade is BitcoinTradeData => {
-  return (
-    typeof trade === 'object' && trade !== null && 'unsignedPsbtBase64' in trade
-  );
-};
-
-/**
- * Type guard to check if a trade is a Tron trade with raw_data_hex
- *
- * @param trade - The trade object to check
- * @returns True if the trade is a Tron trade with raw_data_hex property
- */
-export const isTronTrade = (trade: Trade): trade is TronTradeData => {
-  return typeof trade === 'object' && trade !== null && 'raw_data_hex' in trade;
-};
+import {
+  Trade,
+  isBitcoinTrade,
+  isTronTrade,
+  isEvmTxData,
+  isStellarTrade,
+  hasOwnProp,
+} from '../validators/trade';
 
 /**
  * Extracts the transaction data from different trade formats
@@ -57,6 +23,16 @@ export const extractTradeData = (trade: Trade): string => {
   if (isTronTrade(trade)) {
     // Tron trades need hex to base64 conversion for SnapController
     return Buffer.from(trade.raw_data_hex, 'hex').toString('base64');
+  }
+
+  if (isStellarTrade(trade)) {
+    if (
+      hasOwnProp(trade, 'xdrBase64') &&
+      typeof (trade as { xdrBase64: unknown }).xdrBase64 === 'string'
+    ) {
+      return (trade as { xdrBase64: string }).xdrBase64;
+    }
+    return (trade as { xdr: string }).xdr;
   }
 
   if (typeof trade === 'string') {

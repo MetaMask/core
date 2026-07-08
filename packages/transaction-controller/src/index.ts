@@ -45,6 +45,7 @@ export type {
   TransactionControllerSetTransactionActiveAction,
   TransactionControllerApproveTransactionsWithSameNonceAction,
   TransactionControllerEstimateGasFeeAction,
+  TransactionControllerFailTransactionAction,
   TransactionControllerGetLayer1GasFeeAction,
   TransactionControllerClearUnapprovedTransactionsAction,
   TransactionControllerAbortTransactionSigningAction,

@@ -2,10 +2,6 @@ import type { TokensControllerGetStateAction } from '@metamask/assets-controller
 import type { TokenBalancesControllerGetStateAction } from '@metamask/assets-controllers';
 import type { TokenRatesControllerGetStateAction } from '@metamask/assets-controllers';
 import type { AccountTrackerControllerGetStateAction } from '@metamask/assets-controllers';
-import type {
-  BridgeStatusControllerGetStateAction,
-  BridgeStatusControllerSubmitTxAction,
-} from '@metamask/bridge-status-controller';
 import type { KeyringControllerGetStateAction } from '@metamask/keyring-controller';
 import type {
   MessengerActions,
@@ -30,6 +26,7 @@ import type { TransactionControllerUpdateTransactionAction } from '@metamask/tra
 import type { TransactionPayControllerMessenger } from '..';
 import type {
   TransactionPayControllerGetDelegationTransactionAction,
+  TransactionPayControllerGetFiatOptionsAction,
   TransactionPayControllerGetPaymentOverrideDataAction,
   TransactionPayControllerGetStrategyAction,
   TransactionPayControllerPolymarketGetDepositWalletAddressAction,
@@ -76,24 +73,14 @@ export function getMessengerMock({
     NetworkControllerFindNetworkClientIdByChainIdAction['handler']
   > = jest.fn();
 
-  const fetchQuotesMock = jest.fn();
-
   const getRemoteFeatureFlagControllerStateMock: jest.MockedFn<
     RemoteFeatureFlagControllerGetStateAction['handler']
   > = jest.fn();
 
   const getGasFeeControllerStateMock = jest.fn();
 
-  const submitTransactionMock: jest.MockedFunction<
-    BridgeStatusControllerSubmitTxAction['handler']
-  > = jest.fn();
-
   const updateTransactionMock: jest.MockedFn<
     TransactionControllerUpdateTransactionAction['handler']
-  > = jest.fn();
-
-  const getBridgeStatusControllerStateMock: jest.MockedFn<
-    BridgeStatusControllerGetStateAction['handler']
   > = jest.fn();
 
   const getTokensControllerStateMock: jest.MockedFn<
@@ -124,6 +111,10 @@ export function getMessengerMock({
 
   const getDelegationTransactionMock: jest.MockedFn<
     TransactionPayControllerGetDelegationTransactionAction['handler']
+  > = jest.fn();
+
+  const getFiatOptionsMock: jest.MockedFn<
+    TransactionPayControllerGetFiatOptionsAction['handler']
   > = jest.fn();
 
   const getPaymentOverrideDataMock: jest.MockedFn<
@@ -201,18 +192,8 @@ export function getMessengerMock({
     );
 
     messenger.registerActionHandler(
-      'BridgeController:fetchQuotes',
-      fetchQuotesMock,
-    );
-
-    messenger.registerActionHandler(
       'RemoteFeatureFlagController:getState',
       getRemoteFeatureFlagControllerStateMock,
-    );
-
-    messenger.registerActionHandler(
-      'BridgeStatusController:submitTx',
-      submitTransactionMock,
     );
 
     messenger.registerActionHandler(
@@ -223,11 +204,6 @@ export function getMessengerMock({
     messenger.registerActionHandler(
       'TransactionController:updateTransaction',
       updateTransactionMock,
-    );
-
-    messenger.registerActionHandler(
-      'BridgeStatusController:getState',
-      getBridgeStatusControllerStateMock,
     );
 
     messenger.registerActionHandler(
@@ -268,6 +244,11 @@ export function getMessengerMock({
     messenger.registerActionHandler(
       'TransactionPayController:getDelegationTransaction',
       getDelegationTransactionMock,
+    );
+
+    messenger.registerActionHandler(
+      'TransactionPayController:getFiatOptions',
+      getFiatOptionsMock,
     );
 
     messenger.registerActionHandler(
@@ -319,13 +300,12 @@ export function getMessengerMock({
     addTransactionBatchMock,
     estimateGasMock,
     estimateGasBatchMock,
-    fetchQuotesMock,
     findNetworkClientIdByChainIdMock,
     getAccountTrackerControllerStateMock,
-    getBridgeStatusControllerStateMock,
     getControllerStateMock,
     getCurrencyRateControllerStateMock,
     getDelegationTransactionMock,
+    getFiatOptionsMock,
     getPaymentOverrideDataMock,
     getGasFeeControllerStateMock,
     getGasFeeTokensMock,
@@ -342,7 +322,6 @@ export function getMessengerMock({
     polymarketGetDepositWalletAddressMock,
     polymarketSubmitDepositWalletBatchMock,
     publish,
-    submitTransactionMock,
     updateTransactionMock,
   };
 }

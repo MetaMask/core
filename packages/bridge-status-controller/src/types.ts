@@ -17,6 +17,7 @@ import type {
   BridgeControllerStopPollingForQuotesAction,
   BatchSellTradesResponse,
   BridgeControllerGetStateAction,
+  InputPrimaryDenomination,
 } from '@metamask/bridge-controller';
 import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
@@ -35,6 +36,7 @@ import type {
   TransactionControllerGetStateAction,
   TransactionControllerIsAtomicBatchSupportedAction,
   TransactionControllerTransactionStatusUpdatedEvent,
+  TransactionControllerTransactionSubmittedEvent,
   TransactionControllerUpdateTransactionAction,
   TransactionMeta,
   TransactionType,
@@ -43,7 +45,8 @@ import type { CaipAssetType } from '@metamask/utils';
 
 import type { BridgeStatusControllerMethodActions } from './bridge-status-controller-method-action-types';
 import { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
-import type { StatusResponseSchema } from './utils/validators';
+import { QuoteStatusState } from './quote-status-manager/constants';
+import { StatusResponseSchema } from './utils/validators';
 
 // All fields need to be types not interfaces, same with their children fields
 // o/w you get a type error
@@ -152,6 +155,8 @@ export type BridgeHistoryItem = {
    */
   quoteIds?: string[];
   quote: Quote;
+  quoteId?: string; // Optional: absent on history items persisted before this field was introduced
+  reportedSubmittedTxHash?: string;
   status: StatusResponse;
   startTime: number; // timestamp in ms
   estimatedProcessingTimeInSeconds: number;
@@ -208,6 +213,11 @@ export type BridgeHistoryItem = {
    * available for the destination token.
    */
   tokenSecurityTypeDestination?: string | null;
+  /**
+   * The denomination shown as the primary source amount input when the
+   * swap/bridge was submitted.
+   */
+  inputPrimaryDenomination?: InputPrimaryDenomination;
 };
 
 /**
@@ -287,6 +297,8 @@ export type StartPollingForBridgeTxStatusArgs = {
   // Client-supplied destination token security classification, persisted on
   // the history item for post-submit analytics events.
   tokenSecurityTypeDestination?: BridgeHistoryItem['tokenSecurityTypeDestination'];
+  // Primary denomination at submission time, persisted for post-submit analytics.
+  inputPrimaryDenomination?: BridgeHistoryItem['inputPrimaryDenomination'];
 };
 
 /**
@@ -303,8 +315,18 @@ export type StartPollingForBridgeTxStatusArgsSerialized = Omit<
 
 export type SourceChainTxMetaId = string;
 
+export type QuoteStatusPersistEntry = {
+  quoteId: string;
+  srcTxHash: string;
+  status: QuoteStatusState;
+  createdAt: number;
+  lastAttemptAt: number;
+  txMetaId?: string;
+};
+
 export type BridgeStatusControllerState = {
   txHistory: Record<SourceChainTxMetaId, BridgeHistoryItem>;
+  quoteUpdateStatusStore: Record<string, QuoteStatusPersistEntry>;
 };
 
 // Actions
@@ -359,7 +381,9 @@ type AllowedActions =
 /**
  * The external events available to the BridgeStatusController.
  */
-type AllowedEvents = TransactionControllerTransactionStatusUpdatedEvent;
+type AllowedEvents =
+  | TransactionControllerTransactionStatusUpdatedEvent
+  | TransactionControllerTransactionSubmittedEvent;
 
 /**
  * The messenger for the BridgeStatusController.
