@@ -7787,17 +7787,8 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/controller-utils": "npm:^12.3.0"
-<<<<<<< HEAD
-<<<<<<< HEAD
-    "@metamask/keyring-api": "npm:^23.4.0"
-    "@metamask/messenger": "npm:^1.2.0"
-=======
-    "@metamask/keyring-api": "npm:^23.3.0"
-=======
     "@metamask/keyring-api": "npm:^23.5.0"
->>>>>>> origin/main
     "@metamask/messenger": "npm:^2.0.0"
->>>>>>> origin/main
     "@metamask/multichain-network-controller": "npm:^3.2.1"
     "@metamask/network-controller": "npm:^34.0.0"
     "@metamask/slip44": "npm:^4.3.0"
@@ -8184,11 +8175,7 @@ __metadata:
     "@metamask/address-book-controller": "npm:^7.1.2"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
-<<<<<<< HEAD
-    "@metamask/keyring-api": "npm:^23.4.0"
-=======
     "@metamask/keyring-api": "npm:^23.5.0"
->>>>>>> origin/main
     "@metamask/keyring-controller": "npm:^27.1.0"
     "@metamask/keyring-internal-api": "npm:^11.0.1"
     "@metamask/messenger": "npm:^2.0.0"
@@ -8573,18 +8560,11 @@ __metadata:
     "@metamask/account-api": "npm:^1.0.4"
     "@metamask/account-tree-controller": "npm:^7.5.3"
     "@metamask/auto-changelog": "npm:^6.1.0"
-<<<<<<< HEAD
-    "@metamask/eth-snap-keyring": "npm:^22.4.0"
-    "@metamask/keyring-api": "npm:^23.4.0"
-    "@metamask/keyring-controller": "npm:^27.1.0"
-    "@metamask/keyring-snap-sdk": "npm:^9.1.0"
-=======
     "@metamask/eth-snap-keyring": "npm:^23.0.0"
     "@metamask/keyring-api": "npm:^23.5.0"
     "@metamask/keyring-controller": "npm:^27.1.0"
     "@metamask/keyring-internal-snap-client": "npm:^10.0.5"
     "@metamask/keyring-snap-sdk": "npm:^9.2.0"
->>>>>>> origin/main
     "@metamask/keyring-utils": "npm:^3.3.1"
     "@metamask/messenger": "npm:^2.0.0"
     "@metamask/snaps-controllers": "npm:^19.0.0"
