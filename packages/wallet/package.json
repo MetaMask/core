@@ -58,7 +58,7 @@
     "@metamask/approval-controller": "^9.0.2",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/browser-passworder": "^6.0.0",
-    "@metamask/connectivity-controller": "^0.2.0",
+    "@metamask/connectivity-controller": "^0.3.0",
     "@metamask/controller-utils": "^12.3.0",
     "@metamask/keyring-controller": "^27.1.0",
     "@metamask/messenger": "^2.0.0",
