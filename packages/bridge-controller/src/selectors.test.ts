@@ -28,7 +28,6 @@ import {
   ChainId,
   BridgeAsset,
   NonEvmFees,
-  QuoteResponseV1,
 } from './types';
 import { getNativeAssetForChainId, isNativeAddress } from './utils/bridge';
 import {
@@ -38,8 +37,9 @@ import {
   formatChainIdToDec,
   formatChainIdToHex,
 } from './utils/caip-formatters';
-import { validateQuoteResponseV1 } from './utils/validators';
-import { BatchSellTransactionType } from './utils/validators';
+import { BatchSellTransactionType } from './validators/batch-sell';
+import type { QuoteResponseV1 } from './validators/quote-response-v1';
+import { validateQuoteResponseV1 } from './validators/quote-response-v1';
 
 const MOCK_USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 const MOCK_MUSD_ADDRESS = '0x12345A7890123456789012345678901234567890';
