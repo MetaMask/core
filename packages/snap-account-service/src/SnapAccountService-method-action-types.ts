@@ -51,6 +51,73 @@ export type SnapAccountServiceEnsureMigratedAction = {
 };
 
 /**
+ * Returns the CAIP-19 asset type/ID list supported by an account.
+ *
+ * @param snapId - ID of the Snap.
+ * @param id - ID of the account.
+ * @returns A promise resolving to the list of supported CAIP-19 asset type/IDs.
+ */
+export type SnapAccountServiceGetAccountAssetsAction = {
+  type: `SnapAccountService:getAccountAssets`;
+  handler: SnapAccountService['getAccountAssets'];
+};
+
+/**
+ * Returns the balances for an account for the requested asset types.
+ *
+ * @param snapId - ID of the Snap.
+ * @param id - ID of the account.
+ * @param assets - List of CAIP-19 fungible asset types to fetch balances for.
+ * @returns A promise resolving to a map of asset type to balance.
+ */
+export type SnapAccountServiceGetAccountBalancesAction = {
+  type: `SnapAccountService:getAccountBalances`;
+  handler: SnapAccountService['getAccountBalances'];
+};
+
+/**
+ * Returns a page of transactions for an account.
+ *
+ * @param snapId - ID of the Snap.
+ * @param id - ID of the account.
+ * @param pagination - Pagination options.
+ * @returns A promise resolving to a page of transactions.
+ */
+export type SnapAccountServiceGetAccountTransactionsAction = {
+  type: `SnapAccountService:getAccountTransactions`;
+  handler: SnapAccountService['getAccountTransactions'];
+};
+
+/**
+ * Resolves the account address to use for routing a signing request.
+ *
+ * @param snapId - ID of the Snap.
+ * @param scope - CAIP-2 chain ID of the signing request.
+ * @param request - The signing JSON-RPC request.
+ * @returns A promise resolving to the resolved address, or `null` if the
+ * Snap cannot determine an address for this request.
+ */
+export type SnapAccountServiceResolveAccountAddressAction = {
+  type: `SnapAccountService:resolveAccountAddress`;
+  handler: SnapAccountService['resolveAccountAddress'];
+};
+
+/**
+ * Notifies a Snap of the currently selected accounts.
+ *
+ * For v1 Snaps the call goes through the keyring (signing interface); for
+ * v2 Snaps it is routed via the RPC client because the keyring only covers
+ * keyring-only operations (signing, account lifecycle).
+ *
+ * @param snapId - ID of the Snap.
+ * @param accounts - IDs of the accounts to mark as selected.
+ */
+export type SnapAccountServiceSetSelectedAccountsAction = {
+  type: `SnapAccountService:setSelectedAccounts`;
+  handler: SnapAccountService['setSelectedAccounts'];
+};
+
+/**
  * Handle a message from a Snap.
  *
  * @param snapId - ID of the Snap.
@@ -69,4 +136,9 @@ export type SnapAccountServiceMethodActions =
   | SnapAccountServiceGetSnapsAction
   | SnapAccountServiceEnsureReadyAction
   | SnapAccountServiceEnsureMigratedAction
+  | SnapAccountServiceGetAccountAssetsAction
+  | SnapAccountServiceGetAccountBalancesAction
+  | SnapAccountServiceGetAccountTransactionsAction
+  | SnapAccountServiceResolveAccountAddressAction
+  | SnapAccountServiceSetSelectedAccountsAction
   | SnapAccountServiceHandleKeyringSnapMessageAction;

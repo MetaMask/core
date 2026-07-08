@@ -19,7 +19,10 @@ import {
 } from '../tests';
 import type { RootMessenger, DeepPartial } from '../tests';
 import { AccountProviderWrapper } from './AccountProviderWrapper';
-import type { SnapAccountProviderConfig } from './SnapAccountProvider';
+import type {
+  RestrictedSnapKeyring,
+  SnapAccountProviderConfig,
+} from './SnapAccountProvider';
 import {
   XLM_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
   XLM_ACCOUNT_PROVIDER_NAME,
@@ -49,9 +52,9 @@ class MockStellarKeyring {
     this.accounts = accounts;
   }
 
-  createAccount: SnapKeyring['createAccount'] = jest
+  createAccount = jest
     .fn()
-    .mockImplementation((_, options: Record<string, Json>) => {
+    .mockImplementation((options: Record<string, Json>) => {
       const { index } = options;
       if (typeof index === 'number') {
         const found = this.accounts.find(
@@ -107,6 +110,12 @@ class MockStellarKeyring {
     });
 
   discoverAccounts = jest.fn().mockResolvedValue([]);
+
+  deleteAccount = jest.fn().mockResolvedValue(undefined);
+
+  get v1(): Required<RestrictedSnapKeyring['v1']> {
+    return { createAccount: this.createAccount };
+  }
 }
 
 class MockXlmAccountProvider extends XlmAccountProvider {
@@ -207,7 +216,7 @@ function setup({
     mocks: {
       handleRequest: mockHandleRequest,
       keyring: {
-        createAccount: keyring.createAccount as jest.Mock,
+        createAccount: keyring.createAccount,
         createAccounts: keyring.createAccounts as jest.Mock,
         discoverAccounts: keyring.discoverAccounts,
       },
@@ -310,6 +319,22 @@ describe('XlmAccountProvider', () => {
 
       expect(mocks.keyring.createAccount).toHaveBeenCalled();
       expect(mocks.keyring.createAccounts).not.toHaveBeenCalled();
+    });
+
+    it('throws when the Snap is v2-only and does not support v1 account creation', async () => {
+      const { provider, keyring } = setup({
+        accounts: [],
+        config: asConfig({ createAccounts: { batched: false } }),
+      });
+      jest.spyOn(keyring, 'v1', 'get').mockReturnValue(undefined);
+
+      await expect(
+        provider.createAccounts({
+          type: AccountCreationType.Bip44DeriveIndex,
+          entropySource: MOCK_HD_KEYRING_2.metadata.id,
+          groupIndex: 0,
+        }),
+      ).rejects.toThrow('is v2-only and does not support v1 account creation');
     });
   });
 
