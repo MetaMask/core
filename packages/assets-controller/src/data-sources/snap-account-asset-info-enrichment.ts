@@ -26,7 +26,7 @@ export const GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD = 'getAccountAssetInfo';
  * Max assets per snap getAccountAssetInfo request. Large batches can terminate
  * the Stellar wallet snap on mobile when many trustlines are fetched at once.
  */
-const ACCOUNT_ASSET_INFO_SNAP_BATCH_SIZE = 3;
+const ACCOUNT_ASSET_INFO_SNAP_BATCH_SIZE = 1;
 
 /** Per-batch snap client request timeout (ms). Hung requests must not block apply. */
 const ACCOUNT_ASSET_INFO_SNAP_TIMEOUT_MS = 15_000;
@@ -75,33 +75,6 @@ export function hasAccountAssetInfoEnrichmentCandidate(params: {
   }
 
   return false;
-}
-
-export function getAssetsToFetchWithEligibleCustomAssets(params: {
-  listedAssets: CaipAssetType[];
-  customAssets?: Caip19AssetId[];
-  requestedChainIds: ChainId[];
-}): CaipAssetType[] {
-  const { listedAssets, customAssets, requestedChainIds } = params;
-  const assetsToFetch = new Set<CaipAssetType>(listedAssets);
-
-  if (customAssets) {
-    for (const assetId of customAssets) {
-      try {
-        const assetChainId = extractChainFromAssetId(assetId);
-        if (
-          requestedChainIds.includes(assetChainId) &&
-          isAccountAssetInfoEnrichmentAvailable(assetChainId)
-        ) {
-          assetsToFetch.add(assetId as CaipAssetType);
-        }
-      } catch {
-        // Ignore malformed custom asset ids.
-      }
-    }
-  }
-
-  return [...assetsToFetch];
 }
 
 type SnapAccountAssetInfoRequest = {

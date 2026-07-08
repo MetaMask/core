@@ -84,7 +84,10 @@ import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
 import { PriceDataSource } from './data-sources/PriceDataSource';
 import type { RpcDataSourceConfig } from './data-sources/RpcDataSource';
 import { RpcDataSource } from './data-sources/RpcDataSource';
-import type { AccountsControllerAccountBalancesUpdatedEvent } from './data-sources/SnapDataSource';
+import type {
+  AccountsControllerAccountBalancesUpdatedEvent,
+  SnapDataSourceConfig,
+} from './data-sources/SnapDataSource';
 import { SnapDataSource } from './data-sources/SnapDataSource';
 import type { StakedBalanceDataSourceConfig } from './data-sources/StakedBalanceDataSource';
 import { StakedBalanceDataSource } from './data-sources/StakedBalanceDataSource';
@@ -428,6 +431,8 @@ export type AssetsControllerOptions = {
   priceDataSourceConfig?: PriceDataSourceConfig;
   /** Optional configuration for StakedBalanceDataSource. */
   stakedBalanceDataSourceConfig?: StakedBalanceDataSourceConfig;
+  /** Optional configuration for SnapDataSource. */
+  snapDataSourceConfig?: SnapDataSourceConfig;
   /**
    * Function returning whether onboarding is complete. When false,
    * RPC and staked balance data sources skip fetch and subscribe
@@ -855,6 +860,7 @@ export class AssetsController extends BaseController<
     accountsApiDataSourceConfig,
     priceDataSourceConfig,
     stakedBalanceDataSourceConfig,
+    snapDataSourceConfig,
     isOnboarded,
   }: AssetsControllerOptions) {
     super({
@@ -907,6 +913,7 @@ export class AssetsController extends BaseController<
     this.#snapDataSource = new SnapDataSource({
       messenger: this.messenger,
       onActiveChainsUpdated: this.#onActiveChainsUpdated,
+      ...snapDataSourceConfig,
     });
     this.#rpcDataSource = new RpcDataSource({
       messenger: this.messenger,

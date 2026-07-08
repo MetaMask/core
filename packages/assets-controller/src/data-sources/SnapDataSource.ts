@@ -30,7 +30,6 @@ import type {
 import { AbstractDataSource } from './AbstractDataSource';
 import {
   enrichAccountAssetInfo,
-  getAssetsToFetchWithEligibleCustomAssets,
   hasAccountAssetInfoEnrichmentCandidate,
 } from './snap-account-asset-info-enrichment';
 import type {
@@ -162,7 +161,15 @@ export type SnapDataSourceAllowedActions =
 // OPTIONS
 // ============================================================================
 
-export type SnapDataSourceOptions = {
+export type SnapDataSourceConfig = {
+  /**
+   * When false, SnapDataSource skips `getAccountAssetInfo` enrichment.
+   * Evaluated at call time. Defaults to () => false.
+   */
+  assetEnrichmentEnabled?: () => boolean;
+};
+
+export type SnapDataSourceOptions = SnapDataSourceConfig & {
   /** The AssetsController messenger (shared by all data sources). */
   messenger: AssetsControllerMessenger;
   /** Called when this data source's active chains change. Pass dataSourceName so the controller knows the source. */
@@ -223,6 +230,8 @@ export class SnapDataSource extends AbstractDataSource<
   /** Cache of KeyringClient instances per snap ID to avoid re-instantiation */
   readonly #keyringClientCache: Map<string, KeyringClient> = new Map();
 
+  readonly #assetEnrichmentEnabled: () => boolean;
+
   constructor(options: SnapDataSourceOptions) {
     super(SNAP_DATA_SOURCE_NAME, {
       ...defaultSnapState,
@@ -231,6 +240,8 @@ export class SnapDataSource extends AbstractDataSource<
 
     this.#messenger = options.messenger;
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
+    this.#assetEnrichmentEnabled =
+      options.assetEnrichmentEnabled ?? ((): boolean => false);
 
     // Bind handlers for cleanup in destroy()
     this.#handleSnapBalancesUpdatedBound = this.#handleSnapBalancesUpdated.bind(
@@ -313,13 +324,11 @@ export class SnapDataSource extends AbstractDataSource<
     }
 
     // Only report if we have snap-related updates
-    if (!assetsBalance) {
-      return;
-    }
-
-    const response: DataResponse = { assetsBalance, updateMode: 'merge' };
-    for (const subscription of this.activeSubscriptions.values()) {
-      subscription.onAssetsUpdate(response)?.catch(console.error);
+    if (assetsBalance) {
+      const response: DataResponse = { assetsBalance, updateMode: 'merge' };
+      for (const subscription of this.activeSubscriptions.values()) {
+        subscription.onAssetsUpdate(response)?.catch(console.error);
+      }
     }
   }
 
@@ -487,48 +496,55 @@ export class SnapDataSource extends AbstractDataSource<
         const client = this.#getKeyringClient(snapId);
 
         // Step 1: Get the list of assets for this account
-        const listedAssets = (await client.listAccountAssets(accountId)) ?? [];
+        const accountAssets = await client.listAccountAssets(accountId);
 
-        // TODO(STELLAR): Remove custom asset inclusion for enrichment once the Accounts API can refresh trustline/accountAssetInfo data for custom assets directly.
-        const assetList = getAssetsToFetchWithEligibleCustomAssets({
-          listedAssets: listedAssets as CaipAssetType[],
-          customAssets: request.customAssets,
-          requestedChainIds: request.chainIds,
-        });
-        if (assetList.length === 0) {
+        // If no assets, skip to next account
+        if (!accountAssets || accountAssets.length === 0) {
           continue;
         }
 
         // Step 2: Get balances for those specific assets
         const balances: Record<CaipAssetType, Balance> =
-          await client.getAccountBalances(accountId, assetList);
+          await client.getAccountBalances(
+            accountId,
+            accountAssets as CaipAssetType[],
+          );
 
         // Transform keyring response to DataResponse format
-        results.assetsBalance ??= {};
-        const accountBalances = results.assetsBalance[accountId] ?? {};
-        for (const assetId of assetList) {
-          const balance = balances?.[assetId];
-          (accountBalances as Record<string, unknown>)[assetId] = {
-            amount: balance?.amount ?? '0',
-          };
+        if (balances && typeof balances === 'object' && results.assetsBalance) {
+          for (const [assetId, balance] of Object.entries(balances)) {
+            results.assetsBalance[accountId] ??= {};
+            const accountBalances = results.assetsBalance[accountId];
+            if (accountBalances) {
+              (accountBalances as Record<string, unknown>)[assetId] = {
+                amount: balance.amount,
+              };
+            }
+          }
         }
-        results.assetsBalance[accountId] = accountBalances;
       } catch {
         // Expected when account doesn't belong to this snap
       }
     }
 
+    // Post-fetch enrichment stage: assetsBalance above already matches the
+    // standard (unenriched) balance shape. When the feature flag is enabled
+    // and there are eligible assets, apply accountAssetInfo enrichment once.
+    const getSnapIdForChain = (chainId: ChainId): SnapId | undefined =>
+      this.state.chainToSnap[chainId] as SnapId | undefined;
+
     if (
+      this.#assetEnrichmentEnabled() &&
       results.assetsBalance &&
       hasAccountAssetInfoEnrichmentCandidate({
         assetsBalance: results.assetsBalance,
-        getSnapIdForChain: (chainId) => this.getSnapIdForChain(chainId),
+        getSnapIdForChain,
       })
     ) {
       // TODO(STELLAR): Remove this Snap-side accountAssetInfo enrichment path once the Accounts API returns account-asset enrichment directly.
       await enrichAccountAssetInfo({
         assetsBalance: results.assetsBalance,
-        getSnapIdForChain: (chainId) => this.getSnapIdForChain(chainId),
+        getSnapIdForChain,
         callSnapRequest: (request) =>
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           (this.#messenger as any).call('SnapController:handleRequest', request),
@@ -706,17 +722,6 @@ export class SnapDataSource extends AbstractDataSource<
     } catch (error) {
       log('Initial fetch failed', { subscriptionId, error });
     }
-  }
-
-  /**
-   * Returns the snap id responsible for a given chain, if any.
-   *
-   * @param chainId - CAIP-2 chain id.
-   * @returns Snap id when a keyring snap supports the chain.
-   */
-  getSnapIdForChain(chainId: ChainId): SnapId | undefined {
-    const snapId = this.state.chainToSnap[chainId];
-    return snapId ? (snapId as SnapId) : undefined;
   }
 
   // ============================================================================
