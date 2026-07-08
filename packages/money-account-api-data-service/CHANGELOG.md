@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.1.0]
 
-### Uncategorized
-
-- docs: add usage section to README for money account api data service package ([#9424](https://github.com/MetaMask/core/pull/9424))
-
 ### Added
 
 - Add `MoneyAccountApiDataService` data service ([#9402](https://github.com/MetaMask/core/pull/9402))
