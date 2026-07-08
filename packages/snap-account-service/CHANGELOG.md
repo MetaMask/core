@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `getCapabilities` action to expose a Snap's keyring capabilities ([#9377](https://github.com/MetaMask/core/pull/9377))
+  - Reads the capabilities the bridge keyring populated from the Snap's manifest, letting consumers decide whether to drive the Snap through the v1 or v2 keyring path.
 - **BREAKING:** Add `SnapAccountService:getAccount{Assets,Balances,Transactions}`, `SnapAccountService:resolveAccountAddress`, and `SnapAccountService:setSelectedAccounts` messenger actions ([#9390](https://github.com/MetaMask/core/pull/9390))
   - These actions proxy the corresponding `KeyringClient` (v2) methods, with `snapId` as the first parameter to identify the target Snap.
   - Each call goes through `ensureReady` to guarantee the Snap is ready before the request is sent.

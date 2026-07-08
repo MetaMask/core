@@ -12,6 +12,7 @@ export type {
 export type {
   SnapAccountServiceEnsureMigratedAction,
   SnapAccountServiceEnsureReadyAction,
+  SnapAccountServiceGetCapabilitiesAction,
   SnapAccountServiceGetAccountAssetsAction,
   SnapAccountServiceGetAccountBalancesAction,
   SnapAccountServiceGetAccountTransactionsAction,

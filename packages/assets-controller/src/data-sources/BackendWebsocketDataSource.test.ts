@@ -451,8 +451,7 @@ describe('BackendWebsocketDataSource', () => {
   });
 
   describe('Solana account-activity feature flag', () => {
-    const SOLANA_MAINNET =
-      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as ChainId;
+    const SOLANA_MAINNET = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as ChainId;
     const SOLANA_ADDRESS = '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU';
 
     it('does not subscribe Solana channels when the flag is disabled', async () => {
@@ -502,12 +501,15 @@ describe('BackendWebsocketDataSource', () => {
     });
 
     it('claims Solana chains on reconnect when the flag is enabled', async () => {
-      const { controller, activeChainsUpdateHandler, triggerConnectionStateChange } =
-        setupController({
-          initialActiveChains: [CHAIN_MAINNET],
-          connectionState: WebSocketState.DISCONNECTED,
-          webSocketEnabledNamespaces: ['solana'],
-        });
+      const {
+        controller,
+        activeChainsUpdateHandler,
+        triggerConnectionStateChange,
+      } = setupController({
+        initialActiveChains: [CHAIN_MAINNET],
+        connectionState: WebSocketState.DISCONNECTED,
+        webSocketEnabledNamespaces: ['solana'],
+      });
 
       // Let #initializeActiveChains populate #supportedChains from the API.
       await new Promise(process.nextTick);
@@ -523,12 +525,15 @@ describe('BackendWebsocketDataSource', () => {
     });
 
     it('does not claim Solana chains on reconnect when the flag is disabled', async () => {
-      const { controller, activeChainsUpdateHandler, triggerConnectionStateChange } =
-        setupController({
-          initialActiveChains: [CHAIN_MAINNET],
-          connectionState: WebSocketState.DISCONNECTED,
-          webSocketEnabledNamespaces: [],
-        });
+      const {
+        controller,
+        activeChainsUpdateHandler,
+        triggerConnectionStateChange,
+      } = setupController({
+        initialActiveChains: [CHAIN_MAINNET],
+        connectionState: WebSocketState.DISCONNECTED,
+        webSocketEnabledNamespaces: [],
+      });
 
       await new Promise(process.nextTick);
 

@@ -1,6 +1,7 @@
 import { isBip44Account } from '@metamask/account-api';
 import type { SnapKeyring } from '@metamask/eth-snap-keyring';
-import { AccountCreationType } from '@metamask/keyring-api';
+import { AccountCreationType, XlmScope } from '@metamask/keyring-api';
+import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { SnapControllerState } from '@metamask/snaps-controllers';
@@ -37,6 +38,19 @@ function asConfig(
     partial,
   ) as SnapAccountProviderConfig;
 }
+
+/**
+ * v2 capabilities as declared by a fully v2-compliant Stellar Snap manifest.
+ * Drives the batched `createAccounts` flow and the v2 discovery path.
+ */
+const XLM_V2_CAPABILITIES: KeyringCapabilities = {
+  scopes: [XlmScope.Pubnet],
+  bip44: {
+    deriveIndex: true,
+    deriveIndexRange: true,
+    discover: true,
+  },
+};
 
 class MockStellarKeyring {
   readonly type = 'MockStellarKeyring';
@@ -84,9 +98,9 @@ class MockStellarKeyring {
     .fn()
     .mockImplementation((options) => {
       const groupIndices =
-        options.type === 'bip44:derive-index'
-          ? [options.groupIndex]
-          : toGroupIndexRangeArray(options.range);
+        options.type === 'bip44:derive-index-range'
+          ? toGroupIndexRangeArray(options.range)
+          : [options.groupIndex];
 
       return groupIndices.map((groupIndex) => {
         const found = this.accounts.find(
@@ -128,10 +142,12 @@ function setup({
   messenger = getRootMessenger(),
   accounts = [],
   config,
+  capabilities = { scopes: [] },
 }: {
   messenger?: RootMessenger;
   accounts?: InternalAccount[];
   config?: SnapAccountProviderConfig;
+  capabilities?: KeyringCapabilities;
 } = {}): {
   provider: AccountProviderWrapper;
   messenger: RootMessenger;
@@ -156,6 +172,11 @@ function setup({
   messenger.registerActionHandler(
     'SnapController:getState',
     () => ({ isReady: true }) as SnapControllerState,
+  );
+
+  messenger.registerActionHandler(
+    'SnapAccountService:getCapabilities',
+    async () => capabilities,
   );
 
   messenger.registerActionHandler(
@@ -256,6 +277,7 @@ describe('XlmAccountProvider', () => {
   it('returns existing account if it already exists at index', async () => {
     const { provider, mocks } = setup({
       accounts: [MOCK_XLM_ACCOUNT_1],
+      capabilities: XLM_V2_CAPABILITIES,
     });
 
     mocks.keyring.discoverAccounts.mockResolvedValue([
@@ -285,6 +307,25 @@ describe('XlmAccountProvider', () => {
     expect(discovered).toStrictEqual([]);
   });
 
+  it('returns no accounts when a v2 Snap does not support bip44:discover', async () => {
+    const { provider, mocks } = setup({
+      accounts: [],
+      capabilities: {
+        scopes: [XlmScope.Pubnet],
+        bip44: { deriveIndex: true, deriveIndexRange: true },
+      },
+    });
+
+    const discovered = await provider.discoverAccounts({
+      entropySource: MOCK_HD_KEYRING_2.metadata.id,
+      groupIndex: 0,
+    });
+
+    expect(discovered).toStrictEqual([]);
+    expect(mocks.keyring.createAccounts).not.toHaveBeenCalled();
+    expect(mocks.keyring.createAccount).not.toHaveBeenCalled();
+  });
+
   it('does not run discovery if disabled', async () => {
     const { provider } = setup({
       accounts: [MOCK_XLM_ACCOUNT_1],
@@ -306,9 +347,10 @@ describe('XlmAccountProvider', () => {
   describe('v1', () => {
     it('uses createAccount when batching is disabled', async () => {
       const accounts = [MOCK_XLM_ACCOUNT_1];
+      // No capabilities provided → empty capability set, so batching is
+      // disabled and the provider falls back to the v1 flow.
       const { provider, mocks } = setup({
         accounts,
-        config: asConfig({ createAccounts: { batched: false } }),
       });
 
       await provider.createAccounts({
@@ -343,7 +385,7 @@ describe('XlmAccountProvider', () => {
       const accounts = [MOCK_XLM_ACCOUNT_1];
       const { provider, mocks } = setup({
         accounts,
-        config: asConfig({ createAccounts: { batched: true } }),
+        capabilities: XLM_V2_CAPABILITIES,
       });
 
       const newGroupIndex = accounts.length;
@@ -366,7 +408,7 @@ describe('XlmAccountProvider', () => {
       const accounts = [MOCK_XLM_ACCOUNT_1];
       const { provider, mocks } = setup({
         accounts,
-        config: asConfig({ createAccounts: { batched: true } }),
+        capabilities: XLM_V2_CAPABILITIES,
       });
 
       const from = 1;

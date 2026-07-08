@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export `generateEIP7702BatchTransaction` utility for building an ERC-7821 `execute(mode, calls)` batch transaction from a list of nested transactions ([#9298](https://github.com/MetaMask/core/pull/9298))
+
 ## [68.3.0]
 
 ### Added
