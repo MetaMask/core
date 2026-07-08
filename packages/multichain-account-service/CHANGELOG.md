@@ -9,10 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Capability-gated v1/v2 keyring client selection for Snap account providers ([#9377](https://github.com/MetaMask/core/pull/9377))
+  - Providers resolve a Snap's capabilities via `SnapAccountService:getCapabilities` and route account creation and discovery through the v1 or v2 keyring client accordingly (a Snap that declares BIP-44 capabilities is treated as v2).
+  - Account discovery for v2 Snaps that declare `bip44.discover` flows through `createAccounts({ bip44:discover })`; v1 Snaps keep using the `discoverAccounts` client method.
 - Adds `MultichainAccountGroup.isProviderAligned(provider)` to check alignment per provider ([#9269](https://github.com/MetaMask/core/pull/9269))
 
 ### Changed
 
+- **BREAKING:** Remove `batched` from `SnapAccountProviderConfig['createAccounts']` ([#9377](https://github.com/MetaMask/core/pull/9377))
+  - Batching is now derived from the Snap's capabilities (v2 Snaps that declare `bip44` use the `createAccounts` flow, since they expose no singular `createAccount`) instead of static config.
+- **BREAKING:** Now requires `SnapAccountService:getCapabilities` action ([#9377](https://github.com/MetaMask/core/pull/9377))
 - **BREAKING:** `RestrictedSnapKeyring.createAccount` has been replaced by `RestrictedSnapKeyring.v1`, which is `undefined` for v2-only Snaps ([#9390](https://github.com/MetaMask/core/pull/9390))
   - Any subclass implementing `SnapAccountProvider.createAccountV1` must now check `keyring.v1` guard followed by `keyring.v1.createAccount(options)`.
 - Wallet alignment now only creates the missing `(provider, group index)` pairs instead of re-creating the whole range for every provider, avoiding redundant `createAccounts` calls (and their traces) ([#9269](https://github.com/MetaMask/core/pull/9269))

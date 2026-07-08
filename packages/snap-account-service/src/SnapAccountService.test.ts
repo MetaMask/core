@@ -16,6 +16,7 @@ import type {
 } from '@metamask/keyring-api';
 import { KeyringEvent } from '@metamask/keyring-api';
 import { KeyringType } from '@metamask/keyring-api/v2';
+import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 import {
   KeyringControllerError,
   KeyringControllerErrorMessage,
@@ -350,6 +351,8 @@ function mockWithKeyringV2Unsafe(
           }
         | undefined;
       hasAccount?: (id: string) => boolean;
+      handleKeyringSnapMessage?: jest.Mock;
+      capabilities?: KeyringCapabilities;
     }
   >,
 ): void {
@@ -825,6 +828,39 @@ describe('SnapAccountService', () => {
 
       await ensurePromise;
       expect(resolved).toBe(true);
+    });
+  });
+
+  describe('getCapabilities', () => {
+    it('returns the capabilities of the matching v2 Snap keyring', async () => {
+      const { service, mocks } = await setup();
+
+      const capabilities: KeyringCapabilities = {
+        scopes: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'],
+        bip44: {
+          deriveIndex: true,
+          deriveIndexRange: true,
+          discover: true,
+        },
+      };
+      mockWithKeyringV2Unsafe(mocks, {
+        [MOCK_SNAP_ID]: { capabilities },
+      });
+
+      expect(await service.getCapabilities(MOCK_SNAP_ID)).toStrictEqual(
+        capabilities,
+      );
+    });
+
+    it('throws when there is no v2 keyring for the Snap', async () => {
+      const { service, mocks } = await setup();
+
+      // No keyring configured for the Snap → withKeyringV2Unsafe throws.
+      mockWithKeyringV2Unsafe(mocks, {});
+
+      await expect(service.getCapabilities(MOCK_SNAP_ID)).rejects.toThrow(
+        KeyringControllerErrorMessage.KeyringNotFound,
+      );
     });
   });
 
