@@ -642,9 +642,6 @@
     }
   },
   "packages/bridge-controller/src/utils/bridge.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 9
-    },
     "id-denylist": {
       "count": 1
     }
@@ -669,11 +666,6 @@
     },
     "id-denylist": {
       "count": 1
-    }
-  },
-  "packages/bridge-controller/src/utils/metrics/properties.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 5
     }
   },
   "packages/bridge-controller/src/utils/quote-fees.ts": {
@@ -710,11 +702,6 @@
   "packages/bridge-controller/src/utils/trade-utils.ts": {
     "no-restricted-globals": {
       "count": 1
-    }
-  },
-  "packages/bridge-controller/tests/mock-sse.ts": {
-    "id-length": {
-      "count": 2
     }
   },
   "packages/bridge-status-controller/src/utils/snaps.ts": {
@@ -2251,11 +2238,6 @@
   "packages/transaction-pay-controller/src/strategy/across/across-actions.ts": {
     "no-restricted-syntax": {
       "count": 2
-    }
-  },
-  "packages/transaction-pay-controller/src/strategy/bridge/bridge-submit.ts": {
-    "no-restricted-syntax": {
-      "count": 1
     }
   },
   "packages/transaction-pay-controller/src/strategy/relay/hyperliquid-withdraw.ts": {
