@@ -407,13 +407,6 @@ type BalanceCallDataCache = {
   getNativeBalanceCallData: (accountAddress: Address) => Hex;
 };
 
-/**
- * Cache balance call encodings per account address for a single batch request.
- * ERC-20 `balanceOf` and native `getEthBalance` call data depend only on the
- * account being queried, not the token contract (which is the multicall target).
- *
- * @returns A cache scoped to one `batchBalanceOf` invocation.
- */
 function createBalanceCallDataCache(): BalanceCallDataCache {
   const erc20ByAccount = new Map<string, Hex>();
   const nativeByAccount = new Map<string, Hex>();
@@ -443,17 +436,22 @@ function createBalanceCallDataCache(): BalanceCallDataCache {
 }
 
 /**
+ * Cache balance call encodings per account address.
+ * ERC-20 `balanceOf` and native `getEthBalance` call data depend only on the
+ * account being queried, not the token contract (which is the multicall target).
+ */
+const balanceCallDataCache = createBalanceCallDataCache();
+
+/**
  * Build Multicall3 aggregate3 calls for a batch of balance requests.
  *
  * @param batch - Balance requests in the current batch.
  * @param multicallAddress - Multicall3 contract address for native balance calls.
- * @param callDataCache - Per-request cache for encoded balance call data.
  * @returns Aggregate3 call descriptors.
  */
 function buildAggregate3BalanceCalls(
   batch: BalanceOfRequest[],
   multicallAddress: Hex,
-  callDataCache: BalanceCallDataCache,
 ): { target: Address; allowFailure: boolean; callData: Hex }[] {
   return batch.map((req) => {
     const isNative = req.tokenAddress === ZERO_ADDRESS;
@@ -462,8 +460,8 @@ function buildAggregate3BalanceCalls(
       target,
       allowFailure: true,
       callData: isNative
-        ? callDataCache.getNativeBalanceCallData(req.accountAddress)
-        : callDataCache.getErc20BalanceCallData(req.accountAddress),
+        ? balanceCallDataCache.getNativeBalanceCallData(req.accountAddress)
+        : balanceCallDataCache.getErc20BalanceCallData(req.accountAddress),
     };
   });
 }
@@ -593,11 +591,10 @@ export class MulticallClient {
 
     const multicallAddress = MULTICALL3_ADDRESS_BY_CHAIN[chainId];
     const provider = this.#getProvider(chainId);
-    const callDataCache = createBalanceCallDataCache();
 
     if (!multicallAddress) {
       return options.fallbackToSingleCalls
-        ? this.#fallbackBatchBalanceOf(provider, requests, callDataCache)
+        ? this.#fallbackBatchBalanceOf(provider, requests)
         : this.#createFailedResponses(requests);
     }
 
@@ -607,7 +604,6 @@ export class MulticallClient {
       multicallAddress,
       requests,
       options.fallbackToSingleCalls,
-      callDataCache,
     );
   }
 
@@ -618,7 +614,6 @@ export class MulticallClient {
    * @param multicallAddress - The Multicall3 contract address.
    * @param requests - Array of balance requests.
    * @param fallbackToSingleCalls - Whether to fall back to individual RPC calls on batch failure.
-   * @param callDataCache - The cache for encoded balance call data.
    * @returns Array of balance responses.
    */
   async #multicallBatchBalanceOf(
@@ -626,7 +621,6 @@ export class MulticallClient {
     multicallAddress: Hex,
     requests: BalanceOfRequest[],
     fallbackToSingleCalls: boolean,
-    callDataCache: BalanceCallDataCache,
   ): Promise<BalanceOfResponse[]> {
     const batchSize = this.#config.maxCallsPerBatch;
 
@@ -638,11 +632,7 @@ export class MulticallClient {
       batchSize,
       initialResult: [],
       eachBatch: async (workingResult, batch) => {
-        const calls = buildAggregate3BalanceCalls(
-          batch,
-          multicallAddress,
-          callDataCache,
-        );
+        const calls = buildAggregate3BalanceCalls(batch, multicallAddress);
 
         try {
           await createServicePolicy({
@@ -688,9 +678,7 @@ export class MulticallClient {
             // #fetchSingleBalance never rejects - it catches all errors internally
             // and returns a failed response, so we use Promise.all here.
             const fallbackResults = await Promise.all(
-              batch.map((req) =>
-                this.#fetchSingleBalance(provider, req, callDataCache),
-              ),
+              batch.map((req) => this.#fetchSingleBalance(provider, req)),
             );
 
             for (const result of fallbackResults) {
@@ -714,12 +702,10 @@ export class MulticallClient {
    * @param provider - The RPC provider.
    * @param requests - Array of balance requests.
    * @returns Array of balance responses.
-   * @param callDataCache - The cache for encoded balance call data.
    */
   async #fallbackBatchBalanceOf(
     provider: Provider,
     requests: BalanceOfRequest[],
-    callDataCache: BalanceCallDataCache,
   ): Promise<BalanceOfResponse[]> {
     // Use smaller batch size for parallel individual calls to avoid overwhelming RPC
     const batchSize = Math.min(this.#config.maxCallsPerBatch, 50);
@@ -735,9 +721,7 @@ export class MulticallClient {
         // #fetchSingleBalance never rejects - it catches all errors internally
         // and returns a failed response, so we use Promise.all here.
         const batchResults = await Promise.all(
-          batch.map((req) =>
-            this.#fetchSingleBalance(provider, req, callDataCache),
-          ),
+          batch.map((req) => this.#fetchSingleBalance(provider, req)),
         );
 
         for (const result of batchResults) {
@@ -757,12 +741,10 @@ export class MulticallClient {
    * @param provider - The RPC provider.
    * @param request - The balance request.
    * @returns The balance response.
-   * @param callDataCache - The cache for encoded balance call data.
    */
   async #fetchSingleBalance(
     provider: Provider,
     request: BalanceOfRequest,
-    callDataCache: BalanceCallDataCache,
   ): Promise<BalanceOfResponse> {
     // Destructure inside try block to ensure any errors are caught
     // and don't cause promise rejections that bypass error handling
@@ -781,7 +763,8 @@ export class MulticallClient {
       }
 
       // ERC-20 token
-      const callData = callDataCache.getErc20BalanceCallData(accountAddress);
+      const callData =
+        balanceCallDataCache.getErc20BalanceCallData(accountAddress);
       const result = await provider.call({
         to: tokenAddress,
         data: callData,

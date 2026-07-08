@@ -215,14 +215,22 @@ describe('MulticallClient', () => {
 
       it('encodes balance call data once per account address in a batch', async () => {
         const encodeSpy = jest.spyOn(controllerUtils, 'encodeFunctionData');
-        const otherAccount: Address =
-          '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address;
+        const countBalanceOf = () =>
+          encodeSpy.mock.calls.filter(([, method]) => method === 'balanceOf')
+            .length;
+        const countGetEthBalance = () =>
+          encodeSpy.mock.calls.filter(([, method]) => method === 'getEthBalance')
+            .length;
+        const accountA: Address =
+          '0x1111111111111111111111111111111111111111' as Address;
+        const accountB: Address =
+          '0x2222222222222222222222222222222222222222' as Address;
 
         const requests: BalanceOfRequest[] = [
-          { tokenAddress: TEST_TOKEN_1, accountAddress: TEST_ACCOUNT },
-          { tokenAddress: TEST_TOKEN_2, accountAddress: TEST_ACCOUNT },
-          { tokenAddress: TEST_TOKEN_1, accountAddress: otherAccount },
-          { tokenAddress: ZERO_ADDRESS, accountAddress: TEST_ACCOUNT },
+          { tokenAddress: TEST_TOKEN_1, accountAddress: accountA },
+          { tokenAddress: TEST_TOKEN_2, accountAddress: accountA },
+          { tokenAddress: TEST_TOKEN_1, accountAddress: accountB },
+          { tokenAddress: ZERO_ADDRESS, accountAddress: accountA },
         ];
 
         const mockResponse = buildMockAggregate3Response([
@@ -234,17 +242,18 @@ describe('MulticallClient', () => {
 
         mockProvider.call.mockResolvedValue(mockResponse);
 
+        const balanceOfBefore = countBalanceOf();
+        const getEthBalanceBefore = countGetEthBalance();
+
         await client.batchBalanceOf(MAINNET_CHAIN_ID, requests);
 
-        const balanceOfEncodings = encodeSpy.mock.calls.filter(
-          ([, method]) => method === 'balanceOf',
-        );
-        const getEthBalanceEncodings = encodeSpy.mock.calls.filter(
-          ([, method]) => method === 'getEthBalance',
-        );
+        expect(countBalanceOf() - balanceOfBefore).toBe(2);
+        expect(countGetEthBalance() - getEthBalanceBefore).toBe(1);
 
-        expect(balanceOfEncodings).toHaveLength(2);
-        expect(getEthBalanceEncodings).toHaveLength(1);
+        await client.batchBalanceOf(MAINNET_CHAIN_ID, requests);
+
+        expect(countBalanceOf() - balanceOfBefore).toBe(2);
+        expect(countGetEthBalance() - getEthBalanceBefore).toBe(1);
 
         encodeSpy.mockRestore();
       });
