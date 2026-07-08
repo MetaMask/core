@@ -783,8 +783,10 @@ export type UpdateFiatPaymentRequest = {
 /** Callback to convert a transaction to a redeem delegation. */
 export type GetDelegationTransactionCallback = ({
   transaction,
+  isSubsidized,
 }: {
   transaction: TransactionMeta;
+  isSubsidized?: boolean;
 }) => Promise<{
   authorizationList?: AuthorizationList;
   data: Hex;
