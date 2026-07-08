@@ -372,9 +372,28 @@ function validateParamChainId(
 /**
  * Validates gas values.
  *
+ * Some RPC providers (e.g. Arbitrum's eth_fillTransaction) return both
+ * gasPrice and EIP-1559 fee fields. When the envelope type is explicitly
+ * fee-market (0x2/0x4), strip the redundant gasPrice before validating
+ * mutual exclusivity, matching the normalization already done elsewhere
+ * in the codebase (GasFeePoller, updateGasFees, retry utils).
+ *
  * @param txParams - The transaction parameters to validate.
  */
 function validateGasFeeParams(txParams: TransactionParams): void {
+  const type = txParams.type as TransactionEnvelopeType | undefined;
+
+  // When the envelope type explicitly indicates a fee-market transaction,
+  // strip gasPrice rather than rejecting — some RPCs return both fields.
+  if (
+    txParams.gasPrice &&
+    (txParams.maxFeePerGas || txParams.maxPriorityFeePerGas) &&
+    type &&
+    TRANSACTION_ENVELOPE_TYPES_FEE_MARKET.includes(type)
+  ) {
+    delete txParams.gasPrice;
+  }
+
   if (txParams.gasPrice) {
     ensureProperTransactionEnvelopeTypeProvided(txParams, 'gasPrice');
     ensureMutuallyExclusiveFieldsNotProvided(

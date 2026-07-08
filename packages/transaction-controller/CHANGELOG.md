@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Strip redundant `gasPrice` from fee-market transactions (type `0x2`/`0x4`) instead of rejecting them, fixing compatibility with RPCs that return both `gasPrice` and EIP-1559 fields (e.g. Arbitrum) ([#7877](https://github.com/MetaMask/core/issues/7877))
+
 ### Added
 
 - Export `generateEIP7702BatchTransaction` utility for building an ERC-7821 `execute(mode, calls)` batch transaction from a list of nested transactions ([#9298](https://github.com/MetaMask/core/pull/9298))

@@ -376,6 +376,56 @@ describe('validation', () => {
         );
       });
 
+      it('strips gasPrice instead of throwing when type is fee-market and EIP-1559 fields are present', () => {
+        const txParams = {
+          from: FROM_MOCK,
+          to: TO_MOCK,
+          gasPrice: '0x01',
+          maxFeePerGas: '0x02',
+          maxPriorityFeePerGas: '0x01',
+          type: TransactionEnvelopeType.feeMarket,
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any;
+
+        expect(() => validateTxParams(txParams)).not.toThrow();
+        expect(txParams.gasPrice).toBeUndefined();
+        expect(txParams.maxFeePerGas).toBe('0x02');
+      });
+
+      it('strips gasPrice instead of throwing when type is setCode and EIP-1559 fields are present', () => {
+        const txParams = {
+          from: FROM_MOCK,
+          to: TO_MOCK,
+          gasPrice: '0x01',
+          maxFeePerGas: '0x02',
+          maxPriorityFeePerGas: '0x01',
+          type: TransactionEnvelopeType.setCode,
+          // TODO: Replace `any` with type
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        } as any;
+
+        expect(() => validateTxParams(txParams)).not.toThrow();
+        expect(txParams.gasPrice).toBeUndefined();
+      });
+
+      it('still throws if gasPrice and EIP-1559 fields are present but no explicit type', () => {
+        expect(() =>
+          validateTxParams({
+            from: FROM_MOCK,
+            to: TO_MOCK,
+            gasPrice: '0x01',
+            maxFeePerGas: '0x01',
+            // TODO: Replace `any` with type
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          } as any),
+        ).toThrow(
+          rpcErrors.invalidParams(
+            'Invalid transaction params: specified gasPrice but also included maxFeePerGas, these cannot be mixed',
+          ),
+        );
+      });
+
       it('throws if gasPrice, maxPriorityFeePerGas or maxFeePerGas is not a valid hexadecimal string', () => {
         expect(() =>
           validateTxParams({
