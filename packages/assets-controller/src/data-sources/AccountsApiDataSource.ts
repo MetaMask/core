@@ -278,13 +278,13 @@ export class AccountsApiDataSource extends AbstractDataSource<
   async #fetchActiveChains(): Promise<ChainId[]> {
     const response = await this.#apiClient.accounts.fetchV2SupportedNetworks();
 
-    // Use fullSupport networks as active chains
-    return (
-      response.fullSupport
-        .map(decimalToChainId)
-        // TODO Restore solana when there is a fix for how we handle non-evm chains here
-        .filter((chainId) => chainId.startsWith('eip155:'))
-    );
+    // Use fullSupport networks as active chains. This source serves EVM chains
+    // only; non-EVM chains (e.g. Solana) are served by the WebSocket source when
+    // their namespace is enabled, otherwise by the Snap source, so they are
+    // intentionally excluded from this source's claimable chains.
+    return response.fullSupport
+      .map(decimalToChainId)
+      .filter((chainId) => chainId.startsWith('eip155:'));
   }
 
   // ============================================================================

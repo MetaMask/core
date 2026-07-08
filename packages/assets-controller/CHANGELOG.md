@@ -7,7 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `webSocketEnabledNamespaces` constructor option to gate non-EVM account-activity balances (e.g. Solana) behind a feature flag ([#0000](https://github.com/MetaMask/core/pull/0000))
+  - The getter returns the non-EVM CAIP namespaces (e.g. `['solana']`, and later `['solana', 'bip122']` for Tron) served over WebSocket. EVM (`eip155`) is always served over WebSocket.
+  - For each enabled namespace (while the WebSocket is connected), `BackendWebsocketDataSource` claims that namespace's chains and streams real-time balances for them; disabled namespaces are left unclaimed and unsubscribed so the `SnapDataSource` serves them.
+  - When the WebSocket is down, those chains are released, so the `SnapDataSource` takes over as a fallback.
+  - When a chain (or a whole non-EVM namespace, e.g. Solana) is reported down via `system-notifications`, it is excluded from the WebSocket source's claimable chains and automatically falls back to the `SnapDataSource` until it recovers.
+  - Defaults to none (`() => []`; EVM only).
+
 ### Changed
+
+- `AccountsApiDataSource` now documents that it serves EVM chains only; non-EVM chains (e.g. Solana) are served by the WebSocket source when enabled, otherwise by the Snap source ([#0000](https://github.com/MetaMask/core/pull/0000))
 
 - Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.3.0` ([#9421](https://github.com/MetaMask/core/pull/9421))
 - Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))

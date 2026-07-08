@@ -106,11 +106,13 @@ function setupController(
   options: {
     initialActiveChains?: ChainId[];
     connectionState?: WebSocketState;
+    webSocketEnabledNamespaces?: string[];
   } = {},
 ): SetupResult {
   const {
     initialActiveChains = [],
     connectionState = WebSocketState.CONNECTED,
+    webSocketEnabledNamespaces = [],
   } = options;
 
   const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({
@@ -207,6 +209,7 @@ function setupController(
     onActiveChainsUpdated: (dataSourceName, chains, previousChains): void =>
       activeChainsUpdateHandler(dataSourceName, chains, previousChains),
     getAssetType: getAssetTypeFn,
+    getWebSocketEnabledNamespaces: (): string[] => webSocketEnabledNamespaces,
     state: { activeChains: initialActiveChains },
   });
 
@@ -402,6 +405,7 @@ describe('BackendWebsocketDataSource', () => {
         'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as ChainId,
       ],
       connectionState: WebSocketState.CONNECTED,
+      webSocketEnabledNamespaces: ['solana'],
     });
 
     await controller.subscribe({
@@ -444,6 +448,150 @@ describe('BackendWebsocketDataSource', () => {
     );
 
     controller.destroy();
+  });
+
+  describe('Solana account-activity feature flag', () => {
+    const SOLANA_MAINNET =
+      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as ChainId;
+    const SOLANA_ADDRESS = '7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU';
+
+    it('does not subscribe Solana channels when the flag is disabled', async () => {
+      const { controller, wsSubscribeMock } = setupController({
+        initialActiveChains: [CHAIN_MAINNET, SOLANA_MAINNET],
+        connectionState: WebSocketState.CONNECTED,
+        webSocketEnabledNamespaces: [],
+      });
+
+      await controller.subscribe({
+        subscriptionId: 'sub-1',
+        request: createDataRequest({
+          chainIds: [CHAIN_MAINNET, SOLANA_MAINNET],
+          accountsWithSupportedChains: [
+            {
+              account: createMockAccount(),
+              supportedChains: [CHAIN_MAINNET],
+            },
+            {
+              account: createMockAccount({
+                id: 'solana-account-id',
+                address: SOLANA_ADDRESS,
+                type: 'solana:data-account',
+                scopes: ['solana:0'],
+              }),
+              supportedChains: [SOLANA_MAINNET],
+            },
+          ],
+        }),
+        isUpdate: false,
+        onAssetsUpdate: jest.fn(),
+      });
+
+      const subscribedChannels: string[] = wsSubscribeMock.mock.calls.flatMap(
+        ([arg]) => arg.channels as string[],
+      );
+      expect(subscribedChannels).toContain(
+        `account-activity.v1.eip155:0:${MOCK_ADDRESS.toLowerCase()}`,
+      );
+      expect(
+        subscribedChannels.some((channel) =>
+          channel.startsWith('account-activity.v1.solana'),
+        ),
+      ).toBe(false);
+
+      controller.destroy();
+    });
+
+    it('claims Solana chains on reconnect when the flag is enabled', async () => {
+      const { controller, activeChainsUpdateHandler, triggerConnectionStateChange } =
+        setupController({
+          initialActiveChains: [CHAIN_MAINNET],
+          connectionState: WebSocketState.DISCONNECTED,
+          webSocketEnabledNamespaces: ['solana'],
+        });
+
+      // Let #initializeActiveChains populate #supportedChains from the API.
+      await new Promise(process.nextTick);
+
+      triggerConnectionStateChange(WebSocketState.CONNECTED);
+      await new Promise(process.nextTick);
+
+      const claimedChains: ChainId[] =
+        activeChainsUpdateHandler.mock.calls.at(-1)?.[1] ?? [];
+      expect(claimedChains).toContain(SOLANA_MAINNET);
+
+      controller.destroy();
+    });
+
+    it('does not claim Solana chains on reconnect when the flag is disabled', async () => {
+      const { controller, activeChainsUpdateHandler, triggerConnectionStateChange } =
+        setupController({
+          initialActiveChains: [CHAIN_MAINNET],
+          connectionState: WebSocketState.DISCONNECTED,
+          webSocketEnabledNamespaces: [],
+        });
+
+      await new Promise(process.nextTick);
+
+      triggerConnectionStateChange(WebSocketState.CONNECTED);
+      await new Promise(process.nextTick);
+
+      const claimedChains: ChainId[] =
+        activeChainsUpdateHandler.mock.calls.at(-1)?.[1] ?? [];
+      expect(claimedChains).not.toContain(SOLANA_MAINNET);
+
+      controller.destroy();
+    });
+
+    it('releases Solana to Snap when reported down via system-notifications, then reclaims when up', async () => {
+      const {
+        controller,
+        activeChainsUpdateHandler,
+        addChannelCallbackMock,
+        triggerConnectionStateChange,
+      } = setupController({
+        initialActiveChains: [CHAIN_MAINNET],
+        connectionState: WebSocketState.DISCONNECTED,
+        webSocketEnabledNamespaces: ['solana'],
+      });
+
+      await new Promise(process.nextTick);
+      triggerConnectionStateChange(WebSocketState.CONNECTED);
+      await new Promise(process.nextTick);
+
+      // Solana is claimed while healthy.
+      expect(activeChainsUpdateHandler.mock.calls.at(-1)?.[1]).toContain(
+        SOLANA_MAINNET,
+      );
+
+      const systemNotificationCallback = addChannelCallbackMock.mock.calls.find(
+        ([arg]) =>
+          arg.channelName === 'system-notifications.v1.account-activity.v1',
+      )?.[0]?.callback as (notification: unknown) => void;
+
+      // Solana reported down -> released so Snap can claim it.
+      systemNotificationCallback({
+        event: 'notification',
+        channel: 'system-notifications.v1.account-activity.v1',
+        timestamp: 1,
+        data: { chainIds: [SOLANA_MAINNET], status: 'down' },
+      });
+      expect(activeChainsUpdateHandler.mock.calls.at(-1)?.[1]).not.toContain(
+        SOLANA_MAINNET,
+      );
+
+      // Solana back up -> reclaimed by the WebSocket source.
+      systemNotificationCallback({
+        event: 'notification',
+        channel: 'system-notifications.v1.account-activity.v1',
+        timestamp: 2,
+        data: { chainIds: [SOLANA_MAINNET], status: 'up' },
+      });
+      expect(activeChainsUpdateHandler.mock.calls.at(-1)?.[1]).toContain(
+        SOLANA_MAINNET,
+      );
+
+      controller.destroy();
+    });
   });
 
   it('subscribe update only changes chains if addresses unchanged', async () => {

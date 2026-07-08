@@ -405,6 +405,19 @@ export type AssetsControllerOptions = {
     onChange: (isBasic: boolean) => void,
   ) => void | (() => void);
   /**
+   * Getter for the non-EVM CAIP namespaces (e.g. 'solana', and later 'bip122'
+   * for Tron) whose account activity should be served over WebSocket. EVM
+   * ('eip155') is always served over WebSocket. For each returned namespace
+   * (and while the WebSocket is connected), the BackendWebsocketDataSource
+   * claims that namespace's chains and streams real-time balances for them.
+   * Namespaces not returned are left unclaimed so the SnapDataSource serves
+   * them instead. When the WebSocket is down, those chains are released
+   * regardless, so the SnapDataSource takes over as a fallback. No value is
+   * stored; the getter is invoked when needed. Defaults to () => [] when not
+   * provided (EVM only; Snap serves non-EVM).
+   */
+  webSocketEnabledNamespaces?: () => string[];
+  /**
    * API client for balance/price/metadata. The controller instantiates data sources
    * and uses them directly when this is provided.
    */
@@ -849,6 +862,7 @@ export class AssetsController extends BaseController<
     isEnabled = (): boolean => true,
     isBasicFunctionality,
     subscribeToBasicFunctionalityChange,
+    webSocketEnabledNamespaces,
     queryApiClient,
     rpcDataSourceConfig,
     trace,
@@ -912,6 +926,8 @@ export class AssetsController extends BaseController<
       onActiveChainsUpdated: this.#onActiveChainsUpdated,
       getAssetType: (assetId: Caip19AssetId): 'native' | 'erc20' | 'spl' =>
         this.#getAssetType(assetId),
+      getWebSocketEnabledNamespaces:
+        webSocketEnabledNamespaces ?? ((): string[] => []),
     });
     this.#accountsApiDataSource = new AccountsApiDataSource({
       queryApiClient,
