@@ -36,12 +36,12 @@ export const TRIGGER_API_NOTIFICATIONS_QUERY_ENDPOINT = (
 
 // Lists notifications for each address provided
 export const NOTIFICATION_API_LIST_ENDPOINT = (env: ENV = 'prd'): string =>
-  `${NOTIFICATION_API(env)}/api/v3/notifications`;
+  `${NOTIFICATION_API(env)}/api/v4/notifications`;
 
 // Marks notifications as read
 export const NOTIFICATION_API_MARK_ALL_AS_READ_ENDPOINT = (
   env: ENV = 'prd',
-): string => `${NOTIFICATION_API(env)}/api/v3/notifications/mark-as-read`;
+): string => `${NOTIFICATION_API(env)}/api/v4/notifications/mark-as-read`;
 
 /**
  * fetches notification config (accounts enabled vs disabled)
@@ -112,9 +112,9 @@ export async function getAPINotifications(
   }
 
   type RequestBody =
-    Schema.paths['/api/v3/notifications']['post']['requestBody']['content']['application/json'];
+    Schema.paths['/api/v4/notifications']['post']['requestBody']['content']['application/json'];
   type APIResponse =
-    Schema.paths['/api/v3/notifications']['post']['responses']['200']['content']['application/json'];
+    Schema.paths['/api/v4/notifications']['post']['responses']['200']['content']['application/json'];
 
   const body: RequestBody = {
     addresses: addresses.map((addr) => addr.toLowerCase()),
@@ -170,7 +170,7 @@ export async function markNotificationsAsRead(
   }
 
   type ResponseBody =
-    Schema.paths['/api/v3/notifications/mark-as-read']['post']['requestBody']['content']['application/json'];
+    Schema.paths['/api/v4/notifications/mark-as-read']['post']['requestBody']['content']['application/json'];
   const body: ResponseBody = {
     ids: notificationIds,
   };

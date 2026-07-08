@@ -670,32 +670,28 @@ describe('src/utils.js', () => {
       networkClientId: NetworkType.mainnet,
     };
 
-    it('updates transaction with failed status and error message', () => {
-      const updateTransactionMock = jest.fn();
+    it('fails the transaction with a SmartTransactionFailed error', () => {
+      const failTransactionMock = jest.fn();
 
       utils.markRegularTransactionsAsFailed({
         smartTransaction: createSmartTransaction(
           SmartTransactionStatuses.CANCELLED,
         ),
         getRegularTransactions: () => [mockTransaction],
-        updateTransaction: updateTransactionMock,
+        failTransaction: failTransactionMock,
       });
 
-      expect(updateTransactionMock).toHaveBeenCalledWith(
-        {
-          ...mockTransaction,
-          status: TransactionStatus.failed,
-          error: {
-            name: 'SmartTransactionFailed',
-            message: 'Smart transaction failed with status: cancelled',
-          },
-        },
-        'Smart transaction status: cancelled',
+      expect(failTransactionMock).toHaveBeenCalledWith(
+        '123',
+        expect.objectContaining({
+          name: 'SmartTransactionFailed',
+          message: 'Smart transaction failed with status: cancelled',
+        }),
       );
     });
 
     it('includes originalTransactionStatus in error message when available', () => {
-      const updateTransactionMock = jest.fn();
+      const failTransactionMock = jest.fn();
       const smartTransaction = {
         ...createSmartTransaction(SmartTransactionStatuses.CANCELLED),
         statusMetadata: {
@@ -712,25 +708,21 @@ describe('src/utils.js', () => {
       utils.markRegularTransactionsAsFailed({
         smartTransaction,
         getRegularTransactions: () => [mockTransaction],
-        updateTransaction: updateTransactionMock,
+        failTransaction: failTransactionMock,
       });
 
-      expect(updateTransactionMock).toHaveBeenCalledWith(
-        {
-          ...mockTransaction,
-          status: TransactionStatus.failed,
-          error: {
-            name: 'SmartTransactionFailed',
-            message:
-              'Smart transaction failed with status: cancelled, originalTransactionStatus: FAILED_WOULD_REVERT',
-          },
-        },
-        'Smart transaction status: cancelled',
+      expect(failTransactionMock).toHaveBeenCalledWith(
+        '123',
+        expect.objectContaining({
+          name: 'SmartTransactionFailed',
+          message:
+            'Smart transaction failed with status: cancelled, originalTransactionStatus: FAILED_WOULD_REVERT',
+        }),
       );
     });
 
     it('throws error if original transaction cannot be found', () => {
-      const updateTransactionMock = jest.fn();
+      const failTransactionMock = jest.fn();
       const getRegularTransactionsMock = jest.fn(() => []);
 
       expect(() =>
@@ -739,15 +731,15 @@ describe('src/utils.js', () => {
             SmartTransactionStatuses.CANCELLED,
           ),
           getRegularTransactions: getRegularTransactionsMock,
-          updateTransaction: updateTransactionMock,
+          failTransaction: failTransactionMock,
         }),
       ).toThrow('Cannot find regular transaction to mark it as failed');
 
-      expect(updateTransactionMock).not.toHaveBeenCalled();
+      expect(failTransactionMock).not.toHaveBeenCalled();
     });
 
-    it('does not update transaction if status is already failed', () => {
-      const updateTransactionMock = jest.fn();
+    it('does not fail the transaction if status is already failed', () => {
+      const failTransactionMock = jest.fn();
       const failedTransaction = {
         ...mockTransaction,
         status: TransactionStatus.failed,
@@ -762,14 +754,14 @@ describe('src/utils.js', () => {
           SmartTransactionStatuses.CANCELLED,
         ),
         getRegularTransactions: () => [failedTransaction],
-        updateTransaction: updateTransactionMock,
+        failTransaction: failTransactionMock,
       });
 
-      expect(updateTransactionMock).not.toHaveBeenCalled();
+      expect(failTransactionMock).not.toHaveBeenCalled();
     });
 
-    it('marks multiple transactions as failed when txHashes match', () => {
-      const updateTransactionMock = jest.fn();
+    it('fails multiple transactions when txHashes match', () => {
+      const failTransactionMock = jest.fn();
       const transaction1: TransactionMeta = {
         ...mockTransaction,
         id: '456',
@@ -788,31 +780,23 @@ describe('src/utils.js', () => {
       utils.markRegularTransactionsAsFailed({
         smartTransaction,
         getRegularTransactions: () => [transaction1, transaction2],
-        updateTransaction: updateTransactionMock,
+        failTransaction: failTransactionMock,
       });
 
-      expect(updateTransactionMock).toHaveBeenCalledTimes(2);
-      expect(updateTransactionMock).toHaveBeenCalledWith(
-        {
-          ...transaction1,
-          status: TransactionStatus.failed,
-          error: {
-            name: 'SmartTransactionFailed',
-            message: 'Smart transaction failed with status: cancelled',
-          },
-        },
-        'Smart transaction status: cancelled',
+      expect(failTransactionMock).toHaveBeenCalledTimes(2);
+      expect(failTransactionMock).toHaveBeenCalledWith(
+        '456',
+        expect.objectContaining({
+          name: 'SmartTransactionFailed',
+          message: 'Smart transaction failed with status: cancelled',
+        }),
       );
-      expect(updateTransactionMock).toHaveBeenCalledWith(
-        {
-          ...transaction2,
-          status: TransactionStatus.failed,
-          error: {
-            name: 'SmartTransactionFailed',
-            message: 'Smart transaction failed with status: cancelled',
-          },
-        },
-        'Smart transaction status: cancelled',
+      expect(failTransactionMock).toHaveBeenCalledWith(
+        '789',
+        expect.objectContaining({
+          name: 'SmartTransactionFailed',
+          message: 'Smart transaction failed with status: cancelled',
+        }),
       );
     });
   });
