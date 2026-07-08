@@ -13,7 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Remove `gasFeeToken`, `skipInitialGasEstimate`, and `excludeNativeTokenForFee` from batch-strategy `addTransactionBatch` params
+- Remove `gasFeeToken`, `skipInitialGasEstimate`, and `excludeNativeTokenForFee` from batch-strategy `addTransactionBatch` params ([#9431](https://github.com/MetaMask/core/pull/9431))
 
 ## [74.1.0]
 
