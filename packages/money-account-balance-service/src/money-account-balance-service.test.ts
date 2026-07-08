@@ -902,9 +902,9 @@ describe('MoneyAccountBalanceService', () => {
       );
       const trace = jest
         .fn()
-        .mockRejectedValue(new Error('trace boom')) as jest.MockedFunction<
-        TraceCallback
-      >;
+        .mockRejectedValue(
+          new Error('trace boom'),
+        ) as jest.MockedFunction<TraceCallback>;
       const { service } = createService({ options: { trace } });
 
       expect(await service.getExchangeRate()).toStrictEqual({
@@ -920,9 +920,9 @@ describe('MoneyAccountBalanceService', () => {
 
     it('does not fail when the trace callback returns undefined', async () => {
       mockAccountantGetRate('1050000');
-      const trace = jest.fn().mockReturnValue(undefined) as jest.MockedFunction<
-        TraceCallback
-      >;
+      const trace = jest
+        .fn()
+        .mockReturnValue(undefined) as jest.MockedFunction<TraceCallback>;
       const { service } = createService({ options: { trace } });
 
       expect(await service.getExchangeRate()).toStrictEqual({
