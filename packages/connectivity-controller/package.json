@@ -1,6 +1,6 @@
 {
   "name": "@metamask/connectivity-controller",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "ConnectivityController stores the device's internet connectivity status",
   "keywords": [
     "Ethereum",
