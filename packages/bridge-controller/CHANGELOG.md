@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/assets-controller` from `^10.0.1` to `^10.1.0` ([#9411](https://github.com/MetaMask/core/pull/9411))
 - Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.3.0` ([#9421](https://github.com/MetaMask/core/pull/9421))
 - Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
-- Bump `@metamask/assets-controllers` from `^109.3.0` to `109.3.1` ([#9429](https://github.com/MetaMask/core/pull/9429))
+- Bump `@metamask/assets-controllers` from `^109.3.0` to `^109.3.1` ([#9429](https://github.com/MetaMask/core/pull/9429))
 
 ## [77.3.2]
 
