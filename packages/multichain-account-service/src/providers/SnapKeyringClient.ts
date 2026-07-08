@@ -23,9 +23,9 @@ type DiscoveredAccount = Awaited<
  */
 export type SnapKeyringClient = {
   /**
-   * Lists the accounts the Snap currently holds.
+   * Returns the accounts the Snap currently holds.
    */
-  listAccounts(): Promise<KeyringAccount[]>;
+  getAccounts(): Promise<KeyringAccount[]>;
 
   /**
    * Deletes an account by id from the Snap.
@@ -66,7 +66,7 @@ export function createSnapKeyringClient(
   if (isV2) {
     const client = new KeyringClientV2(sender);
     return {
-      listAccounts: async () => client.getAccounts(),
+      getAccounts: async () => client.getAccounts(),
       deleteAccount: async (id) => client.deleteAccount(id),
       discoverAccounts: async (): Promise<DiscoveredAccount[]> => {
         // v2 discovery is driven by `createAccounts({ bip44:discover })` through
@@ -80,7 +80,7 @@ export function createSnapKeyringClient(
 
   const client = new KeyringClient(sender);
   return {
-    listAccounts: async () => client.listAccounts(),
+    getAccounts: async () => client.listAccounts(),
     deleteAccount: async (id) => client.deleteAccount(id),
     discoverAccounts: async (scopes, entropySource, groupIndex) =>
       client.discoverAccounts(scopes, entropySource, groupIndex),

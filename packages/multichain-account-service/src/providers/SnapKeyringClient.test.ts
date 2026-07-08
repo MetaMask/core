@@ -19,11 +19,11 @@ function makeSender(response: unknown = []): {
 
 describe('createSnapKeyringClient', () => {
   describe('v1 client', () => {
-    it('lists accounts', async () => {
+    it('gets accounts', async () => {
       const { sender, send } = makeSender([]);
       const client = createSnapKeyringClient(sender, false);
 
-      expect(await client.listAccounts()).toStrictEqual([]);
+      expect(await client.getAccounts()).toStrictEqual([]);
       expect(send).toHaveBeenCalledWith(
         expect.objectContaining({ method: 'keyring_listAccounts' }),
       );
@@ -53,11 +53,11 @@ describe('createSnapKeyringClient', () => {
   });
 
   describe('v2 client', () => {
-    it('lists accounts via getAccounts', async () => {
+    it('gets accounts via getAccounts', async () => {
       const { sender, send } = makeSender([]);
       const client = createSnapKeyringClient(sender, true);
 
-      expect(await client.listAccounts()).toStrictEqual([]);
+      expect(await client.getAccounts()).toStrictEqual([]);
       expect(send).toHaveBeenCalledWith(
         expect.objectContaining({ method: 'keyring_getAccounts' }),
       );

@@ -265,7 +265,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
         (account) => account.metadata.snap?.id === this.snapId,
       );
       const snapAccounts = new Set(
-        (await client.listAccounts()).map((account) => account.id),
+        (await client.getAccounts()).map((account) => account.id),
       );
 
       // NOTE: This should never happen, but if it does, we recover by deleting the
