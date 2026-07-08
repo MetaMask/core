@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `MulticallClient` memoizes `balanceOf` and `getEthBalance` call encodings per account address when building multicall batches, reducing redundant ABI encoding for wallets with many tokens ([#9425](https://github.com/MetaMask/core/pull/9425))
 - Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.3.0` ([#9421](https://github.com/MetaMask/core/pull/9421))
 - Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
 - Bump `@metamask/keyring-snap-client` from `^9.0.2` to `^9.2.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
