@@ -25,10 +25,13 @@ import type {
   Caip19AssetId,
   DataRequest,
   DataResponse,
-  GetAccountAssetInfoResponse,
   Middleware,
 } from '../types';
 import { AbstractDataSource } from './AbstractDataSource';
+import {
+  enrichAccountAssetInfo,
+  getAssetsToFetchWithEligibleCustomAssets,
+} from './snap-account-asset-info-enrichment';
 import type {
   DataSourceState,
   SubscriptionRequest,
@@ -75,28 +78,6 @@ export const KEYRING_PERMISSION = 'endowment:keyring';
 /** The permission name for snap assets endowment (contains chainIds) */
 export const ASSETS_PERMISSION = 'endowment:assets';
 
-/** Snap clientRequest method for per-(account, asset) enrichment data. */
-const GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD = 'getAccountAssetInfo';
-
-/**
- * Max assets per snap getAccountAssetInfo request. Large batches can terminate
- * the Stellar wallet snap on mobile when many trustlines are fetched at once.
- */
-const ACCOUNT_ASSET_INFO_SNAP_BATCH_SIZE = 3;
-
-/** Per-batch snap client request timeout (ms). Hung requests must not block apply. */
-const ACCOUNT_ASSET_INFO_SNAP_TIMEOUT_MS = 15_000;
-
-/**
- * Chains whose wallet snap implements getAccountAssetInfo.
- */
-const ACCOUNT_ASSET_INFO_ENRICHMENT_BY_CHAIN: Partial<
-  Record<ChainId, boolean>
-> = {
-  'stellar:pubnet': true,
-  'stellar:testnet': true,
-};
-
 // ============================================================================
 // PERMISSION UTILITIES
 // ============================================================================
@@ -136,10 +117,6 @@ export function getChainIdsCaveat(
 export function extractChainFromAssetId(assetId: string): ChainId {
   const parsed = parseCaipAssetType(assetId as CaipAssetType);
   return parsed.chainId;
-}
-
-function isAccountAssetInfoEnrichmentAvailable(chainId: ChainId): boolean {
-  return ACCOUNT_ASSET_INFO_ENRICHMENT_BY_CHAIN[chainId] === true;
 }
 
 // ============================================================================
@@ -355,150 +332,6 @@ export class SnapDataSource extends AbstractDataSource<
     return this.state.activeChains.includes(chainId);
   }
 
-  async #enrichAccountAssetInfo(
-    assetsBalance: NonNullable<DataResponse['assetsBalance']>,
-  ): Promise<void> {
-    for (const [accountId, accountAssets] of Object.entries(assetsBalance)) {
-      const assetsByChain = new Map<ChainId, Caip19AssetId[]>();
-
-      for (const assetId of Object.keys(accountAssets) as Caip19AssetId[]) {
-        let chainId: ChainId;
-        try {
-          chainId = extractChainFromAssetId(assetId);
-        } catch {
-          continue;
-        }
-        if (!isAccountAssetInfoEnrichmentAvailable(chainId)) {
-          continue;
-        }
-
-        const assetIds = assetsByChain.get(chainId) ?? [];
-        assetIds.push(assetId);
-        assetsByChain.set(chainId, assetIds);
-      }
-
-      for (const [chainId, assetIds] of assetsByChain) {
-        const snapId = this.getSnapIdForChain(chainId);
-        if (!snapId) {
-          continue;
-        }
-
-        for (
-          let i = 0;
-          i < assetIds.length;
-          i += ACCOUNT_ASSET_INFO_SNAP_BATCH_SIZE
-        ) {
-          const batch = assetIds.slice(
-            i,
-            i + ACCOUNT_ASSET_INFO_SNAP_BATCH_SIZE,
-          );
-          const accountAssetInfo = await this.#fetchAccountAssetInfoFromSnap({
-            accountId,
-            snapId,
-            chainId,
-            assets: batch,
-          });
-
-          if (!accountAssetInfo) {
-            break;
-          }
-
-          for (const [assetId, assetInfo] of Object.entries(accountAssetInfo)) {
-            const row = accountAssets[assetId as Caip19AssetId];
-            if (!row) {
-              continue;
-            }
-
-            accountAssets[assetId as Caip19AssetId] = {
-              ...row,
-              accountAssetInfo: assetInfo,
-            };
-          }
-        }
-      }
-    }
-  }
-
-  async #fetchAccountAssetInfoFromSnap({
-    accountId,
-    snapId,
-    chainId,
-    assets,
-  }: {
-    accountId: string;
-    snapId: SnapId;
-    chainId: ChainId;
-    assets: Caip19AssetId[];
-  }): Promise<GetAccountAssetInfoResponse | undefined> {
-    if (assets.length === 0) {
-      return undefined;
-    }
-
-    try {
-      const request = {
-        snapId,
-        origin: 'metamask',
-        handler: HandlerType.OnClientRequest,
-        request: {
-          jsonrpc: '2.0',
-          method: GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD,
-          params: {
-            accountId,
-            scope: chainId,
-            assets,
-          },
-        },
-      };
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const snapRequest = (this.#messenger as any).call(
-        'SnapController:handleRequest',
-        request,
-      ) as Promise<unknown>;
-
-      const timedOut = Symbol('timedOut');
-      const result = await Promise.race([
-        snapRequest,
-        new Promise<typeof timedOut>((resolve) =>
-          setTimeout(() => resolve(timedOut), ACCOUNT_ASSET_INFO_SNAP_TIMEOUT_MS),
-        ),
-      ]);
-
-      if (result === timedOut) {
-        snapRequest
-          .then(() =>
-            log('Snap account asset info resolved after timeout', {
-              accountId,
-              snapId,
-              chainId,
-              assetCount: assets.length,
-            }),
-          )
-          .catch((error) =>
-            log('Snap account asset info failed after timeout', {
-              accountId,
-              snapId,
-              chainId,
-              assetCount: assets.length,
-              error,
-            }),
-          );
-        return undefined;
-      }
-
-      return result as GetAccountAssetInfoResponse | undefined;
-    } catch (error) {
-      log('Failed to enrich snap account asset info', {
-        accountId,
-        snapId,
-        chainId,
-        assetCount: assets.length,
-        error,
-      });
-      return undefined;
-    }
-  }
-
   // ============================================================================
   // SNAP DISCOVERY (Dynamic via PermissionController)
   // ============================================================================
@@ -655,28 +488,12 @@ export class SnapDataSource extends AbstractDataSource<
         // Step 1: Get the list of assets for this account
         const listedAssets = (await client.listAccountAssets(accountId)) ?? [];
 
-        // Include custom assets on enrichment chains (e.g. Stellar) so trustline
-        // fields refresh even when a deactivated asset drops off listAccountAssets.
-        const assetsToFetch = new Set<CaipAssetType>(
-          listedAssets as CaipAssetType[],
-        );
-        if (request.customAssets) {
-          for (const assetId of request.customAssets) {
-            try {
-              const assetChainId = extractChainFromAssetId(assetId);
-              if (
-                request.chainIds.includes(assetChainId) &&
-                isAccountAssetInfoEnrichmentAvailable(assetChainId)
-              ) {
-                assetsToFetch.add(assetId as CaipAssetType);
-              }
-            } catch {
-              // Ignore malformed custom asset ids.
-            }
-          }
-        }
-
-        const assetList = [...assetsToFetch];
+        // TODO(STELLAR): Remove custom asset inclusion for enrichment once the Accounts API can refresh trustline/accountAssetInfo data for custom assets directly.
+        const assetList = getAssetsToFetchWithEligibleCustomAssets({
+          listedAssets: listedAssets as CaipAssetType[],
+          customAssets: request.customAssets,
+          requestedChainIds: request.chainIds,
+        });
         if (assetList.length === 0) {
           continue;
         }
@@ -701,7 +518,15 @@ export class SnapDataSource extends AbstractDataSource<
     }
 
     if (results.assetsBalance) {
-      await this.#enrichAccountAssetInfo(results.assetsBalance);
+      // TODO(STELLAR): Remove this Snap-side accountAssetInfo enrichment path once the Accounts API returns account-asset enrichment directly.
+      await enrichAccountAssetInfo({
+        assetsBalance: results.assetsBalance,
+        getSnapIdForChain: (chainId) => this.getSnapIdForChain(chainId),
+        callSnapRequest: (request) =>
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (this.#messenger as any).call('SnapController:handleRequest', request),
+        log,
+      });
     }
 
     return results;
