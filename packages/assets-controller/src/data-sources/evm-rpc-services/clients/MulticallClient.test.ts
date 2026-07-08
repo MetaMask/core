@@ -1,4 +1,5 @@
 import { defaultAbiCoder, Interface } from '@ethersproject/abi';
+import * as controllerUtils from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
 import type { Address, BalanceOfRequest, ChainId, Provider } from '../types';
@@ -210,6 +211,42 @@ describe('MulticallClient', () => {
         expect(result).toHaveLength(2);
         expect(result[0].balance).toBe('1000000000');
         expect(result[1].balance).toBe('2000000000');
+      });
+
+      it('encodes balance call data once per account address in a batch', async () => {
+        const encodeSpy = jest.spyOn(controllerUtils, 'encodeFunctionData');
+        const otherAccount: Address =
+          '0xabcdefabcdefabcdefabcdefabcdefabcdefabcd' as Address;
+
+        const requests: BalanceOfRequest[] = [
+          { tokenAddress: TEST_TOKEN_1, accountAddress: TEST_ACCOUNT },
+          { tokenAddress: TEST_TOKEN_2, accountAddress: TEST_ACCOUNT },
+          { tokenAddress: TEST_TOKEN_1, accountAddress: otherAccount },
+          { tokenAddress: ZERO_ADDRESS, accountAddress: TEST_ACCOUNT },
+        ];
+
+        const mockResponse = buildMockAggregate3Response([
+          { success: true, balance: '1000000000' },
+          { success: true, balance: '2000000000' },
+          { success: true, balance: '3000000000' },
+          { success: true, balance: '1000000000000000000' },
+        ]);
+
+        mockProvider.call.mockResolvedValue(mockResponse);
+
+        await client.batchBalanceOf(MAINNET_CHAIN_ID, requests);
+
+        const balanceOfEncodings = encodeSpy.mock.calls.filter(
+          ([, method]) => method === 'balanceOf',
+        );
+        const getEthBalanceEncodings = encodeSpy.mock.calls.filter(
+          ([, method]) => method === 'getEthBalance',
+        );
+
+        expect(balanceOfEncodings).toHaveLength(2);
+        expect(getEthBalanceEncodings).toHaveLength(1);
+
+        encodeSpy.mockRestore();
       });
 
       it('should fetch native token balance using getEthBalance', async () => {
