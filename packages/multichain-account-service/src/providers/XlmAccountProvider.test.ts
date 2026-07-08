@@ -307,6 +307,25 @@ describe('XlmAccountProvider', () => {
     expect(discovered).toStrictEqual([]);
   });
 
+  it('returns no accounts when a v2 Snap does not support bip44:discover', async () => {
+    const { provider, mocks } = setup({
+      accounts: [],
+      capabilities: {
+        scopes: [XlmScope.Pubnet],
+        bip44: { deriveIndex: true, deriveIndexRange: true },
+      },
+    });
+
+    const discovered = await provider.discoverAccounts({
+      entropySource: MOCK_HD_KEYRING_2.metadata.id,
+      groupIndex: 0,
+    });
+
+    expect(discovered).toStrictEqual([]);
+    expect(mocks.keyring.createAccounts).not.toHaveBeenCalled();
+    expect(mocks.keyring.createAccount).not.toHaveBeenCalled();
+  });
+
   it('does not run discovery if disabled', async () => {
     const { provider } = setup({
       accounts: [MOCK_XLM_ACCOUNT_1],
