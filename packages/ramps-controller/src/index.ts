@@ -142,11 +142,13 @@ export {
 export { RAMPS_ERROR_CODES } from './rampsErrorCodes';
 export type { RequestSelectorResult } from './selectors';
 export { createRequestSelector } from './selectors';
+export type { FiatDepositRoute } from './providerAvailability';
 export {
   providerServesAsset,
   getProvidersServingAsset,
   regionHasProviderForAsset,
   isFiatDepositAvailable,
+  resolveFiatDepositRoute,
 } from './providerAvailability';
 export {
   isExternalBrowserQuote,
