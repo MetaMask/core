@@ -105,6 +105,68 @@ describe('NetworkConnectionBannerController', () => {
     });
   });
 
+  describe('timeout options', () => {
+    it('honors custom degraded and unavailable timeouts', async () => {
+      await withController(
+        { degradedBannerTimeout: 1_000, unavailableBannerTimeout: 3_000 },
+        ({ controller, publishNetworkStateChanges }) => {
+          publishNetworkStateChanges(
+            buildExternalState({
+              networkConfigurationsByChainId: {
+                '0x89': buildNetworkConfiguration({
+                  chainId: '0x89',
+                  rpcEndpoints: [
+                    buildCustomEndpoint({
+                      networkClientId: POLYGON_CUSTOM_CLIENT_ID,
+                      url: 'https://polygon-rpc.com',
+                    }),
+                  ],
+                }),
+              },
+              enabledEvmChainIds: ['0x89'],
+              networksMetadata: {
+                [POLYGON_CUSTOM_CLIENT_ID]: buildNetworkMetadata(
+                  NetworkStatus.Unavailable,
+                ),
+              },
+            }),
+          );
+
+          jest.advanceTimersByTime(999);
+          expect(controller.state.networkConnectionBannerStatus).toBe(
+            'available',
+          );
+
+          jest.advanceTimersByTime(1);
+          expect(controller.state.networkConnectionBannerStatus).toBe(
+            'degraded',
+          );
+
+          jest.advanceTimersByTime(1_999);
+          expect(controller.state.networkConnectionBannerStatus).toBe(
+            'degraded',
+          );
+
+          jest.advanceTimersByTime(1);
+          expect(controller.state.networkConnectionBannerStatus).toBe(
+            'unavailable',
+          );
+        },
+      );
+    });
+
+    it('throws when the unavailable timeout does not exceed the degraded timeout', async () => {
+      await expect(
+        withController(
+          { degradedBannerTimeout: 5_000, unavailableBannerTimeout: 5_000 },
+          () => undefined,
+        ),
+      ).rejects.toThrow(
+        '`unavailableBannerTimeout` (5000) must be greater than `degradedBannerTimeout` (5000).',
+      );
+    });
+  });
+
   describe('lifecycle', () => {
     it('does not evaluate existing upstream state before the UI opens on an unlocked wallet', async () => {
       const externalState = buildExternalState({
@@ -1684,6 +1746,8 @@ type WithControllerCallback<ReturnValue> = (payload: {
 type WithControllerOptions = {
   externalState?: ExternalState;
   start?: boolean;
+  degradedBannerTimeout?: number;
+  unavailableBannerTimeout?: number;
 };
 
 async function withController<ReturnValue>(
@@ -1691,8 +1755,15 @@ async function withController<ReturnValue>(
     | [WithControllerCallback<ReturnValue>]
     | [WithControllerOptions, WithControllerCallback<ReturnValue>]
 ): Promise<ReturnValue> {
-  const [{ externalState, start = true }, testFunction] =
-    args.length === 2 ? args : [{}, args[0]];
+  const [
+    {
+      externalState,
+      start = true,
+      degradedBannerTimeout,
+      unavailableBannerTimeout,
+    },
+    testFunction,
+  ] = args.length === 2 ? args : [{}, args[0]];
   const rootMessenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
@@ -1781,6 +1852,8 @@ async function withController<ReturnValue>(
   const controller = new NetworkConnectionBannerController({
     messenger,
     infuraProjectId: TEST_INFURA_PROJECT_ID,
+    degradedBannerTimeout,
+    unavailableBannerTimeout,
   });
 
   const setUiOpen = (isUiOpen: boolean): void => {

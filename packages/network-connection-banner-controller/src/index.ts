@@ -16,5 +16,7 @@ export type {
 export {
   NetworkConnectionBannerController,
   getDefaultNetworkConnectionBannerControllerState,
+  DEFAULT_DEGRADED_BANNER_TIMEOUT,
+  DEFAULT_UNAVAILABLE_BANNER_TIMEOUT,
 } from './NetworkConnectionBannerController';
 export { networkConnectionBannerControllerSelectors } from './selectors';

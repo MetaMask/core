@@ -2,7 +2,11 @@
 
 NetworkConnectionBannerController decides when and how to surface the network
 connection banner based on RPC endpoint health. It encapsulates the rule and
-the 5s/30s timer state machine.
+the 5s/30s timer state machine. Both timeouts are configurable via the
+`degradedBannerTimeout` and `unavailableBannerTimeout` constructor options
+(defaults exported as `DEFAULT_DEGRADED_BANNER_TIMEOUT` and
+`DEFAULT_UNAVAILABLE_BANNER_TIMEOUT`); the unavailable timeout is measured
+from the same failure start and must be greater than the degraded one.
 
 ## Lifecycle
 

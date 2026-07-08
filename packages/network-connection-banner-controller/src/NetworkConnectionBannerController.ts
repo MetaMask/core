@@ -201,16 +201,17 @@ export function getDefaultNetworkConnectionBannerControllerState(): NetworkConne
 }
 
 /**
- * How long (in milliseconds) a failing network must remain in a "failed"
- * status ("degraded" or "unavailable") before the degraded banner appears.
+ * The default for how long (in milliseconds) a failing network must remain
+ * in a "failed" status ("degraded" or "unavailable") before the degraded
+ * banner appears.
  */
-const DEGRADED_BANNER_TIMEOUT = 5_000;
+export const DEFAULT_DEGRADED_BANNER_TIMEOUT = 5_000;
 
 /**
- * How long (in milliseconds) a failing network must remain in a "failed"
- * status before the banner escalates to "unavailable".
+ * The default for how long (in milliseconds) a failing network must remain
+ * in a "failed" status before the banner escalates to "unavailable".
  */
-const UNAVAILABLE_BANNER_TIMEOUT = 30_000;
+export const DEFAULT_UNAVAILABLE_BANNER_TIMEOUT = 30_000;
 
 const MESSENGER_EXPOSED_METHODS = [
   'dismissBanner',
@@ -309,6 +310,21 @@ export type NetworkConnectionBannerControllerOptions = {
    * endpoints whose URL was persisted with the id already substituted.
    */
   infuraProjectId: string;
+
+  /**
+   * How long (in milliseconds) a failing network must remain in a "failed"
+   * status before the degraded banner appears. Defaults to
+   * {@link DEFAULT_DEGRADED_BANNER_TIMEOUT}.
+   */
+  degradedBannerTimeout?: number;
+
+  /**
+   * How long (in milliseconds), measured from the same failure start as
+   * `degradedBannerTimeout`, before the banner escalates to "unavailable".
+   * Must be greater than `degradedBannerTimeout`. Defaults to
+   * {@link DEFAULT_UNAVAILABLE_BANNER_TIMEOUT}.
+   */
+  unavailableBannerTimeout?: number;
 };
 
 /**
@@ -367,16 +383,29 @@ export class NetworkConnectionBannerController extends BaseController<
 
   readonly #infuraProjectId: string;
 
+  readonly #degradedBannerTimeout: number;
+
+  readonly #unavailableBannerTimeout: number;
+
   /**
    * Constructs a new {@link NetworkConnectionBannerController}.
    *
    * @param args - The arguments to this controller.
    * @param args.messenger - The messenger suited for this controller.
    * @param args.infuraProjectId - The wallet's Infura project id.
+   * @param args.degradedBannerTimeout - How long (in milliseconds) a failing
+   * network must remain failed before the degraded banner appears.
+   * @param args.unavailableBannerTimeout - How long (in milliseconds) before
+   * the banner escalates to "unavailable". Must be greater than
+   * `degradedBannerTimeout`.
+   * @throws If `unavailableBannerTimeout` is not greater than
+   * `degradedBannerTimeout`.
    */
   constructor({
     messenger,
     infuraProjectId,
+    degradedBannerTimeout = DEFAULT_DEGRADED_BANNER_TIMEOUT,
+    unavailableBannerTimeout = DEFAULT_UNAVAILABLE_BANNER_TIMEOUT,
   }: NetworkConnectionBannerControllerOptions) {
     super({
       messenger,
@@ -385,7 +414,15 @@ export class NetworkConnectionBannerController extends BaseController<
       state: getDefaultNetworkConnectionBannerControllerState(),
     });
 
+    if (unavailableBannerTimeout <= degradedBannerTimeout) {
+      throw new Error(
+        `\`unavailableBannerTimeout\` (${unavailableBannerTimeout}) must be greater than \`degradedBannerTimeout\` (${degradedBannerTimeout}).`,
+      );
+    }
+
     this.#infuraProjectId = infuraProjectId;
+    this.#degradedBannerTimeout = degradedBannerTimeout;
+    this.#unavailableBannerTimeout = unavailableBannerTimeout;
 
     // Upstream controllers still expose :stateChange; switch to :stateChanged
     // once those packages migrate their event types.
@@ -657,8 +694,8 @@ export class NetworkConnectionBannerController extends BaseController<
           state.networkConnectionBannerStatus = 'unavailable';
           state.networkConnectionBannerNetwork = failedNetwork;
         });
-      }, UNAVAILABLE_BANNER_TIMEOUT - DEGRADED_BANNER_TIMEOUT);
-    }, DEGRADED_BANNER_TIMEOUT);
+      }, this.#unavailableBannerTimeout - this.#degradedBannerTimeout);
+    }, this.#degradedBannerTimeout);
   }
 
   /**
