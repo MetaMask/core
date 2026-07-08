@@ -3,7 +3,10 @@ import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 import type { SnapKeyringV1 } from '@metamask/eth-snap-keyring';
 import type { SnapKeyring as SnapKeyringV2 } from '@metamask/eth-snap-keyring/v2';
-import { isSnapKeyring } from '@metamask/eth-snap-keyring/v2';
+import {
+  EMPTY_CAPABILITIES,
+  isSnapKeyring,
+} from '@metamask/eth-snap-keyring/v2';
 import {
   AccountCreationType,
   assertCreateAccountOptionIsSupported,
@@ -89,7 +92,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
    * reads them from the Snap's manifest). Populated the first time the client
    * is resolved; defaults to an empty capability set until then.
    */
-  capabilities: KeyringCapabilities = { scopes: [] };
+  capabilities: KeyringCapabilities = EMPTY_CAPABILITIES;
 
   /**
    * Version-agnostic keyring client, resolved lazily once the Snap is ready and
