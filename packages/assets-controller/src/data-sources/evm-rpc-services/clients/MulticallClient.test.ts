@@ -219,8 +219,9 @@ describe('MulticallClient', () => {
           encodeSpy.mock.calls.filter(([, method]) => method === 'balanceOf')
             .length;
         const countGetEthBalance = () =>
-          encodeSpy.mock.calls.filter(([, method]) => method === 'getEthBalance')
-            .length;
+          encodeSpy.mock.calls.filter(
+            ([, method]) => method === 'getEthBalance',
+          ).length;
         const accountA: Address =
           '0x1111111111111111111111111111111111111111' as Address;
         const accountB: Address =
