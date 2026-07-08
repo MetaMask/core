@@ -1,6 +1,7 @@
 import { assertIsBip44Account } from '@metamask/account-api';
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
+import type { SnapKeyringV1 } from '@metamask/eth-snap-keyring';
 import type { SnapKeyring as SnapKeyringV2 } from '@metamask/eth-snap-keyring/v2';
 import { isSnapKeyring } from '@metamask/eth-snap-keyring/v2';
 import {
@@ -37,7 +38,15 @@ import type { Sender, SnapKeyringClient } from './SnapKeyringClient';
 import { withRetry, withTimeout } from './utils';
 
 export type RestrictedSnapKeyring = {
-  createAccount: SnapKeyringV2['createAccount'];
+  /**
+   * V1 interface, present only when the Snap does not declare v2 capabilities.
+   * `undefined` for v2-only Snaps.
+   *
+   * Use this to make v1 calls explicit:
+   *   if (!keyring.v1) { throw new Error('Snap is v2-only'); }
+   *   keyring.v1.createAccount(options);
+   */
+  v1?: { createAccount: SnapKeyringV1['createAccount'] };
   createAccounts: SnapKeyringV2['createAccounts'];
   deleteAccount: SnapKeyringV2['deleteAccount'];
 };
@@ -174,25 +183,24 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     // Also, creating account that way won't invalidate the Snap keyring state. The
     // account will get created and persisted properly with the Snap account creation
     // flow "asynchronously" (with `notify:accountCreated`).
-    const { createAccount, createAccounts } = await this.#withSnapKeyring<{
-      createAccount: SnapKeyringV2['createAccount'];
-      createAccounts: SnapKeyringV2['createAccounts'];
-    }>(async ({ keyring }) => ({
-      createAccount: keyring.createAccount.bind(keyring),
-      createAccounts: keyring.createAccounts.bind(keyring),
-    }));
+    const createAccount = await this.#withSnapKeyring(async ({ keyring }) => {
+      if (keyring.v1) {
+        return keyring.v1.createAccount.bind(keyring.v1);
+      }
+
+      // This method does not exist in v2.
+      return undefined;
+    });
 
     return {
-      createAccount: async (options) =>
-        // We use the "unguarded" account creation here (see explanation above).
-        await createAccount(options, {
-          displayAccountNameSuggestion: false,
-          displayConfirmation: false,
-          setSelectedAccount: false,
-        }),
-      createAccounts: async (options) => await createAccounts(options),
+      // V1 interface is only present for v1 Snaps, otherwise it's `undefined`.
+      v1: createAccount ? { createAccount } : undefined,
+      // Every v2 operations must be done through the `#withSnapKeyring` transaction:
+      createAccounts: async (options) =>
+        await this.#withSnapKeyring(
+          async ({ keyring }) => await keyring.createAccounts(options),
+        ),
       deleteAccount: async (id: string) =>
-        // Though, when removing account, we can use the normal flow.
         await this.#withSnapKeyring(async ({ keyring }) => {
           await keyring.deleteAccount(id);
         }),

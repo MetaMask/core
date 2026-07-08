@@ -56,7 +56,7 @@
     "@metamask/accounts-controller": "^39.0.4",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/eth-money-keyring": "^2.0.4",
-    "@metamask/keyring-api": "^23.4.0",
+    "@metamask/keyring-api": "^23.5.0",
     "@metamask/keyring-controller": "^27.1.0",
     "@metamask/messenger": "^2.0.0",
     "async-mutex": "^0.5.0"

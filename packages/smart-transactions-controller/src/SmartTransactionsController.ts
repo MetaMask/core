@@ -26,9 +26,9 @@ import type {
   RemoteFeatureFlagControllerStateChangeEvent,
 } from '@metamask/remote-feature-flag-controller';
 import type {
+  TransactionControllerFailTransactionAction,
   TransactionControllerGetNonceLockAction,
   TransactionControllerGetTransactionsAction,
-  TransactionControllerUpdateTransactionAction,
   TransactionMeta,
   TransactionParams,
 } from '@metamask/transaction-controller';
@@ -192,9 +192,9 @@ type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetStateAction
   | RemoteFeatureFlagControllerGetStateAction
+  | TransactionControllerFailTransactionAction
   | TransactionControllerGetNonceLockAction
-  | TransactionControllerGetTransactionsAction
-  | TransactionControllerUpdateTransactionAction;
+  | TransactionControllerGetTransactionsAction;
 
 export type SmartTransactionsControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -692,11 +692,11 @@ export class SmartTransactionsController extends StaticIntervalPollingController
         smartTransaction: nextSmartTransaction,
         getRegularTransactions: () =>
           this.messenger.call('TransactionController:getTransactions'),
-        updateTransaction: (transactionMeta: TransactionMeta, note: string) =>
+        failTransaction: (transactionId: string, error: Error) =>
           this.messenger.call(
-            'TransactionController:updateTransaction',
-            transactionMeta,
-            note,
+            'TransactionController:failTransaction',
+            transactionId,
+            error,
           ),
       });
     }

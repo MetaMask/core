@@ -70,7 +70,12 @@ export class TrxAccountProvider extends SnapAccountProvider {
       groupIndex,
     }: { entropySource: EntropySourceId; groupIndex: number },
   ): Promise<KeyringAccount> {
-    return keyring.createAccount({
+    if (!keyring.v1) {
+      throw new Error(
+        `Snap "${TrxAccountProvider.TRX_SNAP_ID}" is v2-only and does not support v1 account creation`,
+      );
+    }
+    return keyring.v1.createAccount({
       entropySource,
       index: groupIndex,
       addressType: TrxAccountType.Eoa,

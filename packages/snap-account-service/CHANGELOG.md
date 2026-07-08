@@ -11,13 +11,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `getCapabilities` action to expose a Snap's keyring capabilities ([#9377](https://github.com/MetaMask/core/pull/9377))
   - Reads the capabilities the bridge keyring populated from the Snap's manifest, letting consumers decide whether to drive the Snap through the v1 or v2 keyring path.
+- **BREAKING:** Add `SnapAccountService:getAccount{Assets,Balances,Transactions}`, `SnapAccountService:resolveAccountAddress`, and `SnapAccountService:setSelectedAccounts` messenger actions ([#9390](https://github.com/MetaMask/core/pull/9390))
+  - These actions proxy the corresponding `KeyringClient` (v2) methods, with `snapId` as the first parameter to identify the target Snap.
+  - Each call goes through `ensureReady` to guarantee the Snap is ready before the request is sent.
+  - `setSelectedAccounts` routes through the keyring's v1 interface for v1 Snaps, and via the RPC client for v2 Snaps.
+  - The service messenger now additionally requires `SnapController:handleRequest`.
 
 ### Changed
 
-- Bump `@metamask/eth-snap-keyring` from `^22.3.0` to `^22.4.0` ([#9377](https://github.com/MetaMask/core/pull/9377))
-- Bump `@metamask/keyring-api` from `^23.1.0` to `^23.4.0` ([#9249](https://github.com/MetaMask/core/pull/9249), [#9377](https://github.com/MetaMask/core/pull/9377))
-- Bump `@metamask/keyring-snap-sdk` from `^9.0.1` to `^9.1.0` ([#9249](https://github.com/MetaMask/core/pull/9249), [#9377](https://github.com/MetaMask/core/pull/9377))
+- Bump `@metamask/keyring-api` from `^23.1.0` to `^23.5.0` ([#9249](https://github.com/MetaMask/core/pull/9249), [#9390](https://github.com/MetaMask/core/pull/9390))
+- Bump `@metamask/keyring-snap-sdk` from `^9.0.1` to `^9.2.0` ([#9249](https://github.com/MetaMask/core/pull/9249), [#9390](https://github.com/MetaMask/core/pull/9390))
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Bump `@metamask/eth-snap-keyring` from `^22.3.0` to `^23.0.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
 
 ## [1.0.0]
 

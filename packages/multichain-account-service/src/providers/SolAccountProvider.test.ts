@@ -19,7 +19,10 @@ import {
 } from '../tests';
 import type { RootMessenger, DeepPartial } from '../tests';
 import { AccountProviderWrapper } from './AccountProviderWrapper';
-import type { SnapAccountProviderConfig } from './SnapAccountProvider';
+import type {
+  RestrictedSnapKeyring,
+  SnapAccountProviderConfig,
+} from './SnapAccountProvider';
 import {
   SOL_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
   SOL_ACCOUNT_PROVIDER_NAME,
@@ -128,6 +131,12 @@ class MockSolanaKeyring {
       return account;
     });
   });
+
+  deleteAccount = jest.fn().mockResolvedValue(undefined);
+
+  get v1(): Required<RestrictedSnapKeyring['v1']> {
+    return { createAccount: this.createAccount };
+  }
 }
 
 class MockSolAccountProvider extends SolAccountProvider {
@@ -458,6 +467,19 @@ describe('SolAccountProvider', () => {
       expect(mocks.keyring.createAccount).toHaveBeenCalled();
       // Provider should now expose one account (newly created)
       expect(provider.getAccounts()).toHaveLength(1);
+    });
+
+    it('throws when the Snap is v2-only and does not support v1 account creation', async () => {
+      const { provider, keyring } = setup({ accounts: [] });
+      jest.spyOn(keyring, 'v1', 'get').mockReturnValue(undefined);
+
+      await expect(
+        provider.createAccounts({
+          type: AccountCreationType.Bip44DeriveIndex,
+          entropySource: MOCK_HD_KEYRING_1.metadata.id,
+          groupIndex: 0,
+        }),
+      ).rejects.toThrow('is v2-only and does not support v1 account creation');
     });
   });
 
