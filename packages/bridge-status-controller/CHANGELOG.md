@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.3.0` ([#9421](https://github.com/MetaMask/core/pull/9421))
 
+### Fixed
+
+- Remove `gasFeeToken`, `skipInitialGasEstimate`, and `excludeNativeTokenForFee` from batch-strategy `addTransactionBatch` params
+
 ## [74.1.0]
 
 ### Added
