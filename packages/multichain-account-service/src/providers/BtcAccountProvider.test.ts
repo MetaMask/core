@@ -1,5 +1,10 @@
 import { isBip44Account } from '@metamask/account-api';
-import { AccountCreationType, BtcAccountType } from '@metamask/keyring-api';
+import {
+  AccountCreationType,
+  BtcAccountType,
+  BtcScope,
+} from '@metamask/keyring-api';
+import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { SnapControllerState } from '@metamask/snaps-controllers';
@@ -37,6 +42,19 @@ function asConfig(
     partial,
   ) as SnapAccountProviderConfig;
 }
+
+/**
+ * v2 capabilities as declared by a fully v2-compliant Bitcoin Snap manifest.
+ * Drives the batched `createAccounts` flow and the v2 discovery path.
+ */
+const BTC_V2_CAPABILITIES: KeyringCapabilities = {
+  scopes: [BtcScope.Mainnet],
+  bip44: {
+    deriveIndex: true,
+    deriveIndexRange: true,
+    discover: true,
+  },
+};
 
 class MockBtcKeyring {
   readonly type = 'MockBtcKeyring';
@@ -156,16 +174,19 @@ class MockBtcAccountProvider extends BtcAccountProvider {
  * @param options.messenger - An optional messenger instance to use. Defaults to a new Messenger.
  * @param options.accounts - List of accounts to use.
  * @param options.config - Provider config.
+ * @param options.capabilities - The Snap keyring capabilities to expose via `SnapAccountService:getCapabilities`.
  * @returns An object containing the controller instance and the messenger.
  */
 function setup({
   messenger = getRootMessenger(),
   accounts = [],
   config,
+  capabilities = { scopes: [] },
 }: {
   messenger?: RootMessenger;
   accounts?: InternalAccount[];
   config?: SnapAccountProviderConfig;
+  capabilities?: KeyringCapabilities;
 } = {}): {
   provider: AccountProviderWrapper;
   messenger: RootMessenger;
@@ -189,6 +210,11 @@ function setup({
   messenger.registerActionHandler(
     'SnapController:getState',
     () => ({ isReady: true }) as SnapControllerState,
+  );
+
+  messenger.registerActionHandler(
+    'SnapAccountService:getCapabilities',
+    async () => capabilities,
   );
 
   messenger.registerActionHandler(
@@ -309,8 +335,8 @@ describe('BtcAccountProvider', () => {
       const accounts = [MOCK_BTC_P2WPKH_ACCOUNT_1];
       const { provider, mocks } = setup({
         accounts,
-        // Force v1 by not providing the config at all, so it relies on the default value.
-        config: asConfig({ createAccounts: { batched: undefined } }),
+        // No capabilities provided → defaults to an empty capability set, so
+        // the provider falls back to the v1 (non-batched) flow.
       });
 
       await provider.createAccounts({
@@ -486,7 +512,7 @@ describe('BtcAccountProvider', () => {
       const accounts = [MOCK_BTC_P2WPKH_ACCOUNT_1];
       const { provider, mocks } = setup({
         accounts,
-        config: asConfig({ createAccounts: { batched: true } }),
+        capabilities: BTC_V2_CAPABILITIES,
       });
 
       const newGroupIndex = accounts.length; // Group-index are 0-based.
@@ -509,7 +535,7 @@ describe('BtcAccountProvider', () => {
       const accounts = [MOCK_BTC_P2WPKH_ACCOUNT_1];
       const { provider } = setup({
         accounts,
-        config: asConfig({ createAccounts: { batched: true } }),
+        capabilities: BTC_V2_CAPABILITIES,
       });
 
       const newAccounts = await provider.createAccounts({
@@ -525,7 +551,7 @@ describe('BtcAccountProvider', () => {
       const accounts = [MOCK_BTC_P2WPKH_ACCOUNT_1];
       const { provider, mocks } = setup({
         accounts,
-        config: asConfig({ createAccounts: { batched: true } }),
+        capabilities: BTC_V2_CAPABILITIES,
       });
 
       const from = 1;
@@ -550,7 +576,7 @@ describe('BtcAccountProvider', () => {
     it('creates accounts with range starting from 0', async () => {
       const { provider, mocks } = setup({
         accounts: [],
-        config: asConfig({ createAccounts: { batched: true } }),
+        capabilities: BTC_V2_CAPABILITIES,
       });
 
       const newAccounts = await provider.createAccounts({
@@ -567,7 +593,7 @@ describe('BtcAccountProvider', () => {
     it('creates a single account when range from equals to', async () => {
       const { provider, mocks } = setup({
         accounts: [],
-        config: asConfig({ createAccounts: { batched: true } }),
+        capabilities: BTC_V2_CAPABILITIES,
       });
 
       const newAccounts = await provider.createAccounts({
@@ -588,7 +614,7 @@ describe('BtcAccountProvider', () => {
     it('throws if the account creation process takes too long', async () => {
       const { provider, mocks } = setup({
         accounts: [],
-        config: asConfig({ createAccounts: { batched: true } }),
+        capabilities: BTC_V2_CAPABILITIES,
       });
 
       mocks.keyring.createAccounts.mockImplementation(
@@ -652,6 +678,25 @@ describe('BtcAccountProvider', () => {
     });
 
     expect(discovered).toStrictEqual([]);
+  });
+
+  it('returns no accounts when a v2 Snap does not support bip44:discover', async () => {
+    const { provider, mocks } = setup({
+      accounts: [],
+      capabilities: {
+        scopes: [BtcScope.Mainnet],
+        bip44: { deriveIndex: true, deriveIndexRange: true },
+      },
+    });
+
+    const discovered = await provider.discoverAccounts({
+      entropySource: MOCK_HD_KEYRING_1.metadata.id,
+      groupIndex: 0,
+    });
+
+    expect(discovered).toStrictEqual([]);
+    expect(mocks.keyring.createAccounts).not.toHaveBeenCalled();
+    expect(mocks.keyring.createAccount).not.toHaveBeenCalled();
   });
 
   it('does not run discovery if disabled', async () => {

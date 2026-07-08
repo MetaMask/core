@@ -44,10 +44,10 @@ import {
   sweepPolymarketDepositWallet,
   submitPolymarketWithdraw,
 } from './polymarket/withdraw';
-import { getRelayStatus, submitRelayExecute } from './relay-api';
+import { getRelayStatus } from './relay-api';
+import { submitViaRelayExecute } from './relay-submit-execute';
 import type {
   RelayCompletionOutcome,
-  RelayExecuteRequest,
   RelayQuote,
   RelayStatus,
   RelayStatusResponse,
@@ -56,7 +56,6 @@ import type {
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
 const RELAY_ERROR_PREFIX = 'Relay: ';
-const RELAY_EXECUTE_ERROR_PREFIX = 'Execute: ';
 
 /**
  * Submits Relay quotes.
@@ -133,6 +132,9 @@ async function executeSingleQuote(
 
   let polymarketPreSubmitUsdceBalance = 0n;
 
+  // Shallow clone so the server-returned requestId can be written back (state is frozen by Immer).
+  const mutableOriginal: RelayQuote = { ...quote.original };
+
   if (quote.request.isHyperliquidSource) {
     await submitHyperliquidWithdraw(quote, quote.request.from, messenger);
   } else if (isPolymarket) {
@@ -141,10 +143,14 @@ async function executeSingleQuote(
     polymarketPreSubmitUsdceBalance = preSubmitUsdceBalance;
     setRelaySourceHash(transaction, messenger, sourceHash);
   } else {
-    await submitTransactions(quote, transaction, messenger);
+    await submitTransactions(
+      { ...quote, original: mutableOriginal },
+      transaction,
+      messenger,
+    );
   }
 
-  const completion = await waitForRelayCompletion(quote.original, messenger, {
+  const completion = await waitForRelayCompletion(mutableOriginal, messenger, {
     onSourceHash: (hash) => {
       log('Source hash received', hash);
       setRelaySourceHash(transaction, messenger, hash);
@@ -297,8 +303,14 @@ function normalizeParams(
     data: params.data,
     from: params.from,
     gas: toHex(params.gas ?? featureFlags.relayFallbackGas.max),
-    maxFeePerGas: toHex(params.maxFeePerGas),
-    maxPriorityFeePerGas: toHex(params.maxPriorityFeePerGas),
+    maxFeePerGas:
+      params.maxFeePerGas === undefined
+        ? undefined
+        : toHex(params.maxFeePerGas),
+    maxPriorityFeePerGas:
+      params.maxPriorityFeePerGas === undefined
+        ? undefined
+        : toHex(params.maxPriorityFeePerGas),
     to: params.to,
     value: toHex(params.value ?? '0'),
   };
@@ -511,93 +523,6 @@ async function buildDelegatedOriginalParams(
     to: delegation.to,
     value: delegation.value,
   };
-}
-
-/**
- * Submit source transactions via Relay's /execute endpoint.
- *
- * Combines all source calls (approve + deposit, and optionally the
- * original transaction for post-quote flows) into a single EIP-7702
- * delegation transaction using getDelegationTransaction, then submits
- * it to Relay's /execute endpoint for gasless execution.
- *
- * @param quote - Relay quote.
- * @param transaction - Original transaction meta.
- * @param messenger - Controller messenger.
- * @param allParams - All source transaction params to combine.
- * @returns Fallback hash (actual hash comes from relay status polling).
- */
-async function submitViaRelayExecute(
-  quote: TransactionPayQuote<RelayQuote>,
-  transaction: TransactionMeta,
-  messenger: TransactionPayControllerMessenger,
-  allParams: TransactionParams[],
-): Promise<Hex> {
-  const { from, sourceChainId } = quote.request;
-  const { requestId } = quote.original.steps[0];
-
-  const networkClientId = getNetworkClientId(messenger, sourceChainId);
-
-  const sourceCallTransaction = {
-    ...transaction,
-    chainId: sourceChainId,
-    networkClientId,
-    nestedTransactions: allParams.map((params) => ({
-      data: (params.data ?? '0x') as Hex,
-      to: params.to as Hex,
-      value: (params.value ?? '0x0') as Hex,
-    })),
-    txParams: {
-      ...transaction.txParams,
-      from,
-    },
-  } as TransactionMeta;
-
-  const delegation = await messenger.call(
-    'TransactionPayController:getDelegationTransaction',
-    { transaction: sourceCallTransaction },
-  );
-
-  log('Delegation result for source calls', delegation);
-
-  const executeBody: RelayExecuteRequest = {
-    executionKind: 'rawCalls',
-    data: {
-      chainId: Number(sourceChainId),
-      to: delegation.to,
-      data: delegation.data,
-      value: new BigNumber(delegation.value).toFixed(),
-      ...(delegation.authorizationList?.length
-        ? {
-            authorizationList: delegation.authorizationList.map((auth) => ({
-              chainId: Number(auth.chainId),
-              address: auth.address,
-              nonce: Number(auth.nonce),
-              yParity: Number(auth.yParity),
-              r: auth.r as Hex,
-              s: auth.s as Hex,
-            })),
-          }
-        : {}),
-    },
-    executionOptions: {
-      subsidizeFees: false,
-    },
-    requestId,
-  };
-
-  log('Submitting via Relay execute', { executeBody, from });
-
-  let result;
-  try {
-    result = await submitRelayExecute(messenger, executeBody);
-  } catch (error) {
-    throw prefixError(error, RELAY_EXECUTE_ERROR_PREFIX);
-  }
-
-  log('Relay execute response', result);
-
-  return FALLBACK_HASH;
 }
 
 /**

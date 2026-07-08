@@ -4168,13 +4168,10 @@ describe('BridgeStatusController', () => {
         {
           "atomic": true,
           "disable7702": true,
-          "excludeNativeTokenForFee": true,
-          "gasFeeToken": undefined,
           "isDelegatedAccount": false,
           "isGasFeeIncluded": false,
           "isGasFeeSponsored": false,
           "requireApproval": false,
-          "skipInitialGasEstimate": false,
         }
       `);
     });
@@ -4251,13 +4248,10 @@ describe('BridgeStatusController', () => {
         {
           "atomic": true,
           "disable7702": true,
-          "excludeNativeTokenForFee": false,
-          "gasFeeToken": "0x0000000000000000000000000000000000000032",
           "isDelegatedAccount": false,
           "isGasFeeIncluded": false,
           "isGasFeeSponsored": false,
           "requireApproval": false,
-          "skipInitialGasEstimate": true,
         }
       `);
     });
@@ -4584,13 +4578,10 @@ describe('BridgeStatusController', () => {
         {
           "atomic": true,
           "disable7702": false,
-          "excludeNativeTokenForFee": true,
-          "gasFeeToken": undefined,
           "isDelegatedAccount": true,
           "isGasFeeIncluded": false,
           "isGasFeeSponsored": false,
           "requireApproval": false,
-          "skipInitialGasEstimate": false,
         }
       `);
     });
@@ -4710,13 +4701,10 @@ describe('BridgeStatusController', () => {
         {
           "atomic": true,
           "disable7702": false,
-          "excludeNativeTokenForFee": true,
-          "gasFeeToken": undefined,
           "isDelegatedAccount": false,
           "isGasFeeIncluded": true,
           "isGasFeeSponsored": false,
           "requireApproval": false,
-          "skipInitialGasEstimate": false,
         }
       `);
     });
@@ -4768,13 +4756,10 @@ describe('BridgeStatusController', () => {
         {
           "atomic": true,
           "disable7702": true,
-          "excludeNativeTokenForFee": true,
-          "gasFeeToken": undefined,
           "isDelegatedAccount": false,
           "isGasFeeIncluded": false,
           "isGasFeeSponsored": false,
           "requireApproval": false,
-          "skipInitialGasEstimate": false,
         }
       `);
     });

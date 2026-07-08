@@ -300,6 +300,7 @@ describe('Relay Quotes Utils', () => {
       );
 
       expect(body.originGasOverhead).toBeUndefined();
+      expect(body.metamask).toBeUndefined();
     });
 
     it('includes originGasOverhead when relay execute is enabled on EIP-7702 chain', async () => {
@@ -322,6 +323,7 @@ describe('Relay Quotes Utils', () => {
       );
 
       expect(body.originGasOverhead).toBe(DEFAULT_RELAY_ORIGIN_GAS_OVERHEAD);
+      expect(body.metamask).toStrictEqual({ executeVersion: 2 });
     });
 
     it('omits originGasOverhead when relay execute is enabled but chain does not support EIP-7702', async () => {

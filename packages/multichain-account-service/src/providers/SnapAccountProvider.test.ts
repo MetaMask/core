@@ -65,7 +65,7 @@ class MockSnapAccountProvider extends SnapAccountProvider {
     maxActiveCount: number;
   };
 
-  readonly capabilities: KeyringCapabilities = {
+  capabilities: KeyringCapabilities = {
     scopes: [
       SolScope.Devnet,
       SolScope.Testnet,
@@ -76,6 +76,8 @@ class MockSnapAccountProvider extends SnapAccountProvider {
       deriveIndex: true,
     },
   };
+
+  protected readonly v1DiscoveryScopes = [];
 
   constructor(
     snapId: SnapId,
@@ -158,7 +160,6 @@ class MockSnapAccountProvider extends SnapAccountProvider {
 const DEFAULT_TEST_CONFIG: SnapAccountProviderConfig = {
   createAccounts: {
     timeoutMs: 5000,
-    batched: false,
   },
   discovery: {
     timeoutMs: 2000,
@@ -173,11 +174,13 @@ const setup = ({
   messenger = getRootMessenger(),
   accounts = [],
   keyring: keyringOverrides = {},
+  capabilities = { scopes: [] },
 }: {
   config?: DeepPartial<SnapAccountProviderConfig>;
   messenger?: RootMessenger;
   accounts?: InternalAccount[];
   keyring?: { type?: string; snapId?: SnapId };
+  capabilities?: KeyringCapabilities;
 } = {}) => {
   const mocks = {
     AccountsController: {
@@ -199,6 +202,7 @@ const setup = ({
     },
     SnapAccountService: {
       ensureReady: jest.fn(),
+      getCapabilities: jest.fn(),
     },
   };
 
@@ -214,6 +218,12 @@ const setup = ({
   );
   // Make the platform ready right away (having a resolved promise is enough).
   mocks.SnapAccountService.ensureReady.mockResolvedValue(undefined);
+
+  messenger.registerActionHandler(
+    'SnapAccountService:getCapabilities',
+    mocks.SnapAccountService.getCapabilities,
+  );
+  mocks.SnapAccountService.getCapabilities.mockResolvedValue(capabilities);
 
   messenger.registerActionHandler(
     'SnapController:handleRequest',
