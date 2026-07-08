@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [109.3.1]
+
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
@@ -3273,7 +3275,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.3.1...HEAD
+[109.3.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.3.0...@metamask/assets-controllers@109.3.1
 [109.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.2.2...@metamask/assets-controllers@109.3.0
 [109.2.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.2.1...@metamask/assets-controllers@109.2.2
 [109.2.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.2.0...@metamask/assets-controllers@109.2.1
