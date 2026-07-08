@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- feat!: expose snap-only keyring methods through service + use explicit `keyring.v1` for v1 account management Snaps ([#9390](https://github.com/MetaMask/core/pull/9390))
+- chore: bump account deps ([#9249](https://github.com/MetaMask/core/pull/9249))
+
 ### Changed
 
 - Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
