@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-
-- Subscribe to all asset event sources (`AssetsController`, `TokensController`, `TokenRatesController`, `CurrencyRateController`) unconditionally instead of picking one based on the unify-state feature flag at construction time ([#9427](https://github.com/MetaMask/core/pull/9427))
-  - The flag can flip from disabled to enabled after this controller is constructed (e.g. remote feature flags loading after startup), which previously left the controller subscribed to a source that never fired, causing required tokens to never resolve for transactions started before the flag loaded.
-
 ### Changed
 
 - Refactor vault deposit utilities into shared `utils/` modules (`chomp`, `ma-vault-deposit`, `relay-post-ma-vault`) to prepare for the Relay Money Account deposit path ([#9303](https://github.com/MetaMask/core/pull/9303))
@@ -19,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/ramps-controller` from `^15.0.0` to `^15.1.0` ([#9395](https://github.com/MetaMask/core/pull/9395))
 - Bump `@metamask/assets-controller` from `^10.0.1` to `^10.1.0` ([#9411](https://github.com/MetaMask/core/pull/9411))
 - Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.3.0` ([#9421](https://github.com/MetaMask/core/pull/9421))
+
+### Fixed
+
+- Subscribe to all asset event sources (`AssetsController`, `TokensController`, `TokenRatesController`, `CurrencyRateController`) unconditionally instead of picking one based on the unify-state feature flag at construction time ([#9427](https://github.com/MetaMask/core/pull/9427))
+  - The flag can flip from disabled to enabled after this controller is constructed (e.g. remote feature flags loading after startup), which previously left the controller subscribed to a source that never fired, causing required tokens to never resolve for transactions started before the flag loaded.
 
 ## [23.17.4]
 
