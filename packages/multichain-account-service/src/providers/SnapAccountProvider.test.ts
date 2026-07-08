@@ -77,7 +77,7 @@ class MockSnapAccountProvider extends SnapAccountProvider {
     },
   };
 
-  protected readonly v1DiscoveryScopes = [SolScope.Mainnet];
+  protected readonly v1DiscoveryScopes = [];
 
   constructor(
     snapId: SnapId,
