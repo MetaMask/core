@@ -49,6 +49,7 @@
   "metamask/connectivity-controller": "team-core-platform",
   "metamask/geolocation-controller": "team-mobile-platform",
   "metamask/controller-utils": "team-core-platform",
+  "metamask/network-connection-banner-controller": "team-core-platform",
   "metamask/messenger": "team-core-platform",
   "metamask/messenger-cli": "team-core-platform",
   "metamask/sample-controllers": "team-core-platform",
