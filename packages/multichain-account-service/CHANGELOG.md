@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Adds `MultichainAccountGroup.isProviderAligned(provider)` to check alignment per provider ([#9269](https://github.com/MetaMask/core/pull/9269))
+- Add `MultichainAccountGroupStatus` type and `MultichainAccountServiceGroupStatusChangeEvent` event ([#9104](https://github.com/MetaMask/core/pull/9104))
+  - `MultichainAccountGroup` now tracks a `status` field (`'uninitialized' | 'in-progress:create-accounts' | 'in-progress:alignment' | 'aligned' | 'misaligned'`).
+  - The service messenger emits `MultichainAccountService:groupStatusChange` whenever a group's status changes.
 
 ### Changed
 

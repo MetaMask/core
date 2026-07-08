@@ -1,10 +1,14 @@
-import { AccountWalletType, select } from '@metamask/account-api';
+import {
+  AccountGroupType,
+  AccountWalletType,
+  select,
+} from '@metamask/account-api';
 import type {
   AccountGroupId,
   AccountWalletId,
   AccountSelector,
+  MultichainAccountGroupId,
   MultichainAccountWalletId,
-  AccountGroupType,
 } from '@metamask/account-api';
 import type { MultichainAccountWalletStatus } from '@metamask/account-api';
 import type { AccountId } from '@metamask/accounts-controller';
@@ -13,6 +17,7 @@ import { BaseController } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
+import type { MultichainAccountGroupStatus } from '@metamask/multichain-account-service';
 import { assert } from '@metamask/utils';
 
 import type { BackupAndSyncEmitAnalyticsEventParams } from './backup-and-sync/analytics';
@@ -28,6 +33,7 @@ import {
   ACCOUNT_TYPE_TO_SORT_ORDER,
   isAccountGroupNameUnique,
   isAccountGroupNameUniqueFromWallet,
+  isMultichainAccountGroup,
   MAX_SORT_ORDER,
 } from './group';
 import { projectLogger as log } from './logger';
@@ -42,6 +48,7 @@ import type {
   AccountTreeControllerState,
 } from './types';
 import type { AccountWalletObject, AccountWalletObjectOf } from './wallet';
+import { isMultichainAccountWallet } from './wallet';
 
 export const controllerName = 'AccountTreeController';
 
@@ -275,6 +282,13 @@ export class AccountTreeController extends BaseController<
       'MultichainAccountService:walletStatusChange',
       (walletId, status) => {
         this.#handleMultichainAccountWalletStatusChange(walletId, status);
+      },
+    );
+
+    this.messenger.subscribe(
+      'MultichainAccountService:groupStatusChange',
+      (groupId, status) => {
+        this.#handleMultichainAccountGroupStatusChange(groupId, status);
       },
     );
 
@@ -1145,7 +1159,11 @@ export class AccountTreeController extends BaseController<
       log(`[${walletId}] Added as new wallet`);
       wallets[walletId] = {
         ...result.wallet,
-        status: 'ready',
+        status: isMultichainAccountWallet(result.wallet)
+          ? this.#getMultichainAccountWalletStatus(
+              result.wallet.metadata.entropy.id,
+            )
+          : 'ready',
         groups: {},
         metadata: {
           name: '', // Will get updated later.
@@ -1157,7 +1175,7 @@ export class AccountTreeController extends BaseController<
       wallet = wallets[walletId];
 
       // Trigger atomic sync for new wallet (only for entropy wallets)
-      if (wallet.type === AccountWalletType.Entropy) {
+      if (isMultichainAccountWallet(wallet)) {
         this.#backupAndSyncService.enqueueSingleWalletSync(walletId);
       }
     }
@@ -1174,6 +1192,13 @@ export class AccountTreeController extends BaseController<
         ...result.group,
         // Type-wise, we are guaranteed to always have at least 1 account.
         accounts: [id],
+        ...(isMultichainAccountGroup(result.group) &&
+          isMultichainAccountWallet(result.wallet) && {
+            status: this.#getMultichainAccountGroupStatus(
+              result.wallet.metadata.entropy.id,
+              result.group.metadata.entropy.groupIndex,
+            ),
+          }),
         metadata: {
           name: '',
           ...{ pinned: false, hidden: false, lastSelected: 0 }, // Default UI states
@@ -1188,7 +1213,7 @@ export class AccountTreeController extends BaseController<
       this.#groupIdToWalletId.set(groupId, walletId);
 
       // Trigger atomic sync for new group (only for entropy wallets)
-      if (wallet.type === AccountWalletType.Entropy) {
+      if (isMultichainAccountWallet(wallet)) {
         this.#backupAndSyncService.enqueueSingleGroupSync(groupId);
       }
     } else {
@@ -1422,6 +1447,73 @@ export class AccountTreeController extends BaseController<
         wallet.status = walletStatus;
       }
     });
+  }
+
+  /**
+   * Handles multichain account group status change from
+   * the MultichainAccountService.
+   *
+   * @param groupId - Multichain account group ID.
+   * @param groupStatus - New multichain account group status.
+   */
+  #handleMultichainAccountGroupStatusChange(
+    groupId: MultichainAccountGroupId,
+    groupStatus: MultichainAccountGroupStatus,
+  ): void {
+    this.update((state) => {
+      const walletId = this.#groupIdToWalletId.get(groupId);
+      if (walletId) {
+        const group = state.accountTree.wallets[walletId]?.groups[groupId];
+        if (group && isMultichainAccountGroup(group)) {
+          group.status = groupStatus;
+        }
+      }
+    });
+  }
+
+  /**
+   * Gets the multichain account wallet's current status from the service.
+   * Falls back to `'uninitialized'` when the service has no record for the
+   * wallet yet (e.g. the service hasn't finished its own `init` call).
+   *
+   * @param entropySource - The entropy source ID of the wallet.
+   * @returns The wallet's current status, or `'uninitialized'` if unknown.
+   */
+  #getMultichainAccountWalletStatus(
+    entropySource: string,
+  ): MultichainAccountWalletStatus {
+    try {
+      return this.messenger.call(
+        'MultichainAccountService:getMultichainAccountWallet',
+        { entropySource },
+      ).status;
+    } catch {
+      return 'uninitialized';
+    }
+  }
+
+  /**
+   * Gets the multichain account group's current status from the service.
+   * Falls back to `'uninitialized'` when the service has no record for the
+   * group yet (e.g. the service hasn't finished its group or hasn't finished
+   * its own `init` call).
+   *
+   * @param entropySource - The entropy source ID of the wallet.
+   * @param groupIndex - The group index within that wallet.
+   * @returns The group's current status, or `'uninitialized'` if unknown.
+   */
+  #getMultichainAccountGroupStatus(
+    entropySource: string,
+    groupIndex: number,
+  ): MultichainAccountGroupStatus {
+    try {
+      return this.messenger.call(
+        'MultichainAccountService:getMultichainAccountGroup',
+        { entropySource, groupIndex },
+      ).status;
+    } catch {
+      return 'uninitialized';
+    }
   }
 
   /**

@@ -5,6 +5,8 @@ export type {
   MultichainAccountServiceMultichainAccountGroupCreatedEvent,
   MultichainAccountServiceMultichainAccountGroupUpdatedEvent,
   MultichainAccountServiceWalletStatusChangeEvent,
+  MultichainAccountGroupStatus,
+  MultichainAccountServiceGroupStatusChangeEvent,
 } from './types';
 export type {
   MultichainAccountServiceResyncAccountsAction,
