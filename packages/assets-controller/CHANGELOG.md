@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `webSocketEnabledNamespaces` constructor option to gate non-EVM account-activity balances (e.g. Solana) behind a feature flag ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Add `webSocketEnabledNamespaces` constructor option to gate non-EVM account-activity balances (e.g. Solana) behind a feature flag ([#9430](https://github.com/MetaMask/core/pull/9430))
   - The getter returns the non-EVM CAIP namespaces (e.g. `['solana']`, and later `['solana', 'bip122']` for Tron) served over WebSocket. EVM (`eip155`) is always served over WebSocket.
   - For each enabled namespace (while the WebSocket is connected), `BackendWebsocketDataSource` claims that namespace's chains and streams real-time balances for them; disabled namespaces are left unclaimed and unsubscribed so the `SnapDataSource` serves them.
   - When the WebSocket is down, those chains are released, so the `SnapDataSource` takes over as a fallback.
@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- `AccountsApiDataSource` now documents that it serves EVM chains only; non-EVM chains (e.g. Solana) are served by the WebSocket source when enabled, otherwise by the Snap source ([#0000](https://github.com/MetaMask/core/pull/0000))
+- `AccountsApiDataSource` now documents that it serves EVM chains only; non-EVM chains (e.g. Solana) are served by the WebSocket source when enabled, otherwise by the Snap source ([#9430](https://github.com/MetaMask/core/pull/9430))
 - `MulticallClient` memoizes `balanceOf` and `getEthBalance` call encodings per account address when building multicall batches, reducing redundant ABI encoding for wallets with many tokens ([#9425](https://github.com/MetaMask/core/pull/9425))
 - Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.3.0` ([#9421](https://github.com/MetaMask/core/pull/9421))
 - Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
