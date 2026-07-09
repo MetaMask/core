@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Map `assetActivation` and `assetDeactivation` activity types in transaction activity mappers ([#9440](https://github.com/MetaMask/core/pull/9440))
+
 ## [1.0.0]
 
 ### Added
@@ -17,7 +21,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `mapKeyringTransaction` for mapping keyring transactions to activity items
   - `mapLocalTransaction` for mapping local transaction groups to activity items
   - Shared activity types (`ActivityItem`, `ActivityKind`, `Status`, etc.)
-- Add `assetActivation`/`assetDeactivation` activity kinds and map Stellar trustline `TokenApprove`/`TokenDisapprove` keyring transactions to them in `mapKeyringTransaction` ([#9440](https://github.com/MetaMask/core/pull/9440))
 
 ### Changed
 
