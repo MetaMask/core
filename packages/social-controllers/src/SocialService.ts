@@ -513,9 +513,6 @@ export class SocialService extends BaseDataService<
    * @param options.limit - Number of results per page.
    * @param options.olderThan - Cursor for older items (scroll down).
    * @param options.newerThan - Cursor for newer items (refresh).
-   * @param options.test - Test mode: serve the `following` feed for a fixed
-   * demo wallet instead of the JWT profile. Temporary until Clicker resolves
-   * feeds by profile id.
    * @returns The feed response with items and pagination cursors.
    */
   async fetchFeed(options?: FetchFeedOptions): Promise<FeedResponse> {
@@ -523,8 +520,7 @@ export class SocialService extends BaseDataService<
       queryKey: [`${this.name}:fetchFeed`, options ?? null],
       staleTime: 0,
       queryFn: async () => {
-        const { scope, chains, limit, olderThan, newerThan, test } =
-          options ?? {};
+        const { scope, chains, limit, olderThan, newerThan } = options ?? {};
         const url = new URL(`${this.#v1Url}/feed`);
         if (scope) {
           url.searchParams.append('scope', scope);
@@ -542,9 +538,6 @@ export class SocialService extends BaseDataService<
         }
         if (newerThan) {
           url.searchParams.append('newerThan', newerThan);
-        }
-        if (test) {
-          url.searchParams.append('test', 'true');
         }
 
         const authHeaders = await this.#getAuthHeaders();

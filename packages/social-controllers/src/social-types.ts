@@ -315,7 +315,10 @@ export type FetchFeedOptions = {
    * all users). Defaults to `following` server-side when omitted.
    */
   scope?: 'following' | 'leaderboard';
-  /** Filter by one or more chains. Omit for the server defaults. */
+  /**
+   * Filter by one or more chains, given as CAIP-2 chain ids (e.g.
+   * `eip155:8453`). Omit for the server defaults.
+   */
   chains?: string[];
   /** Number of results to return. */
   limit?: number;
@@ -323,13 +326,6 @@ export type FetchFeedOptions = {
   olderThan?: string;
   /** Cursor for newer items (pull to refresh). Use `pagination.newerCursor`. */
   newerThan?: string;
-  /**
-   * Test mode. When `true`, the social-api ignores the JWT profile id and
-   * serves the `following` feed for a fixed demo wallet that has activity.
-   * Temporary until Clicker resolves feeds by profile id — remove once that
-   * ships.
-   */
-  test?: boolean;
 };
 
 export type FetchPositionByIdOptions = {

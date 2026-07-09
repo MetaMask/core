@@ -916,34 +916,6 @@ describe('SocialService', () => {
       expect(calledUrl).toContain('newerThan=newer-cursor');
     });
 
-    it('appends test=true when test mode is enabled', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve(mockFeedResponse),
-      });
-
-      const service = createService();
-      await service.fetchFeed({ test: true });
-
-      const calledUrl = mockFetch.mock.calls[0][0] as string;
-      expect(calledUrl).toContain('test=true');
-    });
-
-    it('omits the test param when test mode is off', async () => {
-      mockFetch.mockResolvedValue({
-        ok: true,
-        status: 200,
-        json: () => Promise.resolve(mockFeedResponse),
-      });
-
-      const service = createService();
-      await service.fetchFeed({ test: false });
-
-      const calledUrl = mockFetch.mock.calls[0][0] as string;
-      expect(calledUrl).not.toContain('test=');
-    });
-
     it('validates a perp feed item', async () => {
       mockFetch.mockResolvedValue({
         ok: true,
