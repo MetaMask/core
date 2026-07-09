@@ -32,6 +32,26 @@
         "default": "./dist/index.cjs"
       }
     },
+    "./mocks": {
+      "import": {
+        "types": "./dist/mocks/index.d.mts",
+        "default": "./dist/mocks/index.mjs"
+      },
+      "require": {
+        "types": "./dist/mocks/index.d.cts",
+        "default": "./dist/mocks/index.cjs"
+      }
+    },
+    "./price-api": {
+      "import": {
+        "types": "./dist/price-api/index.d.mts",
+        "default": "./dist/price-api/index.mjs"
+      },
+      "require": {
+        "types": "./dist/price-api/index.d.cts",
+        "default": "./dist/price-api/index.cjs"
+      }
+    },
     "./package.json": "./package.json"
   },
   "publishConfig": {
@@ -39,11 +59,12 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
-    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
+    "build": "yarn codegen && ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
+    "build:all": "yarn codegen && ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/core-backend",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/core-backend",
+    "codegen": "kubb generate --config codegen/kubb.config.ts && node codegen/annotate-msw-handlers.mjs",
     "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --check",
     "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",
@@ -58,23 +79,44 @@
     "@metamask/keyring-controller": "^27.1.0",
     "@metamask/messenger": "^2.0.0",
     "@metamask/profile-sync-controller": "^28.2.0",
+    "@metamask/superstruct": "^3.3.0",
     "@metamask/utils": "^11.11.0",
     "@tanstack/query-core": "^5.62.16",
     "async-mutex": "^0.5.0",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
+    "@faker-js/faker": "^9.9.0",
+    "@kubb/cli": "^4.39.2",
+    "@kubb/core": "^4.39.2",
+    "@kubb/plugin-faker": "^4.39.2",
+    "@kubb/plugin-msw": "^4.39.2",
+    "@kubb/plugin-oas": "^4.39.2",
+    "@kubb/plugin-ts": "^4.39.2",
     "@metamask/auto-changelog": "^6.1.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
     "deepmerge": "^4.2.2",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
+    "msw": "~2.10.5",
     "ts-jest": "^29.2.5",
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"
+  },
+  "peerDependencies": {
+    "@faker-js/faker": "^9.9.0",
+    "msw": "^2.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@faker-js/faker": {
+      "optional": true
+    },
+    "msw": {
+      "optional": true
+    }
   },
   "engines": {
     "node": "^18.18 || >=20"

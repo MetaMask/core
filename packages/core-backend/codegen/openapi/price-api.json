@@ -1,0 +1,948 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Price API",
+    "description": "MetaMask Price API. Provides spot prices, exchange rates, historical prices and market data for tokens across networks. This document is a curated subset of https://price.api.cx.metamask.io/docs-json, enriched with response schemas (the live document does not declare response DTOs for most endpoints).",
+    "version": "1.0.0",
+    "contact": {
+      "name": "MetaMask",
+      "url": "https://github.com/MetaMask/core"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://price.api.cx.metamask.io"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Supported Networks"
+    },
+    {
+      "name": "Exchange Rates"
+    },
+    {
+      "name": "Spot Prices"
+    },
+    {
+      "name": "Historical Prices"
+    },
+    {
+      "name": "Top Tokens"
+    }
+  ],
+  "paths": {
+    "/v1/supportedNetworks": {
+      "get": {
+        "operationId": "getV1SupportedNetworks",
+        "summary": "Get supported networks",
+        "description": "Returns the list of supported networks, keyed by decimal chain ID.",
+        "tags": ["Supported Networks"],
+        "responses": {
+          "200": {
+            "description": "The supported networks, split by level of support.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupportedNetworks"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/supportedNetworks": {
+      "get": {
+        "operationId": "getV2SupportedNetworks",
+        "summary": "Get supported networks (CAIP-2)",
+        "description": "Returns the list of supported networks, keyed by CAIP-2 chain ID.",
+        "tags": ["Supported Networks"],
+        "responses": {
+          "200": {
+            "description": "The supported networks, split by level of support.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SupportedNetworks"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/exchange-rates": {
+      "get": {
+        "operationId": "getV1ExchangeRates",
+        "summary": "Get exchange rates",
+        "description": "Returns a list of exchange rates for all supported currencies against the given base currency.",
+        "tags": ["Exchange Rates"],
+        "parameters": [
+          {
+            "name": "baseCurrency",
+            "in": "query",
+            "required": true,
+            "description": "The base currency to convert rates against.",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Exchange rates keyed by currency ticker.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExchangeRates"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/exchange-rates/fiat": {
+      "get": {
+        "operationId": "getV1FiatExchangeRates",
+        "summary": "Get fiat exchange rates",
+        "description": "Returns a list of exchange rates for all supported fiat currencies.",
+        "tags": ["Exchange Rates"],
+        "responses": {
+          "200": {
+            "description": "Exchange rates keyed by currency ticker.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExchangeRates"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/spot-prices": {
+      "get": {
+        "operationId": "getV1SpotPricesByCoinIds",
+        "summary": "Get spot prices by CoinGecko coin IDs",
+        "description": "Returns a list of spot prices for a given list of CoinGecko coin IDs.",
+        "tags": ["Spot Prices"],
+        "parameters": [
+          {
+            "name": "coinIds",
+            "in": "query",
+            "required": true,
+            "description": "Comma-separated CoinGecko IDs of the coins to get prices for.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "vsCurrency",
+            "in": "query",
+            "required": false,
+            "description": "Currency to convert prices to.",
+            "schema": {
+              "$ref": "#/components/schemas/VsCurrency"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Spot prices keyed by CoinGecko coin ID.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoinGeckoSpotPrices"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/spot-prices/{coinId}": {
+      "get": {
+        "operationId": "getV1SpotPriceByCoinId",
+        "summary": "Get spot price by CoinGecko coin ID",
+        "description": "Returns the spot price for a supported CoinGecko coin ID.",
+        "tags": ["Spot Prices"],
+        "parameters": [
+          {
+            "name": "coinId",
+            "in": "path",
+            "required": true,
+            "description": "CoinGecko ID of the coin to get the price for.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "vsCurrency",
+            "in": "query",
+            "required": false,
+            "description": "Currency to convert the price to.",
+            "schema": {
+              "$ref": "#/components/schemas/VsCurrency"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The spot price of the coin.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoinGeckoSpotPrice"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/chains/{chainId}/spot-prices": {
+      "get": {
+        "operationId": "getV2SpotPrices",
+        "summary": "Get spot prices with market data by token addresses",
+        "description": "Returns spot prices with full market data for a given list of token addresses on a chain.",
+        "tags": ["Spot Prices"],
+        "parameters": [
+          {
+            "name": "chainId",
+            "in": "path",
+            "required": true,
+            "description": "Decimal chain ID of the network to query.",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "tokenAddresses",
+            "in": "query",
+            "required": true,
+            "description": "Comma-separated token contract addresses to get prices for.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "vsCurrency",
+            "in": "query",
+            "required": false,
+            "description": "Currency to convert prices to.",
+            "schema": {
+              "$ref": "#/components/schemas/VsCurrency"
+            }
+          },
+          {
+            "name": "includeMarketData",
+            "in": "query",
+            "required": false,
+            "description": "Whether to include market data in the response.",
+            "schema": {
+              "type": "boolean",
+              "default": true
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Market data keyed by lowercased token contract address.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketDataSpotPrices"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v3/spot-prices": {
+      "get": {
+        "operationId": "getV3SpotPrices",
+        "summary": "Get spot prices by CAIP-19 asset IDs",
+        "description": "Returns a list of spot prices for a given list of CAIP-19 asset IDs.",
+        "tags": ["Spot Prices"],
+        "parameters": [
+          {
+            "name": "assetIds",
+            "in": "query",
+            "required": true,
+            "description": "Comma-separated CAIP-19 asset IDs to get prices for.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "vsCurrency",
+            "in": "query",
+            "required": false,
+            "description": "Currency to convert prices to.",
+            "schema": {
+              "$ref": "#/components/schemas/VsCurrency"
+            }
+          },
+          {
+            "name": "includeMarketData",
+            "in": "query",
+            "required": false,
+            "description": "Whether to include market data in the response.",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "name": "cacheOnly",
+            "in": "query",
+            "required": false,
+            "description": "Whether to only return prices that are already cached.",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Spot prices keyed by CAIP-19 asset ID. Unknown assets map to null.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/V3SpotPrices"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/chains/{chainId}/historical-prices/{tokenAddress}": {
+      "get": {
+        "operationId": "getV1HistoricalPrices",
+        "summary": "Get historical prices by token address",
+        "description": "Returns historical prices for a single token on a chain.",
+        "tags": ["Historical Prices"],
+        "parameters": [
+          {
+            "name": "chainId",
+            "in": "path",
+            "required": true,
+            "description": "Decimal chain ID of the network to query.",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "tokenAddress",
+            "in": "path",
+            "required": true,
+            "description": "Contract address of the token to get prices for.",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "vsCurrency",
+            "in": "query",
+            "required": false,
+            "description": "Currency to convert prices to.",
+            "schema": {
+              "$ref": "#/components/schemas/VsCurrency"
+            }
+          },
+          {
+            "name": "timePeriod",
+            "in": "query",
+            "required": false,
+            "description": "Time period for the historical prices (e.g. 1d, 7d, 1m, 3m, 1y, 1000d).",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The historical prices of the token.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoricalPrices"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v3/historical-prices/{chainId}/{assetType}": {
+      "get": {
+        "operationId": "getV3HistoricalPrices",
+        "summary": "Get historical prices by CAIP-19 asset ID",
+        "description": "Returns historical prices, market caps and total volumes for a CAIP-19 asset.",
+        "tags": ["Historical Prices"],
+        "parameters": [
+          {
+            "name": "chainId",
+            "in": "path",
+            "required": true,
+            "description": "CAIP-2 chain ID of the network to query (e.g. eip155:1).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "assetType",
+            "in": "path",
+            "required": true,
+            "description": "Asset type portion of the CAIP-19 asset ID (e.g. slip44:60).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "vsCurrency",
+            "in": "query",
+            "required": false,
+            "description": "Currency to convert prices to.",
+            "schema": {
+              "$ref": "#/components/schemas/VsCurrency"
+            }
+          },
+          {
+            "name": "timePeriod",
+            "in": "query",
+            "required": false,
+            "description": "Time period for the historical prices (e.g. 1d, 7d, 1m, 3m, 1y, 1000d).",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "required": false,
+            "description": "Start of the time range as a Unix timestamp in seconds.",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "required": false,
+            "description": "End of the time range as a Unix timestamp in seconds.",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "interval",
+            "in": "query",
+            "required": false,
+            "description": "Data point interval.",
+            "schema": {
+              "type": "string",
+              "enum": ["5m", "hourly", "daily"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The historical prices of the asset.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/V3HistoricalPrices"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/chains/{chainId}/top-tokens": {
+      "get": {
+        "operationId": "getV2TopTokens",
+        "summary": "Get top tokens by market cap",
+        "description": "Returns the top tokens on a chain, ordered by market cap.",
+        "tags": ["Top Tokens"],
+        "parameters": [
+          {
+            "name": "chainId",
+            "in": "path",
+            "required": true,
+            "description": "Decimal chain ID of the network to query.",
+            "schema": {
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Maximum number of tokens to return.",
+            "schema": {
+              "type": "number",
+              "default": 100,
+              "minimum": 1,
+              "maximum": 300
+            }
+          },
+          {
+            "name": "vsCurrency",
+            "in": "query",
+            "required": false,
+            "description": "Currency to convert prices to.",
+            "schema": {
+              "$ref": "#/components/schemas/VsCurrency"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "The top tokens ordered by market cap.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TopToken"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "VsCurrency": {
+        "type": "string",
+        "description": "A currency that prices can be denominated in.",
+        "default": "usd",
+        "enum": [
+          "btc",
+          "eth",
+          "ltc",
+          "bch",
+          "bnb",
+          "eos",
+          "xrp",
+          "xlm",
+          "link",
+          "dot",
+          "yfi",
+          "usd",
+          "aed",
+          "ars",
+          "aud",
+          "bdt",
+          "bhd",
+          "bmd",
+          "brl",
+          "cad",
+          "chf",
+          "clp",
+          "cny",
+          "czk",
+          "dkk",
+          "eur",
+          "gbp",
+          "gel",
+          "hkd",
+          "huf",
+          "idr",
+          "ils",
+          "inr",
+          "jpy",
+          "krw",
+          "kwd",
+          "lkr",
+          "mmk",
+          "mxn",
+          "myr",
+          "ngn",
+          "nok",
+          "nzd",
+          "php",
+          "pkr",
+          "pln",
+          "rub",
+          "sar",
+          "sek",
+          "sgd",
+          "thb",
+          "try",
+          "twd",
+          "uah",
+          "vef",
+          "vnd",
+          "zar"
+        ]
+      },
+      "SupportedNetworks": {
+        "type": "object",
+        "description": "Networks supported by the Price API, split by level of support.",
+        "properties": {
+          "fullSupport": {
+            "type": "array",
+            "description": "Chain IDs with full price support.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "partialSupport": {
+            "type": "array",
+            "description": "Chain IDs with partial price support.",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": ["fullSupport", "partialSupport"]
+      },
+      "ExchangeRateInfo": {
+        "type": "object",
+        "description": "Exchange rate details for a single currency.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Human-readable name of the currency."
+          },
+          "ticker": {
+            "type": "string",
+            "description": "Ticker symbol of the currency."
+          },
+          "value": {
+            "type": "number",
+            "description": "Exchange rate against the base currency."
+          },
+          "currencyType": {
+            "type": "string",
+            "description": "Whether the currency is a cryptocurrency or fiat currency.",
+            "enum": ["crypto", "fiat"]
+          }
+        },
+        "required": ["name", "ticker", "value", "currencyType"]
+      },
+      "ExchangeRates": {
+        "type": "object",
+        "description": "Exchange rates keyed by currency ticker.",
+        "additionalProperties": {
+          "$ref": "#/components/schemas/ExchangeRateInfo"
+        }
+      },
+      "CoinGeckoSpotPrice": {
+        "type": "object",
+        "description": "Spot price and market data for a CoinGecko-listed coin.",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "CoinGecko coin ID."
+          },
+          "price": {
+            "type": "number",
+            "description": "Current price in the requested currency."
+          },
+          "marketCap": {
+            "type": "number",
+            "description": "Market capitalization."
+          },
+          "allTimeHigh": {
+            "type": "number",
+            "description": "All-time high price."
+          },
+          "allTimeLow": {
+            "type": "number",
+            "description": "All-time low price."
+          },
+          "totalVolume": {
+            "type": "number",
+            "description": "Total trading volume."
+          },
+          "high1d": {
+            "type": "number",
+            "description": "24h high price."
+          },
+          "low1d": {
+            "type": "number",
+            "description": "24h low price."
+          },
+          "circulatingSupply": {
+            "type": "number",
+            "description": "Circulating supply."
+          },
+          "dilutedMarketCap": {
+            "type": "number",
+            "description": "Fully diluted market cap."
+          },
+          "marketCapPercentChange1d": {
+            "type": "number",
+            "description": "Market cap 24h change percentage."
+          },
+          "priceChange1d": {
+            "type": "number",
+            "description": "24h price change amount."
+          },
+          "pricePercentChange1h": {
+            "type": "number",
+            "description": "1h price change percentage."
+          },
+          "pricePercentChange1d": {
+            "type": "number",
+            "description": "24h price change percentage."
+          },
+          "pricePercentChange7d": {
+            "type": "number",
+            "description": "7d price change percentage."
+          },
+          "pricePercentChange14d": {
+            "type": "number",
+            "description": "14d price change percentage."
+          },
+          "pricePercentChange30d": {
+            "type": "number",
+            "description": "30d price change percentage."
+          },
+          "pricePercentChange200d": {
+            "type": "number",
+            "description": "200d price change percentage."
+          },
+          "pricePercentChange1y": {
+            "type": "number",
+            "description": "1y price change percentage."
+          }
+        },
+        "required": ["id", "price"]
+      },
+      "CoinGeckoSpotPrices": {
+        "type": "object",
+        "description": "Spot prices keyed by CoinGecko coin ID.",
+        "additionalProperties": {
+          "$ref": "#/components/schemas/CoinGeckoSpotPrice"
+        }
+      },
+      "MarketData": {
+        "type": "object",
+        "description": "Market data for a token, as returned by the v2 spot prices endpoint.",
+        "properties": {
+          "price": {
+            "type": "number",
+            "description": "Current price in the requested currency."
+          },
+          "currency": {
+            "type": "string",
+            "description": "Currency the price is denominated in."
+          },
+          "priceChange1d": {
+            "type": "number",
+            "description": "24h price change amount."
+          },
+          "pricePercentChange1d": {
+            "type": "number",
+            "description": "24h price change percentage."
+          },
+          "pricePercentChange1h": {
+            "type": "number",
+            "description": "1h price change percentage."
+          },
+          "pricePercentChange7d": {
+            "type": "number",
+            "description": "7d price change percentage."
+          },
+          "pricePercentChange14d": {
+            "type": "number",
+            "description": "14d price change percentage."
+          },
+          "pricePercentChange30d": {
+            "type": "number",
+            "description": "30d price change percentage."
+          },
+          "pricePercentChange200d": {
+            "type": "number",
+            "description": "200d price change percentage."
+          },
+          "pricePercentChange1y": {
+            "type": "number",
+            "description": "1y price change percentage."
+          },
+          "marketCap": {
+            "type": "number",
+            "description": "Market capitalization."
+          },
+          "marketCapPercentChange1d": {
+            "type": "number",
+            "description": "Market cap 24h change percentage."
+          },
+          "allTimeHigh": {
+            "type": "number",
+            "description": "All-time high price."
+          },
+          "allTimeLow": {
+            "type": "number",
+            "description": "All-time low price."
+          },
+          "high1d": {
+            "type": "number",
+            "description": "24h high price."
+          },
+          "low1d": {
+            "type": "number",
+            "description": "24h low price."
+          },
+          "totalVolume": {
+            "type": "number",
+            "description": "Total trading volume."
+          },
+          "circulatingSupply": {
+            "type": "number",
+            "description": "Circulating supply."
+          },
+          "dilutedMarketCap": {
+            "type": "number",
+            "description": "Fully diluted market cap."
+          }
+        },
+        "required": ["price", "currency"]
+      },
+      "MarketDataSpotPrices": {
+        "type": "object",
+        "description": "Market data keyed by lowercased token contract address.",
+        "additionalProperties": {
+          "$ref": "#/components/schemas/MarketData"
+        }
+      },
+      "V3SpotPrice": {
+        "type": "object",
+        "description": "Spot price and optional market data for a CAIP-19 asset.",
+        "properties": {
+          "price": {
+            "type": "number",
+            "description": "Current price in the requested currency."
+          },
+          "pricePercentChange1d": {
+            "type": "number",
+            "description": "24h price change percentage."
+          },
+          "marketCap": {
+            "type": "number",
+            "description": "Market capitalization."
+          },
+          "totalVolume": {
+            "type": "number",
+            "description": "Total trading volume."
+          }
+        },
+        "required": ["price"]
+      },
+      "V3SpotPrices": {
+        "type": "object",
+        "description": "Spot prices keyed by CAIP-19 asset ID. Assets without a known price map to null.",
+        "additionalProperties": {
+          "oneOf": [
+            {
+              "$ref": "#/components/schemas/V3SpotPrice"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "PricePoint": {
+        "type": "array",
+        "description": "A [timestamp, value] tuple. The timestamp is a Unix timestamp in milliseconds.",
+        "prefixItems": [
+          {
+            "type": "number",
+            "description": "Unix timestamp in milliseconds."
+          },
+          {
+            "type": "number",
+            "description": "Value at the given timestamp."
+          }
+        ],
+        "items": false,
+        "minItems": 2,
+        "maxItems": 2
+      },
+      "HistoricalPrices": {
+        "type": "object",
+        "description": "Historical prices for a token.",
+        "properties": {
+          "prices": {
+            "type": "array",
+            "description": "Price data points.",
+            "items": {
+              "$ref": "#/components/schemas/PricePoint"
+            }
+          }
+        },
+        "required": ["prices"]
+      },
+      "V3HistoricalPrices": {
+        "type": "object",
+        "description": "Historical prices, market caps and total volumes for a CAIP-19 asset.",
+        "properties": {
+          "prices": {
+            "type": "array",
+            "description": "Price data points.",
+            "items": {
+              "$ref": "#/components/schemas/PricePoint"
+            }
+          },
+          "marketCaps": {
+            "type": "array",
+            "description": "Market cap data points.",
+            "items": {
+              "$ref": "#/components/schemas/PricePoint"
+            }
+          },
+          "totalVolumes": {
+            "type": "array",
+            "description": "Total volume data points.",
+            "items": {
+              "$ref": "#/components/schemas/PricePoint"
+            }
+          }
+        },
+        "required": ["prices"]
+      },
+      "TopToken": {
+        "type": "object",
+        "description": "A token in the top tokens list.",
+        "properties": {
+          "assetId": {
+            "type": "string",
+            "description": "CAIP-19 asset ID of the token."
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable name of the token."
+          },
+          "symbol": {
+            "type": "string",
+            "description": "Ticker symbol of the token."
+          },
+          "price": {
+            "type": "number",
+            "description": "Current price in the requested currency."
+          },
+          "marketCap": {
+            "type": "number",
+            "description": "Market capitalization."
+          }
+        },
+        "required": ["assetId", "name", "symbol", "price", "marketCap"]
+      }
+    }
+  }
+}

@@ -18,6 +18,10 @@ module.exports = merge(baseConfig, {
   testEnvironment: 'jsdom',
   testEnvironmentOptions: {},
 
+  // Exclude code generated from OpenAPI documents by Kubb (`yarn codegen`)
+  // from coverage.
+  coveragePathIgnorePatterns: ['/src/generated/'],
+
   // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
     global: {
