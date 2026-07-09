@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `trace` constructor option to `MoneyAccountBalanceService` for tracing network requests (RPC calls and the Veda APY API fetch). Tracing is best-effort and does not affect query results if it fails. ([#9434](https://github.com/MetaMask/core/pull/9434))
+
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
