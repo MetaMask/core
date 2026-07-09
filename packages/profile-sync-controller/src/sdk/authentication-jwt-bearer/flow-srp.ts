@@ -13,6 +13,7 @@ import { validateLoginResponse } from '../utils/validate-login-response';
 import {
   authenticate,
   authorizeOIDC,
+  getCustomerServiceToken,
   getNonce,
   getUserProfileLineage,
   pairProfiles,
@@ -163,6 +164,11 @@ export class SRPJwtBearerAuth implements IBaseAuth {
   ): Promise<UserProfileLineage> {
     const accessToken = await this.getAccessToken(entropySourceId);
     return await getUserProfileLineage(this.#config.env, accessToken);
+  }
+
+  async getCustomerServiceToken(entropySourceId?: string): Promise<string> {
+    const accessToken = await this.getAccessToken(entropySourceId);
+    return await getCustomerServiceToken(this.#config.env, accessToken);
   }
 
   async pairSrpProfiles(
