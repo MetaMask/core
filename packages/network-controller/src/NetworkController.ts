@@ -1404,11 +1404,7 @@ export class NetworkController extends BaseController<
       autoManagedNetworkClientRegistry,
     )) {
       for (const networkClientId of Object.keys(networkClientsById)) {
-        // Type assertion: We can assume that `networkClientId` is valid here.
-        const networkClient =
-          networkClientsById[
-            networkClientId as keyof typeof networkClientsById
-          ];
+        const networkClient = networkClientsById[networkClientId];
         if (
           networkClient.configuration.failoverRpcUrls &&
           networkClient.configuration.failoverRpcUrls.length > 0

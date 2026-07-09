@@ -1,10 +1,6 @@
 import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
-import type {
-  CockatielFailureReason,
-  InfuraNetworkType,
-} from '@metamask/controller-utils';
+import type { CockatielFailureReason } from '@metamask/controller-utils';
 import {
-  ChainId,
   DEFAULT_MAX_CONSECUTIVE_FAILURES,
   DEFAULT_MAX_RETRIES,
 } from '@metamask/controller-utils';
