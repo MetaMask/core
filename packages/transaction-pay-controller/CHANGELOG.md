@@ -20,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.3.0` ([#9421](https://github.com/MetaMask/core/pull/9421))
 - Bump `@metamask/assets-controllers` from `^109.3.0` to `^109.3.1` ([#9429](https://github.com/MetaMask/core/pull/9429))
 
+### Fixed
+
+- Subscribe to all asset event sources (`AssetsController`, `TokensController`, `TokenRatesController`, `CurrencyRateController`) unconditionally instead of picking one based on the unify-state feature flag at construction time ([#9427](https://github.com/MetaMask/core/pull/9427))
+  - The flag can flip from disabled to enabled after this controller is constructed (e.g. remote feature flags loading after startup), which previously left the controller subscribed to a source that never fired, causing required tokens to never resolve for transactions started before the flag loaded.
+
 ## [23.17.4]
 
 ### Fixed
