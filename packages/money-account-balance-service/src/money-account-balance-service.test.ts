@@ -422,11 +422,13 @@ function expectTraceRequest(
     name,
     operation,
     success = true,
+    tokenAddress,
   }: {
     errorName?: string;
     name: string;
     operation: string;
     success?: boolean;
+    tokenAddress?: string;
   },
 ): void {
   const traceRequest = traceCallback.mock.calls.find(
@@ -441,6 +443,7 @@ function expectTraceRequest(
       ...(errorName ? { errorName } : {}),
       operation,
       success,
+      ...(tokenAddress ? { tokenAddress } : {}),
     },
   });
 }
@@ -775,6 +778,7 @@ describe('MoneyAccountBalanceService', () => {
       expectTraceRequest(trace, {
         name: 'Get Money Account ERC20 Balance RPC',
         operation: 'balanceOf',
+        tokenAddress: MOCK_UNDERLYING_TOKEN_ADDRESS,
       });
     });
 
@@ -812,6 +816,7 @@ describe('MoneyAccountBalanceService', () => {
       expectTraceRequest(trace, {
         name: 'Get Money Account ERC20 Balance RPC',
         operation: 'balanceOf',
+        tokenAddress: MOCK_VAULT_ADDRESS,
       });
     });
 
@@ -875,6 +880,7 @@ describe('MoneyAccountBalanceService', () => {
       expectTraceRequest(trace, {
         name: 'Get Money Account ERC20 Balance RPC',
         operation: 'balanceOf',
+        tokenAddress: MOCK_UNDERLYING_TOKEN_ADDRESS,
       });
     });
 
