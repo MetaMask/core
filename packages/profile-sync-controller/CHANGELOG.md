@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `AuthenticationController.getCustomerServiceToken` method and messenger action to retrieve a Customer Service specific access token ([#XXX](https://github.com/MetaMask/core/pull/XXX))
+- Add `AuthenticationController.getCustomerServiceToken` method and messenger action to retrieve a Customer Service specific access token ([#9442](https://github.com/MetaMask/core/pull/9442))
   - Exchanges the OIDC access token for a short-lived token scoped to the customer-service audience via `POST /api/v2/customer-service/token`, which Customer Service tooling consumes to identify and authenticate the user.
 
 ### Changed
