@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `mapKeyringTransaction` for mapping keyring transactions to activity items
   - `mapLocalTransaction` for mapping local transaction groups to activity items
   - Shared activity types (`ActivityItem`, `ActivityKind`, `Status`, etc.)
+- Add `assetActivation`/`assetDeactivation` activity kinds and map Stellar trustline `TokenApprove`/`TokenDisapprove` keyring transactions to them in `mapKeyringTransaction`
 
 ### Changed
 
