@@ -72,9 +72,9 @@ const config: KnipConfig = {
     },
     'packages/core-backend': {
       // Scan the Kubb code generation tooling (`codegen/`) next to `src/` so
-      // the `@kubb/*` devDependencies used by `kubb.config.ts` and the custom
-      // plugins are seen.
-      entry: ['codegen/kubb.config.ts'],
+      // the `@kubb/*` devDependencies used by the codegen runner and the
+      // custom plugins are seen.
+      entry: ['codegen/run.ts'],
       project: ['src/**/*.ts', 'codegen/**/*.ts'],
       ignoreDependencies: ['@metamask/keyring-internal-api'],
     },

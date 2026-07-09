@@ -18,7 +18,8 @@ import { pluginSuperstruct } from './kubb-plugin-superstruct';
  * - `msw/`     MSW request handlers                 (@kubb/plugin-msw)
  * - `queries/` TanStack query-core bindings         (codegen/kubb-plugin-query-core)
  *
- * Run with `yarn workspace @metamask/core-backend run codegen`.
+ * Run with `yarn workspace @metamask/core-backend run codegen`, which
+ * executes this config through `codegen/run.ts`.
  */
 export default defineConfig({
   name: 'price-api',
