@@ -3,6 +3,10 @@ export { CoinGeckoSpotPricesStruct } from './coinGeckoSpotPricesStruct';
 export { ExchangeRateInfoStruct } from './exchangeRateInfoStruct';
 export { ExchangeRatesStruct } from './exchangeRatesStruct';
 export {
+  GetV1CryptoExchangeRates200Struct,
+  GetV1CryptoExchangeRatesQueryResponseStruct,
+} from './getV1CryptoExchangeRatesStruct';
+export {
   GetV1ExchangeRates200Struct,
   GetV1ExchangeRatesQueryParamsStruct,
   GetV1ExchangeRatesQueryResponseStruct,

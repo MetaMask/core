@@ -14,7 +14,7 @@ import type {
   FetchOptions,
 } from '../../../api/query-runtime';
 import { getQueryOptionsOverrides } from '../../../api/query-runtime';
-import { GetV3SpotPricesQueryResponseStruct } from '../schemas/getV3SpotPricesStruct';
+import { GetV3SpotPricesQueryResponseStruct } from '../structs/getV3SpotPricesStruct';
 import type {
   GetV3SpotPricesQueryResponse,
   GetV3SpotPricesQueryParams,

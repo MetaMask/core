@@ -3,6 +3,10 @@ export { createCoinGeckoSpotPrices } from './createCoinGeckoSpotPrices';
 export { createExchangeRateInfo } from './createExchangeRateInfo';
 export { createExchangeRates } from './createExchangeRates';
 export {
+  createGetV1CryptoExchangeRates200,
+  createGetV1CryptoExchangeRatesQueryResponse,
+} from './createGetV1CryptoExchangeRates';
+export {
   createGetV1ExchangeRates200,
   createGetV1ExchangeRatesQueryParams,
   createGetV1ExchangeRatesQueryResponse,

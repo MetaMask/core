@@ -1,6 +1,6 @@
 /**
- * Price API bindings, generated from the API's OpenAPI document by Kubb
- * (`yarn codegen`).
+ * Price API bindings, generated from the vendored OpenAPI spec snapshot
+ * (`specs/price-api.json`) by Kubb (`yarn codegen`).
  *
  * Importable as `@metamask/core-backend/price-api`:
  *
@@ -16,11 +16,11 @@
  * } from '@metamask/core-backend/price-api';
  * ```
  *
- * The faker mocks and MSW handlers generated from the same document are
- * exposed separately through `@metamask/core-backend/mocks`, so this entry
- * point stays free of test-only dependencies.
+ * The faker mock data builders and MSW handlers generated from the same
+ * document are exposed separately through `@metamask/core-backend/mocks`, so
+ * this entry point stays free of test-only dependencies.
  */
 
 export * from '../generated/price-api/types';
-export * from '../generated/price-api/schemas';
+export * from '../generated/price-api/structs';
 export * from '../generated/price-api/queries';

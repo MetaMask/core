@@ -14,7 +14,7 @@ import type {
   FetchOptions,
 } from '../../../api/query-runtime';
 import { getQueryOptionsOverrides } from '../../../api/query-runtime';
-import { GetV1SupportedNetworksQueryResponseStruct } from '../schemas/getV1SupportedNetworksStruct';
+import { GetV1SupportedNetworksQueryResponseStruct } from '../structs/getV1SupportedNetworksStruct';
 import type { GetV1SupportedNetworksQueryResponse } from '../types/GetV1SupportedNetworks';
 
 /**

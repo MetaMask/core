@@ -1,17 +1,24 @@
 /**
  * Test and development mocks for the APIs consumed by this package,
- * generated from their OpenAPI documents by Kubb (`yarn codegen`).
+ * generated from their vendored OpenAPI spec snapshots by Kubb
+ * (`yarn codegen`).
  *
  * Importable as `@metamask/core-backend/mocks`:
  *
  * ```ts
  * import {
  *   // Faker-based mock data builders
- *   createGetV3SpotPricesQueryResponse,
- *   // MSW request handlers
+ *   createV3SpotPrices,
+ *   // MSW request handlers (unit/integration tests)
  *   getV3SpotPricesHandler,
  *   handlers,
  * } from '@metamask/core-backend/mocks';
+ *
+ * // The same mock data also feeds e2e mock servers (mockttp), so fixtures
+ * // regenerate with the spec instead of drifting:
+ * mockServer
+ *   .forGet('https://price.api.cx.metamask.io/v3/spot-prices')
+ *   .thenJson(200, createV3SpotPrices());
  * ```
  *
  * Using the MSW handlers requires the optional `msw` peer dependency; using

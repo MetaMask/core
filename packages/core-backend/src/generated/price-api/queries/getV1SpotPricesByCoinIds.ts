@@ -14,7 +14,7 @@ import type {
   FetchOptions,
 } from '../../../api/query-runtime';
 import { getQueryOptionsOverrides } from '../../../api/query-runtime';
-import { GetV1SpotPricesByCoinIdsQueryResponseStruct } from '../schemas/getV1SpotPricesByCoinIdsStruct';
+import { GetV1SpotPricesByCoinIdsQueryResponseStruct } from '../structs/getV1SpotPricesByCoinIdsStruct';
 import type {
   GetV1SpotPricesByCoinIdsQueryResponse,
   GetV1SpotPricesByCoinIdsQueryParams,

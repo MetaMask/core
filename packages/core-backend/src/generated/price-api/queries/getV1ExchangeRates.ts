@@ -14,7 +14,7 @@ import type {
   FetchOptions,
 } from '../../../api/query-runtime';
 import { getQueryOptionsOverrides } from '../../../api/query-runtime';
-import { GetV1ExchangeRatesQueryResponseStruct } from '../schemas/getV1ExchangeRatesStruct';
+import { GetV1ExchangeRatesQueryResponseStruct } from '../structs/getV1ExchangeRatesStruct';
 import type {
   GetV1ExchangeRatesQueryResponse,
   GetV1ExchangeRatesQueryParams,

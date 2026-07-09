@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add generated Price API bindings under the new `@metamask/core-backend/price-api` entry point, produced from the API's OpenAPI document by Kubb with a custom `@metamask/superstruct` plugin ([#9446](https://github.com/MetaMask/core/pull/9446))
+- Add generated Price API bindings under the new `@metamask/core-backend/price-api` entry point, produced from a vendored OpenAPI spec snapshot (`specs/price-api.json`) by Kubb with a custom `@metamask/superstruct` plugin ([#9446](https://github.com/MetaMask/core/pull/9446))
   - TypeScript types (e.g. `GetV3SpotPricesQueryResponse`), `@metamask/superstruct` structs (e.g. `GetV3SpotPricesQueryResponseStruct`), and TanStack query-core bindings (e.g. `getV3SpotPricesQueryOptions`, `fetchV3SpotPrices`) that validate responses against the generated structs
 - Add generated Price API test mocks under the new `@metamask/core-backend/mocks` entry point ([#9446](https://github.com/MetaMask/core/pull/9446))
   - Faker-based mock data builders (e.g. `createCoinGeckoSpotPrice`) and MSW request handlers (e.g. `getV3SpotPricesHandler`, `handlers`)
@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `PricesApiClient` now validates responses against the generated `@metamask/superstruct` structs for the endpoints covered by the vendored Price API spec (supported networks, exchange rates, v1/v2/v3 spot prices, v1 single-token and v3 historical prices) ([#9446](https://github.com/MetaMask/core/pull/9446))
+  - Malformed responses now reject with a `StructError` instead of being returned as-is; unknown additional fields are still tolerated
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 
 ## [6.5.0]

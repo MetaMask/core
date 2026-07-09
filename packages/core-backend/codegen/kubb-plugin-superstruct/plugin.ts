@@ -25,7 +25,7 @@ export const pluginSuperstructName =
 export const pluginSuperstruct = definePlugin<PluginSuperstruct>(
   (options = {}) => {
     const {
-      output = { path: 'schemas', barrelType: 'named' },
+      output = { path: 'structs', barrelType: 'named' },
       group,
       exclude = [],
       include,

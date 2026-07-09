@@ -21,7 +21,7 @@ export type Options = {
    * Specify the export location for the files and define the behavior of the
    * output.
    *
-   * @default { path: 'schemas', barrelType: 'named' }
+   * @default { path: 'structs', barrelType: 'named' }
    */
   output?: Output<Oas>;
   /**

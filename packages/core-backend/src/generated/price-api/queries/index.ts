@@ -1,4 +1,9 @@
 export {
+  fetchV1CryptoExchangeRates,
+  getV1CryptoExchangeRatesQueryKey,
+  getV1CryptoExchangeRatesQueryOptions,
+} from './getV1CryptoExchangeRates';
+export {
   fetchV1ExchangeRates,
   getV1ExchangeRatesQueryKey,
   getV1ExchangeRatesQueryOptions,

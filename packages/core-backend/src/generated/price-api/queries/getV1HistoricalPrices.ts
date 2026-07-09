@@ -14,7 +14,7 @@ import type {
   FetchOptions,
 } from '../../../api/query-runtime';
 import { getQueryOptionsOverrides } from '../../../api/query-runtime';
-import { GetV1HistoricalPricesQueryResponseStruct } from '../schemas/getV1HistoricalPricesStruct';
+import { GetV1HistoricalPricesQueryResponseStruct } from '../structs/getV1HistoricalPricesStruct';
 import type {
   GetV1HistoricalPricesQueryResponse,
   GetV1HistoricalPricesPathParams,

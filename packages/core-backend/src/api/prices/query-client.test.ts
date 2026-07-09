@@ -39,7 +39,7 @@ import {
   SupportedNetworksStruct,
   TopTokenStruct,
   V3SpotPriceStruct,
-} from '../../generated/price-api/schemas';
+} from '../../generated/price-api/structs';
 import { PricesApiRequestClient } from './query-client';
 
 /**

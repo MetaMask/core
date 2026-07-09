@@ -65,6 +65,7 @@
     "changelog:update": "../../scripts/update-changelog.sh @metamask/core-backend",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/core-backend",
     "codegen": "tsx codegen/run.ts && node codegen/annotate-msw-handlers.mjs && yarn run -T oxfmt src/generated",
+    "codegen:check": "yarn codegen && git diff --exit-code -- src/generated",
     "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --check",
     "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",

@@ -14,7 +14,7 @@ import type {
   FetchOptions,
 } from '../../../api/query-runtime';
 import { getQueryOptionsOverrides } from '../../../api/query-runtime';
-import { GetV2TopTokensQueryResponseStruct } from '../schemas/getV2TopTokensStruct';
+import { GetV2TopTokensQueryResponseStruct } from '../structs/getV2TopTokensStruct';
 import type {
   GetV2TopTokensQueryResponse,
   GetV2TopTokensPathParams,

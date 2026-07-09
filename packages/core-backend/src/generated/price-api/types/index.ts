@@ -6,6 +6,11 @@ export type {
 } from './ExchangeRateInfo';
 export type { ExchangeRates } from './ExchangeRates';
 export type {
+  GetV1CryptoExchangeRates200,
+  GetV1CryptoExchangeRatesQuery,
+  GetV1CryptoExchangeRatesQueryResponse,
+} from './GetV1CryptoExchangeRates';
+export type {
   GetV1ExchangeRates200,
   GetV1ExchangeRatesQuery,
   GetV1ExchangeRatesQueryParams,

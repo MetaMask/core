@@ -14,7 +14,7 @@ import type {
   FetchOptions,
 } from '../../../api/query-runtime';
 import { getQueryOptionsOverrides } from '../../../api/query-runtime';
-import { GetV1FiatExchangeRatesQueryResponseStruct } from '../schemas/getV1FiatExchangeRatesStruct';
+import { GetV1FiatExchangeRatesQueryResponseStruct } from '../structs/getV1FiatExchangeRatesStruct';
 import type { GetV1FiatExchangeRatesQueryResponse } from '../types/GetV1FiatExchangeRates';
 
 /**

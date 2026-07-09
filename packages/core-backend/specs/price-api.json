@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Price API",
-    "description": "MetaMask Price API. Provides spot prices, exchange rates, historical prices and market data for tokens across networks. This document is a curated subset of https://price.api.cx.metamask.io/docs-json, enriched with response schemas (the live document does not declare response DTOs for most endpoints).",
+    "description": "MetaMask Price API. Provides spot prices, exchange rates, historical prices and market data for tokens across networks. Vendored spec snapshot: a curated subset of https://price.api.cx.metamask.io/docs-json, enriched with response schemas because the live document does not declare response DTOs for most endpoints (a spec-quality gap that should be fixed upstream in the API's NestJS response decorators).",
     "version": "1.0.0",
     "contact": {
       "name": "MetaMask",
@@ -108,6 +108,26 @@
         "operationId": "getV1FiatExchangeRates",
         "summary": "Get fiat exchange rates",
         "description": "Returns a list of exchange rates for all supported fiat currencies.",
+        "tags": ["Exchange Rates"],
+        "responses": {
+          "200": {
+            "description": "Exchange rates keyed by currency ticker.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExchangeRates"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/exchange-rates/crypto": {
+      "get": {
+        "operationId": "getV1CryptoExchangeRates",
+        "summary": "Get crypto exchange rates",
+        "description": "Returns a list of exchange rates for all supported crypto currencies.",
         "tags": ["Exchange Rates"],
         "responses": {
           "200": {

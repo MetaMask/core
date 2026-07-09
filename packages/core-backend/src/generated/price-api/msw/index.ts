@@ -1,4 +1,8 @@
 export {
+  getV1CryptoExchangeRatesHandler,
+  getV1CryptoExchangeRatesHandlerResponse200,
+} from './getV1CryptoExchangeRatesHandler';
+export {
   getV1ExchangeRatesHandler,
   getV1ExchangeRatesHandlerResponse200,
 } from './getV1ExchangeRatesHandler';

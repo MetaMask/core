@@ -2,6 +2,7 @@
  * Prices API Client Tests - price.api.cx.metamask.io
  */
 
+import { createGetV1SupportedNetworksQueryResponse } from '../../generated/price-api/mocks';
 import type { ApiPlatformClient } from '../ApiPlatformClient';
 import { API_URLS } from '../shared-types';
 import type { FetchOptions } from '../shared-types';
@@ -441,7 +442,10 @@ describe('PricesApiClient', () => {
 
   describe('Default Parameter Values', () => {
     it('uses default currency for fetchV1SpotPriceByCoinId', async () => {
-      const mockResponse = { ethereum: { usd: 2500 } };
+      // Note: this fixture previously returned a shape the endpoint never
+      // produces ({ ethereum: { usd: 2500 } }); the generated struct
+      // validation surfaced the drift.
+      const mockResponse = { id: 'ethereum', price: 2500 };
       mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
 
       await client.prices.fetchV1SpotPriceByCoinId('ethereum');
@@ -451,7 +455,7 @@ describe('PricesApiClient', () => {
     });
 
     it('uses custom currency for fetchV1SpotPriceByCoinId', async () => {
-      const mockResponse = { ethereum: { eth: 1 } };
+      const mockResponse = { id: 'ethereum', price: 1 };
       mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
 
       await client.prices.fetchV1SpotPriceByCoinId('ethereum', 'eth');
@@ -481,7 +485,7 @@ describe('PricesApiClient', () => {
     });
 
     it('uses default options for fetchV2SpotPrices', async () => {
-      const mockResponse = { '0xtoken': { price: 1.5 } };
+      const mockResponse = { '0xtoken': { price: 1.5, currency: 'usd' } };
       mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
 
       await client.prices.fetchV2SpotPrices('0x1', ['0xtoken']);
@@ -644,6 +648,71 @@ describe('PricesApiClient', () => {
 
       expect(result).toStrictEqual({ id: '', price: 0 });
       expect(mockFetch).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('generated struct response validation', () => {
+    it('rejects a malformed v1 supported networks response', async () => {
+      mockFetch.mockResolvedValueOnce(
+        createMockResponse({ fullSupport: 'not-an-array' }),
+      );
+
+      await expect(
+        client.prices.fetchPriceV1SupportedNetworks(),
+      ).rejects.toThrow(
+        'At path: fullSupport -- Expected an array value, but received: "not-an-array"',
+      );
+    });
+
+    it('rejects a malformed v3 spot prices response', async () => {
+      mockFetch.mockResolvedValueOnce(
+        createMockResponse({
+          'eip155:1/slip44:60': { price: 'not-a-number' },
+        }),
+      );
+
+      await expect(
+        client.prices.fetchV3SpotPrices(['eip155:1/slip44:60']),
+      ).rejects.toThrow(
+        'At path: eip155:1/slip44:60 -- Expected the value to satisfy a union of `type | literal`, but received: [object Object]',
+      );
+    });
+
+    it('rejects a malformed v1 historical prices response', async () => {
+      mockFetch.mockResolvedValueOnce(
+        createMockResponse({ prices: [[1704067200000, null]] }),
+      );
+
+      await expect(
+        client.prices.fetchV1HistoricalPrices('0x1', '0xtoken'),
+      ).rejects.toThrow(
+        'At path: prices.0.1 -- Expected a number, but received: null',
+      );
+    });
+
+    it('accepts responses with additional unknown fields (tolerant on additions)', async () => {
+      const mockResponse = {
+        fullSupport: ['1'],
+        partialSupport: [],
+        someNewBackendField: true,
+      };
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      expect(await client.prices.fetchPriceV1SupportedNetworks()).toStrictEqual(
+        mockResponse,
+      );
+    });
+
+    it('accepts generated mock data served as a response', async () => {
+      // The generated faker mocks and structs come from the same spec, so
+      // mock data always satisfies validation — e2e fixtures built on the
+      // mocks cannot drift from the contract.
+      const mockResponse = createGetV1SupportedNetworksQueryResponse();
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      expect(await client.prices.fetchPriceV1SupportedNetworks()).toStrictEqual(
+        mockResponse,
+      );
     });
   });
 

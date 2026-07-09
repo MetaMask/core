@@ -5,6 +5,7 @@
 
 import type { HttpHandler } from 'msw';
 
+import { getV1CryptoExchangeRatesHandler } from './getV1CryptoExchangeRatesHandler';
 import { getV1ExchangeRatesHandler } from './getV1ExchangeRatesHandler';
 import { getV1FiatExchangeRatesHandler } from './getV1FiatExchangeRatesHandler';
 import { getV1HistoricalPricesHandler } from './getV1HistoricalPricesHandler';
@@ -22,6 +23,7 @@ export const handlers: HttpHandler[] = [
   getV2SupportedNetworksHandler(),
   getV1ExchangeRatesHandler(),
   getV1FiatExchangeRatesHandler(),
+  getV1CryptoExchangeRatesHandler(),
   getV1SpotPricesByCoinIdsHandler(),
   getV1SpotPriceByCoinIdHandler(),
   getV2SpotPricesHandler(),
