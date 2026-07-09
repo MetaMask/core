@@ -1,6 +1,6 @@
 {
   "name": "@metamask/local-node-utils",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Shared utilities for MetaMask local node runtime installers",
   "keywords": [
     "Ethereum",

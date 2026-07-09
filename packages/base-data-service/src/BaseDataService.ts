@@ -1,9 +1,4 @@
 import {
-  createServicePolicy,
-  CreateServicePolicyOptions,
-  ServicePolicy,
-} from '@metamask/controller-utils';
-import {
   Messenger,
   ActionConstraint,
   EventConstraint,
@@ -26,6 +21,12 @@ import {
   dehydrate,
 } from '@tanstack/query-core';
 import deepEqual from 'fast-deep-equal';
+
+import {
+  createServicePolicy,
+  CreateServicePolicyOptions,
+  ServicePolicy,
+} from './createServicePolicy';
 
 // Data service queries use the following format: ['ServiceActionName', ...params]
 export type QueryKey = [string, ...Json[]];

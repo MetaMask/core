@@ -7,23 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.0.0]
+
 ### Added
 
-- Add the `@metamask/solana-test-validator-up` package ([#9210](https://github.com/MetaMask/core/pull/9210)).
+- Initial release ([#9314](https://github.com/MetaMask/core/pull/9314))
+  - Installs a pinned Solana/Agave runtime for local development and CI
+  - Exposes `solana-test-validator-up`, `solana-test-validator`, and `solana` binaries via `node_modules/.bin`
+  - Uses `@metamask/local-node-utils` for cache resolution, downloads, and executable wrappers
 
-### Changed
-
-- Replace duplicated installer utilities with `@metamask/local-node-utils` ([#9237](https://github.com/MetaMask/core/pull/9237)).
-
-### Fixed
-
-- Parse `.yarnrc.yml` as YAML when resolving the cache directory so
-  `enableGlobalCache` matches `@metamask/foundryup` ([#9210](https://github.com/MetaMask/core/pull/9210)).
-- Tolerate a missing `package.json` when reading installer options so flag-only
-  `install` and `cache clean` commands work ([#9210](https://github.com/MetaMask/core/pull/9210)).
-- Merge partial `release` overrides from `package.json` with the pinned defaults
-  instead of replacing them ([#9210](https://github.com/MetaMask/core/pull/9210)).
-- Propagate child termination signals as a non-zero exit from generated binary
-  wrappers ([#9210](https://github.com/MetaMask/core/pull/9210)).
-
-[Unreleased]: https://github.com/MetaMask/core/
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/solana-test-validator-up@1.0.0...HEAD
+[1.0.0]: https://github.com/MetaMask/core/releases/tag/@metamask/solana-test-validator-up@1.0.0

@@ -187,6 +187,9 @@ export function adaptOrderFromSDK(
     rawOrder.children.forEach((child) => {
       if (child.isTrigger && child.orderType) {
         if (child.orderType.includes('Take Profit')) {
+          // HyperLiquid represents "no trigger price" as an empty string, not
+          // null/undefined, so `||` (not `??`) is required to fall back to
+          // limitPx when triggerPx is ''.
           takeProfitPrice = child.triggerPx || child.limitPx;
           takeProfitOrderId = child.oid.toString();
         } else if (child.orderType.includes('Stop')) {
