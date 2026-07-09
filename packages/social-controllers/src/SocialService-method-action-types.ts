@@ -110,6 +110,22 @@ export type SocialServiceFetchFollowingAction = {
 };
 
 /**
+ * Fetches a page of the trader-activity feed.
+ *
+ * Calls `GET ${baseUrl}/feed`. For the `following` scope the current user is
+ * identified server-side from the JWT sub claim carried in the Authorization
+ * header; the `leaderboard` scope is generic and shared by all users.
+ *
+ * @param options - Optional feed query parameters (scope, chains, limit, and
+ * `olderThan`/`newerThan` pagination cursors).
+ * @returns The feed response with items and pagination cursors.
+ */
+export type SocialServiceFetchFeedAction = {
+  type: `SocialService:fetchFeed`;
+  handler: SocialService['fetchFeed'];
+};
+
+/**
  * Follows one or more traders on behalf of the current user.
  *
  * Calls `PUT ${baseUrl}/users/me/follows`. The caller is identified
@@ -168,6 +184,7 @@ export type SocialServiceMethodActions =
   | SocialServiceFetchFollowersAction
   | SocialServiceFetchPositionByIdAction
   | SocialServiceFetchFollowingAction
+  | SocialServiceFetchFeedAction
   | SocialServiceFollowAction
   | SocialServiceUnfollowAction
   | SocialServiceOptOutOfLeaderboardAction

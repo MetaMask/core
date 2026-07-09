@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `fetchFeed` method to `SocialService` (and the `SocialService:fetchFeed` messenger action) for the trader-activity feed. Calls `GET /feed` with an optional `scope` (`following`, default, personalized to the JWT-identified user; or `leaderboard`, the generic shared feed), `chains`, `limit`, and cursor pagination (`olderThan`/`newerThan`) for infinite scroll. Also accepts a temporary `test` flag that serves the `following` feed for a fixed demo wallet (bypassing the JWT profile) until Clicker resolves feeds by profile id ([#9354](https://github.com/MetaMask/core/pull/9354))
+- Add `FeedItem`, `FeedPagination`, `FeedResponse`, and `FetchFeedOptions` types. `FeedItem` extends `Position` with the trade's `actor` (`ProfileSummary`) and creation `timestamp`; `FeedPagination` exposes the `olderCursor`/`newerCursor` cursors ([#9354](https://github.com/MetaMask/core/pull/9354))
+
 ## [2.4.0]
 
 ### Added
