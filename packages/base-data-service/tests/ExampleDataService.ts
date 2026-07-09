@@ -69,6 +69,9 @@ export class ExampleDataService extends BaseDataService<
         maxConsecutiveFailures: 3,
         backoff: new ConstantBackoff(0),
       },
+      persistConfig: {
+        maxAge: inMilliseconds(1, Duration.Day),
+      },
     });
 
     this.messenger.registerMethodActionHandlers(

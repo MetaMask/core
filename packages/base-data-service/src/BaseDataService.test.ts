@@ -1,4 +1,4 @@
-import { Messenger } from '@metamask/messenger';
+import { MOCK_ANY_NAMESPACE, Messenger } from '@metamask/messenger';
 import { hashQueryKey } from '@tanstack/query-core';
 import { BrokenCircuitError } from 'cockatiel';
 import { cleanAll } from 'nock';
@@ -300,6 +300,171 @@ describe('BaseDataService', () => {
       );
 
       service.destroy();
+    });
+  });
+
+  describe('persistence', () => {
+    it('persists the cache using the StorageService', async () => {
+      const rootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+        captureException: console.error,
+      });
+
+      const setItem = jest.fn();
+      rootMessenger.registerActionHandler('StorageService:setItem', setItem);
+
+      const messenger = rootMessenger.buildChild({
+        namespace: serviceName,
+        actions: ['StorageService:getItem', 'StorageService:setItem'],
+      });
+      const service = new ExampleDataService(messenger);
+
+      mockAssets();
+
+      await service.getAssets(MOCK_ASSETS);
+
+      expect(setItem).toHaveBeenCalledWith(serviceName, 'cache', {
+        state: {
+          queries: [
+            {
+              queryHash:
+                '["ExampleDataService:getAssets",["eip155:1/slip44:60","bip122:000000000019d6689c085ae165831e93/slip44:0","eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f"]]',
+              queryKey: [
+                'ExampleDataService:getAssets',
+                [
+                  'eip155:1/slip44:60',
+                  'bip122:000000000019d6689c085ae165831e93/slip44:0',
+                  'eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f',
+                ],
+              ],
+              state: {
+                data: [
+                  {
+                    assetId:
+                      'eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f',
+                    decimals: 18,
+                    name: 'Dai Stablecoin',
+                    symbol: 'DAI',
+                  },
+                  {
+                    assetId: 'bip122:000000000019d6689c085ae165831e93/slip44:0',
+                    decimals: 8,
+                    name: 'Bitcoin',
+                    symbol: 'BTC',
+                  },
+                  {
+                    assetId: 'eip155:1/slip44:60',
+                    decimals: 18,
+                    name: 'Ethereum',
+                    symbol: 'ETH',
+                  },
+                ],
+                dataUpdateCount: 1,
+                dataUpdatedAt: expect.any(Number),
+                error: null,
+                errorUpdateCount: 0,
+                errorUpdatedAt: 0,
+                fetchFailureCount: 0,
+                fetchFailureReason: null,
+                fetchMeta: null,
+                fetchStatus: 'idle',
+                isInvalidated: false,
+                status: 'success',
+              },
+            },
+          ],
+          mutations: [],
+        },
+        timestamp: expect.any(Number),
+      });
+    });
+
+    it('rehydrates the cache using the StorageService', async () => {
+      const rootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+        captureException: console.error,
+      });
+
+      rootMessenger.registerActionHandler('StorageService:setItem', jest.fn());
+      rootMessenger.registerActionHandler('StorageService:getItem', () => {
+        return {
+          result: {
+            state: {
+              queries: [
+                {
+                  queryHash:
+                    '["ExampleDataService:getAssets",["eip155:1/slip44:60","bip122:000000000019d6689c085ae165831e93/slip44:0","eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f"]]',
+                  queryKey: [
+                    'ExampleDataService:getAssets',
+                    [
+                      'eip155:1/slip44:60',
+                      'bip122:000000000019d6689c085ae165831e93/slip44:0',
+                      'eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f',
+                    ],
+                  ],
+                  state: {
+                    data: [
+                      {
+                        assetId:
+                          'eip155:1/erc20:0x6b175474e89094c44da98b954eedeac495271d0f',
+                        decimals: 18,
+                        name: 'Dai Stablecoin',
+                        symbol: 'DAI',
+                      },
+                      {
+                        assetId:
+                          'bip122:000000000019d6689c085ae165831e93/slip44:0',
+                        decimals: 8,
+                        name: 'Bitcoin',
+                        symbol: 'BTC',
+                      },
+                      {
+                        assetId: 'eip155:1/slip44:60',
+                        decimals: 18,
+                        name: 'Ethereum',
+                        symbol: 'ETH',
+                      },
+                    ],
+                    dataUpdateCount: 1,
+                    dataUpdatedAt: Date.now(),
+                    error: null,
+                    errorUpdateCount: 0,
+                    errorUpdatedAt: 0,
+                    fetchFailureCount: 0,
+                    fetchFailureReason: null,
+                    fetchMeta: null,
+                    fetchStatus: 'idle',
+                    isInvalidated: false,
+                    status: 'success',
+                  },
+                },
+              ],
+              mutations: [],
+            },
+            timestamp: Date.now(),
+          },
+        };
+      });
+
+      const messenger = rootMessenger.buildChild({
+        namespace: serviceName,
+        actions: ['StorageService:getItem', 'StorageService:setItem'],
+      });
+      const spy = jest.spyOn(messenger, 'call');
+      const service = new ExampleDataService(messenger);
+      service.init();
+
+      mockAssets({ status: 500 });
+
+      const result = await service.getAssets(MOCK_ASSETS);
+
+      expect(result).toHaveLength(3);
+
+      expect(spy).toHaveBeenCalledWith(
+        'StorageService:getItem',
+        serviceName,
+        'cache',
+      );
     });
   });
 });

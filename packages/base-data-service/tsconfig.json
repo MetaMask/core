@@ -4,9 +4,8 @@
     "baseUrl": "./"
   },
   "references": [
-    {
-      "path": "../messenger"
-    }
+    { "path": "../messenger" },
+    { "path": "../storage-service" }
   ],
   "include": ["../../types", "./src", "./tests"]
 }

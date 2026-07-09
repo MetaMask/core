@@ -3,6 +3,10 @@ import {
   ActionConstraint,
   EventConstraint,
 } from '@metamask/messenger';
+import type {
+  StorageServiceGetItemAction,
+  StorageServiceSetItemAction,
+} from '@metamask/storage-service';
 import { Duration, inMilliseconds } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
 import {
@@ -18,6 +22,7 @@ import {
   QueryClientConfig,
   WithRequired,
   dehydrate,
+  hydrate,
 } from '@tanstack/query-core';
 import deepEqual from 'fast-deep-equal';
 
@@ -55,6 +60,10 @@ export type DataServiceInvalidateQueriesAction<ServiceName extends string> = {
 type DataServiceActions<ServiceName extends string> =
   DataServiceInvalidateQueriesAction<ServiceName>;
 
+type DataServiceAllowedActions =
+  | StorageServiceGetItemAction
+  | StorageServiceSetItemAction;
+
 export type DataServiceCacheUpdatedEvent<ServiceName extends string> = {
   type: `${ServiceName}:cacheUpdated`;
   payload: [DataServiceCacheUpdatedPayload];
@@ -77,6 +86,17 @@ const QUERY_CLIENT_DEFAULTS: DefaultOptions = {
   },
 };
 
+const STORAGE_SERVICE_KEY = 'cache';
+
+type PersistConfiguration = {
+  maxAge: number;
+};
+
+type PersistedCache = {
+  state: DehydratedState;
+  timestamp: number;
+};
+
 export class BaseDataService<
   ServiceName extends string,
   ServiceMessenger extends Messenger<
@@ -93,7 +113,7 @@ export class BaseDataService<
 
   readonly #messenger: Messenger<
     ServiceName,
-    DataServiceActions<ServiceName>,
+    DataServiceActions<ServiceName> | DataServiceAllowedActions,
     DataServiceEvents<ServiceName>
   >;
 
@@ -105,16 +125,20 @@ export class BaseDataService<
 
   readonly #queryCacheUnsubscribe: () => void;
 
+  readonly #persistConfig?: PersistConfiguration;
+
   constructor({
     name,
     messenger,
     queryClientConfig = {},
     policyOptions,
+    persistConfig,
   }: {
     name: ServiceName;
     messenger: ServiceMessenger;
     queryClientConfig?: QueryClientConfig;
     policyOptions?: CreateServicePolicyOptions;
+    persistConfig?: PersistConfiguration;
   }) {
     this.name = name;
 
@@ -122,7 +146,7 @@ export class BaseDataService<
     // and a generic public one that is typed using the generic parameters and accessible to implementations.
     this.#messenger = messenger as unknown as Messenger<
       ServiceName,
-      DataServiceActions<ServiceName>,
+      DataServiceActions<ServiceName> | DataServiceAllowedActions,
       DataServiceEvents<ServiceName>
     >;
     this.messenger = messenger;
@@ -138,6 +162,8 @@ export class BaseDataService<
       },
     });
 
+    this.#persistConfig = persistConfig;
+
     this.#policy = createServicePolicy(policyOptions);
 
     this.#queryCacheUnsubscribe = this.#queryClient
@@ -147,6 +173,11 @@ export class BaseDataService<
           this.#publishCacheUpdate(
             event.query.queryHash,
             event.type as CacheUpdatedType,
+          );
+
+          // TODO: Debounce
+          this.#persistCache().catch((error) =>
+            this.#messenger.captureException?.(error),
           );
         }
       });
@@ -266,6 +297,15 @@ export class BaseDataService<
   }
 
   /**
+   * Initialize the service, rehydrating the cache with persisted data if possible.
+   */
+  init(): void {
+    this.#rehydrateCache().catch((error) =>
+      this.#messenger.captureException?.(error),
+    );
+  }
+
+  /**
    * Prepares the service for garbage collection. This should be extended
    * by any subclasses to clean up any additional connections or events.
    */
@@ -306,5 +346,49 @@ export class BaseDataService<
         state,
       } as DataServiceGranularCacheUpdatedPayload,
     );
+  }
+
+  async #persistCache(): Promise<void> {
+    if (!this.#persistConfig) {
+      return;
+    }
+
+    const state = dehydrate(this.#queryClient);
+
+    if (state.queries.length === 0 && state.mutations.length === 0) {
+      return;
+    }
+
+    const cache: PersistedCache = {
+      timestamp: Date.now(),
+      state,
+    };
+
+    await this.#messenger.call(
+      'StorageService:setItem',
+      this.name,
+      STORAGE_SERVICE_KEY,
+      cache as unknown as Json,
+    );
+  }
+
+  async #rehydrateCache(): Promise<void> {
+    if (!this.#persistConfig) {
+      return;
+    }
+
+    const { result: persisted } = await this.#messenger.call(
+      'StorageService:getItem',
+      this.name,
+      STORAGE_SERVICE_KEY,
+    );
+
+    const cache = persisted as PersistedCache;
+
+    if (Date.now() - cache.timestamp >= this.#persistConfig.maxAge) {
+      return;
+    }
+
+    hydrate(this.#queryClient, cache.state);
   }
 }
