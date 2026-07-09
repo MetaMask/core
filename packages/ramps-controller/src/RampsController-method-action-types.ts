@@ -289,7 +289,7 @@ export type RampsControllerGetBuyWidgetDataAction = {
  *
  * @param params - Object containing order identifiers and wallet info.
  * @param params.orderId - Full order ID (e.g. "/providers/paypal/orders/abc123") or order code.
- * @param params.providerCode - Provider code (e.g. "paypal", "transak"), with or without /providers/ prefix.
+ * @param params.providerCode - Canonical provider code (e.g. "paypal", "transak").
  * @param params.walletAddress - Wallet address for the order.
  * @param params.chainId - Optional chain ID for the order.
  */
