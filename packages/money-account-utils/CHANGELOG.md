@@ -15,5 +15,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add Money Account transaction guards, ported from MetaMask Mobile ([#9397](https://github.com/MetaMask/core/pull/9397))
   - Guards over `TransactionMeta`: `nestedTxWithType`, `isMoneyDepositTx`, `isMoneyWithdrawTx`, `isMoneyAccountTx`, `isSingleRowMusdMoneyWithdraw`, `isPerpsPredictMoneyDeposit`, `isPerpsPredictMoneyWithdraw`, `isPerpsPredictMoneyActivity`, `perpsPredictServiceFamily`
   - MetaMask Pay helpers: `getMMPayChainIds`, `PERPS_PREDICT_DEPOSIT_TYPES`, `PERPS_PREDICT_WITHDRAW_TYPES`
+- Add the Money activity list logic, ported from MetaMask Mobile ([#9397](https://github.com/MetaMask/core/pull/9397))
+  - Domain types: `AccountsApiActivity`, `MoneyActivityItem`, `MoneyActivityFilter`, `MoneyActivityTitleKey`, `MoneyActivityTransactionMeta` with the `onchainItem`/`accountsApiItem` constructors
+  - Accounts-API parsing: `parseAccountsApiActivity`, `oldestRawActivityTime`, `dedupeAccountsApiActivity`, card payment/cashback type constants
+  - Merge and pagination gating: `mergeMoneyActivity`, `buildMoneyActivityBuckets`
+  - Classification: `classifyMoneyActivity`, `getMoneyActivityStatus`, `moneyActivityLabelKey` and the label-key tables (returns neutral kinds and i18n keys; clients map to their own design system and i18n)
+- Add the Money Account vault transaction builders, ported from MetaMask Mobile ([#9397](https://github.com/MetaMask/core/pull/9397))
+  - `buildMoneyAccountDepositBatch`, `buildMoneyAccountWithdrawBatch`, `applySlippage`, `getSharesForWithdrawal`, `getMoneyAccountDepositAssetAddress`, `TELLER_ABI`
+  - All configuration (vault addresses, provider) is parameter-injected; no client state access
+- Add the Money analytics vocabulary, ported from MetaMask Mobile ([#9397](https://github.com/MetaMask/core/pull/9397))
+  - Event name enums (`SCREEN_NAMES`, `BOTTOM_SHEET_NAMES`, `COMPONENT_NAMES`, button/tooltip/onboarding enums) and payload types
+  - Pure payload builders: `resolveRedirectTargetType`, `withRedirectType` (client URL targets injected), `deriveMoneyActivityTransactionProperties`
 
 [Unreleased]: https://github.com/MetaMask/core/

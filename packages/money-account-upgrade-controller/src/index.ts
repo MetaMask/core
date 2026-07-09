@@ -1,4 +1,10 @@
 export type { UpgradeConfig } from './types';
+export { createMoneyAccountUpgradeBootstrap } from './bootstrap';
+export type {
+  MoneyAccountUpgradeBootstrapErrorPhase,
+  MoneyAccountUpgradeBootstrapHandle,
+  MoneyAccountUpgradeBootstrapOptions,
+} from './bootstrap';
 export {
   MoneyAccountUpgradeStepError,
   isMoneyAccountUpgradeStepError,
