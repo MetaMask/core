@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Robinhood Chain (`4663`/`0x1237`) in `MulticallClient` ([#9443](https://github.com/MetaMask/core/pull/9443))
+
 ### Changed
 
 - `MulticallClient` memoizes `balanceOf` and `getEthBalance` call encodings per account address when building multicall batches, reducing redundant ABI encoding for wallets with many tokens ([#9425](https://github.com/MetaMask/core/pull/9425))
