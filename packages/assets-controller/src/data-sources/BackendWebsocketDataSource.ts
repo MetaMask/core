@@ -8,6 +8,7 @@ import type {
   BalanceUpdate,
 } from '@metamask/core-backend';
 import type { ApiPlatformClient } from '@metamask/core-backend';
+import { SolScope } from '@metamask/keyring-api';
 import {
   isCaipChainId,
   KnownCaipNamespace,
@@ -30,6 +31,20 @@ import type {
 
 const CONTROLLER_NAME = 'BackendWebsocketDataSource';
 const CHANNEL_TYPE = 'account-activity.v1';
+
+/** System-notifications channel carrying per-chain up/down status. */
+const SYSTEM_NOTIFICATIONS_CHANNEL = `system-notifications.v1.${CHANNEL_TYPE}`;
+
+/**
+ * Non-EVM CAIP namespaces that can be served over WebSocket, mapped to the
+ * chains this data source claims for each when the namespace is enabled. The
+ * account-activity subscription uses the `<namespace>:0:<address>` wildcard, so
+ * covering the primary chain per namespace is sufficient for chain-claiming.
+ * Add future namespaces (e.g. `bip122` for Tron) here.
+ */
+const NON_EVM_WEBSOCKET_CHAINS: Record<string, ChainId[]> = {
+  solana: [SolScope.Mainnet as ChainId],
+};
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
@@ -72,6 +87,14 @@ export type BackendWebsocketDataSourceOptions = {
   ) => void;
   /** Returns the asset type ('native' | 'erc20' | 'spl') for a given CAIP-19 asset ID. */
   getAssetType: (assetId: Caip19AssetId) => 'native' | 'erc20' | 'spl';
+  /**
+   * Returns the non-EVM CAIP namespaces (e.g. 'solana', and later 'bip122' for
+   * Tron) whose account activity should be served over WebSocket. EVM
+   * ('eip155') is always served. Namespaces not returned here are not claimed
+   * and not subscribed, so the SnapDataSource serves them instead. Defaults to
+   * none (EVM only).
+   */
+  getWebSocketEnabledNamespaces?: () => string[];
   state?: Partial<BackendWebsocketDataSourceState>;
 };
 
@@ -80,34 +103,18 @@ export type BackendWebsocketDataSourceOptions = {
 // ============================================================================
 
 /**
- * Extract namespace from a CAIP-2 chain ID.
- * E.g., "eip155:1" -> "eip155", "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp" -> "solana"
+ * Get unique namespaces for account-activity subscriptions. EVM ('eip155') is
+ * always included; the WebSocket-enabled non-EVM namespaces are added so their
+ * accounts are subscribed. Namespaces that are not enabled are omitted so no
+ * channels are subscribed for them (the SnapDataSource serves them instead).
  *
- * @param chainId - The CAIP-2 chain ID to extract namespace from.
- * @returns The namespace portion of the chain ID.
+ * @param enabledNamespaces - WebSocket-enabled non-EVM namespaces (e.g. ['solana']).
+ * @returns Array of unique namespaces (always at least eip155).
  */
-function extractNamespace(chainId: ChainId): string {
-  const [namespace] = chainId.split(':');
-  return namespace;
-}
-
-/** Namespaces we always subscribe to for account activity (EVM + Solana). */
-const ACCOUNT_ACTIVITY_NAMESPACES = ['eip155', 'solana'] as const;
-
-/**
- * Get unique namespaces for account-activity subscriptions.
- * Always includes eip155 and solana so we subscribe to both EVM and Solana account activity,
- * plus any additional namespaces from the requested chain IDs.
- *
- * @param chainIds - Array of CAIP-2 chain IDs (from the subscription request).
- * @returns Array of unique namespaces (at least eip155 and solana).
- */
-function getNamespacesForAccountActivity(chainIds: ChainId[]): string[] {
-  const namespaces = new Set<string>(ACCOUNT_ACTIVITY_NAMESPACES);
-  for (const chainId of chainIds) {
-    namespaces.add(extractNamespace(chainId));
-  }
-  return Array.from(namespaces);
+function getNamespacesForAccountActivity(
+  enabledNamespaces: string[],
+): string[] {
+  return Array.from(new Set<string>(['eip155', ...enabledNamespaces]));
 }
 
 /**
@@ -263,6 +270,8 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     assetId: Caip19AssetId,
   ) => 'native' | 'erc20' | 'spl';
 
+  readonly #getWebSocketEnabledNamespaces: () => string[];
+
   /** Chains refresh timer */
   #chainsRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -271,6 +280,13 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
 
   /** Whether the WebSocket is currently connected. Chains are only claimed when true. */
   #isConnected = false;
+
+  /**
+   * Chains reported as down via `system-notifications`. Down chains are excluded
+   * from the claimable set so the chain-claiming loop hands them to the
+   * SnapDataSource (fallback) until they come back up.
+   */
+  readonly #downChains: Set<ChainId> = new Set();
 
   /** WebSocket subscriptions by our internal subscription ID */
   readonly #wsSubscriptions: Map<string, WebSocketSubscription> = new Map();
@@ -297,6 +313,8 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     this.#apiClient = options.queryApiClient;
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
     this.#getAssetType = options.getAssetType;
+    this.#getWebSocketEnabledNamespaces =
+      options.getWebSocketEnabledNamespaces ?? ((): string[] => []);
 
     this.#subscribeToEvents();
     this.#initializeActiveChains().catch(console.error);
@@ -305,6 +323,37 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
   // ============================================================================
   // INITIALIZATION
   // ============================================================================
+
+  /**
+   * Compute the chains this data source can claim. The supported-networks API
+   * only reports EVM chains, so non-EVM chains are added here for each enabled
+   * namespace (e.g. Solana). Namespaces that are not enabled are omitted so the
+   * SnapDataSource claims their chains instead.
+   *
+   * Chains (or whole non-EVM namespaces) currently reported as down via
+   * `system-notifications` are excluded, so the chain-claiming loop hands them to
+   * the SnapDataSource until they recover.
+   *
+   * @returns The claimable chain IDs (EVM + enabled, healthy non-EVM namespaces).
+   */
+  #getClaimableChains(): ChainId[] {
+    const enabledNamespaces = new Set(this.#getWebSocketEnabledNamespaces());
+    const downNamespaces = new Set(
+      [...this.#downChains].map((chainId) => chainId.split(':')[0]),
+    );
+    const chains = [...this.#supportedChains];
+    for (const [namespace, namespaceChains] of Object.entries(
+      NON_EVM_WEBSOCKET_CHAINS,
+    )) {
+      // Add an enabled non-EVM namespace's chains only while it is healthy;
+      // when it is down, leave it unclaimed so the SnapDataSource takes over.
+      if (enabledNamespaces.has(namespace) && !downNamespaces.has(namespace)) {
+        chains.push(...namespaceChains);
+      }
+    }
+    // Drop any specific chain reported down (e.g. a single EVM chain).
+    return chains.filter((chainId) => !this.#downChains.has(chainId));
+  }
 
   async #initializeActiveChains(): Promise<void> {
     try {
@@ -316,7 +365,7 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       // can pick them up via polling. They'll be claimed on reconnect.
       if (this.#isConnected) {
         const previous = [...this.state.activeChains];
-        this.updateActiveChains(chains, (updatedChains) =>
+        this.updateActiveChains(this.#getClaimableChains(), (updatedChains) =>
           this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
         );
       }
@@ -339,17 +388,20 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
         return;
       }
 
+      const claimableChains = this.#getClaimableChains();
       const previousChains = new Set(this.state.activeChains);
-      const newChains = new Set(chains);
+      const newChains = new Set(claimableChains);
 
-      const added = chains.filter((chain) => !previousChains.has(chain));
+      const added = claimableChains.filter(
+        (chain) => !previousChains.has(chain),
+      );
       const removed = Array.from(previousChains).filter(
         (chain) => !newChains.has(chain),
       );
 
       if (added.length > 0 || removed.length > 0) {
         const previous = [...this.state.activeChains];
-        this.updateActiveChains(chains, (updatedChains) =>
+        this.updateActiveChains(claimableChains, (updatedChains) =>
           this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
         );
       }
@@ -398,6 +450,60 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
         }
       },
     );
+
+    // Listen for per-chain health via system-notifications so a chain reported
+    // down can be released to the SnapDataSource (fallback) without dropping the
+    // whole WebSocket connection.
+    try {
+      this.#messenger.call('BackendWebSocketService:addChannelCallback', {
+        channelName: SYSTEM_NOTIFICATIONS_CHANNEL,
+        callback: (notification: ServerNotificationMessage) =>
+          this.#handleSystemNotification(notification),
+      });
+    } catch {
+      // Channel callbacks are optional; chain health just won't be tracked.
+    }
+  }
+
+  /**
+   * Handle a `system-notifications` chain status update. Adds/removes chains
+   * from the down set and, when a claimable chain's health changes, recomputes
+   * the active chains so the chain-claiming loop reassigns them (a down Solana
+   * falls back to the SnapDataSource; a recovered Solana is reclaimed here).
+   *
+   * @param notification - Server notification with `{ chainIds, status }` data.
+   */
+  #handleSystemNotification(notification: ServerNotificationMessage): void {
+    const data = notification.data as {
+      chainIds?: string[];
+      status?: 'up' | 'down';
+    };
+
+    if (!Array.isArray(data.chainIds) || !data.status) {
+      return;
+    }
+
+    let changed = false;
+    for (const chainId of data.chainIds) {
+      const id = chainId as ChainId;
+      if (data.status === 'down') {
+        if (!this.#downChains.has(id)) {
+          this.#downChains.add(id);
+          changed = true;
+        }
+      } else if (this.#downChains.delete(id)) {
+        changed = true;
+      }
+    }
+
+    // Only reclaim/release while connected; on disconnect the whole chain set is
+    // released separately.
+    if (changed && this.#isConnected) {
+      const previous = [...this.state.activeChains];
+      this.updateActiveChains(this.#getClaimableChains(), (updatedChains) =>
+        this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
+      );
+    }
   }
 
   /**
@@ -469,9 +575,10 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     // outdated request data.
     this.#pendingSubscriptions.clear();
 
-    if (this.#supportedChains.length > 0) {
+    const claimableChains = this.#getClaimableChains();
+    if (claimableChains.length > 0) {
       const previous = [...this.state.activeChains];
-      this.updateActiveChains(this.#supportedChains, (updatedChains) =>
+      this.updateActiveChains(claimableChains, (updatedChains) =>
         this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
       );
     }
@@ -574,8 +681,12 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     // Clean up existing subscription if any (inline teardown — subscribe holds the lock)
     await this.#teardownSubscription(subscriptionId);
 
-    // Always subscribe to eip155 and solana account activity, plus any namespaces from requested chains
-    const namespaces = getNamespacesForAccountActivity(chainsToSubscribe);
+    // Always subscribe to eip155 account activity, plus any non-EVM namespaces
+    // enabled for WebSocket (e.g. solana). Disabled namespaces are omitted so
+    // the SnapDataSource serves them instead.
+    const namespaces = getNamespacesForAccountActivity(
+      this.#getWebSocketEnabledNamespaces(),
+    );
 
     // Build channel names: use namespace-appropriate address per account (eip155 = hex, solana = base58)
     const channels: string[] = [];
@@ -809,6 +920,15 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     if (this.#chainsRefreshTimer) {
       clearInterval(this.#chainsRefreshTimer);
       this.#chainsRefreshTimer = null;
+    }
+
+    try {
+      this.#messenger.call(
+        'BackendWebSocketService:removeChannelCallback',
+        SYSTEM_NOTIFICATIONS_CHANNEL,
+      );
+    } catch {
+      // Best-effort cleanup.
     }
 
     const subscriptionIds = [
