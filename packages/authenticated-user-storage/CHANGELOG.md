@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix `getAssetsWatchlist` and `setAssetsWatchlist` to use the correct API path `/preferences/assets-watchlist` instead of `/assets-watchlist` ([#9441](https://github.com/MetaMask/core/pull/9441))
+
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
