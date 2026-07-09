@@ -283,6 +283,7 @@ linkStyle default opacity:0.5
   assets_controller --> phishing_controller;
   assets_controller --> polling_controller;
   assets_controller --> preferences_controller;
+  assets_controller --> remote_feature_flag_controller;
   assets_controller --> transaction_controller;
   assets_controllers --> account_tree_controller;
   assets_controllers --> accounts_controller;

@@ -143,7 +143,6 @@ async function setupController(
     unprocessedNetworks?: string[];
     fetchTimeoutMs?: number;
     v6Accounts?: V6AccountBalancesEntry[];
-    useBalanceV6?: () => boolean;
     remoteFeatureFlags?: Record<string, unknown>;
   } = {},
 ): Promise<SetupResult> {
@@ -153,7 +152,6 @@ async function setupController(
     unprocessedNetworks = [],
     fetchTimeoutMs,
     v6Accounts = [],
-    useBalanceV6,
     remoteFeatureFlags,
   } = options;
 
@@ -209,7 +207,6 @@ async function setupController(
     onActiveChainsUpdated: (dataSourceName, chains, previousChains): void =>
       activeChainsUpdateHandler(dataSourceName, chains, previousChains),
     ...(fetchTimeoutMs === undefined ? {} : { fetchTimeoutMs }),
-    ...(useBalanceV6 === undefined ? {} : { useBalanceV6 }),
   });
 
   // Wait for async initialization
@@ -367,9 +364,7 @@ describe('AccountsApiDataSource', () => {
   });
 
   it('fetch calls API with correct account IDs', async () => {
-    const { controller, apiClient } = await setupController({
-      useBalanceV6: () => false,
-    });
+    const { controller, apiClient } = await setupController();
 
     await controller.fetch(createDataRequest());
 
@@ -383,9 +378,7 @@ describe('AccountsApiDataSource', () => {
   });
 
   it('fetch bypasses TanStack cache when forceUpdate is true', async () => {
-    const { controller, apiClient } = await setupController({
-      useBalanceV6: () => false,
-    });
+    const { controller, apiClient } = await setupController();
 
     await controller.fetch(createDataRequest({ forceUpdate: true }));
 
@@ -409,7 +402,6 @@ describe('AccountsApiDataSource', () => {
 
     const { controller } = await setupController({
       balances,
-      useBalanceV6: () => false,
     });
 
     const response = await controller.fetch(createDataRequest());
@@ -440,9 +432,7 @@ describe('AccountsApiDataSource', () => {
   });
 
   it('fetch handles API errors', async () => {
-    const { controller, apiClient } = await setupController({
-      useBalanceV6: () => false,
-    });
+    const { controller, apiClient } = await setupController();
 
     apiClient.accounts.fetchV5MultiAccountBalances.mockRejectedValueOnce(
       new Error('API Error'),
@@ -455,7 +445,7 @@ describe('AccountsApiDataSource', () => {
     controller.destroy();
   });
 
-  describe('useBalanceV6 feature flag', () => {
+  describe('assetsAccountsApiV6 feature flag', () => {
     it('uses the v5 endpoint by default', async () => {
       const { controller, apiClient } = await setupController();
 
@@ -473,7 +463,7 @@ describe('AccountsApiDataSource', () => {
 
     it('uses the v6 endpoint when the assetsAccountsApiV6 remote flag is enabled', async () => {
       const { controller, apiClient } = await setupController({
-        remoteFeatureFlags: { assetsAccountsApiV6: true },
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
       });
 
       await controller.fetch(createDataRequest());
@@ -490,7 +480,7 @@ describe('AccountsApiDataSource', () => {
 
     it('uses the v5 endpoint when the assetsAccountsApiV6 remote flag is disabled', async () => {
       const { controller, apiClient } = await setupController({
-        remoteFeatureFlags: { assetsAccountsApiV6: false },
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: false } },
       });
 
       await controller.fetch(createDataRequest());
@@ -505,9 +495,9 @@ describe('AccountsApiDataSource', () => {
       controller.destroy();
     });
 
-    it('uses the v5 endpoint when the flag returns false', async () => {
+    it('uses the v5 endpoint when the flag is a plain boolean instead of the JSON value shape', async () => {
       const { controller, apiClient } = await setupController({
-        useBalanceV6: () => false,
+        remoteFeatureFlags: { assetsAccountsApiV6: true },
       });
 
       await controller.fetch(createDataRequest());
@@ -522,16 +512,20 @@ describe('AccountsApiDataSource', () => {
       controller.destroy();
     });
 
-    it('uses the v6 endpoint when the flag returns true', async () => {
+    it('calls the v6 endpoint without extra params when enabled', async () => {
       const { controller, apiClient } = await setupController({
-        useBalanceV6: () => true,
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
       });
 
       await controller.fetch(createDataRequest());
 
       expect(
         apiClient.accounts.fetchV6MultiAccountBalances,
-      ).toHaveBeenCalledWith([`eip155:1:${MOCK_ADDRESS}`], undefined, undefined);
+      ).toHaveBeenCalledWith(
+        [`eip155:1:${MOCK_ADDRESS}`],
+        undefined,
+        undefined,
+      );
       expect(
         apiClient.accounts.fetchV5MultiAccountBalances,
       ).not.toHaveBeenCalled();
@@ -540,9 +534,11 @@ describe('AccountsApiDataSource', () => {
     });
 
     it('reads the flag per fetch so it can revert to v5 at runtime', async () => {
-      let v6Enabled = true;
+      const remoteFeatureFlags = {
+        assetsAccountsApiV6: { value: true },
+      };
       const { controller, apiClient } = await setupController({
-        useBalanceV6: () => v6Enabled,
+        remoteFeatureFlags,
       });
 
       await controller.fetch(createDataRequest());
@@ -550,7 +546,7 @@ describe('AccountsApiDataSource', () => {
         apiClient.accounts.fetchV6MultiAccountBalances,
       ).toHaveBeenCalledTimes(1);
 
-      v6Enabled = false;
+      remoteFeatureFlags.assetsAccountsApiV6 = { value: false };
       await controller.fetch(createDataRequest());
       expect(
         apiClient.accounts.fetchV5MultiAccountBalances,
@@ -561,7 +557,7 @@ describe('AccountsApiDataSource', () => {
 
     it('processes v6 token balances grouped by account', async () => {
       const { controller } = await setupController({
-        useBalanceV6: () => true,
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
         v6Accounts: [
           {
             accountId: `eip155:1:${MOCK_ADDRESS}`,
@@ -587,7 +583,7 @@ describe('AccountsApiDataSource', () => {
 
     it('ignores v6 defi positions', async () => {
       const { controller } = await setupController({
-        useBalanceV6: () => true,
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
         v6Accounts: [
           {
             accountId: `eip155:1:${MOCK_ADDRESS}`,
@@ -596,11 +592,7 @@ describe('AccountsApiDataSource', () => {
                 'eip155:1/slip44:60',
                 '1000000000000000000',
               ),
-              createMockV6BalanceItem(
-                'eip155:1/erc20:0xdefi',
-                '500',
-                'defi',
-              ),
+              createMockV6BalanceItem('eip155:1/erc20:0xdefi', '500', 'defi'),
             ],
           },
         ],
@@ -617,7 +609,7 @@ describe('AccountsApiDataSource', () => {
 
     it('marks v6 unprocessed networks as errors', async () => {
       const { controller } = await setupController({
-        useBalanceV6: () => true,
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
         unprocessedNetworks: ['eip155:1'],
       });
 
@@ -632,7 +624,7 @@ describe('AccountsApiDataSource', () => {
 
     it('handles v6 API errors', async () => {
       const { controller, apiClient } = await setupController({
-        useBalanceV6: () => true,
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
       });
 
       apiClient.accounts.fetchV6MultiAccountBalances.mockRejectedValueOnce(
@@ -646,9 +638,9 @@ describe('AccountsApiDataSource', () => {
       controller.destroy();
     });
 
-    it('passes custom ERC-20 tokens to v6 as includeAssetIds', async () => {
+    it('does not pass includeAssetIds to v6 even when custom assets are present', async () => {
       const { controller, apiClient } = await setupController({
-        useBalanceV6: () => true,
+        remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
       });
 
       const customToken =
@@ -662,55 +654,9 @@ describe('AccountsApiDataSource', () => {
         apiClient.accounts.fetchV6MultiAccountBalances,
       ).toHaveBeenCalledWith(
         [`eip155:1:${MOCK_ADDRESS}`],
-        { includeAssetIds: [customToken] },
+        undefined,
         undefined,
       );
-
-      controller.destroy();
-    });
-
-    it('filters out native and non-erc20 custom assets from includeAssetIds', async () => {
-      const { controller, apiClient } = await setupController({
-        useBalanceV6: () => true,
-      });
-
-      const erc20Token =
-        'eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
-      const nativeAsset = 'eip155:1/slip44:60' as Caip19AssetId;
-
-      await controller.fetch(
-        createDataRequest({ customAssets: [erc20Token, nativeAsset] }),
-      );
-
-      expect(
-        apiClient.accounts.fetchV6MultiAccountBalances,
-      ).toHaveBeenCalledWith(
-        [`eip155:1:${MOCK_ADDRESS}`],
-        { includeAssetIds: [erc20Token] },
-        undefined,
-      );
-
-      controller.destroy();
-    });
-
-    it('excludes custom tokens on chains not part of the fetch', async () => {
-      const { controller, apiClient } = await setupController({
-        useBalanceV6: () => true,
-      });
-
-      const otherChainToken =
-        'eip155:137/erc20:0x0000000000000000000000000000000000001010' as Caip19AssetId;
-
-      await controller.fetch(
-        createDataRequest({
-          chainIds: [CHAIN_MAINNET],
-          customAssets: [otherChainToken],
-        }),
-      );
-
-      expect(
-        apiClient.accounts.fetchV6MultiAccountBalances,
-      ).toHaveBeenCalledWith([`eip155:1:${MOCK_ADDRESS}`], undefined, undefined);
 
       controller.destroy();
     });
@@ -719,7 +665,6 @@ describe('AccountsApiDataSource', () => {
   it('fetch marks every requested chain as errored when the call exceeds the configured timeout', async () => {
     const { controller, apiClient } = await setupController({
       fetchTimeoutMs: 10,
-      useBalanceV6: () => false,
     });
 
     apiClient.accounts.fetchV5MultiAccountBalances.mockImplementationOnce(
@@ -779,7 +724,6 @@ describe('AccountsApiDataSource', () => {
 
     const { controller } = await setupController({
       balances,
-      useBalanceV6: () => false,
     });
 
     const next = jest.fn().mockResolvedValue(undefined);
@@ -901,7 +845,6 @@ describe('AccountsApiDataSource', () => {
           apiClient as unknown as AccountsApiDataSourceOptions['queryApiClient'],
         onActiveChainsUpdated: (dataSourceName, chains, previousChains): void =>
           activeChainsUpdateHandler(dataSourceName, chains, previousChains),
-        useBalanceV6: (): boolean => false,
       };
 
       if (tokenDetectionEnabled !== undefined) {

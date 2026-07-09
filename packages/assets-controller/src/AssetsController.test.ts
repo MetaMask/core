@@ -926,7 +926,7 @@ describe('AssetsController', () => {
       await withController(
         {
           queryApiClient,
-          remoteFeatureFlags: { assetsAccountsApiV6: true },
+          remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
         },
         async ({ controller }) => {
           await flushPromises();

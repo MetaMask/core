@@ -7,7 +7,6 @@ import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote
 import {
   isCaipChainId,
   KnownCaipNamespace,
-  parseCaipAssetType,
   toCaipChainId,
 } from '@metamask/utils';
 
@@ -79,17 +78,6 @@ export type AccountsApiDataSourceConfig = {
    * middleware hands them off to the next data source (e.g. RPC fallback).
    */
   fetchTimeoutMs?: number;
-  /**
-   * Optional override for the Accounts API balances endpoint version.
-   *
-   * When omitted, the data source reads the `assetsAccountsApiV6` remote feature
-   * flag from the RemoteFeatureFlagController on every fetch (defaulting to v5
-   * when the flag is unset or unavailable). Provide a getter to bypass the flag
-   * (e.g. in tests). When it returns true the v6 endpoint is used; otherwise the
-   * legacy v5 endpoint is used. Kept as a getter so the value can be toggled at
-   * runtime without re-instantiating the data source.
-   */
-  useBalanceV6?: () => boolean;
 };
 
 export type AccountsApiDataSourceOptions = AccountsApiDataSourceConfig & {
@@ -216,13 +204,6 @@ export class AccountsApiDataSource extends AbstractDataSource<
   /** Getter avoids stale value when user toggles token detection at runtime. */
   readonly #tokenDetectionEnabled: () => boolean;
 
-  /**
-   * Feature flag getter selecting the balances endpoint version. Kept as a
-   * getter so it can be flipped at runtime (e.g. to revert v6 -> v5). Defaults
-   * to reading the `assetsAccountsApiV6` remote feature flag off the messenger.
-   */
-  readonly #useBalanceV6: () => boolean;
-
   /** Shared AssetsController messenger, used to read remote feature flags. */
   readonly #messenger: AssetsControllerMessenger;
 
@@ -247,8 +228,6 @@ export class AccountsApiDataSource extends AbstractDataSource<
     this.#tokenDetectionEnabled =
       options.tokenDetectionEnabled ?? ((): boolean => true);
     this.#messenger = options.messenger;
-    this.#useBalanceV6 =
-      options.useBalanceV6 ?? ((): boolean => this.#isBalanceV6Enabled());
     this.#apiClient = options.queryApiClient;
 
     this.#initializeActiveChains().catch(console.error);
@@ -261,6 +240,10 @@ export class AccountsApiDataSource extends AbstractDataSource<
    * the same across clients (extension, mobile). Defaults to `false` when the
    * flag is unset or the controller is unavailable.
    *
+   * The flag is a LaunchDarkly JSON variation shaped `{ value: boolean }` (same
+   * shape as `backendWebSocketConnection`), so the nested `value` is read rather
+   * than treating the flag as a plain boolean.
+   *
    * @returns `true` when the v6 balances endpoint should be used.
    */
   #isBalanceV6Enabled(): boolean {
@@ -268,7 +251,12 @@ export class AccountsApiDataSource extends AbstractDataSource<
       const { remoteFeatureFlags } = this.#messenger.call(
         'RemoteFeatureFlagController:getState',
       );
-      return remoteFeatureFlags?.assetsAccountsApiV6 === true;
+      const flag = remoteFeatureFlags?.assetsAccountsApiV6;
+      return (
+        typeof flag === 'object' &&
+        flag !== null &&
+        Boolean((flag as { value?: unknown }).value)
+      );
     } catch {
       return false;
     }
@@ -393,18 +381,14 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
       // Feature-flagged: v6 endpoint with a fallback to legacy v5. The flag is
       // read here (not cached) so a runtime toggle can revert v6 -> v5.
-      const { unprocessedNetworks, assetsBalance } = this.#useBalanceV6()
-        ? await this.#fetchV6Balances(
-            accountIds,
-            fetchOptions,
-            request,
-            this.#getIncludeAssetIds(request, chainsToFetch),
-          )
+      const { unprocessedNetworks, assetsBalance } = this.#isBalanceV6Enabled()
+        ? await this.#fetchV6Balances(accountIds, fetchOptions, request)
         : await this.#fetchV5Balances(accountIds, fetchOptions, request);
 
       // Handle unprocessed networks - these will be passed to next middleware
       if (unprocessedNetworks.length > 0) {
-        const unprocessedChainIds = unprocessedNetworks.map(caipChainIdToChainId);
+        const unprocessedChainIds =
+          unprocessedNetworks.map(caipChainIdToChainId);
 
         // Add unprocessed chains to errors so middleware passes them to next data source
         response.errors = response.errors ?? {};
@@ -485,15 +469,12 @@ export class AccountsApiDataSource extends AbstractDataSource<
    * @param accountIds - CAIP-10 account IDs to fetch balances for.
    * @param fetchOptions - Cache/fetch options (e.g. force update settings).
    * @param request - The original data request containing accounts to map.
-   * @param includeAssetIds - Custom ERC-20 CAIP-19 asset IDs to confirm
-   * detection for (passed to the v6 endpoint as `includeAssetIds`).
    * @returns Unprocessed networks and processed asset balances by account.
    */
   async #fetchV6Balances(
     accountIds: string[],
     fetchOptions: { staleTime: number; gcTime: number } | undefined,
     request: DataRequest,
-    includeAssetIds: string[],
   ): Promise<{
     unprocessedNetworks: string[];
     assetsBalance: Record<string, Record<Caip19AssetId, AssetBalance>>;
@@ -502,7 +483,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
       () =>
         this.#apiClient.accounts.fetchV6MultiAccountBalances(
           accountIds,
-          includeAssetIds.length > 0 ? { includeAssetIds } : undefined,
+          undefined,
           fetchOptions,
         ),
       this.#fetchTimeoutMs,
@@ -517,47 +498,6 @@ export class AccountsApiDataSource extends AbstractDataSource<
       unprocessedNetworks: apiResponse.unprocessedNetworks,
       assetsBalance,
     };
-  }
-
-  /**
-   * Derive the v6 `includeAssetIds` list from the request's custom assets.
-   *
-   * The v6 balances endpoint only accepts ERC-20 CAIP-19 asset IDs here, so
-   * native (`slip44`) and non-EVM custom assets are filtered out. Assets on
-   * chains not part of this fetch are also dropped.
-   *
-   * @param request - The original data request containing custom assets.
-   * @param chainsToFetch - Chains being fetched in this request.
-   * @returns Deduplicated ERC-20 CAIP-19 asset IDs to include.
-   */
-  #getIncludeAssetIds(
-    request: DataRequest,
-    chainsToFetch: ChainId[],
-  ): string[] {
-    if (!request.customAssets || request.customAssets.length === 0) {
-      return [];
-    }
-
-    const chainSet = new Set<string>(chainsToFetch);
-    const includeAssetIds = new Set<string>();
-
-    for (const assetId of request.customAssets) {
-      try {
-        const parsed = parseCaipAssetType(assetId);
-        // v6 includeAssetIds only supports ERC-20 tokens.
-        if (parsed.assetNamespace !== 'erc20') {
-          continue;
-        }
-        const chainId = `${parsed.chain.namespace}:${parsed.chain.reference}`;
-        if (chainSet.has(chainId)) {
-          includeAssetIds.add(assetId);
-        }
-      } catch {
-        // Skip unparseable asset IDs
-      }
-    }
-
-    return [...includeAssetIds];
   }
 
   /**
@@ -646,10 +586,10 @@ export class AccountsApiDataSource extends AbstractDataSource<
   ): {
     assetsBalance: Record<string, Record<Caip19AssetId, AssetBalance>>;
   } {
-    const assetsBalance: Record<
+    const assetsBalance = Object.create(null) as Record<
       string,
       Record<Caip19AssetId, AssetBalance>
-    > = {};
+    >;
 
     // Build a map of lowercase addresses to account IDs for efficient lookup
     const addressToAccountId = this.#buildAddressToAccountIdMap(request);
@@ -676,7 +616,10 @@ export class AccountsApiDataSource extends AbstractDataSource<
         }
 
         if (!assetsBalance[accountId]) {
-          assetsBalance[accountId] = {};
+          assetsBalance[accountId] = Object.create(null) as Record<
+            Caip19AssetId,
+            AssetBalance
+          >;
         }
 
         // Normalize asset ID (checksum EVM addresses for ERC20 tokens)
