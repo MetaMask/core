@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
 - Bump `@metamask/keyring-snap-client` from `^9.0.2` to `^9.2.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
 - Bump `@metamask/account-tree-controller` from `^7.5.3` to `^7.5.4` ([#9429](https://github.com/MetaMask/core/pull/9429))
-- Bump `@metamask/assets-controllers` from `^109.3.0` to `^109.3.1` ([#9429](https://github.com/MetaMask/core/pull/9429))
+- Bump `@metamask/assets-controllers` from `^109.3.0` to `^109.4.0` ([#9429](https://github.com/MetaMask/core/pull/9429),[#9450](https://github.com/MetaMask/core/pull/9450))
 
 ## [10.1.0]
 
