@@ -1,15 +1,15 @@
-import path from 'node:path';
-
 import { definePlugin, getBarrelFiles, getMode } from '@kubb/core';
 import { OperationGenerator, pluginOasName } from '@kubb/plugin-oas';
 import { pluginTsName } from '@kubb/plugin-ts';
+import path from 'node:path';
 
-import { queryCoreGenerator } from './generators/queryCoreGenerator';
-import type { PluginQueryCore } from './types';
 import { pluginSuperstructName } from '../kubb-plugin-superstruct';
 import { camelCase, pascalCase } from '../utils/casing';
+import { queryCoreGenerator } from './generators/queryCoreGenerator';
+import type { PluginQueryCore } from './types';
 
-export const pluginQueryCoreName = 'plugin-query-core' satisfies PluginQueryCore['name'];
+export const pluginQueryCoreName =
+  'plugin-query-core' satisfies PluginQueryCore['name'];
 
 /**
  * Kubb plugin that generates framework-agnostic TanStack `query-core`
@@ -53,7 +53,7 @@ export const pluginQueryCore = definePlugin<PluginQueryCore>((options = {}) => {
       transformers,
     },
     pre: [pluginOasName, pluginTsName, pluginSuperstructName],
-    resolvePath(baseName, pathMode) {
+    resolvePath(baseName, pathMode): string {
       const root = path.resolve(this.config.root, this.config.output.path);
       const mode = pathMode ?? getMode(path.resolve(root, output.path));
 
@@ -63,17 +63,16 @@ export const pluginQueryCore = definePlugin<PluginQueryCore>((options = {}) => {
 
       return path.resolve(root, output.path, baseName);
     },
-    resolveName(name, type) {
-      const resolvedName =
-        type === 'type' ? pascalCase(name) : camelCase(name);
+    resolveName(name, type): string {
+      const resolvedName = type === 'type' ? pascalCase(name) : camelCase(name);
 
       if (type) {
-        return transformers?.name?.(resolvedName, type) || resolvedName;
+        return transformers?.name?.(resolvedName, type) ?? resolvedName;
       }
 
       return resolvedName;
     },
-    async install() {
+    async install(): Promise<void> {
       const root = path.resolve(this.config.root, this.config.output.path);
       const mode = getMode(path.resolve(root, output.path));
       const oas = await this.getOas();

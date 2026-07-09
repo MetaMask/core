@@ -1,4 +1,4 @@
-import type { Plugin, PluginManager } from '@kubb/core';
+import type { Plugin as KubbPlugin, PluginManager } from '@kubb/core';
 import type { KubbFile } from '@kubb/fabric-core/types';
 import type { OperationSchema, Schema } from '@kubb/plugin-oas';
 import { SchemaGenerator } from '@kubb/plugin-oas';
@@ -14,7 +14,7 @@ import type { PluginSuperstruct } from '../types';
  */
 type NamedSchemaTree = {
   name: string;
-  tree: Array<Schema>;
+  tree: Schema[];
   description?: string;
 };
 
@@ -29,10 +29,10 @@ type NamedSchemaTree = {
  * @returns The rendered sources and the helpers that must be imported.
  */
 function renderStructs(
-  trees: Array<NamedSchemaTree>,
+  trees: NamedSchemaTree[],
   pluginManager: PluginManager,
-  plugin: Plugin<PluginSuperstruct>,
-): { sources: Array<KubbFile.Source>; usedHelpers: Set<string> } {
+  plugin: KubbPlugin<PluginSuperstruct>,
+): { sources: KubbFile.Source[]; usedHelpers: Set<string> } {
   const usedHelpers = new Set<string>();
 
   const sources = trees.map(({ name, tree, description }): KubbFile.Source => {
@@ -146,7 +146,7 @@ export const superstructGenerator = createGenerator<PluginSuperstruct>({
       operationSchemas.response,
     ].filter(
       (operationSchema): operationSchema is OperationSchema =>
-        operationSchema !== undefined && operationSchema.schema !== undefined,
+        operationSchema?.schema !== undefined,
     );
 
     const trees = namedSchemas.map(

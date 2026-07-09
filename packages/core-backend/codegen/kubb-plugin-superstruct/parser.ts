@@ -94,7 +94,11 @@ function formatLiteral(
  * @param args - The source code of the arguments.
  * @returns The call expression, e.g. `string()`.
  */
-function call(options: ParserOptions, helper: string, ...args: string[]): string {
+function call(
+  options: ParserOptions,
+  helper: string,
+  ...args: string[]
+): string {
   options.usedHelpers.add(helper);
   return `${helper}(${args.join(', ')})`;
 }
@@ -120,7 +124,11 @@ function parseBase(
   if (isKeyword(current, schemaKeywords.array)) {
     // Kubb represents the array item type as a list of sibling keywords.
     const item = parse(current.args.items, options);
-    return call(options, 'array', item === '' ? call(options, 'unknown') : item);
+    return call(
+      options,
+      'array',
+      item === '' ? call(options, 'unknown') : item,
+    );
   }
 
   if (isKeyword(current, schemaKeywords.tuple)) {
@@ -147,7 +155,7 @@ function parseBase(
       .map((member) => parse([member], options))
       .filter(Boolean);
     if (members.length === 1) {
-      return members[0] as string;
+      return members[0];
     }
     return call(options, 'union', `[${members.join(', ')}]`);
   }
@@ -158,7 +166,7 @@ function parseBase(
       .map((member) => parse([member], options))
       .filter(Boolean);
     if (members.length === 1) {
-      return members[0] as string;
+      return members[0];
     }
     return call(options, 'intersection', `[${members.join(', ')}]`);
   }
@@ -189,27 +197,48 @@ function parseBase(
     return call(options, 'string');
   }
 
-  if (isKeyword(current, schemaKeywords.number) || isKeyword(current, schemaKeywords.integer)) {
+  if (
+    isKeyword(current, schemaKeywords.number) ||
+    isKeyword(current, schemaKeywords.integer)
+  ) {
     let output = isKeyword(current, schemaKeywords.integer)
       ? call(options, 'integer')
       : call(options, 'number');
 
     const minimum = findKeyword(siblings, schemaKeywords.min)?.args;
     const maximum = findKeyword(siblings, schemaKeywords.max)?.args;
-    const exclusiveMinimum = findKeyword(siblings, schemaKeywords.exclusiveMinimum)?.args;
-    const exclusiveMaximum = findKeyword(siblings, schemaKeywords.exclusiveMaximum)?.args;
+    const exclusiveMinimum = findKeyword(
+      siblings,
+      schemaKeywords.exclusiveMinimum,
+    )?.args;
+    const exclusiveMaximum = findKeyword(
+      siblings,
+      schemaKeywords.exclusiveMaximum,
+    )?.args;
 
     if (minimum !== undefined) {
       output = call(options, 'min', output, String(minimum));
     }
     if (exclusiveMinimum !== undefined) {
-      output = call(options, 'min', output, String(exclusiveMinimum), '{ exclusive: true }');
+      output = call(
+        options,
+        'min',
+        output,
+        String(exclusiveMinimum),
+        '{ exclusive: true }',
+      );
     }
     if (maximum !== undefined) {
       output = call(options, 'max', output, String(maximum));
     }
     if (exclusiveMaximum !== undefined) {
-      output = call(options, 'max', output, String(exclusiveMaximum), '{ exclusive: true }');
+      output = call(
+        options,
+        'max',
+        output,
+        String(exclusiveMaximum),
+        '{ exclusive: true }',
+      );
     }
     return output;
   }
@@ -329,11 +358,15 @@ export function parse(schemas: Schema[], options: ParserOptions): string {
     output = call(options, 'defaulted', output, String(defaultSchema.args));
   }
 
-  const isNullish = schemas.some((schema) => isKeyword(schema, schemaKeywords.nullish));
+  const isNullish = schemas.some((schema) =>
+    isKeyword(schema, schemaKeywords.nullish),
+  );
   const isNullable =
-    isNullish || schemas.some((schema) => isKeyword(schema, schemaKeywords.nullable));
+    isNullish ||
+    schemas.some((schema) => isKeyword(schema, schemaKeywords.nullable));
   const isOptional =
-    isNullish || schemas.some((schema) => isKeyword(schema, schemaKeywords.optional));
+    isNullish ||
+    schemas.some((schema) => isKeyword(schema, schemaKeywords.optional));
 
   if (isNullable) {
     output = call(options, 'nullable', output);

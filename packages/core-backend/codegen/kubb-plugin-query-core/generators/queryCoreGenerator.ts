@@ -119,7 +119,7 @@ export const queryCoreGenerator = createGenerator<PluginQueryCore>({
         })}.ts`,
         pluginKey: [pluginTsName],
         options: { type: 'file' },
-      }) as KubbFile.Path,
+      }),
     });
 
     /**
@@ -143,7 +143,7 @@ export const queryCoreGenerator = createGenerator<PluginQueryCore>({
         })}.ts`,
         pluginKey: [pluginSuperstructName],
         options: { type: 'file' },
-      }) as KubbFile.Path,
+      }),
     });
 
     const response = resolveType(operationSchemas.response.name);
@@ -172,7 +172,7 @@ export const queryCoreGenerator = createGenerator<PluginQueryCore>({
 
     // Parameters shared by all three generated functions (minus `client`,
     // which the query key factory does not need).
-    const parameterEntries: Array<{ signature: string; forward: string }> = [];
+    const parameterEntries: { signature: string; forward: string }[] = [];
     if (pathParams) {
       parameterEntries.push({
         signature: `pathParams: ${pathParams.name}`,

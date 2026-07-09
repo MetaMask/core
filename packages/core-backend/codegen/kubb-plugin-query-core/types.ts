@@ -1,7 +1,16 @@
-import type { Output, PluginFactoryOptions, ResolveNameParams } from '@kubb/core';
+import type {
+  Output,
+  PluginFactoryOptions,
+  ResolveNameParams,
+} from '@kubb/core';
 import type { Oas, contentType } from '@kubb/oas';
-import type { Exclude, Include, Override, ResolvePathOptions } from '@kubb/plugin-oas';
-import type { Generator } from '@kubb/plugin-oas/generators';
+import type {
+  Exclude as OasExclude,
+  Include as OasInclude,
+  Override,
+  ResolvePathOptions,
+} from '@kubb/plugin-oas';
+import type { Generator as OasGenerator } from '@kubb/plugin-oas/generators';
 
 /**
  * User-facing options for the TanStack `query-core` Kubb plugin.
@@ -10,6 +19,7 @@ export type Options = {
   /**
    * Specify the export location for the files and define the behavior of the
    * output.
+   *
    * @default { path: 'queries', barrelType: 'named' }
    */
   output?: Output<Oas>;
@@ -22,19 +32,20 @@ export type Options = {
    * Array containing exclude parameters to exclude/skip
    * tags/operations/methods/paths.
    */
-  exclude?: Array<Exclude>;
+  exclude?: OasExclude[];
   /**
    * Array containing include parameters to include tags/operations/methods/paths.
    */
-  include?: Array<Include>;
+  include?: OasInclude[];
   /**
    * Array containing override parameters to override `options` based on
    * tags/operations/methods/paths.
    */
-  override?: Array<Override<ResolvedOptions>>;
+  override?: Override<ResolvedOptions>[];
   /**
    * The first element of every generated query key, scoping the generated
    * queries in the QueryClient cache (e.g. `'prices'`).
+   *
    * @default 'api'
    */
   queryKeyPrefix?: string;
@@ -43,6 +54,7 @@ export type Options = {
    * runtime from (`ApiRequestClient`, `FetchOptions` and
    * `getQueryOptionsOverrides`). Relative specifiers are resolved from the
    * generated query files.
+   *
    * @default '../../../api/query-runtime'
    */
   runtimeImportPath?: string;
@@ -58,7 +70,7 @@ export type Options = {
   /**
    * Define some generators next to the query-core generators.
    */
-  generators?: Array<Generator<PluginQueryCore>>;
+  generators?: OasGenerator<PluginQueryCore>[];
 };
 
 /**

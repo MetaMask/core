@@ -5491,7 +5491,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@kubb/fabric-core@npm:0.14.0":
+"@kubb/fabric-core@npm:0.14.0, @kubb/fabric-core@npm:^0.14.0":
   version: 0.14.0
   resolution: "@kubb/fabric-core@npm:0.14.0"
   dependencies:
@@ -5503,7 +5503,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@kubb/oas@npm:4.39.2":
+"@kubb/oas@npm:4.39.2, @kubb/oas@npm:^4.39.2":
   version: 4.39.2
   resolution: "@kubb/oas@npm:4.39.2"
   dependencies:
@@ -6621,6 +6621,8 @@ __metadata:
     "@faker-js/faker": "npm:^9.9.0"
     "@kubb/cli": "npm:^4.39.2"
     "@kubb/core": "npm:^4.39.2"
+    "@kubb/fabric-core": "npm:^0.14.0"
+    "@kubb/oas": "npm:^4.39.2"
     "@kubb/plugin-faker": "npm:^4.39.2"
     "@kubb/plugin-msw": "npm:^4.39.2"
     "@kubb/plugin-oas": "npm:^4.39.2"
@@ -6631,7 +6633,7 @@ __metadata:
     "@metamask/keyring-controller": "npm:^27.1.0"
     "@metamask/messenger": "npm:^2.0.0"
     "@metamask/profile-sync-controller": "npm:^28.2.0"
-    "@metamask/superstruct": "npm:^3.3.0"
+    "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/utils": "npm:^11.11.0"
     "@tanstack/query-core": "npm:^5.62.16"
     "@ts-bridge/cli": "npm:^0.6.4"
@@ -6649,7 +6651,7 @@ __metadata:
     uuid: "npm:^8.3.2"
   peerDependencies:
     "@faker-js/faker": ^9.9.0
-    msw: ^2.14.6
+    msw: ^2.0.0
   peerDependenciesMeta:
     "@faker-js/faker":
       optional: true
@@ -19302,18 +19304,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"js-yaml@npm:^4.1.0":
-  version: 4.1.0
-  resolution: "js-yaml@npm:4.1.0"
-  dependencies:
-    argparse: "npm:^2.0.1"
-  bin:
-    js-yaml: bin/js-yaml.js
-  checksum: 10/c138a34a3fd0d08ebaf71273ad4465569a483b8a639e0b118ff65698d257c2791d3199e3f303631f2cb98213fa7b5f5d6a4621fd0fff819421b990d30d967140
-  languageName: node
-  linkType: hard
-
-"js-yaml@npm:^4.2.0":
+"js-yaml@npm:^4.1.0, js-yaml@npm:^4.2.0":
   version: 4.3.0
   resolution: "js-yaml@npm:4.3.0"
   dependencies:
@@ -24642,16 +24633,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"semver@npm:^7.1.1, semver@npm:^7.3.5, semver@npm:^7.3.7, semver@npm:^7.5.3, semver@npm:^7.5.4, semver@npm:^7.6.3, semver@npm:^7.7.3, semver@npm:^7.8.1":
-  version: 7.8.2
-  resolution: "semver@npm:7.8.2"
-  bin:
-    semver: bin/semver.js
-  checksum: 10/52221d8f1cadacda3cc3f0a2e7f7146e0442c7f4219acb25970bed055f5d0a6afbba5f22e293b078c2e93fca3dce0a08b088485e8b75d32a165f16c3627091c8
-  languageName: node
-  linkType: hard
-
-"semver@npm:^7.8.2":
+"semver@npm:^7.1.1, semver@npm:^7.3.5, semver@npm:^7.3.7, semver@npm:^7.5.3, semver@npm:^7.5.4, semver@npm:^7.6.3, semver@npm:^7.7.3, semver@npm:^7.8.1, semver@npm:^7.8.2":
   version: 7.8.5
   resolution: "semver@npm:7.8.5"
   bin:
@@ -24829,17 +24811,10 @@ __metadata:
   languageName: node
   linkType: hard
 
-"shell-quote@npm:^1.6.1":
+"shell-quote@npm:^1.6.1, shell-quote@npm:^1.8.3":
   version: 1.9.0
   resolution: "shell-quote@npm:1.9.0"
   checksum: 10/c3bc91e74a469c4f96b6fd13b0c777fff16bcbda202692a4e5402d3d6b78fc6e02fe92fdf8dc0bddf992a9c6758e43207bfc5bdbefbf8a58190b1c885cbcc171
-  languageName: node
-  linkType: hard
-
-"shell-quote@npm:^1.8.3":
-  version: 1.8.4
-  resolution: "shell-quote@npm:1.8.4"
-  checksum: 10/a3e3796385f2cd5cf0b78207a4439f0c7395c0833fc75b2473084b5d298c109c5c0fa687fcd1c04e4b4484866e5bb8eaae7efae443b80fff71ea7e29baf11f0c
   languageName: node
   linkType: hard
 

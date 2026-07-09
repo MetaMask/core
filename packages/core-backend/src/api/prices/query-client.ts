@@ -34,6 +34,9 @@ export class PricesApiRequestClient
    * operations are GETs.
    *
    * @param args - The request to perform.
+   * @param args.url - Path of the endpoint, relative to the API base URL.
+   * @param args.params - Query parameters to append to the URL.
+   * @param args.signal - Abort signal forwarded from TanStack Query.
    * @returns The parsed JSON response.
    */
   async request<ResponseType>({

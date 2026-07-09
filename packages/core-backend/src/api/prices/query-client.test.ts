@@ -10,7 +10,6 @@ import { assert, is } from '@metamask/superstruct';
 import { QueryClient } from '@tanstack/query-core';
 import { getResponse } from 'msw';
 
-import { PricesApiRequestClient } from './query-client';
 import {
   createCoinGeckoSpotPrice,
   createExchangeRateInfo,
@@ -41,6 +40,7 @@ import {
   TopTokenStruct,
   V3SpotPriceStruct,
 } from '../../generated/price-api/schemas';
+import { PricesApiRequestClient } from './query-client';
 
 /**
  * Routes all `fetch` calls through the generated MSW handlers, so requests
@@ -52,18 +52,25 @@ import {
 function serveMswHandlers(
   requestHandlers: Parameters<typeof getResponse>[0],
 ): void {
-  (globalThis as { fetch: unknown }).fetch = jest.fn(
-    async (input: string | URL): Promise<Response> => {
-      const response = await getResponse(
-        requestHandlers,
-        new Request(String(input)),
-      );
+  jest
+    .spyOn(globalThis, 'fetch')
+    .mockImplementation(async (input): Promise<Response> => {
+      let url: string;
+      if (typeof input === 'string') {
+        url = input;
+      } else if (input instanceof URL) {
+        url = input.href;
+      } else {
+        url = input.url;
+      }
+      // eslint-disable-next-line no-restricted-globals
+      const request = new Request(url);
+      const response = await getResponse(requestHandlers, request);
       if (!response) {
-        throw new Error(`No MSW handler matched: ${String(input)}`);
+        throw new Error(`No MSW handler matched: ${url}`);
       }
       return response;
-    },
-  );
+    });
 }
 
 /**
@@ -182,7 +189,10 @@ describe('generated Price API bindings', () => {
 
       const prices = await fetchV1HistoricalPrices(
         client,
-        { chainId: 1, tokenAddress: '0x6b175474e89094c44da98b954eedeac495271d0f' },
+        {
+          chainId: 1,
+          tokenAddress: '0x6b175474e89094c44da98b954eedeac495271d0f',
+        },
         { vsCurrency: 'eur', timePeriod: '7d' },
       );
 
