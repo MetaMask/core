@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Update `isOnChainRawNotification` to detect on-chain notifications using the v4 `notification_type` discriminator instead of legacy payload field checks, fixing web push notification handling after the v4 API migration ([#9407](https://github.com/MetaMask/core/pull/9407))
+
 ## [25.0.0]
 
 ### Added
