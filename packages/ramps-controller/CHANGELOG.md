@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Provider IDs are no longer normalized by stripping a `/providers/` prefix. `RampsController.getQuotes` now matches provider IDs from the providers list, quotes, custom actions, and sort order as-is, and a precreated stub order's `provider.id` is the canonical provider code passed to the create-order call rather than a `/providers/`-prefixed value. Consumers must supply non-prefixed (canonical) provider IDs ([#0000](https://github.com/MetaMask/core/pull/0000))
+
+### Removed
+
+- **BREAKING:** Remove the `normalizeProviderCode` export ([#0000](https://github.com/MetaMask/core/pull/0000))
+
 ## [15.1.0]
 
 ### Added

@@ -16,7 +16,6 @@ import type {
   UserRegion,
 } from './RampsController';
 import {
-  normalizeProviderCode,
   RampsController,
   getDefaultRampsControllerState,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
@@ -65,20 +64,6 @@ import type {
 describe('RampsController', () => {
   const circuitBreakerOpenErrorMessage =
     'Execution prevented because the circuit breaker is open';
-
-  describe('normalizeProviderCode', () => {
-    it('strips /providers/ prefix', () => {
-      expect(normalizeProviderCode('/providers/transak')).toBe('transak');
-      expect(normalizeProviderCode('/providers/transak-staging')).toBe(
-        'transak-staging',
-      );
-    });
-
-    it('returns string unchanged when no prefix', () => {
-      expect(normalizeProviderCode('transak')).toBe('transak');
-      expect(normalizeProviderCode('')).toBe('');
-    });
-  });
 
   describe('RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS', () => {
     it('includes every RampsService action that RampsController calls', async () => {
@@ -8023,7 +8008,7 @@ describe('RampsController', () => {
         expect(controller.state.orders).toHaveLength(1);
         const stub = controller.state.orders[0];
         expect(stub?.providerOrderId).toBe('abc123');
-        expect(stub?.provider?.id).toBe('/providers/paypal');
+        expect(stub?.provider?.id).toBe('paypal');
         expect(stub?.walletAddress).toBe('0xabc');
         expect(stub?.status).toBe(RampsOrderStatus.Precreated);
       });
