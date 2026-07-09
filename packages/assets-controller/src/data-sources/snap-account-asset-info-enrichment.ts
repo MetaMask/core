@@ -22,7 +22,7 @@ const log = createModuleLogger(
 
 export const GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD = 'getAccountAssetInfo';
 
-/** Snap client request timeout (ms). Hung requests must not block apply. */
+/** Enrichment operation timeout (ms). Hung Snap requests must not block callers. */
 const ACCOUNT_ASSET_INFO_SNAP_TIMEOUT_MS = 15_000;
 
 // TODO(STELLAR): Replace this chain allowlist with Accounts API-backed enrichment support.
@@ -30,7 +30,6 @@ const ACCOUNT_ASSET_INFO_ENRICHMENT_BY_CHAIN: Partial<
   Record<ChainId, boolean>
 > = {
   'stellar:pubnet': true,
-  'stellar:testnet': true,
 };
 
 const ENRICHMENT_TIMEOUT = Symbol('enrichmentTimeout');
@@ -70,6 +69,42 @@ export function isAccountAssetInfoEnrichmentAvailable(chainId: ChainId): boolean
   return ACCOUNT_ASSET_INFO_ENRICHMENT_BY_CHAIN[chainId] === true;
 }
 
+/**
+ * Merge listed snap assets with enrichable custom assets on the requested chains.
+ *
+ * Custom assets can drop off `listAccountAssets` after trustline deactivation
+ * (e.g. limit-0 tombstones) while still needing enrichment refresh.
+ *
+ * @param params - Listed assets, optional custom assets, and requested chains.
+ * @returns Deduplicated asset list to fetch balances/enrichment for.
+ */
+export function getAssetsToFetchWithEligibleCustomAssets(params: {
+  listedAssets: CaipAssetType[];
+  customAssets?: Caip19AssetId[];
+  requestedChainIds: ChainId[];
+}): CaipAssetType[] {
+  const { listedAssets, customAssets, requestedChainIds } = params;
+  const assetsToFetch = new Set<CaipAssetType>(listedAssets);
+
+  if (customAssets) {
+    for (const assetId of customAssets) {
+      try {
+        const assetChainId = extractChainFromAssetId(assetId);
+        if (
+          requestedChainIds.includes(assetChainId) &&
+          isAccountAssetInfoEnrichmentAvailable(assetChainId)
+        ) {
+          assetsToFetch.add(assetId as CaipAssetType);
+        }
+      } catch {
+        // Ignore malformed custom asset ids.
+      }
+    }
+  }
+
+  return [...assetsToFetch];
+}
+
 export function hasAccountAssetInfoEnrichmentCandidate(params: {
   assetsBalance: NonNullable<DataResponse['assetsBalance']>;
   getSnapIdForChain: (chainId: ChainId) => SnapId | undefined;
@@ -100,8 +135,9 @@ export function hasAccountAssetInfoEnrichmentCandidate(params: {
 /**
  * Stateful enricher for Snap `getAccountAssetInfo` responses.
  *
- * Owns fetch/timeout/apply for a single account. Future in-flight request
- * deduplication can key on `${accountId}:${chainId}` inside {@link #fetch}.
+ * Deduplicates the Snap fetch per `${accountId}:${chainId}` so concurrent
+ * callers share one request, then each caller applies the result to its own
+ * `assetsBalance` object.
  */
 export class SnapAccountAssetInfoEnricher {
   readonly #getSnapIdForChain: (
@@ -114,6 +150,11 @@ export class SnapAccountAssetInfoEnricher {
 
   readonly #log: typeof log;
 
+  readonly #inFlight = new Map<
+    string,
+    Promise<GetAccountAssetInfoResponse | undefined>
+  >();
+
   constructor(options: SnapAccountAssetInfoEnricherOptions) {
     this.#getSnapIdForChain = options.getSnapIdForChain;
     this.#callSnapRequest = options.callSnapRequest;
@@ -123,36 +164,67 @@ export class SnapAccountAssetInfoEnricher {
   /**
    * Enrich all eligible assets for a single account.
    *
-   * Groups assets by chain, then performs one `getAccountAssetInfo` request
-   * per (accountId, chainId) and merges the response into `assetsBalance`.
+   * Groups assets by chain, then runs one deduplicated fetch per
+   * (accountId, chainId) and applies the result to this caller's balances.
    *
    * @param params - Account id and that account's balance rows to mutate.
    */
   async enrichAccount(params: EnrichAccountParams): Promise<void> {
     const { accountId, assetsBalance } = params;
-    const assetsByChain = this.#getEnrichableAssetsByChain(assetsBalance);
+    const assetsByChain = this.#groupAssetsByChain(assetsBalance);
 
     for (const [chainId, assets] of assetsByChain) {
-      const accountAssetInfo = await this.#fetch(accountId, chainId, assets);
-      if (!accountAssetInfo) {
-        continue;
-      }
-      this.#apply(accountAssetInfo, assetsBalance);
+      await this.#enrich(accountId, chainId, assets, assetsBalance);
     }
   }
 
   /**
-   * Retrieve enrichment from the Snap for one (accountId, chainId).
+   * Deduplicate the Snap fetch for one (accountId, chainId), then apply to
+   * this caller's `assetsBalance`.
    *
-   * Natural place for future in-flight deduplication keyed by
-   * `${accountId}:${chainId}`.
+   * Concurrent callers share the in-flight fetch promise, but each applies
+   * the response to its own balance object.
+   *
+   * @param accountId - Account id.
+   * @param chainId - CAIP-2 chain id.
+   * @param assets - All enrichable assets on that chain for the account.
+   * @param assetsBalance - Account balance rows to update in place.
+   * @returns Resolves when fetch (shared) and apply (per-caller) complete.
+   */
+  async #enrich(
+    accountId: string,
+    chainId: ChainId,
+    assets: Caip19AssetId[],
+    assetsBalance: Record<Caip19AssetId, AssetBalance>,
+  ): Promise<void> {
+    const key = `${accountId}:${chainId}`;
+    let promise = this.#inFlight.get(key);
+    if (!promise) {
+      promise = this.#fetchWithTimeout(accountId, chainId, assets).finally(
+        () => {
+          this.#inFlight.delete(key);
+        },
+      );
+      this.#inFlight.set(key, promise);
+    }
+
+    const accountAssetInfo = await promise;
+    if (!accountAssetInfo) {
+      return;
+    }
+    this.#apply(accountAssetInfo, assetsBalance);
+  }
+
+  /**
+   * Fetch enrichment from the Snap, racing against a timeout so callers are
+   * not blocked if the Snap hangs.
    *
    * @param accountId - Account id.
    * @param chainId - CAIP-2 chain id.
    * @param assets - All enrichable assets on that chain for the account.
    * @returns Snap response, or undefined on skip/timeout/error.
    */
-  async #fetch(
+  async #fetchWithTimeout(
     accountId: string,
     chainId: ChainId,
     assets: Caip19AssetId[],
@@ -166,25 +238,8 @@ export class SnapAccountAssetInfoEnricher {
       return undefined;
     }
 
-    // Future dedup key: `${accountId}:${chainId}`
-
     try {
-      const request: SnapAccountAssetInfoRequest = {
-        snapId,
-        origin: 'metamask',
-        handler: HandlerType.OnClientRequest,
-        request: {
-          jsonrpc: '2.0',
-          method: GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD,
-          params: {
-            accountId,
-            scope: chainId,
-            assets,
-          },
-        },
-      };
-
-      const snapRequest = this.#callSnapRequest(request);
+      const snapRequest = this.#fetch(accountId, snapId, chainId, assets);
       const result = await Promise.race([
         snapRequest,
         new Promise<typeof ENRICHMENT_TIMEOUT>((resolve) =>
@@ -217,7 +272,7 @@ export class SnapAccountAssetInfoEnricher {
         return undefined;
       }
 
-      return result as GetAccountAssetInfoResponse | undefined;
+      return result;
     } catch (error) {
       this.#log('Failed to enrich snap account asset info', {
         accountId,
@@ -228,6 +283,41 @@ export class SnapAccountAssetInfoEnricher {
       });
       return undefined;
     }
+  }
+
+  /**
+   * Build and execute a single Snap `getAccountAssetInfo` request.
+   *
+   * @param accountId - Account id.
+   * @param snapId - Snap id for the chain.
+   * @param chainId - CAIP-2 chain id.
+   * @param assets - All enrichable assets on that chain for the account.
+   * @returns Snap response, or undefined.
+   */
+  async #fetch(
+    accountId: string,
+    snapId: SnapId,
+    chainId: ChainId,
+    assets: Caip19AssetId[],
+  ): Promise<GetAccountAssetInfoResponse | undefined> {
+    const request: SnapAccountAssetInfoRequest = {
+      snapId,
+      origin: 'metamask',
+      handler: HandlerType.OnClientRequest,
+      request: {
+        jsonrpc: '2.0',
+        method: GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD,
+        params: {
+          accountId,
+          scope: chainId,
+          assets,
+        },
+      },
+    };
+
+    return (await this.#callSnapRequest(
+      request,
+    )) as GetAccountAssetInfoResponse | undefined;
   }
 
   /**
@@ -255,7 +345,7 @@ export class SnapAccountAssetInfoEnricher {
     }
   }
 
-  #getEnrichableAssetsByChain(
+  #groupAssetsByChain(
     assetsBalance: Record<Caip19AssetId, AssetBalance>,
   ): Map<ChainId, Caip19AssetId[]> {
     const assetsByChain = new Map<ChainId, Caip19AssetId[]>();

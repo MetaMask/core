@@ -4,6 +4,7 @@ import { HandlerType } from '@metamask/snaps-utils';
 import type { ChainId, Caip19AssetId, DataResponse } from '../types';
 import {
   GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD,
+  getAssetsToFetchWithEligibleCustomAssets,
   hasAccountAssetInfoEnrichmentCandidate,
   isAccountAssetInfoEnrichmentAvailable,
   SnapAccountAssetInfoEnricher,
@@ -23,13 +24,37 @@ const MOCK_SOL_ASSET =
 
 describe('snap-account-asset-info-enrichment', () => {
   describe('isAccountAssetInfoEnrichmentAvailable', () => {
-    it('returns true for Stellar chains', () => {
+    it('returns true for Stellar pubnet', () => {
       expect(isAccountAssetInfoEnrichmentAvailable(STELLAR_PUBNET)).toBe(true);
-      expect(isAccountAssetInfoEnrichmentAvailable(STELLAR_TESTNET)).toBe(true);
     });
 
     it('returns false for non-enrichment chains', () => {
+      expect(isAccountAssetInfoEnrichmentAvailable(STELLAR_TESTNET)).toBe(false);
       expect(isAccountAssetInfoEnrichmentAvailable(SOLANA_MAINNET)).toBe(false);
+    });
+  });
+
+  describe('getAssetsToFetchWithEligibleCustomAssets', () => {
+    it('adds enrichable custom assets on requested chains', () => {
+      const result = getAssetsToFetchWithEligibleCustomAssets({
+        listedAssets: [MOCK_STELLAR_USDC_ASSET],
+        customAssets: [MOCK_STELLAR_ASSET_2],
+        requestedChainIds: [STELLAR_PUBNET],
+      });
+
+      expect(result).toStrictEqual(
+        expect.arrayContaining([MOCK_STELLAR_USDC_ASSET, MOCK_STELLAR_ASSET_2]),
+      );
+    });
+
+    it('ignores custom assets on non-enrichment chains', () => {
+      const result = getAssetsToFetchWithEligibleCustomAssets({
+        listedAssets: [MOCK_STELLAR_USDC_ASSET],
+        customAssets: [MOCK_SOL_ASSET],
+        requestedChainIds: [STELLAR_PUBNET, SOLANA_MAINNET],
+      });
+
+      expect(result).toStrictEqual([MOCK_STELLAR_USDC_ASSET]);
     });
   });
 
@@ -181,6 +206,117 @@ describe('snap-account-asset-info-enrichment', () => {
       expect(assetsBalance[MOCK_STELLAR_ASSET_2]).toStrictEqual({
         amount: '20',
         accountAssetInfo: { limit: '500', authorized: false },
+      });
+    });
+
+    it('deduplicates concurrent enrichment for the same account and chain', async () => {
+      const assetsBalance = createAccountAssets();
+      let resolveSnapRequest:
+        | ((value: Record<string, unknown>) => void)
+        | undefined;
+      const callSnapRequest = jest.fn(
+        () =>
+          new Promise((resolve) => {
+            resolveSnapRequest = resolve;
+          }),
+      );
+      const enricher = createEnricher(callSnapRequest);
+
+      const first = enricher.enrichAccount({ accountId, assetsBalance });
+      const second = enricher.enrichAccount({ accountId, assetsBalance });
+
+      expect(callSnapRequest).toHaveBeenCalledTimes(1);
+
+      resolveSnapRequest?.({
+        [MOCK_STELLAR_USDC_ASSET]: {
+          limit: '1000',
+          authorized: true,
+        },
+      });
+      await Promise.all([first, second]);
+
+      expect(callSnapRequest).toHaveBeenCalledTimes(1);
+      expect(assetsBalance[MOCK_STELLAR_USDC_ASSET]).toStrictEqual({
+        amount: '25',
+        accountAssetInfo: {
+          limit: '1000',
+          authorized: true,
+        },
+      });
+    });
+
+    it('applies shared fetch result to each distinct assetsBalance object', async () => {
+      const assetsBalanceA = createAccountAssets();
+      const assetsBalanceB = createAccountAssets();
+      let resolveSnapRequest:
+        | ((value: Record<string, unknown>) => void)
+        | undefined;
+      const callSnapRequest = jest.fn(
+        () =>
+          new Promise((resolve) => {
+            resolveSnapRequest = resolve;
+          }),
+      );
+      const enricher = createEnricher(callSnapRequest);
+
+      const first = enricher.enrichAccount({
+        accountId,
+        assetsBalance: assetsBalanceA,
+      });
+      const second = enricher.enrichAccount({
+        accountId,
+        assetsBalance: assetsBalanceB,
+      });
+
+      expect(callSnapRequest).toHaveBeenCalledTimes(1);
+
+      resolveSnapRequest?.({
+        [MOCK_STELLAR_USDC_ASSET]: {
+          limit: '1000',
+          authorized: true,
+        },
+      });
+      await Promise.all([first, second]);
+
+      expect(callSnapRequest).toHaveBeenCalledTimes(1);
+      expect(assetsBalanceA[MOCK_STELLAR_USDC_ASSET]).toStrictEqual({
+        amount: '25',
+        accountAssetInfo: {
+          limit: '1000',
+          authorized: true,
+        },
+      });
+      expect(assetsBalanceB[MOCK_STELLAR_USDC_ASSET]).toStrictEqual({
+        amount: '25',
+        accountAssetInfo: {
+          limit: '1000',
+          authorized: true,
+        },
+      });
+    });
+
+    it('allows a new enrichment after the previous in-flight operation completes', async () => {
+      const assetsBalance = createAccountAssets();
+      const callSnapRequest = jest
+        .fn()
+        .mockResolvedValueOnce({
+          [MOCK_STELLAR_USDC_ASSET]: { limit: '1000', authorized: true },
+        })
+        .mockResolvedValueOnce({
+          [MOCK_STELLAR_USDC_ASSET]: { limit: '2000', authorized: false },
+        });
+      const enricher = createEnricher(callSnapRequest);
+
+      await enricher.enrichAccount({ accountId, assetsBalance });
+      await enricher.enrichAccount({ accountId, assetsBalance });
+
+      expect(callSnapRequest).toHaveBeenCalledTimes(2);
+      expect(assetsBalance[MOCK_STELLAR_USDC_ASSET]).toStrictEqual({
+        amount: '25',
+        accountAssetInfo: {
+          limit: '2000',
+          authorized: false,
+        },
       });
     });
 
