@@ -430,9 +430,20 @@ async function submitTransactions(
     quote.request.from.toLowerCase() !==
     (transaction.txParams.from as Hex).toLowerCase();
 
+  // Only prepend the payment override onto the source execute batch for
+  // same-chain flows. For cross-chain flows (e.g. Predict withdraw on Polygon
+  // depositing to a Money Account on Monad) the deposit is carried in the relay
+  // quote's destination txs[] and runs on the destination chain; its delegation
+  // is signed for the destination chainId, so redeeming it inside the
+  // source-chain batch recovers a wrong signer and reverts. In that case we
+  // fall through and prepend the original (e.g. Predict withdraw) tx instead.
+  const isSameChainOverride =
+    quote.original.details.currencyIn.currency.chainId ===
+    quote.original.details.currencyOut.currency.chainId;
+
   let allParams = normalizedParams;
 
-  if (quote.request.paymentOverride) {
+  if (quote.request.paymentOverride && isSameChainOverride) {
     const { transactionData } = messenger.call(
       'TransactionPayController:getState',
     );
