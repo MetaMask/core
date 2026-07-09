@@ -29,8 +29,8 @@ import type {
 } from '../types';
 import { AbstractDataSource } from './AbstractDataSource';
 import {
-  enrichAccountAssetInfo,
   hasAccountAssetInfoEnrichmentCandidate,
+  SnapAccountAssetInfoEnricher,
 } from './snap-account-asset-info-enrichment';
 import type {
   DataSourceState,
@@ -232,6 +232,8 @@ export class SnapDataSource extends AbstractDataSource<
 
   readonly #assetEnrichmentEnabled: () => boolean;
 
+  readonly #accountAssetInfoEnricher: SnapAccountAssetInfoEnricher;
+
   constructor(options: SnapDataSourceOptions) {
     super(SNAP_DATA_SOURCE_NAME, {
       ...defaultSnapState,
@@ -242,6 +244,15 @@ export class SnapDataSource extends AbstractDataSource<
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
     this.#assetEnrichmentEnabled =
       options.assetEnrichmentEnabled ?? ((): boolean => false);
+    // TODO(STELLAR): Remove once the Accounts API returns account-asset metadata directly.
+    this.#accountAssetInfoEnricher = new SnapAccountAssetInfoEnricher({
+      getSnapIdForChain: (chainId): SnapId | undefined =>
+        this.state.chainToSnap[chainId] as SnapId | undefined,
+      callSnapRequest: (request): Promise<unknown> =>
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (this.#messenger as any).call('SnapController:handleRequest', request),
+      log,
+    });
 
     // Bind handlers for cleanup in destroy()
     this.#handleSnapBalancesUpdatedBound = this.#handleSnapBalancesUpdated.bind(
@@ -527,26 +538,24 @@ export class SnapDataSource extends AbstractDataSource<
       }
     }
 
-    // Post-fetch enrichment stage: assetsBalance above already matches the
-    // standard (unenriched) balance shape. When the feature flag is enabled
-    // and there are eligible assets, apply accountAssetInfo enrichment once.
     if (
       this.#assetEnrichmentEnabled() &&
       results.assetsBalance &&
       hasAccountAssetInfoEnrichmentCandidate({
         assetsBalance: results.assetsBalance,
-        chainToSnap: this.state.chainToSnap,
+        getSnapIdForChain: (chainId): SnapId | undefined =>
+          this.state.chainToSnap[chainId] as SnapId | undefined,
       })
     ) {
-      // TODO(STELLAR): Remove this Snap-side accountAssetInfo enrichment path once the Accounts API returns account-asset enrichment directly.
-      await enrichAccountAssetInfo({
-        assetsBalance: results.assetsBalance,
-        chainToSnap: this.state.chainToSnap,
-        callSnapRequest: (request) =>
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (this.#messenger as any).call('SnapController:handleRequest', request),
-        log,
-      });
+      // TODO(STELLAR): Remove once the Accounts API returns account-asset metadata directly.
+      for (const [accountId, accountAssets] of Object.entries(
+        results.assetsBalance,
+      )) {
+        await this.#accountAssetInfoEnricher.enrichAccount({
+          accountId,
+          assetsBalance: accountAssets,
+        });
+      }
     }
 
     return results;

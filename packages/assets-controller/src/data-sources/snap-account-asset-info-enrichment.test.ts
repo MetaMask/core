@@ -4,9 +4,9 @@ import { HandlerType } from '@metamask/snaps-utils';
 import type { ChainId, Caip19AssetId, DataResponse } from '../types';
 import {
   GET_ACCOUNT_ASSET_INFO_CLIENT_METHOD,
-  enrichAccountAssetInfo,
   hasAccountAssetInfoEnrichmentCandidate,
   isAccountAssetInfoEnrichmentAvailable,
+  SnapAccountAssetInfoEnricher,
 } from './snap-account-asset-info-enrichment';
 
 const STELLAR_PUBNET = 'stellar:pubnet' as ChainId;
@@ -89,19 +89,28 @@ describe('snap-account-asset-info-enrichment', () => {
     });
   });
 
-  describe('enrichAccountAssetInfo', () => {
+  describe('SnapAccountAssetInfoEnricher', () => {
     const accountId = 'mock-account-id';
 
-    function createAssetsBalance(): NonNullable<DataResponse['assetsBalance']> {
+    function createAccountAssets(): NonNullable<
+      DataResponse['assetsBalance']
+    >[string] {
       return {
-        [accountId]: {
-          [MOCK_STELLAR_USDC_ASSET]: { amount: '25' },
-        },
+        [MOCK_STELLAR_USDC_ASSET]: { amount: '25' },
       };
     }
 
+    function createEnricher(
+      callSnapRequest: jest.Mock,
+    ): SnapAccountAssetInfoEnricher {
+      return new SnapAccountAssetInfoEnricher({
+        getSnapIdForChain: () => STELLAR_SNAP_ID,
+        callSnapRequest,
+      });
+    }
+
     it('enriches Stellar assets with accountAssetInfo', async () => {
-      const assetsBalance = createAssetsBalance();
+      const assetsBalance = createAccountAssets();
       const callSnapRequest = jest.fn().mockResolvedValue({
         [MOCK_STELLAR_USDC_ASSET]: {
           limit: '1000',
@@ -109,12 +118,9 @@ describe('snap-account-asset-info-enrichment', () => {
           sponsored: false,
         },
       });
+      const enricher = createEnricher(callSnapRequest);
 
-      await enrichAccountAssetInfo({
-        assetsBalance,
-        getSnapIdForChain: () => STELLAR_SNAP_ID,
-        callSnapRequest,
-      });
+      await enricher.enrichAccount({ accountId, assetsBalance });
 
       expect(callSnapRequest).toHaveBeenCalledWith({
         snapId: STELLAR_SNAP_ID,
@@ -130,7 +136,7 @@ describe('snap-account-asset-info-enrichment', () => {
           },
         },
       });
-      expect(assetsBalance[accountId]?.[MOCK_STELLAR_USDC_ASSET]).toStrictEqual({
+      expect(assetsBalance[MOCK_STELLAR_USDC_ASSET]).toStrictEqual({
         amount: '25',
         accountAssetInfo: {
           limit: '1000',
@@ -140,74 +146,85 @@ describe('snap-account-asset-info-enrichment', () => {
       });
     });
 
+    it('requests all assets on a chain in a single getAccountAssetInfo call', async () => {
+      const assetsBalance: NonNullable<
+        DataResponse['assetsBalance']
+      >[string] = {
+        [MOCK_STELLAR_USDC_ASSET]: { amount: '10' },
+        [MOCK_STELLAR_ASSET_2]: { amount: '20' },
+      };
+      const callSnapRequest = jest.fn().mockResolvedValue({
+        [MOCK_STELLAR_USDC_ASSET]: { limit: '1000', authorized: true },
+        [MOCK_STELLAR_ASSET_2]: { limit: '500', authorized: false },
+      });
+      const enricher = createEnricher(callSnapRequest);
+
+      await enricher.enrichAccount({ accountId, assetsBalance });
+
+      expect(callSnapRequest).toHaveBeenCalledTimes(1);
+      expect(callSnapRequest).toHaveBeenCalledWith(
+        expect.objectContaining({
+          request: expect.objectContaining({
+            params: expect.objectContaining({
+              assets: expect.arrayContaining([
+                MOCK_STELLAR_USDC_ASSET,
+                MOCK_STELLAR_ASSET_2,
+              ]),
+            }),
+          }),
+        }),
+      );
+      expect(assetsBalance[MOCK_STELLAR_USDC_ASSET]).toStrictEqual({
+        amount: '10',
+        accountAssetInfo: { limit: '1000', authorized: true },
+      });
+      expect(assetsBalance[MOCK_STELLAR_ASSET_2]).toStrictEqual({
+        amount: '20',
+        accountAssetInfo: { limit: '500', authorized: false },
+      });
+    });
+
     it('returns balances without accountAssetInfo when enrichment hangs past timeout', async () => {
       jest.useFakeTimers();
 
-      const assetsBalance = createAssetsBalance();
-      const callSnapRequest = jest.fn(
-        () => new Promise(() => undefined),
-      );
+      const assetsBalance = createAccountAssets();
+      const callSnapRequest = jest.fn(() => new Promise(() => undefined));
+      const enricher = createEnricher(callSnapRequest);
 
-      const enrichPromise = enrichAccountAssetInfo({
+      const enrichPromise = enricher.enrichAccount({
+        accountId,
         assetsBalance,
-        getSnapIdForChain: () => STELLAR_SNAP_ID,
-        callSnapRequest,
       });
 
       await jest.advanceTimersByTimeAsync(20_000);
       await enrichPromise;
 
-      expect(assetsBalance[accountId]?.[MOCK_STELLAR_USDC_ASSET]).toStrictEqual({
+      expect(assetsBalance[MOCK_STELLAR_USDC_ASSET]).toStrictEqual({
         amount: '25',
       });
       expect(
         (
-          assetsBalance[accountId]?.[MOCK_STELLAR_USDC_ASSET] as Record<
-            string,
-            unknown
-          >
+          assetsBalance[MOCK_STELLAR_USDC_ASSET] as Record<string, unknown>
         )?.accountAssetInfo,
       ).toBeUndefined();
 
       jest.useRealTimers();
     });
 
-    it('stops after the first enrichment batch timeout', async () => {
-      jest.useFakeTimers();
-
-      const MOCK_STELLAR_ASSET_3 =
-        'stellar:pubnet/asset:EURC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN' as Caip19AssetId;
-      const MOCK_STELLAR_ASSET_4 =
-        'stellar:pubnet/asset:BTC-GCQTGZQQ5G4PTM2GL7CDIFKUBIPEC52BROAQIAPW53XBRJVN6ZJVTG6' as Caip19AssetId;
-
-      const assetsBalance: NonNullable<DataResponse['assetsBalance']> = {
-        [accountId]: {
-          [MOCK_STELLAR_USDC_ASSET]: { amount: '10' },
-          [MOCK_STELLAR_ASSET_2]: { amount: '10' },
-          [MOCK_STELLAR_ASSET_3]: { amount: '10' },
-          [MOCK_STELLAR_ASSET_4]: { amount: '10' },
-        },
-      };
-
-      let callCount = 0;
-      const callSnapRequest = jest.fn(() => {
-        callCount += 1;
-        return new Promise(() => undefined);
-      });
-
-      const enrichPromise = enrichAccountAssetInfo({
-        assetsBalance,
-        getSnapIdForChain: () => STELLAR_SNAP_ID,
+    it('skips enrichment when no Snap ID is available for the chain', async () => {
+      const assetsBalance = createAccountAssets();
+      const callSnapRequest = jest.fn();
+      const enricher = new SnapAccountAssetInfoEnricher({
+        getSnapIdForChain: (): SnapId | undefined => undefined,
         callSnapRequest,
       });
 
-      await jest.advanceTimersByTimeAsync(20_000);
-      await enrichPromise;
+      await enricher.enrichAccount({ accountId, assetsBalance });
 
-      // Batch size is 3; a second batch would be queued without the timeout break.
-      expect(callCount).toBe(1);
-
-      jest.useRealTimers();
+      expect(callSnapRequest).not.toHaveBeenCalled();
+      expect(assetsBalance[MOCK_STELLAR_USDC_ASSET]).toStrictEqual({
+        amount: '25',
+      });
     });
   });
 });
