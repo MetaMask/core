@@ -3,6 +3,7 @@
  */
 
 export { PricesApiClient } from './client';
+export { PricesApiRequestClient } from './query-client';
 export type {
   V3SpotPricesResponse,
   CoinGeckoSpotPrice,

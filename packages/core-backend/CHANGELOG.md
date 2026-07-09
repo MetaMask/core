@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add generated Price API bindings under the new `@metamask/core-backend/price-api` entry point, produced from the API's OpenAPI document by Kubb with a custom `@metamask/superstruct` plugin ([#9446](https://github.com/MetaMask/core/pull/9446))
+  - TypeScript types (e.g. `GetV3SpotPricesQueryResponse`), `@metamask/superstruct` structs (e.g. `GetV3SpotPricesQueryResponseStruct`), and TanStack query-core bindings (e.g. `getV3SpotPricesQueryOptions`, `fetchV3SpotPrices`) that validate responses against the generated structs
+- Add generated Price API test mocks under the new `@metamask/core-backend/mocks` entry point ([#9446](https://github.com/MetaMask/core/pull/9446))
+  - Faker-based mock data builders (e.g. `createCoinGeckoSpotPrice`) and MSW request handlers (e.g. `getV3SpotPricesHandler`, `handlers`)
+  - Using the mocks requires the new optional peer dependencies `@faker-js/faker` (`^9.9.0`) and `msw` (`^2.0.0`)
+- Add `ApiRequestClient` contract (with `ApiRequestArgs`) and `PricesApiRequestClient`, an implementation backed by the shared `BaseApiClient` transport for use with the generated query-core bindings ([#9446](https://github.com/MetaMask/core/pull/9446))
+
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
