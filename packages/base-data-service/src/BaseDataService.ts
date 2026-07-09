@@ -278,7 +278,9 @@ export class BaseDataService<
     const mutation = mutationCache.build(this.#queryClient, {
       ...options,
       mutationFn: (context) =>
-        this.#policy.execute(() => options.mutationFn(context)),
+        this.#policy.circuitBreakerPolicy.execute(() =>
+          options.mutationFn(context),
+        ),
     });
     return await mutation.execute();
   }
