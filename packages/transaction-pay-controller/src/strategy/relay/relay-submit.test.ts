@@ -966,6 +966,12 @@ describe('Relay Submit Utils', () => {
             [ORIGINAL_TRANSACTION_ID_MOCK]: TRANSACTION_DATA_MOCK,
           },
         });
+
+        // The payment override is only prepended onto the source execute batch
+        // for same-chain flows, so align the quote's source and destination
+        // chains for these override-prepend assertions.
+        request.quotes[0].original.details.currencyOut.currency.chainId =
+          request.quotes[0].original.details.currencyIn.currency.chainId;
       });
 
       it('prepends override tx params to submit batch', async () => {
@@ -994,6 +1000,20 @@ describe('Relay Submit Utils', () => {
       });
 
       it('does not call getPaymentOverrideData when paymentOverride is not defined', async () => {
+        await submitRelayQuotes(request);
+
+        expect(getPaymentOverrideDataMock).not.toHaveBeenCalled();
+      });
+
+      it('does not prepend override for cross-chain flows', async () => {
+        request.quotes[0].request.paymentOverride =
+          PaymentOverride.MoneyAccount;
+        request.quotes[0].original.details.currencyIn.currency.chainId = 137;
+        request.quotes[0].original.details.currencyOut.currency.chainId = 143;
+        getPaymentOverrideDataMock.mockResolvedValue({
+          calls: [PAYMENT_OVERRIDE_TX_MOCK],
+        });
+
         await submitRelayQuotes(request);
 
         expect(getPaymentOverrideDataMock).not.toHaveBeenCalled();

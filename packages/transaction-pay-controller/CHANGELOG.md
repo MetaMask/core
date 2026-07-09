@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Fix cross-chain Money Account deposits (e.g. Predict withdraw to a Money Account) reverting with `InvalidEOASignature()` (`0x3db6791c`) by only prepending the payment override onto the source Relay execute batch for same-chain flows ([#9439](https://github.com/MetaMask/core/pull/9439))
+
 ## [24.0.1]
 
 ### Changed
