@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Preserve existing per-asset balance fields when applying merge-mode balance updates, so amount-only updates do not drop extra fields already present on the prior balance ([#9453](https://github.com/MetaMask/core/pull/9453))
+
 ## [10.2.0]
 
 ### Added
