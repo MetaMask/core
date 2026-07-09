@@ -1351,9 +1351,7 @@ describe('NetworkController', () => {
             async ({ controller }) => {
               expect(() =>
                 controller.getNetworkClientById(NetworkType.mainnet),
-              ).toThrow(
-                'No network client was found with ID "mainnet".',
-              );
+              ).toThrow('No network client was found with ID "mainnet".');
             },
           );
         });
