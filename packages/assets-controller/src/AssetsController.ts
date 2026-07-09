@@ -582,7 +582,16 @@ function mergeAccountBalances(
   replaceCoveredChains: boolean,
 ): Record<string, AssetBalance> {
   if (!replaceCoveredChains) {
-    return { ...previousBalances, ...accountBalances };
+    // Per-asset shallow merge so amount updates do not drop extra fields
+    // already on the prior balance (e.g. enrichment metadata).
+    const next: Record<string, AssetBalance> = { ...previousBalances };
+    for (const [assetId, balance] of Object.entries(accountBalances)) {
+      next[assetId] = {
+        ...(previousBalances[assetId] ?? { amount: '0' }),
+        ...balance,
+      };
+    }
+    return next;
   }
 
   const coveredChains = new Set(
