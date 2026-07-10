@@ -1964,6 +1964,8 @@ export class TradingService {
             : PERPS_EVENT_VALUE.STATUS.FAILED,
         [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
         [PERPS_EVENT_PROPERTY.BULK_ACTION_ID]: bulkActionId,
+        [PERPS_EVENT_PROPERTY.NUMBER_POSITIONS_CLOSED]:
+          operationResult?.successCount ?? 0,
       };
       if (operationError) {
         batchCloseProps[PERPS_EVENT_PROPERTY.ERROR_MESSAGE] =

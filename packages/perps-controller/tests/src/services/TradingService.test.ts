@@ -3158,6 +3158,57 @@ describe('TradingService', () => {
       });
     });
 
+    describe('number_positions_closed on batch close', () => {
+      it('carries the successful-close count on the batch close summary event', async () => {
+        mockGetPositions.mockResolvedValue([mockClosePosition]);
+        (mockProvider.closePositions as jest.Mock).mockResolvedValue({
+          success: true,
+          successCount: 2,
+          failureCount: 1,
+          results: [
+            { success: true, orderId: 'close-1', symbol: 'BTC' },
+            { success: true, orderId: 'close-2', symbol: 'ETH' },
+            { success: false, symbol: 'SOL', error: 'Insufficient liquidity' },
+          ],
+        });
+
+        await tradingService.closePositions({
+          provider: mockProvider,
+          params: { closeAll: true },
+          context: { ...mockContext, getPositions: mockGetPositions },
+        });
+
+        expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+          PerpsAnalyticsEvent.PositionCloseTransaction,
+          expect.objectContaining({ number_positions_closed: 2 }),
+        );
+      });
+
+      it('does not add number_positions_closed to a single-position close event', async () => {
+        mockGetPositions.mockResolvedValue([mockClosePosition]);
+        mockProvider.closePosition.mockResolvedValue({
+          success: true,
+          orderId: 'close-1',
+          filledSize: '0.5',
+          averagePrice: '55000',
+        });
+
+        await tradingService.closePosition({
+          provider: mockProvider,
+          params: { symbol: 'BTC' },
+          context: { ...mockContext, getPositions: mockGetPositions },
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        expect(
+          findCall(
+            PerpsAnalyticsEvent.PositionCloseTransaction,
+            'executed',
+          )?.[1],
+        ).not.toHaveProperty('number_positions_closed');
+      });
+    });
+
     describe('bulk_action_id on batch close/cancel (TAT-3150)', () => {
       it('attaches bulk_action_id to the batch close summary event', async () => {
         mockGetPositions.mockResolvedValue([mockClosePosition]);
