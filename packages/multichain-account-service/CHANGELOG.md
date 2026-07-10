@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [12.1.0]
 
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.4` to `^39.0.5` ([#9464](https://github.com/MetaMask/core/pull/9464))
+
 ### Removed
 
 - Removed use of v1 `createAccount` entirely ([#9460](https://github.com/MetaMask/core/pull/9460))
