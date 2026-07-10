@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.4.0` ([#9421](https://github.com/MetaMask/core/pull/9421), [#9456](https://github.com/MetaMask/core/pull/9456))
 - Bump `@metamask/connectivity-controller` from `^0.2.0` to `^0.3.0` ([#9435](https://github.com/MetaMask/core/pull/9435))
+- Bump `@metamask/accounts-controller` from `^39.0.4` to `^39.0.5` ([#9464](https://github.com/MetaMask/core/pull/9464))
 
 ## [7.0.0]
 
