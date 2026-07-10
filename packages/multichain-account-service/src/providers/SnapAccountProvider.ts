@@ -39,11 +39,6 @@ import { createSnapKeyringClient } from './SnapKeyringClient';
 import type { Sender, SnapKeyringClient } from './SnapKeyringClient';
 import { withRetry, withTimeout } from './utils';
 
-export type RestrictedSnapKeyring = {
-  createAccounts: SnapKeyringV2['createAccounts'];
-  deleteAccount: SnapKeyringV2['deleteAccount'];
-};
-
 export type SnapAccountProviderConfig = {
   maxConcurrency?: number;
   discovery: {
@@ -160,25 +155,6 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     return this.#trace(request, fn);
   }
 
-  async #getRestrictedSnapKeyring(): Promise<RestrictedSnapKeyring> {
-    // Eagerly verify that a Snap keyring matching this Snap is accessible.
-    // This preserves the fail-fast behaviour that previously came from
-    // extracting the v1 createAccount binding.
-    await this.#withSnapKeyring(async () => {});
-
-    return {
-      // Every v2 operation must be done through the `#withSnapKeyring` transaction:
-      createAccounts: async (options) =>
-        await this.#withSnapKeyring(
-          async ({ keyring }) => await keyring.createAccounts(options),
-        ),
-      deleteAccount: async (id: string) =>
-        await this.#withSnapKeyring(async ({ keyring }) => {
-          await keyring.deleteAccount(id);
-        }),
-    };
-  }
-
   #createSender(snapId: string): Sender {
     return {
       send: async (request: JsonRpcRequest): Promise<Json> => {
@@ -232,7 +208,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   async resyncAccounts(
     accounts: Bip44Account<InternalAccount>[],
   ): Promise<void> {
-    await this.withSnap(async ({ client, keyring }) => {
+    await this.withSnap(async ({ client }) => {
       const localSnapAccounts = accounts.filter(
         (account) => account.metadata.snap?.id === this.snapId,
       );
@@ -297,7 +273,9 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
                 // We still need to remove the accounts from the Snap keyring since we're
                 // about to create the same account again, which will use a new ID, but will
                 // keep using the same address, and the Snap keyring does not allow this.
-                await keyring.deleteAccount(account.id);
+                await this.#withSnapKeyring(async ({ keyring: k }) => {
+                  await k.deleteAccount(account.id);
+                });
                 // The Snap has no account in its state for this one, we re-create it.
                 await this.createAccounts({
                   type: AccountCreationType.Bip44DeriveIndex,
@@ -336,18 +314,14 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   }
 
   protected async withSnap<CallbackResult = void>(
-    operation: (snap: {
-      client: SnapKeyringClient;
-      keyring: RestrictedSnapKeyring;
-    }) => Promise<CallbackResult>,
+    operation: (snap: { client: SnapKeyringClient }) => Promise<CallbackResult>,
   ): Promise<CallbackResult> {
     await this.ensureReady();
     const client = await this.#resolveClient();
-
-    return await operation({
-      client,
-      keyring: await this.#getRestrictedSnapKeyring(),
-    });
+    // Eagerly verify that a Snap keyring matching this Snap is accessible,
+    // preserving the fail-fast behaviour for selector mismatches.
+    await this.#withSnapKeyring(async () => {});
+    return await operation({ client });
   }
 
   /**
@@ -367,7 +341,6 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   }
 
   protected async createBip44Accounts(
-    keyring: RestrictedSnapKeyring,
     options:
       | CreateAccountBip44DeriveIndexOptions
       | CreateAccountBip44DeriveIndexRangeOptions
@@ -386,7 +359,10 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
                 ...toCreateAccountsV2DataTraces(options),
               },
             },
-            () => keyring.createAccounts(options),
+            () =>
+              this.#withSnapKeyring(async ({ keyring }) =>
+                keyring.createAccounts(options),
+              ),
           ),
         this.config.createAccounts.timeoutMs,
       );
@@ -417,9 +393,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
       `${AccountCreationType.Bip44DeriveIndexRange}`,
     ]);
 
-    return this.withSnap(async ({ keyring }) =>
-      this.createBip44Accounts(keyring, options),
-    );
+    return this.withSnap(async () => this.createBip44Accounts(options));
   }
 
   /**
@@ -465,7 +439,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     entropySource: EntropySourceId;
     groupIndex: number;
   }): Promise<Bip44Account<KeyringAccount>[]> {
-    return this.withSnap(async ({ client, keyring }) =>
+    return this.withSnap(async ({ client }) =>
       this.trace(
         {
           name: TraceName.SnapDiscoverAccounts,
@@ -489,7 +463,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
             // v2: the Snap detects on-chain activity and creates the account in
             // a single `createAccounts({ bip44:discover })` call. An empty
             // result means discovery is exhausted at this group index.
-            return this.createBip44Accounts(keyring, {
+            return this.createBip44Accounts({
               type: AccountCreationType.Bip44Discover,
               entropySource,
               groupIndex,
@@ -519,7 +493,7 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
             return [];
           }
 
-          return this.createBip44Accounts(keyring, {
+          return this.createBip44Accounts({
             type: AccountCreationType.Bip44DeriveIndex,
             entropySource,
             groupIndex,
