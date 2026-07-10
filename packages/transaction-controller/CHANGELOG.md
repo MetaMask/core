@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [68.4.0]
+
 ### Added
 
 - Export `generateEIP7702BatchTransaction` utility for building an ERC-7821 `execute(mode, calls)` batch transaction from a list of nested transactions ([#9298](https://github.com/MetaMask/core/pull/9298))
@@ -2575,7 +2577,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.3.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.4.0...HEAD
+[68.4.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.3.0...@metamask/transaction-controller@68.4.0
 [68.3.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.2.2...@metamask/transaction-controller@68.3.0
 [68.2.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.2.1...@metamask/transaction-controller@68.2.2
 [68.2.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-controller@68.2.0...@metamask/transaction-controller@68.2.1
