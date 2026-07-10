@@ -139,8 +139,23 @@ module.exports = defineConfig({
 
         // All non-root packages must have a "build" script. All packages that
         // do not exclusively deploy documentation sites must use `ts-bridge`.
+        // @metamask/core-backend prepends Kubb code generation to its build
+        // scripts so the generated API bindings are refreshed before
+        // compiling.
         if (DOCSITE_PACKAGES.includes(workspace.ident)) {
           expectWorkspaceField(workspace, 'scripts.build');
+        } else if (workspace.ident === '@metamask/core-backend') {
+          expectWorkspaceField(
+            workspace,
+            'scripts.build',
+            'yarn codegen && ts-bridge --project tsconfig.build.json --verbose --clean --no-references',
+          );
+
+          expectWorkspaceField(
+            workspace,
+            'scripts.build:all',
+            'yarn codegen && ts-bridge --project tsconfig.build.json --verbose --clean',
+          );
         } else {
           expectWorkspaceField(
             workspace,

@@ -9,11 +9,27 @@
  * - Price graphs
  */
 
+import { assert } from '@metamask/superstruct';
 import type {
   FetchQueryOptions,
   QueryFunctionContext,
 } from '@tanstack/query-core';
 
+// Structs generated from the vendored Price API spec (`specs/price-api.json`)
+// by `yarn codegen`. Responses are validated before they are returned, so a
+// malformed or malicious response throws a `StructError` here instead of
+// crashing the wallet at some later property access. Endpoints not covered by
+// the vendored spec yet are not validated.
+import {
+  CoinGeckoSpotPriceStruct,
+  CoinGeckoSpotPricesStruct,
+  ExchangeRatesStruct,
+  HistoricalPricesStruct,
+  MarketDataSpotPricesStruct,
+  SupportedNetworksStruct,
+  V3HistoricalPricesStruct,
+  V3SpotPricesStruct,
+} from '../../generated/price-api/structs';
 import { BaseApiClient, API_URLS, STALE_TIMES, GC_TIMES } from '../base-client';
 import { getQueryOptionsOverrides } from '../shared-types';
 import type {
@@ -63,12 +79,17 @@ export class PricesApiClient extends BaseApiClient {
   ): FetchQueryOptions<PriceSupportedNetworksResponse> {
     return {
       queryKey: ['prices', 'v1SupportedNetworks'],
-      queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<PriceSupportedNetworksResponse>(
+      queryFn: async ({
+        signal,
+      }: QueryFunctionContext): Promise<PriceSupportedNetworksResponse> => {
+        const data = await this.fetch<PriceSupportedNetworksResponse>(
           API_URLS.PRICES,
           '/v1/supportedNetworks',
           { signal },
-        ),
+        );
+        assert(data, SupportedNetworksStruct);
+        return data;
+      },
       ...getQueryOptionsOverrides(options),
       staleTime: options?.staleTime ?? STALE_TIMES.SUPPORTED_NETWORKS,
       gcTime: options?.gcTime ?? GC_TIMES.EXTENDED,
@@ -100,12 +121,17 @@ export class PricesApiClient extends BaseApiClient {
   ): FetchQueryOptions<PriceSupportedNetworksResponse> {
     return {
       queryKey: ['prices', 'v2SupportedNetworks'],
-      queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<PriceSupportedNetworksResponse>(
+      queryFn: async ({
+        signal,
+      }: QueryFunctionContext): Promise<PriceSupportedNetworksResponse> => {
+        const data = await this.fetch<PriceSupportedNetworksResponse>(
           API_URLS.PRICES,
           '/v2/supportedNetworks',
           { signal },
-        ),
+        );
+        assert(data, SupportedNetworksStruct);
+        return data;
+      },
       ...getQueryOptionsOverrides(options),
       staleTime: options?.staleTime ?? STALE_TIMES.SUPPORTED_NETWORKS,
       gcTime: options?.gcTime ?? GC_TIMES.EXTENDED,
@@ -149,7 +175,7 @@ export class PricesApiClient extends BaseApiClient {
         if (baseCurrency === '') {
           return {};
         }
-        return this.fetch<V1ExchangeRatesResponse>(
+        const data = await this.fetch<V1ExchangeRatesResponse>(
           API_URLS.PRICES,
           '/v1/exchange-rates',
           {
@@ -157,6 +183,8 @@ export class PricesApiClient extends BaseApiClient {
             params: { baseCurrency },
           },
         );
+        assert(data, ExchangeRatesStruct);
+        return data;
       },
       ...getQueryOptionsOverrides(options),
       staleTime: options?.staleTime ?? STALE_TIMES.EXCHANGE_RATES,
@@ -194,12 +222,17 @@ export class PricesApiClient extends BaseApiClient {
   ): FetchQueryOptions<V1ExchangeRatesResponse> {
     return {
       queryKey: ['prices', 'v1FiatExchangeRates'],
-      queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<V1ExchangeRatesResponse>(
+      queryFn: async ({
+        signal,
+      }: QueryFunctionContext): Promise<V1ExchangeRatesResponse> => {
+        const data = await this.fetch<V1ExchangeRatesResponse>(
           API_URLS.PRICES,
           '/v1/exchange-rates/fiat',
           { signal },
-        ),
+        );
+        assert(data, ExchangeRatesStruct);
+        return data;
+      },
       ...getQueryOptionsOverrides(options),
       staleTime: options?.staleTime ?? STALE_TIMES.EXCHANGE_RATES,
       gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
@@ -231,12 +264,17 @@ export class PricesApiClient extends BaseApiClient {
   ): FetchQueryOptions<V1ExchangeRatesResponse> {
     return {
       queryKey: ['prices', 'v1CryptoExchangeRates'],
-      queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<V1ExchangeRatesResponse>(
+      queryFn: async ({
+        signal,
+      }: QueryFunctionContext): Promise<V1ExchangeRatesResponse> => {
+        const data = await this.fetch<V1ExchangeRatesResponse>(
           API_URLS.PRICES,
           '/v1/exchange-rates/crypto',
           { signal },
-        ),
+        );
+        assert(data, ExchangeRatesStruct);
+        return data;
+      },
       ...getQueryOptionsOverrides(options),
       staleTime: options?.staleTime ?? STALE_TIMES.EXCHANGE_RATES,
       gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
@@ -284,7 +322,7 @@ export class PricesApiClient extends BaseApiClient {
         if (coinIds.length === 0) {
           return {};
         }
-        return this.fetch<Record<string, CoinGeckoSpotPrice>>(
+        const data = await this.fetch<Record<string, CoinGeckoSpotPrice>>(
           API_URLS.PRICES,
           '/v1/spot-prices',
           {
@@ -292,6 +330,8 @@ export class PricesApiClient extends BaseApiClient {
             params: { coinIds },
           },
         );
+        assert(data, CoinGeckoSpotPricesStruct);
+        return data;
       },
       ...getQueryOptionsOverrides(options),
       staleTime: options?.staleTime ?? STALE_TIMES.PRICES,
@@ -339,7 +379,7 @@ export class PricesApiClient extends BaseApiClient {
         if (coinId === '') {
           return { id: '', price: 0 };
         }
-        return this.fetch<CoinGeckoSpotPrice>(
+        const data = await this.fetch<CoinGeckoSpotPrice>(
           API_URLS.PRICES,
           `/v1/spot-prices/${coinId}`,
           {
@@ -347,6 +387,8 @@ export class PricesApiClient extends BaseApiClient {
             params: { vsCurrency: currency },
           },
         );
+        assert(data, CoinGeckoSpotPriceStruct);
+        return data;
       },
       ...getQueryOptionsOverrides(options),
       staleTime: options?.staleTime ?? STALE_TIMES.PRICES,
@@ -574,7 +616,7 @@ export class PricesApiClient extends BaseApiClient {
         if (chainId === '' || tokenAddresses.length === 0) {
           return {};
         }
-        return this.fetch<Record<string, MarketDataDetails>>(
+        const data = await this.fetch<Record<string, MarketDataDetails>>(
           API_URLS.PRICES,
           `/v2/chains/${chainIdDecimal}/spot-prices`,
           {
@@ -586,6 +628,8 @@ export class PricesApiClient extends BaseApiClient {
             },
           },
         );
+        assert(data, MarketDataSpotPricesStruct);
+        return data;
       },
       ...getQueryOptionsOverrides(options),
       staleTime: options?.staleTime ?? STALE_TIMES.PRICES,
@@ -670,7 +714,7 @@ export class PricesApiClient extends BaseApiClient {
         if (assetIds.length === 0) {
           return {};
         }
-        return this.fetch<V3SpotPricesResponse>(
+        const data = await this.fetch<V3SpotPricesResponse>(
           API_URLS.PRICES,
           '/v3/spot-prices',
           {
@@ -683,6 +727,8 @@ export class PricesApiClient extends BaseApiClient {
             },
           },
         );
+        assert(data, V3SpotPricesStruct);
+        return data;
       },
       ...getQueryOptionsOverrides(options),
       staleTime: options?.staleTime ?? STALE_TIMES.PRICES,
@@ -916,8 +962,10 @@ export class PricesApiClient extends BaseApiClient {
         currency,
         timeRange,
       ],
-      queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<V1HistoricalPricesResponse>(
+      queryFn: async ({
+        signal,
+      }: QueryFunctionContext): Promise<V1HistoricalPricesResponse> => {
+        const data = await this.fetch<V1HistoricalPricesResponse>(
           API_URLS.PRICES,
           `/v1/chains/${chainIdDecimal}/historical-prices/${tokenAddress}`,
           {
@@ -927,7 +975,10 @@ export class PricesApiClient extends BaseApiClient {
               timePeriod: timeRange,
             },
           },
-        ),
+        );
+        assert(data, HistoricalPricesStruct);
+        return data;
+      },
       ...getQueryOptionsOverrides(options),
       staleTime: options?.staleTime ?? STALE_TIMES.PRICES,
       gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,
@@ -993,8 +1044,10 @@ export class PricesApiClient extends BaseApiClient {
   ): FetchQueryOptions<V3HistoricalPricesResponse> {
     return {
       queryKey: ['prices', 'v3Historical', chainId, assetType, queryOptions],
-      queryFn: ({ signal }: QueryFunctionContext) =>
-        this.fetch<V3HistoricalPricesResponse>(
+      queryFn: async ({
+        signal,
+      }: QueryFunctionContext): Promise<V3HistoricalPricesResponse> => {
+        const data = await this.fetch<V3HistoricalPricesResponse>(
           API_URLS.PRICES,
           `/v3/historical-prices/${chainId}/${assetType}`,
           {
@@ -1007,7 +1060,10 @@ export class PricesApiClient extends BaseApiClient {
               interval: queryOptions?.interval,
             },
           },
-        ),
+        );
+        assert(data, V3HistoricalPricesStruct);
+        return data;
+      },
       ...getQueryOptionsOverrides(options),
       staleTime: options?.staleTime ?? STALE_TIMES.PRICES,
       gcTime: options?.gcTime ?? GC_TIMES.DEFAULT,

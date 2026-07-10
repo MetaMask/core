@@ -82,6 +82,8 @@ const config = createConfig([
       'merged-packages/**',
       'scripts/create-package/package-template/**',
       '.platform-api-docs/**',
+      // Code generated from OpenAPI documents by Kubb (`yarn codegen`).
+      'packages/*/src/generated/**',
     ],
   },
   {
@@ -301,6 +303,13 @@ const config = createConfig([
   },
   {
     files: ['packages/messenger-cli/src/**/*.{js,ts}'],
+    rules: {
+      'import-x/no-nodejs-modules': 'off',
+    },
+  },
+  {
+    // Code generation tooling (Kubb configs and plugins) runs under Node.
+    files: ['packages/*/codegen/**/*.ts'],
     rules: {
       'import-x/no-nodejs-modules': 'off',
     },

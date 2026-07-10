@@ -50,8 +50,11 @@ export type {
   V2TokensResponse,
 } from './accounts';
 
+// Query runtime for generated query-core bindings
+export type { ApiRequestArgs, ApiRequestClient } from './query-runtime';
+
 // Prices API
-export { PricesApiClient } from './prices';
+export { PricesApiClient, PricesApiRequestClient } from './prices';
 export type {
   V3SpotPricesResponse,
   CoinGeckoSpotPrice,

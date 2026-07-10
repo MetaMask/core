@@ -115,6 +115,7 @@ export {
   // Individual API clients
   AccountsApiClient,
   PricesApiClient,
+  PricesApiRequestClient,
   TokenApiClient,
   TokensApiClient,
   // Constants
@@ -137,6 +138,9 @@ export type {
   // Client options
   ApiPlatformClientOptions,
   FetchOptions,
+  // Query runtime for generated query-core bindings
+  ApiRequestArgs,
+  ApiRequestClient,
   // Shared types
   PageInfo,
   SupportedCurrency,

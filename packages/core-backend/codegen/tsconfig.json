@@ -1,0 +1,21 @@
+{
+  /**
+   * Standalone configuration for the code generation tooling in this
+   * directory (the Kubb config and custom Kubb plugins). These files are
+   * executed by the Kubb CLI directly (via jiti) and are never built or
+   * published, so this project is type-check only.
+   *
+   * It intentionally does not extend `tsconfig.packages.json`: codegen files
+   * are Node tooling, not package source, and use bundler-style module
+   * resolution to match how the Kubb CLI loads them.
+   */
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "composite": false,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["./**/*.ts"]
+}
