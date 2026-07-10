@@ -796,15 +796,19 @@ describe('SnapDataSource', () => {
   });
 
   it('does not enrich Stellar assets from snap balances updated event', async () => {
-    const { triggerBalancesUpdated, assetsUpdateHandler, mockHandleRequest, cleanup } =
-      setupController({
-        installedSnaps: {
-          [STELLAR_SNAP_ID]: { version: '1.0.0', chainIds: [STELLAR_PUBNET] },
-        },
-        accountAssetInfo: {
-          [MOCK_STELLAR_USDC_ASSET]: { limit: '500' },
-        },
-      });
+    const {
+      triggerBalancesUpdated,
+      assetsUpdateHandler,
+      mockHandleRequest,
+      cleanup,
+    } = setupController({
+      installedSnaps: {
+        [STELLAR_SNAP_ID]: { version: '1.0.0', chainIds: [STELLAR_PUBNET] },
+      },
+      accountAssetInfo: {
+        [MOCK_STELLAR_USDC_ASSET]: { limit: '500' },
+      },
+    });
     await new Promise(process.nextTick);
 
     triggerBalancesUpdated({

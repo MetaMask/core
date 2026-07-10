@@ -10,8 +10,7 @@ import {
 const STELLAR_SNAP_ID = 'npm:@metamask/stellar-wallet-snap';
 const SOLANA_SNAP_ID = 'npm:@metamask/solana-wallet-snap';
 
-const MOCK_STELLAR_NATIVE =
-  'stellar:pubnet/slip44:148' as Caip19AssetId;
+const MOCK_STELLAR_NATIVE = 'stellar:pubnet/slip44:148' as Caip19AssetId;
 const MOCK_STELLAR_USDC =
   'stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN' as Caip19AssetId;
 const MOCK_SOL_ASSET =
@@ -42,7 +41,11 @@ describe('stellar helpers', () => {
 
     it('returns false for non-Stellar assets', () => {
       expect(
-        shouldFetchAssetMetadata([MOCK_SOL_ASSET], chainToSnap, STELLAR_SNAP_ID),
+        shouldFetchAssetMetadata(
+          [MOCK_SOL_ASSET],
+          chainToSnap,
+          STELLAR_SNAP_ID,
+        ),
       ).toBe(false);
     });
 

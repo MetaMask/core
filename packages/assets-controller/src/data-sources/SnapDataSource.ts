@@ -28,15 +28,15 @@ import type {
   Middleware,
 } from '../types';
 import { AbstractDataSource } from './AbstractDataSource';
+import type {
+  DataSourceState,
+  SubscriptionRequest,
+} from './AbstractDataSource';
 import {
   filterEligibleAssetsToFetchMetadata,
   getAssetInfoRequest,
   shouldFetchAssetMetadata,
 } from './stellar';
-import type {
-  DataSourceState,
-  SubscriptionRequest,
-} from './AbstractDataSource';
 
 // ============================================================================
 // SNAP KEYRING EVENT TYPES
@@ -241,8 +241,7 @@ export class SnapDataSource extends AbstractDataSource<
 
     this.#messenger = options.messenger;
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
-    this.#isStellarEnabled =
-      options.isStellarEnabled ?? ((): boolean => false);
+    this.#isStellarEnabled = options.isStellarEnabled ?? ((): boolean => false);
 
     // Bind handlers for cleanup in destroy()
     this.#handleSnapBalancesUpdatedBound = this.#handleSnapBalancesUpdated.bind(
