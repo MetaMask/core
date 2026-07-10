@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/account-tree-controller` from `^7.5.3` to `7.5.4` ([#9429](https://github.com/MetaMask/core/pull/9429))
 - Report the effective leverage (`positionUSD / marginUSD`, rounded to 1 decimal place) on `PERPS_POSITION_CLOSE_TRANSACTION` analytics instead of the configured `leverage.value`, and populate it for every close including TP/SL triggers ([#9471](https://github.com/MetaMask/core/pull/9471))
 - Emit an additional `partially_filled` `PERPS_TRADE_TRANSACTION` event with `amount_filled` and `remaining_amount` when an open trade fills for less than the requested size, mirroring the close path so partial fills are visible in analytics; full fills are unchanged ([#9471](https://github.com/MetaMask/core/pull/9471))
+- Widen the `TradeAction` type to include `flip_long_to_short` and `flip_short_to_long` (already forwarded verbatim at runtime), so clients no longer need casts when deriving flip actions ([#9471](https://github.com/MetaMask/core/pull/9471))
 
 ### Fixed
 

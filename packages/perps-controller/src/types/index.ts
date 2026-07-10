@@ -140,8 +140,13 @@ export type InputMethod =
   | 'percentage'
   | 'max';
 
-// Trade action type - differentiates first trade on a market from adding to existing position
-export type TradeAction = 'create_position' | 'increase_exposure';
+// Trade action type - differentiates first trade on a market, adding to an
+// existing position, and flipping a position's direction
+export type TradeAction =
+  | 'create_position'
+  | 'increase_exposure'
+  | 'flip_long_to_short'
+  | 'flip_short_to_long';
 
 // Unified tracking data interface for analytics events (never persisted in state)
 // Note: Numeric values are already parsed by hooks (usePerpsOrderFees, etc.) from API responses
