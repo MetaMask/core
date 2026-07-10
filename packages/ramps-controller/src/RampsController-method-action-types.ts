@@ -625,6 +625,14 @@ export type RampsControllerTransakGetActiveOrdersAction = {
 };
 
 /**
+ * Bidirectionally syncs V2 ramps orders with User Storage.
+ */
+export type RampsControllerSyncOrdersWithUserStorageAction = {
+  type: `RampsController:syncOrdersWithUserStorage`;
+  handler: RampsController['syncOrdersWithUserStorage'];
+};
+
+/**
  * Union of all RampsController action types.
  */
 export type RampsControllerMethodActions =
@@ -674,4 +682,5 @@ export type RampsControllerMethodActions =
   | RampsControllerTransakGetIdProofStatusAction
   | RampsControllerTransakCancelOrderAction
   | RampsControllerTransakCancelAllActiveOrdersAction
-  | RampsControllerTransakGetActiveOrdersAction;
+  | RampsControllerTransakGetActiveOrdersAction
+  | RampsControllerSyncOrdersWithUserStorageAction;

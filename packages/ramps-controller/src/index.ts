@@ -61,6 +61,7 @@ export type {
   RampsControllerTransakCancelOrderAction,
   RampsControllerTransakCancelAllActiveOrdersAction,
   RampsControllerTransakGetActiveOrdersAction,
+  RampsControllerSyncOrdersWithUserStorageAction,
 } from './RampsController-method-action-types';
 export {
   RampsController,
@@ -141,6 +142,28 @@ export {
 export { RAMPS_ERROR_CODES } from './rampsErrorCodes';
 export type { RequestSelectorResult } from './selectors';
 export { createRequestSelector } from './selectors';
+export type {
+  UserStorageRampsOrderEntry,
+  SyncRampsOrder,
+  OrderSyncingController,
+  OrderSyncingOptions,
+  SyncOrdersWithUserStorageConfig,
+} from './order-syncing';
+export {
+  USER_STORAGE_RAMPS_ORDERS_FEATURE,
+  USER_STORAGE_VERSION,
+  USER_STORAGE_VERSION_KEY,
+  createOrderStorageKey,
+  isSyncableOrder,
+  mapRampsOrderToUserStorageEntry,
+  mapUserStorageEntryToRampsOrder,
+  stripSyncMetadata,
+  areOrdersEqual,
+  canPerformOrderSyncing,
+  syncOrdersWithUserStorage,
+  updateOrderInRemoteStorage,
+  deleteOrderInRemoteStorage,
+} from './order-syncing';
 export type {
   TransakServiceActions,
   TransakServiceEvents,

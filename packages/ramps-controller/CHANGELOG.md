@@ -7,10 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add V2 ramps order syncing with User Storage
+  - New `order-syncing/` module stores full `RampsOrder` objects as per-order User Storage entries under the `rampsOrders` feature
+  - `RampsController.syncOrdersWithUserStorage()` performs bidirectional sync with timestamp-based conflict resolution and soft deletes
+  - `addOrder` / `removeOrder` incrementally push local changes to User Storage when Backup & Sync and `isRampsSyncingEnabled` are on
+  - Messenger action `RampsController:syncOrdersWithUserStorage` for hosts to trigger a full sync on unlock / feature enable
+
 ### Changed
 
 - **BREAKING:** Provider IDs are no longer normalized by stripping a `/providers/` prefix. `RampsController.getQuotes` now matches provider IDs from the providers list, quotes, custom actions, and sort order as-is, and a precreated stub order's `provider.id` is the canonical provider code passed to the create-order call rather than a `/providers/`-prefixed value. Consumers must supply non-prefixed (canonical) provider IDs ([#9448](https://github.com/MetaMask/core/pull/9448))
 - Bump `@metamask/profile-sync-controller` from `^28.2.0` to `^28.3.0` ([#9463](https://github.com/MetaMask/core/pull/9463))
+- **BREAKING:** `RampsControllerMessenger` now requires `UserStorageController` storage actions and `AuthenticationController:isSignedIn` to be delegated so order syncing can run
 
 ### Removed
 

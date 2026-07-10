@@ -6,12 +6,21 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import { BrokenCircuitError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
+import type {
+  AuthenticationController,
+  UserStorageController,
+} from '@metamask/profile-sync-controller';
 import type { Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import type { RampsControllerMethodActions } from './RampsController-method-action-types';
 import type { RampsErrorCode } from './rampsErrorCodes';
 import { RAMPS_ERROR_CODES } from './rampsErrorCodes';
+import {
+  deleteOrderInRemoteStorage,
+  syncOrdersWithUserStorage as syncOrdersWithUserStorageInternal,
+  updateOrderInRemoteStorage,
+} from './order-syncing';
 import type {
   BuyWidget,
   Country,
@@ -618,7 +627,13 @@ type AllowedActions =
   | TransakServiceGetIdProofStatusAction
   | TransakServiceCancelOrderAction
   | TransakServiceCancelAllActiveOrdersAction
-  | TransakServiceGetActiveOrdersAction;
+  | TransakServiceGetActiveOrdersAction
+  | UserStorageController.UserStorageControllerGetStateAction
+  | UserStorageController.UserStorageControllerPerformGetStorageAction
+  | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntriesAction
+  | UserStorageController.UserStorageControllerPerformSetStorageAction
+  | UserStorageController.UserStorageControllerPerformBatchSetStorageAction
+  | AuthenticationController.AuthenticationControllerIsSignedInAction;
 
 /**
  * Published when the state of {@link RampsController} changes.
@@ -864,6 +879,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'transakCancelOrder',
   'transakCancelAllActiveOrders',
   'transakGetActiveOrders',
+  'syncOrdersWithUserStorage',
 ] as const;
 
 /**
@@ -922,6 +938,27 @@ export class RampsController extends BaseController<
   #isPolling = false;
 
   #initPromise: Promise<void> | null = null;
+
+  /**
+   * Semaphore that prevents sync feedback loops while applying remote order changes.
+   */
+  #isOrderSyncingInProgress = false;
+
+  /**
+   * Whether a full order sync is currently applying remote changes.
+   */
+  get isOrderSyncingInProgress(): boolean {
+    return this.#isOrderSyncingInProgress;
+  }
+
+  /**
+   * Sets the order-syncing-in-progress semaphore.
+   *
+   * @param value - Whether sync is in progress.
+   */
+  setIsOrderSyncingInProgress(value: boolean): void {
+    this.#isOrderSyncingInProgress = value;
+  }
 
   /**
    * Clears the pending resource count map. Used only in tests to exercise the
@@ -2386,6 +2423,16 @@ export class RampsController extends BaseController<
         } as Draft<RampsOrder>;
       }
     });
+
+    if (!this.#isOrderSyncingInProgress) {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      updateOrderInRemoteStorage(healedOrder, {
+        getRampsControllerInstance: () => this,
+        getMessenger: () => this.messenger,
+      }).catch((error) => {
+        console.error('Error updating ramps order in remote storage:', error);
+      });
+    }
   }
 
   /**
@@ -2394,13 +2441,45 @@ export class RampsController extends BaseController<
    * @param providerOrderId - The provider order ID to remove.
    */
   removeOrder(providerOrderId: string): void {
+    const orderToRemove = this.state.orders.find(
+      (order) =>
+        order.providerOrderId === providerOrderId ||
+        getInternalOrderCode(order) === providerOrderId,
+    );
+
     this.update((state) => {
       state.orders = state.orders.filter(
-        (order) => order.providerOrderId !== providerOrderId,
+        (order) =>
+          order.providerOrderId !== providerOrderId &&
+          getInternalOrderCode(order) !== providerOrderId,
       );
     });
 
     this.#orderPollingMeta.delete(providerOrderId);
+
+    if (orderToRemove && !this.#isOrderSyncingInProgress) {
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+      deleteOrderInRemoteStorage(orderToRemove, {
+        getRampsControllerInstance: () => this,
+        getMessenger: () => this.messenger,
+      }).catch((error) => {
+        console.error('Error deleting ramps order from remote storage:', error);
+      });
+    }
+  }
+
+  /**
+   * Bidirectionally syncs V2 ramps orders with User Storage.
+   * Hosts should call this on unlock / when ramps syncing is enabled.
+   */
+  async syncOrdersWithUserStorage(): Promise<void> {
+    await syncOrdersWithUserStorageInternal(
+      {},
+      {
+        getRampsControllerInstance: () => this,
+        getMessenger: () => this.messenger,
+      },
+    );
   }
 
   /**

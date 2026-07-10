@@ -652,6 +652,7 @@ describe('UserStorageController', () => {
           isAccountSyncingEnabled: true,
           isContactSyncingEnabled: true,
           isContactSyncingInProgress: false,
+          isRampsSyncingEnabled: true,
         },
       });
 
@@ -661,6 +662,31 @@ describe('UserStorageController', () => {
         false,
       );
       expect(controller.state.isAccountSyncingEnabled).toBe(false);
+      expect(controller.state.isBackupAndSyncEnabled).toBe(true);
+    });
+
+    it('should not disable backup and sync when disabling ramps syncing', async () => {
+      const { messengerMocks } = await arrangeMocks();
+      messengerMocks.mockAuthIsSignedIn.mockReturnValue(false);
+
+      const controller = new UserStorageController({
+        messenger: messengerMocks.messenger,
+        state: {
+          isBackupAndSyncEnabled: true,
+          isBackupAndSyncUpdateLoading: false,
+          isAccountSyncingEnabled: true,
+          isContactSyncingEnabled: true,
+          isContactSyncingInProgress: false,
+          isRampsSyncingEnabled: true,
+        },
+      });
+
+      await controller.setIsBackupAndSyncFeatureEnabled(
+        BACKUPANDSYNC_FEATURES.rampsSyncing,
+        false,
+      );
+
+      expect(controller.state.isRampsSyncingEnabled).toBe(false);
       expect(controller.state.isBackupAndSyncEnabled).toBe(true);
     });
   });
@@ -906,6 +932,7 @@ describe('metadata', () => {
         "isAccountSyncingEnabled": true,
         "isBackupAndSyncEnabled": true,
         "isContactSyncingEnabled": true,
+        "isRampsSyncingEnabled": true,
       }
     `);
   });
@@ -926,6 +953,7 @@ describe('metadata', () => {
         "isAccountSyncingEnabled": true,
         "isBackupAndSyncEnabled": true,
         "isContactSyncingEnabled": true,
+        "isRampsSyncingEnabled": true,
       }
     `);
   });
@@ -942,6 +970,7 @@ describe('metadata', () => {
         "isAccountSyncingEnabled": true,
         "isBackupAndSyncEnabled": true,
         "isContactSyncingEnabled": true,
+        "isRampsSyncingEnabled": true,
       }
     `);
   });
@@ -964,6 +993,7 @@ describe('metadata', () => {
         "isBackupAndSyncUpdateLoading": false,
         "isContactSyncingEnabled": true,
         "isContactSyncingInProgress": false,
+        "isRampsSyncingEnabled": true,
       }
     `);
   });

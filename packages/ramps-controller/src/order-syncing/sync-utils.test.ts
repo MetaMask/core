@@ -1,0 +1,56 @@
+import { canPerformOrderSyncing } from './sync-utils';
+import type { OrderSyncingOptions } from './types';
+
+describe('order-syncing/sync-utils', () => {
+  describe('canPerformOrderSyncing', () => {
+    const arrangeMocks = ({
+      isBackupAndSyncEnabled = true,
+      isRampsSyncingEnabled = true,
+      isOrderSyncingInProgress = false,
+      isSignedIn = true,
+      throwOnMessengerCall = false,
+    } = {}) => {
+      const options: OrderSyncingOptions = {
+        getMessenger: jest.fn().mockReturnValue({
+          call: jest.fn().mockImplementation((action: string) => {
+            if (throwOnMessengerCall) {
+              throw new Error('action not registered');
+            }
+            if (action === 'UserStorageController:getState') {
+              return { isBackupAndSyncEnabled, isRampsSyncingEnabled };
+            }
+            if (action === 'AuthenticationController:isSignedIn') {
+              return isSignedIn;
+            }
+            return null;
+          }),
+        }),
+        getRampsControllerInstance: jest.fn().mockReturnValue({
+          isOrderSyncingInProgress,
+          state: { orders: [] },
+          setIsOrderSyncingInProgress: jest.fn(),
+          addOrder: jest.fn(),
+          removeOrder: jest.fn(),
+        }),
+      };
+
+      return { options };
+    };
+
+    it.each([
+      ['backup and sync is disabled', { isBackupAndSyncEnabled: false }],
+      ['ramps syncing is disabled', { isRampsSyncingEnabled: false }],
+      ['order syncing is in progress', { isOrderSyncingInProgress: true }],
+      ['user is not signed in', { isSignedIn: false }],
+      ['messenger actions are unavailable', { throwOnMessengerCall: true }],
+    ] as const)('returns false if %s', (_message, mocks) => {
+      const { options } = arrangeMocks(mocks);
+      expect(canPerformOrderSyncing(options)).toBe(false);
+    });
+
+    it('returns true if all conditions are met', () => {
+      const { options } = arrangeMocks();
+      expect(canPerformOrderSyncing(options)).toBe(true);
+    });
+  });
+});

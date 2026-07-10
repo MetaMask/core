@@ -70,6 +70,10 @@ export type UserStorageControllerState = {
    * Condition used by UI to determine if contact syncing is in progress.
    */
   isContactSyncingInProgress: boolean;
+  /**
+   * Condition used by UI to determine if ramps order syncing is enabled.
+   */
+  isRampsSyncingEnabled: boolean;
 };
 
 export const defaultState: UserStorageControllerState = {
@@ -78,6 +82,7 @@ export const defaultState: UserStorageControllerState = {
   isAccountSyncingEnabled: true,
   isContactSyncingEnabled: true,
   isContactSyncingInProgress: false,
+  isRampsSyncingEnabled: true,
 };
 
 const metadata: StateMetadata<UserStorageControllerState> = {
@@ -109,6 +114,12 @@ const metadata: StateMetadata<UserStorageControllerState> = {
     includeInStateLogs: false,
     persist: false,
     includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  isRampsSyncingEnabled: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: true,
     usedInUi: true,
   },
 };
@@ -645,6 +656,10 @@ export class UserStorageController extends BaseController<
 
         if (feature === BACKUPANDSYNC_FEATURES.contactSyncing) {
           state.isContactSyncingEnabled = enabled;
+        }
+
+        if (feature === BACKUPANDSYNC_FEATURES.rampsSyncing) {
+          state.isRampsSyncingEnabled = enabled;
         }
       });
     } catch (e) {
