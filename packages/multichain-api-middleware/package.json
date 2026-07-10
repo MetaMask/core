@@ -51,7 +51,7 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/accounts-controller": "^39.0.4",
+    "@metamask/accounts-controller": "^39.0.5",
     "@metamask/api-specs": "^0.15.0",
     "@metamask/chain-agnostic-permission": "^1.7.0",
     "@metamask/controller-utils": "^12.3.0",
