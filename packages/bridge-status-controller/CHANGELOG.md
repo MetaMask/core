@@ -7,11 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [74.1.2]
+
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^68.3.0` to `^68.4.0` ([#9456](https://github.com/MetaMask/core/pull/9456))
-- Bump `@metamask/bridge-controller` from `^77.3.2` to `^77.4.0` ([#9462](https://github.com/MetaMask/core/pull/9462))
+- Bump `@metamask/transaction-controller` from `^68.3.0` to `^69.0.0` ([#9456](https://github.com/MetaMask/core/pull/9456), [#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/bridge-controller` from `^77.3.2` to `^77.4.1` ([#9462](https://github.com/MetaMask/core/pull/9462), [#9470](https://github.com/MetaMask/core/pull/9470))
 - Bump `@metamask/profile-sync-controller` from `^28.2.0` to `^28.3.0` ([#9463](https://github.com/MetaMask/core/pull/9463))
+- Bump `@metamask/accounts-controller` from `^39.0.4` to `^39.0.5` ([#9470](https://github.com/MetaMask/core/pull/9470))
 
 ## [74.1.1]
 
@@ -1397,7 +1400,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.1.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.1.2...HEAD
+[74.1.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.1.1...@metamask/bridge-status-controller@74.1.2
 [74.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.1.0...@metamask/bridge-status-controller@74.1.1
 [74.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.0.2...@metamask/bridge-status-controller@74.1.0
 [74.0.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.0.1...@metamask/bridge-status-controller@74.0.2
