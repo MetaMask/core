@@ -124,6 +124,10 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   /**
    * Ensures that the Snap is ready to be used.
    *
+   * Once this resolves, a Snap keyring for {@link snapId} is guaranteed to
+   * exist in the `KeyringController`, so subsequent {@link #withSnapKeyring}
+   * calls will not fail with "No keyring matches the selector".
+   *
    * @returns A promise that resolves when the Snap is ready.
    * @throws An error if the Snap could not become ready.
    */
@@ -318,9 +322,6 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   ): Promise<CallbackResult> {
     await this.ensureReady();
     const client = await this.#resolveClient();
-    // Eagerly verify that a Snap keyring matching this Snap is accessible,
-    // preserving the fail-fast behaviour for selector mismatches.
-    await this.#withSnapKeyring(async () => {});
     return await operation({ client });
   }
 

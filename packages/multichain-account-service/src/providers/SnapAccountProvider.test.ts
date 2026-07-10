@@ -975,37 +975,6 @@ describe('SnapAccountProvider', () => {
     });
   });
 
-  describe('withKeyringV2 selector', () => {
-    const mockAccounts = [
-      MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
-        .withUuid()
-        .withSnapId(TEST_SNAP_ID)
-        .get(),
-    ].filter(isBip44Account);
-
-    it('rejects when the keyring type is not a Snap keyring', async () => {
-      const { provider } = setup({
-        accounts: mockAccounts,
-        keyring: { type: 'not-a-snap-keyring' },
-      });
-
-      await expect(provider.resyncAccounts(mockAccounts)).rejects.toThrow(
-        'No keyring matches the selector',
-      );
-    });
-
-    it('rejects when the Snap keyring is for a different Snap ID', async () => {
-      const { provider } = setup({
-        accounts: mockAccounts,
-        keyring: { snapId: 'npm:@metamask/other-snap' as SnapId },
-      });
-
-      await expect(provider.resyncAccounts(mockAccounts)).rejects.toThrow(
-        'No keyring matches the selector',
-      );
-    });
-  });
-
   describe('ensureReady', () => {
     it('delegates Snap platform readiness check to SnapAccountService:ensureReady', async () => {
       const { provider, mocks } = setup();
