@@ -2408,6 +2408,8 @@ describe('TradingService', () => {
           provider: mockProvider,
           position: mockPosition,
           trackingData: {
+            totalFee: 1,
+            marketPrice: 50000,
             entryPoint: 'position_view',
             discoverySource: 'banner',
             hlFeeRate: 0.00045,
@@ -2671,8 +2673,12 @@ describe('TradingService', () => {
       ).toEqual(expect.objectContaining({ metamask_fee: 2.5 }));
     });
 
-    it('adds leverage to the close event properties (TAT-3147)', async () => {
-      mockGetPositions.mockResolvedValue([mockClosePosition]);
+    it('adds effective leverage (positionUSD / marginUSD, 1 dp) to the close event properties (TAT-3147)', async () => {
+      // positionValue / marginUsed = 25000 / 2727 = 9.167… -> 9.2, which is the
+      // effective leverage rather than the configured leverage.value of 10.
+      mockGetPositions.mockResolvedValue([
+        { ...mockClosePosition, positionValue: '25000', marginUsed: '2727' },
+      ]);
       mockProvider.closePosition.mockResolvedValue({
         success: true,
         orderId: 'close-1',
@@ -2689,7 +2695,65 @@ describe('TradingService', () => {
 
       expect(
         findCall(PerpsAnalyticsEvent.PositionCloseTransaction, 'executed')?.[1],
-      ).toEqual(expect.objectContaining({ leverage: 10 }));
+      ).toEqual(expect.objectContaining({ leverage: 9.2 }));
+    });
+
+    it('populates effective leverage even when configured leverage is missing (TP/SL close, TAT-3147)', async () => {
+      // TP/SL closes may carry no configured leverage.value; the effective
+      // leverage is still derived from positionValue / marginUsed = 20000 / 4000 = 5.
+      mockGetPositions.mockResolvedValue([
+        {
+          ...mockClosePosition,
+          positionValue: '20000',
+          marginUsed: '4000',
+          leverage: undefined as unknown as Position['leverage'],
+        },
+      ]);
+      mockProvider.closePosition.mockResolvedValue({
+        success: true,
+        orderId: 'close-2',
+        filledSize: '0.5',
+        averagePrice: '55000',
+      });
+
+      await tradingService.closePosition({
+        provider: mockProvider,
+        params: { symbol: 'BTC' },
+        context: { ...mockContext, getPositions: mockGetPositions },
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      expect(
+        findCall(PerpsAnalyticsEvent.PositionCloseTransaction, 'executed')?.[1],
+      ).toEqual(expect.objectContaining({ leverage: 5 }));
+    });
+
+    it('omits leverage (never NaN) when marginUsed is zero or non-finite (TAT-3147)', async () => {
+      // Guard against divide-by-zero / NaN: marginUsed '0' must not produce a
+      // leverage property at all (rather than Infinity / NaN).
+      mockGetPositions.mockResolvedValue([
+        { ...mockClosePosition, positionValue: '25000', marginUsed: '0' },
+      ]);
+      mockProvider.closePosition.mockResolvedValue({
+        success: true,
+        orderId: 'close-3',
+        filledSize: '0.5',
+        averagePrice: '55000',
+      });
+
+      await tradingService.closePosition({
+        provider: mockProvider,
+        params: { symbol: 'BTC' },
+        context: { ...mockContext, getPositions: mockGetPositions },
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      const closeProps = findCall(
+        PerpsAnalyticsEvent.PositionCloseTransaction,
+        'executed',
+      )?.[1];
+      expect(closeProps).not.toHaveProperty('leverage');
+      expect(closeProps?.leverage).toBeUndefined();
     });
 
     describe('hl_fee_rate on trade + close (TAT-3149)', () => {
@@ -2747,6 +2811,177 @@ describe('TradingService', () => {
         expect(
           findCall(PerpsAnalyticsEvent.TradeTransaction, 'executed')?.[1],
         ).not.toHaveProperty('hl_fee_rate');
+      });
+    });
+
+    describe('order_execution_latency_ms on trade (TAT-3084)', () => {
+      it('includes order_execution_latency_ms when present in trackingData', async () => {
+        mockProvider.placeOrder.mockResolvedValue({
+          success: true,
+          orderId: 'order-1',
+          filledSize: '0.1',
+          averagePrice: '50000',
+        });
+
+        await tradingService.placeOrder({
+          provider: mockProvider,
+          params: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.1',
+            orderType: 'market',
+            trackingData: {
+              totalFee: 1,
+              marketPrice: 50000,
+              orderExecutionLatencyMs: 1234,
+            },
+          },
+          context: mockContext,
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        expect(
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'executed')?.[1],
+        ).toEqual(
+          expect.objectContaining({ order_execution_latency_ms: 1234 }),
+        );
+      });
+
+      it('omits order_execution_latency_ms when unavailable', async () => {
+        mockProvider.placeOrder.mockResolvedValue({
+          success: true,
+          orderId: 'order-1',
+          filledSize: '0.1',
+          averagePrice: '50000',
+        });
+
+        await tradingService.placeOrder({
+          provider: mockProvider,
+          params: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.1',
+            orderType: 'market',
+            trackingData: { totalFee: 1, marketPrice: 50000 },
+          },
+          context: mockContext,
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        expect(
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'executed')?.[1],
+        ).not.toHaveProperty('order_execution_latency_ms');
+      });
+
+      it('does not leak order_execution_latency_ms onto the submitted trade event', async () => {
+        mockProvider.placeOrder.mockResolvedValue({
+          success: true,
+          orderId: 'order-1',
+          filledSize: '0.1',
+          averagePrice: '50000',
+        });
+
+        await tradingService.placeOrder({
+          provider: mockProvider,
+          params: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.1',
+            orderType: 'market',
+            trackingData: {
+              totalFee: 1,
+              marketPrice: 50000,
+              orderExecutionLatencyMs: 999,
+            },
+          },
+          context: mockContext,
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        // Only the terminal (executed) trade event carries the latency.
+        expect(
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'submitted')?.[1],
+        ).not.toHaveProperty('order_execution_latency_ms');
+        expect(
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'executed')?.[1],
+        ).toHaveProperty('order_execution_latency_ms', 999);
+      });
+
+      it('does not leak order_execution_latency_ms onto the close event', async () => {
+        mockGetPositions.mockResolvedValue([mockClosePosition]);
+        mockProvider.closePosition.mockResolvedValue({
+          success: true,
+          orderId: 'close-1',
+          filledSize: '0.5',
+          averagePrice: '55000',
+        });
+
+        await tradingService.closePosition({
+          provider: mockProvider,
+          params: {
+            symbol: 'BTC',
+            trackingData: {
+              totalFee: 1,
+              marketPrice: 50000,
+              orderExecutionLatencyMs: 999,
+            },
+          },
+          context: { ...mockContext, getPositions: mockGetPositions },
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        expect(
+          findCall(PerpsAnalyticsEvent.PositionCloseTransaction, 'executed')?.[1],
+        ).not.toHaveProperty('order_execution_latency_ms');
+      });
+
+      it('does not leak order_execution_latency_ms onto the flip trade event', async () => {
+        mockProvider.placeOrder.mockResolvedValue({
+          success: true,
+          orderId: 'flip-1',
+          filledSize: '0.5',
+          averagePrice: '55000',
+        });
+
+        await tradingService.flipPosition({
+          provider: mockProvider,
+          position: mockClosePosition,
+          trackingData: {
+            totalFee: 1,
+            marketPrice: 50000,
+            orderExecutionLatencyMs: 999,
+          },
+          context: mockContext,
+        });
+
+        expect(
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'executed')?.[1],
+        ).not.toHaveProperty('order_execution_latency_ms');
+      });
+
+      it('does not leak order_execution_latency_ms onto the cancel event', async () => {
+        mockProvider.cancelOrder.mockResolvedValue({
+          success: true,
+          orderId: 'order-123',
+        });
+
+        await tradingService.cancelOrder({
+          provider: mockProvider,
+          params: {
+            orderId: 'order-123',
+            symbol: 'BTC',
+            trackingData: {
+              totalFee: 1,
+              marketPrice: 50000,
+              orderExecutionLatencyMs: 999,
+            },
+          },
+          context: mockContext,
+        });
+
+        expect(
+          findCall(PerpsAnalyticsEvent.OrderCancelTransaction, 'executed')?.[1],
+        ).not.toHaveProperty('order_execution_latency_ms');
       });
     });
 

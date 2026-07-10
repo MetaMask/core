@@ -1,0 +1,2108 @@
+diff --git a/esm/_base.d.ts b/esm/_base.d.ts
+index 6dfdee7627e43f4ddc8912c240dda00cb23c3271..e09467f3e0a151d7dd1b2a0629dddab1fc5d2860 100644
+--- a/esm/_base.d.ts
++++ b/esm/_base.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/_base.ts" />
+ import * as v from "valibot";
+ /** Base error class for all SDK errors. */
+ export declare class HyperliquidError extends Error {
+diff --git a/esm/_deps/jsr.io/@std/async/1.4.0/unstable_semaphore.d.ts b/esm/_deps/jsr.io/@std/async/1.4.0/unstable_semaphore.d.ts
+index 34a2673e33bd40a56d11b6dd25820682ad5f6e5c..59297cd4cc1def87e71c8c08f6a432cb119101b3 100644
+--- a/esm/_deps/jsr.io/@std/async/1.4.0/unstable_semaphore.d.ts
++++ b/esm/_deps/jsr.io/@std/async/1.4.0/unstable_semaphore.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/dist/.dts-tmp/_deps/jsr.io/@std/async/1.4.0/unstable_semaphore.ts" />
+ /**
+  * A counting semaphore for limiting concurrent access to a resource.
+  *
+diff --git a/esm/_deps/jsr.io/@std/bytes/1.0.6/_types.d.ts b/esm/_deps/jsr.io/@std/bytes/1.0.6/_types.d.ts
+index ef964d9a4aa1566b79d1be0c28a610dcaaecc25a..463832a01700f56a171f8d60c16754e5ace5a69b 100644
+--- a/esm/_deps/jsr.io/@std/bytes/1.0.6/_types.d.ts
++++ b/esm/_deps/jsr.io/@std/bytes/1.0.6/_types.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/dist/.dts-tmp/_deps/jsr.io/@std/bytes/1.0.6/_types.ts" />
+ /**
+  * Proxy type of {@code Uint8Array<ArrayBuffer} or {@code Uint8Array} in TypeScript 5.7 or below respectively.
+  *
+diff --git a/esm/_deps/jsr.io/@std/bytes/1.0.6/concat.d.ts b/esm/_deps/jsr.io/@std/bytes/1.0.6/concat.d.ts
+index 7c3765bffdc54dc1fc82b4fa2e5fa1883592b7b4..32d658b9f6b3db55d01b65b39a2f5ddbc79ce2f1 100644
+--- a/esm/_deps/jsr.io/@std/bytes/1.0.6/concat.d.ts
++++ b/esm/_deps/jsr.io/@std/bytes/1.0.6/concat.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/dist/.dts-tmp/_deps/jsr.io/@std/bytes/1.0.6/concat.ts" />
+ import type { Uint8Array_ } from "./_types.js";
+ export type { Uint8Array_ };
+ /**
+diff --git a/esm/_deps/jsr.io/@std/msgpack/1.0.3/_types.d.ts b/esm/_deps/jsr.io/@std/msgpack/1.0.3/_types.d.ts
+index a6ca137ba218a283e3dd3e2487fa996ec02bbbfd..463832a01700f56a171f8d60c16754e5ace5a69b 100644
+--- a/esm/_deps/jsr.io/@std/msgpack/1.0.3/_types.d.ts
++++ b/esm/_deps/jsr.io/@std/msgpack/1.0.3/_types.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/dist/.dts-tmp/_deps/jsr.io/@std/msgpack/1.0.3/_types.ts" />
+ /**
+  * Proxy type of {@code Uint8Array<ArrayBuffer} or {@code Uint8Array} in TypeScript 5.7 or below respectively.
+  *
+diff --git a/esm/_deps/jsr.io/@std/msgpack/1.0.3/encode.d.ts b/esm/_deps/jsr.io/@std/msgpack/1.0.3/encode.d.ts
+index b248b5bfdc2bdba4d949806aad2bde3d86599895..6c2950f9603348abbbe0e23664d13ea014c3d393 100644
+--- a/esm/_deps/jsr.io/@std/msgpack/1.0.3/encode.d.ts
++++ b/esm/_deps/jsr.io/@std/msgpack/1.0.3/encode.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/dist/.dts-tmp/_deps/jsr.io/@std/msgpack/1.0.3/encode.ts" />
+ import type { Uint8Array_ } from "./_types.js";
+ export type { Uint8Array_ };
+ /**
+diff --git a/esm/api/_errors.d.ts b/esm/api/_errors.d.ts
+index f86479236d5356d81bfa351ff0e016fca5690d70..bfabf3a046836707cf9b19d27534644936480c74 100644
+--- a/esm/api/_errors.d.ts
++++ b/esm/api/_errors.d.ts
+@@ -2,7 +2,6 @@
+  * Shared error types for Hyperliquid API responses.
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/_errors.ts" />
+ import { HyperliquidError } from "../_base.js";
+ /** Thrown when the API returns an error response. */
+ export declare class ApiRequestError extends HyperliquidError {
+diff --git a/esm/api/_schemas.d.ts b/esm/api/_schemas.d.ts
+index b723e16e5a25f32508947860e56fad2f3b326347..2096a5c1d2696705e56f4974360511c99956e1e7 100644
+--- a/esm/api/_schemas.d.ts
++++ b/esm/api/_schemas.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/_schemas.ts" />
+ /**
+  * Common valibot schemas for primitive types used across the API.
+  * @module
+diff --git a/esm/api/exchange/_methods/_base/_config.d.ts b/esm/api/exchange/_methods/_base/_config.d.ts
+index 6cd36a471e5a20ea68d7ba36ec15c82b4bcf1d66..7d1b113db913976b9aed26c79d8540803810d4ce 100644
+--- a/esm/api/exchange/_methods/_base/_config.d.ts
++++ b/esm/api/exchange/_methods/_base/_config.d.ts
+@@ -2,7 +2,6 @@
+  * Configuration types for Exchange API requests.
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/_base/_config.ts" />
+ import type { AbstractWallet } from "../../../../signing/mod.js";
+ import type { IRequestTransport } from "../../../../transport/mod.js";
+ /** A value or a Promise of that value. */
+diff --git a/esm/api/exchange/_methods/_base/_nonce.d.ts b/esm/api/exchange/_methods/_base/_nonce.d.ts
+index 907f36e6acc1d9f2b5c7e99a4e13566cbf796394..4954571168d85102213c3f9b45d68c48cc764a01 100644
+--- a/esm/api/exchange/_methods/_base/_nonce.d.ts
++++ b/esm/api/exchange/_methods/_base/_nonce.d.ts
+@@ -2,7 +2,6 @@
+  * Nonce manager for generating unique, monotonically increasing nonces.
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/_base/_nonce.ts" />
+ /** Nonce manager interface. */
+ export interface NonceManager {
+     /** Returns a unique nonce for the given key, monotonically increasing per key. */
+diff --git a/esm/api/exchange/_methods/_base/_semaphore.d.ts b/esm/api/exchange/_methods/_base/_semaphore.d.ts
+index c5d9dfa4ac6814dcfccb01d38b1621c66754483e..e122e44f970fef499eb11f19862f66c36945a43e 100644
+--- a/esm/api/exchange/_methods/_base/_semaphore.d.ts
++++ b/esm/api/exchange/_methods/_base/_semaphore.d.ts
+@@ -2,7 +2,6 @@
+  * Per-key semaphore registry for serializing async operations.
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/_base/_semaphore.ts" />
+ /**
+  * Acquires a lock for the given key, executes the provided async function, and releases the lock.
+  *
+diff --git a/esm/api/exchange/_methods/_base/_shell.d.ts b/esm/api/exchange/_methods/_base/_shell.d.ts
+index b4423e58ee4c3dd4209b91d772b0e16904581e09..37d63bfe3c4be445d225fd8d497fec7087d0a259 100644
+--- a/esm/api/exchange/_methods/_base/_shell.d.ts
++++ b/esm/api/exchange/_methods/_base/_shell.d.ts
+@@ -2,7 +2,6 @@
+  * Common execution shell shared by L1 and user-signed Exchange API actions.
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/_base/_shell.ts" />
+ import { type Signature } from "../../../../signing/mod.js";
+ import type { ExchangeConfig } from "./_config.js";
+ /** Result returned by the {@linkcode executeWithShell} `build` callback. */
+diff --git a/esm/api/exchange/_methods/_base/errors.d.ts b/esm/api/exchange/_methods/_base/errors.d.ts
+index f3b97d03bc46f18c66611e36830185e55daef838..54dc93112539bb60e223996a2d00ffc7093bfefb 100644
+--- a/esm/api/exchange/_methods/_base/errors.d.ts
++++ b/esm/api/exchange/_methods/_base/errors.d.ts
+@@ -2,7 +2,6 @@
+  * Error types and utilities for Exchange API responses.
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/_base/errors.ts" />
+ import { ApiRequestError } from "../../../_errors.js";
+ export { ApiRequestError };
+ /** Top-level error shape. */
+diff --git a/esm/api/exchange/_methods/_base/execute.d.ts b/esm/api/exchange/_methods/_base/execute.d.ts
+index 2b862dd936e274784a0aba4c01c7c9f3a7794b7e..ce1b4be3529054bb1182c88d2aeeab117b166695 100644
+--- a/esm/api/exchange/_methods/_base/execute.d.ts
++++ b/esm/api/exchange/_methods/_base/execute.d.ts
+@@ -2,7 +2,6 @@
+  * Execute helpers for L1 and user-signed Exchange API actions.
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/_base/execute.ts" />
+ import type { ExchangeConfig } from "./_config.js";
+ /**
+  * Execute an L1 action on the Hyperliquid Exchange.
+diff --git a/esm/api/exchange/_methods/_base/mod.d.ts b/esm/api/exchange/_methods/_base/mod.d.ts
+index 285fe2a85e00fc6fe196cc1e6847807cfedaa15d..58aef877c752c36e9ebfab962de40f31160c0714 100644
+--- a/esm/api/exchange/_methods/_base/mod.d.ts
++++ b/esm/api/exchange/_methods/_base/mod.d.ts
+@@ -2,7 +2,6 @@
+  * Base infrastructure for Exchange API methods.
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/_base/mod.ts" />
+ export type { ExchangeConfig, ExchangeMultiSigConfig, ExchangeSingleWalletConfig, ExtractRequestOptions, } from "./_config.js";
+ export { ApiRequestError, type ExcludeErrorResponse } from "./errors.js";
+ export { executeL1Action, executeUserSignedAction } from "./execute.js";
+diff --git a/esm/api/exchange/_methods/agentEnableDexAbstraction.d.ts b/esm/api/exchange/_methods/agentEnableDexAbstraction.d.ts
+index b5f4c38dacb767e8e7e38fca0954e43dc14765e6..7ff557bb2617667a56a2f585f713820c2dfbdc17 100644
+--- a/esm/api/exchange/_methods/agentEnableDexAbstraction.d.ts
++++ b/esm/api/exchange/_methods/agentEnableDexAbstraction.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/agentEnableDexAbstraction.ts" />
+ import * as v from "valibot";
+ /**
+  * Enable HIP-3 DEX abstraction.
+diff --git a/esm/api/exchange/_methods/agentSendAsset.d.ts b/esm/api/exchange/_methods/agentSendAsset.d.ts
+index 82d8534671bf4288d09b052acf00c4b7bc11e840..337e7a84789577527b46d2d34bd3cb12b3404a18 100644
+--- a/esm/api/exchange/_methods/agentSendAsset.d.ts
++++ b/esm/api/exchange/_methods/agentSendAsset.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/agentSendAsset.ts" />
+ import * as v from "valibot";
+ /**
+  * Transfer tokens on behalf of the principal via an agent wallet.
+diff --git a/esm/api/exchange/_methods/agentSetAbstraction.d.ts b/esm/api/exchange/_methods/agentSetAbstraction.d.ts
+index 72523481ff8d6aa0c8be3a20fd785d1fe921cabd..aab5733274509c728801eea0e759c0d158a1ee01 100644
+--- a/esm/api/exchange/_methods/agentSetAbstraction.d.ts
++++ b/esm/api/exchange/_methods/agentSetAbstraction.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/agentSetAbstraction.ts" />
+ import * as v from "valibot";
+ /**
+  * Set user abstraction mode (method for agent wallet).
+diff --git a/esm/api/exchange/_methods/approveAgent.d.ts b/esm/api/exchange/_methods/approveAgent.d.ts
+index 2fb646f3b7daa926140a6290b763289129d0a949..05606bf03f120cb25e4d6f63db95d09e512c4361 100644
+--- a/esm/api/exchange/_methods/approveAgent.d.ts
++++ b/esm/api/exchange/_methods/approveAgent.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/approveAgent.ts" />
+ import * as v from "valibot";
+ /**
+  * Approve an agent to sign on behalf of the master account.
+diff --git a/esm/api/exchange/_methods/approveBuilderFee.d.ts b/esm/api/exchange/_methods/approveBuilderFee.d.ts
+index e1191dcebd3e42ec65de2e768fbc9597944f5c6f..f87d8dbe7815434baeb3196da20b966a2f863dcd 100644
+--- a/esm/api/exchange/_methods/approveBuilderFee.d.ts
++++ b/esm/api/exchange/_methods/approveBuilderFee.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/approveBuilderFee.ts" />
+ import * as v from "valibot";
+ /**
+  * Approve a maximum fee rate for a builder.
+diff --git a/esm/api/exchange/_methods/authorizeAqav2Role.d.ts b/esm/api/exchange/_methods/authorizeAqav2Role.d.ts
+index e362a9bf4825cf68ed9b42008ce3ed3a9dc7ce34..312a4f785dee97984aca97c7c773d9a25bdddb91 100644
+--- a/esm/api/exchange/_methods/authorizeAqav2Role.d.ts
++++ b/esm/api/exchange/_methods/authorizeAqav2Role.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/authorizeAqav2Role.ts" />
+ import * as v from "valibot";
+ /**
+  * Authorize an AQAv2 role.
+diff --git a/esm/api/exchange/_methods/batchModify.d.ts b/esm/api/exchange/_methods/batchModify.d.ts
+index d6f57e4682b1a1ee5c8abdfe7acaea185dc708b4..1657fddd376cbdb1f9232a140442c22251449002 100644
+--- a/esm/api/exchange/_methods/batchModify.d.ts
++++ b/esm/api/exchange/_methods/batchModify.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/batchModify.ts" />
+ import * as v from "valibot";
+ import type { OrderResponse } from "./order.js";
+ /**
+diff --git a/esm/api/exchange/_methods/borrowLend.d.ts b/esm/api/exchange/_methods/borrowLend.d.ts
+index bfd7cd61df1a1141a36ffb90cafc965350fe15c8..65a24451a945e417d53c5ca900b51f13835d0e51 100644
+--- a/esm/api/exchange/_methods/borrowLend.d.ts
++++ b/esm/api/exchange/_methods/borrowLend.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/borrowLend.ts" />
+ import * as v from "valibot";
+ /**
+  * Borrow or lend assets.
+diff --git a/esm/api/exchange/_methods/cDeposit.d.ts b/esm/api/exchange/_methods/cDeposit.d.ts
+index dab81be77354caf51f931626f3ef0f4ab0186746..6edcdb8b72908feed36973c7ac9e0ef3a7c32546 100644
+--- a/esm/api/exchange/_methods/cDeposit.d.ts
++++ b/esm/api/exchange/_methods/cDeposit.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/cDeposit.ts" />
+ import * as v from "valibot";
+ /**
+  * Transfer native token from the user spot account into staking for delegating to validators.
+diff --git a/esm/api/exchange/_methods/cSignerAction.d.ts b/esm/api/exchange/_methods/cSignerAction.d.ts
+index cd2117d78a894c884d23d343d93810e99a4dd1de..c73e546b68f693e353d087496bd7f6f859339dcd 100644
+--- a/esm/api/exchange/_methods/cSignerAction.d.ts
++++ b/esm/api/exchange/_methods/cSignerAction.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/cSignerAction.ts" />
+ import * as v from "valibot";
+ /**
+  * Jail or unjail self as a validator signer.
+diff --git a/esm/api/exchange/_methods/cValidatorAction.d.ts b/esm/api/exchange/_methods/cValidatorAction.d.ts
+index 8b4f0cda2800c5840e508d8a60bd7934adbc8e98..4d7cb2c51d5675c21e45ea773263e8bd9afb2f06 100644
+--- a/esm/api/exchange/_methods/cValidatorAction.d.ts
++++ b/esm/api/exchange/_methods/cValidatorAction.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/cValidatorAction.ts" />
+ import * as v from "valibot";
+ /**
+  * Action related to validator management.
+diff --git a/esm/api/exchange/_methods/cWithdraw.d.ts b/esm/api/exchange/_methods/cWithdraw.d.ts
+index 90c46ca63a7ffc7690611d439c5fc6877b9374fe..53842c9b392011b3ed4e7edd78e5683648edd594 100644
+--- a/esm/api/exchange/_methods/cWithdraw.d.ts
++++ b/esm/api/exchange/_methods/cWithdraw.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/cWithdraw.ts" />
+ import * as v from "valibot";
+ /**
+  * Transfer native token from staking into the user's spot account.
+diff --git a/esm/api/exchange/_methods/cancel.d.ts b/esm/api/exchange/_methods/cancel.d.ts
+index 50c3e83ba0c0c67d9614e5daa38d51dc53b71ec0..174564432e9b42207ff03c55e896c46c8e528edb 100644
+--- a/esm/api/exchange/_methods/cancel.d.ts
++++ b/esm/api/exchange/_methods/cancel.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/cancel.ts" />
+ import * as v from "valibot";
+ /**
+  * Cancel order(s).
+diff --git a/esm/api/exchange/_methods/cancelByCloid.d.ts b/esm/api/exchange/_methods/cancelByCloid.d.ts
+index 303f14a4cf8507f1423ffb707c2c86061a176486..bb3642fbbd832c0719a54043cd2e0d66ead5be96 100644
+--- a/esm/api/exchange/_methods/cancelByCloid.d.ts
++++ b/esm/api/exchange/_methods/cancelByCloid.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/cancelByCloid.ts" />
+ import * as v from "valibot";
+ import type { CancelResponse } from "./cancel.js";
+ /**
+diff --git a/esm/api/exchange/_methods/claimRewards.d.ts b/esm/api/exchange/_methods/claimRewards.d.ts
+index 33ecfd01917c736b20d51265fda6e2db304392bf..f931eb80b56b905872015e64e46830531be4cdc8 100644
+--- a/esm/api/exchange/_methods/claimRewards.d.ts
++++ b/esm/api/exchange/_methods/claimRewards.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/claimRewards.ts" />
+ import * as v from "valibot";
+ /**
+  * Claim rewards from referral program.
+diff --git a/esm/api/exchange/_methods/convertToMultiSigUser.d.ts b/esm/api/exchange/_methods/convertToMultiSigUser.d.ts
+index 0b771c5cf41997a8e6f9ea7984effa848e0ad693..4a91c0ac7ad7fdf7eb1cbcdd173b7e5cff6be198 100644
+--- a/esm/api/exchange/_methods/convertToMultiSigUser.d.ts
++++ b/esm/api/exchange/_methods/convertToMultiSigUser.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/convertToMultiSigUser.ts" />
+ import * as v from "valibot";
+ /**
+  * Convert a single-signature account to a multi-signature account or vice versa.
+diff --git a/esm/api/exchange/_methods/createSubAccount.d.ts b/esm/api/exchange/_methods/createSubAccount.d.ts
+index 86ebb2f05a113090f02a15b592cacdb73d6fd3ba..b50d72e4a2f16dd0072764dcd7725ec58cd152cc 100644
+--- a/esm/api/exchange/_methods/createSubAccount.d.ts
++++ b/esm/api/exchange/_methods/createSubAccount.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/createSubAccount.ts" />
+ import * as v from "valibot";
+ /**
+  * Create a sub-account.
+diff --git a/esm/api/exchange/_methods/createVault.d.ts b/esm/api/exchange/_methods/createVault.d.ts
+index 580026e419a374ec454c6fbb1187d2d166834a2e..ab90fa1eb2e3d0f9bcd26bedf02eefb33ae4c4da 100644
+--- a/esm/api/exchange/_methods/createVault.d.ts
++++ b/esm/api/exchange/_methods/createVault.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/createVault.ts" />
+ import * as v from "valibot";
+ /**
+  * Create a vault.
+diff --git a/esm/api/exchange/_methods/evmUserModify.d.ts b/esm/api/exchange/_methods/evmUserModify.d.ts
+index e390a4e61d4eb70bfc5936aedb444ca88acb5ed5..117fb1452dbced86a7f502d8bb6f7344469cf736 100644
+--- a/esm/api/exchange/_methods/evmUserModify.d.ts
++++ b/esm/api/exchange/_methods/evmUserModify.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/evmUserModify.ts" />
+ import * as v from "valibot";
+ /**
+  * Configure block type for EVM transactions.
+diff --git a/esm/api/exchange/_methods/finalizeEvmContract.d.ts b/esm/api/exchange/_methods/finalizeEvmContract.d.ts
+index 0c5db2305a23df6230896eae221add6f63639f71..51f0ac3c34ff7fd2feb3c244c69f81a21833b1a2 100644
+--- a/esm/api/exchange/_methods/finalizeEvmContract.d.ts
++++ b/esm/api/exchange/_methods/finalizeEvmContract.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/finalizeEvmContract.ts" />
+ import * as v from "valibot";
+ /**
+  * Finalize the link between a HyperCore spot token and an ERC-20 contract on the HyperEVM.
+diff --git a/esm/api/exchange/_methods/gossipPriorityBid.d.ts b/esm/api/exchange/_methods/gossipPriorityBid.d.ts
+index 10e66610a771029a5603b36d2da2f4003f7ac3db..c5a5251b43a7515a1f880eb6fa07de82a0332078 100644
+--- a/esm/api/exchange/_methods/gossipPriorityBid.d.ts
++++ b/esm/api/exchange/_methods/gossipPriorityBid.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/gossipPriorityBid.ts" />
+ import * as v from "valibot";
+ /**
+  * Bid in a gossip priority Dutch auction to receive prioritized mempool data for an IP.
+diff --git a/esm/api/exchange/_methods/hip3LiquidatorTransfer.d.ts b/esm/api/exchange/_methods/hip3LiquidatorTransfer.d.ts
+index be3329e1cf7347f6e439ddfd9aacb7c82c71d62a..4dd59d28dfefef24888bb6d417bdc3090bd7f309 100644
+--- a/esm/api/exchange/_methods/hip3LiquidatorTransfer.d.ts
++++ b/esm/api/exchange/_methods/hip3LiquidatorTransfer.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/hip3LiquidatorTransfer.ts" />
+ import * as v from "valibot";
+ /**
+  * Deposit into or withdraw from the HIP-3 DEX backstop liquidator.
+diff --git a/esm/api/exchange/_methods/linkStakingUser.d.ts b/esm/api/exchange/_methods/linkStakingUser.d.ts
+index 0ab80709d79bdbf848e1adcaff219191dc432f74..d5af7ee8e3ba207a96ebe75109580dc8616a24e9 100644
+--- a/esm/api/exchange/_methods/linkStakingUser.d.ts
++++ b/esm/api/exchange/_methods/linkStakingUser.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/linkStakingUser.ts" />
+ import * as v from "valibot";
+ /**
+  * Link staking and trading accounts for fee discount attribution.
+diff --git a/esm/api/exchange/_methods/modify.d.ts b/esm/api/exchange/_methods/modify.d.ts
+index 995475bb8bdf3436122bbaeea23f56a661ff7d3a..e8c0805af4ad1ce435d1f28fa9a75772dd62bbad 100644
+--- a/esm/api/exchange/_methods/modify.d.ts
++++ b/esm/api/exchange/_methods/modify.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/modify.ts" />
+ import * as v from "valibot";
+ /**
+  * Modify an order.
+diff --git a/esm/api/exchange/_methods/noop.d.ts b/esm/api/exchange/_methods/noop.d.ts
+index 529025c3c201f96c85455fb366e97c8a0c1fca73..4302c9422539bcb4858d57321b885b88ae66f03e 100644
+--- a/esm/api/exchange/_methods/noop.d.ts
++++ b/esm/api/exchange/_methods/noop.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/noop.ts" />
+ import * as v from "valibot";
+ /**
+  * This action does not do anything (no operation), but causes the nonce to be marked as used.
+diff --git a/esm/api/exchange/_methods/order.d.ts b/esm/api/exchange/_methods/order.d.ts
+index 1cd79f856f43538fa16a20f70f2a118012b027a5..422c7b6a1a84e95bc8b3c6035fe1d157014fb516 100644
+--- a/esm/api/exchange/_methods/order.d.ts
++++ b/esm/api/exchange/_methods/order.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/order.ts" />
+ import * as v from "valibot";
+ /**
+  * Place an order(s).
+diff --git a/esm/api/exchange/_methods/perpDeploy.d.ts b/esm/api/exchange/_methods/perpDeploy.d.ts
+index 0874b6afddd3cc8a3ea8b69c861fae743d6d3cc2..d315035a7c922931c6354e38a1715d335597637e 100644
+--- a/esm/api/exchange/_methods/perpDeploy.d.ts
++++ b/esm/api/exchange/_methods/perpDeploy.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/perpDeploy.ts" />
+ import * as v from "valibot";
+ /**
+  * Deploying HIP-3 assets.
+diff --git a/esm/api/exchange/_methods/registerReferrer.d.ts b/esm/api/exchange/_methods/registerReferrer.d.ts
+index 94f0bdf62b78cbb6f809e70b93f68488f23bfbfe..252ada2010f0ac30449c3cd1bf64d66c5e5daa54 100644
+--- a/esm/api/exchange/_methods/registerReferrer.d.ts
++++ b/esm/api/exchange/_methods/registerReferrer.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/registerReferrer.ts" />
+ import * as v from "valibot";
+ /**
+  * Create a referral code.
+diff --git a/esm/api/exchange/_methods/reserveRequestWeight.d.ts b/esm/api/exchange/_methods/reserveRequestWeight.d.ts
+index b802292f1324c636e531d7d05c33e8a56cb7b928..63ac4ab79603107f7bbeb5736c35a51ed5392645 100644
+--- a/esm/api/exchange/_methods/reserveRequestWeight.d.ts
++++ b/esm/api/exchange/_methods/reserveRequestWeight.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/reserveRequestWeight.ts" />
+ import * as v from "valibot";
+ /**
+  * Reserve additional rate-limited actions for a fee.
+diff --git a/esm/api/exchange/_methods/scheduleCancel.d.ts b/esm/api/exchange/_methods/scheduleCancel.d.ts
+index 48ac0498f771aa2680ae152b79a837a64471eee0..19cd79b0284066009c9730c21886b9afb4081e45 100644
+--- a/esm/api/exchange/_methods/scheduleCancel.d.ts
++++ b/esm/api/exchange/_methods/scheduleCancel.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/scheduleCancel.ts" />
+ import * as v from "valibot";
+ /**
+  * Schedule a cancel-all operation at a future time.
+diff --git a/esm/api/exchange/_methods/sendAsset.d.ts b/esm/api/exchange/_methods/sendAsset.d.ts
+index 5eb55f4116c7fdc3d12715d97b63ff32d34e3d42..9bcd1e5dd7f1706e2cbd5b92b18f78e11b4eeb96 100644
+--- a/esm/api/exchange/_methods/sendAsset.d.ts
++++ b/esm/api/exchange/_methods/sendAsset.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/sendAsset.ts" />
+ import * as v from "valibot";
+ /**
+  * Transfer tokens between different perp DEXs, spot balance, users, and/or sub-accounts.
+diff --git a/esm/api/exchange/_methods/sendToEvmWithData.d.ts b/esm/api/exchange/_methods/sendToEvmWithData.d.ts
+index 7e208ba78928cfb297293fe9c0f42aff1fd4b2e9..a155bcf12bc97f35d41048588394558e50620222 100644
+--- a/esm/api/exchange/_methods/sendToEvmWithData.d.ts
++++ b/esm/api/exchange/_methods/sendToEvmWithData.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/sendToEvmWithData.ts" />
+ import * as v from "valibot";
+ /**
+  * Transfer tokens from Core to EVM with an additional data payload for `ICoreReceiveWithData` contracts.
+diff --git a/esm/api/exchange/_methods/setDisplayName.d.ts b/esm/api/exchange/_methods/setDisplayName.d.ts
+index 80d88f1add58082637f1492ce635be119b17c229..e5d903c1ec2fd1650ee22b97f26fbf86443e8d9e 100644
+--- a/esm/api/exchange/_methods/setDisplayName.d.ts
++++ b/esm/api/exchange/_methods/setDisplayName.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/setDisplayName.ts" />
+ import * as v from "valibot";
+ /**
+  * Set the display name in the leaderboard.
+diff --git a/esm/api/exchange/_methods/setReferrer.d.ts b/esm/api/exchange/_methods/setReferrer.d.ts
+index da3364977eff97c0a4ed718defa2732747996187..9b6ec1166ab76c226df1742e44d8d1399e1867ef 100644
+--- a/esm/api/exchange/_methods/setReferrer.d.ts
++++ b/esm/api/exchange/_methods/setReferrer.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/setReferrer.ts" />
+ import * as v from "valibot";
+ /**
+  * Set a referral code.
+diff --git a/esm/api/exchange/_methods/spotDeploy.d.ts b/esm/api/exchange/_methods/spotDeploy.d.ts
+index 04406e98cc5f974ac2aa8126e12526e303401c7d..e783709c43872fc8ee198ebc5bee9efaa0e5df90 100644
+--- a/esm/api/exchange/_methods/spotDeploy.d.ts
++++ b/esm/api/exchange/_methods/spotDeploy.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/spotDeploy.ts" />
+ import * as v from "valibot";
+ /**
+  * Deploying HIP-1 and HIP-2 assets.
+diff --git a/esm/api/exchange/_methods/spotSend.d.ts b/esm/api/exchange/_methods/spotSend.d.ts
+index 563cbc624e014468d390ac0a0f3e579731f5e8ca..33119d1cd3268dcb7e7c946172561e124daa820c 100644
+--- a/esm/api/exchange/_methods/spotSend.d.ts
++++ b/esm/api/exchange/_methods/spotSend.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/spotSend.ts" />
+ import * as v from "valibot";
+ /**
+  * Send spot assets to another address.
+diff --git a/esm/api/exchange/_methods/spotUser.d.ts b/esm/api/exchange/_methods/spotUser.d.ts
+index 1bfd787b34eeee76107dc38253c4d3019b676467..29f2ccda4d30b68f1fa6278ffd4b9f6205fc76aa 100644
+--- a/esm/api/exchange/_methods/spotUser.d.ts
++++ b/esm/api/exchange/_methods/spotUser.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/spotUser.ts" />
+ import * as v from "valibot";
+ /**
+  * Opt out of spot dusting.
+diff --git a/esm/api/exchange/_methods/stakingLinkDisableTradingUser.d.ts b/esm/api/exchange/_methods/stakingLinkDisableTradingUser.d.ts
+index 0fe2477a946ce871ea8ccfc74d563c9ce5666822..8ff10ee2f9b0166ac44dcfaddc1e276b3af84696 100644
+--- a/esm/api/exchange/_methods/stakingLinkDisableTradingUser.d.ts
++++ b/esm/api/exchange/_methods/stakingLinkDisableTradingUser.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/stakingLinkDisableTradingUser.ts" />
+ import * as v from "valibot";
+ /**
+  * Permanently disable a linked trading user, locking its funds.
+diff --git a/esm/api/exchange/_methods/subAccountModify.d.ts b/esm/api/exchange/_methods/subAccountModify.d.ts
+index 3e140da4e8176bb6878cd0e2690326258e3bda20..49b7d4dc6db4517573e12125041b625eea7d0682 100644
+--- a/esm/api/exchange/_methods/subAccountModify.d.ts
++++ b/esm/api/exchange/_methods/subAccountModify.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/subAccountModify.ts" />
+ import * as v from "valibot";
+ /**
+  * Modify a sub-account.
+diff --git a/esm/api/exchange/_methods/subAccountSpotTransfer.d.ts b/esm/api/exchange/_methods/subAccountSpotTransfer.d.ts
+index 51c2aa6ac45a949b2959d97c4ace1db3639f09a9..f7eca31fc568f5d6aae852f4f4bc3757e2dfbee0 100644
+--- a/esm/api/exchange/_methods/subAccountSpotTransfer.d.ts
++++ b/esm/api/exchange/_methods/subAccountSpotTransfer.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/subAccountSpotTransfer.ts" />
+ import * as v from "valibot";
+ /**
+  * Transfer between sub-accounts (spot).
+diff --git a/esm/api/exchange/_methods/subAccountTransfer.d.ts b/esm/api/exchange/_methods/subAccountTransfer.d.ts
+index a353a7a2cd2d20e27ab249f3f2e84f9bc48760b7..ebaf637d84e07e46e416e74d447e0b3eaa81103f 100644
+--- a/esm/api/exchange/_methods/subAccountTransfer.d.ts
++++ b/esm/api/exchange/_methods/subAccountTransfer.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/subAccountTransfer.ts" />
+ import * as v from "valibot";
+ /**
+  * Transfer between sub-accounts (perpetual).
+diff --git a/esm/api/exchange/_methods/tokenDelegate.d.ts b/esm/api/exchange/_methods/tokenDelegate.d.ts
+index 293d5ece3eccf3ba61e3257e393c7dc068a10369..3bea73eb30bee9e33c5267c0b12b79e42850554d 100644
+--- a/esm/api/exchange/_methods/tokenDelegate.d.ts
++++ b/esm/api/exchange/_methods/tokenDelegate.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/tokenDelegate.ts" />
+ import * as v from "valibot";
+ /**
+  * Delegate or undelegate native tokens to or from a validator.
+diff --git a/esm/api/exchange/_methods/topUpIsolatedOnlyMargin.d.ts b/esm/api/exchange/_methods/topUpIsolatedOnlyMargin.d.ts
+index c54264dc0038f9ba0c2f507458d305bec36e5c97..8741700d2d8cfbe139defaa914efabfc6dd5128c 100644
+--- a/esm/api/exchange/_methods/topUpIsolatedOnlyMargin.d.ts
++++ b/esm/api/exchange/_methods/topUpIsolatedOnlyMargin.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/topUpIsolatedOnlyMargin.ts" />
+ import * as v from "valibot";
+ /**
+  * Top up isolated margin by targeting a specific leverage.
+diff --git a/esm/api/exchange/_methods/twapCancel.d.ts b/esm/api/exchange/_methods/twapCancel.d.ts
+index 90eb2e0f686a4db5b70586e844e2e6e03f717116..2ce9347f6010a7d93da340105f98173517af99f0 100644
+--- a/esm/api/exchange/_methods/twapCancel.d.ts
++++ b/esm/api/exchange/_methods/twapCancel.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/twapCancel.ts" />
+ import * as v from "valibot";
+ /**
+  * Cancel a TWAP order.
+diff --git a/esm/api/exchange/_methods/twapOrder.d.ts b/esm/api/exchange/_methods/twapOrder.d.ts
+index a1d64e4aec451e7891030a93d39dbb6b419fc284..20bbda91fb2983163e65e6f8572d084e48e15465 100644
+--- a/esm/api/exchange/_methods/twapOrder.d.ts
++++ b/esm/api/exchange/_methods/twapOrder.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/twapOrder.ts" />
+ import * as v from "valibot";
+ /**
+  * Place a TWAP order.
+diff --git a/esm/api/exchange/_methods/updateIsolatedMargin.d.ts b/esm/api/exchange/_methods/updateIsolatedMargin.d.ts
+index 897361a99afebc5dc7ab10fd1a618363cca988bb..37b8485da89b51a970376dcb2ac791cf7815058f 100644
+--- a/esm/api/exchange/_methods/updateIsolatedMargin.d.ts
++++ b/esm/api/exchange/_methods/updateIsolatedMargin.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/updateIsolatedMargin.ts" />
+ import * as v from "valibot";
+ /**
+  * Add or remove margin from isolated position.
+diff --git a/esm/api/exchange/_methods/updateLeverage.d.ts b/esm/api/exchange/_methods/updateLeverage.d.ts
+index 41a1ba1e74ed3f8bd96d66cff64bad389717b301..aeb1fe92356c73e89fb968e53965158c91e8d551 100644
+--- a/esm/api/exchange/_methods/updateLeverage.d.ts
++++ b/esm/api/exchange/_methods/updateLeverage.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/updateLeverage.ts" />
+ import * as v from "valibot";
+ /**
+  * Update cross or isolated leverage on a coin.
+diff --git a/esm/api/exchange/_methods/usdClassTransfer.d.ts b/esm/api/exchange/_methods/usdClassTransfer.d.ts
+index 65a2b32a4ecef02a2e4bf4fd5b681d5e6aba2b6f..15416f29c5318b32fdc45fa41ece45d3e3bae473 100644
+--- a/esm/api/exchange/_methods/usdClassTransfer.d.ts
++++ b/esm/api/exchange/_methods/usdClassTransfer.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/usdClassTransfer.ts" />
+ import * as v from "valibot";
+ /**
+  * Transfer funds between spot account and perp account.
+diff --git a/esm/api/exchange/_methods/usdSend.d.ts b/esm/api/exchange/_methods/usdSend.d.ts
+index 9fef5b48a0d3c96a0fec615d564992865cc5612e..7985b885081e3f9e14433be5f0b0ee84811df063 100644
+--- a/esm/api/exchange/_methods/usdSend.d.ts
++++ b/esm/api/exchange/_methods/usdSend.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/usdSend.ts" />
+ import * as v from "valibot";
+ /**
+  * Send USD to another address.
+diff --git a/esm/api/exchange/_methods/userDexAbstraction.d.ts b/esm/api/exchange/_methods/userDexAbstraction.d.ts
+index 04c62ecd20e27aced6557ed22c5e49472bab20c1..32f2a8521f25985403020d0367c902c60796c821 100644
+--- a/esm/api/exchange/_methods/userDexAbstraction.d.ts
++++ b/esm/api/exchange/_methods/userDexAbstraction.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/userDexAbstraction.ts" />
+ import * as v from "valibot";
+ /**
+  * Enable/disable HIP-3 DEX abstraction.
+diff --git a/esm/api/exchange/_methods/userOutcome.d.ts b/esm/api/exchange/_methods/userOutcome.d.ts
+index c09817f95f75d35be3b0b44dc53c6fa5382a8bf1..4415ceb4ab6f228782cf69df1ff8911e097b4e81 100644
+--- a/esm/api/exchange/_methods/userOutcome.d.ts
++++ b/esm/api/exchange/_methods/userOutcome.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/userOutcome.ts" />
+ import * as v from "valibot";
+ /**
+  * Manually split or merge outcome shares to convert between primary and dual balances.
+diff --git a/esm/api/exchange/_methods/userPortfolioMargin.d.ts b/esm/api/exchange/_methods/userPortfolioMargin.d.ts
+index b5f1fabd43f025284cca573217268ca397b7a3cc..988b68f14ff82dd1127781b1296ea6d1d7762257 100644
+--- a/esm/api/exchange/_methods/userPortfolioMargin.d.ts
++++ b/esm/api/exchange/_methods/userPortfolioMargin.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/userPortfolioMargin.ts" />
+ import * as v from "valibot";
+ /**
+  * Enable/disable user portfolio margin.
+diff --git a/esm/api/exchange/_methods/userSetAbstraction.d.ts b/esm/api/exchange/_methods/userSetAbstraction.d.ts
+index df1b9ffe9ae5c4f2a839fa7cf1aebf018d2b4688..ffb12ff17e3725b0b7cd15946943993363508c43 100644
+--- a/esm/api/exchange/_methods/userSetAbstraction.d.ts
++++ b/esm/api/exchange/_methods/userSetAbstraction.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/userSetAbstraction.ts" />
+ import * as v from "valibot";
+ /**
+  * Set user abstraction mode.
+diff --git a/esm/api/exchange/_methods/validatorL1Stream.d.ts b/esm/api/exchange/_methods/validatorL1Stream.d.ts
+index 5e6e1f1b1e23ff23d8fa6c1718997c5ade10ba8d..7f7fe8163f425154a6fdd5b0324ba75784948113 100644
+--- a/esm/api/exchange/_methods/validatorL1Stream.d.ts
++++ b/esm/api/exchange/_methods/validatorL1Stream.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/validatorL1Stream.ts" />
+ import * as v from "valibot";
+ /**
+  * Validator vote on risk-free rate for aligned quote asset.
+diff --git a/esm/api/exchange/_methods/vaultDistribute.d.ts b/esm/api/exchange/_methods/vaultDistribute.d.ts
+index 51b2afe208a09d7566a9a25c7d9ef3f408027603..e7b8d425c40621b161a237092983990cfb77eac6 100644
+--- a/esm/api/exchange/_methods/vaultDistribute.d.ts
++++ b/esm/api/exchange/_methods/vaultDistribute.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/vaultDistribute.ts" />
+ import * as v from "valibot";
+ /**
+  * Distribute funds from a vault between followers.
+diff --git a/esm/api/exchange/_methods/vaultModify.d.ts b/esm/api/exchange/_methods/vaultModify.d.ts
+index 56bb4e683cb88d1ece7373a17fd440e1fe7ff825..71238c9f113dcc0b27971cedffe9f2f205c2a026 100644
+--- a/esm/api/exchange/_methods/vaultModify.d.ts
++++ b/esm/api/exchange/_methods/vaultModify.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/vaultModify.ts" />
+ import * as v from "valibot";
+ /**
+  * Modify a vault's configuration.
+diff --git a/esm/api/exchange/_methods/vaultTransfer.d.ts b/esm/api/exchange/_methods/vaultTransfer.d.ts
+index ea50587f008c5ffd3b7f32951a6e7cc7b48fe3df..9577003bc0fd9024a486b57faa55dd87b87c2906 100644
+--- a/esm/api/exchange/_methods/vaultTransfer.d.ts
++++ b/esm/api/exchange/_methods/vaultTransfer.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/vaultTransfer.ts" />
+ import * as v from "valibot";
+ /**
+  * Deposit or withdraw from a vault.
+diff --git a/esm/api/exchange/_methods/withdraw3.d.ts b/esm/api/exchange/_methods/withdraw3.d.ts
+index 7fbc386e5ffb075bb9b0b02df6570ec22bd01513..06177a2606b07163a4a70c5b53d75437cd817573 100644
+--- a/esm/api/exchange/_methods/withdraw3.d.ts
++++ b/esm/api/exchange/_methods/withdraw3.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/_methods/withdraw3.ts" />
+ import * as v from "valibot";
+ /**
+  * Initiate a withdrawal request.
+diff --git a/esm/api/exchange/client.d.ts b/esm/api/exchange/client.d.ts
+index 7fdbcb2ed6afb47dc8d0a4e6e2045a04927233ef..88f9569298eefa6e9ebbe5508311cff9f73c3162 100644
+--- a/esm/api/exchange/client.d.ts
++++ b/esm/api/exchange/client.d.ts
+@@ -2,7 +2,6 @@
+  * Client for the Hyperliquid Exchange API endpoint.
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/client.ts" />
+ import type { ExchangeConfig, ExchangeSingleWalletConfig } from "./_methods/_base/mod.js";
+ import { type AgentEnableDexAbstractionOptions, type AgentEnableDexAbstractionSuccessResponse } from "./_methods/agentEnableDexAbstraction.js";
+ import { type AgentSendAssetOptions, type AgentSendAssetParameters, type AgentSendAssetSuccessResponse } from "./_methods/agentSendAsset.js";
+diff --git a/esm/api/exchange/mod.d.ts b/esm/api/exchange/mod.d.ts
+index f28421e6730deccd8a5769613ef07f645ee53553..8b6f0696790923297673fdb4036c63306bdf2f18 100644
+--- a/esm/api/exchange/mod.d.ts
++++ b/esm/api/exchange/mod.d.ts
+@@ -36,7 +36,6 @@
+  *
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/exchange/mod.ts" />
+ export { ApiRequestError, type ExchangeConfig, type ExchangeMultiSigConfig, type ExchangeSingleWalletConfig, } from "./_methods/_base/mod.js";
+ export * from "./_methods/agentEnableDexAbstraction.js";
+ export * from "./_methods/agentSendAsset.js";
+diff --git a/esm/api/explorer/_methods/_base/_config.d.ts b/esm/api/explorer/_methods/_base/_config.d.ts
+index 0c9731f3dbd24e9fd421dc0425c7c66c3eae8579..588f69d23b8feff4b6666d60cdebe27afc8669a3 100644
+--- a/esm/api/explorer/_methods/_base/_config.d.ts
++++ b/esm/api/explorer/_methods/_base/_config.d.ts
+@@ -2,7 +2,6 @@
+  * Configuration types for Explorer API requests.
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/explorer/_methods/_base/_config.ts" />
+ import type { IRequestTransport, ISubscriptionTransport } from "../../../../transport/mod.js";
+ /** Configuration for Explorer API requests. */
+ export interface ExplorerConfig<T extends IRequestTransport<"explorer"> | ISubscriptionTransport = IRequestTransport<"explorer"> & ISubscriptionTransport> {
+diff --git a/esm/api/explorer/_methods/_base/_errors.d.ts b/esm/api/explorer/_methods/_base/_errors.d.ts
+index b8add1ec833964715fc4b7e0660fe5c2d445989a..d0309c4f159bebf1285eeeb068e0c7903817ea11 100644
+--- a/esm/api/explorer/_methods/_base/_errors.d.ts
++++ b/esm/api/explorer/_methods/_base/_errors.d.ts
+@@ -2,7 +2,6 @@
+  * Error detection for Explorer API responses.
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/explorer/_methods/_base/_errors.ts" />
+ import { ApiRequestError } from "../../../_errors.js";
+ export { ApiRequestError };
+ /**
+diff --git a/esm/api/explorer/_methods/_base/_schemas.d.ts b/esm/api/explorer/_methods/_base/_schemas.d.ts
+index ba34b87493770cab66720964ae0b84b05f72857c..ef16d51fd50d2e1c13e17d328b0f9a4f28c887ac 100644
+--- a/esm/api/explorer/_methods/_base/_schemas.d.ts
++++ b/esm/api/explorer/_methods/_base/_schemas.d.ts
+@@ -2,7 +2,6 @@
+  * Common types shared across Explorer API methods.
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/explorer/_methods/_base/_schemas.ts" />
+ /** Explorer transaction. */
+ export type ExplorerTransaction = {
+     /** Action performed in transaction. */
+diff --git a/esm/api/explorer/_methods/_base/mod.d.ts b/esm/api/explorer/_methods/_base/mod.d.ts
+index ad4dabbe8fe85d74e1c562ef9d0e46d64075ed9e..00e37436d58a2eb67a8d0e6b2a90b7997715c8fe 100644
+--- a/esm/api/explorer/_methods/_base/mod.d.ts
++++ b/esm/api/explorer/_methods/_base/mod.d.ts
+@@ -2,7 +2,6 @@
+  * Base infrastructure for Explorer API methods.
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/explorer/_methods/_base/mod.ts" />
+ export type { ExplorerConfig } from "./_config.js";
+ export { ApiRequestError, assertSuccessResponse } from "./_errors.js";
+ export * from "./_schemas.js";
+diff --git a/esm/api/explorer/_methods/blockDetails.d.ts b/esm/api/explorer/_methods/blockDetails.d.ts
+index 5994d86c7173dbc78a3fec431b51fed732d93854..b50dca7eafebf868819eafa5671b6f3f7d15867f 100644
+--- a/esm/api/explorer/_methods/blockDetails.d.ts
++++ b/esm/api/explorer/_methods/blockDetails.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/explorer/_methods/blockDetails.ts" />
+ import * as v from "valibot";
+ import type { ExplorerTransaction } from "./_base/mod.js";
+ /**
+diff --git a/esm/api/explorer/_methods/explorerBlock.d.ts b/esm/api/explorer/_methods/explorerBlock.d.ts
+index 0ffa024576b48a4050d9c509323351e25f68306a..96eef00deffbd511b14dcfca650acd95ce41ae7c 100644
+--- a/esm/api/explorer/_methods/explorerBlock.d.ts
++++ b/esm/api/explorer/_methods/explorerBlock.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/explorer/_methods/explorerBlock.ts" />
+ import * as v from "valibot";
+ /**
+  * Subscription to explorer block events.
+diff --git a/esm/api/explorer/_methods/explorerTxs.d.ts b/esm/api/explorer/_methods/explorerTxs.d.ts
+index 3743bd669674cb55850a733947d574a5937493f5..9150fa216934921c090d947d75dca9e666baa7ad 100644
+--- a/esm/api/explorer/_methods/explorerTxs.d.ts
++++ b/esm/api/explorer/_methods/explorerTxs.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/explorer/_methods/explorerTxs.ts" />
+ import * as v from "valibot";
+ import type { ExplorerTransaction } from "./_base/mod.js";
+ /**
+diff --git a/esm/api/explorer/_methods/txDetails.d.ts b/esm/api/explorer/_methods/txDetails.d.ts
+index 82db80d03098c8ac383ee2c291607291ab14d349..17684e8c961bbb97022588a5691e1173486f78ef 100644
+--- a/esm/api/explorer/_methods/txDetails.d.ts
++++ b/esm/api/explorer/_methods/txDetails.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/explorer/_methods/txDetails.ts" />
+ import * as v from "valibot";
+ import type { ExplorerTransaction } from "./_base/mod.js";
+ /**
+diff --git a/esm/api/explorer/_methods/userDetails.d.ts b/esm/api/explorer/_methods/userDetails.d.ts
+index fc822660932b4974f74590780ade3e8332a546da..737b5aa2bbbae98de48de41a032b64fb86fc9950 100644
+--- a/esm/api/explorer/_methods/userDetails.d.ts
++++ b/esm/api/explorer/_methods/userDetails.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/explorer/_methods/userDetails.ts" />
+ import * as v from "valibot";
+ import type { ExplorerTransaction } from "./_base/mod.js";
+ /**
+diff --git a/esm/api/explorer/client.d.ts b/esm/api/explorer/client.d.ts
+index cfc7f401cbd756634cf8c03dfc23923e42ab6a0a..e4721d3041f4e61c33ee1f94e23512d01bf676c0 100644
+--- a/esm/api/explorer/client.d.ts
++++ b/esm/api/explorer/client.d.ts
+@@ -2,7 +2,6 @@
+  * Client for the Hyperliquid Explorer API endpoint.
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/explorer/client.ts" />
+ import type { IRequestTransport, ISubscription, ISubscriptionTransport, TransportError } from "../../transport/mod.js";
+ import type { ExplorerConfig } from "./_methods/_base/mod.js";
+ import { type BlockDetailsParameters, type BlockDetailsResponse } from "./_methods/blockDetails.js";
+diff --git a/esm/api/explorer/mod.d.ts b/esm/api/explorer/mod.d.ts
+index 565bc71dd05dc9dc7518f53afecffffc8dc79e2d..62293c1570d4cb662927d1e5dbc773013269eb23 100644
+--- a/esm/api/explorer/mod.d.ts
++++ b/esm/api/explorer/mod.d.ts
+@@ -35,7 +35,6 @@
+  *
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/explorer/mod.ts" />
+ export { ApiRequestError } from "./_methods/_base/mod.js";
+ export type { ExplorerConfig } from "./_methods/_base/mod.js";
+ export * from "./_methods/blockDetails.js";
+diff --git a/esm/api/info/_methods/_base/_config.d.ts b/esm/api/info/_methods/_base/_config.d.ts
+index a9d5164795930ff7f5a19b134e6826008d3f7b51..16e0349f7e2ae886b9c70bfa7e9b2d6a0daea339 100644
+--- a/esm/api/info/_methods/_base/_config.d.ts
++++ b/esm/api/info/_methods/_base/_config.d.ts
+@@ -2,7 +2,6 @@
+  * Configuration types for Info API requests.
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/_base/_config.ts" />
+ import type { IRequestTransport } from "../../../../transport/mod.js";
+ /** Configuration for Info API requests. */
+ export interface InfoConfig<T extends IRequestTransport = IRequestTransport> {
+diff --git a/esm/api/info/_methods/_base/_schemas.d.ts b/esm/api/info/_methods/_base/_schemas.d.ts
+index cf2544bf46ecff96c65067ad23821b017129e466..53ecada3023372fa202f2ef4ffd53b2aa2534d93 100644
+--- a/esm/api/info/_methods/_base/_schemas.d.ts
++++ b/esm/api/info/_methods/_base/_schemas.d.ts
+@@ -2,7 +2,6 @@
+  * Common types shared across Info API methods.
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/_base/_schemas.ts" />
+ /** Perpetual asset context. */
+ export type PerpAssetCtx = {
+     /**
+diff --git a/esm/api/info/_methods/_base/mod.d.ts b/esm/api/info/_methods/_base/mod.d.ts
+index c1c9eb3fa861aecbf6838c97b35c2e932d3e67e0..34e2f80b7366c84b4670590b8b74e235f68d3136 100644
+--- a/esm/api/info/_methods/_base/mod.d.ts
++++ b/esm/api/info/_methods/_base/mod.d.ts
+@@ -2,6 +2,5 @@
+  * Base infrastructure for Info API methods.
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/_base/mod.ts" />
+ export type { InfoConfig } from "./_config.js";
+ export * from "./_schemas.js";
+diff --git a/esm/api/info/_methods/activeAssetData.d.ts b/esm/api/info/_methods/activeAssetData.d.ts
+index e8641b662ff506c2ae1270f5a33ff11cb85f262d..bb2a4f77a3eb6f83f4269b1ddce6b4330932a4f0 100644
+--- a/esm/api/info/_methods/activeAssetData.d.ts
++++ b/esm/api/info/_methods/activeAssetData.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/activeAssetData.ts" />
+ import * as v from "valibot";
+ /**
+  * Request user active asset data.
+diff --git a/esm/api/info/_methods/allBorrowLendReserveStates.d.ts b/esm/api/info/_methods/allBorrowLendReserveStates.d.ts
+index 85a1d7b9ca78a63cfac550e5a37f0f87664f1cee..946286fd174bff2691f295be82f04ea825fccf11 100644
+--- a/esm/api/info/_methods/allBorrowLendReserveStates.d.ts
++++ b/esm/api/info/_methods/allBorrowLendReserveStates.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/allBorrowLendReserveStates.ts" />
+ import * as v from "valibot";
+ import type { BorrowLendReserveStateResponse } from "./borrowLendReserveState.js";
+ /**
+diff --git a/esm/api/info/_methods/allMids.d.ts b/esm/api/info/_methods/allMids.d.ts
+index 1c2c2f5cd1dcc49e485c8e3e96c58a69af9a4ddf..fa0a8c83f44377a7307a2cb167cf681690dd6688 100644
+--- a/esm/api/info/_methods/allMids.d.ts
++++ b/esm/api/info/_methods/allMids.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/allMids.ts" />
+ import * as v from "valibot";
+ /**
+  * Request mid coin prices.
+diff --git a/esm/api/info/_methods/allPerpMetas.d.ts b/esm/api/info/_methods/allPerpMetas.d.ts
+index 95e05f59eed579811fe13003f31478b394c1e760..f342d572dc7184fe47b345cfa81b083aaac6f226 100644
+--- a/esm/api/info/_methods/allPerpMetas.d.ts
++++ b/esm/api/info/_methods/allPerpMetas.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/allPerpMetas.ts" />
+ import * as v from "valibot";
+ import type { MetaResponse } from "./meta.js";
+ /**
+diff --git a/esm/api/info/_methods/approvedBuilders.d.ts b/esm/api/info/_methods/approvedBuilders.d.ts
+index 3786d63e9ecd6399b232c16e467253c408be3b8d..aa9839b8066016880549f2ebfadd1961c3cffb9c 100644
+--- a/esm/api/info/_methods/approvedBuilders.d.ts
++++ b/esm/api/info/_methods/approvedBuilders.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/approvedBuilders.ts" />
+ import * as v from "valibot";
+ /**
+  * Request approved builders for a user.
+diff --git a/esm/api/info/_methods/borrowLendReserveState.d.ts b/esm/api/info/_methods/borrowLendReserveState.d.ts
+index 5f519fc53e217d721d454035bf9fa3109d4b9db9..fbc48f2e5ae2d025699a1a9ed5e4e22f6f769afd 100644
+--- a/esm/api/info/_methods/borrowLendReserveState.d.ts
++++ b/esm/api/info/_methods/borrowLendReserveState.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/borrowLendReserveState.ts" />
+ import * as v from "valibot";
+ /**
+  * Request borrow/lend reserve states.
+diff --git a/esm/api/info/_methods/borrowLendUserState.d.ts b/esm/api/info/_methods/borrowLendUserState.d.ts
+index 3e2741ae3084c685825fe4f4b957d70ae8881ff3..88612df1f5676bc192297a4bb1781ee18e6211d3 100644
+--- a/esm/api/info/_methods/borrowLendUserState.d.ts
++++ b/esm/api/info/_methods/borrowLendUserState.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/borrowLendUserState.ts" />
+ import * as v from "valibot";
+ /**
+  * Request borrow/lend user state.
+diff --git a/esm/api/info/_methods/candleSnapshot.d.ts b/esm/api/info/_methods/candleSnapshot.d.ts
+index 9c01f7d95f0fecc8de8d871d26b4d8f68651d928..65ac1f24b39d92228d033e967b201e127d378a4c 100644
+--- a/esm/api/info/_methods/candleSnapshot.d.ts
++++ b/esm/api/info/_methods/candleSnapshot.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/candleSnapshot.ts" />
+ import * as v from "valibot";
+ /**
+  * Request candlestick snapshots.
+diff --git a/esm/api/info/_methods/clearinghouseState.d.ts b/esm/api/info/_methods/clearinghouseState.d.ts
+index f6419b5885e13aa5ffcb79a46c4dd6846c7ebeb2..a4a3d77ca387fe74e5a35ff073f106e6f96a01ec 100644
+--- a/esm/api/info/_methods/clearinghouseState.d.ts
++++ b/esm/api/info/_methods/clearinghouseState.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/clearinghouseState.ts" />
+ import * as v from "valibot";
+ /**
+  * Request clearinghouse state.
+diff --git a/esm/api/info/_methods/delegations.d.ts b/esm/api/info/_methods/delegations.d.ts
+index 09d9db446ccc0c2ca7636f643fe949a9a9beb62a..0aeec5e5b90997232936a07b85059fc0a3611cb9 100644
+--- a/esm/api/info/_methods/delegations.d.ts
++++ b/esm/api/info/_methods/delegations.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/delegations.ts" />
+ import * as v from "valibot";
+ /**
+  * Request user staking delegations.
+diff --git a/esm/api/info/_methods/delegatorHistory.d.ts b/esm/api/info/_methods/delegatorHistory.d.ts
+index c563f032ac407fd4b758048fa0307c9de6f9b6e0..71057f95a840fc7cdd6976f08e02e46fd31dccdf 100644
+--- a/esm/api/info/_methods/delegatorHistory.d.ts
++++ b/esm/api/info/_methods/delegatorHistory.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/delegatorHistory.ts" />
+ import * as v from "valibot";
+ /**
+  * Request user staking history.
+diff --git a/esm/api/info/_methods/delegatorRewards.d.ts b/esm/api/info/_methods/delegatorRewards.d.ts
+index 2138dc2392b1dbb515ce19c32c30aee3b5bc97b2..f0594c4b87843fbd8f44338dbe8f53bbf72555b4 100644
+--- a/esm/api/info/_methods/delegatorRewards.d.ts
++++ b/esm/api/info/_methods/delegatorRewards.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/delegatorRewards.ts" />
+ import * as v from "valibot";
+ /**
+  * Request user staking rewards.
+diff --git a/esm/api/info/_methods/delegatorSummary.d.ts b/esm/api/info/_methods/delegatorSummary.d.ts
+index 47f86ea4425d45b69cdbf077e6c4da6262651ed4..cbaa697d973cf86744ddce18e1e873e37af6c189 100644
+--- a/esm/api/info/_methods/delegatorSummary.d.ts
++++ b/esm/api/info/_methods/delegatorSummary.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/delegatorSummary.ts" />
+ import * as v from "valibot";
+ /**
+  * Request user's staking summary.
+diff --git a/esm/api/info/_methods/exchangeStatus.d.ts b/esm/api/info/_methods/exchangeStatus.d.ts
+index f1d7fdb46d7434ec5ab37aae0416e366f4148a66..1761c6039cf308e801001433369bf2657ca83885 100644
+--- a/esm/api/info/_methods/exchangeStatus.d.ts
++++ b/esm/api/info/_methods/exchangeStatus.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/exchangeStatus.ts" />
+ import * as v from "valibot";
+ /**
+  * Request exchange system status information.
+diff --git a/esm/api/info/_methods/extraAgents.d.ts b/esm/api/info/_methods/extraAgents.d.ts
+index 45a4a3a2bea2ea6dd4993d269989f8ae9478f6d8..a2f95d1709e8f1fa6af94db6c9ec89945b4a21d0 100644
+--- a/esm/api/info/_methods/extraAgents.d.ts
++++ b/esm/api/info/_methods/extraAgents.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/extraAgents.ts" />
+ import * as v from "valibot";
+ /**
+  * Request user extra agents.
+diff --git a/esm/api/info/_methods/frontendOpenOrders.d.ts b/esm/api/info/_methods/frontendOpenOrders.d.ts
+index cd8e9135f53cfe642d32bb284e692f15eded64c2..f6893d490ecaa9111a8d5b313185d2ad3fb4d68a 100644
+--- a/esm/api/info/_methods/frontendOpenOrders.d.ts
++++ b/esm/api/info/_methods/frontendOpenOrders.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/frontendOpenOrders.ts" />
+ import * as v from "valibot";
+ import type { FrontendOpenOrder } from "./_base/mod.js";
+ /**
+diff --git a/esm/api/info/_methods/fundingHistory.d.ts b/esm/api/info/_methods/fundingHistory.d.ts
+index ace684e180ecc2b42301b7df419fce46415821a2..e68d2524941ce93612da4262b97a89c9f0efcc43 100644
+--- a/esm/api/info/_methods/fundingHistory.d.ts
++++ b/esm/api/info/_methods/fundingHistory.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/fundingHistory.ts" />
+ import * as v from "valibot";
+ /**
+  * Request funding history.
+diff --git a/esm/api/info/_methods/gossipPriorityAuctionStatus.d.ts b/esm/api/info/_methods/gossipPriorityAuctionStatus.d.ts
+index 89c3cae3a6768fc5046023993bac93d15b37b6e3..a1560fd80a3c1eb40e5b3a93ac2dbf4830b0c2f4 100644
+--- a/esm/api/info/_methods/gossipPriorityAuctionStatus.d.ts
++++ b/esm/api/info/_methods/gossipPriorityAuctionStatus.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/gossipPriorityAuctionStatus.ts" />
+ import * as v from "valibot";
+ import type { PerpDeployAuctionStatusResponse } from "./perpDeployAuctionStatus.js";
+ /**
+diff --git a/esm/api/info/_methods/gossipRootIps.d.ts b/esm/api/info/_methods/gossipRootIps.d.ts
+index 74dc979ca98d2887def774793014212a3de05710..0bed2586fdaa79abd997709a1c434bd4ebfd337e 100644
+--- a/esm/api/info/_methods/gossipRootIps.d.ts
++++ b/esm/api/info/_methods/gossipRootIps.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/gossipRootIps.ts" />
+ import * as v from "valibot";
+ /**
+  * Request gossip root IPs.
+diff --git a/esm/api/info/_methods/historicalOrders.d.ts b/esm/api/info/_methods/historicalOrders.d.ts
+index fdfb8c4db49bb48044301c2cc2c3d5c3f8820887..f98aab168da10bd18cd28e3350ad0fa6dd9e7ef6 100644
+--- a/esm/api/info/_methods/historicalOrders.d.ts
++++ b/esm/api/info/_methods/historicalOrders.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/historicalOrders.ts" />
+ import * as v from "valibot";
+ import type { FrontendOpenOrder, OrderProcessingStatus } from "./_base/mod.js";
+ /**
+diff --git a/esm/api/info/_methods/isVip.d.ts b/esm/api/info/_methods/isVip.d.ts
+index a43471dcb429fb15c4c1e739ae83c4a5a162cf6e..c0e47cb822aee85c3f334952a5d1c14499277324 100644
+--- a/esm/api/info/_methods/isVip.d.ts
++++ b/esm/api/info/_methods/isVip.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/isVip.ts" />
+ import * as v from "valibot";
+ /**
+  * Request to check if a user is a VIP.
+diff --git a/esm/api/info/_methods/l2Book.d.ts b/esm/api/info/_methods/l2Book.d.ts
+index 5fcb5408a96aee4164f892dae57067b240620b9e..8e80a8e7d68074ad2990ca6c3766ddf71b97fd8e 100644
+--- a/esm/api/info/_methods/l2Book.d.ts
++++ b/esm/api/info/_methods/l2Book.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/l2Book.ts" />
+ import * as v from "valibot";
+ /**
+  * Request L2 order book.
+diff --git a/esm/api/info/_methods/leadingVaults.d.ts b/esm/api/info/_methods/leadingVaults.d.ts
+index af33187622fe843c7d00ffa1b3875c5b24d303ce..90b854742d54940d6a7e269a2d35e299d0847450 100644
+--- a/esm/api/info/_methods/leadingVaults.d.ts
++++ b/esm/api/info/_methods/leadingVaults.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/leadingVaults.ts" />
+ import * as v from "valibot";
+ /**
+  * Request leading vaults for a user.
+diff --git a/esm/api/info/_methods/legalCheck.d.ts b/esm/api/info/_methods/legalCheck.d.ts
+index d8e70cbd72ad744dbbdffa8b257d1f3afd6be84f..27870dae9c1fba1d615d826ca1fab99fde95605b 100644
+--- a/esm/api/info/_methods/legalCheck.d.ts
++++ b/esm/api/info/_methods/legalCheck.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/legalCheck.ts" />
+ import * as v from "valibot";
+ /**
+  * Request legal verification status of a user.
+diff --git a/esm/api/info/_methods/liquidatable.d.ts b/esm/api/info/_methods/liquidatable.d.ts
+index 8490b48cdb8f9c7b26ae55740838676e7db5c3f2..f482dc34118e9a3dd20fd366dbe1128d0580b621 100644
+--- a/esm/api/info/_methods/liquidatable.d.ts
++++ b/esm/api/info/_methods/liquidatable.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/liquidatable.ts" />
+ import * as v from "valibot";
+ /**
+  * Request liquidatable.
+diff --git a/esm/api/info/_methods/marginTable.d.ts b/esm/api/info/_methods/marginTable.d.ts
+index 80dee89de81523b729808daf2b5293f716d2bda7..0146fee8956f7888f78a87e051652339c86d224d 100644
+--- a/esm/api/info/_methods/marginTable.d.ts
++++ b/esm/api/info/_methods/marginTable.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/marginTable.ts" />
+ import * as v from "valibot";
+ /**
+  * Request margin table data.
+diff --git a/esm/api/info/_methods/maxBuilderFee.d.ts b/esm/api/info/_methods/maxBuilderFee.d.ts
+index 6699fa92ba0ad9bb1b7067269835776849929b61..1ff62e34d71c68353fd5ae8f85b7ec138c7e1d1d 100644
+--- a/esm/api/info/_methods/maxBuilderFee.d.ts
++++ b/esm/api/info/_methods/maxBuilderFee.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/maxBuilderFee.ts" />
+ import * as v from "valibot";
+ /**
+  * Request builder fee approval.
+diff --git a/esm/api/info/_methods/maxMarketOrderNtls.d.ts b/esm/api/info/_methods/maxMarketOrderNtls.d.ts
+index 0148da82c7fbcb63c3df02c3c3735412232c85b6..ef4617875aa76f3a2eac56645db6dffc2a65cab5 100644
+--- a/esm/api/info/_methods/maxMarketOrderNtls.d.ts
++++ b/esm/api/info/_methods/maxMarketOrderNtls.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/maxMarketOrderNtls.ts" />
+ import * as v from "valibot";
+ /**
+  * Request maximum market order notionals.
+diff --git a/esm/api/info/_methods/meta.d.ts b/esm/api/info/_methods/meta.d.ts
+index 6a83d9d9aab1f022902e5ea1e370feee519a8061..6c2728d4e651ce98829d159a47eae4b7833d2005 100644
+--- a/esm/api/info/_methods/meta.d.ts
++++ b/esm/api/info/_methods/meta.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/meta.ts" />
+ import * as v from "valibot";
+ import type { MarginTableResponse } from "./marginTable.js";
+ /**
+diff --git a/esm/api/info/_methods/metaAndAssetCtxs.d.ts b/esm/api/info/_methods/metaAndAssetCtxs.d.ts
+index d7347b7e46d79870322f9488742dba1ddfe21dda..0e89665eb73271c7c9b81d86cad8eaa15d0e2f58 100644
+--- a/esm/api/info/_methods/metaAndAssetCtxs.d.ts
++++ b/esm/api/info/_methods/metaAndAssetCtxs.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/metaAndAssetCtxs.ts" />
+ import * as v from "valibot";
+ import type { PerpAssetCtx } from "./_base/mod.js";
+ import type { MetaResponse } from "./meta.js";
+diff --git a/esm/api/info/_methods/openOrders.d.ts b/esm/api/info/_methods/openOrders.d.ts
+index 9e1ae639097d4ca92480d9a5bf5e9196c02d4bca..df15dd043ee52d6158cf697112111d9cbc0346d5 100644
+--- a/esm/api/info/_methods/openOrders.d.ts
++++ b/esm/api/info/_methods/openOrders.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/openOrders.ts" />
+ import * as v from "valibot";
+ import type { OpenOrder } from "./_base/mod.js";
+ /**
+diff --git a/esm/api/info/_methods/orderStatus.d.ts b/esm/api/info/_methods/orderStatus.d.ts
+index 94c776c619f1998a41f6f47ef98c967e53b08992..b1367303d61310b362911c7ed1b8895b64ef0566 100644
+--- a/esm/api/info/_methods/orderStatus.d.ts
++++ b/esm/api/info/_methods/orderStatus.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/orderStatus.ts" />
+ import * as v from "valibot";
+ import type { FrontendOpenOrder, OrderProcessingStatus } from "./_base/mod.js";
+ /**
+diff --git a/esm/api/info/_methods/outcomeMeta.d.ts b/esm/api/info/_methods/outcomeMeta.d.ts
+index 60931cfbf66dc149303e9dc16cdd11fdedc07819..703899248c52dd18f119d1848f0eeae8360c2d27 100644
+--- a/esm/api/info/_methods/outcomeMeta.d.ts
++++ b/esm/api/info/_methods/outcomeMeta.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/outcomeMeta.ts" />
+ import * as v from "valibot";
+ /**
+  * Request prediction market outcome metadata.
+diff --git a/esm/api/info/_methods/perpAnnotation.d.ts b/esm/api/info/_methods/perpAnnotation.d.ts
+index d95ef497809a272a482c2df5b2b5c60cdfc31f2d..bd91a3aa48ca0819ec642505bdad159bb21856c5 100644
+--- a/esm/api/info/_methods/perpAnnotation.d.ts
++++ b/esm/api/info/_methods/perpAnnotation.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/perpAnnotation.ts" />
+ import * as v from "valibot";
+ /**
+  * Request perp annotation.
+diff --git a/esm/api/info/_methods/perpCategories.d.ts b/esm/api/info/_methods/perpCategories.d.ts
+index 4e9234031a48c0ad3c1013fb2c9d5fd2bb83836d..3185c67543c2bd5c1f4b1791de26f9f4b65e4c5c 100644
+--- a/esm/api/info/_methods/perpCategories.d.ts
++++ b/esm/api/info/_methods/perpCategories.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/perpCategories.ts" />
+ import * as v from "valibot";
+ /**
+  * Request all perpetual asset categories.
+diff --git a/esm/api/info/_methods/perpConciseAnnotations.d.ts b/esm/api/info/_methods/perpConciseAnnotations.d.ts
+index 97b0e58fb1f6fdff4ded65863d7fcb3ec454bc5e..77e433413efd8131401cb9601118752d8dd764f2 100644
+--- a/esm/api/info/_methods/perpConciseAnnotations.d.ts
++++ b/esm/api/info/_methods/perpConciseAnnotations.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/perpConciseAnnotations.ts" />
+ import * as v from "valibot";
+ /**
+  * Request concise annotations for all perpetual assets.
+diff --git a/esm/api/info/_methods/perpDeployAuctionStatus.d.ts b/esm/api/info/_methods/perpDeployAuctionStatus.d.ts
+index b6bf354aabe29e2f21b74c2e78b3a5f2a108cc08..f9b37247d0c71b4c8128114c4c8c0ca94621baac 100644
+--- a/esm/api/info/_methods/perpDeployAuctionStatus.d.ts
++++ b/esm/api/info/_methods/perpDeployAuctionStatus.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/perpDeployAuctionStatus.ts" />
+ import * as v from "valibot";
+ /**
+  * Request for the status of the perpetual deploy auction.
+diff --git a/esm/api/info/_methods/perpDexLimits.d.ts b/esm/api/info/_methods/perpDexLimits.d.ts
+index 33539fadc8969214f7e824a3516049c440040f7c..d3ef0d660c86036f9486b00dbbf2a5908761370a 100644
+--- a/esm/api/info/_methods/perpDexLimits.d.ts
++++ b/esm/api/info/_methods/perpDexLimits.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/perpDexLimits.ts" />
+ import * as v from "valibot";
+ /**
+  * Request builder deployed perpetual market limits.
+diff --git a/esm/api/info/_methods/perpDexStatus.d.ts b/esm/api/info/_methods/perpDexStatus.d.ts
+index e8038edb476c71024e4c6089aaa43f6cbbfa9c2d..4e3bfc5b215f216658ab800873f50ddc36a7553c 100644
+--- a/esm/api/info/_methods/perpDexStatus.d.ts
++++ b/esm/api/info/_methods/perpDexStatus.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/perpDexStatus.ts" />
+ import * as v from "valibot";
+ /**
+  * Request perp DEX status.
+diff --git a/esm/api/info/_methods/perpDexs.d.ts b/esm/api/info/_methods/perpDexs.d.ts
+index 3a221e1793b2aa92a0362cb17afdb1d2bcfa2996..21a010c8cc390662182017bd28b503fc12d35fad 100644
+--- a/esm/api/info/_methods/perpDexs.d.ts
++++ b/esm/api/info/_methods/perpDexs.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/perpDexs.ts" />
+ import * as v from "valibot";
+ /**
+  * Request all perpetual dexs.
+diff --git a/esm/api/info/_methods/perpsAtOpenInterestCap.d.ts b/esm/api/info/_methods/perpsAtOpenInterestCap.d.ts
+index b1a1ea8d8ed24e84f27b7e3844642c7e3f95d435..e5d86d8bcb1df9af1b4086be2dc17ab2f1addc09 100644
+--- a/esm/api/info/_methods/perpsAtOpenInterestCap.d.ts
++++ b/esm/api/info/_methods/perpsAtOpenInterestCap.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/perpsAtOpenInterestCap.ts" />
+ import * as v from "valibot";
+ /**
+  * Request perpetuals at open interest cap.
+diff --git a/esm/api/info/_methods/portfolio.d.ts b/esm/api/info/_methods/portfolio.d.ts
+index acc48c6234e37adab4a234ec4b47b93b8a63b73b..f9d0e7d75995ff871e5ac11933e36ae0cceec963 100644
+--- a/esm/api/info/_methods/portfolio.d.ts
++++ b/esm/api/info/_methods/portfolio.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/portfolio.ts" />
+ import * as v from "valibot";
+ /**
+  * Request user portfolio.
+diff --git a/esm/api/info/_methods/preTransferCheck.d.ts b/esm/api/info/_methods/preTransferCheck.d.ts
+index e6ffdefdfc45539b812e3883bf2a0e29e35cf466..02b05fc2bd8486435aed153165f41f84faca592c 100644
+--- a/esm/api/info/_methods/preTransferCheck.d.ts
++++ b/esm/api/info/_methods/preTransferCheck.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/preTransferCheck.ts" />
+ import * as v from "valibot";
+ /**
+  * Request user existence check before transfer.
+diff --git a/esm/api/info/_methods/predictedFundings.d.ts b/esm/api/info/_methods/predictedFundings.d.ts
+index 965fe091d4790d10e03cbcf882aecc998d80ba06..4e03841bd556c52fb963592f3b1f51cc9b832dcf 100644
+--- a/esm/api/info/_methods/predictedFundings.d.ts
++++ b/esm/api/info/_methods/predictedFundings.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/predictedFundings.ts" />
+ import * as v from "valibot";
+ /**
+  * Request predicted funding rates.
+diff --git a/esm/api/info/_methods/recentTrades.d.ts b/esm/api/info/_methods/recentTrades.d.ts
+index a731f6d8585d248415cb1aec94b15276411710b0..c023bb575c67ffa6858415716fb0cad3b017b451 100644
+--- a/esm/api/info/_methods/recentTrades.d.ts
++++ b/esm/api/info/_methods/recentTrades.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/recentTrades.ts" />
+ import * as v from "valibot";
+ /**
+  * Request recent trades.
+diff --git a/esm/api/info/_methods/referral.d.ts b/esm/api/info/_methods/referral.d.ts
+index 8e27a50e06995200b98e9c4dbed24a47b736399e..b7fc97ec95fd1cb9b04c18be5f467fc022c44859 100644
+--- a/esm/api/info/_methods/referral.d.ts
++++ b/esm/api/info/_methods/referral.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/referral.ts" />
+ import * as v from "valibot";
+ /**
+  * Request user referral.
+diff --git a/esm/api/info/_methods/settledOutcome.d.ts b/esm/api/info/_methods/settledOutcome.d.ts
+index c19341b47958a3260a4c04aa594222bd7c1960cd..f0ce65d025f6a3c782c2f661ed479abb52820e25 100644
+--- a/esm/api/info/_methods/settledOutcome.d.ts
++++ b/esm/api/info/_methods/settledOutcome.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/settledOutcome.ts" />
+ import * as v from "valibot";
+ /**
+  * Request information about a settled outcome.
+diff --git a/esm/api/info/_methods/spotClearinghouseState.d.ts b/esm/api/info/_methods/spotClearinghouseState.d.ts
+index 532265df2c2cf4b753460173558207910c6ab46b..8d281c1ef5c3a1a7605a72e9205d809b300185de 100644
+--- a/esm/api/info/_methods/spotClearinghouseState.d.ts
++++ b/esm/api/info/_methods/spotClearinghouseState.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/spotClearinghouseState.ts" />
+ import * as v from "valibot";
+ /**
+  * Request spot clearinghouse state.
+diff --git a/esm/api/info/_methods/spotDeployState.d.ts b/esm/api/info/_methods/spotDeployState.d.ts
+index 525568d53b895f4ec2559f0d79cb7917ca7d959b..18674f05451c063a4ea125a41f7bce6422ac6a32 100644
+--- a/esm/api/info/_methods/spotDeployState.d.ts
++++ b/esm/api/info/_methods/spotDeployState.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/spotDeployState.ts" />
+ import * as v from "valibot";
+ import type { SpotPairDeployAuctionStatusResponse } from "./spotPairDeployAuctionStatus.js";
+ /**
+diff --git a/esm/api/info/_methods/spotMeta.d.ts b/esm/api/info/_methods/spotMeta.d.ts
+index 194227822a7372374fec62ba8594c2d502db8f55..d5593e66b8a8ce1733da21ad4f2a932498639ceb 100644
+--- a/esm/api/info/_methods/spotMeta.d.ts
++++ b/esm/api/info/_methods/spotMeta.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/spotMeta.ts" />
+ import * as v from "valibot";
+ /**
+  * Request spot trading metadata.
+diff --git a/esm/api/info/_methods/spotMetaAndAssetCtxs.d.ts b/esm/api/info/_methods/spotMetaAndAssetCtxs.d.ts
+index a7db897d084ee80fe468832986942140c26d6c72..f0ad6d59055cd800edb6dad98159b1e74e3937ae 100644
+--- a/esm/api/info/_methods/spotMetaAndAssetCtxs.d.ts
++++ b/esm/api/info/_methods/spotMetaAndAssetCtxs.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/spotMetaAndAssetCtxs.ts" />
+ import * as v from "valibot";
+ import type { SpotAssetCtx } from "./_base/mod.js";
+ import type { SpotMetaResponse } from "./spotMeta.js";
+diff --git a/esm/api/info/_methods/spotPairDeployAuctionStatus.d.ts b/esm/api/info/_methods/spotPairDeployAuctionStatus.d.ts
+index 8ca88e761daf7ad2e61cb98c8a0c444f8747430e..3251ecbc5302e200ffc6ecf2bf298ff252fd68bf 100644
+--- a/esm/api/info/_methods/spotPairDeployAuctionStatus.d.ts
++++ b/esm/api/info/_methods/spotPairDeployAuctionStatus.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/spotPairDeployAuctionStatus.ts" />
+ import * as v from "valibot";
+ import type { PerpDeployAuctionStatusResponse } from "./perpDeployAuctionStatus.js";
+ /**
+diff --git a/esm/api/info/_methods/subAccounts.d.ts b/esm/api/info/_methods/subAccounts.d.ts
+index 0b889c737b17c07f65607590a34e8cf17ad11f8f..29b0abb3584c15d2d03ca5497f6caeb1ebb815a0 100644
+--- a/esm/api/info/_methods/subAccounts.d.ts
++++ b/esm/api/info/_methods/subAccounts.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/subAccounts.ts" />
+ import * as v from "valibot";
+ import type { ClearinghouseStateResponse } from "./clearinghouseState.js";
+ import type { SpotClearinghouseStateResponse } from "./spotClearinghouseState.js";
+diff --git a/esm/api/info/_methods/subAccounts2.d.ts b/esm/api/info/_methods/subAccounts2.d.ts
+index 30e14650cdd6fb9cc1bc83ae7890a9512000ee19..60c96ba623bc6c57ab487b66b91a63ac85840124 100644
+--- a/esm/api/info/_methods/subAccounts2.d.ts
++++ b/esm/api/info/_methods/subAccounts2.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/subAccounts2.ts" />
+ import * as v from "valibot";
+ import type { ClearinghouseStateResponse } from "./clearinghouseState.js";
+ import type { SpotClearinghouseStateResponse } from "./spotClearinghouseState.js";
+diff --git a/esm/api/info/_methods/tokenDetails.d.ts b/esm/api/info/_methods/tokenDetails.d.ts
+index 12400c0f14cbeb17e18bb05b7789dfaa01aa32dc..ab8f18afb1b9e7e7a9ba6f62fecc5f4ef0952b41 100644
+--- a/esm/api/info/_methods/tokenDetails.d.ts
++++ b/esm/api/info/_methods/tokenDetails.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/tokenDetails.ts" />
+ import * as v from "valibot";
+ /**
+  * Request token details.
+diff --git a/esm/api/info/_methods/twapHistory.d.ts b/esm/api/info/_methods/twapHistory.d.ts
+index f2e5f16479e0977f49b3bd4eedd484aa0d88a034..a45d2e343c85cc3233539d51c53905be44625ab7 100644
+--- a/esm/api/info/_methods/twapHistory.d.ts
++++ b/esm/api/info/_methods/twapHistory.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/twapHistory.ts" />
+ import * as v from "valibot";
+ import type { TwapState } from "./_base/mod.js";
+ /**
+diff --git a/esm/api/info/_methods/userAbstraction.d.ts b/esm/api/info/_methods/userAbstraction.d.ts
+index 464b87731e5d1b865b755ab3aade28b3367e2b6b..30ad1c8c18fd06df8e79c778e9cf37c67f0dc522 100644
+--- a/esm/api/info/_methods/userAbstraction.d.ts
++++ b/esm/api/info/_methods/userAbstraction.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/userAbstraction.ts" />
+ import * as v from "valibot";
+ /**
+  * Request user abstraction state.
+diff --git a/esm/api/info/_methods/userBorrowLendInterest.d.ts b/esm/api/info/_methods/userBorrowLendInterest.d.ts
+index ce42daaf08111066446ceb96195c91876d81b113..ce25918540d3f9e3e511b6cd5f64632866440a18 100644
+--- a/esm/api/info/_methods/userBorrowLendInterest.d.ts
++++ b/esm/api/info/_methods/userBorrowLendInterest.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/userBorrowLendInterest.ts" />
+ import * as v from "valibot";
+ /**
+  * Request user borrow/lend interest.
+diff --git a/esm/api/info/_methods/userDexAbstraction.d.ts b/esm/api/info/_methods/userDexAbstraction.d.ts
+index d1da93d121ba6b65fb1c93a70c57545afb743ec8..d43eb5f6cbec301bd8a92c829b1191a1a5f279e8 100644
+--- a/esm/api/info/_methods/userDexAbstraction.d.ts
++++ b/esm/api/info/_methods/userDexAbstraction.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/userDexAbstraction.ts" />
+ import * as v from "valibot";
+ /**
+  * Request user HIP-3 DEX abstraction state.
+diff --git a/esm/api/info/_methods/userFees.d.ts b/esm/api/info/_methods/userFees.d.ts
+index 80ad1013ce239f017942771b3aae7dea998263b3..9c58922f8548488735831154f22899f91998b2ab 100644
+--- a/esm/api/info/_methods/userFees.d.ts
++++ b/esm/api/info/_methods/userFees.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/userFees.ts" />
+ import * as v from "valibot";
+ /**
+  * Request user fees.
+diff --git a/esm/api/info/_methods/userFills.d.ts b/esm/api/info/_methods/userFills.d.ts
+index dd93ec37365a6b80dc4c7d3f05fc984869cf2914..9f103547f99509a477e540dcfc33cfd98accc0f4 100644
+--- a/esm/api/info/_methods/userFills.d.ts
++++ b/esm/api/info/_methods/userFills.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/userFills.ts" />
+ import * as v from "valibot";
+ import type { UserFill } from "./_base/mod.js";
+ /**
+diff --git a/esm/api/info/_methods/userFillsByTime.d.ts b/esm/api/info/_methods/userFillsByTime.d.ts
+index 85859bbbe13ca2f5f354574ca0282f6f78dde914..cf8e20bb09615d606eb849c16c9e727c266a2138 100644
+--- a/esm/api/info/_methods/userFillsByTime.d.ts
++++ b/esm/api/info/_methods/userFillsByTime.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/userFillsByTime.ts" />
+ import * as v from "valibot";
+ import type { UserFillsResponse } from "./userFills.js";
+ /**
+diff --git a/esm/api/info/_methods/userFunding.d.ts b/esm/api/info/_methods/userFunding.d.ts
+index bd8e5c097e6394b5dc40b4bcb0d43544ca645dff..d94eae14fb5ebee115abca05723199aa0611f8bd 100644
+--- a/esm/api/info/_methods/userFunding.d.ts
++++ b/esm/api/info/_methods/userFunding.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/userFunding.ts" />
+ import * as v from "valibot";
+ /**
+  * Request array of user funding ledger updates.
+diff --git a/esm/api/info/_methods/userNonFundingLedgerUpdates.d.ts b/esm/api/info/_methods/userNonFundingLedgerUpdates.d.ts
+index be419f55025f7a7900c03a5388c02469daf9fc33..b2d865b9bf4eb56151556315013ff733797ad432 100644
+--- a/esm/api/info/_methods/userNonFundingLedgerUpdates.d.ts
++++ b/esm/api/info/_methods/userNonFundingLedgerUpdates.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/userNonFundingLedgerUpdates.ts" />
+ import * as v from "valibot";
+ /**
+  * Request user non-funding ledger updates.
+diff --git a/esm/api/info/_methods/userRateLimit.d.ts b/esm/api/info/_methods/userRateLimit.d.ts
+index 3d9de2372ff4f33dd1039516256a6cac756c184e..b269c95fd67c2d5cd0a03b4055ab8d3ca01468ac 100644
+--- a/esm/api/info/_methods/userRateLimit.d.ts
++++ b/esm/api/info/_methods/userRateLimit.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/userRateLimit.ts" />
+ import * as v from "valibot";
+ /**
+  * Request user rate limits.
+diff --git a/esm/api/info/_methods/userRole.d.ts b/esm/api/info/_methods/userRole.d.ts
+index 7bfaed3475dbf4a637fdec8c3601dff07de4b8f4..ee5b0af08edabaf81b3cd594337a28e867e69edd 100644
+--- a/esm/api/info/_methods/userRole.d.ts
++++ b/esm/api/info/_methods/userRole.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/userRole.ts" />
+ import * as v from "valibot";
+ /**
+  * Request user role.
+diff --git a/esm/api/info/_methods/userToMultiSigSigners.d.ts b/esm/api/info/_methods/userToMultiSigSigners.d.ts
+index 9043f2155204564dfbee43cf61ec3c6afd5951f9..e4fbbbcd3ac96f02ec85b73fecfbe82f6c22c909 100644
+--- a/esm/api/info/_methods/userToMultiSigSigners.d.ts
++++ b/esm/api/info/_methods/userToMultiSigSigners.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/userToMultiSigSigners.ts" />
+ import * as v from "valibot";
+ /**
+  * Request multi-sig signers for a user.
+diff --git a/esm/api/info/_methods/userTwapSliceFills.d.ts b/esm/api/info/_methods/userTwapSliceFills.d.ts
+index 3598d3a6b8d56b7b6181071ca6ed2ddb83c17083..f59fd6bbf5b864cebb654e87e5fcc95a0814ec1b 100644
+--- a/esm/api/info/_methods/userTwapSliceFills.d.ts
++++ b/esm/api/info/_methods/userTwapSliceFills.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/userTwapSliceFills.ts" />
+ import * as v from "valibot";
+ import type { UserFill } from "./_base/mod.js";
+ /**
+diff --git a/esm/api/info/_methods/userTwapSliceFillsByTime.d.ts b/esm/api/info/_methods/userTwapSliceFillsByTime.d.ts
+index 55af349895a15af65fa0fbba798989be25cf8c06..b79073e9088bbaa8337441aa54c81a8b370eea7f 100644
+--- a/esm/api/info/_methods/userTwapSliceFillsByTime.d.ts
++++ b/esm/api/info/_methods/userTwapSliceFillsByTime.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/userTwapSliceFillsByTime.ts" />
+ import * as v from "valibot";
+ import type { UserTwapSliceFillsResponse } from "./userTwapSliceFills.js";
+ /**
+diff --git a/esm/api/info/_methods/userVaultEquities.d.ts b/esm/api/info/_methods/userVaultEquities.d.ts
+index 6f18972ed899b34b523e668b643ae617fe57ab58..f95bfe5ae88ce5123e45994a2fe240f38c903b0f 100644
+--- a/esm/api/info/_methods/userVaultEquities.d.ts
++++ b/esm/api/info/_methods/userVaultEquities.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/userVaultEquities.ts" />
+ import * as v from "valibot";
+ /**
+  * Request user vault deposits.
+diff --git a/esm/api/info/_methods/validatorL1Votes.d.ts b/esm/api/info/_methods/validatorL1Votes.d.ts
+index 0813b854c96a92bc1e84c2fb02fd2e8ec4cc322f..c0d681301e197dd2b39e43e673abe5508146f995 100644
+--- a/esm/api/info/_methods/validatorL1Votes.d.ts
++++ b/esm/api/info/_methods/validatorL1Votes.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/validatorL1Votes.ts" />
+ import * as v from "valibot";
+ /**
+  * Request validator L1 votes.
+diff --git a/esm/api/info/_methods/validatorSummaries.d.ts b/esm/api/info/_methods/validatorSummaries.d.ts
+index 1891e1d6578b4d439f10f63b47981721012417bc..f8855bfd9d6c4a477e51092bf431e52da883953a 100644
+--- a/esm/api/info/_methods/validatorSummaries.d.ts
++++ b/esm/api/info/_methods/validatorSummaries.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/validatorSummaries.ts" />
+ import * as v from "valibot";
+ /**
+  * Request validator summaries.
+diff --git a/esm/api/info/_methods/vaultDetails.d.ts b/esm/api/info/_methods/vaultDetails.d.ts
+index de297fac3ee139b2a2d29238e9db692664e1ff72..6b21d79041a0dea25685aa4c977dff90b6ed590e 100644
+--- a/esm/api/info/_methods/vaultDetails.d.ts
++++ b/esm/api/info/_methods/vaultDetails.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/vaultDetails.ts" />
+ import * as v from "valibot";
+ import type { VaultRelationship } from "./_base/mod.js";
+ import type { PortfolioResponse } from "./portfolio.js";
+diff --git a/esm/api/info/_methods/vaultSummaries.d.ts b/esm/api/info/_methods/vaultSummaries.d.ts
+index 004a57d25dc426e1a5a57a0bc3c00c10e226a0dd..1a3110969f53152b2e3333b0fe845d4f11533901 100644
+--- a/esm/api/info/_methods/vaultSummaries.d.ts
++++ b/esm/api/info/_methods/vaultSummaries.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/vaultSummaries.ts" />
+ import * as v from "valibot";
+ import type { VaultRelationship } from "./_base/mod.js";
+ /**
+diff --git a/esm/api/info/_methods/webData2.d.ts b/esm/api/info/_methods/webData2.d.ts
+index 6bb3749c843b139bbb6361949cc0fcc049103b7a..eba2c49cbbc7036f5b62c0fb114f83e3fe1784c9 100644
+--- a/esm/api/info/_methods/webData2.d.ts
++++ b/esm/api/info/_methods/webData2.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/_methods/webData2.ts" />
+ import * as v from "valibot";
+ import type { PerpAssetCtx, SpotAssetCtx, TwapState } from "./_base/mod.js";
+ import type { ClearinghouseStateResponse } from "./clearinghouseState.js";
+diff --git a/esm/api/info/client.d.ts b/esm/api/info/client.d.ts
+index b01af37d047948a0efaf21df5e9a3395c0926eb5..494a964ef5c540bdc82e87d0efdea77c2dce0c97 100644
+--- a/esm/api/info/client.d.ts
++++ b/esm/api/info/client.d.ts
+@@ -2,7 +2,6 @@
+  * Client for the Hyperliquid Info API endpoint.
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/client.ts" />
+ import type { InfoConfig } from "./_methods/_base/mod.js";
+ import { type ActiveAssetDataParameters, type ActiveAssetDataResponse } from "./_methods/activeAssetData.js";
+ import { type AllBorrowLendReserveStatesResponse } from "./_methods/allBorrowLendReserveStates.js";
+diff --git a/esm/api/info/mod.d.ts b/esm/api/info/mod.d.ts
+index 8bce472078bac0a255626df453b215b9fca64d1e..263875b2a97173b1218d2bb7a7dde7127575a658 100644
+--- a/esm/api/info/mod.d.ts
++++ b/esm/api/info/mod.d.ts
+@@ -21,7 +21,6 @@
+  *
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/info/mod.ts" />
+ export type { InfoConfig } from "./_methods/_base/mod.js";
+ export * from "./_methods/activeAssetData.js";
+ export * from "./_methods/allBorrowLendReserveStates.js";
+diff --git a/esm/api/subscription/_methods/_base/_config.d.ts b/esm/api/subscription/_methods/_base/_config.d.ts
+index e0f689e51acfde57ee32f7b7943995edb1dee1c9..d647fc18f36ab7b47e38a39482759a26cec3131b 100644
+--- a/esm/api/subscription/_methods/_base/_config.d.ts
++++ b/esm/api/subscription/_methods/_base/_config.d.ts
+@@ -2,7 +2,6 @@
+  * Configuration and option types for Subscription API methods.
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/_base/_config.ts" />
+ import type { ISubscriptionTransport, TransportError } from "../../../../transport/mod.js";
+ /** Configuration for subscription API requests. */
+ export interface SubscriptionConfig<T extends ISubscriptionTransport = ISubscriptionTransport> {
+diff --git a/esm/api/subscription/_methods/_base/mod.d.ts b/esm/api/subscription/_methods/_base/mod.d.ts
+index d2e2ff0ba7f9d884fecf45843e6322267e143310..ab400a5eacc74e4c649953a877a6dfd725a076e0 100644
+--- a/esm/api/subscription/_methods/_base/mod.d.ts
++++ b/esm/api/subscription/_methods/_base/mod.d.ts
+@@ -2,5 +2,4 @@
+  * Base infrastructure for Subscription API methods.
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/_base/mod.ts" />
+ export type { SubscriptionConfig, SubscriptionOptions } from "./_config.js";
+diff --git a/esm/api/subscription/_methods/activeAssetCtx.d.ts b/esm/api/subscription/_methods/activeAssetCtx.d.ts
+index 9b263d4a53f3a0d868db620293ee7bc3df35c5c9..8335083b8e6754e0702eb4a9bc0973e7e0af0703 100644
+--- a/esm/api/subscription/_methods/activeAssetCtx.d.ts
++++ b/esm/api/subscription/_methods/activeAssetCtx.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/activeAssetCtx.ts" />
+ import * as v from "valibot";
+ import type { PerpAssetCtx } from "../../info/_methods/_base/mod.js";
+ /**
+diff --git a/esm/api/subscription/_methods/activeAssetData.d.ts b/esm/api/subscription/_methods/activeAssetData.d.ts
+index 43c36b423a0b1a6098fd303df7ca791dbd84c9d2..8e193126665efca75759805cb75f412c11651cda 100644
+--- a/esm/api/subscription/_methods/activeAssetData.d.ts
++++ b/esm/api/subscription/_methods/activeAssetData.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/activeAssetData.ts" />
+ import * as v from "valibot";
+ import type { ActiveAssetDataResponse } from "../../info/_methods/activeAssetData.js";
+ /**
+diff --git a/esm/api/subscription/_methods/activeSpotAssetCtx.d.ts b/esm/api/subscription/_methods/activeSpotAssetCtx.d.ts
+index c40d3ded731c70fd9ad127af36b0f2767f8c70db..141d931a722f3af9ed3351de1b87a9470282fe7f 100644
+--- a/esm/api/subscription/_methods/activeSpotAssetCtx.d.ts
++++ b/esm/api/subscription/_methods/activeSpotAssetCtx.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/activeSpotAssetCtx.ts" />
+ import * as v from "valibot";
+ import type { SpotAssetCtx } from "../../info/_methods/_base/mod.js";
+ /**
+diff --git a/esm/api/subscription/_methods/allDexsAssetCtxs.d.ts b/esm/api/subscription/_methods/allDexsAssetCtxs.d.ts
+index 3c1fa57546a8d1d9cf63e92dbfb92e61a576dbac..badd9ef1d99b2843e524f8d96997cbeedc1f2a62 100644
+--- a/esm/api/subscription/_methods/allDexsAssetCtxs.d.ts
++++ b/esm/api/subscription/_methods/allDexsAssetCtxs.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/allDexsAssetCtxs.ts" />
+ import * as v from "valibot";
+ import type { PerpAssetCtx } from "../../info/_methods/_base/mod.js";
+ /**
+diff --git a/esm/api/subscription/_methods/allDexsClearinghouseState.d.ts b/esm/api/subscription/_methods/allDexsClearinghouseState.d.ts
+index fffcd336734a13e3d6ea060f6e76fd21b69fd147..feddb838b757b30f6c189edd52d35af445826e15 100644
+--- a/esm/api/subscription/_methods/allDexsClearinghouseState.d.ts
++++ b/esm/api/subscription/_methods/allDexsClearinghouseState.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/allDexsClearinghouseState.ts" />
+ import * as v from "valibot";
+ import type { ClearinghouseStateResponse } from "../../info/_methods/clearinghouseState.js";
+ /**
+diff --git a/esm/api/subscription/_methods/allMids.d.ts b/esm/api/subscription/_methods/allMids.d.ts
+index 654afafb74858aaf501ade1a7c3fd860a3207796..a93ca551676a18a4b847b705ad82bddecbc98e7b 100644
+--- a/esm/api/subscription/_methods/allMids.d.ts
++++ b/esm/api/subscription/_methods/allMids.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/allMids.ts" />
+ import * as v from "valibot";
+ import type { AllMidsResponse } from "../../info/_methods/allMids.js";
+ /**
+diff --git a/esm/api/subscription/_methods/assetCtxs.d.ts b/esm/api/subscription/_methods/assetCtxs.d.ts
+index 205b75023f2548cac2ac4241929c77a349565a15..1e4019012ac78d1f3245a2c01aabbcb477e2774c 100644
+--- a/esm/api/subscription/_methods/assetCtxs.d.ts
++++ b/esm/api/subscription/_methods/assetCtxs.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/assetCtxs.ts" />
+ import * as v from "valibot";
+ import type { PerpAssetCtx } from "../../info/_methods/_base/mod.js";
+ /**
+diff --git a/esm/api/subscription/_methods/bbo.d.ts b/esm/api/subscription/_methods/bbo.d.ts
+index 4a844634b33390f07437a3bf3c6ed4f784382107..32ec470e49bb3649fc677e9e7fcac40b216c5de1 100644
+--- a/esm/api/subscription/_methods/bbo.d.ts
++++ b/esm/api/subscription/_methods/bbo.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/bbo.ts" />
+ import * as v from "valibot";
+ /**
+  * Subscription to best bid and offer events for a specific asset.
+diff --git a/esm/api/subscription/_methods/candle.d.ts b/esm/api/subscription/_methods/candle.d.ts
+index 99b855b77e6cc1f862a09595c1cfefcc4cd7e0fb..7718ddccffd59483687bd2212492e59f4524709c 100644
+--- a/esm/api/subscription/_methods/candle.d.ts
++++ b/esm/api/subscription/_methods/candle.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/candle.ts" />
+ import * as v from "valibot";
+ /**
+  * Subscription to candlestick events for a specific asset and time interval.
+diff --git a/esm/api/subscription/_methods/clearinghouseState.d.ts b/esm/api/subscription/_methods/clearinghouseState.d.ts
+index 9ccbfc8d4aab09a99f82af6c5b4149845083ff57..996e314cefdf22af8ac7304a4a6c68ad8f7d8544 100644
+--- a/esm/api/subscription/_methods/clearinghouseState.d.ts
++++ b/esm/api/subscription/_methods/clearinghouseState.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/clearinghouseState.ts" />
+ import * as v from "valibot";
+ import type { ClearinghouseStateResponse } from "../../info/_methods/clearinghouseState.js";
+ /**
+diff --git a/esm/api/subscription/_methods/fastAssetCtxs.d.ts b/esm/api/subscription/_methods/fastAssetCtxs.d.ts
+index 15e9d4f3b5332b3f9125a9ab8e6b0ffd3eb8bdc2..d46c0ba1d031a6af05146b80870b75982d6b090a 100644
+--- a/esm/api/subscription/_methods/fastAssetCtxs.d.ts
++++ b/esm/api/subscription/_methods/fastAssetCtxs.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/fastAssetCtxs.ts" />
+ import * as v from "valibot";
+ /**
+  * Subscription to mark and mid price events for all assets.
+diff --git a/esm/api/subscription/_methods/l2Book.d.ts b/esm/api/subscription/_methods/l2Book.d.ts
+index 4a82cfeb89a6b716a309273fd8cc9273ec5e1177..cc9553b8002e554efe8b93543784b3efd8d696d0 100644
+--- a/esm/api/subscription/_methods/l2Book.d.ts
++++ b/esm/api/subscription/_methods/l2Book.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/l2Book.ts" />
+ import * as v from "valibot";
+ /**
+  * Subscription to L2 order book events for a specific asset.
+diff --git a/esm/api/subscription/_methods/notification.d.ts b/esm/api/subscription/_methods/notification.d.ts
+index a28d6f55dd8ad5430919eac0fcc12ca14795129d..e81a7d5266ca18e083211d7d103f3f3f8458e6dc 100644
+--- a/esm/api/subscription/_methods/notification.d.ts
++++ b/esm/api/subscription/_methods/notification.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/notification.ts" />
+ import * as v from "valibot";
+ /**
+  * Subscription to notification events for a specific user.
+diff --git a/esm/api/subscription/_methods/openOrders.d.ts b/esm/api/subscription/_methods/openOrders.d.ts
+index 0515a49865cda4ba4f1e542ec7c91d62b961990f..0bc84dad7f4994365a4a10cea64f666fa473e31a 100644
+--- a/esm/api/subscription/_methods/openOrders.d.ts
++++ b/esm/api/subscription/_methods/openOrders.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/openOrders.ts" />
+ import * as v from "valibot";
+ import type { FrontendOpenOrdersResponse } from "../../info/_methods/frontendOpenOrders.js";
+ /**
+diff --git a/esm/api/subscription/_methods/orderUpdates.d.ts b/esm/api/subscription/_methods/orderUpdates.d.ts
+index f4dc3a3b545373a201f977f8773b7ec028839811..8ba200ce2066c1e2f0d3e0b92a4c31314edc3bf2 100644
+--- a/esm/api/subscription/_methods/orderUpdates.d.ts
++++ b/esm/api/subscription/_methods/orderUpdates.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/orderUpdates.ts" />
+ import * as v from "valibot";
+ import type { OpenOrder, OrderProcessingStatus } from "../../info/_methods/_base/mod.js";
+ /**
+diff --git a/esm/api/subscription/_methods/outcomeMetaUpdates.d.ts b/esm/api/subscription/_methods/outcomeMetaUpdates.d.ts
+index 2f9abbfcb36be14fd81bf94a32cd508eaa1d7d51..96ecf198205fa92d5d2c8a0eef026f10dca5b558 100644
+--- a/esm/api/subscription/_methods/outcomeMetaUpdates.d.ts
++++ b/esm/api/subscription/_methods/outcomeMetaUpdates.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/outcomeMetaUpdates.ts" />
+ import * as v from "valibot";
+ /**
+  * Subscription to prediction market outcome metadata updates.
+diff --git a/esm/api/subscription/_methods/spotAssetCtxs.d.ts b/esm/api/subscription/_methods/spotAssetCtxs.d.ts
+index d7c939930dd1003c31fc9452835c6b29e21fbe1f..9edf27dc8492f1a6134b0da31d8bb6c73d17ea0f 100644
+--- a/esm/api/subscription/_methods/spotAssetCtxs.d.ts
++++ b/esm/api/subscription/_methods/spotAssetCtxs.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/spotAssetCtxs.ts" />
+ import * as v from "valibot";
+ import type { SpotAssetCtx } from "../../info/_methods/_base/mod.js";
+ /**
+diff --git a/esm/api/subscription/_methods/spotState.d.ts b/esm/api/subscription/_methods/spotState.d.ts
+index d324b2e99ed9dbf38cef36be3bf340bbacaffd41..2611e906b6e6d12831ea6739598010d4ba5d2c13 100644
+--- a/esm/api/subscription/_methods/spotState.d.ts
++++ b/esm/api/subscription/_methods/spotState.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/spotState.ts" />
+ import * as v from "valibot";
+ import type { SpotClearinghouseStateResponse } from "../../info/_methods/spotClearinghouseState.js";
+ /**
+diff --git a/esm/api/subscription/_methods/trades.d.ts b/esm/api/subscription/_methods/trades.d.ts
+index 5ae305eb2aaeca2124a7a53713160aab182d51e0..3cd518d2ba472f6b3dea9731b0b5f21ef6638f0c 100644
+--- a/esm/api/subscription/_methods/trades.d.ts
++++ b/esm/api/subscription/_methods/trades.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/trades.ts" />
+ import * as v from "valibot";
+ import type { RecentTradesResponse } from "../../info/_methods/recentTrades.js";
+ /**
+diff --git a/esm/api/subscription/_methods/twapStates.d.ts b/esm/api/subscription/_methods/twapStates.d.ts
+index 8b944ff031cb30e6caf6c1d969ea74a6a69ed9cd..158c71dc4c9e21b628cc8eb33ce4a5b1b79ca97d 100644
+--- a/esm/api/subscription/_methods/twapStates.d.ts
++++ b/esm/api/subscription/_methods/twapStates.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/twapStates.ts" />
+ import * as v from "valibot";
+ import type { TwapState } from "../../info/_methods/_base/mod.js";
+ /**
+diff --git a/esm/api/subscription/_methods/userEvents.d.ts b/esm/api/subscription/_methods/userEvents.d.ts
+index 0a774fa832dc2f7e87895c910e86938b59c697d2..b3afe7d56120150718dba12c13d51a16755d0ebf 100644
+--- a/esm/api/subscription/_methods/userEvents.d.ts
++++ b/esm/api/subscription/_methods/userEvents.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/userEvents.ts" />
+ import * as v from "valibot";
+ import type { TwapHistoryResponse } from "../../info/_methods/twapHistory.js";
+ import type { UserFillsResponse } from "../../info/_methods/userFills.js";
+diff --git a/esm/api/subscription/_methods/userFills.d.ts b/esm/api/subscription/_methods/userFills.d.ts
+index 8bde06c50825073d7bbd0e4c1224d49afc4766f4..92926d1078497c2b78ee9ebbf8b8c57a0aaabc2a 100644
+--- a/esm/api/subscription/_methods/userFills.d.ts
++++ b/esm/api/subscription/_methods/userFills.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/userFills.ts" />
+ import * as v from "valibot";
+ import type { UserFillsResponse } from "../../info/_methods/userFills.js";
+ /**
+diff --git a/esm/api/subscription/_methods/userFundings.d.ts b/esm/api/subscription/_methods/userFundings.d.ts
+index 839531128fdbfc2a2360a95a21bddc874aee0103..2085343378b2952182dbc6c4768d223e67275c0f 100644
+--- a/esm/api/subscription/_methods/userFundings.d.ts
++++ b/esm/api/subscription/_methods/userFundings.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/userFundings.ts" />
+ import * as v from "valibot";
+ /**
+  * Subscription to user funding events for a specific user.
+diff --git a/esm/api/subscription/_methods/userHistoricalOrders.d.ts b/esm/api/subscription/_methods/userHistoricalOrders.d.ts
+index a32044c9b7be5434ac24331ffcac65f575845d7f..13500c41409ec0fd8e0d9fc51db221b8c6272687 100644
+--- a/esm/api/subscription/_methods/userHistoricalOrders.d.ts
++++ b/esm/api/subscription/_methods/userHistoricalOrders.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/userHistoricalOrders.ts" />
+ import * as v from "valibot";
+ import type { HistoricalOrdersResponse } from "../../info/_methods/historicalOrders.js";
+ /**
+diff --git a/esm/api/subscription/_methods/userNonFundingLedgerUpdates.d.ts b/esm/api/subscription/_methods/userNonFundingLedgerUpdates.d.ts
+index 7e27324fd40c6631c08a8d02aed7633e742c773b..df2623820f9f406825d4ad0724ea06e256b18096 100644
+--- a/esm/api/subscription/_methods/userNonFundingLedgerUpdates.d.ts
++++ b/esm/api/subscription/_methods/userNonFundingLedgerUpdates.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/userNonFundingLedgerUpdates.ts" />
+ import * as v from "valibot";
+ import type { UserNonFundingLedgerUpdatesResponse } from "../../info/_methods/userNonFundingLedgerUpdates.js";
+ /**
+diff --git a/esm/api/subscription/_methods/userTwapHistory.d.ts b/esm/api/subscription/_methods/userTwapHistory.d.ts
+index 2e49f6dc2b6974808cb6c15e41c51e1ff05c862c..e148c3088a2e1de5afe91ae94ad1154f289ef161 100644
+--- a/esm/api/subscription/_methods/userTwapHistory.d.ts
++++ b/esm/api/subscription/_methods/userTwapHistory.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/userTwapHistory.ts" />
+ import * as v from "valibot";
+ import type { TwapHistoryResponse } from "../../info/_methods/twapHistory.js";
+ /**
+diff --git a/esm/api/subscription/_methods/userTwapSliceFills.d.ts b/esm/api/subscription/_methods/userTwapSliceFills.d.ts
+index 8b59cac9f6250d8e01155a3ef179c392b813e885..1cfa02bbe02297e50f42c79313a4f667abb494b3 100644
+--- a/esm/api/subscription/_methods/userTwapSliceFills.d.ts
++++ b/esm/api/subscription/_methods/userTwapSliceFills.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/userTwapSliceFills.ts" />
+ import * as v from "valibot";
+ import type { UserTwapSliceFillsResponse } from "../../info/_methods/userTwapSliceFills.js";
+ /**
+diff --git a/esm/api/subscription/_methods/webData2.d.ts b/esm/api/subscription/_methods/webData2.d.ts
+index 24c9596aec90db374589abeb4bfaf1e00bc4f8c2..e62fc4ede340ed0203a4d4e5dacbe6c2ab2f2f33 100644
+--- a/esm/api/subscription/_methods/webData2.d.ts
++++ b/esm/api/subscription/_methods/webData2.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/webData2.ts" />
+ import * as v from "valibot";
+ import type { WebData2Response } from "../../info/_methods/webData2.js";
+ /**
+diff --git a/esm/api/subscription/_methods/webData3.d.ts b/esm/api/subscription/_methods/webData3.d.ts
+index 88e4f3137d0f4467f32cd2fd27bdddfe455edc0c..f8c36cd2b95dc882b81e9cf5f156fce09cc6ea6a 100644
+--- a/esm/api/subscription/_methods/webData3.d.ts
++++ b/esm/api/subscription/_methods/webData3.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/_methods/webData3.ts" />
+ import * as v from "valibot";
+ import type { LeadingVaultsResponse } from "../../info/_methods/leadingVaults.js";
+ import type { PerpsAtOpenInterestCapResponse } from "../../info/_methods/perpsAtOpenInterestCap.js";
+diff --git a/esm/api/subscription/client.d.ts b/esm/api/subscription/client.d.ts
+index 6a18823559c657b665e78554d990319c97338451..2c26bb99bb882e15828a05e2802759d65b8123f2 100644
+--- a/esm/api/subscription/client.d.ts
++++ b/esm/api/subscription/client.d.ts
+@@ -2,7 +2,6 @@
+  * Client for the Hyperliquid Subscription API endpoint.
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/client.ts" />
+ import type { ISubscription } from "../../transport/mod.js";
+ import type { SubscriptionConfig, SubscriptionOptions } from "./_methods/_base/mod.js";
+ import { type ActiveAssetCtxEvent, type ActiveAssetCtxParameters } from "./_methods/activeAssetCtx.js";
+diff --git a/esm/api/subscription/mod.d.ts b/esm/api/subscription/mod.d.ts
+index 72cd8170d3354b8e2f54ac314cdc2b698b07af52..5fe8be401fec693c55e94ce38da02086881c34c5 100644
+--- a/esm/api/subscription/mod.d.ts
++++ b/esm/api/subscription/mod.d.ts
+@@ -22,7 +22,6 @@
+  *
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/api/subscription/mod.ts" />
+ export type { SubscriptionConfig, SubscriptionOptions } from "./_methods/_base/mod.js";
+ export * from "./_methods/activeAssetCtx.js";
+ export * from "./_methods/activeAssetData.js";
+diff --git a/esm/mod.d.ts b/esm/mod.d.ts
+index a639e2be9a6ec851d09e22195674f789fd70b25f..b02756bcca3c22c8ffb83137bac4439541a1d60c 100644
+--- a/esm/mod.d.ts
++++ b/esm/mod.d.ts
+@@ -28,7 +28,6 @@
+  *
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/mod.ts" />
+ export { HyperliquidError, ValidationError } from "./_base.js";
+ export { AbstractWalletError } from "./signing/mod.js";
+ export * from "./transport/mod.js";
+diff --git a/esm/signing/_abstractWallet.d.ts b/esm/signing/_abstractWallet.d.ts
+index ef0327dea58602c99041a9483990c0ff45bce9e1..95c71907644a32defe309e8909b61c68f7c47c7c 100644
+--- a/esm/signing/_abstractWallet.d.ts
++++ b/esm/signing/_abstractWallet.d.ts
+@@ -2,7 +2,6 @@
+  * Abstract wallet interfaces and signing utilities for [EIP-712](https://eips.ethereum.org/EIPS/eip-712) typed data.
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/signing/_abstractWallet.ts" />
+ import { HyperliquidError } from "../_base.js";
+ /** Thrown when an error occurs in AbstractWallet operations (e.g., signing, getting address). */
+ export declare class AbstractWalletError extends HyperliquidError {
+diff --git a/esm/signing/_canonicalize.d.ts b/esm/signing/_canonicalize.d.ts
+index b65b9f5d8fade465a3a9b6bfb5ab03af08e6f9e8..9ed0a58d7f8bac50cf7e710745c0451d88b350e5 100644
+--- a/esm/signing/_canonicalize.d.ts
++++ b/esm/signing/_canonicalize.d.ts
+@@ -2,7 +2,6 @@
+  * Schema-driven key canonicalization for Hyperliquid action objects.
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/signing/_canonicalize.ts" />
+ import type { GenericSchema } from "valibot";
+ import { HyperliquidError } from "../_base.js";
+ /** Thrown when canonicalization fails due to schema/data key mismatch. */
+diff --git a/esm/signing/_l1.d.ts b/esm/signing/_l1.d.ts
+index 1ec6da7795a9fccfd6d43d5d2a1071db426ccfb3..79233c8a94562dcd14fbcb828aa8703d5f6d1ead 100644
+--- a/esm/signing/_l1.d.ts
++++ b/esm/signing/_l1.d.ts
+@@ -2,7 +2,6 @@
+  * L1 (phantom-agent) signing for trading actions.
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/signing/_l1.ts" />
+ import { type AbstractWallet, type Signature } from "./_abstractWallet.js";
+ /**
+  * Creates a hash of the L1 action.
+diff --git a/esm/signing/_multiSig.d.ts b/esm/signing/_multiSig.d.ts
+index c20d8b12b2436f7c620e4827eb91548792bc6404..83aeb0eb34c06633b024dab64b677155d67b641c 100644
+--- a/esm/signing/_multiSig.d.ts
++++ b/esm/signing/_multiSig.d.ts
+@@ -2,7 +2,6 @@
+  * Multi-sig wrapper construction and outer signing.
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/signing/_multiSig.ts" />
+ import { type AbstractWallet, type Signature } from "./_abstractWallet.js";
+ /** A multi-sig wrapper as it appears on the wire. */
+ interface MultiSigAction {
+diff --git a/esm/signing/_userSigned.d.ts b/esm/signing/_userSigned.d.ts
+index c90e6fd1a50cdfe308f8d0425c9583a29312b716..4817794e0daa10270f202952d96b669a1c0843b2 100644
+--- a/esm/signing/_userSigned.d.ts
++++ b/esm/signing/_userSigned.d.ts
+@@ -2,7 +2,6 @@
+  * User-signed ([EIP-712](https://eips.ethereum.org/EIPS/eip-712)) signing for fund and account actions.
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/signing/_userSigned.ts" />
+ import { type AbstractWallet, type Signature } from "./_abstractWallet.js";
+ /**
+  * Signs a user-signed action.
+diff --git a/esm/signing/mod.d.ts b/esm/signing/mod.d.ts
+index 82ea7ea90050f622082cfe853b680b1b5188c071..85ee063fd78fdee3fc4082205f8221c1437e1099 100644
+--- a/esm/signing/mod.d.ts
++++ b/esm/signing/mod.d.ts
+@@ -2,7 +2,6 @@
+  * Low-level utilities for signing Hyperliquid transactions.
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/signing/mod.ts" />
+ export { type AbstractEthersV5Signer, type AbstractEthersV6Signer, type AbstractViemJsonRpcAccount, type AbstractViemLocalAccount, type AbstractWallet, AbstractWalletError, getWalletAddress, getWalletChainId, type Signature, } from "./_abstractWallet.js";
+ export { canonicalize, CanonicalizeError } from "./_canonicalize.js";
+ export { createL1ActionHash, signL1Action } from "./_l1.js";
+diff --git a/esm/transport/_abort.d.ts b/esm/transport/_abort.d.ts
+index cbd85507c6ca46d935861443ca30c5aad249f98b..26a633daedad4f4f129ef5dece4f5880fd305c9a 100644
+--- a/esm/transport/_abort.d.ts
++++ b/esm/transport/_abort.d.ts
+@@ -2,7 +2,6 @@
+  * AbortSignal wiring helpers shared by the transports.
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/transport/_abort.ts" />
+ /** Aborts `target` with a `TimeoutError` after `ms`; `cancel` clears the timer, `reason` identifies the abort. */
+ export declare function scheduleTimeout(target: AbortController, ms: number | null): {
+     reason: Error;
+diff --git a/esm/transport/_base.d.ts b/esm/transport/_base.d.ts
+index c806cda33a5febfa981febb8bf2c224b5a806b7f..7acda628e98464310d8c4c485fff1c18ac840eaf 100644
+--- a/esm/transport/_base.d.ts
++++ b/esm/transport/_base.d.ts
+@@ -3,7 +3,6 @@
+  * interfaces and the root of the transport error hierarchy.
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/transport/_base.ts" />
+ import { HyperliquidError } from "../_base.js";
+ /**
+  * Transport interface for executing requests to the Hyperliquid API.
+diff --git a/esm/transport/_polyfills.d.ts b/esm/transport/_polyfills.d.ts
+index ed6406108288b9c66a0313475966a81141670f5b..8b748146b8d15bda14ccf0c79c2e3861ab889230 100644
+--- a/esm/transport/_polyfills.d.ts
++++ b/esm/transport/_polyfills.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/transport/_polyfills.ts" />
+ /**
+  * Runtime shims for APIs missing on some supported platforms, mainly React Native.
+  * @module
+diff --git a/esm/transport/http/mod.d.ts b/esm/transport/http/mod.d.ts
+index 9d56aa8e6f911bf09d435c5f1302a4d6bd143b1d..e4e68591e3da328affc9a466667e7f1d7aaf1f77 100644
+--- a/esm/transport/http/mod.d.ts
++++ b/esm/transport/http/mod.d.ts
+@@ -25,7 +25,6 @@
+  *
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/transport/http/mod.ts" />
+ import { type IRequestTransport, TransportError } from "../_base.js";
+ /** Configuration options for the HTTP transport layer. */
+ export interface HttpTransportOptions {
+diff --git a/esm/transport/mod.d.ts b/esm/transport/mod.d.ts
+index 1ebe39ae31807899496de52b6f6936fb2ff7b653..dd76efc8c81fc141d98f86bb8acb05de85924a33 100644
+--- a/esm/transport/mod.d.ts
++++ b/esm/transport/mod.d.ts
+@@ -13,7 +13,6 @@
+  *
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/transport/mod.ts" />
+ export * from "./_base.js";
+ export * from "./http/mod.js";
+ export * from "./websocket/mod.js";
+diff --git a/esm/transport/websocket/_dispatcher.d.ts b/esm/transport/websocket/_dispatcher.d.ts
+index ebd77fb7eed25ddb2101e34be2161b0013582432..66eb0053252a7050150b2544fdc521f779239b37 100644
+--- a/esm/transport/websocket/_dispatcher.d.ts
++++ b/esm/transport/websocket/_dispatcher.d.ts
+@@ -4,7 +4,6 @@
+  *
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/transport/websocket/_dispatcher.ts" />
+ import { ReconnectingWebSocket } from "@nktkas/rews";
+ import { TransportError } from "../_base.js";
+ import type { HyperliquidEventTarget } from "./_events.js";
+diff --git a/esm/transport/websocket/_events.d.ts b/esm/transport/websocket/_events.d.ts
+index 39cb46e049f0c0996a03a5c15eee65f6224f664c..81d8a63da317df9563d981190cbe82f77449107b 100644
+--- a/esm/transport/websocket/_events.d.ts
++++ b/esm/transport/websocket/_events.d.ts
+@@ -6,7 +6,6 @@
+  *
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/transport/websocket/_events.ts" />
+ /**
+  * Confirmation frame of a `subscribe` / `unsubscribe` request.
+  *
+diff --git a/esm/transport/websocket/_id.d.ts b/esm/transport/websocket/_id.d.ts
+index 8cbf7441096d3f86ef6f45838c52424f5bec7325..250b2882eb64b39b861d023919237a4dcd57668f 100644
+--- a/esm/transport/websocket/_id.d.ts
++++ b/esm/transport/websocket/_id.d.ts
+@@ -2,7 +2,6 @@
+  * Identity-formation utilities for WebSocket request matching.
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/transport/websocket/_id.ts" />
+ /**
+  * Builds a stable string identifier from an arbitrary value: payloads with
+  * the same logical content produce the same id.
+diff --git a/esm/transport/websocket/_keepAlive.d.ts b/esm/transport/websocket/_keepAlive.d.ts
+index 09b643132730d94fa3bc53a26493b7c23954fde2..e22cfbc4986eef85b37686ffdcaf94fb42692c2e 100644
+--- a/esm/transport/websocket/_keepAlive.d.ts
++++ b/esm/transport/websocket/_keepAlive.d.ts
+@@ -4,7 +4,6 @@
+  *
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/transport/websocket/_keepAlive.ts" />
+ import type { ReconnectingWebSocket } from "@nktkas/rews";
+ import type { HyperliquidEventTarget } from "./_events.js";
+ /** Configuration options for the keep-alive watchdog. */
+diff --git a/esm/transport/websocket/_subscriptionManager.d.ts b/esm/transport/websocket/_subscriptionManager.d.ts
+index ef4fc1238aa0f586a3bc4b172aa0fce44d40b7c3..280d7e74a0984e1b7e578d7707ed0cb567d96457 100644
+--- a/esm/transport/websocket/_subscriptionManager.d.ts
++++ b/esm/transport/websocket/_subscriptionManager.d.ts
+@@ -4,7 +4,6 @@
+  *
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/transport/websocket/_subscriptionManager.ts" />
+ import { ReconnectingWebSocket } from "@nktkas/rews";
+ import type { ISubscription } from "../_base.js";
+ import type { HyperliquidEventTarget } from "./_events.js";
+diff --git a/esm/transport/websocket/mod.d.ts b/esm/transport/websocket/mod.d.ts
+index d6bffa051cf2e2ee9bd2352976344b09304446e7..538b7e089f09fe8d774c5d7ac358b96c7cccd67f 100644
+--- a/esm/transport/websocket/mod.d.ts
++++ b/esm/transport/websocket/mod.d.ts
+@@ -20,7 +20,6 @@
+  *
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/transport/websocket/mod.ts" />
+ import { ReconnectingWebSocket, type ReconnectingWebSocketOptions } from "@nktkas/rews";
+ import type { IRequestTransport, ISubscription, ISubscriptionTransport } from "../_base.js";
+ import { WebSocketRequestError } from "./_dispatcher.js";
+diff --git a/esm/utils/_format.d.ts b/esm/utils/_format.d.ts
+index f0424a1dcb46165e7f95efa8cbf3513c5db68f04..e6cee1e873c5a2749ff13fcb34278483b9964880 100644
+--- a/esm/utils/_format.d.ts
++++ b/esm/utils/_format.d.ts
+@@ -3,7 +3,6 @@
+  *
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/utils/_format.ts" />
+ import { HyperliquidError } from "../_base.js";
+ /**
+  * Thrown when a price or size value cannot be formatted to a valid decimal.
+diff --git a/esm/utils/_symbolConverter.d.ts b/esm/utils/_symbolConverter.d.ts
+index 4eb4892a9061e4e99be3ce4a49daa13adf915ad9..279de8cb1337d1f0c539f8ee1bf70156f82fd179 100644
+--- a/esm/utils/_symbolConverter.d.ts
++++ b/esm/utils/_symbolConverter.d.ts
+@@ -1,4 +1,3 @@
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/utils/_symbolConverter.ts" />
+ import type { IRequestTransport } from "../transport/mod.js";
+ /** Options for creating a {@link SymbolConverter} instance. */
+ export interface SymbolConverterOptions {
+diff --git a/esm/utils/mod.d.ts b/esm/utils/mod.d.ts
+index aa099b41bc708feb69139a4359dcd5e47c70923d..530298eda725e8f2f218b3a842b1d711b302dd1b 100644
+--- a/esm/utils/mod.d.ts
++++ b/esm/utils/mod.d.ts
+@@ -22,6 +22,5 @@
+  *
+  * @module
+  */
+-/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/utils/mod.ts" />
+ export * from "./_symbolConverter.js";
+ export * from "./_format.js";

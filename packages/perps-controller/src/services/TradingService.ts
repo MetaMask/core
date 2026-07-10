@@ -299,6 +299,12 @@ export class TradingService {
       properties[PERPS_EVENT_PROPERTY.AB_TESTS] = params.trackingData.abTests;
     }
 
+    // Order execution latency on the terminal trade event (TAT-3084)
+    if (params.trackingData?.orderExecutionLatencyMs !== undefined) {
+      properties[PERPS_EVENT_PROPERTY.ORDER_EXECUTION_LATENCY_MS] =
+        params.trackingData.orderExecutionLatencyMs;
+    }
+
     // Propagate discovery attribution + hl_fee_rate (TAT-3080, TAT-3149)
     Object.assign(
       properties,
@@ -779,6 +785,18 @@ export class TradingService {
     status: string,
     error?: string,
   ): Record<string, unknown> {
+    // Effective leverage = positionUSD / marginUSD, rounded to 1 decimal place
+    // (TAT-3147). Computed from the live position rather than the configured
+    // leverage so it's populated for every close, including TP/SL triggers.
+    const positionUSD = Math.abs(parseFloat(position.positionValue));
+    const marginUSD = parseFloat(position.marginUsed);
+    const effectiveLeverage =
+      Number.isFinite(positionUSD) &&
+      Number.isFinite(marginUSD) &&
+      marginUSD > 0
+        ? Math.round((positionUSD / marginUSD) * 10) / 10
+        : undefined;
+
     const baseProperties = {
       [PERPS_EVENT_PROPERTY.STATUS]: status,
       [PERPS_EVENT_PROPERTY.ASSET]: position.symbol,
@@ -836,9 +854,9 @@ export class TradingService {
       ...(params.trackingData?.vipDiscount !== undefined && {
         [PERPS_EVENT_PROPERTY.VIP_DISCOUNT]: params.trackingData.vipDiscount,
       }),
-      // Leverage on close events (TAT-3147)
-      ...(position.leverage?.value !== undefined && {
-        [PERPS_EVENT_PROPERTY.LEVERAGE]: position.leverage.value,
+      // Effective leverage on close events (TAT-3147)
+      ...(effectiveLeverage !== undefined && {
+        [PERPS_EVENT_PROPERTY.LEVERAGE]: effectiveLeverage,
       }),
       // Discovery attribution + hl_fee_rate (TAT-3080, TAT-3149)
       ...this.#buildAttributionProperties(params.trackingData),
