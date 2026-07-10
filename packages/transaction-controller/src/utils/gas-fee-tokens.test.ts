@@ -1,9 +1,9 @@
+import type { SentinelApiService } from '@metamask/sentinel-api-service';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
 import type {
   GasFeeToken,
-  GetSimulationConfig,
   TransactionControllerMessenger,
   TransactionMeta,
 } from '..';
@@ -28,6 +28,7 @@ const TOKEN_ADDRESS_1_MOCK =
 const TOKEN_ADDRESS_2_MOCK = '0xabcdef1234567890abcdef1234567890abcdef12';
 const UPGRADE_CONTRACT_ADDRESS_MOCK =
   '0xabcdefabcdefabcdefabcdefabcdefabcdefabcdef';
+const SENTINEL_API_SERVICE_MOCK = {} as unknown as SentinelApiService;
 
 const TRANSACTION_META_MOCK = {
   txParams: {
@@ -41,9 +42,9 @@ const TRANSACTION_META_MOCK = {
 const REQUEST_MOCK: GetGasFeeTokensRequest = {
   chainId: CHAIN_ID_MOCK,
   isEIP7702GasFeeTokensEnabled: jest.fn().mockResolvedValue(true),
-  getSimulationConfig: jest.fn(),
   messenger: {} as TransactionControllerMessenger,
   publicKeyEIP7702: '0x123',
+  sentinelApiService: SENTINEL_API_SERVICE_MOCK,
   transactionMeta: TRANSACTION_META_MOCK,
 };
 
@@ -264,6 +265,7 @@ describe('Gas Fee Tokens Utils', () => {
       await getGasFeeTokens(REQUEST_MOCK);
 
       expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        SENTINEL_API_SERVICE_MOCK,
         CHAIN_ID_MOCK,
         expect.objectContaining({
           suggestFees: expect.objectContaining({
@@ -291,6 +293,7 @@ describe('Gas Fee Tokens Utils', () => {
       await getGasFeeTokens(REQUEST_MOCK);
 
       expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        SENTINEL_API_SERVICE_MOCK,
         CHAIN_ID_MOCK,
         expect.objectContaining({
           suggestFees: expect.objectContaining({
@@ -318,6 +321,7 @@ describe('Gas Fee Tokens Utils', () => {
       await getGasFeeTokens(REQUEST_MOCK);
 
       expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        SENTINEL_API_SERVICE_MOCK,
         CHAIN_ID_MOCK,
         expect.objectContaining({
           transactions: [
@@ -358,6 +362,7 @@ describe('Gas Fee Tokens Utils', () => {
       await getGasFeeTokens(request);
 
       expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        SENTINEL_API_SERVICE_MOCK,
         CHAIN_ID_MOCK,
         expect.objectContaining({
           transactions: [
@@ -374,22 +379,21 @@ describe('Gas Fee Tokens Utils', () => {
       );
     });
 
-    it('forwards simulation config', async () => {
-      const getSimulationConfigMock: GetSimulationConfig = jest.fn();
+    it('forwards the Sentinel API service', async () => {
+      const sentinelApiServiceMock = {} as unknown as SentinelApiService;
 
       const request = {
         ...REQUEST_MOCK,
-        getSimulationConfig: getSimulationConfigMock,
+        sentinelApiService: sentinelApiServiceMock,
       };
 
       await getGasFeeTokens(request);
 
       expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
       expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        sentinelApiServiceMock,
         expect.any(String),
-        expect.objectContaining({
-          getSimulationConfig: getSimulationConfigMock,
-        }),
+        expect.any(Object),
       );
     });
   });

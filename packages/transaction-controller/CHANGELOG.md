@@ -9,14 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **BREAKING:** Add required `sentinelApiService` constructor option, an instance of `SentinelApiService` from `@metamask/sentinel-api-service`, used to perform all Sentinel simulation requests ([#0](https://github.com/MetaMask/core/pull/0))
+  - Consumers must construct a `SentinelApiService` (with its own `fetch` and messenger) and pass it to the `TransactionController`.
+  - Adds a dependency on `@metamask/sentinel-api-service`.
 - Export `generateEIP7702BatchTransaction` utility for building an ERC-7821 `execute(mode, calls)` batch transaction from a list of nested transactions ([#9298](https://github.com/MetaMask/core/pull/9298))
 
 ### Changed
 
-- Delegate the Sentinel simulation supported-network registry (`/networks`) lookup and subdomain URL resolution to the shared `@metamask/sentinel-api-service` data service ([#0](https://github.com/MetaMask/core/pull/0))
-  - Removes the controller's duplicate `/networks` client and its per-request refetch of the registry (the service caches it).
-  - Behaviour is preserved: the controller still performs the `infura_simulateTransactions` request itself to honour the `getSimulationConfig` URL override and `Authorization` header hook.
-  - Adds a dependency on `@metamask/sentinel-api-service`.
+- Delegate all Sentinel simulation requests (`infura_simulateTransactions`), the supported-network registry (`/networks`) lookup, and subdomain URL resolution to the shared `@metamask/sentinel-api-service` data service ([#0](https://github.com/MetaMask/core/pull/0))
+  - Removes the controller's own simulation client, `/networks` client, and per-request refetch of the registry (the service caches it).
+
+### Removed
+
+- **BREAKING:** Remove the `getSimulationConfig` constructor option and the `GetSimulationConfig` type ([#0](https://github.com/MetaMask/core/pull/0))
+  - The simulation request URL override and `Authorization` header hook are no longer honoured by the controller. Configure request behaviour on the injected `SentinelApiService` instead.
 
 ## [68.3.0]
 

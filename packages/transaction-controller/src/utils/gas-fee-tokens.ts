@@ -1,5 +1,6 @@
 import type { NetworkClientId } from '@metamask/network-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
+import type { SentinelApiService } from '@metamask/sentinel-api-service';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
@@ -15,7 +16,6 @@ import type {
   SimulationResponseTransaction,
 } from '../api/simulation-api';
 import { projectLogger } from '../logger';
-import type { GetSimulationConfig } from '../types';
 import { isNativeBalanceSufficientForGas } from './balance';
 import { ERROR_MESSAGE_NO_UPGRADE_CONTRACT } from './batch';
 import { ERROR_MESSGE_PUBLIC_KEY, doesChainSupportEIP7702 } from './eip7702';
@@ -28,9 +28,9 @@ export type GetGasFeeTokensRequest = {
   isEIP7702GasFeeTokensEnabled: (
     transactionMeta: TransactionMeta,
   ) => Promise<boolean>;
-  getSimulationConfig: GetSimulationConfig;
   messenger: TransactionControllerMessenger;
   publicKeyEIP7702?: Hex;
+  sentinelApiService: SentinelApiService;
   transactionMeta: TransactionMeta;
 };
 
@@ -42,8 +42,8 @@ export type GetGasFeeTokensRequest = {
  * @param request.isEIP7702GasFeeTokensEnabled - Callback to check if EIP-7702 gas fee tokens are enabled.
  * @param request.messenger - The messenger instance.
  * @param request.publicKeyEIP7702 - Public key to validate EIP-7702 contract signatures.
+ * @param request.sentinelApiService - The Sentinel API service used to simulate transactions.
  * @param request.transactionMeta - The transaction metadata.
- * @param request.getSimulationConfig - Optional transaction simulation parameters.
  * @returns An array of gas fee tokens.
  */
 export async function getGasFeeTokens({
@@ -51,8 +51,8 @@ export async function getGasFeeTokens({
   isEIP7702GasFeeTokensEnabled,
   messenger,
   publicKeyEIP7702,
+  sentinelApiService,
   transactionMeta,
-  getSimulationConfig,
 }: GetGasFeeTokensRequest): Promise<{
   gasFeeTokens: GasFeeToken[];
   isGasFeeSponsored: boolean;
@@ -89,8 +89,7 @@ export async function getGasFeeTokens({
   }
 
   try {
-    const response = await simulateTransactions(chainId, {
-      getSimulationConfig,
+    const response = await simulateTransactions(sentinelApiService, chainId, {
       transactions: [
         {
           authorizationList,

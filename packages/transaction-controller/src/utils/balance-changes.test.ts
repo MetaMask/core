@@ -1,6 +1,7 @@
 import type { LogDescription } from '@ethersproject/abi';
 import { Interface } from '@ethersproject/abi';
 import type { NetworkClientId } from '@metamask/network-controller';
+import type { SentinelApiService } from '@metamask/sentinel-api-service';
 import type { Hex } from '@metamask/utils';
 
 import { simulateTransactions } from '../api/simulation-api';
@@ -14,7 +15,6 @@ import {
   SimulationRevertedError,
 } from '../errors';
 import type { TransactionControllerMessenger } from '../TransactionController';
-import type { GetSimulationConfig } from '../types';
 import { SimulationErrorCode, SimulationTokenStandard } from '../types';
 import type { GetBalanceChangesRequest } from './balance-changes';
 import { getBalanceChanges, SupportedToken } from './balance-changes';
@@ -59,12 +59,13 @@ const USER_ADDRESS_WITH_LEADING_ZERO =
 
 const MESSENGER_MOCK = {} as unknown as TransactionControllerMessenger;
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId' as NetworkClientId;
+const SENTINEL_API_SERVICE_MOCK = {} as unknown as SentinelApiService;
 
 const REQUEST_MOCK: GetBalanceChangesRequest = {
   chainId: '0x1',
   messenger: MESSENGER_MOCK,
   networkClientId: NETWORK_CLIENT_ID_MOCK,
-  getSimulationConfig: jest.fn(),
+  sentinelApiService: SENTINEL_API_SERVICE_MOCK,
   txParams: {
     data: '0x123',
     from: USER_ADDRESS_MOCK,
@@ -705,9 +706,9 @@ describe('Balance Change Utils', () => {
         // The ERC-721 token balance is only checked after the transaction since it is minted.
         expect(simulateTransactionsMock).toHaveBeenNthCalledWith(
           2,
+          SENTINEL_API_SERVICE_MOCK,
           REQUEST_MOCK.chainId,
           {
-            getSimulationConfig: REQUEST_MOCK.getSimulationConfig,
             transactions: [
               // ERC-20 balance before minting.
               {
@@ -1304,6 +1305,7 @@ describe('Balance Change Utils', () => {
 
       expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
       expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        SENTINEL_API_SERVICE_MOCK,
         expect.any(String),
         expect.objectContaining({
           transactions: [
@@ -1334,6 +1336,7 @@ describe('Balance Change Utils', () => {
 
         expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
         expect(simulateTransactionsMock).toHaveBeenCalledWith(
+          SENTINEL_API_SERVICE_MOCK,
           expect.any(String),
           expect.objectContaining({
             overrides: {
@@ -1361,6 +1364,7 @@ describe('Balance Change Utils', () => {
 
         expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
         expect(simulateTransactionsMock).toHaveBeenCalledWith(
+          SENTINEL_API_SERVICE_MOCK,
           expect.any(String),
           expect.objectContaining({
             overrides: {
@@ -1386,6 +1390,7 @@ describe('Balance Change Utils', () => {
 
         expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
         expect(simulateTransactionsMock).toHaveBeenCalledWith(
+          SENTINEL_API_SERVICE_MOCK,
           expect.any(String),
           expect.objectContaining({
             overrides: {
@@ -1419,6 +1424,7 @@ describe('Balance Change Utils', () => {
 
         expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
         expect(simulateTransactionsMock).toHaveBeenCalledWith(
+          SENTINEL_API_SERVICE_MOCK,
           expect.any(String),
           expect.objectContaining({
             overrides: {
@@ -1431,22 +1437,21 @@ describe('Balance Change Utils', () => {
       });
     });
 
-    it('forwards simulation config', async () => {
-      const getSimulationConfigMock: GetSimulationConfig = jest.fn();
+    it('forwards the Sentinel API service', async () => {
+      const sentinelApiServiceMock = {} as unknown as SentinelApiService;
 
       const request = {
         ...REQUEST_MOCK,
-        getSimulationConfig: getSimulationConfigMock,
+        sentinelApiService: sentinelApiServiceMock,
       };
 
       await getBalanceChanges(request);
 
       expect(simulateTransactionsMock).toHaveBeenCalledTimes(1);
       expect(simulateTransactionsMock).toHaveBeenCalledWith(
+        sentinelApiServiceMock,
         expect.any(String),
-        expect.objectContaining({
-          getSimulationConfig: getSimulationConfigMock,
-        }),
+        expect.any(Object),
       );
     });
   });

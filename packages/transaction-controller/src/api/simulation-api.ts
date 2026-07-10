@@ -1,10 +1,7 @@
-import { convertHexToDecimal } from '@metamask/controller-utils';
-import { Messenger } from '@metamask/messenger';
 import type {
-  SentinelApiServiceMessenger,
-  SentinelNetworkRegistry,
+  SentinelApiService,
+  SentinelSimulationRequest,
 } from '@metamask/sentinel-api-service';
-import { SentinelApiService } from '@metamask/sentinel-api-service';
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
@@ -13,54 +10,9 @@ import {
   CODE_DELEGATION_MANAGER_NO_SIGNATURE_ERRORS,
   DELEGATION_MANAGER_ADDRESSES,
 } from '../constants';
-import { SimulationChainNotSupportedError, SimulationError } from '../errors';
 import { projectLogger } from '../logger';
-import type { GetSimulationConfig } from '../types';
 
 const log = createModuleLogger(projectLogger, 'simulation-api');
-
-const RPC_METHOD = 'infura_simulateTransactions';
-const BASE_URL = 'https://tx-sentinel-{0}.api.cx.metamask.io/';
-
-/**
- * Lazily-constructed singleton {@link SentinelApiService}, used to centralise
- * the Sentinel supported-network registry (`/networks`) lookup and the
- * subdomain-based URL derivation. The controller still performs the actual
- * `infura_simulateTransactions` HTTP request itself because it needs to honour
- * the per-request `getSimulationConfig` hook (URL override + `Authorization`
- * header) which the shared service does not expose.
- */
-let sentinelApiService: SentinelApiService | undefined;
-
-/**
- * Returns the shared {@link SentinelApiService}, constructing it on first use.
- *
- * @returns The Sentinel API service.
- */
-function getSentinelApiService(): SentinelApiService {
-  if (!sentinelApiService) {
-    const rootMessenger = new Messenger<'SimulationApi', never, never>({
-      namespace: 'SimulationApi',
-    });
-    const messenger = new Messenger({
-      namespace: 'SentinelApiService',
-      parent: rootMessenger,
-    }) as unknown as SentinelApiServiceMessenger;
-
-    sentinelApiService = new SentinelApiService({ messenger });
-  }
-
-  return sentinelApiService;
-}
-
-/**
- * Reset the shared {@link SentinelApiService} singleton. Intended for use in
- * tests so that the cached network registry does not leak between cases.
- */
-export function resetSentinelApiService(): void {
-  sentinelApiService?.destroy();
-  sentinelApiService = undefined;
-}
 
 /** Single transaction to simulate in a simulation API request.  */
 export type SimulationRequestTransaction = {
@@ -99,11 +51,6 @@ export type SimulationRequest = {
   blockOverrides?: {
     time?: Hex;
   };
-
-  /**
-   * Function to get the simulation configuration.
-   */
-  getSimulationConfig: GetSimulationConfig;
 
   /**
    * Overrides to the state of the blockchain, keyed by address.
@@ -305,97 +252,36 @@ export type SimulationResponse = {
   };
 };
 
-let requestIdCounter = 0;
-
 /**
- * Simulate transactions using the transaction simulation API.
+ * Simulate transactions using the injected {@link SentinelApiService}.
  *
+ * The DelegationManager code override is still applied locally via
+ * {@link finalizeRequest} before delegating the actual
+ * `infura_simulateTransactions` request (URL derivation, JSON-RPC transport,
+ * validation, and error handling) to the shared service.
+ *
+ * @param sentinelApiService - The Sentinel API service to delegate to.
  * @param chainId - The chain ID to simulate transactions on.
  * @param request - The request to simulate transactions.
  * @returns The response from the simulation API.
  */
 export async function simulateTransactions(
+  sentinelApiService: SentinelApiService,
   chainId: Hex,
   request: SimulationRequest,
 ): Promise<SimulationResponse> {
-  let url = await getSimulationUrl(chainId);
+  const finalizedRequest = finalizeRequest(request);
 
-  const { newUrl, authorization } =
-    (await request.getSimulationConfig(url)) || {};
-  if (newUrl) {
-    url = newUrl;
-  }
+  log('Sending request', chainId, finalizedRequest);
 
-  const requestId = requestIdCounter;
-  requestIdCounter += 1;
+  const response = await sentinelApiService.simulateTransactions(
+    chainId,
+    finalizedRequest as unknown as SentinelSimulationRequest,
+  );
 
-  const finalRequest = finalizeRequest(request);
+  log('Received response', response);
 
-  log('Sending request', url, request);
-
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
-  };
-
-  // Add optional authorization header, if provided.
-  if (authorization) {
-    headers.Authorization = authorization;
-  }
-
-  const response = await fetch(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({
-      id: String(requestId),
-      jsonrpc: '2.0',
-      method: RPC_METHOD,
-      params: [finalRequest],
-    }),
-  });
-
-  const responseJson = await response.json();
-
-  log('Received response', responseJson);
-
-  if (responseJson.error) {
-    const { code, message } = responseJson.error;
-    throw new SimulationError(message, code);
-  }
-
-  return responseJson?.result;
-}
-
-/**
- * Get the URL for the transaction simulation API.
- *
- * Uses the shared {@link SentinelApiService} to fetch and cache the
- * supported-network registry, then derives the network subdomain URL.
- *
- * @param chainId - The chain ID to get the URL for.
- * @returns The URL for the transaction simulation API.
- */
-async function getSimulationUrl(chainId: Hex): Promise<string> {
-  const networkData: SentinelNetworkRegistry =
-    await getSentinelApiService().getNetworks();
-  const chainIdDecimal = convertHexToDecimal(chainId);
-  const network = networkData[chainIdDecimal];
-
-  if (!network?.confirmations) {
-    log('Chain is not supported', chainId);
-    throw new SimulationChainNotSupportedError(chainId);
-  }
-
-  return getUrl(network.network);
-}
-
-/**
- * Generate the URL for the specified subdomain in the simulation API.
- *
- * @param subdomain - The subdomain to generate the URL for.
- * @returns The URL for the transaction simulation API.
- */
-function getUrl(subdomain: string): string {
-  return BASE_URL.replace('{0}', subdomain);
+  return response as unknown as SimulationResponse;
 }
 
 /**

@@ -2185,19 +2185,6 @@ export type MetamaskPayMetadata = {
 };
 
 /**
- * Parameters for the transaction simulation API.
- */
-export type GetSimulationConfig = (
-  url: string,
-  opts?: {
-    txMeta?: TransactionMeta;
-  },
-) => Promise<{
-  newUrl?: string;
-  authorization?: string;
-}>;
-
-/**
  * Options for adding a transaction.
  */
 export type AddTransactionOptions = {

@@ -1,21 +1,17 @@
+import type { SentinelApiService } from '@metamask/sentinel-api-service';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
-import type { GetSimulationConfig } from 'src';
 
-import { CHAIN_IDS, DELEGATION_MANAGER_ADDRESSES } from '../constants';
+import {
+  CODE_DELEGATION_MANAGER_NO_SIGNATURE_ERRORS,
+  DELEGATION_MANAGER_ADDRESSES,
+} from '../constants';
 import type { SimulationRequest, SimulationResponse } from './simulation-api';
-import { resetSentinelApiService, simulateTransactions } from './simulation-api';
+import { simulateTransactions } from './simulation-api';
 
 const CHAIN_ID_MOCK = '0x1';
-const CHAIN_ID_MOCK_DECIMAL = 1;
-const ERROR_CODE_MOCK = 123;
-const ERROR_MESSAGE_MOCK = 'Test Error Message';
-const GET_SIMULATION_CONFIG_MOCK: GetSimulationConfig = jest
-  .fn()
-  .mockResolvedValue({});
 
 const REQUEST_MOCK: SimulationRequest = {
-  getSimulationConfig: GET_SIMULATION_CONFIG_MOCK,
   transactions: [{ from: '0x1', to: '0x2', value: '0x1' }],
   overrides: {
     '0x1': {
@@ -56,159 +52,143 @@ const RESPONSE_MOCK: SimulationResponse = {
   },
 };
 
-const RESPONSE_MOCK_NETWORKS = {
-  [CHAIN_ID_MOCK_DECIMAL]: {
-    network: 'test-subdomain',
-    confirmations: true,
-  },
-};
+/**
+ * Create a mock {@link SentinelApiService} exposing jest-mocked
+ * `simulateTransactions` and `getNetworks` methods.
+ *
+ * @returns The mocked service.
+ */
+function createSentinelApiServiceMock(): jest.Mocked<
+  Pick<SentinelApiService, 'simulateTransactions' | 'getNetworks'>
+> {
+  return {
+    simulateTransactions: jest.fn(),
+    getNetworks: jest.fn(),
+  } as unknown as jest.Mocked<
+    Pick<SentinelApiService, 'simulateTransactions' | 'getNetworks'>
+  >;
+}
 
 describe('Simulation API Utils', () => {
-  let fetchMock: jest.MockedFunction<typeof fetch>;
-
-  /**
-   * Mock a JSON response from fetch.
-   *
-   * @param jsonResponse - The response body to return.
-   */
-  function mockFetchResponse(jsonResponse: unknown): void {
-    fetchMock.mockResolvedValueOnce({
-      ok: true,
-      status: 200,
-      json: jest.fn().mockResolvedValue(jsonResponse),
-    } as unknown as Response);
-  }
+  let sentinelApiServiceMock: ReturnType<typeof createSentinelApiServiceMock>;
 
   beforeEach(() => {
-    // The Sentinel network registry is cached for the lifetime of the shared
-    // service singleton; reset it so each test performs a fresh `/networks`
-    // fetch against the mock.
-    resetSentinelApiService();
+    sentinelApiServiceMock = createSentinelApiServiceMock();
 
-    fetchMock = jest.spyOn(global, 'fetch') as jest.MockedFunction<
-      typeof fetch
-    >;
-
-    mockFetchResponse(RESPONSE_MOCK_NETWORKS);
-    mockFetchResponse({ result: RESPONSE_MOCK });
+    sentinelApiServiceMock.simulateTransactions.mockResolvedValue(
+      RESPONSE_MOCK as never,
+    );
   });
 
   describe('simulateTransactions', () => {
-    it('returns response from RPC provider', async () => {
-      expect(await simulateTransactions('0x1', REQUEST_MOCK)).toStrictEqual(
-        RESPONSE_MOCK,
+    it('returns response from the Sentinel API service', async () => {
+      expect(
+        await simulateTransactions(
+          sentinelApiServiceMock as unknown as SentinelApiService,
+          CHAIN_ID_MOCK,
+          REQUEST_MOCK,
+        ),
+      ).toStrictEqual(RESPONSE_MOCK);
+    });
+
+    it('delegates to the Sentinel API service with the chain ID and finalized request', async () => {
+      await simulateTransactions(
+        sentinelApiServiceMock as unknown as SentinelApiService,
+        CHAIN_ID_MOCK,
+        REQUEST_MOCK,
+      );
+
+      expect(
+        sentinelApiServiceMock.simulateTransactions,
+      ).toHaveBeenCalledTimes(1);
+      expect(sentinelApiServiceMock.simulateTransactions).toHaveBeenCalledWith(
+        CHAIN_ID_MOCK,
+        REQUEST_MOCK,
       );
     });
 
-    it('sends simulation request', async () => {
-      await simulateTransactions(CHAIN_ID_MOCK, REQUEST_MOCK);
+    it('does not mutate the original request', async () => {
+      const request = cloneDeep(REQUEST_MOCK);
 
-      expect(fetchMock).toHaveBeenCalledTimes(2);
+      await simulateTransactions(
+        sentinelApiServiceMock as unknown as SentinelApiService,
+        CHAIN_ID_MOCK,
+        request,
+      );
 
-      const request = fetchMock.mock.calls[1][1] as RequestInit;
-
-      // eslint-disable-next-line @typescript-eslint/no-base-to-string
-      const requestBodyRaw = (request.body as BodyInit).toString();
-      const requestBody = JSON.parse(requestBodyRaw);
-
-      // JSON.stringify strips functions, so we apply it here.
-      const expectedRequest = JSON.parse(JSON.stringify(REQUEST_MOCK));
-      expect(requestBody.params[0]).toStrictEqual(expectedRequest);
+      expect(request).toStrictEqual(REQUEST_MOCK);
     });
 
-    it('throws if chain ID not supported', async () => {
-      const unsupportedChainId = '0x123';
+    it('propagates errors thrown by the Sentinel API service', async () => {
+      const error = new Error('Test Error Message');
+      sentinelApiServiceMock.simulateTransactions.mockRejectedValueOnce(error);
 
       await expect(
-        simulateTransactions(unsupportedChainId, REQUEST_MOCK),
-      ).rejects.toThrow(`Chain is not supported: ${unsupportedChainId}`);
+        simulateTransactions(
+          sentinelApiServiceMock as unknown as SentinelApiService,
+          CHAIN_ID_MOCK,
+          REQUEST_MOCK,
+        ),
+      ).rejects.toThrow(error);
     });
 
-    it('uses URL specific to chain ID', async () => {
-      await simulateTransactions(CHAIN_IDS.MAINNET, REQUEST_MOCK);
-
-      expect(fetchMock).toHaveBeenCalledWith(
-        'https://tx-sentinel-test-subdomain.api.cx.metamask.io/',
-        expect.any(Object),
-      );
-    });
-
-    it('uses simulation config', async () => {
-      const getSimulationConfigMock: GetSimulationConfig = jest
-        .fn()
-        .mockResolvedValue({
-          authorization: 'Bearer test',
-          newUrl: 'https://tx-sentinel-new-test-subdomain.api.cx.metamask.io/',
-        });
-
-      const request = {
-        ...REQUEST_MOCK,
-        getSimulationConfig: getSimulationConfigMock,
-      };
-
-      await simulateTransactions(CHAIN_ID_MOCK, request);
-
-      expect(getSimulationConfigMock).toHaveBeenCalledTimes(1);
-      expect(getSimulationConfigMock).toHaveBeenCalledWith(
-        'https://tx-sentinel-test-subdomain.api.cx.metamask.io/',
-      );
-
-      expect(fetchMock).toHaveBeenCalledWith(
-        'https://tx-sentinel-new-test-subdomain.api.cx.metamask.io/',
-        expect.objectContaining({
-          headers: expect.objectContaining({
-            'Content-Type': 'application/json',
-            Authorization: 'Bearer test',
-          }),
-        }),
-      );
-    });
-
-    it('reuses the shared Sentinel service across calls', async () => {
-      // Second call's simulate response (the first is queued in beforeEach).
-      mockFetchResponse({ result: RESPONSE_MOCK });
-
-      await simulateTransactions(CHAIN_ID_MOCK, REQUEST_MOCK);
-      await simulateTransactions(CHAIN_ID_MOCK, REQUEST_MOCK);
-
-      // The registry is fetched once and cached: 1 networks fetch + 2
-      // simulate POSTs = 3 total, not 4.
-      expect(fetchMock).toHaveBeenCalledTimes(3);
-    });
-
-    it('throws if response has error', async () => {
-      fetchMock.mockReset();
-      mockFetchResponse(RESPONSE_MOCK_NETWORKS);
-      mockFetchResponse({
-        error: { code: ERROR_CODE_MOCK, message: ERROR_MESSAGE_MOCK },
-      });
-
-      await expect(
-        simulateTransactions(CHAIN_ID_MOCK, REQUEST_MOCK),
-      ).rejects.toThrow({
-        code: ERROR_CODE_MOCK,
-        message: ERROR_MESSAGE_MOCK,
-      } as unknown as Error);
-    });
-
-    it('overrides DelegationManager code', async () => {
+    it('overrides DelegationManager code before delegating', async () => {
       const request = cloneDeep(REQUEST_MOCK);
       request.transactions[0].to =
         DELEGATION_MANAGER_ADDRESSES[0].toUpperCase() as Hex;
 
-      await simulateTransactions(CHAIN_ID_MOCK, request);
-
-      expect(fetchMock).toHaveBeenCalledTimes(2);
-
-      const requestBody = JSON.parse(
-        fetchMock.mock.calls[1][1]?.body as string,
+      await simulateTransactions(
+        sentinelApiServiceMock as unknown as SentinelApiService,
+        CHAIN_ID_MOCK,
+        request,
       );
 
+      const finalizedRequest =
+        sentinelApiServiceMock.simulateTransactions.mock.calls[0][1];
+
       expect(
-        requestBody.params[0].overrides[DELEGATION_MANAGER_ADDRESSES[0]],
+        (finalizedRequest as unknown as SimulationRequest).overrides?.[
+          DELEGATION_MANAGER_ADDRESSES[0]
+        ],
       ).toStrictEqual({
-        code: expect.any(String),
+        code: CODE_DELEGATION_MANAGER_NO_SIGNATURE_ERRORS,
       });
+    });
+
+    it('initializes overrides when overriding DelegationManager code with no existing overrides', async () => {
+      const request: SimulationRequest = {
+        transactions: [
+          { from: '0x1', to: DELEGATION_MANAGER_ADDRESSES[0], value: '0x1' },
+        ],
+      };
+
+      await simulateTransactions(
+        sentinelApiServiceMock as unknown as SentinelApiService,
+        CHAIN_ID_MOCK,
+        request,
+      );
+
+      const finalizedRequest = sentinelApiServiceMock.simulateTransactions.mock
+        .calls[0][1] as unknown as SimulationRequest;
+
+      expect(finalizedRequest.overrides).toStrictEqual({
+        [DELEGATION_MANAGER_ADDRESSES[0]]: {
+          code: CODE_DELEGATION_MANAGER_NO_SIGNATURE_ERRORS,
+        },
+      });
+    });
+
+    it('does not apply DelegationManager override for other recipients', async () => {
+      await simulateTransactions(
+        sentinelApiServiceMock as unknown as SentinelApiService,
+        CHAIN_ID_MOCK,
+        REQUEST_MOCK,
+      );
+
+      const finalizedRequest = sentinelApiServiceMock.simulateTransactions.mock
+        .calls[0][1] as unknown as SimulationRequest;
+
+      expect(finalizedRequest.overrides).toStrictEqual(REQUEST_MOCK.overrides);
     });
   });
 });

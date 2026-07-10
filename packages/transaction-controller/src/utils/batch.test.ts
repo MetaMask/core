@@ -2,6 +2,7 @@ import { ORIGIN_METAMASK } from '@metamask/approval-controller';
 import type { AddResult } from '@metamask/approval-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 import { rpcErrors, errorCodes } from '@metamask/rpc-errors';
+import type { SentinelApiService } from '@metamask/sentinel-api-service';
 import { cloneDeep } from 'lodash';
 
 import {
@@ -99,6 +100,7 @@ const MESSENGER_MOCK = {
 
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId';
 const PUBLIC_KEY_MOCK = '0x112233';
+const SENTINEL_API_SERVICE_MOCK = {} as unknown as SentinelApiService;
 const BATCH_ID_MOCK = '0x654321';
 const BATCH_ID_CUSTOM_MOCK = '0x123456';
 const GET_INTERNAL_ACCOUNTS_MOCK = jest.fn().mockReturnValue([]);
@@ -455,7 +457,6 @@ describe('Batch Utils', () => {
         getGasFeeEstimates: getGasFeeEstimatesMock,
         getInternalAccounts: GET_INTERNAL_ACCOUNTS_MOCK,
         getPendingTransactionTracker: getPendingTransactionTrackerMock,
-        getSimulationConfig: jest.fn(),
         getTransaction: getTransactionMock,
         isSimulationEnabled: jest.fn().mockReturnValue(true),
         messenger: MESSENGER_MOCK,
@@ -471,6 +472,7 @@ describe('Batch Utils', () => {
           disableHook: false,
           disableSequential: false,
         },
+        sentinelApiService: SENTINEL_API_SERVICE_MOCK,
         signTransaction: signTransactionMock,
         update: updateMock,
         updateTransaction: updateTransactionMock,
@@ -2359,7 +2361,7 @@ describe('Batch Utils', () => {
         expect(simulateGasBatchMock).toHaveBeenCalledWith({
           chainId: CHAIN_ID_MOCK,
           from: FROM_MOCK,
-          getSimulationConfig: request.getSimulationConfig,
+          sentinelApiService: SENTINEL_API_SERVICE_MOCK,
           transactions: TRANSACTIONS_BATCH_MOCK,
         });
         expect(getGasFeesMock).toHaveBeenCalledTimes(1);

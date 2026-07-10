@@ -3,6 +3,7 @@ import { Interface } from '@ethersproject/abi';
 import { hexToBN, toHex } from '@metamask/controller-utils';
 import { abiERC20, abiERC721, abiERC1155 } from '@metamask/metamask-eth-abis';
 import type { NetworkClientId } from '@metamask/network-controller';
+import type { SentinelApiService } from '@metamask/sentinel-api-service';
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
@@ -35,7 +36,6 @@ import type {
   SimulationToken,
   TransactionParams,
   NestedTransactionMetadata,
-  GetSimulationConfig,
 } from '../types';
 import { SimulationTokenStandard } from '../types';
 import { getNativeBalance } from './balance';
@@ -58,8 +58,8 @@ export type GetBalanceChangesRequest = {
   chainId: Hex;
   messenger: TransactionControllerMessenger;
   networkClientId: NetworkClientId;
-  getSimulationConfig: GetSimulationConfig;
   nestedTransactions?: NestedTransactionMetadata[];
+  sentinelApiService: SentinelApiService;
   txParams: TransactionParams;
 };
 
@@ -117,7 +117,7 @@ type BalanceTransactionMap = Map<SimulationToken, SimulationRequestTransaction>;
  * @param request.to - The recipient of the transaction.
  * @param request.value - The value of the transaction.
  * @param request.data - The data of the transaction.
- * @param request.getSimulationConfig - Optional transaction simulation parameters.
+ * @param request.sentinelApiService - The Sentinel API service used to simulate transactions.
  * @returns The simulation data.
  */
 export async function getBalanceChanges(
@@ -763,7 +763,7 @@ async function baseRequest({
     chainId,
     messenger,
     networkClientId,
-    getSimulationConfig,
+    sentinelApiService,
     txParams,
   } = request;
   const { authorizationList } = txParams;
@@ -804,9 +804,8 @@ async function baseRequest({
 
   const isInsufficientBalance = currentBalanceBN.lt(requiredBalanceBN);
 
-  return await simulateTransactions(chainId, {
+  return await simulateTransactions(sentinelApiService, chainId, {
     ...params,
-    getSimulationConfig,
     transactions,
     withGas: true,
     withDefaultBlockOverrides: true,
