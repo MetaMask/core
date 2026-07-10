@@ -97,6 +97,30 @@ export type SocialServiceFetchPositionByIdAction = {
 };
 
 /**
+ * Fetches a page of the trader-activity feed.
+ *
+ * Calls `GET ${baseUrl}/feed`. For the `following` scope the current user is
+ * identified server-side from the JWT sub claim carried in the Authorization
+ * header; the `leaderboard` scope is generic and shared by all users.
+ *
+ * Cursor pagination supports infinite scroll: pass `pagination.olderCursor`
+ * from a prior response back as `olderThan` to load older items, and
+ * `pagination.newerCursor` as `newerThan` to fetch newer items.
+ *
+ * @param options - Options bag.
+ * @param options.scope - `following` (default) or `leaderboard`.
+ * @param options.chains - Filter by one or more chains.
+ * @param options.limit - Number of results per page.
+ * @param options.olderThan - Cursor for older items (scroll down).
+ * @param options.newerThan - Cursor for newer items (refresh).
+ * @returns The feed response with items and pagination cursors.
+ */
+export type SocialServiceFetchFeedAction = {
+  type: `SocialService:fetchFeed`;
+  handler: SocialService['fetchFeed'];
+};
+
+/**
  * Fetches the list of traders the current user is following.
  *
  * Calls `GET ${baseUrl}/users/me/following`. The caller is identified
@@ -167,6 +191,7 @@ export type SocialServiceMethodActions =
   | SocialServiceFetchClosedPositionsAction
   | SocialServiceFetchFollowersAction
   | SocialServiceFetchPositionByIdAction
+  | SocialServiceFetchFeedAction
   | SocialServiceFetchFollowingAction
   | SocialServiceFollowAction
   | SocialServiceUnfollowAction

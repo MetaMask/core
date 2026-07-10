@@ -204,6 +204,40 @@ export type PositionsResponse = {
 };
 
 // ---------------------------------------------------------------------------
+// Feed
+// ---------------------------------------------------------------------------
+
+/**
+ * A single trader-activity feed item: a {@link Position} the trade belongs to,
+ * plus the {@link ProfileSummary} of the trader who made it (`actor`) and the
+ * item's creation `timestamp` (Unix seconds).
+ */
+export type FeedItem = Position & {
+  /** The trader who made this trade. */
+  actor: ProfileSummary;
+  /** Unix timestamp (seconds) when the feed item was created. */
+  timestamp: number;
+};
+
+/**
+ * Cursor pagination for the feed. Pass `olderCursor` back as `olderThan` to
+ * load older items (infinite scroll), and `newerCursor` as `newerThan` to
+ * fetch newer items. `null` when there are no items in that direction.
+ */
+export type FeedPagination = {
+  olderCursor: string | null;
+  newerCursor: string | null;
+};
+
+/**
+ * Response from `GET /v1/feed`.
+ */
+export type FeedResponse = {
+  items: FeedItem[];
+  pagination: FeedPagination;
+};
+
+// ---------------------------------------------------------------------------
 // Followers
 // ---------------------------------------------------------------------------
 
@@ -272,6 +306,26 @@ export type FetchPositionsOptions = {
 export type FetchFollowersOptions = {
   /** Wallet address or Clicker profile ID. */
   addressOrId: string;
+};
+
+export type FetchFeedOptions = {
+  /**
+   * Which feed to fetch: `following` (personalized to the current user,
+   * identified server-side from the JWT) or `leaderboard` (generic, shared by
+   * all users). Defaults to `following` server-side when omitted.
+   */
+  scope?: 'following' | 'leaderboard';
+  /**
+   * Filter by one or more chains, given as CAIP-2 chain ids (e.g.
+   * `eip155:8453`). Omit for the server defaults.
+   */
+  chains?: string[];
+  /** Number of results to return. */
+  limit?: number;
+  /** Cursor for older items (infinite scroll). Use `pagination.olderCursor`. */
+  olderThan?: string;
+  /** Cursor for newer items (pull to refresh). Use `pagination.newerCursor`. */
+  newerThan?: string;
 };
 
 export type FetchPositionByIdOptions = {
