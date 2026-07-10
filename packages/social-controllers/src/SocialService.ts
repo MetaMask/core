@@ -550,7 +550,9 @@ export class SocialService extends BaseDataService<
         );
         const feedData = await response.json();
         if (!is(feedData, FeedResponseStruct)) {
-          throw new Error(SocialServiceErrorMessage.FETCH_FEED_INVALID_RESPONSE);
+          throw new Error(
+            SocialServiceErrorMessage.FETCH_FEED_INVALID_RESPONSE,
+          );
         }
         return feedData as FeedResponse;
       },
