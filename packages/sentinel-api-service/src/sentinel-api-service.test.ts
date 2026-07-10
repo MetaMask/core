@@ -1,4 +1,4 @@
-import { DEFAULT_MAX_RETRIES, HttpError } from '@metamask/controller-utils';
+import { HttpError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -10,9 +10,11 @@ import nock, { cleanAll as nockCleanAll } from 'nock';
 
 import {
   BASE_URL_TEMPLATE,
+  ENVIRONMENT_DOMAIN,
   NETWORKS_SUBDOMAIN,
   RPC_METHOD_SEND_RELAY,
   RPC_METHOD_SIMULATE,
+  SentinelEnvironment,
 } from './constants';
 import {
   SentinelApiResponseValidationError,
@@ -37,8 +39,26 @@ const CHAIN_ID_UNKNOWN = '0x539' as Hex; // 1337
 const MAINNET_SUBDOMAIN = 'ethereum-mainnet';
 const UUID = '11111111-1111-1111-1111-111111111111';
 
-const NETWORKS_URL = BASE_URL_TEMPLATE.replace('{0}', NETWORKS_SUBDOMAIN);
-const MAINNET_URL = BASE_URL_TEMPLATE.replace('{0}', MAINNET_SUBDOMAIN);
+/**
+ * Builds the base URL for a subdomain in a given environment, mirroring the
+ * service's internal `#buildUrl`.
+ *
+ * @param subdomain - The network subdomain.
+ * @param environment - The Sentinel environment. Defaults to `Prod`.
+ * @returns The full base URL.
+ */
+function buildUrl(
+  subdomain: string,
+  environment: SentinelEnvironment = SentinelEnvironment.Prod,
+): string {
+  return BASE_URL_TEMPLATE.replace('{0}', subdomain).replace(
+    '{1}',
+    ENVIRONMENT_DOMAIN[environment],
+  );
+}
+
+const NETWORKS_URL = buildUrl(NETWORKS_SUBDOMAIN);
+const MAINNET_URL = buildUrl(MAINNET_SUBDOMAIN);
 
 const MOCK_NETWORKS = {
   '1': {
@@ -122,6 +142,8 @@ function createServiceMessenger(
  * @param options.clientId - The client identifier sent as `X-Client-Id`.
  * @param options.clientVersion - The client version sent as `X-Client-Version`.
  * @param options.fetch - A custom `fetch` implementation.
+ * @param options.environment - The Sentinel environment to target.
+ * @param options.policyOptions - Options forwarded to `createServicePolicy`.
  * @returns The service and its messengers.
  */
 function createService(
@@ -129,6 +151,10 @@ function createService(
     clientId?: string;
     clientVersion?: string;
     fetch?: typeof fetch;
+    environment?: SentinelEnvironment;
+    policyOptions?: ConstructorParameters<
+      typeof SentinelApiService
+    >[0]['policyOptions'];
   } = {},
 ): {
   service: SentinelApiService;
@@ -363,10 +389,7 @@ describe('SentinelApiService', () => {
 
     it('throws HttpError on non-2xx response', async () => {
       const { service } = createService();
-      nock(NETWORKS_URL)
-        .get('/networks')
-        .times(DEFAULT_MAX_RETRIES + 1)
-        .reply(500);
+      nock(NETWORKS_URL).get('/networks').once().reply(500);
 
       await expect(service.getNetworks()).rejects.toThrow(HttpError);
       service.destroy();
@@ -445,10 +468,7 @@ describe('SentinelApiService', () => {
     it('throws HttpError on a non-2xx response', async () => {
       const { service } = createService();
       mockNetworks();
-      nock(MAINNET_URL)
-        .post('/')
-        .times(DEFAULT_MAX_RETRIES + 1)
-        .reply(500);
+      nock(MAINNET_URL).post('/').once().reply(500);
 
       await expect(
         service.simulateTransactions(CHAIN_ID_MAINNET, MOCK_SIMULATION_REQUEST),
@@ -618,7 +638,7 @@ describe('SentinelApiService', () => {
       mockNetworks();
       nock(MAINNET_URL)
         .get(`/smart-transactions/${UUID}`)
-        .times(DEFAULT_MAX_RETRIES + 1)
+        .once()
         .reply(500);
 
       await expect(
@@ -658,6 +678,83 @@ describe('SentinelApiService', () => {
         status: 'VALIDATED',
         transactionHash: '0xhash',
       });
+      service.destroy();
+    });
+  });
+
+  describe('retry policy', () => {
+    it('does not retry by default (single request on failure)', async () => {
+      const { service } = createService();
+      // Only a single attempt is mocked; a retry would trigger a nock
+      // "no match" error, proving retries are disabled by default.
+      const scope = nock(NETWORKS_URL).get('/networks').once().reply(500);
+
+      await expect(service.getNetworks()).rejects.toThrow(HttpError);
+      expect(scope.isDone()).toBe(true);
+      service.destroy();
+    });
+
+    it('retries when maxRetries is opted into via policyOptions', async () => {
+      const { service } = createService({ policyOptions: { maxRetries: 3 } });
+      const scope = nock(NETWORKS_URL)
+        .get('/networks')
+        .times(4)
+        .reply(500);
+
+      await expect(service.getNetworks()).rejects.toThrow(HttpError);
+      expect(scope.isDone()).toBe(true);
+      service.destroy();
+    });
+  });
+
+  describe('environment', () => {
+    it('targets the prod API domain by default', async () => {
+      const { service } = createService();
+      const scope = nock(buildUrl(NETWORKS_SUBDOMAIN, SentinelEnvironment.Prod))
+        .get('/networks')
+        .reply(200, MOCK_NETWORKS);
+
+      const result = await service.getNetworks();
+      expect(result).toStrictEqual(MOCK_NETWORKS);
+      expect(scope.isDone()).toBe(true);
+      service.destroy();
+    });
+
+    it('targets the dev API domain', async () => {
+      const { service } = createService({
+        environment: SentinelEnvironment.Dev,
+      });
+      const scope = nock(buildUrl(NETWORKS_SUBDOMAIN, SentinelEnvironment.Dev))
+        .get('/networks')
+        .reply(200, MOCK_NETWORKS);
+
+      const result = await service.getNetworks();
+      expect(result).toStrictEqual(MOCK_NETWORKS);
+      expect(scope.isDone()).toBe(true);
+      service.destroy();
+    });
+
+    it('targets the uat API domain, including per-chain subdomains', async () => {
+      const { service } = createService({
+        environment: SentinelEnvironment.Uat,
+      });
+      nock(buildUrl(NETWORKS_SUBDOMAIN, SentinelEnvironment.Uat))
+        .get('/networks')
+        .reply(200, MOCK_NETWORKS);
+      const scope = nock(buildUrl(MAINNET_SUBDOMAIN, SentinelEnvironment.Uat))
+        .post('/', (body) => body.method === RPC_METHOD_SIMULATE)
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: '1',
+          result: MOCK_SIMULATION_RESPONSE,
+        });
+
+      const result = await service.simulateTransactions(
+        CHAIN_ID_MAINNET,
+        MOCK_SIMULATION_REQUEST,
+      );
+      expect(result).toStrictEqual(MOCK_SIMULATION_RESPONSE);
+      expect(scope.isDone()).toBe(true);
       service.destroy();
     });
   });

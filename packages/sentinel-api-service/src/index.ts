@@ -1,4 +1,5 @@
 export { SentinelApiService, serviceName } from './sentinel-api-service';
+export { SentinelEnvironment } from './constants';
 export type {
   SentinelApiServiceActions,
   SentinelApiServiceEvents,

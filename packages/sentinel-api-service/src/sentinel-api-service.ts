@@ -13,12 +13,15 @@ import type { QueryClientConfig } from '@tanstack/query-core';
 
 import {
   BASE_URL_TEMPLATE,
+  DEFAULT_ENVIRONMENT,
   ENDPOINT_NETWORKS,
   ENDPOINT_RELAY_STATUS,
+  ENVIRONMENT_DOMAIN,
   NETWORKS_STALE_TIME_MS,
   NETWORKS_SUBDOMAIN,
   RPC_METHOD_SEND_RELAY,
   RPC_METHOD_SIMULATE,
+  SentinelEnvironment,
 } from './constants';
 import {
   SentinelApiResponseValidationError,
@@ -156,6 +159,8 @@ export class SentinelApiService extends BaseDataService<
 
   readonly #clientVersion?: string;
 
+  readonly #environmentDomain: string;
+
   /**
    * Constructs a new SentinelApiService.
    *
@@ -163,6 +168,8 @@ export class SentinelApiService extends BaseDataService<
    * @param args.messenger - The messenger suited for this service.
    * @param args.fetch - The `fetch` function to use for requests. Defaults to
    * the global `fetch`.
+   * @param args.environment - The Sentinel API environment to target
+   * (`dev`, `uat`, or `prod`). Defaults to `prod`.
    * @param args.clientId - Identifier for the calling client (for example
    * `extension` or `mobile`), sent as the `X-Client-Id` header.
    * @param args.clientVersion - Version of the calling client, sent as the
@@ -170,10 +177,14 @@ export class SentinelApiService extends BaseDataService<
    * @param args.queryClientConfig - Configuration for the underlying TanStack
    * Query client.
    * @param args.policyOptions - Options to pass to `createServicePolicy`.
+   * Retries are disabled by default (`maxRetries: 0`) to preserve the
+   * single-attempt behaviour of the clients this service replaces; pass
+   * `maxRetries` here to opt in.
    */
   constructor({
     messenger,
     fetch: fetchFunction = globalThis.fetch,
+    environment = DEFAULT_ENVIRONMENT,
     clientId,
     clientVersion,
     queryClientConfig = {},
@@ -181,6 +192,7 @@ export class SentinelApiService extends BaseDataService<
   }: {
     messenger: SentinelApiServiceMessenger;
     fetch?: typeof fetch;
+    environment?: SentinelEnvironment;
     clientId?: string;
     clientVersion?: string;
     queryClientConfig?: QueryClientConfig;
@@ -191,6 +203,10 @@ export class SentinelApiService extends BaseDataService<
       messenger,
       queryClientConfig,
       policyOptions: {
+        // Disable retries by default so the service is behaviourally
+        // backwards-compatible with the single-request clients it replaces.
+        // Callers can override via `policyOptions.maxRetries`.
+        maxRetries: 0,
         retryFilterPolicy: handleWhen(
           (error) =>
             !(error instanceof SentinelApiResponseValidationError) &&
@@ -202,6 +218,7 @@ export class SentinelApiService extends BaseDataService<
     });
 
     this.#fetch = fetchFunction;
+    this.#environmentDomain = ENVIRONMENT_DOMAIN[environment];
     this.#clientId = clientId;
     this.#clientVersion = clientVersion;
 
@@ -220,7 +237,7 @@ export class SentinelApiService extends BaseDataService<
    * @returns The network registry, keyed by decimal chain ID.
    */
   async getNetworks(): Promise<SentinelNetworkRegistry> {
-    const url = `${buildUrl(NETWORKS_SUBDOMAIN)}${ENDPOINT_NETWORKS}`;
+    const url = `${this.#buildUrl(NETWORKS_SUBDOMAIN)}${ENDPOINT_NETWORKS}`;
 
     const result = await this.fetchQuery({
       queryKey: [`${this.name}:getNetworks`],
@@ -468,7 +485,7 @@ export class SentinelApiService extends BaseDataService<
       throw new SentinelChainNotSupportedError(chainId, capability);
     }
 
-    return buildUrl(network.network);
+    return this.#buildUrl(network.network);
   }
 
   /**
@@ -482,14 +499,18 @@ export class SentinelApiService extends BaseDataService<
     const chainIdDecimal = BigInt(chainId).toString(10);
     return registry[chainIdDecimal];
   }
-}
 
-/**
- * Builds a Sentinel URL for the given network subdomain.
- *
- * @param subdomain - The network subdomain (for example `ethereum-mainnet`).
- * @returns The full base URL.
- */
-function buildUrl(subdomain: string): string {
-  return BASE_URL_TEMPLATE.replace('{0}', subdomain);
+  /**
+   * Builds a Sentinel base URL for the given network subdomain, targeting the
+   * environment this service was constructed with.
+   *
+   * @param subdomain - The network subdomain (for example `ethereum-mainnet`).
+   * @returns The full base URL.
+   */
+  #buildUrl(subdomain: string): string {
+    return BASE_URL_TEMPLATE.replace('{0}', subdomain).replace(
+      '{1}',
+      this.#environmentDomain,
+    );
+  }
 }
