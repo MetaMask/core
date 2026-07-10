@@ -18,7 +18,6 @@ import {
 import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import HttpProvider from '@metamask/ethjs-provider-http';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
-import type { SentinelApiService } from '@metamask/sentinel-api-service';
 import type {
   MockAnyNamespace,
   MessengerActions,
@@ -331,7 +330,6 @@ const ACCOUNT_2_MOCK = '0x08f137f335ea1b8f193b8f6ea92561a60d23a211';
 const NONCE_MOCK = 12;
 const ACTION_ID_MOCK = '123456';
 const CHAIN_ID_MOCK = MOCK_NETWORK.chainId;
-const SENTINEL_API_SERVICE_MOCK = {} as unknown as SentinelApiService;
 const NETWORK_CLIENT_ID_MOCK = 'networkClientIdMock';
 const BATCH_ID_MOCK = '0xabcd12';
 const ERROR_MESSAGE_MOCK = 'Test Error';
@@ -603,7 +601,6 @@ describe('TransactionController', () => {
       hooks: {},
       isEIP7702GasFeeTokensEnabled: isEIP7702GasFeeTokensEnabledMock,
       publicKeyEIP7702: '0x1234',
-      sentinelApiService: SENTINEL_API_SERVICE_MOCK,
       ...givenOptions,
     };
 
@@ -627,6 +624,7 @@ describe('TransactionController', () => {
         'NetworkController:getNetworkClientRegistry',
         'NetworkController:getState',
         'RemoteFeatureFlagController:getState',
+      'SentinelApiService:simulateTransactions',
       ],
     });
 
@@ -1409,7 +1407,6 @@ describe('TransactionController', () => {
       expect(estimateGasMock).toHaveBeenCalledWith({
         isSimulationEnabled: true,
         getSimulationConfig: expect.any(Function),
-        sentinelApiService: SENTINEL_API_SERVICE_MOCK,
         messenger: expect.anything(),
         networkClientId: NETWORK_CLIENT_ID_MOCK,
         txParams: transactionParamsMock,
@@ -2028,7 +2025,6 @@ describe('TransactionController', () => {
         isCustomNetwork: false,
         isSimulationEnabled: true,
         getSimulationConfig: expect.any(Function),
-        sentinelApiService: SENTINEL_API_SERVICE_MOCK,
         messenger: expect.any(Object),
         txMeta: expect.any(Object),
       });
@@ -2306,7 +2302,6 @@ describe('TransactionController', () => {
           blockTime: undefined,
           chainId: MOCK_NETWORK.chainId,
           getSimulationConfig: expect.any(Function),
-          sentinelApiService: SENTINEL_API_SERVICE_MOCK,
           messenger: expect.any(Object),
           nestedTransactions: undefined,
           networkClientId: NETWORK_CLIENT_ID_MOCK,
@@ -2370,7 +2365,6 @@ describe('TransactionController', () => {
         expect(getBalanceChangesMock).toHaveBeenCalledTimes(1);
         expect(getBalanceChangesMock).toHaveBeenCalledWith(
           expect.objectContaining({
-            sentinelApiService: SENTINEL_API_SERVICE_MOCK,
           }),
         );
 
@@ -2477,7 +2471,6 @@ describe('TransactionController', () => {
         expect(getGasFeeTokensMock).toHaveBeenCalledTimes(1);
         expect(getGasFeeTokensMock).toHaveBeenCalledWith(
           expect.objectContaining({
-            sentinelApiService: SENTINEL_API_SERVICE_MOCK,
           }),
         );
 
@@ -7503,7 +7496,6 @@ describe('TransactionController', () => {
         blockTime: 123,
         chainId: ChainId.sepolia,
         getSimulationConfig: expect.any(Function),
-        sentinelApiService: SENTINEL_API_SERVICE_MOCK,
         messenger: expect.any(Object),
         nestedTransactions: undefined,
         networkClientId: InfuraNetworkType.sepolia,
@@ -7546,7 +7538,6 @@ describe('TransactionController', () => {
         blockTime: 123,
         chainId: ChainId.sepolia,
         getSimulationConfig: expect.any(Function),
-        sentinelApiService: SENTINEL_API_SERVICE_MOCK,
         messenger: expect.any(Object),
         nestedTransactions: undefined,
         networkClientId: InfuraNetworkType.sepolia,
@@ -8496,7 +8487,6 @@ describe('TransactionController', () => {
         expect(estimateGasBatchMock).toHaveBeenCalledWith({
           from: ACCOUNT_MOCK,
           getSimulationConfig: expect.any(Function),
-          sentinelApiService: SENTINEL_API_SERVICE_MOCK,
           isAtomicBatchSupported: expect.any(Function),
           messenger: expect.anything(),
           networkClientId: InfuraNetworkType.sepolia,

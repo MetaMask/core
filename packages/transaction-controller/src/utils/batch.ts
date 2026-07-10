@@ -13,7 +13,6 @@ import type {
 } from '@metamask/gas-fee-controller';
 import type { NetworkClientId } from '@metamask/network-controller';
 import { JsonRpcError, rpcErrors } from '@metamask/rpc-errors';
-import type { SentinelApiService } from '@metamask/sentinel-api-service';
 import type { Hex } from '@metamask/utils';
 import { bytesToHex, createModuleLogger } from '@metamask/utils';
 import type { WritableDraft } from 'immer/dist/internal.js';
@@ -92,7 +91,6 @@ type AddTransactionBatchRequest = {
   publicKeyEIP7702?: Hex;
   request: TransactionBatchRequest;
   requestId?: string;
-  sentinelApiService: SentinelApiService;
   signTransaction: (
     transactionMeta: TransactionMeta,
   ) => Promise<string | undefined>;
@@ -950,7 +948,6 @@ async function prepareApprovalData({
     isSimulationEnabled,
     getGasFeeEstimates,
     getSimulationConfig,
-    sentinelApiService,
     update,
   } = request;
 
@@ -974,7 +971,7 @@ async function prepareApprovalData({
     chainId,
     from,
     getSimulationConfig,
-    sentinelApiService,
+    messenger,
     transactions: nestedTransactions,
   });
 

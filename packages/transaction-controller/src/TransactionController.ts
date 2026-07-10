@@ -58,7 +58,7 @@ import {
   providerErrors,
   JsonRpcError,
 } from '@metamask/rpc-errors';
-import type { SentinelApiService } from '@metamask/sentinel-api-service';
+import type { SentinelApiServiceSimulateTransactionsAction } from '@metamask/sentinel-api-service';
 import type { Hex, Json } from '@metamask/utils';
 import { add0x } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
@@ -360,9 +360,6 @@ export type TransactionControllerOptions = {
   /** Public key used to validate EIP-7702 contract signatures in feature flags. */
   publicKeyEIP7702?: Hex;
 
-  /** The Sentinel API service used to simulate transactions. */
-  sentinelApiService: SentinelApiService;
-
   /** Initial state to set on this controller. */
   state?: Partial<TransactionControllerState>;
 
@@ -422,7 +419,8 @@ export type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetNetworkClientRegistryAction
   | NetworkControllerGetStateAction
-  | RemoteFeatureFlagControllerGetStateAction;
+  | RemoteFeatureFlagControllerGetStateAction
+  | SentinelApiServiceSimulateTransactionsAction;
 
 /**
  * The external events available to the {@link TransactionController}.
@@ -743,8 +741,6 @@ export class TransactionController extends BaseController<
 
   readonly #publishBatchHook?: PublishBatchHook;
 
-  readonly #sentinelApiService: SentinelApiService;
-
   readonly #signAbortCallbacks: Map<string, () => void> = new Map();
 
   readonly #skipSimulationTransactionIds: Set<string> = new Set();
@@ -772,7 +768,6 @@ export class TransactionController extends BaseController<
       isTimeoutEnabled,
       messenger,
       publicKeyEIP7702,
-      sentinelApiService,
       state,
       testGasFeeFlows,
       trace,
@@ -807,7 +802,6 @@ export class TransactionController extends BaseController<
     this.#getSimulationConfig =
       getSimulationConfig ??
       ((): ReturnType<GetSimulationConfig> => Promise.resolve({}));
-    this.#sentinelApiService = sentinelApiService;
     this.#isAutomaticGasFeeUpdateEnabled =
       isAutomaticGasFeeUpdateEnabled ??
       ((_txMeta: TransactionMeta): boolean => false);
@@ -987,7 +981,6 @@ export class TransactionController extends BaseController<
       publishTransaction: (transactionMeta: TransactionMeta) =>
         this.#publishTransaction(transactionMeta) as Promise<Hex>,
       request,
-      sentinelApiService: this.#sentinelApiService,
       signTransaction: this.#signTransaction.bind(this),
       update: this.update.bind(this),
       updateTransaction: this.#updateTransactionInternal.bind(this),
@@ -1500,7 +1493,6 @@ export class TransactionController extends BaseController<
       getSimulationConfig: this.#getSimulationConfig,
       messenger: this.messenger,
       networkClientId,
-      sentinelApiService: this.#sentinelApiService,
       txParams: transaction,
     });
 
@@ -1534,7 +1526,6 @@ export class TransactionController extends BaseController<
         messenger: this.messenger,
         chainId,
       }),
-      sentinelApiService: this.#sentinelApiService,
       transactions,
     });
   }
@@ -1560,7 +1551,6 @@ export class TransactionController extends BaseController<
       getSimulationConfig: this.#getSimulationConfig,
       messenger: this.messenger,
       networkClientId,
-      sentinelApiService: this.#sentinelApiService,
       txParams: transaction,
     });
 
@@ -4054,7 +4044,6 @@ export class TransactionController extends BaseController<
             messenger: this.messenger,
             networkClientId,
             nestedTransactions,
-            sentinelApiService: this.#sentinelApiService,
             txParams,
           }),
       );
@@ -4238,7 +4227,6 @@ export class TransactionController extends BaseController<
       isSimulationEnabled: this.#isSimulationEnabled(),
       getSimulationConfig: this.#getSimulationConfig,
       messenger: this.messenger,
-      sentinelApiService: this.#sentinelApiService,
       txMeta: transactionMeta,
     });
   }
@@ -4402,7 +4390,6 @@ export class TransactionController extends BaseController<
       isEIP7702GasFeeTokensEnabled: this.#isEIP7702GasFeeTokensEnabled,
       messenger: this.messenger,
       publicKeyEIP7702: this.#publicKeyEIP7702,
-      sentinelApiService: this.#sentinelApiService,
       transactionMeta: transaction,
     });
   }

@@ -1,4 +1,4 @@
-import type { SentinelApiService } from '@metamask/sentinel-api-service';
+import type { SentinelSimulationResponse } from '@metamask/sentinel-api-service';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
@@ -6,7 +6,8 @@ import {
   CODE_DELEGATION_MANAGER_NO_SIGNATURE_ERRORS,
   DELEGATION_MANAGER_ADDRESSES,
 } from '../constants';
-import type { SimulationRequest, SimulationResponse } from './simulation-api';
+import type { TransactionControllerMessenger } from '../TransactionController';
+import type { SimulationRequest } from './simulation-api';
 import { simulateTransactions } from './simulation-api';
 
 const CHAIN_ID_MOCK = '0x1';
@@ -24,7 +25,7 @@ const REQUEST_MOCK: SimulationRequest = {
   withLogs: false,
 };
 
-const RESPONSE_MOCK: SimulationResponse = {
+const RESPONSE_MOCK: SentinelSimulationResponse = {
   transactions: [
     {
       return: '0x1',
@@ -53,72 +54,57 @@ const RESPONSE_MOCK: SimulationResponse = {
 };
 
 /**
- * Create a mock {@link SentinelApiService} exposing jest-mocked
- * `simulateTransactions` and `getNetworks` methods.
+ * Create a mock {@link TransactionControllerMessenger} whose `call` method is
+ * a jest mock that resolves the `SentinelApiService:simulateTransactions`
+ * action with {@link RESPONSE_MOCK}.
  *
- * @returns The mocked service.
+ * @returns The messenger mock and its underlying `call` jest mock.
  */
-function createSentinelApiServiceMock(): jest.Mocked<
-  Pick<SentinelApiService, 'simulateTransactions' | 'getNetworks'>
-> {
-  return {
-    simulateTransactions: jest.fn(),
-    getNetworks: jest.fn(),
-  } as unknown as jest.Mocked<
-    Pick<SentinelApiService, 'simulateTransactions' | 'getNetworks'>
-  >;
+function createMessengerMock(): {
+  messenger: TransactionControllerMessenger;
+  callMock: jest.Mock;
+} {
+  const callMock = jest.fn().mockResolvedValue(RESPONSE_MOCK);
+  const messenger = { call: callMock } as unknown as TransactionControllerMessenger;
+  return { messenger, callMock };
 }
 
 describe('Simulation API Utils', () => {
-  let sentinelApiServiceMock: ReturnType<typeof createSentinelApiServiceMock>;
+  let messenger: TransactionControllerMessenger;
+  let callMock: jest.Mock;
 
   beforeEach(() => {
-    sentinelApiServiceMock = createSentinelApiServiceMock();
-
-    sentinelApiServiceMock.simulateTransactions.mockResolvedValue(
-      RESPONSE_MOCK as never,
-    );
+    ({ messenger, callMock } = createMessengerMock());
   });
 
   describe('simulateTransactions', () => {
-    it('returns response from the Sentinel API service', async () => {
+    it('returns response from the Sentinel simulation action', async () => {
       expect(
-        await simulateTransactions(
-          sentinelApiServiceMock as unknown as SentinelApiService,
-          CHAIN_ID_MOCK,
-          REQUEST_MOCK,
-        ),
+        await simulateTransactions(messenger, CHAIN_ID_MOCK, REQUEST_MOCK),
       ).toStrictEqual(RESPONSE_MOCK);
     });
 
-    it('delegates to the Sentinel API service with the chain ID and finalized request', async () => {
-      await simulateTransactions(
-        sentinelApiServiceMock as unknown as SentinelApiService,
-        CHAIN_ID_MOCK,
-        REQUEST_MOCK,
-      );
+    it('invokes the Sentinel simulation action with the chain ID and finalized request', async () => {
+      await simulateTransactions(messenger, CHAIN_ID_MOCK, REQUEST_MOCK);
 
-      expect(
-        sentinelApiServiceMock.simulateTransactions,
-      ).toHaveBeenCalledTimes(1);
-      expect(sentinelApiServiceMock.simulateTransactions).toHaveBeenCalledWith(
+      expect(callMock).toHaveBeenCalledTimes(1);
+      expect(callMock).toHaveBeenCalledWith(
+        'SentinelApiService:simulateTransactions',
         CHAIN_ID_MOCK,
         REQUEST_MOCK,
         {},
       );
     });
 
-    it('does not forward getSimulationConfig to the Sentinel API service', async () => {
+    it('does not forward getSimulationConfig to the Sentinel simulation action', async () => {
       const getSimulationConfig = jest.fn().mockResolvedValue({});
 
-      await simulateTransactions(
-        sentinelApiServiceMock as unknown as SentinelApiService,
-        CHAIN_ID_MOCK,
-        { ...REQUEST_MOCK, getSimulationConfig },
-      );
+      await simulateTransactions(messenger, CHAIN_ID_MOCK, {
+        ...REQUEST_MOCK,
+        getSimulationConfig,
+      });
 
-      const forwardedRequest = sentinelApiServiceMock.simulateTransactions.mock
-        .calls[0][1] as unknown as SimulationRequest;
+      const forwardedRequest = callMock.mock.calls[0][2] as SimulationRequest;
 
       expect(forwardedRequest).not.toHaveProperty('getSimulationConfig');
       expect(forwardedRequest).toStrictEqual(REQUEST_MOCK);
@@ -128,14 +114,14 @@ describe('Simulation API Utils', () => {
       const newUrl = 'https://shield.example.com/simulate';
       const getSimulationConfig = jest.fn().mockResolvedValue({ newUrl });
 
-      await simulateTransactions(
-        sentinelApiServiceMock as unknown as SentinelApiService,
-        CHAIN_ID_MOCK,
-        { ...REQUEST_MOCK, getSimulationConfig },
-      );
+      await simulateTransactions(messenger, CHAIN_ID_MOCK, {
+        ...REQUEST_MOCK,
+        getSimulationConfig,
+      });
 
-      const options = sentinelApiServiceMock.simulateTransactions.mock
-        .calls[0][2] as { getUrl?: (defaultUrl: string) => Promise<string> };
+      const options = callMock.mock.calls[0][3] as {
+        getUrl?: (defaultUrl: string) => Promise<string>;
+      };
 
       expect(options.getUrl).toBeDefined();
       expect(await options.getUrl?.('https://default.example.com')).toBe(
@@ -150,14 +136,14 @@ describe('Simulation API Utils', () => {
       const getSimulationConfig = jest.fn().mockResolvedValue({});
       const defaultUrl = 'https://default.example.com';
 
-      await simulateTransactions(
-        sentinelApiServiceMock as unknown as SentinelApiService,
-        CHAIN_ID_MOCK,
-        { ...REQUEST_MOCK, getSimulationConfig },
-      );
+      await simulateTransactions(messenger, CHAIN_ID_MOCK, {
+        ...REQUEST_MOCK,
+        getSimulationConfig,
+      });
 
-      const options = sentinelApiServiceMock.simulateTransactions.mock
-        .calls[0][2] as { getUrl?: (defaultUrl: string) => Promise<string> };
+      const options = callMock.mock.calls[0][3] as {
+        getUrl?: (defaultUrl: string) => Promise<string>;
+      };
 
       expect(await options.getUrl?.(defaultUrl)).toBe(defaultUrl);
     });
@@ -166,27 +152,22 @@ describe('Simulation API Utils', () => {
       const getSimulationConfig = jest.fn().mockResolvedValue(undefined);
       const defaultUrl = 'https://default.example.com';
 
-      await simulateTransactions(
-        sentinelApiServiceMock as unknown as SentinelApiService,
-        CHAIN_ID_MOCK,
-        { ...REQUEST_MOCK, getSimulationConfig },
-      );
+      await simulateTransactions(messenger, CHAIN_ID_MOCK, {
+        ...REQUEST_MOCK,
+        getSimulationConfig,
+      });
 
-      const options = sentinelApiServiceMock.simulateTransactions.mock
-        .calls[0][2] as { getUrl?: (defaultUrl: string) => Promise<string> };
+      const options = callMock.mock.calls[0][3] as {
+        getUrl?: (defaultUrl: string) => Promise<string>;
+      };
 
       expect(await options.getUrl?.(defaultUrl)).toBe(defaultUrl);
     });
 
     it('does not pass a getUrl option when getSimulationConfig is absent', async () => {
-      await simulateTransactions(
-        sentinelApiServiceMock as unknown as SentinelApiService,
-        CHAIN_ID_MOCK,
-        REQUEST_MOCK,
-      );
+      await simulateTransactions(messenger, CHAIN_ID_MOCK, REQUEST_MOCK);
 
-      const options =
-        sentinelApiServiceMock.simulateTransactions.mock.calls[0][2];
+      const options = callMock.mock.calls[0][3];
 
       expect(options).toStrictEqual({});
     });
@@ -194,25 +175,17 @@ describe('Simulation API Utils', () => {
     it('does not mutate the original request', async () => {
       const request = cloneDeep(REQUEST_MOCK);
 
-      await simulateTransactions(
-        sentinelApiServiceMock as unknown as SentinelApiService,
-        CHAIN_ID_MOCK,
-        request,
-      );
+      await simulateTransactions(messenger, CHAIN_ID_MOCK, request);
 
       expect(request).toStrictEqual(REQUEST_MOCK);
     });
 
-    it('propagates errors thrown by the Sentinel API service', async () => {
+    it('propagates errors thrown by the Sentinel simulation action', async () => {
       const error = new Error('Test Error Message');
-      sentinelApiServiceMock.simulateTransactions.mockRejectedValueOnce(error);
+      callMock.mockRejectedValueOnce(error);
 
       await expect(
-        simulateTransactions(
-          sentinelApiServiceMock as unknown as SentinelApiService,
-          CHAIN_ID_MOCK,
-          REQUEST_MOCK,
-        ),
+        simulateTransactions(messenger, CHAIN_ID_MOCK, REQUEST_MOCK),
       ).rejects.toThrow(error);
     });
 
@@ -221,19 +194,12 @@ describe('Simulation API Utils', () => {
       request.transactions[0].to =
         DELEGATION_MANAGER_ADDRESSES[0].toUpperCase() as Hex;
 
-      await simulateTransactions(
-        sentinelApiServiceMock as unknown as SentinelApiService,
-        CHAIN_ID_MOCK,
-        request,
-      );
+      await simulateTransactions(messenger, CHAIN_ID_MOCK, request);
 
-      const finalizedRequest =
-        sentinelApiServiceMock.simulateTransactions.mock.calls[0][1];
+      const finalizedRequest = callMock.mock.calls[0][2] as SimulationRequest;
 
       expect(
-        (finalizedRequest as unknown as SimulationRequest).overrides?.[
-          DELEGATION_MANAGER_ADDRESSES[0]
-        ],
+        finalizedRequest.overrides?.[DELEGATION_MANAGER_ADDRESSES[0] as Hex],
       ).toStrictEqual({
         code: CODE_DELEGATION_MANAGER_NO_SIGNATURE_ERRORS,
       });
@@ -242,18 +208,17 @@ describe('Simulation API Utils', () => {
     it('initializes overrides when overriding DelegationManager code with no existing overrides', async () => {
       const request: SimulationRequest = {
         transactions: [
-          { from: '0x1', to: DELEGATION_MANAGER_ADDRESSES[0], value: '0x1' },
+          {
+            from: '0x1',
+            to: DELEGATION_MANAGER_ADDRESSES[0] as Hex,
+            value: '0x1',
+          },
         ],
       };
 
-      await simulateTransactions(
-        sentinelApiServiceMock as unknown as SentinelApiService,
-        CHAIN_ID_MOCK,
-        request,
-      );
+      await simulateTransactions(messenger, CHAIN_ID_MOCK, request);
 
-      const finalizedRequest = sentinelApiServiceMock.simulateTransactions.mock
-        .calls[0][1] as unknown as SimulationRequest;
+      const finalizedRequest = callMock.mock.calls[0][2] as SimulationRequest;
 
       expect(finalizedRequest.overrides).toStrictEqual({
         [DELEGATION_MANAGER_ADDRESSES[0]]: {
@@ -263,14 +228,9 @@ describe('Simulation API Utils', () => {
     });
 
     it('does not apply DelegationManager override for other recipients', async () => {
-      await simulateTransactions(
-        sentinelApiServiceMock as unknown as SentinelApiService,
-        CHAIN_ID_MOCK,
-        REQUEST_MOCK,
-      );
+      await simulateTransactions(messenger, CHAIN_ID_MOCK, REQUEST_MOCK);
 
-      const finalizedRequest = sentinelApiServiceMock.simulateTransactions.mock
-        .calls[0][1] as unknown as SimulationRequest;
+      const finalizedRequest = callMock.mock.calls[0][2] as SimulationRequest;
 
       expect(finalizedRequest.overrides).toStrictEqual(REQUEST_MOCK.overrides);
     });

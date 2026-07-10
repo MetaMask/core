@@ -1,6 +1,10 @@
 import type { NetworkClientId } from '@metamask/network-controller';
 import { rpcErrors } from '@metamask/rpc-errors';
-import type { SentinelApiService } from '@metamask/sentinel-api-service';
+import type {
+  SentinelSimulationResponse,
+  SentinelSimulationResponseTransaction,
+  SentinelSimulationTransaction,
+} from '@metamask/sentinel-api-service';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
@@ -10,11 +14,6 @@ import type {
   TransactionMeta,
 } from '..';
 import { simulateTransactions } from '../api/simulation-api';
-import type { SimulationRequestTransaction } from '../api/simulation-api';
-import type {
-  SimulationResponse,
-  SimulationResponseTransaction,
-} from '../api/simulation-api';
 import { projectLogger } from '../logger';
 import type { GetSimulationConfig } from '../types';
 import { isNativeBalanceSufficientForGas } from './balance';
@@ -32,7 +31,6 @@ export type GetGasFeeTokensRequest = {
   getSimulationConfig?: GetSimulationConfig;
   messenger: TransactionControllerMessenger;
   publicKeyEIP7702?: Hex;
-  sentinelApiService: SentinelApiService;
   transactionMeta: TransactionMeta;
 };
 
@@ -45,7 +43,6 @@ export type GetGasFeeTokensRequest = {
  * @param request.getSimulationConfig - Optional callback to rewrite the simulation request URL.
  * @param request.messenger - The messenger instance.
  * @param request.publicKeyEIP7702 - Public key to validate EIP-7702 contract signatures.
- * @param request.sentinelApiService - The Sentinel API service used to simulate transactions.
  * @param request.transactionMeta - The transaction metadata.
  * @returns An array of gas fee tokens.
  */
@@ -55,7 +52,6 @@ export async function getGasFeeTokens({
   getSimulationConfig,
   messenger,
   publicKeyEIP7702,
-  sentinelApiService,
   transactionMeta,
 }: GetGasFeeTokensRequest): Promise<{
   gasFeeTokens: GasFeeToken[];
@@ -77,7 +73,7 @@ export async function getGasFeeTokens({
     is7702GasFeeTokensEnabled && doesChainSupportEIP7702(chainId, messenger);
 
   let authorizationList:
-    | SimulationRequestTransaction['authorizationList']
+    | SentinelSimulationTransaction['authorizationList']
     | undefined = authorizationListRequest?.map((authorization) => ({
     address: authorization.address,
     from,
@@ -93,7 +89,7 @@ export async function getGasFeeTokens({
   }
 
   try {
-    const response = await simulateTransactions(sentinelApiService, chainId, {
+    const response = await simulateTransactions(messenger, chainId, {
       getSimulationConfig,
       transactions: [
         {
@@ -217,12 +213,12 @@ export async function checkGasFeeTokenBeforePublish({
  * @param response - The simulation response.
  * @returns gasFeeTokens: An array of gas fee tokens. isGasFeeSponsored: Whether the transaction is sponsored
  */
-function parseGasFeeTokens(response: SimulationResponse): {
+function parseGasFeeTokens(response: SentinelSimulationResponse): {
   gasFeeTokens: GasFeeToken[];
   isGasFeeSponsored: boolean;
 } {
   const feeLevel = response.transactions?.[0]
-    ?.fees?.[0] as Required<SimulationResponseTransaction>['fees'][0];
+    ?.fees?.[0] as Required<SentinelSimulationResponseTransaction>['fees'][0];
 
   const isGasFeeSponsored = response.sponsorship?.isSponsored ?? false;
 
@@ -267,7 +263,7 @@ function buildAuthorizationList({
   from: Hex;
   messenger: TransactionControllerMessenger;
   publicKeyEIP7702?: Hex;
-}): SimulationRequestTransaction['authorizationList'] | undefined {
+}): SentinelSimulationTransaction['authorizationList'] | undefined {
   if (!publicKeyEIP7702) {
     throw rpcErrors.internal(ERROR_MESSGE_PUBLIC_KEY);
   }

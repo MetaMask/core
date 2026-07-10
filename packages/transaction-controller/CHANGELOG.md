@@ -9,23 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **BREAKING:** Add required `sentinelApiService` constructor option, an instance of `SentinelApiService` from `@metamask/sentinel-api-service`, used to perform all Sentinel simulation requests ([#0](https://github.com/MetaMask/core/pull/0))
-  - Consumers must construct a `SentinelApiService` (with its own `fetch` and messenger) and pass it to the `TransactionController`.
-  - Adds a dependency on `@metamask/sentinel-api-service`.
-- Add optional `getSimulationConfig` constructor option and `GetSimulationConfig` type, allowing consumers to rewrite the simulation request URL (for example to route through the MetaMask Shield proxy) ([#0](https://github.com/MetaMask/core/pull/0))
-  - The callback receives the default URL and returns `{ newUrl?: string }`; when `newUrl` is provided it replaces the resolved Sentinel URL for that request, routed through the service's `getUrl` option.
-  - This is a reduced version of the previously-removed option: the old `authorization` return field is dropped, as authentication headers are now handled by `SentinelApiService`.
 - Export `generateEIP7702BatchTransaction` utility for building an ERC-7821 `execute(mode, calls)` batch transaction from a list of nested transactions ([#9298](https://github.com/MetaMask/core/pull/9298))
 
 ### Changed
 
-- Delegate all Sentinel simulation requests (`infura_simulateTransactions`), the supported-network registry (`/networks`) lookup, and subdomain URL resolution to the shared `@metamask/sentinel-api-service` data service ([#0](https://github.com/MetaMask/core/pull/0))
-  - Removes the controller's own simulation client, `/networks` client, and per-request refetch of the registry (the service caches it).
-
-### Removed
-
-- **BREAKING:** Drop the `authorization` field from the `getSimulationConfig` return value ([#0](https://github.com/MetaMask/core/pull/0))
-  - The `GetSimulationConfig` type now returns only `{ newUrl?: string }`; authentication headers are handled by the injected `SentinelApiService` instead.
+- **BREAKING:** Delegate all Sentinel simulation requests to the shared `@metamask/sentinel-api-service` data service via the new `SentinelApiService:simulateTransactions` messenger action ([#9476](https://github.com/MetaMask/core/pull/9476))
+  - Consumers must construct a `SentinelApiService` and expose the `SentinelApiService:simulateTransactions` action on the `TransactionController` messenger. The optional `getSimulationConfig` constructor option now returns `{ newUrl?: string }` only (the old `authorization` field is dropped, as authentication headers are handled by the service).
 
 ## [68.3.0]
 
