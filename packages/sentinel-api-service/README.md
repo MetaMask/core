@@ -1,6 +1,6 @@
 # `@metamask/sentinel-api-service`
 
-Data service for the MetaMask Sentinel transaction simulation and relay API
+Data service for the MetaMask Sentinel API
 
 ## Installation
 

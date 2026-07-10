@@ -49,8 +49,6 @@ import type {
   SentinelSimulationRequest,
 } from './types';
 
-// === GENERAL ===
-
 /**
  * The name of the {@link SentinelApiService}, used to namespace the service's
  * actions and events.
@@ -58,8 +56,6 @@ import type {
 export const serviceName = 'SentinelApiService';
 
 const log = createModuleLogger(projectLogger, serviceName);
-
-// === MESSENGER ===
 
 const MESSENGER_EXPOSED_METHODS = [
   'getNetworks',
@@ -131,28 +127,6 @@ export type SentinelApiServiceMessenger = Messenger<
   SentinelApiServiceEvents | AllowedEvents
 >;
 
-// === SERVICE DEFINITION ===
-
-/**
- * Data service that centralises all interactions with the MetaMask Sentinel
- * API (`tx-sentinel-<network>.api.cx.metamask.io`).
- *
- * It exposes one method per Sentinel endpoint:
- * - {@link SentinelApiService.getNetworks} — the supported-network registry
- * (`/networks`), cached since it is stable and identical across subdomains.
- * - {@link SentinelApiService.simulateTransactions} — transaction simulation
- * (`infura_simulateTransactions`), used by `@metamask/transaction-controller`
- * and `@metamask/transaction-pay-controller`.
- * - {@link SentinelApiService.submitRelayTransaction} — gas station relay
- * submission (`eth_sendRelayTransaction`), used by the extension and mobile.
- * - {@link SentinelApiService.getRelayStatus} — relay status polling.
- *
- * Consumers derive higher-level concerns (whether a chain supports simulation
- * or relay, polling loops, etc.) from the raw endpoint responses.
- */
-/**
- * Constructor options for {@link SentinelApiService}.
- */
 export type SentinelApiServiceOptions = {
   /** The messenger suited for this service. */
   messenger: SentinelApiServiceMessenger;
@@ -191,6 +165,23 @@ export type SentinelApiServiceOptions = {
   policyOptions?: CreateServicePolicyOptions;
 };
 
+/**
+ * Data service that centralises all interactions with the MetaMask Sentinel
+ * API (`tx-sentinel-<network>.api.cx.metamask.io`).
+ *
+ * It exposes one method per Sentinel endpoint:
+ * - {@link SentinelApiService.getNetworks} — the supported-network registry
+ * (`/networks`), cached since it is stable and identical across subdomains.
+ * - {@link SentinelApiService.simulateTransactions} — transaction simulation
+ * (`infura_simulateTransactions`), used by `@metamask/transaction-controller`
+ * and `@metamask/transaction-pay-controller`.
+ * - {@link SentinelApiService.submitRelayTransaction} — gas station relay
+ * submission (`eth_sendRelayTransaction`), used by the extension and mobile.
+ * - {@link SentinelApiService.getRelayStatus} — relay status polling.
+ *
+ * Consumers derive higher-level concerns (whether a chain supports simulation
+ * or relay, polling loops, etc.) from the raw endpoint responses.
+ */
 export class SentinelApiService extends BaseDataService<
   typeof serviceName,
   SentinelApiServiceMessenger
@@ -279,12 +270,15 @@ export class SentinelApiService extends BaseDataService<
       staleTime: NETWORKS_STALE_TIME_MS,
       queryFn: async (): Promise<Json> => {
         const headers = await this.#getHeaders();
+
+        log('Request', 'getNetworks', url);
+
         const response = await this.#fetch(url, { headers });
 
         if (!response.ok) {
           throw new HttpError(
             response.status,
-            `Sentinel networks request failed with status '${response.status}'`,
+            `Sentinel API: networks request failed with status '${response.status}'`,
           );
         }
 
@@ -293,9 +287,11 @@ export class SentinelApiService extends BaseDataService<
         const [error] = validate(json, SentinelNetworkRegistryStruct);
         if (error) {
           throw new SentinelApiResponseValidationError(
-            `Malformed response from networks endpoint: ${error.message}`,
+            `Sentinel API: malformed response from networks endpoint: ${error.message}`,
           );
         }
+
+        log('Response', 'getNetworks', json);
 
         return json;
       },
@@ -311,13 +307,20 @@ export class SentinelApiService extends BaseDataService<
    *
    * @param chainId - The chain ID to simulate on.
    * @param request - The simulation request.
+   * @param options - Additional options.
+   * @param options.getUrl - Optional callback that receives the default
+   * Sentinel URL resolved for the chain and returns the URL to use instead.
+   * Lets consumers rewrite the request URL (for example to route through the
+   * MetaMask Shield proxy) without the service knowing about those concerns.
    * @returns The simulation response.
    */
   async simulateTransactions(
     chainId: Hex,
     request: SentinelSimulationRequest,
+    options: { getUrl?: (defaultUrl: string) => string | Promise<string> } = {},
   ): Promise<SentinelSimulationResponse> {
-    const url = await this.#resolveUrl(chainId, 'confirmations');
+    const defaultUrl = await this.#resolveUrl(chainId, 'confirmations');
+    const url = options.getUrl ? await options.getUrl(defaultUrl) : defaultUrl;
 
     const result = await this.fetchQuery({
       queryKey: [`${this.name}:simulateTransactions`, chainId],
@@ -330,7 +333,7 @@ export class SentinelApiService extends BaseDataService<
         const [error] = validate(rpcResult, SentinelSimulationResponseStruct);
         if (error) {
           throw new SentinelApiResponseValidationError(
-            `Malformed response from simulation endpoint: ${error.message}`,
+            `Sentinel API: malformed response from simulation endpoint: ${error.message}`,
           );
         }
 
@@ -364,7 +367,7 @@ export class SentinelApiService extends BaseDataService<
         const [error] = validate(rpcResult, SentinelRelaySubmitResponseStruct);
         if (error) {
           throw new SentinelApiResponseValidationError(
-            `Malformed response from relay submit endpoint: ${error.message}`,
+            `Sentinel API: malformed response from relay submit endpoint: ${error.message}`,
           );
         }
 
@@ -395,12 +398,15 @@ export class SentinelApiService extends BaseDataService<
       staleTime: 0,
       queryFn: async (): Promise<Json> => {
         const headers = await this.#getHeaders();
+
+        log('Request', 'getRelayStatus', url);
+
         const response = await this.#fetch(url, { headers });
 
         if (!response.ok) {
           throw new HttpError(
             response.status,
-            `Sentinel relay status request failed with status '${response.status}'`,
+            `Sentinel API: relay status request failed with status '${response.status}'`,
           );
         }
 
@@ -409,9 +415,11 @@ export class SentinelApiService extends BaseDataService<
         const [error, validated] = validate(json, RawRelayStatusResponseStruct);
         if (error) {
           throw new SentinelApiResponseValidationError(
-            `Malformed response from relay status endpoint: ${error.message}`,
+            `Sentinel API: malformed response from relay status endpoint: ${error.message}`,
           );
         }
+
+        log('Response', 'getRelayStatus', json);
 
         const first = validated.transactions[0];
 
@@ -439,6 +447,8 @@ export class SentinelApiService extends BaseDataService<
   async #jsonRpc(url: string, method: string, params: Json[]): Promise<Json> {
     const headers = await this.#getHeaders();
 
+    log('Request', method, url, params);
+
     const response = await this.#fetch(url, {
       method: 'POST',
       headers: {
@@ -456,7 +466,7 @@ export class SentinelApiService extends BaseDataService<
     if (!response.ok) {
       throw new HttpError(
         response.status,
-        `Sentinel ${method} request failed with status '${response.status}'`,
+        `Sentinel API: ${method} request failed with status '${response.status}'`,
       );
     }
 
@@ -464,8 +474,10 @@ export class SentinelApiService extends BaseDataService<
 
     if (responseJson.error) {
       const { code, message } = responseJson.error;
-      throw new SentinelSimulationError(message, code);
+      throw new SentinelSimulationError(`Sentinel API: ${message}`, code);
     }
+
+    log('Response', method, responseJson.result);
 
     return responseJson.result;
   }

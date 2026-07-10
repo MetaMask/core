@@ -215,20 +215,18 @@ describe('SentinelApiService', () => {
     it('builds a chain-not-supported message with a capability', () => {
       const error = new SentinelChainNotSupportedError('0x1', 'confirmations');
       expect(error.message).toBe(
-        "Sentinel does not support 'confirmations' for chain 0x1",
+        "Sentinel API: does not support 'confirmations' for chain 0x1",
       );
     });
 
     it('builds a chain-not-supported message without a capability', () => {
       const error = new SentinelChainNotSupportedError('0x1');
-      expect(error.message).toBe('Sentinel does not support chain 0x1');
+      expect(error.message).toBe('Sentinel API: does not support chain 0x1');
     });
 
     it('uses a default validation-error message', () => {
       const error = new SentinelApiResponseValidationError();
-      expect(error.message).toBe(
-        'SentinelApiService: malformed response received from Sentinel API',
-      );
+      expect(error.message).toBe('Sentinel API: malformed response received');
     });
 
     it('captures a JSON-RPC error code', () => {
@@ -436,6 +434,30 @@ describe('SentinelApiService', () => {
         CHAIN_ID_MAINNET,
         MOCK_SIMULATION_REQUEST,
       );
+      expect(result).toStrictEqual(MOCK_SIMULATION_RESPONSE);
+      service.destroy();
+    });
+
+    it('routes the request through the URL returned by the getUrl callback', async () => {
+      const { service } = createService();
+      mockNetworks();
+      const proxyUrl = 'https://proxy.example.com/proxy';
+      nock('https://proxy.example.com')
+        .post('/proxy', (body) => body.method === RPC_METHOD_SIMULATE)
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: '1',
+          result: MOCK_SIMULATION_RESPONSE,
+        });
+
+      const getUrl = jest.fn().mockReturnValue(proxyUrl);
+      const result = await service.simulateTransactions(
+        CHAIN_ID_MAINNET,
+        MOCK_SIMULATION_REQUEST,
+        { getUrl },
+      );
+
+      expect(getUrl).toHaveBeenCalledWith(MAINNET_URL);
       expect(result).toStrictEqual(MOCK_SIMULATION_RESPONSE);
       service.destroy();
     });

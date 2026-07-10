@@ -22,8 +22,8 @@ export class SentinelChainNotSupportedError extends Error {
   constructor(chainId: string, capability?: string) {
     super(
       capability
-        ? `Sentinel does not support '${capability}' for chain ${chainId}`
-        : `Sentinel does not support chain ${chainId}`,
+        ? `Sentinel API: does not support '${capability}' for chain ${chainId}`
+        : `Sentinel API: does not support chain ${chainId}`,
     );
     this.name = 'SentinelChainNotSupportedError';
   }
@@ -37,10 +37,7 @@ export class SentinelChainNotSupportedError extends Error {
  */
 export class SentinelApiResponseValidationError extends Error {
   constructor(message?: string) {
-    super(
-      message ??
-        'SentinelApiService: malformed response received from Sentinel API',
-    );
+    super(message ?? 'Sentinel API: malformed response received');
     this.name = 'SentinelApiResponseValidationError';
   }
 }

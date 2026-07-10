@@ -31,7 +31,6 @@
 /packages/logging-controller                @MetaMask/confirmations
 /packages/message-manager                   @MetaMask/confirmations
 /packages/name-controller                   @MetaMask/confirmations
-/packages/sentinel-api-service              @MetaMask/confirmations @MetaMask/transactions
 /packages/signature-controller              @MetaMask/confirmations
 /packages/transaction-controller            @MetaMask/confirmations
 /packages/transaction-pay-controller        @MetaMask/confirmations
@@ -39,6 +38,9 @@
 
 ## Transactions Team
 /packages/smart-transactions-controller     @MetaMask/transactions
+
+## Confirmations & Transactions Teams
+/packages/sentinel-api-service              @MetaMask/confirmations @MetaMask/transactions
 
 ## Delegation Team
 /packages/delegation-controller             @MetaMask/delegation

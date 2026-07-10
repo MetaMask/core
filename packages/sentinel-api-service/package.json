@@ -1,7 +1,7 @@
 {
   "name": "@metamask/sentinel-api-service",
   "version": "0.0.0",
-  "description": "Data service for the MetaMask Sentinel transaction simulation and relay API",
+  "description": "Data service for the MetaMask Sentinel API",
   "keywords": [
     "Ethereum",
     "MetaMask"
