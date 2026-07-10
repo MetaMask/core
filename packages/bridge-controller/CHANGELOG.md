@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add Robinhood Chain mainnet as a supported bridge network ([#9459](https://github.com/MetaMask/core/pull/9459)).
+- Add Robinhood Chain mainnet as a supported bridge network. ([#9459](https://github.com/MetaMask/core/pull/9459))
 
 ### Changed
 
