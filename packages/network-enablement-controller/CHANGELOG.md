@@ -15,7 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Restore Stellar to the Network Enablement Controller enabled network map by reverting the temporary rollback, as the corresponding Extension issue has already been resolved ([#9385](https://github.com/MetaMask/core/pull/9385))
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
-- Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.4.0` ([#9421](https://github.com/MetaMask/core/pull/9421), [#9456](https://github.com/MetaMask/core/pull/9456))
+- Bump `@metamask/transaction-controller` from `^68.2.2` to `^69.0.0` ([#9421](https://github.com/MetaMask/core/pull/9421), [#9456](https://github.com/MetaMask/core/pull/9456), [#9465](https://github.com/MetaMask/core/pull/9465))
 - Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
 
 ## [5.4.1]
