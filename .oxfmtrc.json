@@ -11,6 +11,9 @@
       ["internal", "parent", "sibling", "index", "unknown"]
     ]
   },
+  "sortPackageJson": {
+    "sortScripts": true
+  },
   "tabWidth": 2,
   "trailingComma": "all",
   "ignorePatterns": [".yarnrc.yml", "merged-packages/**"]
