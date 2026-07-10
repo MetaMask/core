@@ -25,7 +25,7 @@ import {
   hydrate,
 } from '@tanstack/query-core';
 import deepEqual from 'fast-deep-equal';
-import { debounce } from 'lodash';
+import { debounce, DebouncedFunc } from 'lodash';
 
 import {
   createServicePolicy,
@@ -114,8 +114,13 @@ export class BaseDataService<
 
   readonly #messenger: Messenger<
     ServiceName,
-    DataServiceActions<ServiceName> | DataServiceAllowedActions,
+    DataServiceActions<ServiceName>,
     DataServiceEvents<ServiceName>
+  >;
+
+  readonly #externalMessenger: Messenger<
+    ServiceName,
+    DataServiceAllowedActions
   >;
 
   protected messenger: ServiceMessenger;
@@ -126,7 +131,7 @@ export class BaseDataService<
 
   readonly #queryCacheUnsubscribe: () => void;
 
-  readonly #debouncedPersist: () => void;
+  readonly #debouncedPersist: DebouncedFunc<() => void>;
 
   readonly #persistConfig?: PersistConfiguration;
 
@@ -145,12 +150,18 @@ export class BaseDataService<
   }) {
     this.name = name;
 
-    // We are storing a separately typed messenger for known actions and events provided by data services
-    // and a generic public one that is typed using the generic parameters and accessible to implementations.
+    // We store two narrowly-typed messengers alongside the generic public one:
+    // - #messenger handles the service's own action registration and event publishing
+    // - #externalMessenger handles calls to external actions
+    // Splitting them avoids TypeScript issues with mixing template-literals with regular strings
     this.#messenger = messenger as unknown as Messenger<
       ServiceName,
-      DataServiceActions<ServiceName> | DataServiceAllowedActions,
+      DataServiceActions<ServiceName>,
       DataServiceEvents<ServiceName>
+    >;
+    this.#externalMessenger = messenger as unknown as Messenger<
+      ServiceName,
+      DataServiceAllowedActions
     >;
     this.messenger = messenger;
 
@@ -377,7 +388,7 @@ export class BaseDataService<
       state,
     };
 
-    await this.#messenger.call(
+    await this.#externalMessenger.call(
       'StorageService:setItem',
       this.name,
       STORAGE_SERVICE_KEY,
@@ -390,13 +401,17 @@ export class BaseDataService<
       return;
     }
 
-    const { result: persisted } = await this.#messenger.call(
+    const { result: persisted } = await this.#externalMessenger.call(
       'StorageService:getItem',
       this.name,
       STORAGE_SERVICE_KEY,
     );
 
-    const cache = persisted as PersistedCache;
+    if (!persisted) {
+      return;
+    }
+
+    const cache = persisted as unknown as PersistedCache;
 
     if (Date.now() - cache.timestamp >= this.#persistConfig.maxAge) {
       return;
