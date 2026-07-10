@@ -746,6 +746,55 @@ describe('RampsController', () => {
       );
     });
 
+    it('selects the correct quote when provider IDs carry no /providers/ prefix', async () => {
+      // The PR removed provider-code normalization: the provider list, quotes,
+      // custom actions, and sort-order arrive with plain, unprefixed IDs and
+      // must match each other directly.
+      const PLAIN_MOONPAY = 'moonpay';
+      const PLAIN_REVOLUT = 'revolut';
+
+      const response: QuotesResponse = {
+        success: [
+          inAppScopeQuote(PLAIN_MOONPAY, 90),
+          inAppScopeQuote(PLAIN_REVOLUT, 80),
+        ],
+        sorted: [{ sortBy: 'reliability', ids: [PLAIN_MOONPAY, PLAIN_REVOLUT] }],
+        error: [],
+        customActions: [
+          {
+            buy: { providerId: PLAIN_MOONPAY },
+            paymentMethodId: SCOPE_PAYMENT_METHOD,
+            supportedPaymentMethodIds: [SCOPE_PAYMENT_METHOD],
+          },
+        ],
+      };
+
+      await withController(
+        {
+          options: {
+            getProviderScope: () => 'in-app',
+            state: scopeState([
+              buildScopeProvider(PLAIN_MOONPAY, 'aggregator'),
+              buildScopeProvider(PLAIN_REVOLUT, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => response,
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          // MoonPay is a custom action, so Revolut wins despite ranking higher,
+          // proving the plain IDs matched across the provider list, quote,
+          // custom action, and sort-order without normalization.
+          expect(quotes.success[0]?.provider).toBe(PLAIN_REVOLUT);
+        },
+      );
+    });
+
     it('does not widen and does not mutate providers.selected when the scope is off', async () => {
       const response: QuotesResponse = {
         success: [inAppScopeQuote(NATIVE, 70)],
