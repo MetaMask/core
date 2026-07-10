@@ -23,6 +23,11 @@ export type SentinelApiServiceGetNetworksAction = {
  *
  * @param chainId - The chain ID to simulate on.
  * @param request - The simulation request.
+ * @param options - Additional options.
+ * @param options.getUrl - Optional callback that receives the default
+ * Sentinel URL resolved for the chain and returns the URL to use instead.
+ * Lets consumers rewrite the request URL (for example to route through the
+ * MetaMask Shield proxy) without the service knowing about those concerns.
  * @returns The simulation response.
  */
 export type SentinelApiServiceSimulateTransactionsAction = {
