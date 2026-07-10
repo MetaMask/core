@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `createMoneyAccountUpgradeBootstrap`, the client-agnostic bootstrap orchestration ported from MetaMask Mobile ([#9397](https://github.com/MetaMask/core/pull/9397))
+  - Sequences the feature-flag and keyring-unlock gates, guarantees the client's bootstrap action runs at most once, and exposes a `whenReady()` promise gate
+  - Clients inject signal sources and the bootstrap action via `MoneyAccountUpgradeBootstrapOptions`; chain provisioning stays client-side
+
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
