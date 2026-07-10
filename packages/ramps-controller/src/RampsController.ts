@@ -765,10 +765,6 @@ function findRegionFromCode(
   };
 }
 
-export function normalizeProviderCode(providerCode: string): string {
-  return providerCode.replace(/^\/providers\//u, '');
-}
-
 /**
  * Returns the internal MetaMask order code used for state lookups and polling.
  * Prefers the code embedded in the canonical order `id` path over `providerOrderId`,
@@ -2089,21 +2085,16 @@ export class RampsController extends BaseController<
     },
   ): Quote | undefined {
     const providerByCode = new Map(
-      providers.map((provider) => [
-        normalizeProviderCode(provider.id),
-        provider,
-      ]),
+      providers.map((provider) => [provider.id, provider]),
     );
     const customActionProviderCodes = new Set(
-      response.customActions.map((action: QuoteCustomAction) =>
-        normalizeProviderCode(action.buy.providerId),
+      response.customActions.map(
+        (action: QuoteCustomAction) => action.buy.providerId,
       ),
     );
 
     const fitsProviderLimits = (quote: Quote): boolean => {
-      const provider = providerByCode.get(
-        normalizeProviderCode(quote.provider),
-      );
+      const provider = providerByCode.get(quote.provider);
       const limit = provider?.limits?.fiat?.[fiat]?.[quote.quote.paymentMethod];
       if (!limit) {
         // No published limits for this provider/payment method: treat as
@@ -2117,7 +2108,7 @@ export class RampsController extends BaseController<
       // `all` (Phase 2) skips the in-app-only exclusions; both scopes still
       // enforce provider limits up front.
       if (scope !== 'all') {
-        const providerCode = normalizeProviderCode(quote.provider);
+        const providerCode = quote.provider;
         if (customActionProviderCodes.has(providerCode)) {
           return false;
         }
@@ -2141,7 +2132,7 @@ export class RampsController extends BaseController<
     }
 
     const candidateByCode = new Map(
-      candidates.map((quote) => [normalizeProviderCode(quote.provider), quote]),
+      candidates.map((quote) => [quote.provider, quote]),
     );
 
     const pickBySortOrder = (sortBy: QuoteSortBy): Quote | undefined => {
@@ -2152,7 +2143,7 @@ export class RampsController extends BaseController<
         return undefined;
       }
       for (const providerId of order) {
-        const match = candidateByCode.get(normalizeProviderCode(providerId));
+        const match = candidateByCode.get(providerId);
         if (match) {
           return match;
         }
@@ -2581,7 +2572,7 @@ export class RampsController extends BaseController<
    *
    * @param params - Object containing order identifiers and wallet info.
    * @param params.orderId - Full order ID (e.g. "/providers/paypal/orders/abc123") or order code.
-   * @param params.providerCode - Provider code (e.g. "paypal", "transak"), with or without /providers/ prefix.
+   * @param params.providerCode - Canonical provider code (e.g. "paypal", "transak").
    * @param params.walletAddress - Wallet address for the order.
    * @param params.chainId - Optional chain ID for the order.
    */
@@ -2597,12 +2588,10 @@ export class RampsController extends BaseController<
     if (!orderCode?.trim()) {
       return;
     }
-    const normalizedProviderCode = normalizeProviderCode(providerCode);
-
     const stubOrder: RampsOrder = {
       providerOrderId: orderCode,
       provider: {
-        id: `/providers/${normalizedProviderCode}`,
+        id: providerCode,
         name: '',
         environmentType: '',
         description: '',
