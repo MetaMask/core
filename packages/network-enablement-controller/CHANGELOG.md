@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: rollback stellar in network-enablement-controller ([#9381](https://github.com/MetaMask/core/pull/9381))
+- chore(network-enablement-controller): move misplaced Stellar changelog entries to Unreleased ([#9356](https://github.com/MetaMask/core/pull/9356))
+
 ### Changed
 
 - Restore Stellar to the Network Enablement Controller enabled network map by reverting the temporary rollback, as the corresponding Extension issue has already been resolved ([#9385](https://github.com/MetaMask/core/pull/9385))
