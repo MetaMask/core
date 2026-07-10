@@ -13,6 +13,30 @@ type FungibleAsset = Extract<
   { fungible: true }
 >;
 
+/**
+ * Custom labels for non-EVM transactions.
+ *
+ * The labels are used to map the transaction type to the title in the activity list and dialog.
+ * The labels are defined in the `transaction.details.typeLabel` property.
+ * For details: {@link https://github.com/MetaMask/metamask-extension/pull/38040}
+ */
+export enum CustomTransactionTypeLabel {
+  // Token requires one off approve to receive
+  TrustlineApprove = 'trustline-approve',
+  // Token requires revoke the approve to stop receiving
+  TrustlineDisapprove = 'trustline-disapprove',
+}
+
+function hasTrustlineTypeLabel(
+  details: KeyringTransaction['details'],
+): boolean {
+  // A flag to indicate if the transaction is a trustline type.
+  return [
+    String(CustomTransactionTypeLabel.TrustlineApprove),
+    String(CustomTransactionTypeLabel.TrustlineDisapprove),
+  ].includes(details?.typeLabel ?? '');
+}
+
 function mapStatus(status: KeyringTransaction['status']): Status {
   switch (status) {
     case TransactionStatus.Confirmed:
@@ -158,6 +182,19 @@ export function mapKeyringTransaction({
 
     case KeyringTransactionType.TokenApprove: {
       const rawToken = getToken(transaction.from, 'out');
+
+      if (hasTrustlineTypeLabel(transaction.details)) {
+        return {
+          type: 'assetActivation',
+          ...common,
+          data: {
+            from,
+            token: rawToken ? { ...rawToken, amount: undefined } : rawToken,
+            fees,
+          },
+        };
+      }
+
       const isUnlimited =
         rawToken?.amount !== undefined &&
         rawToken.amount.split('.')[0].length > approveAmountMaxIntegerDigits;
@@ -170,6 +207,32 @@ export function mapKeyringTransaction({
           token: rawToken
             ? { ...rawToken, amount: isUnlimited ? undefined : rawToken.amount }
             : rawToken,
+          fees,
+        },
+      };
+    }
+
+    case KeyringTransactionType.TokenDisapprove: {
+      if (!hasTrustlineTypeLabel(transaction.details)) {
+        return {
+          type: 'contractInteraction',
+          ...common,
+          data: {
+            from,
+            to,
+            fees,
+          },
+        };
+      }
+
+      const rawToken = getToken(transaction.from, 'out');
+
+      return {
+        type: 'assetDeactivation',
+        ...common,
+        data: {
+          from,
+          token: rawToken ? { ...rawToken, amount: undefined } : rawToken,
           fees,
         },
       };

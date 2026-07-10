@@ -1,21 +1,17 @@
-import type { OnChainRawNotification } from '../NotificationServicesController';
+import type {
+  UnprocessedRawNotification,
+  OnChainNotification,
+} from '../NotificationServicesController/types/notification-api';
+import { isOnChainNotification } from './notification-api-type-guards';
 
 /**
- * Checks if the given value is an OnChainRawNotification object.
+ * Checks if the given value is an on-chain notification using the v4 `notification_type` discriminator.
  *
  * @param notification - The value to check.
- * @returns True if the value is an OnChainRawNotification object, false otherwise.
+ * @returns True if the value is an on-chain notification, false otherwise.
  */
 export function isOnChainRawNotification(
   notification: unknown,
-): notification is OnChainRawNotification {
-  const assumed = notification as OnChainRawNotification;
-
-  // We don't have a validation/parsing library to check all possible types of an on chain notification
-  // It is safe enough just to check "some" fields, and catch any errors down the line if the shape is bad.
-  const isValidEnoughToBeOnChainNotification = [
-    assumed?.id,
-    assumed?.payload?.data,
-  ].every((field) => field !== undefined);
-  return isValidEnoughToBeOnChainNotification;
+): notification is OnChainNotification {
+  return isOnChainNotification(notification as UnprocessedRawNotification);
 }
