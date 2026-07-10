@@ -196,6 +196,30 @@ export class QuoteStatusEntryStore {
   }
 
   /**
+   * Looks up every entry sharing the given transaction metadata identifier.
+   *
+   * A single 7702/nested batch transaction submits multiple quotes under one
+   * source tx hash and one `txMetaId`, producing several entries that must all
+   * be finalized together. Each matching entry has its TTL checked (and is
+   * transitioned to {@link QuoteStatusState.Expired} if stale) before being
+   * returned.
+   *
+   * @param txMetaId - Transaction metadata identifier to search for.
+   * @returns The matching entries (empty when none exist).
+   */
+  getAllByTxMetaId(txMetaId: string): QuoteStatusRuntimeEntry[] {
+    const matches: QuoteStatusRuntimeEntry[] = [];
+    for (const entry of this.#items.values()) {
+      if (entry.txMetaId === txMetaId) {
+        this.expireEntryIfStale(entry);
+        matches.push(entry);
+      }
+    }
+
+    return matches;
+  }
+
+  /**
    * Retrieves an entry by key.
    *
    * If the entry has exceeded its TTL it is transitioned to

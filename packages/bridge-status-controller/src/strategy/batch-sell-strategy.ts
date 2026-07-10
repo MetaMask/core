@@ -105,8 +105,21 @@ export async function* submitBatchSellHandler(
     },
   };
 
+  // Each quote must be reported to the reconsiler service (through QuoteStatusManager) with the hash of the tx that
+  // actually executed it. So the number of distinct txs the batch produced
+  // decides how quotes are tracked:
+  // - one tx (atomic 7702 batch): all quotes share the single hash.
+  // - many txs (e.g. STX/sendBundle): each quote has its own hash.
+  // `is7702Tx` only means the account is delegated (true even for many-tx
+  // batches), so count the unique txs instead.
+  const isSingleBatchTx =
+    new Set(allTradesInBatch.map(({ txMeta }) => txMeta.id)).size === 1;
+
   // Nested/7702 batch
-  if (is7702Tx(firstTradeMeta) || hasNestedSwapTransactions(firstTradeMeta)) {
+  if (
+    isSingleBatchTx &&
+    (is7702Tx(firstTradeMeta) || hasNestedSwapTransactions(firstTradeMeta))
+  ) {
     const quoteIds = Array.from(
       new Set(allTradesInBatch.map(getHistoryKeyForQuote)),
     );
