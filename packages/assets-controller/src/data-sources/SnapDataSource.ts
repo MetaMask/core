@@ -522,37 +522,40 @@ export class SnapDataSource extends AbstractDataSource<
         }
 
         // Step 3: Fetch asset metadata for the account if needed, e.g Stellar Assets
+        const accountBalanceResults = results.assetsBalance?.[accountId];
         if (
           isStellarEnabled &&
-          results.assetsBalance &&
-          results.assetsBalance[accountId] &&
-          shouldFetchAssetMetadata(accountAssets, this.state.chainToSnap, snapId)) {
-            try {
-              const assetInfo = (await this.#messenger.call(
-                'SnapController:handleRequest',
-                getAssetInfoRequest(
-                  {
-                    snapId,
-                    accountId,
-                    assets: filterEligibleAssetsToFetchMetadata(accountAssets),
-                  }
-                ),
-              )) as unknown as Record<CaipAssetType, Record<string, Json>>;
-          
-              if (assetInfo) {
-                for (const [assetId, metadata] of Object.entries(assetInfo)) {
-                  if (assetId in results.assetsBalance[accountId]) {
-                    results.assetsBalance[accountId][assetId as CaipAssetType] = {
-                      ...results.assetsBalance[accountId][assetId as CaipAssetType],
-                      metadata,
-                    };
-                  }
+          accountBalanceResults &&
+          shouldFetchAssetMetadata(
+            accountAssets,
+            this.state.chainToSnap,
+            snapId,
+          )
+        ) {
+          try {
+            const assetInfo = (await this.#messenger.call(
+              'SnapController:handleRequest',
+              getAssetInfoRequest({
+                snapId,
+                accountId,
+                assets: filterEligibleAssetsToFetchMetadata(accountAssets),
+              }),
+            )) as Record<CaipAssetType, Record<string, Json>>;
+
+            if (assetInfo) {
+              for (const [assetId, metadata] of Object.entries(assetInfo)) {
+                if (assetId in accountBalanceResults) {
+                  accountBalanceResults[assetId as CaipAssetType] = {
+                    ...accountBalanceResults[assetId as CaipAssetType],
+                    metadata,
+                  };
                 }
               }
-            } catch (error) {
-              log('Failed to fetch asset metadata', { error });
             }
-         }
+          } catch (error) {
+            log('Failed to fetch asset metadata', { error });
+          }
+        }
       } catch {
         // Expected when account doesn't belong to this snap
       }

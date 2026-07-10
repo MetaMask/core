@@ -175,7 +175,7 @@
   },
   "packages/assets-controller/src/data-sources/SnapDataSource.ts": {
     "no-restricted-syntax": {
-      "count": 2
+      "count": 3
     }
   },
   "packages/assets-controller/src/data-sources/StakedBalanceDataSource.ts": {

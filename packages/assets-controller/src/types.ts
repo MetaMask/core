@@ -282,8 +282,6 @@ export type GetAccountAssetInfoResponse = Record<
 export type FungibleAssetBalance = {
   /** Raw balance amount as string (e.g., "1000000000" for 1000 USDC) */
   amount: string;
-  /** Optional per-account asset info (e.g. Stellar trustlines). */
-  metadata?: Json;
 };
 
 /**

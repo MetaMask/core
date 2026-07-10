@@ -157,6 +157,7 @@ function createMockPermissions(
  *
  * @param accountAssets - Assets to return for keyring_listAccountAssets
  * @param balances - Balances to return for keyring_getAccountBalances
+ * @param accountAssetInfo - Asset info to return for getAccountAssetInfo
  * @returns Mock handler function
  */
 function createMockHandleRequest(

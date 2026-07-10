@@ -570,6 +570,16 @@ function normalizeResponse(response: DataResponse): DataResponse {
   return normalized;
 }
 
+function mergeBalanceEntry(
+  previous: AssetBalance | undefined,
+  incoming: AssetBalance,
+): AssetBalance {
+  return {
+    ...(previous ?? { amount: '0' }),
+    ...incoming,
+  };
+}
+
 /**
  * Merge account balances from a data-source response into prior state.
  *
@@ -589,10 +599,7 @@ function mergeAccountBalances(
   if (!replaceCoveredChains) {
     const next: Record<string, AssetBalance> = { ...previousBalances };
     for (const [assetId, balance] of Object.entries(accountBalances)) {
-      next[assetId] = {
-        ...(previousBalances[assetId] ?? { amount: '0' }),
-        ...balance,
-      };
+      next[assetId] = mergeBalanceEntry(previousBalances[assetId], balance);
     }
     return next;
   }
@@ -608,7 +615,9 @@ function mergeAccountBalances(
     }
   }
 
-  Object.assign(next, accountBalances);
+  for (const [assetId, balance] of Object.entries(accountBalances)) {
+    next[assetId] = mergeBalanceEntry(previousBalances[assetId], balance);
+  }
 
   for (const customId of customAssetIds) {
     if (!Object.prototype.hasOwnProperty.call(next, customId)) {
