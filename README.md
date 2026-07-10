@@ -560,6 +560,9 @@ linkStyle default opacity:0.5
   selected_network_controller --> messenger;
   selected_network_controller --> network_controller;
   selected_network_controller --> permission_controller;
+  sentinel_api_service --> base_data_service;
+  sentinel_api_service --> controller_utils;
+  sentinel_api_service --> messenger;
   shield_controller --> base_controller;
   shield_controller --> controller_utils;
   shield_controller --> messenger;

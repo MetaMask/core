@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release ([#0](https://github.com/MetaMask/core/pull/0))
+- Initial release ([#9466](https://github.com/MetaMask/core/pull/9466))
   - Add `SentinelApiService` data service centralising all interactions with the MetaMask Sentinel API
   - Simulate transactions via `infura_simulateTransactions` (`simulateTransactions`)
   - Submit gas station relay transactions via `eth_sendRelayTransaction` (`submitRelayTransaction`)
