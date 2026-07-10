@@ -1,6 +1,7 @@
 import {
   array,
   boolean,
+  nullable,
   number,
   optional,
   record,
@@ -60,7 +61,7 @@ export const SentinelRelaySubmitResponseStruct = type({
 const RawRelayStatusTransactionStruct = type({
   hash: optional(string()),
   status: string(),
-  errorReason: optional(string()),
+  errorReason: optional(nullable(string())),
 });
 
 /**

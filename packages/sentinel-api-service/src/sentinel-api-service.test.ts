@@ -608,6 +608,26 @@ describe('SentinelApiService', () => {
       service.destroy();
     });
 
+    it('surfaces a null errorReason when the API reports one explicitly', async () => {
+      const { service } = createService();
+      mockNetworks();
+      nock(MAINNET_URL)
+        .get(`/smart-transactions/${UUID}`)
+        .reply(200, {
+          transactions: [{ status: 'PENDING', errorReason: null }],
+        });
+
+      const result = await service.getRelayStatus({
+        chainId: CHAIN_ID_MAINNET,
+        uuid: UUID,
+      });
+      expect(result).toStrictEqual({
+        status: 'PENDING',
+        errorReason: null,
+      });
+      service.destroy();
+    });
+
     it('returns an empty status when there are no transactions', async () => {
       const { service } = createService();
       mockNetworks();

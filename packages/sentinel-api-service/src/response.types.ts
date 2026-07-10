@@ -117,8 +117,11 @@ export enum SentinelRelayStatus {
  * The normalized result of polling a relay transaction's status.
  */
 export type SentinelRelayStatusResponse = {
-  /** The reason the relay failed, if any. */
-  errorReason?: string;
+  /**
+   * The reason the relay failed, if any. May be `null` when the API explicitly
+   * reports no error reason.
+   */
+  errorReason?: string | null;
 
   /** The current status of the relay transaction. */
   status: string;

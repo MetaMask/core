@@ -18,5 +18,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Authenticate requests with client identity headers (`X-Client-Id`, `X-Client-Version`) and a best-effort `Authorization` bearer token from `AuthenticationController:getBearerToken`
   - Target a selectable Sentinel environment via the `environment` constructor option and the `SentinelEnvironment` enum (`Dev`, `Uat`, `Prod`), defaulting to `Prod`
   - Disable retries by default (`maxRetries: 0`) to match the single-request behaviour of the clients this service replaces; callers can opt in via `policyOptions.maxRetries`
+  - Export the `SentinelApiServiceOptions` type describing the constructor options
 
 [Unreleased]: https://github.com/MetaMask/core/

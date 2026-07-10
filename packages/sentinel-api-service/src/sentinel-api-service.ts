@@ -149,6 +149,47 @@ export type SentinelApiServiceMessenger = Messenger<
  * Consumers derive higher-level concerns (whether a chain supports simulation
  * or relay, polling loops, etc.) from the raw endpoint responses.
  */
+/**
+ * Constructor options for {@link SentinelApiService}.
+ */
+export type SentinelApiServiceOptions = {
+  /** The messenger suited for this service. */
+  messenger: SentinelApiServiceMessenger;
+
+  /**
+   * The `fetch` function to use for requests. Defaults to the global `fetch`.
+   */
+  fetch?: typeof fetch;
+
+  /**
+   * The Sentinel API environment to target (`dev`, `uat`, or `prod`).
+   * Defaults to `prod`.
+   */
+  environment?: SentinelEnvironment;
+
+  /**
+   * Identifier for the calling client (for example `extension` or `mobile`),
+   * sent as the `X-Client-Id` header.
+   */
+  clientId?: string;
+
+  /**
+   * Version of the calling client, sent as the `X-Client-Version` header when
+   * provided.
+   */
+  clientVersion?: string;
+
+  /** Configuration for the underlying TanStack Query client. */
+  queryClientConfig?: QueryClientConfig;
+
+  /**
+   * Options to pass to `createServicePolicy`. Retries are disabled by default
+   * (`maxRetries: 0`) to preserve the single-attempt behaviour of the clients
+   * this service replaces; pass `maxRetries` here to opt in.
+   */
+  policyOptions?: CreateServicePolicyOptions;
+};
+
 export class SentinelApiService extends BaseDataService<
   typeof serviceName,
   SentinelApiServiceMessenger
@@ -164,19 +205,20 @@ export class SentinelApiService extends BaseDataService<
   /**
    * Constructs a new SentinelApiService.
    *
-   * @param args - The constructor arguments.
-   * @param args.messenger - The messenger suited for this service.
-   * @param args.fetch - The `fetch` function to use for requests. Defaults to
-   * the global `fetch`.
-   * @param args.environment - The Sentinel API environment to target
+   * @param options - The constructor options. See
+   * {@link SentinelApiServiceOptions}.
+   * @param options.messenger - The messenger suited for this service.
+   * @param options.fetch - The `fetch` function to use for requests. Defaults
+   * to the global `fetch`.
+   * @param options.environment - The Sentinel API environment to target
    * (`dev`, `uat`, or `prod`). Defaults to `prod`.
-   * @param args.clientId - Identifier for the calling client (for example
+   * @param options.clientId - Identifier for the calling client (for example
    * `extension` or `mobile`), sent as the `X-Client-Id` header.
-   * @param args.clientVersion - Version of the calling client, sent as the
+   * @param options.clientVersion - Version of the calling client, sent as the
    * `X-Client-Version` header when provided.
-   * @param args.queryClientConfig - Configuration for the underlying TanStack
-   * Query client.
-   * @param args.policyOptions - Options to pass to `createServicePolicy`.
+   * @param options.queryClientConfig - Configuration for the underlying
+   * TanStack Query client.
+   * @param options.policyOptions - Options to pass to `createServicePolicy`.
    * Retries are disabled by default (`maxRetries: 0`) to preserve the
    * single-attempt behaviour of the clients this service replaces; pass
    * `maxRetries` here to opt in.
@@ -189,15 +231,7 @@ export class SentinelApiService extends BaseDataService<
     clientVersion,
     queryClientConfig = {},
     policyOptions = {},
-  }: {
-    messenger: SentinelApiServiceMessenger;
-    fetch?: typeof fetch;
-    environment?: SentinelEnvironment;
-    clientId?: string;
-    clientVersion?: string;
-    queryClientConfig?: QueryClientConfig;
-    policyOptions?: CreateServicePolicyOptions;
-  }) {
+  }: SentinelApiServiceOptions) {
     super({
       name: serviceName,
       messenger,
@@ -386,7 +420,9 @@ export class SentinelApiService extends BaseDataService<
         return {
           status: first?.status ?? '',
           ...(first?.hash ? { transactionHash: first.hash } : {}),
-          ...(first?.errorReason ? { errorReason: first.errorReason } : {}),
+          ...(first?.errorReason === undefined
+            ? {}
+            : { errorReason: first.errorReason }),
         };
       },
     });

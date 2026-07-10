@@ -4,6 +4,7 @@ export type {
   SentinelApiServiceActions,
   SentinelApiServiceEvents,
   SentinelApiServiceMessenger,
+  SentinelApiServiceOptions,
   SentinelApiServiceInvalidateQueriesAction,
   SentinelApiServiceCacheUpdatedEvent,
   SentinelApiServiceGranularCacheUpdatedEvent,
