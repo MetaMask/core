@@ -1,6 +1,6 @@
 {
   "name": "@metamask/account-tree-controller",
-  "version": "7.5.4",
+  "version": "7.5.5",
   "description": "Controller to group account together based on some pre-defined rules",
   "keywords": [
     "Ethereum",
