@@ -1,6 +1,6 @@
 {
   "name": "@metamask/assets-controller",
-  "version": "10.1.0",
+  "version": "10.2.0",
   "description": "Tracks assets balances/prices and handles token detection across all digital assets",
   "keywords": [
     "Ethereum",
@@ -58,7 +58,7 @@
     "@ethersproject/providers": "^5.7.0",
     "@metamask/account-tree-controller": "^7.5.4",
     "@metamask/accounts-controller": "^39.0.4",
-    "@metamask/assets-controllers": "^109.3.1",
+    "@metamask/assets-controllers": "^109.4.0",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/client-controller": "^1.0.1",
     "@metamask/controller-utils": "^12.3.0",
