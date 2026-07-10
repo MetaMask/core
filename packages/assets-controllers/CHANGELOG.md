@@ -11,10 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/transaction-controller` from `^68.3.0` to `^69.0.0` ([#9456](https://github.com/MetaMask/core/pull/9456))
+- Bump `@metamask/transaction-controller` from `^68.3.0` to `^69.0.0` ([#9456](https://github.com/MetaMask/core/pull/9456), [#9470](https://github.com/MetaMask/core/pull/9470))
 - Bump `@metamask/profile-sync-controller` from `^28.2.0` to `^28.3.0` ([#9463](https://github.com/MetaMask/core/pull/9463))
 - Bump `@metamask/accounts-controller` from `^39.0.4` to `^39.0.5` ([#9470](https://github.com/MetaMask/core/pull/9470))
 - Bump `@metamask/multichain-account-service` from `^12.0.0` to `^13.0.0` ([#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/account-tree-controller` from `^7.5.4` to `^7.5.5` ([#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/network-enablement-controller` from `^5.4.1` to `^5.5.0` ([#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/phishing-controller` from `^17.2.0` to `^17.2.1` ([#9470](https://github.com/MetaMask/core/pull/9470))
 
 ## [109.4.0]
 
