@@ -602,7 +602,7 @@ describe('SnapDataSource', () => {
       response.assetsBalance?.['mock-account-id']?.[MOCK_STELLAR_USDC_ASSET],
     ).toStrictEqual({
       amount: '25',
-      accountAssetInfo: {
+      metadata: {
         limit: '1000',
         authorized: true,
         sponsored: false,

@@ -134,7 +134,7 @@ describe('snap-account-asset-info-enrichment', () => {
       });
     }
 
-    it('enriches Stellar assets with accountAssetInfo', async () => {
+    it('enriches Stellar assets with metadata', async () => {
       const assetsBalance = createAccountAssets();
       const callSnapRequest = jest.fn().mockResolvedValue({
         [MOCK_STELLAR_USDC_ASSET]: {
@@ -163,7 +163,7 @@ describe('snap-account-asset-info-enrichment', () => {
       });
       expect(assetsBalance[MOCK_STELLAR_USDC_ASSET]).toStrictEqual({
         amount: '25',
-        accountAssetInfo: {
+        metadata: {
           limit: '1000',
           authorized: true,
           sponsored: false,
@@ -201,11 +201,11 @@ describe('snap-account-asset-info-enrichment', () => {
       );
       expect(assetsBalance[MOCK_STELLAR_USDC_ASSET]).toStrictEqual({
         amount: '10',
-        accountAssetInfo: { limit: '1000', authorized: true },
+        metadata: { limit: '1000', authorized: true },
       });
       expect(assetsBalance[MOCK_STELLAR_ASSET_2]).toStrictEqual({
         amount: '20',
-        accountAssetInfo: { limit: '500', authorized: false },
+        metadata: { limit: '500', authorized: false },
       });
     });
 
@@ -238,7 +238,7 @@ describe('snap-account-asset-info-enrichment', () => {
       expect(callSnapRequest).toHaveBeenCalledTimes(1);
       expect(assetsBalance[MOCK_STELLAR_USDC_ASSET]).toStrictEqual({
         amount: '25',
-        accountAssetInfo: {
+        metadata: {
           limit: '1000',
           authorized: true,
         },
@@ -281,14 +281,14 @@ describe('snap-account-asset-info-enrichment', () => {
       expect(callSnapRequest).toHaveBeenCalledTimes(1);
       expect(assetsBalanceA[MOCK_STELLAR_USDC_ASSET]).toStrictEqual({
         amount: '25',
-        accountAssetInfo: {
+        metadata: {
           limit: '1000',
           authorized: true,
         },
       });
       expect(assetsBalanceB[MOCK_STELLAR_USDC_ASSET]).toStrictEqual({
         amount: '25',
-        accountAssetInfo: {
+        metadata: {
           limit: '1000',
           authorized: true,
         },
@@ -313,14 +313,14 @@ describe('snap-account-asset-info-enrichment', () => {
       expect(callSnapRequest).toHaveBeenCalledTimes(2);
       expect(assetsBalance[MOCK_STELLAR_USDC_ASSET]).toStrictEqual({
         amount: '25',
-        accountAssetInfo: {
+        metadata: {
           limit: '2000',
           authorized: false,
         },
       });
     });
 
-    it('returns balances without accountAssetInfo when enrichment hangs past timeout', async () => {
+    it('returns balances without metadata when enrichment hangs past timeout', async () => {
       jest.useFakeTimers();
 
       const assetsBalance = createAccountAssets();
@@ -341,7 +341,7 @@ describe('snap-account-asset-info-enrichment', () => {
       expect(
         (
           assetsBalance[MOCK_STELLAR_USDC_ASSET] as Record<string, unknown>
-        )?.accountAssetInfo,
+        )?.metadata,
       ).toBeUndefined();
 
       jest.useRealTimers();

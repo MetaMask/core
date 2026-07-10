@@ -1,4 +1,4 @@
-// TODO(STELLAR): This helper is a temporary bridge for Snap-provided accountAssetInfo.
+// TODO(STELLAR): This helper is a temporary bridge for Snap-provided balance metadata.
 // Remove it once the Accounts API supports account-asset enrichment directly.
 
 import type { CaipAssetType } from '@metamask/keyring-api';
@@ -321,18 +321,19 @@ export class SnapAccountAssetInfoEnricher {
   }
 
   /**
-   * Merge snap `getAccountAssetInfo` into the account's balance rows.
+   * Merge snap `getAccountAssetInfo` into the account's balance rows as
+   * `metadata`.
    *
    * Pure aside from mutating `assetsBalance`.
    *
-   * @param accountAssetInfo - Enrichment keyed by CAIP-19 asset id.
+   * @param enrichment - Enrichment keyed by CAIP-19 asset id.
    * @param assetsBalance - Account balance rows to update in place.
    */
   #apply(
-    accountAssetInfo: GetAccountAssetInfoResponse,
+    enrichment: GetAccountAssetInfoResponse,
     assetsBalance: Record<Caip19AssetId, AssetBalance>,
   ): void {
-    for (const [assetId, assetInfo] of Object.entries(accountAssetInfo)) {
+    for (const [assetId, assetInfo] of Object.entries(enrichment)) {
       const row = assetsBalance[assetId as Caip19AssetId];
       if (!row) {
         continue;
@@ -340,7 +341,7 @@ export class SnapAccountAssetInfoEnricher {
 
       assetsBalance[assetId as Caip19AssetId] = {
         ...row,
-        accountAssetInfo: assetInfo,
+        metadata: assetInfo,
       } satisfies AssetBalance;
     }
   }

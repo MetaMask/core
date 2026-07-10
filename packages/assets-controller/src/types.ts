@@ -292,8 +292,11 @@ export type GetAccountAssetInfoResponse = Record<
 export type FungibleAssetBalance = {
   /** Raw balance amount as string (e.g., "1000000000" for 1000 USDC) */
   amount: string;
-  /** Optional per-asset info from snap account-asset enrichment (e.g. Stellar trustlines). */
-  accountAssetInfo?: AccountAssetInfo;
+  /**
+   * Optional per-asset account metadata from snap enrichment
+   * (e.g. Stellar trustline fields). Distinct from `assetsInfo` token metadata.
+   */
+  metadata?: AccountAssetInfo;
 };
 
 /**

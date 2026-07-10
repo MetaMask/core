@@ -1687,13 +1687,13 @@ describe('AssetsController', () => {
       });
     });
 
-    it('preserves accountAssetInfo enrichment when merge update changes amount', async () => {
+    it('preserves metadata enrichment when merge update changes amount', async () => {
       const initialState: Partial<AssetsControllerState> = {
         assetsBalance: {
           [MOCK_ACCOUNT_ID]: {
             [MOCK_ASSET_ID]: {
               amount: '1',
-              accountAssetInfo: { limit: '1000', authorized: true },
+              metadata: { limit: '1000', authorized: true },
             },
           },
         },
@@ -1716,7 +1716,7 @@ describe('AssetsController', () => {
           controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
         ).toStrictEqual({
           amount: '2',
-          accountAssetInfo: { limit: '1000', authorized: true },
+          metadata: { limit: '1000', authorized: true },
         });
       });
     });
