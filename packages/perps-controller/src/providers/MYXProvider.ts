@@ -499,6 +499,8 @@ export class MYXProvider implements PerpsProvider {
           price,
           timestamp: Date.now(),
           percentChange24h: change24h.toFixed(2),
+          // MYX has no oracle-deviation tradability rule yet, so always report tradable.
+          isTradable: true,
           providerId: 'myx',
         };
       });

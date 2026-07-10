@@ -2873,7 +2873,8 @@ describe('TransactionController', () => {
         );
       });
 
-      it('throws with data message if publish fails', async () => {
+      it('throws with contextual rpcRequest message if publish fails', async () => {
+        const rpcErrorMessage = `RPC 0x5 Custom eth_sendRawTransaction: ${ERROR_MESSAGE_MOCK}`;
         const { controller } = setupController({
           messengerOptions: {
             addTransactionApprovalRequest: {
@@ -2884,12 +2885,7 @@ describe('TransactionController', () => {
 
         rpcRequestMock.mockImplementation(async ({ method }) => {
           if (method === 'eth_sendRawTransaction') {
-            // eslint-disable-next-line @typescript-eslint/only-throw-error
-            throw {
-              data: {
-                message: ERROR_MESSAGE_MOCK,
-              },
-            };
+            throw new Error(rpcErrorMessage);
           }
 
           if (method === 'eth_getBalance') {
@@ -2912,7 +2908,7 @@ describe('TransactionController', () => {
           },
         );
 
-        await expect(result).rejects.toThrow(ERROR_MESSAGE_MOCK);
+        await expect(result).rejects.toThrow(rpcErrorMessage);
       });
 
       it('throws with standard message if publish fails', async () => {
@@ -3862,7 +3858,7 @@ describe('TransactionController', () => {
       rpcRequestMock.mockRejectedValueOnce(error);
 
       await expect(controller.stopTransaction('2')).rejects.toThrow(
-        'RPC submit: Another reason',
+        'Another reason',
       );
 
       const sendRawTransactionCalls = rpcRequestMock.mock.calls.filter(
@@ -4224,7 +4220,7 @@ describe('TransactionController', () => {
       rpcRequestMock.mockRejectedValueOnce(error);
 
       await expect(controller.speedUpTransaction('2')).rejects.toThrow(
-        'RPC submit: Another reason',
+        'Another reason',
       );
 
       const sendRawTransactionCalls = rpcRequestMock.mock.calls.filter(
@@ -4234,11 +4230,10 @@ describe('TransactionController', () => {
       expect(controller.state.transactions).toHaveLength(1);
     });
 
-    it('extracts nested data.message and prefixes it with RPC submit', async () => {
-      const error = {
-        message: 'Outer message',
-        data: { message: 'Nested rpc error message' },
-      };
+    it('propagates contextual rpcRequest errors without masking the message', async () => {
+      const error = new Error(
+        'RPC 0x5 Custom eth_sendRawTransaction: Nested rpc error message',
+      );
       const { controller } = setupController({
         options: {
           state: {
@@ -4262,9 +4257,7 @@ describe('TransactionController', () => {
 
       rpcRequestMock.mockRejectedValueOnce(error);
 
-      await expect(controller.speedUpTransaction('2')).rejects.toThrow(
-        'RPC submit: Nested rpc error message',
-      );
+      await expect(controller.speedUpTransaction('2')).rejects.toBe(error);
     });
 
     it('creates additional transaction with increased gas', async () => {
@@ -6064,6 +6057,77 @@ describe('TransactionController', () => {
         ([request]) => request.method === 'eth_sendRawTransaction',
       );
       expect(sendRawTransactionCalls).toHaveLength(0);
+    });
+  });
+
+  describe('failTransaction', () => {
+    const submittedTransactionMock = {
+      ...TRANSACTION_META_MOCK,
+      status: TransactionStatus.submitted as const,
+    } as unknown as TransactionMeta;
+
+    it('marks the transaction as failed with the provided error', () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [submittedTransactionMock],
+          },
+        },
+      });
+
+      controller.failTransaction(
+        submittedTransactionMock.id,
+        new Error('Test failure'),
+      );
+
+      expect(controller.state.transactions[0].status).toBe(
+        TransactionStatus.failed,
+      );
+      expect(controller.state.transactions[0].error?.message).toBe(
+        'Test failure',
+      );
+    });
+
+    it('publishes the failure lifecycle events', () => {
+      const failedListener = jest.fn();
+      const statusUpdatedListener = jest.fn();
+      const finishedListener = jest.fn();
+      const { controller, messenger } = setupController({
+        options: {
+          state: {
+            transactions: [submittedTransactionMock],
+          },
+        },
+      });
+      messenger.subscribe(
+        'TransactionController:transactionFailed',
+        failedListener,
+      );
+      messenger.subscribe(
+        'TransactionController:transactionStatusUpdated',
+        statusUpdatedListener,
+      );
+      messenger.subscribe(
+        'TransactionController:transactionFinished',
+        finishedListener,
+      );
+
+      controller.failTransaction(
+        submittedTransactionMock.id,
+        new Error('Test failure'),
+      );
+
+      expect(failedListener).toHaveBeenCalledTimes(1);
+      expect(statusUpdatedListener).toHaveBeenCalledTimes(1);
+      expect(finishedListener).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws if the transaction does not exist', () => {
+      const { controller } = setupController();
+
+      expect(() =>
+        controller.failTransaction('missing-id', new Error('Test failure')),
+      ).toThrow('No transaction found with id missing-id');
     });
   });
 

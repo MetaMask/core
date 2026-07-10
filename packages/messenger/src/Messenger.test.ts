@@ -345,6 +345,106 @@ describe('Messenger', () => {
     });
   });
 
+  describe('getRegisteredActionTypes', () => {
+    it('returns an empty array when no actions are registered', () => {
+      type PingAction = { type: 'Fixture:ping'; handler: () => void };
+      const messenger = new Messenger<'Fixture', PingAction, never>({
+        namespace: 'Fixture',
+      });
+
+      expect(messenger.getRegisteredActionTypes()).toStrictEqual([]);
+    });
+
+    it('returns the types of registered actions', () => {
+      type MessageAction =
+        | { type: 'Fixture:concat'; handler: (message: string) => void }
+        | { type: 'Fixture:reset'; handler: (initialMessage: string) => void };
+      const messenger = new Messenger<'Fixture', MessageAction, never>({
+        namespace: 'Fixture',
+      });
+
+      messenger.registerActionHandler('Fixture:concat', () => undefined);
+      messenger.registerActionHandler('Fixture:reset', () => undefined);
+
+      expect(messenger.getRegisteredActionTypes()).toStrictEqual([
+        'Fixture:concat',
+        'Fixture:reset',
+      ]);
+    });
+
+    it('no longer includes an action type after it is unregistered', () => {
+      type MessageAction =
+        | { type: 'Fixture:concat'; handler: (message: string) => void }
+        | { type: 'Fixture:reset'; handler: (initialMessage: string) => void };
+      const messenger = new Messenger<'Fixture', MessageAction, never>({
+        namespace: 'Fixture',
+      });
+
+      messenger.registerActionHandler('Fixture:concat', () => undefined);
+      messenger.registerActionHandler('Fixture:reset', () => undefined);
+      messenger.unregisterActionHandler('Fixture:concat');
+
+      expect(messenger.getRegisteredActionTypes()).toStrictEqual([
+        'Fixture:reset',
+      ]);
+    });
+
+    it('includes actions delegated in from another messenger', () => {
+      type CountAction = {
+        type: 'Source:count';
+        handler: (increment: number) => void;
+      };
+      const sourceMessenger = new Messenger<'Source', CountAction, never>({
+        namespace: 'Source',
+      });
+      const messenger = new Messenger<'Destination', CountAction, never>({
+        namespace: 'Destination',
+      });
+      sourceMessenger.registerActionHandler('Source:count', () => undefined);
+      sourceMessenger.delegate({ actions: ['Source:count'], messenger });
+
+      expect(messenger.getRegisteredActionTypes()).toStrictEqual([
+        'Source:count',
+      ]);
+    });
+  });
+
+  describe('buildChild', () => {
+    it('delegates actions to children', () => {
+      type PingAction = { type: 'Fixture:ping'; handler: () => string };
+      const messenger = new Messenger<MockAnyNamespace, PingAction, never>({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      messenger.registerActionHandler('Fixture:ping', () => 'pong');
+
+      const childMessenger = messenger.buildChild({
+        namespace: 'ChildMessenger',
+        actions: ['Fixture:ping'],
+      });
+
+      expect(childMessenger.call('Fixture:ping')).toBe('pong');
+    });
+
+    it('delegates events to children', () => {
+      type MessageEvent = { type: 'Fixture:message'; payload: [string] };
+      const messenger = new Messenger<MockAnyNamespace, never, MessageEvent>({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      const childMessenger = messenger.buildChild({
+        namespace: 'ChildMessenger',
+        events: ['Fixture:message'],
+      });
+
+      const handler = jest.fn();
+      childMessenger.subscribe('Fixture:message', handler);
+      messenger.publish('Fixture:message', 'hello');
+
+      expect(handler).toHaveBeenCalledWith('hello');
+    });
+  });
+
   describe('publish and subscribe', () => {
     it('publishes event to subscriber', () => {
       type MessageEvent = { type: 'Fixture:message'; payload: [string] };

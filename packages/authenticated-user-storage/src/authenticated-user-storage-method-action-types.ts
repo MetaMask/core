@@ -39,12 +39,6 @@ export type AuthenticatedUserStorageServiceRevokeDelegationAction = {
 /**
  * Returns the notification preferences for the authenticated user.
  *
- * Legacy payloads that omit `agenticCli` are coerced with
- * {@link DEFAULT_AGENTIC_CLI_PREFERENCES} on read. When this method returns
- * a non-`null` value, `agenticCli` is always present (backfilled), even
- * though {@link NotificationPreferences} marks it optional until the next
- * major release.
- *
  * @returns The notification preferences object, or `null` if none have been
  * set (404).
  */

@@ -1,5 +1,6 @@
 import { Interface } from '@ethersproject/abi';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
+import { NetworkClientType } from '@metamask/network-controller';
 import {
   TransactionStatus,
   TransactionType,
@@ -16,7 +17,6 @@ import type {
   TransactionPayControllerState,
   TransactionPayRequiredToken,
 } from '../types';
-import { getAssetsUnifyStateFeature } from './feature-flags';
 import { parseRequiredTokens } from './required-tokens';
 import {
   FINALIZED_STATUSES,
@@ -30,7 +30,6 @@ import {
   waitForTransactionConfirmed,
 } from './transaction';
 
-jest.mock('./feature-flags');
 jest.mock('./required-tokens');
 
 const TRANSACTION_ID_MOCK = '123-456';
@@ -55,9 +54,6 @@ const TRANSCTION_TOKEN_REQUIRED_MOCK = {
 
 describe('Transaction Utils', () => {
   const parseRequiredTokensMock = jest.mocked(parseRequiredTokens);
-  const getAssetsUnifyStateFeatureMock = jest.mocked(
-    getAssetsUnifyStateFeature,
-  );
   const {
     messenger,
     getTransactionControllerStateMock,
@@ -71,8 +67,6 @@ describe('Transaction Utils', () => {
     getTransactionControllerStateMock.mockReturnValue({
       transactions: [] as TransactionMeta[],
     } as TransactionControllerState);
-
-    getAssetsUnifyStateFeatureMock.mockReturnValue(false);
   });
 
   describe('getTransaction', () => {
@@ -300,10 +294,9 @@ describe('Transaction Utils', () => {
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
     });
 
-    it('subscribes to AssetsController state changes when unify-state feature is enabled', () => {
+    it('subscribes to AssetsController state changes', () => {
       const updateTransactionDataMock = jest.fn();
 
-      getAssetsUnifyStateFeatureMock.mockReturnValue(true);
       parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
       isolatedGetTransactionControllerStateMock.mockReturnValue({
         transactions: [TRANSACTION_META_MOCK],
@@ -320,10 +313,10 @@ describe('Transaction Utils', () => {
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
     });
 
-    it('does not subscribe to per-source events when unify-state feature is enabled', () => {
+    it('subscribes to all per-source events in addition to AssetsController', () => {
       const updateTransactionDataMock = jest.fn();
 
-      getAssetsUnifyStateFeatureMock.mockReturnValue(true);
+      parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
       isolatedGetTransactionControllerStateMock.mockReturnValue({
         transactions: [TRANSACTION_META_MOCK],
       } as TransactionControllerState);
@@ -338,7 +331,7 @@ describe('Transaction Utils', () => {
       isolatedPublish('TokenRatesController:stateChange', {} as never, []);
       isolatedPublish('CurrencyRateController:stateChange', {} as never, []);
 
-      expect(updateTransactionDataMock).not.toHaveBeenCalled();
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(3);
     });
 
     it('skips transactions whose tokens are already populated', () => {
@@ -707,6 +700,10 @@ describe('getTransferredAmountFromTxHash', () => {
 
     receiptFindNetworkMock.mockReturnValue(NETWORK_CLIENT_ID_RECEIPT_MOCK);
     receiptGetNetworkMock.mockReturnValue({
+      configuration: {
+        chainId: CHAIN_ID_RECEIPT_MOCK,
+        type: NetworkClientType.Custom,
+      },
       provider: PROVIDER_RECEIPT_MOCK,
     } as never);
   });
@@ -727,7 +724,8 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBe('1000000000000000000');
+      expect(result.amountRaw).toBe('1000000000000000000');
+      expect(result.blockNumber).toBeUndefined();
       expect(PROVIDER_RECEIPT_MOCK.request).toHaveBeenCalledWith({
         method: 'debug_traceTransaction',
         params: [TX_HASH_MOCK, { tracer: 'callTracer' }],
@@ -765,7 +763,7 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBe('2000000000000000000');
+      expect(result.amountRaw).toBe('2000000000000000000');
     });
 
     it('falls back to tx.value when debug_traceTransaction is unsupported', async () => {
@@ -789,10 +787,10 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBe('1500000000000000000');
+      expect(result.amountRaw).toBe('1500000000000000000');
     });
 
-    it('returns undefined when trace returns zero value and tx.to does not match wallet', async () => {
+    it('returns undefined amountRaw when trace returns zero value and tx.to does not match wallet', async () => {
       PROVIDER_RECEIPT_MOCK.request.mockImplementation(
         ({ method }: { method: string }) => {
           if (method === 'debug_traceTransaction') {
@@ -813,10 +811,10 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBeUndefined();
+      expect(result.amountRaw).toBeUndefined();
     });
 
-    it('returns undefined when trace is unsupported and transaction is not found', async () => {
+    it('returns undefined amountRaw when trace is unsupported and transaction is not found', async () => {
       PROVIDER_RECEIPT_MOCK.request.mockImplementation(
         ({ method }: { method: string }) => {
           if (method === 'debug_traceTransaction') {
@@ -834,10 +832,10 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBeUndefined();
+      expect(result.amountRaw).toBeUndefined();
     });
 
-    it('returns undefined when trace is unsupported and native tx.value is zero', async () => {
+    it('returns undefined amountRaw when trace is unsupported and native tx.value is zero', async () => {
       PROVIDER_RECEIPT_MOCK.request.mockImplementation(
         ({ method }: { method: string }) => {
           if (method === 'debug_traceTransaction') {
@@ -858,7 +856,7 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBeUndefined();
+      expect(result.amountRaw).toBeUndefined();
     });
 
     it('ignores trace value with 0x0', async () => {
@@ -885,13 +883,14 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBe('500');
+      expect(result.amountRaw).toBe('500');
     });
   });
 
   describe('ERC-20 token', () => {
     it('decodes transfer amount from receipt logs', async () => {
       PROVIDER_RECEIPT_MOCK.request.mockResolvedValue({
+        blockNumber: '0x1a2b3c',
         logs: [encodeTransferLog(WALLET_ADDRESS_RECEIPT_MOCK, '5000000')],
       });
 
@@ -903,7 +902,8 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBe('5000000');
+      expect(result.amountRaw).toBe('5000000');
+      expect(result.blockNumber).toBe('0x1a2b3c');
     });
 
     it('sums multiple Transfer events to the same wallet', async () => {
@@ -922,7 +922,7 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBe('5000000');
+      expect(result.amountRaw).toBe('5000000');
     });
 
     it('ignores Transfer events to other addresses', async () => {
@@ -942,7 +942,7 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBe('1000000');
+      expect(result.amountRaw).toBe('1000000');
     });
 
     it('ignores logs from other token contracts', async () => {
@@ -966,7 +966,7 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBe('1000000');
+      expect(result.amountRaw).toBe('1000000');
     });
 
     it('ignores logs with non-Transfer event topics', async () => {
@@ -993,10 +993,10 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBe('2000000');
+      expect(result.amountRaw).toBe('2000000');
     });
 
-    it('returns undefined when receipt is not found', async () => {
+    it('returns undefined amountRaw and blockNumber when receipt is not found', async () => {
       PROVIDER_RECEIPT_MOCK.request.mockResolvedValue(null);
 
       const result = await getTransferredAmountFromTxHash({
@@ -1007,10 +1007,11 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBeUndefined();
+      expect(result.amountRaw).toBeUndefined();
+      expect(result.blockNumber).toBeUndefined();
     });
 
-    it('returns undefined when no matching Transfer logs exist', async () => {
+    it('returns undefined amountRaw when no matching Transfer logs exist', async () => {
       PROVIDER_RECEIPT_MOCK.request.mockResolvedValue({ logs: [] });
 
       const result = await getTransferredAmountFromTxHash({
@@ -1021,7 +1022,7 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBeUndefined();
+      expect(result.amountRaw).toBeUndefined();
     });
 
     it('skips malformed log entries gracefully', async () => {
@@ -1044,10 +1045,10 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBe('4000000');
+      expect(result.amountRaw).toBe('4000000');
     });
 
-    it('returns undefined when all Transfer amounts are zero', async () => {
+    it('returns undefined amountRaw when all Transfer amounts are zero', async () => {
       PROVIDER_RECEIPT_MOCK.request.mockResolvedValue({
         logs: [encodeTransferLog(WALLET_ADDRESS_RECEIPT_MOCK, '0')],
       });
@@ -1060,7 +1061,7 @@ describe('getTransferredAmountFromTxHash', () => {
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       });
 
-      expect(result).toBeUndefined();
+      expect(result.amountRaw).toBeUndefined();
     });
   });
 
@@ -1075,11 +1076,13 @@ describe('getTransferredAmountFromTxHash', () => {
         tokenAddress: ERC20_ADDRESS_RECEIPT_MOCK,
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       }),
-    ).rejects.toThrow('RPC error');
+    ).rejects.toThrow('RPC 0x1 Custom eth_getTransactionReceipt: RPC error');
   });
 
   it('propagates provider errors for native when both trace and getTransaction fail', async () => {
-    PROVIDER_RECEIPT_MOCK.request.mockRejectedValue(new Error('RPC error'));
+    PROVIDER_RECEIPT_MOCK.request
+      .mockRejectedValueOnce(new Error('RPC error'))
+      .mockRejectedValueOnce(new Error('RPC error'));
 
     await expect(
       getTransferredAmountFromTxHash({
@@ -1089,6 +1092,6 @@ describe('getTransferredAmountFromTxHash', () => {
         tokenAddress: NATIVE_TOKEN_ADDRESS,
         walletAddress: WALLET_ADDRESS_RECEIPT_MOCK,
       }),
-    ).rejects.toThrow('RPC error');
+    ).rejects.toThrow('RPC 0x1 Custom eth_getTransactionByHash: RPC error');
   });
 });

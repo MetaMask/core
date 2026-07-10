@@ -1,12 +1,18 @@
 export { BridgeController } from './bridge-controller';
 
 export {
+  BatchSellMetricsEventName,
   UnifiedSwapBridgeEventName,
+  BATCH_SELL_EVENT_CATEGORY,
   UNIFIED_SWAP_BRIDGE_EVENT_CATEGORY,
+  BatchSellMetricsLocation,
   InputAmountPreset,
   MetaMetricsSwapsEventSource,
   PollingStatus,
 } from './utils/metrics/constants';
+
+export type { BridgeControllerMetricsEventName } from './utils/metrics/constants';
+export type { BridgeControllerMetricsLocation } from './utils/metrics/constants';
 
 export type {
   AccountHardwareType,
@@ -18,6 +24,7 @@ export type {
   TxStatusData,
   QuoteFetchData,
   QuoteWarning,
+  InputPrimaryDenominationData,
 } from './utils/metrics/types';
 
 export {
@@ -39,28 +46,35 @@ export type {
   FeatureFlagResponse,
   BridgeAsset,
   GenericQuoteRequest,
-  Protocol,
   BatchSellTradesResponse,
   GaslessProperties,
   SimulatedGasFeeLimits,
   TokenAmountValues,
   Step,
   RefuelData,
-  Quote,
-  QuoteResponseV1 as QuoteResponse,
   FeeData,
-  TxData,
   Intent,
   IntentOrderLike,
-  BitcoinTradeData,
-  TronTradeData,
   BridgeControllerState,
+  InputPrimaryDenomination,
   BridgeControllerAction,
   BridgeControllerActions,
   BridgeControllerEvents,
   BridgeControllerMessenger,
   FeatureFlagsPlatformConfig,
   TxFeeGasLimits,
+  TokenFeature,
+  QuoteStreamCompleteData,
+  BridgeControllerGetStateAction,
+  BridgeControllerStateChangeEvent,
+} from './types';
+
+export {
+  AssetType,
+  SortOrder,
+  ChainId,
+  RequestStatus,
+  StatusTypes,
 } from './types';
 
 export type {
@@ -68,6 +82,8 @@ export type {
   BridgeControllerFetchQuotesAction,
   BridgeControllerStopPollingForQuotesAction,
   BridgeControllerSetLocationAction,
+  BridgeControllerGetLocationAction,
+  BridgeControllerSetInputPrimaryDenominationAction,
   BridgeControllerResetStateAction,
   BridgeControllerSetChainIntervalLengthAction,
   BridgeControllerTrackUnifiedSwapBridgeEventAction,
@@ -76,29 +92,31 @@ export type {
 
 export { AbortReason } from './utils/metrics/constants';
 
-export { StatusTypes } from './types';
-
+export type {
+  TxData,
+  BitcoinTradeData,
+  TronTradeData,
+  StellarTradeData,
+  Trade,
+} from './validators/trade';
 export {
-  AssetType,
-  SortOrder,
-  ChainId,
-  RequestStatus,
-  FeatureId,
-  type TokenFeature,
-  type QuoteStreamCompleteData,
-  type BridgeControllerGetStateAction,
-  type BridgeControllerStateChangeEvent,
-} from './types';
-
+  isBitcoinTrade,
+  isTronTrade,
+  isEvmTxData,
+  isStellarTrade,
+} from './validators/trade';
+export type { QuoteResponseV1 as QuoteResponse } from './validators/quote-response-v1';
+export type { Quote } from './validators/quote';
+export { FeeType, DiscountType } from './validators/quote';
+export { ActionTypes } from './validators/step';
 export {
-  FeeType,
-  ActionTypes,
-  BridgeAssetSchema,
-  TokenFeatureType,
   validateQuoteStreamComplete,
   QuoteStreamCompleteReason,
-  BatchSellTransactionType,
-} from './utils/validators';
+} from './validators/quote-stream-complete';
+export { BatchSellTransactionType } from './validators/batch-sell';
+export { TokenFeatureType } from './validators/token-feature';
+export { BridgeAssetSchema } from './validators/bridge-asset';
+export { FeatureId } from './validators/feature-flags';
 
 export {
   ALLOWED_BRIDGE_CHAIN_IDS,
@@ -144,6 +162,7 @@ export {
   isSolanaChainId,
   isBitcoinChainId,
   isTronChainId,
+  isStellarChainId,
   isNonEvmChainId,
   getNativeAssetForChainId,
   getDefaultBridgeControllerState,
@@ -159,7 +178,13 @@ export {
 
 export { calcLatestSrcBalance } from './utils/balance';
 
-export { fetchBridgeTokens, getClientHeaders } from './utils/fetch';
+export {
+  fetchBridgeTokens,
+  getClientHeaders,
+  fetchBridgeQuoteStream,
+} from './utils/fetch';
+
+export { appendFeesToQuotes } from './utils/quote-fees';
 
 export {
   formatChainIdToCaip,
@@ -168,13 +193,7 @@ export {
   formatAddressToAssetId,
 } from './utils/caip-formatters';
 
-export {
-  extractTradeData,
-  isBitcoinTrade,
-  isTronTrade,
-  isEvmTxData,
-  type Trade,
-} from './utils/trade-utils';
+export { extractTradeData } from './utils/trade-utils';
 
 export {
   selectBridgeQuotes,

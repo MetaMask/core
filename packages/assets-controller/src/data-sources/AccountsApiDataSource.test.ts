@@ -232,6 +232,35 @@ describe('AccountsApiDataSource', () => {
     controller.destroy();
   });
 
+  it('refreshActiveChains re-fetches supported networks and updates activeChains', async () => {
+    const { controller, apiClient, activeChainsUpdateHandler } =
+      await setupController({ supportedChains: [1] });
+
+    activeChainsUpdateHandler.mockClear();
+    apiClient.accounts.fetchV2SupportedNetworks.mockClear();
+    apiClient.accounts.fetchV2SupportedNetworks.mockResolvedValue({
+      fullSupport: [1, 137],
+      partialSupport: [],
+    });
+
+    await controller.refreshActiveChains();
+
+    expect(apiClient.accounts.fetchV2SupportedNetworks).toHaveBeenCalledTimes(
+      1,
+    );
+    expect(activeChainsUpdateHandler).toHaveBeenCalledWith(
+      'AccountsApiDataSource',
+      [CHAIN_MAINNET, CHAIN_POLYGON],
+      [CHAIN_MAINNET],
+    );
+    expect(await controller.getActiveChains()).toStrictEqual([
+      CHAIN_MAINNET,
+      CHAIN_POLYGON,
+    ]);
+
+    controller.destroy();
+  });
+
   it('exposes assetsMiddleware and getActiveChains on instance', async () => {
     const { controller } = await setupController();
 
@@ -300,6 +329,22 @@ describe('AccountsApiDataSource', () => {
 
     expect(apiClient.accounts.fetchV5MultiAccountBalances).toHaveBeenCalledWith(
       [`eip155:1:${MOCK_ADDRESS}`],
+      undefined,
+      undefined,
+    );
+
+    controller.destroy();
+  });
+
+  it('fetch bypasses TanStack cache when forceUpdate is true', async () => {
+    const { controller, apiClient } = await setupController();
+
+    await controller.fetch(createDataRequest({ forceUpdate: true }));
+
+    expect(apiClient.accounts.fetchV5MultiAccountBalances).toHaveBeenCalledWith(
+      [`eip155:1:${MOCK_ADDRESS}`],
+      undefined,
+      { staleTime: 0, gcTime: 0 },
     );
 
     controller.destroy();

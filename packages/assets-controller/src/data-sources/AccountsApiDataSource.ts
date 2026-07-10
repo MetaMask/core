@@ -264,6 +264,17 @@ export class AccountsApiDataSource extends AbstractDataSource<
     }
   }
 
+  /**
+   * Re-fetch supported networks from the Accounts API and update `activeChains`
+   * when the list changed. Used when the selected EVM network switches so
+   * chain claiming is not stuck on an empty init-time list.
+   *
+   * @returns Resolves when supported networks have been re-fetched.
+   */
+  refreshActiveChains(): Promise<void> {
+    return this.#refreshActiveChains();
+  }
+
   async #fetchActiveChains(): Promise<ChainId[]> {
     const response = await this.#apiClient.accounts.fetchV2SupportedNetworks();
 
@@ -319,8 +330,17 @@ export class AccountsApiDataSource extends AbstractDataSource<
         return response;
       }
 
+      const fetchOptions = request.forceUpdate
+        ? { staleTime: 0, gcTime: 0 }
+        : undefined;
+
       const apiResponse = await fetchWithTimeout(
-        () => this.#apiClient.accounts.fetchV5MultiAccountBalances(accountIds),
+        () =>
+          this.#apiClient.accounts.fetchV5MultiAccountBalances(
+            accountIds,
+            undefined,
+            fetchOptions,
+          ),
         this.#fetchTimeoutMs,
       );
 
@@ -342,7 +362,7 @@ export class AccountsApiDataSource extends AbstractDataSource<
       );
 
       response.assetsBalance = assetsBalance;
-      response.updateMode = 'full';
+      response.updateMode = 'merge';
     } catch (error) {
       log('Fetch FAILED', { error, chains: chainsToFetch });
 

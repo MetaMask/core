@@ -15,6 +15,7 @@ import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../../types';
+import { prefixError } from '../../utils/error-prefix';
 import {
   getFeatureFlags,
   getRelayPollingInterval,
@@ -33,6 +34,7 @@ import {
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
 import {
+  FALLBACK_HASH,
   RELAY_DEPOSIT_TYPES,
   RELAY_FAILURE_STATUSES,
   RELAY_PENDING_STATUSES,
@@ -42,18 +44,18 @@ import {
   sweepPolymarketDepositWallet,
   submitPolymarketWithdraw,
 } from './polymarket/withdraw';
-import { getRelayStatus, submitRelayExecute } from './relay-api';
+import { getRelayStatus } from './relay-api';
+import { submitViaRelayExecute } from './relay-submit-execute';
 import type {
-  RelayExecuteRequest,
+  RelayCompletionOutcome,
   RelayQuote,
   RelayStatus,
   RelayStatusResponse,
   RelayTransactionStep,
 } from './types';
 
-const FALLBACK_HASH = '0x0' as Hex;
-
 const log = createModuleLogger(projectLogger, 'relay-strategy');
+const RELAY_ERROR_PREFIX = 'Relay: ';
 
 /**
  * Submits Relay quotes.
@@ -64,9 +66,23 @@ const log = createModuleLogger(projectLogger, 'relay-strategy');
 export async function submitRelayQuotes(
   request: PayStrategyExecuteRequest<RelayQuote>,
 ): Promise<{ transactionHash?: Hex }> {
+  try {
+    return await submitRelayQuotesInternal(request);
+  } catch (error) {
+    throw prefixError(error, RELAY_ERROR_PREFIX);
+  }
+}
+
+async function submitRelayQuotesInternal(
+  request: PayStrategyExecuteRequest<RelayQuote>,
+): Promise<{ transactionHash?: Hex }> {
   log('Executing quotes', request);
 
   const { quotes, messenger, transaction } = request;
+
+  if (!quotes.length) {
+    throw new Error('No quotes to submit');
+  }
 
   let transactionHash: Hex | undefined;
 
@@ -76,6 +92,11 @@ export async function submitRelayQuotes(
       messenger,
       transaction,
     ));
+  }
+
+  /* istanbul ignore if: concrete Relay submit paths return a hash/fallback or throw. */
+  if (transactionHash === undefined) {
+    throw new Error('Missing transaction hash');
   }
 
   return { transactionHash };
@@ -111,6 +132,9 @@ async function executeSingleQuote(
 
   let polymarketPreSubmitUsdceBalance = 0n;
 
+  // Shallow clone so the server-returned requestId can be written back (state is frozen by Immer).
+  const mutableOriginal: RelayQuote = { ...quote.original };
+
   if (quote.request.isHyperliquidSource) {
     await submitHyperliquidWithdraw(quote, quote.request.from, messenger);
   } else if (isPolymarket) {
@@ -119,10 +143,14 @@ async function executeSingleQuote(
     polymarketPreSubmitUsdceBalance = preSubmitUsdceBalance;
     setRelaySourceHash(transaction, messenger, sourceHash);
   } else {
-    await submitTransactions(quote, transaction, messenger);
+    await submitTransactions(
+      { ...quote, original: mutableOriginal },
+      transaction,
+      messenger,
+    );
   }
 
-  const completion = await waitForRelayCompletion(quote.original, messenger, {
+  const completion = await waitForRelayCompletion(mutableOriginal, messenger, {
     onSourceHash: (hash) => {
       log('Source hash received', hash);
       setRelaySourceHash(transaction, messenger, hash);
@@ -139,7 +167,7 @@ async function executeSingleQuote(
     });
 
     if (completion.status !== 'success') {
-      throw new Error(`Relay request failed with status: ${completion.status}`);
+      throw new Error(`Request failed with status: ${completion.status}`);
     }
   }
 
@@ -174,11 +202,6 @@ function setRelaySourceHash(
     },
   );
 }
-
-type RelayCompletionOutcome = {
-  status: RelayStatus | 'timeout';
-  targetHash?: Hex;
-};
 
 async function waitForRelayCompletion(
   quote: RelayQuote,
@@ -234,7 +257,7 @@ async function waitForRelayCompletion(
 
       if (status.status === 'success') {
         const targetHash =
-          (status.txHashes?.slice(-1)[0] as Hex) ?? FALLBACK_HASH;
+          (status.txHashes?.slice(-1)[0] as Hex | undefined) ?? FALLBACK_HASH;
         return { status: 'success', targetHash };
       }
 
@@ -244,9 +267,9 @@ async function waitForRelayCompletion(
             log('Relay ended in failure status (tolerated)', status.status);
             return { status: status.status };
           }
-          throw new Error(`Relay request failed with status: ${status.status}`);
+          throw new Error(`Request failed with status: ${status.status}`);
         }
-        throw new Error(`Relay returned unrecognized status: ${status.status}`);
+        throw new Error(`Unrecognized status: ${status.status}`);
       }
     }
 
@@ -256,7 +279,7 @@ async function waitForRelayCompletion(
         log('Relay polling timed out (tolerated)', statusDetail);
         return { status: 'timeout' };
       }
-      throw new Error(`Relay polling timed out${statusDetail}`);
+      throw new Error(`Polling timed out${statusDetail}`);
     }
 
     await new Promise((resolve) => setTimeout(resolve, pollingInterval));
@@ -280,8 +303,14 @@ function normalizeParams(
     data: params.data,
     from: params.from,
     gas: toHex(params.gas ?? featureFlags.relayFallbackGas.max),
-    maxFeePerGas: toHex(params.maxFeePerGas),
-    maxPriorityFeePerGas: toHex(params.maxPriorityFeePerGas),
+    maxFeePerGas:
+      params.maxFeePerGas === undefined
+        ? undefined
+        : toHex(params.maxFeePerGas),
+    maxPriorityFeePerGas:
+      params.maxPriorityFeePerGas === undefined
+        ? undefined
+        : toHex(params.maxPriorityFeePerGas),
     to: params.to,
     value: toHex(params.value ?? '0'),
   };
@@ -497,94 +526,6 @@ async function buildDelegatedOriginalParams(
 }
 
 /**
- * Submit source transactions via Relay's /execute endpoint.
- *
- * Combines all source calls (approve + deposit, and optionally the
- * original transaction for post-quote flows) into a single EIP-7702
- * delegation transaction using getDelegationTransaction, then submits
- * it to Relay's /execute endpoint for gasless execution.
- *
- * @param quote - Relay quote.
- * @param transaction - Original transaction meta.
- * @param messenger - Controller messenger.
- * @param allParams - All source transaction params to combine.
- * @returns Fallback hash (actual hash comes from relay status polling).
- */
-async function submitViaRelayExecute(
-  quote: TransactionPayQuote<RelayQuote>,
-  transaction: TransactionMeta,
-  messenger: TransactionPayControllerMessenger,
-  allParams: TransactionParams[],
-): Promise<Hex> {
-  const { from, sourceChainId } = quote.request;
-  const { requestId } = quote.original.steps[0];
-
-  const networkClientId = getNetworkClientId(messenger, sourceChainId);
-
-  const sourceCallTransaction = {
-    ...transaction,
-    chainId: sourceChainId,
-    networkClientId,
-    nestedTransactions: allParams.map((params) => ({
-      data: (params.data ?? '0x') as Hex,
-      to: params.to as Hex,
-      value: (params.value ?? '0x0') as Hex,
-    })),
-    txParams: {
-      ...transaction.txParams,
-      from,
-    },
-  } as TransactionMeta;
-
-  const delegation = await messenger.call(
-    'TransactionPayController:getDelegationTransaction',
-    { transaction: sourceCallTransaction },
-  );
-
-  log('Delegation result for source calls', delegation);
-
-  const executeBody: RelayExecuteRequest = {
-    executionKind: 'rawCalls',
-    data: {
-      chainId: Number(sourceChainId),
-      to: delegation.to,
-      data: delegation.data,
-      value: new BigNumber(delegation.value).toFixed(),
-      ...(delegation.authorizationList?.length
-        ? {
-            authorizationList: delegation.authorizationList.map((auth) => ({
-              chainId: Number(auth.chainId),
-              address: auth.address,
-              nonce: Number(auth.nonce),
-              yParity: Number(auth.yParity),
-              r: auth.r as Hex,
-              s: auth.s as Hex,
-            })),
-          }
-        : {}),
-    },
-    executionOptions: {
-      subsidizeFees: false,
-    },
-    requestId,
-  };
-
-  log('Submitting via Relay execute', { executeBody, from });
-
-  let result;
-  try {
-    result = await submitRelayExecute(messenger, executeBody);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    throw new Error(`Relay execute: ${message}`);
-  }
-
-  log('Relay execute response', result);
-
-  return FALLBACK_HASH;
-}
-
-/**
  * Submit source transactions via the TransactionController.
  *
  * Uses addTransaction for single params or addTransactionBatch for
@@ -640,9 +581,15 @@ async function submitViaTransactionController(
 
   let result: { result: Promise<string> } | undefined;
 
-  const gasFeeToken = quote.fees.isSourceGasFeeToken
-    ? sourceTokenAddress
-    : undefined;
+  const isSourceGasFeeSponsored =
+    transaction.isGasFeeSponsored &&
+    quote.request.sourceChainId === transaction.chainId &&
+    quote.request.targetChainId === transaction.chainId;
+
+  const gasFeeToken =
+    !isSourceGasFeeSponsored && quote.fees.isSourceGasFeeToken
+      ? sourceTokenAddress
+      : undefined;
 
   log('Submitting transactions', {
     isPostQuote,
@@ -680,6 +627,7 @@ async function submitViaTransactionController(
         networkClientId,
         origin: ORIGIN_METAMASK,
         isInternal: true,
+        isGasFeeSponsored: isSourceGasFeeSponsored,
         requireApproval: false,
         type: getRelayDepositType(getEffectiveTransactionType(transaction)),
       },
@@ -724,6 +672,7 @@ async function submitViaTransactionController(
       networkClientId,
       origin: ORIGIN_METAMASK,
       isInternal: true,
+      isGasFeeSponsored: isSourceGasFeeSponsored,
       overwriteUpgrade: true,
       requireApproval: false,
       transactions,
@@ -733,6 +682,10 @@ async function submitViaTransactionController(
   end();
 
   log('Added transactions', transactionIds);
+
+  if (!transactionIds.length) {
+    throw new Error('No transactions submitted');
+  }
 
   if (result) {
     const txHash = await result.result;
@@ -746,6 +699,10 @@ async function submitViaTransactionController(
   log('All transactions confirmed', transactionIds);
 
   const hash = getTransaction(transactionIds.slice(-1)[0], messenger)?.hash;
+
+  if (!hash) {
+    throw new Error('Missing transaction hash');
+  }
 
   return hash as Hex;
 }

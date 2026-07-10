@@ -23,7 +23,6 @@ import type {
   BridgeControllerState,
   ExchangeRate,
   QuoteMetadata,
-  QuoteResponseV1,
   TokenAmountValues,
 } from './types';
 import { RequestStatus, SortOrder } from './types';
@@ -55,6 +54,7 @@ import {
   calcBatchFees,
 } from './utils/quote';
 import { getDefaultSlippagePercentage } from './utils/slippage';
+import type { QuoteResponseV1 } from './validators/quote-response-v1';
 
 /**
  * The controller states that provide exchange rates
@@ -329,16 +329,7 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
   [
     ({ quotes }) => quotes,
     selectBridgeFeesPerGas,
-    createBridgeSelector(
-      [
-        (state) => state,
-        ({ quoteRequest: [{ srcChainId, srcTokenAddress }] }) =>
-          srcTokenAddress
-            ? formatAddressToAssetId(srcTokenAddress, srcChainId)
-            : undefined,
-      ],
-      selectExchangeRateByAssetId,
-    ),
+    (state) => state,
     createBridgeSelector(
       [
         (state) => state,
@@ -363,11 +354,20 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
   (
     quotes,
     bridgeFeesPerGas,
-    srcTokenExchangeRate,
+    exchangeRateSources,
     destTokenExchangeRate,
     nativeExchangeRate,
   ) => {
     const newQuotes = quotes.map((quote) => {
+      const sourceAssetId =
+        formatAddressToAssetId(
+          quote.quote.srcAsset.address,
+          quote.quote.srcChainId,
+        ) ?? quote.quote.srcAsset.assetId;
+      const srcTokenExchangeRate = selectExchangeRateByAssetId(
+        exchangeRateSources,
+        sourceAssetId,
+      );
       const sentAmount = calcSentAmount(quote.quote, srcTokenExchangeRate);
       const toTokenAmount = calcToAmount(
         quote.quote.destTokenAmount,

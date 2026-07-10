@@ -20,15 +20,15 @@ import type {
   NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
-import type { AuthenticationControllerGetBearerTokenAction } from '@metamask/profile-sync-controller/auth';
+import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import type {
   RemoteFeatureFlagControllerGetStateAction,
   RemoteFeatureFlagControllerStateChangeEvent,
 } from '@metamask/remote-feature-flag-controller';
 import type {
+  TransactionControllerFailTransactionAction,
   TransactionControllerGetNonceLockAction,
   TransactionControllerGetTransactionsAction,
-  TransactionControllerUpdateTransactionAction,
   TransactionMeta,
   TransactionParams,
 } from '@metamask/transaction-controller';
@@ -188,13 +188,13 @@ export type SmartTransactionsControllerActions =
   | SmartTransactionsControllerMethodActions;
 
 type AllowedActions =
-  | AuthenticationControllerGetBearerTokenAction
+  | AuthenticationController.AuthenticationControllerGetBearerTokenAction
   | NetworkControllerGetNetworkClientByIdAction
   | NetworkControllerGetStateAction
   | RemoteFeatureFlagControllerGetStateAction
+  | TransactionControllerFailTransactionAction
   | TransactionControllerGetNonceLockAction
-  | TransactionControllerGetTransactionsAction
-  | TransactionControllerUpdateTransactionAction;
+  | TransactionControllerGetTransactionsAction;
 
 export type SmartTransactionsControllerStateChangeEvent =
   ControllerStateChangeEvent<
@@ -692,11 +692,11 @@ export class SmartTransactionsController extends StaticIntervalPollingController
         smartTransaction: nextSmartTransaction,
         getRegularTransactions: () =>
           this.messenger.call('TransactionController:getTransactions'),
-        updateTransaction: (transactionMeta: TransactionMeta, note: string) =>
+        failTransaction: (transactionId: string, error: Error) =>
           this.messenger.call(
-            'TransactionController:updateTransaction',
-            transactionMeta,
-            note,
+            'TransactionController:failTransaction',
+            transactionId,
+            error,
           ),
       });
     }

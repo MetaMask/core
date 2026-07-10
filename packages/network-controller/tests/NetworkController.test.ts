@@ -504,247 +504,229 @@ describe('NetworkController', () => {
         { initializeController: false },
         ({ controller }) => {
           expect(controller.state).toMatchInlineSnapshot(`
-          {
-            "networkConfigurationsByChainId": {
-              "0x1": {
-                "blockExplorerUrls": [
-                  "https://etherscan.io",
-                ],
-                "chainId": "0x1",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Ethereum",
-                "nativeCurrency": "ETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "mainnet",
-                    "type": "infura",
-                    "url": "https://mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
+            {
+              "networkConfigurationsByChainId": {
+                "0x1": {
+                  "blockExplorerUrls": [
+                    "https://etherscan.io",
+                  ],
+                  "chainId": "0x1",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Ethereum",
+                  "nativeCurrency": "ETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "mainnet",
+                      "type": "infura",
+                      "url": "https://mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0x18c7": {
+                  "blockExplorerUrls": [
+                    "https://megaeth-testnet-v2.blockscout.com",
+                  ],
+                  "chainId": "0x18c7",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "MegaETH Testnet",
+                  "nativeCurrency": "MegaETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "megaeth-testnet-v2",
+                      "type": "custom",
+                      "url": "https://carrot.megaeth.com/rpc",
+                    },
+                  ],
+                },
+                "0x2105": {
+                  "blockExplorerUrls": [
+                    "https://basescan.org",
+                  ],
+                  "chainId": "0x2105",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Base",
+                  "nativeCurrency": "ETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "base-mainnet",
+                      "type": "infura",
+                      "url": "https://base-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0x279f": {
+                  "blockExplorerUrls": [
+                    "https://testnet.monadexplorer.com",
+                  ],
+                  "chainId": "0x279f",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Monad Testnet",
+                  "nativeCurrency": "MON",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "monad-testnet",
+                      "type": "custom",
+                      "url": "https://testnet-rpc.monad.xyz",
+                    },
+                  ],
+                },
+                "0x38": {
+                  "blockExplorerUrls": [
+                    "https://bscscan.com",
+                  ],
+                  "chainId": "0x38",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "BNB Chain",
+                  "nativeCurrency": "BNB",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "bsc-mainnet",
+                      "type": "infura",
+                      "url": "https://bsc-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0x89": {
+                  "blockExplorerUrls": [
+                    "https://polygonscan.com",
+                  ],
+                  "chainId": "0x89",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Polygon",
+                  "nativeCurrency": "POL",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "polygon-mainnet",
+                      "type": "infura",
+                      "url": "https://polygon-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0x8f": {
+                  "blockExplorerUrls": [
+                    "https://monadscan.com",
+                  ],
+                  "chainId": "0x8f",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Monad",
+                  "nativeCurrency": "MON",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "monad-mainnet",
+                      "type": "infura",
+                      "url": "https://monad-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0xa": {
+                  "blockExplorerUrls": [
+                    "https://optimistic.etherscan.io",
+                  ],
+                  "chainId": "0xa",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "OP",
+                  "nativeCurrency": "ETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "optimism-mainnet",
+                      "type": "infura",
+                      "url": "https://optimism-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0xa4b1": {
+                  "blockExplorerUrls": [
+                    "https://arbiscan.io",
+                  ],
+                  "chainId": "0xa4b1",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Arbitrum",
+                  "nativeCurrency": "ETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "arbitrum-mainnet",
+                      "type": "infura",
+                      "url": "https://arbitrum-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0xaa36a7": {
+                  "blockExplorerUrls": [
+                    "https://sepolia.etherscan.io",
+                  ],
+                  "chainId": "0xaa36a7",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Sepolia",
+                  "nativeCurrency": "SepoliaETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "sepolia",
+                      "type": "infura",
+                      "url": "https://sepolia.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0xe705": {
+                  "blockExplorerUrls": [
+                    "https://sepolia.lineascan.build",
+                  ],
+                  "chainId": "0xe705",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Linea Sepolia",
+                  "nativeCurrency": "LineaETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "linea-sepolia",
+                      "type": "infura",
+                      "url": "https://linea-sepolia.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0xe708": {
+                  "blockExplorerUrls": [
+                    "https://lineascan.build",
+                  ],
+                  "chainId": "0xe708",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Linea",
+                  "nativeCurrency": "ETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "linea-mainnet",
+                      "type": "infura",
+                      "url": "https://linea-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
               },
-              "0x18c6": {
-                "blockExplorerUrls": [
-                  "https://megaexplorer.xyz",
-                ],
-                "chainId": "0x18c6",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Mega Testnet",
-                "nativeCurrency": "MegaETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "megaeth-testnet",
-                    "type": "custom",
-                    "url": "https://carrot.megaeth.com/rpc",
-                  },
-                ],
-              },
-              "0x18c7": {
-                "blockExplorerUrls": [
-                  "https://megaeth-testnet-v2.blockscout.com",
-                ],
-                "chainId": "0x18c7",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "MegaETH Testnet",
-                "nativeCurrency": "MegaETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "megaeth-testnet-v2",
-                    "type": "custom",
-                    "url": "https://carrot.megaeth.com/rpc",
-                  },
-                ],
-              },
-              "0x2105": {
-                "blockExplorerUrls": [
-                  "https://basescan.org",
-                ],
-                "chainId": "0x2105",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Base",
-                "nativeCurrency": "ETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "base-mainnet",
-                    "type": "infura",
-                    "url": "https://base-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0x279f": {
-                "blockExplorerUrls": [
-                  "https://testnet.monadexplorer.com",
-                ],
-                "chainId": "0x279f",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Monad Testnet",
-                "nativeCurrency": "MON",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "monad-testnet",
-                    "type": "custom",
-                    "url": "https://testnet-rpc.monad.xyz",
-                  },
-                ],
-              },
-              "0x38": {
-                "blockExplorerUrls": [
-                  "https://bscscan.com",
-                ],
-                "chainId": "0x38",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "BNB Chain",
-                "nativeCurrency": "BNB",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "bsc-mainnet",
-                    "type": "infura",
-                    "url": "https://bsc-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0x89": {
-                "blockExplorerUrls": [
-                  "https://polygonscan.com",
-                ],
-                "chainId": "0x89",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Polygon",
-                "nativeCurrency": "POL",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "polygon-mainnet",
-                    "type": "infura",
-                    "url": "https://polygon-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0x8f": {
-                "blockExplorerUrls": [
-                  "https://monadscan.com",
-                ],
-                "chainId": "0x8f",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Monad",
-                "nativeCurrency": "MON",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "monad-mainnet",
-                    "type": "infura",
-                    "url": "https://monad-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0xa": {
-                "blockExplorerUrls": [
-                  "https://optimistic.etherscan.io",
-                ],
-                "chainId": "0xa",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "OP",
-                "nativeCurrency": "ETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "optimism-mainnet",
-                    "type": "infura",
-                    "url": "https://optimism-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0xa4b1": {
-                "blockExplorerUrls": [
-                  "https://arbiscan.io",
-                ],
-                "chainId": "0xa4b1",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Arbitrum",
-                "nativeCurrency": "ETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "arbitrum-mainnet",
-                    "type": "infura",
-                    "url": "https://arbitrum-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0xaa36a7": {
-                "blockExplorerUrls": [
-                  "https://sepolia.etherscan.io",
-                ],
-                "chainId": "0xaa36a7",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Sepolia",
-                "nativeCurrency": "SepoliaETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "sepolia",
-                    "type": "infura",
-                    "url": "https://sepolia.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0xe705": {
-                "blockExplorerUrls": [
-                  "https://sepolia.lineascan.build",
-                ],
-                "chainId": "0xe705",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Linea Sepolia",
-                "nativeCurrency": "LineaETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "linea-sepolia",
-                    "type": "infura",
-                    "url": "https://linea-sepolia.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0xe708": {
-                "blockExplorerUrls": [
-                  "https://lineascan.build",
-                ],
-                "chainId": "0xe708",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Linea",
-                "nativeCurrency": "ETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "linea-mainnet",
-                    "type": "infura",
-                    "url": "https://linea-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-            },
-            "networksMetadata": {},
-            "selectedNetworkClientId": "mainnet",
-          }
-        `);
+              "networksMetadata": {},
+              "selectedNetworkClientId": "mainnet",
+            }
+          `);
         },
       );
     });
@@ -823,293 +805,194 @@ describe('NetworkController', () => {
     });
   });
 
-  describe('enableRpcFailover', () => {
-    describe('if the controller was initialized with isRpcFailoverEnabled = false', () => {
-      it('calls enableRpcFailover on only the network clients whose RPC endpoints have configured failover URLs', async () => {
-        const originalCreateAutoManagedNetworkClient =
-          createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
-        const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
-          [];
-        jest
-          .spyOn(
-            createAutoManagedNetworkClientModule,
-            'createAutoManagedNetworkClient',
-          )
-          .mockImplementation((...args) => {
-            const autoManagedNetworkClient =
-              originalCreateAutoManagedNetworkClient(...args);
-            jest.spyOn(autoManagedNetworkClient, 'enableRpcFailover');
-            autoManagedNetworkClients.push(autoManagedNetworkClient);
-            return autoManagedNetworkClient;
-          });
+  describe('RemoteFeatureFlagController:stateChange (rpcFailoverMode forced)', () => {
+    it('calls setRpcFailoverMode on clients with failover URLs when the flag turns forced', async () => {
+      const originalCreateAutoManagedNetworkClient =
+        createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
+      const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
+        [];
+      jest
+        .spyOn(
+          createAutoManagedNetworkClientModule,
+          'createAutoManagedNetworkClient',
+        )
+        .mockImplementation((...args) => {
+          const autoManagedNetworkClient =
+            originalCreateAutoManagedNetworkClient(...args);
+          jest.spyOn(autoManagedNetworkClient, 'setRpcFailoverMode');
+          autoManagedNetworkClients.push(autoManagedNetworkClient);
+          return autoManagedNetworkClient;
+        });
 
-        await withController(
-          {
-            isRpcFailoverEnabled: false,
-            state: {
-              selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
-              networkConfigurationsByChainId: {
-                [ChainId.mainnet]: buildInfuraNetworkConfiguration(
-                  InfuraNetworkType.mainnet,
-                  {
-                    rpcEndpoints: [
-                      buildInfuraRpcEndpoint(InfuraNetworkType.mainnet, {
-                        failoverUrls: [],
-                      }),
-                    ],
-                  },
-                ),
-                '0x200': buildCustomNetworkConfiguration({
-                  chainId: '0x200',
+      await withController(
+        {
+          rpcFailoverMode: 'disabled',
+          state: {
+            selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+            networkConfigurationsByChainId: {
+              [ChainId.mainnet]: buildInfuraNetworkConfiguration(
+                InfuraNetworkType.mainnet,
+                {
                   rpcEndpoints: [
-                    buildCustomRpcEndpoint({
-                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                      url: 'https://test.network/1',
-                      failoverUrls: ['https://failover.endpoint/1'],
+                    buildInfuraRpcEndpoint(InfuraNetworkType.mainnet, {
+                      failoverUrls: [],
                     }),
                   ],
-                }),
-                '0x300': buildCustomNetworkConfiguration({
-                  chainId: '0x300',
-                  rpcEndpoints: [
-                    buildCustomRpcEndpoint({
-                      networkClientId: 'BBBB-BBBB-BBBB-BBBB',
-                      url: 'https://test.network/2',
-                      failoverUrls: ['https://failover.endpoint/2'],
-                    }),
-                  ],
-                }),
-              },
+                },
+              ),
+              '0x200': buildCustomNetworkConfiguration({
+                chainId: '0x200',
+                rpcEndpoints: [
+                  buildCustomRpcEndpoint({
+                    networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                    url: 'https://test.network/1',
+                    failoverUrls: ['https://failover.endpoint/1'],
+                  }),
+                ],
+              }),
             },
           },
-          async ({ controller }) => {
-            controller.enableRpcFailover();
+        },
+        async ({ messenger }) => {
+          messenger.publish(
+            'RemoteFeatureFlagController:stateChange',
+            {
+              remoteFeatureFlags: {
+                corePlatformRpcFailoverMode: 'forced',
+              },
+              cacheTimestamp: 0,
+            },
+            [],
+          );
 
-            expect(autoManagedNetworkClients).toHaveLength(3);
-            expect(
-              autoManagedNetworkClients[0].enableRpcFailover,
-            ).not.toHaveBeenCalled();
-            expect(
-              autoManagedNetworkClients[1].enableRpcFailover,
-            ).toHaveBeenCalled();
-            expect(
-              autoManagedNetworkClients[2].enableRpcFailover,
-            ).toHaveBeenCalled();
-          },
-        );
-      });
+          expect(autoManagedNetworkClients).toHaveLength(2);
+          expect(
+            autoManagedNetworkClients[0].setRpcFailoverMode,
+          ).not.toHaveBeenCalledWith('forced');
+          expect(
+            autoManagedNetworkClients[1].setRpcFailoverMode,
+          ).toHaveBeenCalledWith('forced');
+        },
+      );
     });
 
-    describe('if the controller was initialized with isRpcFailoverEnabled = true', () => {
-      it('does not call createAutoManagedNetworkClient at all', async () => {
-        await withController(
-          {
-            isRpcFailoverEnabled: true,
-            state: {
-              selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
-              networkConfigurationsByChainId: {
-                [ChainId.mainnet]: buildInfuraNetworkConfiguration(
-                  InfuraNetworkType.mainnet,
-                  {
-                    rpcEndpoints: [
-                      buildInfuraRpcEndpoint(InfuraNetworkType.mainnet, {
-                        failoverUrls: [],
-                      }),
-                    ],
-                  },
-                ),
-                '0x200': buildCustomNetworkConfiguration({
-                  chainId: '0x200',
+    it('picks up the initial forced value during init()', async () => {
+      const originalCreateAutoManagedNetworkClient =
+        createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
+      const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
+        [];
+      jest
+        .spyOn(
+          createAutoManagedNetworkClientModule,
+          'createAutoManagedNetworkClient',
+        )
+        .mockImplementation((...args) => {
+          const autoManagedNetworkClient =
+            originalCreateAutoManagedNetworkClient(...args);
+          jest.spyOn(autoManagedNetworkClient, 'setRpcFailoverMode');
+          autoManagedNetworkClients.push(autoManagedNetworkClient);
+          return autoManagedNetworkClient;
+        });
+
+      await withController(
+        {
+          rpcFailoverMode: 'forced',
+          state: {
+            selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+            networkConfigurationsByChainId: {
+              [ChainId.mainnet]: buildInfuraNetworkConfiguration(
+                InfuraNetworkType.mainnet,
+                {
                   rpcEndpoints: [
-                    buildCustomRpcEndpoint({
-                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                      url: 'https://test.network/1',
+                    buildInfuraRpcEndpoint(InfuraNetworkType.mainnet, {
                       failoverUrls: ['https://failover.endpoint/1'],
                     }),
                   ],
-                }),
-                '0x300': buildCustomNetworkConfiguration({
-                  chainId: '0x300',
-                  rpcEndpoints: [
-                    buildCustomRpcEndpoint({
-                      networkClientId: 'BBBB-BBBB-BBBB-BBBB',
-                      url: 'https://test.network/2',
-                      failoverUrls: ['https://failover.endpoint/2'],
-                    }),
-                  ],
-                }),
-              },
+                },
+              ),
+              '0x200': buildCustomNetworkConfiguration({
+                chainId: '0x200',
+                rpcEndpoints: [
+                  buildCustomRpcEndpoint({
+                    networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                    url: 'https://test.network/1',
+                    failoverUrls: [],
+                  }),
+                ],
+              }),
             },
           },
-          async ({ controller }) => {
-            const originalCreateAutoManagedNetworkClient =
-              createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
-            const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
-              [];
-            jest
-              .spyOn(
-                createAutoManagedNetworkClientModule,
-                'createAutoManagedNetworkClient',
-              )
-              .mockImplementation((...args) => {
-                const autoManagedNetworkClient =
-                  originalCreateAutoManagedNetworkClient(...args);
-                jest.spyOn(autoManagedNetworkClient, 'enableRpcFailover');
-                autoManagedNetworkClients.push(autoManagedNetworkClient);
-                return autoManagedNetworkClient;
-              });
-
-            controller.enableRpcFailover();
-
-            expect(autoManagedNetworkClients).toHaveLength(0);
-          },
-        );
-      });
-    });
-  });
-
-  describe('disableRpcFailover', () => {
-    describe('if the controller was initialized with isRpcFailoverEnabled = true', () => {
-      it('calls disableRpcFailover on only the network clients whose RPC endpoints have configured failover URLs', async () => {
-        const originalCreateAutoManagedNetworkClient =
-          createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
-        const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
-          [];
-        jest
-          .spyOn(
-            createAutoManagedNetworkClientModule,
-            'createAutoManagedNetworkClient',
-          )
-          .mockImplementation((...args) => {
-            const autoManagedNetworkClient =
-              originalCreateAutoManagedNetworkClient(...args);
-            jest.spyOn(autoManagedNetworkClient, 'disableRpcFailover');
-            autoManagedNetworkClients.push(autoManagedNetworkClient);
-            return autoManagedNetworkClient;
-          });
-
-        await withController(
-          {
-            isRpcFailoverEnabled: true,
-            state: {
-              selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
-              networkConfigurationsByChainId: {
-                [ChainId.mainnet]: buildInfuraNetworkConfiguration(
-                  InfuraNetworkType.mainnet,
-                  {
-                    rpcEndpoints: [
-                      buildInfuraRpcEndpoint(InfuraNetworkType.mainnet, {
-                        failoverUrls: [],
-                      }),
-                    ],
-                  },
-                ),
-                '0x200': buildCustomNetworkConfiguration({
-                  chainId: '0x200',
-                  rpcEndpoints: [
-                    buildCustomRpcEndpoint({
-                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                      url: 'https://test.network/1',
-                      failoverUrls: ['https://failover.endpoint/1'],
-                    }),
-                  ],
-                }),
-                '0x300': buildCustomNetworkConfiguration({
-                  chainId: '0x300',
-                  rpcEndpoints: [
-                    buildCustomRpcEndpoint({
-                      networkClientId: 'BBBB-BBBB-BBBB-BBBB',
-                      url: 'https://test.network/2',
-                      failoverUrls: ['https://failover.endpoint/2'],
-                    }),
-                  ],
-                }),
-              },
-            },
-          },
-          async ({ controller }) => {
-            controller.disableRpcFailover();
-
-            expect(autoManagedNetworkClients).toHaveLength(3);
-            expect(
-              autoManagedNetworkClients[0].disableRpcFailover,
-            ).not.toHaveBeenCalled();
-            expect(
-              autoManagedNetworkClients[1].disableRpcFailover,
-            ).toHaveBeenCalled();
-            expect(
-              autoManagedNetworkClients[2].disableRpcFailover,
-            ).toHaveBeenCalled();
-          },
-        );
-      });
+        },
+        async () => {
+          expect(autoManagedNetworkClients).toHaveLength(2);
+          expect(
+            autoManagedNetworkClients[0].setRpcFailoverMode,
+          ).toHaveBeenCalledWith('forced');
+          expect(
+            autoManagedNetworkClients[1].setRpcFailoverMode,
+          ).not.toHaveBeenCalledWith('forced');
+        },
+      );
     });
 
-    describe('if the controller was initialized with isRpcFailoverEnabled = false', () => {
-      it('does not call createAutoManagedNetworkClient at all', async () => {
-        await withController(
-          {
-            isRpcFailoverEnabled: false,
-            state: {
-              selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
-              networkConfigurationsByChainId: {
-                [ChainId.mainnet]: buildInfuraNetworkConfiguration(
-                  InfuraNetworkType.mainnet,
-                  {
-                    rpcEndpoints: [
-                      buildInfuraRpcEndpoint(InfuraNetworkType.mainnet, {
-                        failoverUrls: [],
-                      }),
-                    ],
-                  },
-                ),
-                '0x200': buildCustomNetworkConfiguration({
-                  chainId: '0x200',
-                  rpcEndpoints: [
-                    buildCustomRpcEndpoint({
-                      networkClientId: 'AAAA-AAAA-AAAA-AAAA',
-                      url: 'https://test.network/1',
-                      failoverUrls: ['https://failover.endpoint/1'],
-                    }),
-                  ],
-                }),
-                '0x300': buildCustomNetworkConfiguration({
-                  chainId: '0x300',
-                  rpcEndpoints: [
-                    buildCustomRpcEndpoint({
-                      networkClientId: 'BBBB-BBBB-BBBB-BBBB',
-                      url: 'https://test.network/2',
-                      failoverUrls: ['https://failover.endpoint/2'],
-                    }),
-                  ],
-                }),
-              },
+    it('calls setRpcFailoverMode with forced but not enabled when only the forced mode is set', async () => {
+      const originalCreateAutoManagedNetworkClient =
+        createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
+      const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
+        [];
+      jest
+        .spyOn(
+          createAutoManagedNetworkClientModule,
+          'createAutoManagedNetworkClient',
+        )
+        .mockImplementation((...args) => {
+          const autoManagedNetworkClient =
+            originalCreateAutoManagedNetworkClient(...args);
+          jest.spyOn(autoManagedNetworkClient, 'setRpcFailoverMode');
+          autoManagedNetworkClients.push(autoManagedNetworkClient);
+          return autoManagedNetworkClient;
+        });
+
+      await withController(
+        {
+          rpcFailoverMode: 'disabled',
+          state: {
+            selectedNetworkClientId: 'AAAA-AAAA-AAAA-AAAA',
+            networkConfigurationsByChainId: {
+              '0x200': buildCustomNetworkConfiguration({
+                chainId: '0x200',
+                rpcEndpoints: [
+                  buildCustomRpcEndpoint({
+                    networkClientId: 'AAAA-AAAA-AAAA-AAAA',
+                    url: 'https://test.network/1',
+                    failoverUrls: ['https://failover.endpoint/1'],
+                  }),
+                ],
+              }),
             },
           },
-          async ({ controller }) => {
-            const originalCreateAutoManagedNetworkClient =
-              createAutoManagedNetworkClientModule.createAutoManagedNetworkClient;
-            const autoManagedNetworkClients: AutoManagedNetworkClient<NetworkClientConfiguration>[] =
-              [];
-            jest
-              .spyOn(
-                createAutoManagedNetworkClientModule,
-                'createAutoManagedNetworkClient',
-              )
-              .mockImplementation((...args) => {
-                const autoManagedNetworkClient =
-                  originalCreateAutoManagedNetworkClient(...args);
-                jest.spyOn(autoManagedNetworkClient, 'disableRpcFailover');
-                autoManagedNetworkClients.push(autoManagedNetworkClient);
-                return autoManagedNetworkClient;
-              });
+        },
+        async ({ messenger }) => {
+          messenger.publish(
+            'RemoteFeatureFlagController:stateChange',
+            {
+              remoteFeatureFlags: {
+                corePlatformRpcFailoverMode: 'forced',
+              },
+              cacheTimestamp: 0,
+            },
+            [],
+          );
 
-            controller.disableRpcFailover();
-
-            expect(autoManagedNetworkClients).toHaveLength(0);
-          },
-        );
-      });
+          expect(autoManagedNetworkClients).toHaveLength(1);
+          expect(
+            autoManagedNetworkClients[0].setRpcFailoverMode,
+          ).toHaveBeenCalledWith('forced');
+          expect(
+            autoManagedNetworkClients[0].setRpcFailoverMode,
+          ).not.toHaveBeenCalledWith('enabled');
+        },
+      );
     });
   });
 
@@ -1675,8 +1558,7 @@ describe('NetworkController', () => {
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
-                enableRpcFailover: expect.any(Function),
-                disableRpcFailover: expect.any(Function),
+                setRpcFailoverMode: expect.any(Function),
               },
               'base-mainnet': {
                 blockTracker: expect.anything(),
@@ -1690,8 +1572,7 @@ describe('NetworkController', () => {
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
-                enableRpcFailover: expect.any(Function),
-                disableRpcFailover: expect.any(Function),
+                setRpcFailoverMode: expect.any(Function),
               },
               'bsc-mainnet': {
                 blockTracker: expect.anything(),
@@ -1705,8 +1586,7 @@ describe('NetworkController', () => {
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
-                enableRpcFailover: expect.any(Function),
-                disableRpcFailover: expect.any(Function),
+                setRpcFailoverMode: expect.any(Function),
               },
               'linea-mainnet': {
                 blockTracker: expect.anything(),
@@ -1720,8 +1600,7 @@ describe('NetworkController', () => {
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
-                enableRpcFailover: expect.any(Function),
-                disableRpcFailover: expect.any(Function),
+                setRpcFailoverMode: expect.any(Function),
               },
               'linea-sepolia': {
                 blockTracker: expect.anything(),
@@ -1735,8 +1614,7 @@ describe('NetworkController', () => {
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
-                enableRpcFailover: expect.any(Function),
-                disableRpcFailover: expect.any(Function),
+                setRpcFailoverMode: expect.any(Function),
               },
               mainnet: {
                 blockTracker: expect.anything(),
@@ -1750,22 +1628,7 @@ describe('NetworkController', () => {
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
-                enableRpcFailover: expect.any(Function),
-                disableRpcFailover: expect.any(Function),
-              },
-              'megaeth-testnet': {
-                blockTracker: expect.anything(),
-                configuration: {
-                  type: NetworkClientType.Custom,
-                  failoverRpcUrls: [],
-                  chainId: '0x18c6',
-                  ticker: 'MegaETH',
-                  rpcUrl: 'https://carrot.megaeth.com/rpc',
-                },
-                provider: expect.anything(),
-                destroy: expect.any(Function),
-                enableRpcFailover: expect.any(Function),
-                disableRpcFailover: expect.any(Function),
+                setRpcFailoverMode: expect.any(Function),
               },
               'megaeth-testnet-v2': {
                 blockTracker: expect.anything(),
@@ -1778,8 +1641,7 @@ describe('NetworkController', () => {
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
-                enableRpcFailover: expect.any(Function),
-                disableRpcFailover: expect.any(Function),
+                setRpcFailoverMode: expect.any(Function),
               },
               'monad-mainnet': {
                 blockTracker: expect.anything(),
@@ -1793,8 +1655,7 @@ describe('NetworkController', () => {
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
-                enableRpcFailover: expect.any(Function),
-                disableRpcFailover: expect.any(Function),
+                setRpcFailoverMode: expect.any(Function),
               },
               'monad-testnet': {
                 blockTracker: expect.anything(),
@@ -1807,8 +1668,7 @@ describe('NetworkController', () => {
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
-                enableRpcFailover: expect.any(Function),
-                disableRpcFailover: expect.any(Function),
+                setRpcFailoverMode: expect.any(Function),
               },
               'optimism-mainnet': {
                 blockTracker: expect.anything(),
@@ -1822,8 +1682,7 @@ describe('NetworkController', () => {
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
-                enableRpcFailover: expect.any(Function),
-                disableRpcFailover: expect.any(Function),
+                setRpcFailoverMode: expect.any(Function),
               },
               'polygon-mainnet': {
                 blockTracker: expect.anything(),
@@ -1837,8 +1696,7 @@ describe('NetworkController', () => {
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
-                enableRpcFailover: expect.any(Function),
-                disableRpcFailover: expect.any(Function),
+                setRpcFailoverMode: expect.any(Function),
               },
               sepolia: {
                 blockTracker: expect.anything(),
@@ -1852,8 +1710,7 @@ describe('NetworkController', () => {
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
-                enableRpcFailover: expect.any(Function),
-                disableRpcFailover: expect.any(Function),
+                setRpcFailoverMode: expect.any(Function),
               },
             });
           },
@@ -1908,8 +1765,7 @@ describe('NetworkController', () => {
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
-                enableRpcFailover: expect.any(Function),
-                disableRpcFailover: expect.any(Function),
+                setRpcFailoverMode: expect.any(Function),
               },
               'BBBB-BBBB-BBBB-BBBB': {
                 blockTracker: expect.anything(),
@@ -1922,8 +1778,7 @@ describe('NetworkController', () => {
                 },
                 provider: expect.anything(),
                 destroy: expect.any(Function),
-                enableRpcFailover: expect.any(Function),
-                disableRpcFailover: expect.any(Function),
+                setRpcFailoverMode: expect.any(Function),
               },
             });
           },
@@ -4517,7 +4372,7 @@ describe('NetworkController', () => {
               infuraProjectId,
               getRpcServiceOptions,
               getBlockTrackerOptions,
-              isRpcFailoverEnabled: true,
+              rpcFailoverMode: 'enabled',
             },
             ({ controller, networkControllerMessenger }) => {
               const defaultRpcEndpoint: InfuraRpcEndpoint = {
@@ -4567,7 +4422,7 @@ describe('NetworkController', () => {
                   getRpcServiceOptions,
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
-                  isRpcFailoverEnabled: true,
+                  rpcFailoverMode: 'enabled',
                 },
               );
               expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
@@ -4584,7 +4439,7 @@ describe('NetworkController', () => {
                   getRpcServiceOptions,
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
-                  isRpcFailoverEnabled: true,
+                  rpcFailoverMode: 'enabled',
                 },
               );
               expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
@@ -4601,7 +4456,7 @@ describe('NetworkController', () => {
                   getRpcServiceOptions,
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
-                  isRpcFailoverEnabled: true,
+                  rpcFailoverMode: 'enabled',
                 },
               );
               const networkConfigurationsByNetworkClientId =
@@ -4670,7 +4525,7 @@ describe('NetworkController', () => {
               failoverUrls: {
                 [infuraChainId]: ['https://chain.failover'],
               },
-              isRpcFailoverEnabled: true,
+              rpcFailoverMode: 'enabled',
             },
             ({ controller }) => {
               const defaultRpcEndpoint: InfuraRpcEndpoint = {
@@ -6034,7 +5889,7 @@ describe('NetworkController', () => {
                 infuraProjectId,
                 getRpcServiceOptions,
                 getBlockTrackerOptions,
-                isRpcFailoverEnabled: true,
+                rpcFailoverMode: 'enabled',
               },
               async ({ controller, networkControllerMessenger }) => {
                 const infuraRpcEndpoint: InfuraRpcEndpoint = {
@@ -6068,7 +5923,7 @@ describe('NetworkController', () => {
                   getRpcServiceOptions,
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
-                  isRpcFailoverEnabled: true,
+                  rpcFailoverMode: 'enabled',
                 });
 
                 const networkConfigurationsByNetworkClientId =
@@ -6127,7 +5982,7 @@ describe('NetworkController', () => {
                 failoverUrls: {
                   [infuraChainId]: ['https://chain.failover'],
                 },
-                isRpcFailoverEnabled: true,
+                rpcFailoverMode: 'enabled',
               },
               async ({ controller }) => {
                 const infuraRpcEndpoint: InfuraRpcEndpoint = {
@@ -6348,7 +6203,7 @@ describe('NetworkController', () => {
                 infuraProjectId: 'some-infura-project-id',
                 getRpcServiceOptions,
                 getBlockTrackerOptions,
-                isRpcFailoverEnabled: true,
+                rpcFailoverMode: 'enabled',
               },
               async ({ controller, networkControllerMessenger }) => {
                 const [rpcEndpoint1, rpcEndpoint2] = [
@@ -6384,7 +6239,7 @@ describe('NetworkController', () => {
                   getRpcServiceOptions,
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
-                  isRpcFailoverEnabled: true,
+                  rpcFailoverMode: 'enabled',
                 });
                 expect(
                   createAutoManagedNetworkClientSpy,
@@ -6400,7 +6255,7 @@ describe('NetworkController', () => {
                   getRpcServiceOptions,
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
-                  isRpcFailoverEnabled: true,
+                  rpcFailoverMode: 'enabled',
                 });
 
                 const networkConfigurationsByNetworkClientId =
@@ -7347,7 +7202,7 @@ describe('NetworkController', () => {
                 },
                 getRpcServiceOptions,
                 getBlockTrackerOptions,
-                isRpcFailoverEnabled: true,
+                rpcFailoverMode: 'enabled',
               },
               async ({ controller, networkControllerMessenger }) => {
                 createNetworkClientMock.mockReturnValue(buildFakeClient());
@@ -7377,7 +7232,7 @@ describe('NetworkController', () => {
                   getRpcServiceOptions,
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
-                  isRpcFailoverEnabled: true,
+                  rpcFailoverMode: 'enabled',
                 });
                 const networkConfigurationsByNetworkClientId =
                   getNetworkConfigurationsByNetworkClientId(
@@ -8217,7 +8072,7 @@ describe('NetworkController', () => {
               },
               getRpcServiceOptions,
               getBlockTrackerOptions,
-              isRpcFailoverEnabled: true,
+              rpcFailoverMode: 'enabled',
             },
             async ({ controller, networkControllerMessenger }) => {
               await controller.updateNetwork('0x1337', {
@@ -8252,7 +8107,7 @@ describe('NetworkController', () => {
                   getRpcServiceOptions,
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
-                  isRpcFailoverEnabled: true,
+                  rpcFailoverMode: 'enabled',
                 },
               );
               expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
@@ -8269,7 +8124,7 @@ describe('NetworkController', () => {
                   getRpcServiceOptions,
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
-                  isRpcFailoverEnabled: true,
+                  rpcFailoverMode: 'enabled',
                 },
               );
 
@@ -9216,7 +9071,7 @@ describe('NetworkController', () => {
               },
               getRpcServiceOptions,
               getBlockTrackerOptions,
-              isRpcFailoverEnabled: true,
+              rpcFailoverMode: 'enabled',
             },
             async ({ controller, networkControllerMessenger }) => {
               createNetworkClientMock.mockImplementation(
@@ -9259,7 +9114,7 @@ describe('NetworkController', () => {
                 getRpcServiceOptions,
                 getBlockTrackerOptions,
                 messenger: networkControllerMessenger,
-                isRpcFailoverEnabled: true,
+                rpcFailoverMode: 'enabled',
               });
               expect(
                 getNetworkConfigurationsByNetworkClientId(
@@ -10382,7 +10237,7 @@ describe('NetworkController', () => {
                 },
                 getRpcServiceOptions,
                 getBlockTrackerOptions,
-                isRpcFailoverEnabled: true,
+                rpcFailoverMode: 'enabled',
               },
               async ({ controller, networkControllerMessenger }) => {
                 createNetworkClientMock.mockImplementation(
@@ -10420,7 +10275,7 @@ describe('NetworkController', () => {
                   getRpcServiceOptions,
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
-                  isRpcFailoverEnabled: true,
+                  rpcFailoverMode: 'enabled',
                 });
                 expect(
                   createAutoManagedNetworkClientSpy,
@@ -10436,7 +10291,7 @@ describe('NetworkController', () => {
                   getRpcServiceOptions,
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
-                  isRpcFailoverEnabled: true,
+                  rpcFailoverMode: 'enabled',
                 });
 
                 const networkConfigurationsByNetworkClientId =
@@ -11099,7 +10954,7 @@ describe('NetworkController', () => {
                 },
                 getRpcServiceOptions,
                 getBlockTrackerOptions,
-                isRpcFailoverEnabled: true,
+                rpcFailoverMode: 'enabled',
               },
               async ({ controller, networkControllerMessenger }) => {
                 createNetworkClientMock.mockImplementation(
@@ -11142,7 +10997,7 @@ describe('NetworkController', () => {
                   getRpcServiceOptions,
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
-                  isRpcFailoverEnabled: true,
+                  rpcFailoverMode: 'enabled',
                 });
                 expect(createAutoManagedNetworkClientSpy).toHaveBeenCalledWith({
                   networkClientId: 'DDDD-DDDD-DDDD-DDDD',
@@ -11156,7 +11011,7 @@ describe('NetworkController', () => {
                   getRpcServiceOptions,
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
-                  isRpcFailoverEnabled: true,
+                  rpcFailoverMode: 'enabled',
                 });
 
                 expect(
@@ -11835,7 +11690,7 @@ describe('NetworkController', () => {
                 infuraProjectId: 'some-infura-project-id',
                 getRpcServiceOptions,
                 getBlockTrackerOptions,
-                isRpcFailoverEnabled: true,
+                rpcFailoverMode: 'enabled',
               },
               async ({ controller, networkControllerMessenger }) => {
                 createNetworkClientMock.mockImplementation(
@@ -11877,7 +11732,7 @@ describe('NetworkController', () => {
                   getRpcServiceOptions,
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
-                  isRpcFailoverEnabled: true,
+                  rpcFailoverMode: 'enabled',
                 });
                 expect(
                   createAutoManagedNetworkClientSpy,
@@ -11893,7 +11748,7 @@ describe('NetworkController', () => {
                   getRpcServiceOptions,
                   getBlockTrackerOptions,
                   messenger: networkControllerMessenger,
-                  isRpcFailoverEnabled: true,
+                  rpcFailoverMode: 'enabled',
                 });
 
                 const networkConfigurationsByChainId =
@@ -12544,7 +12399,7 @@ describe('NetworkController', () => {
             },
             getRpcServiceOptions,
             getBlockTrackerOptions,
-            isRpcFailoverEnabled: true,
+            rpcFailoverMode: 'enabled',
           },
           async ({ controller, networkControllerMessenger }) => {
             createNetworkClientMock.mockImplementation(({ configuration }) => {
@@ -12580,7 +12435,7 @@ describe('NetworkController', () => {
                 getRpcServiceOptions,
                 getBlockTrackerOptions,
                 messenger: networkControllerMessenger,
-                isRpcFailoverEnabled: true,
+                rpcFailoverMode: 'enabled',
               },
             );
             expect(createAutoManagedNetworkClientSpy).toHaveBeenNthCalledWith(
@@ -12597,7 +12452,7 @@ describe('NetworkController', () => {
                 getRpcServiceOptions,
                 getBlockTrackerOptions,
                 messenger: networkControllerMessenger,
-                isRpcFailoverEnabled: true,
+                rpcFailoverMode: 'enabled',
               },
             );
 
@@ -14906,247 +14761,229 @@ describe('NetworkController', () => {
               'includeInStateLogs',
             ),
           ).toMatchInlineSnapshot(`
-          {
-            "networkConfigurationsByChainId": {
-              "0x1": {
-                "blockExplorerUrls": [
-                  "https://etherscan.io",
-                ],
-                "chainId": "0x1",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Ethereum",
-                "nativeCurrency": "ETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "mainnet",
-                    "type": "infura",
-                    "url": "https://mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
+            {
+              "networkConfigurationsByChainId": {
+                "0x1": {
+                  "blockExplorerUrls": [
+                    "https://etherscan.io",
+                  ],
+                  "chainId": "0x1",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Ethereum",
+                  "nativeCurrency": "ETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "mainnet",
+                      "type": "infura",
+                      "url": "https://mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0x18c7": {
+                  "blockExplorerUrls": [
+                    "https://megaeth-testnet-v2.blockscout.com",
+                  ],
+                  "chainId": "0x18c7",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "MegaETH Testnet",
+                  "nativeCurrency": "MegaETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "megaeth-testnet-v2",
+                      "type": "custom",
+                      "url": "https://carrot.megaeth.com/rpc",
+                    },
+                  ],
+                },
+                "0x2105": {
+                  "blockExplorerUrls": [
+                    "https://basescan.org",
+                  ],
+                  "chainId": "0x2105",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Base",
+                  "nativeCurrency": "ETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "base-mainnet",
+                      "type": "infura",
+                      "url": "https://base-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0x279f": {
+                  "blockExplorerUrls": [
+                    "https://testnet.monadexplorer.com",
+                  ],
+                  "chainId": "0x279f",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Monad Testnet",
+                  "nativeCurrency": "MON",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "monad-testnet",
+                      "type": "custom",
+                      "url": "https://testnet-rpc.monad.xyz",
+                    },
+                  ],
+                },
+                "0x38": {
+                  "blockExplorerUrls": [
+                    "https://bscscan.com",
+                  ],
+                  "chainId": "0x38",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "BNB Chain",
+                  "nativeCurrency": "BNB",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "bsc-mainnet",
+                      "type": "infura",
+                      "url": "https://bsc-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0x89": {
+                  "blockExplorerUrls": [
+                    "https://polygonscan.com",
+                  ],
+                  "chainId": "0x89",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Polygon",
+                  "nativeCurrency": "POL",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "polygon-mainnet",
+                      "type": "infura",
+                      "url": "https://polygon-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0x8f": {
+                  "blockExplorerUrls": [
+                    "https://monadscan.com",
+                  ],
+                  "chainId": "0x8f",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Monad",
+                  "nativeCurrency": "MON",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "monad-mainnet",
+                      "type": "infura",
+                      "url": "https://monad-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0xa": {
+                  "blockExplorerUrls": [
+                    "https://optimistic.etherscan.io",
+                  ],
+                  "chainId": "0xa",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "OP",
+                  "nativeCurrency": "ETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "optimism-mainnet",
+                      "type": "infura",
+                      "url": "https://optimism-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0xa4b1": {
+                  "blockExplorerUrls": [
+                    "https://arbiscan.io",
+                  ],
+                  "chainId": "0xa4b1",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Arbitrum",
+                  "nativeCurrency": "ETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "arbitrum-mainnet",
+                      "type": "infura",
+                      "url": "https://arbitrum-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0xaa36a7": {
+                  "blockExplorerUrls": [
+                    "https://sepolia.etherscan.io",
+                  ],
+                  "chainId": "0xaa36a7",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Sepolia",
+                  "nativeCurrency": "SepoliaETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "sepolia",
+                      "type": "infura",
+                      "url": "https://sepolia.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0xe705": {
+                  "blockExplorerUrls": [
+                    "https://sepolia.lineascan.build",
+                  ],
+                  "chainId": "0xe705",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Linea Sepolia",
+                  "nativeCurrency": "LineaETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "linea-sepolia",
+                      "type": "infura",
+                      "url": "https://linea-sepolia.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0xe708": {
+                  "blockExplorerUrls": [
+                    "https://lineascan.build",
+                  ],
+                  "chainId": "0xe708",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Linea",
+                  "nativeCurrency": "ETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "linea-mainnet",
+                      "type": "infura",
+                      "url": "https://linea-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
               },
-              "0x18c6": {
-                "blockExplorerUrls": [
-                  "https://megaexplorer.xyz",
-                ],
-                "chainId": "0x18c6",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Mega Testnet",
-                "nativeCurrency": "MegaETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "megaeth-testnet",
-                    "type": "custom",
-                    "url": "https://carrot.megaeth.com/rpc",
-                  },
-                ],
-              },
-              "0x18c7": {
-                "blockExplorerUrls": [
-                  "https://megaeth-testnet-v2.blockscout.com",
-                ],
-                "chainId": "0x18c7",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "MegaETH Testnet",
-                "nativeCurrency": "MegaETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "megaeth-testnet-v2",
-                    "type": "custom",
-                    "url": "https://carrot.megaeth.com/rpc",
-                  },
-                ],
-              },
-              "0x2105": {
-                "blockExplorerUrls": [
-                  "https://basescan.org",
-                ],
-                "chainId": "0x2105",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Base",
-                "nativeCurrency": "ETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "base-mainnet",
-                    "type": "infura",
-                    "url": "https://base-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0x279f": {
-                "blockExplorerUrls": [
-                  "https://testnet.monadexplorer.com",
-                ],
-                "chainId": "0x279f",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Monad Testnet",
-                "nativeCurrency": "MON",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "monad-testnet",
-                    "type": "custom",
-                    "url": "https://testnet-rpc.monad.xyz",
-                  },
-                ],
-              },
-              "0x38": {
-                "blockExplorerUrls": [
-                  "https://bscscan.com",
-                ],
-                "chainId": "0x38",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "BNB Chain",
-                "nativeCurrency": "BNB",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "bsc-mainnet",
-                    "type": "infura",
-                    "url": "https://bsc-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0x89": {
-                "blockExplorerUrls": [
-                  "https://polygonscan.com",
-                ],
-                "chainId": "0x89",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Polygon",
-                "nativeCurrency": "POL",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "polygon-mainnet",
-                    "type": "infura",
-                    "url": "https://polygon-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0x8f": {
-                "blockExplorerUrls": [
-                  "https://monadscan.com",
-                ],
-                "chainId": "0x8f",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Monad",
-                "nativeCurrency": "MON",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "monad-mainnet",
-                    "type": "infura",
-                    "url": "https://monad-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0xa": {
-                "blockExplorerUrls": [
-                  "https://optimistic.etherscan.io",
-                ],
-                "chainId": "0xa",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "OP",
-                "nativeCurrency": "ETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "optimism-mainnet",
-                    "type": "infura",
-                    "url": "https://optimism-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0xa4b1": {
-                "blockExplorerUrls": [
-                  "https://arbiscan.io",
-                ],
-                "chainId": "0xa4b1",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Arbitrum",
-                "nativeCurrency": "ETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "arbitrum-mainnet",
-                    "type": "infura",
-                    "url": "https://arbitrum-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0xaa36a7": {
-                "blockExplorerUrls": [
-                  "https://sepolia.etherscan.io",
-                ],
-                "chainId": "0xaa36a7",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Sepolia",
-                "nativeCurrency": "SepoliaETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "sepolia",
-                    "type": "infura",
-                    "url": "https://sepolia.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0xe705": {
-                "blockExplorerUrls": [
-                  "https://sepolia.lineascan.build",
-                ],
-                "chainId": "0xe705",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Linea Sepolia",
-                "nativeCurrency": "LineaETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "linea-sepolia",
-                    "type": "infura",
-                    "url": "https://linea-sepolia.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0xe708": {
-                "blockExplorerUrls": [
-                  "https://lineascan.build",
-                ],
-                "chainId": "0xe708",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Linea",
-                "nativeCurrency": "ETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "linea-mainnet",
-                    "type": "infura",
-                    "url": "https://linea-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-            },
-            "networksMetadata": {},
-            "selectedNetworkClientId": "mainnet",
-          }
-        `);
+              "networksMetadata": {},
+              "selectedNetworkClientId": "mainnet",
+            }
+          `);
         },
       );
     });
@@ -15162,247 +14999,229 @@ describe('NetworkController', () => {
               'persist',
             ),
           ).toMatchInlineSnapshot(`
-          {
-            "networkConfigurationsByChainId": {
-              "0x1": {
-                "blockExplorerUrls": [
-                  "https://etherscan.io",
-                ],
-                "chainId": "0x1",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Ethereum",
-                "nativeCurrency": "ETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "mainnet",
-                    "type": "infura",
-                    "url": "https://mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
+            {
+              "networkConfigurationsByChainId": {
+                "0x1": {
+                  "blockExplorerUrls": [
+                    "https://etherscan.io",
+                  ],
+                  "chainId": "0x1",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Ethereum",
+                  "nativeCurrency": "ETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "mainnet",
+                      "type": "infura",
+                      "url": "https://mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0x18c7": {
+                  "blockExplorerUrls": [
+                    "https://megaeth-testnet-v2.blockscout.com",
+                  ],
+                  "chainId": "0x18c7",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "MegaETH Testnet",
+                  "nativeCurrency": "MegaETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "megaeth-testnet-v2",
+                      "type": "custom",
+                      "url": "https://carrot.megaeth.com/rpc",
+                    },
+                  ],
+                },
+                "0x2105": {
+                  "blockExplorerUrls": [
+                    "https://basescan.org",
+                  ],
+                  "chainId": "0x2105",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Base",
+                  "nativeCurrency": "ETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "base-mainnet",
+                      "type": "infura",
+                      "url": "https://base-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0x279f": {
+                  "blockExplorerUrls": [
+                    "https://testnet.monadexplorer.com",
+                  ],
+                  "chainId": "0x279f",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Monad Testnet",
+                  "nativeCurrency": "MON",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "monad-testnet",
+                      "type": "custom",
+                      "url": "https://testnet-rpc.monad.xyz",
+                    },
+                  ],
+                },
+                "0x38": {
+                  "blockExplorerUrls": [
+                    "https://bscscan.com",
+                  ],
+                  "chainId": "0x38",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "BNB Chain",
+                  "nativeCurrency": "BNB",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "bsc-mainnet",
+                      "type": "infura",
+                      "url": "https://bsc-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0x89": {
+                  "blockExplorerUrls": [
+                    "https://polygonscan.com",
+                  ],
+                  "chainId": "0x89",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Polygon",
+                  "nativeCurrency": "POL",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "polygon-mainnet",
+                      "type": "infura",
+                      "url": "https://polygon-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0x8f": {
+                  "blockExplorerUrls": [
+                    "https://monadscan.com",
+                  ],
+                  "chainId": "0x8f",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Monad",
+                  "nativeCurrency": "MON",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "monad-mainnet",
+                      "type": "infura",
+                      "url": "https://monad-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0xa": {
+                  "blockExplorerUrls": [
+                    "https://optimistic.etherscan.io",
+                  ],
+                  "chainId": "0xa",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "OP",
+                  "nativeCurrency": "ETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "optimism-mainnet",
+                      "type": "infura",
+                      "url": "https://optimism-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0xa4b1": {
+                  "blockExplorerUrls": [
+                    "https://arbiscan.io",
+                  ],
+                  "chainId": "0xa4b1",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Arbitrum",
+                  "nativeCurrency": "ETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "arbitrum-mainnet",
+                      "type": "infura",
+                      "url": "https://arbitrum-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0xaa36a7": {
+                  "blockExplorerUrls": [
+                    "https://sepolia.etherscan.io",
+                  ],
+                  "chainId": "0xaa36a7",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Sepolia",
+                  "nativeCurrency": "SepoliaETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "sepolia",
+                      "type": "infura",
+                      "url": "https://sepolia.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0xe705": {
+                  "blockExplorerUrls": [
+                    "https://sepolia.lineascan.build",
+                  ],
+                  "chainId": "0xe705",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Linea Sepolia",
+                  "nativeCurrency": "LineaETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "linea-sepolia",
+                      "type": "infura",
+                      "url": "https://linea-sepolia.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0xe708": {
+                  "blockExplorerUrls": [
+                    "https://lineascan.build",
+                  ],
+                  "chainId": "0xe708",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Linea",
+                  "nativeCurrency": "ETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "linea-mainnet",
+                      "type": "infura",
+                      "url": "https://linea-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
               },
-              "0x18c6": {
-                "blockExplorerUrls": [
-                  "https://megaexplorer.xyz",
-                ],
-                "chainId": "0x18c6",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Mega Testnet",
-                "nativeCurrency": "MegaETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "megaeth-testnet",
-                    "type": "custom",
-                    "url": "https://carrot.megaeth.com/rpc",
-                  },
-                ],
-              },
-              "0x18c7": {
-                "blockExplorerUrls": [
-                  "https://megaeth-testnet-v2.blockscout.com",
-                ],
-                "chainId": "0x18c7",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "MegaETH Testnet",
-                "nativeCurrency": "MegaETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "megaeth-testnet-v2",
-                    "type": "custom",
-                    "url": "https://carrot.megaeth.com/rpc",
-                  },
-                ],
-              },
-              "0x2105": {
-                "blockExplorerUrls": [
-                  "https://basescan.org",
-                ],
-                "chainId": "0x2105",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Base",
-                "nativeCurrency": "ETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "base-mainnet",
-                    "type": "infura",
-                    "url": "https://base-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0x279f": {
-                "blockExplorerUrls": [
-                  "https://testnet.monadexplorer.com",
-                ],
-                "chainId": "0x279f",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Monad Testnet",
-                "nativeCurrency": "MON",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "monad-testnet",
-                    "type": "custom",
-                    "url": "https://testnet-rpc.monad.xyz",
-                  },
-                ],
-              },
-              "0x38": {
-                "blockExplorerUrls": [
-                  "https://bscscan.com",
-                ],
-                "chainId": "0x38",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "BNB Chain",
-                "nativeCurrency": "BNB",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "bsc-mainnet",
-                    "type": "infura",
-                    "url": "https://bsc-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0x89": {
-                "blockExplorerUrls": [
-                  "https://polygonscan.com",
-                ],
-                "chainId": "0x89",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Polygon",
-                "nativeCurrency": "POL",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "polygon-mainnet",
-                    "type": "infura",
-                    "url": "https://polygon-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0x8f": {
-                "blockExplorerUrls": [
-                  "https://monadscan.com",
-                ],
-                "chainId": "0x8f",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Monad",
-                "nativeCurrency": "MON",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "monad-mainnet",
-                    "type": "infura",
-                    "url": "https://monad-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0xa": {
-                "blockExplorerUrls": [
-                  "https://optimistic.etherscan.io",
-                ],
-                "chainId": "0xa",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "OP",
-                "nativeCurrency": "ETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "optimism-mainnet",
-                    "type": "infura",
-                    "url": "https://optimism-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0xa4b1": {
-                "blockExplorerUrls": [
-                  "https://arbiscan.io",
-                ],
-                "chainId": "0xa4b1",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Arbitrum",
-                "nativeCurrency": "ETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "arbitrum-mainnet",
-                    "type": "infura",
-                    "url": "https://arbitrum-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0xaa36a7": {
-                "blockExplorerUrls": [
-                  "https://sepolia.etherscan.io",
-                ],
-                "chainId": "0xaa36a7",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Sepolia",
-                "nativeCurrency": "SepoliaETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "sepolia",
-                    "type": "infura",
-                    "url": "https://sepolia.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0xe705": {
-                "blockExplorerUrls": [
-                  "https://sepolia.lineascan.build",
-                ],
-                "chainId": "0xe705",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Linea Sepolia",
-                "nativeCurrency": "LineaETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "linea-sepolia",
-                    "type": "infura",
-                    "url": "https://linea-sepolia.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0xe708": {
-                "blockExplorerUrls": [
-                  "https://lineascan.build",
-                ],
-                "chainId": "0xe708",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Linea",
-                "nativeCurrency": "ETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "linea-mainnet",
-                    "type": "infura",
-                    "url": "https://linea-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-            },
-            "networksMetadata": {},
-            "selectedNetworkClientId": "mainnet",
-          }
-        `);
+              "networksMetadata": {},
+              "selectedNetworkClientId": "mainnet",
+            }
+          `);
         },
       );
     });
@@ -15418,247 +15237,229 @@ describe('NetworkController', () => {
               'usedInUi',
             ),
           ).toMatchInlineSnapshot(`
-          {
-            "networkConfigurationsByChainId": {
-              "0x1": {
-                "blockExplorerUrls": [
-                  "https://etherscan.io",
-                ],
-                "chainId": "0x1",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Ethereum",
-                "nativeCurrency": "ETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "mainnet",
-                    "type": "infura",
-                    "url": "https://mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
+            {
+              "networkConfigurationsByChainId": {
+                "0x1": {
+                  "blockExplorerUrls": [
+                    "https://etherscan.io",
+                  ],
+                  "chainId": "0x1",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Ethereum",
+                  "nativeCurrency": "ETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "mainnet",
+                      "type": "infura",
+                      "url": "https://mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0x18c7": {
+                  "blockExplorerUrls": [
+                    "https://megaeth-testnet-v2.blockscout.com",
+                  ],
+                  "chainId": "0x18c7",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "MegaETH Testnet",
+                  "nativeCurrency": "MegaETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "megaeth-testnet-v2",
+                      "type": "custom",
+                      "url": "https://carrot.megaeth.com/rpc",
+                    },
+                  ],
+                },
+                "0x2105": {
+                  "blockExplorerUrls": [
+                    "https://basescan.org",
+                  ],
+                  "chainId": "0x2105",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Base",
+                  "nativeCurrency": "ETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "base-mainnet",
+                      "type": "infura",
+                      "url": "https://base-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0x279f": {
+                  "blockExplorerUrls": [
+                    "https://testnet.monadexplorer.com",
+                  ],
+                  "chainId": "0x279f",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Monad Testnet",
+                  "nativeCurrency": "MON",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "monad-testnet",
+                      "type": "custom",
+                      "url": "https://testnet-rpc.monad.xyz",
+                    },
+                  ],
+                },
+                "0x38": {
+                  "blockExplorerUrls": [
+                    "https://bscscan.com",
+                  ],
+                  "chainId": "0x38",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "BNB Chain",
+                  "nativeCurrency": "BNB",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "bsc-mainnet",
+                      "type": "infura",
+                      "url": "https://bsc-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0x89": {
+                  "blockExplorerUrls": [
+                    "https://polygonscan.com",
+                  ],
+                  "chainId": "0x89",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Polygon",
+                  "nativeCurrency": "POL",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "polygon-mainnet",
+                      "type": "infura",
+                      "url": "https://polygon-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0x8f": {
+                  "blockExplorerUrls": [
+                    "https://monadscan.com",
+                  ],
+                  "chainId": "0x8f",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Monad",
+                  "nativeCurrency": "MON",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "monad-mainnet",
+                      "type": "infura",
+                      "url": "https://monad-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0xa": {
+                  "blockExplorerUrls": [
+                    "https://optimistic.etherscan.io",
+                  ],
+                  "chainId": "0xa",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "OP",
+                  "nativeCurrency": "ETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "optimism-mainnet",
+                      "type": "infura",
+                      "url": "https://optimism-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0xa4b1": {
+                  "blockExplorerUrls": [
+                    "https://arbiscan.io",
+                  ],
+                  "chainId": "0xa4b1",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Arbitrum",
+                  "nativeCurrency": "ETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "arbitrum-mainnet",
+                      "type": "infura",
+                      "url": "https://arbitrum-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0xaa36a7": {
+                  "blockExplorerUrls": [
+                    "https://sepolia.etherscan.io",
+                  ],
+                  "chainId": "0xaa36a7",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Sepolia",
+                  "nativeCurrency": "SepoliaETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "sepolia",
+                      "type": "infura",
+                      "url": "https://sepolia.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0xe705": {
+                  "blockExplorerUrls": [
+                    "https://sepolia.lineascan.build",
+                  ],
+                  "chainId": "0xe705",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Linea Sepolia",
+                  "nativeCurrency": "LineaETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "linea-sepolia",
+                      "type": "infura",
+                      "url": "https://linea-sepolia.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
+                "0xe708": {
+                  "blockExplorerUrls": [
+                    "https://lineascan.build",
+                  ],
+                  "chainId": "0xe708",
+                  "defaultBlockExplorerUrlIndex": 0,
+                  "defaultRpcEndpointIndex": 0,
+                  "name": "Linea",
+                  "nativeCurrency": "ETH",
+                  "rpcEndpoints": [
+                    {
+                      "failoverUrls": [],
+                      "networkClientId": "linea-mainnet",
+                      "type": "infura",
+                      "url": "https://linea-mainnet.infura.io/v3/{infuraProjectId}",
+                    },
+                  ],
+                },
               },
-              "0x18c6": {
-                "blockExplorerUrls": [
-                  "https://megaexplorer.xyz",
-                ],
-                "chainId": "0x18c6",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Mega Testnet",
-                "nativeCurrency": "MegaETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "megaeth-testnet",
-                    "type": "custom",
-                    "url": "https://carrot.megaeth.com/rpc",
-                  },
-                ],
-              },
-              "0x18c7": {
-                "blockExplorerUrls": [
-                  "https://megaeth-testnet-v2.blockscout.com",
-                ],
-                "chainId": "0x18c7",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "MegaETH Testnet",
-                "nativeCurrency": "MegaETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "megaeth-testnet-v2",
-                    "type": "custom",
-                    "url": "https://carrot.megaeth.com/rpc",
-                  },
-                ],
-              },
-              "0x2105": {
-                "blockExplorerUrls": [
-                  "https://basescan.org",
-                ],
-                "chainId": "0x2105",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Base",
-                "nativeCurrency": "ETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "base-mainnet",
-                    "type": "infura",
-                    "url": "https://base-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0x279f": {
-                "blockExplorerUrls": [
-                  "https://testnet.monadexplorer.com",
-                ],
-                "chainId": "0x279f",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Monad Testnet",
-                "nativeCurrency": "MON",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "monad-testnet",
-                    "type": "custom",
-                    "url": "https://testnet-rpc.monad.xyz",
-                  },
-                ],
-              },
-              "0x38": {
-                "blockExplorerUrls": [
-                  "https://bscscan.com",
-                ],
-                "chainId": "0x38",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "BNB Chain",
-                "nativeCurrency": "BNB",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "bsc-mainnet",
-                    "type": "infura",
-                    "url": "https://bsc-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0x89": {
-                "blockExplorerUrls": [
-                  "https://polygonscan.com",
-                ],
-                "chainId": "0x89",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Polygon",
-                "nativeCurrency": "POL",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "polygon-mainnet",
-                    "type": "infura",
-                    "url": "https://polygon-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0x8f": {
-                "blockExplorerUrls": [
-                  "https://monadscan.com",
-                ],
-                "chainId": "0x8f",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Monad",
-                "nativeCurrency": "MON",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "monad-mainnet",
-                    "type": "infura",
-                    "url": "https://monad-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0xa": {
-                "blockExplorerUrls": [
-                  "https://optimistic.etherscan.io",
-                ],
-                "chainId": "0xa",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "OP",
-                "nativeCurrency": "ETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "optimism-mainnet",
-                    "type": "infura",
-                    "url": "https://optimism-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0xa4b1": {
-                "blockExplorerUrls": [
-                  "https://arbiscan.io",
-                ],
-                "chainId": "0xa4b1",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Arbitrum",
-                "nativeCurrency": "ETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "arbitrum-mainnet",
-                    "type": "infura",
-                    "url": "https://arbitrum-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0xaa36a7": {
-                "blockExplorerUrls": [
-                  "https://sepolia.etherscan.io",
-                ],
-                "chainId": "0xaa36a7",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Sepolia",
-                "nativeCurrency": "SepoliaETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "sepolia",
-                    "type": "infura",
-                    "url": "https://sepolia.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0xe705": {
-                "blockExplorerUrls": [
-                  "https://sepolia.lineascan.build",
-                ],
-                "chainId": "0xe705",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Linea Sepolia",
-                "nativeCurrency": "LineaETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "linea-sepolia",
-                    "type": "infura",
-                    "url": "https://linea-sepolia.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-              "0xe708": {
-                "blockExplorerUrls": [
-                  "https://lineascan.build",
-                ],
-                "chainId": "0xe708",
-                "defaultBlockExplorerUrlIndex": 0,
-                "defaultRpcEndpointIndex": 0,
-                "name": "Linea",
-                "nativeCurrency": "ETH",
-                "rpcEndpoints": [
-                  {
-                    "failoverUrls": [],
-                    "networkClientId": "linea-mainnet",
-                    "type": "infura",
-                    "url": "https://linea-mainnet.infura.io/v3/{infuraProjectId}",
-                  },
-                ],
-              },
-            },
-            "networksMetadata": {},
-            "selectedNetworkClientId": "mainnet",
-          }
-        `);
+              "networksMetadata": {},
+              "selectedNetworkClientId": "mainnet",
+            }
+          `);
         },
       );
     });
