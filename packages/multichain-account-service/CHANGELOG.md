@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Revert "Release/1115.0.0 ([#9464](https://github.com/MetaMask/core/pull/9464))
+- Release/1115.0.0 ([#9464](https://github.com/MetaMask/core/pull/9464))
+
 ### Removed
 
 - Removed use of v1 `createAccount` entirely ([#9460](https://github.com/MetaMask/core/pull/9460))
