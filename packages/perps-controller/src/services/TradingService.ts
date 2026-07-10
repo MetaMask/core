@@ -2225,6 +2225,19 @@ export class TradingService {
         // Invalidate standalone caches so external hooks refresh
         this.#deps.cacheInvalidator.invalidate({ cacheType: 'positions' });
         this.#deps.cacheInvalidator.invalidate({ cacheType: 'accountState' });
+      } else {
+        // Track failure analytics for a non-throwing provider failure so the
+        // terminal Risk Management event is emitted exactly once here (the
+        // thrown path below handles exceptions).
+        this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.RiskManagement, {
+          [PERPS_EVENT_PROPERTY.STATUS]: PERPS_EVENT_VALUE.STATUS.FAILED,
+          [PERPS_EVENT_PROPERTY.ASSET]: symbol,
+          [PERPS_EVENT_PROPERTY.ACTION]:
+            parseFloat(amount) > 0 ? 'add_margin' : 'remove_margin',
+          [PERPS_EVENT_PROPERTY.MARGIN_USED]: Math.abs(parseFloat(amount)),
+          [PERPS_EVENT_PROPERTY.COMPLETION_DURATION]: completionDuration,
+          [PERPS_EVENT_PROPERTY.ERROR_MESSAGE]: result.error ?? 'Unknown error',
+        });
       }
 
       this.#deps.tracer.endTrace({

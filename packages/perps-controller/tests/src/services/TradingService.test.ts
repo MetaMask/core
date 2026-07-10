@@ -2200,6 +2200,84 @@ describe('TradingService', () => {
       );
     });
 
+    it('emits a failed Risk Management event on a non-throwing { success: false } result', async () => {
+      const mockResult = { success: false, error: 'Insufficient balance' };
+      mockProvider.updateMargin = jest.fn().mockResolvedValue(mockResult);
+
+      const result = await tradingService.updateMargin({
+        provider: mockProvider,
+        symbol: 'BTC',
+        amount: '100',
+        context: mockContext,
+      });
+
+      expect(result.success).toBe(false);
+
+      const riskCalls = (
+        mockDeps.metrics.trackPerpsEvent as jest.Mock
+      ).mock.calls.filter(
+        ([event]) => event === PerpsAnalyticsEvent.RiskManagement,
+      );
+      // Exactly one terminal Risk Management event, and it is the failure with
+      // the error message carried from the provider result.
+      expect(riskCalls).toHaveLength(1);
+      expect(riskCalls[0][1]).toEqual(
+        expect.objectContaining({
+          status: 'failed',
+          asset: 'BTC',
+          action: 'add_margin',
+          error_message: 'Insufficient balance',
+        }),
+      );
+    });
+
+    it('emits the failed Risk Management event exactly once on a thrown error', async () => {
+      mockProvider.updateMargin = jest
+        .fn()
+        .mockRejectedValue(new Error('Network error'));
+
+      await expect(
+        tradingService.updateMargin({
+          provider: mockProvider,
+          symbol: 'BTC',
+          amount: '100',
+          context: mockContext,
+        }),
+      ).rejects.toThrow('Network error');
+
+      const riskCalls = (
+        mockDeps.metrics.trackPerpsEvent as jest.Mock
+      ).mock.calls.filter(
+        ([event]) => event === PerpsAnalyticsEvent.RiskManagement,
+      );
+      expect(riskCalls).toHaveLength(1);
+      expect(riskCalls[0][1]).toEqual(
+        expect.objectContaining({ status: 'failed' }),
+      );
+    });
+
+    it('emits the Risk Management event exactly once on success', async () => {
+      const mockResult = { success: true };
+      mockProvider.updateMargin = jest.fn().mockResolvedValue(mockResult);
+
+      await tradingService.updateMargin({
+        provider: mockProvider,
+        symbol: 'BTC',
+        amount: '100',
+        context: mockContext,
+      });
+
+      const riskCalls = (
+        mockDeps.metrics.trackPerpsEvent as jest.Mock
+      ).mock.calls.filter(
+        ([event]) => event === PerpsAnalyticsEvent.RiskManagement,
+      );
+      expect(riskCalls).toHaveLength(1);
+      expect(riskCalls[0][1]).toEqual(
+        expect.objectContaining({ status: 'executed' }),
+      );
+    });
+
     it('updates state on success', async () => {
       const mockResult = { success: true };
       mockProvider.updateMargin = jest.fn().mockResolvedValue(mockResult);
