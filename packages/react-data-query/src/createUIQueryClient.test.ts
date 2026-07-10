@@ -21,7 +21,7 @@ import {
 } from '../../base-data-service/tests/mocks';
 import { createUIQueryClient } from './createUIQueryClient';
 
-const DATA_SERVICES = ['ExampleDataService'];
+const DATA_SERVICES = ['ExampleDataService'] as const;
 
 function createClients(): {
   service: ExampleDataService;

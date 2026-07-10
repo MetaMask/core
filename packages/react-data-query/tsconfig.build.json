@@ -6,5 +6,6 @@
     "rootDir": "./src"
   },
   "references": [{ "path": "../base-data-service/tsconfig.build.json" }],
-  "include": ["../../types", "./src"]
+  "include": ["../../types", "./src"],
+  "exclude": ["**/*.test.ts", "**/*.test-d.ts"]
 }

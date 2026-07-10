@@ -1,5 +1,8 @@
-import { DataServiceGranularCacheUpdatedPayload } from '@metamask/base-data-service';
-import { assert, Json } from '@metamask/utils';
+import type {
+  DataServiceGranularCacheUpdatedEvent,
+  DataServiceGranularCacheUpdatedPayload,
+} from '@metamask/base-data-service';
+import { assert } from '@metamask/utils';
 import {
   hydrate,
   QueryClient,
@@ -11,17 +14,29 @@ import {
   QueryClientConfig,
 } from '@tanstack/query-core';
 
-type SubscriptionCallback = (
+/**
+ * Handles granular cache update events emitted by data services.
+ */
+type SubscriptionHandler = (
   payload: DataServiceGranularCacheUpdatedPayload,
 ) => void;
 
-type JsonSubscriptionCallback = (data: Json) => void;
-
-// TODO: Figure out if we can replace with a better Messenger type
-type MessengerAdapter = {
-  call: (method: string, ...params: Json[]) => Promise<Json | void>;
-  subscribe: (method: string, callback: JsonSubscriptionCallback) => void;
-  unsubscribe: (method: string, callback: JsonSubscriptionCallback) => void;
+/**
+ * The minimum messenger-like shape needed by `createUIQueryClient`.
+ *
+ * This follows the shape of `Messenger`, but is suited toward calling actions
+ * and subscribing to events on data services.
+ */
+type MessengerAdapter<DataServiceName extends string> = {
+  call(method: `${DataServiceName}:${string}`, ...params: unknown[]): unknown;
+  subscribe(
+    eventType: DataServiceGranularCacheUpdatedEvent<DataServiceName>['type'],
+    handler: SubscriptionHandler,
+  ): void;
+  unsubscribe(
+    eventType: DataServiceGranularCacheUpdatedEvent<DataServiceName>['type'],
+    handler: SubscriptionHandler,
+  ): void;
 };
 
 /**
@@ -32,12 +47,36 @@ type MessengerAdapter = {
  * @param config - Optional query client configuration options.
  * @returns The QueryClient.
  */
-export function createUIQueryClient(
-  dataServices: string[],
-  messenger: MessengerAdapter,
+export function createUIQueryClient<DataServiceName extends string>(
+  dataServices: readonly DataServiceName[],
+  messenger: MessengerAdapter<DataServiceName>,
   config: QueryClientConfig = {},
 ): QueryClient {
-  const subscriptions = new Map<string, SubscriptionCallback>();
+  const subscriptions = new Map<string, SubscriptionHandler>();
+
+  /**
+   * Check whether a name is one of the configured data service names.
+   *
+   * @param service - The service name to check.
+   * @returns Whether the service name is configured.
+   */
+  function isConfiguredDataService(
+    service: string,
+  ): service is DataServiceName {
+    return dataServices.some((dataService) => dataService === service);
+  }
+
+  /**
+   * Check whether an action belongs to one of the configured data services.
+   *
+   * @param action - The action name to check.
+   * @returns Whether the action belongs to a configured data service.
+   */
+  function isConfiguredDataServiceAction(
+    action: string,
+  ): action is `${DataServiceName}:${string}` {
+    return isConfiguredDataService(action.split(':')[0]);
+  }
 
   /**
    * Parse a query key to detect a service name.
@@ -45,7 +84,7 @@ export function createUIQueryClient(
    * @param queryKey - The query key.
    * @returns The service name if it parsing succeeded, otherwise null.
    */
-  function parseQueryKey(queryKey: QueryKey): string | null {
+  function parseQueryKey(queryKey: QueryKey): DataServiceName | null {
     const action = queryKey[0];
 
     if (typeof action !== 'string') {
@@ -54,7 +93,7 @@ export function createUIQueryClient(
 
     const service = action.split(':')[0];
 
-    if (!dataServices.includes(service)) {
+    if (!isConfiguredDataService(service)) {
       return null;
     }
 
@@ -72,14 +111,13 @@ export function createUIQueryClient(
           const action = queryKey[0];
 
           assert(
-            typeof action === 'string' &&
-              dataServices.includes(action.split(':')?.[0]),
+            typeof action === 'string' && isConfiguredDataServiceAction(action),
             "Queries must call actions on the messenger provided to createUIQueryClient, e.g. `queryKey: ['ExampleDataService:getAssets', ...]`.",
           );
 
           return await messenger.call(
             action,
-            ...(options.queryKey.slice(1) as Json[]),
+            ...options.queryKey.slice(1),
             options.pageParam,
           );
         },
@@ -123,10 +161,7 @@ export function createUIQueryClient(
       };
 
       subscriptions.set(hash, cacheListener);
-      messenger.subscribe(
-        `${service}:cacheUpdated:${hash}`,
-        cacheListener as JsonSubscriptionCallback,
-      );
+      messenger.subscribe(`${service}:cacheUpdated:${hash}`, cacheListener);
     } else if (
       event.type === 'observerRemoved' &&
       observerCount === 0 &&
@@ -134,10 +169,12 @@ export function createUIQueryClient(
     ) {
       const subscriptionListener = subscriptions.get(hash);
 
-      messenger.unsubscribe(
-        `${service}:cacheUpdated:${hash}`,
-        subscriptionListener as JsonSubscriptionCallback,
-      );
+      if (subscriptionListener) {
+        messenger.unsubscribe(
+          `${service}:cacheUpdated:${hash}`,
+          subscriptionListener,
+        );
+      }
       subscriptions.delete(hash);
     }
   });
@@ -165,11 +202,7 @@ export function createUIQueryClient(
           return null;
         }
 
-        return messenger.call(
-          `${service}:invalidateQueries`,
-          filters as Json,
-          options as Json,
-        );
+        return messenger.call(`${service}:invalidateQueries`, filters, options);
       }),
     );
 
