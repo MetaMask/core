@@ -47,6 +47,7 @@ import type {
   IsAtomicBatchSupportedResult,
   IsAtomicBatchSupportedResultEntry,
   TransactionBatchMeta,
+  GetSimulationConfig,
 } from '../types';
 import type { TransactionBatchResult, TransactionParams } from '../types';
 import {
@@ -82,6 +83,7 @@ type AddTransactionBatchRequest = {
   getPendingTransactionTracker: (
     networkClientId: string,
   ) => PendingTransactionTracker;
+  getSimulationConfig?: GetSimulationConfig;
   getTransaction: (id: string) => TransactionMeta;
   isSimulationEnabled: () => boolean;
   messenger: TransactionControllerMessenger;
@@ -947,6 +949,7 @@ async function prepareApprovalData({
     request: userRequest,
     isSimulationEnabled,
     getGasFeeEstimates,
+    getSimulationConfig,
     sentinelApiService,
     update,
   } = request;
@@ -970,6 +973,7 @@ async function prepareApprovalData({
   const { totalGasLimit: gasLimit } = await simulateGasBatch({
     chainId,
     from,
+    getSimulationConfig,
     sentinelApiService,
     transactions: nestedTransactions,
   });

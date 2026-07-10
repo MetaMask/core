@@ -17,6 +17,7 @@ import { TransactionEnvelopeType } from '../types';
 import type {
   AuthorizationList,
   BatchTransactionParams,
+  GetSimulationConfig,
   IsAtomicBatchSupportedRequest,
   IsAtomicBatchSupportedResult,
   Revert,
@@ -36,6 +37,7 @@ import { decodeRevert } from './revert-reason';
 export type UpdateGasRequest = {
   isCustomNetwork: boolean;
   isSimulationEnabled: boolean;
+  getSimulationConfig?: GetSimulationConfig;
   messenger: TransactionControllerMessenger;
   sentinelApiService: SentinelApiService;
   txMeta: TransactionMeta;
@@ -92,6 +94,7 @@ export async function updateGas(request: UpdateGasRequest): Promise<void> {
  * @param options - The options object.
  * @param options.ignoreDelegationSignatures - Ignore signature errors if submitting delegations to the DelegationManager.
  * @param options.isSimulationEnabled - Whether the simulation is enabled.
+ * @param options.getSimulationConfig - Optional callback to rewrite the simulation request URL.
  * @param options.messenger - The messenger instance for communication.
  * @param options.networkClientId - The network client ID.
  * @param options.sentinelApiService - The Sentinel API service used to simulate transactions.
@@ -101,6 +104,7 @@ export async function updateGas(request: UpdateGasRequest): Promise<void> {
 export async function estimateGas({
   ignoreDelegationSignatures,
   isSimulationEnabled,
+  getSimulationConfig,
   messenger,
   networkClientId,
   sentinelApiService,
@@ -108,6 +112,7 @@ export async function estimateGas({
 }: {
   ignoreDelegationSignatures?: boolean;
   isSimulationEnabled: boolean;
+  getSimulationConfig?: GetSimulationConfig;
   messenger: TransactionControllerMessenger;
   networkClientId: NetworkClientId;
   sentinelApiService: SentinelApiService;
@@ -187,10 +192,12 @@ export async function estimateGas({
         networkClientId,
         chainId,
         sentinelApiService,
+        getSimulationConfig,
       );
     } else if (ignoreDelegationSignatures && isSimulationEnabled) {
       estimatedGas = await simulateGas({
         chainId,
+        getSimulationConfig,
         sentinelApiService,
         transaction: request,
       });
@@ -257,6 +264,7 @@ export function getProvidedBatchGasLimits(
 
 export async function estimateGasBatch({
   from,
+  getSimulationConfig,
   isAtomicBatchSupported,
   messenger,
   networkClientId,
@@ -264,6 +272,7 @@ export async function estimateGasBatch({
   transactions,
 }: {
   from: Hex;
+  getSimulationConfig?: GetSimulationConfig;
   isAtomicBatchSupported: (
     request: IsAtomicBatchSupportedRequest,
   ) => Promise<IsAtomicBatchSupportedResult>;
@@ -316,6 +325,7 @@ export async function estimateGasBatch({
     // first sub-call provides source-token balance to subsequent sub-calls).
     const { estimatedGas: gasLimitHex, simulationFails } = await estimateGas({
       isSimulationEnabled: true,
+      getSimulationConfig,
       messenger,
       networkClientId,
       sentinelApiService,
@@ -355,6 +365,7 @@ export async function estimateGasBatch({
   const { gasLimits: gasLimitsHex } = await simulateGasBatch({
     chainId,
     from,
+    getSimulationConfig,
     sentinelApiService,
     transactions: transactions.map((transaction) => ({
       params: transaction,
@@ -421,6 +432,7 @@ export function addGasBuffer(
  * @param options - The options object.
  * @param options.chainId - The chain ID of the transactions.
  * @param options.from - The address of the sender.
+ * @param options.getSimulationConfig - Optional callback to rewrite the simulation request URL.
  * @param options.sentinelApiService - The Sentinel API service used to simulate transactions.
  * @param options.transactions - The array of transactions within a batch request.
  * @returns An object containing the transactions with their gas limits and the total gas limit.
@@ -428,16 +440,19 @@ export function addGasBuffer(
 export async function simulateGasBatch({
   chainId,
   from,
+  getSimulationConfig,
   sentinelApiService,
   transactions,
 }: {
   chainId: Hex;
   from: Hex;
+  getSimulationConfig?: GetSimulationConfig;
   sentinelApiService: SentinelApiService;
   transactions: TransactionBatchSingleRequest[];
 }): Promise<{ totalGasLimit: Hex; gasLimits: Hex[] }> {
   try {
     const response = await simulateTransactions(sentinelApiService, chainId, {
+      getSimulationConfig,
       transactions: transactions.map((transaction) => ({
         ...transaction.params,
         from,
@@ -494,6 +509,7 @@ async function getGas(
   const {
     isCustomNetwork,
     isSimulationEnabled,
+    getSimulationConfig,
     messenger,
     sentinelApiService,
     txMeta,
@@ -520,6 +536,7 @@ async function getGas(
     simulationFails,
   } = await estimateGas({
     isSimulationEnabled,
+    getSimulationConfig,
     messenger,
     networkClientId,
     sentinelApiService,
@@ -641,6 +658,7 @@ async function getLatestBlock(
  * @param networkClientId - The network client ID.
  * @param chainId - The chain ID of the transaction.
  * @param sentinelApiService - The Sentinel API service used to simulate transactions.
+ * @param getSimulationConfig - Optional callback to rewrite the simulation request URL.
  * @returns The estimated gas.
  */
 async function estimateGasUpgradeWithDataToSelf(
@@ -649,6 +667,7 @@ async function estimateGasUpgradeWithDataToSelf(
   networkClientId: NetworkClientId,
   chainId: Hex,
   sentinelApiService: SentinelApiService,
+  getSimulationConfig?: GetSimulationConfig,
 ): Promise<Hex> {
   const upgradeGas = (await rpcRequest({
     messenger,
@@ -673,6 +692,7 @@ async function estimateGasUpgradeWithDataToSelf(
     executeGas = await simulateGas({
       chainId,
       delegationAddress,
+      getSimulationConfig,
       sentinelApiService,
       transaction: txParams,
     });
@@ -713,6 +733,7 @@ async function estimateGasUpgradeWithDataToSelf(
  * @param options - The options object.
  * @param options.chainId - The chain ID of the transaction.
  * @param options.delegationAddress - The delegation address of the sender to mock.
+ * @param options.getSimulationConfig - Optional callback to rewrite the simulation request URL.
  * @param options.sentinelApiService - The Sentinel API service used to simulate transactions.
  * @param options.transaction - The transaction parameters.
  * @returns The simulated gas.
@@ -720,15 +741,18 @@ async function estimateGasUpgradeWithDataToSelf(
 async function simulateGas({
   chainId,
   delegationAddress,
+  getSimulationConfig,
   sentinelApiService,
   transaction,
 }: {
   chainId: Hex;
   delegationAddress?: Hex;
+  getSimulationConfig?: GetSimulationConfig;
   sentinelApiService: SentinelApiService;
   transaction: TransactionParams;
 }): Promise<Hex> {
   const response = await simulateTransactions(sentinelApiService, chainId, {
+    getSimulationConfig,
     transactions: [
       {
         to: transaction.to as Hex,

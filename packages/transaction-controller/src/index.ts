@@ -80,6 +80,7 @@ export type {
   GasPriceGasFeeEstimates,
   GasPriceValue,
   GetGasFeeTokensRequest,
+  GetSimulationConfig,
   InferTransactionTypeResult,
   IsAtomicBatchSupportedRequest,
   IsAtomicBatchSupportedResult,

@@ -16,6 +16,7 @@ import type {
   SimulationResponseTransaction,
 } from '../api/simulation-api';
 import { projectLogger } from '../logger';
+import type { GetSimulationConfig } from '../types';
 import { isNativeBalanceSufficientForGas } from './balance';
 import { ERROR_MESSAGE_NO_UPGRADE_CONTRACT } from './batch';
 import { ERROR_MESSGE_PUBLIC_KEY, doesChainSupportEIP7702 } from './eip7702';
@@ -28,6 +29,7 @@ export type GetGasFeeTokensRequest = {
   isEIP7702GasFeeTokensEnabled: (
     transactionMeta: TransactionMeta,
   ) => Promise<boolean>;
+  getSimulationConfig?: GetSimulationConfig;
   messenger: TransactionControllerMessenger;
   publicKeyEIP7702?: Hex;
   sentinelApiService: SentinelApiService;
@@ -40,6 +42,7 @@ export type GetGasFeeTokensRequest = {
  * @param request - The request object.
  * @param request.chainId - The chain ID of the transaction.
  * @param request.isEIP7702GasFeeTokensEnabled - Callback to check if EIP-7702 gas fee tokens are enabled.
+ * @param request.getSimulationConfig - Optional callback to rewrite the simulation request URL.
  * @param request.messenger - The messenger instance.
  * @param request.publicKeyEIP7702 - Public key to validate EIP-7702 contract signatures.
  * @param request.sentinelApiService - The Sentinel API service used to simulate transactions.
@@ -49,6 +52,7 @@ export type GetGasFeeTokensRequest = {
 export async function getGasFeeTokens({
   chainId,
   isEIP7702GasFeeTokensEnabled,
+  getSimulationConfig,
   messenger,
   publicKeyEIP7702,
   sentinelApiService,
@@ -90,6 +94,7 @@ export async function getGasFeeTokens({
 
   try {
     const response = await simulateTransactions(sentinelApiService, chainId, {
+      getSimulationConfig,
       transactions: [
         {
           authorizationList,

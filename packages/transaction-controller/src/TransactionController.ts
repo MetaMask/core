@@ -121,6 +121,7 @@ import type {
   GasFeeEstimateLevel as GasFeeEstimateLevelType,
   TransactionBatchMeta,
   BeforeSignHook,
+  GetSimulationConfig,
   AddTransactionOptions,
   PublishHookResult,
   GetGasFeeTokensRequest,
@@ -323,6 +324,13 @@ export type TransactionControllerOptions = {
 
   /** Gets the saved gas fee config. */
   getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
+
+  /**
+   * Gets the transaction simulation configuration, allowing the simulation
+   * request URL to be rewritten (for example to route through the MetaMask
+   * Shield proxy).
+   */
+  getSimulationConfig?: GetSimulationConfig;
 
   /**
    * Callback to determine whether gas fee updates should be enabled for a given transaction.
@@ -700,6 +708,8 @@ export class TransactionController extends BaseController<
 
   readonly #getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
 
+  readonly #getSimulationConfig: GetSimulationConfig;
+
   readonly #internalEvents = new EventEmitter();
 
   readonly #isAutomaticGasFeeUpdateEnabled: (
@@ -753,6 +763,7 @@ export class TransactionController extends BaseController<
       disableSwaps,
       getPermittedAccounts,
       getSavedGasFees,
+      getSimulationConfig,
       hooks,
       isAutomaticGasFeeUpdateEnabled,
       isEIP7702GasFeeTokensEnabled,
@@ -793,6 +804,9 @@ export class TransactionController extends BaseController<
     this.#getPermittedAccounts = getPermittedAccounts;
     this.#getSavedGasFees =
       getSavedGasFees ?? ((_chainId): SavedGasFees | undefined => undefined);
+    this.#getSimulationConfig =
+      getSimulationConfig ??
+      ((): ReturnType<GetSimulationConfig> => Promise.resolve({}));
     this.#sentinelApiService = sentinelApiService;
     this.#isAutomaticGasFeeUpdateEnabled =
       isAutomaticGasFeeUpdateEnabled ??
@@ -958,6 +972,7 @@ export class TransactionController extends BaseController<
       getGasFeeEstimates: (options) =>
         this.messenger.call('GasFeeController:fetchGasFeeEstimates', options),
       getInternalAccounts: this.#getInternalAccounts.bind(this),
+      getSimulationConfig: this.#getSimulationConfig.bind(this),
       getPendingTransactionTracker: (networkClientId: NetworkClientId) =>
         this.#createPendingTransactionTracker({
           blockTracker,
@@ -1482,6 +1497,7 @@ export class TransactionController extends BaseController<
     const { estimatedGas, simulationFails } = await estimateGas({
       ignoreDelegationSignatures,
       isSimulationEnabled: this.#isSimulationEnabled(),
+      getSimulationConfig: this.#getSimulationConfig,
       messenger: this.messenger,
       networkClientId,
       sentinelApiService: this.#sentinelApiService,
@@ -1511,6 +1527,7 @@ export class TransactionController extends BaseController<
   }): Promise<EstimateGasBatchResult> {
     return estimateGasBatch({
       from,
+      getSimulationConfig: this.#getSimulationConfig,
       isAtomicBatchSupported: this.isAtomicBatchSupported.bind(this),
       messenger: this.messenger,
       networkClientId: getNetworkClientId({
@@ -1540,6 +1557,7 @@ export class TransactionController extends BaseController<
   }> {
     const { blockGasLimit, estimatedGas, simulationFails } = await estimateGas({
       isSimulationEnabled: this.#isSimulationEnabled(),
+      getSimulationConfig: this.#getSimulationConfig,
       messenger: this.messenger,
       networkClientId,
       sentinelApiService: this.#sentinelApiService,
@@ -4027,6 +4045,12 @@ export class TransactionController extends BaseController<
           getBalanceChanges({
             blockTime,
             chainId,
+            getSimulationConfig: (url, opts) => {
+              return this.#getSimulationConfig(url, {
+                txMeta: transactionMeta,
+                ...opts,
+              });
+            },
             messenger: this.messenger,
             networkClientId,
             nestedTransactions,
@@ -4212,6 +4236,7 @@ export class TransactionController extends BaseController<
     await updateGas({
       isCustomNetwork,
       isSimulationEnabled: this.#isSimulationEnabled(),
+      getSimulationConfig: this.#getSimulationConfig,
       messenger: this.messenger,
       sentinelApiService: this.#sentinelApiService,
       txMeta: transactionMeta,
@@ -4373,6 +4398,7 @@ export class TransactionController extends BaseController<
 
     return await getGasFeeTokens({
       chainId,
+      getSimulationConfig: this.#getSimulationConfig,
       isEIP7702GasFeeTokensEnabled: this.#isEIP7702GasFeeTokensEnabled,
       messenger: this.messenger,
       publicKeyEIP7702: this.#publicKeyEIP7702,

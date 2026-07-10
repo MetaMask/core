@@ -104,7 +104,91 @@ describe('Simulation API Utils', () => {
       expect(sentinelApiServiceMock.simulateTransactions).toHaveBeenCalledWith(
         CHAIN_ID_MOCK,
         REQUEST_MOCK,
+        {},
       );
+    });
+
+    it('does not forward getSimulationConfig to the Sentinel API service', async () => {
+      const getSimulationConfig = jest.fn().mockResolvedValue({});
+
+      await simulateTransactions(
+        sentinelApiServiceMock as unknown as SentinelApiService,
+        CHAIN_ID_MOCK,
+        { ...REQUEST_MOCK, getSimulationConfig },
+      );
+
+      const forwardedRequest = sentinelApiServiceMock.simulateTransactions.mock
+        .calls[0][1] as unknown as SimulationRequest;
+
+      expect(forwardedRequest).not.toHaveProperty('getSimulationConfig');
+      expect(forwardedRequest).toStrictEqual(REQUEST_MOCK);
+    });
+
+    it('passes a getUrl option that resolves to newUrl when getSimulationConfig returns one', async () => {
+      const newUrl = 'https://shield.example.com/simulate';
+      const getSimulationConfig = jest.fn().mockResolvedValue({ newUrl });
+
+      await simulateTransactions(
+        sentinelApiServiceMock as unknown as SentinelApiService,
+        CHAIN_ID_MOCK,
+        { ...REQUEST_MOCK, getSimulationConfig },
+      );
+
+      const options = sentinelApiServiceMock.simulateTransactions.mock
+        .calls[0][2] as { getUrl?: (defaultUrl: string) => Promise<string> };
+
+      expect(options.getUrl).toBeDefined();
+      expect(await options.getUrl?.('https://default.example.com')).toBe(
+        newUrl,
+      );
+      expect(getSimulationConfig).toHaveBeenCalledWith(
+        'https://default.example.com',
+      );
+    });
+
+    it('passes a getUrl option that falls back to the default URL when getSimulationConfig returns no newUrl', async () => {
+      const getSimulationConfig = jest.fn().mockResolvedValue({});
+      const defaultUrl = 'https://default.example.com';
+
+      await simulateTransactions(
+        sentinelApiServiceMock as unknown as SentinelApiService,
+        CHAIN_ID_MOCK,
+        { ...REQUEST_MOCK, getSimulationConfig },
+      );
+
+      const options = sentinelApiServiceMock.simulateTransactions.mock
+        .calls[0][2] as { getUrl?: (defaultUrl: string) => Promise<string> };
+
+      expect(await options.getUrl?.(defaultUrl)).toBe(defaultUrl);
+    });
+
+    it('falls back to the default URL when getSimulationConfig resolves to undefined', async () => {
+      const getSimulationConfig = jest.fn().mockResolvedValue(undefined);
+      const defaultUrl = 'https://default.example.com';
+
+      await simulateTransactions(
+        sentinelApiServiceMock as unknown as SentinelApiService,
+        CHAIN_ID_MOCK,
+        { ...REQUEST_MOCK, getSimulationConfig },
+      );
+
+      const options = sentinelApiServiceMock.simulateTransactions.mock
+        .calls[0][2] as { getUrl?: (defaultUrl: string) => Promise<string> };
+
+      expect(await options.getUrl?.(defaultUrl)).toBe(defaultUrl);
+    });
+
+    it('does not pass a getUrl option when getSimulationConfig is absent', async () => {
+      await simulateTransactions(
+        sentinelApiServiceMock as unknown as SentinelApiService,
+        CHAIN_ID_MOCK,
+        REQUEST_MOCK,
+      );
+
+      const options =
+        sentinelApiServiceMock.simulateTransactions.mock.calls[0][2];
+
+      expect(options).toStrictEqual({});
     });
 
     it('does not mutate the original request', async () => {

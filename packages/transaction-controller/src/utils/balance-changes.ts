@@ -36,6 +36,7 @@ import type {
   SimulationToken,
   TransactionParams,
   NestedTransactionMetadata,
+  GetSimulationConfig,
 } from '../types';
 import { SimulationTokenStandard } from '../types';
 import { getNativeBalance } from './balance';
@@ -56,6 +57,7 @@ type ABI = Fragment[];
 export type GetBalanceChangesRequest = {
   blockTime?: number;
   chainId: Hex;
+  getSimulationConfig?: GetSimulationConfig;
   messenger: TransactionControllerMessenger;
   networkClientId: NetworkClientId;
   nestedTransactions?: NestedTransactionMetadata[];
@@ -117,6 +119,7 @@ type BalanceTransactionMap = Map<SimulationToken, SimulationRequestTransaction>;
  * @param request.to - The recipient of the transaction.
  * @param request.value - The value of the transaction.
  * @param request.data - The data of the transaction.
+ * @param request.getSimulationConfig - Optional callback to rewrite the simulation request URL.
  * @param request.sentinelApiService - The Sentinel API service used to simulate transactions.
  * @returns The simulation data.
  */
@@ -761,6 +764,7 @@ async function baseRequest({
   const {
     blockTime,
     chainId,
+    getSimulationConfig,
     messenger,
     networkClientId,
     sentinelApiService,
@@ -806,6 +810,7 @@ async function baseRequest({
 
   return await simulateTransactions(sentinelApiService, chainId, {
     ...params,
+    getSimulationConfig,
     transactions,
     withGas: true,
     withDefaultBlockOverrides: true,

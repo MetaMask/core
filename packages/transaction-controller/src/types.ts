@@ -2185,6 +2185,21 @@ export type MetamaskPayMetadata = {
 };
 
 /**
+ * Parameters for the transaction simulation API.
+ *
+ * Lets consumers rewrite the simulation request URL (for example to route
+ * through the MetaMask Shield proxy) via the returned `newUrl`.
+ */
+export type GetSimulationConfig = (
+  url: string,
+  opts?: {
+    txMeta?: TransactionMeta;
+  },
+) => Promise<{
+  newUrl?: string;
+}>;
+
+/**
  * Options for adding a transaction.
  */
 export type AddTransactionOptions = {

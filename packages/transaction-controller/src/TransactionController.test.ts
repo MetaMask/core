@@ -1408,6 +1408,7 @@ describe('TransactionController', () => {
       expect(estimateGasMock).toHaveBeenCalledTimes(1);
       expect(estimateGasMock).toHaveBeenCalledWith({
         isSimulationEnabled: true,
+        getSimulationConfig: expect.any(Function),
         sentinelApiService: SENTINEL_API_SERVICE_MOCK,
         messenger: expect.anything(),
         networkClientId: NETWORK_CLIENT_ID_MOCK,
@@ -1423,6 +1424,33 @@ describe('TransactionController', () => {
 
       expect(gas).toBe(expectedEstimatedGas);
       expect(simulationFails).toBe(simulationFailsMock);
+    });
+
+    it('threads the getSimulationConfig constructor option to estimateGas', async () => {
+      const getSimulationConfig = jest.fn().mockResolvedValue({});
+
+      const { controller } = setupController({
+        options: { getSimulationConfig },
+      });
+
+      estimateGasMock.mockResolvedValue({
+        estimatedGas: '0x123',
+        blockGasLimit: '0x1234',
+        simulationFails: undefined,
+        isUpgradeWithData: false,
+      });
+
+      addGasBufferMock.mockReturnValue('0x12345');
+
+      await controller.estimateGasBuffered(
+        { from: ACCOUNT_MOCK, to: ACCOUNT_MOCK },
+        1,
+        NETWORK_CLIENT_ID_MOCK,
+      );
+
+      expect(estimateGasMock).toHaveBeenCalledWith(
+        expect.objectContaining({ getSimulationConfig }),
+      );
     });
   });
 
@@ -1999,6 +2027,7 @@ describe('TransactionController', () => {
       expect(updateGasMock).toHaveBeenCalledWith({
         isCustomNetwork: false,
         isSimulationEnabled: true,
+        getSimulationConfig: expect.any(Function),
         sentinelApiService: SENTINEL_API_SERVICE_MOCK,
         messenger: expect.any(Object),
         txMeta: expect.any(Object),
@@ -2276,6 +2305,7 @@ describe('TransactionController', () => {
         expect(getBalanceChangesMock).toHaveBeenCalledWith({
           blockTime: undefined,
           chainId: MOCK_NETWORK.chainId,
+          getSimulationConfig: expect.any(Function),
           sentinelApiService: SENTINEL_API_SERVICE_MOCK,
           messenger: expect.any(Object),
           nestedTransactions: undefined,
@@ -7472,6 +7502,7 @@ describe('TransactionController', () => {
       expect(getBalanceChangesMock).toHaveBeenCalledWith({
         blockTime: 123,
         chainId: ChainId.sepolia,
+        getSimulationConfig: expect.any(Function),
         sentinelApiService: SENTINEL_API_SERVICE_MOCK,
         messenger: expect.any(Object),
         nestedTransactions: undefined,
@@ -7514,6 +7545,7 @@ describe('TransactionController', () => {
       expect(getBalanceChangesMock).toHaveBeenCalledWith({
         blockTime: 123,
         chainId: ChainId.sepolia,
+        getSimulationConfig: expect.any(Function),
         sentinelApiService: SENTINEL_API_SERVICE_MOCK,
         messenger: expect.any(Object),
         nestedTransactions: undefined,
@@ -8463,6 +8495,7 @@ describe('TransactionController', () => {
         expect(estimateGasBatchMock).toHaveBeenCalledTimes(1);
         expect(estimateGasBatchMock).toHaveBeenCalledWith({
           from: ACCOUNT_MOCK,
+          getSimulationConfig: expect.any(Function),
           sentinelApiService: SENTINEL_API_SERVICE_MOCK,
           isAtomicBatchSupported: expect.any(Function),
           messenger: expect.anything(),

@@ -11,6 +11,7 @@ import {
   DELEGATION_MANAGER_ADDRESSES,
 } from '../constants';
 import { projectLogger } from '../logger';
+import type { GetSimulationConfig } from '../types';
 
 const log = createModuleLogger(projectLogger, 'simulation-api');
 
@@ -51,6 +52,12 @@ export type SimulationRequest = {
   blockOverrides?: {
     time?: Hex;
   };
+
+  /**
+   * Optional callback to rewrite the simulation request URL.
+   * Transaction-controller-only field; not forwarded to the Sentinel API.
+   */
+  getSimulationConfig?: GetSimulationConfig;
 
   /**
    * Overrides to the state of the blockchain, keyed by address.
@@ -272,11 +279,24 @@ export async function simulateTransactions(
 ): Promise<SimulationResponse> {
   const finalizedRequest = finalizeRequest(request);
 
-  log('Sending request', chainId, finalizedRequest);
+  // `getSimulationConfig` is a transaction-controller-only field and must not
+  // be forwarded to the Sentinel API. It is routed through the service's
+  // `getUrl` callback instead.
+  const { getSimulationConfig, ...sentinelRequest } = finalizedRequest;
+
+  const getUrl = getSimulationConfig
+    ? async (defaultUrl: string): Promise<string> => {
+        const { newUrl } = (await getSimulationConfig(defaultUrl)) ?? {};
+        return newUrl ?? defaultUrl;
+      }
+    : undefined;
+
+  log('Sending request', chainId, sentinelRequest);
 
   const response = await sentinelApiService.simulateTransactions(
     chainId,
-    finalizedRequest as unknown as SentinelSimulationRequest,
+    sentinelRequest as unknown as SentinelSimulationRequest,
+    getUrl ? { getUrl } : {},
   );
 
   log('Received response', response);

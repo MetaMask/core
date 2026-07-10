@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Add required `sentinelApiService` constructor option, an instance of `SentinelApiService` from `@metamask/sentinel-api-service`, used to perform all Sentinel simulation requests ([#0](https://github.com/MetaMask/core/pull/0))
   - Consumers must construct a `SentinelApiService` (with its own `fetch` and messenger) and pass it to the `TransactionController`.
   - Adds a dependency on `@metamask/sentinel-api-service`.
+- Add optional `getSimulationConfig` constructor option and `GetSimulationConfig` type, allowing consumers to rewrite the simulation request URL (for example to route through the MetaMask Shield proxy) ([#0](https://github.com/MetaMask/core/pull/0))
+  - The callback receives the default URL and returns `{ newUrl?: string }`; when `newUrl` is provided it replaces the resolved Sentinel URL for that request, routed through the service's `getUrl` option.
+  - This is a reduced version of the previously-removed option: the old `authorization` return field is dropped, as authentication headers are now handled by `SentinelApiService`.
 - Export `generateEIP7702BatchTransaction` utility for building an ERC-7821 `execute(mode, calls)` batch transaction from a list of nested transactions ([#9298](https://github.com/MetaMask/core/pull/9298))
 
 ### Changed
@@ -21,8 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
-- **BREAKING:** Remove the `getSimulationConfig` constructor option and the `GetSimulationConfig` type ([#0](https://github.com/MetaMask/core/pull/0))
-  - The simulation request URL override and `Authorization` header hook are no longer honoured by the controller. Configure request behaviour on the injected `SentinelApiService` instead.
+- **BREAKING:** Drop the `authorization` field from the `getSimulationConfig` return value ([#0](https://github.com/MetaMask/core/pull/0))
+  - The `GetSimulationConfig` type now returns only `{ newUrl?: string }`; authentication headers are handled by the injected `SentinelApiService` instead.
 
 ## [68.3.0]
 
