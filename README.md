@@ -307,6 +307,7 @@ linkStyle default opacity:0.5
   authenticated_user_storage --> messenger;
   base_controller --> messenger;
   base_data_service --> messenger;
+  base_data_service --> storage_service;
   bitcoin_regtest_up --> local_node_utils;
   bridge_controller --> accounts_controller;
   bridge_controller --> assets_controller;
