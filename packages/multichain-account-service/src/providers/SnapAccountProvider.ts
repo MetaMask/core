@@ -345,9 +345,13 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     const client = await this.#resolveClient();
     const keyring: SnapKeyringProxy = {
       createAccounts: (options) =>
-        this.#withSnapKeyring(({ keyring: k }) => k.createAccounts(options)),
+        this.#withSnapKeyring(({ keyring: snapKeyring }) =>
+          snapKeyring.createAccounts(options),
+        ),
       deleteAccount: (id) =>
-        this.#withSnapKeyring(({ keyring: k }) => k.deleteAccount(id)),
+        this.#withSnapKeyring(({ keyring: snapKeyring }) =>
+          snapKeyring.deleteAccount(id),
+        ),
     };
     return await operation({ client, keyring });
   }
