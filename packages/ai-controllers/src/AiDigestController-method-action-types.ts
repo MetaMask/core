@@ -33,8 +33,24 @@ export type AiDigestControllerFetchMarketOverviewAction = {
 };
 
 /**
+ * Fetches a single market overview front page by id.
+ *
+ * Unlike the market overview report (which only returns the latest items),
+ * this resolves an older item that has since dropped out of the report, so
+ * clients can render it directly (e.g. from a deep link).
+ *
+ * @param id - The front-page identifier (UUID).
+ * @returns The market overview front page, or `null` if none exists.
+ */
+export type AiDigestControllerFetchFrontPageItemAction = {
+  type: `AiDigestController:fetchFrontPageItem`;
+  handler: AiDigestController['fetchFrontPageItem'];
+};
+
+/**
  * Union of all AiDigestController action types.
  */
 export type AiDigestControllerMethodActions =
   | AiDigestControllerFetchMarketInsightsAction
-  | AiDigestControllerFetchMarketOverviewAction;
+  | AiDigestControllerFetchMarketOverviewAction
+  | AiDigestControllerFetchFrontPageItemAction;

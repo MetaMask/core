@@ -1,7 +1,9 @@
 import { merge } from 'lodash';
 
-import type { QuoteResponseV1, DeepPartial } from '../src/types';
-import { ActionTypes, validateQuoteResponseV1 } from '../src/utils/validators';
+import type { DeepPartial } from '../src/types';
+import type { QuoteResponseV1 } from '../src/validators/quote-response-v1';
+import { validateQuoteResponseV1 } from '../src/validators/quote-response-v1';
+import { ActionTypes } from '../src/validators/step';
 
 export const mockBridgeQuotesErc20NativeV1: QuoteResponseV1[] = [
   {

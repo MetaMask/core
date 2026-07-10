@@ -7,10 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `createServicePolicy` and related symbols, copied from `@metamask/controller-utils` ([#9418](https://github.com/MetaMask/core/pull/9418))
+  - Added functions:
+    `createServicePolicy`
+  - Added constants:
+    - `DEFAULT_CIRCUIT_BREAK_DURATION`
+    - `DEFAULT_DEGRADED_THRESHOLD`
+    - `DEFAULT_MAX_CONSECUTIVE_FAILURES`
+    - `DEFAULT_MAX_RETRIES`
+  - Added types:
+    - `CreateServicePolicyOptions`
+    - `ServicePolicy`
+  - Added re-exports from `cockatiel`:
+    - `BrokenCircuitError`
+    - `CircuitState`
+    - `CockatielEventEmitter`
+    - `CockatielEvent`
+    - `CockatielFailureReason`
+    - `ConstantBackoff`
+    - `ExponentialBackoff`
+    - `handleAll`
+    - `handleWhen`
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Bump `@metamask/controller-utils` from `^12.1.0` to `^12.3.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Add dependency `cockatiel` (`^3.1.2`) ([#9418](https://github.com/MetaMask/core/pull/9418))
 
 ## [0.1.3]
 

@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.4.0]
+
 ### Added
 
 - Add `optOutOfLeaderboard` and `optInToLeaderboard` methods to `SocialController` and `SocialService`, with corresponding messenger actions (`SocialController:optOutOfLeaderboard`, `SocialController:optInToLeaderboard`, `SocialService:optOutOfLeaderboard`, `SocialService:optInToLeaderboard`). These call `POST /leaderboard/opt-out` and `POST /leaderboard/opt-in` respectively (JWT-authed, `204 No Content` on success) ([#9354](https://github.com/MetaMask/core/pull/9354))
@@ -14,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/controller-utils` from `^12.2.0` to `^12.3.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 
 ## [2.3.1]
 
@@ -107,7 +110,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `unfollowTrader` — unfollows traders and removes addresses from state
     - `updateFollowing` — fetches following list and replaces addresses in state
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.4.0...HEAD
+[2.4.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.3.1...@metamask/social-controllers@2.4.0
 [2.3.1]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.3.0...@metamask/social-controllers@2.3.1
 [2.3.0]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.2.1...@metamask/social-controllers@2.3.0
 [2.2.1]: https://github.com/MetaMask/core/compare/@metamask/social-controllers@2.2.0...@metamask/social-controllers@2.2.1
