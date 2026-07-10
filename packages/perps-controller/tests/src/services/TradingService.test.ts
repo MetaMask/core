@@ -2988,6 +2988,98 @@ describe('TradingService', () => {
       });
     });
 
+    describe('partial fill on open trade', () => {
+      it('emits an additional partially_filled trade event with amount_filled and remaining_amount', async () => {
+        mockProvider.placeOrder.mockResolvedValue({
+          success: true,
+          orderId: 'order-1',
+          filledSize: '4',
+          averagePrice: '50000',
+        });
+
+        await tradingService.placeOrder({
+          provider: mockProvider,
+          params: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '10',
+            orderType: 'market',
+          },
+          context: mockContext,
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        expect(
+          findCall(
+            PerpsAnalyticsEvent.TradeTransaction,
+            'partially_filled',
+          )?.[1],
+        ).toEqual(
+          expect.objectContaining({ amount_filled: 4, remaining_amount: 6 }),
+        );
+        // The terminal executed event still fires alongside it.
+        expect(
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'executed'),
+        ).toBeDefined();
+      });
+
+      it('does not emit a partially_filled event on a full fill', async () => {
+        mockProvider.placeOrder.mockResolvedValue({
+          success: true,
+          orderId: 'order-1',
+          filledSize: '10',
+          averagePrice: '50000',
+        });
+
+        await tradingService.placeOrder({
+          provider: mockProvider,
+          params: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '10',
+            orderType: 'market',
+          },
+          context: mockContext,
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        expect(
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'partially_filled'),
+        ).toBeUndefined();
+        expect(
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'executed'),
+        ).toBeDefined();
+      });
+
+      it('does not leak amount_filled/remaining_amount onto the executed trade event', async () => {
+        mockProvider.placeOrder.mockResolvedValue({
+          success: true,
+          orderId: 'order-1',
+          filledSize: '4',
+          averagePrice: '50000',
+        });
+
+        await tradingService.placeOrder({
+          provider: mockProvider,
+          params: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '10',
+            orderType: 'market',
+          },
+          context: mockContext,
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        const executed = findCall(
+          PerpsAnalyticsEvent.TradeTransaction,
+          'executed',
+        )?.[1];
+        expect(executed).not.toHaveProperty('amount_filled');
+        expect(executed).not.toHaveProperty('remaining_amount');
+      });
+    });
+
     describe('bulk_action_id on batch close/cancel (TAT-3150)', () => {
       it('attaches bulk_action_id to the batch close summary event', async () => {
         mockGetPositions.mockResolvedValue([mockClosePosition]);

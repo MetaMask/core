@@ -311,6 +311,27 @@ export class TradingService {
       this.#buildAttributionProperties(params.trackingData),
     );
 
+    // Emit an additional partially filled trade event when the fill is partial,
+    // mirroring the close path so the fill's partiality is visible in analytics
+    // rather than hidden behind a status=executed event.
+    const requestedSize = parseFloat(params.size);
+    const filledSize =
+      result?.filledSize === undefined ? NaN : parseFloat(result.filledSize);
+    if (
+      result?.success === true &&
+      Number.isFinite(filledSize) &&
+      filledSize > 0 &&
+      filledSize < requestedSize
+    ) {
+      this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.TradeTransaction, {
+        ...properties,
+        [PERPS_EVENT_PROPERTY.STATUS]:
+          PERPS_EVENT_VALUE.STATUS.PARTIALLY_FILLED,
+        [PERPS_EVENT_PROPERTY.AMOUNT_FILLED]: filledSize,
+        [PERPS_EVENT_PROPERTY.REMAINING_AMOUNT]: requestedSize - filledSize,
+      });
+    }
+
     this.#deps.metrics.trackPerpsEvent(
       PerpsAnalyticsEvent.TradeTransaction,
       properties,
