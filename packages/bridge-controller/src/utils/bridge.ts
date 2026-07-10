@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import { AddressZero } from '@ethersproject/constants';
 import { Contract } from '@ethersproject/contracts';
 import { BtcScope, SolScope, TrxScope, XlmScope } from '@metamask/keyring-api';
@@ -21,10 +22,10 @@ import type {
   BridgeAsset,
   BridgeControllerState,
   GenericQuoteRequest,
-  QuoteResponseV1,
-  TxData,
 } from '../types';
 import { ChainId } from '../types';
+import type { QuoteResponseV1 } from '../validators/quote-response-v1';
+import type { TxData } from '../validators/trade';
 import {
   formatChainIdToCaip,
   formatChainIdToDec,

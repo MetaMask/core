@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/explicit-function-return-type */
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 
 import { DEFAULT_BRIDGE_CONTROLLER_STATE } from '../../constants/bridge';
@@ -6,10 +7,10 @@ import type {
   GenericQuoteRequest,
   QuoteMetadata,
   QuoteRequest,
-  QuoteResponseV1,
-  TxData,
 } from '../../types';
-import { FeatureId } from '../../types';
+import { FeatureId } from '../../validators/feature-flags';
+import type { QuoteResponseV1 } from '../../validators/quote-response-v1';
+import type { TxData } from '../../validators/trade';
 import { getNativeAssetForChainId, isCrossChain } from '../bridge';
 import {
   formatAddressToAssetId,
