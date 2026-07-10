@@ -758,7 +758,9 @@ describe('RampsController', () => {
           inAppScopeQuote(PLAIN_MOONPAY, 90),
           inAppScopeQuote(PLAIN_REVOLUT, 80),
         ],
-        sorted: [{ sortBy: 'reliability', ids: [PLAIN_MOONPAY, PLAIN_REVOLUT] }],
+        sorted: [
+          { sortBy: 'reliability', ids: [PLAIN_MOONPAY, PLAIN_REVOLUT] },
+        ],
         error: [],
         customActions: [
           {
