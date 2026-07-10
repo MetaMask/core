@@ -69,7 +69,7 @@
     "@metamask/multichain-network-controller": "^3.2.1",
     "@metamask/network-controller": "^34.0.0",
     "@metamask/polling-controller": "^16.0.8",
-    "@metamask/profile-sync-controller": "^28.2.0",
+    "@metamask/profile-sync-controller": "^28.3.0",
     "@metamask/remote-feature-flag-controller": "^4.2.2",
     "@metamask/snaps-controllers": "^19.0.0",
     "@metamask/transaction-controller": "^68.4.0",

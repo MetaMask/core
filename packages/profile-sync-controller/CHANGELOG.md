@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [28.3.0]
+
 ### Added
 
 - Add `AuthenticationController.getCustomerServiceToken` method and messenger action to retrieve a Customer Service specific access token ([#9442](https://github.com/MetaMask/core/pull/9442))
@@ -895,7 +897,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.3.0...HEAD
+[28.3.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.2.0...@metamask/profile-sync-controller@28.3.0
 [28.2.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.1.1...@metamask/profile-sync-controller@28.2.0
 [28.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.1.0...@metamask/profile-sync-controller@28.1.1
 [28.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.0.2...@metamask/profile-sync-controller@28.1.0
