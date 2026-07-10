@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Robinhood Chain mainnet as a supported bridge network.
+
 ## [77.3.2]
 
 ### Fixed
