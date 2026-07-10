@@ -323,6 +323,8 @@ describe('BaseDataService', () => {
 
       await service.getAssets(MOCK_ASSETS);
 
+      jest.runAllTimers();
+
       expect(setItem).toHaveBeenCalledWith(serviceName, 'cache', {
         state: {
           queries: [
@@ -454,6 +456,8 @@ describe('BaseDataService', () => {
       const service = new ExampleDataService(messenger);
       service.init();
 
+      await rootMessenger.waitUntil('ExampleDataService:cacheUpdated');
+
       mockAssets({ status: 500 });
 
       const result = await service.getAssets(MOCK_ASSETS);
@@ -465,6 +469,45 @@ describe('BaseDataService', () => {
         serviceName,
         'cache',
       );
+    });
+
+    it('discards the cache if it has expired', async () => {
+      const rootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+        captureException: console.error,
+      });
+
+      rootMessenger.registerActionHandler('StorageService:setItem', jest.fn());
+      rootMessenger.registerActionHandler('StorageService:getItem', () => {
+        return {
+          result: {
+            state: {
+              queries: [],
+              mutations: [],
+            },
+            timestamp: 1783516587702,
+          },
+        };
+      });
+
+      const messenger = rootMessenger.buildChild({
+        namespace: serviceName,
+        actions: ['StorageService:getItem', 'StorageService:setItem'],
+      });
+
+      const callSpy = jest.spyOn(messenger, 'call');
+      const publishSpy = jest.spyOn(messenger, 'publish');
+
+      const service = new ExampleDataService(messenger);
+      service.init();
+
+      expect(callSpy).toHaveBeenCalledWith(
+        'StorageService:getItem',
+        serviceName,
+        'cache',
+      );
+
+      expect(publishSpy).not.toHaveBeenCalled();
     });
   });
 });

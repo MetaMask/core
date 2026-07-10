@@ -25,6 +25,7 @@ import {
   hydrate,
 } from '@tanstack/query-core';
 import deepEqual from 'fast-deep-equal';
+import { debounce } from 'lodash';
 
 import {
   createServicePolicy,
@@ -125,6 +126,8 @@ export class BaseDataService<
 
   readonly #queryCacheUnsubscribe: () => void;
 
+  readonly #debouncedPersist: () => void;
+
   readonly #persistConfig?: PersistConfiguration;
 
   constructor({
@@ -166,6 +169,17 @@ export class BaseDataService<
 
     this.#policy = createServicePolicy(policyOptions);
 
+    this.#debouncedPersist = debounce(
+      () => {
+        this.#persistCache().catch(
+          /* istanbul ignore next */
+          (error) => this.#messenger.captureException?.(error),
+        );
+      },
+      inMilliseconds(10, Duration.Second),
+      { maxWait: inMilliseconds(1, Duration.Minute) },
+    );
+
     this.#queryCacheUnsubscribe = this.#queryClient
       .getQueryCache()
       .subscribe((event) => {
@@ -175,10 +189,7 @@ export class BaseDataService<
             event.type as CacheUpdatedType,
           );
 
-          // TODO: Debounce
-          this.#persistCache().catch((error) =>
-            this.#messenger.captureException?.(error),
-          );
+          this.#debouncedPersist();
         }
       });
 
@@ -300,8 +311,9 @@ export class BaseDataService<
    * Initialize the service, rehydrating the cache with persisted data if possible.
    */
   init(): void {
-    this.#rehydrateCache().catch((error) =>
-      this.#messenger.captureException?.(error),
+    this.#rehydrateCache().catch(
+      /* istanbul ignore next */
+      (error) => this.#messenger.captureException?.(error),
     );
   }
 
@@ -310,6 +322,7 @@ export class BaseDataService<
    * by any subclasses to clean up any additional connections or events.
    */
   destroy(): void {
+    this.#debouncedPersist.cancel();
     this.#queryCacheUnsubscribe();
     this.#queryClient.clear();
     this.messenger.clearSubscriptions();
