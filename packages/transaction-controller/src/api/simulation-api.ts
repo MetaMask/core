@@ -1,4 +1,10 @@
 import { convertHexToDecimal } from '@metamask/controller-utils';
+import { Messenger } from '@metamask/messenger';
+import type {
+  SentinelApiServiceMessenger,
+  SentinelNetworkRegistry,
+} from '@metamask/sentinel-api-service';
+import { SentinelApiService } from '@metamask/sentinel-api-service';
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
@@ -15,7 +21,46 @@ const log = createModuleLogger(projectLogger, 'simulation-api');
 
 const RPC_METHOD = 'infura_simulateTransactions';
 const BASE_URL = 'https://tx-sentinel-{0}.api.cx.metamask.io/';
-const ENDPOINT_NETWORKS = 'networks';
+
+/**
+ * Lazily-constructed singleton {@link SentinelApiService}, used to centralise
+ * the Sentinel supported-network registry (`/networks`) lookup and the
+ * subdomain-based URL derivation. The controller still performs the actual
+ * `infura_simulateTransactions` HTTP request itself because it needs to honour
+ * the per-request `getSimulationConfig` hook (URL override + `Authorization`
+ * header) which the shared service does not expose.
+ */
+let sentinelApiService: SentinelApiService | undefined;
+
+/**
+ * Returns the shared {@link SentinelApiService}, constructing it on first use.
+ *
+ * @returns The Sentinel API service.
+ */
+function getSentinelApiService(): SentinelApiService {
+  if (!sentinelApiService) {
+    const rootMessenger = new Messenger<'SimulationApi', never, never>({
+      namespace: 'SimulationApi',
+    });
+    const messenger = new Messenger({
+      namespace: 'SentinelApiService',
+      parent: rootMessenger,
+    }) as unknown as SentinelApiServiceMessenger;
+
+    sentinelApiService = new SentinelApiService({ messenger });
+  }
+
+  return sentinelApiService;
+}
+
+/**
+ * Reset the shared {@link SentinelApiService} singleton. Intended for use in
+ * tests so that the cached network registry does not leak between cases.
+ */
+export function resetSentinelApiService(): void {
+  sentinelApiService?.destroy();
+  sentinelApiService = undefined;
+}
 
 /** Single transaction to simulate in a simulation API request.  */
 export type SimulationRequestTransaction = {
@@ -260,20 +305,6 @@ export type SimulationResponse = {
   };
 };
 
-/** Data for a network supported by the Simulation API. */
-type SimulationNetwork = {
-  /** Subdomain of the API for the network.  */
-  network: string;
-
-  /** Whether the network supports confirmation simulations. */
-  confirmations: boolean;
-};
-
-/** Response from the simulation API containing supported networks. */
-type SimulationNetworkResponse = {
-  [chainIdDecimal: string]: SimulationNetwork;
-};
-
 let requestIdCounter = 0;
 
 /**
@@ -337,11 +368,15 @@ export async function simulateTransactions(
 /**
  * Get the URL for the transaction simulation API.
  *
+ * Uses the shared {@link SentinelApiService} to fetch and cache the
+ * supported-network registry, then derives the network subdomain URL.
+ *
  * @param chainId - The chain ID to get the URL for.
  * @returns The URL for the transaction simulation API.
  */
 async function getSimulationUrl(chainId: Hex): Promise<string> {
-  const networkData = await getNetworkData();
+  const networkData: SentinelNetworkRegistry =
+    await getSentinelApiService().getNetworks();
   const chainIdDecimal = convertHexToDecimal(chainId);
   const network = networkData[chainIdDecimal];
 
@@ -351,17 +386,6 @@ async function getSimulationUrl(chainId: Hex): Promise<string> {
   }
 
   return getUrl(network.network);
-}
-
-/**
- * Retrieve the supported network data from the simulation API.
- *
- * @returns The network data response from the simulation API.
- */
-async function getNetworkData(): Promise<SimulationNetworkResponse> {
-  const url = `${getUrl('ethereum-mainnet')}${ENDPOINT_NETWORKS}`;
-  const response = await fetch(url);
-  return response.json();
 }
 
 /**

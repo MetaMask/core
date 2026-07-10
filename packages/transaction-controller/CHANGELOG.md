@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Export `generateEIP7702BatchTransaction` utility for building an ERC-7821 `execute(mode, calls)` batch transaction from a list of nested transactions ([#9298](https://github.com/MetaMask/core/pull/9298))
 
+### Changed
+
+- Delegate the Sentinel simulation supported-network registry (`/networks`) lookup and subdomain URL resolution to the shared `@metamask/sentinel-api-service` data service ([#0](https://github.com/MetaMask/core/pull/0))
+  - Removes the controller's duplicate `/networks` client and its per-request refetch of the registry (the service caches it).
+  - Behaviour is preserved: the controller still performs the `infura_simulateTransactions` request itself to honour the `getSimulationConfig` URL override and `Authorization` header hook.
+  - Adds a dependency on `@metamask/sentinel-api-service`.
+
 ## [68.3.0]
 
 ### Added

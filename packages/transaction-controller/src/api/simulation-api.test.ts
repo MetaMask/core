@@ -4,7 +4,7 @@ import type { GetSimulationConfig } from 'src';
 
 import { CHAIN_IDS, DELEGATION_MANAGER_ADDRESSES } from '../constants';
 import type { SimulationRequest, SimulationResponse } from './simulation-api';
-import { simulateTransactions } from './simulation-api';
+import { resetSentinelApiService, simulateTransactions } from './simulation-api';
 
 const CHAIN_ID_MOCK = '0x1';
 const CHAIN_ID_MOCK_DECIMAL = 1;
@@ -73,11 +73,18 @@ describe('Simulation API Utils', () => {
    */
   function mockFetchResponse(jsonResponse: unknown): void {
     fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
       json: jest.fn().mockResolvedValue(jsonResponse),
     } as unknown as Response);
   }
 
   beforeEach(() => {
+    // The Sentinel network registry is cached for the lifetime of the shared
+    // service singleton; reset it so each test performs a fresh `/networks`
+    // fetch against the mock.
+    resetSentinelApiService();
+
     fetchMock = jest.spyOn(global, 'fetch') as jest.MockedFunction<
       typeof fetch
     >;
@@ -155,6 +162,18 @@ describe('Simulation API Utils', () => {
           }),
         }),
       );
+    });
+
+    it('reuses the shared Sentinel service across calls', async () => {
+      // Second call's simulate response (the first is queued in beforeEach).
+      mockFetchResponse({ result: RESPONSE_MOCK });
+
+      await simulateTransactions(CHAIN_ID_MOCK, REQUEST_MOCK);
+      await simulateTransactions(CHAIN_ID_MOCK, REQUEST_MOCK);
+
+      // The registry is fetched once and cached: 1 networks fetch + 2
+      // simulate POSTs = 3 total, not 4.
+      expect(fetchMock).toHaveBeenCalledTimes(3);
     });
 
     it('throws if response has error', async () => {
