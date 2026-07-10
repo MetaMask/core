@@ -75,6 +75,7 @@ export function getMultichainAccountServiceMessenger(
       'AccountsController:getAccounts',
       'KeyringController:removeAccount',
       'SnapAccountService:ensureReady',
+      'SnapAccountService:getCapabilities',
       ...(extra?.actions ?? []),
     ],
     events: [

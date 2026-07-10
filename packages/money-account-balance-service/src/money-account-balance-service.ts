@@ -6,7 +6,11 @@ import type {
   DataServiceInvalidateQueriesAction,
 } from '@metamask/base-data-service';
 import { BaseDataService } from '@metamask/base-data-service';
-import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
+import type {
+  CreateServicePolicyOptions,
+  TraceContext,
+  TraceRequest,
+} from '@metamask/controller-utils';
 import { handleWhen, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
@@ -74,7 +78,33 @@ const PENDING_READ_OVERRIDES = { blockTag: 'pending' } as const;
  */
 export const serviceName = 'MoneyAccountBalanceService';
 
+export const TRACES = {
+  ERC20_BALANCE_RPC: 'Get Money Account ERC20 Balance RPC',
+  UNDERLYING_TOKEN_RPC: 'Get Money Account Underlying Token RPC',
+  MONEY_ACCOUNT_BALANCE_RPC: 'Get Money Account Balance RPC',
+  EXCHANGE_RATE_RPC: 'Get Money Account Exchange Rate RPC',
+  MUSD_EQUIVALENT_VALUE_RPC: 'Get Money Account mUSD Equivalent Value RPC',
+  VAULT_APY_API: 'Get Money Account Vault APY API',
+} as const;
+
+export type MoneyAccountBalanceServiceTraceName =
+  (typeof TRACES)[keyof typeof TRACES];
+
+export type MoneyAccountBalanceServiceTraceRequest = Omit<
+  TraceRequest,
+  'name'
+> & {
+  name: MoneyAccountBalanceServiceTraceName;
+  startTime?: number;
+};
+
+export type MoneyAccountBalanceServiceTraceCallback = <ReturnType>(
+  request: MoneyAccountBalanceServiceTraceRequest,
+  fn?: (context?: TraceContext) => ReturnType,
+) => Promise<ReturnType>;
+
 const configLogger = createModuleLogger(projectLogger, 'config');
+const traceLogger = createModuleLogger(projectLogger, 'trace');
 
 // === MESSENGER ===
 
@@ -171,9 +201,10 @@ export type MoneyAccountBalanceServiceMessenger = Messenger<
  * ```
  */
 
-type MoneyAccountBalanceServiceOptions = {
+export type MoneyAccountBalanceServiceOptions = {
   messenger: MoneyAccountBalanceServiceMessenger;
   policyOptions?: CreateServicePolicyOptions;
+  trace?: MoneyAccountBalanceServiceTraceCallback;
 };
 
 export class MoneyAccountBalanceService extends BaseDataService<
@@ -185,14 +216,18 @@ export class MoneyAccountBalanceService extends BaseDataService<
   /** Cache stale time (ms) for on-chain balance reads. Overridable via remote feature flag. */
   #balanceStaleTime: number = DEFAULT_BALANCE_STALE_TIME;
 
+  readonly #trace: MoneyAccountBalanceServiceTraceCallback;
+
   /**
    * @param options - Constructor options.
    * @param options.messenger - The messenger for this service.
    * @param options.policyOptions - Options passed to `createServicePolicy`.
+   * @param options.trace - Optional callback to trace network requests.
    */
   constructor({
     messenger,
     policyOptions = {},
+    trace,
   }: MoneyAccountBalanceServiceOptions) {
     super({
       name: serviceName,
@@ -207,6 +242,15 @@ export class MoneyAccountBalanceService extends BaseDataService<
       },
     });
 
+    this.#trace =
+      trace ??
+      (async <ReturnType>(
+        _request: MoneyAccountBalanceServiceTraceRequest,
+        fn?: (context?: TraceContext) => ReturnType,
+      ): Promise<ReturnType> => {
+        return await Promise.resolve(fn?.() as ReturnType);
+      });
+
     this.messenger.subscribe(
       // eslint-disable-next-line no-restricted-syntax
       'RemoteFeatureFlagController:stateChange',
@@ -217,6 +261,55 @@ export class MoneyAccountBalanceService extends BaseDataService<
       this,
       MESSENGER_EXPOSED_METHODS,
     );
+  }
+
+  /**
+   * Runs a network request and emits a best-effort backdated trace.
+   *
+   * @param request - Trace metadata for the network request.
+   * @param fn - Network request to execute.
+   * @returns The network request result.
+   */
+  async #traceNetworkRequest<ReturnType>(
+    request: MoneyAccountBalanceServiceTraceRequest,
+    fn: () => Promise<ReturnType>,
+  ): Promise<ReturnType> {
+    const startTime = Date.now();
+    let success = false;
+    let errorName: string | undefined;
+
+    try {
+      const result = await fn();
+      success = true;
+      return result;
+    } catch (error) {
+      errorName = error instanceof Error ? error.name : typeof error;
+      throw error;
+    } finally {
+      const traceRequest = {
+        ...request,
+        startTime,
+        data: {
+          ...request.data,
+          success,
+          ...(errorName ? { errorName } : {}),
+        },
+      };
+      const onTraceError = (traceError: unknown): void => {
+        traceLogger('Failed to emit trace', {
+          traceName: request.name,
+          traceError,
+        });
+      };
+
+      try {
+        Promise.resolve(this.#trace(traceRequest, () => undefined)).catch(
+          onTraceError,
+        );
+      } catch (traceError) {
+        onTraceError(traceError);
+      }
+    }
   }
 
   /**
@@ -445,9 +538,17 @@ export class MoneyAccountBalanceService extends BaseDataService<
   ): Promise<string> {
     const provider = this.#getProvider(chainId);
     const contract = new Contract(contractAddress, abiERC20, provider);
-    const balance = await contract.balanceOf(
-      accountAddress,
-      PENDING_READ_OVERRIDES,
+    const balance = await this.#traceNetworkRequest(
+      {
+        name: TRACES.ERC20_BALANCE_RPC,
+        data: {
+          chainId,
+          tokenAddress: contractAddress,
+          operation: 'balanceOf',
+        },
+      },
+      async () =>
+        await contract.balanceOf(accountAddress, PENDING_READ_OVERRIDES),
     );
     return balance.toString();
   }
@@ -462,7 +563,13 @@ export class MoneyAccountBalanceService extends BaseDataService<
     const { accountantAddress } = this.#requireConfig();
     const provider = this.#getProvider(chainId);
     const contract = new Contract(accountantAddress, ACCOUNTANT_ABI, provider);
-    const underlyingTokenAddress = await contract.base();
+    const underlyingTokenAddress = await this.#traceNetworkRequest(
+      {
+        name: TRACES.UNDERLYING_TOKEN_RPC,
+        data: { chainId, operation: 'base' },
+      },
+      async () => await contract.base(),
+    );
     return underlyingTokenAddress;
   }
 
@@ -578,11 +685,17 @@ export class MoneyAccountBalanceService extends BaseDataService<
           MULTICALL3_ABI,
           provider,
         );
-        const [musdResult, vmusdResult] =
-          (await multicall3.callStatic.aggregate3(
-            calls,
-            PENDING_READ_OVERRIDES,
-          )) as [Multicall3Result, Multicall3Result];
+        const [musdResult, vmusdResult] = (await this.#traceNetworkRequest(
+          {
+            name: TRACES.MONEY_ACCOUNT_BALANCE_RPC,
+            data: { chainId, operation: 'aggregate3' },
+          },
+          async () =>
+            await multicall3.callStatic.aggregate3(
+              calls,
+              PENDING_READ_OVERRIDES,
+            ),
+        )) as [Multicall3Result, Multicall3Result];
 
         const musdBalanceBN = erc20.interface.decodeFunctionResult(
           'balanceOf',
@@ -650,7 +763,13 @@ export class MoneyAccountBalanceService extends BaseDataService<
           ACCOUNTANT_ABI,
           provider,
         );
-        const rate = await contract.getRate();
+        const rate = await this.#traceNetworkRequest(
+          {
+            name: TRACES.EXCHANGE_RATE_RPC,
+            data: { chainId, operation: 'getRate' },
+          },
+          async () => await contract.getRate(),
+        );
         return { rate: rate.toString() };
       },
       staleTime: staleTime ?? this.#balanceStaleTime,
@@ -675,11 +794,18 @@ export class MoneyAccountBalanceService extends BaseDataService<
           this.#requireConfig();
         const provider = this.#getProvider(chainId);
         const contract = new Contract(lensAddress, LENS_ABI, provider);
-        const balanceOfInAssets = await contract.balanceOfInAssets(
-          accountAddress,
-          boringVault,
-          accountantAddress,
-          PENDING_READ_OVERRIDES,
+        const balanceOfInAssets = await this.#traceNetworkRequest(
+          {
+            name: TRACES.MUSD_EQUIVALENT_VALUE_RPC,
+            data: { chainId, operation: 'balanceOfInAssets' },
+          },
+          async () =>
+            await contract.balanceOfInAssets(
+              accountAddress,
+              boringVault,
+              accountantAddress,
+              PENDING_READ_OVERRIDES,
+            ),
         );
 
         return { balanceOfInAssets: balanceOfInAssets.toString() };
@@ -712,16 +838,24 @@ export class MoneyAccountBalanceService extends BaseDataService<
           VEDA_PERFORMANCE_API_BASE_URL,
         );
 
-        const response = await fetch(url);
+        const rawResponse = await this.#traceNetworkRequest(
+          {
+            name: TRACES.VAULT_APY_API,
+            data: { chainId, operation: 'fetchVaultApy' },
+          },
+          async () => {
+            const response = await fetch(url);
 
-        if (!response.ok) {
-          throw new HttpError(
-            response.status,
-            `Veda performance API failed with status '${response.status}'`,
-          );
-        }
+            if (!response.ok) {
+              throw new HttpError(
+                response.status,
+                `Veda performance API failed with status '${response.status}'`,
+              );
+            }
 
-        const rawResponse = await response.json();
+            return await response.json();
+          },
+        );
 
         // Validate raw response inside queryFn to avoid poisoned cache.
         if (!is(rawResponse, VaultApyRawResponseStruct)) {

@@ -3,7 +3,6 @@ import { StructError } from '@metamask/superstruct';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
 import type {
-  QuoteResponseV1,
   FetchFunction,
   GenericQuoteRequest,
   QuoteRequest,
@@ -12,8 +11,15 @@ import type {
   QuoteStreamCompleteData,
   BatchSellTradesRequest,
   BatchSellTradesResponse,
-  FeatureId,
 } from '../types';
+import { validateBatchSellTradesResponse } from '../validators/batch-sell';
+import { validateBridgeAsset } from '../validators/bridge-asset';
+import type { FeatureId } from '../validators/feature-flags';
+import type { QuoteResponseV1 } from '../validators/quote-response-v1';
+import { validateQuoteResponseV1 } from '../validators/quote-response-v1';
+import { validateQuoteStreamComplete } from '../validators/quote-stream-complete';
+import { validateTokenFeature } from '../validators/token-feature';
+import { isEvmTxData } from '../validators/trade';
 import { getEthUsdtResetData } from './bridge';
 import {
   formatAddressToAssetId,
@@ -21,14 +27,7 @@ import {
   formatChainIdToDec,
 } from './caip-formatters';
 import { fetchServerEvents } from './fetch-server-events';
-import { isEvmTxData } from './trade-utils';
-import {
-  validateQuoteResponseV1,
-  validateSwapsTokenObject,
-  validateTokenFeature,
-  validateQuoteStreamComplete,
-  validateBatchSellTradesResponse,
-} from './validators';
+import { formatStructErrors } from './struct-error';
 
 export const getClientHeaders = ({
   clientId,
@@ -76,7 +75,7 @@ export async function fetchBridgeTokens(
 
   const transformedTokens: Record<string, BridgeAsset> = {};
   tokens.forEach((token: unknown) => {
-    if (validateSwapsTokenObject(token)) {
+    if (validateBridgeAsset(token)) {
       transformedTokens[token.address] = token;
     }
   });
@@ -400,6 +399,7 @@ export async function fetchBridgeQuoteStream(
       }
     } catch (error) {
       if (error instanceof StructError) {
+        console.warn('Quote validation failed', formatStructErrors(error));
         error.failures().forEach(({ branch, path }) => {
           const aggregatorId =
             branch?.[0]?.quote?.bridgeId ??
@@ -413,7 +413,6 @@ export async function fetchBridgeQuoteStream(
       }
       const validationFailures = Array.from(uniqueValidationFailures);
       if (uniqueValidationFailures.size > 0) {
-        console.warn('Quote validation failed', validationFailures);
         return serverEventHandlers.onQuoteValidationFailure(validationFailures);
       }
       // Rethrow any unexpected errors

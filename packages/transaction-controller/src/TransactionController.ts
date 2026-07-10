@@ -652,6 +652,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'estimateGasBatch',
   'estimateGasBuffered',
   'estimateGasFee',
+  'failTransaction',
   'getGasFeeTokens',
   'getLayer1GasFee',
   'getNonceLock',
@@ -1571,6 +1572,25 @@ export class TransactionController extends BaseController<
     }));
 
     log('Transaction updated', { transactionId, note });
+  }
+
+  /**
+   * Mark a transaction as failed, transitioning it through the standard failure
+   * path.
+   *
+   * Unlike `updateTransaction`, this emits the transaction lifecycle events
+   * (`transactionFailed`, `transactionStatusUpdated`, `transactionFinished`), so
+   * downstream subscribers such as the bridge status controller and metrics are
+   * notified. Intended for callers that finalize a transaction out-of-band, for
+   * example the smart transactions controller when the relay cancels a smart
+   * transaction that never landed on chain.
+   *
+   * @param transactionId - The ID of the transaction to mark as failed.
+   * @param error - The error describing why the transaction failed.
+   */
+  failTransaction(transactionId: string, error: Error): void {
+    const transactionMeta = this.#getTransactionOrThrow(transactionId);
+    this.#failTransaction(transactionMeta, error);
   }
 
   /**
