@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Map `assetActivation` and `assetDeactivation` activity types in transaction activity mappers ([#9440](https://github.com/MetaMask/core/pull/9440))
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^68.3.0` to `^68.4.0` ([#9456](https://github.com/MetaMask/core/pull/9456))
+
 ## [1.0.0]
 
 ### Added
