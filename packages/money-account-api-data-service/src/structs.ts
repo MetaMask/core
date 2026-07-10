@@ -4,6 +4,7 @@ import {
   enums,
   number,
   object,
+  optional,
   string,
   nullable,
 } from '@metamask/superstruct';
@@ -25,12 +26,19 @@ const VaultPositionStruct = object({
   effective_apy: string(),
 });
 
+const BalanceStruct = object({
+  musd_balance: string(),
+  vmusd_value_in_musd: string(),
+  total_balance: string(),
+});
+
 export const PositionResponseStruct = object({
   address: string(),
   as_of_block: number(),
   as_of_timestamp: string(),
   data_freshness: DataFreshnessStruct,
   indexer_lag_seconds: number(),
+  balance: optional(BalanceStruct),
   positions: array(VaultPositionStruct),
 });
 

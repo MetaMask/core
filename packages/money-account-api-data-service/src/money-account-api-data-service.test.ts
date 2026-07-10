@@ -33,6 +33,11 @@ const MOCK_POSITION_RESPONSE = {
   as_of_timestamp: '2026-06-01T12:00:00Z',
   data_freshness: 'live' as const,
   indexer_lag_seconds: 5,
+  balance: {
+    musd_balance: '1000000',
+    vmusd_value_in_musd: '1052340000000000000',
+    total_balance: '1052341000000000000',
+  },
   positions: [
     {
       vault_address: MOCK_VAULT_ADDRESS,

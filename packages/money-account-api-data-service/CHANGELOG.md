@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - All HTTP calls (`fetchPositions`, `fetchInterest`, `fetchHistory`, `fetchRateHistory`) emit best-effort backdated traces with `startTime`, `success`, and `errorName` attributes
   - Tracing is isolated from fetch/retry logic; trace failures do not impact queries
 
+### Fixed
+
+- Fixed `fetchPositions` struct validation failing when the API returns the `balance` field ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+
 ## [0.1.0]
 
 ### Added
