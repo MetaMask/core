@@ -7,11 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.5.0]
+
+### Added
+
+- Added Robinhood Chain (`0x1237`) to `POPULAR_NETWORKS` ([#9461](https://github.com/MetaMask/core/pull/9461))
+
 ### Changed
 
 - Restore Stellar to the Network Enablement Controller enabled network map by reverting the temporary rollback, as the corresponding Extension issue has already been resolved ([#9385](https://github.com/MetaMask/core/pull/9385))
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
-- Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.3.0` ([#9421](https://github.com/MetaMask/core/pull/9421))
+- Bump `@metamask/transaction-controller` from `^68.2.2` to `^69.0.0` ([#9421](https://github.com/MetaMask/core/pull/9421), [#9456](https://github.com/MetaMask/core/pull/9456), [#9470](https://github.com/MetaMask/core/pull/9470))
 - Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
 
 ## [5.4.1]
@@ -342,7 +348,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6028](https://github.com/MetaMask/core/pull/6028))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.4.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.5.0...HEAD
+[5.5.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.4.1...@metamask/network-enablement-controller@5.5.0
 [5.4.1]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.4.0...@metamask/network-enablement-controller@5.4.1
 [5.4.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.3.0...@metamask/network-enablement-controller@5.4.0
 [5.3.0]: https://github.com/MetaMask/core/compare/@metamask/network-enablement-controller@5.2.0...@metamask/network-enablement-controller@5.3.0

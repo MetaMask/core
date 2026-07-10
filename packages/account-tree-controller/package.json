@@ -1,6 +1,6 @@
 {
   "name": "@metamask/account-tree-controller",
-  "version": "7.5.4",
+  "version": "7.5.5",
   "description": "Controller to group account together based on some pre-defined rules",
   "keywords": [
     "Ethereum",
@@ -53,13 +53,13 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/accounts-controller": "^39.0.4",
+    "@metamask/accounts-controller": "^39.0.5",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/keyring-api": "^23.5.0",
     "@metamask/keyring-controller": "^27.1.0",
     "@metamask/messenger": "^2.0.0",
-    "@metamask/multichain-account-service": "^12.0.0",
-    "@metamask/profile-sync-controller": "^28.2.0",
+    "@metamask/multichain-account-service": "^13.0.0",
+    "@metamask/profile-sync-controller": "^28.3.0",
     "@metamask/snaps-controllers": "^19.0.0",
     "@metamask/snaps-sdk": "^11.0.0",
     "@metamask/snaps-utils": "^12.1.2",

@@ -3,6 +3,7 @@ import type { TypedTxData } from '@ethereumjs/tx';
 import type {
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerGetStateAction,
+  AccountsControllerSelectedAccountChangeEvent,
 } from '@metamask/accounts-controller';
 import type {
   AcceptResultCallbacks,
@@ -21,7 +22,11 @@ import {
   convertHexToDecimal,
 } from '@metamask/controller-utils';
 import type { TraceCallback, TraceContext } from '@metamask/controller-utils';
-import type { AccountActivityServiceTransactionUpdatedEvent } from '@metamask/core-backend';
+import type {
+  AccountActivityServiceStatusChangedEvent,
+  AccountActivityServiceTransactionUpdatedEvent,
+  BackendWebSocketServiceConnectionStateChangedEvent,
+} from '@metamask/core-backend';
 import type {
   FetchGasFeeEstimateOptions,
   GasFeeControllerFetchGasFeeEstimatesAction,
@@ -313,6 +318,18 @@ export type TransactionControllerActions =
   | TransactionControllerGetStateAction
   | TransactionControllerMethodActions;
 
+/**
+ * @deprecated Incoming transaction support has been removed. These options are ignored.
+ */
+export type IncomingTransactionCompatibilityOptions = {
+  client?: string;
+  includeTokenTransfers?: boolean;
+  isEnabled?: () => boolean;
+  updateTransactions?: boolean;
+  /** @deprecated Ignored as incoming transaction support has been removed. */
+  etherscanApiKeysByChainId?: Record<Hex, string>;
+};
+
 /** TransactionController constructor options. */
 export type TransactionControllerOptions = {
   /** Whether to disable additional processing on swaps transactions. */
@@ -322,12 +339,19 @@ export type TransactionControllerOptions = {
   getPermittedAccounts?: (origin?: string) => Promise<string[]>;
 
   /** Gets the saved gas fee config. */
-  getSavedGasFees?: (chainId: Hex) => SavedGasFees | undefined;
+  getSavedGasFees?: (
+    transactionMeta: TransactionMeta,
+  ) => SavedGasFees | undefined;
 
   /**
    * Gets the transaction simulation configuration.
    */
   getSimulationConfig?: GetSimulationConfig;
+
+  /**
+   * @deprecated Incoming transaction support has been removed. This option is ignored.
+   */
+  incomingTransactions?: IncomingTransactionCompatibilityOptions;
 
   /**
    * Callback to determine whether gas fee updates should be enabled for a given transaction.
@@ -422,7 +446,10 @@ export type AllowedActions =
  * The external events available to the {@link TransactionController}.
  */
 export type AllowedEvents =
+  | AccountActivityServiceStatusChangedEvent
   | AccountActivityServiceTransactionUpdatedEvent
+  | AccountsControllerSelectedAccountChangeEvent
+  | BackendWebSocketServiceConnectionStateChangedEvent
   | NetworkControllerStateChangeEvent;
 
 /**
@@ -700,7 +727,9 @@ export class TransactionController extends BaseController<
 
   readonly #getPermittedAccounts?: (origin?: string) => Promise<string[]>;
 
-  readonly #getSavedGasFees: (chainId: Hex) => SavedGasFees | undefined;
+  readonly #getSavedGasFees: (
+    transactionMeta: TransactionMeta,
+  ) => SavedGasFees | undefined;
 
   readonly #getSimulationConfig: GetSimulationConfig;
 
@@ -794,7 +823,8 @@ export class TransactionController extends BaseController<
       ((): ReturnType<BeforeSignHook> => Promise.resolve({}));
     this.#getPermittedAccounts = getPermittedAccounts;
     this.#getSavedGasFees =
-      getSavedGasFees ?? ((_chainId): SavedGasFees | undefined => undefined);
+      getSavedGasFees ??
+      ((_transactionMeta): SavedGasFees | undefined => undefined);
     this.#getSimulationConfig =
       getSimulationConfig ??
       ((): ReturnType<GetSimulationConfig> => Promise.resolve({}));
@@ -926,6 +956,20 @@ export class TransactionController extends BaseController<
    */
   destroy(): void {
     this.#stopAllTracking();
+  }
+
+  /**
+   * @deprecated Incoming transaction support has been removed. This method is retained as a no-op for backwards compatibility.
+   */
+  startIncomingTransactionPolling(): void {
+    noop();
+  }
+
+  /**
+   * @deprecated Incoming transaction support has been removed. This method is retained as a no-op for backwards compatibility.
+   */
+  stopIncomingTransactionPolling(): void {
+    noop();
   }
 
   /**

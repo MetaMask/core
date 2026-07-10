@@ -1,7 +1,6 @@
 import { assertIsBip44Account } from '@metamask/account-api';
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
-import type { SnapKeyringV1 } from '@metamask/eth-snap-keyring';
 import type { SnapKeyring as SnapKeyringV2 } from '@metamask/eth-snap-keyring/v2';
 import {
   EMPTY_CAPABILITIES,
@@ -40,16 +39,13 @@ import { createSnapKeyringClient } from './SnapKeyringClient';
 import type { Sender, SnapKeyringClient } from './SnapKeyringClient';
 import { withRetry, withTimeout } from './utils';
 
-export type RestrictedSnapKeyring = {
-  /**
-   * V1 interface, present only when the Snap does not declare v2 capabilities.
-   * `undefined` for v2-only Snaps.
-   *
-   * Use this to make v1 calls explicit:
-   *   if (!keyring.v1) { throw new Error('Snap is v2-only'); }
-   *   keyring.v1.createAccount(options);
-   */
-  v1?: { createAccount: SnapKeyringV1['createAccount'] };
+/**
+ * A proxy to the Snap's keyring operations that routes every call through the
+ * `KeyringController` mutex (via {@link SnapAccountProvider.#withSnapKeyring}).
+ * Callers receive this object from {@link SnapAccountProvider.withSnap} and
+ * never interact with the raw keyring or the mutex directly.
+ */
+export type SnapKeyringProxy = {
   createAccounts: SnapKeyringV2['createAccounts'];
   deleteAccount: SnapKeyringV2['deleteAccount'];
 };
@@ -148,6 +144,10 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   /**
    * Ensures that the Snap is ready to be used.
    *
+   * Once this resolves, a Snap keyring for {@link snapId} is guaranteed to
+   * exist in the `KeyringController`, so subsequent {@link #withSnapKeyring}
+   * calls will not fail with "No keyring matches the selector".
+   *
    * @returns A promise that resolves when the Snap is ready.
    * @throws An error if the Snap could not become ready.
    */
@@ -177,37 +177,6 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     fn: () => Promise<ReturnType>,
   ): Promise<ReturnType> {
     return this.#trace(request, fn);
-  }
-
-  async #getRestrictedSnapKeyring(): Promise<RestrictedSnapKeyring> {
-    // NOTE: We're not supposed to make the keyring instance escape `withKeyringV2` but
-    // we have to use the `SnapKeyringV2` instance to be able to create Solana account
-    // without triggering UI confirmation.
-    // Also, creating account that way won't invalidate the Snap keyring state. The
-    // account will get created and persisted properly with the Snap account creation
-    // flow "asynchronously" (with `notify:accountCreated`).
-    const createAccount = await this.#withSnapKeyring(async ({ keyring }) => {
-      if (keyring.v1) {
-        return keyring.v1.createAccount.bind(keyring.v1);
-      }
-
-      // This method does not exist in v2.
-      return undefined;
-    });
-
-    return {
-      // V1 interface is only present for v1 Snaps, otherwise it's `undefined`.
-      v1: createAccount ? { createAccount } : undefined,
-      // Every v2 operations must be done through the `#withSnapKeyring` transaction:
-      createAccounts: async (options) =>
-        await this.#withSnapKeyring(
-          async ({ keyring }) => await keyring.createAccounts(options),
-        ),
-      deleteAccount: async (id: string) =>
-        await this.#withSnapKeyring(async ({ keyring }) => {
-          await keyring.deleteAccount(id);
-        }),
-    };
   }
 
   #createSender(snapId: string): Sender {
@@ -369,24 +338,25 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   protected async withSnap<CallbackResult = void>(
     operation: (snap: {
       client: SnapKeyringClient;
-      keyring: RestrictedSnapKeyring;
+      keyring: SnapKeyringProxy;
     }) => Promise<CallbackResult>,
   ): Promise<CallbackResult> {
     await this.ensureReady();
     const client = await this.#resolveClient();
-
-    return await operation({
-      client,
-      keyring: await this.#getRestrictedSnapKeyring(),
-    });
+    const keyring: SnapKeyringProxy = {
+      createAccounts: (options) =>
+        this.#withSnapKeyring(({ keyring: snapKeyring }) =>
+          snapKeyring.createAccounts(options),
+        ),
+      deleteAccount: (id) =>
+        this.#withSnapKeyring(({ keyring: snapKeyring }) =>
+          snapKeyring.deleteAccount(id),
+        ),
+    };
+    return await operation({ client, keyring });
   }
 
   abstract isAccountCompatible(account: Bip44Account<InternalAccount>): boolean;
-
-  protected abstract createAccountV1(
-    keyring: RestrictedSnapKeyring,
-    options: { entropySource: EntropySourceId; groupIndex: number },
-  ): Promise<KeyringAccount>;
 
   protected toBip44Account(
     account: KeyringAccount,
@@ -397,99 +367,34 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
   }
 
   protected async createBip44Accounts(
-    keyring: RestrictedSnapKeyring,
+    keyring: SnapKeyringProxy,
     options:
       | CreateAccountBip44DeriveIndexOptions
       | CreateAccountBip44DeriveIndexRangeOptions
       | CreateAccountBip44DiscoverOptions,
   ): Promise<Bip44Account<KeyringAccount>[]> {
     return this.withMaxConcurrency(async () => {
-      let groupIndexOffset = 0;
-      let snapAccounts: KeyringAccount[] = [];
-
-      // v2 Snaps expose `createAccounts` but no singular `createAccount`, so
-      // they must always go through the batched flow. v1 Snaps only have the
-      // singular `createAccount`.
-      const batched = this.isV2();
       const { entropySource } = options;
 
-      const createAccountV1 = async (
-        groupIndex: number,
-      ): Promise<KeyringAccount> =>
-        await withTimeout(
-          () =>
-            this.trace(
-              {
-                name: TraceName.ProviderCreateAccountV1,
-                data: {
-                  provider: this.getName(),
-                  groupIndex,
-                },
+      const snapAccounts = await withTimeout(
+        () =>
+          this.trace(
+            {
+              name: TraceName.ProviderCreateAccounts,
+              data: {
+                provider: this.getName(),
+                ...toCreateAccountsV2DataTraces(options),
               },
-              () =>
-                this.createAccountV1(keyring, { entropySource, groupIndex }),
-            ),
-          this.config.createAccounts.timeoutMs,
-        );
-      const createAccountsV2 = async (
-        optionsV2:
-          | CreateAccountBip44DeriveIndexOptions
-          | CreateAccountBip44DeriveIndexRangeOptions
-          | CreateAccountBip44DiscoverOptions,
-      ): Promise<KeyringAccount[]> =>
-        await withTimeout(
-          () =>
-            this.trace(
-              {
-                name: TraceName.ProviderCreateAccounts,
-                data: {
-                  provider: this.getName(),
-                  ...toCreateAccountsV2DataTraces(optionsV2),
-                },
-              },
-              () => keyring.createAccounts(optionsV2),
-            ),
-          this.config.createAccounts.timeoutMs,
-        );
+            },
+            () => keyring.createAccounts(options),
+          ),
+        this.config.createAccounts.timeoutMs,
+      );
 
-      if (options.type === `${AccountCreationType.Bip44DeriveIndexRange}`) {
-        if (batched) {
-          // Batch account creations.
-          snapAccounts = await createAccountsV2(options);
-        } else {
-          const { range } = options;
-
-          // Create accounts one by one.
-          for (
-            let groupIndex = range.from;
-            groupIndex <= range.to;
-            groupIndex++
-          ) {
-            const snapAccount = await createAccountV1(groupIndex);
-
-            snapAccounts.push(snapAccount);
-          }
-        }
-
-        // Group indices are sequential, so we just need the starting index.
-        groupIndexOffset = options.range.from;
-      } else {
-        if (batched) {
-          // Create account using new v2-like flow (no async flow + no Snap keyring events).
-          snapAccounts = await createAccountsV2(options);
-        } else {
-          const { groupIndex } = options;
-
-          // Create account using the existing v1 flow.
-          const snapAccount = await createAccountV1(groupIndex);
-
-          snapAccounts = [snapAccount];
-        }
-
-        // For single account, there will only be 1 account, so we can use the
-        // provided group index directly.
-        groupIndexOffset = options.groupIndex;
-      }
+      const groupIndexOffset =
+        options.type === `${AccountCreationType.Bip44DeriveIndexRange}`
+          ? options.range.from
+          : options.groupIndex;
 
       return snapAccounts.map((snapAccount, index) => {
         const groupIndex = groupIndexOffset + index;

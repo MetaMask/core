@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The push payload no longer carries the full notification body; clients construct their analytics events directly from the first-class fields.
   - The `onReceivedHandler` / `onClickHandler` callbacks passed to `createSubscribeToPushNotifications` now receive a `PushAnalyticsPayload` instead of an `INotification`.
 - On push receive, the controller now re-fetches the notifications list from the API rather than inserting the push payload, since the push payload no longer contains the notification body. ([#8944](https://github.com/MetaMask/core/pull/8944))
+- Bump `@metamask/authenticated-user-storage` from `^3.0.0` to `^3.0.1` ([#9458](https://github.com/MetaMask/core/pull/9458))
+- Bump `@metamask/profile-sync-controller` from `^28.2.0` to `^28.3.0` ([#9463](https://github.com/MetaMask/core/pull/9463))
 
 ### Removed
 

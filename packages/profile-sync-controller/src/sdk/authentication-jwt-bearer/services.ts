@@ -158,6 +158,9 @@ export const PAIR_PROFILES_URL = (env: Env): string =>
 export const PROFILE_LINEAGE_URL = (env: Env): string =>
   `${getEnvUrls(env).authApiUrl}/api/v2/profile/lineage`;
 
+export const CUSTOMER_SERVICE_TOKEN_URL = (env: Env): string =>
+  `${getEnvUrls(env).authApiUrl}/api/v2/customer-service/token`;
+
 const getAuthenticationUrl = (authType: AuthType, env: Env): string => {
   switch (authType) {
     case AuthType.SRP:
@@ -513,6 +516,55 @@ export async function getUserProfileLineage(
     return await throwServiceError(
       error,
       'Failed to get profile lineage',
+      SignInError,
+    );
+  }
+}
+
+/**
+ * Service to get a Customer Service specific access token.
+ *
+ * Exchanges a valid OIDC access token for a short-lived token scoped to the
+ * customer-service audience, which Customer Service tooling consumes to
+ * identify and authenticate the user.
+ *
+ * @param env - server environment
+ * @param accessToken - JWT access token used to access protected resources
+ * @returns The customer-service access token.
+ */
+export async function getCustomerServiceToken(
+  env: Env,
+  accessToken: string,
+): Promise<string> {
+  const customerServiceTokenUrl = new URL(CUSTOMER_SERVICE_TOKEN_URL(env));
+
+  try {
+    const response = await fetch(customerServiceTokenUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      return await throwServiceError(
+        response,
+        'Failed to get customer service token',
+        SignInError,
+      );
+    }
+
+    const tokenResponse = await response.json();
+    if (typeof tokenResponse?.access_token !== 'string') {
+      throw new SignInError(
+        'Failed to get customer service token: missing access_token',
+      );
+    }
+    return tokenResponse.access_token;
+  } catch (error) {
+    return await throwServiceError(
+      error,
+      'Failed to get customer service token',
       SignInError,
     );
   }
