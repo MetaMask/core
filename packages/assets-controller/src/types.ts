@@ -270,6 +270,12 @@ export type AssetPrice = FungibleAssetPrice | NFTAssetPrice;
 // BALANCE TYPES (vary by asset type)
 // ============================================================================
 
+/** Per-asset enrichment keyed by CAIP-19 asset id from snap getAccountAssetInfo. */
+export type GetAccountAssetInfoResponse = Record<
+  Caip19AssetId,
+  Record<string, unknown>
+>;
+
 /**
  * Balance data for fungible tokens (native, ERC20, SPL).
  */

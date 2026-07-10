@@ -57,6 +57,7 @@ export {
   // Types
   type SnapDataSourceState,
   type SnapDataSourceOptions,
+  type SnapDataSourceConfig,
   type SnapDataSourceAllowedActions,
   type SnapDataSourceAllowedEvents,
 } from './SnapDataSource';

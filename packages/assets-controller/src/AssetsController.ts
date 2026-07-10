@@ -84,7 +84,10 @@ import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
 import { PriceDataSource } from './data-sources/PriceDataSource';
 import type { RpcDataSourceConfig } from './data-sources/RpcDataSource';
 import { RpcDataSource } from './data-sources/RpcDataSource';
-import type { AccountsControllerAccountBalancesUpdatedEvent } from './data-sources/SnapDataSource';
+import type {
+  AccountsControllerAccountBalancesUpdatedEvent,
+  SnapDataSourceConfig,
+} from './data-sources/SnapDataSource';
 import { SnapDataSource } from './data-sources/SnapDataSource';
 import type { StakedBalanceDataSourceConfig } from './data-sources/StakedBalanceDataSource';
 import { StakedBalanceDataSource } from './data-sources/StakedBalanceDataSource';
@@ -430,6 +433,8 @@ export type AssetsControllerOptions = {
   priceDataSourceConfig?: PriceDataSourceConfig;
   /** Optional configuration for StakedBalanceDataSource. */
   stakedBalanceDataSourceConfig?: StakedBalanceDataSourceConfig;
+  /** Optional configuration for SnapDataSource. */
+  snapDataSourceConfig?: SnapDataSourceConfig;
   /**
    * Function returning whether onboarding is complete. When false,
    * RPC and staked balance data sources skip fetch and subscribe
@@ -565,6 +570,16 @@ function normalizeResponse(response: DataResponse): DataResponse {
   return normalized;
 }
 
+function mergeBalanceEntry(
+  previous: AssetBalance | undefined,
+  incoming: AssetBalance,
+): AssetBalance {
+  return {
+    ...(previous ?? { amount: '0' }),
+    ...incoming,
+  };
+}
+
 /**
  * Merge account balances from a data-source response into prior state.
  *
@@ -582,7 +597,11 @@ function mergeAccountBalances(
   replaceCoveredChains: boolean,
 ): Record<string, AssetBalance> {
   if (!replaceCoveredChains) {
-    return { ...previousBalances, ...accountBalances };
+    const next: Record<string, AssetBalance> = { ...previousBalances };
+    for (const [assetId, balance] of Object.entries(accountBalances)) {
+      next[assetId] = mergeBalanceEntry(previousBalances[assetId], balance);
+    }
+    return next;
   }
 
   const coveredChains = new Set(
@@ -596,7 +615,9 @@ function mergeAccountBalances(
     }
   }
 
-  Object.assign(next, accountBalances);
+  for (const [assetId, balance] of Object.entries(accountBalances)) {
+    next[assetId] = mergeBalanceEntry(previousBalances[assetId], balance);
+  }
 
   for (const customId of customAssetIds) {
     if (!Object.prototype.hasOwnProperty.call(next, customId)) {
@@ -856,6 +877,7 @@ export class AssetsController extends BaseController<
     accountsApiDataSourceConfig,
     priceDataSourceConfig,
     stakedBalanceDataSourceConfig,
+    snapDataSourceConfig,
     isOnboarded,
     tempMigrateAssetsInfoMetadataAssets3346,
   }: AssetsControllerOptions) {
@@ -921,6 +943,7 @@ export class AssetsController extends BaseController<
     this.#snapDataSource = new SnapDataSource({
       messenger: this.messenger,
       onActiveChainsUpdated: this.#onActiveChainsUpdated,
+      ...snapDataSourceConfig,
     });
     this.#rpcDataSource = new RpcDataSource({
       messenger: this.messenger,

@@ -32,6 +32,11 @@ import type {
   DataSourceState,
   SubscriptionRequest,
 } from './AbstractDataSource';
+import {
+  filterEligibleAssetsToFetchMetadata,
+  getAssetInfoRequest,
+  shouldFetchAssetMetadata,
+} from './stellar';
 
 // ============================================================================
 // SNAP KEYRING EVENT TYPES
@@ -157,7 +162,15 @@ export type SnapDataSourceAllowedActions =
 // OPTIONS
 // ============================================================================
 
-export type SnapDataSourceOptions = {
+export type SnapDataSourceConfig = {
+  /**
+   * When false, SnapDataSource skips `getAccountAssetInfo` enrichment.
+   * Evaluated at call time. Defaults to () => false.
+   */
+  isStellarEnabled?: () => boolean;
+};
+
+export type SnapDataSourceOptions = SnapDataSourceConfig & {
   /** The AssetsController messenger (shared by all data sources). */
   messenger: AssetsControllerMessenger;
   /** Called when this data source's active chains change. Pass dataSourceName so the controller knows the source. */
@@ -218,6 +231,8 @@ export class SnapDataSource extends AbstractDataSource<
   /** Cache of KeyringClient instances per snap ID to avoid re-instantiation */
   readonly #keyringClientCache: Map<string, KeyringClient> = new Map();
 
+  readonly #isStellarEnabled: () => boolean;
+
   constructor(options: SnapDataSourceOptions) {
     super(SNAP_DATA_SOURCE_NAME, {
       ...defaultSnapState,
@@ -226,6 +241,7 @@ export class SnapDataSource extends AbstractDataSource<
 
     this.#messenger = options.messenger;
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
+    this.#isStellarEnabled = options.isStellarEnabled ?? ((): boolean => false);
 
     // Bind handlers for cleanup in destroy()
     this.#handleSnapBalancesUpdatedBound = this.#handleSnapBalancesUpdated.bind(
@@ -454,6 +470,8 @@ export class SnapDataSource extends AbstractDataSource<
       updateMode: 'merge',
     };
 
+    const isStellarEnabled = this.#isStellarEnabled();
+
     // Fetch balances for each account using its snap ID from metadata
     for (const { account } of request.accountsWithSupportedChains) {
       // Skip accounts without snap metadata (non-snap accounts)
@@ -499,6 +517,42 @@ export class SnapDataSource extends AbstractDataSource<
                 amount: balance.amount,
               };
             }
+          }
+        }
+
+        // Step 3: Fetch asset metadata for the account if needed, e.g Stellar Assets
+        const accountBalanceResults = results.assetsBalance?.[accountId];
+        if (
+          isStellarEnabled &&
+          accountBalanceResults &&
+          shouldFetchAssetMetadata(
+            accountAssets,
+            this.state.chainToSnap,
+            snapId,
+          )
+        ) {
+          try {
+            const assetInfo = (await this.#messenger.call(
+              'SnapController:handleRequest',
+              getAssetInfoRequest({
+                snapId,
+                accountId,
+                assets: filterEligibleAssetsToFetchMetadata(accountAssets),
+              }),
+            )) as Record<CaipAssetType, Record<string, Json>>;
+
+            if (assetInfo) {
+              for (const [assetId, metadata] of Object.entries(assetInfo)) {
+                if (assetId in accountBalanceResults) {
+                  accountBalanceResults[assetId as CaipAssetType] = {
+                    ...accountBalanceResults[assetId as CaipAssetType],
+                    metadata,
+                  };
+                }
+              }
+            }
+          } catch (error) {
+            log('Failed to fetch asset metadata', { error });
           }
         }
       } catch {

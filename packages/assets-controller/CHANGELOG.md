@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Stellar-only snap account-asset enrichment ([9455] (https://github.com/MetaMask/core/pull/9455))
+  - Add optional `snapDataSourceConfig.isStellarEnabled` getter to `AssetsControllerOptions` so clients can enable or disable Stellar snap `getAccountAssetInfo` enrichment at runtime (defaults to disabled)
+  - Add Stellar-only snap account-asset enrichment on `SnapDataSource.fetch` when `isStellarEnabled` is true: trustline fields from `getAccountAssetInfo` are attached to matching `stellar:pubnet` native and trustline balance rows under `metadata` on `FungibleAssetBalance`; balance push events (`AccountsController:accountBalancesUpdated`) pass amounts through without enrichment — clients should call `getAssets` after trustline-related snap events (e.g. `AccountsController:accountAssetListUpdated`)
+
 ## [10.2.0]
 
 ### Added
