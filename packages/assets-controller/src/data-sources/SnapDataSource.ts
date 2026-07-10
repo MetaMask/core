@@ -29,9 +29,10 @@ import type {
 } from '../types';
 import { AbstractDataSource } from './AbstractDataSource';
 import {
-  hasAccountAssetInfoEnrichmentCandidate,
-  SnapAccountAssetInfoEnricher,
-} from './snap-account-asset-info-enrichment';
+  filterEligibleAssetsToFetchMetadata,
+  getAssetInfoRequest,
+  shouldFetchAssetMetadata,
+} from './stellar';
 import type {
   DataSourceState,
   SubscriptionRequest,
@@ -166,7 +167,7 @@ export type SnapDataSourceConfig = {
    * When false, SnapDataSource skips `getAccountAssetInfo` enrichment.
    * Evaluated at call time. Defaults to () => false.
    */
-  assetEnrichmentEnabled?: () => boolean;
+  isStellarEnabled?: () => boolean;
 };
 
 export type SnapDataSourceOptions = SnapDataSourceConfig & {
@@ -230,9 +231,7 @@ export class SnapDataSource extends AbstractDataSource<
   /** Cache of KeyringClient instances per snap ID to avoid re-instantiation */
   readonly #keyringClientCache: Map<string, KeyringClient> = new Map();
 
-  readonly #assetEnrichmentEnabled: () => boolean;
-
-  readonly #accountAssetInfoEnricher: SnapAccountAssetInfoEnricher;
+  readonly #isStellarEnabled: () => boolean;
 
   constructor(options: SnapDataSourceOptions) {
     super(SNAP_DATA_SOURCE_NAME, {
@@ -242,17 +241,8 @@ export class SnapDataSource extends AbstractDataSource<
 
     this.#messenger = options.messenger;
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
-    this.#assetEnrichmentEnabled =
-      options.assetEnrichmentEnabled ?? ((): boolean => false);
-    // TODO(STELLAR): Remove once the Accounts API returns account-asset metadata directly.
-    this.#accountAssetInfoEnricher = new SnapAccountAssetInfoEnricher({
-      getSnapIdForChain: (chainId): SnapId | undefined =>
-        this.state.chainToSnap[chainId] as SnapId | undefined,
-      callSnapRequest: (request): Promise<unknown> =>
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (this.#messenger as any).call('SnapController:handleRequest', request),
-      log,
-    });
+    this.#isStellarEnabled =
+      options.isStellarEnabled ?? ((): boolean => false);
 
     // Bind handlers for cleanup in destroy()
     this.#handleSnapBalancesUpdatedBound = this.#handleSnapBalancesUpdated.bind(
@@ -292,11 +282,6 @@ export class SnapDataSource extends AbstractDataSource<
   /**
    * Handle snap balance updates from the keyring.
    * Transforms the payload and publishes to AssetsController.
-   *
-   * Push updates carry amounts only. Per-asset snap enrichment (e.g. Stellar
-   * trustline fields) is applied in {@link SnapDataSource.fetch} when clients
-   * call `getAssets` after trustline-related events such as
-   * `AccountsController:accountAssetListUpdated`.
    *
    * @param payload - The balance update payload from AccountsController.
    */
@@ -486,6 +471,8 @@ export class SnapDataSource extends AbstractDataSource<
       updateMode: 'merge',
     };
 
+    const isStellarEnabled = this.#isStellarEnabled();
+
     // Fetch balances for each account using its snap ID from metadata
     for (const { account } of request.accountsWithSupportedChains) {
       // Skip accounts without snap metadata (non-snap accounts)
@@ -533,28 +520,41 @@ export class SnapDataSource extends AbstractDataSource<
             }
           }
         }
+
+        // Step 3: Fetch asset metadata for the account if needed, e.g Stellar Assets
+        if (
+          isStellarEnabled &&
+          results.assetsBalance &&
+          results.assetsBalance[accountId] &&
+          shouldFetchAssetMetadata(accountAssets, this.state.chainToSnap, snapId)) {
+            try {
+              const assetInfo = (await this.#messenger.call(
+                'SnapController:handleRequest',
+                getAssetInfoRequest(
+                  {
+                    snapId,
+                    accountId,
+                    assets: filterEligibleAssetsToFetchMetadata(accountAssets),
+                  }
+                ),
+              )) as unknown as Record<CaipAssetType, Record<string, Json>>;
+          
+              if (assetInfo) {
+                for (const [assetId, metadata] of Object.entries(assetInfo)) {
+                  if (assetId in results.assetsBalance[accountId]) {
+                    results.assetsBalance[accountId][assetId as CaipAssetType] = {
+                      ...results.assetsBalance[accountId][assetId as CaipAssetType],
+                      metadata,
+                    };
+                  }
+                }
+              }
+            } catch (error) {
+              log('Failed to fetch asset metadata', { error });
+            }
+         }
       } catch {
         // Expected when account doesn't belong to this snap
-      }
-    }
-
-    if (
-      this.#assetEnrichmentEnabled() &&
-      results.assetsBalance &&
-      hasAccountAssetInfoEnrichmentCandidate({
-        assetsBalance: results.assetsBalance,
-        getSnapIdForChain: (chainId): SnapId | undefined =>
-          this.state.chainToSnap[chainId] as SnapId | undefined,
-      })
-    ) {
-      // TODO(STELLAR): Remove once the Accounts API returns account-asset metadata directly.
-      for (const [accountId, accountAssets] of Object.entries(
-        results.assetsBalance,
-      )) {
-        await this.#accountAssetInfoEnricher.enrichAccount({
-          accountId,
-          assetsBalance: accountAssets,
-        });
       }
     }
 

@@ -186,7 +186,7 @@ function setupController(
     balances?: Record<string, { amount: string; unit: string }>;
     accountAssetInfo?: Record<string, unknown>;
     configuredNetworks?: ChainId[];
-    assetEnrichmentEnabled?: () => boolean;
+    isStellarEnabled?: () => boolean;
   } = {},
 ): SetupResult {
   const {
@@ -194,7 +194,7 @@ function setupController(
     accountAssets = [],
     balances = {},
     accountAssetInfo = {},
-    assetEnrichmentEnabled,
+    isStellarEnabled,
   } = options;
 
   const rootMessenger = new Messenger<MockAnyNamespace, AllActions, AllEvents>({
@@ -271,9 +271,7 @@ function setupController(
   const controllerOptions: SnapDataSourceOptions = {
     messenger: controllerMessenger as unknown as AssetsControllerMessenger,
     onActiveChainsUpdated: activeChainsUpdateHandler,
-    ...(assetEnrichmentEnabled === undefined
-      ? {}
-      : { assetEnrichmentEnabled }),
+    ...(isStellarEnabled === undefined ? {} : { isStellarEnabled }),
   };
 
   const controller = new SnapDataSource(controllerOptions);
@@ -548,7 +546,7 @@ describe('SnapDataSource', () => {
 
   it('fetch enriches Stellar assets with account asset info', async () => {
     const { controller, mockHandleRequest, cleanup } = setupController({
-      assetEnrichmentEnabled: () => true,
+      isStellarEnabled: () => true,
       installedSnaps: {
         [STELLAR_SNAP_ID]: { version: '1.0.0', chainIds: [STELLAR_PUBNET] },
       },
@@ -602,7 +600,7 @@ describe('SnapDataSource', () => {
       response.assetsBalance?.['mock-account-id']?.[MOCK_STELLAR_USDC_ASSET],
     ).toStrictEqual({
       amount: '25',
-      accountAssetInfo: {
+      metadata: {
         limit: '1000',
         authorized: true,
         sponsored: false,
@@ -614,7 +612,7 @@ describe('SnapDataSource', () => {
 
   it('fetch does not include customAssets in the snap balance request', async () => {
     const { controller, mockHandleRequest, cleanup } = setupController({
-      assetEnrichmentEnabled: () => true,
+      isStellarEnabled: () => true,
       installedSnaps: {
         [STELLAR_SNAP_ID]: { version: '1.0.0', chainIds: [STELLAR_PUBNET] },
       },
@@ -667,9 +665,9 @@ describe('SnapDataSource', () => {
     cleanup();
   });
 
-  it('fetch does not call getAccountAssetInfo when assetEnrichmentEnabled is false', async () => {
+  it('fetch does not call getAccountAssetInfo when isStellarEnabled is false', async () => {
     const { controller, mockHandleRequest, cleanup } = setupController({
-      assetEnrichmentEnabled: () => false,
+      isStellarEnabled: () => false,
       installedSnaps: {
         [STELLAR_SNAP_ID]: { version: '1.0.0', chainIds: [STELLAR_PUBNET] },
       },
