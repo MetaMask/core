@@ -281,7 +281,6 @@ linkStyle default opacity:0.5
   assets_controller --> phishing_controller;
   assets_controller --> polling_controller;
   assets_controller --> preferences_controller;
-  assets_controller --> transaction_controller;
   assets_controllers --> account_tree_controller;
   assets_controllers --> accounts_controller;
   assets_controllers --> approval_controller;
@@ -299,7 +298,6 @@ linkStyle default opacity:0.5
   assets_controllers --> preferences_controller;
   assets_controllers --> profile_sync_controller;
   assets_controllers --> storage_service;
-  assets_controllers --> transaction_controller;
   authenticated_user_storage --> base_data_service;
   authenticated_user_storage --> controller_utils;
   authenticated_user_storage --> messenger;
@@ -318,7 +316,6 @@ linkStyle default opacity:0.5
   bridge_controller --> polling_controller;
   bridge_controller --> profile_sync_controller;
   bridge_controller --> remote_feature_flag_controller;
-  bridge_controller --> transaction_controller;
   bridge_controller --> eth_json_rpc_provider;
   bridge_status_controller --> accounts_controller;
   bridge_status_controller --> base_controller;
@@ -330,7 +327,6 @@ linkStyle default opacity:0.5
   bridge_status_controller --> network_controller;
   bridge_status_controller --> polling_controller;
   bridge_status_controller --> profile_sync_controller;
-  bridge_status_controller --> transaction_controller;
   chain_agnostic_permission --> controller_utils;
   chain_agnostic_permission --> permission_controller;
   chomp_api_service --> base_data_service;
@@ -345,7 +341,6 @@ linkStyle default opacity:0.5
   client_controller --> messenger;
   client_utils --> controller_utils;
   client_utils --> core_backend;
-  client_utils --> transaction_controller;
   compliance_controller --> base_controller;
   compliance_controller --> controller_utils;
   compliance_controller --> messenger;
@@ -374,9 +369,7 @@ linkStyle default opacity:0.5
   earn_controller --> controller_utils;
   earn_controller --> messenger;
   earn_controller --> network_controller;
-  earn_controller --> transaction_controller;
   eip_5792_middleware --> messenger;
-  eip_5792_middleware --> transaction_controller;
   eip_5792_middleware --> keyring_controller;
   eip_7702_internal_rpc_middleware --> controller_utils;
   eip1193_permission_middleware --> chain_agnostic_permission;
@@ -402,7 +395,6 @@ linkStyle default opacity:0.5
   gator_permissions_controller --> base_controller;
   gator_permissions_controller --> messenger;
   gator_permissions_controller --> network_controller;
-  gator_permissions_controller --> transaction_controller;
   geolocation_controller --> base_controller;
   geolocation_controller --> controller_utils;
   geolocation_controller --> messenger;
@@ -484,7 +476,6 @@ linkStyle default opacity:0.5
   network_enablement_controller --> messenger;
   network_enablement_controller --> multichain_network_controller;
   network_enablement_controller --> network_controller;
-  network_enablement_controller --> transaction_controller;
   notification_services_controller --> authenticated_user_storage;
   notification_services_controller --> base_controller;
   notification_services_controller --> controller_utils;
@@ -511,12 +502,10 @@ linkStyle default opacity:0.5
   perps_controller --> network_controller;
   perps_controller --> profile_sync_controller;
   perps_controller --> remote_feature_flag_controller;
-  perps_controller --> transaction_controller;
   phishing_controller --> address_book_controller;
   phishing_controller --> base_controller;
   phishing_controller --> controller_utils;
   phishing_controller --> messenger;
-  phishing_controller --> transaction_controller;
   polling_controller --> base_controller;
   polling_controller --> network_controller;
   polling_controller --> messenger;
@@ -529,7 +518,6 @@ linkStyle default opacity:0.5
   profile_metrics_controller --> messenger;
   profile_metrics_controller --> polling_controller;
   profile_metrics_controller --> profile_sync_controller;
-  profile_metrics_controller --> transaction_controller;
   profile_sync_controller --> address_book_controller;
   profile_sync_controller --> base_controller;
   profile_sync_controller --> keyring_controller;
@@ -562,7 +550,6 @@ linkStyle default opacity:0.5
   shield_controller --> controller_utils;
   shield_controller --> messenger;
   shield_controller --> signature_controller;
-  shield_controller --> transaction_controller;
   signature_controller --> accounts_controller;
   signature_controller --> approval_controller;
   signature_controller --> base_controller;
@@ -580,7 +567,6 @@ linkStyle default opacity:0.5
   smart_transactions_controller --> polling_controller;
   smart_transactions_controller --> profile_sync_controller;
   smart_transactions_controller --> remote_feature_flag_controller;
-  smart_transactions_controller --> transaction_controller;
   smart_transactions_controller --> json_rpc_engine;
   snap_account_service --> account_tree_controller;
   snap_account_service --> keyring_controller;
@@ -597,7 +583,6 @@ linkStyle default opacity:0.5
   subscription_controller --> messenger;
   subscription_controller --> polling_controller;
   subscription_controller --> profile_sync_controller;
-  subscription_controller --> transaction_controller;
   transaction_controller --> accounts_controller;
   transaction_controller --> approval_controller;
   transaction_controller --> base_controller;
@@ -620,7 +605,6 @@ linkStyle default opacity:0.5
   transaction_pay_controller --> network_controller;
   transaction_pay_controller --> ramps_controller;
   transaction_pay_controller --> remote_feature_flag_controller;
-  transaction_pay_controller --> transaction_controller;
   user_operation_controller --> approval_controller;
   user_operation_controller --> base_controller;
   user_operation_controller --> controller_utils;
@@ -629,7 +613,6 @@ linkStyle default opacity:0.5
   user_operation_controller --> messenger;
   user_operation_controller --> network_controller;
   user_operation_controller --> polling_controller;
-  user_operation_controller --> transaction_controller;
   user_operation_controller --> eth_block_tracker;
   wallet --> accounts_controller;
   wallet --> address_book_controller;
@@ -642,7 +625,6 @@ linkStyle default opacity:0.5
   wallet --> network_controller;
   wallet --> remote_feature_flag_controller;
   wallet --> storage_service;
-  wallet --> transaction_controller;
   wallet_cli --> base_controller;
   wallet_cli --> remote_feature_flag_controller;
   wallet_cli --> storage_service;
