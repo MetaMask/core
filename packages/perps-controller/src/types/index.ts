@@ -178,9 +178,9 @@ export type TrackingData = {
   // close events when present; omitted entirely when unavailable.
   hlFeeRate?: number;
 
-  // Order execution latency in ms (TAT-3084). Client-computed time from order
-  // submission to terminal result; emitted as order_execution_latency_ms on the
-  // trade transaction event when present, omitted when undefined.
+  // Order execution latency in ms. Client-computed time from order submission to
+  // terminal result; emitted as order_execution_latency_ms on the trade
+  // transaction event when present, omitted when undefined.
   orderExecutionLatencyMs?: number;
 
   // Pay with any token: true when user paid with a custom token (not Perps balance)

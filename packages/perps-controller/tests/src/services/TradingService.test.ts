@@ -2673,7 +2673,7 @@ describe('TradingService', () => {
       ).toEqual(expect.objectContaining({ metamask_fee: 2.5 }));
     });
 
-    it('adds effective leverage (positionUSD / marginUSD, 1 dp) to the close event properties (TAT-3147)', async () => {
+    it('adds effective leverage (positionUSD / marginUSD, 1 dp) to the close event properties', async () => {
       // positionValue / marginUsed = 25000 / 2727 = 9.167… -> 9.2, which is the
       // effective leverage rather than the configured leverage.value of 10.
       mockGetPositions.mockResolvedValue([
@@ -2698,7 +2698,7 @@ describe('TradingService', () => {
       ).toEqual(expect.objectContaining({ leverage: 9.2 }));
     });
 
-    it('populates effective leverage even when configured leverage is missing (TP/SL close, TAT-3147)', async () => {
+    it('populates effective leverage even when configured leverage is missing (TP/SL close)', async () => {
       // TP/SL closes may carry no configured leverage.value; the effective
       // leverage is still derived from positionValue / marginUsed = 20000 / 4000 = 5.
       mockGetPositions.mockResolvedValue([
@@ -2728,7 +2728,7 @@ describe('TradingService', () => {
       ).toEqual(expect.objectContaining({ leverage: 5 }));
     });
 
-    it('omits leverage (never NaN) when marginUsed is zero or non-finite (TAT-3147)', async () => {
+    it('omits leverage (never NaN) when marginUsed is zero or non-finite', async () => {
       // Guard against divide-by-zero / NaN: marginUsed '0' must not produce a
       // leverage property at all (rather than Infinity / NaN).
       mockGetPositions.mockResolvedValue([
@@ -2814,7 +2814,7 @@ describe('TradingService', () => {
       });
     });
 
-    describe('order_execution_latency_ms on trade (TAT-3084)', () => {
+    describe('order_execution_latency_ms on trade', () => {
       it('includes order_execution_latency_ms when present in trackingData', async () => {
         mockProvider.placeOrder.mockResolvedValue({
           success: true,
@@ -2931,7 +2931,10 @@ describe('TradingService', () => {
         });
 
         expect(
-          findCall(PerpsAnalyticsEvent.PositionCloseTransaction, 'executed')?.[1],
+          findCall(
+            PerpsAnalyticsEvent.PositionCloseTransaction,
+            'executed',
+          )?.[1],
         ).not.toHaveProperty('order_execution_latency_ms');
       });
 

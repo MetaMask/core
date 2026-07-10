@@ -7,16 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [9.2.2]
-
 ### Added
 
-- Add optional `orderExecutionLatencyMs?: number` to `TrackingData`, emitted as `order_execution_latency_ms` on the terminal `PERPS_TRADE_TRANSACTION` event when present and omitted when undefined, so clients can report order execution latency (TAT-3084)
+- Add optional `orderExecutionLatencyMs?: number` to `TrackingData`, emitted as `order_execution_latency_ms` on the terminal `PERPS_TRADE_TRANSACTION` event when present and omitted when undefined, so clients can report order execution latency
 
 ### Changed
 
 - Bump `@metamask/account-tree-controller` from `^7.5.3` to `7.5.4` ([#9429](https://github.com/MetaMask/core/pull/9429))
-- Report the effective leverage (`positionUSD / marginUSD`, rounded to 1 decimal place) on `PERPS_POSITION_CLOSE_TRANSACTION` analytics instead of the configured `leverage.value`, and populate it for every close including TP/SL triggers (TAT-3147)
+- Report the effective leverage (`positionUSD / marginUSD`, rounded to 1 decimal place) on `PERPS_POSITION_CLOSE_TRANSACTION` analytics instead of the configured `leverage.value`, and populate it for every close including TP/SL triggers
 
 ### Fixed
 
@@ -511,8 +509,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@9.2.2...HEAD
-[9.2.2]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@9.2.1...@metamask/perps-controller@9.2.2
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@9.2.1...HEAD
 [9.2.1]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@9.2.0...@metamask/perps-controller@9.2.1
 [9.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@9.1.0...@metamask/perps-controller@9.2.0
 [9.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@9.0.0...@metamask/perps-controller@9.1.0

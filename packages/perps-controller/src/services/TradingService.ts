@@ -299,7 +299,7 @@ export class TradingService {
       properties[PERPS_EVENT_PROPERTY.AB_TESTS] = params.trackingData.abTests;
     }
 
-    // Order execution latency on the terminal trade event (TAT-3084)
+    // Order execution latency on the terminal trade event
     if (params.trackingData?.orderExecutionLatencyMs !== undefined) {
       properties[PERPS_EVENT_PROPERTY.ORDER_EXECUTION_LATENCY_MS] =
         params.trackingData.orderExecutionLatencyMs;
@@ -785,9 +785,9 @@ export class TradingService {
     status: string,
     error?: string,
   ): Record<string, unknown> {
-    // Effective leverage = positionUSD / marginUSD, rounded to 1 decimal place
-    // (TAT-3147). Computed from the live position rather than the configured
-    // leverage so it's populated for every close, including TP/SL triggers.
+    // Effective leverage = positionUSD / marginUSD, rounded to 1 decimal place.
+    // Computed from the live position rather than the configured leverage so it's
+    // populated for every close, including TP/SL triggers.
     const positionUSD = Math.abs(parseFloat(position.positionValue));
     const marginUSD = parseFloat(position.marginUsed);
     const effectiveLeverage =
@@ -854,7 +854,7 @@ export class TradingService {
       ...(params.trackingData?.vipDiscount !== undefined && {
         [PERPS_EVENT_PROPERTY.VIP_DISCOUNT]: params.trackingData.vipDiscount,
       }),
-      // Effective leverage on close events (TAT-3147)
+      // Effective leverage on close events
       ...(effectiveLeverage !== undefined && {
         [PERPS_EVENT_PROPERTY.LEVERAGE]: effectiveLeverage,
       }),
