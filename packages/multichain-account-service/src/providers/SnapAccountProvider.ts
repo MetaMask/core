@@ -91,6 +91,15 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
 
   readonly #trace: TraceCallback;
 
+  /**
+   * Scopes passed to the v1 `discoverAccounts` client method. Only used on the
+   * v1 discovery path.
+   *
+   * TODO: Remove once all Snaps are fully v2 — discovery is then driven by the
+   * Snap's own supported scopes via `createAccounts({ bip44:discover })`.
+   */
+  protected abstract readonly v1DiscoveryScopes: CaipChainId[];
+
   constructor(
     snapId: SnapId,
     messenger: MultichainAccountServiceMessenger,
@@ -324,12 +333,6 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
     const client = await this.#resolveClient();
     return await operation({ client });
   }
-
-  /**
-   * Scopes passed to the v1 `discoverAccounts` client method. Only used on the
-   * v1 discovery path.
-   */
-  protected abstract readonly v1DiscoveryScopes: CaipChainId[];
 
   abstract isAccountCompatible(account: Bip44Account<InternalAccount>): boolean;
 
