@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Split up validators into smaller files to prepare for QuoteResponse V2 migration ([#9413](https://github.com/MetaMask/core/pull/9413))
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 - Bump `@metamask/assets-controller` from `^10.0.1` to `^10.2.0` ([#9411](https://github.com/MetaMask/core/pull/9411), [#9450](https://github.com/MetaMask/core/pull/9450))
-- Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.3.0` ([#9421](https://github.com/MetaMask/core/pull/9421))
+- Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.4.0` ([#9421](https://github.com/MetaMask/core/pull/9421), [#9456](https://github.com/MetaMask/core/pull/9456))
 - Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
 - Bump `@metamask/assets-controllers` from `^109.3.0` to `^109.4.0` ([#9429](https://github.com/MetaMask/core/pull/9429), [#9450](https://github.com/MetaMask/core/pull/9450))
 
