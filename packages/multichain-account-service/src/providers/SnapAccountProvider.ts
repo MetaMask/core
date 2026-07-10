@@ -277,8 +277,8 @@ export abstract class SnapAccountProvider extends BaseBip44AccountProvider {
                 // We still need to remove the accounts from the Snap keyring since we're
                 // about to create the same account again, which will use a new ID, but will
                 // keep using the same address, and the Snap keyring does not allow this.
-                await this.#withSnapKeyring(async ({ keyring: k }) => {
-                  await k.deleteAccount(account.id);
+                await this.#withSnapKeyring(async ({ keyring }) => {
+                  await keyring.deleteAccount(account.id);
                 });
                 // The Snap has no account in its state for this one, we re-create it.
                 await this.createAccounts({
