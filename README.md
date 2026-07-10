@@ -121,6 +121,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/sample-controllers`](packages/sample-controllers)
 - [`@metamask/seedless-onboarding-controller`](packages/seedless-onboarding-controller)
 - [`@metamask/selected-network-controller`](packages/selected-network-controller)
+- [`@metamask/sentinel-api-service`](packages/sentinel-api-service)
 - [`@metamask/shield-controller`](packages/shield-controller)
 - [`@metamask/signature-controller`](packages/signature-controller)
 - [`@metamask/smart-transactions-controller`](packages/smart-transactions-controller)
@@ -225,6 +226,7 @@ linkStyle default opacity:0.5
   sample_controllers(["@metamask/sample-controllers"]);
   seedless_onboarding_controller(["@metamask/seedless-onboarding-controller"]);
   selected_network_controller(["@metamask/selected-network-controller"]);
+  sentinel_api_service(["@metamask/sentinel-api-service"]);
   shield_controller(["@metamask/shield-controller"]);
   signature_controller(["@metamask/signature-controller"]);
   smart_transactions_controller(["@metamask/smart-transactions-controller"]);

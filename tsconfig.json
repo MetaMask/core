@@ -159,9 +159,6 @@
       "path": "./packages/money-account-balance-service"
     },
     {
-      "path": "./packages/money-account-api-data-service"
-    },
-    {
       "path": "./packages/money-account-controller"
     },
     {
@@ -244,6 +241,9 @@
     },
     {
       "path": "./packages/selected-network-controller"
+    },
+    {
+      "path": "./packages/sentinel-api-service"
     },
     {
       "path": "./packages/shield-controller"

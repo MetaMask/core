@@ -31,6 +31,7 @@
 /packages/logging-controller                @MetaMask/confirmations
 /packages/message-manager                   @MetaMask/confirmations
 /packages/name-controller                   @MetaMask/confirmations
+/packages/sentinel-api-service              @MetaMask/confirmations
 /packages/signature-controller              @MetaMask/confirmations
 /packages/transaction-controller            @MetaMask/confirmations
 /packages/transaction-pay-controller        @MetaMask/confirmations
@@ -221,6 +222,8 @@
 /packages/signature-controller/CHANGELOG.md       @MetaMask/confirmations @MetaMask/core-platform
 /packages/smart-transactions-controller/package.json @MetaMask/transactions @MetaMask/core-platform
 /packages/smart-transactions-controller/CHANGELOG.md @MetaMask/transactions @MetaMask/core-platform
+/packages/sentinel-api-service/package.json       @MetaMask/confirmations @MetaMask/core-platform
+/packages/sentinel-api-service/CHANGELOG.md       @MetaMask/confirmations @MetaMask/core-platform
 /packages/transaction-controller/package.json     @MetaMask/confirmations @MetaMask/core-platform
 /packages/transaction-controller/CHANGELOG.md     @MetaMask/confirmations @MetaMask/core-platform
 /packages/transaction-pay-controller/package.json @MetaMask/confirmations @MetaMask/core-platform
