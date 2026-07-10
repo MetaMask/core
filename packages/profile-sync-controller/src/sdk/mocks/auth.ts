@@ -68,7 +68,7 @@ export const MOCK_OIDC_TOKEN_RESPONSE = {
 export const MOCK_CUSTOMER_SERVICE_TOKEN_RESPONSE = {
   access_token: MOCK_ACCESS_JWT,
   refresh_token: 'ory_rt_mock_refresh_token',
-  expires_in: 3599,
+  expires_in: 3600,
   token_type: 'bearer',
 };
 
