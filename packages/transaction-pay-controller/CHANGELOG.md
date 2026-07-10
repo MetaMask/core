@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/assets-controllers` from `^109.3.1` to `^109.4.0` ([#9450](https://github.com/MetaMask/core/pull/9450))
 - Bump `@metamask/transaction-controller` from `^68.3.0` to `^68.4.0` ([#9456](https://github.com/MetaMask/core/pull/9456))
 
+### Fixed
+
+- Fix cross-chain Money Account deposits (e.g. Predict withdraw to a Money Account) reverting with `InvalidEOASignature()` (`0x3db6791c`) by only prepending the payment override onto the source Relay execute batch for same-chain flows ([#9449](https://github.com/MetaMask/core/pull/9449))
+
 ## [24.0.0]
 
 ### Added
