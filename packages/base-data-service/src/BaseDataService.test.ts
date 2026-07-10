@@ -510,6 +510,39 @@ describe('BaseDataService', () => {
       expect(publishSpy).not.toHaveBeenCalled();
     });
 
+    it('skips persisting cache if persistConfig is not set', async () => {
+      const messenger = new Messenger({ namespace: serviceName });
+      const callSpy = jest.spyOn(messenger, 'call');
+      const service = new ExampleDataService(messenger, {});
+
+      mockAssets();
+
+      await service.getAssets(MOCK_ASSETS);
+
+      jest.runAllTimers();
+
+      expect(callSpy).not.toHaveBeenCalledWith(
+        'StorageService:setItem',
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
+    it('skips rehydrating cache if persistConfig is not set', async () => {
+      const messenger = new Messenger({ namespace: serviceName });
+      const callSpy = jest.spyOn(messenger, 'call');
+      const service = new ExampleDataService(messenger, {});
+
+      service.init();
+
+      expect(callSpy).not.toHaveBeenCalledWith(
+        'StorageService:getItem',
+        expect.anything(),
+        expect.anything(),
+      );
+    });
+
     it('ignores rehydration if the StorageService fails', async () => {
       const rootMessenger = new Messenger({
         namespace: MOCK_ANY_NAMESPACE,

@@ -60,7 +60,12 @@ export class ExampleDataService extends BaseDataService<
 
   readonly #tokensBaseUrl = 'https://tokens.api.cx.metamask.io';
 
-  constructor(messenger: ExampleMessenger) {
+  constructor(
+    messenger: ExampleMessenger,
+    { persistConfig }: { persistConfig?: { maxAge: number } } = {
+      persistConfig: { maxAge: inMilliseconds(1, Duration.Day) },
+    },
+  ) {
     super({
       name: serviceName,
       messenger,
@@ -69,9 +74,7 @@ export class ExampleDataService extends BaseDataService<
         maxConsecutiveFailures: 3,
         backoff: new ConstantBackoff(0),
       },
-      persistConfig: {
-        maxAge: inMilliseconds(1, Duration.Day),
-      },
+      persistConfig,
     });
 
     this.messenger.registerMethodActionHandlers(
