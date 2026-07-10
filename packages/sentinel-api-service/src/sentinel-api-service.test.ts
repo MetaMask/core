@@ -347,7 +347,9 @@ describe('SentinelApiService', () => {
     });
 
     it('sends auth headers on JSON-RPC (relay) requests', async () => {
-      const { service, rootMessenger } = createService({ clientId: 'extension' });
+      const { service, rootMessenger } = createService({
+        clientId: 'extension',
+      });
       registerBearerToken(rootMessenger, async () => 'jwt-token');
       mockNetworks();
       const scope = nock(MAINNET_URL, {
@@ -493,13 +495,11 @@ describe('SentinelApiService', () => {
     it('is callable via messenger action', async () => {
       const { service, rootMessenger } = createService();
       mockNetworks();
-      nock(MAINNET_URL)
-        .post('/')
-        .reply(200, {
-          jsonrpc: '2.0',
-          id: '1',
-          result: MOCK_SIMULATION_RESPONSE,
-        });
+      nock(MAINNET_URL).post('/').reply(200, {
+        jsonrpc: '2.0',
+        id: '1',
+        result: MOCK_SIMULATION_RESPONSE,
+      });
 
       const result = await rootMessenger.call(
         'SentinelApiService:simulateTransactions',
@@ -656,10 +656,7 @@ describe('SentinelApiService', () => {
     it('throws HttpError on a non-2xx response', async () => {
       const { service } = createService();
       mockNetworks();
-      nock(MAINNET_URL)
-        .get(`/smart-transactions/${UUID}`)
-        .once()
-        .reply(500);
+      nock(MAINNET_URL).get(`/smart-transactions/${UUID}`).once().reply(500);
 
       await expect(
         service.getRelayStatus({ chainId: CHAIN_ID_MAINNET, uuid: UUID }),
@@ -716,10 +713,7 @@ describe('SentinelApiService', () => {
 
     it('retries when maxRetries is opted into via policyOptions', async () => {
       const { service } = createService({ policyOptions: { maxRetries: 3 } });
-      const scope = nock(NETWORKS_URL)
-        .get('/networks')
-        .times(4)
-        .reply(500);
+      const scope = nock(NETWORKS_URL).get('/networks').times(4).reply(500);
 
       await expect(service.getNetworks()).rejects.toThrow(HttpError);
       expect(scope.isDone()).toBe(true);

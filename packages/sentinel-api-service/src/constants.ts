@@ -14,8 +14,7 @@ export const RPC_METHOD_SEND_RELAY = 'eth_sendRelayTransaction';
  * subdomain (for example `ethereum-mainnet`) and `{1}` with the environment
  * API-domain segment (see {@link ENVIRONMENT_DOMAIN}).
  */
-export const BASE_URL_TEMPLATE =
-  'https://tx-sentinel-{0}.{1}.cx.metamask.io/';
+export const BASE_URL_TEMPLATE = 'https://tx-sentinel-{0}.{1}.cx.metamask.io/';
 
 /**
  * The Sentinel API environments. Each maps to a distinct API domain segment;

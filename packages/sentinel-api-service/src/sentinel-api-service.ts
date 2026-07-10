@@ -99,8 +99,9 @@ type AllowedActions = AuthenticationControllerGetBearerTokenAction;
 /**
  * Published when {@link SentinelApiService}'s cache is updated.
  */
-export type SentinelApiServiceCacheUpdatedEvent =
-  DataServiceCacheUpdatedEvent<typeof serviceName>;
+export type SentinelApiServiceCacheUpdatedEvent = DataServiceCacheUpdatedEvent<
+  typeof serviceName
+>;
 
 /**
  * Published when a key within {@link SentinelApiService}'s cache is updated.
@@ -405,10 +406,7 @@ export class SentinelApiService extends BaseDataService<
 
         const json: Json = await response.json();
 
-        const [error, validated] = validate(
-          json,
-          RawRelayStatusResponseStruct,
-        );
+        const [error, validated] = validate(json, RawRelayStatusResponseStruct);
         if (error) {
           throw new SentinelApiResponseValidationError(
             `Malformed response from relay status endpoint: ${error.message}`,
