@@ -28,6 +28,10 @@ import type {
   Middleware,
 } from '../types';
 import { AbstractDataSource } from './AbstractDataSource';
+import {
+  hasAccountAssetInfoEnrichmentCandidate,
+  SnapAccountAssetInfoEnricher,
+} from './snap-account-asset-info-enrichment';
 import type {
   DataSourceState,
   SubscriptionRequest,
@@ -157,7 +161,15 @@ export type SnapDataSourceAllowedActions =
 // OPTIONS
 // ============================================================================
 
-export type SnapDataSourceOptions = {
+export type SnapDataSourceConfig = {
+  /**
+   * When false, SnapDataSource skips `getAccountAssetInfo` enrichment.
+   * Evaluated at call time. Defaults to () => false.
+   */
+  assetEnrichmentEnabled?: () => boolean;
+};
+
+export type SnapDataSourceOptions = SnapDataSourceConfig & {
   /** The AssetsController messenger (shared by all data sources). */
   messenger: AssetsControllerMessenger;
   /** Called when this data source's active chains change. Pass dataSourceName so the controller knows the source. */
@@ -218,6 +230,10 @@ export class SnapDataSource extends AbstractDataSource<
   /** Cache of KeyringClient instances per snap ID to avoid re-instantiation */
   readonly #keyringClientCache: Map<string, KeyringClient> = new Map();
 
+  readonly #assetEnrichmentEnabled: () => boolean;
+
+  readonly #accountAssetInfoEnricher: SnapAccountAssetInfoEnricher;
+
   constructor(options: SnapDataSourceOptions) {
     super(SNAP_DATA_SOURCE_NAME, {
       ...defaultSnapState,
@@ -226,6 +242,17 @@ export class SnapDataSource extends AbstractDataSource<
 
     this.#messenger = options.messenger;
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
+    this.#assetEnrichmentEnabled =
+      options.assetEnrichmentEnabled ?? ((): boolean => false);
+    // TODO(STELLAR): Remove once the Accounts API returns account-asset metadata directly.
+    this.#accountAssetInfoEnricher = new SnapAccountAssetInfoEnricher({
+      getSnapIdForChain: (chainId): SnapId | undefined =>
+        this.state.chainToSnap[chainId] as SnapId | undefined,
+      callSnapRequest: (request): Promise<unknown> =>
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (this.#messenger as any).call('SnapController:handleRequest', request),
+      log,
+    });
 
     // Bind handlers for cleanup in destroy()
     this.#handleSnapBalancesUpdatedBound = this.#handleSnapBalancesUpdated.bind(
@@ -265,6 +292,11 @@ export class SnapDataSource extends AbstractDataSource<
   /**
    * Handle snap balance updates from the keyring.
    * Transforms the payload and publishes to AssetsController.
+   *
+   * Push updates carry amounts only. Per-asset snap enrichment (e.g. Stellar
+   * trustline fields) is applied in {@link SnapDataSource.fetch} when clients
+   * call `getAssets` after trustline-related events such as
+   * `AccountsController:accountAssetListUpdated`.
    *
    * @param payload - The balance update payload from AccountsController.
    */
@@ -503,6 +535,26 @@ export class SnapDataSource extends AbstractDataSource<
         }
       } catch {
         // Expected when account doesn't belong to this snap
+      }
+    }
+
+    if (
+      this.#assetEnrichmentEnabled() &&
+      results.assetsBalance &&
+      hasAccountAssetInfoEnrichmentCandidate({
+        assetsBalance: results.assetsBalance,
+        getSnapIdForChain: (chainId): SnapId | undefined =>
+          this.state.chainToSnap[chainId] as SnapId | undefined,
+      })
+    ) {
+      // TODO(STELLAR): Remove once the Accounts API returns account-asset metadata directly.
+      for (const [accountId, accountAssets] of Object.entries(
+        results.assetsBalance,
+      )) {
+        await this.#accountAssetInfoEnricher.enrichAccount({
+          accountId,
+          assetsBalance: accountAssets,
+        });
       }
     }
 

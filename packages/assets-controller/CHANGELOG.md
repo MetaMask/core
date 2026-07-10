@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional `snapDataSourceConfig.assetEnrichmentEnabled` getter to `AssetsControllerOptions` so clients can enable or disable snap `getAccountAssetInfo` enrichment at runtime (defaults to disabled) ([#9392](https://github.com/MetaMask/core/pull/9217))
+- Add optional snap account-asset enrichment to balances in `SnapDataSource.fetch`, so `getAssets` includes Stellar trustline metadata. Balance updates skip enrichment; use `getAssets` after trustline events. ([#9392](https://github.com/MetaMask/core/pull/9217))
+
 ## [10.2.0]
 
 ### Added
@@ -34,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Refresh Stellar trustline enrichment for custom assets that drop off `listAccountAssets` after deactivate (e.g. limit 0 tombstones) by including `customAssets` in `SnapDataSource.fetch` balance and enrichment requests
 - Fetch balances when switching account groups, enabling RPC-only networks, or after a new account is added to the account tree ([#9388](https://github.com/MetaMask/core/pull/9388))
 
 ## [10.0.1]

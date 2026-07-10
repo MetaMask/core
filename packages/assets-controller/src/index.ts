@@ -146,6 +146,7 @@ export {
 export type {
   SnapDataSourceState,
   SnapDataSourceOptions,
+  SnapDataSourceConfig,
 } from './data-sources';
 
 // Enrichment data sources

@@ -1807,6 +1807,40 @@ describe('AssetsController', () => {
       });
     });
 
+    it('preserves metadata enrichment when merge update changes amount', async () => {
+      const initialState: Partial<AssetsControllerState> = {
+        assetsBalance: {
+          [MOCK_ACCOUNT_ID]: {
+            [MOCK_ASSET_ID]: {
+              amount: '1',
+              metadata: { limit: '1000', authorized: true },
+            },
+          },
+        },
+      };
+
+      await withController({ state: initialState }, async ({ controller }) => {
+        await controller.handleAssetsUpdate(
+          {
+            updateMode: 'merge',
+            assetsBalance: {
+              [MOCK_ACCOUNT_ID]: {
+                [MOCK_ASSET_ID]: { amount: '2' },
+              },
+            },
+          },
+          'TestSource',
+        );
+
+        expect(
+          controller.state.assetsBalance[MOCK_ACCOUNT_ID]?.[MOCK_ASSET_ID],
+        ).toStrictEqual({
+          amount: '2',
+          metadata: { limit: '1000', authorized: true },
+        });
+      });
+    });
+
     it('preserves existing balances when merge update adds new chain data', async () => {
       const polygonNative = 'eip155:137/slip44:966' as Caip19AssetId;
       const initialState: Partial<AssetsControllerState> = {
