@@ -61,26 +61,9 @@ export type AssetMetadataResponse = {
   };
 };
 
-/**
- * Per-account asset list delta published by {@link MultichainAssetsController}.
- */
-export type MultichainAssetsControllerAccountAssetListDelta = {
-  added: CaipAssetType[];
-  removed: CaipAssetType[];
-  /**
-   * Snap-reported adds that are already tracked in MAC state. Downstream
-   * controllers should refresh balances and enrichment for these assets.
-   */
-  refreshed?: CaipAssetType[];
-};
-
-export type MultichainAssetsControllerAccountAssetListUpdatedPayload = {
-  assets: Record<string, MultichainAssetsControllerAccountAssetListDelta>;
-};
-
 export type MultichainAssetsControllerAccountAssetListUpdatedEvent = {
   type: `${typeof controllerName}:accountAssetListUpdated`;
-  payload: [MultichainAssetsControllerAccountAssetListUpdatedPayload];
+  payload: AccountsControllerAccountAssetListUpdatedEvent['payload'];
 };
 
 /**
@@ -468,9 +451,7 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
     this.#assertControllerMutexIsLocked();
 
     const assetsForMetadataRefresh = new Set<CaipAssetType>([]);
-    const accountsAndAssetsForState: AccountAssetListUpdatedEventPayload['assets'] =
-      {};
-    const accountsAndAssetsToPublish: MultichainAssetsControllerAccountAssetListUpdatedPayload['assets'] =
+    const accountsAndAssetsToUpdate: AccountAssetListUpdatedEventPayload['assets'] =
       {};
     for (const [accountId, { added, removed }] of Object.entries(
       event.assets,
@@ -483,13 +464,6 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
         const preFilteredToBeAddedAssets = added.filter(
           (asset) =>
             !existing.includes(asset) &&
-            isCaipAssetType(asset) &&
-            !this.#isAssetIgnored(asset, accountId),
-        );
-
-        const refreshedAssets = added.filter(
-          (asset): asset is CaipAssetType =>
-            existing.includes(asset) &&
             isCaipAssetType(asset) &&
             !this.#isAssetIgnored(asset, accountId),
         );
@@ -507,23 +481,9 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
           filteredToBeAddedAssets.length > 0 ||
           filteredToBeRemovedAssets.length > 0
         ) {
-          accountsAndAssetsForState[accountId] = {
+          accountsAndAssetsToUpdate[accountId] = {
             added: filteredToBeAddedAssets,
             removed: filteredToBeRemovedAssets,
-          };
-        }
-
-        if (
-          filteredToBeAddedAssets.length > 0 ||
-          filteredToBeRemovedAssets.length > 0 ||
-          refreshedAssets.length > 0
-        ) {
-          accountsAndAssetsToPublish[accountId] = {
-            added: filteredToBeAddedAssets,
-            removed: filteredToBeRemovedAssets,
-            ...(refreshedAssets.length > 0
-              ? { refreshed: refreshedAssets }
-              : {}),
           };
         }
 
@@ -541,7 +501,7 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
 
     this.update((state) => {
       for (const [accountId, { added, removed }] of Object.entries(
-        accountsAndAssetsForState,
+        accountsAndAssetsToUpdate,
       )) {
         const assets = new Set([
           ...(state.accountsAssets[accountId] || []),
@@ -558,11 +518,9 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
     // Trigger fetching metadata for new assets
     await this.#refreshAssetsMetadata(Array.from(assetsForMetadataRefresh));
 
-    if (Object.keys(accountsAndAssetsToPublish).length > 0) {
-      this.messenger.publish(`${controllerName}:accountAssetListUpdated`, {
-        assets: accountsAndAssetsToPublish,
-      });
-    }
+    this.messenger.publish(`${controllerName}:accountAssetListUpdated`, {
+      assets: accountsAndAssetsToUpdate,
+    });
   }
 
   /**
