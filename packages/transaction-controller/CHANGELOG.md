@@ -9,11 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [69.0.0]
 
-### Uncategorized
-
-- Revert "Release/1115.0.0 ([#9464](https://github.com/MetaMask/core/pull/9464))
-- Release/1115.0.0 ([#9464](https://github.com/MetaMask/core/pull/9464))
-
 ### Changed
 
 - **BREAKING:** Expand saved gas fee support to allow transaction-scoped lookup, saved gas fee estimate levels, and legacy gas price values. Consumers that provide `getSavedGasFees` must now accept `TransactionMeta` instead of a chain ID. ([#8993](https://github.com/MetaMask/core/pull/8993))
