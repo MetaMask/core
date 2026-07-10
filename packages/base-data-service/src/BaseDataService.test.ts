@@ -509,5 +509,38 @@ describe('BaseDataService', () => {
 
       expect(publishSpy).not.toHaveBeenCalled();
     });
+
+    it('ignores rehydration if the StorageService fails', async () => {
+      const rootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+        captureException: console.error,
+      });
+
+      rootMessenger.registerActionHandler('StorageService:setItem', jest.fn());
+      rootMessenger.registerActionHandler('StorageService:getItem', () => {
+        return {
+          error: new Error('Failed to retrieve item.'),
+        };
+      });
+
+      const messenger = rootMessenger.buildChild({
+        namespace: serviceName,
+        actions: ['StorageService:getItem', 'StorageService:setItem'],
+      });
+
+      const callSpy = jest.spyOn(messenger, 'call');
+      const publishSpy = jest.spyOn(messenger, 'publish');
+
+      const service = new ExampleDataService(messenger);
+      service.init();
+
+      expect(callSpy).toHaveBeenCalledWith(
+        'StorageService:getItem',
+        serviceName,
+        'cache',
+      );
+
+      expect(publishSpy).not.toHaveBeenCalled();
+    });
   });
 });
