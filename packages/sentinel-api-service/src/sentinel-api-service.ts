@@ -60,8 +60,6 @@ const log = createModuleLogger(projectLogger, serviceName);
 
 const MESSENGER_EXPOSED_METHODS = [
   'getNetworks',
-  'isSimulationSupported',
-  'isRelaySupported',
   'simulateTransactions',
   'submitRelayTransaction',
   'getRelayStatus',
@@ -81,9 +79,19 @@ export type SentinelApiServiceActions =
   | SentinelApiServiceInvalidateQueriesAction;
 
 /**
+ * Retrieves a JWT bearer token used to authenticate Sentinel requests, obtained
+ * from the `AuthenticationController`. Declared structurally so this package
+ * does not depend on `@metamask/profile-sync-controller`.
+ */
+type AuthenticationControllerGetBearerTokenAction = {
+  type: 'AuthenticationController:getBearerToken';
+  handler: (entropySourceId?: string) => Promise<string>;
+};
+
+/**
  * Actions from other messengers that {@link SentinelApiService} calls.
  */
-type AllowedActions = never;
+type AllowedActions = AuthenticationControllerGetBearerTokenAction;
 
 /**
  * Published when {@link SentinelApiService}'s cache is updated.
@@ -125,19 +133,28 @@ export type SentinelApiServiceMessenger = Messenger<
  * Data service that centralises all interactions with the MetaMask Sentinel
  * API (`tx-sentinel-<network>.api.cx.metamask.io`).
  *
- * It covers:
- * - Transaction simulation (`infura_simulateTransactions`) used by
- * `@metamask/transaction-controller` and `@metamask/transaction-pay-controller`.
- * - Gas station relay submission (`eth_sendRelayTransaction`) and status
- * polling, used by the MetaMask extension and mobile clients.
- * - The supported-network registry (`/networks`), cached so that consumers no
- * longer re-fetch it on every request.
+ * It exposes one method per Sentinel endpoint:
+ * - {@link SentinelApiService.getNetworks} — the supported-network registry
+ * (`/networks`), cached since it is stable and identical across subdomains.
+ * - {@link SentinelApiService.simulateTransactions} — transaction simulation
+ * (`infura_simulateTransactions`), used by `@metamask/transaction-controller`
+ * and `@metamask/transaction-pay-controller`.
+ * - {@link SentinelApiService.submitRelayTransaction} — gas station relay
+ * submission (`eth_sendRelayTransaction`), used by the extension and mobile.
+ * - {@link SentinelApiService.getRelayStatus} — relay status polling.
+ *
+ * Consumers derive higher-level concerns (whether a chain supports simulation
+ * or relay, polling loops, etc.) from the raw endpoint responses.
  */
 export class SentinelApiService extends BaseDataService<
   typeof serviceName,
   SentinelApiServiceMessenger
 > {
   readonly #fetch: typeof fetch;
+
+  readonly #clientId?: string;
+
+  readonly #clientVersion?: string;
 
   /**
    * Constructs a new SentinelApiService.
@@ -146,6 +163,10 @@ export class SentinelApiService extends BaseDataService<
    * @param args.messenger - The messenger suited for this service.
    * @param args.fetch - The `fetch` function to use for requests. Defaults to
    * the global `fetch`.
+   * @param args.clientId - Identifier for the calling client (for example
+   * `extension` or `mobile`), sent as the `X-Client-Id` header.
+   * @param args.clientVersion - Version of the calling client, sent as the
+   * `X-Client-Version` header when provided.
    * @param args.queryClientConfig - Configuration for the underlying TanStack
    * Query client.
    * @param args.policyOptions - Options to pass to `createServicePolicy`.
@@ -153,11 +174,15 @@ export class SentinelApiService extends BaseDataService<
   constructor({
     messenger,
     fetch: fetchFunction = globalThis.fetch,
+    clientId,
+    clientVersion,
     queryClientConfig = {},
     policyOptions = {},
   }: {
     messenger: SentinelApiServiceMessenger;
     fetch?: typeof fetch;
+    clientId?: string;
+    clientVersion?: string;
     queryClientConfig?: QueryClientConfig;
     policyOptions?: CreateServicePolicyOptions;
   }) {
@@ -177,6 +202,8 @@ export class SentinelApiService extends BaseDataService<
     });
 
     this.#fetch = fetchFunction;
+    this.#clientId = clientId;
+    this.#clientVersion = clientVersion;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -199,7 +226,8 @@ export class SentinelApiService extends BaseDataService<
       queryKey: [`${this.name}:getNetworks`],
       staleTime: NETWORKS_STALE_TIME_MS,
       queryFn: async (): Promise<Json> => {
-        const response = await this.#fetch(url);
+        const headers = await this.#getHeaders();
+        const response = await this.#fetch(url, { headers });
 
         if (!response.ok) {
           throw new HttpError(
@@ -225,28 +253,6 @@ export class SentinelApiService extends BaseDataService<
   }
 
   /**
-   * Determines whether simulation is supported for a given chain.
-   *
-   * @param chainId - The chain ID to check.
-   * @returns True if simulation is supported.
-   */
-  async isSimulationSupported(chainId: Hex): Promise<boolean> {
-    const network = await this.#getNetwork(chainId);
-    return Boolean(network?.confirmations);
-  }
-
-  /**
-   * Determines whether the gas station relay is supported for a given chain.
-   *
-   * @param chainId - The chain ID to check.
-   * @returns True if the relay is supported.
-   */
-  async isRelaySupported(chainId: Hex): Promise<boolean> {
-    const network = await this.#getNetwork(chainId);
-    return Boolean(network?.relayTransactions);
-  }
-
-  /**
    * Simulates transactions against the Sentinel API via
    * `infura_simulateTransactions`. Not cached, since each request body is
    * unique and stale simulations must not be reused.
@@ -262,7 +268,7 @@ export class SentinelApiService extends BaseDataService<
     const url = await this.#resolveUrl(chainId, 'confirmations');
 
     const result = await this.fetchQuery({
-      queryKey: [`${this.name}:simulateTransactions`, chainId, requestKey()],
+      queryKey: [`${this.name}:simulateTransactions`, chainId],
       staleTime: 0,
       queryFn: async (): Promise<Json> => {
         const rpcResult = await this.#jsonRpc(url, RPC_METHOD_SIMULATE, [
@@ -296,11 +302,7 @@ export class SentinelApiService extends BaseDataService<
     const url = await this.#resolveUrl(request.chainId, 'relayTransactions');
 
     const result = await this.fetchQuery({
-      queryKey: [
-        `${this.name}:submitRelayTransaction`,
-        request.chainId,
-        requestKey(),
-      ],
+      queryKey: [`${this.name}:submitRelayTransaction`, request.chainId],
       staleTime: 0,
       queryFn: async (): Promise<Json> => {
         const rpcResult = await this.#jsonRpc(url, RPC_METHOD_SEND_RELAY, [
@@ -326,7 +328,8 @@ export class SentinelApiService extends BaseDataService<
    * single request; callers own any polling loop. Not cached.
    *
    * @param request - The relay status request.
-   * @returns The normalized relay status.
+   * @returns The relay status: the current status, plus the on-chain
+   * transaction hash and error reason once available.
    */
   async getRelayStatus(
     request: SentinelRelayStatusRequest,
@@ -336,10 +339,11 @@ export class SentinelApiService extends BaseDataService<
     const url = `${baseUrl}${ENDPOINT_RELAY_STATUS}/${uuid}`;
 
     const result = await this.fetchQuery({
-      queryKey: [`${this.name}:getRelayStatus`, chainId, uuid, requestKey()],
+      queryKey: [`${this.name}:getRelayStatus`, chainId, uuid],
       staleTime: 0,
       queryFn: async (): Promise<Json> => {
-        const response = await this.#fetch(url);
+        const headers = await this.#getHeaders();
+        const response = await this.#fetch(url, { headers });
 
         if (!response.ok) {
           throw new HttpError(
@@ -382,9 +386,12 @@ export class SentinelApiService extends BaseDataService<
    * @returns The `result` field of the JSON-RPC response.
    */
   async #jsonRpc(url: string, method: string, params: Json[]): Promise<Json> {
+    const headers = await this.#getHeaders();
+
     const response = await this.#fetch(url, {
       method: 'POST',
       headers: {
+        ...headers,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -410,6 +417,38 @@ export class SentinelApiService extends BaseDataService<
     }
 
     return responseJson.result;
+  }
+
+  /**
+   * Builds the outbound headers for a Sentinel request: the client identity
+   * headers plus a best-effort `Authorization` bearer token. Token retrieval
+   * failures are swallowed so unauthenticated requests still proceed.
+   *
+   * @returns The headers to attach to the request.
+   */
+  async #getHeaders(): Promise<Record<string, string>> {
+    const headers: Record<string, string> = {};
+
+    if (this.#clientId !== undefined) {
+      headers['X-Client-Id'] = this.#clientId;
+    }
+
+    if (this.#clientVersion !== undefined) {
+      headers['X-Client-Version'] = this.#clientVersion;
+    }
+
+    try {
+      const token = await this.messenger.call(
+        'AuthenticationController:getBearerToken',
+      );
+      if (token) {
+        headers.Authorization = `Bearer ${token}`;
+      }
+    } catch {
+      // Proceed without auth if token retrieval fails.
+    }
+
+    return headers;
   }
 
   /**
@@ -453,16 +492,4 @@ export class SentinelApiService extends BaseDataService<
  */
 function buildUrl(subdomain: string): string {
   return BASE_URL_TEMPLATE.replace('{0}', subdomain);
-}
-
-/**
- * Generates a unique component for the query key of uncached requests, so that
- * TanStack Query never returns a cached result for simulation/relay calls.
- *
- * @returns A unique string.
- */
-let requestCounter = 0;
-function requestKey(): number {
-  requestCounter += 1;
-  return requestCounter;
 }

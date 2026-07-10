@@ -17,28 +17,6 @@ export type SentinelApiServiceGetNetworksAction = {
 };
 
 /**
- * Determines whether simulation is supported for a given chain.
- *
- * @param chainId - The chain ID to check.
- * @returns True if simulation is supported.
- */
-export type SentinelApiServiceIsSimulationSupportedAction = {
-  type: `SentinelApiService:isSimulationSupported`;
-  handler: SentinelApiService['isSimulationSupported'];
-};
-
-/**
- * Determines whether the gas station relay is supported for a given chain.
- *
- * @param chainId - The chain ID to check.
- * @returns True if the relay is supported.
- */
-export type SentinelApiServiceIsRelaySupportedAction = {
-  type: `SentinelApiService:isRelaySupported`;
-  handler: SentinelApiService['isRelaySupported'];
-};
-
-/**
  * Simulates transactions against the Sentinel API via
  * `infura_simulateTransactions`. Not cached, since each request body is
  * unique and stale simulations must not be reused.
@@ -69,7 +47,8 @@ export type SentinelApiServiceSubmitRelayTransactionAction = {
  * single request; callers own any polling loop. Not cached.
  *
  * @param request - The relay status request.
- * @returns The normalized relay status.
+ * @returns The relay status: the current status, plus the on-chain
+ * transaction hash and error reason once available.
  */
 export type SentinelApiServiceGetRelayStatusAction = {
   type: `SentinelApiService:getRelayStatus`;
@@ -81,8 +60,6 @@ export type SentinelApiServiceGetRelayStatusAction = {
  */
 export type SentinelApiServiceMethodActions =
   | SentinelApiServiceGetNetworksAction
-  | SentinelApiServiceIsSimulationSupportedAction
-  | SentinelApiServiceIsRelaySupportedAction
   | SentinelApiServiceSimulateTransactionsAction
   | SentinelApiServiceSubmitRelayTransactionAction
   | SentinelApiServiceGetRelayStatusAction;

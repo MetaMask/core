@@ -15,6 +15,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Submit gas station relay transactions via `eth_sendRelayTransaction` (`submitRelayTransaction`)
   - Poll relay transaction status by UUID (`getRelayStatus`)
   - Fetch and cache the supported-network registry (`getNetworks`)
-  - Query per-chain simulation and relay support (`isSimulationSupported`, `isRelaySupported`)
+  - Authenticate requests with client identity headers (`X-Client-Id`, `X-Client-Version`) and a best-effort `Authorization` bearer token from `AuthenticationController:getBearerToken`
 
 [Unreleased]: https://github.com/MetaMask/core/

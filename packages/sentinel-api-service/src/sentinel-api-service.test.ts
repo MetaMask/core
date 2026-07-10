@@ -20,9 +20,9 @@ import {
   SentinelSimulationError,
 } from './errors';
 import { SentinelRelayStatus } from './response.types';
-import { SentinelFeature, SentinelKind } from './types';
 import type { SentinelApiServiceMessenger } from './sentinel-api-service';
 import { SentinelApiService, serviceName } from './sentinel-api-service';
+import { SentinelFeature, SentinelKind } from './types';
 import type {
   SentinelRelaySubmitRequest,
   SentinelSimulationRequest,
@@ -117,26 +117,63 @@ function createServiceMessenger(
 /**
  * Constructs a service under test with its messengers.
  *
+ * @param options - Constructor options forwarded to the service (minus the
+ * messenger, which is created here).
+ * @param options.clientId - The client identifier sent as `X-Client-Id`.
+ * @param options.clientVersion - The client version sent as `X-Client-Version`.
+ * @param options.fetch - A custom `fetch` implementation.
  * @returns The service and its messengers.
  */
-function createService(): {
+function createService(
+  options: {
+    clientId?: string;
+    clientVersion?: string;
+    fetch?: typeof fetch;
+  } = {},
+): {
   service: SentinelApiService;
   rootMessenger: RootMessenger;
   messenger: SentinelApiServiceMessenger;
 } {
   const rootMessenger = createRootMessenger();
   const messenger = createServiceMessenger(rootMessenger);
-  const service = new SentinelApiService({ messenger });
+  rootMessenger.delegate({
+    messenger,
+    actions: ['AuthenticationController:getBearerToken'],
+    events: [],
+  });
+  const service = new SentinelApiService({ messenger, ...options });
   return { service, rootMessenger, messenger };
+}
+
+/**
+ * Registers a `AuthenticationController:getBearerToken` handler on the root
+ * messenger.
+ *
+ * @param rootMessenger - The root messenger.
+ * @param handler - The handler to register.
+ */
+function registerBearerToken(
+  rootMessenger: RootMessenger,
+  handler: () => Promise<string>,
+): void {
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:getBearerToken',
+    handler,
+  );
 }
 
 /**
  * Mocks the `/networks` registry response.
  *
  * @param times - How many times to allow the request. Defaults to 1.
+ * @returns The nock scope.
  */
-function mockNetworks(times = 1): void {
-  nock(NETWORKS_URL).get('/networks').times(times).reply(200, MOCK_NETWORKS);
+function mockNetworks(times = 1): nock.Scope {
+  return nock(NETWORKS_URL)
+    .get('/networks')
+    .times(times)
+    .reply(200, MOCK_NETWORKS);
 }
 
 // ============================================================
@@ -199,16 +236,107 @@ describe('SentinelApiService', () => {
         status: 200,
         json: async () => MOCK_NETWORKS,
       });
-      const rootMessenger = createRootMessenger();
-      const messenger = createServiceMessenger(rootMessenger);
-      const service = new SentinelApiService({
-        messenger,
+      const { service } = createService({
         fetch: customFetch as unknown as typeof fetch,
       });
 
       const result = await service.getNetworks();
       expect(result).toStrictEqual(MOCK_NETWORKS);
-      expect(customFetch).toHaveBeenCalledWith(`${NETWORKS_URL}networks`);
+      expect(customFetch).toHaveBeenCalledWith(`${NETWORKS_URL}networks`, {
+        headers: {},
+      });
+      service.destroy();
+    });
+  });
+
+  describe('authentication headers', () => {
+    it('sends client identity headers when configured', async () => {
+      const { service } = createService({
+        clientId: 'extension',
+        clientVersion: '12.5.0',
+      });
+      const scope = nock(NETWORKS_URL, {
+        reqheaders: {
+          'x-client-id': 'extension',
+          'x-client-version': '12.5.0',
+        },
+      })
+        .get('/networks')
+        .reply(200, MOCK_NETWORKS);
+
+      const result = await service.getNetworks();
+      expect(result).toStrictEqual(MOCK_NETWORKS);
+      scope.done();
+      service.destroy();
+    });
+
+    it('attaches a bearer token from the AuthenticationController', async () => {
+      const { service, rootMessenger } = createService({ clientId: 'mobile' });
+      registerBearerToken(rootMessenger, async () => 'jwt-token');
+      const scope = nock(NETWORKS_URL, {
+        reqheaders: {
+          'x-client-id': 'mobile',
+          authorization: 'Bearer jwt-token',
+        },
+      })
+        .get('/networks')
+        .reply(200, MOCK_NETWORKS);
+
+      const result = await service.getNetworks();
+      expect(result).toStrictEqual(MOCK_NETWORKS);
+      scope.done();
+      service.destroy();
+    });
+
+    it('proceeds unauthenticated when token retrieval fails', async () => {
+      const { service, rootMessenger } = createService();
+      registerBearerToken(rootMessenger, async () => {
+        throw new Error('locked');
+      });
+      const scope = nock(NETWORKS_URL, {
+        badheaders: ['authorization'],
+      })
+        .get('/networks')
+        .reply(200, MOCK_NETWORKS);
+
+      const result = await service.getNetworks();
+      expect(result).toStrictEqual(MOCK_NETWORKS);
+      scope.done();
+      service.destroy();
+    });
+
+    it('omits the bearer header when the token is empty', async () => {
+      const { service, rootMessenger } = createService();
+      registerBearerToken(rootMessenger, async () => '');
+      const scope = nock(NETWORKS_URL, {
+        badheaders: ['authorization'],
+      })
+        .get('/networks')
+        .reply(200, MOCK_NETWORKS);
+
+      const result = await service.getNetworks();
+      expect(result).toStrictEqual(MOCK_NETWORKS);
+      scope.done();
+      service.destroy();
+    });
+
+    it('sends auth headers on JSON-RPC (relay) requests', async () => {
+      const { service, rootMessenger } = createService({ clientId: 'extension' });
+      registerBearerToken(rootMessenger, async () => 'jwt-token');
+      mockNetworks();
+      const scope = nock(MAINNET_URL, {
+        reqheaders: {
+          'x-client-id': 'extension',
+          authorization: 'Bearer jwt-token',
+          'content-type': 'application/json',
+        },
+      })
+        .post('/')
+        .reply(200, { jsonrpc: '2.0', id: '1', result: { uuid: UUID } });
+
+      const result = await service.submitRelayTransaction(MOCK_RELAY_REQUEST);
+      expect(result).toStrictEqual({ uuid: UUID });
+      scope.done();
       service.destroy();
     });
   });
@@ -267,57 +395,17 @@ describe('SentinelApiService', () => {
     });
   });
 
-  describe('isSimulationSupported', () => {
-    it('returns true when confirmations are enabled', async () => {
-      const { service } = createService();
-      mockNetworks();
-
-      expect(await service.isSimulationSupported(CHAIN_ID_MAINNET)).toBe(true);
-      service.destroy();
-    });
-
-    it('returns false when confirmations are absent', async () => {
-      const { service } = createService();
-      mockNetworks();
-
-      expect(await service.isSimulationSupported('0x89' as Hex)).toBe(false);
-      service.destroy();
-    });
-
-    it('returns false for an unknown chain', async () => {
-      const { service } = createService();
-      mockNetworks();
-
-      expect(await service.isSimulationSupported(CHAIN_ID_UNKNOWN)).toBe(false);
-      service.destroy();
-    });
-  });
-
-  describe('isRelaySupported', () => {
-    it('returns true when relay is enabled', async () => {
-      const { service } = createService();
-      mockNetworks();
-
-      expect(await service.isRelaySupported(CHAIN_ID_MAINNET)).toBe(true);
-      service.destroy();
-    });
-
-    it('returns false when relay is disabled', async () => {
-      const { service } = createService();
-      mockNetworks();
-
-      expect(await service.isRelaySupported('0xa' as Hex)).toBe(false);
-      service.destroy();
-    });
-  });
-
   describe('simulateTransactions', () => {
     it('returns the simulation response', async () => {
       const { service } = createService();
       mockNetworks();
       nock(MAINNET_URL)
         .post('/', (body) => body.method === RPC_METHOD_SIMULATE)
-        .reply(200, { jsonrpc: '2.0', id: '1', result: MOCK_SIMULATION_RESPONSE });
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: '1',
+          result: MOCK_SIMULATION_RESPONSE,
+        });
 
       const result = await service.simulateTransactions(
         CHAIN_ID_MAINNET,
@@ -349,10 +437,7 @@ describe('SentinelApiService', () => {
         });
 
       await expect(
-        service.simulateTransactions(
-          CHAIN_ID_MAINNET,
-          MOCK_SIMULATION_REQUEST,
-        ),
+        service.simulateTransactions(CHAIN_ID_MAINNET, MOCK_SIMULATION_REQUEST),
       ).rejects.toThrow(SentinelSimulationError);
       service.destroy();
     });
@@ -366,10 +451,7 @@ describe('SentinelApiService', () => {
         .reply(500);
 
       await expect(
-        service.simulateTransactions(
-          CHAIN_ID_MAINNET,
-          MOCK_SIMULATION_REQUEST,
-        ),
+        service.simulateTransactions(CHAIN_ID_MAINNET, MOCK_SIMULATION_REQUEST),
       ).rejects.toThrow(HttpError);
       service.destroy();
     });
@@ -383,10 +465,7 @@ describe('SentinelApiService', () => {
         .reply(200, { jsonrpc: '2.0', id: '1', result: { unexpected: true } });
 
       await expect(
-        service.simulateTransactions(
-          CHAIN_ID_MAINNET,
-          MOCK_SIMULATION_REQUEST,
-        ),
+        service.simulateTransactions(CHAIN_ID_MAINNET, MOCK_SIMULATION_REQUEST),
       ).rejects.toThrow(SentinelApiResponseValidationError);
       service.destroy();
     });
@@ -396,7 +475,11 @@ describe('SentinelApiService', () => {
       mockNetworks();
       nock(MAINNET_URL)
         .post('/')
-        .reply(200, { jsonrpc: '2.0', id: '1', result: MOCK_SIMULATION_RESPONSE });
+        .reply(200, {
+          jsonrpc: '2.0',
+          id: '1',
+          result: MOCK_SIMULATION_RESPONSE,
+        });
 
       const result = await rootMessenger.call(
         'SentinelApiService:simulateTransactions',
@@ -517,6 +600,16 @@ describe('SentinelApiService', () => {
         uuid: UUID,
       });
       expect(result).toStrictEqual({ status: '' });
+      service.destroy();
+    });
+
+    it('throws when relay is not supported for the chain', async () => {
+      const { service } = createService();
+      mockNetworks();
+
+      await expect(
+        service.getRelayStatus({ chainId: '0xa' as Hex, uuid: UUID }),
+      ).rejects.toThrow(SentinelChainNotSupportedError);
       service.destroy();
     });
 

@@ -9,8 +9,6 @@ export type {
 } from './sentinel-api-service';
 export type {
   SentinelApiServiceGetNetworksAction,
-  SentinelApiServiceIsSimulationSupportedAction,
-  SentinelApiServiceIsRelaySupportedAction,
   SentinelApiServiceSimulateTransactionsAction,
   SentinelApiServiceSubmitRelayTransactionAction,
   SentinelApiServiceGetRelayStatusAction,
