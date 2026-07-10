@@ -7,11 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- chore: rollback stellar in network-enablement-controller ([#9381](https://github.com/MetaMask/core/pull/9381))
-- chore(network-enablement-controller): move misplaced Stellar changelog entries to Unreleased ([#9356](https://github.com/MetaMask/core/pull/9356))
-
 ### Added
 
 - Added Robinhood Chain (`0x1237`) to `POPULAR_NETWORKS` ([#9461](https://github.com/MetaMask/core/pull/9461))
