@@ -3091,6 +3091,99 @@ describe('TradingService', () => {
           findCall(PerpsAnalyticsEvent.TradeTransaction, 'partially_filled'),
         ).toBeDefined();
       });
+
+      it('does not classify a partial fill when filledSize is not a finite number', async () => {
+        mockProvider.placeOrder.mockResolvedValue({
+          success: true,
+          orderId: 'order-1',
+          filledSize: 'not-a-number',
+          submittedSize: '10',
+          averagePrice: '50000',
+        });
+
+        await tradingService.placeOrder({
+          provider: mockProvider,
+          params: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '10',
+            orderType: 'market',
+          },
+          context: mockContext,
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        expect(
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'partially_filled'),
+        ).toBeUndefined();
+      });
+
+      it('does not classify a partial fill or emit any NaN size when submittedSize is not finite', async () => {
+        mockProvider.placeOrder.mockResolvedValue({
+          success: true,
+          orderId: 'order-1',
+          filledSize: '4',
+          submittedSize: 'not-a-number',
+          averagePrice: '50000',
+        });
+
+        await tradingService.placeOrder({
+          provider: mockProvider,
+          params: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '10',
+            orderType: 'market',
+          },
+          context: mockContext,
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        expect(
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'partially_filled'),
+        ).toBeUndefined();
+        // No emitted trade event carries a NaN size property.
+        const tradeCalls = (
+          mockDeps.metrics.trackPerpsEvent as jest.Mock
+        ).mock.calls.filter(
+          ([event]) => event === PerpsAnalyticsEvent.TradeTransaction,
+        );
+        for (const [, props] of tradeCalls) {
+          expect(Number.isNaN(props.order_size)).toBe(false);
+          expect(Number.isNaN(props.amount_filled)).toBe(false);
+          expect(Number.isNaN(props.remaining_amount)).toBe(false);
+        }
+      });
+
+      it('does not emit a partially_filled event for a failed result even when it carries sizes', async () => {
+        mockProvider.placeOrder.mockResolvedValue({
+          success: false,
+          error: 'boom',
+          filledSize: '4',
+          submittedSize: '10',
+        });
+
+        await tradingService.placeOrder({
+          provider: mockProvider,
+          params: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '10',
+            orderType: 'market',
+          },
+          context: mockContext,
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        // Classification is gated on success — a failed order never emits a
+        // partial event, even if the provider echoed filled/submitted sizes.
+        expect(
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'partially_filled'),
+        ).toBeUndefined();
+        expect(
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'failed'),
+        ).toBeDefined();
+      });
     });
 
     describe('number_positions_closed on batch close', () => {
