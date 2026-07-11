@@ -1,3 +1,4 @@
+import { BigNumber } from 'bignumber.js';
 import { v4 as uuidv4 } from 'uuid';
 
 import {
@@ -315,26 +316,37 @@ export class TradingService {
     // provider did not report a submitted size we do not classify (rather than
     // guess from params.size). The partial event mirrors the close schema:
     // order_size = submitted size, amount_filled = filled, remaining = the rest.
+    // Compare and subtract the decimal size strings with arbitrary-precision
+    // math (BigNumber): routing them through parseFloat can introduce
+    // binary-float artifacts that collapse distinct values (misclassifying the
+    // fill) or leave e-17 dust in remaining_amount. Only convert to Number for
+    // the emitted analytics values, after the exact decimal subtraction.
     const submittedSize =
       result?.submittedSize === undefined
-        ? NaN
-        : parseFloat(result.submittedSize);
+        ? undefined
+        : new BigNumber(result.submittedSize);
     const filledSize =
-      result?.filledSize === undefined ? NaN : parseFloat(result.filledSize);
+      result?.filledSize === undefined
+        ? undefined
+        : new BigNumber(result.filledSize);
     if (
       result?.success === true &&
-      Number.isFinite(submittedSize) &&
-      Number.isFinite(filledSize) &&
-      filledSize > 0 &&
-      filledSize < submittedSize
+      submittedSize !== undefined &&
+      filledSize !== undefined &&
+      submittedSize.isFinite() &&
+      filledSize.isFinite() &&
+      filledSize.gt(0) &&
+      filledSize.lt(submittedSize)
     ) {
       this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.TradeTransaction, {
         ...properties,
         [PERPS_EVENT_PROPERTY.STATUS]:
           PERPS_EVENT_VALUE.STATUS.PARTIALLY_FILLED,
-        [PERPS_EVENT_PROPERTY.ORDER_SIZE]: submittedSize,
-        [PERPS_EVENT_PROPERTY.AMOUNT_FILLED]: filledSize,
-        [PERPS_EVENT_PROPERTY.REMAINING_AMOUNT]: submittedSize - filledSize,
+        [PERPS_EVENT_PROPERTY.ORDER_SIZE]: submittedSize.toNumber(),
+        [PERPS_EVENT_PROPERTY.AMOUNT_FILLED]: filledSize.toNumber(),
+        [PERPS_EVENT_PROPERTY.REMAINING_AMOUNT]: submittedSize
+          .minus(filledSize)
+          .toNumber(),
       });
     }
 

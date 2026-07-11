@@ -3025,6 +3025,72 @@ describe('TradingService', () => {
         expect(executed).not.toHaveProperty('amount_filled');
         expect(executed).not.toHaveProperty('remaining_amount');
       });
+
+      it('computes remaining_amount with exact decimal math (no binary-float dust)', async () => {
+        // 10 - 9.7 evaluates to 0.30000000000000071 in binary floating point;
+        // the decimal (BigNumber) subtraction must report exactly 0.3.
+        mockProvider.placeOrder.mockResolvedValue({
+          success: true,
+          orderId: 'order-1',
+          filledSize: '9.7',
+          submittedSize: '10',
+          averagePrice: '50000',
+        });
+
+        await tradingService.placeOrder({
+          provider: mockProvider,
+          params: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '10',
+            orderType: 'market',
+          },
+          context: mockContext,
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        expect(
+          findCall(
+            PerpsAnalyticsEvent.TradeTransaction,
+            'partially_filled',
+          )?.[1],
+        ).toEqual(
+          expect.objectContaining({
+            order_size: 10,
+            amount_filled: 9.7,
+            remaining_amount: 0.3,
+          }),
+        );
+      });
+
+      it('classifies a partial fill when parseFloat would collapse the two sizes to equal', async () => {
+        // parseFloat('0.10000000000000001') === parseFloat('0.1') === 0.1, so a
+        // Number-based comparison would treat this as a full fill and skip the
+        // event; decimal comparison sees filled < submitted and classifies it.
+        mockProvider.placeOrder.mockResolvedValue({
+          success: true,
+          orderId: 'order-1',
+          filledSize: '0.1',
+          submittedSize: '0.10000000000000001',
+          averagePrice: '50000',
+        });
+
+        await tradingService.placeOrder({
+          provider: mockProvider,
+          params: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.10000000000000001',
+            orderType: 'market',
+          },
+          context: mockContext,
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        expect(
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'partially_filled'),
+        ).toBeDefined();
+      });
     });
 
     describe('number_positions_closed on batch close', () => {

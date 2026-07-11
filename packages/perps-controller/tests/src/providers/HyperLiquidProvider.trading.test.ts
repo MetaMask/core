@@ -1105,9 +1105,18 @@ describe('HyperLiquidProvider', () => {
       const result = await provider.placeOrder(orderParams);
 
       expect(result.success).toBe(true);
-      expect(mockClientService.getExchangeClient().order).toHaveBeenCalledTimes(
-        2,
-      );
+      const orderMock = mockClientService.getExchangeClient()
+        .order as jest.Mock;
+      expect(orderMock).toHaveBeenCalledTimes(2);
+
+      // submittedSize must reflect the retried (second) submission — the size
+      // the exchange actually accepted after the $10-minimum bump — not the
+      // first rejected attempt, so partial-fill classification uses the real
+      // submitted size.
+      const firstSubmittedSize = orderMock.mock.calls[0][0].orders[0].s;
+      const secondSubmittedSize = orderMock.mock.calls[1][0].orders[0].s;
+      expect(secondSubmittedSize).not.toBe(firstSubmittedSize);
+      expect(result.submittedSize).toBe(secondSubmittedSize);
     });
 
     it('retries with adjusted USD when price-less order hits $10 minimum (uses fetched price from allMids)', async () => {
