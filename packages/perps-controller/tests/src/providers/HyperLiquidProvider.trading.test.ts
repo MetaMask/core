@@ -539,6 +539,15 @@ describe('HyperLiquidProvider', () => {
           ],
         }),
       );
+
+      // The result echoes back the final normalized size that was submitted to
+      // the exchange (the main order's `s`), so callers can classify partial
+      // fills against the real submitted size rather than the pre-normalization
+      // request.
+      const orderCall = (
+        mockClientService.getExchangeClient().order as jest.Mock
+      ).mock.calls[0][0];
+      expect(result.submittedSize).toBe(orderCall.orders[0].s);
     });
 
     it('places a limit order successfully', async () => {

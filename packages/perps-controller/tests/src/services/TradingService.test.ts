@@ -2892,186 +2892,58 @@ describe('TradingService', () => {
       });
     });
 
-    describe('order_execution_latency_ms on trade', () => {
-      it('includes order_execution_latency_ms when present in trackingData', async () => {
-        mockProvider.placeOrder.mockResolvedValue({
-          success: true,
-          orderId: 'order-1',
-          filledSize: '0.1',
-          averagePrice: '50000',
-        });
-
-        await tradingService.placeOrder({
-          provider: mockProvider,
-          params: {
-            symbol: 'BTC',
-            isBuy: true,
-            size: '0.1',
-            orderType: 'market',
-            trackingData: {
-              totalFee: 1,
-              marketPrice: 50000,
-              orderExecutionLatencyMs: 1234,
-            },
-          },
-          context: mockContext,
-          reportOrderToDataLake: mockReportOrderToDataLake,
-        });
-
-        expect(
-          findCall(PerpsAnalyticsEvent.TradeTransaction, 'executed')?.[1],
-        ).toEqual(
-          expect.objectContaining({ order_execution_latency_ms: 1234 }),
-        );
-      });
-
-      it('omits order_execution_latency_ms when unavailable', async () => {
-        mockProvider.placeOrder.mockResolvedValue({
-          success: true,
-          orderId: 'order-1',
-          filledSize: '0.1',
-          averagePrice: '50000',
-        });
-
-        await tradingService.placeOrder({
-          provider: mockProvider,
-          params: {
-            symbol: 'BTC',
-            isBuy: true,
-            size: '0.1',
-            orderType: 'market',
-            trackingData: { totalFee: 1, marketPrice: 50000 },
-          },
-          context: mockContext,
-          reportOrderToDataLake: mockReportOrderToDataLake,
-        });
-
-        expect(
-          findCall(PerpsAnalyticsEvent.TradeTransaction, 'executed')?.[1],
-        ).not.toHaveProperty('order_execution_latency_ms');
-      });
-
-      it('does not leak order_execution_latency_ms onto the submitted trade event', async () => {
-        mockProvider.placeOrder.mockResolvedValue({
-          success: true,
-          orderId: 'order-1',
-          filledSize: '0.1',
-          averagePrice: '50000',
-        });
-
-        await tradingService.placeOrder({
-          provider: mockProvider,
-          params: {
-            symbol: 'BTC',
-            isBuy: true,
-            size: '0.1',
-            orderType: 'market',
-            trackingData: {
-              totalFee: 1,
-              marketPrice: 50000,
-              orderExecutionLatencyMs: 999,
-            },
-          },
-          context: mockContext,
-          reportOrderToDataLake: mockReportOrderToDataLake,
-        });
-
-        // Only the terminal (executed) trade event carries the latency.
-        expect(
-          findCall(PerpsAnalyticsEvent.TradeTransaction, 'submitted')?.[1],
-        ).not.toHaveProperty('order_execution_latency_ms');
-        expect(
-          findCall(PerpsAnalyticsEvent.TradeTransaction, 'executed')?.[1],
-        ).toHaveProperty('order_execution_latency_ms', 999);
-      });
-
-      it('does not leak order_execution_latency_ms onto the close event', async () => {
-        mockGetPositions.mockResolvedValue([mockClosePosition]);
-        mockProvider.closePosition.mockResolvedValue({
-          success: true,
-          orderId: 'close-1',
-          filledSize: '0.5',
-          averagePrice: '55000',
-        });
-
-        await tradingService.closePosition({
-          provider: mockProvider,
-          params: {
-            symbol: 'BTC',
-            trackingData: {
-              totalFee: 1,
-              marketPrice: 50000,
-              orderExecutionLatencyMs: 999,
-            },
-          },
-          context: { ...mockContext, getPositions: mockGetPositions },
-          reportOrderToDataLake: mockReportOrderToDataLake,
-        });
-
-        expect(
-          findCall(
-            PerpsAnalyticsEvent.PositionCloseTransaction,
-            'executed',
-          )?.[1],
-        ).not.toHaveProperty('order_execution_latency_ms');
-      });
-
-      it('does not leak order_execution_latency_ms onto the flip trade event', async () => {
-        mockProvider.placeOrder.mockResolvedValue({
-          success: true,
-          orderId: 'flip-1',
-          filledSize: '0.5',
-          averagePrice: '55000',
-        });
-
-        await tradingService.flipPosition({
-          provider: mockProvider,
-          position: mockClosePosition,
-          trackingData: {
-            totalFee: 1,
-            marketPrice: 50000,
-            orderExecutionLatencyMs: 999,
-          },
-          context: mockContext,
-        });
-
-        expect(
-          findCall(PerpsAnalyticsEvent.TradeTransaction, 'executed')?.[1],
-        ).not.toHaveProperty('order_execution_latency_ms');
-      });
-
-      it('does not leak order_execution_latency_ms onto the cancel event', async () => {
-        mockProvider.cancelOrder.mockResolvedValue({
-          success: true,
-          orderId: 'order-123',
-        });
-
-        await tradingService.cancelOrder({
-          provider: mockProvider,
-          params: {
-            orderId: 'order-123',
-            symbol: 'BTC',
-            trackingData: {
-              totalFee: 1,
-              marketPrice: 50000,
-              orderExecutionLatencyMs: 999,
-            },
-          },
-          context: mockContext,
-        });
-
-        expect(
-          findCall(PerpsAnalyticsEvent.OrderCancelTransaction, 'executed')?.[1],
-        ).not.toHaveProperty('order_execution_latency_ms');
-      });
-    });
-
     describe('partial fill on open trade', () => {
-      it('emits an additional partially_filled trade event with amount_filled and remaining_amount', async () => {
+      it('emits an additional partially_filled trade event with order_size, amount_filled, and remaining_amount from the submitted size', async () => {
         mockProvider.placeOrder.mockResolvedValue({
           success: true,
           orderId: 'order-1',
           filledSize: '4',
+          submittedSize: '10',
+          averagePrice: '50000',
+        });
+
+        await tradingService.placeOrder({
+          provider: mockProvider,
+          params: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '10',
+            orderType: 'market',
+          },
+          context: mockContext,
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        // Schema mirrors the close path: order_size = submitted size, the fill is
+        // reported via amount_filled, and remaining_amount = submitted - filled.
+        expect(
+          findCall(
+            PerpsAnalyticsEvent.TradeTransaction,
+            'partially_filled',
+          )?.[1],
+        ).toEqual(
+          expect.objectContaining({
+            order_size: 10,
+            amount_filled: 4,
+            remaining_amount: 6,
+          }),
+        );
+        // The terminal executed event still fires alongside it.
+        expect(
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'executed'),
+        ).toBeDefined();
+      });
+
+      it('does not emit a partially_filled event on a complete fill of the normalized submitted size', async () => {
+        // The provider rounds the requested size (params.size = 10) down to the
+        // normalized size it actually submits (9.99) and that fills completely.
+        // Classifying against params.size would spuriously flag this as partial;
+        // classifying against submittedSize must not.
+        mockProvider.placeOrder.mockResolvedValue({
+          success: true,
+          orderId: 'order-1',
+          filledSize: '9.99',
+          submittedSize: '9.99',
           averagePrice: '50000',
         });
 
@@ -3088,24 +2960,20 @@ describe('TradingService', () => {
         });
 
         expect(
-          findCall(
-            PerpsAnalyticsEvent.TradeTransaction,
-            'partially_filled',
-          )?.[1],
-        ).toEqual(
-          expect.objectContaining({ amount_filled: 4, remaining_amount: 6 }),
-        );
-        // The terminal executed event still fires alongside it.
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'partially_filled'),
+        ).toBeUndefined();
         expect(
           findCall(PerpsAnalyticsEvent.TradeTransaction, 'executed'),
         ).toBeDefined();
       });
 
-      it('does not emit a partially_filled event on a full fill', async () => {
+      it('does not classify a partial fill when the provider omits submittedSize', async () => {
+        // Without a submitted size we cannot know the real baseline, so we emit
+        // no partially_filled event rather than guessing from params.size.
         mockProvider.placeOrder.mockResolvedValue({
           success: true,
           orderId: 'order-1',
-          filledSize: '10',
+          filledSize: '4',
           averagePrice: '50000',
         });
 
@@ -3134,6 +3002,7 @@ describe('TradingService', () => {
           success: true,
           orderId: 'order-1',
           filledSize: '4',
+          submittedSize: '10',
           averagePrice: '50000',
         });
 

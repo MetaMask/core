@@ -299,12 +299,6 @@ export class TradingService {
       properties[PERPS_EVENT_PROPERTY.AB_TESTS] = params.trackingData.abTests;
     }
 
-    // Order execution latency on the terminal trade event
-    if (params.trackingData?.orderExecutionLatencyMs !== undefined) {
-      properties[PERPS_EVENT_PROPERTY.ORDER_EXECUTION_LATENCY_MS] =
-        params.trackingData.orderExecutionLatencyMs;
-    }
-
     // Propagate discovery attribution + hl_fee_rate (TAT-3080, TAT-3149)
     Object.assign(
       properties,
@@ -313,22 +307,34 @@ export class TradingService {
 
     // Emit an additional partially filled trade event when the fill is partial,
     // mirroring the close path so the fill's partiality is visible in analytics
-    // rather than hidden behind a status=executed event.
-    const requestedSize = parseFloat(params.size);
+    // rather than hidden behind a status=executed event. Classification is based
+    // on the provider's final submitted size (post precision rounding, USD
+    // recalculation, and $10-minimum retry), not the caller's pre-normalization
+    // params.size — the provider transforms the size before submission and a
+    // complete fill of the normalized size must not look partial. When the
+    // provider did not report a submitted size we do not classify (rather than
+    // guess from params.size). The partial event mirrors the close schema:
+    // order_size = submitted size, amount_filled = filled, remaining = the rest.
+    const submittedSize =
+      result?.submittedSize === undefined
+        ? NaN
+        : parseFloat(result.submittedSize);
     const filledSize =
       result?.filledSize === undefined ? NaN : parseFloat(result.filledSize);
     if (
       result?.success === true &&
+      Number.isFinite(submittedSize) &&
       Number.isFinite(filledSize) &&
       filledSize > 0 &&
-      filledSize < requestedSize
+      filledSize < submittedSize
     ) {
       this.#deps.metrics.trackPerpsEvent(PerpsAnalyticsEvent.TradeTransaction, {
         ...properties,
         [PERPS_EVENT_PROPERTY.STATUS]:
           PERPS_EVENT_VALUE.STATUS.PARTIALLY_FILLED,
+        [PERPS_EVENT_PROPERTY.ORDER_SIZE]: submittedSize,
         [PERPS_EVENT_PROPERTY.AMOUNT_FILLED]: filledSize,
-        [PERPS_EVENT_PROPERTY.REMAINING_AMOUNT]: requestedSize - filledSize,
+        [PERPS_EVENT_PROPERTY.REMAINING_AMOUNT]: submittedSize - filledSize,
       });
     }
 

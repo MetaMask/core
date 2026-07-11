@@ -183,11 +183,6 @@ export type TrackingData = {
   // close events when present; omitted entirely when unavailable.
   hlFeeRate?: number;
 
-  // Order execution latency in ms. Client-computed time from order submission to
-  // terminal result; emitted as order_execution_latency_ms on the trade
-  // transaction event when present, omitted when undefined.
-  orderExecutionLatencyMs?: number;
-
   // Pay with any token: true when user paid with a custom token (not Perps balance)
   tradeWithToken?: boolean;
   mmPayTokenSelected?: string; // Token symbol when tradeWithToken is true
@@ -266,6 +261,11 @@ export type OrderResult = {
   orderId?: string; // Order ID from exchange
   error?: string;
   filledSize?: string; // Amount filled
+  // Final normalized size actually submitted to the exchange (post precision
+  // rounding, USD recalculation, and any $10-minimum retry). Present only when
+  // the provider reached submission; used to classify partial fills against the
+  // real submitted size rather than the caller's pre-normalization params.size.
+  submittedSize?: string;
   averagePrice?: string; // Average execution price
   providerId?: PerpsProviderType; // Multi-provider: which provider executed this order (injected by aggregator)
 };
