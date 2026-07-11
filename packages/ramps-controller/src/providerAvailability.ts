@@ -1,4 +1,3 @@
-import type { ProviderScope } from './RampsController';
 import type { Provider } from './RampsService';
 
 /**
@@ -44,31 +43,32 @@ export function getProvidersServingAsset(
 
 /**
  * Whether a region offers a usable on-ramp provider that serves the given
- * deposit asset, under the active provider-class scope. This is the pure,
+ * deposit asset, under the all-providers feature flag. This is the pure,
  * asset-aware region gate shared between the controller and headless-buy
  * consumers so the two never disagree about eligibility.
  *
- * Scope `off` is native-only: the region must offer a native provider (e.g.
- * Transak Native) that serves the asset. Scope `in-app` / `all` treats the
- * region as supported when any provider (native or in-app aggregator) serves
- * the asset; the controller's scope-aware `getQuotes` performs the precise
- * in-app provider selection at quote time. Fails closed: an empty or missing
- * `assetId` returns `false`.
+ * With `allProvidersEnabled` false the gate is native-only: the region must
+ * offer a native provider (e.g. Transak Native) that serves the asset. With
+ * `allProvidersEnabled` true the region is supported when any provider
+ * (native or aggregator) serves the asset; the controller's flag-aware
+ * `getQuotes` performs the precise provider selection at quote time. Fails
+ * closed: an empty or missing `assetId` returns `false`.
  *
  * @param options - The options.
  * @param options.providers - The region's providers (native and aggregator).
  * @param options.assetId - CAIP-19 asset id of the deposit asset.
- * @param options.scope - The effective provider-class scope.
- * @returns Whether the region has a provider serving the asset under scope.
+ * @param options.allProvidersEnabled - Whether the all-providers feature flag
+ * is enabled (see `isHeadlessAllProvidersEnabled`).
+ * @returns Whether the region has a provider serving the asset.
  */
 export function regionHasProviderForAsset({
   providers,
   assetId,
-  scope,
+  allProvidersEnabled,
 }: {
   providers: Provider[];
   assetId: string;
-  scope: ProviderScope;
+  allProvidersEnabled: boolean;
 }): boolean {
   if (!assetId) {
     return false;
@@ -77,43 +77,45 @@ export function regionHasProviderForAsset({
   if (serving.some((provider) => provider.type === 'native')) {
     return true;
   }
-  if (scope === 'off') {
+  if (!allProvidersEnabled) {
     return false;
   }
   return serving.length > 0;
 }
 
 /**
- * Whether headless fiat deposit is available for the current region and
- * provider-class scope. Scope-aware and independent of which single provider is
- * currently selected once widened, so the availability gate cannot disagree
- * with the controller's own scope-aware provider pick.
+ * Whether headless fiat deposit is available for the current region, under
+ * the all-providers feature flag. Flag-aware and independent of which single
+ * provider is currently selected once widened, so the availability gate
+ * cannot disagree with the controller's own flag-aware provider pick.
  *
- * Scope `off` keeps the native-only behaviour: a native provider must be the
- * currently selected (preferred) one, since the controller resolves the
- * selected provider first and an aggregator preferred provider would otherwise
- * run a non-native deposit. Scope `in-app` / `all` make the flow available
- * whenever the region has any provider.
+ * With `allProvidersEnabled` false the check keeps the native-only behaviour:
+ * a native provider must be the currently selected (preferred) one, since the
+ * controller resolves the selected provider first and an aggregator preferred
+ * provider would otherwise run a non-native deposit. With
+ * `allProvidersEnabled` true the flow is available whenever the region has
+ * any provider.
  *
  * @param options - The options.
  * @param options.providers - The region's providers.
  * @param options.selectedProvider - The currently selected provider, if any.
- * @param options.scope - The effective provider-class scope.
+ * @param options.allProvidersEnabled - Whether the all-providers feature flag
+ * is enabled (see `isHeadlessAllProvidersEnabled`).
  * @returns Whether headless fiat deposit is available.
  */
 export function isFiatDepositAvailable({
   providers,
   selectedProvider,
-  scope,
+  allProvidersEnabled,
 }: {
   providers: Provider[];
   selectedProvider?: Provider | null;
-  scope: ProviderScope;
+  allProvidersEnabled: boolean;
 }): boolean {
   if (selectedProvider?.type === 'native') {
     return true;
   }
-  if (scope === 'off') {
+  if (!allProvidersEnabled) {
     return false;
   }
   return providers.length > 0;

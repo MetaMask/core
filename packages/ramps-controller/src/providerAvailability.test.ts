@@ -67,29 +67,29 @@ describe('getProvidersServingAsset', () => {
 });
 
 describe('regionHasProviderForAsset', () => {
-  it('returns false for an empty assetId regardless of scope', () => {
+  it('returns false for an empty assetId even when all providers are enabled', () => {
     const provider = buildProvider('native', 'native', { '': true });
     expect(
       regionHasProviderForAsset({
         providers: [provider],
         assetId: '',
-        scope: 'all',
+        allProvidersEnabled: true,
       }),
     ).toBe(false);
   });
 
-  it('returns true when a native provider serves the asset, even under scope off', () => {
+  it('returns true when a native provider serves the asset, even with the flag disabled', () => {
     const provider = buildProvider('native', 'native', { [ASSET_ID]: true });
     expect(
       regionHasProviderForAsset({
         providers: [provider],
         assetId: ASSET_ID,
-        scope: 'off',
+        allProvidersEnabled: false,
       }),
     ).toBe(true);
   });
 
-  it('returns false under scope off when only an aggregator serves the asset', () => {
+  it('returns false with the flag disabled when only an aggregator serves the asset', () => {
     const provider = buildProvider('moonpay', 'aggregator', {
       [ASSET_ID]: true,
     });
@@ -97,12 +97,12 @@ describe('regionHasProviderForAsset', () => {
       regionHasProviderForAsset({
         providers: [provider],
         assetId: ASSET_ID,
-        scope: 'off',
+        allProvidersEnabled: false,
       }),
     ).toBe(false);
   });
 
-  it('returns true under scope in-app when an aggregator serves the asset', () => {
+  it('returns true with the flag enabled when an aggregator serves the asset', () => {
     const provider = buildProvider('moonpay', 'aggregator', {
       [ASSET_ID]: true,
     });
@@ -110,7 +110,7 @@ describe('regionHasProviderForAsset', () => {
       regionHasProviderForAsset({
         providers: [provider],
         assetId: ASSET_ID,
-        scope: 'in-app',
+        allProvidersEnabled: true,
       }),
     ).toBe(true);
   });
@@ -123,42 +123,42 @@ describe('regionHasProviderForAsset', () => {
       regionHasProviderForAsset({
         providers: [provider],
         assetId: ASSET_ID,
-        scope: 'all',
+        allProvidersEnabled: true,
       }),
     ).toBe(false);
   });
 });
 
 describe('isFiatDepositAvailable', () => {
-  it('returns true when a native provider is selected, even under scope off', () => {
+  it('returns true when a native provider is selected, even with the flag disabled', () => {
     const selectedProvider = buildProvider('native', 'native');
     expect(
       isFiatDepositAvailable({
         providers: [],
         selectedProvider,
-        scope: 'off',
+        allProvidersEnabled: false,
       }),
     ).toBe(true);
   });
 
-  it('returns false under scope off when the selected provider is not native', () => {
+  it('returns false with the flag disabled when the selected provider is not native', () => {
     const selectedProvider = buildProvider('moonpay', 'aggregator');
     expect(
       isFiatDepositAvailable({
         providers: [selectedProvider],
         selectedProvider,
-        scope: 'off',
+        allProvidersEnabled: false,
       }),
     ).toBe(false);
   });
 
-  it('returns true under scope in-app when the region has any provider', () => {
+  it('returns true with the flag enabled when the region has any provider', () => {
     const provider = buildProvider('moonpay', 'aggregator');
     expect(
       isFiatDepositAvailable({
         providers: [provider],
         selectedProvider: null,
-        scope: 'in-app',
+        allProvidersEnabled: true,
       }),
     ).toBe(true);
   });
@@ -168,7 +168,7 @@ describe('isFiatDepositAvailable', () => {
       isFiatDepositAvailable({
         providers: [],
         selectedProvider: null,
-        scope: 'all',
+        allProvidersEnabled: true,
       }),
     ).toBe(false);
   });

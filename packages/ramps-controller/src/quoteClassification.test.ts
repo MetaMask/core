@@ -18,7 +18,12 @@ const buildQuote = (
       amountOut: '0.05',
       paymentMethod: 'credit_debit_card',
       ...(overrides.browser
-        ? { buyWidget: { url: 'https://widget.example', browser: overrides.browser } }
+        ? {
+            buyWidget: {
+              url: 'https://widget.example',
+              browser: overrides.browser,
+            },
+          }
         : {}),
       ...(overrides.isCustomAction === undefined
         ? {}
@@ -29,9 +34,9 @@ const buildQuote = (
 
 describe('isExternalBrowserQuote', () => {
   it('returns true when the buy widget targets the OS browser', () => {
-    expect(isExternalBrowserQuote(buildQuote({ browser: 'IN_APP_OS_BROWSER' }))).toBe(
-      true,
-    );
+    expect(
+      isExternalBrowserQuote(buildQuote({ browser: 'IN_APP_OS_BROWSER' })),
+    ).toBe(true);
   });
 
   it('returns false for an in-app widget browser', () => {
@@ -47,7 +52,9 @@ describe('isExternalBrowserQuote', () => {
 
 describe('isCustomActionQuote', () => {
   it('returns true when the inline isCustomAction flag is set', () => {
-    expect(isCustomActionQuote(buildQuote({ isCustomAction: true }))).toBe(true);
+    expect(isCustomActionQuote(buildQuote({ isCustomAction: true }))).toBe(
+      true,
+    );
   });
 
   it('returns false when the flag is false or absent', () => {
