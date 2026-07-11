@@ -13,14 +13,14 @@ import type {
 import type { Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
-import type { RampsControllerMethodActions } from './RampsController-method-action-types';
-import type { RampsErrorCode } from './rampsErrorCodes';
-import { RAMPS_ERROR_CODES } from './rampsErrorCodes';
 import {
   deleteOrderInRemoteStorage,
   syncOrdersWithUserStorage as syncOrdersWithUserStorageInternal,
   updateOrderInRemoteStorage,
 } from './order-syncing';
+import type { RampsControllerMethodActions } from './RampsController-method-action-types';
+import type { RampsErrorCode } from './rampsErrorCodes';
+import { RAMPS_ERROR_CODES } from './rampsErrorCodes';
 import type {
   BuyWidget,
   Country,

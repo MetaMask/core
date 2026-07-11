@@ -146,8 +146,7 @@ export async function syncOrdersWithUserStorage(
         data: {
           localOrderCount: localOrders.length,
           remoteOrderCount: validRemoteOrders.length,
-          isFirstSync:
-            validRemoteOrders.length === 0 && localOrders.length > 0,
+          isFirstSync: validRemoteOrders.length === 0 && localOrders.length > 0,
           isNewDeviceSync:
             localOrders.length === 0 && validRemoteOrders.length > 0,
         },

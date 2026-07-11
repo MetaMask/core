@@ -1,15 +1,15 @@
 import { RampsOrderStatus } from '../RampsService';
 import type { RampsOrder } from '../RampsService';
 import {
-  deleteOrderInRemoteStorage,
-  syncOrdersWithUserStorage,
-  updateOrderInRemoteStorage,
-} from './controller-integration';
-import {
   USER_STORAGE_RAMPS_ORDERS_FEATURE,
   USER_STORAGE_VERSION,
   USER_STORAGE_VERSION_KEY,
 } from './constants';
+import {
+  deleteOrderInRemoteStorage,
+  syncOrdersWithUserStorage,
+  updateOrderInRemoteStorage,
+} from './controller-integration';
 import type { OrderSyncingOptions, SyncRampsOrder } from './types';
 import { mapRampsOrderToUserStorageEntry } from './utils';
 

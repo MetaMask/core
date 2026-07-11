@@ -29,7 +29,7 @@ export function createOrderStorageKey(
 export function isSyncableOrder(order: RampsOrder): boolean {
   return Boolean(
     order.providerOrderId?.trim() ||
-      (order.id?.includes('/orders/') && order.id.split('/orders/')[1]),
+    (order.id?.includes('/orders/') && order.id.split('/orders/')[1]),
   );
 }
 

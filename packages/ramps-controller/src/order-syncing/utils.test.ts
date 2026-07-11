@@ -1,9 +1,6 @@
 import { RampsOrderStatus } from '../RampsService';
 import type { RampsOrder } from '../RampsService';
-import {
-  USER_STORAGE_VERSION,
-  USER_STORAGE_VERSION_KEY,
-} from './constants';
+import { USER_STORAGE_VERSION, USER_STORAGE_VERSION_KEY } from './constants';
 import type { SyncRampsOrder, UserStorageRampsOrderEntry } from './types';
 import {
   areOrdersEqual,

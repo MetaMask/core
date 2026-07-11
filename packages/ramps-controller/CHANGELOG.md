@@ -15,10 +15,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `addOrder` / `removeOrder` incrementally push local changes to User Storage when Backup & Sync and `isRampsSyncingEnabled` are on
   - Messenger action `RampsController:syncOrdersWithUserStorage` for hosts to trigger a full sync on unlock / feature enable
 
-### Fixed
-
-- Default `isRampsSyncingEnabled` to `true` in `canPerformOrderSyncing` when the field is absent from persisted User Storage state, matching controller default state and UI selectors ([#9474](https://github.com/MetaMask/core/pull/9474))
-
 ### Changed
 
 - **BREAKING:** Provider IDs are no longer normalized by stripping a `/providers/` prefix. `RampsController.getQuotes` now matches provider IDs from the providers list, quotes, custom actions, and sort order as-is, and a precreated stub order's `provider.id` is the canonical provider code passed to the create-order call rather than a `/providers/`-prefixed value. Consumers must supply non-prefixed (canonical) provider IDs ([#9448](https://github.com/MetaMask/core/pull/9448))
@@ -28,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - **BREAKING:** Remove the `normalizeProviderCode` export ([#9448](https://github.com/MetaMask/core/pull/9448))
+
+### Fixed
+
+- Default `isRampsSyncingEnabled` to `true` in `canPerformOrderSyncing` when the field is absent from persisted User Storage state, matching controller default state and UI selectors ([#9474](https://github.com/MetaMask/core/pull/9474))
 
 ## [15.1.0]
 
