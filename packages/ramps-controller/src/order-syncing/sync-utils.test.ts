@@ -52,5 +52,30 @@ describe('order-syncing/sync-utils', () => {
       const { options } = arrangeMocks();
       expect(canPerformOrderSyncing(options)).toBe(true);
     });
+
+    it('defaults isRampsSyncingEnabled to true when absent from User Storage state', () => {
+      const options: OrderSyncingOptions = {
+        getMessenger: jest.fn().mockReturnValue({
+          call: jest.fn().mockImplementation((action: string) => {
+            if (action === 'UserStorageController:getState') {
+              return { isBackupAndSyncEnabled: true };
+            }
+            if (action === 'AuthenticationController:isSignedIn') {
+              return true;
+            }
+            return null;
+          }),
+        }),
+        getRampsControllerInstance: jest.fn().mockReturnValue({
+          isOrderSyncingInProgress: false,
+          state: { orders: [] },
+          setIsOrderSyncingInProgress: jest.fn(),
+          addOrder: jest.fn(),
+          removeOrder: jest.fn(),
+        }),
+      };
+
+      expect(canPerformOrderSyncing(options)).toBe(true);
+    });
   });
 });

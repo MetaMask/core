@@ -10,8 +10,11 @@ export function canPerformOrderSyncing(options: OrderSyncingOptions): boolean {
   const { getMessenger, getRampsControllerInstance } = options;
 
   try {
-    const { isBackupAndSyncEnabled, isRampsSyncingEnabled } =
-      getMessenger().call('UserStorageController:getState');
+    const {
+      isBackupAndSyncEnabled,
+      isRampsSyncingEnabled: rawIsRampsSyncingEnabled,
+    } = getMessenger().call('UserStorageController:getState');
+    const isRampsSyncingEnabled = rawIsRampsSyncingEnabled ?? true;
 
     const isAuthEnabled = getMessenger().call(
       'AuthenticationController:isSignedIn',
