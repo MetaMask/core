@@ -214,4 +214,85 @@ describe('mapKeyringTransaction', () => {
       },
     });
   });
+
+  it('maps trustline approve TokenApprove to assetActivation', () => {
+    const item = mapKeyringTransaction(
+      keyringTransactionFixtures.mapArgs.trustlineApprove,
+    );
+
+    expect(item).toMatchObject({
+      type: 'assetActivation',
+      chainId: 'stellar:pubnet',
+      status: 'success',
+      timestamp: 1716367781000,
+      hash: 'trustline-approve-id',
+      data: {
+        from: 'owner-address',
+        token: {
+          amount: undefined,
+          symbol: 'USDC',
+          direction: 'out',
+        },
+      },
+    });
+  });
+
+  it('returns the trustline activation token unchanged when no amount is present', () => {
+    const item = mapKeyringTransaction(
+      keyringTransactionFixtures.mapArgs.trustlineApproveNoAmount,
+    );
+
+    expect(item).toMatchObject({
+      type: 'assetActivation',
+      data: { from: 'owner-address', token: undefined },
+    });
+  });
+
+  it('maps trustline disapprove TokenDisapprove to assetDeactivation', () => {
+    const item = mapKeyringTransaction(
+      keyringTransactionFixtures.mapArgs.trustlineDisapprove,
+    );
+
+    expect(item).toMatchObject({
+      type: 'assetDeactivation',
+      chainId: 'stellar:pubnet',
+      status: 'success',
+      timestamp: 1716367781000,
+      hash: 'trustline-disapprove-id',
+      data: {
+        from: 'owner-address',
+        token: {
+          amount: undefined,
+          symbol: 'USDC',
+          direction: 'out',
+        },
+      },
+    });
+  });
+
+  it('returns the trustline deactivation token unchanged when no amount is present', () => {
+    const item = mapKeyringTransaction(
+      keyringTransactionFixtures.mapArgs.trustlineDisapproveNoAmount,
+    );
+
+    expect(item).toMatchObject({
+      type: 'assetDeactivation',
+      data: { from: 'owner-address', token: undefined },
+    });
+  });
+
+  it('maps a non-trustline TokenDisapprove to a contract interaction', () => {
+    const item = mapKeyringTransaction(
+      keyringTransactionFixtures.mapArgs.disapproveNonTrustline,
+    );
+
+    expect(item).toMatchObject({
+      type: 'contractInteraction',
+      chainId: SolScope.Mainnet,
+      data: {
+        from: 'owner-address',
+        to: 'spender-address',
+      },
+    });
+  });
 });

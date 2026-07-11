@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `fetchFeed` method to `SocialService` (and the `SocialService:fetchFeed` messenger action) for the trader-activity feed. Calls `GET /feed` with an optional `scope` (`following`, default, personalized to the JWT-identified user; or `leaderboard`, the generic shared feed), `chains` (as CAIP-2 chain ids), `limit`, and cursor pagination (`olderThan`/`newerThan`) for infinite scroll ([#9447](https://github.com/MetaMask/core/pull/9447))
+- Add `FeedItem`, `FeedPagination`, `FeedResponse`, and `FetchFeedOptions` types. `FeedItem` extends `Position` with the trade's `actor` (`ProfileSummary`) and creation `timestamp`; `FeedPagination` exposes the `olderCursor`/`newerCursor` cursors ([#9447](https://github.com/MetaMask/core/pull/9447))
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^28.2.0` to `^28.3.0` ([#9463](https://github.com/MetaMask/core/pull/9463))
+
 ## [2.4.0]
 
 ### Added

@@ -5,7 +5,6 @@ import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 import type { KeyringMetadata } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { SnapControllerState } from '@metamask/snaps-controllers';
-import type { Json } from '@metamask/utils';
 import deepmerge from 'deepmerge';
 
 import {
@@ -20,10 +19,7 @@ import {
 } from '../tests';
 import type { RootMessenger, DeepPartial } from '../tests';
 import { AccountProviderWrapper } from './AccountProviderWrapper';
-import type {
-  RestrictedSnapKeyring,
-  SnapAccountProviderConfig,
-} from './SnapAccountProvider';
+import type { SnapAccountProviderConfig } from './SnapAccountProvider';
 import {
   XLM_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
   XLM_ACCOUNT_PROVIDER_NAME,
@@ -66,34 +62,6 @@ class MockStellarKeyring {
     this.accounts = accounts;
   }
 
-  createAccount = jest
-    .fn()
-    .mockImplementation((options: Record<string, Json>) => {
-      const { index } = options;
-      if (typeof index === 'number') {
-        const found = this.accounts.find(
-          (account) =>
-            isBip44Account(account) &&
-            account.options.entropy.groupIndex === index,
-        );
-
-        if (found) {
-          return found;
-        }
-      }
-
-      const account = MockAccountBuilder.from(MOCK_XLM_ACCOUNT_1)
-        .withUuid()
-        .withAddressSuffix(`${this.accounts.length}`)
-        .withGroupIndex(
-          typeof index === 'number' ? index : this.accounts.length,
-        )
-        .get();
-      this.accounts.push(account);
-
-      return account;
-    });
-
   createAccounts: SnapKeyring['createAccounts'] = jest
     .fn()
     .mockImplementation((options) => {
@@ -126,10 +94,6 @@ class MockStellarKeyring {
   discoverAccounts = jest.fn().mockResolvedValue([]);
 
   deleteAccount = jest.fn().mockResolvedValue(undefined);
-
-  get v1(): Required<RestrictedSnapKeyring['v1']> {
-    return { createAccount: this.createAccount };
-  }
 }
 
 class MockXlmAccountProvider extends XlmAccountProvider {
@@ -155,7 +119,6 @@ function setup({
   mocks: {
     handleRequest: jest.Mock;
     keyring: {
-      createAccount: jest.Mock;
       createAccounts: jest.Mock;
       discoverAccounts: jest.Mock;
     };
@@ -237,7 +200,6 @@ function setup({
     mocks: {
       handleRequest: mockHandleRequest,
       keyring: {
-        createAccount: keyring.createAccount,
         createAccounts: keyring.createAccounts as jest.Mock,
         discoverAccounts: keyring.discoverAccounts,
       },
@@ -323,7 +285,6 @@ describe('XlmAccountProvider', () => {
 
     expect(discovered).toStrictEqual([]);
     expect(mocks.keyring.createAccounts).not.toHaveBeenCalled();
-    expect(mocks.keyring.createAccount).not.toHaveBeenCalled();
   });
 
   it('does not run discovery if disabled', async () => {
@@ -342,42 +303,6 @@ describe('XlmAccountProvider', () => {
         groupIndex: 0,
       }),
     ).toStrictEqual([]);
-  });
-
-  describe('v1', () => {
-    it('uses createAccount when batching is disabled', async () => {
-      const accounts = [MOCK_XLM_ACCOUNT_1];
-      // No capabilities provided → empty capability set, so batching is
-      // disabled and the provider falls back to the v1 flow.
-      const { provider, mocks } = setup({
-        accounts,
-      });
-
-      await provider.createAccounts({
-        type: AccountCreationType.Bip44DeriveIndex,
-        entropySource: MOCK_HD_KEYRING_2.metadata.id,
-        groupIndex: accounts.length,
-      });
-
-      expect(mocks.keyring.createAccount).toHaveBeenCalled();
-      expect(mocks.keyring.createAccounts).not.toHaveBeenCalled();
-    });
-
-    it('throws when the Snap is v2-only and does not support v1 account creation', async () => {
-      const { provider, keyring } = setup({
-        accounts: [],
-        config: asConfig({ createAccounts: { batched: false } }),
-      });
-      jest.spyOn(keyring, 'v1', 'get').mockReturnValue(undefined);
-
-      await expect(
-        provider.createAccounts({
-          type: AccountCreationType.Bip44DeriveIndex,
-          entropySource: MOCK_HD_KEYRING_2.metadata.id,
-          groupIndex: 0,
-        }),
-      ).rejects.toThrow('is v2-only and does not support v1 account creation');
-    });
   });
 
   describe('v2 - batched', () => {
@@ -401,7 +326,6 @@ describe('XlmAccountProvider', () => {
         entropySource: MOCK_HD_KEYRING_2.metadata.id,
         groupIndex: newGroupIndex,
       });
-      expect(mocks.keyring.createAccount).not.toHaveBeenCalled();
     });
 
     it('creates multiple accounts using Bip44DeriveIndexRange', async () => {
@@ -420,7 +344,6 @@ describe('XlmAccountProvider', () => {
 
       expect(newAccounts).toHaveLength(3);
       expect(mocks.keyring.createAccounts).toHaveBeenCalledTimes(1);
-      expect(mocks.keyring.createAccount).not.toHaveBeenCalled();
 
       for (const [index, account] of newAccounts.entries()) {
         expect(isBip44Account(account)).toBe(true);
