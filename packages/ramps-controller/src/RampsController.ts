@@ -2425,7 +2425,7 @@ export class RampsController extends BaseController<
     });
 
     if (!this.#isOrderSyncingInProgress) {
-      void updateOrderInRemoteStorage(healedOrder, {
+      updateOrderInRemoteStorage(healedOrder, {
         getRampsControllerInstance: () => this,
         getMessenger: () => this.messenger,
       }).catch((error) => {
@@ -2466,7 +2466,7 @@ export class RampsController extends BaseController<
     }
 
     if (orderToRemove && !this.#isOrderSyncingInProgress) {
-      void deleteOrderInRemoteStorage(orderToRemove, {
+      deleteOrderInRemoteStorage(orderToRemove, {
         getRampsControllerInstance: () => this,
         getMessenger: () => this.messenger,
       }).catch((error) => {
