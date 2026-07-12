@@ -249,25 +249,26 @@ describe('order-syncing/controller-integration', () => {
       const messengerCall = jest
         .fn()
         .mockImplementation((action: string, ...callArgs: unknown[]) => {
-        if (action === 'UserStorageController:getState') {
-          return {
-            isBackupAndSyncEnabled: true,
-            isRampsSyncingEnabled: true,
-          };
-        }
-        if (action === 'AuthenticationController:isSignedIn') {
-          return true;
-        }
-        if (
-          action === 'UserStorageController:performGetStorageAllFeatureEntries'
-        ) {
-          return performGetStorageAllFeatureEntries();
-        }
-        if (action === 'UserStorageController:performBatchSetStorage') {
-          return performBatchSetStorage(...callArgs);
-        }
-        return null;
-      });
+          if (action === 'UserStorageController:getState') {
+            return {
+              isBackupAndSyncEnabled: true,
+              isRampsSyncingEnabled: true,
+            };
+          }
+          if (action === 'AuthenticationController:isSignedIn') {
+            return true;
+          }
+          if (
+            action ===
+            'UserStorageController:performGetStorageAllFeatureEntries'
+          ) {
+            return performGetStorageAllFeatureEntries();
+          }
+          if (action === 'UserStorageController:performBatchSetStorage') {
+            return performBatchSetStorage(...callArgs);
+          }
+          return null;
+        });
 
       const options: OrderSyncingOptions = {
         getRampsControllerInstance: () => controller,
