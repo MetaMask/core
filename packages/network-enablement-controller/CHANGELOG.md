@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `restoreEnabledNetworkMap` action to restore a previously snapshotted enabled network map
+
 ## [5.5.0]
 
 ### Added

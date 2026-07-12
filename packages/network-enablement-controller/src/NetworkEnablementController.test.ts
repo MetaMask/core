@@ -2032,6 +2032,28 @@ describe('NetworkEnablementController', () => {
     });
   });
 
+  describe('restoreEnabledNetworkMap', () => {
+    it('restores the enabled network map to a previously snapshotted state', () => {
+      const { controller } = setupController();
+      const previousEnabledNetworkMap = Object.fromEntries(
+        Object.entries(controller.state.enabledNetworkMap).map(
+          ([namespace, networks]) => [namespace, { ...networks }],
+        ),
+      ) as typeof controller.state.enabledNetworkMap;
+
+      controller.enableNetwork('0xa4b1');
+
+      expect(controller.isNetworkEnabled('0xa4b1')).toBe(true);
+      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+
+      controller.restoreEnabledNetworkMap(previousEnabledNetworkMap);
+
+      expect(controller.state.enabledNetworkMap).toStrictEqual(
+        previousEnabledNetworkMap,
+      );
+    });
+  });
+
   describe('isNetworkEnabled', () => {
     it('returns true for enabled networks using hex chain ID', () => {
       const { controller } = setupController();

@@ -34,6 +34,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'initNativeAssetIdentifiers',
   'enableNetwork',
   'disableNetwork',
+  'restoreEnabledNetworkMap',
   'enableNetworkInNamespace',
   'enableAllPopularNetworks',
   'isNetworkEnabled',
@@ -609,6 +610,32 @@ export class NetworkEnablementController extends BaseController<
 
     this.update((state) => {
       state.enabledNetworkMap[namespace][storageKey] = false;
+    });
+  }
+
+  /**
+   * Restores the enabled network map to a previously snapshotted state.
+   *
+   * This is used when adding a network without switching the active network
+   * filter. Callers should snapshot `enabledNetworkMap` before adding a
+   * network, then restore it after the controller reacts to `networkAdded`.
+   *
+   * @param enabledNetworkMap - Previously snapshotted enabledNetworkMap.
+   */
+  restoreEnabledNetworkMap(
+    enabledNetworkMap: NetworkEnablementControllerState['enabledNetworkMap'],
+  ): void {
+    this.update((state) => {
+      Object.entries(state.enabledNetworkMap).forEach(
+        ([namespace, currentNetworks]) => {
+          Object.keys(currentNetworks).forEach((chainId) => {
+            const previousValue =
+              enabledNetworkMap[namespace as CaipNamespace]?.[chainId];
+            state.enabledNetworkMap[namespace as CaipNamespace][chainId] =
+              previousValue ?? false;
+          });
+        },
+      );
     });
   }
 
