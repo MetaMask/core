@@ -1138,7 +1138,7 @@ export class AssetsController extends BaseController<
 
     // Client + Keyring lifecycle: only run when UI is open AND keyring is unlocked
     this.messenger.subscribe(
-      'ClientController:stateChange', // eslint-disable-line no-restricted-syntax -- upstream controllers export `:stateChange` only
+      'ClientController:stateChange',
       (isUiOpen: boolean) => {
         this.#uiOpen = isUiOpen;
         this.#updateActive();
