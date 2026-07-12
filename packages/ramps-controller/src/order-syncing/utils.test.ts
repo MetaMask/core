@@ -91,6 +91,15 @@ describe('order-syncing/utils', () => {
         ),
       ).toBe(false);
     });
+
+    it('accepts minimal id/providerOrderId picks', () => {
+      expect(
+        isSyncableOrder({
+          id: '/providers/transak/orders/order-from-id',
+          providerOrderId: 'provider-native-id',
+        }),
+      ).toBe(true);
+    });
   });
 
   describe('mapRampsOrderToUserStorageEntry / mapUserStorageEntryToRampsOrder', () => {

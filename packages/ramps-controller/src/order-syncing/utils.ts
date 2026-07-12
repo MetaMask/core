@@ -26,7 +26,9 @@ export function createOrderStorageKey(
  * @param order - The order to validate.
  * @returns True when the order can be synced.
  */
-export function isSyncableOrder(order: RampsOrder): boolean {
+export function isSyncableOrder(
+  order: Pick<RampsOrder, 'id' | 'providerOrderId'>,
+): boolean {
   return Boolean(
     order.providerOrderId?.trim() ||
     (order.id?.includes('/orders/') && order.id.split('/orders/')[1]),
