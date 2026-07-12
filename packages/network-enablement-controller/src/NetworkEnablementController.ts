@@ -631,8 +631,8 @@ export class NetworkEnablementController extends BaseController<
           Object.keys(currentNetworks).forEach((chainId) => {
             const storageKey = chainId as CaipChainId | Hex;
             const previousValue =
-              enabledNetworkMap[namespace as CaipNamespace]?.[storageKey];
-            state.enabledNetworkMap[namespace as CaipNamespace][storageKey] =
+              enabledNetworkMap[namespace]?.[storageKey];
+            state.enabledNetworkMap[namespace][storageKey] =
               previousValue ?? false;
           });
         },

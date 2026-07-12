@@ -2052,6 +2052,20 @@ describe('NetworkEnablementController', () => {
         previousEnabledNetworkMap,
       );
     });
+
+    it('disables networks missing from the restored snapshot', () => {
+      const { controller } = setupController();
+
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+
+      controller.restoreEnabledNetworkMap({});
+
+      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(false);
+      expect(
+        controller.isNetworkEnabled('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
+      ).toBe(false);
+    });
   });
 
   describe('isNetworkEnabled', () => {
