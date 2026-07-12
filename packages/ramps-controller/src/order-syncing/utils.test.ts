@@ -66,6 +66,18 @@ describe('order-syncing/utils', () => {
         }),
       ).toBe('provider-native-id');
     });
+
+    it('trims whitespace from providerOrderId keys', () => {
+      expect(
+        createOrderStorageKey({
+          providerOrderId: '  provider-native-id  ',
+        }),
+      ).toBe('provider-native-id');
+    });
+
+    it('returns an empty key when providerOrderId is missing', () => {
+      expect(createOrderStorageKey({})).toBe('');
+    });
   });
 
   describe('isSyncableOrder', () => {

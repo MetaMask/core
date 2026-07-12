@@ -76,10 +76,6 @@ function computeMergePlan(
 
         if (localTimestamp > remoteTimestamp) {
           ordersToUpdateRemotely.push(localOrder);
-        } else if (
-          !areOrdersEqual(localOrder, stripSyncMetadata(remoteOrder))
-        ) {
-          ordersToUpdateRemotely.push(localOrder);
         } else {
           ordersToDeleteLocally.push(remoteOrder);
         }
@@ -383,7 +379,7 @@ export async function updateOrderInRemoteStorage(
  * @param options - Parameters used for syncing operations.
  */
 export async function deleteOrderInRemoteStorage(
-  order: Pick<RampsOrder, 'id' | 'providerOrderId'> | RampsOrder,
+  order: RampsOrder,
   options: OrderSyncingOptions,
 ): Promise<void> {
   const { trace } = options;
@@ -395,7 +391,7 @@ export async function deleteOrderInRemoteStorage(
 
     const now = Date.now();
     const deletedOrder: SyncRampsOrder = {
-      ...(order as RampsOrder),
+      ...order,
       deletedAt: now,
       lastUpdatedAt: now,
     };

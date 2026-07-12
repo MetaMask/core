@@ -33,6 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clear tombstone metadata when uploading active local orders during full sync ([#9474](https://github.com/MetaMask/core/pull/9474))
 - Apply last-write-wins rules to remote soft-deletes so newer local orders can restore over older tombstones ([#9474](https://github.com/MetaMask/core/pull/9474))
 - Surface remote fetch/parse failures via `onOrderSyncErroneousSituation` instead of treating errors as an empty remote state ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Honor newer remote tombstones during full sync even when local order content differs ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Trim `providerOrderId` when deriving User Storage keys so syncability checks and storage keys stay aligned ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Clear order polling metadata for stored `providerOrderId` and internal order codes when `removeOrder` is called with either identifier ([#9474](https://github.com/MetaMask/core/pull/9474))
 
 ## [15.1.0]
 

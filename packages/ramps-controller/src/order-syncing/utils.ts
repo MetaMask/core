@@ -17,7 +17,7 @@ export function createOrderStorageKey(
   if (id?.includes('/orders/')) {
     return id.split('/orders/')[1];
   }
-  return providerOrderId;
+  return providerOrderId?.trim() ?? '';
 }
 
 /**

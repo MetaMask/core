@@ -2455,6 +2455,15 @@ export class RampsController extends BaseController<
 
     this.#orderPollingMeta.delete(providerOrderId);
 
+    if (orderToRemove) {
+      if (orderToRemove.providerOrderId) {
+        this.#orderPollingMeta.delete(orderToRemove.providerOrderId);
+      }
+
+      const internalOrderCode = getInternalOrderCode(orderToRemove);
+      this.#orderPollingMeta.delete(internalOrderCode);
+    }
+
     if (orderToRemove && !this.#isOrderSyncingInProgress) {
       // eslint-disable-next-line @typescript-eslint/no-floating-promises
       deleteOrderInRemoteStorage(orderToRemove, {

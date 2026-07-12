@@ -681,7 +681,7 @@ describe('order-syncing/controller-integration', () => {
       const { options, performBatchSetStorage } = arrangeMocks();
 
       await deleteOrderInRemoteStorage(
-        { id: '', providerOrderId: '' },
+        createMockOrder({ id: '', providerOrderId: '' }),
         options,
       );
 
@@ -780,6 +780,23 @@ describe('order-syncing/controller-integration', () => {
       const localOrder = createMockOrder();
       const deletedRemote: SyncRampsOrder = {
         ...localOrder,
+        deletedAt: Date.now(),
+        lastUpdatedAt: Date.now(),
+      };
+
+      const plan = computeMergePlan([localOrder], [deletedRemote]);
+
+      expect(plan.ordersToDeleteLocally).toHaveLength(1);
+      expect(plan.ordersToUpdateRemotely).toHaveLength(0);
+    });
+
+    it('applies newer remote tombstones when content differs', () => {
+      const localOrder = createMockOrder({
+        fiatAmount: 300,
+        createdAt: 1,
+      });
+      const deletedRemote: SyncRampsOrder = {
+        ...createMockOrder({ fiatAmount: 100 }),
         deletedAt: Date.now(),
         lastUpdatedAt: Date.now(),
       };

@@ -8259,6 +8259,60 @@ describe('RampsController', () => {
         expect(controller.state.orders).toHaveLength(1);
       });
     });
+
+    it('clears polling metadata when removing by internal order code', async () => {
+      await withController(async ({ rootMessenger }) => {
+        jest.useFakeTimers();
+
+        const legacyOrder = createMockOrder({
+          id: '/providers/transak/orders/internal-order-456',
+          providerOrderId: 'legacy-provider-id',
+          status: RampsOrderStatus.Pending,
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
+          walletAddress: '0xabc',
+        });
+        rootMessenger.call('RampsController:addOrder', legacyOrder);
+
+        let callCount = 0;
+        rootMessenger.registerActionHandler(
+          'RampsService:getOrder',
+          async () => {
+            callCount += 1;
+            throw new Error('fail');
+          },
+        );
+
+        rootMessenger.call('RampsController:startOrderPolling');
+        await jest.advanceTimersByTimeAsync(0);
+        expect(callCount).toBe(1);
+
+        rootMessenger.call('RampsController:removeOrder', 'internal-order-456');
+        rootMessenger.call('RampsController:stopOrderPolling');
+
+        const replacementOrder = createMockOrder({
+          id: '/providers/transak/orders/internal-order-456',
+          providerOrderId: 'legacy-provider-id',
+          status: RampsOrderStatus.Pending,
+          provider: createMockProvider({
+            id: '/providers/transak',
+            name: 'Transak',
+          }),
+          walletAddress: '0xabc',
+        });
+        rootMessenger.call('RampsController:addOrder', replacementOrder);
+
+        callCount = 0;
+        rootMessenger.call('RampsController:startOrderPolling');
+        await jest.advanceTimersByTimeAsync(0);
+        expect(callCount).toBe(1);
+
+        rootMessenger.call('RampsController:stopOrderPolling');
+        jest.useRealTimers();
+      });
+    });
   });
 
   describe('getOrder', () => {
