@@ -1,12 +1,12 @@
 import { assertIsBip44Account } from '@metamask/account-api';
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback } from '@metamask/controller-utils';
-import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import {
   KeyringAccountEntropyTypeOption,
   SolAccountType,
   SolScope,
 } from '@metamask/keyring-api';
+import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
@@ -15,10 +15,7 @@ import type { CaipChainId } from '@metamask/utils';
 import { traceFallback } from '../analytics';
 import type { MultichainAccountServiceMessenger } from '../types';
 import { SnapAccountProvider } from './SnapAccountProvider';
-import type {
-  RestrictedSnapKeyring,
-  SnapAccountProviderConfig,
-} from './SnapAccountProvider';
+import type { SnapAccountProviderConfig } from './SnapAccountProvider';
 
 export type SolAccountProviderConfig = SnapAccountProviderConfig;
 
@@ -70,24 +67,6 @@ export class SolAccountProvider extends SnapAccountProvider {
 
   #getDerivationPath(groupIndex: number): string {
     return `m/44'/501'/${groupIndex}'/0'`;
-  }
-
-  protected override async createAccountV1(
-    keyring: RestrictedSnapKeyring,
-    {
-      entropySource,
-      groupIndex,
-    }: { entropySource: EntropySourceId; groupIndex: number },
-  ): Promise<KeyringAccount> {
-    if (!keyring.v1) {
-      throw new Error(
-        `Snap "${SolAccountProvider.SOLANA_SNAP_ID}" is v2-only and does not support v1 account creation`,
-      );
-    }
-    return keyring.v1.createAccount({
-      entropySource,
-      derivationPath: this.#getDerivationPath(groupIndex),
-    });
   }
 
   protected override toBip44Account(

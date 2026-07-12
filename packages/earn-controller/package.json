@@ -55,7 +55,7 @@
   "dependencies": {
     "@ethersproject/bignumber": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
-    "@metamask/account-tree-controller": "^7.5.3",
+    "@metamask/account-tree-controller": "^7.5.5",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/controller-utils": "^12.3.0",
     "@metamask/keyring-api": "^23.5.0",
@@ -66,7 +66,7 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
-    "@metamask/transaction-controller": "^68.3.0",
+    "@metamask/transaction-controller": "^69.0.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
     "deepmerge": "^4.2.2",

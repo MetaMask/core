@@ -1,6 +1,5 @@
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback } from '@metamask/controller-utils';
-import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { BtcAccountType, BtcScope } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
@@ -9,10 +8,7 @@ import type { CaipChainId } from '@metamask/utils';
 import { traceFallback } from '../analytics';
 import type { MultichainAccountServiceMessenger } from '../types';
 import { SnapAccountProvider } from './SnapAccountProvider';
-import type {
-  RestrictedSnapKeyring,
-  SnapAccountProviderConfig,
-} from './SnapAccountProvider';
+import type { SnapAccountProviderConfig } from './SnapAccountProvider';
 
 export type BtcAccountProviderConfig = SnapAccountProviderConfig;
 
@@ -60,25 +56,5 @@ export class BtcAccountProvider extends SnapAccountProvider {
       account.type === BtcAccountType.P2wpkh &&
       Object.values<string>(BtcAccountType).includes(account.type)
     );
-  }
-
-  protected override createAccountV1(
-    keyring: RestrictedSnapKeyring,
-    {
-      entropySource,
-      groupIndex,
-    }: { entropySource: EntropySourceId; groupIndex: number },
-  ): Promise<KeyringAccount> {
-    if (!keyring.v1) {
-      throw new Error(
-        `Snap "${BtcAccountProvider.BTC_SNAP_ID}" is v2-only and does not support v1 account creation`,
-      );
-    }
-    return keyring.v1.createAccount({
-      entropySource,
-      index: groupIndex,
-      addressType: BtcAccountType.P2wpkh,
-      scope: BtcScope.Mainnet,
-    });
   }
 }
