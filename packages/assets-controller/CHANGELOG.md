@@ -14,6 +14,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
 - Bump `@metamask/keyring-snap-client` from `^9.0.2` to `^9.2.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
 
+### Fixed
+
+- Subscribe to exported `AccountTreeController:stateChange`, `ClientController:stateChange`, and `NetworkEnablementController:stateChange` messenger events instead of locally constructed `:stateChanged` aliases ([#9423](https://github.com/MetaMask/core/pull/9423))
+
 ## [10.1.0]
 
 ### Added

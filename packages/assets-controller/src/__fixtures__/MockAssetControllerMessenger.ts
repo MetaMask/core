@@ -76,11 +76,12 @@ export function createMockAssetControllerMessenger(): {
       'BackendWebSocketService:getChannelCallbacks',
       'BackendWebSocketService:subscribe',
     ],
+    /* eslint-disable no-restricted-syntax -- test messenger delegates exported `:stateChange` events */
     events: [
       // AssetsController
       'AccountTreeController:selectedAccountGroupChange',
-      'AccountTreeController:stateChanged',
-      'ClientController:stateChanged',
+      'AccountTreeController:stateChange',
+      'ClientController:stateChange',
       'KeyringController:lock',
       'KeyringController:unlock',
       'PreferencesController:stateChange',
@@ -89,7 +90,6 @@ export function createMockAssetControllerMessenger(): {
       'TransactionController:transactionConfirmed',
       // StakedBalanceDataSource
       'NetworkEnablementController:stateChange',
-      'NetworkEnablementController:stateChanged',
       // SnapDataSource
       'AccountsController:accountBalancesUpdated',
       'PermissionController:stateChange',
@@ -98,6 +98,7 @@ export function createMockAssetControllerMessenger(): {
       // AccountActivityService
       'AccountActivityService:balanceUpdated',
     ],
+    /* eslint-enable no-restricted-syntax */
   });
 
   return {
