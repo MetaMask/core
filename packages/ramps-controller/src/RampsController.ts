@@ -629,9 +629,7 @@ type AllowedActions =
   | TransakServiceCancelAllActiveOrdersAction
   | TransakServiceGetActiveOrdersAction
   | UserStorageController.UserStorageControllerGetStateAction
-  | UserStorageController.UserStorageControllerPerformGetStorageAction
   | UserStorageController.UserStorageControllerPerformGetStorageAllFeatureEntriesAction
-  | UserStorageController.UserStorageControllerPerformSetStorageAction
   | UserStorageController.UserStorageControllerPerformBatchSetStorageAction
   | AuthenticationController.AuthenticationControllerIsSignedInAction;
 

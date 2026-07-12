@@ -29,6 +29,16 @@ type MergePlan = {
 };
 
 /**
+ * Returns the timestamp used for ramps order conflict resolution.
+ *
+ * @param order - A ramps order that may include sync metadata.
+ * @returns The best available last-updated timestamp.
+ */
+function getOrderTimestamp(order: RampsOrder | SyncRampsOrder): number {
+  return (order as SyncRampsOrder).lastUpdatedAt || order.createdAt || 0;
+}
+
+/**
  * Builds the local/remote merge plan from the current local snapshot and remote
  * entries.
  *
@@ -61,17 +71,24 @@ function computeMergePlan(
 
     if (remoteOrder.deletedAt) {
       if (localOrder) {
-        ordersToDeleteLocally.push(remoteOrder);
+        const localTimestamp = getOrderTimestamp(localOrder);
+        const remoteTimestamp = remoteOrder.deletedAt;
+
+        if (localTimestamp > remoteTimestamp) {
+          ordersToUpdateRemotely.push(localOrder);
+        } else if (
+          !areOrdersEqual(localOrder, stripSyncMetadata(remoteOrder))
+        ) {
+          ordersToUpdateRemotely.push(localOrder);
+        } else {
+          ordersToDeleteLocally.push(remoteOrder);
+        }
       }
     } else if (!localOrder) {
       ordersToAddOrUpdateLocally.push(remoteOrder);
     } else if (!areOrdersEqual(localOrder, remoteOrder)) {
-      const localTimestamp =
-        (localOrder as SyncRampsOrder).lastUpdatedAt ||
-        localOrder.createdAt ||
-        0;
-      const remoteTimestamp =
-        remoteOrder.lastUpdatedAt || remoteOrder.createdAt || 0;
+      const localTimestamp = getOrderTimestamp(localOrder);
+      const remoteTimestamp = getOrderTimestamp(remoteOrder);
 
       if (localTimestamp >= remoteTimestamp) {
         ordersToUpdateRemotely.push(localOrder);
@@ -154,8 +171,9 @@ export async function syncOrdersWithUserStorage(
     return;
   }
 
-  const remoteOrders = await getRemoteOrders(options);
-  const validRemoteOrders = remoteOrders?.filter(isSyncableOrder) || [];
+  const validRemoteOrders = (await getRemoteOrders(options, config)).filter(
+    isSyncableOrder,
+  );
 
   const performSync = async () => {
     const controller = getRampsControllerInstance();
@@ -189,27 +207,18 @@ export async function syncOrdersWithUserStorage(
       );
 
       if (ordersToUpload.length > 0) {
-        const updatedRemoteOrders: Record<string, SyncRampsOrder> = {};
-        for (const localOrder of ordersToUpload) {
-          const key = createOrderStorageKey(localOrder);
-          updatedRemoteOrders[key] = {
-            ...remoteOrdersMap.get(key),
-            ...localOrder,
+        const syncedUploads: SyncRampsOrder[] = ordersToUpload.map(
+          (localOrder) => ({
+            ...stripSyncMetadata(localOrder),
             lastUpdatedAt: Date.now(),
-          };
-        }
-        await saveOrdersToUserStorage(
-          Object.values(updatedRemoteOrders),
-          options,
+          }),
         );
+        await saveOrdersToUserStorage(syncedUploads, options);
       }
     } catch (error) {
-      if (onOrderSyncErroneousSituation) {
-        onOrderSyncErroneousSituation('Error synchronizing ramps orders', {
-          error,
-        });
-        throw error;
-      }
+      onOrderSyncErroneousSituation?.('Error synchronizing ramps orders', {
+        error,
+      });
       throw error;
     } finally {
       controller.setIsOrderSyncingInProgress(false);
@@ -243,12 +252,15 @@ export async function syncOrdersWithUserStorage(
  * Retrieves remote ramps orders from User Storage.
  *
  * @param options - Parameters used for retrieving remote orders.
- * @returns Array of sync-aware orders, or null if none found / on error.
+ * @param config - Optional sync callbacks for error reporting.
+ * @returns Parsed sync-aware orders. Returns an empty array when none exist.
  */
 async function getRemoteOrders(
   options: OrderSyncingOptions,
-): Promise<SyncRampsOrder[] | null> {
+  config: SyncOrdersWithUserStorageConfig,
+): Promise<SyncRampsOrder[]> {
   const { getMessenger } = options;
+  const { onOrderSyncErroneousSituation } = config;
 
   try {
     const remoteOrdersJsonArray = await getMessenger().call(
@@ -257,15 +269,29 @@ async function getRemoteOrders(
     );
 
     if (!remoteOrdersJsonArray || remoteOrdersJsonArray.length === 0) {
-      return null;
+      return [];
     }
 
-    return remoteOrdersJsonArray.map((orderJson) => {
-      const entry = JSON.parse(orderJson) as UserStorageRampsOrderEntry;
-      return mapUserStorageEntryToRampsOrder(entry);
+    const orders: SyncRampsOrder[] = [];
+
+    for (const orderJson of remoteOrdersJsonArray) {
+      try {
+        const entry = JSON.parse(orderJson) as UserStorageRampsOrderEntry;
+        orders.push(mapUserStorageEntryToRampsOrder(entry));
+      } catch (error) {
+        onOrderSyncErroneousSituation?.(
+          'Failed to parse remote ramps order entry',
+          { error, orderJson },
+        );
+      }
+    }
+
+    return orders;
+  } catch (error) {
+    onOrderSyncErroneousSituation?.('Failed to fetch remote ramps orders', {
+      error,
     });
-  } catch {
-    return null;
+    throw error;
   }
 }
 
@@ -282,10 +308,6 @@ async function saveOrdersToUserStorage(
   const { getMessenger, trace } = options;
 
   const saveOrders = async () => {
-    if (!orders || orders.length === 0) {
-      return;
-    }
-
     const storageEntries: [string, string][] = orders.map((order) => {
       const key = createOrderStorageKey(order);
       const storageEntry = mapRampsOrderToUserStorageEntry(order);
@@ -385,3 +407,9 @@ export async function deleteOrderInRemoteStorage(
     ? await trace({ name: TraceName.RampsOrderSyncDeleteRemote }, deleteOrder)
     : await deleteOrder();
 }
+
+export const orderSyncingTestExports = {
+  computeMergePlan,
+  reconcileOrdersForRemoteUpload,
+  getOrderTimestamp,
+};

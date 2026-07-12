@@ -73,6 +73,17 @@ describe('order-syncing/utils', () => {
       expect(isSyncableOrder(createMockOrder())).toBe(true);
     });
 
+    it('returns true when only the order id path is present', () => {
+      expect(
+        isSyncableOrder(
+          createMockOrder({
+            providerOrderId: '',
+            id: '/providers/transak/orders/order-from-id',
+          }),
+        ),
+      ).toBe(true);
+    });
+
     it('returns false when both id and providerOrderId are missing', () => {
       expect(
         isSyncableOrder(
@@ -83,6 +94,22 @@ describe('order-syncing/utils', () => {
   });
 
   describe('mapRampsOrderToUserStorageEntry / mapUserStorageEntryToRampsOrder', () => {
+    it('defaults lastUpdatedAt when mapping to storage', () => {
+      const entry = mapRampsOrderToUserStorageEntry(createMockOrder());
+
+      expect(entry.lu).toEqual(expect.any(Number));
+    });
+
+    it('maps storage entries without lastUpdatedAt metadata', () => {
+      const entry: UserStorageRampsOrderEntry = {
+        [USER_STORAGE_VERSION_KEY]: USER_STORAGE_VERSION,
+        o: createMockOrder(),
+      };
+
+      const mapped = mapUserStorageEntryToRampsOrder(entry);
+      expect(mapped.lastUpdatedAt).toBeUndefined();
+    });
+
     it('round-trips a full order with sync metadata', () => {
       const order: SyncRampsOrder = {
         ...createMockOrder(),
