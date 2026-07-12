@@ -243,7 +243,7 @@ export async function updateOrderInRemoteStorage(
   order: RampsOrder,
   options: OrderSyncingOptions,
 ): Promise<void> {
-  const { getMessenger, trace } = options;
+  const { trace } = options;
 
   const updateOrder = async () => {
     if (!canPerformOrderSyncing(options) || !isSyncableOrder(order)) {
@@ -255,14 +255,7 @@ export async function updateOrderInRemoteStorage(
       lastUpdatedAt: Date.now(),
     };
 
-    const key = createOrderStorageKey(order);
-    const storageEntry = mapRampsOrderToUserStorageEntry(updatedEntry);
-
-    await getMessenger().call(
-      'UserStorageController:performSetStorage',
-      `${USER_STORAGE_RAMPS_ORDERS_FEATURE}.${key}`,
-      JSON.stringify(storageEntry),
-    );
+    await saveOrdersToUserStorage([updatedEntry], options);
   };
 
   if (trace) {
@@ -291,47 +284,21 @@ export async function deleteOrderInRemoteStorage(
   order: Pick<RampsOrder, 'id' | 'providerOrderId'> | RampsOrder,
   options: OrderSyncingOptions,
 ): Promise<void> {
-  const { getMessenger, trace } = options;
+  const { trace } = options;
 
   const deleteOrder = async () => {
-    if (!canPerformOrderSyncing(options)) {
+    if (!canPerformOrderSyncing(options) || !isSyncableOrder(order)) {
       return;
     }
 
-    const key = createOrderStorageKey(order);
+    const now = Date.now();
+    const deletedOrder: SyncRampsOrder = {
+      ...(order as RampsOrder),
+      deletedAt: now,
+      lastUpdatedAt: now,
+    };
 
-    try {
-      const existingOrderJson = await getMessenger().call(
-        'UserStorageController:performGetStorage',
-        `${USER_STORAGE_RAMPS_ORDERS_FEATURE}.${key}`,
-      );
-
-      if (existingOrderJson) {
-        const existingStorageEntry = JSON.parse(
-          existingOrderJson,
-        ) as UserStorageRampsOrderEntry;
-        const existingOrder =
-          mapUserStorageEntryToRampsOrder(existingStorageEntry);
-
-        const now = Date.now();
-        const deletedOrder: SyncRampsOrder = {
-          ...existingOrder,
-          deletedAt: now,
-          lastUpdatedAt: now,
-        };
-
-        const deletedStorageEntry =
-          mapRampsOrderToUserStorageEntry(deletedOrder);
-
-        await getMessenger().call(
-          'UserStorageController:performSetStorage',
-          `${USER_STORAGE_RAMPS_ORDERS_FEATURE}.${key}`,
-          JSON.stringify(deletedStorageEntry),
-        );
-      }
-    } catch {
-      // Order not in remote storage — nothing to tombstone
-    }
+    await saveOrdersToUserStorage([deletedOrder], options);
   };
 
   return trace

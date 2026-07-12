@@ -2,8 +2,6 @@ import { RampsOrderStatus } from '../RampsService';
 import type { RampsOrder } from '../RampsService';
 import {
   USER_STORAGE_RAMPS_ORDERS_FEATURE,
-  USER_STORAGE_VERSION,
-  USER_STORAGE_VERSION_KEY,
 } from './constants';
 import {
   deleteOrderInRemoteStorage,
@@ -210,51 +208,70 @@ describe('order-syncing/controller-integration', () => {
   });
 
   describe('updateOrderInRemoteStorage', () => {
-    it('writes a single order entry', async () => {
+    it('writes a single order entry via batch storage', async () => {
       const order = createMockOrder();
-      const { options, performSetStorage } = arrangeMocks();
+      const { options, performBatchSetStorage } = arrangeMocks();
 
       await updateOrderInRemoteStorage(order, options);
 
-      expect(performSetStorage).toHaveBeenCalledWith(
-        `${USER_STORAGE_RAMPS_ORDERS_FEATURE}.abc-123`,
-        expect.stringContaining('"abc-123"'),
+      expect(performBatchSetStorage).toHaveBeenCalledWith(
+        USER_STORAGE_RAMPS_ORDERS_FEATURE,
+        expect.arrayContaining([
+          expect.arrayContaining(['abc-123', expect.any(String)]),
+        ]),
       );
     });
 
+    it('supports provider order IDs that are invalid for performSetStorage paths', async () => {
+      const order = createMockOrder({
+        providerOrderId: '550e8400-e29b-41d4-a716-446655440000',
+        id: '/providers/transak/orders/550e8400-e29b-41d4-a716-446655440000',
+      });
+      const { options, performBatchSetStorage, performSetStorage } =
+        arrangeMocks();
+
+      await updateOrderInRemoteStorage(order, options);
+
+      expect(performBatchSetStorage).toHaveBeenCalledWith(
+        USER_STORAGE_RAMPS_ORDERS_FEATURE,
+        expect.arrayContaining([
+          expect.arrayContaining([
+            '550e8400-e29b-41d4-a716-446655440000',
+            expect.any(String),
+          ]),
+        ]),
+      );
+      expect(performSetStorage).not.toHaveBeenCalled();
+    });
+
     it('no-ops when syncing is disabled', async () => {
-      const { options, performSetStorage } = arrangeMocks({
+      const { options, performBatchSetStorage } = arrangeMocks({
         isBackupAndSyncEnabled: false,
       });
 
       await updateOrderInRemoteStorage(createMockOrder(), options);
 
-      expect(performSetStorage).not.toHaveBeenCalled();
+      expect(performBatchSetStorage).not.toHaveBeenCalled();
     });
   });
 
   describe('deleteOrderInRemoteStorage', () => {
-    it('soft-deletes an existing remote order', async () => {
+    it('soft-deletes via batch storage using the local order payload', async () => {
       const order = createMockOrder();
-      const existingEntry = JSON.stringify(
-        mapRampsOrderToUserStorageEntry({
-          ...order,
-          lastUpdatedAt: Date.now(),
-        }),
-      );
-      const { options, performGetStorage, performSetStorage } = arrangeMocks();
-      performGetStorage.mockResolvedValue(existingEntry);
+      const { options, performBatchSetStorage, performGetStorage } =
+        arrangeMocks();
 
       await deleteOrderInRemoteStorage(order, options);
 
-      expect(performSetStorage).toHaveBeenCalledWith(
-        `${USER_STORAGE_RAMPS_ORDERS_FEATURE}.abc-123`,
-        expect.stringContaining(
-          `"${USER_STORAGE_VERSION_KEY}":"${USER_STORAGE_VERSION}"`,
-        ),
+      expect(performGetStorage).not.toHaveBeenCalled();
+      expect(performBatchSetStorage).toHaveBeenCalledWith(
+        USER_STORAGE_RAMPS_ORDERS_FEATURE,
+        expect.arrayContaining([
+          expect.arrayContaining(['abc-123', expect.any(String)]),
+        ]),
       );
       const saved = JSON.parse(
-        performSetStorage.mock.calls[0][1] as string,
+        performBatchSetStorage.mock.calls[0][1][0][1] as string,
       ) as { dt?: number };
       expect(saved.dt).toEqual(expect.any(Number));
     });
