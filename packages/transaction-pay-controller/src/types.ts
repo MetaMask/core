@@ -16,12 +16,6 @@ import type {
 import type { AccountTrackerControllerGetStateAction } from '@metamask/assets-controllers';
 import type { ControllerStateChangeEvent } from '@metamask/base-controller';
 import type { ControllerGetStateAction } from '@metamask/base-controller';
-import type { BridgeControllerFetchQuotesAction } from '@metamask/bridge-controller';
-import type { BridgeStatusControllerStateChangeEvent } from '@metamask/bridge-status-controller';
-import type {
-  BridgeStatusControllerGetStateAction,
-  BridgeStatusControllerSubmitTxAction,
-} from '@metamask/bridge-status-controller';
 import type { GetGasFeeState } from '@metamask/gas-fee-controller';
 import type {
   KeyringControllerGetStateAction,
@@ -69,9 +63,6 @@ import type { TransactionPayControllerMethodActions } from './TransactionPayCont
 export type AllowedActions =
   | AccountTrackerControllerGetStateAction
   | AssetsControllerGetStateForTransactionPayAction
-  | BridgeControllerFetchQuotesAction
-  | BridgeStatusControllerGetStateAction
-  | BridgeStatusControllerSubmitTxAction
   | CurrencyRateControllerGetStateAction
   | GetGasFeeState
   | KeyringControllerGetStateAction
@@ -95,7 +86,6 @@ export type AllowedActions =
 
 export type AllowedEvents =
   | AssetsControllerStateChangeEvent
-  | BridgeStatusControllerStateChangeEvent
   | CurrencyRateStateChange
   | KeyringControllerUnlockEvent
   | TokenRatesControllerStateChangeEvent
@@ -793,8 +783,10 @@ export type UpdateFiatPaymentRequest = {
 /** Callback to convert a transaction to a redeem delegation. */
 export type GetDelegationTransactionCallback = ({
   transaction,
+  isSubsidized,
 }: {
   transaction: TransactionMeta;
+  isSubsidized?: boolean;
 }) => Promise<{
   authorizationList?: AuthorizationList;
   data: Hex;

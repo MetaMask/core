@@ -2,11 +2,11 @@
 import type { CaipAssetType, CaipChainId } from '@metamask/utils';
 
 import type {
-  FeatureId,
   InputPrimaryDenomination,
   SortOrder,
   StatusTypes,
 } from '../../types';
+import type { FeatureId } from '../../validators/feature-flags';
 import type {
   UnifiedSwapBridgeEventName,
   BatchSellMetricsEventName,

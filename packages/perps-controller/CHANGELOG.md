@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.5.3` to `7.5.4` ([#9429](https://github.com/MetaMask/core/pull/9429))
+
+## [9.2.1]
+
+### Changed
+
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
+### Fixed
+
+- Fix `adaptOrderFromSDK` dropping `takeProfitPrice`/`stopLossPrice` for child TP/SL orders whose `triggerPx` is an empty string (HyperLiquid's representation of "no trigger price" when the price is instead carried in `limitPx`) ([#9398](https://github.com/MetaMask/core/pull/9398))
+  - `??` only falls back on `null`/`undefined`, so an empty-string `triggerPx` was never replaced by `limitPx`, leaving `takeProfitPrice`/`stopLossPrice` (and their order IDs) `undefined` on the resulting `Order`. Switched back to `||`, which correctly treats `''` as falsy.
+
+## [9.2.0]
+
+### Added
+
+- Add optional `description?: string` to `PerpsMarketData` and `TerminalAssetMetadata`, exposing the human-readable asset description sourced from the Terminal API when available ([#9334](https://github.com/MetaMask/core/pull/9334))
+  - `TerminalMarketService` now reads the `description` field from Terminal API items (ignoring `null`/empty values) and includes it in per-symbol metadata.
+  - `MarketDataService.getMarketDataWithPrices` merges the description into `PerpsMarketData` when the Terminal API backend (`useTerminalApi`) is enabled; markets without a Terminal description keep the field `undefined`.
+
+## [9.1.0]
+
 ### Added
 
 - Add Auto Close TP/SL RoE sign toggle analytics constants to `PERPS_EVENT_PROPERTY` and `PERPS_EVENT_VALUE` so mobile and extension can import them from `@metamask/perps-controller` instead of local mirrors ([#9322](https://github.com/MetaMask/core/pull/9322))
@@ -29,7 +54,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - New `PERPS_EVENT_PROPERTY` keys: `CHART_LIBRARY`, `ASSET_TYPE`
   - New `PERPS_EVENT_VALUE.CHART_LIBRARY` group: `lightweight`, `advanced`
   - New `PERPS_EVENT_VALUE.ASSET_TYPE` group: `spot`, `perp`
-- Add `fast?: boolean` to `SubscribeOrderBookParams` ([#9160](https://github.com/MetaMask/core/pull/9160)): when set to `true`, the order book subscription uses Hyperliquid's fast l2Book mode (5 levels @ ~0.5 s cadence) instead of the default (20 levels @ ~2 s)
+- Add `fast?: boolean` to `SubscribeOrderBookParams`: when set to `true`, the order book subscription uses Hyperliquid's fast l2Book mode (5 levels @ ~0.5 s cadence) instead of the default (20 levels @ ~2 s) ([#9160](https://github.com/MetaMask/core/pull/9160))
   - No change to `#processOrderBookData` or cumulative-total math; callers opting into `fast: true` receive up to 5 levels per side instead of 20.
 
 ### Changed
@@ -46,7 +71,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The fast-stream price is preferred only while it is fresh (within a 10 s staleness window); `allMids` takes back over automatically once the `activeAssetCtx` stream goes quiet.
   - A startup guard prevents any `'0'` price from being emitted: if `activeAssetCtx` fires before `allMids` with no `midPx`/`markPx`, no notification is sent until a usable price arrives from either source.
   - No new WebSocket subscriptions are created; `activeAssetCtx` was already established for `includeMarketData: true` subscriptions.
-- Bump `@nktkas/hyperliquid` from `^0.32.2` to `^0.33.1` ([#9160](https://github.com/MetaMask/core/pull/9160)): adds support for the `fast` field on `l2Book` subscriptions
+- Bump `@nktkas/hyperliquid` from `^0.32.2` to `^0.33.1`: adds support for the `fast` field on `l2Book` subscriptions ([#9160](https://github.com/MetaMask/core/pull/9160))
 
 ## [9.0.0]
 
@@ -473,7 +498,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@9.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@9.2.1...HEAD
+[9.2.1]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@9.2.0...@metamask/perps-controller@9.2.1
+[9.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@9.1.0...@metamask/perps-controller@9.2.0
+[9.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@9.0.0...@metamask/perps-controller@9.1.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@8.3.0...@metamask/perps-controller@9.0.0
 [8.3.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@8.2.0...@metamask/perps-controller@8.3.0
 [8.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@8.1.0...@metamask/perps-controller@8.2.0

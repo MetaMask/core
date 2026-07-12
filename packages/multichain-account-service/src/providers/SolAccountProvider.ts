@@ -1,27 +1,21 @@
 import { assertIsBip44Account } from '@metamask/account-api';
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback } from '@metamask/controller-utils';
-import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import {
-  AccountCreationType,
   KeyringAccountEntropyTypeOption,
   SolAccountType,
   SolScope,
 } from '@metamask/keyring-api';
-import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
+import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
+import type { CaipChainId } from '@metamask/utils';
 
 import { traceFallback } from '../analytics';
-import { TraceName } from '../analytics/traces';
 import type { MultichainAccountServiceMessenger } from '../types';
 import { SnapAccountProvider } from './SnapAccountProvider';
-import type {
-  RestrictedSnapKeyring,
-  SnapAccountProviderConfig,
-} from './SnapAccountProvider';
-import { withRetry, withTimeout } from './utils';
+import type { SnapAccountProviderConfig } from './SnapAccountProvider';
 
 export type SolAccountProviderConfig = SnapAccountProviderConfig;
 
@@ -36,7 +30,6 @@ export const SOL_ACCOUNT_PROVIDER_DEFAULT_CONFIG: SnapAccountProviderConfig = {
     backOffMs: 1000,
   },
   createAccounts: {
-    batched: false, // For now, the Snap is not fully v2 compliant.
     timeoutMs: 3000,
   },
   resyncAccounts: {
@@ -49,13 +42,9 @@ export class SolAccountProvider extends SnapAccountProvider {
 
   static SOLANA_SNAP_ID = 'npm:@metamask/solana-wallet-snap' as SnapId;
 
-  readonly capabilities: KeyringCapabilities = {
-    scopes: [SolScope.Mainnet, SolScope.Devnet, SolScope.Testnet],
-    bip44: {
-      deriveIndex: true,
-      deriveIndexRange: true,
-    },
-  };
+  // TODO: Remove once the Snap is fully v2 — discovery is then driven by the
+  // Snap's own supported scopes via `createAccounts({ bip44:discover })`.
+  protected readonly v1DiscoveryScopes: CaipChainId[] = [SolScope.Mainnet];
 
   constructor(
     messenger: MultichainAccountServiceMessenger,
@@ -80,19 +69,6 @@ export class SolAccountProvider extends SnapAccountProvider {
     return `m/44'/501'/${groupIndex}'/0'`;
   }
 
-  protected override async createAccountV1(
-    keyring: RestrictedSnapKeyring,
-    {
-      entropySource,
-      groupIndex,
-    }: { entropySource: EntropySourceId; groupIndex: number },
-  ): Promise<KeyringAccount> {
-    return keyring.createAccount({
-      entropySource,
-      derivationPath: this.#getDerivationPath(groupIndex),
-    });
-  }
-
   protected override toBip44Account(
     account: KeyringAccount,
     {
@@ -111,59 +87,5 @@ export class SolAccountProvider extends SnapAccountProvider {
     assertIsBip44Account(account);
 
     return account;
-  }
-
-  async discoverAccounts({
-    entropySource,
-    groupIndex,
-  }: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[]> {
-    return this.withSnap(async ({ client, keyring }) => {
-      return await super.trace(
-        {
-          name: TraceName.SnapDiscoverAccounts,
-          data: {
-            provider: this.getName(),
-          },
-        },
-        async () => {
-          if (!this.config.discovery.enabled) {
-            return [];
-          }
-
-          const discoveredAccounts = await withRetry(
-            () =>
-              withTimeout(
-                () =>
-                  client.discoverAccounts(
-                    [SolScope.Mainnet],
-                    entropySource,
-                    groupIndex,
-                  ),
-                this.config.discovery.timeoutMs,
-              ),
-            {
-              maxAttempts: this.config.discovery.maxAttempts,
-              backOffMs: this.config.discovery.backOffMs,
-            },
-          );
-
-          if (!discoveredAccounts.length) {
-            return [];
-          }
-
-          // NOTE: We know the Solana Snap only return 1 account per group index during discovery. Also,
-          // we do not use the returned `derivationPath` on purpose. Instead we just create the account
-          // for this group index and that's all.
-          return await this.createBip44Accounts(keyring, {
-            type: AccountCreationType.Bip44DeriveIndex,
-            entropySource,
-            groupIndex,
-          });
-        },
-      );
-    });
   }
 }

@@ -3,6 +3,9 @@ export type {
   MoneyAccountBalanceServiceActions,
   MoneyAccountBalanceServiceEvents,
   MoneyAccountBalanceServiceMessenger,
+  MoneyAccountBalanceServiceOptions,
+  MoneyAccountBalanceServiceTraceCallback,
+  MoneyAccountBalanceServiceTraceRequest,
 } from './money-account-balance-service';
 export type {
   MoneyAccountBalanceServiceGetMoneyAccountBalanceAction,

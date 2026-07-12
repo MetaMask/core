@@ -92,8 +92,10 @@ export type RampsControllerSetSelectedProviderAction = {
  * This should be called once at app startup to set up the initial region.
  *
  * Idempotent: subsequent calls return the same promise unless forceRefresh is set.
- * Skips getCountries when countries are already loaded; skips geolocation when
- * userRegion already exists.
+ * Force-refetches the countries catalog on startup (bypassing the in-session
+ * request cache) so region preset amounts stay current. The catalog is not
+ * persisted, so a cold start always re-fetches it regardless. Skips
+ * geolocation when userRegion already exists.
  *
  * @param options - Options for cache behavior. forceRefresh bypasses idempotency and re-runs the full flow.
  * @returns Promise that resolves when initialization is complete.
@@ -287,7 +289,7 @@ export type RampsControllerGetBuyWidgetDataAction = {
  *
  * @param params - Object containing order identifiers and wallet info.
  * @param params.orderId - Full order ID (e.g. "/providers/paypal/orders/abc123") or order code.
- * @param params.providerCode - Provider code (e.g. "paypal", "transak"), with or without /providers/ prefix.
+ * @param params.providerCode - Canonical provider code (e.g. "paypal", "transak").
  * @param params.walletAddress - Wallet address for the order.
  * @param params.chainId - Optional chain ID for the order.
  */

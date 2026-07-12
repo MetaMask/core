@@ -107,6 +107,8 @@ import {
   createParallelMiddleware,
 } from './middlewares/ParallelMiddleware';
 import { RpcFallbackMiddleware } from './middlewares/RpcFallbackMiddleware';
+import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetadata';
+import { tempHealAssetsInfoMetadata } from './migrations/healAssetsInfoMetadata';
 import type {
   AccountId,
   AssetPreferences,
@@ -435,6 +437,12 @@ export type AssetsControllerOptions = {
    * Defaults to () => true.
    */
   isOnboarded?: () => boolean;
+
+  /**
+   * TEMPORARY — will be removed in a future release.
+   * Issue: https://consensyssoftware.atlassian.net/browse/ASSETS-3346
+   */
+  tempMigrateAssetsInfoMetadataAssets3346?: () => Assets3346MigrationState;
 };
 
 // ============================================================================
@@ -849,6 +857,7 @@ export class AssetsController extends BaseController<
     priceDataSourceConfig,
     stakedBalanceDataSourceConfig,
     isOnboarded,
+    tempMigrateAssetsInfoMetadataAssets3346,
   }: AssetsControllerOptions) {
     super({
       name: CONTROLLER_NAME,
@@ -867,6 +876,18 @@ export class AssetsController extends BaseController<
     this.#captureException = captureException;
     this.#queryApiClient = queryApiClient;
     const rpcConfig = rpcDataSourceConfig ?? {};
+
+    // TEMPORARY: heal assetsInfo metadata wiped by a prior defect
+    // (see extension migration #215 / ASSETS-3346). Remove in a future release.
+    if (tempMigrateAssetsInfoMetadataAssets3346) {
+      this.update(() =>
+        tempHealAssetsInfoMetadata({
+          state: this.state,
+          getMigrationState: tempMigrateAssetsInfoMetadataAssets3346,
+          captureException,
+        }),
+      );
+    }
 
     this.#initializeNativeAssetsMap(queryApiClient);
 
@@ -1329,10 +1350,14 @@ export class AssetsController extends BaseController<
         currentCount: currentIds.size,
       });
 
+      const newAccounts = accounts.filter(
+        (account) => !this.#lastKnownAccountIds.has(account.id),
+      );
+
       this.#lastKnownAccountIds = currentIds;
       this.#ensureNativeBalancesDefaultZero();
       this.#ensureDefaultTrackedAssetsSeeded();
-      this.#runAccountTreeRefresh(accounts).catch((error) => {
+      this.#runAccountTreeRefresh(accounts, newAccounts).catch((error) => {
         log('Failed to refresh assets after tree change', error);
       });
     } else {
@@ -1340,7 +1365,10 @@ export class AssetsController extends BaseController<
     }
   }
 
-  async #runAccountTreeRefresh(accounts: InternalAccount[]): Promise<void> {
+  async #runAccountTreeRefresh(
+    accounts: InternalAccount[],
+    newAccounts: InternalAccount[] = [],
+  ): Promise<void> {
     const releaseLock = await this.#accountRefreshMutex.acquire();
     try {
       await this.getAssets(accounts, {
@@ -1348,6 +1376,12 @@ export class AssetsController extends BaseController<
         forceUpdate: true,
       });
       this.#subscribeAssets();
+      if (newAccounts.length > 0) {
+        await this.getAssets(newAccounts, {
+          chainIds: [...this.#enabledChains],
+          forceUpdate: true,
+        });
+      }
     } catch (error) {
       log('Failed to fetch assets after tree change', error);
       this.#subscribeAssets();
@@ -3364,8 +3398,9 @@ export class AssetsController extends BaseController<
     this.#subscribeAssets();
 
     // Do one-time fetch for newly enabled chains; merge so we keep existing chain balances
-    if (addedChains.length > 0 && this.#getSelectedAccounts().length > 0) {
-      await this.getAssets(this.#getSelectedAccounts(), {
+    const accounts = this.#getSelectedAccounts();
+    if (addedChains.length > 0 && accounts.length > 0) {
+      await this.getAssets(accounts, {
         chainIds: addedChains,
         forceUpdate: true,
         updateMode: 'merge',

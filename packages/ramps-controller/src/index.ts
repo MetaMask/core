@@ -7,6 +7,7 @@ export type {
   RampsControllerStateChangeEvent,
   RampsControllerOrderStatusChangedEvent,
   RampsControllerOptions,
+  ProviderScope,
   UserRegion,
   ResourceState,
   TransakState,
@@ -65,7 +66,6 @@ export {
   RampsController,
   getDefaultRampsControllerState,
   getInternalOrderCode,
-  normalizeProviderCode,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
 } from './RampsController';
 export type {

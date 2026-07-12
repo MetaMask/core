@@ -2,23 +2,19 @@
 import { ReadableStream } from 'node:stream/web';
 
 import { flushPromises } from '../../../tests/helpers';
-import type {
-  QuoteResponse,
-  QuoteStreamCompleteData,
-  TokenFeature,
-  Trade,
-} from '../src';
+import type { QuoteStreamCompleteData, TokenFeature } from '../src';
+import { QuoteResponseV1 } from '../src/validators/quote-response-v1';
 
 type MockSseResponse = { status: number; ok: boolean; body: ReadableStream };
 
-export const advanceToNthTimer = (n = 1): void => {
-  for (let i = 0; i < n; i++) {
+export const advanceToNthTimer = (nth = 1): void => {
+  for (let i = 0; i < nth; i++) {
     jest.advanceTimersToNextTimer();
   }
 };
 
-export const advanceToNthTimerThenFlush = async (n = 1): Promise<void> => {
-  advanceToNthTimer(n);
+export const advanceToNthTimerThenFlush = async (nth = 1): Promise<void> => {
+  advanceToNthTimer(nth);
   await flushPromises();
 };
 
@@ -49,7 +45,7 @@ const emitLine = (
  * @returns a delayed stream of quotes
  */
 export const mockSseEventSource = (
-  mockQuotes: QuoteResponse[],
+  mockQuotes: QuoteResponseV1[],
   delay: number = 3000,
 ): MockSseResponse => {
   return {
@@ -78,7 +74,7 @@ export const mockSseEventSource = (
  * @returns a delayed stream of quotes
  */
 export const mockSseBatchSellEventSource = (
-  mockQuotes: QuoteResponse[][],
+  mockQuotes: QuoteResponseV1[][],
   delay: number = 3000,
 ): MockSseResponse => {
   return {
@@ -108,7 +104,7 @@ export const mockSseBatchSellEventSource = (
  * @returns a stream of quotes with multiple delays in between each quote
  */
 export const mockSseEventSourceWithMultipleDelays = async (
-  mockQuotes: QuoteResponse<Trade, Trade>[],
+  mockQuotes: QuoteResponseV1[],
   delay: number = 4000,
 ): Promise<MockSseResponse> => {
   return {
@@ -143,7 +139,7 @@ export const mockSseEventSourceWithMultipleDelays = async (
  * @returns a delayed stream of quotes and token warnings
  */
 export const mockSseEventSourceWithWarnings = (
-  mockQuotes: QuoteResponse[],
+  mockQuotes: QuoteResponseV1[],
   mockWarnings: TokenFeature[],
   delay: number = 3000,
 ): MockSseResponse => {
@@ -183,7 +179,7 @@ export const mockSseEventSourceWithWarnings = (
  * @returns a delayed stream of quotes, token warnings, and a complete event
  */
 export const mockSseEventSourceWithComplete = (
-  mockQuotes: QuoteResponse[],
+  mockQuotes: QuoteResponseV1[],
   mockWarnings: TokenFeature[],
   mockComplete: QuoteStreamCompleteData,
   delay: number = 3000,

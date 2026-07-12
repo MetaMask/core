@@ -13,6 +13,8 @@ export {
 
 export type {
   SocialControllerFollowTraderAction,
+  SocialControllerOptInToLeaderboardAction,
+  SocialControllerOptOutOfLeaderboardAction,
   SocialControllerUnfollowTraderAction,
   SocialControllerUpdateFollowingAction,
   SocialControllerUpdateLeaderboardAction,
@@ -27,6 +29,7 @@ export { SocialService } from './SocialService';
 
 export type {
   SocialServiceFetchClosedPositionsAction,
+  SocialServiceFetchFeedAction,
   SocialServiceFetchFollowersAction,
   SocialServiceFetchFollowingAction,
   SocialServiceFetchLeaderboardAction,
@@ -34,11 +37,17 @@ export type {
   SocialServiceFetchPositionByIdAction,
   SocialServiceFetchTraderProfileAction,
   SocialServiceFollowAction,
+  SocialServiceOptInToLeaderboardAction,
+  SocialServiceOptOutOfLeaderboardAction,
   SocialServiceUnfollowAction,
 } from './SocialService-method-action-types';
 
 export { TradeStruct } from './social-types';
 export type {
+  FeedItem,
+  FeedPagination,
+  FeedResponse,
+  FetchFeedOptions,
   FetchFollowersOptions,
   FetchLeaderboardOptions,
   FetchPositionByIdOptions,

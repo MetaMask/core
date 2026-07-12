@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [77.4.1]
+
+### Changed
+
+- Bump `@metamask/profile-sync-controller` from `^28.2.0` to `^28.3.0` ([#9463](https://github.com/MetaMask/core/pull/9463))
+- Bump `@metamask/accounts-controller` from `^39.0.4` to `^39.0.5` ([#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/assets-controller` from `^10.2.0` to `^10.2.1` ([#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/assets-controllers` from `^109.4.0` to `^109.4.1` ([#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/transaction-controller` from `^68.4.0` to `^69.0.0` ([#9470](https://github.com/MetaMask/core/pull/9470))
+
+## [77.4.0]
+
+### Added
+
+- Add Robinhood Chain mainnet as a supported bridge network. ([#9459](https://github.com/MetaMask/core/pull/9459))
+
+### Changed
+
+- Split up validators into smaller files to prepare for QuoteResponse V2 migration ([#9413](https://github.com/MetaMask/core/pull/9413))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Bump `@metamask/assets-controller` from `^10.0.1` to `^10.2.0` ([#9411](https://github.com/MetaMask/core/pull/9411), [#9450](https://github.com/MetaMask/core/pull/9450))
+- Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.4.0` ([#9421](https://github.com/MetaMask/core/pull/9421), [#9456](https://github.com/MetaMask/core/pull/9456))
+- Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
+- Bump `@metamask/assets-controllers` from `^109.3.0` to `^109.4.0` ([#9429](https://github.com/MetaMask/core/pull/9429), [#9450](https://github.com/MetaMask/core/pull/9450))
+
+## [77.3.2]
+
+### Fixed
+
+- Fix Arc native token symbol from `USDC-native` to `USDC` ([#9364](https://github.com/MetaMask/core/pull/9364))
+
+## [77.3.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^68.2.0` to `^68.2.2` ([#9337](https://github.com/MetaMask/core/pull/9337), [#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/accounts-controller` from `^39.0.3` to `^39.0.4` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/assets-controller` from `^10.0.0` to `^10.0.1` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/assets-controllers` from `^109.2.2` to `^109.3.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/gas-fee-controller` from `^26.2.3` to `^26.2.4` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/multichain-network-controller` from `^3.2.0` to `^3.2.1` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/network-controller` from `^33.0.0` to `^34.0.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/polling-controller` from `^16.0.7` to `^16.0.8` ([#9349](https://github.com/MetaMask/core/pull/9349))
+
+## [77.3.0]
+
 ### Added
 
 - Export `fetchBridgeQuoteStream` and `appendFeesToQuotes` from the package entry point ([#9313](https://github.com/MetaMask/core/pull/9313))
@@ -1700,7 +1746,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.4.1...HEAD
+[77.4.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.4.0...@metamask/bridge-controller@77.4.1
+[77.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.3.2...@metamask/bridge-controller@77.4.0
+[77.3.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.3.1...@metamask/bridge-controller@77.3.2
+[77.3.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.3.0...@metamask/bridge-controller@77.3.1
+[77.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.2.0...@metamask/bridge-controller@77.3.0
 [77.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.1.0...@metamask/bridge-controller@77.2.0
 [77.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.0.0...@metamask/bridge-controller@77.1.0
 [77.0.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@76.1.0...@metamask/bridge-controller@77.0.0

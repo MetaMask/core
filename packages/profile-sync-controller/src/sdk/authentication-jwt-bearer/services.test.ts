@@ -12,6 +12,7 @@ import {
   pairIdentifiers,
   pairProfiles,
   getUserProfileLineage,
+  getCustomerServiceToken,
   NONCE_URL,
   OIDC_TOKEN_URL,
   SRP_LOGIN_URL,
@@ -19,6 +20,7 @@ import {
   PAIR_IDENTIFIERS,
   PAIR_PROFILES_URL,
   PROFILE_LINEAGE_URL,
+  CUSTOMER_SERVICE_TOKEN_URL,
 } from './services';
 import { AuthType } from './types';
 
@@ -132,6 +134,12 @@ describe('services', () => {
     it('should build correct PAIR_PROFILES_URL', () => {
       expect(PAIR_PROFILES_URL(Env.DEV)).toBe(
         'https://authentication.dev-api.cx.metamask.io/api/v2/profile/pair',
+      );
+    });
+
+    it('should build correct CUSTOMER_SERVICE_TOKEN_URL', () => {
+      expect(CUSTOMER_SERVICE_TOKEN_URL(Env.DEV)).toBe(
+        'https://authentication.dev-api.cx.metamask.io/api/v2/customer-service/token',
       );
     });
   });
@@ -1012,6 +1020,84 @@ describe('services', () => {
       ).rejects.toThrow(
         'Failed to get profile lineage: HTTP 503 - Service Unavailable (error: non_json_response)',
       );
+    });
+  });
+
+  describe('getCustomerServiceToken', () => {
+    it('should return the customer service token on success', async () => {
+      const mockResponse = createMockResponse({
+        access_token: 'cs-access-token',
+      });
+      mockFetch.mockResolvedValue(mockResponse);
+
+      const result = await getCustomerServiceToken(Env.DEV, 'access-token');
+
+      expect(result).toBe('cs-access-token');
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.any(URL),
+        expect.objectContaining({
+          method: 'POST',
+          headers: {
+            Authorization: 'Bearer access-token',
+          },
+        }),
+      );
+    });
+
+    it('should throw SignInError when access_token is missing', async () => {
+      const mockResponse = createMockResponse({});
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await expect(
+        getCustomerServiceToken(Env.DEV, 'access-token'),
+      ).rejects.toThrow(SignInError);
+      await expect(
+        getCustomerServiceToken(Env.DEV, 'access-token'),
+      ).rejects.toThrow(
+        'Failed to get customer service token: missing access_token',
+      );
+    });
+
+    it('should throw SignInError on network failure', async () => {
+      mockFetch.mockRejectedValue(new Error('DNS resolution failed'));
+
+      await expect(
+        getCustomerServiceToken(Env.DEV, 'access-token'),
+      ).rejects.toThrow(SignInError);
+      await expect(
+        getCustomerServiceToken(Env.DEV, 'access-token'),
+      ).rejects.toThrow(
+        'Failed to get customer service token: DNS resolution failed',
+      );
+    });
+
+    it('should throw SignInError on error response', async () => {
+      const mockResponse = createMockResponse(
+        { message: 'Unauthorized', error: 'invalid_token' },
+        { ok: false, status: 401 },
+      );
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await expect(
+        getCustomerServiceToken(Env.DEV, 'access-token'),
+      ).rejects.toThrow(SignInError);
+      await expect(
+        getCustomerServiceToken(Env.DEV, 'access-token'),
+      ).rejects.toThrow(
+        'Failed to get customer service token: HTTP 401 - Unauthorized (error: invalid_token)',
+      );
+    });
+
+    it('should throw RateLimitedError on 429 response', async () => {
+      const mockResponse = createMockResponse(
+        { message: 'Rate limited', error: 'too_many_requests' },
+        { ok: false, status: 429 },
+      );
+      mockFetch.mockResolvedValue(mockResponse);
+
+      await expect(
+        getCustomerServiceToken(Env.DEV, 'access-token'),
+      ).rejects.toThrow(RateLimitedError);
     });
   });
 

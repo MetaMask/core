@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.1]
+
+### Changed
+
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
+### Fixed
+
+- Fix `getAssetsWatchlist` and `setAssetsWatchlist` to use the correct API path `/preferences/assets-watchlist` instead of `/assets-watchlist` ([#9441](https://github.com/MetaMask/core/pull/9441))
+
+## [3.0.0]
+
+### Added
+
+- Add `PriceAlertPreference` type, required `priceAlerts` field on `NotificationPreferences`, and `DEFAULT_PRICE_ALERT_PREFERENCES` constant ([#9316](https://github.com/MetaMask/core/pull/9316))
+
+### Changed
+
+- **BREAKING:** Make `agenticCli` required on `NotificationPreferences` (previously optional on the type) ([#9316](https://github.com/MetaMask/core/pull/9316))
+- Remove client-side backfill of `agenticCli` and `priceAlerts` in `getNotificationPreferences`; the API merges defaults on GET ([#9316](https://github.com/MetaMask/core/pull/9316))
+
 ## [2.1.0]
 
 ### Added
@@ -52,7 +73,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING**: Rename `SocialAIPreference.traderProfileIds` to `mutedTraderProfileIds` in types and notification-preferences validation to match the API payload. ([#8536](https://github.com/MetaMask/core/pull/8536))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@2.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@3.0.1...HEAD
+[3.0.1]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@3.0.0...@metamask/authenticated-user-storage@3.0.1
+[3.0.0]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@2.1.0...@metamask/authenticated-user-storage@3.0.0
 [2.1.0]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@2.0.0...@metamask/authenticated-user-storage@2.1.0
 [2.0.0]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@1.0.1...@metamask/authenticated-user-storage@2.0.0
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/authenticated-user-storage@1.0.0...@metamask/authenticated-user-storage@1.0.1
