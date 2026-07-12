@@ -76,7 +76,6 @@ export function createMockAssetControllerMessenger(): {
       'BackendWebSocketService:getChannelCallbacks',
       'BackendWebSocketService:subscribe',
     ],
-    /* eslint-disable no-restricted-syntax -- test messenger delegates exported `:stateChange` events */
     events: [
       // AssetsController
       'AccountTreeController:selectedAccountGroupChange',
@@ -98,7 +97,6 @@ export function createMockAssetControllerMessenger(): {
       // AccountActivityService
       'AccountActivityService:balanceUpdated',
     ],
-    /* eslint-enable no-restricted-syntax */
   });
 
   return {

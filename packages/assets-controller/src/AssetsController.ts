@@ -1090,7 +1090,6 @@ export class AssetsController extends BaseController<
     // The base-controller `:stateChange` event is guaranteed to fire
     // when init() calls this.update(). #start() is idempotent so
     // repeated fires are safe.
-    // eslint-disable-next-line no-restricted-syntax -- upstream controllers export `:stateChange` only
     this.messenger.subscribe('AccountTreeController:stateChange', () => {
       this.#handleAccountTreeStateChange();
     });
