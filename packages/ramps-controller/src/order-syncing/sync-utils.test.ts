@@ -9,7 +9,7 @@ describe('order-syncing/sync-utils', () => {
       isOrderSyncingInProgress = false,
       isSignedIn = true,
       throwOnMessengerCall = false,
-    } = {}) => {
+    } = {}): { options: OrderSyncingOptions } => {
       const options: OrderSyncingOptions = {
         getMessenger: jest.fn().mockReturnValue({
           call: jest.fn().mockImplementation((action: string) => {

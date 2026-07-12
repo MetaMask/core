@@ -944,6 +944,8 @@ export class RampsController extends BaseController<
 
   /**
    * Whether a full order sync is currently applying remote changes.
+   *
+   * @returns Whether order sync is in progress.
    */
   get isOrderSyncingInProgress(): boolean {
     return this.#isOrderSyncingInProgress;
@@ -2423,8 +2425,7 @@ export class RampsController extends BaseController<
     });
 
     if (!this.#isOrderSyncingInProgress) {
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      updateOrderInRemoteStorage(healedOrder, {
+      void updateOrderInRemoteStorage(healedOrder, {
         getRampsControllerInstance: () => this,
         getMessenger: () => this.messenger,
       }).catch((error) => {
@@ -2465,8 +2466,7 @@ export class RampsController extends BaseController<
     }
 
     if (orderToRemove && !this.#isOrderSyncingInProgress) {
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      deleteOrderInRemoteStorage(orderToRemove, {
+      void deleteOrderInRemoteStorage(orderToRemove, {
         getRampsControllerInstance: () => this,
         getMessenger: () => this.messenger,
       }).catch((error) => {

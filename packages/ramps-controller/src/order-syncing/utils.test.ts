@@ -118,7 +118,7 @@ describe('order-syncing/utils', () => {
     it('defaults lastUpdatedAt when mapping to storage', () => {
       const entry = mapRampsOrderToUserStorageEntry(createMockOrder());
 
-      expect(entry.lu).toEqual(expect.any(Number));
+      expect(entry.lu).toStrictEqual(expect.any(Number));
     });
 
     it('maps storage entries without lastUpdatedAt metadata', () => {

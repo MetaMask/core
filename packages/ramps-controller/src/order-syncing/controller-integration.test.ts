@@ -45,7 +45,16 @@ describe('order-syncing/controller-integration', () => {
     isBackupAndSyncEnabled = true,
     isRampsSyncingEnabled = true,
     isSignedIn = true,
-  } = {}) => {
+  } = {}): {
+    options: OrderSyncingOptions;
+    addOrder: jest.Mock;
+    removeOrder: jest.Mock;
+    setIsOrderSyncingInProgress: jest.Mock;
+    performBatchSetStorage: jest.Mock;
+    performSetStorage: jest.Mock;
+    performGetStorage: jest.Mock;
+    performGetStorageAllFeatureEntries: jest.Mock;
+  } => {
     const removeOrder = jest.fn();
     const setIsOrderSyncingInProgress = jest.fn();
     const performBatchSetStorage = jest.fn().mockResolvedValue(undefined);
@@ -674,7 +683,7 @@ describe('order-syncing/controller-integration', () => {
       const saved = JSON.parse(
         performBatchSetStorage.mock.calls[0][1][0][1] as string,
       ) as { dt?: number };
-      expect(saved.dt).toEqual(expect.any(Number));
+      expect(saved.dt).toStrictEqual(expect.any(Number));
     });
 
     it('no-ops when deleting a non-syncable order', async () => {

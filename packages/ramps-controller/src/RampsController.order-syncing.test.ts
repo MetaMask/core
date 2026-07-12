@@ -47,7 +47,11 @@ type RootMessenger = Messenger<
   MessengerEvents<RampsControllerMessenger>
 >;
 
-function setupControllerWithOrderSyncingMocks() {
+function setupControllerWithOrderSyncingMocks(): {
+  controller: RampsController;
+  performBatchSetStorage: jest.Mock;
+  performGetStorageAllFeatureEntries: jest.Mock;
+} {
   const performBatchSetStorage = jest.fn().mockResolvedValue(undefined);
   const performGetStorageAllFeatureEntries = jest
     .fn()

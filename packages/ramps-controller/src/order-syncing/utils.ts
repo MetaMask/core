@@ -50,7 +50,7 @@ export function mapRampsOrderToUserStorageEntry(
   return {
     [USER_STORAGE_VERSION_KEY]: USER_STORAGE_VERSION,
     o: rampsOrder,
-    lu: lastUpdatedAt || now,
+    lu: lastUpdatedAt ?? now,
     ...(deletedAt ? { dt: deletedAt } : {}),
   };
 }

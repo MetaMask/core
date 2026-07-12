@@ -35,7 +35,7 @@ type MergePlan = {
  * @returns The best available last-updated timestamp.
  */
 function getOrderTimestamp(order: RampsOrder | SyncRampsOrder): number {
-  return (order as SyncRampsOrder).lastUpdatedAt || order.createdAt || 0;
+  return (order as SyncRampsOrder).lastUpdatedAt ?? order.createdAt ?? 0;
 }
 
 /**
@@ -171,9 +171,9 @@ export async function syncOrdersWithUserStorage(
     isSyncableOrder,
   );
 
-  const performSync = async () => {
+  const performSync = async (): Promise<void> => {
     const controller = getRampsControllerInstance();
-    const getLocalOrders = () =>
+    const getLocalOrders = (): RampsOrder[] =>
       controller.state.orders.filter(isSyncableOrder);
 
     try {
@@ -296,6 +296,7 @@ async function getRemoteOrders(
  *
  * @param orders - The orders to save.
  * @param options - Parameters used for saving orders.
+ * @returns Resolves when the batch write completes.
  */
 async function saveOrdersToUserStorage(
   orders: SyncRampsOrder[],
@@ -303,7 +304,7 @@ async function saveOrdersToUserStorage(
 ): Promise<void> {
   const { getMessenger, trace } = options;
 
-  const saveOrders = async () => {
+  const saveOrders = async (): Promise<void> => {
     const storageEntries: [string, string][] = orders.map((order) => {
       const key = createOrderStorageKey(order);
       const storageEntry = mapRampsOrderToUserStorageEntry(order);
@@ -336,6 +337,7 @@ async function saveOrdersToUserStorage(
  *
  * @param order - The order that was updated locally.
  * @param options - Parameters used for syncing operations.
+ * @returns Resolves when the remote update completes or no-ops.
  */
 export async function updateOrderInRemoteStorage(
   order: RampsOrder,
@@ -343,7 +345,7 @@ export async function updateOrderInRemoteStorage(
 ): Promise<void> {
   const { trace } = options;
 
-  const updateOrder = async () => {
+  const updateOrder = async (): Promise<void> => {
     if (!canPerformOrderSyncing(options) || !isSyncableOrder(order)) {
       return;
     }
@@ -377,6 +379,7 @@ export async function updateOrderInRemoteStorage(
  *
  * @param order - The order that was deleted locally (needs id / providerOrderId).
  * @param options - Parameters used for syncing operations.
+ * @returns Resolves when the remote soft-delete completes or no-ops.
  */
 export async function deleteOrderInRemoteStorage(
   order: RampsOrder,
@@ -384,7 +387,7 @@ export async function deleteOrderInRemoteStorage(
 ): Promise<void> {
   const { trace } = options;
 
-  const deleteOrder = async () => {
+  const deleteOrder = async (): Promise<void> => {
     if (!canPerformOrderSyncing(options) || !isSyncableOrder(order)) {
       return;
     }
