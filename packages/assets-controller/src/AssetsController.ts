@@ -1097,7 +1097,7 @@ export class AssetsController extends BaseController<
 
     // Subscribe to network enablement changes (only enabledNetworkMap)
     this.messenger.subscribe(
-      'NetworkEnablementController:stateChange', // eslint-disable-line no-restricted-syntax -- upstream controllers export `:stateChange` only
+      'NetworkEnablementController:stateChange',
       ({ enabledNetworkMap }) => {
         this.#handleEnabledNetworksChanged(enabledNetworkMap).catch(
           console.error,
