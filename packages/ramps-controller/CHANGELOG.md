@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Default `isRampsSyncingEnabled` to `true` in `canPerformOrderSyncing` when the field is absent from persisted User Storage state, matching controller default state and UI selectors ([#9474](https://github.com/MetaMask/core/pull/9474))
 - Route incremental `addOrder` / `removeOrder` remote writes through `performBatchSetStorage` so provider order IDs with hyphens or other non-`\w` characters sync correctly; single-entry `performSetStorage` paths are rejected by User Storage's `feature.key` validator ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Re-read live local orders before remote upload so orders added while `isOrderSyncingInProgress` suppresses incremental writes are still uploaded during full sync ([#9474](https://github.com/MetaMask/core/pull/9474))
 
 ## [15.1.0]
 

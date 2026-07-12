@@ -1,8 +1,6 @@
 import { RampsOrderStatus } from '../RampsService';
 import type { RampsOrder } from '../RampsService';
-import {
-  USER_STORAGE_RAMPS_ORDERS_FEATURE,
-} from './constants';
+import { USER_STORAGE_RAMPS_ORDERS_FEATURE } from './constants';
 import {
   deleteOrderInRemoteStorage,
   syncOrdersWithUserStorage,
@@ -47,7 +45,6 @@ describe('order-syncing/controller-integration', () => {
     isRampsSyncingEnabled = true,
     isSignedIn = true,
   } = {}) => {
-    const addOrder = jest.fn();
     const removeOrder = jest.fn();
     const setIsOrderSyncingInProgress = jest.fn();
     const performBatchSetStorage = jest.fn().mockResolvedValue(undefined);
@@ -61,9 +58,26 @@ describe('order-syncing/controller-integration', () => {
       state: { orders: localOrders },
       isOrderSyncingInProgress: false,
       setIsOrderSyncingInProgress,
-      addOrder,
+      addOrder: jest.fn(),
       removeOrder,
     };
+
+    const addOrder = jest.fn((order: RampsOrder) => {
+      const existingIndex = controller.state.orders.findIndex(
+        (existing) => existing.providerOrderId === order.providerOrderId,
+      );
+
+      if (existingIndex === -1) {
+        controller.state.orders.push(order);
+        return;
+      }
+
+      controller.state.orders[existingIndex] = {
+        ...controller.state.orders[existingIndex],
+        ...order,
+      };
+    });
+    controller.addOrder = addOrder;
 
     const messengerCall = jest
       .fn()
@@ -204,6 +218,74 @@ describe('order-syncing/controller-integration', () => {
         expect.objectContaining({ fiatAmount: 200 }),
       );
       expect(performBatchSetStorage).not.toHaveBeenCalled();
+    });
+
+    it('uploads orders added while sync is in progress', async () => {
+      const localOrder = createMockOrder();
+      const orderAddedDuringSync = createMockOrder({
+        providerOrderId: 'during-sync-1',
+        id: '/providers/transak/orders/during-sync-1',
+      });
+
+      const addOrder = jest.fn();
+      const removeOrder = jest.fn();
+      const performBatchSetStorage = jest.fn().mockResolvedValue(undefined);
+      const performGetStorageAllFeatureEntries = jest
+        .fn()
+        .mockResolvedValue(null);
+
+      const controller = {
+        state: { orders: [localOrder] },
+        isOrderSyncingInProgress: false,
+        setIsOrderSyncingInProgress: jest.fn((value: boolean) => {
+          if (value) {
+            controller.state.orders = [localOrder, orderAddedDuringSync];
+          }
+        }),
+        addOrder,
+        removeOrder,
+      };
+
+      const messengerCall = jest
+        .fn()
+        .mockImplementation((action: string, ...callArgs: unknown[]) => {
+        if (action === 'UserStorageController:getState') {
+          return {
+            isBackupAndSyncEnabled: true,
+            isRampsSyncingEnabled: true,
+          };
+        }
+        if (action === 'AuthenticationController:isSignedIn') {
+          return true;
+        }
+        if (
+          action === 'UserStorageController:performGetStorageAllFeatureEntries'
+        ) {
+          return performGetStorageAllFeatureEntries();
+        }
+        if (action === 'UserStorageController:performBatchSetStorage') {
+          return performBatchSetStorage(...callArgs);
+        }
+        return null;
+      });
+
+      const options: OrderSyncingOptions = {
+        getRampsControllerInstance: () => controller,
+        getMessenger: () =>
+          ({ call: messengerCall }) as ReturnType<
+            OrderSyncingOptions['getMessenger']
+          >,
+      };
+
+      await syncOrdersWithUserStorage({}, options);
+
+      expect(performBatchSetStorage).toHaveBeenCalledWith(
+        USER_STORAGE_RAMPS_ORDERS_FEATURE,
+        expect.arrayContaining([
+          expect.arrayContaining(['abc-123', expect.any(String)]),
+          expect.arrayContaining(['during-sync-1', expect.any(String)]),
+        ]),
+      );
     });
   });
 

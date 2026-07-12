@@ -22,6 +22,118 @@ export type SyncOrdersWithUserStorageConfig = {
   ) => void;
 };
 
+type MergePlan = {
+  ordersToAddOrUpdateLocally: SyncRampsOrder[];
+  ordersToDeleteLocally: SyncRampsOrder[];
+  ordersToUpdateRemotely: RampsOrder[];
+};
+
+/**
+ * Builds the local/remote merge plan from the current local snapshot and remote
+ * entries.
+ *
+ * @param localOrders - Syncable orders currently in {@link RampsController} state.
+ * @param validRemoteOrders - Syncable orders fetched from User Storage.
+ * @returns Lists of local mutations and remote uploads to apply.
+ */
+function computeMergePlan(
+  localOrders: RampsOrder[],
+  validRemoteOrders: SyncRampsOrder[],
+): MergePlan & { remoteOrdersMap: Map<string, SyncRampsOrder> } {
+  const localOrdersMap = new Map<string, RampsOrder>();
+  const remoteOrdersMap = new Map<string, SyncRampsOrder>();
+
+  localOrders.forEach((order) => {
+    localOrdersMap.set(createOrderStorageKey(order), order);
+  });
+
+  validRemoteOrders.forEach((order) => {
+    remoteOrdersMap.set(createOrderStorageKey(order), order);
+  });
+
+  const ordersToAddOrUpdateLocally: SyncRampsOrder[] = [];
+  const ordersToDeleteLocally: SyncRampsOrder[] = [];
+  const ordersToUpdateRemotely: RampsOrder[] = [];
+
+  for (const remoteOrder of validRemoteOrders) {
+    const key = createOrderStorageKey(remoteOrder);
+    const localOrder = localOrdersMap.get(key);
+
+    if (remoteOrder.deletedAt) {
+      if (localOrder) {
+        ordersToDeleteLocally.push(remoteOrder);
+      }
+    } else if (!localOrder) {
+      ordersToAddOrUpdateLocally.push(remoteOrder);
+    } else if (!areOrdersEqual(localOrder, remoteOrder)) {
+      const localTimestamp =
+        (localOrder as SyncRampsOrder).lastUpdatedAt ||
+        localOrder.createdAt ||
+        0;
+      const remoteTimestamp =
+        remoteOrder.lastUpdatedAt || remoteOrder.createdAt || 0;
+
+      if (localTimestamp >= remoteTimestamp) {
+        ordersToUpdateRemotely.push(localOrder);
+      } else {
+        ordersToAddOrUpdateLocally.push(remoteOrder);
+      }
+    }
+  }
+
+  for (const localOrder of localOrders) {
+    const key = createOrderStorageKey(localOrder);
+    if (!remoteOrdersMap.has(key)) {
+      ordersToUpdateRemotely.push(localOrder);
+    }
+  }
+
+  return {
+    remoteOrdersMap,
+    ordersToAddOrUpdateLocally,
+    ordersToDeleteLocally,
+    ordersToUpdateRemotely,
+  };
+}
+
+/**
+ * Re-reads live local orders after merge mutations so orders added or updated
+ * while `isOrderSyncingInProgress` is true are still uploaded remotely.
+ *
+ * @param plannedRemoteUploads - Orders already queued for remote upload.
+ * @param remoteOrdersMap - Remote orders keyed by storage key.
+ * @param currentLocalOrders - Latest syncable local orders.
+ * @returns Remote uploads using the freshest local payloads.
+ */
+function reconcileOrdersForRemoteUpload(
+  plannedRemoteUploads: RampsOrder[],
+  remoteOrdersMap: Map<string, SyncRampsOrder>,
+  currentLocalOrders: RampsOrder[],
+): RampsOrder[] {
+  const keyedUploads = new Map(
+    plannedRemoteUploads.map((order) => [createOrderStorageKey(order), order]),
+  );
+
+  for (const localOrder of currentLocalOrders) {
+    const key = createOrderStorageKey(localOrder);
+    const existingUpload = keyedUploads.get(key);
+    const remoteOrder = remoteOrdersMap.get(key);
+
+    if (existingUpload) {
+      if (!areOrdersEqual(existingUpload, localOrder)) {
+        keyedUploads.set(key, localOrder);
+      }
+      continue;
+    }
+
+    if (!remoteOrder || !areOrdersEqual(localOrder, remoteOrder)) {
+      keyedUploads.set(key, localOrder);
+    }
+  }
+
+  return [...keyedUploads.values()];
+}
+
 /**
  * Syncs V2 ramps orders between local {@link RampsController} state and User Storage.
  *
@@ -42,64 +154,23 @@ export async function syncOrdersWithUserStorage(
     return;
   }
 
-  const localOrders =
-    getRampsControllerInstance().state.orders.filter(isSyncableOrder);
-
   const remoteOrders = await getRemoteOrders(options);
   const validRemoteOrders = remoteOrders?.filter(isSyncableOrder) || [];
 
   const performSync = async () => {
     const controller = getRampsControllerInstance();
+    const getLocalOrders = () =>
+      controller.state.orders.filter(isSyncableOrder);
+
     try {
       controller.setIsOrderSyncingInProgress(true);
 
-      const localOrdersMap = new Map<string, RampsOrder>();
-      const remoteOrdersMap = new Map<string, SyncRampsOrder>();
-
-      localOrders.forEach((order) => {
-        localOrdersMap.set(createOrderStorageKey(order), order);
-      });
-
-      validRemoteOrders.forEach((order) => {
-        remoteOrdersMap.set(createOrderStorageKey(order), order);
-      });
-
-      const ordersToAddOrUpdateLocally: SyncRampsOrder[] = [];
-      const ordersToDeleteLocally: SyncRampsOrder[] = [];
-      const ordersToUpdateRemotely: RampsOrder[] = [];
-
-      for (const remoteOrder of validRemoteOrders) {
-        const key = createOrderStorageKey(remoteOrder);
-        const localOrder = localOrdersMap.get(key);
-
-        if (remoteOrder.deletedAt) {
-          if (localOrder) {
-            ordersToDeleteLocally.push(remoteOrder);
-          }
-        } else if (!localOrder) {
-          ordersToAddOrUpdateLocally.push(remoteOrder);
-        } else if (!areOrdersEqual(localOrder, remoteOrder)) {
-          const localTimestamp =
-            (localOrder as SyncRampsOrder).lastUpdatedAt ||
-            localOrder.createdAt ||
-            0;
-          const remoteTimestamp =
-            remoteOrder.lastUpdatedAt || remoteOrder.createdAt || 0;
-
-          if (localTimestamp >= remoteTimestamp) {
-            ordersToUpdateRemotely.push(localOrder);
-          } else {
-            ordersToAddOrUpdateLocally.push(remoteOrder);
-          }
-        }
-      }
-
-      for (const localOrder of localOrders) {
-        const key = createOrderStorageKey(localOrder);
-        if (!remoteOrdersMap.has(key)) {
-          ordersToUpdateRemotely.push(localOrder);
-        }
-      }
+      const {
+        remoteOrdersMap,
+        ordersToAddOrUpdateLocally,
+        ordersToDeleteLocally,
+        ordersToUpdateRemotely,
+      } = computeMergePlan(getLocalOrders(), validRemoteOrders);
 
       for (const order of ordersToDeleteLocally) {
         controller.removeOrder(createOrderStorageKey(order));
@@ -111,9 +182,15 @@ export async function syncOrdersWithUserStorage(
         }
       }
 
-      if (ordersToUpdateRemotely.length > 0) {
+      const ordersToUpload = reconcileOrdersForRemoteUpload(
+        ordersToUpdateRemotely,
+        remoteOrdersMap,
+        getLocalOrders(),
+      );
+
+      if (ordersToUpload.length > 0) {
         const updatedRemoteOrders: Record<string, SyncRampsOrder> = {};
-        for (const localOrder of ordersToUpdateRemotely) {
+        for (const localOrder of ordersToUpload) {
           const key = createOrderStorageKey(localOrder);
           updatedRemoteOrders[key] = {
             ...remoteOrdersMap.get(key),
@@ -140,15 +217,18 @@ export async function syncOrdersWithUserStorage(
   };
 
   if (trace) {
+    const localOrderCount =
+      getRampsControllerInstance().state.orders.filter(isSyncableOrder).length;
+
     await trace(
       {
         name: TraceName.RampsOrderSyncFull,
         data: {
-          localOrderCount: localOrders.length,
+          localOrderCount,
           remoteOrderCount: validRemoteOrders.length,
-          isFirstSync: validRemoteOrders.length === 0 && localOrders.length > 0,
+          isFirstSync: validRemoteOrders.length === 0 && localOrderCount > 0,
           isNewDeviceSync:
-            localOrders.length === 0 && validRemoteOrders.length > 0,
+            localOrderCount === 0 && validRemoteOrders.length > 0,
         },
       },
       performSync,
