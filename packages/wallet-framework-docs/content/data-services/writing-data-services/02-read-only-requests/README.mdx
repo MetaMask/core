@@ -623,7 +623,7 @@ const MESSENGER_EXPOSED_METHODS = [
 ] as const;
 ```
 
-We'll run `yarn workspace @metamask/orders-service run generate-action-types` and see that `packages/orders-service/src/orders-service-method-action-types.ts` has this additional content:
+We'll run `yarn workspace @metamask/orders-service run messenger-action-types:generate` and see that `packages/orders-service/src/orders-service-method-action-types.ts` has this additional content:
 
 ```typescript title="packages/orders-service/src/orders-service-method-action-types.ts"
 // highlight-start
