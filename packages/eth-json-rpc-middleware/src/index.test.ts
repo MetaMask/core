@@ -296,6 +296,7 @@ describe('index module', () => {
         "createWalletMiddleware": [Function],
         "providerAsMiddleware": [Function],
         "providerAsMiddlewareV2": [Function],
+        "validateTransactionParams": [Function],
       }
     `);
   });
