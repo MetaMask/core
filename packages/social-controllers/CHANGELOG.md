@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: MIT license text update ([#9472](https://github.com/MetaMask/core/pull/9472))
+
 ### Added
 
 - Add `fetchFeed` method to `SocialService` (and the `SocialService:fetchFeed` messenger action) for the trader-activity feed. Calls `GET /feed` with an optional `scope` (`following`, default, personalized to the JWT-identified user; or `leaderboard`, the generic shared feed), `chains` (as CAIP-2 chain ids), `limit`, and cursor pagination (`olderThan`/`newerThan`) for infinite scroll ([#9447](https://github.com/MetaMask/core/pull/9447))
