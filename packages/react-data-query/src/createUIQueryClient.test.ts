@@ -218,7 +218,7 @@ describe('createUIQueryClient', () => {
     observerB.destroy();
   });
 
-  it('synchronizes cache removal after remove event', async () => {
+  it('retains actively observed queries when the service cache entry is removed', async () => {
     const { messenger, clientA, clientB } = createClients();
 
     const observerA = new QueryObserver(clientA, {
@@ -245,7 +245,42 @@ describe('createUIQueryClient', () => {
       });
     });
 
-    await Promise.all([promiseA, promiseB]);
+    const [dataBefore] = await Promise.all([promiseA, promiseB]);
+
+    const hash = hashQueryKey(getAssetsQueryKey);
+
+    // Simulates the data service garbage collecting its own cache entry
+    // (which happens `cacheTime` after a fetch, since service-side queries
+    // never have observers). This must not destroy data that mounted
+    // consumers are still observing.
+    messenger.publish(`ExampleDataService:cacheUpdated:${hash}`, {
+      type: 'removed',
+      state: null,
+    });
+
+    const queryData = clientA.getQueryData(getAssetsQueryKey);
+
+    expect(queryData).toStrictEqual(dataBefore);
+    expect(queryData).toStrictEqual(clientB.getQueryData(getAssetsQueryKey));
+
+    observerA.destroy();
+    observerB.destroy();
+  });
+
+  it('keeps observed queries functional after a service cache removal event', async () => {
+    const { messenger, clientA } = createClients();
+
+    const observer = new QueryObserver(clientA, {
+      queryKey: getAssetsQueryKey,
+    });
+
+    await new Promise((resolve) => {
+      observer.subscribe((event) => {
+        if (event.status === 'success') {
+          resolve(event.data);
+        }
+      });
+    });
 
     const hash = hashQueryKey(getAssetsQueryKey);
 
@@ -254,13 +289,52 @@ describe('createUIQueryClient', () => {
       state: null,
     });
 
-    const queryData = clientA.getQueryData(getAssetsQueryKey);
+    // Replace the mock response and invalidate: the observer must still be
+    // wired to a live cache entry that refetches fresh data end-to-end.
+    mockAssets({
+      status: 200,
+      body: [],
+    });
 
-    expect(queryData).toBeUndefined();
-    expect(queryData).toStrictEqual(clientB.getQueryData(getAssetsQueryKey));
+    await clientA.invalidateQueries();
 
-    observerA.destroy();
-    observerB.destroy();
+    expect(clientA.getQueryData(getAssetsQueryKey)).toStrictEqual([]);
+
+    observer.destroy();
+  });
+
+  it('removes unobserved queries when the service cache entry is removed', async () => {
+    const { messenger, clientA } = createClients();
+
+    const hash = hashQueryKey(getAssetsQueryKey);
+    const subscribeSpy = jest.spyOn(messenger, 'subscribe');
+
+    const observer = new QueryObserver(clientA, {
+      queryKey: getAssetsQueryKey,
+    });
+
+    await new Promise((resolve) => {
+      observer.subscribe((event) => {
+        if (event.status === 'success') {
+          resolve(event.data);
+        }
+      });
+    });
+
+    const cacheListener = subscribeSpy.mock.calls.find(
+      ([eventType]) => eventType === `ExampleDataService:cacheUpdated:${hash}`,
+    )?.[1] as (payload: { type: 'removed'; state: null }) => void;
+
+    // Destroying the observer unsubscribes the listener from the messenger,
+    // but a `removed` event may already be in flight — deliver it directly to
+    // simulate that race. With no observers left, the query is removed.
+    observer.destroy();
+
+    expect(clientA.getQueryData(getAssetsQueryKey)).toBeDefined();
+
+    cacheListener({ type: 'removed', state: null });
+
+    expect(clientA.getQueryData(getAssetsQueryKey)).toBeUndefined();
   });
 
   it('fetches using paginated observers', async () => {

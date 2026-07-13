@@ -114,7 +114,14 @@ export function createUIQueryClient(
         if (payload.type === 'removed') {
           const currentQuery = cache.get(hash);
 
-          if (currentQuery) {
+          // A `removed` event only means the data service no longer caches
+          // this query (typically its internal cache entry was garbage
+          // collected), not that the data is invalid. Removing a query that
+          // still has observers is unsupported by tanstack and destroys data
+          // a mounted consumer is rendering, so only unobserved queries are
+          // removed; observed ones keep their data and refetch on their own
+          // schedule.
+          if (currentQuery?.getObserversCount() === 0) {
             cache.remove(currentQuery);
           }
         } else {
