@@ -78,7 +78,10 @@ export function subscribeTransactionChanges(
 
         return (
           previousTransaction &&
-          previousTransaction?.txParams.data !== tx.txParams.data
+          (previousTransaction?.txParams.data !== tx.txParams.data ||
+            previousTransaction?.txParams.to !== tx.txParams.to ||
+            JSON.stringify(previousTransaction?.requiredAssets) !==
+              JSON.stringify(tx.requiredAssets))
         );
       });
 
