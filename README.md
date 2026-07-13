@@ -365,7 +365,6 @@ linkStyle default opacity:0.5
   core_backend --> controller_utils;
   core_backend --> keyring_controller;
   core_backend --> messenger;
-  core_backend --> multichain_account_service;
   core_backend --> profile_sync_controller;
   delegation_controller --> base_controller;
   delegation_controller --> keyring_controller;

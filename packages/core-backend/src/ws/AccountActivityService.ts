@@ -9,7 +9,6 @@ import type {
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerSelectedAccountChangeEvent,
 } from '@metamask/accounts-controller';
-import type { MultichainAccountServiceGetMultichainAccountGroupAction } from '@metamask/multichain-account-service';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
@@ -28,6 +27,7 @@ import type {
 } from './BackendWebSocketService';
 import { WebSocketState } from './BackendWebSocketService';
 import type { BackendWebSocketServiceMethodActions } from './BackendWebSocketService-method-action-types';
+import { AccountsControllerListMultichainAccountsAction } from '@metamask/accounts-controller';
 
 // =============================================================================
 // Types and Constants
@@ -82,6 +82,7 @@ export type AccountActivityServiceActions = AccountActivityServiceMethodActions;
 // Allowed actions that AccountActivityService can call on other controllers
 export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
   'AccountsController:getSelectedAccount',
+  'AccountsController:listMultichainAccounts',
   'BackendWebSocketService:connect',
   'BackendWebSocketService:forceReconnection',
   'BackendWebSocketService:subscribe',
@@ -91,7 +92,6 @@ export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
   'BackendWebSocketService:findSubscriptionsByChannelPrefix',
   'BackendWebSocketService:addChannelCallback',
   'BackendWebSocketService:removeChannelCallback',
-  'MultichainAccountService:getMultichainAccountGroup',
 ] as const;
 
 // Allowed events that AccountActivityService can listen to
@@ -102,8 +102,8 @@ export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS = [
 
 export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
-  | BackendWebSocketServiceMethodActions
-  | MultichainAccountServiceGetMultichainAccountGroupAction;
+  | AccountsControllerListMultichainAccountsAction
+  | BackendWebSocketServiceMethodActions;
 
 // Event types for the messaging system
 
@@ -586,11 +586,16 @@ export class AccountActivityService {
     const multichainAccounts =
       account.options.entropy?.type === 'mnemonic'
         ? this.#messenger
-            .call('MultichainAccountService:getMultichainAccountGroup', {
-              entropySource: account.options.entropy.id,
-              groupIndex: account.options.entropy.groupIndex,
-            })
-            .getAccounts()
+            .call('AccountsController:listMultichainAccounts')
+            .filter(
+              (multichainAccount) =>
+                multichainAccount.options.entropy?.type === 'mnemonic' &&
+                account.options.entropy?.type === 'mnemonic' &&
+                multichainAccount.options.entropy.id ===
+                  account.options.entropy.id &&
+                multichainAccount.options.entropy.groupIndex ===
+                  account.options.entropy.groupIndex,
+            )
         : [account];
     return multichainAccounts
       .map((acct) => this.#convertToCaip10Address(acct))
