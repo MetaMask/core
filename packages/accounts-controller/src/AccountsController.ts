@@ -1,3 +1,4 @@
+// Benchmark: multi-package change.
 import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerGetStateAction,
