@@ -1,5 +1,7 @@
 name: Lint, Build, and Test
 
+# Benchmark: CI-only change — no packages should be tested.
+
 on:
   workflow_call:
 
