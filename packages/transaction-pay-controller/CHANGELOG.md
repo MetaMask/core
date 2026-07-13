@@ -9,9 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [24.0.3]
 
-### Uncategorized
+### Changed
 
-- chore: MIT license text update ([#9472](https://github.com/MetaMask/core/pull/9472))
+- Bump `@metamask/ramps-controller` from `^15.1.0` to `^16.0.0` ([#9448](https://github.com/MetaMask/core/pull/9448))
+- Update `LICENSE` text ([#9472](https://github.com/MetaMask/core/pull/9472))
 
 ## [24.0.2]
 
