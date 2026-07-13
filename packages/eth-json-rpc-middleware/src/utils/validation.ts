@@ -234,3 +234,101 @@ export function validateTypedMessageKeys(data: string): void {
     }
   }
 }
+
+/**
+ * Top-level keys explicitly permitted on `eth_sendTransaction` and
+ * `eth_signTransaction` params. Any additional top-level key causes the
+ * request to be rejected before it reaches downstream consumers such as PPOM
+ * or the Security Alerts API.
+ *
+ * Derived from the dapp-facing subset of `TransactionParams` in
+ * `@metamask/transaction-controller`. Internal-only fields
+ * (`estimateGasError`, `estimatedBaseFee`, `estimateSuggested`,
+ * `estimateUsed`, `gasUsed`) are intentionally omitted — dapps should not be
+ * able to inject them.
+ */
+export const ALLOWED_TRANSACTION_PARAM_KEYS = new Set<string>([
+  'accessList',
+  'authorizationList',
+  'chainId',
+  'data',
+  'from',
+  'gas',
+  'gasLimit',
+  'gasPrice',
+  'maxFeePerGas',
+  'maxPriorityFeePerGas',
+  'nonce',
+  'to',
+  'type',
+  'value',
+]);
+
+/**
+ * Maximum nesting depth permitted anywhere inside a transaction params
+ * object. Legitimate params (including `accessList` and
+ * `authorizationList`) are at most ~4 levels deep. Anything beyond this is
+ * treated as a denial-of-service attempt against downstream normalization
+ * (which recurses and can overflow the call stack in native/WASM code).
+ */
+export const MAX_TRANSACTION_PARAM_DEPTH = 10;
+
+/**
+ * Recursively checks that a value does not nest beyond
+ * `MAX_TRANSACTION_PARAM_DEPTH`.
+ *
+ * @param value - The value to check.
+ * @param depth - The current depth. Callers should pass `0`.
+ * @throws rpcErrors.invalidInput() if the value nests too deeply.
+ */
+function assertMaxDepth(value: unknown, depth: number): void {
+  if (depth > MAX_TRANSACTION_PARAM_DEPTH) {
+    throw rpcErrors.invalidInput();
+  }
+
+  if (value === null || typeof value !== 'object') {
+    return;
+  }
+
+  if (Array.isArray(value)) {
+    for (const item of value) {
+      assertMaxDepth(item, depth + 1);
+    }
+    return;
+  }
+
+  for (const key of Object.getOwnPropertyNames(
+    value as Record<string, unknown>,
+  )) {
+    assertMaxDepth((value as Record<string, unknown>)[key], depth + 1);
+  }
+}
+
+/**
+ * Validates that `eth_sendTransaction` / `eth_signTransaction` params contain
+ * only spec-defined top-level keys and no excessively-nested structures.
+ *
+ * This guards against malicious dapps attaching deeply-nested junk fields
+ * (e.g. `{ from, to, data, test: { b: { b: { b: /* ~1200 levels *\/ } } } }`)
+ * that would otherwise crash downstream normalization or PPOM WASM with a
+ * `RangeError: Maximum call stack size exceeded`, bypassing security checks.
+ *
+ * @param params - The transaction params object supplied by the dapp.
+ * @throws rpcErrors.invalidInput() if params is not a plain object, contains
+ * an extraneous top-level key, or nests beyond `MAX_TRANSACTION_PARAM_DEPTH`.
+ */
+export function validateTransactionParams(params: unknown): void {
+  if (params === null || typeof params !== 'object' || Array.isArray(params)) {
+    throw rpcErrors.invalidInput();
+  }
+
+  const hasExtraneousKey = Object.keys(params).some(
+    (key) => !ALLOWED_TRANSACTION_PARAM_KEYS.has(key),
+  );
+
+  if (hasExtraneousKey) {
+    throw rpcErrors.invalidInput();
+  }
+
+  assertMaxDepth(params, 0);
+}
