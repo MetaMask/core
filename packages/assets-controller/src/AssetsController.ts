@@ -1,17 +1,16 @@
 import type {
   AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
   AccountTreeControllerSelectedAccountGroupChangeEvent,
-  AccountTreeControllerState,
+  AccountTreeControllerStateChangeEvent,
 } from '@metamask/account-tree-controller';
 import type { AccountsControllerGetSelectedAccountAction } from '@metamask/accounts-controller';
 import { BaseController } from '@metamask/base-controller';
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
-  ControllerStateChangedEvent,
   StateMetadata,
 } from '@metamask/base-controller';
-import type { ClientControllerState } from '@metamask/client-controller';
+import type { ClientControllerStateChangeEvent } from '@metamask/client-controller';
 import { clientControllerSelectors } from '@metamask/client-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type {
@@ -323,26 +322,11 @@ type AllowedActions =
   // PhishingController
   | PhishingControllerBulkScanTokensAction;
 
-type AccountTreeControllerStateChangedEvent = ControllerStateChangedEvent<
-  'AccountTreeController',
-  AccountTreeControllerState
->;
-
-type ClientControllerStateChangedEvent = ControllerStateChangedEvent<
-  'ClientController',
-  ClientControllerState
->;
-
-type NetworkEnablementControllerStateChangedEvent = ControllerStateChangedEvent<
-  'NetworkEnablementController',
-  NetworkEnablementControllerState
->;
-
 type AllowedEvents =
   // AssetsController
   | AccountTreeControllerSelectedAccountGroupChangeEvent
-  | AccountTreeControllerStateChangedEvent
-  | ClientControllerStateChangedEvent
+  | AccountTreeControllerStateChangeEvent
+  | ClientControllerStateChangeEvent
   | KeyringControllerLockEvent
   | KeyringControllerUnlockEvent
   | PreferencesControllerStateChangeEvent
@@ -358,7 +342,6 @@ type AllowedEvents =
   | NetworkControllerNetworkRemovedEvent
   // StakedBalanceDataSource
   | NetworkEnablementControllerEvents
-  | NetworkEnablementControllerStateChangedEvent
   // SnapDataSource
   | AccountsControllerAccountBalancesUpdatedEvent
   | PermissionControllerStateChange
@@ -1107,13 +1090,13 @@ export class AssetsController extends BaseController<
     // The base-controller `:stateChange` event is guaranteed to fire
     // when init() calls this.update(). #start() is idempotent so
     // repeated fires are safe.
-    this.messenger.subscribe('AccountTreeController:stateChanged', () => {
+    this.messenger.subscribe('AccountTreeController:stateChange', () => {
       this.#handleAccountTreeStateChange();
     });
 
     // Subscribe to network enablement changes (only enabledNetworkMap)
     this.messenger.subscribe(
-      'NetworkEnablementController:stateChanged',
+      'NetworkEnablementController:stateChange',
       ({ enabledNetworkMap }) => {
         this.#handleEnabledNetworksChanged(enabledNetworkMap).catch(
           console.error,
@@ -1144,7 +1127,7 @@ export class AssetsController extends BaseController<
     });
 
     // Selected EVM network switch (network picker). Enablement changes are
-    // handled separately via NetworkEnablementController:stateChanged.
+    // handled separately via NetworkEnablementController:stateChange.
     this.messenger.subscribe(
       'NetworkController:networkDidChange',
       (networkState) => {
@@ -1154,7 +1137,7 @@ export class AssetsController extends BaseController<
 
     // Client + Keyring lifecycle: only run when UI is open AND keyring is unlocked
     this.messenger.subscribe(
-      'ClientController:stateChanged',
+      'ClientController:stateChange',
       (isUiOpen: boolean) => {
         this.#uiOpen = isUiOpen;
         this.#updateActive();
