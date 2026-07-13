@@ -221,7 +221,7 @@ export class OrdersService extends BaseDataService<
     url.searchParams.append('sortOrder', sortOrder);
 
     const responseData = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchOrders`, url.toString()],
+      queryKey: [`${this.name}:fetchOrders`, sortField, sortOrder],
       queryFn: async () => {
         const response = await fetch(url);
 
@@ -259,7 +259,7 @@ export class OrdersService extends BaseDataService<
     const url = new URL(`/v1/orders/${id}`, BASE_URL);
 
     const responseData = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchOrder`, url.toString()],
+      queryKey: [`${this.name}:fetchOrder`, id],
       queryFn: async () => {
         const response = await fetch(url);
 
