@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: MIT license text update ([#9472](https://github.com/MetaMask/core/pull/9472))
+
 ### Changed
 
 - Bump `@metamask/network-enablement-controller` from `^5.4.1` to `^5.5.0` ([#9470](https://github.com/MetaMask/core/pull/9470))
