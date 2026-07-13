@@ -9,6 +9,7 @@ import type {
   AccountsControllerGetSelectedAccountAction,
   AccountsControllerSelectedAccountChangeEvent,
 } from '@metamask/accounts-controller';
+import { AccountsControllerListMultichainAccountsAction } from '@metamask/accounts-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
@@ -27,7 +28,6 @@ import type {
 } from './BackendWebSocketService';
 import { WebSocketState } from './BackendWebSocketService';
 import type { BackendWebSocketServiceMethodActions } from './BackendWebSocketService-method-action-types';
-import { AccountsControllerListMultichainAccountsAction } from '@metamask/accounts-controller';
 
 // =============================================================================
 // Types and Constants
