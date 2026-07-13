@@ -367,6 +367,13 @@ export class SentinelApiService extends BaseDataService<
       );
     }
 
+    if (responseJson.result === undefined) {
+      throw new SentinelJsonRpcError(
+        "Sentinel API: JSON-RPC response missing result",
+        -32603,
+      );
+    }
+
     return responseJson.result;
   }
 
