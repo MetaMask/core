@@ -18,7 +18,7 @@ import {
 import {
   SentinelApiResponseValidationError,
   SentinelChainNotSupportedError,
-  SentinelSimulationError,
+  SentinelJsonRpcError,
 } from './errors';
 import { projectLogger, createModuleLogger } from './logger';
 import {
@@ -122,7 +122,7 @@ export class SentinelApiService extends BaseDataService<
           (error) =>
             !(error instanceof SentinelApiResponseValidationError) &&
             !(error instanceof SentinelChainNotSupportedError) &&
-            !(error instanceof SentinelSimulationError),
+            !(error instanceof SentinelJsonRpcError),
         ),
         ...policyOptions,
       },
@@ -208,7 +208,12 @@ export class SentinelApiService extends BaseDataService<
     const url = options.getUrl ? await options.getUrl(defaultUrl) : defaultUrl;
 
     const result = await this.fetchQuery({
-      queryKey: [`${this.name}:simulateTransactions`, chainId],
+      queryKey: [
+        `${this.name}:simulateTransactions`,
+        chainId,
+        request,
+        url,
+      ],
       staleTime: 0,
       queryFn: async (): Promise<Json> => {
         log('simulateTransactions', 'Request', url, request);
@@ -246,7 +251,7 @@ export class SentinelApiService extends BaseDataService<
     const url = await this.#resolveUrl(request.chainId, 'relayTransactions');
 
     const result = await this.fetchQuery({
-      queryKey: [`${this.name}:submitRelayTransaction`, request.chainId],
+      queryKey: [`${this.name}:submitRelayTransaction`, request],
       staleTime: 0,
       queryFn: async (): Promise<Json> => {
         log('submitRelayTransaction', 'Request', url, request);
@@ -358,7 +363,7 @@ export class SentinelApiService extends BaseDataService<
 
     if (responseJson.error) {
       const { code, message } = responseJson.error;
-      throw new SentinelSimulationError(
+      throw new SentinelJsonRpcError(
         `Sentinel API: JSON-RPC error: ${message}`,
         code,
       );
@@ -392,8 +397,13 @@ export class SentinelApiService extends BaseDataService<
       if (token) {
         headers.Authorization = `Bearer ${token}`;
       }
-    } catch {
+    } catch (error: unknown) {
       // Proceed without auth if token retrieval fails.
+      log(
+        'getHeaders',
+        'Auth token unavailable, proceeding unauthenticated',
+        error,
+      );
     }
 
     return headers;

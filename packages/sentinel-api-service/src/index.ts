@@ -42,5 +42,5 @@ export type {
 export {
   SentinelApiResponseValidationError,
   SentinelChainNotSupportedError,
-  SentinelSimulationError,
+  SentinelJsonRpcError,
 } from './errors';

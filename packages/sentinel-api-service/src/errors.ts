@@ -2,13 +2,13 @@
  * Thrown when the Sentinel API returns a JSON-RPC error object (for example
  * from `infura_simulateTransactions` or `eth_sendRelayTransaction`).
  */
-export class SentinelSimulationError extends Error {
+export class SentinelJsonRpcError extends Error {
   /** The JSON-RPC error code, if provided by the API. */
   readonly code?: number;
 
   constructor(message: string, code?: number) {
     super(message);
-    this.name = 'SentinelSimulationError';
+    this.name = 'SentinelJsonRpcError';
     this.code = code;
   }
 }

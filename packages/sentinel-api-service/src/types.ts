@@ -497,7 +497,8 @@ export type SentinelRelaySubmitResponse = {
  */
 export enum SentinelSmartTransactionStatus {
   Pending = 'PENDING',
-  Success = 'VALIDATED',
+  Validated = 'VALIDATED',
+  Failed = 'FAILED',
 }
 
 /**

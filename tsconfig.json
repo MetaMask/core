@@ -159,6 +159,9 @@
       "path": "./packages/money-account-balance-service"
     },
     {
+      "path": "./packages/money-account-api-data-service"
+    },
+    {
       "path": "./packages/money-account-controller"
     },
     {

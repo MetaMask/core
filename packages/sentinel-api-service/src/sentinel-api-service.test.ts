@@ -20,7 +20,7 @@ import {
 import {
   SentinelApiResponseValidationError,
   SentinelChainNotSupportedError,
-  SentinelSimulationError,
+  SentinelJsonRpcError,
 } from './errors';
 import { SentinelApiService } from './sentinel-api-service';
 import {
@@ -234,7 +234,7 @@ describe('SentinelApiService', () => {
     });
 
     it('captures a JSON-RPC error code', () => {
-      const error = new SentinelSimulationError('boom', -32000);
+      const error = new SentinelJsonRpcError('boom', -32000);
       expect(error.code).toBe(-32000);
     });
   });
@@ -242,7 +242,8 @@ describe('SentinelApiService', () => {
   describe('enums', () => {
     it('exposes smart-transaction status values', () => {
       expect(SentinelSmartTransactionStatus.Pending).toBe('PENDING');
-      expect(SentinelSmartTransactionStatus.Success).toBe('VALIDATED');
+      expect(SentinelSmartTransactionStatus.Validated).toBe('VALIDATED');
+      expect(SentinelSmartTransactionStatus.Failed).toBe('FAILED');
     });
 
     it('exposes feature and kind values', () => {
@@ -476,7 +477,7 @@ describe('SentinelApiService', () => {
       service.destroy();
     });
 
-    it('throws SentinelSimulationError on a JSON-RPC error', async () => {
+    it('throws SentinelJsonRpcError on a JSON-RPC error', async () => {
       const { service } = createService();
       mockNetworks();
       nock(MAINNET_URL)
@@ -489,7 +490,7 @@ describe('SentinelApiService', () => {
 
       await expect(
         service.simulateTransactions(CHAIN_ID_MAINNET, MOCK_SIMULATION_REQUEST),
-      ).rejects.toThrow(SentinelSimulationError);
+      ).rejects.toThrow(SentinelJsonRpcError);
       service.destroy();
     });
 
@@ -533,6 +534,59 @@ describe('SentinelApiService', () => {
         MOCK_SIMULATION_REQUEST,
       );
       expect(result).toStrictEqual(MOCK_SIMULATION_RESPONSE);
+      service.destroy();
+    });
+
+    it('does not dedupe concurrent simulations for different requests on the same chain', async () => {
+      const { service } = createService();
+      mockNetworks();
+
+      const requestA: SentinelSimulationRequest = {
+        transactions: [
+          {
+            from: '0x1111111111111111111111111111111111111111',
+            to: '0x2222222222222222222222222222222222222222',
+            value: '0x0',
+          },
+        ],
+      };
+      const requestB: SentinelSimulationRequest = {
+        transactions: [
+          {
+            from: '0x3333333333333333333333333333333333333333',
+            to: '0x4444444444444444444444444444444444444444',
+            value: '0x1',
+          },
+        ],
+      };
+      const responseA = { transactions: [{ return: '0xa' }] };
+      const responseB = { transactions: [{ return: '0xb' }] };
+
+      nock(MAINNET_URL)
+        .post(
+          '/',
+          (body) =>
+            body.method === RPC_METHOD_SIMULATE &&
+            body.params[0].transactions[0].from ===
+              '0x1111111111111111111111111111111111111111',
+        )
+        .reply(200, { jsonrpc: '2.0', id: '1', result: responseA });
+      nock(MAINNET_URL)
+        .post(
+          '/',
+          (body) =>
+            body.method === RPC_METHOD_SIMULATE &&
+            body.params[0].transactions[0].from ===
+              '0x3333333333333333333333333333333333333333',
+        )
+        .reply(200, { jsonrpc: '2.0', id: '1', result: responseB });
+
+      const [resultA, resultB] = await Promise.all([
+        service.simulateTransactions(CHAIN_ID_MAINNET, requestA),
+        service.simulateTransactions(CHAIN_ID_MAINNET, requestB),
+      ]);
+      expect(resultA).toStrictEqual(responseA);
+      expect(resultB).toStrictEqual(responseB);
       service.destroy();
     });
   });
@@ -589,6 +643,49 @@ describe('SentinelApiService', () => {
         MOCK_RELAY_REQUEST,
       );
       expect(result).toStrictEqual({ uuid: UUID });
+      service.destroy();
+    });
+
+    it('does not dedupe concurrent relay submissions for different requests on the same chain', async () => {
+      const { service } = createService();
+      mockNetworks();
+
+      const requestA: SentinelRelaySubmitRequest = {
+        chainId: CHAIN_ID_MAINNET,
+        data: '0xaaaaaaaa',
+        to: '0x2222222222222222222222222222222222222222',
+      };
+      const requestB: SentinelRelaySubmitRequest = {
+        chainId: CHAIN_ID_MAINNET,
+        data: '0xbbbbbbbb',
+        to: '0x2222222222222222222222222222222222222222',
+      };
+      const uuidA = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+      const uuidB = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+
+      nock(MAINNET_URL)
+        .post(
+          '/',
+          (body) =>
+            body.method === RPC_METHOD_SEND_RELAY &&
+            body.params[0].data === '0xaaaaaaaa',
+        )
+        .reply(200, { jsonrpc: '2.0', id: '1', result: { uuid: uuidA } });
+      nock(MAINNET_URL)
+        .post(
+          '/',
+          (body) =>
+            body.method === RPC_METHOD_SEND_RELAY &&
+            body.params[0].data === '0xbbbbbbbb',
+        )
+        .reply(200, { jsonrpc: '2.0', id: '1', result: { uuid: uuidB } });
+
+      const [resultA, resultB] = await Promise.all([
+        service.submitRelayTransaction(requestA),
+        service.submitRelayTransaction(requestB),
+      ]);
+      expect(resultA).toStrictEqual({ uuid: uuidA });
+      expect(resultB).toStrictEqual({ uuid: uuidB });
       service.destroy();
     });
   });
