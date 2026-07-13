@@ -113,7 +113,7 @@ export class OrdersService extends BaseDataService</* ... */> {
   async fetchOrders(/* ... */): Promise</* ... */> {
     // ...
 
-    const jsonResponse = await this.fetchQuery({
+    const responseData = await this.fetchQuery({
       // ...
       queryFn: async () => {
         const response = await fetch(url);
@@ -209,7 +209,7 @@ export class OrdersService extends BaseDataService</* ... */> {
   async fetchOrders(/* ... */): Promise<FetchOrdersResponse> {
     // ...
 
-    const [error, validJsonResponse] = validate(
+    const [error, validatedResponseData] = validate(
       jsonResponse,
       FetchOrdersResponseStruct,
     );
@@ -219,7 +219,7 @@ export class OrdersService extends BaseDataService</* ... */> {
       );
     }
 
-    return validJsonResponse;
+    return validatedResponseData;
   }
 }
 ```
