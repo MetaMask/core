@@ -205,7 +205,7 @@ export class OrdersService extends BaseDataService</* ... */> {
       );
     }
 
-    return validatedJsonResponse;
+    return validJsonResponse;
   }
 }
 ```
@@ -221,7 +221,7 @@ const MESSENGER_EXPOSED_METHODS = [] as const;
 const MESSENGER_EXPOSED_METHODS = ['fetchOrders'] as const;
 ```
 
-Then we'll run `yarn workspace @metamask/orders-service run generate-action-types`. This will generate a new file:
+Then we'll run `yarn workspace @metamask/orders-service run messenger-action-types:generate`. This will generate a new file:
 
 ```typescript title="packages/orders-service/src/orders-service-method-action-types.ts"
 /**
