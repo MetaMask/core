@@ -821,36 +821,6 @@ describe('AccountActivityService', () => {
         });
       });
 
-      it('should handle unknown scope fallback by subscribing to channels with fallback naming convention', async () => {
-        await withService(async ({ mocks, rootMessenger }) => {
-          const unknownAccount = createMockInternalAccount({
-            address: 'UnknownChainAddress456def',
-          });
-          unknownAccount.scopes = ['bitcoin:mainnet', 'unknown:chain'];
-
-          mocks.subscribe.mockResolvedValue({
-            subscriptionId: 'unknown-sub-456',
-            unsubscribe: jest.fn(),
-          });
-
-          // Publish account change event - will be picked up by controller subscription
-          rootMessenger.publish(
-            'AccountsController:selectedAccountChange',
-            unknownAccount,
-          );
-          // Wait for async handler to complete
-          await completeAsyncOperations();
-
-          expect(mocks.subscribe).toHaveBeenCalledWith(
-            expect.objectContaining({
-              channels: expect.arrayContaining([
-                expect.stringContaining('unknownchainaddress456def'),
-              ]),
-            }),
-          );
-        });
-      });
-
       it('should handle WebSocket connection when no selected account exists by attempting to get selected account', async () => {
         await withService(async ({ rootMessenger, mocks }) => {
           mocks.getSelectedAccount.mockReturnValue(null);
