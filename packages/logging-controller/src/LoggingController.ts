@@ -1,3 +1,4 @@
+// Benchmark: mixed change (ignored root + single package).
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
