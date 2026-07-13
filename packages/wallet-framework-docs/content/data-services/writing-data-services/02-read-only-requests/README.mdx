@@ -98,10 +98,10 @@ export class OrdersService extends BaseDataService</* ... */> {
 
 Now on to `queryFn`. There is nothing special about making the request itself, but afterward, we carry out two steps:
 
-1. We check the HTTP status of the response and throw error if it is not within the 200-299 range. We use a special error, `HttpError`, which comes from `@metamask/controller-utils`.
+1. We check the HTTP status of the response and throw error if it is not within the 200-299 range. We use a special error, `HttpError`, which comes from `@metamask/controller-utils`. It's important that we use this instead of a plain `Error` because it informs `fetchQuery` which kinds of HTTP responses to retry.
 2. We also attempt to parse the response as JSON.
 
-:::info
+:::warning
 It's important that we perform both of these steps **inside** of our query function and not **outside**, because we want our query function (and thus the request) to get automatically re-run if either of these steps fails.
 :::
 
