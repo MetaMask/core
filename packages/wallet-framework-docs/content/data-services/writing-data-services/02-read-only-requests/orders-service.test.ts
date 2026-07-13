@@ -44,19 +44,7 @@ const MOCK_VALID_ORDERS_RESPONSE_DATA = {
 } satisfies FetchOrdersResponse;
 
 const MOCK_VALID_ORDER_RESPONSE_DATA = {
-  order: {
-    createdTime: 1747526400,
-    details: {
-      amount: '0xde0b6b3a7640000',
-    },
-    from: 'eip155:1:0xab16a96D359eC26a11e2C2b3d8f8B8942d5Bfcdb',
-    objectId: 'eip155:1/erc721:0x06012c8cf97BEaD5deAe237070F9587f8E7A266d',
-    orderId: '0000000000000000001',
-    status: 'pending',
-    to: 'bip122:000000000019d6689c085ae165831e93:128Lkh3S7CkDTBZ8W7BbpsN3YYizJMp8p6',
-    type: 'token',
-    updatedTime: 1747526400,
-  },
+  order: MOCK_VALID_ORDERS_RESPONSE_DATA.orders[0],
 } satisfies FetchOrderResponse;
 
 describe('OrdersService', () => {
