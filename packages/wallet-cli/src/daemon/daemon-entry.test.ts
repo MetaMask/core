@@ -229,6 +229,16 @@ describe('daemon-entry', () => {
     expect(process.env.MM_WALLET_SRP).toBeUndefined();
   });
 
+  it('scrubs wallet secrets even when Srp.from throws on an invalid mnemonic', async () => {
+    process.env.MM_WALLET_SRP = 'not a valid mnemonic at all';
+
+    await importDaemonEntry();
+
+    expect(process.exitCode).toBe(1);
+    expect(process.env.MM_WALLET_PASSWORD).toBeUndefined();
+    expect(process.env.MM_WALLET_SRP).toBeUndefined();
+  });
+
   it('uses MM_DAEMON_SOCKET_PATH override when set', async () => {
     process.env.MM_DAEMON_SOCKET_PATH = '/custom/sock';
 

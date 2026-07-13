@@ -34,20 +34,19 @@ async function main(): Promise<void> {
   if (!passwordRaw) {
     throw new Error('MM_WALLET_PASSWORD environment variable is required');
   }
-  const password = Password.from(passwordRaw);
 
   const srpRaw = process.env.MM_WALLET_SRP;
   if (!srpRaw) {
     throw new Error('MM_WALLET_SRP environment variable is required');
   }
-  const srp = Srp.from(srpRaw);
 
-  // Scrub the wallet secrets from the environment now they are captured. The
-  // daemon is long-lived and dispatches arbitrary messenger actions over its
-  // socket, so leaving the SRP/password in `process.env` for its whole lifetime
-  // needlessly widens their exposure to any in-process code.
+  // Scrub before validation so a throw from Password.from / Srp.from (bad
+  // value) does not leave the raw secrets in the long-lived daemon's env.
   delete process.env.MM_WALLET_PASSWORD;
   delete process.env.MM_WALLET_SRP;
+
+  const password = Password.from(passwordRaw);
+  const srp = Srp.from(srpRaw);
 
   await ensureOwnerOnlyDirectory(dataDir);
 
