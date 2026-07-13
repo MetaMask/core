@@ -41,11 +41,12 @@ const completeAsyncOperations = async (timeoutMs = 0): Promise<void> => {
 };
 
 // Mock function to create test accounts
-const createMockInternalAccount = (options: {
+const createMockInternalAccount = (overrides: {
   address: string;
+  options?: InternalAccount['options'];
 }): InternalAccount => ({
-  address: options.address.toLowerCase() as Hex,
-  id: `test-account-${options.address.slice(-6)}`,
+  address: overrides.address.toLowerCase() as Hex,
+  id: `test-account-${overrides.address.slice(-6)}`,
   metadata: {
     name: 'Test Account',
     importTime: Date.now(),
@@ -53,7 +54,7 @@ const createMockInternalAccount = (options: {
       type: 'HD Key Tree',
     },
   },
-  options: {},
+  options: overrides.options ?? {},
   methods: [],
   type: 'eip155:eoa',
   scopes: ['eip155:1'], // Required scopes property
@@ -81,6 +82,7 @@ const getMessenger = (): {
   messenger: AccountActivityServiceMessenger;
   mocks: {
     getSelectedAccount: jest.Mock;
+    listMultichainAccounts: jest.Mock;
     connect: jest.Mock;
     subscribe: jest.Mock;
     channelHasSubscription: jest.Mock;
@@ -107,6 +109,7 @@ const getMessenger = (): {
   rootMessenger.delegate({
     actions: [
       'AccountsController:getSelectedAccount',
+      'AccountsController:listMultichainAccounts',
       'BackendWebSocketService:connect',
       'BackendWebSocketService:forceReconnection',
       'BackendWebSocketService:subscribe',
@@ -126,6 +129,7 @@ const getMessenger = (): {
 
   // Create mock action handlers
   const mockGetSelectedAccount = jest.fn();
+  const mockListMultichainAccounts = jest.fn();
   const mockConnect = jest.fn();
   const mockForceReconnection = jest.fn();
   const mockSubscribe = jest.fn();
@@ -139,6 +143,10 @@ const getMessenger = (): {
   rootMessenger.registerActionHandler(
     'AccountsController:getSelectedAccount',
     mockGetSelectedAccount,
+  );
+  rootMessenger.registerActionHandler(
+    'AccountsController:listMultichainAccounts',
+    mockListMultichainAccounts,
   );
   rootMessenger.registerActionHandler(
     'BackendWebSocketService:connect',
@@ -178,6 +186,7 @@ const getMessenger = (): {
     messenger,
     mocks: {
       getSelectedAccount: mockGetSelectedAccount,
+      listMultichainAccounts: mockListMultichainAccounts,
       connect: mockConnect,
       forceReconnection: mockForceReconnection,
       subscribe: mockSubscribe,
@@ -206,6 +215,7 @@ const createIndependentService = (options?: {
   rootMessenger: RootMessenger;
   mocks: {
     getSelectedAccount: jest.Mock;
+    listMultichainAccounts: jest.Mock;
     connect: jest.Mock;
     subscribe: jest.Mock;
     channelHasSubscription: jest.Mock;
@@ -252,6 +262,7 @@ const createServiceWithTestAccount = (
   rootMessenger: RootMessenger;
   mocks: {
     getSelectedAccount: jest.Mock;
+    listMultichainAccounts: jest.Mock;
     connect: jest.Mock;
     subscribe: jest.Mock;
     channelHasSubscription: jest.Mock;
@@ -307,6 +318,7 @@ type WithServiceCallback<ReturnValue> = (payload: {
   rootMessenger: RootMessenger;
   mocks: {
     getSelectedAccount: jest.Mock;
+    listMultichainAccounts: jest.Mock;
     connect: jest.Mock;
     forceReconnection: jest.Mock;
     subscribe: jest.Mock;
@@ -846,6 +858,60 @@ describe('AccountActivityService', () => {
               channels: expect.arrayContaining([
                 expect.stringContaining('unknownchainaddress456def'),
               ]),
+            }),
+          );
+        });
+      });
+
+      it('subscribes to all accounts from the same entropy and group index', async () => {
+        await withService(async ({ mocks, rootMessenger }) => {
+          // Create two accounts with the same entropy and group index
+          const account1 = createMockInternalAccount({
+            address: '0xaccount1',
+            options: {
+              entropy: {
+                type: 'mnemonic',
+                id: '0xentropy1',
+                groupIndex: 0,
+                derivationPath: "m/44'/60'/0'/0/0",
+              },
+            },
+          });
+          const account2 = createMockInternalAccount({
+            address: '0xaccount2',
+            options: {
+              entropy: {
+                type: 'mnemonic',
+                id: '0xentropy1',
+                groupIndex: 0,
+                derivationPath: "m/44'/60'/0'/0/1",
+              },
+            },
+          });
+          mocks.listMultichainAccounts.mockReturnValue([account1, account2]);
+          mocks.subscribe.mockResolvedValue({
+            subscriptionId: 'sub-789',
+            unsubscribe: jest.fn(),
+          });
+
+          // Publish account change event for account1
+          rootMessenger.publish(
+            'AccountsController:selectedAccountChange',
+            account1,
+          );
+          // Wait for async handler to complete
+          await completeAsyncOperations();
+
+          // Verify that subscribe was called for both accounts with the same entropy and group index
+          expect(mocks.subscribe).toHaveBeenCalledTimes(2);
+          expect(mocks.subscribe).toHaveBeenCalledWith(
+            expect.objectContaining({
+              channels: ['account-activity.v1.eip155:0:0xaccount1'],
+            }),
+          );
+          expect(mocks.subscribe).toHaveBeenCalledWith(
+            expect.objectContaining({
+              channels: ['account-activity.v1.eip155:0:0xaccount2'],
             }),
           );
         });

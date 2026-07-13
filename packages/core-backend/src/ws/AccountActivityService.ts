@@ -585,7 +585,9 @@ export class AccountActivityService {
   #getSupportedMultichainCaip10Addresses(account: InternalAccount): string[] {
     const multichainAccounts =
       account.options.entropy?.type === 'mnemonic'
-        ? this.#messenger
+        ? // If the account is derived from a mnemonic, find all multichain accounts
+          // with the same entropy ID and group index
+          this.#messenger
             .call('AccountsController:listMultichainAccounts')
             .filter(
               (multichainAccount) =>
@@ -596,11 +598,16 @@ export class AccountActivityService {
                 multichainAccount.options.entropy.groupIndex ===
                   account.options.entropy.groupIndex,
             )
-        : [account];
+        : // If the account is not derived from a mnemonic, just use the single account
+          [account];
     return multichainAccounts
-      .map((acct) => this.#convertToCaip10Address(acct))
-      .filter((address) =>
-        SUPPORTED_CHAIN_PREFIXES.some((prefix) => address.startsWith(prefix)),
+      .map((multichainAccount) =>
+        this.#convertToCaip10Address(multichainAccount),
+      )
+      .filter(
+        (address) =>
+          !address.includes(':') ||
+          SUPPORTED_CHAIN_PREFIXES.some((prefix) => address.startsWith(prefix)),
       );
   }
 
