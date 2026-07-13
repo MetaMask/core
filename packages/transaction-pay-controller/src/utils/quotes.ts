@@ -18,6 +18,7 @@ import type {
   UpdateTransactionDataCallback,
 } from '../types';
 import { accountSupports7702 } from './7702';
+import { buildNoOpQuote, isNoOpQuote } from './no-op-quote';
 import {
   checkStrategyQuoteSupport,
   checkStrategySupport,
@@ -172,8 +173,24 @@ export async function updateQuotes(
       transactionId,
     });
 
+    // A selected payment token with no conversion requests means the
+    // controller deemed the route direct. Store an explicit no-op quote so
+    // clients and the publish hook can distinguish "no conversion needed"
+    // from "quote needed but missing".
+    let finalQuotes = quotes;
+
+    if (
+      !quotes.length &&
+      !requests.length &&
+      paymentToken &&
+      !fiatPayment?.selectedPaymentMethodId
+    ) {
+      log('Storing no-op quote for direct route', { transactionId });
+      finalQuotes = [buildNoOpQuote(from, paymentToken)];
+    }
+
     updateTransactionData(transactionId, (data) => {
-      data.quotes = quotes as never;
+      data.quotes = finalQuotes as never;
       data.quotesLastUpdated = Date.now();
       data.totals = totals;
     });
@@ -289,6 +306,12 @@ export async function refreshQuotes(
     const { isLoading, quotes, quotesLastUpdated } = transactionData;
 
     if (isLoading || !quotes?.length) {
+      continue;
+    }
+
+    // No-op quotes mark direct routes and have nothing to refresh. They are
+    // regenerated whenever the transaction data changes.
+    if (quotes.every((quote) => isNoOpQuote(quote))) {
       continue;
     }
 

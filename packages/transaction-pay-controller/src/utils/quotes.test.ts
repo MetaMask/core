@@ -212,10 +212,38 @@ describe('Quotes Utils', () => {
       });
     });
 
-    it('clears quotes in state if no source amounts', async () => {
+    it('stores no-op quote in state if no source amounts and payment token selected', async () => {
       await run({
         transactionData: {
           ...TRANSACTION_DATA_MOCK,
+          sourceAmounts: undefined,
+        },
+      });
+
+      const transactionDataMock = {
+        quotes: [QUOTE_MOCK],
+      };
+
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
+
+      expect(transactionDataMock).toMatchObject({
+        quotes: [
+          expect.objectContaining({
+            strategy: TransactionPayStrategy.None,
+          }),
+        ],
+      });
+    });
+
+    it('clears quotes in state if no source amounts and fiat payment selected without quotes', async () => {
+      getQuotesMock.mockResolvedValue([]);
+
+      await run({
+        transactionData: {
+          ...TRANSACTION_DATA_MOCK,
+          fiatPayment: { selectedPaymentMethodId: 'card-123' },
           sourceAmounts: undefined,
         },
       });
@@ -1219,7 +1247,11 @@ describe('Quotes Utils', () => {
       );
 
       expect(transactionDataMock).toMatchObject({
-        quotes: [],
+        quotes: [
+          expect.objectContaining({
+            strategy: TransactionPayStrategy.None,
+          }),
+        ],
       });
     });
 
@@ -1248,8 +1280,33 @@ describe('Quotes Utils', () => {
       );
 
       expect(transactionDataMock).toMatchObject({
-        quotes: [],
+        quotes: [
+          expect.objectContaining({
+            strategy: TransactionPayStrategy.None,
+          }),
+        ],
       });
+    });
+
+    it('does nothing if transaction only has a no-op quote', async () => {
+      getControllerStateMock.mockReturnValue({
+        transactionData: {
+          [TRANSACTION_ID_MOCK]: {
+            isLoading: false,
+            paymentToken: TRANSACTION_DATA_MOCK.paymentToken,
+            quotes: [{ ...QUOTE_MOCK, strategy: TransactionPayStrategy.None }],
+            quotesLastUpdated: 1,
+          } as TransactionData,
+        },
+      });
+
+      await refreshQuotes(
+        messenger,
+        updateTransactionDataMock,
+        getStrategiesMock,
+      );
+
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(0);
     });
 
     it('does nothing if transaction loading', async () => {

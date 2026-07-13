@@ -80,6 +80,31 @@ describe('QuoteRefresher', () => {
     expect(refreshQuotesMock).not.toHaveBeenCalled();
   });
 
+  it('does not poll if only no-op quotes in state', async () => {
+    new QuoteRefresher({
+      getStrategies: jest.fn().mockReturnValue([TransactionPayStrategy.Relay]),
+      messenger,
+      updateTransactionData: jest.fn(),
+    });
+
+    publish(
+      'TransactionPayController:stateChange',
+      {
+        transactionData: {
+          '123': {
+            quotes: [{ strategy: TransactionPayStrategy.None }],
+          } as TransactionData,
+        },
+      },
+      [],
+    );
+
+    jest.runAllTimers();
+    await flushPromises();
+
+    expect(refreshQuotesMock).not.toHaveBeenCalled();
+  });
+
   it('polls again after interval', async () => {
     new QuoteRefresher({
       getStrategies: jest.fn().mockReturnValue([TransactionPayStrategy.Relay]),

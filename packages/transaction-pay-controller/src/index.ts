@@ -40,3 +40,4 @@ export type {
 export { PaymentOverride, TransactionPayStrategy } from './constants';
 export { TransactionPayController } from './TransactionPayController';
 export { TransactionPayPublishHook } from './helpers/TransactionPayPublishHook';
+export { isNoOpQuote } from './utils/no-op-quote';

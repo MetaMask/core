@@ -115,6 +115,87 @@ describe('TransactionPayPublishHook', () => {
     expect(executeMock).not.toHaveBeenCalled();
   });
 
+  it('does nothing if pay is not engaged for the transaction', async () => {
+    getControllerStateMock.mockReturnValue({
+      transactionData: {
+        [TRANSACTION_META_MOCK.id]: {
+          isLoading: false,
+          tokens: [],
+        },
+      },
+    } as unknown as TransactionPayControllerState);
+
+    const result = await runHook();
+
+    expect(result).toStrictEqual({ transactionHash: undefined });
+    expect(executeMock).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['payment token is selected', { paymentToken: { address: '0x123' } }],
+    ['post-quote is set', { isPostQuote: true }],
+    ['quote is required', { isQuoteRequired: true }],
+    [
+      'conversion is required',
+      { sourceAmounts: [{ targetTokenAddress: '0x123' }] },
+    ],
+  ])('throws if %s but no quotes are in state', async (_title, data) => {
+    getControllerStateMock.mockReturnValue({
+      transactionData: {
+        [TRANSACTION_META_MOCK.id]: {
+          ...data,
+          isLoading: false,
+          tokens: [],
+        },
+      },
+    } as unknown as TransactionPayControllerState);
+
+    await expect(runHook()).rejects.toThrow(
+      'MetaMask Pay: Cannot submit without quote',
+    );
+    expect(executeMock).not.toHaveBeenCalled();
+    expect(updateTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it('does nothing if only a no-op quote is present and no conversion is required', async () => {
+    getControllerStateMock.mockReturnValue({
+      transactionData: {
+        [TRANSACTION_META_MOCK.id]: {
+          isLoading: false,
+          paymentToken: { address: '0x123' },
+          quotes: [{ strategy: TransactionPayStrategy.None }],
+          sourceAmounts: [],
+          tokens: [],
+        },
+      },
+    } as unknown as TransactionPayControllerState);
+
+    const result = await runHook();
+
+    expect(result).toStrictEqual({ transactionHash: undefined });
+    expect(executeMock).not.toHaveBeenCalled();
+    expect(updateTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it('throws if only a no-op quote is present but conversion is required', async () => {
+    getControllerStateMock.mockReturnValue({
+      transactionData: {
+        [TRANSACTION_META_MOCK.id]: {
+          isLoading: false,
+          paymentToken: { address: '0x123' },
+          quotes: [{ strategy: TransactionPayStrategy.None }],
+          sourceAmounts: [{ targetTokenAddress: '0x123' }],
+          tokens: [],
+        },
+      },
+    } as unknown as TransactionPayControllerState);
+
+    await expect(runHook()).rejects.toThrow(
+      'MetaMask Pay: Quote skipped but conversion is required',
+    );
+    expect(executeMock).not.toHaveBeenCalled();
+  });
+
   it('throws if fiat payment is selected but no quotes are in state', async () => {
     getControllerStateMock.mockReturnValue({
       transactionData: {
