@@ -10,14 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Store a no-op quote (`TransactionPayStrategy.None`) when a payment token is selected but the route needs no conversion, so clients can tell "no conversion needed" apart from "quote missing" ([#9484](https://github.com/MetaMask/core/pull/9484))
-- Add `isNoOpQuote` utility export ([#9484](https://github.com/MetaMask/core/pull/9484))
 - Add `None` value to `TransactionPayStrategy` enum ([#9484](https://github.com/MetaMask/core/pull/9484))
 
 ### Changed
 
-- **BREAKING:** `TransactionPayPublishHook` now throws instead of silently submitting the transaction directly when MetaMask Pay is engaged (payment token selected, post-quote flow, quote required, or a conversion pending) but no quotes are available ([#9484](https://github.com/MetaMask/core/pull/9484))
-- **BREAKING:** `TransactionPayPublishHook` now throws when only a no-op quote is present but the transaction still requires a conversion ([#9484](https://github.com/MetaMask/core/pull/9484))
-- **BREAKING:** Quotes stored in `transactionData` can now contain a single no-op quote with the `none` strategy; clients that read quotes for display or metrics must ignore or handle no-op quotes ([#9484](https://github.com/MetaMask/core/pull/9484))
+- **BREAKING:** Quotes stored in `transactionData` can now contain a single no-op quote with the `none` strategy; clients that read quotes for display, metrics, or publish validation must ignore or handle no-op quotes ([#9484](https://github.com/MetaMask/core/pull/9484))
 
 ## [24.0.3]
 

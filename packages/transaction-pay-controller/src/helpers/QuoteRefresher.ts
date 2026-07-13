@@ -9,7 +9,6 @@ import type {
 import { TransactionPayStrategy } from '../constants';
 import { projectLogger } from '../logger';
 import type { UpdateTransactionDataCallback } from '../types';
-import { isNoOpQuote } from '../utils/no-op-quote';
 import { refreshQuotes } from '../utils/quotes';
 
 const CHECK_INTERVAL = 1000; // 1 Second
@@ -109,7 +108,9 @@ export class QuoteRefresher {
   #onStateChange(state: TransactionPayControllerState): void {
     // No-op quotes never refresh, so they don't need the refresh loop.
     const hasQuotes = Object.values(state.transactionData).some((transaction) =>
-      transaction.quotes?.some((quote) => !isNoOpQuote(quote)),
+      transaction.quotes?.some(
+        (quote) => quote.strategy !== TransactionPayStrategy.None,
+      ),
     );
 
     if (hasQuotes && !this.#isRunning) {

@@ -1,8 +1,8 @@
 import type { Hex } from '@metamask/utils';
 
-import { buildNoOpQuote, isNoOpQuote } from './no-op-quote';
 import { TransactionPayStrategy } from '../constants';
-import type { TransactionPaymentToken, TransactionPayQuote } from '../types';
+import type { TransactionPaymentToken } from '../types';
+import { buildNoOpQuote } from './no-op-quote';
 
 const FROM_MOCK = '0xabc' as Hex;
 
@@ -58,22 +58,6 @@ describe('No-Op Quote Utils', () => {
         targetChainId: PAYMENT_TOKEN_MOCK.chainId,
         targetTokenAddress: PAYMENT_TOKEN_MOCK.address,
       });
-    });
-  });
-
-  describe('isNoOpQuote', () => {
-    it('returns true for no-op quotes', () => {
-      const quote = buildNoOpQuote(FROM_MOCK, PAYMENT_TOKEN_MOCK);
-
-      expect(isNoOpQuote(quote)).toBe(true);
-    });
-
-    it('returns false for executable quotes', () => {
-      const quote = {
-        strategy: TransactionPayStrategy.Relay,
-      } as TransactionPayQuote<unknown>;
-
-      expect(isNoOpQuote(quote)).toBe(false);
     });
   });
 });

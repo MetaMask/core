@@ -237,6 +237,41 @@ describe('Quotes Utils', () => {
       });
     });
 
+    it('excludes no-op quote from totals', async () => {
+      await run({
+        transactionData: {
+          ...TRANSACTION_DATA_MOCK,
+          sourceAmounts: undefined,
+        },
+      });
+
+      expect(calculateTotalsMock).toHaveBeenCalledWith(
+        expect.objectContaining({ quotes: [] }),
+      );
+    });
+
+    it('does not store no-op quote if quote always required', async () => {
+      await run({
+        transactionData: {
+          ...TRANSACTION_DATA_MOCK,
+          isQuoteRequired: true,
+          sourceAmounts: undefined,
+        },
+      });
+
+      const transactionDataMock = {
+        quotes: [QUOTE_MOCK],
+      };
+
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
+
+      expect(transactionDataMock).toMatchObject({
+        quotes: [],
+      });
+    });
+
     it('clears quotes in state if no source amounts and fiat payment selected without quotes', async () => {
       getQuotesMock.mockResolvedValue([]);
 

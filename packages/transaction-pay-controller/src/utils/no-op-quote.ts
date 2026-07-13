@@ -22,7 +22,9 @@ function zeroAmount(): Amount {
  * Stored instead of an empty quotes array when a payment token is selected
  * but the route is direct (e.g. same token and chain, or sufficient balance).
  * This gives clients and the publish hook an explicit marker to distinguish
- * "no quote needed" from "quote needed but missing".
+ * "no quote needed" from "quote needed but missing". No-op quotes use the
+ * `TransactionPayStrategy.None` strategy, cannot be executed, and must be
+ * ignored by fee totals and quote refreshes.
  *
  * @param from - Resolved wallet address for the transaction.
  * @param paymentToken - Selected payment token.
@@ -59,17 +61,4 @@ export function buildNoOpQuote(
     strategy: TransactionPayStrategy.None,
     targetAmount: zeroFiat(),
   };
-}
-
-/**
- * Check whether a quote is a no-op quote.
- *
- * No-op quotes mark routes that need no conversion. They cannot be executed
- * by any strategy and must be ignored by fee totals and quote refreshes.
- *
- * @param quote - Quote to check.
- * @returns True when the quote is a no-op quote.
- */
-export function isNoOpQuote(quote: TransactionPayQuote<unknown>): boolean {
-  return quote.strategy === TransactionPayStrategy.None;
 }
