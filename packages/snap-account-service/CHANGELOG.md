@@ -9,9 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump `@metamask/keyring-api` from `^23.1.0` to `^23.3.0` ([#9249](https://github.com/MetaMask/core/pull/9249))
-- Bump `@metamask/keyring-snap-sdk` from `^9.0.1` to `^9.0.2` ([#9249](https://github.com/MetaMask/core/pull/9249))
+- Bump `@metamask/account-tree-controller` from `^7.5.4` to `^7.5.5` ([#9470](https://github.com/MetaMask/core/pull/9470))
+
+## [2.0.0]
+
+### Added
+
+- Add `getCapabilities` action to expose a Snap's keyring capabilities ([#9377](https://github.com/MetaMask/core/pull/9377))
+  - Reads the capabilities the bridge keyring populated from the Snap's manifest, letting consumers decide whether to drive the Snap through the v1 or v2 keyring path.
+- **BREAKING:** Add `SnapAccountService:getAccount{Assets,Balances,Transactions}`, `SnapAccountService:resolveAccountAddress`, and `SnapAccountService:setSelectedAccounts` messenger actions ([#9390](https://github.com/MetaMask/core/pull/9390))
+  - These actions proxy the corresponding `KeyringClient` (v2) methods, with `snapId` as the first parameter to identify the target Snap.
+  - Each call goes through `ensureReady` to guarantee the Snap is ready before the request is sent.
+  - `setSelectedAccounts` routes through the keyring's v1 interface for v1 Snaps, and via the RPC client for v2 Snaps.
+  - The service messenger now additionally requires `SnapController:handleRequest`.
+
+### Changed
+
+- Bump `@metamask/keyring-api` from `^23.1.0` to `^23.5.0` ([#9249](https://github.com/MetaMask/core/pull/9249), [#9390](https://github.com/MetaMask/core/pull/9390))
+- Bump `@metamask/keyring-snap-sdk` from `^9.0.1` to `^9.2.0` ([#9249](https://github.com/MetaMask/core/pull/9249), [#9390](https://github.com/MetaMask/core/pull/9390))
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Bump `@metamask/eth-snap-keyring` from `^22.3.0` to `^23.0.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
+- Bump `@metamask/account-tree-controller` from `^7.5.3` to `^7.5.4` ([#9429](https://github.com/MetaMask/core/pull/9429))
 
 ## [1.0.0]
 
@@ -117,7 +135,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
 - Bump `@metamask/account-tree-controller` from `^7.3.0` to `^7.4.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@1.0.0...@metamask/snap-account-service@2.0.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@0.3.1...@metamask/snap-account-service@1.0.0
 [0.3.1]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@0.3.0...@metamask/snap-account-service@0.3.1
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@0.2.1...@metamask/snap-account-service@0.3.0

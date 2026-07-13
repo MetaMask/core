@@ -1,7 +1,9 @@
 import { merge } from 'lodash';
 
-import type { QuoteResponseV1, DeepPartial } from '../src/types';
-import { ActionTypes, validateQuoteResponseV1 } from '../src/utils/validators';
+import type { DeepPartial } from '../src/types';
+import type { QuoteResponseV1 } from '../src/validators/quote-response-v1';
+import { validateQuoteResponseV1 } from '../src/validators/quote-response-v1';
+import { ActionTypes } from '../src/validators/step';
 
 export const mockBridgeQuotesSolErc20V1: QuoteResponseV1[] = [
   {
@@ -56,11 +58,6 @@ export const mockBridgeQuotesSolErc20V1: QuoteResponseV1[] = [
           action: ActionTypes.BRIDGE,
           srcChainId: 1151111081099710,
           destChainId: 10,
-          protocol: {
-            name: 'mayan',
-            displayName: 'Mayan (Swift)',
-            icon: 'https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/mayan.png',
-          },
           srcAsset: {
             address: '0x0000000000000000000000000000000000000000',
             assetId:
@@ -83,8 +80,6 @@ export const mockBridgeQuotesSolErc20V1: QuoteResponseV1[] = [
               'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/10/erc20/0x4200000000000000000000000000000000000042.png',
             chainId: 10,
           },
-          srcAmount: '991250000',
-          destAmount: '143291269234176100000',
         },
       ],
       priceData: {
@@ -149,11 +144,6 @@ export const mockBridgeQuotesSolErc20V1: QuoteResponseV1[] = [
           action: ActionTypes.BRIDGE,
           srcChainId: 1151111081099710,
           destChainId: 10,
-          protocol: {
-            name: 'mayanMCTP',
-            displayName: 'Mayan (MCTP)',
-            icon: 'https://raw.githubusercontent.com/lifinance/types/main/src/assets/icons/bridges/mayan.png',
-          },
           srcAsset: {
             address: '0x0000000000000000000000000000000000000000',
             assetId:
@@ -176,8 +166,6 @@ export const mockBridgeQuotesSolErc20V1: QuoteResponseV1[] = [
               'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/10/erc20/0x4200000000000000000000000000000000000042.png',
             chainId: 10,
           },
-          srcAmount: '991250000',
-          destAmount: '141450025181571360000',
         },
       ],
       priceData: {

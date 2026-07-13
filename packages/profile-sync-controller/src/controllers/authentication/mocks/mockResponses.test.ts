@@ -1,6 +1,8 @@
 import {
   getMockAuthAccessTokenResponse,
+  getMockCustomerServiceTokenResponse,
   getE2EIdentifierFromJwt,
+  MOCK_CUSTOMER_SERVICE_TOKEN_RESPONSE,
   MOCK_OATH_TOKEN_RESPONSE,
 } from './mockResponses';
 
@@ -73,5 +75,15 @@ describe('getMockAuthAccessTokenResponse()', () => {
 
     const payload = JSON.parse(atob(response.access_token.split('.')[1]));
     expect(payload.exp).toBe(4102444800);
+  });
+});
+
+describe('getMockCustomerServiceTokenResponse()', () => {
+  it('returns a POST mock for the customer service token endpoint', () => {
+    const mock = getMockCustomerServiceTokenResponse();
+
+    expect(mock.requestMethod).toBe('POST');
+    expect(mock.url).toContain('/customer-service/token');
+    expect(mock.response).toStrictEqual(MOCK_CUSTOMER_SERVICE_TOKEN_RESPONSE);
   });
 });
