@@ -594,7 +594,7 @@ describe('SentinelApiService', () => {
   });
 
   describe('getSmartTransaction', () => {
-    it('normalizes a successful status with a hash', async () => {
+    it('returns a successful status with a hash', async () => {
       const { service } = createService();
       mockNetworks();
       nock(MAINNET_URL)
@@ -608,8 +608,7 @@ describe('SentinelApiService', () => {
         uuid: UUID,
       });
       expect(result).toStrictEqual({
-        status: 'VALIDATED',
-        transactionHash: '0xhash',
+        transactions: [{ status: 'VALIDATED', hash: '0xhash' }],
       });
       service.destroy();
     });
@@ -628,8 +627,7 @@ describe('SentinelApiService', () => {
         uuid: UUID,
       });
       expect(result).toStrictEqual({
-        status: 'FAILED',
-        errorReason: 'reverted',
+        transactions: [{ status: 'FAILED', errorReason: 'reverted' }],
       });
       service.destroy();
     });
@@ -648,13 +646,12 @@ describe('SentinelApiService', () => {
         uuid: UUID,
       });
       expect(result).toStrictEqual({
-        status: 'PENDING',
-        errorReason: null,
+        transactions: [{ status: 'PENDING', errorReason: null }],
       });
       service.destroy();
     });
 
-    it('returns an empty status when there are no transactions', async () => {
+    it('returns an empty transactions array when the API reports none', async () => {
       const { service } = createService();
       mockNetworks();
       nock(MAINNET_URL)
@@ -665,7 +662,7 @@ describe('SentinelApiService', () => {
         chainId: CHAIN_ID_MAINNET,
         uuid: UUID,
       });
-      expect(result).toStrictEqual({ status: '' });
+      expect(result).toStrictEqual({ transactions: [] });
       service.destroy();
     });
 
@@ -718,8 +715,7 @@ describe('SentinelApiService', () => {
         { chainId: CHAIN_ID_MAINNET, uuid: UUID },
       );
       expect(result).toStrictEqual({
-        status: 'VALIDATED',
-        transactionHash: '0xhash',
+        transactions: [{ status: 'VALIDATED', hash: '0xhash' }],
       });
       service.destroy();
     });

@@ -23,6 +23,7 @@ export type {
   SentinelSimulationStateDiff,
   SentinelSimulationTokenFee,
   SentinelSimulationTransaction,
+  SentinelSmartTransaction,
   SentinelSmartTransactionRequest,
   SentinelSmartTransactionResponse,
   SentinelStateOverrides,

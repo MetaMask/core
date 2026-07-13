@@ -9,15 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release ([#9466](https://github.com/MetaMask/core/pull/9466))
-  - Add `SentinelApiService` data service centralising all interactions with the MetaMask Sentinel API
-  - Simulate transactions via `infura_simulateTransactions` (`simulateTransactions`)
-  - Submit gas station relay transactions via `eth_sendRelayTransaction` (`submitRelayTransaction`)
-  - Look up submitted smart transactions by UUID (`getSmartTransaction`)
-  - Fetch and cache the supported-network registry (`getNetworks`)
-  - Authenticate requests with client identity headers (`X-Client-Id`, `X-Client-Version`) and a best-effort `Authorization` bearer token from `AuthenticationController:getBearerToken`
-  - Target a selectable Sentinel environment via the `environment` constructor option and the `SentinelEnvironment` enum (`Dev`, `Uat`, `Prod`), defaulting to `Prod`
-  - Disable retries by default (`maxRetries: 0`) to match the single-request behaviour of the clients this service replaces; callers can opt in via `policyOptions.maxRetries`
-  - Export the `SentinelApiServiceOptions` type describing the constructor options
+- Initial release of `SentinelApiService`, a data service for the MetaMask Sentinel API ([#9466](https://github.com/MetaMask/core/pull/9466))
+  - Supports `getNetworks`, `simulateTransactions`, `submitRelayTransaction`, and `getSmartTransaction`
 
 [Unreleased]: https://github.com/MetaMask/core/

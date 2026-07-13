@@ -53,8 +53,8 @@ export type SentinelApiServiceSubmitRelayTransactionAction = {
  * own any polling loop. Not cached.
  *
  * @param request - The smart-transaction lookup request.
- * @returns The smart-transaction state: the current status, plus the
- * on-chain transaction hash and error reason once available.
+ * @returns The response envelope containing the smart transaction(s)
+ * associated with the requested UUID.
  */
 export type SentinelApiServiceGetSmartTransactionAction = {
   type: `SentinelApiService:getSmartTransaction`;

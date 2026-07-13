@@ -56,18 +56,18 @@ export const SentinelRelaySubmitResponseStruct = type({
 });
 
 /**
- * Validates a single entry in the raw smart-transactions endpoint response.
+ * Validates a single entry in the smart-transactions endpoint response.
  */
-const RawSmartTransactionStruct = type({
+const SentinelSmartTransactionStruct = type({
   hash: optional(string()),
   status: string(),
   errorReason: optional(nullable(string())),
 });
 
 /**
- * Validates the raw smart-transactions endpoint response body (a list of
+ * Validates the smart-transactions endpoint response body (a list of
  * transactions).
  */
-export const RawSmartTransactionResponseStruct = type({
-  transactions: array(RawSmartTransactionStruct),
+export const SentinelSmartTransactionResponseStruct = type({
+  transactions: array(SentinelSmartTransactionStruct),
 });

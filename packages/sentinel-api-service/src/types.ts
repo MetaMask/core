@@ -501,18 +501,31 @@ export enum SentinelSmartTransactionStatus {
 }
 
 /**
- * The normalized result of looking up a submitted smart transaction.
+ * A single smart-transaction entry returned by the `/smart-transactions/{uuid}`
+ * endpoint.
  */
-export type SentinelSmartTransactionResponse = {
+export type SentinelSmartTransaction = {
+  /** The on-chain transaction hash, once available. */
+  hash?: string;
+
+  /**
+   * The current status of the smart transaction. Compare against
+   * {@link SentinelSmartTransactionStatus} values.
+   */
+  status: string;
+
   /**
    * The reason the transaction failed, if any. May be `null` when the API
    * explicitly reports no error reason.
    */
   errorReason?: string | null;
+};
 
-  /** The current status of the smart transaction. */
-  status: string;
-
-  /** The on-chain transaction hash, once available. */
-  transactionHash?: Hex;
+/**
+ * The response from the `/smart-transactions/{uuid}` endpoint. Consumers
+ * select the transaction(s) they care about from the `transactions` array
+ * (typically the first entry).
+ */
+export type SentinelSmartTransactionResponse = {
+  transactions: SentinelSmartTransaction[];
 };

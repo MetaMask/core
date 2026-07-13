@@ -22,7 +22,7 @@ import {
 } from './errors';
 import { projectLogger, createModuleLogger } from './logger';
 import {
-  RawSmartTransactionResponseStruct,
+  SentinelSmartTransactionResponseStruct,
   SentinelNetworkRegistryStruct,
   SentinelRelaySubmitResponseStruct,
   SentinelSimulationResponseStruct,
@@ -277,8 +277,8 @@ export class SentinelApiService extends BaseDataService<
    * own any polling loop. Not cached.
    *
    * @param request - The smart-transaction lookup request.
-   * @returns The smart-transaction state: the current status, plus the
-   * on-chain transaction hash and error reason once available.
+   * @returns The response envelope containing the smart transaction(s)
+   * associated with the requested UUID.
    */
   async getSmartTransaction(
     request: SentinelSmartTransactionRequest,
@@ -306,10 +306,7 @@ export class SentinelApiService extends BaseDataService<
 
         const json: Json = await response.json();
 
-        const [error, validated] = validate(
-          json,
-          RawSmartTransactionResponseStruct,
-        );
+        const [error] = validate(json, SentinelSmartTransactionResponseStruct);
         if (error) {
           throw new SentinelApiResponseValidationError(
             `Sentinel API: Malformed response from smart-transactions endpoint: ${error.message}`,
@@ -318,15 +315,7 @@ export class SentinelApiService extends BaseDataService<
 
         log('getSmartTransaction', 'Response', json);
 
-        const first = validated.transactions[0];
-
-        return {
-          status: first?.status ?? '',
-          ...(first?.hash ? { transactionHash: first.hash } : {}),
-          ...(first?.errorReason === undefined
-            ? {}
-            : { errorReason: first.errorReason }),
-        };
+        return json;
       },
     });
 
