@@ -2,14 +2,10 @@ import { AddressZero } from '@ethersproject/constants';
 import { convertHexToDecimal } from '@metamask/controller-utils';
 import { BigNumber } from 'bignumber.js';
 
-import type {
-  GenericQuoteRequest,
-  QuoteResponseV1,
-  Quote,
-  NonEvmFees,
-  L1GasFees,
-  TxData,
-} from '../types';
+import type { GenericQuoteRequest, NonEvmFees, L1GasFees } from '../types';
+import type { Quote } from '../validators/quote';
+import type { QuoteResponseV1 } from '../validators/quote-response-v1';
+import type { TxData } from '../validators/trade';
 import {
   isValidQuoteRequest,
   getQuoteIdentifier,
@@ -389,7 +385,7 @@ describe('Quote Metadata Utils', () => {
         feeData: { metabridge: { amount: '100000000000000000' } },
       },
       trade: { value: '0x10A741A462780000' },
-    } as QuoteResponseV1<TxData, TxData>;
+    } as unknown as QuoteResponseV1<TxData, TxData>;
 
     it('should calculate relayer fee correctly with exchange rates', () => {
       const result = calcRelayerFee(mockBridgeQuote, {
@@ -464,7 +460,7 @@ describe('Quote Metadata Utils', () => {
       trade: { gasLimit: 21000 },
       approval: { gasLimit: 46000 },
       l1GasFeesInHexWei: '0x5AF3107A4000',
-    } as QuoteResponseV1<TxData, TxData> & L1GasFees;
+    } as unknown as QuoteResponseV1<TxData, TxData> & L1GasFees;
 
     it('should calculate estimated and max gas fees correctly', () => {
       const result = calcEstimatedAndMaxTotalGasFee({
@@ -588,7 +584,7 @@ describe('Quote Metadata Utils', () => {
         approval: { gasLimit: 0 },
         l1GasFeesInHexWei: '0x0',
         estimatedProcessingTimeInSeconds: 60,
-      } as QuoteResponseV1<TxData, TxData> & L1GasFees;
+      } as unknown as QuoteResponseV1<TxData, TxData> & L1GasFees;
 
       const result = calcEstimatedAndMaxTotalGasFee({
         bridgeQuote: zeroGasQuote,
@@ -607,7 +603,7 @@ describe('Quote Metadata Utils', () => {
     it('should handle missing approval', () => {
       const noApprovalQuote = {
         quote: {} as Quote,
-        trade: { gasLimit: 21000 },
+        trade: { gasLimit: 21000 } as TxData,
         approval: undefined,
         l1GasFeesInHexWei: '0x5AF3107A4000',
         estimatedProcessingTimeInSeconds: 60,
@@ -652,8 +648,8 @@ describe('Quote Metadata Utils', () => {
     it('should handle large gas limits and fees', () => {
       const largeGasQuote = {
         quote: {} as Quote,
-        trade: { gasLimit: 1000000 },
-        approval: { gasLimit: 500000 },
+        trade: { gasLimit: 1000000 } as TxData,
+        approval: { gasLimit: 500000 } as TxData,
         l1GasFeesInHexWei: '0x1BC16D674EC80000', // 2 ETH in wei
         estimatedProcessingTimeInSeconds: 60,
       } as QuoteResponseV1<TxData, TxData> & L1GasFees;

@@ -37,7 +37,7 @@
       "count": 1
     },
     "n/no-sync": {
-      "count": 22
+      "count": 29
     }
   },
   "packages/account-tree-controller/src/backup-and-sync/service/index.ts": {
@@ -158,9 +158,14 @@
       "count": 6
     }
   },
+  "packages/assets-controller/src/AssetsController.ts": {
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
   "packages/assets-controller/src/__fixtures__/MockAssetControllerMessenger.ts": {
     "no-restricted-syntax": {
-      "count": 4
+      "count": 6
     }
   },
   "packages/assets-controller/src/data-sources/AccountsApiDataSource.ts": {
@@ -626,6 +631,11 @@
       "count": 3
     }
   },
+  "packages/base-data-service/src/createServicePolicy.ts": {
+    "no-restricted-syntax": {
+      "count": 1
+    }
+  },
   "packages/bridge-controller/src/utils/assets.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 2
@@ -637,9 +647,6 @@
     }
   },
   "packages/bridge-controller/src/utils/bridge.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 9
-    },
     "id-denylist": {
       "count": 1
     }
@@ -664,11 +671,6 @@
     },
     "id-denylist": {
       "count": 1
-    }
-  },
-  "packages/bridge-controller/src/utils/metrics/properties.ts": {
-    "@typescript-eslint/explicit-function-return-type": {
-      "count": 5
     }
   },
   "packages/bridge-controller/src/utils/quote-fees.ts": {
@@ -705,11 +707,6 @@
   "packages/bridge-controller/src/utils/trade-utils.ts": {
     "no-restricted-globals": {
       "count": 1
-    }
-  },
-  "packages/bridge-controller/tests/mock-sse.ts": {
-    "id-length": {
-      "count": 2
     }
   },
   "packages/bridge-status-controller/src/utils/snaps.ts": {
@@ -1232,11 +1229,6 @@
   "packages/multichain-account-service/src/providers/AccountProviderWrapper.ts": {
     "no-restricted-syntax": {
       "count": 2
-    }
-  },
-  "packages/multichain-account-service/src/providers/BtcAccountProvider.test.ts": {
-    "no-negated-condition": {
-      "count": 1
     }
   },
   "packages/multichain-account-service/src/providers/BtcAccountProvider.ts": {
@@ -2246,11 +2238,6 @@
   "packages/transaction-pay-controller/src/strategy/across/across-actions.ts": {
     "no-restricted-syntax": {
       "count": 2
-    }
-  },
-  "packages/transaction-pay-controller/src/strategy/bridge/bridge-submit.ts": {
-    "no-restricted-syntax": {
-      "count": 1
     }
   },
   "packages/transaction-pay-controller/src/strategy/relay/hyperliquid-withdraw.ts": {

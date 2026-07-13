@@ -158,13 +158,16 @@
       "path": "./packages/messenger-cli/tsconfig.build.json"
     },
     {
-      "path": "./packages/platform-api-docs/tsconfig.build.json"
-    },
-    {
       "path": "./packages/messenger/tsconfig.build.json"
     },
     {
+      "path": "./packages/money-account-api-data-service/tsconfig.build.json"
+    },
+    {
       "path": "./packages/money-account-balance-service/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/money-account-api-data-service/tsconfig.build.json"
     },
     {
       "path": "./packages/money-account-controller/tsconfig.build.json"
@@ -186,6 +189,9 @@
     },
     {
       "path": "./packages/name-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/network-connection-banner-controller/tsconfig.build.json"
     },
     {
       "path": "./packages/network-controller/tsconfig.build.json"
@@ -210,6 +216,9 @@
     },
     {
       "path": "./packages/phishing-controller/tsconfig.build.json"
+    },
+    {
+      "path": "./packages/platform-api-docs/tsconfig.build.json"
     },
     {
       "path": "./packages/polling-controller/tsconfig.build.json"

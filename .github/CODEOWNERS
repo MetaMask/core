@@ -47,6 +47,7 @@
 ## Earn Team
 /packages/earn-controller                   @MetaMask/earn
 /packages/money-account-balance-service     @MetaMask/earn
+/packages/money-account-api-data-service    @MetaMask/earn
 /packages/chomp-api-service                 @MetaMask/earn @MetaMask/delegation
 /packages/money-account-upgrade-controller  @MetaMask/earn @MetaMask/delegation
 
@@ -81,35 +82,36 @@
 /packages/geolocation-controller @MetaMask/mobile-platform
 
 ## Core Platform Team
-/packages/base-controller                  @MetaMask/core-platform
-/packages/base-data-service                @MetaMask/core-platform
-/packages/build-utils                      @MetaMask/core-platform
-/packages/chain-agnostic-permission        @MetaMask/core-platform
-/packages/composable-controller            @MetaMask/core-platform
-/packages/connectivity-controller          @MetaMask/core-platform
-/packages/controller-utils                 @MetaMask/core-platform
-/packages/eip-5792-middleware              @MetaMask/core-platform
-/packages/eip1193-permission-middleware    @MetaMask/core-platform
-/packages/eth-block-tracker                @MetaMask/core-platform
-/packages/eth-json-rpc-middleware          @MetaMask/core-platform
-/packages/eth-json-rpc-provider            @MetaMask/core-platform
-/packages/json-rpc-engine                  @MetaMask/core-platform
-/packages/json-rpc-middleware-stream       @MetaMask/core-platform
-/packages/messenger                        @MetaMask/core-platform
-/packages/messenger-cli                    @MetaMask/core-platform
-/packages/multichain-api-middleware        @MetaMask/core-platform
-/packages/permission-controller            @MetaMask/core-platform
-/packages/permission-log-controller        @MetaMask/core-platform
-/packages/platform-api-docs                @MetaMask/core-platform
-/packages/polling-controller               @MetaMask/core-platform
-/packages/preferences-controller           @MetaMask/core-platform
-/packages/rate-limit-controller            @MetaMask/core-platform
-/packages/react-data-query                 @MetaMask/core-platform
-/packages/sample-controllers               @MetaMask/core-platform
-/packages/selected-network-controller      @MetaMask/core-platform
-/packages/wallet                           @MetaMask/core-platform
-/packages/wallet-cli                       @MetaMask/core-platform @MetaMask/ocap-kernel
-/packages/wallet-framework-docs            @MetaMask/core-platform
+/packages/base-controller                      @MetaMask/core-platform
+/packages/base-data-service                    @MetaMask/core-platform
+/packages/build-utils                          @MetaMask/core-platform
+/packages/chain-agnostic-permission            @MetaMask/core-platform
+/packages/composable-controller                @MetaMask/core-platform
+/packages/connectivity-controller              @MetaMask/core-platform
+/packages/controller-utils                     @MetaMask/core-platform
+/packages/eip-5792-middleware                  @MetaMask/core-platform
+/packages/eip1193-permission-middleware        @MetaMask/core-platform
+/packages/eth-block-tracker                    @MetaMask/core-platform
+/packages/eth-json-rpc-middleware              @MetaMask/core-platform
+/packages/eth-json-rpc-provider                @MetaMask/core-platform
+/packages/json-rpc-engine                      @MetaMask/core-platform
+/packages/json-rpc-middleware-stream           @MetaMask/core-platform
+/packages/messenger                            @MetaMask/core-platform
+/packages/messenger-cli                        @MetaMask/core-platform
+/packages/multichain-api-middleware            @MetaMask/core-platform
+/packages/network-connection-banner-controller @MetaMask/core-platform
+/packages/permission-controller                @MetaMask/core-platform
+/packages/permission-log-controller            @MetaMask/core-platform
+/packages/platform-api-docs                    @MetaMask/core-platform
+/packages/polling-controller                   @MetaMask/core-platform
+/packages/preferences-controller               @MetaMask/core-platform
+/packages/rate-limit-controller                @MetaMask/core-platform
+/packages/react-data-query                     @MetaMask/core-platform
+/packages/sample-controllers                   @MetaMask/core-platform
+/packages/selected-network-controller          @MetaMask/core-platform
+/packages/wallet                               @MetaMask/core-platform
+/packages/wallet-cli                           @MetaMask/core-platform @MetaMask/ocap-kernel
+/packages/wallet-framework-docs                @MetaMask/core-platform
 
 ## Web3Auth Team
 /packages/seedless-onboarding-controller @MetaMask/web3auth
@@ -146,6 +148,7 @@
 /packages/wallet/src/initialization/instances/keyring-controller/ @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/remote-feature-flag-controller/ @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
 /packages/wallet/src/initialization/instances/storage-service/ @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
+/packages/wallet/src/initialization/instances/transaction-controller/ @MetaMask/confirmations
 
 ## Package Release related
 /packages/account-tree-controller/package.json  @MetaMask/accounts-engineers @MetaMask/core-platform
@@ -176,6 +179,8 @@
 /packages/earn-controller/CHANGELOG.md            @MetaMask/earn @MetaMask/core-platform
 /packages/money-account-balance-service/package.json @MetaMask/earn @MetaMask/core-platform
 /packages/money-account-balance-service/CHANGELOG.md @MetaMask/earn @MetaMask/core-platform
+/packages/money-account-api-data-service/package.json @MetaMask/earn @MetaMask/core-platform
+/packages/money-account-api-data-service/CHANGELOG.md @MetaMask/earn @MetaMask/core-platform
 /packages/ens-controller/package.json             @MetaMask/confirmations @MetaMask/core-platform
 /packages/ens-controller/CHANGELOG.md             @MetaMask/confirmations @MetaMask/core-platform
 /packages/gas-fee-controller/package.json         @MetaMask/confirmations @MetaMask/core-platform

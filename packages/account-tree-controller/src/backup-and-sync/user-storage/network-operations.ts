@@ -82,12 +82,14 @@ export const pushWalletToUserStorage = async (
 
     backupAndSyncLogger(`Pushing wallet to user storage: ${stringifiedWallet}`);
 
-    return await context.messenger.call(
+    const result = await context.messenger.call(
       'UserStorageController:performSetStorage',
       `${USER_STORAGE_WALLETS_FEATURE_KEY}.${USER_STORAGE_WALLETS_FEATURE_ENTRY_KEY}`,
       stringifiedWallet,
       entropySourceId,
     );
+    context.mutationTracker?.setRemoteWrite(true);
+    return result;
   });
 };
 
@@ -193,12 +195,14 @@ export const pushGroupToUserStorage = async (
 
     backupAndSyncLogger(`Pushing group to user storage: ${stringifiedGroup}`);
 
-    return await context.messenger.call(
+    const result = await context.messenger.call(
       'UserStorageController:performSetStorage',
       `${USER_STORAGE_GROUPS_FEATURE_KEY}.${formattedGroup.groupIndex}`,
       stringifiedGroup,
       entropySourceId,
     );
+    context.mutationTracker?.setRemoteWrite(true);
+    return result;
   });
 };
 
@@ -232,12 +236,14 @@ export const pushGroupToUserStorageBatch = async (
       `Pushing groups to user storage: ${entries.map(([_, value]) => value).join(', ')}`,
     );
 
-    return await context.messenger.call(
+    const result = await context.messenger.call(
       'UserStorageController:performBatchSetStorage',
       USER_STORAGE_GROUPS_FEATURE_KEY,
       entries,
       entropySourceId,
     );
+    context.mutationTracker?.setRemoteWrite(true);
+    return result;
   });
 };
 

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/connectivity-controller",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "ConnectivityController stores the device's internet connectivity status",
   "keywords": [
     "Ethereum",
@@ -54,7 +54,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^9.1.0",
-    "@metamask/messenger": "^1.2.0",
+    "@metamask/messenger": "^2.0.0",
     "reselect": "^5.1.1"
   },
   "devDependencies": {

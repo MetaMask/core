@@ -1,6 +1,6 @@
-import { BrokenCircuitError } from '@metamask/controller-utils';
 import { Messenger } from '@metamask/messenger';
 import { hashQueryKey } from '@tanstack/query-core';
+import { BrokenCircuitError } from 'cockatiel';
 import { cleanAll } from 'nock';
 
 import { ExampleDataService, serviceName } from '../tests/ExampleDataService';

@@ -1240,16 +1240,13 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
     {
       "atomic": true,
       "disable7702": true,
-      "excludeNativeTokenForFee": true,
       "from": "0xaccount1",
-      "gasFeeToken": undefined,
       "isGasFeeIncluded": false,
       "isGasFeeSponsored": false,
       "isInternal": true,
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
-      "skipInitialGasEstimate": false,
       "transactions": [
         {
           "assetsFiatValues": {
@@ -3953,16 +3950,13 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
     {
       "atomic": true,
       "disable7702": true,
-      "excludeNativeTokenForFee": true,
       "from": "0xaccount1",
-      "gasFeeToken": undefined,
       "isGasFeeIncluded": false,
       "isGasFeeSponsored": false,
       "isInternal": true,
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
-      "skipInitialGasEstimate": false,
       "transactions": [
         {
           "assetsFiatValues": undefined,

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/gator-permissions-controller",
-  "version": "4.2.2",
+  "version": "4.2.3",
   "description": "Controller for managing gator permissions with profile sync integration",
   "keywords": [
     "Ethereum",
@@ -58,12 +58,12 @@
     "@metamask/base-controller": "^9.1.0",
     "@metamask/delegation-core": "^2.2.1",
     "@metamask/delegation-deployments": "^1.4.0",
-    "@metamask/messenger": "^1.2.0",
+    "@metamask/messenger": "^2.0.0",
     "@metamask/network-controller": "^34.0.0",
     "@metamask/snaps-controllers": "^19.0.0",
     "@metamask/snaps-sdk": "^11.0.0",
     "@metamask/snaps-utils": "^12.1.2",
-    "@metamask/transaction-controller": "^68.2.2",
+    "@metamask/transaction-controller": "^69.0.0",
     "@metamask/utils": "^11.11.0"
   },
   "devDependencies": {

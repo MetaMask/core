@@ -1,15 +1,15 @@
 import { is } from '@metamask/superstruct';
 
 import { mockBridgeQuotesNativeErc20EthV1 } from '../../tests/mock-quotes-native-erc20-eth';
+import { validateFeatureFlagsResponse } from './feature-flags';
+import { IntentSchema } from './intent';
+import { DiscountType } from './quote';
+import { FeeDataSchema } from './quote';
+import { validateQuoteResponseV1 } from './quote-response-v1';
 import {
-  DiscountType,
-  FeeDataSchema,
-  validateFeatureFlagsResponse,
-  validateQuoteResponseV1,
   validateQuoteStreamComplete,
   QuoteStreamCompleteReason,
-  IntentSchema,
-} from './validators';
+} from './quote-stream-complete';
 
 describe('validators', () => {
   describe('validateFeatureFlagsResponse', () => {

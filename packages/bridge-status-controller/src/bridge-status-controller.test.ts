@@ -50,6 +50,7 @@ import {
   DEFAULT_MAX_PENDING_HISTORY_ITEM_AGE_MS,
   MAX_ATTEMPTS,
 } from './constants';
+import { QUOTE_STATUS_BACKFILL_WINDOW_MS } from './quote-status-manager/constants';
 import { BridgeClientId } from './types';
 import type {
   BridgeId,
@@ -1428,6 +1429,143 @@ describe('BridgeStatusController', () => {
         MockTxHistory.getPending(),
       );
       bridgeStatusController.stopAllPolling();
+    });
+
+    describe('quote status manager integration', () => {
+      it('fetches status via the quote status manager instead of the bridge API when the history item has a quoteId', async () => {
+        jest.useFakeTimers();
+        const fetchBridgeTxStatusSpy = jest.spyOn(
+          bridgeStatusUtils,
+          'fetchBridgeTxStatus',
+        );
+        const fetchBridgeQuoteStatusSpy = jest
+          .spyOn(bridgeStatusUtils, 'fetchBridgeQuoteStatus')
+          .mockResolvedValueOnce({
+            status: MockStatusResponse.getPending(),
+            validationFailures: [],
+          });
+
+        await withController(
+          {
+            options: {
+              isQuoteStatusManagerEnabled: () => true,
+              state: {
+                txHistory: {
+                  bridgeTxMetaId1: {
+                    ...MockTxHistory.getPending().bridgeTxMetaId1,
+                    quoteId: 'quote-1',
+                  },
+                },
+              },
+            },
+          },
+          async ({ controller, rootMessenger }) => {
+            registerDefaultActionHandlers(rootMessenger);
+            controller.startPolling({ bridgeTxMetaId: 'bridgeTxMetaId1' });
+
+            jest.advanceTimersByTime(10000);
+            await flushPromises();
+
+            expect(fetchBridgeQuoteStatusSpy).toHaveBeenCalledWith(
+              expect.anything(),
+              'quote-1',
+            );
+            expect(fetchBridgeTxStatusSpy).not.toHaveBeenCalled();
+            expect(
+              controller.state.txHistory.bridgeTxMetaId1.status.status,
+            ).toBe(StatusTypes.PENDING);
+
+            controller.stopAllPolling();
+            jest.restoreAllMocks();
+          },
+        );
+      });
+
+      it('falls back to the bridge API when the quote status manager has no status yet', async () => {
+        jest.useFakeTimers();
+        const fetchBridgeTxStatusSpy = jest
+          .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
+          .mockResolvedValueOnce({
+            status: MockStatusResponse.getPending(),
+            validationFailures: [],
+          });
+        const fetchBridgeQuoteStatusSpy = jest
+          .spyOn(bridgeStatusUtils, 'fetchBridgeQuoteStatus')
+          .mockResolvedValueOnce(null);
+
+        await withController(
+          {
+            options: {
+              isQuoteStatusManagerEnabled: () => true,
+              state: {
+                txHistory: {
+                  bridgeTxMetaId1: {
+                    ...MockTxHistory.getPending().bridgeTxMetaId1,
+                    quoteId: 'quote-1',
+                  },
+                },
+              },
+            },
+          },
+          async ({ controller, rootMessenger }) => {
+            registerDefaultActionHandlers(rootMessenger);
+            controller.startPolling({ bridgeTxMetaId: 'bridgeTxMetaId1' });
+
+            jest.advanceTimersByTime(10000);
+            await flushPromises();
+
+            expect(fetchBridgeQuoteStatusSpy).toHaveBeenCalledWith(
+              expect.anything(),
+              'quote-1',
+            );
+            expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
+            expect(
+              controller.state.txHistory.bridgeTxMetaId1.status.status,
+            ).toBe(StatusTypes.PENDING);
+
+            controller.stopAllPolling();
+            jest.restoreAllMocks();
+          },
+        );
+      });
+
+      it('does not call the quote status manager when the history item has no quoteId', async () => {
+        jest.useFakeTimers();
+        const fetchBridgeTxStatusSpy = jest
+          .spyOn(bridgeStatusUtils, 'fetchBridgeTxStatus')
+          .mockResolvedValueOnce({
+            status: MockStatusResponse.getPending(),
+            validationFailures: [],
+          });
+        const fetchBridgeQuoteStatusSpy = jest.spyOn(
+          bridgeStatusUtils,
+          'fetchBridgeQuoteStatus',
+        );
+
+        await withController(
+          {
+            options: {
+              isQuoteStatusManagerEnabled: () => true,
+              state: {
+                txHistory: MockTxHistory.getPending(),
+              },
+            },
+          },
+          async ({ controller, rootMessenger }) => {
+            registerDefaultActionHandlers(rootMessenger);
+            controller.startPolling({ bridgeTxMetaId: 'bridgeTxMetaId1' });
+
+            jest.advanceTimersByTime(10000);
+            await flushPromises();
+
+            expect(fetchBridgeQuoteStatusSpy).not.toHaveBeenCalled();
+            expect(fetchBridgeTxStatusSpy).toHaveBeenCalledTimes(1);
+
+            controller.stopAllPolling();
+            jest.restoreAllMocks();
+          },
+        );
+      });
     });
 
     it('stops polling when the status response is complete', async () => {
@@ -4030,13 +4168,10 @@ describe('BridgeStatusController', () => {
         {
           "atomic": true,
           "disable7702": true,
-          "excludeNativeTokenForFee": true,
-          "gasFeeToken": undefined,
           "isDelegatedAccount": false,
           "isGasFeeIncluded": false,
           "isGasFeeSponsored": false,
           "requireApproval": false,
-          "skipInitialGasEstimate": false,
         }
       `);
     });
@@ -4113,13 +4248,10 @@ describe('BridgeStatusController', () => {
         {
           "atomic": true,
           "disable7702": true,
-          "excludeNativeTokenForFee": false,
-          "gasFeeToken": "0x0000000000000000000000000000000000000032",
           "isDelegatedAccount": false,
           "isGasFeeIncluded": false,
           "isGasFeeSponsored": false,
           "requireApproval": false,
-          "skipInitialGasEstimate": true,
         }
       `);
     });
@@ -4446,13 +4578,10 @@ describe('BridgeStatusController', () => {
         {
           "atomic": true,
           "disable7702": false,
-          "excludeNativeTokenForFee": true,
-          "gasFeeToken": undefined,
           "isDelegatedAccount": true,
           "isGasFeeIncluded": false,
           "isGasFeeSponsored": false,
           "requireApproval": false,
-          "skipInitialGasEstimate": false,
         }
       `);
     });
@@ -4572,13 +4701,10 @@ describe('BridgeStatusController', () => {
         {
           "atomic": true,
           "disable7702": false,
-          "excludeNativeTokenForFee": true,
-          "gasFeeToken": undefined,
           "isDelegatedAccount": false,
           "isGasFeeIncluded": true,
           "isGasFeeSponsored": false,
           "requireApproval": false,
-          "skipInitialGasEstimate": false,
         }
       `);
     });
@@ -4630,13 +4756,10 @@ describe('BridgeStatusController', () => {
         {
           "atomic": true,
           "disable7702": true,
-          "excludeNativeTokenForFee": true,
-          "gasFeeToken": undefined,
           "isDelegatedAccount": false,
           "isGasFeeIncluded": false,
           "isGasFeeSponsored": false,
           "requireApproval": false,
-          "skipInitialGasEstimate": false,
         }
       `);
     });
@@ -6666,6 +6789,285 @@ describe('BridgeStatusController', () => {
           },
         );
       });
+    });
+  });
+
+  describe('seeding quote status entries from history on startup', () => {
+    let fetchSpy: jest.SpyInstance;
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+      // Keep the quote-status update request in-flight so the manager never
+      // resolves and mutates state after the assertions/teardown.
+      fetchSpy = jest
+        .spyOn(globalThis, 'fetch')
+        .mockReturnValue(new Promise(() => undefined));
+    });
+
+    afterEach(() => {
+      fetchSpy.mockRestore();
+      jest.clearAllTimers();
+      jest.useRealTimers();
+    });
+
+    const getSeedMessengerCall = (transactions: TransactionMeta[] = []) =>
+      jest.fn((...args: unknown[]) => {
+        const actionType = args[0] as string;
+        if (actionType === 'TransactionController:getState') {
+          return { transactions };
+        }
+        if (actionType === 'AuthenticationController:getBearerToken') {
+          return Promise.resolve('auth-token');
+        }
+        return undefined;
+      });
+
+    const getSeedHistoryItem = ({
+      txMetaId,
+      quoteId,
+      srcTxHash,
+      startTime,
+      reportedSubmittedTxHash,
+    }: {
+      txMetaId: string;
+      quoteId?: string;
+      srcTxHash?: string;
+      startTime: number;
+      reportedSubmittedTxHash?: string;
+    }): BridgeHistoryItem => ({
+      ...MockTxHistory.getPending({
+        txMetaId,
+        srcTxHash: srcTxHash ?? 'undefined',
+        startTime,
+      })[txMetaId],
+      quoteId,
+      ...(reportedSubmittedTxHash ? { reportedSubmittedTxHash } : {}),
+    });
+
+    it('seeds a missing quote status entry from a recent history item', async () => {
+      await withController(
+        {
+          options: {
+            isQuoteStatusManagerEnabled: () => true,
+            state: {
+              txHistory: {
+                seedTx1: getSeedHistoryItem({
+                  txMetaId: 'seedTx1',
+                  quoteId: 'seed-quote-1',
+                  srcTxHash: '0xseedHash1',
+                  startTime: Date.now(),
+                }),
+              },
+            },
+          },
+          mockMessengerCall: getSeedMessengerCall(),
+        },
+        async ({ controller }) => {
+          expect(
+            controller.state.txHistory.seedTx1.reportedSubmittedTxHash,
+          ).toBe('0xseedHash1');
+          expect(
+            Object.keys(controller.state.quoteUpdateStatusStore),
+          ).toStrictEqual(['seed-quote-1:0xseedHash1']);
+
+          controller.resetState();
+        },
+      );
+    });
+
+    it('falls back to the transaction hash when the history item has no source hash', async () => {
+      const txMeta = {
+        id: 'seedTx2',
+        hash: '0xfallbackHash2',
+        status: TransactionStatus.submitted,
+        type: TransactionType.bridge,
+        chainId: numberToHex(42161),
+        txParams: {} as unknown as TransactionParams,
+      } as unknown as TransactionMeta;
+
+      await withController(
+        {
+          options: {
+            isQuoteStatusManagerEnabled: () => true,
+            state: {
+              txHistory: {
+                seedTx2: getSeedHistoryItem({
+                  txMetaId: 'seedTx2',
+                  quoteId: 'seed-quote-2',
+                  srcTxHash: 'undefined',
+                  startTime: Date.now(),
+                }),
+              },
+            },
+          },
+          mockMessengerCall: getSeedMessengerCall([txMeta]),
+        },
+        async ({ controller }) => {
+          expect(
+            Object.keys(controller.state.quoteUpdateStatusStore),
+          ).toStrictEqual(['seed-quote-2:0xfallbackHash2']);
+
+          controller.resetState();
+        },
+      );
+    });
+
+    it('skips history items older than the backfill window', async () => {
+      await withController(
+        {
+          options: {
+            isQuoteStatusManagerEnabled: () => true,
+            state: {
+              txHistory: {
+                seedTx3: getSeedHistoryItem({
+                  txMetaId: 'seedTx3',
+                  quoteId: 'seed-quote-3',
+                  srcTxHash: '0xseedHash3',
+                  startTime:
+                    Date.now() - QUOTE_STATUS_BACKFILL_WINDOW_MS - 1000,
+                }),
+              },
+            },
+          },
+          mockMessengerCall: getSeedMessengerCall(),
+        },
+        async ({ controller }) => {
+          expect(controller.state.quoteUpdateStatusStore).toStrictEqual({});
+          expect(
+            controller.state.txHistory.seedTx3.reportedSubmittedTxHash,
+          ).toBeUndefined();
+        },
+      );
+    });
+
+    it('skips history items without a quoteId', async () => {
+      await withController(
+        {
+          options: {
+            isQuoteStatusManagerEnabled: () => true,
+            state: {
+              txHistory: {
+                seedTx4: getSeedHistoryItem({
+                  txMetaId: 'seedTx4',
+                  srcTxHash: '0xseedHash4',
+                  startTime: Date.now(),
+                }),
+              },
+            },
+          },
+          mockMessengerCall: getSeedMessengerCall(),
+        },
+        async ({ controller }) => {
+          expect(controller.state.quoteUpdateStatusStore).toStrictEqual({});
+        },
+      );
+    });
+
+    it('skips history items without a txMetaId', async () => {
+      await withController(
+        {
+          options: {
+            isQuoteStatusManagerEnabled: () => true,
+            state: {
+              txHistory: {
+                seedTx5: {
+                  ...getSeedHistoryItem({
+                    txMetaId: 'seedTx5',
+                    quoteId: 'seed-quote-5',
+                    srcTxHash: '0xseedHash5',
+                    startTime: Date.now(),
+                  }),
+                  txMetaId: undefined,
+                },
+              },
+            },
+          },
+          mockMessengerCall: getSeedMessengerCall(),
+        },
+        async ({ controller }) => {
+          expect(controller.state.quoteUpdateStatusStore).toStrictEqual({});
+        },
+      );
+    });
+
+    it('skips when neither the history item nor the transaction has a source hash', async () => {
+      await withController(
+        {
+          options: {
+            isQuoteStatusManagerEnabled: () => true,
+            state: {
+              txHistory: {
+                seedTx6: getSeedHistoryItem({
+                  txMetaId: 'seedTx6',
+                  quoteId: 'seed-quote-6',
+                  srcTxHash: 'undefined',
+                  startTime: Date.now(),
+                }),
+              },
+            },
+          },
+          mockMessengerCall: getSeedMessengerCall([]),
+        },
+        async ({ controller }) => {
+          expect(controller.state.quoteUpdateStatusStore).toStrictEqual({});
+        },
+      );
+    });
+
+    it('does not re-seed an entry that was already reported', async () => {
+      await withController(
+        {
+          options: {
+            isQuoteStatusManagerEnabled: () => true,
+            state: {
+              txHistory: {
+                seedTx7: getSeedHistoryItem({
+                  txMetaId: 'seedTx7',
+                  quoteId: 'seed-quote-7',
+                  srcTxHash: '0xseedHash7',
+                  startTime: Date.now(),
+                  reportedSubmittedTxHash: '0xseedHash7',
+                }),
+              },
+            },
+          },
+          mockMessengerCall: getSeedMessengerCall(),
+        },
+        async ({ controller }) => {
+          expect(controller.state.quoteUpdateStatusStore).toStrictEqual({});
+        },
+      );
+    });
+
+    it('does not seed when the quote status manager is disabled', async () => {
+      await withController(
+        {
+          options: {
+            isQuoteStatusManagerEnabled: () => false,
+            state: {
+              txHistory: {
+                seedTx8: getSeedHistoryItem({
+                  txMetaId: 'seedTx8',
+                  quoteId: 'seed-quote-8',
+                  srcTxHash: '0xseedHash8',
+                  startTime: Date.now(),
+                }),
+              },
+            },
+          },
+          mockMessengerCall: getSeedMessengerCall(),
+        },
+        async ({ controller }) => {
+          expect(controller.state.quoteUpdateStatusStore).toStrictEqual({});
+          // The guard must not persist `reportedSubmittedTxHash`: doing so
+          // would mark the history item as already reported even though no
+          // store entry or backend update was ever created, so it could never
+          // be seeded once the manager is re-enabled.
+          expect(
+            controller.state.txHistory.seedTx8.reportedSubmittedTxHash,
+          ).toBeUndefined();
+        },
+      );
     });
   });
 

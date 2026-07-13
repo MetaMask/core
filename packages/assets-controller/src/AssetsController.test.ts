@@ -22,6 +22,7 @@ import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
 import { PriceDataSource } from './data-sources/PriceDataSource';
 import { TokenDataSource } from './data-sources/TokenDataSource';
 import { buildDefaultAssetsInfo } from './defaults';
+import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetadata';
 import type {
   Caip19AssetId,
   AccountId,
@@ -125,6 +126,8 @@ type WithControllerOptions = {
     trace: TraceCallback;
     priceDataSourceConfig: PriceDataSourceConfig;
     isEnabled: () => boolean;
+    captureException: (error: Error) => void;
+    tempMigrateAssetsInfoMetadataAssets3346: () => Assets3346MigrationState;
   }>;
 };
 
@@ -317,6 +320,123 @@ describe('AssetsController', () => {
           decimals: 6,
         });
         expect(controller.state.selectedCurrency).toBe('eur');
+      });
+    });
+
+    describe('temporary assetsInfo metadata healing (tempMigrateAssetsInfoMetadataAssets3346)', () => {
+      const HEALED_ASSET_ID =
+        'eip155:14/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48' as Caip19AssetId;
+      const LEGACY_ACCOUNT_ADDRESS =
+        '0x1234567890123456789012345678901234567890';
+      const legacyState: Assets3346MigrationState = {
+        TokensController: {
+          allTokens: {
+            // Flare (0xe / 14) is not covered by the Accounts API.
+            '0xe': {
+              [LEGACY_ACCOUNT_ADDRESS]: [
+                {
+                  address: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+                  symbol: 'TST',
+                  name: 'Test Token',
+                  decimals: 18,
+                },
+              ],
+            },
+          },
+        },
+        AccountsController: {
+          internalAccounts: {
+            accounts: {
+              [MOCK_ACCOUNT_ID]: { address: LEGACY_ACCOUNT_ADDRESS },
+            },
+          },
+        },
+      };
+
+      it('heals wiped niche-chain token metadata from legacy state on construction', async () => {
+        await withController(
+          {
+            controllerOptions: {
+              tempMigrateAssetsInfoMetadataAssets3346: () => legacyState,
+            },
+          },
+          ({ controller }) => {
+            expect(controller.state.assetsInfo[HEALED_ASSET_ID]).toStrictEqual({
+              type: 'erc20',
+              symbol: 'TST',
+              name: 'Test Token',
+              decimals: 18,
+            });
+            expect(
+              controller.state.customAssets[MOCK_ACCOUNT_ID],
+            ).toStrictEqual([HEALED_ASSET_ID]);
+          },
+        );
+      });
+
+      it('does not overwrite existing assetsInfo metadata', async () => {
+        const existingMetadata: FungibleAssetMetadata = {
+          type: 'erc20',
+          symbol: 'EXISTING',
+          name: 'Existing Token',
+          decimals: 6,
+        };
+
+        await withController(
+          {
+            state: {
+              assetsInfo: { [HEALED_ASSET_ID]: existingMetadata },
+            },
+            controllerOptions: {
+              tempMigrateAssetsInfoMetadataAssets3346: () => legacyState,
+            },
+          },
+          ({ controller }) => {
+            expect(controller.state.assetsInfo[HEALED_ASSET_ID]).toStrictEqual(
+              existingMetadata,
+            );
+          },
+        );
+      });
+
+      it('leaves state untouched when the legacy state has nothing restorable', async () => {
+        await withController(
+          {
+            controllerOptions: {
+              tempMigrateAssetsInfoMetadataAssets3346: () => ({}),
+            },
+          },
+          ({ controller }) => {
+            expect(controller.state).toStrictEqual(
+              getDefaultAssetsControllerState(),
+            );
+          },
+        );
+      });
+
+      it('reports getter errors via captureException without breaking construction', async () => {
+        const captureException = jest.fn();
+
+        await withController(
+          {
+            controllerOptions: {
+              captureException,
+              tempMigrateAssetsInfoMetadataAssets3346: () => {
+                throw new Error('legacy state unavailable');
+              },
+            },
+          },
+          ({ controller }) => {
+            expect(controller.state).toStrictEqual(
+              getDefaultAssetsControllerState(),
+            );
+            expect(captureException).toHaveBeenCalledWith(
+              expect.objectContaining({
+                message: expect.stringContaining('legacy state unavailable'),
+              }),
+            );
+          },
+        );
       });
     });
 
@@ -2164,7 +2284,7 @@ describe('AssetsController', () => {
             messenger as unknown as {
               publish: (topic: string, payload?: unknown) => void;
             }
-          ).publish('ClientController:stateChanged', { isUiOpen: true });
+          ).publish('ClientController:stateChange', { isUiOpen: true });
           messenger.publish('KeyringController:unlock');
 
           // Allow #start() -> getAssets() to resolve so the callback runs
@@ -2238,7 +2358,7 @@ describe('AssetsController', () => {
             messenger as unknown as {
               publish: (topic: string, payload?: unknown) => void;
             }
-          ).publish('ClientController:stateChanged', { isUiOpen: true });
+          ).publish('ClientController:stateChange', { isUiOpen: true });
           messenger.publish('KeyringController:unlock');
 
           await flushPromises();
@@ -2275,7 +2395,7 @@ describe('AssetsController', () => {
             messenger as unknown as {
               publish: (topic: string, payload?: unknown) => void;
             }
-          ).publish('ClientController:stateChanged', { isUiOpen: true });
+          ).publish('ClientController:stateChange', { isUiOpen: true });
           messenger.publish('KeyringController:unlock');
           await new Promise((resolve) => setTimeout(resolve, 100));
 
@@ -2357,7 +2477,7 @@ describe('AssetsController', () => {
     it('handles enabled networks change', async () => {
       await withController(async ({ messenger }) => {
         (messenger.publish as CallableFunction)(
-          'NetworkEnablementController:stateChanged',
+          'NetworkEnablementController:stateChange',
           {
             enabledNetworkMap: {
               eip155: {
@@ -2382,7 +2502,7 @@ describe('AssetsController', () => {
     it('handles network being disabled', async () => {
       await withController(async ({ messenger }) => {
         (messenger.publish as CallableFunction)(
-          'NetworkEnablementController:stateChanged',
+          'NetworkEnablementController:stateChange',
           {
             enabledNetworkMap: {
               eip155: {
@@ -2401,7 +2521,7 @@ describe('AssetsController', () => {
         await new Promise(process.nextTick);
 
         (messenger.publish as CallableFunction)(
-          'NetworkEnablementController:stateChanged',
+          'NetworkEnablementController:stateChange',
           {
             enabledNetworkMap: {
               eip155: {
@@ -2530,7 +2650,7 @@ describe('AssetsController', () => {
           messenger as unknown as {
             publish: (topic: string, payload?: unknown) => void;
           }
-        ).publish('ClientController:stateChanged', { isUiOpen: true });
+        ).publish('ClientController:stateChange', { isUiOpen: true });
         messenger.publish('KeyringController:unlock');
         await flushPromises();
 
@@ -2636,7 +2756,7 @@ describe('AssetsController', () => {
         messenger as unknown as {
           publish: (topic: string, payload?: unknown) => void;
         }
-      ).publish('ClientController:stateChanged', { isUiOpen: true });
+      ).publish('ClientController:stateChange', { isUiOpen: true });
       messenger.publish('KeyringController:unlock');
       await new Promise((resolve) => setTimeout(resolve, 100));
 
@@ -2645,7 +2765,7 @@ describe('AssetsController', () => {
       // Step 2: AccountTreeController.init() completes — accounts now available
       getAccountsMock.mockReturnValue([createMockInternalAccount()]);
       (messenger.publish as CallableFunction)(
-        'AccountTreeController:stateChanged',
+        'AccountTreeController:stateChange',
         {},
         [],
       );

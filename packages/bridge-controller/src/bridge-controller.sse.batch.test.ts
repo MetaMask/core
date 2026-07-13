@@ -20,11 +20,12 @@ import {
   DEFAULT_BRIDGE_CONTROLLER_STATE,
 } from './constants/bridge';
 import * as selectors from './selectors';
-import { ChainId, RequestStatus, FeatureId } from './types';
+import { ChainId, RequestStatus } from './types';
 import type { BridgeControllerMessenger } from './types';
 import * as balanceUtils from './utils/balance';
 import * as featureFlagUtils from './utils/feature-flags';
 import * as fetchUtils from './utils/fetch';
+import { FeatureId } from './validators/feature-flags';
 
 type RootMessenger = Messenger<
   MockAnyNamespace,

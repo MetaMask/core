@@ -17,7 +17,6 @@ import type {
   TransactionPayControllerState,
   TransactionPayRequiredToken,
 } from '../types';
-import { getAssetsUnifyStateFeature } from './feature-flags';
 import { parseRequiredTokens } from './required-tokens';
 import {
   FINALIZED_STATUSES,
@@ -31,7 +30,6 @@ import {
   waitForTransactionConfirmed,
 } from './transaction';
 
-jest.mock('./feature-flags');
 jest.mock('./required-tokens');
 
 const TRANSACTION_ID_MOCK = '123-456';
@@ -56,9 +54,6 @@ const TRANSCTION_TOKEN_REQUIRED_MOCK = {
 
 describe('Transaction Utils', () => {
   const parseRequiredTokensMock = jest.mocked(parseRequiredTokens);
-  const getAssetsUnifyStateFeatureMock = jest.mocked(
-    getAssetsUnifyStateFeature,
-  );
   const {
     messenger,
     getTransactionControllerStateMock,
@@ -72,8 +67,6 @@ describe('Transaction Utils', () => {
     getTransactionControllerStateMock.mockReturnValue({
       transactions: [] as TransactionMeta[],
     } as TransactionControllerState);
-
-    getAssetsUnifyStateFeatureMock.mockReturnValue(false);
   });
 
   describe('getTransaction', () => {
@@ -301,10 +294,9 @@ describe('Transaction Utils', () => {
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
     });
 
-    it('subscribes to AssetsController state changes when unify-state feature is enabled', () => {
+    it('subscribes to AssetsController state changes', () => {
       const updateTransactionDataMock = jest.fn();
 
-      getAssetsUnifyStateFeatureMock.mockReturnValue(true);
       parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
       isolatedGetTransactionControllerStateMock.mockReturnValue({
         transactions: [TRANSACTION_META_MOCK],
@@ -321,10 +313,10 @@ describe('Transaction Utils', () => {
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
     });
 
-    it('does not subscribe to per-source events when unify-state feature is enabled', () => {
+    it('subscribes to all per-source events in addition to AssetsController', () => {
       const updateTransactionDataMock = jest.fn();
 
-      getAssetsUnifyStateFeatureMock.mockReturnValue(true);
+      parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
       isolatedGetTransactionControllerStateMock.mockReturnValue({
         transactions: [TRANSACTION_META_MOCK],
       } as TransactionControllerState);
@@ -339,7 +331,7 @@ describe('Transaction Utils', () => {
       isolatedPublish('TokenRatesController:stateChange', {} as never, []);
       isolatedPublish('CurrencyRateController:stateChange', {} as never, []);
 
-      expect(updateTransactionDataMock).not.toHaveBeenCalled();
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(3);
     });
 
     it('skips transactions whose tokens are already populated', () => {

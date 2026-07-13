@@ -46,22 +46,15 @@ export type {
   FeatureFlagResponse,
   BridgeAsset,
   GenericQuoteRequest,
-  Protocol,
   BatchSellTradesResponse,
   GaslessProperties,
   SimulatedGasFeeLimits,
   TokenAmountValues,
   Step,
   RefuelData,
-  Quote,
-  QuoteResponseV1 as QuoteResponse,
   FeeData,
-  TxData,
   Intent,
   IntentOrderLike,
-  BitcoinTradeData,
-  StellarTradeData,
-  TronTradeData,
   BridgeControllerState,
   InputPrimaryDenomination,
   BridgeControllerAction,
@@ -70,6 +63,18 @@ export type {
   BridgeControllerMessenger,
   FeatureFlagsPlatformConfig,
   TxFeeGasLimits,
+  TokenFeature,
+  QuoteStreamCompleteData,
+  BridgeControllerGetStateAction,
+  BridgeControllerStateChangeEvent,
+} from './types';
+
+export {
+  AssetType,
+  SortOrder,
+  ChainId,
+  RequestStatus,
+  StatusTypes,
 } from './types';
 
 export type {
@@ -87,30 +92,31 @@ export type {
 
 export { AbortReason } from './utils/metrics/constants';
 
-export { StatusTypes } from './types';
-
+export type {
+  TxData,
+  BitcoinTradeData,
+  TronTradeData,
+  StellarTradeData,
+  Trade,
+} from './validators/trade';
 export {
-  AssetType,
-  SortOrder,
-  ChainId,
-  RequestStatus,
-  FeatureId,
-  type TokenFeature,
-  type QuoteStreamCompleteData,
-  type BridgeControllerGetStateAction,
-  type BridgeControllerStateChangeEvent,
-} from './types';
-
+  isBitcoinTrade,
+  isTronTrade,
+  isEvmTxData,
+  isStellarTrade,
+} from './validators/trade';
+export type { QuoteResponseV1 as QuoteResponse } from './validators/quote-response-v1';
+export type { Quote } from './validators/quote';
+export { FeeType, DiscountType } from './validators/quote';
+export { ActionTypes } from './validators/step';
 export {
-  DiscountType,
-  FeeType,
-  ActionTypes,
-  BridgeAssetSchema,
-  TokenFeatureType,
   validateQuoteStreamComplete,
   QuoteStreamCompleteReason,
-  BatchSellTransactionType,
-} from './utils/validators';
+} from './validators/quote-stream-complete';
+export { BatchSellTransactionType } from './validators/batch-sell';
+export { TokenFeatureType } from './validators/token-feature';
+export { BridgeAssetSchema } from './validators/bridge-asset';
+export { FeatureId } from './validators/feature-flags';
 
 export {
   ALLOWED_BRIDGE_CHAIN_IDS,
@@ -187,14 +193,7 @@ export {
   formatAddressToAssetId,
 } from './utils/caip-formatters';
 
-export {
-  extractTradeData,
-  isBitcoinTrade,
-  isStellarTrade,
-  isTronTrade,
-  isEvmTxData,
-  type Trade,
-} from './utils/trade-utils';
+export { extractTradeData } from './utils/trade-utils';
 
 export {
   selectBridgeQuotes,

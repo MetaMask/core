@@ -8,6 +8,7 @@ import type { Provider } from '@metamask/network-controller';
 import { StructError } from '@metamask/superstruct';
 
 import { REFRESH_INTERVAL_MS } from '../constants';
+import { QuoteStatusManager } from '../quote-status-manager/quotes-status-manager';
 import type {
   StatusResponse,
   StatusRequestWithSrcTxHash,
@@ -42,6 +43,24 @@ export const getStatusRequestDto = (
   return {
     ...statusRequestNoQuoteFormatted,
     ...requestId,
+  };
+};
+
+export const fetchBridgeQuoteStatus = async (
+  quoteStatusManager: QuoteStatusManager,
+  quoteId: string,
+): Promise<{ status: StatusResponse; validationFailures: string[] } | null> => {
+  const response = await quoteStatusManager.getStatus(quoteId);
+
+  const status = response?.response?.submittedTx;
+
+  if (!status) {
+    return null;
+  }
+
+  return {
+    status,
+    validationFailures: response.error?.details?.validationFailures ?? [],
   };
 };
 

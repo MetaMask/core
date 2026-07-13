@@ -75,7 +75,6 @@ export function toCreateAccountsV2DataTraces(
 export enum TraceName {
   SnapDiscoverAccounts = 'Snap Discover Accounts',
   EvmDiscoverAccounts = 'EVM Discover Accounts',
-  ProviderCreateAccountV1 = 'Provider Create Account (v1)',
   ProviderCreateAccounts = 'Provider Create Accounts (v2 - batched)',
   WalletAlignment = 'Wallet Alignment',
   WalletCreateMultichainAccountGroup = 'Wallet Create Multichain Account Group',
