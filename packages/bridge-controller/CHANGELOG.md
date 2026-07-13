@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add the optional `transaction_internal_id` property to `Unified SwapBridge Completed` events.
+- Add the optional `transaction_internal_id` property to `Unified SwapBridge Completed` events. ([#9494](https://github.com/MetaMask/core/pull/9494))
 
 ### Changed
 
