@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: MIT license text update ([#9472](https://github.com/MetaMask/core/pull/9472))
+- Revert "Release/1115.0.0 ([#9464](https://github.com/MetaMask/core/pull/9464))
+- Release/1115.0.0 ([#9464](https://github.com/MetaMask/core/pull/9464))
+- Revert "Release/1064.0.0 (#9228)" ([#9228](https://github.com/MetaMask/core/pull/9228))
+- Release/1064.0.0 ([#9228](https://github.com/MetaMask/core/pull/9228))
+- Release/1044.0.0 ([#9129](https://github.com/MetaMask/core/pull/9129))
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
