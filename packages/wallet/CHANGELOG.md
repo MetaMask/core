@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Wire `PreferencesController` into the default wallet initialization ([#9232](https://github.com/MetaMask/core/pull/9232))
+- Export the `InitializationConfiguration`, `InitFunctionArguments`, and `InstanceState` types so consumers can author initialization configurations that override a default controller ([#9232](https://github.com/MetaMask/core/pull/9232))
+
 ## [7.0.1]
 
 ### Changed

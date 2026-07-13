@@ -63,6 +63,7 @@
     "@metamask/keyring-controller": "^27.1.0",
     "@metamask/messenger": "^2.0.0",
     "@metamask/network-controller": "^34.0.0",
+    "@metamask/preferences-controller": "^23.1.0",
     "@metamask/remote-feature-flag-controller": "^4.2.2",
     "@metamask/scure-bip39": "^2.1.1",
     "@metamask/storage-service": "^1.0.2",

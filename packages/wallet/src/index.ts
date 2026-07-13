@@ -9,3 +9,8 @@ export type {
   DefaultState,
   RootMessenger,
 } from './initialization/defaults';
+export type {
+  InitFunctionArguments,
+  InitializationConfiguration,
+  InstanceState,
+} from './initialization/types';
