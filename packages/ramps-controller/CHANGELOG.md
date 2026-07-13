@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.0.0]
+
 ### Added
 
 - Add the `MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY` constant (`moneyHeadlessAllProviders`) and the pure `isHeadlessAllProvidersEnabled(remoteFeatureFlagState)` helper (with a `HeadlessFeatureFlagsLookup` type) that own the flag key lookup, `localOverrides`-over-`remoteFeatureFlags` merging, and boolean coercion (only the literal `true` enables), so UI consumers resolve the flag exactly like the controller does ([#9409](https://github.com/MetaMask/core/pull/9409))
@@ -439,7 +441,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@16.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@17.0.0...HEAD
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@16.0.0...@metamask/ramps-controller@17.0.0
 [16.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@15.1.0...@metamask/ramps-controller@16.0.0
 [15.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@15.0.0...@metamask/ramps-controller@15.1.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.3.0...@metamask/ramps-controller@15.0.0
