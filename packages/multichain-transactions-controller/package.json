@@ -55,6 +55,7 @@
   "dependencies": {
     "@metamask/accounts-controller": "^39.0.4",
     "@metamask/base-controller": "^9.1.0",
+    "@metamask/core-backend": "^6.3.3",
     "@metamask/keyring-api": "^23.3.0",
     "@metamask/keyring-internal-api": "^11.0.1",
     "@metamask/keyring-snap-client": "^9.0.2",

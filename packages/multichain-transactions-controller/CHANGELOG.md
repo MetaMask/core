@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `MultichainTransactionController` now requires a messenger with the `AccountActivityService:transactionUpdated` delegate event ([#0000](https://github.com/MetaMask/core/pull/0000)]
+  - The `MultichainTransactionsController` now relies on the `AccountActivityService:transactionUpdated` event to receive transaction updates.
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Bump `@metamask/accounts-controller` from `^39.0.0` to `^39.0.4` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9218](https://github.com/MetaMask/core/pull/9218), [#9231](https://github.com/MetaMask/core/pull/9231), [#9349](https://github.com/MetaMask/core/pull/9349))
 - Bump `@metamask/polling-controller` from `^16.0.6` to `^16.0.8` ([#9218](https://github.com/MetaMask/core/pull/9218), [#9349](https://github.com/MetaMask/core/pull/9349))

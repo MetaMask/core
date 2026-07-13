@@ -197,6 +197,7 @@ const setupController = ({
       'AccountsController:accountAdded',
       'AccountsController:accountRemoved',
       'AccountsController:accountTransactionsUpdated',
+      'AccountActivityService:transactionUpdated',
     ],
   });
 
@@ -613,6 +614,66 @@ describe('MultichainTransactionsController', () => {
       next: null,
       lastUpdated: expect.any(Number),
     });
+  });
+
+  it('flips a pending non-EVM transaction to terminal on AccountActivityService:transactionUpdated', async () => {
+    const accountId = 'sol-account-id';
+    const chain =
+      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as unknown as CaipChainId;
+    const pending = {
+      id: 'sig-1',
+      account: accountId,
+      chain,
+      type: 'send' as const,
+      status: 'submitted' as const,
+      timestamp: 1,
+      from: [{ address: 'a', asset: null }],
+      to: [],
+      fees: [],
+      events: [{ status: 'submitted' as const, timestamp: 1 }],
+    };
+    const { controller, rootMessenger } = setupController({
+      state: {
+        nonEvmTransactions: {
+          [accountId]: {
+            [chain]: {
+              transactions: [pending],
+              next: null,
+              lastUpdated: Date.now(),
+            },
+          },
+        },
+      },
+    });
+
+    // Non-terminal / unknown updates are ignored.
+    rootMessenger.publish('AccountActivityService:transactionUpdated', {
+      id: 'sig-1',
+      chain,
+      status: 'submitted',
+    });
+    rootMessenger.publish('AccountActivityService:transactionUpdated', {
+      id: 'does-not-exist',
+      chain,
+      status: 'confirmed',
+    });
+    await waitForAllPromises();
+    expect(
+      controller.state.nonEvmTransactions[accountId][chain].transactions[0]
+        .status,
+    ).toBe('submitted');
+
+    // A terminal update for a known pending tx flips its status.
+    rootMessenger.publish('AccountActivityService:transactionUpdated', {
+      id: 'sig-1',
+      chain,
+      status: 'confirmed',
+    });
+    await waitForAllPromises();
+    expect(
+      controller.state.nonEvmTransactions[accountId][chain].transactions[0]
+        .status,
+    ).toBe('confirmed');
   });
 
   it('initializes new accounts with empty transactions array when receiving updates', async () => {

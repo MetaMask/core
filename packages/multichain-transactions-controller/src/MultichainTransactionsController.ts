@@ -9,6 +9,10 @@ import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
+import {
+  AccountActivityServiceTransactionUpdatedEvent,
+  Transaction as BackendTransactionUpdate,
+} from '@metamask/core-backend';
 import { isEvmAccountType, TransactionStatus } from '@metamask/keyring-api';
 import type {
   Transaction,
@@ -29,6 +33,24 @@ import type { MultichainTransactionsControllerMethodActions } from './Multichain
 const controllerName = 'MultichainTransactionsController';
 
 const MESSENGER_EXPOSED_METHODS = ['updateTransactionsForAccount'] as const;
+
+/**
+ * Maps a backend WebSocket status string to a terminal keyring status, or
+ * `undefined` for non-terminal / unknown statuses (which are ignored).
+ *
+ * @param status - The status reported by the account-activity WebSocket.
+ * @returns The terminal {@link TransactionStatus}, or `undefined`.
+ */
+function toTerminalStatus(status: string): TransactionStatus | undefined {
+  const normalized = status.toLowerCase();
+  if (normalized === TransactionStatus.Confirmed) {
+    return TransactionStatus.Confirmed;
+  }
+  if (normalized === TransactionStatus.Failed) {
+    return TransactionStatus.Failed;
+  }
+  return undefined;
+}
 
 /**
  * PaginationOptions
@@ -136,7 +158,8 @@ type AllowedActions =
 type AllowedEvents =
   | AccountsControllerAccountAddedEvent
   | AccountsControllerAccountRemovedEvent
-  | AccountsControllerAccountTransactionsUpdatedEvent;
+  | AccountsControllerAccountTransactionsUpdatedEvent
+  | AccountActivityServiceTransactionUpdatedEvent;
 
 /**
  * {@link MultichainTransactionsController}'s metadata.
@@ -216,6 +239,13 @@ export class MultichainTransactionsController extends BaseController<
       'AccountsController:accountTransactionsUpdated',
       (transactionsUpdate: AccountTransactionsUpdatedEventPayload) =>
         this.#handleOnAccountTransactionsUpdated(transactionsUpdate),
+    );
+    // Client-owned terminal tracking: flip pending (Submitted) non-EVM entries to
+    // Confirmed/Failed from the account-activity WebSocket, replacing the snap's
+    // former confirmation tracking (see snap-transactions offload, ticket 5).
+    this.messenger.subscribe(
+      'AccountActivityService:transactionUpdated',
+      (update) => this.#handleOnBackendTransactionUpdated(update),
     );
   }
 
@@ -469,6 +499,60 @@ export class MultichainTransactionsController extends BaseController<
     transactionsToPublish.forEach((tx) => {
       this.#publishTransactionUpdateEvent(tx);
     });
+  }
+
+  /**
+   * Handles a transaction status update from the account-activity WebSocket.
+   *
+   * Finds the matching pending entry (by chain-specific id) and flips it to the
+   * reported terminal status. Non-terminal updates and unknown transactions are
+   * ignored.
+   *
+   * @param update - The backend transaction update.
+   */
+  #handleOnBackendTransactionUpdated(update: BackendTransactionUpdate): void {
+    const terminalStatus = toTerminalStatus(update.status);
+    if (!terminalStatus) {
+      return;
+    }
+
+    let location:
+      | { accountId: string; chain: CaipChainId; existing: Transaction }
+      | undefined;
+    for (const [accountId, chains] of Object.entries(
+      this.state.nonEvmTransactions,
+    )) {
+      for (const [chain, entry] of Object.entries(chains)) {
+        const existing = entry.transactions.find((tx) => tx.id === update.id);
+        if (existing) {
+          location = { accountId, chain: chain as CaipChainId, existing };
+          break;
+        }
+      }
+      if (location) {
+        break;
+      }
+    }
+
+    if (!location || location.existing.status === terminalStatus) {
+      return;
+    }
+
+    const { accountId, chain } = location;
+    const updatedTransaction: Transaction = {
+      ...location.existing,
+      status: terminalStatus,
+    };
+
+    this.update((state) => {
+      const entry = state.nonEvmTransactions[accountId][chain];
+      entry.transactions = entry.transactions.map((tx) =>
+        tx.id === update.id ? updatedTransaction : tx,
+      );
+      entry.lastUpdated = Date.now();
+    });
+
+    this.#publishTransactionUpdateEvent(updatedTransaction);
   }
 
   /**
