@@ -5,9 +5,11 @@ import { any, validate } from '@metamask/superstruct';
 
 import type { WalletMiddlewareKeyValues } from '../wallet.js';
 import {
+  MAX_TRANSACTION_PARAM_DEPTH,
   resemblesAddress,
   validateAndNormalizeKeyholder,
   validateParams,
+  validateTransactionParams,
   validateTypedMessageKeys,
 } from './validation.js';
 
@@ -276,6 +278,129 @@ describe('Validation Utils', () => {
 
         expect(() => validateTypedMessageKeys(data)).toThrow('Invalid input.');
       });
+    });
+  });
+
+  describe('validateTransactionParams', () => {
+    const VALID_FROM = '0xbe93f9bacbcffc8ee6663f2647917ed7a20a57bb';
+    const VALID_TO = '0xdAC17F958D2ee523a2206206994597C13D831ec7';
+
+    it('does not throw for minimal valid params', () => {
+      expect(() =>
+        validateTransactionParams({ from: VALID_FROM }),
+      ).not.toThrow();
+    });
+
+    it('does not throw for the full allowlisted param set', () => {
+      expect(() =>
+        validateTransactionParams({
+          accessList: [
+            {
+              address: VALID_TO,
+              storageKeys: ['0x00', '0x01'],
+            },
+          ],
+          authorizationList: [
+            {
+              chainId: '0x1',
+              address: VALID_TO,
+              nonce: '0x0',
+            },
+          ],
+          chainId: '0x1',
+          data: '0x095ea7b3',
+          from: VALID_FROM,
+          gas: '0x5208',
+          gasLimit: '0x5208',
+          gasPrice: '0x1',
+          maxFeePerGas: '0x2',
+          maxPriorityFeePerGas: '0x1',
+          nonce: '0x0',
+          to: VALID_TO,
+          type: '0x2',
+          value: '0x0',
+        }),
+      ).not.toThrow();
+    });
+
+    it.each([
+      ['null', null],
+      ['undefined', undefined],
+      ['a string', 'not-an-object'],
+      ['a number', 42],
+      ['a boolean', true],
+      ['an array', [{ from: VALID_FROM }]],
+    ])('throws when params is %s', (_label, value) => {
+      expect(() => validateTransactionParams(value)).toThrow('Invalid input.');
+    });
+
+    it('throws for an extraneous top-level key', () => {
+      expect(() =>
+        validateTransactionParams({
+          from: VALID_FROM,
+          to: VALID_TO,
+          extraKey: 'unexpected',
+        }),
+      ).toThrow('Invalid input.');
+    });
+
+    it('throws for the incident repro payload (deeply-nested junk field)', () => {
+      let junk: Record<string, unknown> = {};
+      for (let i = 0; i < 1200; i++) {
+        junk = { b: junk };
+      }
+
+      expect(() =>
+        validateTransactionParams({
+          from: VALID_FROM,
+          to: VALID_TO,
+          value: '0x0',
+          data: '0x095ea7b3',
+          test: junk,
+        }),
+      ).toThrow('Invalid input.');
+    });
+
+    it('throws when an allowlisted field nests beyond the depth limit', () => {
+      let deep: Record<string, unknown> = { leaf: true };
+      for (let i = 0; i < MAX_TRANSACTION_PARAM_DEPTH + 5; i++) {
+        deep = { nested: deep };
+      }
+
+      expect(() =>
+        validateTransactionParams({
+          from: VALID_FROM,
+          data: deep as unknown as string,
+        }),
+      ).toThrow('Invalid input.');
+    });
+
+    it('throws when a deeply-nested array exceeds the depth limit', () => {
+      let deepArray: unknown = 'leaf';
+      for (let i = 0; i < MAX_TRANSACTION_PARAM_DEPTH + 5; i++) {
+        deepArray = [deepArray];
+      }
+
+      expect(() =>
+        validateTransactionParams({
+          from: VALID_FROM,
+          accessList: deepArray as never,
+        }),
+      ).toThrow('Invalid input.');
+    });
+
+    it('does not throw when params sit exactly at the depth limit', () => {
+      let deep: unknown = 'leaf';
+      for (let i = 0; i < MAX_TRANSACTION_PARAM_DEPTH - 1; i++) {
+        deep = { nested: deep };
+      }
+
+      expect(() =>
+        validateTransactionParams({
+          from: VALID_FROM,
+          data: deep,
+        }),
+      ).not.toThrow();
     });
   });
 });
