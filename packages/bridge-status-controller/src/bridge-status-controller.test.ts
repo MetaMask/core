@@ -1608,6 +1608,14 @@ describe('BridgeStatusController', () => {
         expect(controller.state.txHistory).toStrictEqual(
           MockTxHistory.getComplete(),
         );
+        const completedEventCall = messengerCallSpy.mock.calls.find(
+          ([, eventName]) => eventName === UnifiedSwapBridgeEventName.Completed,
+        );
+        expect(completedEventCall?.[2]).toStrictEqual(
+          expect.objectContaining({
+            transaction_internal_id: 'bridgeTxMetaId1',
+          }),
+        );
 
         expect(messengerCallSpy.mock.calls).toMatchSnapshot();
         expect(messengerPublishSpy.mock.calls.at(-1)).toMatchSnapshot();
@@ -2574,6 +2582,18 @@ describe('BridgeStatusController', () => {
           expect(mockMessengerCall.mock.calls).toMatchSnapshot();
           expect(result).toMatchSnapshot();
           expect(controller.state.txHistory[result.id]).toMatchSnapshot();
+          expect(
+            mockMessengerCall.mock.calls.find(
+              ([, eventName]) =>
+                eventName === UnifiedSwapBridgeEventName.Completed,
+            ),
+          ).toStrictEqual([
+            'BridgeController:trackUnifiedSwapBridgeEvent',
+            UnifiedSwapBridgeEventName.Completed,
+            expect.not.objectContaining({
+              transaction_internal_id: expect.anything(),
+            }),
+          ]);
           expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
         },
       );
@@ -6266,6 +6286,14 @@ describe('BridgeStatusController', () => {
           },
         );
 
+        const completedEventCall = messengerCallSpy.mock.calls.find(
+          ([, eventName]) => eventName === UnifiedSwapBridgeEventName.Completed,
+        );
+        expect(completedEventCall?.[2]).toStrictEqual(
+          expect.objectContaining({
+            transaction_internal_id: 'swapTxMetaId1',
+          }),
+        );
         expect(messengerCallSpy.mock.calls).toMatchSnapshot();
       });
 
