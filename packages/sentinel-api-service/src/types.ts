@@ -297,7 +297,7 @@ export type SentinelNetwork = {
   /** Whether simulation (confirmations) is supported for this chain. */
   confirmations?: boolean;
 
-  /** The chain ID, as a decimal number. */
+  /** Raw field name from the Sentinel API response; note uppercase 'D'. */
   chainID?: number;
 
   /** The subdomain used to build the Sentinel URL for this chain. */

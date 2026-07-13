@@ -208,12 +208,7 @@ export class SentinelApiService extends BaseDataService<
     const url = options.getUrl ? await options.getUrl(defaultUrl) : defaultUrl;
 
     const result = await this.fetchQuery({
-      queryKey: [
-        `${this.name}:simulateTransactions`,
-        chainId,
-        request,
-        url,
-      ],
+      queryKey: [`${this.name}:simulateTransactions`, chainId, request, url],
       staleTime: 0,
       queryFn: async (): Promise<Json> => {
         log('simulateTransactions', 'Request', url, request);
@@ -359,7 +354,10 @@ export class SentinelApiService extends BaseDataService<
       );
     }
 
-    const responseJson = await response.json();
+    const responseJson = (await response.json()) as {
+      error?: { code?: number; message?: string };
+      result?: Json;
+    };
 
     if (responseJson.error) {
       const { code, message } = responseJson.error;
