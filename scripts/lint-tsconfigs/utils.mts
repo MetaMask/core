@@ -283,7 +283,7 @@ export async function lintTsconfig({
 
   const missingReferencePaths = [...expectedPackageNames]
     .filter((name) => !actualPackageNames.has(name))
-    .sort()
+    .toSorted()
     .map((name) => {
       const workspace = workspaces.byName.get(name);
       if (!workspace) {
@@ -299,7 +299,7 @@ export async function lintTsconfig({
 
   const extraReferencePaths = [...actualPackageNames]
     .filter((name) => !expectedPackageNames.has(name))
-    .sort()
+    .toSorted()
     .map((name) => {
       const workspace = workspaces.byName.get(name);
       if (!workspace) {

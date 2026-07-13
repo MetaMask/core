@@ -13,10 +13,7 @@ import { readPackageManifest } from './utils.mjs';
 const EXCLUDED_PACKAGE_NAMES = new Set(['@metamask/snap-account-service']);
 
 // Run this script!
-main().catch((error: unknown) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+await main();
 
 /**
  * Detects whether the script is being run from the repository root or from

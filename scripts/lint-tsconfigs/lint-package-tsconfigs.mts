@@ -42,7 +42,7 @@ export async function lintPackageTsconfigs({
     workspaces,
   });
   const sortedExpectedWorkspaces = [...expectedPackageNames]
-    .sort((a, b) => a.localeCompare(b))
+    .toSorted((a, b) => a.localeCompare(b))
     .map((name) => {
       const workspace = workspaces.byName.get(name);
       if (!workspace) {
