@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Initial release of `SentinelApiService`, a data service for the MetaMask Sentinel API ([#9466](https://github.com/MetaMask/core/pull/9466))
+- Initial commit of `SentinelApiService`, a data service for the MetaMask Sentinel API ([#9466](https://github.com/MetaMask/core/pull/9466))
   - Supports `getNetworks`, `simulateTransactions`, `submitRelayTransaction`, and `getSmartTransaction`
 
 [Unreleased]: https://github.com/MetaMask/core/
