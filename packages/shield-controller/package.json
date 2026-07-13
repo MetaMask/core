@@ -1,6 +1,6 @@
 {
   "name": "@metamask/shield-controller",
-  "version": "5.1.2",
+  "version": "5.1.3",
   "description": "Controller handling shield transaction coverage logic",
   "keywords": [
     "Ethereum",
@@ -57,7 +57,7 @@
     "@metamask/controller-utils": "^12.3.0",
     "@metamask/messenger": "^2.0.0",
     "@metamask/signature-controller": "^39.2.7",
-    "@metamask/transaction-controller": "^68.3.0",
+    "@metamask/transaction-controller": "^69.0.0",
     "@metamask/utils": "^11.11.0",
     "cockatiel": "^3.1.2"
   },
