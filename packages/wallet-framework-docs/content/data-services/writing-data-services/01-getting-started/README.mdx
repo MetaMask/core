@@ -45,7 +45,13 @@ Working from this repo, we'll use the `create-package` tool to do just that:
 yarn create-package --name orders-service --description "Wraps the Orders API"
 ```
 
-That should give us a new directory in `packages/orders-service` which has a `src/` directory. We'll remove `index.ts` and `index.test.ts` so we have a clean slate.
+:::info
+Realistically, we would create a PR at this point. This way another PR to introduce the initial implementation of the package will be easier to review. You can see how we did this for the `wallet` package: first a ["generate skeleton" PR](https://github.com/MetaMask/core/pull/8756), then a ["implement package" PR](https://github.com/MetaMask/core/pull/8838).
+
+To make this tutorial easier to follow, we assume we've already merged the first PR.
+:::
+
+Now we have a new directory in `packages/orders-service` which has a `src/` directory. We'll remove `index.ts` and `index.test.ts` so we have a clean slate.
 
 ```
 packages/
