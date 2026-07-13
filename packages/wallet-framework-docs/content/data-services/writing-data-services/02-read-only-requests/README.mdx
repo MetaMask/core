@@ -66,19 +66,32 @@ Now we call `fetchQuery` — a method in `BaseDataService` — to make the reque
 1. A query key. Request caching is enabled by default, and the query key is what TanStack Query uses to identify requests in the cache.
 2. A query function. This is what TanStack Query runs to fetch data.
 
-Let's start with the `queryKey` option. This is an array that will get serialized to form the key. The first item must be the name of the action that we will register this method under. The remaining items are technically optional, but we want requests with different query parameters to get cached differently, and we can do this easily by using the URL as the second item.
+Let's start with the `queryKey` option. There are some rules about what we put in this array:
+
+- The first item must be the name of the messenger action that we will register this method under (including the namespace). Here we use `OrdersService:fetchOrders` (or `${this.name}:fetchOrders` for short).
+- As for the remaining items, we want requests with different query parameters to be cached differently, and we can do this by passing the same query parameters that we pass to the URL:
 
 ```typescript title="packages/orders-service/src/orders-service.ts"
 export class OrdersService extends BaseDataService</* ... */> {
-  async fetchOrders(/* ... */): Promise</* ... */> {
-    // ...
+  async fetchOrders({
+    sortField = 'createdTime',
+    sortOrder = 'asc',
+  }: {
+    sortField?: 'createdTime' | 'updatedTime';
+    sortOrder?: 'asc' | 'desc';
+  } = {}): Promise<FetchOrdersResponse> {
+    const url = new URL('/v1/orders', BASE_URL);
+    url.searchParams.append('sortField', sortField);
+    url.searchParams.append('sortOrder', sortOrder);
 
-    const jsonResponse = await this.fetchQuery({
-      queryKey: [`${this.name}:fetchOrders`, url.toString()],
-      // ...
+    // highlight-start
+    const responseData = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchOrders`, sortField, sortOrder],
+      // ...more to come ...
     });
+    // highlight-end
 
-    // ...
+    // ...more to come ...
   }
 }
 ```
