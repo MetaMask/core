@@ -519,6 +519,20 @@ describe('SentinelApiService', () => {
       service.destroy();
     });
 
+    it('throws when JSON-RPC response is missing result', async () => {
+      const { service } = createService();
+      mockNetworks();
+      nock(MAINNET_URL)
+        .post('/')
+        .once()
+        .reply(200, { jsonrpc: '2.0', id: '1' });
+
+      await expect(
+        service.simulateTransactions(CHAIN_ID_MAINNET, MOCK_SIMULATION_REQUEST),
+      ).rejects.toThrow(SentinelJsonRpcError);
+      service.destroy();
+    });
+
     it('is callable via messenger action', async () => {
       const { service, rootMessenger } = createService();
       mockNetworks();
