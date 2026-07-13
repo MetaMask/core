@@ -233,7 +233,7 @@ Then we'll run `yarn workspace @metamask/orders-service run messenger-action-typ
 import type { OrdersService } from './orders-service';
 
 /**
- * Uses the API to retrieve orders.
+ * Retrieves orders.
  *
  * @param params - Parameters to qualify the request.
  * @param params.sortField - The field by which to sort the list of orders.
@@ -575,7 +575,7 @@ export class OrdersService extends BaseDataService</* ... */> {
   // ...
 
   /**
-   * Uses the API to retrieve details about an order.
+   * Retrieves details about an order.
    *
    * @param id - The order ID.
    * @returns The requested order.
@@ -629,7 +629,7 @@ We'll run `yarn workspace @metamask/orders-service run messenger-action-types:ge
 ```typescript title="packages/orders-service/src/orders-service-method-action-types.ts"
 // highlight-start
 /**
- * Uses the API to retrieve details about an order.
+ * Retrieves details about an order.
  *
  * @param params - Parameters to qualify the request.
  * @param params.id - The order ID
