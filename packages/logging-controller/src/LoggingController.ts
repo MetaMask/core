@@ -1,3 +1,4 @@
+// Benchmark: single package change.
 import type {
   ControllerGetStateAction,
   ControllerStateChangeEvent,
