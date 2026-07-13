@@ -6,6 +6,7 @@ import type { GenericQuoteRequest, NonEvmFees, L1GasFees } from '../types';
 import type { Quote } from '../validators/quote';
 import type { QuoteResponseV1 } from '../validators/quote-response-v1';
 import type { TxData } from '../validators/trade';
+import { getNativeAssetForChainId } from './bridge';
 import {
   isValidQuoteRequest,
   getQuoteIdentifier,
@@ -161,14 +162,50 @@ describe('Quote Metadata Utils', () => {
   });
 
   describe('calcSentAmount', () => {
+    it('should calculate sent amount correctly with exchange rates (no assetId)', () => {
+      const mockQuote: Quote = {
+        srcTokenAmount: '12555423',
+        srcAsset: {
+          decimals: 6,
+          address: '0x0000000000000000000000000000000000000000',
+          chainId: 1,
+        },
+        feeData: {
+          metabridge: {
+            amount: '100000000',
+            asset: {
+              address: '0x0000000000000000000000000000000000000000',
+              chainId: 1,
+            },
+          },
+        },
+      } as unknown as Quote;
+      const result = calcSentAmount(mockQuote, {
+        exchangeRate: '2.14',
+        usdExchangeRate: '1.5',
+      });
+
+      expect(result.amount).toBe('112.555423');
+      expect(result.valueInCurrency).toBe('240.86860522');
+      expect(result.usd).toBe('168.8331345');
+    });
+
     it('should calculate sent amount correctly with exchange rates', () => {
       const mockQuote: Quote = {
         srcTokenAmount: '12555423',
-        srcAsset: { decimals: 6 },
-        feeData: {
-          metabridge: { amount: '100000000' },
+        srcAsset: {
+          decimals: 6,
+          assetId: getNativeAssetForChainId(1).assetId,
         },
-      } as Quote;
+        feeData: {
+          metabridge: {
+            amount: '100000000',
+            asset: {
+              assetId: getNativeAssetForChainId(1).assetId,
+            },
+          },
+        },
+      } as unknown as Quote;
       const result = calcSentAmount(mockQuote, {
         exchangeRate: '2.14',
         usdExchangeRate: '1.5',
@@ -182,11 +219,21 @@ describe('Quote Metadata Utils', () => {
     it('should handle missing exchange rates', () => {
       const mockQuote: Quote = {
         srcTokenAmount: '1000000000',
-        srcAsset: { decimals: 6 },
-        feeData: {
-          metabridge: { amount: '100000000' },
+        srcAsset: {
+          decimals: 6,
+          assetId:
+            'eip155:1/erc20:0x0000000000000000000000000000000000000000' as const,
         },
-      } as Quote;
+        feeData: {
+          metabridge: {
+            amount: '100000000',
+            asset: {
+              assetId:
+                'eip155:1/erc20:0x0000000000000000000000000000000000000000' as const,
+            },
+          },
+        },
+      } as unknown as Quote;
       const result = calcSentAmount(mockQuote, {});
 
       expect(result.amount).toBe('1100');
@@ -197,11 +244,21 @@ describe('Quote Metadata Utils', () => {
     it('should handle zero values', () => {
       const mockQuote: Quote = {
         srcTokenAmount: '0',
-        srcAsset: { decimals: 6 },
-        feeData: {
-          metabridge: { amount: '0' },
+        srcAsset: {
+          decimals: 6,
+          assetId:
+            'eip155:1/erc20:0x0000000000000000000000000000000000000000' as const,
         },
-      } as Quote;
+        feeData: {
+          metabridge: {
+            amount: '0',
+            asset: {
+              assetId:
+                'eip155:1/erc20:0x0000000000000000000000000000000000000000' as const,
+            },
+          },
+        },
+      } as unknown as Quote;
       const zeroQuote = {
         ...mockQuote,
         srcTokenAmount: '0',

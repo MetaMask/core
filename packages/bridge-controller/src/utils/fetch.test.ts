@@ -22,7 +22,7 @@ describe('fetch', () => {
       const mockResponse = [
         {
           address: '0x0000000000000000000000000000000000000000',
-          assetId: 'eip155:10/slip44:614',
+          assetId: 'eip155:10/slip44:60',
           symbol: 'ETH',
           decimals: 18,
           name: 'Ether',
@@ -103,7 +103,7 @@ describe('fetch', () => {
         '0x0000000000000000000000000000000000000000': {
           address: '0x0000000000000000000000000000000000000000',
           aggregators: [],
-          assetId: 'eip155:10/slip44:614',
+          assetId: 'eip155:10/slip44:60',
           chainId: 10,
           coingeckoId: 'ethereum',
           decimals: 18,

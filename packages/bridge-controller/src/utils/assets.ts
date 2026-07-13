@@ -1,8 +1,9 @@
 import type { CaipAssetType } from '@metamask/utils';
 
-import type { ExchangeRate, GenericQuoteRequest } from '../types';
+import type { GenericQuoteRequest } from '../types';
 import { getNativeAssetForChainId } from './bridge';
 import { formatAddressToAssetId } from './caip-formatters';
+import type { ExchangeRate } from './quote-metadata';
 
 export const getAssetIdsForToken = (
   tokenAddress: GenericQuoteRequest['srcTokenAddress'],

@@ -1,10 +1,10 @@
 import { SolScope } from '@metamask/keyring-api';
 import type { CaipChainId } from '@metamask/utils';
 
-import type { QuoteMetadata } from '../../types';
 import type { QuoteResponseV1 } from '../../validators/quote-response-v1';
 import { getNativeAssetForChainId } from '../bridge';
 import { formatChainIdToCaip } from '../caip-formatters';
+import type { QuoteMetadata } from '../quote-metadata';
 import { MetricsSwapType } from './constants';
 import {
   getAccountHardwareType,

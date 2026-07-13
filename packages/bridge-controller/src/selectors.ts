@@ -19,16 +19,10 @@ import {
 } from 'reselect';
 
 import { BRIDGE_PREFERRED_GAS_ESTIMATE } from './constants/bridge';
-import type {
-  BridgeControllerState,
-  ExchangeRate,
-  QuoteMetadata,
-  TokenAmountValues,
-} from './types';
+import type { BridgeControllerState } from './types';
 import { RequestStatus, SortOrder } from './types';
 import {
   getNativeAssetForChainId,
-  isEvmQuoteResponse,
   isNativeAddress,
   isNonEvmChainId,
 } from './utils/bridge';
@@ -39,20 +33,11 @@ import {
   formatChainIdToHex,
 } from './utils/caip-formatters';
 import { processFeatureFlags } from './utils/feature-flags';
-import {
-  calcAdjustedReturn,
-  calcCost,
-  calcEstimatedAndMaxTotalGasFee,
-  calcIncludedTxFees,
-  calcRelayerFee,
-  calcSentAmount,
-  calcNonEvmTotalNetworkFee,
-  calcSwapRate,
-  calcToAmount,
-  calcTotalEstimatedNetworkFee,
-  calcTotalMaxNetworkFee,
-  calcBatchFees,
-} from './utils/quote';
+import { calcBatchFees } from './utils/quote';
+import type { ExchangeRate } from './utils/quote-metadata';
+import type { TokenAmountValues } from './utils/quote-metadata';
+import { calcQuoteMetadata } from './utils/quote-metadata';
+import type { QuoteMetadata } from './utils/quote-metadata';
 import { getDefaultSlippagePercentage } from './utils/slippage';
 import type { QuoteResponseV1 } from './validators/quote-response-v1';
 
@@ -364,100 +349,31 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
     destTokenExchangeRate,
     nativeExchangeRate,
   ) => {
-    const newQuotes = quotes.map((quote) => {
+    return quotes.map((quote) => {
+      // This is a fallback for client unit tests
+      const fallbackSourceAssetId = formatAddressToAssetId(
+        quote.quote.srcAsset.address,
+        quote.quote.srcChainId,
+      );
       const sourceAssetId =
-        formatAddressToAssetId(
-          quote.quote.srcAsset.address,
-          quote.quote.srcChainId,
-        ) ?? quote.quote.srcAsset.assetId;
+        quote.quote.srcAsset.assetId ??
+        /* c8 ignore next */
+        fallbackSourceAssetId;
       const srcTokenExchangeRate = selectExchangeRateByAssetId(
         exchangeRateSources,
         sourceAssetId,
       );
-      const sentAmount = calcSentAmount(quote.quote, srcTokenExchangeRate);
-      const toTokenAmount = calcToAmount(
-        quote.quote.destTokenAmount,
-        quote.quote.destAsset,
-        destTokenExchangeRate,
-      );
-      const minToTokenAmount = calcToAmount(
-        quote.quote.minDestTokenAmount,
-        quote.quote.destAsset,
-        destTokenExchangeRate,
-      );
-
-      const includedTxFees = calcIncludedTxFees(
-        quote.quote,
+      const quoteMetadata = calcQuoteMetadata(quote, {
         srcTokenExchangeRate,
+        bridgeFeesPerGas,
         destTokenExchangeRate,
-      );
-
-      let totalEstimatedNetworkFee,
-        totalMaxNetworkFee,
-        relayerFee,
-        gasFee: QuoteMetadata['gasFee'];
-
-      if (isEvmQuoteResponse(quote)) {
-        relayerFee = calcRelayerFee(quote, nativeExchangeRate);
-        gasFee = calcEstimatedAndMaxTotalGasFee({
-          bridgeQuote: quote,
-          ...bridgeFeesPerGas,
-          ...nativeExchangeRate,
-        });
-        // Uses effectiveGasFee to calculate the total estimated network fee
-        totalEstimatedNetworkFee = calcTotalEstimatedNetworkFee(
-          gasFee,
-          relayerFee,
-        );
-        totalMaxNetworkFee = calcTotalMaxNetworkFee(gasFee, relayerFee);
-      } else {
-        // Use the new generic function for all non-EVM chains
-        totalEstimatedNetworkFee = calcNonEvmTotalNetworkFee(
-          quote,
-          nativeExchangeRate,
-        );
-        gasFee = {
-          effective: totalEstimatedNetworkFee,
-          total: totalEstimatedNetworkFee,
-          max: totalEstimatedNetworkFee,
-        };
-        totalMaxNetworkFee = totalEstimatedNetworkFee;
-      }
-
-      const adjustedReturn = calcAdjustedReturn(
-        toTokenAmount,
-        totalEstimatedNetworkFee,
-        quote.quote,
-      );
-      const cost = calcCost(adjustedReturn, sentAmount);
-
+        nativeExchangeRate,
+      });
       return {
         ...quote,
-        // QuoteMetadata fields
-        sentAmount,
-        toTokenAmount,
-        minToTokenAmount,
-        swapRate: calcSwapRate(sentAmount.amount, toTokenAmount.amount),
-        /**
-        This is the amount required to submit all the transactions.
-        Includes the relayer fee or other native fees.
-        Should be used for balance checks and tx submission.
-         */
-        totalNetworkFee: totalEstimatedNetworkFee,
-        totalMaxNetworkFee,
-        /**
-        This contains gas fee estimates for the bridge transaction
-        Does not include the relayer fee (if needed), just the gasLimit and effectiveGas returned by the bridge API.
-        Should only be used for display purposes.
-         */
-        gasFee,
-        adjustedReturn,
-        cost,
-        includedTxFees,
+        ...quoteMetadata,
       };
     });
-
-    return newQuotes;
   },
 );
 
@@ -551,8 +467,8 @@ export const selectIsQuoteExpired = createBridgeSelector(
   (isQuoteGoingToRefresh, quotesLastFetched, refreshRate, currentTimeInMs) =>
     Boolean(
       !isQuoteGoingToRefresh &&
-      quotesLastFetched &&
-      currentTimeInMs - quotesLastFetched > refreshRate,
+        quotesLastFetched &&
+        currentTimeInMs - quotesLastFetched > refreshRate,
     ),
 );
 

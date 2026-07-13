@@ -3,11 +3,7 @@ import type { AccountsControllerState } from '@metamask/accounts-controller';
 
 import { DEFAULT_BRIDGE_CONTROLLER_STATE } from '../../constants/bridge';
 import { ChainId } from '../../types';
-import type {
-  GenericQuoteRequest,
-  QuoteMetadata,
-  QuoteRequest,
-} from '../../types';
+import type { GenericQuoteRequest, QuoteRequest } from '../../types';
 import { FeatureId } from '../../validators/feature-flags';
 import type { QuoteResponseV1 } from '../../validators/quote-response-v1';
 import type { TxData } from '../../validators/trade';
@@ -16,6 +12,7 @@ import {
   formatAddressToAssetId,
   formatChainIdToCaip,
 } from '../caip-formatters';
+import type { QuoteMetadata } from '../quote-metadata';
 import { MetricsSwapType } from './constants';
 import type {
   AccountHardwareType,

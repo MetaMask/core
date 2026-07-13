@@ -8,10 +8,8 @@ import { BigNumber } from 'bignumber.js';
 
 import type {
   BridgeAsset,
-  ExchangeRate,
   GenericQuoteRequest,
   L1GasFees,
-  QuoteMetadata,
   NonEvmFees,
 } from '../types';
 import { FeatureId } from '../validators/feature-flags';
@@ -19,6 +17,7 @@ import type { Quote } from '../validators/quote';
 import type { QuoteResponseV1 } from '../validators/quote-response-v1';
 import { TxData } from '../validators/trade';
 import { isNativeAddress, isNonEvmChainId } from './bridge';
+import type { ExchangeRate, QuoteMetadata } from './quote-metadata';
 
 export const isValidQuoteRequest = (
   partialRequest: Partial<GenericQuoteRequest>,

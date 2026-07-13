@@ -37,11 +37,12 @@ export {
   getQuotesReceivedProperties,
 } from './utils/metrics/properties';
 
+export type { QuoteMetadata, TokenAmountValues } from './utils/quote-metadata';
+
 export type {
   ChainConfiguration,
   L1GasFees,
   NonEvmFees,
-  QuoteMetadata,
   GasMultiplierByChainId,
   FeatureFlagResponse,
   BridgeAsset,
@@ -49,7 +50,6 @@ export type {
   BatchSellTradesResponse,
   GaslessProperties,
   SimulatedGasFeeLimits,
-  TokenAmountValues,
   Step,
   RefuelData,
   FeeData,

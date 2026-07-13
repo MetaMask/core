@@ -33,7 +33,6 @@ import { getNativeAssetForChainId, isNativeAddress } from './utils/bridge';
 import {
   formatAddressToAssetId,
   formatAddressToCaipReference,
-  formatChainIdToCaip,
   formatChainIdToDec,
   formatChainIdToHex,
 } from './utils/caip-formatters';
@@ -475,7 +474,6 @@ describe('Bridge Selectors', () => {
       stateOverrides?: Partial<BridgeAppState>,
     ): BridgeAppState => {
       const decChainId = formatChainIdToDec(chainId);
-      const caipChainId = formatChainIdToCaip(chainId);
 
       const mockQuote = {
         quote: {
@@ -489,7 +487,7 @@ describe('Bridge Selectors', () => {
             chainId: decChainId,
             address: '0x0000000000000000000000000000000000000000',
             decimals: 18,
-            assetId: `${caipChainId}/erc20:0x0000000000000000000000000000000000000000`,
+            assetId: getNativeAssetForChainId(chainId).assetId.toLowerCase(),
             symbol: 'ETH',
             name: 'Ethereum',
           },
@@ -497,8 +495,7 @@ describe('Bridge Selectors', () => {
             chainId: 137,
             address: '0x0000000000000000000000000000000000000000',
             decimals: 18,
-            assetId:
-              'eip155:137/erc20:0x0000000000000000000000000000000000000000',
+            assetId: getNativeAssetForChainId(137).assetId.toLowerCase(),
             symbol: 'POL',
             name: 'Polygon',
           },
@@ -514,7 +511,8 @@ describe('Bridge Selectors', () => {
                 decimals: 18,
                 symbol: 'ETH',
                 name: 'Ethereum',
-                assetId: `${caipChainId}/erc20:0x0000000000000000000000000000000000000000`,
+                assetId:
+                  getNativeAssetForChainId(chainId).assetId.toLowerCase(),
               },
             },
           },
@@ -539,17 +537,10 @@ describe('Bridge Selectors', () => {
           value: '0x0',
         },
       };
-      validateQuoteResponseV1(mockQuote);
 
       return {
         quotes: [
-          merge(
-            {},
-            {
-              ...mockQuote,
-            },
-            quoteOverrides,
-          ),
+          merge({}, mockQuote, quoteOverrides),
           merge(
             {},
             {
@@ -638,17 +629,21 @@ describe('Bridge Selectors', () => {
           {
             ...mockState,
             assetExchangeRates: {
-              [formatAddressToAssetId(
+              [mockQuote.quote.srcAsset.assetId.toLowerCase() ??
+              formatAddressToAssetId(
                 mockQuote.quote.srcAsset.address,
                 mockQuote.quote.srcChainId,
-              ) ?? '']: {
+              ) ??
+              '']: {
                 exchangeRate: '1980',
                 usdExchangeRate: '10',
               },
-              [formatAddressToAssetId(
+              [mockQuote.quote.destAsset.assetId.toLowerCase() ??
+              formatAddressToAssetId(
                 mockQuote.quote.destAsset.address,
                 mockQuote.quote.destChainId,
-              ) ?? '']: {
+              ) ??
+              '']: {
                 exchangeRate: '200',
                 usdExchangeRate: '1',
               },
@@ -719,6 +714,58 @@ describe('Bridge Selectors', () => {
       validateQuoteResponseV1(quoteResponseV1);
 
       expect(result.sortedQuotes[0]).toStrictEqual(quoteResponseV1);
+      expect(result.sortedQuotes[0].cost?.valueInCurrency).toBe('-419.985546');
+    });
+
+    it('should return sorted quotes with metadata (no assetId)', () => {
+      const mockState = getMockState(1, {
+        quote: {
+          srcAsset: {
+            chainId: 1,
+            address: '0x0000000000000000000000000000000000000000',
+            decimals: 18,
+            assetId: null,
+            symbol: 'ETH',
+            name: 'Ethereum',
+          },
+        } as never,
+      });
+      const mockQuote = mockState.quotes[0];
+      const { quotesInitialLoadTimeMs, quotesLastFetchedMs, ...result } =
+        selectBridgeQuotes(
+          {
+            ...mockState,
+            assetExchangeRates: {
+              [mockQuote.quote.srcAsset.assetId?.toLowerCase() ??
+              formatAddressToAssetId(
+                mockQuote.quote.srcAsset.address,
+                mockQuote.quote.srcChainId,
+              ) ??
+              '']: {
+                exchangeRate: '1980',
+                usdExchangeRate: '10',
+              },
+              [mockQuote.quote.destAsset.assetId?.toLowerCase() ??
+              formatAddressToAssetId(
+                mockQuote.quote.destAsset.address,
+                mockQuote.quote.destChainId,
+              ) ??
+              '']: {
+                exchangeRate: '200',
+                usdExchangeRate: '1',
+              },
+            },
+          },
+          mockClientParams,
+        );
+
+      const quoteResponseV1 = {
+        ...mockState.quotes[1],
+      };
+
+      expect(result.sortedQuotes[0]).toStrictEqual(
+        expect.objectContaining(quoteResponseV1),
+      );
       expect(result.sortedQuotes[0].cost?.valueInCurrency).toBe('-419.985546');
     });
 
