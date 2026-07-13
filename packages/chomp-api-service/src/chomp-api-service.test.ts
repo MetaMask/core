@@ -618,6 +618,62 @@ describe('ChompApiService', () => {
       expect(attempts).toBe(DEFAULT_MAX_RETRIES + 1);
     });
   });
+
+  describe('setBaseUrl', () => {
+    const NEW_BASE_URL = 'https://api.chomp.other.example.com';
+
+    it('routes subsequent requests to the new base URL', async () => {
+      nock(NEW_BASE_URL).get('/v1/account-upgrade/0xabc').reply(200, []);
+      const { service } = createService();
+
+      service.setBaseUrl(NEW_BASE_URL);
+      const result = await service.getUpgrades('0xabc');
+
+      expect(result).toStrictEqual([]);
+    });
+
+    it('caches per endpoint, so a read after the URL changes is not served from the previous endpoint cache', async () => {
+      // The base URL is part of the query key, so the entry cached against the
+      // original endpoint and the read issued after the switch are distinct
+      // queries: the second read misses the cache and hits the new host rather
+      // than being served the previous endpoint's data.
+      nock(BASE_URL).get('/v1/account-upgrade/0xabc').reply(200, []);
+      const { service } = createService();
+      await service.getUpgrades('0xabc'); // fully cached under the original URL
+
+      const newScope = nock(NEW_BASE_URL)
+        .get('/v1/account-upgrade/0xabc')
+        .reply(200, []);
+      service.setBaseUrl(NEW_BASE_URL);
+      await service.getUpgrades('0xabc');
+
+      expect(newScope.isDone()).toBe(true);
+    });
+
+    it('keeps a request in flight against the old endpoint on its own cache entry, so it cannot satisfy a read against the new one', async () => {
+      const oldScope = nock(BASE_URL)
+        .get('/v1/account-upgrade/0xabc')
+        .delay(20)
+        .reply(200, []);
+      const newScope = nock(NEW_BASE_URL)
+        .get('/v1/account-upgrade/0xabc')
+        .reply(200, []);
+      const { service } = createService();
+
+      // Let the first request get past the async auth-header step and actually
+      // hit the network against BASE_URL before switching, so it is genuinely
+      // in flight against the old endpoint when the new read is issued.
+      const inFlight = service.getUpgrades('0xabc');
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      service.setBaseUrl(NEW_BASE_URL);
+      await service.getUpgrades('0xabc');
+      await inFlight;
+
+      expect(oldScope.isDone()).toBe(true);
+      expect(newScope.isDone()).toBe(true);
+    });
+  });
 });
 
 /**

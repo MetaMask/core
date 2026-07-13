@@ -263,7 +263,7 @@ export class ChompApiService extends BaseDataService<
   typeof serviceName,
   ChompApiServiceMessenger
 > {
-  readonly #baseUrl: string;
+  #baseUrl: string;
 
   /**
    * Constructs a new ChompApiService.
@@ -302,6 +302,22 @@ export class ChompApiService extends BaseDataService<
   }
 
   /**
+   * Updates the base URL used for all subsequent CHOMP API requests.
+   *
+   * This is useful when the endpoint is sourced from a remote feature flag
+   * that may not have hydrated by the time the service is constructed: the
+   * service can be created with a fallback URL and re-pointed once the flag
+   * lands. The base URL is part of every query key, so requests already in
+   * flight against the previous endpoint occupy separate cache entries and
+   * can never be served in place of results from the new endpoint.
+   *
+   * @param baseUrl - The new base URL of the CHOMP API.
+   */
+  setBaseUrl(baseUrl: string): void {
+    this.#baseUrl = baseUrl;
+  }
+
+  /**
    * Builds the standard headers for an authenticated CHOMP API request.
    *
    * @returns Headers including Authorization and Content-Type.
@@ -329,7 +345,7 @@ export class ChompApiService extends BaseDataService<
     params: AssociateAddressParams,
   ): Promise<AssociateAddressResponse> {
     const jsonResponse = await this.fetchQuery({
-      queryKey: [`${this.name}:associateAddress`, params],
+      queryKey: [`${this.name}:associateAddress`, this.#baseUrl, params],
       staleTime: 0,
       queryFn: async () => {
         const headers = await this.#authHeaders();
@@ -369,7 +385,7 @@ export class ChompApiService extends BaseDataService<
     params: CreateUpgradeParams,
   ): Promise<CreateUpgradeResponse> {
     const jsonResponse = await this.fetchQuery({
-      queryKey: [`${this.name}:createUpgrade`, params],
+      queryKey: [`${this.name}:createUpgrade`, this.#baseUrl, params],
       staleTime: 0,
       queryFn: async () => {
         const headers = await this.#authHeaders();
@@ -407,7 +423,7 @@ export class ChompApiService extends BaseDataService<
    */
   async getUpgrades(address: Hex): Promise<UpgradeEntry[]> {
     const jsonResponse = await this.fetchQuery({
-      queryKey: [`${this.name}:getUpgrades`, address],
+      queryKey: [`${this.name}:getUpgrades`, this.#baseUrl, address],
       queryFn: async () => {
         const headers = await this.#authHeaders();
         const response = await fetch(
@@ -441,7 +457,7 @@ export class ChompApiService extends BaseDataService<
     params: VerifyDelegationParams,
   ): Promise<VerifyDelegationResponse> {
     const jsonResponse = await this.fetchQuery({
-      queryKey: [`${this.name}:verifyDelegation`, params],
+      queryKey: [`${this.name}:verifyDelegation`, this.#baseUrl, params],
       staleTime: 0,
       queryFn: async () => {
         const headers = await this.#authHeaders();
@@ -480,7 +496,7 @@ export class ChompApiService extends BaseDataService<
     intents: SendIntentParams[],
   ): Promise<SendIntentResponse[]> {
     const jsonResponse = await this.fetchQuery({
-      queryKey: [`${this.name}:createIntents`, intents],
+      queryKey: [`${this.name}:createIntents`, this.#baseUrl, intents],
       staleTime: 0,
       queryFn: async () => {
         const headers = await this.#authHeaders();
@@ -514,7 +530,7 @@ export class ChompApiService extends BaseDataService<
    */
   async getIntentsByAddress(address: Hex): Promise<IntentEntry[]> {
     const jsonResponse = await this.fetchQuery({
-      queryKey: [`${this.name}:getIntentsByAddress`, address],
+      queryKey: [`${this.name}:getIntentsByAddress`, this.#baseUrl, address],
       queryFn: async () => {
         const headers = await this.#authHeaders();
         const response = await fetch(
@@ -549,7 +565,7 @@ export class ChompApiService extends BaseDataService<
     params: CreateWithdrawalParams,
   ): Promise<CreateWithdrawalResponse> {
     const jsonResponse = await this.fetchQuery({
-      queryKey: [`${this.name}:createWithdrawal`, params],
+      queryKey: [`${this.name}:createWithdrawal`, this.#baseUrl, params],
       staleTime: 0,
       queryFn: async () => {
         const headers = await this.#authHeaders();
@@ -585,7 +601,7 @@ export class ChompApiService extends BaseDataService<
    */
   async getServiceDetails(chainIds: Hex[]): Promise<ServiceDetailsResponse> {
     const jsonResponse = await this.fetchQuery({
-      queryKey: [`${this.name}:getServiceDetails`, chainIds],
+      queryKey: [`${this.name}:getServiceDetails`, this.#baseUrl, chainIds],
       queryFn: async () => {
         const headers = await this.#authHeaders();
         const url = new URL('/v1/chomp', this.#baseUrl);
