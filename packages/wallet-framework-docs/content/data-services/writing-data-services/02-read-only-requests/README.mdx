@@ -546,7 +546,7 @@ describe('OrdersService', () => {
 
       const responseData = await service.fetchOrders();
 
-      expect(responseData).toStrictEqual(MOCK_VALID_RESPONSE_DATA);
+      expect(responseData).toStrictEqual(MOCK_VALID_ORDERS_RESPONSE_DATA);
     });
   });
 });
@@ -563,7 +563,7 @@ Now let's implement `GET /v1/orders/:id`. We'll do that by adding a `fetchOrder`
  * Struct to validate what `GET /v1/orders/:id` returns.
  */
 const FetchOrderResponseStruct = type({
-  order: OrderStruct,
+  order: ResponseOrderStruct,
 });
 
 /**
