@@ -457,20 +457,21 @@ describe('QuoteStatusUpdateManager', () => {
   });
 
   describe('getStatus', () => {
-    it('does nothing when the manager is disabled', () => {
+    it('does nothing when the manager is disabled', async () => {
       const { manager } = createManager({
         isEnabled: jest.fn().mockReturnValue(false),
       });
 
-      manager.getStatus('quote-1');
+      const result = await manager.getStatus('quote-1');
 
       expect(mockGetQuoteStatusWithRetry).not.toHaveBeenCalled();
+      expect(result).toBeUndefined();
     });
 
-    it('delegates to the API service with the default retry options when enabled', () => {
+    it('delegates to the API service with the default retry options when enabled', async () => {
       const { manager } = createManager();
 
-      manager.getStatus('quote-1');
+      await manager.getStatus('quote-1');
 
       expect(mockGetQuoteStatusWithRetry).toHaveBeenCalledWith(
         { quoteId: 'quote-1' },
@@ -478,10 +479,10 @@ describe('QuoteStatusUpdateManager', () => {
       );
     });
 
-    it('passes custom options to the API service', () => {
+    it('passes custom options to the API service', async () => {
       const { manager } = createManager();
 
-      manager.getStatus('quote-1', {
+      await manager.getStatus('quote-1', {
         maxRetries: 3,
         delayMsBetweenRetries: 500,
       });
@@ -490,6 +491,27 @@ describe('QuoteStatusUpdateManager', () => {
         { quoteId: 'quote-1' },
         { maxRetries: 3, delayMsBetweenRetries: 500 },
       );
+    });
+
+    it('resolves with the outcome returned by the API service', async () => {
+      const outcome = new QuoteStatusGetWithRetryOutcome(
+        QuoteStatusFetchWithRetryOutcomeType.Accepted,
+      );
+      mockGetQuoteStatusWithRetry.mockResolvedValueOnce(outcome);
+      const { manager } = createManager();
+
+      const result = await manager.getStatus('quote-1');
+
+      expect(result).toBe(outcome);
+    });
+
+    it('resolves with undefined when the API service rejects', async () => {
+      mockGetQuoteStatusWithRetry.mockRejectedValueOnce(new Error('boom'));
+      const { manager } = createManager();
+
+      const result = await manager.getStatus('quote-1');
+
+      expect(result).toBeUndefined();
     });
   });
 
@@ -933,7 +955,7 @@ describe('QuoteStatusUpdateManager', () => {
       });
     });
 
-    it('calls getStatus after a FinalizedSuccess update is accepted', async () => {
+    it('does not call getStatus after a FinalizedSuccess update is accepted', async () => {
       mockUpdate
         .mockResolvedValueOnce(
           new QuoteStatusUpdateWithRetryOutcome(
@@ -952,13 +974,10 @@ describe('QuoteStatusUpdateManager', () => {
       manager.reportFinalised('tx-1', true);
       await flush();
 
-      expect(mockGetQuoteStatusWithRetry).toHaveBeenCalledWith(
-        { quoteId: 'quote-1' },
-        { maxRetries: 1, delayMsBetweenRetries: 1000 },
-      );
+      expect(mockGetQuoteStatusWithRetry).not.toHaveBeenCalled();
     });
 
-    it('calls getStatus after a FinalizedFailed update is accepted', async () => {
+    it('does not call getStatus after a FinalizedFailed update is accepted', async () => {
       mockUpdate
         .mockResolvedValueOnce(
           new QuoteStatusUpdateWithRetryOutcome(
@@ -977,10 +996,7 @@ describe('QuoteStatusUpdateManager', () => {
       manager.reportFinalised('tx-1', false);
       await flush();
 
-      expect(mockGetQuoteStatusWithRetry).toHaveBeenCalledWith(
-        { quoteId: 'quote-1' },
-        { maxRetries: 1, delayMsBetweenRetries: 1000 },
-      );
+      expect(mockGetQuoteStatusWithRetry).not.toHaveBeenCalled();
     });
 
     it('does not call getStatus when a non-finalized update is accepted', async () => {

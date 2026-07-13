@@ -7,6 +7,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/assets-controller` from `^10.2.1` to `^11.0.0` ([#9485](https://github.com/MetaMask/core/pull/9485))
+- Bump `@metamask/ramps-controller` from `^16.0.0` to `^17.0.0` ([#9491](https://github.com/MetaMask/core/pull/9491))
+
+## [24.0.3]
+
+### Changed
+
+- Bump `@metamask/ramps-controller` from `^15.1.0` to `^16.0.0` ([#9481](https://github.com/MetaMask/core/pull/9481))
+- Update `LICENSE` text ([#9472](https://github.com/MetaMask/core/pull/9472))
+
+## [24.0.2]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^68.4.0` to `^69.0.0`
+- Bump `@metamask/assets-controller` from `^10.2.0` to `^10.2.1` ([#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/assets-controllers` from `^109.4.0` to `^109.4.1` ([#9470](https://github.com/MetaMask/core/pull/9470))
+
+## [24.0.1]
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^10.1.0` to `^10.2.0` ([#9450](https://github.com/MetaMask/core/pull/9450))
+- Bump `@metamask/assets-controllers` from `^109.3.1` to `^109.4.0` ([#9450](https://github.com/MetaMask/core/pull/9450))
+- Bump `@metamask/transaction-controller` from `^68.3.0` to `^68.4.0` ([#9456](https://github.com/MetaMask/core/pull/9456))
+
+## [24.0.0]
+
+### Added
+
+- **BREAKING:** Add an optional `isSubsidized` flag to `GetDelegationTransactionCallback`, send `metamask.executeVersion: 2` on Relay execute quote requests, and include a signed `metamask` envelope on Relay executes ([#9298](https://github.com/MetaMask/core/pull/9298))
+
+### Changed
+
+- Refactor vault deposit utilities into shared `utils/` modules (`chomp`, `ma-vault-deposit`, `relay-post-ma-vault`) to prepare for the Relay Money Account deposit path ([#9303](https://github.com/MetaMask/core/pull/9303))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Bump `@metamask/ramps-controller` from `^15.0.0` to `^15.1.0` ([#9395](https://github.com/MetaMask/core/pull/9395))
+- Bump `@metamask/assets-controller` from `^10.0.1` to `^10.1.0` ([#9411](https://github.com/MetaMask/core/pull/9411))
+- Bump `@metamask/transaction-controller` from `^68.2.2` to `^68.3.0` ([#9421](https://github.com/MetaMask/core/pull/9421))
+- Bump `@metamask/assets-controllers` from `^109.3.0` to `^109.3.1` ([#9429](https://github.com/MetaMask/core/pull/9429))
+
+### Fixed
+
+- Subscribe to all asset event sources (`AssetsController`, `TokensController`, `TokenRatesController`, `CurrencyRateController`) unconditionally instead of picking one based on the unify-state feature flag at construction time ([#9427](https://github.com/MetaMask/core/pull/9427))
+  - The flag can flip from disabled to enabled after this controller is constructed (e.g. remote feature flags loading after startup), which previously left the controller subscribed to a source that never fired, causing required tokens to never resolve for transactions started before the flag loaded.
+
 ## [23.17.4]
 
 ### Fixed
@@ -1232,7 +1280,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.17.4...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@24.0.3...HEAD
+[24.0.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@24.0.2...@metamask/transaction-pay-controller@24.0.3
+[24.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@24.0.1...@metamask/transaction-pay-controller@24.0.2
+[24.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@24.0.0...@metamask/transaction-pay-controller@24.0.1
+[24.0.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.17.4...@metamask/transaction-pay-controller@24.0.0
 [23.17.4]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.17.3...@metamask/transaction-pay-controller@23.17.4
 [23.17.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.17.2...@metamask/transaction-pay-controller@23.17.3
 [23.17.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@23.17.1...@metamask/transaction-pay-controller@23.17.2

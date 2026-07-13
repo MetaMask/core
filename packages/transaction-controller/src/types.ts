@@ -1257,13 +1257,15 @@ export type DappSuggestedGasFees = {
 };
 
 /**
- * Gas values saved by the user for a specific chain.
+ * Gas values saved by the user for a specific chain and account.
  */
 // Convert to a `type` in a future major version.
 // eslint-disable-next-line @typescript-eslint/consistent-type-definitions
 export interface SavedGasFees {
-  maxBaseFee: string;
-  priorityFee: string;
+  level?: UserFeeLevel | GasFeeEstimateLevel;
+  maxBaseFee?: string;
+  priorityFee?: string;
+  gasPrice?: string;
 }
 
 /**

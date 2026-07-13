@@ -7,14 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.0.0]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.4` to `^39.0.5` ([#9470](https://github.com/MetaMask/core/pull/9470))
+
+### Removed
+
+- **BREAKING:** Removed use of v1 `createAccount` entirely ([#9460](https://github.com/MetaMask/core/pull/9460))
+  - All BIP-44 Snaps are expected to implement `createAccounts` (v1 or v2).
+  - The old v1 `createAccount` flow had some undesired side-effetcs sometimes (e.g auto-selecting a non-EVM account after being created, which is not compatible with our new group model).
+
+## [12.0.0]
+
 ### Added
 
+- Capability-gated v1/v2 keyring client selection for Snap account providers ([#9377](https://github.com/MetaMask/core/pull/9377))
+  - Providers resolve a Snap's capabilities via `SnapAccountService:getCapabilities` and route account creation and discovery through the v1 or v2 keyring client accordingly (a Snap that declares BIP-44 capabilities is treated as v2).
+  - Account discovery for v2 Snaps that declare `bip44.discover` flows through `createAccounts({ bip44:discover })`; v1 Snaps keep using the `discoverAccounts` client method.
 - Adds `MultichainAccountGroup.isProviderAligned(provider)` to check alignment per provider ([#9269](https://github.com/MetaMask/core/pull/9269))
 
 ### Changed
 
+- **BREAKING:** Remove `batched` from `SnapAccountProviderConfig['createAccounts']` ([#9377](https://github.com/MetaMask/core/pull/9377))
+  - Batching is now derived from the Snap's capabilities (v2 Snaps that declare `bip44` use the `createAccounts` flow, since they expose no singular `createAccount`) instead of static config.
+- **BREAKING:** Now requires `SnapAccountService:getCapabilities` action ([#9377](https://github.com/MetaMask/core/pull/9377))
+- **BREAKING:** `RestrictedSnapKeyring.createAccount` has been replaced by `RestrictedSnapKeyring.v1`, which is `undefined` for v2-only Snaps ([#9390](https://github.com/MetaMask/core/pull/9390))
+  - Any subclass implementing `SnapAccountProvider.createAccountV1` must now check `keyring.v1` guard followed by `keyring.v1.createAccount(options)`.
 - Wallet alignment now only creates the missing `(provider, group index)` pairs instead of re-creating the whole range for every provider, avoiding redundant `createAccounts` calls (and their traces) ([#9269](https://github.com/MetaMask/core/pull/9269))
 - Bump `@metamask/accounts-controller` from `^39.0.3` to `^39.0.4` ([#9349](https://github.com/MetaMask/core/pull/9349))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Bump `@metamask/eth-snap-keyring` from `^22.3.0` to `^23.0.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
+- Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
+- Bump `@metamask/keyring-snap-client` from `^9.0.2` to `^9.2.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
+- Bump `@metamask/snap-account-service` from `^1.0.0` to `^2.0.0` ([#9429](https://github.com/MetaMask/core/pull/9429))
 
 ## [11.1.0]
 
@@ -556,7 +583,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141), [#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@11.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@13.0.0...HEAD
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@12.0.0...@metamask/multichain-account-service@13.0.0
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@11.1.0...@metamask/multichain-account-service@12.0.0
 [11.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@11.0.0...@metamask/multichain-account-service@11.1.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@10.0.3...@metamask/multichain-account-service@11.0.0
 [10.0.3]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@10.0.2...@metamask/multichain-account-service@10.0.3

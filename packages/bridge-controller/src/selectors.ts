@@ -23,7 +23,6 @@ import type {
   BridgeControllerState,
   ExchangeRate,
   QuoteMetadata,
-  QuoteResponseV1,
   TokenAmountValues,
 } from './types';
 import { RequestStatus, SortOrder } from './types';
@@ -55,6 +54,7 @@ import {
   calcBatchFees,
 } from './utils/quote';
 import { getDefaultSlippagePercentage } from './utils/slippage';
+import type { QuoteResponseV1 } from './validators/quote-response-v1';
 
 /**
  * The controller states that provide exchange rates

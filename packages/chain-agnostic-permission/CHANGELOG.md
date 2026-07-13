@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.7.0]
+
 ### Added
 
 - Add `getSessionProperties` async function that hydrates the persisted session properties of a CAIP-25 caveat value with an `eip155Capabilities` record, mapping each permitted EVM account address to its per-chain capabilities resolved from the provided `getCapabilities` hook ([#9294](https://github.com/MetaMask/core/pull/9294))
@@ -228,7 +230,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.6.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.7.0...HEAD
+[1.7.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.6.2...@metamask/chain-agnostic-permission@1.7.0
 [1.6.2]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.6.1...@metamask/chain-agnostic-permission@1.6.2
 [1.6.1]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.6.0...@metamask/chain-agnostic-permission@1.6.1
 [1.6.0]: https://github.com/MetaMask/core/compare/@metamask/chain-agnostic-permission@1.5.0...@metamask/chain-agnostic-permission@1.6.0

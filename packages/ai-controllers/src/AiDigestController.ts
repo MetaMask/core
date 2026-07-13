@@ -19,6 +19,7 @@ import type {
   MarketInsightsEntry,
   MarketOverview,
   MarketOverviewEntry,
+  MarketOverviewFrontPage,
 } from './ai-digest-types';
 import type { AiDigestControllerMethodActions } from './AiDigestController-method-action-types';
 
@@ -75,6 +76,7 @@ const aiDigestControllerMetadata: StateMetadata<AiDigestControllerState> = {
 const MESSENGER_EXPOSED_METHODS = [
   'fetchMarketInsights',
   'fetchMarketOverview',
+  'fetchFrontPageItem',
 ] as const;
 
 export class AiDigestController extends BaseController<
@@ -186,6 +188,26 @@ export class AiDigestController extends BaseController<
     });
 
     return data;
+  }
+
+  /**
+   * Fetches a single market overview front page by id.
+   *
+   * Unlike the market overview report (which only returns the latest items),
+   * this resolves an older item that has since dropped out of the report, so
+   * clients can render it directly (e.g. from a deep link).
+   *
+   * @param id - The front-page identifier (UUID).
+   * @returns The market overview front page, or `null` if none exists.
+   */
+  async fetchFrontPageItem(
+    id: string,
+  ): Promise<MarketOverviewFrontPage | null> {
+    if (!id) {
+      throw new Error(AiDigestControllerErrorMessage.INVALID_FRONT_PAGE_ID);
+    }
+
+    return this.#digestService.fetchFrontPageItem(id);
   }
 
   /**

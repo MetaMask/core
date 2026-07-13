@@ -7,7 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [4.0.0]
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.4` to `^39.0.5` ([#9470](https://github.com/MetaMask/core/pull/9470))
+
+## [4.0.1]
+
+### Changed
+
+- Bump `@metamask/chain-agnostic-permission` from `^1.6.2` to `^1.7.0` ([#9399](https://github.com/MetaMask/core/pull/9399))
+  - This aligns the declared dependency range with the version that provides `getSessionProperties`, which this package requires.
+  - This change should have been included in 4.0.0.
+
+## [4.0.0] [DEPRECATED]
 
 ### Added
 
@@ -268,7 +280,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@4.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@4.0.1...HEAD
+[4.0.1]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@4.0.0...@metamask/multichain-api-middleware@4.0.1
 [4.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.1.5...@metamask/multichain-api-middleware@4.0.0
 [3.1.5]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.1.4...@metamask/multichain-api-middleware@3.1.5
 [3.1.4]: https://github.com/MetaMask/core/compare/@metamask/multichain-api-middleware@3.1.3...@metamask/multichain-api-middleware@3.1.4

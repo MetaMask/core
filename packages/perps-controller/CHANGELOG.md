@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.5.3` to `7.5.4` ([#9429](https://github.com/MetaMask/core/pull/9429))
+
+## [9.2.1]
+
+### Changed
+
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
+### Fixed
+
+- Fix `adaptOrderFromSDK` dropping `takeProfitPrice`/`stopLossPrice` for child TP/SL orders whose `triggerPx` is an empty string (HyperLiquid's representation of "no trigger price" when the price is instead carried in `limitPx`) ([#9398](https://github.com/MetaMask/core/pull/9398))
+  - `??` only falls back on `null`/`undefined`, so an empty-string `triggerPx` was never replaced by `limitPx`, leaving `takeProfitPrice`/`stopLossPrice` (and their order IDs) `undefined` on the resulting `Order`. Switched back to `||`, which correctly treats `''` as falsy.
+
+## [9.2.0]
+
 ### Added
 
 - Add optional `description?: string` to `PerpsMarketData` and `TerminalAssetMetadata`, exposing the human-readable asset description sourced from the Terminal API when available ([#9334](https://github.com/MetaMask/core/pull/9334))
@@ -481,7 +498,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@9.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@9.2.1...HEAD
+[9.2.1]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@9.2.0...@metamask/perps-controller@9.2.1
+[9.2.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@9.1.0...@metamask/perps-controller@9.2.0
 [9.1.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@9.0.0...@metamask/perps-controller@9.1.0
 [9.0.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@8.3.0...@metamask/perps-controller@9.0.0
 [8.3.0]: https://github.com/MetaMask/core/compare/@metamask/perps-controller@8.2.0...@metamask/perps-controller@8.3.0

@@ -4,7 +4,8 @@ import type { CaipAssetType } from '@metamask/utils';
 import { mockBridgeQuotesErc20Erc20V1 } from '../../tests/mock-quotes-erc20-erc20';
 import { mockBridgeQuotesNativeErc20V1 } from '../../tests/mock-quotes-native-erc20';
 import { BridgeClientId, BRIDGE_PROD_API_BASE_URL } from '../constants/bridge';
-import { FeatureId } from '../types';
+import { BatchSellTransactionType } from '../validators/batch-sell';
+import { FeatureId } from '../validators/feature-flags';
 import {
   fetchBridgeQuotes,
   fetchBridgeTokens,
@@ -12,7 +13,6 @@ import {
   fetchBatchSellTrades,
   formatBatchSellTradesRequest,
 } from './fetch';
-import { BatchSellTransactionType } from './validators';
 
 const mockFetchFn = jest.fn();
 
@@ -273,7 +273,17 @@ describe('fetch', () => {
         'lifi|approval',
         'socket|trade',
       ]);
-      expect(mockConsoleWarn).toHaveBeenCalledTimes(1);
+      expect(mockConsoleWarn.mock.calls).toMatchInlineSnapshot(`
+        [
+          [
+            "Quote validation failed",
+            [
+              "lifi|approval",
+              "socket|trade",
+            ],
+          ],
+        ]
+      `);
       mockConsoleWarn.mockRestore();
     });
 
@@ -887,6 +897,27 @@ describe('fetch', () => {
             ),
           ),
         );
+        expect(
+          // @ts-expect-error - reason is not in type
+          result.map((error) => ({ ...error, reason: error.reason?.message })),
+        ).toMatchInlineSnapshot(`
+                  [
+                    {
+                      "reason": "Invalid batch simulation response. StructError: At path: transactions.0.maxFeePerGas -- Expected a string, but received: 1000",
+                      "status": "rejected",
+                    },
+                    {
+                      "reason": "Invalid batch simulation response. StructError: At path: transactions.0.maxFeePerGas -- Expected a string matching \`/^0x[0-9a-f]+$/\` but received "1000"",
+                      "status": "rejected",
+                    },
+                    {
+                      "reason": "Invalid batch simulation response. StructError: At path: transactions.0.maxFeePerGas -- Expected a string, but received: 291",
+                      "status": "rejected",
+                    },
+                  ]
+              `);
+        expect(mockConsoleWarn).not.toHaveBeenCalled();
+        mockConsoleWarn.mockRestore();
 
         expect(mockFetchFn).toHaveBeenCalledTimes(4);
         expect(mockFetchFn).toHaveBeenCalledWith(
@@ -900,15 +931,15 @@ describe('fetch', () => {
         ).toMatchInlineSnapshot(`
           [
             {
-              "reason": "Invalid batch simulation response. StructError: At path: transactions.0.maxFeePerGas -- Expected a value of type \`HexString\`, but received: \`1000\`",
+              "reason": "Invalid batch simulation response. StructError: At path: transactions.0.maxFeePerGas -- Expected a string, but received: 1000",
               "status": "rejected",
             },
             {
-              "reason": "Invalid batch simulation response. StructError: At path: transactions.0.maxFeePerGas -- Expected a value of type \`HexString\`, but received: \`"1000"\`",
+              "reason": "Invalid batch simulation response. StructError: At path: transactions.0.maxFeePerGas -- Expected a string matching \`/^0x[0-9a-f]+$/\` but received "1000"",
               "status": "rejected",
             },
             {
-              "reason": "Invalid batch simulation response. StructError: At path: transactions.0.maxFeePerGas -- Expected a value of type \`HexString\`, but received: \`291\`",
+              "reason": "Invalid batch simulation response. StructError: At path: transactions.0.maxFeePerGas -- Expected a string, but received: 291",
               "status": "rejected",
             },
           ]

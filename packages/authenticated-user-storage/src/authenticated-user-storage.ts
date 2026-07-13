@@ -354,7 +354,7 @@ export class AuthenticatedUserStorageService extends BaseDataService<
    * @returns The assets-watchlist blob, or `null` if none has been set (404).
    */
   async getAssetsWatchlist(): Promise<AssetsWatchlistBlob | null> {
-    const url = `${getAuthenticatedStorageUrl(this.#environment)}/assets-watchlist`;
+    const url = `${getAuthenticatedStorageUrl(this.#environment)}/preferences/assets-watchlist`;
 
     const data = await this.fetchQuery({
       queryKey: [`${this.name}:getAssetsWatchlist`],
@@ -403,7 +403,7 @@ export class AuthenticatedUserStorageService extends BaseDataService<
   ): Promise<void> {
     assertAssetsWatchlistBlobForWrite(blob);
 
-    const url = `${getAuthenticatedStorageUrl(this.#environment)}/assets-watchlist`;
+    const url = `${getAuthenticatedStorageUrl(this.#environment)}/preferences/assets-watchlist`;
 
     await this.fetchQuery({
       queryKey: [`${this.name}:setAssetsWatchlist`, blob as unknown as Json],

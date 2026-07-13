@@ -1,3 +1,4 @@
+import type { SupportedCurrency } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { CaipAssetType, CaipChainId, Json } from '@metamask/utils';
 
@@ -475,6 +476,8 @@ export type AssetsControllerStateInternal = {
   customAssets: Record<AccountId, Caip19AssetId[]>;
   /** UI preferences per asset (e.g. hidden) - separate from metadata */
   assetPreferences: Record<Caip19AssetId, AssetPreferences>;
+  /** Currently-active ISO 4217 currency code */
+  selectedCurrency: SupportedCurrency;
 };
 
 /**

@@ -50,7 +50,7 @@
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/storage-service": "^1.0.2",
     "@metamask/utils": "^11.11.0",
-    "@metamask/wallet": "^6.0.0",
+    "@metamask/wallet": "^7.0.1",
     "@oclif/core": "^4.10.5",
     "better-sqlite3": "^12.9.0",
     "immer": "^9.0.6"
