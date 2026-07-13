@@ -1,4 +1,10 @@
 /**
+ * The name of the {@link SentinelApiService}, used to namespace the service's
+ * actions and events.
+ */
+export const serviceName = 'SentinelApiService';
+
+/**
  * JSON-RPC method used to simulate transactions against the Sentinel API.
  */
 export const RPC_METHOD_SIMULATE = 'infura_simulateTransactions';
@@ -58,10 +64,10 @@ export const NETWORKS_SUBDOMAIN = 'ethereum-mainnet';
 export const ENDPOINT_NETWORKS = 'networks';
 
 /**
- * The REST path prefix used to poll the status of a submitted relay
+ * The REST path prefix used to poll the status of a submitted smart
  * transaction by UUID.
  */
-export const ENDPOINT_RELAY_STATUS = 'smart-transactions';
+export const ENDPOINT_SMART_TRANSACTIONS = 'smart-transactions';
 
 /**
  * How long the network registry (`/networks`) response is considered fresh.

@@ -1,27 +1,19 @@
-import type {
-  DataServiceCacheUpdatedEvent,
-  DataServiceGranularCacheUpdatedEvent,
-  DataServiceInvalidateQueriesAction,
-} from '@metamask/base-data-service';
 import { BaseDataService } from '@metamask/base-data-service';
-import type { CreateServicePolicyOptions } from '@metamask/controller-utils';
 import { handleWhen, HttpError } from '@metamask/controller-utils';
-import type { Messenger } from '@metamask/messenger';
 import { validate } from '@metamask/superstruct';
 import type { Hex, Json } from '@metamask/utils';
-import type { QueryClientConfig } from '@tanstack/query-core';
 
 import {
   BASE_URL_TEMPLATE,
   DEFAULT_ENVIRONMENT,
   ENDPOINT_NETWORKS,
-  ENDPOINT_RELAY_STATUS,
+  ENDPOINT_SMART_TRANSACTIONS,
   ENVIRONMENT_DOMAIN,
   NETWORKS_STALE_TIME_MS,
   NETWORKS_SUBDOMAIN,
   RPC_METHOD_SEND_RELAY,
   RPC_METHOD_SIMULATE,
-  SentinelEnvironment,
+  serviceName,
 } from './constants';
 import {
   SentinelApiResponseValidationError,
@@ -29,31 +21,24 @@ import {
   SentinelSimulationError,
 } from './errors';
 import { projectLogger, createModuleLogger } from './logger';
-import type {
-  SentinelNetwork,
-  SentinelNetworkRegistry,
-  SentinelRelayStatusResponse,
-  SentinelRelaySubmitResponse,
-  SentinelSimulationResponse,
-} from './response.types';
-import type { SentinelApiServiceMethodActions } from './sentinel-api-service-method-action-types';
 import {
-  RawRelayStatusResponseStruct,
+  RawSmartTransactionResponseStruct,
   SentinelNetworkRegistryStruct,
   SentinelRelaySubmitResponseStruct,
   SentinelSimulationResponseStruct,
 } from './structs';
 import type {
-  SentinelRelayStatusRequest,
+  SentinelApiServiceMessenger,
+  SentinelApiServiceOptions,
+  SentinelNetwork,
+  SentinelNetworkRegistry,
   SentinelRelaySubmitRequest,
+  SentinelRelaySubmitResponse,
   SentinelSimulationRequest,
+  SentinelSimulationResponse,
+  SentinelSmartTransactionRequest,
+  SentinelSmartTransactionResponse,
 } from './types';
-
-/**
- * The name of the {@link SentinelApiService}, used to namespace the service's
- * actions and events.
- */
-export const serviceName = 'SentinelApiService';
 
 const log = createModuleLogger(projectLogger, serviceName);
 
@@ -61,109 +46,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'getNetworks',
   'simulateTransactions',
   'submitRelayTransaction',
-  'getRelayStatus',
+  'getSmartTransaction',
 ] as const;
-
-/**
- * Invalidates cached queries for {@link SentinelApiService}.
- */
-export type SentinelApiServiceInvalidateQueriesAction =
-  DataServiceInvalidateQueriesAction<typeof serviceName>;
-
-/**
- * Actions that {@link SentinelApiService} exposes to other consumers.
- */
-export type SentinelApiServiceActions =
-  | SentinelApiServiceMethodActions
-  | SentinelApiServiceInvalidateQueriesAction;
-
-/**
- * Retrieves a JWT bearer token used to authenticate Sentinel requests, obtained
- * from the `AuthenticationController`. Declared structurally so this package
- * does not depend on `@metamask/profile-sync-controller`.
- */
-type AuthenticationControllerGetBearerTokenAction = {
-  type: 'AuthenticationController:getBearerToken';
-  handler: (entropySourceId?: string) => Promise<string>;
-};
-
-/**
- * Actions from other messengers that {@link SentinelApiService} calls.
- */
-type AllowedActions = AuthenticationControllerGetBearerTokenAction;
-
-/**
- * Published when {@link SentinelApiService}'s cache is updated.
- */
-export type SentinelApiServiceCacheUpdatedEvent = DataServiceCacheUpdatedEvent<
-  typeof serviceName
->;
-
-/**
- * Published when a key within {@link SentinelApiService}'s cache is updated.
- */
-export type SentinelApiServiceGranularCacheUpdatedEvent =
-  DataServiceGranularCacheUpdatedEvent<typeof serviceName>;
-
-/**
- * Events that {@link SentinelApiService} exposes to other consumers.
- */
-export type SentinelApiServiceEvents =
-  | SentinelApiServiceCacheUpdatedEvent
-  | SentinelApiServiceGranularCacheUpdatedEvent;
-
-/**
- * Events from other messengers that {@link SentinelApiService} subscribes to.
- */
-type AllowedEvents = never;
-
-/**
- * The messenger which is restricted to actions and events accessed by
- * {@link SentinelApiService}.
- */
-export type SentinelApiServiceMessenger = Messenger<
-  typeof serviceName,
-  SentinelApiServiceActions | AllowedActions,
-  SentinelApiServiceEvents | AllowedEvents
->;
-
-export type SentinelApiServiceOptions = {
-  /** The messenger suited for this service. */
-  messenger: SentinelApiServiceMessenger;
-
-  /**
-   * The `fetch` function to use for requests. Defaults to the global `fetch`.
-   */
-  fetch?: typeof fetch;
-
-  /**
-   * The Sentinel API environment to target (`dev`, `uat`, or `prod`).
-   * Defaults to `prod`.
-   */
-  environment?: SentinelEnvironment;
-
-  /**
-   * Identifier for the calling client (for example `extension` or `mobile`),
-   * sent as the `X-Client-Id` header.
-   */
-  clientId?: string;
-
-  /**
-   * Version of the calling client, sent as the `X-Client-Version` header when
-   * provided.
-   */
-  clientVersion?: string;
-
-  /** Configuration for the underlying TanStack Query client. */
-  queryClientConfig?: QueryClientConfig;
-
-  /**
-   * Options to pass to `createServicePolicy`. Retries are disabled by default
-   * (`maxRetries: 0`) to preserve the single-attempt behaviour of the clients
-   * this service replaces; pass `maxRetries` here to opt in.
-   */
-  policyOptions?: CreateServicePolicyOptions;
-};
 
 /**
  * Data service that centralises all interactions with the MetaMask Sentinel
@@ -177,7 +61,8 @@ export type SentinelApiServiceOptions = {
  * and `@metamask/transaction-pay-controller`.
  * - {@link SentinelApiService.submitRelayTransaction} — gas station relay
  * submission (`eth_sendRelayTransaction`), used by the extension and mobile.
- * - {@link SentinelApiService.getRelayStatus} — relay status polling.
+ * - {@link SentinelApiService.getSmartTransaction} — smart-transaction status
+ * lookup (`/smart-transactions/{uuid}`).
  *
  * Consumers derive higher-level concerns (whether a chain supports simulation
  * or relay, polling loops, etc.) from the raw endpoint responses.
@@ -271,14 +156,14 @@ export class SentinelApiService extends BaseDataService<
       queryFn: async (): Promise<Json> => {
         const headers = await this.#getHeaders();
 
-        log('Request', 'getNetworks', url);
+        log('getNetworks', 'Request', url);
 
         const response = await this.#fetch(url, { headers });
 
         if (!response.ok) {
           throw new HttpError(
             response.status,
-            `Sentinel API: networks request failed with status '${response.status}'`,
+            `Sentinel API: Networks request failed with status '${response.status}'`,
           );
         }
 
@@ -287,11 +172,11 @@ export class SentinelApiService extends BaseDataService<
         const [error] = validate(json, SentinelNetworkRegistryStruct);
         if (error) {
           throw new SentinelApiResponseValidationError(
-            `Sentinel API: malformed response from networks endpoint: ${error.message}`,
+            `Sentinel API: Malformed response from networks endpoint: ${error.message}`,
           );
         }
 
-        log('Response', 'getNetworks', json);
+        log('getNetworks', 'Response', json);
 
         return json;
       },
@@ -326,6 +211,8 @@ export class SentinelApiService extends BaseDataService<
       queryKey: [`${this.name}:simulateTransactions`, chainId],
       staleTime: 0,
       queryFn: async (): Promise<Json> => {
+        log('simulateTransactions', 'Request', url, request);
+
         const rpcResult = await this.#jsonRpc(url, RPC_METHOD_SIMULATE, [
           request,
         ]);
@@ -333,9 +220,11 @@ export class SentinelApiService extends BaseDataService<
         const [error] = validate(rpcResult, SentinelSimulationResponseStruct);
         if (error) {
           throw new SentinelApiResponseValidationError(
-            `Sentinel API: malformed response from simulation endpoint: ${error.message}`,
+            `Sentinel API: Malformed response from simulation endpoint: ${error.message}`,
           );
         }
+
+        log('simulateTransactions', 'Response', rpcResult);
 
         return rpcResult;
       },
@@ -360,6 +249,8 @@ export class SentinelApiService extends BaseDataService<
       queryKey: [`${this.name}:submitRelayTransaction`, request.chainId],
       staleTime: 0,
       queryFn: async (): Promise<Json> => {
+        log('submitRelayTransaction', 'Request', url, request);
+
         const rpcResult = await this.#jsonRpc(url, RPC_METHOD_SEND_RELAY, [
           request,
         ]);
@@ -367,9 +258,11 @@ export class SentinelApiService extends BaseDataService<
         const [error] = validate(rpcResult, SentinelRelaySubmitResponseStruct);
         if (error) {
           throw new SentinelApiResponseValidationError(
-            `Sentinel API: malformed response from relay submit endpoint: ${error.message}`,
+            `Sentinel API: Malformed response from relay submit endpoint: ${error.message}`,
           );
         }
+
+        log('submitRelayTransaction', 'Response', rpcResult);
 
         return rpcResult;
       },
@@ -379,47 +272,51 @@ export class SentinelApiService extends BaseDataService<
   }
 
   /**
-   * Retrieves the current status of a submitted relay transaction. Performs a
-   * single request; callers own any polling loop. Not cached.
+   * Looks up the state of a submitted smart transaction by UUID against the
+   * `/smart-transactions/{uuid}` endpoint. Performs a single request; callers
+   * own any polling loop. Not cached.
    *
-   * @param request - The relay status request.
-   * @returns The relay status: the current status, plus the on-chain
-   * transaction hash and error reason once available.
+   * @param request - The smart-transaction lookup request.
+   * @returns The smart-transaction state: the current status, plus the
+   * on-chain transaction hash and error reason once available.
    */
-  async getRelayStatus(
-    request: SentinelRelayStatusRequest,
-  ): Promise<SentinelRelayStatusResponse> {
+  async getSmartTransaction(
+    request: SentinelSmartTransactionRequest,
+  ): Promise<SentinelSmartTransactionResponse> {
     const { chainId, uuid } = request;
     const baseUrl = await this.#resolveUrl(chainId, 'relayTransactions');
-    const url = `${baseUrl}${ENDPOINT_RELAY_STATUS}/${uuid}`;
+    const url = `${baseUrl}${ENDPOINT_SMART_TRANSACTIONS}/${uuid}`;
 
     const result = await this.fetchQuery({
-      queryKey: [`${this.name}:getRelayStatus`, chainId, uuid],
+      queryKey: [`${this.name}:getSmartTransaction`, chainId, uuid],
       staleTime: 0,
       queryFn: async (): Promise<Json> => {
         const headers = await this.#getHeaders();
 
-        log('Request', 'getRelayStatus', url);
+        log('getSmartTransaction', 'Request', url);
 
         const response = await this.#fetch(url, { headers });
 
         if (!response.ok) {
           throw new HttpError(
             response.status,
-            `Sentinel API: relay status request failed with status '${response.status}'`,
+            `Sentinel API: Smart-transaction request failed with status '${response.status}'`,
           );
         }
 
         const json: Json = await response.json();
 
-        const [error, validated] = validate(json, RawRelayStatusResponseStruct);
+        const [error, validated] = validate(
+          json,
+          RawSmartTransactionResponseStruct,
+        );
         if (error) {
           throw new SentinelApiResponseValidationError(
-            `Sentinel API: malformed response from relay status endpoint: ${error.message}`,
+            `Sentinel API: Malformed response from smart-transactions endpoint: ${error.message}`,
           );
         }
 
-        log('Response', 'getRelayStatus', json);
+        log('getSmartTransaction', 'Response', json);
 
         const first = validated.transactions[0];
 
@@ -433,7 +330,7 @@ export class SentinelApiService extends BaseDataService<
       },
     });
 
-    return result as unknown as SentinelRelayStatusResponse;
+    return result as unknown as SentinelSmartTransactionResponse;
   }
 
   /**
@@ -446,8 +343,6 @@ export class SentinelApiService extends BaseDataService<
    */
   async #jsonRpc(url: string, method: string, params: Json[]): Promise<Json> {
     const headers = await this.#getHeaders();
-
-    log('Request', method, url, params);
 
     const response = await this.#fetch(url, {
       method: 'POST',
@@ -466,7 +361,7 @@ export class SentinelApiService extends BaseDataService<
     if (!response.ok) {
       throw new HttpError(
         response.status,
-        `Sentinel API: ${method} request failed with status '${response.status}'`,
+        `Sentinel API: JSON-RPC request '${method}' failed with status '${response.status}'`,
       );
     }
 
@@ -474,10 +369,11 @@ export class SentinelApiService extends BaseDataService<
 
     if (responseJson.error) {
       const { code, message } = responseJson.error;
-      throw new SentinelSimulationError(`Sentinel API: ${message}`, code);
+      throw new SentinelSimulationError(
+        `Sentinel API: JSON-RPC error: ${message}`,
+        code,
+      );
     }
-
-    log('Response', method, responseJson.result);
 
     return responseJson.result;
   }

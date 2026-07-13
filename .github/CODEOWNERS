@@ -39,9 +39,6 @@
 ## Transactions Team
 /packages/smart-transactions-controller     @MetaMask/transactions
 
-## Confirmations & Transactions Teams
-/packages/sentinel-api-service              @MetaMask/confirmations @MetaMask/transactions
-
 ## Delegation Team
 /packages/delegation-controller             @MetaMask/delegation
 /packages/gator-permissions-controller      @MetaMask/delegation
@@ -139,6 +136,7 @@
 /packages/multichain-network-controller         @MetaMask/core-platform @MetaMask/accounts-engineers @MetaMask/metamask-assets
 /packages/network-controller                    @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/remote-feature-flag-controller        @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
+/packages/sentinel-api-service                  @MetaMask/confirmations @MetaMask/transactions
 /packages/storage-service                       @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
 /packages/client-controller                     @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/profile-metrics-controller            @MetaMask/mobile-platform @MetaMask/extension-platform

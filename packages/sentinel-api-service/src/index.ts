@@ -1,5 +1,5 @@
-export { SentinelApiService, serviceName } from './sentinel-api-service';
-export { SentinelEnvironment } from './constants';
+export { SentinelApiService } from './sentinel-api-service';
+export { SentinelEnvironment, serviceName } from './constants';
 export type {
   SentinelApiServiceActions,
   SentinelApiServiceEvents,
@@ -8,37 +8,36 @@ export type {
   SentinelApiServiceInvalidateQueriesAction,
   SentinelApiServiceCacheUpdatedEvent,
   SentinelApiServiceGranularCacheUpdatedEvent,
-} from './sentinel-api-service';
-export type {
-  SentinelApiServiceGetNetworksAction,
-  SentinelApiServiceSimulateTransactionsAction,
-  SentinelApiServiceSubmitRelayTransactionAction,
-  SentinelApiServiceGetRelayStatusAction,
-} from './sentinel-api-service-method-action-types';
-export type {
   SentinelAuthorization,
   SentinelMeta,
-  SentinelRelayStatusRequest,
-  SentinelRelaySubmitRequest,
-  SentinelSignedAuthorization,
-  SentinelSimulationRequest,
-  SentinelSimulationTransaction,
-  SentinelStateOverrides,
-} from './types';
-export { SentinelFeature, SentinelKind } from './types';
-export type {
   SentinelNetwork,
   SentinelNetworkRegistry,
-  SentinelRelayStatusResponse,
+  SentinelRelaySubmitRequest,
   SentinelRelaySubmitResponse,
+  SentinelSignedAuthorization,
   SentinelSimulationCallTrace,
   SentinelSimulationLog,
+  SentinelSimulationRequest,
   SentinelSimulationResponse,
   SentinelSimulationResponseTransaction,
   SentinelSimulationStateDiff,
   SentinelSimulationTokenFee,
-} from './response.types';
-export { SentinelRelayStatus } from './response.types';
+  SentinelSimulationTransaction,
+  SentinelSmartTransactionRequest,
+  SentinelSmartTransactionResponse,
+  SentinelStateOverrides,
+} from './types';
+export {
+  SentinelFeature,
+  SentinelKind,
+  SentinelSmartTransactionStatus,
+} from './types';
+export type {
+  SentinelApiServiceGetNetworksAction,
+  SentinelApiServiceSimulateTransactionsAction,
+  SentinelApiServiceSubmitRelayTransactionAction,
+  SentinelApiServiceGetSmartTransactionAction,
+} from './sentinel-api-service-method-action-types';
 export {
   SentinelApiResponseValidationError,
   SentinelChainNotSupportedError,

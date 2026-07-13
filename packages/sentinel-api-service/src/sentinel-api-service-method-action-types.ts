@@ -48,16 +48,17 @@ export type SentinelApiServiceSubmitRelayTransactionAction = {
 };
 
 /**
- * Retrieves the current status of a submitted relay transaction. Performs a
- * single request; callers own any polling loop. Not cached.
+ * Looks up the state of a submitted smart transaction by UUID against the
+ * `/smart-transactions/{uuid}` endpoint. Performs a single request; callers
+ * own any polling loop. Not cached.
  *
- * @param request - The relay status request.
- * @returns The relay status: the current status, plus the on-chain
- * transaction hash and error reason once available.
+ * @param request - The smart-transaction lookup request.
+ * @returns The smart-transaction state: the current status, plus the
+ * on-chain transaction hash and error reason once available.
  */
-export type SentinelApiServiceGetRelayStatusAction = {
-  type: `SentinelApiService:getRelayStatus`;
-  handler: SentinelApiService['getRelayStatus'];
+export type SentinelApiServiceGetSmartTransactionAction = {
+  type: `SentinelApiService:getSmartTransaction`;
+  handler: SentinelApiService['getSmartTransaction'];
 };
 
 /**
@@ -67,4 +68,4 @@ export type SentinelApiServiceMethodActions =
   | SentinelApiServiceGetNetworksAction
   | SentinelApiServiceSimulateTransactionsAction
   | SentinelApiServiceSubmitRelayTransactionAction
-  | SentinelApiServiceGetRelayStatusAction;
+  | SentinelApiServiceGetSmartTransactionAction;

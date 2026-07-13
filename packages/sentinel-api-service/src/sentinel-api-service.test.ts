@@ -15,17 +15,21 @@ import {
   RPC_METHOD_SEND_RELAY,
   RPC_METHOD_SIMULATE,
   SentinelEnvironment,
+  serviceName,
 } from './constants';
 import {
   SentinelApiResponseValidationError,
   SentinelChainNotSupportedError,
   SentinelSimulationError,
 } from './errors';
-import { SentinelRelayStatus } from './response.types';
-import type { SentinelApiServiceMessenger } from './sentinel-api-service';
-import { SentinelApiService, serviceName } from './sentinel-api-service';
-import { SentinelFeature, SentinelKind } from './types';
+import { SentinelApiService } from './sentinel-api-service';
+import {
+  SentinelFeature,
+  SentinelKind,
+  SentinelSmartTransactionStatus,
+} from './types';
 import type {
+  SentinelApiServiceMessenger,
   SentinelRelaySubmitRequest,
   SentinelSimulationRequest,
 } from './types';
@@ -215,18 +219,18 @@ describe('SentinelApiService', () => {
     it('builds a chain-not-supported message with a capability', () => {
       const error = new SentinelChainNotSupportedError('0x1', 'confirmations');
       expect(error.message).toBe(
-        "Sentinel API: does not support 'confirmations' for chain 0x1",
+        "Sentinel API: Does not support 'confirmations' for chain 0x1",
       );
     });
 
     it('builds a chain-not-supported message without a capability', () => {
       const error = new SentinelChainNotSupportedError('0x1');
-      expect(error.message).toBe('Sentinel API: does not support chain 0x1');
+      expect(error.message).toBe('Sentinel API: Does not support chain 0x1');
     });
 
     it('uses a default validation-error message', () => {
       const error = new SentinelApiResponseValidationError();
-      expect(error.message).toBe('Sentinel API: malformed response received');
+      expect(error.message).toBe('Sentinel API: Malformed response received');
     });
 
     it('captures a JSON-RPC error code', () => {
@@ -236,9 +240,9 @@ describe('SentinelApiService', () => {
   });
 
   describe('enums', () => {
-    it('exposes relay status values', () => {
-      expect(SentinelRelayStatus.Pending).toBe('PENDING');
-      expect(SentinelRelayStatus.Success).toBe('VALIDATED');
+    it('exposes smart-transaction status values', () => {
+      expect(SentinelSmartTransactionStatus.Pending).toBe('PENDING');
+      expect(SentinelSmartTransactionStatus.Success).toBe('VALIDATED');
     });
 
     it('exposes feature and kind values', () => {
@@ -589,7 +593,7 @@ describe('SentinelApiService', () => {
     });
   });
 
-  describe('getRelayStatus', () => {
+  describe('getSmartTransaction', () => {
     it('normalizes a successful status with a hash', async () => {
       const { service } = createService();
       mockNetworks();
@@ -599,7 +603,7 @@ describe('SentinelApiService', () => {
           transactions: [{ status: 'VALIDATED', hash: '0xhash' }],
         });
 
-      const result = await service.getRelayStatus({
+      const result = await service.getSmartTransaction({
         chainId: CHAIN_ID_MAINNET,
         uuid: UUID,
       });
@@ -619,7 +623,7 @@ describe('SentinelApiService', () => {
           transactions: [{ status: 'FAILED', errorReason: 'reverted' }],
         });
 
-      const result = await service.getRelayStatus({
+      const result = await service.getSmartTransaction({
         chainId: CHAIN_ID_MAINNET,
         uuid: UUID,
       });
@@ -639,7 +643,7 @@ describe('SentinelApiService', () => {
           transactions: [{ status: 'PENDING', errorReason: null }],
         });
 
-      const result = await service.getRelayStatus({
+      const result = await service.getSmartTransaction({
         chainId: CHAIN_ID_MAINNET,
         uuid: UUID,
       });
@@ -657,7 +661,7 @@ describe('SentinelApiService', () => {
         .get(`/smart-transactions/${UUID}`)
         .reply(200, { transactions: [] });
 
-      const result = await service.getRelayStatus({
+      const result = await service.getSmartTransaction({
         chainId: CHAIN_ID_MAINNET,
         uuid: UUID,
       });
@@ -670,7 +674,7 @@ describe('SentinelApiService', () => {
       mockNetworks();
 
       await expect(
-        service.getRelayStatus({ chainId: '0xa' as Hex, uuid: UUID }),
+        service.getSmartTransaction({ chainId: '0xa' as Hex, uuid: UUID }),
       ).rejects.toThrow(SentinelChainNotSupportedError);
       service.destroy();
     });
@@ -681,7 +685,7 @@ describe('SentinelApiService', () => {
       nock(MAINNET_URL).get(`/smart-transactions/${UUID}`).once().reply(500);
 
       await expect(
-        service.getRelayStatus({ chainId: CHAIN_ID_MAINNET, uuid: UUID }),
+        service.getSmartTransaction({ chainId: CHAIN_ID_MAINNET, uuid: UUID }),
       ).rejects.toThrow(HttpError);
       service.destroy();
     });
@@ -695,7 +699,7 @@ describe('SentinelApiService', () => {
         .reply(200, { unexpected: true });
 
       await expect(
-        service.getRelayStatus({ chainId: CHAIN_ID_MAINNET, uuid: UUID }),
+        service.getSmartTransaction({ chainId: CHAIN_ID_MAINNET, uuid: UUID }),
       ).rejects.toThrow(SentinelApiResponseValidationError);
       service.destroy();
     });
@@ -710,7 +714,7 @@ describe('SentinelApiService', () => {
         });
 
       const result = await rootMessenger.call(
-        'SentinelApiService:getRelayStatus',
+        'SentinelApiService:getSmartTransaction',
         { chainId: CHAIN_ID_MAINNET, uuid: UUID },
       );
       expect(result).toStrictEqual({
