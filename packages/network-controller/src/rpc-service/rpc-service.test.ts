@@ -344,6 +344,89 @@ describe('RpcService', () => {
     });
   });
 
+  describe('treating errors as service failures', () => {
+    const jsonRpcRequest = {
+      id: 1,
+      jsonrpc: '2.0' as const,
+      method: 'eth_chainId',
+      params: [],
+    };
+
+    describe('when the endpoint is an Infura URL', () => {
+      const endpointUrl = 'https://mainnet.infura.io';
+
+      it.each([400, 429])(
+        'does not break the circuit when the endpoint responds with %d',
+        async (httpStatus) => {
+          nock(endpointUrl)
+            .post('/', jsonRpcRequest)
+            .times(3)
+            .reply(httpStatus);
+          const service = new RpcService({
+            fetch,
+            btoa,
+            endpointUrl,
+            isOffline: (): boolean => false,
+            policyOptions: { maxConsecutiveFailures: 2 },
+          });
+
+          // Make more requests than the max consecutive failures so that the
+          // circuit would open if these errors were treated as failures.
+          await ignoreRejection(service.request(jsonRpcRequest));
+          await ignoreRejection(service.request(jsonRpcRequest));
+          await ignoreRejection(service.request(jsonRpcRequest));
+
+          expect(service.getCircuitState()).toBe(CircuitState.Closed);
+        },
+      );
+
+      it.each([401, 500])(
+        'breaks the circuit when the endpoint responds with %d',
+        async (httpStatus) => {
+          nock(endpointUrl)
+            .post('/', jsonRpcRequest)
+            .times(2)
+            .reply(httpStatus);
+          const service = new RpcService({
+            fetch,
+            btoa,
+            endpointUrl,
+            isOffline: (): boolean => false,
+            policyOptions: { maxConsecutiveFailures: 2 },
+          });
+
+          await ignoreRejection(service.request(jsonRpcRequest));
+          await ignoreRejection(service.request(jsonRpcRequest));
+
+          expect(service.getCircuitState()).toBe(CircuitState.Open);
+        },
+      );
+    });
+
+    describe('when the endpoint is not an Infura URL', () => {
+      const endpointUrl = 'https://rpc.example.chain';
+
+      it('does not break the circuit for a 4xx response that is not a server error', async () => {
+        nock(endpointUrl).post('/', jsonRpcRequest).times(3).reply(401);
+        const service = new RpcService({
+          fetch,
+          btoa,
+          endpointUrl,
+          isOffline: (): boolean => false,
+          policyOptions: { maxConsecutiveFailures: 2 },
+        });
+
+        // Make more requests than the max consecutive failures so that the
+        // circuit would open if these errors were treated as failures.
+        await ignoreRejection(service.request(jsonRpcRequest));
+        await ignoreRejection(service.request(jsonRpcRequest));
+        await ignoreRejection(service.request(jsonRpcRequest));
+
+        expect(service.getCircuitState()).toBe(CircuitState.Closed);
+      });
+    });
+  });
+
   describe('request', () => {
     // NOTE: Keep this list synced with CONNECTION_ERRORS
     describe.each([
@@ -1030,6 +1113,8 @@ describe('RpcService', () => {
       expect(onDegradedListener).toHaveBeenCalledWith({
         endpointUrl: `${endpointUrl}/`,
         rpcMethodName: 'eth_chainId',
+        duration: expect.any(Number),
+        traceId: undefined,
       });
     });
 
@@ -1094,10 +1179,14 @@ describe('RpcService', () => {
       expect(onDegradedListener).toHaveBeenCalledWith({
         endpointUrl: `${endpointUrl}/`,
         rpcMethodName: 'eth_blockNumber',
+        duration: expect.any(Number),
+        traceId: undefined,
       });
       expect(onDegradedListener).toHaveBeenCalledWith({
         endpointUrl: `${endpointUrl}/`,
         rpcMethodName: 'eth_gasPrice',
+        duration: expect.any(Number),
+        traceId: undefined,
       });
     });
 
@@ -1168,6 +1257,52 @@ describe('RpcService', () => {
         2,
         expect.objectContaining({
           rpcMethodName: 'eth_gasPrice',
+        }),
+      );
+    });
+
+    it('calls the onDegraded callback with a trace ID if the endpoint takes more than 5 seconds to respond and a trace ID is available', async () => {
+      const endpointUrl = 'https://rpc.example.chain';
+      nock(endpointUrl)
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .reply(
+          200,
+          () => {
+            jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
+            return {
+              id: 1,
+              jsonrpc: '2.0',
+              result: '0x1',
+            };
+          },
+          { 'X-Trace-Id': 'abc-123-trace' },
+        );
+      const onDegradedListener = jest.fn();
+      const service = new RpcService({
+        fetch,
+        btoa,
+        endpointUrl,
+        isOffline: (): boolean => false,
+      });
+      service.onDegraded(onDegradedListener);
+
+      await service.request({
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'eth_chainId',
+        params: [],
+      });
+
+      expect(onDegradedListener).toHaveBeenCalledTimes(1);
+      expect(onDegradedListener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          traceId: 'abc-123-trace',
+          duration: expect.any(Number),
         }),
       );
     });
@@ -1486,14 +1621,14 @@ function testsForRetriableFetchErrors({
     };
     await ignoreRejection(service.request(jsonRpcRequest));
     await ignoreRejection(service.request(jsonRpcRequest));
-    // The last retry breaks the circuit
-    await ignoreRejection(service.request(jsonRpcRequest));
 
     expect(onDegradedListener).toHaveBeenCalledTimes(2);
     expect(onDegradedListener).toHaveBeenCalledWith({
       endpointUrl: `${endpointUrl}/`,
       error: expectedError,
       rpcMethodName: 'eth_chainId',
+      duration: undefined,
+      traceId: undefined,
     });
   });
 
@@ -1738,6 +1873,148 @@ function testsForRetriableResponses({
       expectedError,
     );
     expect(scope.isDone()).toBe(true);
+  });
+
+  it('calls the onDegraded callback once for each retry round', async () => {
+    nock('https://rpc.example.chain')
+      .post('/', {
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'eth_chainId',
+        params: [],
+      })
+      .times(10)
+      .reply(httpStatus, responseBody);
+    const endpointUrl = 'https://rpc.example.chain';
+    const onDegradedListener = jest.fn();
+    const service = new RpcService({
+      fetch,
+      btoa,
+      endpointUrl,
+      isOffline: (): boolean => false,
+    });
+    service.onRetry(() => {
+      jest.advanceTimersToNextTimer();
+    });
+
+    service.onDegraded(onDegradedListener);
+
+    const jsonRpcRequest = {
+      id: 1,
+      jsonrpc: '2.0' as const,
+      method: 'eth_chainId',
+      params: [],
+    };
+    await ignoreRejection(service.request(jsonRpcRequest));
+    await ignoreRejection(service.request(jsonRpcRequest));
+
+    expect(onDegradedListener).toHaveBeenCalledTimes(2);
+    expect(onDegradedListener).toHaveBeenCalledWith({
+      endpointUrl: `${endpointUrl}/`,
+      error: expectedOnBreakError,
+      rpcMethodName: 'eth_chainId',
+      duration: undefined,
+      traceId: undefined,
+    });
+  });
+
+  it('calls the onDegraded callback with a trace ID if one is available', async () => {
+    nock('https://rpc.example.chain')
+      .post('/', {
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'eth_chainId',
+        params: [],
+      })
+      .times(10)
+      .reply(httpStatus, responseBody, { 'X-Trace-Id': 'abc-123-trace' });
+    const endpointUrl = 'https://rpc.example.chain';
+    const onDegradedListener = jest.fn();
+    const service = new RpcService({
+      fetch,
+      btoa,
+      endpointUrl,
+      isOffline: (): boolean => false,
+    });
+    service.onRetry(() => {
+      jest.advanceTimersToNextTimer();
+    });
+
+    service.onDegraded(onDegradedListener);
+
+    const jsonRpcRequest = {
+      id: 1,
+      jsonrpc: '2.0' as const,
+      method: 'eth_chainId',
+      params: [],
+    };
+    await ignoreRejection(service.request(jsonRpcRequest));
+    await ignoreRejection(service.request(jsonRpcRequest));
+
+    expect(onDegradedListener).toHaveBeenCalledTimes(2);
+    expect(onDegradedListener).toHaveBeenCalledWith({
+      endpointUrl: `${endpointUrl}/`,
+      error: expectedOnBreakError,
+      rpcMethodName: 'eth_chainId',
+      duration: undefined,
+      traceId: 'abc-123-trace',
+    });
+  });
+
+  it('does not leak a stale trace ID when the last retry attempt throws before receiving a response', async () => {
+    const endpointUrl = 'https://rpc.example.chain';
+    const scope = nock(endpointUrl);
+    for (let i = 0; i < DEFAULT_MAX_RETRIES; i++) {
+      scope
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .reply(httpStatus, responseBody, {
+          'X-Trace-Id': `trace-attempt-${i}`,
+        });
+    }
+    scope
+      .post('/', {
+        id: 1,
+        jsonrpc: '2.0',
+        method: 'eth_chainId',
+        params: [],
+      })
+      .replyWithError('Connection refused');
+    const onDegradedListener = jest.fn();
+    const service = new RpcService({
+      fetch,
+      btoa,
+      endpointUrl,
+      isOffline: (): boolean => false,
+    });
+    service.onRetry(() => {
+      jest.advanceTimersToNextTimer();
+    });
+
+    service.onDegraded(onDegradedListener);
+
+    const jsonRpcRequest = {
+      id: 1,
+      jsonrpc: '2.0' as const,
+      method: 'eth_chainId',
+      params: [],
+    };
+    await ignoreRejection(service.request(jsonRpcRequest));
+
+    expect(onDegradedListener).toHaveBeenCalledTimes(1);
+    expect(onDegradedListener).toHaveBeenCalledWith({
+      endpointUrl: `${endpointUrl}/`,
+      error: expect.objectContaining({
+        message: expect.stringContaining('Connection refused'),
+      }),
+      rpcMethodName: 'eth_chainId',
+      duration: undefined,
+      traceId: undefined,
+    });
   });
 
   it('still re-throws the error even after the circuit breaks', async () => {

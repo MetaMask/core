@@ -1,3 +1,8 @@
+import {
+  KeyringControllerError,
+  KeyringControllerErrorMessage,
+} from '@metamask/keyring-controller';
+
 /** Timeout error. */
 export class TimeoutError extends Error {
   constructor(message: string) {
@@ -14,6 +19,19 @@ export class TimeoutError extends Error {
  */
 export function isTimeoutError(error: unknown): error is TimeoutError {
   return error instanceof TimeoutError;
+}
+
+/**
+ * Check if an error is a `KeyringControllerLockedError`.
+ *
+ * @param error - The error to check.
+ * @returns `true` if the error is a `KeyringControllerLockedError`, otherwise `false`.
+ */
+export function isKeyringControllerLockedError(error: unknown): boolean {
+  return (
+    error instanceof KeyringControllerError &&
+    error.message === KeyringControllerErrorMessage.ControllerLocked
+  );
 }
 
 /**

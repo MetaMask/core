@@ -35,6 +35,7 @@ import {
   setPermittedEthChainIds,
 } from './operators/caip-permission-operator-permittedChains';
 import { assertIsInternalScopesObject } from './scope/assert';
+import { KnownSessionProperties } from './scope/constants';
 import {
   isSupportedAccount,
   isSupportedScopeString,
@@ -632,7 +633,9 @@ export const getCaip25PermissionFromLegacyPermissions =
           accounts: [],
         },
       },
-      sessionProperties: {},
+      sessionProperties: {
+        [KnownSessionProperties.Eip1193Compatible]: true,
+      },
       isMultichainOrigin: false,
     };
 

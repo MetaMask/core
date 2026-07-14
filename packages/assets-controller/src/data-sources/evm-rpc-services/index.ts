@@ -11,7 +11,13 @@ export type {
   BalanceFetchResult,
   TokenDetectionResult,
 } from './types';
-export { MulticallClient, type MulticallClientConfig } from './clients';
+export {
+  MulticallClient,
+  type MulticallClientConfig,
+  TokensApiClient,
+  type TokensApiClientConfig,
+  type TokenListQueryClient,
+} from './clients';
 export {
   BalanceFetcher,
   TokenDetector,

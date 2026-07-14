@@ -3,6 +3,7 @@ import {
   NetworkType,
   convertHexToDecimal,
   InfuraNetworkType,
+  toChecksumHexAddress,
 } from '@metamask/controller-utils';
 import type { KeyringControllerState } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -30,28 +31,33 @@ import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 import nock from 'nock';
 
-import { formatAggregatorNames } from './assetsUtil';
-import { TOKEN_END_POINT_API } from './token-service';
-import type { TokenDetectionControllerMessenger } from './TokenDetectionController';
-import {
-  TokenDetectionController,
-  controllerName,
-  mapChainIdWithTokenListMap,
-} from './TokenDetectionController';
-import { getDefaultTokenListState } from './TokenListController';
-import type { TokenListState, TokenListToken } from './TokenListController';
-import type { Token } from './TokenRatesController';
-import type {
-  TokensController,
-  TokensControllerState,
-} from './TokensController';
-import { getDefaultTokensState } from './TokensController';
 import { jestAdvanceTime } from '../../../tests/helpers';
 import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
 import {
   buildCustomRpcEndpoint,
   buildInfuraNetworkConfiguration,
 } from '../../network-controller/tests/helpers';
+import { formatAggregatorNames } from './assetsUtil';
+import { MUSD_ERC20_ADDRESS_LOWER } from './constants';
+import { TOKEN_END_POINT_API } from './token-service';
+import type { TokenDetectionControllerMessenger } from './TokenDetectionController';
+import {
+  TokenDetectionController,
+  controllerName,
+} from './TokenDetectionController';
+import { getDefaultTokenListState } from './TokenListController';
+import type {
+  TokenListMap,
+  TokenListState,
+  TokenListToken,
+} from './TokenListController';
+import type { TokenListService } from './TokenListService';
+import type { Token } from './TokenRatesController';
+import type {
+  TokensController,
+  TokensControllerState,
+} from './TokensController';
+import { getDefaultTokensState } from './TokensController';
 
 const DEFAULT_INTERVAL = 180000;
 
@@ -205,7 +211,6 @@ function buildTokenDetectionControllerMessenger(
       'NetworkController:getState',
       'TokensController:getState',
       'TokensController:addDetectedTokens',
-      'TokenListController:getState',
       'PreferencesController:getState',
       'TokensController:addTokens',
       'NetworkController:findNetworkClientIdByChainId',
@@ -215,7 +220,6 @@ function buildTokenDetectionControllerMessenger(
       'KeyringController:lock',
       'KeyringController:unlock',
       'NetworkController:networkDidChange',
-      'TokenListController:stateChange',
       'PreferencesController:stateChange',
       'TransactionController:transactionConfirmed',
     ],
@@ -1868,447 +1872,6 @@ describe('TokenDetectionController', () => {
     });
   });
 
-  describe('TokenListController:stateChange', () => {
-    beforeEach(() => {
-      jest.useFakeTimers();
-    });
-
-    afterEach(() => {
-      jest.useRealTimers();
-    });
-
-    describe('when "disabled" is false', () => {
-      it('should detect tokens if the token list is non-empty', async () => {
-        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
-          [sampleTokenA.address]: new BN(1),
-        });
-        const selectedAccount = createMockInternalAccount({
-          address: '0x0000000000000000000000000000000000000001',
-        });
-        await withController(
-          {
-            options: {
-              disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            },
-            mocks: {
-              getSelectedAccount: selectedAccount,
-              getAccount: selectedAccount,
-            },
-          },
-          async ({
-            mockTokenListGetState,
-            callActionSpy,
-            triggerTokenListStateChange,
-            mockNetworkState,
-          }) => {
-            // Set selectedNetworkClientId to avalanche (not in SUPPORTED_NETWORKS_ACCOUNTS_API_V4)
-            mockNetworkState({
-              ...getDefaultNetworkControllerState(),
-              selectedNetworkClientId: 'avalanche',
-            });
-            const tokenList = {
-              [sampleTokenA.address]: {
-                name: sampleTokenA.name,
-                symbol: sampleTokenA.symbol,
-                decimals: sampleTokenA.decimals,
-                address: sampleTokenA.address,
-                occurrences: 1,
-                aggregators: sampleTokenA.aggregators,
-                iconUrl: sampleTokenA.image,
-              },
-            };
-            const tokenListState = {
-              ...getDefaultTokenListState(),
-              tokensChainsCache: {
-                '0xa86a': {
-                  timestamp: 0,
-                  data: tokenList,
-                },
-              },
-            };
-            mockTokenListGetState(tokenListState);
-
-            triggerTokenListStateChange(tokenListState);
-            await jestAdvanceTime({ duration: 1 });
-
-            expect(callActionSpy).toHaveBeenCalledWith(
-              'TokensController:addTokens',
-              [sampleTokenA],
-              'avalanche',
-            );
-          },
-        );
-      });
-
-      it('should not detect tokens if the token list is empty', async () => {
-        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
-          [sampleTokenA.address]: new BN(1),
-        });
-        const selectedAccount = createMockInternalAccount({
-          address: '0x0000000000000000000000000000000000000001',
-        });
-        await withController(
-          {
-            options: {
-              disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            },
-            mocks: {
-              getSelectedAccount: selectedAccount,
-              getAccount: selectedAccount,
-            },
-          },
-          async ({
-            mockTokenListGetState,
-            callActionSpy,
-            triggerTokenListStateChange,
-          }) => {
-            const tokenListState = {
-              ...getDefaultTokenListState(),
-              tokensChainsCache: {},
-            };
-            mockTokenListGetState(tokenListState);
-
-            triggerTokenListStateChange(tokenListState);
-            await jestAdvanceTime({ duration: 1 });
-
-            expect(callActionSpy).not.toHaveBeenCalledWith(
-              'TokensController:addDetectedTokens',
-            );
-          },
-        );
-      });
-
-      describe('when keyring is locked', () => {
-        it('should not detect tokens', async () => {
-          const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
-            [sampleTokenA.address]: new BN(1),
-          });
-          const selectedAccount = createMockInternalAccount({
-            address: '0x0000000000000000000000000000000000000001',
-          });
-          await withController(
-            {
-              options: {
-                disabled: false,
-                getBalancesInSingleCall: mockGetBalancesInSingleCall,
-              },
-              isKeyringUnlocked: false,
-              mocks: {
-                getSelectedAccount: selectedAccount,
-                getAccount: selectedAccount,
-              },
-            },
-            async ({
-              mockTokenListGetState,
-              callActionSpy,
-              triggerTokenListStateChange,
-            }) => {
-              const tokenListState = {
-                ...getDefaultTokenListState(),
-                tokensChainsCache: {
-                  [ChainId.sepolia]: {
-                    data: {
-                      [sampleTokenA.address]: {
-                        name: sampleTokenA.name,
-                        symbol: sampleTokenA.symbol,
-                        decimals: sampleTokenA.decimals,
-                        address: sampleTokenA.address,
-                        occurrences: 1,
-                        aggregators: sampleTokenA.aggregators,
-                        iconUrl: sampleTokenA.image,
-                      },
-                    },
-                    timestamp: 0,
-                  },
-                },
-              };
-              mockTokenListGetState(tokenListState);
-
-              triggerTokenListStateChange(tokenListState);
-              await jestAdvanceTime({ duration: 1 });
-
-              expect(callActionSpy).not.toHaveBeenCalledWith(
-                'TokensController:addDetectedTokens',
-              );
-            },
-          );
-        });
-      });
-    });
-
-    describe('when "disabled" is true', () => {
-      it('should not detect tokens', async () => {
-        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
-          [sampleTokenA.address]: new BN(1),
-        });
-        const selectedAccount = createMockInternalAccount({
-          address: '0x0000000000000000000000000000000000000001',
-        });
-        await withController(
-          {
-            options: {
-              disabled: true,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            },
-            mocks: {
-              getSelectedAccount: selectedAccount,
-              getAccount: selectedAccount,
-            },
-          },
-          async ({
-            mockTokenListGetState,
-            callActionSpy,
-            triggerTokenListStateChange,
-          }) => {
-            const tokenListState = {
-              ...getDefaultTokenListState(),
-              tokensChainsCache: {
-                [ChainId.sepolia]: {
-                  data: {
-                    [sampleTokenA.address]: {
-                      name: sampleTokenA.name,
-                      symbol: sampleTokenA.symbol,
-                      decimals: sampleTokenA.decimals,
-                      address: sampleTokenA.address,
-                      occurrences: 1,
-                      aggregators: sampleTokenA.aggregators,
-                      iconUrl: sampleTokenA.image,
-                    },
-                  },
-                  timestamp: 0,
-                },
-              },
-            };
-            mockTokenListGetState(tokenListState);
-
-            triggerTokenListStateChange(tokenListState);
-            await jestAdvanceTime({ duration: 1 });
-
-            expect(callActionSpy).not.toHaveBeenCalledWith(
-              'TokensController:addDetectedTokens',
-            );
-          },
-        );
-      });
-    });
-
-    describe('when previous and incoming tokensChainsCache are equal with the same timestamp', () => {
-      it('should not call detect tokens', async () => {
-        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
-          [sampleTokenA.address]: new BN(1),
-        });
-        const selectedAccount = createMockInternalAccount({
-          address: '0x0000000000000000000000000000000000000001',
-        });
-        await withController(
-          {
-            options: {
-              disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            },
-            mocks: {
-              getSelectedAccount: selectedAccount,
-              getAccount: selectedAccount,
-            },
-          },
-          async ({
-            mockTokenListGetState,
-            triggerTokenListStateChange,
-            controller,
-          }) => {
-            const tokenListState = {
-              ...getDefaultTokenListState(),
-              tokensChainsCache: {
-                [ChainId.sepolia]: {
-                  data: {
-                    [sampleTokenA.address]: {
-                      name: sampleTokenA.name,
-                      symbol: sampleTokenA.symbol,
-                      decimals: sampleTokenA.decimals,
-                      address: sampleTokenA.address,
-                      occurrences: 1,
-                      aggregators: sampleTokenA.aggregators,
-                      iconUrl: sampleTokenA.image,
-                    },
-                  },
-                  timestamp: 0,
-                },
-              },
-            };
-            mockTokenListGetState(tokenListState);
-            // This should set the tokensChainsCache value
-            triggerTokenListStateChange(tokenListState);
-            await jestAdvanceTime({ duration: 1 });
-
-            const mockTokens = jest.spyOn(controller, 'detectTokens');
-
-            // Re-trigger state change so that incoming list is equal the current list in state
-            triggerTokenListStateChange(tokenListState);
-            await jestAdvanceTime({ duration: 1 });
-            expect(mockTokens).toHaveBeenCalledTimes(0);
-          },
-        );
-      });
-    });
-
-    describe('when previous and incoming tokensChainsCache are equal with different timestamp', () => {
-      it('should not call detect tokens', async () => {
-        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
-          [sampleTokenA.address]: new BN(1),
-        });
-        const selectedAccount = createMockInternalAccount({
-          address: '0x0000000000000000000000000000000000000001',
-        });
-        await withController(
-          {
-            options: {
-              disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            },
-            mocks: {
-              getSelectedAccount: selectedAccount,
-              getAccount: selectedAccount,
-            },
-          },
-          async ({
-            mockTokenListGetState,
-            triggerTokenListStateChange,
-            controller,
-          }) => {
-            const tokenListState = {
-              ...getDefaultTokenListState(),
-              tokensChainsCache: {
-                [ChainId.sepolia]: {
-                  data: {
-                    [sampleTokenA.address]: {
-                      name: sampleTokenA.name,
-                      symbol: sampleTokenA.symbol,
-                      decimals: sampleTokenA.decimals,
-                      address: sampleTokenA.address,
-                      occurrences: 1,
-                      aggregators: sampleTokenA.aggregators,
-                      iconUrl: sampleTokenA.image,
-                    },
-                  },
-                  timestamp: 0,
-                },
-              },
-            };
-            mockTokenListGetState(tokenListState);
-            // This should set the tokensChainsCache value
-            triggerTokenListStateChange(tokenListState);
-            await jestAdvanceTime({ duration: 1 });
-
-            const mockTokens = jest.spyOn(controller, 'detectTokens');
-
-            // Re-trigger state change so that incoming list is equal the current list in state
-            triggerTokenListStateChange({
-              ...tokenListState,
-              tokensChainsCache: {
-                [ChainId.sepolia]: {
-                  data: {
-                    [sampleTokenA.address]: {
-                      name: sampleTokenA.name,
-                      symbol: sampleTokenA.symbol,
-                      decimals: sampleTokenA.decimals,
-                      address: sampleTokenA.address,
-                      occurrences: 1,
-                      aggregators: sampleTokenA.aggregators,
-                      iconUrl: sampleTokenA.image,
-                    },
-                  },
-                  timestamp: 3424, // same list with different timestamp should not trigger detectTokens again
-                },
-              },
-            });
-            await jestAdvanceTime({ duration: 1 });
-            expect(mockTokens).toHaveBeenCalledTimes(0);
-          },
-        );
-      });
-    });
-
-    describe('when previous and incoming tokensChainsCache are not equal', () => {
-      it('should call detect tokens', async () => {
-        const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({
-          [sampleTokenA.address]: new BN(1),
-        });
-        const selectedAccount = createMockInternalAccount({
-          address: '0x0000000000000000000000000000000000000001',
-        });
-        await withController(
-          {
-            options: {
-              disabled: false,
-              getBalancesInSingleCall: mockGetBalancesInSingleCall,
-            },
-            mocks: {
-              getSelectedAccount: selectedAccount,
-              getAccount: selectedAccount,
-            },
-          },
-          async ({
-            mockTokenListGetState,
-            triggerTokenListStateChange,
-            controller,
-          }) => {
-            const tokenListState = {
-              ...getDefaultTokenListState(),
-              tokensChainsCache: {
-                [ChainId.sepolia]: {
-                  data: {
-                    [sampleTokenA.address]: {
-                      name: sampleTokenA.name,
-                      symbol: sampleTokenA.symbol,
-                      decimals: sampleTokenA.decimals,
-                      address: sampleTokenA.address,
-                      occurrences: 1,
-                      aggregators: sampleTokenA.aggregators,
-                      iconUrl: sampleTokenA.image,
-                    },
-                  },
-                  timestamp: 0,
-                },
-              },
-            };
-            mockTokenListGetState(tokenListState);
-            // This should set the tokensChainsCache value
-            triggerTokenListStateChange(tokenListState);
-            await jestAdvanceTime({ duration: 1 });
-
-            const mockTokens = jest.spyOn(controller, 'detectTokens');
-
-            // Re-trigger state change so that incoming list is equal the current list in state
-            triggerTokenListStateChange({
-              ...tokenListState,
-              tokensChainsCache: {
-                ...tokenListState.tokensChainsCache,
-                [ChainId['linea-mainnet']]: {
-                  data: {
-                    [sampleTokenA.address]: {
-                      name: sampleTokenA.name,
-                      symbol: sampleTokenA.symbol,
-                      decimals: sampleTokenA.decimals,
-                      address: sampleTokenA.address,
-                      occurrences: 1,
-                      aggregators: sampleTokenA.aggregators,
-                      iconUrl: sampleTokenA.image,
-                    },
-                  },
-                  timestamp: 5546454,
-                },
-              },
-            });
-            await jestAdvanceTime({ duration: 1 });
-            expect(mockTokens).toHaveBeenCalledTimes(1);
-          },
-        );
-      });
-    });
-  });
-
   describe('startPolling', () => {
     beforeEach(() => {
       jest.useFakeTimers();
@@ -3149,56 +2712,93 @@ describe('TokenDetectionController', () => {
         },
       );
     });
-  });
 
-  describe('mapChainIdWithTokenListMap', () => {
-    it('should return an empty object when given an empty input', () => {
-      const tokensChainsCache = {};
-      const result = mapChainIdWithTokenListMap(tokensChainsCache);
-      expect(result).toStrictEqual({});
-    });
-
-    it('should return the same structure when there is no "data" property in the object', () => {
-      const tokensChainsCache = {
-        chain1: { info: 'no data property' },
-      };
-      const result = mapChainIdWithTokenListMap(tokensChainsCache);
-      expect(result).toStrictEqual(tokensChainsCache); // Expect unchanged structure
-    });
-
-    it('should map "data" property if present in the object', () => {
-      const tokensChainsCache = {
-        chain1: { data: 'someData' },
-      };
-      const result = mapChainIdWithTokenListMap(tokensChainsCache);
-      expect(result).toStrictEqual({ chain1: 'someData' });
-    });
-
-    it('should handle multiple chains with mixed "data" properties', () => {
-      const tokensChainsCache = {
-        chain1: { data: 'someData1' },
-        chain2: { info: 'no data property' },
-        chain3: { data: 'someData3' },
-      };
-      const result = mapChainIdWithTokenListMap(tokensChainsCache);
-
-      expect(result).toStrictEqual({
-        chain1: 'someData1',
-        chain2: { info: 'no data property' },
-        chain3: 'someData3',
+    it('adds mUSD from the token list cache when RPC reports zero balance', async () => {
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({});
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
       });
-    });
-
-    it('should handle nested object with "data" property correctly', () => {
-      const tokensChainsCache = {
-        chain1: {
-          data: {
-            nested: 'nestedData',
+      await withController(
+        {
+          options: {
+            disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
+          },
+          mocks: {
+            getSelectedAccount: selectedAccount,
+            getAccount: selectedAccount,
           },
         },
-      };
-      const result = mapChainIdWithTokenListMap(tokensChainsCache);
-      expect(result).toStrictEqual({ chain1: { nested: 'nestedData' } });
+        async ({
+          controller,
+          mockNetworkState,
+          mockFindNetworkClientIdByChainId,
+          mockTokenListGetState,
+          triggerPreferencesStateChange,
+          callActionSpy,
+        }) => {
+          const defaultState = getDefaultNetworkControllerState();
+          mockNetworkState({
+            ...defaultState,
+            selectedNetworkClientId: 'mainnet',
+            networkConfigurationsByChainId: {
+              ...defaultState.networkConfigurationsByChainId,
+              '0x1': {
+                chainId: '0x1',
+                name: 'Ethereum Mainnet',
+                nativeCurrency: 'ETH',
+                blockExplorerUrls: [],
+                defaultBlockExplorerUrlIndex: 0,
+                defaultRpcEndpointIndex: 0,
+                rpcEndpoints: [
+                  {
+                    networkClientId: 'mainnet',
+                    type: RpcEndpointType.Custom,
+                    url: 'https://mainnet.infura.io/v3/test',
+                    failoverUrls: [],
+                  },
+                ],
+              },
+            },
+          });
+          mockFindNetworkClientIdByChainId(() => 'mainnet');
+
+          mockTokenListGetState({
+            ...getDefaultTokenListState(),
+            tokensChainsCache: {
+              '0x1': {
+                timestamp: 0,
+                data: {},
+              },
+            },
+          });
+
+          triggerPreferencesStateChange({
+            ...getDefaultPreferencesState(),
+            useTokenDetection: true,
+          });
+
+          await controller.detectTokens({
+            chainIds: [ChainId.mainnet],
+            selectedAddress: selectedAccount.address,
+            forceRpc: true,
+          });
+
+          expect(mockGetBalancesInSingleCall).toHaveBeenCalled();
+          expect(callActionSpy).toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            expect.arrayContaining([
+              expect.objectContaining({
+                address: MUSD_ERC20_ADDRESS_LOWER,
+                name: 'MetaMask USD',
+                symbol: 'MUSD',
+                decimals: 6,
+              }),
+            ]),
+            'mainnet',
+          );
+        },
+      );
     });
   });
 
@@ -3403,6 +3003,45 @@ describe('TokenDetectionController', () => {
               },
             ],
             'avalanche',
+          );
+        },
+      );
+    });
+
+    it('adds mUSD from merged token list when WebSocket provides no token addresses (zero balance)', async () => {
+      await withController(
+        {
+          options: { disabled: false },
+          mockTokenListState: {
+            tokensChainsCache: {
+              [ChainId.mainnet]: {
+                timestamp: 0,
+                data: {},
+              },
+            },
+          },
+        },
+        async ({
+          controller,
+          callActionSpy,
+          mockFindNetworkClientIdByChainId,
+        }) => {
+          mockFindNetworkClientIdByChainId(() => 'mainnet');
+          await controller.addDetectedTokensViaWs({
+            tokensSlice: [],
+            chainId: ChainId.mainnet,
+          });
+          expect(callActionSpy).toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            expect.arrayContaining([
+              expect.objectContaining({
+                address: toChecksumHexAddress(MUSD_ERC20_ADDRESS_LOWER),
+                name: 'MetaMask USD',
+                symbol: 'MUSD',
+                decimals: 6,
+              }),
+            ]),
+            'mainnet',
           );
         },
       );
@@ -3640,6 +3279,157 @@ describe('TokenDetectionController', () => {
         },
       );
     });
+
+    it('should not add tokens when useTokenDetection is false', async () => {
+      const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const chainId = '0xa86a';
+
+      await withController(
+        {
+          options: {
+            disabled: false,
+            useTokenDetection: () => false,
+          },
+          mockTokenListState: {
+            tokensChainsCache: {
+              [chainId]: {
+                timestamp: 0,
+                data: {
+                  [mockTokenAddress]: {
+                    name: 'USD Coin',
+                    symbol: 'USDC',
+                    decimals: 6,
+                    address: mockTokenAddress,
+                    aggregators: [],
+                    iconUrl: 'https://example.com/usdc.png',
+                    occurrences: 11,
+                  },
+                },
+              },
+            },
+          },
+        },
+        async ({ controller, callActionSpy }) => {
+          await controller.addDetectedTokensViaWs({
+            tokensSlice: [mockTokenAddress],
+            chainId: chainId as Hex,
+          });
+
+          expect(callActionSpy).not.toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            expect.anything(),
+            expect.anything(),
+          );
+        },
+      );
+    });
+
+    it('should not add tokens when useExternalServices is false', async () => {
+      const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const chainId = '0xa86a';
+
+      await withController(
+        {
+          options: {
+            disabled: false,
+            useExternalServices: () => false,
+          },
+          mockTokenListState: {
+            tokensChainsCache: {
+              [chainId]: {
+                timestamp: 0,
+                data: {
+                  [mockTokenAddress]: {
+                    name: 'USD Coin',
+                    symbol: 'USDC',
+                    decimals: 6,
+                    address: mockTokenAddress,
+                    aggregators: [],
+                    iconUrl: 'https://example.com/usdc.png',
+                    occurrences: 11,
+                  },
+                },
+              },
+            },
+          },
+        },
+        async ({ controller, callActionSpy }) => {
+          await controller.addDetectedTokensViaWs({
+            tokensSlice: [mockTokenAddress],
+            chainId: chainId as Hex,
+          });
+
+          expect(callActionSpy).not.toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            expect.anything(),
+            expect.anything(),
+          );
+        },
+      );
+    });
+
+    it('does not append a duplicate mUSD entry when the slice already includes mUSD', async () => {
+      const usdcAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const usdcChecksummed = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+
+      await withController(
+        {
+          options: { disabled: false },
+          mockTokenListState: {
+            tokensChainsCache: {
+              [ChainId.mainnet]: {
+                timestamp: 0,
+                data: {
+                  [usdcAddress]: {
+                    name: 'USD Coin',
+                    symbol: 'USDC',
+                    decimals: 6,
+                    address: usdcAddress,
+                    aggregators: [],
+                    iconUrl: 'https://example.com/usdc.png',
+                    occurrences: 11,
+                  },
+                },
+              },
+            },
+          },
+        },
+        async ({
+          controller,
+          callActionSpy,
+          mockFindNetworkClientIdByChainId,
+        }) => {
+          mockFindNetworkClientIdByChainId(() => 'mainnet');
+          await controller.addDetectedTokensViaWs({
+            tokensSlice: [
+              toChecksumHexAddress(MUSD_ERC20_ADDRESS_LOWER),
+              usdcAddress,
+            ],
+            chainId: ChainId.mainnet,
+          });
+
+          expect(callActionSpy).toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            expect.arrayContaining([
+              expect.objectContaining({
+                address: toChecksumHexAddress(MUSD_ERC20_ADDRESS_LOWER),
+              }),
+              expect.objectContaining({ address: usdcChecksummed }),
+            ]),
+            'mainnet',
+          );
+          const addTokensCall = callActionSpy.mock.calls.find(
+            (call) => call[0] === 'TokensController:addTokens',
+          );
+          const payload = addTokensCall?.[1] as { address: string }[];
+          const musdRows = payload.filter(
+            (tokenRow) =>
+              tokenRow.address.toLowerCase() === MUSD_ERC20_ADDRESS_LOWER,
+          );
+          expect(musdRows).toHaveLength(1);
+        },
+      );
+    });
   });
 
   describe('addDetectedTokensViaPolling', () => {
@@ -3694,6 +3484,45 @@ describe('TokenDetectionController', () => {
               },
             ],
             'avalanche',
+          );
+        },
+      );
+    });
+
+    it('adds mUSD from merged token list when polling has no other token addresses (zero balance)', async () => {
+      await withController(
+        {
+          options: { disabled: false, useTokenDetection: () => true },
+          mockTokenListState: {
+            tokensChainsCache: {
+              [ChainId.mainnet]: {
+                timestamp: 0,
+                data: {},
+              },
+            },
+          },
+        },
+        async ({
+          controller,
+          callActionSpy,
+          mockFindNetworkClientIdByChainId,
+        }) => {
+          mockFindNetworkClientIdByChainId(() => 'mainnet');
+          await controller.addDetectedTokensViaPolling({
+            tokensSlice: [],
+            chainId: ChainId.mainnet,
+          });
+          expect(callActionSpy).toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            expect.arrayContaining([
+              expect.objectContaining({
+                address: toChecksumHexAddress(MUSD_ERC20_ADDRESS_LOWER),
+                name: 'MetaMask USD',
+                symbol: 'MUSD',
+                decimals: 6,
+              }),
+            ]),
+            'mainnet',
           );
         },
       );
@@ -3876,10 +3705,10 @@ describe('TokenDetectionController', () => {
       );
     });
 
-    it('should fetch fresh token metadata cache from TokenListController at call time', async () => {
-      // This test verifies the fix for the bug where addDetectedTokensViaPolling used
-      // a stale/empty tokensChainsCache from construction time instead of fetching
-      // fresh data from TokenListController:getState at call time.
+    it('should fetch fresh token metadata cache from TokenListService at call time', async () => {
+      // This test verifies that addDetectedTokensViaPolling fetches the token list
+      // from the TokenListService at call time (not at construction time), so that
+      // tokens added to the service after construction are still detected.
       const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
       const checksummedTokenAddress =
         '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
@@ -4054,6 +3883,183 @@ describe('TokenDetectionController', () => {
         },
       );
     });
+
+    it('should skip if useExternalServices is disabled', async () => {
+      const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const chainId = '0xa86a';
+
+      await withController(
+        {
+          options: {
+            disabled: false,
+            useTokenDetection: () => true,
+            useExternalServices: () => false,
+          },
+          mockTokenListState: {
+            tokensChainsCache: {
+              [chainId]: {
+                timestamp: 0,
+                data: {
+                  [mockTokenAddress]: {
+                    name: 'USD Coin',
+                    symbol: 'USDC',
+                    decimals: 6,
+                    address: mockTokenAddress,
+                    aggregators: [],
+                    iconUrl: 'https://example.com/usdc.png',
+                    occurrences: 11,
+                  },
+                },
+              },
+            },
+          },
+        },
+        async ({ controller, callActionSpy }) => {
+          await controller.addDetectedTokensViaPolling({
+            tokensSlice: [mockTokenAddress],
+            chainId: chainId as Hex,
+          });
+
+          expect(callActionSpy).not.toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            expect.anything(),
+            expect.anything(),
+          );
+        },
+      );
+    });
+
+    it('should ignore slice addresses that are not in the token list map', async () => {
+      const mockTokenAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const checksummedTokenAddress =
+        '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+      const unknownAddress = '0x0000000000000000000000000000000000000002';
+      const chainId = '0xa86a';
+
+      await withController(
+        {
+          options: {
+            disabled: false,
+            useTokenDetection: () => true,
+          },
+          mockTokenListState: {
+            tokensChainsCache: {
+              [chainId]: {
+                timestamp: 0,
+                data: {
+                  [mockTokenAddress]: {
+                    name: 'USD Coin',
+                    symbol: 'USDC',
+                    decimals: 6,
+                    address: mockTokenAddress,
+                    aggregators: [],
+                    iconUrl: 'https://example.com/usdc.png',
+                    occurrences: 11,
+                  },
+                },
+              },
+            },
+          },
+        },
+        async ({ controller, callActionSpy }) => {
+          await controller.addDetectedTokensViaPolling({
+            tokensSlice: [mockTokenAddress, unknownAddress],
+            chainId: chainId as Hex,
+          });
+
+          expect(callActionSpy).toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            [
+              {
+                address: checksummedTokenAddress,
+                decimals: 6,
+                symbol: 'USDC',
+                aggregators: [],
+                image: 'https://example.com/usdc.png',
+                isERC721: false,
+                name: 'USD Coin',
+              },
+            ],
+            'avalanche',
+          );
+        },
+      );
+    });
+
+    it('does not append a duplicate mUSD entry when the slice already includes mUSD', async () => {
+      const usdcAddress = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
+      const usdcChecksummed = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
+      const selectedAccount = createMockInternalAccount({
+        address: '0x0000000000000000000000000000000000000001',
+      });
+
+      await withController(
+        {
+          options: { disabled: false, useTokenDetection: () => true },
+          mocks: {
+            getAccount: selectedAccount,
+            getSelectedAccount: selectedAccount,
+          },
+          mockTokensState: {
+            allTokens: {},
+            allDetectedTokens: {},
+            allIgnoredTokens: {},
+          },
+          mockTokenListState: {
+            tokensChainsCache: {
+              [ChainId.mainnet]: {
+                timestamp: 0,
+                data: {
+                  [usdcAddress]: {
+                    name: 'USD Coin',
+                    symbol: 'USDC',
+                    decimals: 6,
+                    address: usdcAddress,
+                    aggregators: [],
+                    iconUrl: 'https://example.com/usdc.png',
+                    occurrences: 11,
+                  },
+                },
+              },
+            },
+          },
+        },
+        async ({
+          controller,
+          callActionSpy,
+          mockFindNetworkClientIdByChainId,
+        }) => {
+          mockFindNetworkClientIdByChainId(() => 'mainnet');
+          await controller.addDetectedTokensViaPolling({
+            tokensSlice: [
+              toChecksumHexAddress(MUSD_ERC20_ADDRESS_LOWER),
+              usdcAddress,
+            ],
+            chainId: ChainId.mainnet,
+          });
+
+          expect(callActionSpy).toHaveBeenCalledWith(
+            'TokensController:addTokens',
+            expect.arrayContaining([
+              expect.objectContaining({
+                address: toChecksumHexAddress(MUSD_ERC20_ADDRESS_LOWER),
+              }),
+              expect.objectContaining({ address: usdcChecksummed }),
+            ]),
+            'mainnet',
+          );
+          const addTokensCall = callActionSpy.mock.calls.find(
+            (call) => call[0] === 'TokensController:addTokens',
+          );
+          const payload = addTokensCall?.[1] as { address: string }[];
+          const musdRows = payload.filter(
+            (tokenRow) =>
+              tokenRow.address.toLowerCase() === MUSD_ERC20_ADDRESS_LOWER,
+          );
+          expect(musdRows).toHaveLength(1);
+        },
+      );
+    });
   });
 });
 
@@ -4084,7 +4090,6 @@ type WithControllerCallback<ReturnValue> = ({
   callActionSpy,
   triggerKeyringUnlock,
   triggerKeyringLock,
-  triggerTokenListStateChange,
   triggerPreferencesStateChange,
   triggerSelectedAccountChange,
   triggerNetworkDidChange,
@@ -4095,6 +4100,7 @@ type WithControllerCallback<ReturnValue> = ({
   mockGetSelectedAccount: (address: string) => void;
   mockKeyringGetState: (state: KeyringControllerState) => void;
   mockTokensGetState: (state: TokensControllerState) => void;
+  /** Updates the mock TokenListService to return a specific token list state. */
   mockTokenListGetState: (state: TokenListState) => void;
   mockPreferencesGetState: (state: PreferencesState) => void;
   mockGetNetworkClientById: (
@@ -4112,7 +4118,6 @@ type WithControllerCallback<ReturnValue> = ({
   callActionSpy: jest.SpyInstance;
   triggerKeyringUnlock: () => void;
   triggerKeyringLock: () => void;
-  triggerTokenListStateChange: (state: TokenListState) => void;
   triggerPreferencesStateChange: (state: PreferencesState) => void;
   triggerSelectedAccountChange: (account: InternalAccount) => void;
   triggerNetworkDidChange: (state: NetworkState) => void;
@@ -4226,14 +4231,31 @@ async function withController<ReturnValue>(
       ...mockTokensState,
     }),
   );
-  const mockTokenListStateFunc = jest.fn<TokenListState, []>();
-  messenger.registerActionHandler(
-    'TokenListController:getState',
-    mockTokenListStateFunc.mockReturnValue({
-      ...getDefaultTokenListState(),
-      ...mockTokenListState,
-    }),
-  );
+
+  // Build the initial TokenListState and a mutable reference so tests can update it.
+  let currentTokenListState: TokenListState = {
+    ...getDefaultTokenListState(),
+    ...mockTokenListState,
+  };
+  const mockFetchTokensByChainId = jest
+    .fn<Promise<TokenListMap>, [Hex]>()
+    .mockImplementation((chainId: Hex) => {
+      const data = currentTokenListState.tokensChainsCache[chainId]?.data ?? {};
+      // Normalise keys to lowercase to match buildTokenListMap's output so that
+      // lookups using lowercased addresses (as done in production code) work correctly.
+      return Promise.resolve(
+        Object.fromEntries(
+          Object.entries(data).map(([addr, token]) => [
+            addr.toLowerCase(),
+            token,
+          ]),
+        ),
+      );
+    });
+  const tokenListService = {
+    fetchTokensByChainId: mockFetchTokensByChainId,
+  } as unknown as TokenListService;
+
   const mockPreferencesState = jest.fn<PreferencesState, []>();
   messenger.registerActionHandler(
     'PreferencesController:getState',
@@ -4280,6 +4302,7 @@ async function withController<ReturnValue>(
     getBalancesInSingleCall: jest.fn(),
     trackMetaMetricsEvent: jest.fn(),
     messenger: tokenDetectionControllerMessenger,
+    tokenListService,
     ...options,
   });
   try {
@@ -4302,7 +4325,19 @@ async function withController<ReturnValue>(
         mockPreferencesState.mockReturnValue(state);
       },
       mockTokenListGetState: (state: TokenListState) => {
-        mockTokenListStateFunc.mockReturnValue(state);
+        currentTokenListState = state;
+        mockFetchTokensByChainId.mockImplementation((chainId: Hex) => {
+          const data = state.tokensChainsCache[chainId]?.data ?? {};
+          // Normalise keys to lowercase to match buildTokenListMap's output.
+          return Promise.resolve(
+            Object.fromEntries(
+              Object.entries(data).map(([addr, token]) => [
+                addr.toLowerCase(),
+                token,
+              ]),
+            ),
+          );
+        });
       },
       mockGetNetworkClientById: (
         handler: (
@@ -4332,9 +4367,6 @@ async function withController<ReturnValue>(
       },
       triggerKeyringLock: () => {
         messenger.publish('KeyringController:lock');
-      },
-      triggerTokenListStateChange: (state: TokenListState) => {
-        messenger.publish('TokenListController:stateChange', state, []);
       },
       triggerPreferencesStateChange: (state: PreferencesState) => {
         messenger.publish('PreferencesController:stateChange', state, []);

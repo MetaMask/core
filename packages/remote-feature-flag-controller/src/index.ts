@@ -20,6 +20,7 @@ export {
   ClientType,
   DistributionType,
   EnvironmentType,
+  ThresholdVersion,
 } from './remote-feature-flag-controller-types';
 
 export type { FeatureFlags } from './remote-feature-flag-controller-types';

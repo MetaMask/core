@@ -1,10 +1,10 @@
 import { createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { getProvider } from './provider';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type { Layer1GasFeeFlow, TransactionMeta } from '../types';
+import { getProvider } from './provider';
 
 const log = createModuleLogger(projectLogger, 'layer-1-gas-fee-flow');
 

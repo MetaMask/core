@@ -252,7 +252,9 @@ export type GasFeeState = GasFeeEstimatesByChainId &
 const name = 'GasFeeController';
 
 const MESSENGER_EXPOSED_METHODS = [
+  'disableNonRPCGasFeeApis',
   'disconnectPoller',
+  'enableNonRPCGasFeeApis',
   'fetchGasFeeEstimates',
   'getGasFeeEstimatesAndStartPolling',
   'getTimeEstimate',

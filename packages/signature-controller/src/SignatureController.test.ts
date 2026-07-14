@@ -5,6 +5,7 @@ import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import { LogType, SigningStage } from '@metamask/logging-controller';
 import { v1 } from 'uuid';
 
+import { flushPromises } from '../../../tests/helpers';
 import type {
   SignatureControllerMessenger,
   SignatureControllerOptions,
@@ -24,7 +25,6 @@ import {
   normalizeTypedMessageParams,
 } from './utils/normalize';
 import { validateTypedSignatureRequest } from './utils/validation';
-import { flushPromises } from '../../../tests/helpers';
 
 jest.mock('uuid');
 jest.mock('./utils/validation');

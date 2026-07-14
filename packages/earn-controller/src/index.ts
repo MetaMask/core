@@ -29,7 +29,6 @@ export type {
   EarnControllerRefreshPooledStakingDataAction,
   EarnControllerRefreshLendingMarketsAction,
   EarnControllerRefreshLendingPositionsAction,
-  EarnControllerRefreshLendingEligibilityAction,
   EarnControllerRefreshLendingDataAction,
   EarnControllerRefreshTronStakingApyAction,
   EarnControllerGetTronStakingApyAction,

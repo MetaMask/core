@@ -6,6 +6,11 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import type * as encryptionUtils from '@metamask/browser-passworder';
+import type {
+  DefaultEncryptionResult,
+  EncryptionResultConstraint,
+  Encryptor,
+} from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
   AuthenticateResult,
@@ -13,11 +18,13 @@ import type {
   KeyPair,
   RecoverEncryptionKeyResult,
   SEC1EncodedPublicKey,
+  FetchedSecretDataItem,
 } from '@metamask/toprf-secure-backup';
 import {
   ToprfSecureBackup,
   TOPRFErrorCode,
   TOPRFError,
+  EncAccountDataType,
 } from '@metamask/toprf-secure-backup';
 import {
   base64ToBytes,
@@ -42,6 +49,7 @@ import {
   PASSWORD_OUTDATED_CACHE_TTL_MS,
   SecretType,
   SeedlessOnboardingControllerErrorMessage,
+  SeedlessOnboardingMigrationVersion,
   Web3AuthNetwork,
 } from './constants';
 import {
@@ -57,7 +65,6 @@ import type {
   SeedlessOnboardingControllerState,
   AuthenticatedUserDetails,
   SocialBackupsMetadata,
-  VaultEncryptor,
   RefreshJWTToken,
   RevokeRefreshToken,
   RenewRefreshToken,
@@ -102,6 +109,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'checkNodeAuthTokenExpired',
   'checkMetadataAccessTokenExpired',
   'checkAccessTokenExpired',
+  'runMigrations',
 ] as const;
 
 // Actions
@@ -145,6 +153,9 @@ export type SeedlessOnboardingControllerMessenger = Messenger<
 export type SeedlessOnboardingControllerOptions<
   EncryptionKey = encryptionUtils.EncryptionKey,
   SupportedKeyDerivationParams = encryptionUtils.KeyDerivationOptions,
+  EncryptionResult extends
+    EncryptionResultConstraint<SupportedKeyDerivationParams> =
+    DefaultEncryptionResult<SupportedKeyDerivationParams>,
 > = {
   messenger: SeedlessOnboardingControllerMessenger;
 
@@ -158,7 +169,11 @@ export type SeedlessOnboardingControllerOptions<
    *
    * @default browser-passworder @link https://github.com/MetaMask/browser-passworder
    */
-  encryptor: VaultEncryptor<EncryptionKey, SupportedKeyDerivationParams>;
+  encryptor: Encryptor<
+    EncryptionKey,
+    SupportedKeyDerivationParams,
+    EncryptionResult
+  >;
 
   /**
    * A function to get a new jwt token using refresh token.
@@ -214,6 +229,7 @@ export function getInitialSeedlessOnboardingControllerStateWithDefaults(
   const initialState = {
     socialBackupsMetadata: [],
     isSeedlessOnboardingUserAuthenticated: false,
+    migrationVersion: 0,
     ...overrides,
   };
 
@@ -362,19 +378,29 @@ const seedlessOnboardingMetadata: StateMetadata<SeedlessOnboardingControllerStat
       includeInDebugSnapshot: true,
       usedInUi: false,
     },
+    migrationVersion: {
+      includeInStateLogs: true,
+      persist: true,
+      includeInDebugSnapshot: true,
+      usedInUi: false,
+    },
   };
 
 export class SeedlessOnboardingController<
   EncryptionKey = encryptionUtils.EncryptionKey,
   SupportedKeyDerivationOptions = encryptionUtils.KeyDerivationOptions,
+  EncryptionResult extends
+    EncryptionResultConstraint<SupportedKeyDerivationOptions> =
+    DefaultEncryptionResult<SupportedKeyDerivationOptions>,
 > extends BaseController<
   typeof controllerName,
   SeedlessOnboardingControllerState,
   SeedlessOnboardingControllerMessenger
 > {
-  readonly #vaultEncryptor: VaultEncryptor<
+  readonly #vaultEncryptor: Encryptor<
     EncryptionKey,
-    SupportedKeyDerivationOptions
+    SupportedKeyDerivationOptions,
+    EncryptionResult
   >;
 
   readonly #controllerOperationMutex = new Mutex();
@@ -441,7 +467,8 @@ export class SeedlessOnboardingController<
     passwordOutdatedCacheTTL = PASSWORD_OUTDATED_CACHE_TTL_MS,
   }: SeedlessOnboardingControllerOptions<
     EncryptionKey,
-    SupportedKeyDerivationOptions
+    SupportedKeyDerivationOptions,
+    EncryptionResult
   >) {
     super({
       name: controllerName,
@@ -627,7 +654,7 @@ export class SeedlessOnboardingController<
         // encrypt and store the secret data
         await this.#encryptAndStoreSecretData({
           data: seedPhrase,
-          type: SecretType.Mnemonic,
+          dataType: EncAccountDataType.PrimarySrp,
           encKey,
           authKeyPair,
           options: {
@@ -647,6 +674,9 @@ export class SeedlessOnboardingController<
           rawToprfPwEncryptionKey: pwEncKey,
           rawToprfAuthKeyPair: authKeyPair,
         });
+
+        // Mark migration as complete since this new backup was created with the new data format (dataType)
+        this.#setMigrationVersion(SeedlessOnboardingMigrationVersion.V1);
       };
 
       await this.#executeWithTokenRefresh(
@@ -657,21 +687,27 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * encrypt and add a new secret data to the metadata store.
+   * Encrypt and add a new secret data to the metadata store.
    *
    * @param data - The data to add.
-   * @param type - The type of the secret data.
+   * @param dataType - The data type classification for the secret data.
    * @param options - Optional options object, which includes optional data to be added to the metadata store.
    * @param options.keyringId - The keyring id of the backup keyring (SRP).
    * @returns A promise that resolves to the success of the operation.
    */
   async addNewSecretData(
     data: Uint8Array,
-    type: SecretType,
+    dataType: EncAccountDataType,
     options?: {
       keyringId?: string;
     },
   ): Promise<void> {
+    if (dataType === EncAccountDataType.PrimarySrp) {
+      throw new Error(
+        SeedlessOnboardingControllerErrorMessage.PrimarySrpCannotBeAddedViaAddNewSecretData,
+      );
+    }
+
     return await this.#withControllerLock(async () => {
       this.#assertIsUnlocked();
 
@@ -688,7 +724,7 @@ export class SeedlessOnboardingController<
         // encrypt and store the secret data
         await this.#encryptAndStoreSecretData({
           data,
-          type,
+          dataType,
           encKey: toprfEncryptionKey,
           authKeyPair: toprfAuthKeyPair,
           options,
@@ -700,12 +736,171 @@ export class SeedlessOnboardingController<
   }
 
   /**
-   * Fetches all encrypted secret data and metadata for user's account from the metadata store.
+   * Run any pending seedless onboarding migrations.
+   *
+   * This method should be called by clients after the controller is unlocked
+   * to ensure legacy data is migrated to the latest format.
+   *
+   * Migrations are idempotent - running this multiple times is safe.
+   * The migration version is tracked in state to prevent re-running migrations.
+   *
+   * @returns A promise that resolves to `true` if data was actually migrated
+   * (items were updated on the server), `false` otherwise.
+   * @throws If the password is outdated (changed on another device).
+   */
+  async runMigrations(): Promise<boolean> {
+    return await this.#withControllerLock(async () => {
+      this.#assertIsUnlocked();
+
+      await this.#assertPasswordInSync({
+        skipCache: true,
+        skipLock: true, // skip lock since we already have the lock
+      });
+
+      if (this.state.migrationVersion < SeedlessOnboardingMigrationVersion.V1) {
+        return this.#migrateDataTypes();
+      }
+      return false;
+    });
+  }
+
+  /**
+   * Set the migration version directly.
+   *
+   * Use this for new users who don't have legacy data to migrate,
+   * avoiding an unnecessary API call from `runMigrations()`.
+   *
+   * @param version - The migration version to set.
+   */
+  setMigrationVersion(version: SeedlessOnboardingMigrationVersion): void {
+    this.#setMigrationVersion(version);
+  }
+
+  /**
+   * Assigns dataType (PrimarySrp/ImportedSrp/ImportedPrivateKey) to legacy secrets
+   * that were created before the dataType field was introduced.
+   *
+   * This migration:
+   * 1. Fetches all secret data items
+   * 2. Identifies items that need migration (version !== 'v2' OR dataType not set)
+   * 3. Assigns PrimarySrp to the first mnemonic (by timestamp)
+   * 4. Assigns ImportedSrp to subsequent mnemonics
+   * 5. Assigns ImportedPrivateKey to private keys
+   * 6. Updates the items via SDK (which sets version to 'v2' and dataType)
+   * 7. Updates the migration version in state
+   *
+   * Note: The SDK's updateSecretDataItem automatically sets version to 'v2'
+   * when updating dataType, ensuring migrated items are marked as v2.
+   *
+   * @returns A promise that resolves to `true` if items were actually updated
+   * on the server, `false` if no items needed migration.
+   */
+  async #migrateDataTypes(): Promise<boolean> {
+    return await this.#executeWithTokenRefresh(async () => {
+      const { toprfEncryptionKey, toprfAuthKeyPair } =
+        await this.#unlockVaultAndGetVaultData();
+
+      let secretDatas: SecretMetadata[];
+      try {
+        secretDatas = await this.#fetchAllSecretDataFromMetadataStore(
+          toprfEncryptionKey,
+          toprfAuthKeyPair,
+        );
+      } catch (error) {
+        // If no secret data found, just update migration version
+        if (
+          error instanceof Error &&
+          error.message ===
+            SeedlessOnboardingControllerErrorMessage.NoSecretDataFound
+        ) {
+          this.#setMigrationVersion(SeedlessOnboardingMigrationVersion.V1);
+          return false;
+        }
+        throw error;
+      }
+
+      let hasPrimarySrp = secretDatas.some(
+        (secret) =>
+          secret.itemId &&
+          secret.itemId !== 'PW_BACKUP' &&
+          secret.dataType === EncAccountDataType.PrimarySrp,
+      );
+
+      const updates: { itemId: string; dataType: EncAccountDataType }[] = [];
+
+      for (const secret of secretDatas) {
+        if (!secret.itemId || secret.itemId === 'PW_BACKUP') {
+          continue;
+        }
+
+        // Skip items that are already migrated (v2 with dataType set)
+        // Check both storageVersion and dataType since this migration is specific to dataType
+        const isAlreadyMigrated =
+          secret.storageVersion === 'v2' &&
+          secret.dataType !== undefined &&
+          secret.dataType !== null;
+        if (isAlreadyMigrated) {
+          continue;
+        }
+
+        let dataType: EncAccountDataType;
+
+        if (SecretMetadata.matchesType(secret, SecretType.Mnemonic)) {
+          // Preserve existing PrimarySrp designation
+          if (secret.dataType === EncAccountDataType.PrimarySrp) {
+            dataType = EncAccountDataType.PrimarySrp;
+          } else if (hasPrimarySrp) {
+            dataType = EncAccountDataType.ImportedSrp;
+          } else {
+            dataType = EncAccountDataType.PrimarySrp;
+            hasPrimarySrp = true;
+          }
+        } else if (SecretMetadata.matchesType(secret, SecretType.PrivateKey)) {
+          dataType = EncAccountDataType.ImportedPrivateKey;
+        } else {
+          continue;
+        }
+
+        updates.push({ itemId: secret.itemId, dataType });
+      }
+
+      if (updates.length === 1) {
+        await this.toprfClient.updateSecretDataItem({
+          itemId: updates[0].itemId,
+          dataType: updates[0].dataType,
+          authKeyPair: toprfAuthKeyPair,
+        });
+      } else if (updates.length > 1) {
+        await this.toprfClient.batchUpdateSecretDataItems({
+          updateItems: updates,
+          authKeyPair: toprfAuthKeyPair,
+        });
+      }
+
+      this.#setMigrationVersion(SeedlessOnboardingMigrationVersion.V1);
+
+      return updates.length > 0;
+    }, 'migrateDataTypes');
+  }
+
+  /**
+   * Set the migration version in state.
+   *
+   * @param version - The migration version to set.
+   */
+  #setMigrationVersion(version: number): void {
+    this.update((state) => {
+      state.migrationVersion = version;
+    });
+  }
+
+  /**
+   * Fetches all secret data items from the metadata store.
    *
    * Decrypts the secret data and returns the decrypted secret data using the recovered encryption key from the password.
    *
    * @param password - The optional password used to create new wallet. If not provided, `cached Encryption Key` will be used.
-   * @returns A promise that resolves to the secret data.
+   * @returns A promise that resolves to the secret metadata items.
    */
   async fetchAllSecretData(password?: string): Promise<SecretMetadata[]> {
     return await this.#withControllerLock(async () => {
@@ -1417,10 +1612,10 @@ export class SeedlessOnboardingController<
     encKey: Uint8Array,
     authKeyPair: KeyPair,
   ): Promise<SecretMetadata[]> {
-    let secretData: Uint8Array[] = [];
+    let secretDataItems: FetchedSecretDataItem[] = [];
     try {
       // fetch and decrypt the secret data from the metadata store
-      secretData = await this.toprfClient.fetchAllSecretDataItems({
+      secretDataItems = await this.toprfClient.fetchAllSecretDataItems({
         decKey: encKey,
         authKeyPair,
       });
@@ -1438,16 +1633,36 @@ export class SeedlessOnboardingController<
     }
 
     // user must have at least one secret data
-    if (secretData?.length > 0) {
-      const secrets = SecretMetadata.parseSecretsFromMetadataStore(secretData);
-      // validate the primary secret data is a mnemonic (SRP)
-      const primarySecret = secrets[0];
-      if (primarySecret.type !== SecretType.Mnemonic) {
+    if (secretDataItems?.length > 0) {
+      const results: SecretMetadata[] = secretDataItems.map((item) =>
+        SecretMetadata.fromRawMetadata(item.data, {
+          itemId: item.itemId,
+          dataType: item.dataType,
+          createdAt: item.createdAt,
+          storageVersion: item.version,
+        }),
+      );
+
+      // Sort: PrimarySrp first, then by client timestamp (oldest first)
+      results.sort((a, b) => SecretMetadata.compare(a, b, 'asc'));
+
+      const primaryIndex = results.findIndex(
+        (result) =>
+          SecretMetadata.matchesType(result, SecretType.Mnemonic) &&
+          (result.dataType === undefined ||
+            result.dataType === null ||
+            result.dataType === EncAccountDataType.PrimarySrp),
+      );
+      if (primaryIndex === -1) {
         throw new Error(
           SeedlessOnboardingControllerErrorMessage.InvalidPrimarySecretDataType,
         );
       }
-      return secrets;
+      if (primaryIndex !== 0) {
+        const [primary] = results.splice(primaryIndex, 1);
+        results.unshift(primary);
+      }
+      return results;
     }
 
     throw new Error(SeedlessOnboardingControllerErrorMessage.NoSecretDataFound);
@@ -1502,6 +1717,20 @@ export class SeedlessOnboardingController<
       oldAuthKeyPair: authKeyPair,
       newKeyShareIndex: globalKeyIndex,
       newPassword,
+      transformDataItems: (items) =>
+        items
+          .sort((a, b) =>
+            SecretMetadata.compare(
+              SecretMetadata.fromRawMetadata(a.data, { dataType: a.dataType }),
+              SecretMetadata.fromRawMetadata(b.data, { dataType: b.dataType }),
+              'asc',
+            ),
+          )
+          .map(({ data, dataType, version }) => ({
+            data,
+            dataType,
+            version: dataType === undefined ? 'v1' : version,
+          })),
     });
     return result;
   }
@@ -1511,24 +1740,27 @@ export class SeedlessOnboardingController<
    *
    * @param params - The parameters for encrypting and storing the secret data backup.
    * @param params.data - The secret data to store.
-   * @param params.type - The type of the secret data.
+   * @param params.dataType - The data type classification for the secret data.
    * @param params.encKey - The encryption key to store.
    * @param params.authKeyPair - The authentication key pair to store.
-   * @param params.options - Optional options object, which includes optional data to be added to the metadata store.
-   * @param params.options.keyringId - The keyring id of the backup keyring (SRP).
+   * @param params.options - Optional options object.
+   * @param params.options.keyringId - The keyring id of the backup keyring (required for SRP types).
    *
    * @returns A promise that resolves to the success of the operation.
    */
   async #encryptAndStoreSecretData(params: {
     data: Uint8Array;
-    type: SecretType;
+    dataType: EncAccountDataType;
     encKey: Uint8Array;
     authKeyPair: KeyPair;
     options?: {
       keyringId?: string;
     };
   }): Promise<void> {
-    const { options, data, encKey, authKeyPair, type } = params;
+    const { options, data, encKey, authKeyPair, dataType } = params;
+
+    const secretMetadata = new SecretMetadata(data, { dataType });
+    const { type } = secretMetadata;
 
     // before encrypting and create backup, we will check the state if the secret data is already backed up
     const backupState = this.getSecretDataBackupState(data, type);
@@ -1536,9 +1768,6 @@ export class SeedlessOnboardingController<
       return;
     }
 
-    const secretMetadata = new SecretMetadata(data, {
-      type,
-    });
     const secretData = secretMetadata.toBytes();
 
     const keyringId = options?.keyringId as string;
@@ -1554,6 +1783,7 @@ export class SeedlessOnboardingController<
           encKey,
           secretData,
           authKeyPair,
+          dataType,
         });
         return {
           keyringId,

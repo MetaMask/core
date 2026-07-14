@@ -29,6 +29,7 @@ export const PERPS_CONSTANTS = {
   ConnectionAttemptTimeoutMs: 30_000, // 30 seconds timeout for connection attempts to prevent indefinite hanging
   WebsocketPingTimeoutMs: 5_000, // 5 seconds timeout for WebSocket health check ping
   ConnectRetryDelayMs: 200, // Delay before retrying connect() when connection isn't ready yet
+  ForegroundPingRetryDelayMs: 500, // Delay before retrying ping in resumeFromForeground — JS thread may be sluggish right after foregrounding
   ReconnectionCleanupDelayMs: 500, // Platform-agnostic delay to ensure WebSocket is ready
   ReconnectionDelayAndroidMs: 300, // Android-specific reconnection delay for better reliability on slower devices
   ReconnectionDelayIosMs: 100, // iOS-specific reconnection delay for optimal performance
@@ -39,6 +40,9 @@ export const PERPS_CONSTANTS = {
   // Connection manager timing constants
   BalanceUpdateThrottleMs: 15000, // Update at most every 15 seconds to reduce state updates in PerpsConnectionManager
   InitialDataDelayMs: 100, // Delay to allow initial data to load after connection establishment
+
+  // Order submission timing
+  PlaceOrderTimeoutMs: 60_000, // Hard timeout for provider round-trip in TradingService.placeOrder
 
   // Deposit toast timing
   DepositTakingLongerToastDelayMs: 30_000, // Delay before showing "Deposit taking longer than usual" toast
@@ -55,6 +59,10 @@ export const PERPS_CONSTANTS = {
 
   // Historical data fetching constants
   FillsLookbackMs: 90 * 24 * 60 * 60 * 1000, // 3 months in milliseconds - limits REST API fills fetch
+
+  // Recently viewed markets
+  RecentlyViewedMarketsTtlMs: 24 * 60 * 60 * 1000, // 24 hours TTL for recently viewed market entries
+  RecentlyViewedMarketsLimit: 10, // Maximum number of recently viewed markets to track
 } as const;
 
 /**
@@ -106,6 +114,16 @@ export const ORDER_SLIPPAGE_CONFIG = {
 } as const;
 
 /**
+ * Bounds and step for the user-configurable max slippage preference (basis points).
+ * Shared by the controller (`setMaxSlippage`) and UI (`slippageConfig.ts`).
+ */
+export const MAX_SLIPPAGE_BOUNDS = {
+  MinBps: 10,
+  MaxBps: 1000,
+  StepBps: 10,
+} as const;
+
+/**
  * Max order amount buffer to reduce "Insufficient margin" rejections from the exchange.
  * When the user selects 100% (slider or Max), we cap the order at (1 - this) of the
  * theoretical max so that fees, rounding, and exchange-side margin checks are covered.
@@ -129,6 +147,55 @@ export const PERFORMANCE_CONFIG = {
   // Liquidation price debounce delay (milliseconds)
   // Prevents excessive liquidation price calls during rapid form input changes
   LiquidationPriceDebounceMs: 500,
+
+  // Candle subscription debounce delay (milliseconds)
+  // Prevents WS subscription churn during rapid market switching (#28141)
+  CandleConnectDebounceMs: 500,
+
+  // Order-form slippage estimate throttle (milliseconds)
+  // Updates the estimated-slippage value derived from the live L2 order book
+  // no more than once per window. Aggressive enough to keep the row reactive
+  // while the user edits the amount, conservative enough to avoid re-render
+  // pressure on every book tick.
+  SlippageEstimateThrottleMs: 250,
+
+  // Order-book levels sampled when estimating slippage
+  // Number of price levels (per side) walked by `calculateEstimatedSlippageBps`
+  // to fill the requested USD notional. Matches the L2 sample size used by the
+  // order-book panel and is enough depth for the typical order sizes we
+  // surface in the order form.
+  SlippageEstimateBookLevels: 10,
+
+  // Candle WS teardown delay (milliseconds)
+  // When the last subscriber for a cacheKey unsubscribes, wait this long before
+  // tearing down the WS. A subsequent subscribe inside the window cancels the
+  // teardown so rapid back-and-forth switches do not churn the connection.
+  CandleTeardownDelayMs: 150,
+
+  // Perps REST coalesce TTL (milliseconds)
+  //
+  // Window in which identical GET-style REST calls (getOrderFills, getOrders,
+  // getFunding, historicalOrders) share a single in-flight promise / cached
+  // result. `forceRefresh` still bypasses the cache end-to-end (hooks →
+  // controller → MarketDataService → provider → HyperLiquidClientService), so
+  // pull-to-refresh always hits the network.
+  //
+  // Why 60 s: HyperLiquid's documented rate limit is 1200 weight / IP /
+  // rolling 60 s window. Sizing TTL = window length caps each endpoint-per-
+  // account at ≤1 REST hit per window under any UI activity pattern — rapid
+  // market switching, re-mounts (usePerpsMarketFills, usePerpsTransactionHistory),
+  // and multi-tab scans all share a single request. Live fills/orders/prices
+  // still flow via WS subscriptions, so REST is seed/backfill only — cache
+  // staleness inside the 60 s window is never user-visible.
+  PerpsRestCoalesceTtlMs: 60_000,
+
+  // Candle snapshot REST coalesce TTL (milliseconds).
+  // Longer than PerpsRestCoalesceTtlMs because WS stream keeps live candles
+  // fresh — the REST snapshot only seeds the chart on initial subscribe. A
+  // 30 s window lets rapid market switching (pass 1 → pass 2 of a stress
+  // loop) share the same snapshot per (symbol, interval), cutting
+  // candleSnapshot REST weight roughly in half.
+  PerpsCandleCoalesceTtlMs: 30_000,
 
   // Navigation params delay (milliseconds)
   // Required for React Navigation to complete state transitions before setting params
@@ -266,6 +333,17 @@ export const DATA_LAKE_API_CONFIG = {
 } as const;
 
 /**
+ * Terminal API configuration.
+ * The full endpoint URL is injected at runtime via
+ * `PerpsPlatformDependencies.terminalApiUrl` from each client build
+ * (dev/uat/prd); only cache settings live here.
+ */
+export const TERMINAL_API_CONFIG = {
+  CacheTtlMs: 5 * 60 * 1000, // 5 minutes
+  FetchTimeoutMs: 10_000, // 10 seconds – degrade to provider on slow Terminal
+} as const;
+
+/**
  * Decimal precision configuration
  * Controls maximum decimal places for price and input validation
  */
@@ -346,6 +424,19 @@ export type SortOptionId =
   (typeof MARKET_SORTING_CONFIG.SortOptions)[number]['id'];
 
 /**
+ * Funding rate display configuration
+ * Controls how funding rates are formatted and displayed
+ */
+export const FUNDING_RATE_CONFIG = {
+  // Number of decimal places to display for funding rates
+  Decimals: 4,
+  // Default display value when funding rate is zero or unavailable
+  ZeroDisplay: '0.0000%',
+  // Multiplier to convert decimal funding rate to percentage
+  PercentageMultiplier: 100,
+} as const;
+
+/**
  * Provider configuration for multi-provider support
  */
 export const PROVIDER_CONFIG = {
@@ -354,3 +445,56 @@ export const PROVIDER_CONFIG = {
   /** Force MYX to testnet only (mainnet credentials not yet available) */
   MYX_TESTNET_ONLY: false,
 } as const;
+
+// Disk-backed cold-start cache keys and throttle interval.
+// The user-data key ends in _V2 because the AccountState balance contract
+// changed (TAT-3047) and has no in-payload version field. Bumping the key
+// forces a one-time empty cache on upgrade — consumers fall through to
+// skeleton/fallback until the first WS tick, avoiding stale legacy-shape
+// reads that would surface as $0 balances.
+export const PERPS_DISK_CACHE_MARKETS = 'PERPS_DISK_CACHE_MARKETS';
+export const PERPS_DISK_CACHE_USER_DATA = 'PERPS_DISK_CACHE_USER_DATA_V2';
+export const PERPS_DISK_CACHE_THROTTLE_MS = 30_000;
+
+/**
+ * Minimum interval between WebSocket-triggered HL `userAbstraction`
+ * refreshes. Balances picking up HL-web mode flips (Unified ↔ Standard)
+ * promptly against burning REST quota on every spot tick. Covers the
+ * observed user pattern of flipping mode once per session at most.
+ */
+export const ABSTRACTION_MODE_REFRESH_THROTTLE_MS = 60_000;
+
+/**
+ * Build the standard provider:network cache key from controller state.
+ *
+ * @param state - Controller state containing provider and network info.
+ * @param state.activeProvider - Active perps provider name.
+ * @param state.isTestnet - Whether testnet mode is active.
+ * @returns Cache key in the format "provider:mainnet" or "provider:testnet".
+ */
+export function getProviderNetworkKey(state: {
+  activeProvider?: string;
+  isTestnet?: boolean;
+}): string {
+  return `${state.activeProvider ?? PROVIDER_CONFIG.DefaultProvider}:${state.isTestnet ? 'testnet' : 'mainnet'}`;
+}
+
+/**
+ * Build a provider:network cache key for a specific provider id.
+ * Accounts for MYX_TESTNET_ONLY: MYX is always on testnet regardless of the
+ * global network flag.
+ *
+ * @param providerId - The provider identifier (e.g. "hyperliquid", "myx").
+ * @param isTestnet - Global testnet flag from controller state.
+ * @returns Cache key in the format "provider:mainnet" or "provider:testnet".
+ */
+export function buildProviderCacheKey(
+  providerId: string,
+  isTestnet: boolean,
+): string {
+  const effectiveTestnet =
+    providerId === 'myx'
+      ? PROVIDER_CONFIG.MYX_TESTNET_ONLY || isTestnet
+      : isTestnet;
+  return `${providerId}:${effectiveTestnet ? 'testnet' : 'mainnet'}`;
+}

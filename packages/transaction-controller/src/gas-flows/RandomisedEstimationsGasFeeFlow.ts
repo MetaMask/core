@@ -3,7 +3,6 @@ import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 import { add0x, createModuleLogger } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
 import { projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
@@ -20,6 +19,7 @@ import {
   gweiDecimalToWeiDecimal,
   gweiDecimalToWeiHex,
 } from '../utils/gas-fees';
+import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
 
 const log = createModuleLogger(
   projectLogger,

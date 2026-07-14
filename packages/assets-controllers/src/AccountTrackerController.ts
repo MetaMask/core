@@ -50,6 +50,7 @@ import type {
   AssetsContractController,
   StakedBalance,
 } from './AssetsContractController';
+import { shouldIncludeNativeToken } from './constants';
 import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
 import type {
   BalanceFetcher,
@@ -233,6 +234,8 @@ type AccountTrackerPollingInput = {
 const MESSENGER_EXPOSED_METHODS = [
   'updateNativeBalances',
   'updateStakedBalances',
+  'refresh',
+  'syncBalanceWithAddresses',
 ] as const;
 
 /**
@@ -259,6 +262,8 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
   readonly #isHomepageSectionsV1Enabled: () => boolean;
 
+  readonly #isDeprecated: () => boolean;
+
   /** Track if the keyring is locked */
   #isLocked = true;
 
@@ -276,6 +281,12 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
    * @param options.fetchingEnabled - Function that returns whether the controller is fetching enabled.
    * @param options.isOnboarded - Whether the user has completed onboarding. If false, balance updates are skipped.
    * @param options.isHomepageSectionsV1Enabled - Whether the homepage sections v1 is enabled.
+   * @param options.isDeprecated - Optional function that returns true to completely
+   * disable this controller (no requests, no state updates). When it returns
+   * `true`, `accountsByChainId` is reset to `{}` at construction and at every
+   * entry point, so no stale balances remain in state. The function is evaluated
+   * dynamically on each entry point so it can be toggled at runtime. Intended for
+   * use when a higher-level controller (e.g. AssetsController) supersedes this one.
    */
   constructor({
     interval = 10000,
@@ -288,6 +299,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     fetchingEnabled = (): boolean => true,
     isOnboarded = (): boolean => true,
     isHomepageSectionsV1Enabled = (): boolean => false,
+    isDeprecated = (): boolean => false,
   }: {
     interval?: number;
     state?: Partial<AccountTrackerControllerState>;
@@ -299,6 +311,7 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     allowExternalServices?: () => boolean;
     fetchingEnabled?: () => boolean;
     isOnboarded?: () => boolean;
+    isDeprecated?: () => boolean;
   }) {
     const { selectedNetworkClientId } = messenger.call(
       'NetworkController:getState',
@@ -340,6 +353,11 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
 
     this.#fetchingEnabled = fetchingEnabled;
     this.#isOnboarded = isOnboarded;
+    this.#isDeprecated = isDeprecated;
+
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+    }
 
     const { isUnlocked } = this.messenger.call('KeyringController:getState');
     this.#isLocked = !isUnlocked;
@@ -428,6 +446,25 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     return !this.#isLocked && this.#isOnboarded();
   }
 
+  /**
+   * Clears all persisted `accountsByChainId` so that no stale balances remain in
+   * state.
+   *
+   * Called from every entry point when `isDeprecated()` is true so that a runtime
+   * toggle propagates to state immediately, even if the controller was originally
+   * constructed while it was enabled. The update is skipped when
+   * `accountsByChainId` is already empty to avoid emitting redundant state
+   * changes.
+   */
+  #enforceDisabledState(): void {
+    if (Object.keys(this.state.accountsByChainId).length === 0) {
+      return;
+    }
+    this.update((state) => {
+      state.accountsByChainId = {};
+    });
+  }
+
   #syncAccounts(newChainIds: string[]): void {
     const accountsByChainId = cloneDeep(this.state.accountsByChainId);
     const { selectedNetworkClientId } = this.messenger.call(
@@ -469,9 +506,11 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     );
     Object.keys(accountsByChainId).forEach((chainId) => {
       newAddresses.forEach((address) => {
-        accountsByChainId[chainId][address] = {
-          balance: '0x0',
-        };
+        if (!accountsByChainId[chainId][address]) {
+          accountsByChainId[chainId][address] = {
+            balance: '0x0',
+          };
+        }
       });
     });
 
@@ -626,6 +665,10 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     networkClientIds,
     queryAllAccounts = false,
   }: AccountTrackerPollingInput): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
     // eslint-disable-next-line @typescript-eslint/no-floating-promises
     this.refresh(networkClientIds, queryAllAccounts);
@@ -643,6 +686,10 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     networkClientIds: NetworkClientId[],
     queryAllAccounts: boolean = false,
   ): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     const selectedAccount = this.messenger.call(
       'AccountsController:getSelectedAccount',
     );
@@ -668,6 +715,10 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
     networkClientIds: NetworkClientId[];
     addresses: string[];
   }): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     const checksummedAddresses = addresses.map((address) =>
       toChecksumHexAddress(address),
     );
@@ -876,12 +927,28 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   ): Promise<
     Record<string, { balance: string; stakedBalance?: StakedBalance }>
   > {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return {};
+    }
     // Skip balance fetching if locked or not onboarded to avoid unnecessary RPC calls
     if (!this.isActive) {
       return {};
     }
 
-    const { ethQuery } = this.#getCorrectNetworkClient(networkClientId);
+    const { ethQuery, chainId } =
+      this.#getCorrectNetworkClient(networkClientId);
+
+    // Skip native token fetching for chains that return arbitrary large numbers
+    if (!shouldIncludeNativeToken(chainId)) {
+      // Return empty balances for chains that skip native token fetching
+      return addresses.reduce<
+        Record<string, { balance: string; stakedBalance?: StakedBalance }>
+      >((acc, address) => {
+        acc[address] = { balance: '0x0' };
+        return acc;
+      }, {});
+    }
 
     // TODO: This should use multicall when enabled by the user.
     return await Promise.all(
@@ -929,6 +996,10 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
   updateNativeBalances(
     balances: { address: string; chainId: Hex; balance: Hex }[],
   ): void {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     const nextAccountsByChainId = cloneDeep(this.state.accountsByChainId);
     let hasChanges = false;
 
@@ -985,6 +1056,10 @@ export class AccountTrackerController extends StaticIntervalPollingController<Ac
       stakedBalance: StakedBalance;
     }[],
   ): void {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
     const nextAccountsByChainId = cloneDeep(this.state.accountsByChainId);
     let hasChanges = false;
 

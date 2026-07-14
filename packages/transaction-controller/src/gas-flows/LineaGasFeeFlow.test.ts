@@ -1,8 +1,6 @@
 import type { GasFeeState } from '@metamask/gas-fee-controller';
 import { GAS_ESTIMATE_TYPES } from '@metamask/gas-fee-controller';
 
-import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
-import { LineaGasFeeFlow } from './LineaGasFeeFlow';
 import { CHAIN_IDS } from '../constants';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type {
@@ -17,6 +15,8 @@ import {
   TransactionStatus,
 } from '../types';
 import { rpcRequest } from '../utils/provider';
+import { DefaultGasFeeFlow } from './DefaultGasFeeFlow';
+import { LineaGasFeeFlow } from './LineaGasFeeFlow';
 
 jest.mock('../utils/provider', () => ({
   rpcRequest: jest.fn(),

@@ -1,9 +1,9 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import { noop } from 'lodash';
 
-import { updateFiatPayment } from './update-fiat-payment';
 import type { TransactionData, TransactionFiatPayment } from '../types';
 import { getTransaction } from '../utils/transaction';
+import { updateFiatPayment } from './update-fiat-payment';
 
 jest.mock('../utils/transaction');
 

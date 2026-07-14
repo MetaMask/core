@@ -4,14 +4,19 @@ import type { PublishHookResult } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
+import { TransactionPayStrategy } from '../constants';
 import { projectLogger } from '../logger';
 import type {
   TransactionPayControllerMessenger,
   TransactionPayQuote,
 } from '../types';
+import { accountSupports7702 } from '../utils/7702';
+import { prefixError } from '../utils/error-prefix';
 import { getStrategyByName } from '../utils/strategy';
+import { updateTransaction } from '../utils/transaction';
 
 const log = createModuleLogger(projectLogger, 'pay-publish-hook');
+const ERROR_PREFIX = 'MetaMask Pay: ';
 
 const EMPTY_RESULT = {
   transactionHash: undefined,
@@ -45,7 +50,7 @@ export class TransactionPayPublishHook {
       return await this.#publishHook(transactionMeta, _signedTx);
     } catch (error) {
       log('Error', error);
-      throw error;
+      throw prefixError(error, ERROR_PREFIX);
     }
   }
 
@@ -59,18 +64,43 @@ export class TransactionPayPublishHook {
       'TransactionPayController:getState',
     );
 
-    const quotes =
-      (controllerState.transactionData?.[transactionId]
-        ?.quotes as TransactionPayQuote<unknown>[]) ?? [];
+    const transactionData = controllerState.transactionData?.[transactionId];
 
-    if (!quotes?.length) {
-      log('Skipping as no quotes found');
+    // No-op quotes mark direct routes and cannot be executed by any strategy.
+    const quotes = (
+      (transactionData?.quotes as TransactionPayQuote<unknown>[]) ?? []
+    ).filter((quote) => quote.strategy !== TransactionPayStrategy.None);
+
+    const isFiatSelected = Boolean(
+      transactionData?.fiatPayment?.selectedPaymentMethodId,
+    );
+
+    if (!quotes.length) {
+      if (isFiatSelected) {
+        throw new Error('Fiat: Missing quote');
+      }
+
+      log('Skipping as no executable quotes found', { transactionId });
+
       return EMPTY_RESULT;
     }
 
+    updateTransaction(
+      {
+        transactionId,
+        messenger: this.#messenger,
+        note: 'Set submittedTime at pay publish hook start',
+      },
+      (tx) => {
+        tx.submittedTime = new Date().getTime();
+      },
+    );
+
     const strategy = getStrategyByName(quotes[0].strategy);
+    const from = transactionMeta.txParams.from as Hex;
 
     return await strategy.execute({
+      accountSupports7702: accountSupports7702(this.#messenger, from),
       isSmartTransaction: this.#isSmartTransaction,
       quotes,
       messenger: this.#messenger,

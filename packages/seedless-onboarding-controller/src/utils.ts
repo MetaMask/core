@@ -1,4 +1,5 @@
 import type { KeyPair } from '@metamask/toprf-secure-backup';
+import { EncAccountDataType } from '@metamask/toprf-secure-backup';
 import {
   base64ToBytes,
   bigIntToHex,
@@ -7,6 +8,7 @@ import {
 } from '@metamask/utils';
 import { bytesToUtf8 } from '@noble/ciphers/utils';
 
+import { SecretType } from './constants';
 import type {
   DecodedBaseJWTToken,
   DecodedNodeAuthToken,
@@ -145,4 +147,29 @@ export function compareAndGetLatestToken(
     return jwtToken1;
   }
   return jwtToken2;
+}
+
+/**
+ * Derive SecretType from EncAccountDataType.
+ *
+ * This function maps the server-side data type classification to the
+ * client-side secret type. This allows us to maintain a single source
+ * of truth (EncAccountDataType) while still writing the SecretType to
+ * the encrypted payload for backward compatibility with older clients.
+ *
+ * @param dataType - The EncAccountDataType to derive SecretType from.
+ * @returns The corresponding SecretType.
+ */
+export function getSecretTypeFromDataType(
+  dataType: EncAccountDataType,
+): SecretType {
+  switch (dataType) {
+    case EncAccountDataType.PrimarySrp:
+    case EncAccountDataType.ImportedSrp:
+      return SecretType.Mnemonic;
+    case EncAccountDataType.ImportedPrivateKey:
+      return SecretType.PrivateKey;
+    default:
+      throw new Error(`Unknown EncAccountDataType: ${String(dataType)}`);
+  }
 }

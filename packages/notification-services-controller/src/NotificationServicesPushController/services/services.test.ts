@@ -1,16 +1,17 @@
 import log from 'loglevel';
 
 import {
+  mockEndpointDeletePushNotificationLinks,
+  mockEndpointUpdatePushNotificationLinks,
+} from '../__fixtures__/mockServices';
+import type { PushNotificationEnv } from '../types/firebase';
+import {
   activatePushNotifications,
   deactivatePushNotifications,
   deleteLinksAPI,
   updateLinksAPI,
 } from './services';
-import {
-  mockEndpointDeletePushNotificationLinks,
-  mockEndpointUpdatePushNotificationLinks,
-} from '../__fixtures__/mockServices';
-import type { PushNotificationEnv } from '../types/firebase';
+import type { RegToken } from './services';
 
 // Testing util to clean up verbose logs when testing errors
 const mockErrorLog = (): jest.SpyInstance =>
@@ -21,9 +22,35 @@ const MOCK_NEW_REG_TOKEN = 'NEW_REG_TOKEN';
 const MOCK_ADDRESSES = ['0x123', '0x456', '0x789'];
 const MOCK_JWT = 'MOCK_JWT';
 
+type CreateRegTokenMock = jest.Mock<
+  Promise<string | null>,
+  [PushNotificationEnv]
+>;
+
+type ArrangeMocksParams<Platform extends RegToken['platform']> = {
+  bearerToken: string;
+  addresses: string[];
+  createRegToken: CreateRegTokenMock;
+  regToken: {
+    platform: Platform;
+    locale: string;
+  };
+  env: PushNotificationEnv;
+};
+
+type ArrangeMocksResult = {
+  params: ArrangeMocksParams<'extension'>;
+  mobileParams: ArrangeMocksParams<'mobile'>;
+  apis: {
+    mockPut: ReturnType<typeof mockEndpointUpdatePushNotificationLinks>;
+  };
+};
+
 describe('NotificationServicesPushController Services', () => {
   describe('updateLinksAPI', () => {
-    const act = async (): Promise<boolean> =>
+    const act = async (
+      regTokenOverrides?: Partial<RegToken>,
+    ): Promise<boolean> =>
       await updateLinksAPI({
         bearerToken: MOCK_JWT,
         addresses: MOCK_ADDRESSES,
@@ -31,6 +58,7 @@ describe('NotificationServicesPushController Services', () => {
           token: MOCK_NEW_REG_TOKEN,
           platform: 'extension',
           locale: 'en',
+          ...regTokenOverrides,
         },
       });
 
@@ -55,16 +83,44 @@ describe('NotificationServicesPushController Services', () => {
       const result = await act();
       expect(result).toBe(false);
     });
+
+    it('should include mobile metadata when provided', async () => {
+      const mockAPI = mockEndpointUpdatePushNotificationLinks(undefined, {
+        addresses: MOCK_ADDRESSES,
+        registration_token: {
+          token: MOCK_NEW_REG_TOKEN,
+          platform: 'mobile',
+          locale: 'en',
+          os: 'ios',
+          appVersion: '7.42.0',
+        },
+      });
+
+      const result = await act({
+        platform: 'mobile',
+        os: 'ios',
+        appVersion: '7.42.0',
+      });
+
+      expect(mockAPI.isDone()).toBe(true);
+      expect(result).toBe(true);
+    });
   });
 
   describe('activatePushNotifications', () => {
-    // Internal testing utility - return type is inferred
-    // eslint-disable-next-line @typescript-eslint/explicit-function-return-type
-    const arrangeMocks = (override?: { mockPut?: { status: number } }) => {
+    const arrangeMocks = (override?: {
+      mockPut?: { status: number };
+      requestBody?: Parameters<
+        typeof mockEndpointUpdatePushNotificationLinks
+      >[1];
+    }): ArrangeMocksResult => {
+      const createRegToken: CreateRegTokenMock = jest
+        .fn<Promise<string | null>, [PushNotificationEnv]>()
+        .mockResolvedValue(MOCK_NEW_REG_TOKEN);
       const params = {
         bearerToken: MOCK_JWT,
         addresses: MOCK_ADDRESSES,
-        createRegToken: jest.fn().mockResolvedValue(MOCK_NEW_REG_TOKEN),
+        createRegToken,
         regToken: {
           platform: 'extension' as const,
           locale: 'en',
@@ -84,7 +140,10 @@ describe('NotificationServicesPushController Services', () => {
         params,
         mobileParams,
         apis: {
-          mockPut: mockEndpointUpdatePushNotificationLinks(override?.mockPut),
+          mockPut: mockEndpointUpdatePushNotificationLinks(
+            override?.mockPut,
+            override?.requestBody,
+          ),
         },
       };
     };
@@ -124,6 +183,35 @@ describe('NotificationServicesPushController Services', () => {
       const result = await activatePushNotifications(paramsWithOldToken);
 
       expect(params.createRegToken).toHaveBeenCalled();
+      expect(apis.mockPut.isDone()).toBe(true);
+      expect(result).toBe(MOCK_NEW_REG_TOKEN);
+    });
+
+    it('should pass mobile metadata when provided', async () => {
+      const { mobileParams, apis } = arrangeMocks({
+        requestBody: {
+          addresses: MOCK_ADDRESSES,
+          registration_token: {
+            token: MOCK_NEW_REG_TOKEN,
+            platform: 'mobile',
+            locale: 'en',
+            os: 'android',
+            appVersion: '7.42.0',
+          },
+        },
+      });
+      const paramsWithMetadata = {
+        ...mobileParams,
+        regToken: {
+          ...mobileParams.regToken,
+          os: 'android' as const,
+          appVersion: '7.42.0',
+        },
+      };
+
+      const result = await activatePushNotifications(paramsWithMetadata);
+
+      expect(mobileParams.createRegToken).toHaveBeenCalled();
       expect(apis.mockPut.isDone()).toBe(true);
       expect(result).toBe(MOCK_NEW_REG_TOKEN);
     });

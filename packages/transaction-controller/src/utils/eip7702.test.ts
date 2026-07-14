@@ -8,8 +8,18 @@ import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import { remove0x } from '@metamask/utils';
 
+import type {
+  KeyringControllerGetStateAction,
+  KeyringControllerSignEip7702AuthorizationAction,
+} from '../../../keyring-controller/src';
+import type { TransactionControllerMessenger } from '../TransactionController';
+import { TransactionStatus } from '../types';
+import type { AuthorizationList } from '../types';
+import type { TransactionMeta } from '../types';
 import {
   DELEGATION_PREFIX,
+  decodeAuthorizationSignature,
+  doesAccountSupportEIP7702,
   doesChainSupportEIP7702,
   generateEIP7702BatchTransaction,
   getDelegationAddress,
@@ -21,11 +31,6 @@ import {
   getEIP7702SupportedChains,
 } from './feature-flags';
 import { rpcRequest } from './provider';
-import type { KeyringControllerSignEip7702AuthorizationAction } from '../../../keyring-controller/src';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import { TransactionStatus } from '../types';
-import type { AuthorizationList } from '../types';
-import type { TransactionMeta } from '../types';
 
 jest.mock('../utils/feature-flags');
 
@@ -43,6 +48,9 @@ const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId' as NetworkClientId;
 
 const DATA_MOCK =
   '0xe9ae5c530100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000001c000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000e000000000000000000000000009876543210987654321098765432109876543210000000000000000000000000000000000000000000000000000000000005678000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000021234000000000000000000000000000000000000000000000000000000000000000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd000000000000000000000000000000000000000000000000000000000000def0000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000029abc000000000000000000000000000000000000000000000000000000000000';
+
+const DATA_NON_ATOMIC_MOCK =
+  '0xe9ae5c530101000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000001c000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000e000000000000000000000000009876543210987654321098765432109876543210000000000000000000000000000000000000000000000000000000000005678000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000021234000000000000000000000000000000000000000000000000000000000000000000000000000000000000abcdefabcdefabcdefabcdefabcdefabcdefabcd000000000000000000000000000000000000000000000000000000000000def0000000000000000000000000000000000000000000000000000000000000006000000000000000000000000000000000000000000000000000000000000000029abc000000000000000000000000000000000000000000000000000000000000';
 
 const DATA_EMPTY_MOCK =
   '0xe9ae5c5301000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000004000000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000000';
@@ -92,6 +100,10 @@ describe('EIP-7702 Utils', () => {
     getEIP7702ContractAddresses,
   );
 
+  let getKeyringStateMock: jest.MockedFn<
+    KeyringControllerGetStateAction['handler']
+  >;
+
   let signAuthorizationMock: jest.MockedFn<
     KeyringControllerSignEip7702AuthorizationAction['handler']
   >;
@@ -101,19 +113,29 @@ describe('EIP-7702 Utils', () => {
 
     rootMessenger = new Messenger({ namespace: MOCK_ANY_NAMESPACE });
 
+    getKeyringStateMock = jest.fn().mockReturnValue({
+      isUnlocked: true,
+      keyrings: [],
+    });
+
     signAuthorizationMock = jest
       .fn()
       .mockResolvedValue(AUTHORIZATION_SIGNATURE_MOCK);
 
     const keyringControllerMessenger = new Messenger<
       'KeyringController',
-      KeyringControllerSignEip7702AuthorizationAction,
+      | KeyringControllerGetStateAction
+      | KeyringControllerSignEip7702AuthorizationAction,
       never,
       typeof rootMessenger
     >({
       namespace: 'KeyringController',
       parent: rootMessenger,
     });
+    keyringControllerMessenger.registerActionHandler(
+      'KeyringController:getState',
+      getKeyringStateMock,
+    );
     keyringControllerMessenger.registerActionHandler(
       'KeyringController:signEip7702Authorization',
       signAuthorizationMock,
@@ -125,7 +147,10 @@ describe('EIP-7702 Utils', () => {
     });
     rootMessenger.delegate({
       messenger: controllerMessenger,
-      actions: ['KeyringController:signEip7702Authorization'],
+      actions: [
+        'KeyringController:getState',
+        'KeyringController:signEip7702Authorization',
+      ],
     });
   });
 
@@ -233,6 +258,93 @@ describe('EIP-7702 Utils', () => {
       expect(result?.[1]?.nonce).toBe('0x125');
       expect(result?.[2]?.nonce).toBe('0x126');
     });
+
+    it('strips leading zeroes from signature r and s to produce RLP-canonical hex', async () => {
+      const signatureWithLeadingZeros =
+        `0x0abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456781122334455667788990011223344556677889900112233445566778899001122${'1c'}` as Hex;
+
+      signAuthorizationMock
+        .mockReset()
+        .mockResolvedValueOnce(signatureWithLeadingZeros);
+
+      const result = await signAuthorizationList({
+        authorizationList: AUTHORIZATION_LIST_MOCK,
+        messenger: controllerMessenger,
+        transactionMeta: TRANSACTION_META_MOCK,
+      });
+
+      expect(result?.[0]?.r).toBe(
+        '0xabcdef0123456789abcdef0123456789abcdef0123456789abcdef012345678',
+      );
+      expect(result?.[0]?.s).toBe(
+        '0x1122334455667788990011223344556677889900112233445566778899001122',
+      );
+      expect(result?.[0]?.yParity).toBe('0x1');
+    });
+  });
+
+  describe('decodeAuthorizationSignature', () => {
+    it('decodes a signature with no leading zeros into r, s, and yParity', () => {
+      const result = decodeAuthorizationSignature(AUTHORIZATION_SIGNATURE_MOCK);
+
+      expect(result).toStrictEqual({
+        r: '0xf85c827a6994663f3ad617193148711d28f5334ee4ed070166028080a040e292',
+        s: '0xda533253143f134643a03405f1af1de1d305526f44ed27e62061368d4ea051cf',
+        yParity: '0x1',
+      });
+    });
+
+    it('strips a single leading zero nibble from r', () => {
+      const signature =
+        `0x0abcdef0123456789abcdef0123456789abcdef0123456789abcdef012345678${'1122334455667788990011223344556677889900112233445566778899001122'}1b` as Hex;
+
+      const result = decodeAuthorizationSignature(signature);
+
+      expect(result.r).toBe(
+        '0xabcdef0123456789abcdef0123456789abcdef0123456789abcdef012345678',
+      );
+      expect(result.s).toBe(
+        '0x1122334455667788990011223344556677889900112233445566778899001122',
+      );
+    });
+
+    it('strips multiple leading zero bytes from r', () => {
+      const signature =
+        `0x000000abcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd${'1122334455667788990011223344556677889900112233445566778899001122'}1b` as Hex;
+
+      const result = decodeAuthorizationSignature(signature);
+
+      expect(result.r).toBe(
+        '0xabcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd',
+      );
+    });
+
+    it('returns 0x0 when r is all zeroes (canonical zero)', () => {
+      const signature =
+        `0x0000000000000000000000000000000000000000000000000000000000000000${'1122334455667788990011223344556677889900112233445566778899001122'}1b` as Hex;
+
+      const result = decodeAuthorizationSignature(signature);
+
+      expect(result.r).toBe('0x0');
+    });
+
+    it('returns yParity 0x0 when v is 27', () => {
+      const signature =
+        `0xf85c827a6994663f3ad617193148711d28f5334ee4ed070166028080a040e292da533253143f134643a03405f1af1de1d305526f44ed27e62061368d4ea051cf1b` as Hex;
+
+      const result = decodeAuthorizationSignature(signature);
+
+      expect(result.yParity).toBe('0x0');
+    });
+
+    it('returns yParity 0x1 when v is 28', () => {
+      const signature =
+        `0xf85c827a6994663f3ad617193148711d28f5334ee4ed070166028080a040e292da533253143f134643a03405f1af1de1d305526f44ed27e62061368d4ea051cf1c` as Hex;
+
+      const result = decodeAuthorizationSignature(signature);
+
+      expect(result.yParity).toBe('0x1');
+    });
   });
 
   describe('doesChainSupportEIP7702', () => {
@@ -262,6 +374,110 @@ describe('EIP-7702 Utils', () => {
       ]);
 
       expect(doesChainSupportEIP7702(CHAIN_ID_MOCK, controllerMessenger)).toBe(
+        true,
+      );
+    });
+  });
+
+  describe('doesAccountSupportEIP7702', () => {
+    it('returns true for HD Key Tree keyring', () => {
+      getKeyringStateMock.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: 'HD Key Tree',
+            accounts: [ADDRESS_MOCK],
+            metadata: { id: 'hd', name: 'HD Key Tree' },
+          },
+        ],
+      });
+
+      expect(doesAccountSupportEIP7702(controllerMessenger, ADDRESS_MOCK)).toBe(
+        true,
+      );
+    });
+
+    it('returns true for Simple Key Pair keyring', () => {
+      getKeyringStateMock.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: 'Simple Key Pair',
+            accounts: [ADDRESS_MOCK],
+            metadata: { id: 'simple', name: 'Simple Key Pair' },
+          },
+        ],
+      });
+
+      expect(doesAccountSupportEIP7702(controllerMessenger, ADDRESS_MOCK)).toBe(
+        true,
+      );
+    });
+
+    it('returns true for Money Keyring', () => {
+      getKeyringStateMock.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: 'Money Keyring',
+            accounts: [ADDRESS_MOCK],
+            metadata: { id: 'money', name: 'Money Keyring' },
+          },
+        ],
+      });
+
+      expect(doesAccountSupportEIP7702(controllerMessenger, ADDRESS_MOCK)).toBe(
+        true,
+      );
+    });
+
+    it('returns false for unsupported keyring type', () => {
+      getKeyringStateMock.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: 'Ledger Hardware',
+            accounts: [ADDRESS_MOCK],
+            metadata: { id: 'ledger', name: 'Ledger Hardware' },
+          },
+        ],
+      });
+
+      expect(doesAccountSupportEIP7702(controllerMessenger, ADDRESS_MOCK)).toBe(
+        false,
+      );
+    });
+
+    it('returns false when account is not found in any keyring', () => {
+      getKeyringStateMock.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: 'Ledger Hardware',
+            accounts: [ADDRESS_2_MOCK],
+            metadata: { id: 'ledger', name: 'Ledger Hardware' },
+          },
+        ],
+      });
+
+      expect(doesAccountSupportEIP7702(controllerMessenger, ADDRESS_MOCK)).toBe(
+        false,
+      );
+    });
+
+    it('matches account addresses case-insensitively', () => {
+      getKeyringStateMock.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: 'HD Key Tree',
+            accounts: [ADDRESS_MOCK.toUpperCase()],
+            metadata: { id: 'hd', name: 'HD Key Tree' },
+          },
+        ],
+      });
+
+      expect(doesAccountSupportEIP7702(controllerMessenger, ADDRESS_MOCK)).toBe(
         true,
       );
     });
@@ -428,6 +644,74 @@ describe('EIP-7702 Utils', () => {
 
       expect(result).toStrictEqual({
         data: DATA_MISSING_PROPS_MOCK,
+        to: ADDRESS_MOCK,
+      });
+    });
+
+    it('uses atomic mode by default', () => {
+      const result = generateEIP7702BatchTransaction(ADDRESS_MOCK, [
+        {
+          data: '0x1234',
+          to: ADDRESS_2_MOCK,
+          value: '0x5678',
+        },
+        {
+          data: '0x9abc',
+          to: ADDRESS_3_MOCK,
+          value: '0xdef0',
+        },
+      ]);
+
+      expect(result).toStrictEqual({
+        data: DATA_MOCK,
+        to: ADDRESS_MOCK,
+      });
+    });
+
+    it('uses atomic mode when atomic is true', () => {
+      const result = generateEIP7702BatchTransaction(
+        ADDRESS_MOCK,
+        [
+          {
+            data: '0x1234',
+            to: ADDRESS_2_MOCK,
+            value: '0x5678',
+          },
+          {
+            data: '0x9abc',
+            to: ADDRESS_3_MOCK,
+            value: '0xdef0',
+          },
+        ],
+        { atomic: true },
+      );
+
+      expect(result).toStrictEqual({
+        data: DATA_MOCK,
+        to: ADDRESS_MOCK,
+      });
+    });
+
+    it('uses non-atomic mode when atomic is false', () => {
+      const result = generateEIP7702BatchTransaction(
+        ADDRESS_MOCK,
+        [
+          {
+            data: '0x1234',
+            to: ADDRESS_2_MOCK,
+            value: '0x5678',
+          },
+          {
+            data: '0x9abc',
+            to: ADDRESS_3_MOCK,
+            value: '0xdef0',
+          },
+        ],
+        { atomic: false },
+      );
+
+      expect(result).toStrictEqual({
+        data: DATA_NON_ATOMIC_MOCK,
         to: ADDRESS_MOCK,
       });
     });

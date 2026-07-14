@@ -6,6 +6,7 @@ import type {
 } from '@metamask/messenger';
 import nock, { cleanAll, isDone } from 'nock';
 
+import { flushPromises } from '../../../tests/helpers';
 import type {
   TransakServiceMessenger,
   TransakAccessToken,
@@ -16,7 +17,6 @@ import {
   TransakOrderIdTransformer,
   TransakApiError,
 } from './TransakService';
-import { flushPromises } from '../../../tests/helpers';
 
 // === Test Constants ===
 
@@ -658,6 +658,32 @@ describe('TransakService', () => {
 
       await expect(promise).rejects.toThrow("failed with status '401'");
     });
+
+    it('does not retry on failure even when retries are enabled', async () => {
+      nock(STAGING_TRANSAK_BASE)
+        .post('/api/v2/auth/verify')
+        .reply(500)
+        .post('/api/v2/auth/verify')
+        .reply(200, {
+          data: {
+            accessToken: 'should-not-be-used',
+            ttl: 3600,
+            created: '2025-01-01T00:00:00.000Z',
+          },
+        });
+
+      const { service } = getService({
+        options: { policyOptions: { maxRetries: 3 } },
+      });
+
+      const promise = service.verifyUserOtp('a@b.com', '000000', 'st');
+      promise.catch(() => undefined);
+      await jest.runAllTimersAsync();
+      await flushPromises();
+
+      await expect(promise).rejects.toThrow("failed with status '500'");
+      expect(service.getAccessToken()).toBeNull();
+    });
   });
 
   describe('logout', () => {
@@ -1113,6 +1139,28 @@ describe('TransakService', () => {
       const promise = service.getTranslation({
         fiatCurrencyId: 'USD',
         paymentMethod: '/payments/debit-credit-card',
+      });
+      await jest.runAllTimersAsync();
+      await flushPromises();
+
+      expect(await promise).toStrictEqual(MOCK_TRANSLATION);
+    });
+
+    it('normalizes canonical payment method IDs without the /payments/ prefix', async () => {
+      nock(STAGING_ORDERS_BASE)
+        .get(`${STAGING_PROVIDER_PATH}/native/translate`)
+        .query(
+          (query) =>
+            query.paymentMethod === 'apple_pay' &&
+            query.fiatCurrencyId === 'USD',
+        )
+        .reply(200, MOCK_TRANSLATION);
+
+      const { service } = getService();
+
+      const promise = service.getTranslation({
+        fiatCurrencyId: 'USD',
+        paymentMethod: 'apple-pay',
       });
       await jest.runAllTimersAsync();
       await flushPromises();
@@ -2404,6 +2452,19 @@ describe('TransakService', () => {
     it('is a no-op when no Pusher factory is provided', () => {
       const { service } = getService();
       expect(() => service.subscribeToOrder('order-noop')).not.toThrow();
+    });
+
+    it('swallows errors from the Pusher factory', () => {
+      const createPusher = jest.fn(() => {
+        throw new Error('pusher unavailable');
+      });
+      const { service } = getService({ options: { createPusher } });
+
+      expect(() => service.subscribeToOrder('order-fail')).not.toThrow();
+      expect(service.getWebSocketSubscriptions()).toStrictEqual({
+        connected: false,
+        subscribedOrderIds: [],
+      });
     });
 
     it('reuses the same Pusher instance across subscriptions', () => {

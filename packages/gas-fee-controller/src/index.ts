@@ -6,4 +6,6 @@ export type {
   GasFeeControllerDisconnectPollerAction,
   GasFeeControllerStopPollingAction,
   GasFeeControllerGetTimeEstimateAction,
+  GasFeeControllerEnableNonRPCGasFeeApisAction,
+  GasFeeControllerDisableNonRPCGasFeeApisAction,
 } from './GasFeeController-method-action-types';

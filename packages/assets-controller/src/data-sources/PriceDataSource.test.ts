@@ -1,8 +1,6 @@
 import type { SupportedCurrency } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import type { PriceDataSourceOptions } from './PriceDataSource';
-import { PriceDataSource } from './PriceDataSource';
 import type {
   ChainId,
   DataRequest,
@@ -10,6 +8,9 @@ import type {
   Caip19AssetId,
   AssetsControllerStateInternal,
 } from '../types';
+import { normalizeAssetId } from '../utils';
+import type { PriceDataSourceOptions } from './PriceDataSource';
+import { PriceDataSource } from './PriceDataSource';
 
 jest.useFakeTimers();
 
@@ -74,7 +75,7 @@ function createMiddlewareContext(overrides?: Partial<Context>): Context {
   return {
     request: createDataRequest(),
     response: {},
-    getAssetsState: jest.fn(),
+    getAssetsState: jest.fn().mockReturnValue({ assetsPrice: {} }),
     ...overrides,
   };
 }
@@ -251,6 +252,47 @@ describe('PriceDataSource', () => {
       marketCap: 1000000000,
       totalVolume: 50000000,
     });
+
+    controller.destroy();
+  });
+
+  it('fetch splits large asset lists into batches of 50', async () => {
+    // Generate 120 distinct mock asset IDs to exceed the 50-item batch limit.
+    const assetIds = Array.from(
+      { length: 120 },
+      (_, i) =>
+        `eip155:1/erc20:0x${String(i).padStart(40, '0')}` as Caip19AssetId,
+    );
+    const priceResponse = Object.fromEntries(
+      assetIds.map((id) => [id, createMockPriceData(100)]),
+    );
+    const balanceState = Object.fromEntries(
+      assetIds.map((id) => [id, { amount: '1' }]),
+    );
+
+    const { controller, apiClient, getAssetsState } = setupController({
+      balanceState: { 'mock-account-id': balanceState },
+      priceResponse,
+    });
+
+    const response = await controller.fetch(
+      createDataRequest({ chainIds: [] }),
+      getAssetsState,
+    );
+
+    // With 120 assets and a batch size of 50, the API should be called three times.
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(3);
+    expect(apiClient.prices.fetchV3SpotPrices.mock.calls[0][0]).toHaveLength(
+      50,
+    );
+    expect(apiClient.prices.fetchV3SpotPrices.mock.calls[1][0]).toHaveLength(
+      50,
+    );
+    expect(apiClient.prices.fetchV3SpotPrices.mock.calls[2][0]).toHaveLength(
+      20,
+    );
+    // All 120 prices should be merged into the response.
+    expect(Object.keys(response.assetsPrice ?? {})).toHaveLength(120);
 
     controller.destroy();
   });
@@ -515,13 +557,12 @@ describe('PriceDataSource', () => {
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
 
-    jest.advanceTimersByTime(10000);
-    await Promise.resolve();
-
-    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
-
-    jest.advanceTimersByTime(50000);
-    await Promise.resolve();
+    // Advance one tick at a time, flushing microtasks between each so the
+    // async pollFn completes and inflight promises settle before the next tick.
+    for (let i = 2; i <= 7; i++) {
+      jest.advanceTimersByTime(10000);
+      await jest.advanceTimersByTimeAsync(0);
+    }
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(7);
 
@@ -716,7 +757,7 @@ describe('PriceDataSource', () => {
     await controller.assetsMiddleware(context, next);
 
     expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
-      [MOCK_TOKEN_ASSET],
+      [normalizeAssetId(MOCK_TOKEN_ASSET)],
       { currency: 'usd', includeMarketData: true },
     );
     expect(context.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toStrictEqual({
@@ -816,6 +857,267 @@ describe('PriceDataSource', () => {
     controller.destroy();
   });
 
+  it('skips fetching prices for assets fetched within the freshness TTL', async () => {
+    const { controller, apiClient, getAssetsState } = setupController({
+      balanceState: {
+        'mock-account-id': {
+          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+        },
+      },
+      priceResponse: {
+        [MOCK_NATIVE_ASSET]: createMockPriceData(2500),
+      },
+    });
+
+    // First fetch — asset is stale, API is called
+    await controller.fetch(createDataRequest(), getAssetsState);
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
+
+    // Second fetch immediately after — asset is fresh, API is NOT called again
+    await controller.fetch(createDataRequest(), getAssetsState);
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
+
+    controller.destroy();
+  });
+
+  it('re-fetches prices after the freshness TTL expires', async () => {
+    const { controller, apiClient, getAssetsState } = setupController({
+      pollInterval: 10_000,
+      balanceState: {
+        'mock-account-id': {
+          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+        },
+      },
+      priceResponse: {
+        [MOCK_NATIVE_ASSET]: createMockPriceData(2500),
+      },
+    });
+
+    await controller.fetch(createDataRequest(), getAssetsState);
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
+
+    // Advance past the TTL (pollInterval = 10s is used as freshness TTL)
+    jest.advanceTimersByTime(11_000);
+
+    await controller.fetch(createDataRequest(), getAssetsState);
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
+
+    controller.destroy();
+  });
+
+  it('caps the freshness TTL below the poll interval so fetch latency does not skip every other poll', async () => {
+    const pollInterval = 10_000;
+    // `fetchedAt` is stamped when a fetch completes, i.e. slightly after the
+    // tick that triggered it. Simulate that latency so the timestamp lands
+    // inside the (tick - tick + pollInterval) window. With a TTL equal to the
+    // poll interval the asset would still read as "fresh" on the next tick and
+    // be skipped, making the subscription re-fetch only every other poll.
+    const fetchLatencyMs = 500;
+
+    jest.setSystemTime(fetchLatencyMs);
+
+    const { controller, apiClient, getAssetsState } = setupController({
+      pollInterval,
+      balanceState: {
+        'mock-account-id': {
+          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+        },
+      },
+      priceResponse: {
+        [MOCK_NATIVE_ASSET]: createMockPriceData(2500),
+      },
+    });
+
+    // Initial poll: completes at t = fetchLatencyMs, stamping that as the
+    // fetched-at time. The cap (0.9 * pollInterval = 9000ms) is applied here.
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: jest.fn(),
+      getAssetsState,
+    });
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
+
+    // Next tick fires one full interval after the logical tick (t = 0), so
+    // now - fetchedAt = pollInterval - fetchLatencyMs = 9500ms. That is below
+    // the poll interval but above the capped TTL (9000ms), so the asset is
+    // stale and must be re-fetched rather than skipped.
+    jest.setSystemTime(pollInterval);
+    await controller.fetch(createDataRequest(), getAssetsState);
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
+
+    controller.destroy();
+  });
+
+  it('invalidatePriceCache allows re-fetching assets that were fresh', async () => {
+    const { controller, apiClient } = setupController({
+      priceResponse: {
+        [MOCK_TOKEN_ASSET]: createMockPriceData(1.0),
+      },
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+
+    // First call — populates freshness cache
+    const context1 = createMiddlewareContext({
+      request: createDataRequest({ assetsForPriceUpdate: [MOCK_TOKEN_ASSET] }),
+      response: {},
+    });
+    await controller.assetsMiddleware(context1, next);
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
+
+    // Second call — skipped (fresh)
+    const context2 = createMiddlewareContext({
+      request: createDataRequest({ assetsForPriceUpdate: [MOCK_TOKEN_ASSET] }),
+      response: {},
+    });
+    await controller.assetsMiddleware(context2, next);
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
+
+    // Invalidate cache, then fetch again — API is called
+    controller.invalidatePriceCache();
+    const context3 = createMiddlewareContext({
+      request: createDataRequest({ assetsForPriceUpdate: [MOCK_TOKEN_ASSET] }),
+      response: {},
+    });
+    await controller.assetsMiddleware(context3, next);
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
+
+    controller.destroy();
+  });
+
+  it('coalesces parallel fetches for the same asset into a single API call', async () => {
+    let resolveApi: ((value: Record<string, unknown>) => void) | undefined;
+    const apiPromise = new Promise<Record<string, unknown>>((resolve) => {
+      resolveApi = resolve;
+    });
+
+    const { controller, apiClient } = setupController({
+      priceResponse: {
+        [MOCK_TOKEN_ASSET]: createMockPriceData(1.0),
+      },
+    });
+
+    // Make the API call hang until we resolve manually
+    apiClient.prices.fetchV3SpotPrices.mockReturnValue(apiPromise);
+
+    const next = jest.fn().mockResolvedValue(undefined);
+
+    // Fire two parallel middleware calls for the same asset
+    const context1 = createMiddlewareContext({
+      request: createDataRequest({ assetsForPriceUpdate: [MOCK_TOKEN_ASSET] }),
+      response: {},
+    });
+    const context2 = createMiddlewareContext({
+      request: createDataRequest({ assetsForPriceUpdate: [MOCK_TOKEN_ASSET] }),
+      response: {},
+    });
+
+    const promise1 = controller.assetsMiddleware(context1, next);
+    const promise2 = controller.assetsMiddleware(context2, next);
+
+    // Only ONE API call should have been made (second call joins inflight)
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
+
+    // Resolve the API
+    expect(resolveApi).toBeDefined();
+    if (resolveApi) {
+      resolveApi({ [MOCK_TOKEN_ASSET]: createMockPriceData(1.0) });
+    }
+    await Promise.all([promise1, promise2]);
+
+    // Still only one API call total
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
+
+    // Both contexts received the price
+    expect(context1.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toBeDefined();
+    expect(context2.response.assetsPrice?.[MOCK_TOKEN_ASSET]).toBeDefined();
+
+    controller.destroy();
+  });
+
+  it('freshness is per-asset — stale assets are fetched while fresh ones are skipped', async () => {
+    const { controller, apiClient, getAssetsState } = setupController({
+      balanceState: {
+        'mock-account-id': {
+          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+        },
+      },
+      priceResponse: {
+        [MOCK_NATIVE_ASSET]: createMockPriceData(2500),
+        [MOCK_TOKEN_ASSET]: createMockPriceData(1.0),
+      },
+    });
+
+    // Fetch only MOCK_NATIVE_ASSET via balance state
+    await controller.fetch(createDataRequest(), getAssetsState);
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledWith(
+      [MOCK_NATIVE_ASSET],
+      expect.anything(),
+    );
+
+    // Now middleware requests MOCK_TOKEN_ASSET (not yet fetched) and MOCK_NATIVE_ASSET (fresh)
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      request: createDataRequest({
+        assetsForPriceUpdate: [MOCK_TOKEN_ASSET, MOCK_NATIVE_ASSET],
+      }),
+      response: {},
+    });
+    await controller.assetsMiddleware(context, next);
+
+    // Only MOCK_TOKEN_ASSET should be sent to the API (MOCK_NATIVE_ASSET is fresh)
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenLastCalledWith(
+      [MOCK_TOKEN_ASSET],
+      expect.anything(),
+    );
+
+    controller.destroy();
+  });
+
+  it('destroy clears the freshness cache', async () => {
+    const { controller, apiClient, getAssetsState } = setupController({
+      balanceState: {
+        'mock-account-id': {
+          [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+        },
+      },
+      priceResponse: {
+        [MOCK_NATIVE_ASSET]: createMockPriceData(2500),
+      },
+    });
+
+    await controller.fetch(createDataRequest(), getAssetsState);
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(1);
+
+    controller.destroy();
+
+    // Re-create a new controller instance to verify state is gone
+    // (destroy clears the priceFetchedAt map — for the same instance it won't poll after destroy)
+    const controller2 = new PriceDataSource({
+      queryApiClient:
+        apiClient as unknown as PriceDataSourceOptions['queryApiClient'],
+      getSelectedCurrency: (): SupportedCurrency => 'usd',
+    });
+
+    const getAssetsState2 = (): AssetsControllerStateInternal =>
+      ({
+        assetsBalance: {
+          'mock-account-id': {
+            [MOCK_NATIVE_ASSET]: { amount: '1000000000000000000' },
+          },
+        },
+      }) as unknown as AssetsControllerStateInternal;
+
+    await controller2.fetch(createDataRequest(), getAssetsState2);
+    expect(apiClient.prices.fetchV3SpotPrices).toHaveBeenCalledTimes(2);
+
+    controller2.destroy();
+  });
+
   it('destroy cleans up all subscriptions', async () => {
     const polygonAsset =
       'eip155:137/erc20:0x0000000000000000000000000000000000001010' as Caip19AssetId;
@@ -872,8 +1174,20 @@ describe('PriceDataSource', () => {
       asset: 'tron:0x2b6653dc/slip44:maximum-energy',
     },
     {
-      pattern: '-staked-for-',
-      asset: 'tron:0x2b6653dc/slip44:195-staked-for-bandwidth',
+      pattern: 'slip44:NUMBER-staked-for-',
+      asset: 'tron:728126428/slip44:195-staked-for-bandwidth',
+    },
+    {
+      pattern: 'slip44:NUMBER-ready-for-withdrawal',
+      asset: 'tron:728126428/slip44:195-ready-for-withdrawal',
+    },
+    {
+      pattern: 'slip44:NUMBER-in-lock-period',
+      asset: 'tron:728126428/slip44:195-in-lock-period',
+    },
+    {
+      pattern: 'slip44:NUMBER-staking-rewards',
+      asset: 'tron:728126428/slip44:195-staking-rewards',
     },
   ])(
     'filters out non-priceable asset with pattern: $pattern',

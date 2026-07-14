@@ -1,14 +1,17 @@
 import type { NetworkClientId, Provider } from '@metamask/network-controller';
+import { NetworkClientType } from '@metamask/network-controller';
+import { RpcEndpointType } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
-import { getProvider, rpcRequest } from './provider';
 import type { TransactionControllerMessenger } from '../TransactionController';
+import { getProvider, rpcRequest } from './provider';
 
 describe('provider utils', () => {
   const requestMock = jest.fn();
   const mockProvider = {
     request: requestMock,
   } as unknown as Provider;
+  const chainIdMock = '0xa4b1' as Hex;
 
   let messengerCallMock: jest.Mock;
   let messengerMock: TransactionControllerMessenger;
@@ -20,7 +23,27 @@ describe('provider utils', () => {
       .fn()
       .mockImplementation((action: string, ...args: unknown[]) => {
         if (action === 'NetworkController:getNetworkClientById') {
-          return { provider: mockProvider };
+          const networkClientId = args[0] as NetworkClientId;
+
+          return {
+            configuration: {
+              chainId: chainIdMock,
+              type:
+                networkClientId === 'infuraNetworkClientId'
+                  ? NetworkClientType.Infura
+                  : NetworkClientType.Custom,
+              rpcEndpoints: [
+                {
+                  networkClientId,
+                  type:
+                    networkClientId === 'infuraNetworkClientId'
+                      ? RpcEndpointType.Infura
+                      : RpcEndpointType.Custom,
+                },
+              ],
+            },
+            provider: mockProvider,
+          };
         }
 
         if (action === 'NetworkController:findNetworkClientIdByChainId') {
@@ -106,6 +129,45 @@ describe('provider utils', () => {
           params: ['0x123', 'latest'],
         }),
       ).rejects.toBe(error);
+      expect(error.message).toBe(
+        'RPC 0xa4b1 Custom eth_getBalance: RPC failed',
+      );
+    });
+
+    it('identifies Infura provider.request errors', async () => {
+      const error = new Error('Unauthorized.');
+      requestMock.mockRejectedValue(error);
+
+      await expect(
+        rpcRequest({
+          messenger: messengerMock,
+          networkClientId: 'infuraNetworkClientId' as NetworkClientId,
+          method: 'eth_getBalance',
+          params: ['0x123', 'latest'],
+        }),
+      ).rejects.toBe(error);
+      expect(error.message).toBe(
+        'RPC 0xa4b1 Infura eth_getBalance: Unauthorized.',
+      );
+    });
+
+    it('uses nested RPC data messages when available', async () => {
+      const error = Object.assign(new Error('Outer message'), {
+        data: { message: 'Nested rpc error message' },
+      });
+      requestMock.mockRejectedValue(error);
+
+      await expect(
+        rpcRequest({
+          messenger: messengerMock,
+          networkClientId: 'networkClientIdA' as NetworkClientId,
+          method: 'eth_getBalance',
+          params: ['0x123', 'latest'],
+        }),
+      ).rejects.toBe(error);
+      expect(error.message).toBe(
+        'RPC 0xa4b1 Custom eth_getBalance: Nested rpc error message',
+      );
     });
 
     it('works when params are undefined', async () => {

@@ -6,9 +6,8 @@ import type { Json } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
-import { cloneDeep, merge } from 'lodash';
+import { cloneDeep } from 'lodash';
 
-import { TransactionPoller } from './TransactionPoller';
 import { createModuleLogger, projectLogger } from '../logger';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type { TransactionMeta, TransactionReceipt } from '../types';
@@ -18,6 +17,8 @@ import {
   getTimeoutAttempts,
 } from '../utils/feature-flags';
 import { getChainId, rpcRequest } from '../utils/provider';
+import { extractRevert, OnChainFailureError } from '../utils/revert-reason';
+import { TransactionPoller } from './TransactionPoller';
 
 /**
  * We wait this many blocks before emitting a 'transaction-dropped' event
@@ -27,16 +28,6 @@ const DROPPED_BLOCK_COUNT = 3;
 
 const RECEIPT_STATUS_SUCCESS = '0x1';
 const RECEIPT_STATUS_FAILURE = '0x0';
-const MAX_RETRY_BLOCK_DISTANCE = 50;
-
-const KNOWN_TRANSACTION_ERRORS = [
-  'replacement transaction underpriced',
-  'known transaction',
-  'gas price too low to replace',
-  'transaction with the same hash was already imported',
-  'gateway timeout',
-  'nonce too low',
-];
 
 const log = createModuleLogger(projectLogger, 'pending-transactions');
 
@@ -86,8 +77,6 @@ export class PendingTransactionTracker {
 
   readonly #getTransactions: () => TransactionMeta[];
 
-  readonly #isResubmitEnabled: () => boolean;
-
   readonly #lastSeenTimestampByHash: Map<string, number>;
 
   // TODO: Replace `any` with type
@@ -97,10 +86,6 @@ export class PendingTransactionTracker {
   readonly #log: debug.Debugger;
 
   readonly #messenger: TransactionControllerMessenger;
-
-  readonly #publishTransaction: (
-    transactionMeta: TransactionMeta,
-  ) => Promise<string>;
 
   #running: boolean;
 
@@ -114,10 +99,8 @@ export class PendingTransactionTracker {
     getTransactions,
     isTimeoutEnabled,
     hooks,
-    isResubmitEnabled,
     messenger,
     networkClientId,
-    publishTransaction,
   }: {
     blockTracker: BlockTracker;
     getGlobalLock: () => Promise<() => void>;
@@ -127,11 +110,9 @@ export class PendingTransactionTracker {
         transactionMeta: TransactionMeta,
       ) => Promise<boolean>;
     };
-    isResubmitEnabled?: () => boolean;
     isTimeoutEnabled: (transactionMeta: TransactionMeta) => boolean;
     messenger: TransactionControllerMessenger;
     networkClientId: NetworkClientId;
-    publishTransaction: (transactionMeta: TransactionMeta) => Promise<string>;
   }) {
     this.hub = new EventEmitter() as PendingTransactionTrackerEventEmitter;
 
@@ -142,11 +123,9 @@ export class PendingTransactionTracker {
     this.#getGlobalLock = getGlobalLock;
     this.#networkClientId = networkClientId;
     this.#getTransactions = getTransactions;
-    this.#isResubmitEnabled = isResubmitEnabled ?? ((): boolean => true);
     this.#lastSeenTimestampByHash = new Map();
     this.#listener = this.#onLatestBlock.bind(this);
     this.#messenger = messenger;
-    this.#publishTransaction = publishTransaction;
     this.#running = false;
     this.#transactionToForcePoll = undefined;
 
@@ -234,7 +213,7 @@ export class PendingTransactionTracker {
     this.#log('Stopped polling');
   }
 
-  async #onLatestBlock(latestBlockNumber: string): Promise<void> {
+  async #onLatestBlock(_latestBlockNumber: string): Promise<void> {
     const releaseLock = await this.#getGlobalLock();
 
     try {
@@ -244,13 +223,6 @@ export class PendingTransactionTracker {
       this.#log('Failed to check transactions', error);
     } finally {
       releaseLock();
-    }
-
-    try {
-      await this.#resubmitTransactions(latestBlockNumber);
-    } catch (error) {
-      /* istanbul ignore next */
-      this.#log('Failed to resubmit transactions', error);
     }
   }
 
@@ -275,109 +247,6 @@ export class PendingTransactionTracker {
     await Promise.all(
       pendingTransactions.map((tx) => this.#checkTransaction(tx)),
     );
-  }
-
-  async #resubmitTransactions(latestBlockNumber: string): Promise<void> {
-    if (!this.#isResubmitEnabled() || !this.#running) {
-      return;
-    }
-
-    this.#log('Resubmitting transactions');
-
-    const pendingTransactions = this.#getPendingTransactions();
-
-    if (!pendingTransactions.length) {
-      this.#log('No pending transactions to resubmit');
-      return;
-    }
-
-    this.#log('Found pending transactions to resubmit', {
-      count: pendingTransactions.length,
-      ids: pendingTransactions.map((tx) => tx.id),
-    });
-
-    for (const txMeta of pendingTransactions) {
-      try {
-        await this.#resubmitTransaction(txMeta, latestBlockNumber);
-        // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } catch (error: any) {
-        /* istanbul ignore next */
-        const errorMessage =
-          error.value?.message?.toLowerCase() ??
-          error.message?.toLowerCase() ??
-          String(error);
-
-        if (this.#isKnownTransactionError(errorMessage)) {
-          this.#log('Ignoring known transaction error', errorMessage);
-          continue;
-        }
-
-        this.#warnTransaction(
-          txMeta,
-          error.message,
-          'There was an error when resubmitting this transaction.',
-        );
-      }
-    }
-  }
-
-  #isKnownTransactionError(errorMessage: string): boolean {
-    return KNOWN_TRANSACTION_ERRORS.some((knownError) =>
-      errorMessage.includes(knownError),
-    );
-  }
-
-  async #resubmitTransaction(
-    txMeta: TransactionMeta,
-    latestBlockNumber: string,
-  ): Promise<void> {
-    if (!this.#isResubmitDue(txMeta, latestBlockNumber)) {
-      return;
-    }
-
-    if (!(await this.#beforeCheckPendingTransaction(txMeta))) {
-      return;
-    }
-
-    await this.#publishTransaction(txMeta);
-
-    const retryCount = (txMeta.retryCount ?? 0) + 1;
-
-    this.#updateTransaction(
-      merge({}, txMeta, { retryCount }),
-      'PendingTransactionTracker:transaction-retry - Retry count increased',
-    );
-  }
-
-  #isResubmitDue(txMeta: TransactionMeta, latestBlockNumber: string): boolean {
-    const txMetaWithFirstRetryBlockNumber = cloneDeep(txMeta);
-
-    if (!txMetaWithFirstRetryBlockNumber.firstRetryBlockNumber) {
-      txMetaWithFirstRetryBlockNumber.firstRetryBlockNumber = latestBlockNumber;
-
-      this.#updateTransaction(
-        txMetaWithFirstRetryBlockNumber,
-        'PendingTransactionTracker:#isResubmitDue - First retry block number set',
-      );
-    }
-
-    const { firstRetryBlockNumber } = txMetaWithFirstRetryBlockNumber;
-
-    const blocksSinceFirstRetry =
-      Number.parseInt(latestBlockNumber, 16) -
-      Number.parseInt(firstRetryBlockNumber, 16);
-
-    const retryCount = txMeta.retryCount ?? 0;
-
-    // Exponential backoff to limit retries at publishing
-    // Capped at ~15 minutes between retries
-    const requiredBlocksSinceFirstRetry = Math.min(
-      MAX_RETRY_BLOCK_DISTANCE,
-      Math.pow(2, retryCount),
-    );
-
-    return blocksSinceFirstRetry >= requiredBlocksSinceFirstRetry;
   }
 
   #cleanTransaction(txMeta: TransactionMeta): void {
@@ -429,9 +298,20 @@ export class PendingTransactionTracker {
       const isFailure = receipt?.status === RECEIPT_STATUS_FAILURE;
 
       if (isFailure) {
-        this.#log('Transaction receipt has failed status');
+        this.#log('Transaction receipt has failed status', {
+          id: txMeta.id,
+          hash: txMeta.hash,
+          chainId: txMeta.chainId,
+          blockNumber: receipt.blockNumber,
+        });
 
-        this.#failTransaction(txMeta, new Error('Transaction failed on-chain'));
+        const revert = await extractRevert({
+          messenger: this.#messenger,
+          networkClientId: txMeta.networkClientId,
+          txParams: txMeta.txParams,
+        });
+
+        this.#failTransaction(txMeta, new OnChainFailureError(revert));
 
         return;
       }

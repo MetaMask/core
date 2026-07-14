@@ -1,3 +1,4 @@
+import type { SupportedCurrency } from '@metamask/core-backend';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { CaipAssetType, CaipChainId, Json } from '@metamask/utils';
 
@@ -9,7 +10,7 @@ import type { CaipAssetType, CaipChainId, Json } from '@metamask/utils';
  * - Native: "eip155:1/slip44:60" (ETH)
  * - ERC20: "eip155:1/erc20:0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48" (USDC)
  * - ERC721: "eip155:1/erc721:0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D/1234" (BAYC #1234)
- * - SPL: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/spl:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
+ * - SPL: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v"
  */
 export type Caip19AssetId = CaipAssetType;
 
@@ -337,6 +338,13 @@ export type DataRequest = {
   dataTypes: DataType[];
   /** Specific CAIP-19 asset IDs */
   customAssets?: Caip19AssetId[];
+  /**
+   * When true, the data source should poll only the user's `customAssets`
+   * for the requested chains and skip refreshing the regular tracked
+   * balances. Used by the AssetsController to issue a supplemental RPC
+   * subscription on chains that another data source is already covering.
+   */
+  customAssetsOnly?: boolean;
   /** Force fresh fetch, bypass cache */
   forceUpdate?: boolean;
   /** Hint for polling interval (ms) - used by data sources that implement polling */
@@ -364,6 +372,14 @@ export type DataResponse = {
    * Defaults to `'merge'` if omitted.
    */
   updateMode?: AssetsUpdateMode;
+  /**
+   * When set with `updateMode: 'merge'`, balances on chains present in
+   * `assetsBalance` replace the prior chain slice (stale tokens on those chains
+   * are dropped). Custom assets on covered chains are preserved. Used for
+   * `getAssets({ forceUpdate: true })` so unlock/startup reflects the API snapshot
+   * without switching to `updateMode: 'full'`.
+   */
+  replaceCoveredChainBalances?: boolean;
 };
 
 /**
@@ -371,10 +387,18 @@ export type DataResponse = {
  *
  * - **full**: Response is the full set for the scope. Assets in state but not in the
  *   response are cleared (except custom assets). Use for initial fetch or full refresh.
- * - **merge**: Only assets present in the response are updated; nothing is removed.
- *   Use for event-driven or incremental updates.
+ * - **merge**: By default only assets present in the response are updated;
+ *   nothing is removed. When {@link DataResponse.replaceCoveredChainBalances}
+ *   is true, balances on chains present in the response replace the prior chain
+ *   slice (stale tokens on those chains are dropped; custom assets preserved).
+ *   Metadata and prices from the response are applied. Use for event-driven updates.
+ * - **update**: Balance-only overlay — incoming balance amounts are patched in place;
+ *   existing balances, metadata, and prices are never removed or overwritten.
+ *   Missing metadata and prices from the response are seeded so RPC-only chains
+ *   can render on first fetch. Use for force refresh when the API may return a
+ *   partial chain snapshot.
  */
-export type AssetsUpdateMode = 'full' | 'merge';
+export type AssetsUpdateMode = 'full' | 'merge' | 'update';
 
 // ============================================================================
 // DATA SOURCE <-> CONTROLLER (DIRECT CALLS, NO MESSENGER PER SOURCE)
@@ -452,6 +476,8 @@ export type AssetsControllerStateInternal = {
   customAssets: Record<AccountId, Caip19AssetId[]>;
   /** UI preferences per asset (e.g. hidden) - separate from metadata */
   assetPreferences: Record<Caip19AssetId, AssetPreferences>;
+  /** Currently-active ISO 4217 currency code */
+  selectedCurrency: SupportedCurrency;
 };
 
 /**

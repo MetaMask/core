@@ -4,8 +4,12 @@
  * Portable: no mobile-specific imports.
  * Formatters are injected via MarketDataFormatters interface.
  */
-import { parseAssetName } from './hyperLiquidAdapter';
-import { HYPERLIQUID_CONFIG } from '../constants/hyperLiquidConfig';
+import { hasProperty } from '@metamask/utils';
+
+import {
+  HYPERLIQUID_CONFIG,
+  getHyperLiquidAssetName,
+} from '../constants/hyperLiquidConfig';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig';
 import type {
   PerpsMarketData,
@@ -18,6 +22,7 @@ import type {
   PerpsAssetCtx,
   PredictedFunding,
 } from '../types/hyperliquid-types';
+import { parseAssetName } from './hyperLiquidAdapter';
 
 /**
  * Calculate open interest in USD
@@ -46,6 +51,58 @@ export function calculateOpenInterestUSD(
   }
 
   return openInterestNum * priceNum;
+}
+
+/**
+ * Determine whether a market is currently tradable based on how far its market
+ * (mid) price has drifted from the oracle (reference) price.
+ *
+ * HyperLiquid rejects orders when the order price is more than 95% away from the
+ * reference price ("Order price cannot be more than 95% away from the reference
+ * price"). This most often affects HIP-3 builder-deployed markets, which can become
+ * temporarily untradable when their mid price diverges far from the oracle price.
+ * Clients use this signal to proactively warn the user (e.g. a "trading unavailable"
+ * banner) instead of letting the order fail on submission.
+ *
+ * Note: the deviation limit is a HyperLiquid protocol rule. Other providers may have
+ * different rules and should compute tradability accordingly.
+ *
+ * @param params - The parameters for the tradability check.
+ * @param params.midPrice - Current market/mid price.
+ * @param params.oraclePrice - Current oracle/reference price.
+ * @param params.deviationLimit - Max allowed deviation as a decimal fraction
+ * (defaults to HyperLiquid's 0.95). A market is untradable when
+ * `abs(midPrice - oraclePrice) / oraclePrice > deviationLimit`.
+ * @returns `true` when the market is tradable (or when prices are unavailable, so the
+ * absence of data never blocks trading); `false` when the deviation exceeds the limit.
+ */
+export function isMarketTradable(params: {
+  midPrice: number | undefined;
+  oraclePrice: number | undefined;
+  deviationLimit?: number;
+}): boolean {
+  const {
+    midPrice,
+    oraclePrice,
+    deviationLimit = HYPERLIQUID_CONFIG.OraclePriceDeviationLimit,
+  } = params;
+
+  // Without usable prices we cannot assess deviation — default to tradable so missing
+  // data never blocks the user. A non-positive price means "no data" (e.g. the transient
+  // zero price emitted before the first real tick), not an untradable market.
+  if (
+    midPrice === undefined ||
+    oraclePrice === undefined ||
+    isNaN(midPrice) ||
+    isNaN(oraclePrice) ||
+    midPrice <= 0 ||
+    oraclePrice <= 0
+  ) {
+    return true;
+  }
+
+  const deviation = Math.abs(midPrice - oraclePrice) / oraclePrice;
+  return deviation <= deviationLimit;
 }
 
 /**
@@ -172,12 +229,16 @@ function extractFundingData(params: ExtractFundingDataParams): FundingData {
  * @param hyperLiquidData - Raw data from HyperLiquid API
  * @param formatters - Injectable formatters for platform-agnostic formatting
  * @param assetMarketTypes - Optional mapping of asset symbols to market types
+ * @param assetNames - Optional mapping of asset symbols to human-readable names.
+ * Defaults to the bundled HYPERLIQUID_ASSET_NAMES; unmapped assets fall back to
+ * their ticker symbol.
  * @returns Transformed market data ready for UI consumption
  */
 export function transformMarketData(
   hyperLiquidData: HyperLiquidMarketData,
   formatters: MarketDataFormatters,
   assetMarketTypes?: Record<string, MarketType>,
+  assetNames?: Record<string, string>,
 ): PerpsMarketData[] {
   const { universe, assetCtxs, allMids, predictedFundings } = hyperLiquidData;
 
@@ -221,7 +282,7 @@ export function transformMarketData(
     // Get current funding rate from assetCtx - this is the actual current funding rate
     let fundingRate: number | undefined;
 
-    if (assetCtx && 'funding' in assetCtx) {
+    if (assetCtx && hasProperty(assetCtx, 'funding')) {
       fundingRate = parseFloat(assetCtx.funding);
     }
 
@@ -246,20 +307,15 @@ export function transformMarketData(
     // Crypto markets (HIP-2) don't have a prefix (e.g., BTC, ETH)
     const isHip3 = Boolean(dex);
 
-    // Determine market type from explicit mapping only
-    // Only explicitly mapped HIP-3 markets get a marketType (e.g., 'xyz:GOLD' → 'commodity')
-    // Unmapped HIP-3 markets (e.g., 'hyna:BTC') have no marketType - they go to "New" tab
-    // Main DEX crypto also has no marketType
-    const explicitMarketType = assetMarketTypes?.[symbol];
-    const marketType: MarketType | undefined = explicitMarketType;
+    // Determine market type from explicit static mapping
+    const marketType: MarketType | undefined = assetMarketTypes?.[symbol];
 
     // Mark as "new" if it's a HIP-3 market but not explicitly categorized
-    // New markets are always HIP-3 (non-crypto) that haven't been assigned a category yet
-    const isNewMarket = isHip3 && !explicitMarketType;
+    const isNewMarket = isHip3 && !marketType;
 
     return {
       symbol,
-      name: symbol,
+      name: getHyperLiquidAssetName(symbol, assetNames),
       maxLeverage: `${asset.maxLeverage}x`,
       price: isNaN(currentPrice)
         ? PERPS_CONSTANTS.FallbackPriceDisplay

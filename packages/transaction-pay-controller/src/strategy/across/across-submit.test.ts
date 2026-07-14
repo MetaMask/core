@@ -9,13 +9,13 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { submitAcrossQuotes } from './across-submit';
-import * as acrossTransactions from './transactions';
-import type { AcrossQuote } from './types';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import { TransactionPayStrategy } from '../../constants';
 import { getMessengerMock } from '../../tests/messenger-mock';
 import type { TransactionPayQuote } from '../../types';
+import { submitAcrossQuotes } from './across-submit';
+import * as acrossTransactions from './transactions';
+import type { AcrossQuote } from './types';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
@@ -36,6 +36,7 @@ const QUOTE_MOCK: TransactionPayQuote<AcrossQuote> = {
   dust: { usd: '0', fiat: '0' },
   estimatedDuration: 0,
   fees: {
+    metaMask: { usd: '0', fiat: '0' },
     provider: { usd: '0', fiat: '0' },
     sourceNetwork: {
       estimate: { usd: '0', fiat: '0', human: '0', raw: '0' },
@@ -78,6 +79,7 @@ const QUOTE_MOCK: TransactionPayQuote<AcrossQuote> = {
       },
     },
     request: {
+      actions: [],
       amount: '100',
       tradeType: 'exactOutput',
     },
@@ -93,7 +95,7 @@ const QUOTE_MOCK: TransactionPayQuote<AcrossQuote> = {
     targetTokenAddress: '0xdef' as Hex,
   },
   sourceAmount: { usd: '0', fiat: '0', human: '0', raw: '0' },
-  targetAmount: { usd: '0', fiat: '0', human: '0', raw: '0' },
+  targetAmount: { usd: '0', fiat: '0' },
   strategy: TransactionPayStrategy.Across,
 };
 
@@ -103,8 +105,10 @@ describe('Across Submit', () => {
   const {
     addTransactionBatchMock,
     addTransactionMock,
+    estimateGasBatchMock,
     estimateGasMock,
     findNetworkClientIdByChainIdMock,
+    getKeyringControllerStateMock,
     getRemoteFeatureFlagControllerStateMock,
     getTransactionControllerStateMock,
     messenger,
@@ -125,6 +129,16 @@ describe('Across Submit', () => {
         },
       },
     });
+    getKeyringControllerStateMock.mockReturnValue({
+      isUnlocked: true,
+      keyrings: [
+        {
+          type: 'HD Key Tree',
+          accounts: [FROM_MOCK],
+          metadata: { id: 'hd-keyring', name: 'HD Key Tree' },
+        },
+      ],
+    });
 
     estimateGasMock.mockResolvedValue({
       gas: '0x5208',
@@ -139,7 +153,7 @@ describe('Across Submit', () => {
       transactionMeta: TRANSACTION_META_MOCK,
     });
     successfulFetchMock.mockResolvedValue({
-      json: async () => ({ status: 'pending' }),
+      json: async () => ({ status: 'success' }),
     } as Response);
   });
 
@@ -190,6 +204,7 @@ describe('Across Submit', () => {
 
     it('submits a batch when approvals exist', async () => {
       await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [QUOTE_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -207,6 +222,30 @@ describe('Across Submit', () => {
               type: TransactionType.perpsAcrossDeposit,
             }),
           ],
+        }),
+      );
+    });
+
+    it('passes gas fee token to batch submission when source gas fee token is used', async () => {
+      await submitAcrossQuotes({
+        messenger,
+        quotes: [
+          {
+            ...QUOTE_MOCK,
+            fees: {
+              ...QUOTE_MOCK.fees,
+              isSourceGasFeeToken: true,
+            },
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          excludeNativeTokenForFee: true,
+          gasFeeToken: QUOTE_MOCK.request.sourceTokenAddress,
         }),
       );
     });
@@ -229,6 +268,7 @@ describe('Across Submit', () => {
       } as unknown as TransactionPayQuote<AcrossQuote>;
 
       await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [batchGasQuote],
         transaction: TRANSACTION_META_MOCK,
@@ -259,9 +299,273 @@ describe('Across Submit', () => {
       );
     });
 
+    it('estimates 7702 batch gas when a post-quote original transaction was not priced in the quote', async () => {
+      const postQuote = {
+        ...QUOTE_MOCK,
+        original: {
+          ...QUOTE_MOCK.original,
+          metamask: {
+            gasLimits: [{ estimate: 43000, max: 64000 }],
+            is7702: true,
+          },
+        },
+        request: {
+          ...QUOTE_MOCK.request,
+          isPostQuote: true,
+        },
+      } as TransactionPayQuote<AcrossQuote>;
+
+      getKeyringControllerStateMock.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: 'HD Key Tree',
+            accounts: [FROM_MOCK],
+            metadata: { id: 'hd-keyring', name: 'HD Key Tree' },
+          },
+        ],
+      });
+      estimateGasBatchMock.mockResolvedValue({
+        gasLimits: [123456],
+      });
+
+      await submitAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        quotes: [postQuote],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.batch,
+          nestedTransactions: [{ type: TransactionType.predictWithdraw }],
+          txParams: {
+            from: FROM_MOCK,
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+            data: '0x12345678' as Hex,
+          },
+        } as TransactionMeta,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(estimateGasBatchMock).toHaveBeenCalledWith({
+        chainId: QUOTE_MOCK.request.sourceChainId,
+        from: FROM_MOCK,
+        transactions: [
+          expect.objectContaining({
+            data: '0x12345678',
+            gas: undefined,
+            to: '0x000000000000000000000000000000000000dEaD',
+          }),
+          expect.objectContaining({
+            data: QUOTE_MOCK.original.quote.approvalTxns[0].data,
+            gas: undefined,
+            to: QUOTE_MOCK.original.quote.approvalTxns[0].to,
+          }),
+          expect.objectContaining({
+            data: QUOTE_MOCK.original.quote.swapTx.data,
+            gas: undefined,
+            to: QUOTE_MOCK.original.quote.swapTx.to,
+          }),
+        ],
+      });
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          disable7702: false,
+          disableHook: true,
+          disableSequential: true,
+          gasLimit7702: toHex(123456),
+          transactions: [
+            expect.objectContaining({
+              params: expect.objectContaining({
+                data: '0x12345678',
+                gas: undefined,
+                to: '0x000000000000000000000000000000000000dEaD',
+              }),
+              type: TransactionType.predictWithdraw,
+            }),
+            expect.objectContaining({
+              params: expect.objectContaining({
+                data: QUOTE_MOCK.original.quote.approvalTxns[0].data,
+                gas: undefined,
+                to: QUOTE_MOCK.original.quote.approvalTxns[0].to,
+              }),
+              type: TransactionType.tokenMethodApprove,
+            }),
+            expect.objectContaining({
+              params: expect.objectContaining({
+                data: QUOTE_MOCK.original.quote.swapTx.data,
+                gas: undefined,
+                to: QUOTE_MOCK.original.quote.swapTx.to,
+              }),
+              type: TransactionType.predictAcrossWithdraw,
+            }),
+          ],
+        }),
+      );
+    });
+
+    it('reuses quoted 7702 batch gas when the post-quote original transaction already has gas', async () => {
+      const postQuote = {
+        ...QUOTE_MOCK,
+        original: {
+          ...QUOTE_MOCK.original,
+          metamask: {
+            gasLimits: [{ estimate: 43000, max: 64000 }],
+            is7702: true,
+          },
+          quote: {
+            ...QUOTE_MOCK.original.quote,
+            approvalTxns: [],
+          },
+        },
+        request: {
+          ...QUOTE_MOCK.request,
+          isPostQuote: true,
+        },
+      } as TransactionPayQuote<AcrossQuote>;
+
+      await submitAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        quotes: [postQuote],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.swap,
+          txParams: {
+            from: FROM_MOCK,
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+            data: '0x12345678' as Hex,
+            gas: '0x5208',
+          },
+        } as TransactionMeta,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(estimateGasBatchMock).not.toHaveBeenCalled();
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          disable7702: false,
+          gasLimit7702: toHex(64000),
+          transactions: [
+            expect.objectContaining({
+              params: expect.objectContaining({
+                data: '0x12345678',
+                gas: undefined,
+                to: '0x000000000000000000000000000000000000dEaD',
+              }),
+              type: TransactionType.swap,
+            }),
+            expect.objectContaining({
+              params: expect.objectContaining({
+                data: QUOTE_MOCK.original.quote.swapTx.data,
+                gas: undefined,
+                to: QUOTE_MOCK.original.quote.swapTx.to,
+              }),
+              type: TransactionType.swap,
+            }),
+          ],
+        }),
+      );
+    });
+
+    it('submits 7702 batches without estimated gas when the account cannot sign authorizations', async () => {
+      getKeyringControllerStateMock.mockReturnValue({
+        isUnlocked: true,
+        keyrings: [
+          {
+            type: 'Ledger Hardware',
+            accounts: [FROM_MOCK],
+            metadata: { id: 'ledger-keyring', name: 'Ledger Hardware' },
+          },
+        ],
+      });
+
+      await submitAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        quotes: [QUOTE_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            authorizationList: [{ address: '0xabc' as Hex }],
+          },
+        } as TransactionMeta,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(estimateGasBatchMock).not.toHaveBeenCalled();
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          disable7702: false,
+          gasLimit7702: undefined,
+        }),
+      );
+    });
+
+    it('submits 7702 batches without estimated gas when estimation returns multiple gas limits', async () => {
+      estimateGasBatchMock.mockResolvedValue({
+        gasLimits: [123456, 234567],
+      });
+
+      await submitAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        quotes: [QUOTE_MOCK],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          txParams: {
+            ...TRANSACTION_META_MOCK.txParams,
+            authorizationList: [{ address: '0xabc' as Hex }],
+          },
+        } as TransactionMeta,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(estimateGasBatchMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          disable7702: false,
+          gasLimit7702: undefined,
+        }),
+      );
+    });
+
     it('submits a single transaction when no approvals', async () => {
       const noApprovalQuote = {
         ...QUOTE_MOCK,
+        original: {
+          ...QUOTE_MOCK.original,
+          quote: {
+            ...QUOTE_MOCK.original.quote,
+            approvalTxns: [],
+          },
+        },
+      } as TransactionPayQuote<AcrossQuote>;
+
+      await submitAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        quotes: [noApprovalQuote],
+        transaction: TRANSACTION_META_MOCK,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(addTransactionMock).toHaveBeenCalledTimes(1);
+      expect(addTransactionMock).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          type: TransactionType.perpsAcrossDeposit,
+        }),
+      );
+    });
+
+    it('passes gas fee token to single transaction submission when source gas fee token is used', async () => {
+      const noApprovalQuote = {
+        ...QUOTE_MOCK,
+        fees: {
+          ...QUOTE_MOCK.fees,
+          isSourceGasFeeToken: true,
+        },
         original: {
           ...QUOTE_MOCK.original,
           quote: {
@@ -278,11 +582,11 @@ describe('Across Submit', () => {
         isSmartTransaction: jest.fn(),
       });
 
-      expect(addTransactionMock).toHaveBeenCalledTimes(1);
       expect(addTransactionMock).toHaveBeenCalledWith(
         expect.anything(),
         expect.objectContaining({
-          type: TransactionType.perpsAcrossDeposit,
+          excludeNativeTokenForFee: true,
+          gasFeeToken: QUOTE_MOCK.request.sourceTokenAddress,
         }),
       );
     });
@@ -301,6 +605,7 @@ describe('Across Submit', () => {
 
       await expect(
         submitAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           quotes: [missingBatchGasQuote],
           transaction: TRANSACTION_META_MOCK,
@@ -324,6 +629,7 @@ describe('Across Submit', () => {
       } as TransactionPayQuote<AcrossQuote>;
 
       await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [noApprovalQuote],
         transaction: {
@@ -341,6 +647,297 @@ describe('Across Submit', () => {
       );
     });
 
+    it('prepends the original transaction and uses predict withdraw type for post-quote predict withdraws', async () => {
+      const postQuote = {
+        ...QUOTE_MOCK,
+        original: {
+          ...QUOTE_MOCK.original,
+          metamask: {
+            gasLimits: [
+              { estimate: 50000, max: 50000 },
+              { estimate: 22000, max: 22000 },
+            ],
+            is7702: false,
+          },
+          quote: {
+            ...QUOTE_MOCK.original.quote,
+            approvalTxns: [],
+          },
+        },
+        request: {
+          ...QUOTE_MOCK.request,
+          isPostQuote: true,
+        },
+      } as TransactionPayQuote<AcrossQuote>;
+
+      await submitAcrossQuotes({
+        messenger,
+        quotes: [postQuote],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.batch,
+          nestedTransactions: [{ type: TransactionType.predictWithdraw }],
+          txParams: {
+            from: FROM_MOCK,
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+            data: '0x12345678' as Hex,
+            value: '0x1' as Hex,
+          },
+        } as TransactionMeta,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: FROM_MOCK,
+          transactions: [
+            {
+              params: expect.objectContaining({
+                data: '0x12345678',
+                gas: toHex(50000),
+                to: '0x000000000000000000000000000000000000dEaD',
+                value: '0x1',
+              }),
+              type: TransactionType.predictWithdraw,
+            },
+            {
+              params: expect.objectContaining({
+                data: QUOTE_MOCK.original.quote.swapTx.data,
+                gas: toHex(22000),
+                to: QUOTE_MOCK.original.quote.swapTx.to,
+              }),
+              type: TransactionType.predictAcrossWithdraw,
+            },
+          ],
+        }),
+      );
+    });
+
+    it('keeps Across gas limits aligned when post-quote original gas is absent', async () => {
+      const postQuote = {
+        ...QUOTE_MOCK,
+        original: {
+          ...QUOTE_MOCK.original,
+          metamask: {
+            gasLimits: [{ estimate: 22000, max: 22000 }],
+            is7702: false,
+          },
+          quote: {
+            ...QUOTE_MOCK.original.quote,
+            approvalTxns: [],
+          },
+        },
+        request: {
+          ...QUOTE_MOCK.request,
+          isPostQuote: true,
+        },
+      } as TransactionPayQuote<AcrossQuote>;
+
+      await submitAcrossQuotes({
+        messenger,
+        quotes: [postQuote],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.batch,
+          nestedTransactions: [{ type: TransactionType.predictWithdraw }],
+          txParams: {
+            from: FROM_MOCK,
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+            data: '0x12345678' as Hex,
+            value: '0x1' as Hex,
+          },
+        } as TransactionMeta,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactions: [
+            {
+              params: expect.objectContaining({
+                data: '0x12345678',
+                gas: undefined,
+                to: '0x000000000000000000000000000000000000dEaD',
+                value: '0x1',
+              }),
+              type: TransactionType.predictWithdraw,
+            },
+            {
+              params: expect.objectContaining({
+                data: QUOTE_MOCK.original.quote.swapTx.data,
+                gas: toHex(22000),
+                to: QUOTE_MOCK.original.quote.swapTx.to,
+              }),
+              type: TransactionType.predictAcrossWithdraw,
+            },
+          ],
+        }),
+      );
+    });
+
+    it('passes gas fee token for post-quote predict withdraw batches', async () => {
+      const postQuote = {
+        ...QUOTE_MOCK,
+        fees: {
+          ...QUOTE_MOCK.fees,
+          isSourceGasFeeToken: true,
+        },
+        original: {
+          ...QUOTE_MOCK.original,
+          metamask: {
+            gasLimits: [
+              { estimate: 50000, max: 50000 },
+              { estimate: 22000, max: 22000 },
+            ],
+            is7702: false,
+          },
+          quote: {
+            ...QUOTE_MOCK.original.quote,
+            approvalTxns: [],
+          },
+        },
+        request: {
+          ...QUOTE_MOCK.request,
+          isPostQuote: true,
+        },
+      } as TransactionPayQuote<AcrossQuote>;
+
+      await submitAcrossQuotes({
+        messenger,
+        quotes: [postQuote],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.predictWithdraw,
+          txParams: {
+            from: FROM_MOCK,
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+            data: '0x12345678' as Hex,
+          },
+        } as TransactionMeta,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          excludeNativeTokenForFee: true,
+          gasFeeToken: QUOTE_MOCK.request.sourceTokenAddress,
+        }),
+      );
+    });
+
+    it('submits post-quote predict withdraw parent authorization lists as 7702 batches', async () => {
+      const postQuote = {
+        ...QUOTE_MOCK,
+        original: {
+          ...QUOTE_MOCK.original,
+          metamask: {
+            gasLimits: [{ estimate: 22000, max: 22000 }],
+            is7702: false,
+          },
+          quote: {
+            ...QUOTE_MOCK.original.quote,
+            approvalTxns: [],
+          },
+        },
+        request: {
+          ...QUOTE_MOCK.request,
+          isPostQuote: true,
+        },
+      } as TransactionPayQuote<AcrossQuote>;
+
+      await submitAcrossQuotes({
+        messenger,
+        quotes: [postQuote],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.batch,
+          nestedTransactions: [{ type: TransactionType.predictWithdraw }],
+          txParams: {
+            authorizationList: [{ address: '0xabc' as Hex }],
+            from: FROM_MOCK,
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+            data: '0x12345678' as Hex,
+          },
+        } as TransactionMeta,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          disable7702: false,
+          disableHook: true,
+          disableSequential: true,
+          transactions: [
+            {
+              params: expect.objectContaining({
+                data: '0x12345678',
+                gas: undefined,
+                to: '0x000000000000000000000000000000000000dEaD',
+              }),
+              type: TransactionType.predictWithdraw,
+            },
+            {
+              params: expect.objectContaining({
+                data: QUOTE_MOCK.original.quote.swapTx.data,
+                gas: undefined,
+                to: QUOTE_MOCK.original.quote.swapTx.to,
+              }),
+              type: TransactionType.predictAcrossWithdraw,
+            },
+          ],
+        }),
+      );
+    });
+
+    it('uses the original transaction type for non-predict post-quote batches', async () => {
+      const postQuote = {
+        ...QUOTE_MOCK,
+        original: {
+          ...QUOTE_MOCK.original,
+          metamask: {
+            gasLimits: [undefined as never, { estimate: 22000, max: 22000 }],
+            is7702: false,
+          },
+          quote: {
+            ...QUOTE_MOCK.original.quote,
+            approvalTxns: [],
+          },
+        },
+        request: {
+          ...QUOTE_MOCK.request,
+          isPostQuote: true,
+        },
+      } as TransactionPayQuote<AcrossQuote>;
+
+      await submitAcrossQuotes({
+        messenger,
+        quotes: [postQuote],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.swap,
+          txParams: {
+            from: FROM_MOCK,
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+            data: '0x12345678' as Hex,
+          },
+        } as TransactionMeta,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(addTransactionBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactions: expect.arrayContaining([
+            expect.objectContaining({
+              params: expect.objectContaining({
+                gas: undefined,
+              }),
+              type: TransactionType.swap,
+            }),
+          ]),
+        }),
+      );
+    });
+
     it('preserves transaction type when not perps or predict', async () => {
       const noApprovalQuote = {
         ...QUOTE_MOCK,
@@ -354,6 +951,7 @@ describe('Across Submit', () => {
       } as TransactionPayQuote<AcrossQuote>;
 
       await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [noApprovalQuote],
         transaction: {
@@ -384,6 +982,7 @@ describe('Across Submit', () => {
       } as TransactionPayQuote<AcrossQuote>;
 
       await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [noApprovalQuote],
         transaction: {
@@ -426,6 +1025,7 @@ describe('Across Submit', () => {
       ]);
 
       await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [noApprovalQuote],
         transaction: TRANSACTION_META_MOCK,
@@ -455,6 +1055,7 @@ describe('Across Submit', () => {
       } as TransactionPayQuote<AcrossQuote>;
 
       await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [noApprovalQuote],
         transaction: TRANSACTION_META_MOCK,
@@ -509,6 +1110,7 @@ describe('Across Submit', () => {
       } as TransactionPayQuote<AcrossQuote>;
 
       const result = await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [noApprovalQuote],
         transaction: TRANSACTION_META_MOCK,
@@ -564,6 +1166,7 @@ describe('Across Submit', () => {
       } as TransactionPayQuote<AcrossQuote>;
 
       await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [noApprovalQuote],
         transaction: TRANSACTION_META_MOCK,
@@ -576,7 +1179,7 @@ describe('Across Submit', () => {
       );
     });
 
-    it('polls Across status endpoint when quote includes a deposit id', async () => {
+    it('polls Across status endpoint with depositTxnRef from the source tx hash', async () => {
       const confirmedTransaction = {
         id: 'new-tx',
         chainId: '0x1',
@@ -626,6 +1229,7 @@ describe('Across Submit', () => {
       } as TransactionPayQuote<AcrossQuote>;
 
       const result = await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [noApprovalQuote],
         transaction: TRANSACTION_META_MOCK,
@@ -633,9 +1237,55 @@ describe('Across Submit', () => {
       });
 
       expect(successfulFetchMock).toHaveBeenCalledWith(
-        expect.stringContaining('/deposit/status?'),
+        expect.stringContaining('/deposit/status?depositTxnRef=0xconfirmed'),
         expect.objectContaining({ method: 'GET' }),
       );
+      expect(result.transactionHash).toBe('0xtarget');
+    });
+
+    it('uses the configured proxy for approvals and deposit status polling', async () => {
+      const proxyApiBase = 'https://intents.dev-api.cx.metamask.io/across';
+
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              across: {
+                apiBase: proxyApiBase,
+              },
+            },
+          },
+        },
+      });
+
+      setupConfirmedSubmission();
+
+      successfulFetchMock
+        .mockResolvedValueOnce({
+          json: async () => ({
+            ...QUOTE_MOCK.original.quote,
+          }),
+        } as Response)
+        .mockResolvedValueOnce({
+          json: async () => ({
+            destinationTxHash: '0xtarget',
+            status: 'success',
+          }),
+        } as Response);
+
+      const result = await submitAcrossQuotes({
+        messenger,
+        quotes: [buildDepositQuote()],
+        transaction: TRANSACTION_META_MOCK,
+        isSmartTransaction: jest.fn(),
+      });
+
+      const [statusUrl, statusOptions] = successfulFetchMock.mock.calls[1];
+      expect(statusUrl).toStrictEqual(
+        expect.stringContaining(`${proxyApiBase}/deposit/status?`),
+      );
+      expect(statusOptions).toMatchObject({ method: 'GET' });
       expect(result.transactionHash).toBe('0xtarget');
     });
 
@@ -689,6 +1339,7 @@ describe('Across Submit', () => {
 
       await expect(
         submitAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           quotes: [noApprovalQuote],
           transaction: TRANSACTION_META_MOCK,
@@ -712,6 +1363,7 @@ describe('Across Submit', () => {
           } as Response);
 
         const resultPromise = submitAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           quotes: [buildDepositQuote()],
           transaction: TRANSACTION_META_MOCK,
@@ -738,6 +1390,7 @@ describe('Across Submit', () => {
       } as Response);
 
       const result = await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [buildDepositQuote()],
         transaction: TRANSACTION_META_MOCK,
@@ -745,6 +1398,25 @@ describe('Across Submit', () => {
       });
 
       expect(result.transactionHash).toBe('0xfill');
+    });
+
+    it('returns fill txn ref when destination hash is missing', async () => {
+      setupConfirmedSubmission();
+      successfulFetchMock.mockResolvedValueOnce({
+        json: async () => ({
+          fillTxnRef: '0xfillref',
+          status: 'filled',
+        }),
+      } as Response);
+
+      const result = await submitAcrossQuotes({
+        messenger,
+        quotes: [buildDepositQuote()],
+        transaction: TRANSACTION_META_MOCK,
+        isSmartTransaction: jest.fn(),
+      });
+
+      expect(result.transactionHash).toBe('0xfillref');
     });
 
     it('returns tx hash when destination and fill hashes are missing', async () => {
@@ -757,6 +1429,7 @@ describe('Across Submit', () => {
       } as Response);
 
       const result = await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [buildDepositQuote()],
         transaction: TRANSACTION_META_MOCK,
@@ -775,6 +1448,7 @@ describe('Across Submit', () => {
       } as Response);
 
       const result = await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [buildDepositQuote()],
         transaction: TRANSACTION_META_MOCK,
@@ -805,6 +1479,7 @@ describe('Across Submit', () => {
         } as Response);
 
         const resultPromise = submitAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           quotes: [buildDepositQuote()],
           transaction: TRANSACTION_META_MOCK,
@@ -839,6 +1514,7 @@ describe('Across Submit', () => {
         } as Response);
 
         const resultPromise = submitAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           quotes: [buildDepositQuote()],
           transaction: TRANSACTION_META_MOCK,
@@ -871,6 +1547,7 @@ describe('Across Submit', () => {
       } as TransactionPayQuote<AcrossQuote>;
 
       await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [noApprovalQuote],
         transaction: TRANSACTION_META_MOCK,
@@ -900,6 +1577,7 @@ describe('Across Submit', () => {
 
       await expect(
         submitAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           quotes: [missingSwapGasQuote],
           transaction: TRANSACTION_META_MOCK,
@@ -923,6 +1601,7 @@ describe('Across Submit', () => {
 
       await expect(
         submitAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           quotes: [missingApprovalGasQuote],
           transaction: TRANSACTION_META_MOCK,
@@ -949,6 +1628,7 @@ describe('Across Submit', () => {
       } as TransactionPayQuote<AcrossQuote>;
 
       await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [noApprovalQuote],
         transaction: TRANSACTION_META_MOCK,
@@ -982,6 +1662,7 @@ describe('Across Submit', () => {
       } as TransactionPayQuote<AcrossQuote>;
 
       await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [decimalGasQuote],
         transaction: TRANSACTION_META_MOCK,
@@ -1016,6 +1697,7 @@ describe('Across Submit', () => {
       } as TransactionPayQuote<AcrossQuote>;
 
       await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [quoteWithApproval],
         transaction: TRANSACTION_META_MOCK,
@@ -1047,6 +1729,7 @@ describe('Across Submit', () => {
       } as TransactionPayQuote<AcrossQuote>;
 
       await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [quoteWithoutValue],
         transaction: TRANSACTION_META_MOCK,
@@ -1115,6 +1798,7 @@ describe('Across Submit', () => {
       });
 
       await submitAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         quotes: [quote1, quote2],
         transaction: TRANSACTION_META_MOCK,
@@ -1141,6 +1825,7 @@ describe('Across Submit', () => {
 
       await expect(
         submitAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           quotes: [noApprovalQuote],
           transaction: TRANSACTION_META_MOCK,

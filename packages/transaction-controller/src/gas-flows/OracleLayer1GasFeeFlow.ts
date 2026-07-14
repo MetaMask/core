@@ -106,6 +106,24 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
     messenger: TransactionControllerMessenger;
   }): Promise<boolean>;
 
+  /**
+   * Transforms the raw oracle L1 fee before it is combined with the operator
+   * fee. Subclasses can override this to apply chain-specific conversions
+   * (e.g. currency conversion via an on-chain exchange rate).
+   *
+   * Defaults to returning the fee unchanged.
+   *
+   * @param oracleFee - The raw L1 fee returned by the oracle contract.
+   * @param _request - The original fee flow request (provider + transaction).
+   * @returns The transformed fee.
+   */
+  protected async transformOracleFee(
+    oracleFee: BN,
+    _request: Layer1GasFeeFlowRequest,
+  ): Promise<BN> {
+    return oracleFee;
+  }
+
   async getLayer1Fee(
     request: Layer1GasFeeFlowRequest,
   ): Promise<Layer1GasFeeFlowResponse> {
@@ -121,6 +139,7 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
         contract,
         transactionMeta,
       );
+      const transformedFee = await this.transformOracleFee(oracleFee, request);
       const operatorFee = await this.#getOperatorLayer1GasFee(
         contract,
         transactionMeta,
@@ -128,7 +147,7 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
 
       return {
         layer1Fee: add0x(
-          padHexToEvenLength(oracleFee.add(operatorFee).toString(16)),
+          padHexToEvenLength(transformedFee.add(operatorFee).toString(16)),
         ),
       };
     } catch (error) {
@@ -155,18 +174,33 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
     return toBN(result);
   }
 
+  /**
+   * Returns the gas value to pass to the operator-fee oracle, or undefined
+   * to skip the operator-fee call entirely. Defaults to the simulated
+   * `gasUsed` on the transaction. Subclasses can override to supply a
+   * fallback (e.g. estimated gas limit) when `gasUsed` is unavailable.
+   *
+   * @param transactionMeta - The transaction metadata.
+   * @returns The gas value, or undefined to skip the operator-fee call.
+   */
+  protected getOperatorFeeGas(
+    transactionMeta: TransactionMeta,
+  ): string | undefined {
+    return transactionMeta.gasUsed;
+  }
+
   async #getOperatorLayer1GasFee(
     contract: Contract,
     transactionMeta: TransactionMeta,
   ): Promise<BN> {
-    const { gasUsed } = transactionMeta;
+    const gas = this.getOperatorFeeGas(transactionMeta);
 
-    if (!gasUsed) {
+    if (!gas) {
       return ZERO;
     }
 
     try {
-      const result = await contract.getOperatorFee(gasUsed);
+      const result = await contract.getOperatorFee(gas);
 
       if (result === undefined) {
         return ZERO;

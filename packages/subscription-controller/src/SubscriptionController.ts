@@ -197,6 +197,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'unCancelSubscription',
   'startShieldSubscriptionWithCard',
   'startSubscriptionWithCrypto',
+  'stopAllPolling',
   'submitShieldSubscriptionCryptoApproval',
   'getCryptoApproveTransactionParams',
   'updatePaymentMethod',

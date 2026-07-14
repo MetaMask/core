@@ -6,14 +6,14 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
+import { jestAdvanceTime } from '../../../../tests/helpers';
+import type { fetchMultiExchangeRate as defaultFetchExchangeRate } from '../crypto-compare-service';
 import {
   Cryptocurrency,
   RatesController,
   name as ratesControllerName,
 } from './RatesController';
 import type { RatesControllerMessenger, RatesControllerState } from './types';
-import { jestAdvanceTime } from '../../../../tests/helpers';
-import type { fetchMultiExchangeRate as defaultFetchExchangeRate } from '../crypto-compare-service';
 
 type AllActions = MessengerActions<RatesControllerMessenger>;
 
@@ -175,8 +175,9 @@ describe('RatesController', () => {
 
       const ratesPosUpdate = ratesController.state.rates;
 
-      // checks for the RatesController:stateChange event
-      expect(publishActionSpy).toHaveBeenCalledTimes(3);
+      // checks for the RatesController:stateChange and
+      // RatesController:stateChanged events
+      expect(publishActionSpy).toHaveBeenCalledTimes(5);
       expect(fetchExchangeRateStub).toHaveBeenCalled();
       expect(ratesPosUpdate).toStrictEqual({
         btc: {
@@ -294,10 +295,9 @@ describe('RatesController', () => {
 
       await ratesController.stop();
 
-      // check the 3rd call since the 2nd one is for the
-      // event stateChange
+      // Some of these calls are for state changes
       expect(publishActionSpy).toHaveBeenNthCalledWith(
-        4,
+        6,
         `${ratesControllerName}:pollingStopped`,
       );
 
@@ -307,10 +307,8 @@ describe('RatesController', () => {
 
       await ratesController.stop();
 
-      // check if the stop method is called again, it returns early
-      // and no extra logic is executed
       expect(publishActionSpy).not.toHaveBeenNthCalledWith(
-        3,
+        7,
         `${ratesControllerName}:pollingStopped`,
       );
     });

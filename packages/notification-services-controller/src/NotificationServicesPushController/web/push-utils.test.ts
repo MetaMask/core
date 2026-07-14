@@ -2,15 +2,15 @@ import * as FirebaseAppModule from 'firebase/app';
 import * as FirebaseMessagingModule from 'firebase/messaging';
 import * as FirebaseMessagingSWModule from 'firebase/messaging/sw';
 
+import { processNotification } from '../../NotificationServicesController';
+import { createMockNotificationEthSent } from '../../NotificationServicesController/mocks/mock-raw-notifications';
+import { buildPushPlatformNotificationsControllerMessenger } from '../__fixtures__/mockMessenger';
 import {
   createRegToken,
   deleteRegToken,
   createSubscribeToPushNotifications,
 } from './push-utils';
 import * as PushWebModule from './push-utils';
-import { processNotification } from '../../NotificationServicesController';
-import { createMockNotificationEthSent } from '../../NotificationServicesController/mocks/mock-raw-notifications';
-import { buildPushPlatformNotificationsControllerMessenger } from '../__fixtures__/mockMessenger';
 
 jest.mock('firebase/app');
 jest.mock('firebase/messaging');

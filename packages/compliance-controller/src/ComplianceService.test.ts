@@ -11,6 +11,8 @@ import type { ComplianceServiceMessenger } from './ComplianceService';
 import { ComplianceService } from './ComplianceService';
 
 const MOCK_API_URL = 'https://compliance.dev-api.cx.metamask.io';
+const MOCK_PRODUCTION_API_URL = 'https://compliance.api.cx.metamask.io';
+const MOCK_CONFIGURED_API_URL = 'https://configured-compliance.example.com';
 
 describe('ComplianceService', () => {
   beforeEach(() => {
@@ -171,6 +173,89 @@ describe('ComplianceService', () => {
         error: expect.any(HttpError),
       });
     });
+
+    it('uses the configured API URL when provided', async () => {
+      nock(MOCK_CONFIGURED_API_URL).get('/v1/wallet/0xABC123').reply(200, {
+        address: '0xABC123',
+        blocked: false,
+      });
+      const { rootMessenger } = getService({
+        options: { apiUrl: MOCK_CONFIGURED_API_URL, env: 'development' },
+      });
+
+      const result = await rootMessenger.call(
+        'ComplianceService:checkWalletCompliance',
+        '0xABC123',
+      );
+
+      expect(result).toStrictEqual({
+        address: '0xABC123',
+        blocked: false,
+      });
+    });
+
+    it('preserves path components in the configured API URL', async () => {
+      nock(MOCK_CONFIGURED_API_URL)
+        .get('/compliance/v1/wallet/0xABC123')
+        .reply(200, {
+          address: '0xABC123',
+          blocked: false,
+        });
+      const { rootMessenger } = getService({
+        options: { apiUrl: `${MOCK_CONFIGURED_API_URL}/compliance` },
+      });
+
+      const result = await rootMessenger.call(
+        'ComplianceService:checkWalletCompliance',
+        '0xABC123',
+      );
+
+      expect(result).toStrictEqual({
+        address: '0xABC123',
+        blocked: false,
+      });
+    });
+
+    it('defaults to the production API URL when no API URL or environment is provided', async () => {
+      nock(MOCK_PRODUCTION_API_URL).get('/v1/wallet/0xABC123').reply(200, {
+        address: '0xABC123',
+        blocked: false,
+      });
+      const { rootMessenger } = getService({ useDefaultEnvironment: true });
+
+      const result = await rootMessenger.call(
+        'ComplianceService:checkWalletCompliance',
+        '0xABC123',
+      );
+
+      expect(result).toStrictEqual({
+        address: '0xABC123',
+        blocked: false,
+      });
+    });
+
+    it('throws if the configured API URL is invalid', () => {
+      expect(() =>
+        getService({ options: { apiUrl: 'not-a-valid-url' } }),
+      ).toThrow('Invalid Compliance API URL: not-a-valid-url');
+    });
+
+    it('throws if the configured API URL includes a query string or fragment', () => {
+      expect(() =>
+        getService({
+          options: { apiUrl: `${MOCK_CONFIGURED_API_URL}?foo=bar` },
+        }),
+      ).toThrow(
+        `Invalid Compliance API URL: ${MOCK_CONFIGURED_API_URL}?foo=bar. Query strings and fragments are not supported.`,
+      );
+      expect(() =>
+        getService({
+          options: { apiUrl: `${MOCK_CONFIGURED_API_URL}#anchor` },
+        }),
+      ).toThrow(
+        `Invalid Compliance API URL: ${MOCK_CONFIGURED_API_URL}#anchor. Query strings and fragments are not supported.`,
+      );
+    });
   });
 
   describe('ComplianceService:checkWalletsCompliance', () => {
@@ -231,90 +316,6 @@ describe('ComplianceService', () => {
     });
   });
 
-  describe('ComplianceService:updateBlockedWallets', () => {
-    it('returns the blocked wallets data', async () => {
-      nock(MOCK_API_URL)
-        .get('/v1/blocked-wallets')
-        .reply(200, {
-          addresses: ['0xABC', '0xDEF'],
-          sources: { ofac: 100, remote: 5 },
-          lastUpdated: '2026-01-01T00:00:00.000Z',
-        });
-      const { rootMessenger } = getService();
-
-      const result = await rootMessenger.call(
-        'ComplianceService:updateBlockedWallets',
-      );
-
-      expect(result).toStrictEqual({
-        addresses: ['0xABC', '0xDEF'],
-        sources: { ofac: 100, remote: 5 },
-        lastUpdated: '2026-01-01T00:00:00.000Z',
-      });
-    });
-
-    it.each([
-      'not an object',
-      {
-        addresses: 'not an array',
-        sources: { ofac: 1, remote: 1 },
-        lastUpdated: '2026-01-01',
-      },
-      {
-        addresses: ['0xABC'],
-        sources: 'not an object',
-        lastUpdated: '2026-01-01',
-      },
-      {
-        addresses: ['0xABC'],
-        sources: { ofac: 'nan', remote: 1 },
-        lastUpdated: '2026-01-01',
-      },
-      {
-        addresses: ['0xABC'],
-        sources: { ofac: 1, remote: 'nan' },
-        lastUpdated: '2026-01-01',
-      },
-      {
-        addresses: ['0xABC'],
-        sources: { ofac: 1, remote: 1 },
-        lastUpdated: 123,
-      },
-      { addresses: ['0xABC'], sources: { ofac: 1, remote: 1 } },
-      {
-        addresses: [123],
-        sources: { ofac: 1, remote: 1 },
-        lastUpdated: '2026-01-01',
-      },
-    ])(
-      'throws if the API returns a malformed response %o',
-      async (response) => {
-        nock(MOCK_API_URL)
-          .get('/v1/blocked-wallets')
-          .reply(200, JSON.stringify(response));
-        const { rootMessenger } = getService();
-
-        await expect(
-          rootMessenger.call('ComplianceService:updateBlockedWallets'),
-        ).rejects.toThrow(
-          'Malformed response received from compliance blocked wallets API',
-        );
-      },
-    );
-
-    it('throws an HttpError when the API returns a non-200 status', async () => {
-      nock(MOCK_API_URL).get('/v1/blocked-wallets').times(4).reply(503);
-      const { service } = getService();
-      service.onRetry(() => {
-        jest.advanceTimersToNextTimerAsync().catch(console.error);
-      });
-
-      await expect(service.updateBlockedWallets()).rejects.toThrow(
-        /failed with status '503'/u,
-      );
-    });
-  });
-
   describe('checkWalletCompliance', () => {
     it('does the same thing as the messenger action', async () => {
       nock(MOCK_API_URL).get('/v1/wallet/0xABC123').reply(200, {
@@ -343,27 +344,6 @@ describe('ComplianceService', () => {
       const result = await service.checkWalletsCompliance(addresses);
 
       expect(result).toStrictEqual([{ address: '0xABC', blocked: true }]);
-    });
-  });
-
-  describe('updateBlockedWallets', () => {
-    it('does the same thing as the messenger action', async () => {
-      nock(MOCK_API_URL)
-        .get('/v1/blocked-wallets')
-        .reply(200, {
-          addresses: ['0xABC'],
-          sources: { ofac: 50, remote: 2 },
-          lastUpdated: '2026-02-01T00:00:00.000Z',
-        });
-      const { service } = getService();
-
-      const result = await service.updateBlockedWallets();
-
-      expect(result).toStrictEqual({
-        addresses: ['0xABC'],
-        sources: { ofac: 50, remote: 2 },
-        lastUpdated: '2026-02-01T00:00:00.000Z',
-      });
     });
   });
 });
@@ -411,12 +391,16 @@ function getMessenger(
  * @param args.options - The options that the service constructor takes. All are
  * optional and will be filled in with defaults as needed (including
  * `messenger`).
+ * @param args.useDefaultEnvironment - Whether to omit the default test
+ * environment and use the service constructor default.
  * @returns The new service, root messenger, and service messenger.
  */
 function getService({
   options = {},
+  useDefaultEnvironment = false,
 }: {
   options?: Partial<ConstructorParameters<typeof ComplianceService>[0]>;
+  useDefaultEnvironment?: boolean;
 } = {}): {
   service: ComplianceService;
   rootMessenger: RootMessenger;
@@ -427,7 +411,7 @@ function getService({
   const service = new ComplianceService({
     fetch,
     messenger,
-    env: 'development',
+    ...(useDefaultEnvironment ? {} : { env: 'development' as const }),
     ...options,
   });
 

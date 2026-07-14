@@ -1,4 +1,5 @@
 export * from './PhishingController';
+export { findSimilarAddresses } from './address-poisoning';
 export type {
   LegacyPhishingDetectorList,
   PhishingDetectorList,
@@ -11,6 +12,8 @@ export type {
   PhishingDetectionScanResult,
   AddressScanResult,
   BulkTokenScanResponse,
+  SimilarAddressMatch,
+  SimilarityOptions,
   ApprovalsResponse,
   Approval,
   Allowance,
@@ -29,6 +32,11 @@ export {
   ApprovalFeatureType,
 } from './types';
 export type { CacheEntry } from './CacheManager';
+export {
+  PHISHING_DETECTION_PATH_BASED_ROOT_DOMAINS,
+  getPhishingDetectionScanUrlParam,
+  isPhishingDetectionPathBasedHostname,
+} from './utils';
 
 export type {
   PhishingControllerMaybeUpdateStateAction,
@@ -40,4 +48,5 @@ export type {
   PhishingControllerBulkScanTokensAction,
   PhishingControllerScanAddressAction,
   PhishingControllerGetApprovalsAction,
+  PhishingControllerCheckAddressPoisoningAction,
 } from './PhishingController-method-action-types';

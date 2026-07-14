@@ -1,4 +1,4 @@
-import { HttpError } from '@metamask/controller-utils';
+import { DEFAULT_MAX_RETRIES } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -11,14 +11,6 @@ import type { SampleGasPricesServiceMessenger } from './sample-gas-prices-servic
 import { SampleGasPricesService } from './sample-gas-prices-service';
 
 describe('SampleGasPricesService', () => {
-  beforeEach(() => {
-    jest.useFakeTimers({ doNotFake: ['nextTick', 'queueMicrotask'] });
-  });
-
-  afterEach(() => {
-    jest.useRealTimers();
-  });
-
   describe('SampleGasPricesService:fetchGasPrices', () => {
     it('returns the low, average, and high gas prices from the API', async () => {
       nock('https://api.example.com')
@@ -31,7 +23,7 @@ describe('SampleGasPricesService', () => {
             high: 15,
           },
         });
-      const { rootMessenger } = getService();
+      const { rootMessenger } = createService();
 
       const gasPricesResponse = await rootMessenger.call(
         'SampleGasPricesService:fetchGasPrices',
@@ -43,6 +35,19 @@ describe('SampleGasPricesService', () => {
         average: 10,
         high: 15,
       });
+    });
+
+    it('throws if the API returns a non-200 status', async () => {
+      nock('https://api.example.com')
+        .get('/gas-prices')
+        .query({ chainId: 'eip155:1' })
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(500);
+      const { rootMessenger } = createService();
+
+      await expect(
+        rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
+      ).rejects.toThrow("Gas prices API failed with status '500'");
     });
 
     it.each([
@@ -62,202 +67,13 @@ describe('SampleGasPricesService', () => {
           .get('/gas-prices')
           .query({ chainId: 'eip155:1' })
           .reply(200, JSON.stringify(response));
-        const { rootMessenger } = getService();
+        const { rootMessenger } = createService();
 
         await expect(
           rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
         ).rejects.toThrow('Malformed response received from gas prices API');
       },
     );
-
-    it('calls onDegraded listeners if the request takes longer than 5 seconds to resolve', async () => {
-      nock('https://api.example.com')
-        .get('/gas-prices')
-        .query({ chainId: 'eip155:1' })
-        .reply(200, () => {
-          jest.advanceTimersByTime(6000);
-          return {
-            data: {
-              low: 5,
-              average: 10,
-              high: 15,
-            },
-          };
-        });
-      const { service, rootMessenger } = getService();
-      const onDegradedListener = jest.fn();
-      service.onDegraded(onDegradedListener);
-
-      await rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1');
-
-      expect(onDegradedListener).toHaveBeenCalled();
-    });
-
-    it('allows the degradedThreshold to be changed', async () => {
-      nock('https://api.example.com')
-        .get('/gas-prices')
-        .query({ chainId: 'eip155:1' })
-        .reply(200, () => {
-          jest.advanceTimersByTime(1000);
-          return {
-            data: {
-              low: 5,
-              average: 10,
-              high: 15,
-            },
-          };
-        });
-      const { service, rootMessenger } = getService({
-        options: {
-          policyOptions: { degradedThreshold: 500 },
-        },
-      });
-      const onDegradedListener = jest.fn();
-      service.onDegraded(onDegradedListener);
-
-      await rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1');
-
-      expect(onDegradedListener).toHaveBeenCalled();
-    });
-
-    it('attempts a request that responds with non-200 up to 4 times, throwing if it never succeeds', async () => {
-      nock('https://api.example.com')
-        .get('/gas-prices')
-        .query({ chainId: 'eip155:1' })
-        .times(4)
-        .reply(500);
-      const { service, rootMessenger } = getService();
-      service.onRetry(() => {
-        jest.advanceTimersToNextTimerAsync().catch(console.error);
-      });
-
-      await expect(
-        rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
-      ).rejects.toThrow(
-        "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
-      );
-    });
-
-    it('calls onDegraded listeners when the maximum number of retries is exceeded', async () => {
-      nock('https://api.example.com')
-        .get('/gas-prices')
-        .query({ chainId: 'eip155:1' })
-        .times(4)
-        .reply(500);
-      const { service, rootMessenger } = getService();
-      service.onRetry(() => {
-        jest.advanceTimersToNextTimerAsync().catch(console.error);
-      });
-      const onDegradedListener = jest.fn();
-      service.onDegraded(onDegradedListener);
-
-      await expect(
-        rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
-      ).rejects.toThrow(
-        "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
-      );
-      expect(onDegradedListener).toHaveBeenCalled();
-    });
-
-    it('intercepts requests and throws a circuit break error after the 4th failed attempt, running onBreak listeners', async () => {
-      nock('https://api.example.com')
-        .get('/gas-prices')
-        .query({ chainId: 'eip155:1' })
-        .times(12)
-        .reply(500);
-      const { service, rootMessenger } = getService();
-      service.onRetry(() => {
-        jest.advanceTimersToNextTimerAsync().catch(console.error);
-      });
-      const onBreakListener = jest.fn();
-      service.onBreak(onBreakListener);
-
-      // Should make 4 requests
-      await expect(
-        rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
-      ).rejects.toThrow(
-        "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
-      );
-      // Should make 4 requests
-      await expect(
-        rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
-      ).rejects.toThrow(
-        "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
-      );
-      // Should make 4 requests
-      await expect(
-        rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
-      ).rejects.toThrow(
-        "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
-      );
-      // Should not make an additional request (we only mocked 12 requests
-      // above)
-      await expect(
-        rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
-      ).rejects.toThrow(
-        'Execution prevented because the circuit breaker is open',
-      );
-      expect(onBreakListener).toHaveBeenCalledWith({
-        error: new HttpError(
-          500,
-          "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
-        ),
-      });
-    });
-
-    it('resumes requests after the circuit break duration passes, returning the API response if the request ultimately succeeds', async () => {
-      const circuitBreakDuration = 5_000;
-      nock('https://api.example.com')
-        .get('/gas-prices')
-        .query({ chainId: 'eip155:1' })
-        .times(12)
-        .reply(500)
-        .get('/gas-prices')
-        .query({ chainId: 'eip155:1' })
-        .reply(200, {
-          data: {
-            low: 5,
-            average: 10,
-            high: 15,
-          },
-        });
-      const { service, rootMessenger } = getService({
-        options: {
-          policyOptions: { circuitBreakDuration },
-        },
-      });
-      service.onRetry(() => {
-        jest.advanceTimersToNextTimerAsync().catch(console.error);
-      });
-
-      await expect(
-        rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
-      ).rejects.toThrow(
-        "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
-      );
-      await expect(
-        rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
-      ).rejects.toThrow(
-        "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
-      );
-      await expect(
-        rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
-      ).rejects.toThrow(
-        "Fetching 'https://api.example.com/gas-prices?chainId=eip155%3A1' failed with status '500'",
-      );
-      await expect(
-        rootMessenger.call('SampleGasPricesService:fetchGasPrices', '0x1'),
-      ).rejects.toThrow(
-        'Execution prevented because the circuit breaker is open',
-      );
-      await jest.advanceTimersByTimeAsync(circuitBreakDuration);
-      const gasPricesResponse = await service.fetchGasPrices('0x1');
-      expect(gasPricesResponse).toStrictEqual({
-        low: 5,
-        average: 10,
-        high: 15,
-      });
-    });
   });
 
   describe('fetchGasPrices', () => {
@@ -272,7 +88,7 @@ describe('SampleGasPricesService', () => {
             high: 15,
           },
         });
-      const { service } = getService();
+      const { service } = createService();
 
       const gasPricesResponse = await service.fetchGasPrices('0x1');
 
@@ -301,7 +117,7 @@ type RootMessenger = Messenger<
  *
  * @returns The root messenger.
  */
-function getRootMessenger(): RootMessenger {
+function createRootMessenger(): RootMessenger {
   return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
 }
 
@@ -312,7 +128,7 @@ function getRootMessenger(): RootMessenger {
  * events required by the controller's messenger.
  * @returns The service-specific messenger.
  */
-function getMessenger(
+function createServiceMessenger(
   rootMessenger: RootMessenger,
 ): SampleGasPricesServiceMessenger {
   return new Messenger({
@@ -330,7 +146,7 @@ function getMessenger(
  * `messenger`).
  * @returns The new service, root messenger, and service messenger.
  */
-function getService({
+function createService({
   options = {},
 }: {
   options?: Partial<ConstructorParameters<typeof SampleGasPricesService>[0]>;
@@ -339,10 +155,9 @@ function getService({
   rootMessenger: RootMessenger;
   messenger: SampleGasPricesServiceMessenger;
 } {
-  const rootMessenger = getRootMessenger();
-  const messenger = getMessenger(rootMessenger);
+  const rootMessenger = createRootMessenger();
+  const messenger = createServiceMessenger(rootMessenger);
   const service = new SampleGasPricesService({
-    fetch,
     messenger,
     ...options,
   });

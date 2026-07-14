@@ -19,17 +19,9 @@ import type {
   MarketInsightsEntry,
   MarketOverview,
   MarketOverviewEntry,
+  MarketOverviewFrontPage,
 } from './ai-digest-types';
-
-export type AiDigestControllerFetchMarketInsightsAction = {
-  type: `${typeof controllerName}:fetchMarketInsights`;
-  handler: AiDigestController['fetchMarketInsights'];
-};
-
-export type AiDigestControllerFetchMarketOverviewAction = {
-  type: `${typeof controllerName}:fetchMarketOverview`;
-  handler: AiDigestController['fetchMarketOverview'];
-};
+import type { AiDigestControllerMethodActions } from './AiDigestController-method-action-types';
 
 export type AiDigestControllerGetStateAction = ControllerGetStateAction<
   typeof controllerName,
@@ -37,9 +29,8 @@ export type AiDigestControllerGetStateAction = ControllerGetStateAction<
 >;
 
 export type AiDigestControllerActions =
-  | AiDigestControllerFetchMarketInsightsAction
-  | AiDigestControllerFetchMarketOverviewAction
-  | AiDigestControllerGetStateAction;
+  | AiDigestControllerGetStateAction
+  | AiDigestControllerMethodActions;
 
 export type AiDigestControllerStateChangeEvent = ControllerStateChangeEvent<
   typeof controllerName,
@@ -82,6 +73,12 @@ const aiDigestControllerMetadata: StateMetadata<AiDigestControllerState> = {
   },
 };
 
+const MESSENGER_EXPOSED_METHODS = [
+  'fetchMarketInsights',
+  'fetchMarketOverview',
+  'fetchFrontPageItem',
+] as const;
+
 export class AiDigestController extends BaseController<
   typeof controllerName,
   AiDigestControllerState,
@@ -101,17 +98,9 @@ export class AiDigestController extends BaseController<
     });
 
     this.#digestService = digestService;
-    this.#registerMessageHandlers();
-  }
-
-  #registerMessageHandlers(): void {
-    this.messenger.registerActionHandler(
-      `${controllerName}:fetchMarketInsights`,
-      this.fetchMarketInsights.bind(this),
-    );
-    this.messenger.registerActionHandler(
-      `${controllerName}:fetchMarketOverview`,
-      this.fetchMarketOverview.bind(this),
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
     );
   }
 
@@ -199,6 +188,26 @@ export class AiDigestController extends BaseController<
     });
 
     return data;
+  }
+
+  /**
+   * Fetches a single market overview front page by id.
+   *
+   * Unlike the market overview report (which only returns the latest items),
+   * this resolves an older item that has since dropped out of the report, so
+   * clients can render it directly (e.g. from a deep link).
+   *
+   * @param id - The front-page identifier (UUID).
+   * @returns The market overview front page, or `null` if none exists.
+   */
+  async fetchFrontPageItem(
+    id: string,
+  ): Promise<MarketOverviewFrontPage | null> {
+    if (!id) {
+      throw new Error(AiDigestControllerErrorMessage.INVALID_FRONT_PAGE_ID);
+    }
+
+    return this.#digestService.fetchFrontPageItem(id);
   }
 
   /**

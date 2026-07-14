@@ -1,9 +1,14 @@
 import type { V3AssetResponse } from '@metamask/core-backend';
 import { ApiPlatformClient } from '@metamask/core-backend';
-import { parseCaipAssetType } from '@metamask/utils';
+import type {
+  BulkTokenScanResponse,
+  PhishingControllerBulkScanTokensAction,
+} from '@metamask/phishing-controller';
+import { TokenScanResultType } from '@metamask/phishing-controller';
+import { KnownCaipNamespace, parseCaipAssetType } from '@metamask/utils';
 import type { CaipAssetType } from '@metamask/utils';
 
-import { isStakingContractAssetId } from './evm-rpc-services';
+import type { AssetsControllerMessenger } from '../AssetsController';
 import { projectLogger, createModuleLogger } from '../logger';
 import { forDataTypes } from '../types';
 import type {
@@ -12,26 +17,41 @@ import type {
   Middleware,
   FungibleAssetMetadata,
 } from '../types';
+import { fetchWithTimeout } from '../utils';
+import {
+  isStakingContractAssetId,
+  reduceInBatchesSerially,
+} from './evm-rpc-services';
 
 // ============================================================================
 // CONSTANTS
 // ============================================================================
 
 const CONTROLLER_NAME = 'TokenDataSource';
-
-const MIN_TOKEN_OCCURRENCES = 3;
+const DEFAULT_FETCH_TIMEOUT_MS = 15_000;
 
 const log = createModuleLogger(projectLogger, CONTROLLER_NAME);
 
-// ============================================================================
-// MESSENGER TYPES
-// ============================================================================
+/** Max asset IDs per tokens API request. */
+const TOKENS_API_BATCH_SIZE = 50;
+
+/** Max tokens per PhishingController:bulkScanTokens request (see PhishingController). */
+const BULK_SCAN_BATCH_SIZE = 100;
 
 /**
- * TokenDataSource does not call external messenger actions.
- * It uses ApiPlatformClient directly.
+ * Minimum number of aggregator occurrences required for an EVM ERC-20 token to
+ * pass the spam filter. Non-EVM tokens are filtered via Blockaid bulk scan instead.
  */
-export type TokenDataSourceAllowedActions = never;
+const MIN_TOKEN_OCCURRENCES = 3;
+
+/** CAIP-19 `assetNamespace` segments used across filtering logic. */
+export enum CaipAssetNamespace {
+  Slip44 = 'slip44',
+  Erc20 = 'erc20',
+  Token = 'token',
+}
+
+const MUSD_ADDRESS_LOWERCASE = '0xaca92e438df0b2401ff60da7e4337b687a2435da';
 
 // ============================================================================
 // OPTIONS
@@ -42,7 +62,22 @@ export type TokenDataSourceOptions = {
   queryApiClient: ApiPlatformClient;
   /** Returns CAIP-19 native asset IDs from NetworkEnablementController state */
   getNativeAssetIds: () => string[];
+  /** Returns the asset type ('native' | 'erc20' | 'spl') for a given CAIP-19 asset ID */
+  getAssetType: (assetId: Caip19AssetId) => 'native' | 'erc20' | 'spl';
+  /**
+   * Timeout in ms for a single Tokens API call (default: 15000). When it
+   * fires, the batch rejects so metadata enrichment proceeds without it.
+   */
+  fetchTimeoutMs?: number;
 };
+
+/**
+ * Messenger actions `TokenDataSource` may invoke (via {@link AssetsControllerMessenger}).
+ * Not re-exported from the package public `index` (repo ESLint); import from this module when
+ * typing a messenger in the same package or tests.
+ */
+export type TokenDataSourceAllowedActions =
+  PhishingControllerBulkScanTokensAction;
 
 // ============================================================================
 // HELPER FUNCTIONS
@@ -58,24 +93,16 @@ export type TokenDataSourceOptions = {
  *
  * @param assetId - CAIP-19 asset ID used to derive token type.
  * @param assetData - V3 API response data.
+ * @param getAssetType - Returns the asset type for a given CAIP-19 asset ID.
  * @returns FungibleAssetMetadata for state storage.
  */
 function transformV3AssetResponseToMetadata(
-  assetId: string,
+  assetId: Caip19AssetId,
   assetData: V3AssetResponse,
+  getAssetType: (id: Caip19AssetId) => 'native' | 'erc20' | 'spl',
 ): AssetMetadata {
-  const parsed = parseCaipAssetType(assetId as CaipAssetType);
-  let tokenType: 'native' | 'erc20' | 'spl' = 'erc20';
-
-  if (parsed.assetNamespace === 'slip44') {
-    tokenType = 'native';
-  } else if (parsed.assetNamespace === 'spl') {
-    tokenType = 'spl';
-  }
-
   const metadata: FungibleAssetMetadata = {
-    // Type derived from assetId
-    type: tokenType,
+    type: getAssetType(assetId),
     // BaseAssetMetadata fields
     name: assetData.name,
     symbol: assetData.symbol,
@@ -109,7 +136,8 @@ function transformV3AssetResponseToMetadata(
  * - Fetches metadata from Tokens API v3 for assets needing enrichment
  * - Merges fetched metadata into the response
  *
- * Usage: Create with queryApiClient and use assetsMiddleware; no messenger required.
+ * Pass the same {@link AssetsControllerMessenger} as other data sources for Blockaid
+ * token scans.
  */
 export class TokenDataSource {
   readonly name = CONTROLLER_NAME;
@@ -124,9 +152,25 @@ export class TokenDataSource {
   /** Returns CAIP-19 native asset IDs from NetworkEnablementController state */
   readonly #getNativeAssetIds: () => string[];
 
-  constructor(options: TokenDataSourceOptions) {
+  /** Returns the asset type for a given CAIP-19 asset ID */
+  readonly #getAssetType: (
+    assetId: Caip19AssetId,
+  ) => 'native' | 'erc20' | 'spl';
+
+  /** Shared controller messenger — used for `PhishingController:bulkScanTokens`. */
+  readonly #messenger: AssetsControllerMessenger;
+
+  readonly #fetchTimeoutMs: number;
+
+  constructor(
+    messenger: AssetsControllerMessenger,
+    options: TokenDataSourceOptions,
+  ) {
+    this.#messenger = messenger;
     this.#apiClient = options.queryApiClient;
     this.#getNativeAssetIds = options.getNativeAssetIds;
+    this.#getAssetType = options.getAssetType;
+    this.#fetchTimeoutMs = options.fetchTimeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
   }
 
   /**
@@ -139,8 +183,10 @@ export class TokenDataSource {
     try {
       // Use v2/supportedNetworks which returns CAIP chain IDs
       // ApiPlatformClient handles caching
-      const response =
-        await this.#apiClient.tokens.fetchTokenV2SupportedNetworks();
+      const response = await fetchWithTimeout(
+        () => this.#apiClient.tokens.fetchTokenV2SupportedNetworks(),
+        this.#fetchTimeoutMs,
+      );
 
       // Combine full and partial support networks
       const allNetworks = [...response.fullSupport, ...response.partialSupport];
@@ -178,6 +224,86 @@ export class TokenDataSource {
   }
 
   /**
+   * Filters non-EVM fungible `token` assets flagged as malicious by Blockaid
+   * via `PhishingController:bulkScanTokens`. Only the `token` namespace (e.g.
+   * Solana mints) is scanned; native (`slip44`) and EVM assets are not handled
+   * here (EVM uses occurrence-count filtering instead). Fails open on error.
+   *
+   * @param assets - CAIP-19 asset IDs to filter (non-EVM only).
+   * @returns Asset IDs with malicious tokens removed.
+   */
+  async #filterBlockaidSpamTokens(assets: string[]): Promise<string[]> {
+    if (assets.length === 0) {
+      return assets;
+    }
+
+    const tokensByChain: Record<string, { asset: string; address: string }[]> =
+      {};
+
+    for (const asset of assets) {
+      try {
+        const { assetNamespace, assetReference, chain } = parseCaipAssetType(
+          asset as CaipAssetType,
+        );
+
+        if (assetNamespace === CaipAssetNamespace.Token) {
+          const chainName = chain.namespace;
+          if (!tokensByChain[chainName]) {
+            tokensByChain[chainName] = [];
+          }
+          tokensByChain[chainName].push({ asset, address: assetReference });
+        }
+      } catch {
+        // Malformed or unsupported for bulk scan — keep asset (fail open)
+      }
+    }
+
+    if (Object.keys(tokensByChain).length === 0) {
+      return assets;
+    }
+
+    const rejectedAssets = new Set<string>();
+
+    try {
+      for (const [chainId, tokenEntries] of Object.entries(tokensByChain)) {
+        const addresses = tokenEntries.map((entry) => entry.address);
+        const batches: string[][] = [];
+        for (let i = 0; i < addresses.length; i += BULK_SCAN_BATCH_SIZE) {
+          batches.push(addresses.slice(i, i + BULK_SCAN_BATCH_SIZE));
+        }
+
+        const batchResults = await Promise.allSettled(
+          batches.map((batch) =>
+            this.#messenger.call('PhishingController:bulkScanTokens', {
+              chainId,
+              tokens: batch,
+            }),
+          ),
+        );
+
+        const scanResponse: BulkTokenScanResponse = {};
+        for (const result of batchResults) {
+          if (result.status === 'fulfilled') {
+            Object.assign(scanResponse, result.value);
+          }
+        }
+
+        for (const entry of tokenEntries) {
+          const result = scanResponse[entry.address];
+          if (result?.result_type === TokenScanResultType.Malicious) {
+            rejectedAssets.add(entry.asset);
+          }
+        }
+      }
+    } catch (error) {
+      log('Blockaid bulk token scan failed; keeping all tokens', { error });
+      return assets;
+    }
+
+    return assets.filter((asset) => !rejectedAssets.has(asset));
+  }
+
+  /**
    * Get the middleware for enriching responses with token metadata.
    *
    * This middleware:
@@ -193,11 +319,25 @@ export class TokenDataSource {
       // Extract response from context
       const { response } = ctx;
 
-      const { assetsInfo: stateMetadata } = ctx.getAssetsState();
+      const { assetsInfo: stateMetadata, customAssets } = ctx.getAssetsState();
       const assetIdsNeedingMetadata = new Set<string>();
 
+      // Custom assets are user-imported — exempt from spam filtering.
+      // State stores asset IDs in their normalized (checksummed) form, but the
+      // V3 Tokens API can return them lower-cased. Lowercase both sides so the
+      // bypass is robust to address-case differences across data sources.
+      const customAssetIds = new Set<string>(
+        Object.values(customAssets ?? {})
+          .flat()
+          .map((id) => id.toLowerCase()),
+      );
+
       // Always include native asset IDs from NetworkEnablementController
-      for (const nativeAssetId of this.#getNativeAssetIds()) {
+      const nativeAssetIdsList = this.#getNativeAssetIds();
+      const nativeAssetIds = new Set(
+        nativeAssetIdsList.map((id) => id.toLowerCase()),
+      );
+      for (const nativeAssetId of nativeAssetIdsList) {
         assetIdsNeedingMetadata.add(nativeAssetId);
       }
 
@@ -243,41 +383,114 @@ export class TokenDataSource {
       }
 
       try {
-        // Use ApiPlatformClient for fetching asset metadata
-        // API returns an array with assetId as a property on each item
-        const metadataResponse = await this.#apiClient.tokens.fetchV3Assets(
-          supportedAssetIds,
-          {
-            includeIconUrl: true,
-            includeMarketData: true,
-            includeMetadata: true,
-            includeLabels: true,
-            includeRwaData: true,
-            includeAggregators: true,
-            includeOccurrences: true,
+        const fetchOptions = {
+          includeIconUrl: true,
+          includeMarketData: true,
+          includeMetadata: true,
+          includeLabels: true,
+          includeRwaData: true,
+          includeAggregators: true,
+          includeOccurrences: true,
+        };
+
+        const metadataResponse = await reduceInBatchesSerially<
+          string,
+          V3AssetResponse[]
+        >({
+          values: supportedAssetIds,
+          batchSize: TOKENS_API_BATCH_SIZE,
+          eachBatch: async (workingResult, batch) => {
+            const batchResponse = await fetchWithTimeout(
+              () => this.#apiClient.tokens.fetchV3Assets(batch, fetchOptions),
+              this.#fetchTimeoutMs,
+            );
+            return [...(workingResult as V3AssetResponse[]), ...batchResponse];
           },
+          initialResult: [],
+        });
+
+        // Split assets by chain type: EVM uses occurrence-count filtering;
+        // non-EVM non-native uses Blockaid; native assets are always allowed.
+        const occurrencesByAssetId = new Map(
+          metadataResponse.map((a) => [a.assetId, a.occurrences]),
         );
+
+        const evmErc20Ids: string[] = [];
+        const nonEvmTokenIds: string[] = [];
+
+        for (const assetData of metadataResponse) {
+          const assetId = assetData.assetId as Caip19AssetId;
+          const { assetNamespace, chain } = parseCaipAssetType(assetId);
+          if (nativeAssetIds.has(assetId.toLowerCase())) {
+            // Native assets are always kept — no filtering.
+          } else if (
+            assetNamespace === CaipAssetNamespace.Erc20 &&
+            chain.namespace === KnownCaipNamespace.Eip155
+          ) {
+            evmErc20Ids.push(assetId);
+          } else if (assetNamespace === CaipAssetNamespace.Token) {
+            nonEvmTokenIds.push(assetId);
+          }
+        }
+
+        // EVM: require minimum occurrence count to suppress low-signal tokens.
+        // Tokens with no occurrence data (undefined) are treated the same as
+        // zero occurrences and filtered out.
+        // Custom assets (user-imported) bypass the occurrence filter — users
+        // can import whatever they want and we must keep their metadata even
+        // if the API has fewer than `MIN_TOKEN_OCCURRENCES` aggregator hits.
+        const allowedEvmIds = new Set(
+          evmErc20Ids.filter(
+            (id) =>
+              customAssetIds.has(id.toLowerCase()) ||
+              (occurrencesByAssetId.get(id) ?? 0) >= MIN_TOKEN_OCCURRENCES ||
+              id.includes(`/erc20:${MUSD_ADDRESS_LOWERCASE}`),
+          ),
+        );
+
+        // Non-EVM: Blockaid bulk scan.
+        // Custom assets (user-imported) bypass Blockaid filtering.
+        const nonEvmToScan = nonEvmTokenIds.filter(
+          (id) => !customAssetIds.has(id.toLowerCase()),
+        );
+        const allowedNonEvmIds = new Set([
+          ...nonEvmTokenIds.filter((id) =>
+            customAssetIds.has(id.toLowerCase()),
+          ),
+          ...(await this.#filterBlockaidSpamTokens(nonEvmToScan)),
+        ]);
+
+        // Start with every asset the API returned; only remove those that
+        // fail their respective filter (EVM occurrences / non-EVM Blockaid).
+        // Native (slip44) and unrecognised namespaces are kept (fail open).
+        const allowedAssetIds = new Set(metadataResponse.map((a) => a.assetId));
+
+        for (const id of evmErc20Ids) {
+          if (!allowedEvmIds.has(id)) {
+            allowedAssetIds.delete(id);
+          }
+        }
+        for (const id of nonEvmTokenIds) {
+          if (!allowedNonEvmIds.has(id)) {
+            allowedAssetIds.delete(id);
+          }
+        }
 
         response.assetsInfo ??= {};
 
         const filteredOutAssets = new Set<string>();
 
         for (const assetData of metadataResponse) {
-          const parsed = parseCaipAssetType(assetData.assetId as CaipAssetType);
-          const isNative = parsed.assetNamespace === 'slip44';
-
-          if (
-            !isNative &&
-            (assetData.occurrences ?? 0) < MIN_TOKEN_OCCURRENCES
-          ) {
+          if (!allowedAssetIds.has(assetData.assetId)) {
             filteredOutAssets.add(assetData.assetId);
             continue;
           }
 
           const caipAssetId = assetData.assetId as Caip19AssetId;
           response.assetsInfo[caipAssetId] = transformV3AssetResponseToMetadata(
-            assetData.assetId,
+            caipAssetId,
             assetData,
+            this.#getAssetType,
           );
         }
 

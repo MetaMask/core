@@ -6,9 +6,9 @@ import type {
   TransactionControllerState,
 } from '@metamask/transaction-controller';
 
-import { getCallsStatus } from './getCallsStatus';
 import { GetCallsStatusCode } from '../constants';
 import type { EIP5792Messenger } from '../types';
+import { getCallsStatus } from './getCallsStatus';
 
 const CHAIN_ID_MOCK = '0x123';
 const BATCH_ID_MOCK = '0xf3472db2a4134607a17213b7e9ca26e3';

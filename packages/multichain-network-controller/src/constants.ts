@@ -1,5 +1,5 @@
 import type { StateMetadata } from '@metamask/base-controller';
-import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope, TrxScope, XlmScope } from '@metamask/keyring-api';
 import type { CaipChainId } from '@metamask/keyring-api';
 import { NetworkStatus } from '@metamask/network-controller';
 
@@ -21,6 +21,8 @@ export const SOL_DEVNET_NATIVE_ASSET = `${SolScope.Devnet}/slip44:501`;
 export const TRX_NATIVE_ASSET = `${TrxScope.Mainnet}/slip44:195`;
 export const TRX_NILE_NATIVE_ASSET = `${TrxScope.Nile}/slip44:195`;
 export const TRX_SHASTA_NATIVE_ASSET = `${TrxScope.Shasta}/slip44:195`;
+export const XLM_NATIVE_ASSET = `${XlmScope.Pubnet}/slip44:148`;
+export const XLM_TESTNET_NATIVE_ASSET = `${XlmScope.Testnet}/slip44:148`;
 
 /**
  * Supported networks by the MultichainNetworkController
@@ -95,6 +97,18 @@ export const AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS: Record<
     nativeCurrency: TRX_SHASTA_NATIVE_ASSET,
     isEvm: false,
   },
+  [XlmScope.Pubnet]: {
+    chainId: XlmScope.Pubnet,
+    name: 'Stellar',
+    nativeCurrency: XLM_NATIVE_ASSET,
+    isEvm: false,
+  },
+  [XlmScope.Testnet]: {
+    chainId: XlmScope.Testnet,
+    name: 'Stellar Testnet',
+    nativeCurrency: XLM_TESTNET_NATIVE_ASSET,
+    isEvm: false,
+  },
 };
 
 /**
@@ -111,6 +125,7 @@ export const NON_EVM_TESTNET_IDS: CaipChainId[] = [
   SolScope.Devnet,
   TrxScope.Nile,
   TrxScope.Shasta,
+  XlmScope.Testnet,
 ];
 
 /**
@@ -126,6 +141,10 @@ export const NETWORKS_METADATA: Record<string, MultichainNetworkMetadata> = {
     status: NetworkStatus.Available,
   },
   [TrxScope.Mainnet]: {
+    features: [],
+    status: NetworkStatus.Available,
+  },
+  [XlmScope.Pubnet]: {
     features: [],
     status: NetworkStatus.Available,
   },
@@ -195,6 +214,8 @@ export const MULTICHAIN_NETWORK_TICKER: Record<CaipChainId, string> = {
   [TrxScope.Mainnet]: 'TRX',
   [TrxScope.Nile]: 'tTRX',
   [TrxScope.Shasta]: 'sTRX',
+  [XlmScope.Pubnet]: 'XLM',
+  [XlmScope.Testnet]: 'tXLM',
 } as const;
 
 /**
@@ -213,4 +234,6 @@ export const MULTICHAIN_NETWORK_DECIMAL_PLACES: Record<CaipChainId, number> = {
   [TrxScope.Mainnet]: 6,
   [TrxScope.Nile]: 6,
   [TrxScope.Shasta]: 6,
+  [XlmScope.Pubnet]: 7,
+  [XlmScope.Testnet]: 7,
 } as const;

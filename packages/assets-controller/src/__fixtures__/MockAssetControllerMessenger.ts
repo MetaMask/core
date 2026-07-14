@@ -8,12 +8,12 @@ import {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import { NetworkStatus } from '@metamask/network-controller';
-
 import {
   NetworkState,
   RpcEndpoint,
   RpcEndpointType,
-} from '../../../network-controller/src/NetworkController';
+} from '@metamask/network-controller/src/NetworkController';
+
 import {
   AssetsControllerMessenger,
   getDefaultAssetsControllerState,
@@ -53,7 +53,6 @@ export function createMockAssetControllerMessenger(): {
       'AccountTreeController:getAccountsFromSelectedAccountGroup',
       'AssetsController:getState',
       // RpcDataSource
-      'TokenListController:getState',
       'NetworkController:getState',
       'NetworkController:getNetworkClientById',
       // RpcDataSource, StakedBalanceDataSource
@@ -80,13 +79,14 @@ export function createMockAssetControllerMessenger(): {
     events: [
       // AssetsController
       'AccountTreeController:selectedAccountGroupChange',
+      'AccountTreeController:stateChange',
+      'ClientController:stateChange',
       'KeyringController:lock',
       'KeyringController:unlock',
       'PreferencesController:stateChange',
       // RpcDataSource, StakedBalanceDataSource
       'NetworkController:stateChange',
       'TransactionController:transactionConfirmed',
-      'TransactionController:incomingTransactionsReceived',
       // StakedBalanceDataSource
       'NetworkEnablementController:stateChange',
       // SnapDataSource
@@ -94,6 +94,8 @@ export function createMockAssetControllerMessenger(): {
       'PermissionController:stateChange',
       // BackendWebsocketDataSource
       'BackendWebSocketService:connectionStateChanged',
+      // AccountActivityService
+      'AccountActivityService:balanceUpdated',
     ],
   });
 
@@ -172,10 +174,6 @@ export function registerRpcDataSourceActions(
   rootMessenger.registerActionHandler('AssetsController:getState', () =>
     getDefaultAssetsControllerState(),
   );
-
-  rootMessenger.registerActionHandler('TokenListController:getState', () => ({
-    tokensChainsCache: {},
-  }));
 
   rootMessenger.registerActionHandler(
     'NetworkEnablementController:getState',

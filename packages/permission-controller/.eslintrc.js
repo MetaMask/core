@@ -3,10 +3,7 @@ module.exports = {
 
   overrides: [
     {
-      files: [
-        'src/PermissionController.test.ts',
-        'src/rpc-methods/revokePermissions.test.ts',
-      ],
+      files: ['src/PermissionController.test.ts'],
       rules: {
         // This is taken directly from @metamask/eslint-config-typescript@12.1.0
         '@typescript-eslint/naming-convention': [

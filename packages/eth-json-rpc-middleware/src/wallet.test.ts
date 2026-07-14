@@ -8,8 +8,8 @@ import type {
   TypedMessageV1Params,
 } from '.';
 import { createWalletMiddleware } from '.';
-import { DANGEROUS_PROTOTYPE_PROPERTIES } from './utils/validation';
 import { createHandleParams, createRequest } from '../test/util/helpers';
+import { DANGEROUS_PROTOTYPE_PROPERTIES } from './utils/validation';
 
 const testAddresses = [
   '0xbe93f9bacbcffc8ee6663f2647917ed7a20a57bb',
@@ -750,6 +750,29 @@ describe('wallet', () => {
             ...messageParams,
             types: { ...messageParams.types, Permit: undefined },
           }),
+        ],
+      };
+
+      await expect(
+        engine.handle(...createHandleParams(payload)),
+      ).rejects.toThrow('Invalid input.');
+    });
+
+    it('should throw if message data contains extraneous keys', async () => {
+      const getAccounts = async (): Promise<string[]> => testAddresses.slice();
+      const processTypedMessageV4 = async (): Promise<string> => testMsgSig;
+      const engine = JsonRpcEngineV2.create({
+        middleware: [
+          createWalletMiddleware({ getAccounts, processTypedMessageV4 }),
+        ],
+      });
+
+      const messageParams = getMsgParams();
+      const payload = {
+        method: 'eth_signTypedData_v4',
+        params: [
+          testAddresses[0],
+          JSON.stringify({ ...messageParams, extraKey: 'unexpected' }),
         ],
       };
 

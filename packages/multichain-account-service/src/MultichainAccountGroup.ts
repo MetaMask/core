@@ -23,8 +23,7 @@ export type GroupState =
  */
 export class MultichainAccountGroup<
   Account extends Bip44Account<KeyringAccount>,
-> implements MultichainAccountGroupDefinition<Account>
-{
+> implements MultichainAccountGroupDefinition<Account> {
   readonly #id: MultichainAccountGroupId;
 
   readonly #wallet: MultichainAccountWallet<Account>;
@@ -251,5 +250,40 @@ export class MultichainAccountGroup<
    */
   select(selector: AccountSelector<Account>): Account[] {
     return select(this.getAccounts(), selector);
+  }
+
+  /**
+   * Check whether every provider has an aligned account in this group.
+   *
+   * A group is aligned when every registered provider reports that the
+   * account IDs it contributed to this group are non-empty and owned by it.
+   * Disabled {@link AccountProviderWrapper} instances always report `true`.
+   *
+   * @returns `true` when all providers are aligned for this group.
+   */
+  isAligned(): boolean {
+    return this.#providers.every((provider) =>
+      this.isProviderAligned(provider),
+    );
+  }
+
+  /**
+   * Check whether a single provider has an aligned account in this group.
+   *
+   * A provider is aligned when the account IDs it contributed to this group are
+   * non-empty and owned by it. Disabled {@link AccountProviderWrapper} instances
+   * always report `true`.
+   *
+   * @param provider - The provider to check.
+   * @returns `true` when the provider is aligned for this group.
+   */
+  isProviderAligned(provider: Bip44AccountProvider<Account>): boolean {
+    return provider.isAligned(
+      {
+        entropySource: this.#wallet.entropySource,
+        groupIndex: this.#groupIndex,
+      },
+      this.#providerToAccounts.get(provider) ?? [],
+    );
   }
 }

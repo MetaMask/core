@@ -1,21 +1,26 @@
 {
   "name": "@metamask/eip1193-permission-middleware",
-  "version": "1.0.3",
+  "version": "2.0.1",
   "description": "Implements the JSON-RPC methods for managing permissions as referenced in EIP-2255 and MIP-2 and inspired by MIP-5, but supporting chain-agnostic permission caveats in alignment with @metamask/multichain-api-middleware",
   "keywords": [
-    "MetaMask",
-    "Ethereum"
+    "Ethereum",
+    "MetaMask"
   ],
   "homepage": "https://github.com/MetaMask/core/tree/main/packages/eip1193-permission-middleware#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
-  "license": "MIT",
+  "files": [
+    "dist/"
+  ],
   "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.cts",
   "exports": {
     ".": {
       "import": {
@@ -29,11 +34,10 @@
     },
     "./package.json": "./package.json"
   },
-  "main": "./dist/index.cjs",
-  "types": "./dist/index.d.cts",
-  "files": [
-    "dist/"
-  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
@@ -47,15 +51,15 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/chain-agnostic-permission": "^1.5.0",
-    "@metamask/controller-utils": "^11.19.0",
-    "@metamask/json-rpc-engine": "^10.2.4",
-    "@metamask/permission-controller": "^12.3.0",
-    "@metamask/utils": "^11.9.0",
+    "@metamask/chain-agnostic-permission": "^1.7.0",
+    "@metamask/controller-utils": "^12.3.0",
+    "@metamask/json-rpc-engine": "^10.5.0",
+    "@metamask/permission-controller": "^13.1.1",
+    "@metamask/utils": "^11.11.0",
     "lodash": "^4.17.21"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/auto-changelog": "^6.1.0",
     "@metamask/rpc-errors": "^7.0.2",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
@@ -68,9 +72,5 @@
   },
   "engines": {
     "node": "^18.18 || >=20"
-  },
-  "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org/"
   }
 }

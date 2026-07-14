@@ -1,3 +1,4 @@
+export { encodeFunctionData } from './abi';
 export {
   BrokenCircuitError,
   CircuitState,
@@ -54,6 +55,7 @@ export {
   DAY,
   DAYS,
   NETWORKS_BYPASSING_VALIDATION,
+  CHAIN_IDS_WITH_NO_NATIVE_TOKEN,
 } from './constants';
 export type { NonEmptyArray } from './util';
 export {

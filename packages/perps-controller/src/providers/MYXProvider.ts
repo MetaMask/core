@@ -82,6 +82,7 @@ import type {
   WithdrawParams,
   WithdrawResult,
   RawLedgerUpdate,
+  PerpsReadOptions,
 } from '../types';
 import { MYXOrderStatusEnum } from '../types/myx-types';
 import type {
@@ -498,6 +499,8 @@ export class MYXProvider implements PerpsProvider {
           price,
           timestamp: Date.now(),
           percentChange24h: change24h.toFixed(2),
+          // MYX has no oracle-deviation tradability rule yet, so always report tradable.
+          isTradable: true,
           providerId: 'myx',
         };
       });
@@ -686,7 +689,8 @@ export class MYXProvider implements PerpsProvider {
         ...this.#getErrorContext('getAccountState'),
       });
       return {
-        availableBalance: '0',
+        spendableBalance: '0',
+        withdrawableBalance: '0',
         totalBalance: '0',
         marginUsed: '0',
         unrealizedPnl: '0',
@@ -695,7 +699,10 @@ export class MYXProvider implements PerpsProvider {
     }
   }
 
-  async getOrders(_params?: GetOrdersParams): Promise<Order[]> {
+  async getOrders(
+    _params?: GetOrdersParams,
+    _options?: PerpsReadOptions,
+  ): Promise<Order[]> {
     try {
       await this.#ensureAuthenticated();
       const address = this.#getWalletService().getUserAddress();
@@ -738,7 +745,10 @@ export class MYXProvider implements PerpsProvider {
     }
   }
 
-  async getOrderFills(_params?: GetOrderFillsParams): Promise<OrderFill[]> {
+  async getOrderFills(
+    _params?: GetOrderFillsParams,
+    _options?: PerpsReadOptions,
+  ): Promise<OrderFill[]> {
     try {
       await this.#ensureAuthenticated();
       const address = this.#getWalletService().getUserAddress();
@@ -773,7 +783,10 @@ export class MYXProvider implements PerpsProvider {
     return this.getOrderFills(_params);
   }
 
-  async getFunding(_params?: GetFundingParams): Promise<Funding[]> {
+  async getFunding(
+    _params?: GetFundingParams,
+    _options?: PerpsReadOptions,
+  ): Promise<Funding[]> {
     try {
       await this.#ensureAuthenticated();
       const address = this.#getWalletService().getUserAddress();
@@ -812,6 +825,18 @@ export class MYXProvider implements PerpsProvider {
     endTime?: number;
   }): Promise<RawLedgerUpdate[]> {
     return [];
+  }
+
+  /**
+   * Resolve the provider's currently active CAIP account identifier.
+   * Used by the MarketDataService REST coalesce layer so cached payloads
+   * are keyed by the actual resolved address rather than a shared
+   * "default" sentinel.
+   *
+   * @returns CAIP account id for the currently selected MYX account.
+   */
+  async getCurrentAccountId(): Promise<CaipAccountId> {
+    return this.#getWalletService().getCurrentAccountId();
   }
 
   async getUserHistory(_params?: {
@@ -936,7 +961,8 @@ export class MYXProvider implements PerpsProvider {
     setTimeout(
       () =>
         params.callback({
-          availableBalance: '0',
+          spendableBalance: '0',
+          withdrawableBalance: '0',
           totalBalance: '0',
           marginUsed: '0',
           unrealizedPnl: '0',

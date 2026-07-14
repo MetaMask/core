@@ -37,6 +37,7 @@ export type {
   SeedlessOnboardingControllerCheckNodeAuthTokenExpiredAction,
   SeedlessOnboardingControllerCheckMetadataAccessTokenExpiredAction,
   SeedlessOnboardingControllerCheckAccessTokenExpiredAction,
+  SeedlessOnboardingControllerRunMigrationsAction,
 } from './SeedlessOnboardingController-method-action-types';
 export type {
   AuthenticatedUserDetails,
@@ -48,8 +49,11 @@ export type {
 export {
   Web3AuthNetwork,
   SeedlessOnboardingControllerErrorMessage,
+  SeedlessOnboardingMigrationVersion,
   AuthConnection,
   SecretType,
 } from './constants';
 export { SecretMetadata } from './SecretMetadata';
 export { RecoveryError, SeedlessOnboardingError } from './errors';
+
+export { EncAccountDataType } from '@metamask/toprf-secure-backup';

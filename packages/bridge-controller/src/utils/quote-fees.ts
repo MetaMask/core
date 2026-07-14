@@ -2,18 +2,19 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { TransactionController } from '@metamask/transaction-controller';
 import { numberToHex } from '@metamask/utils';
 
+import { CHAIN_IDS } from '../constants/chains';
+import type {
+  L1GasFees,
+  NonEvmFees,
+  BridgeControllerMessenger,
+} from '../types';
+import type { QuoteResponseV1 } from '../validators/quote-response-v1';
+import { isTronTrade } from '../validators/trade';
+import type { TxData } from '../validators/trade';
 import { isNonEvmChainId, sumHexes } from './bridge';
 import { formatChainIdToCaip } from './caip-formatters';
 import { computeFeeRequest } from './snaps';
-import { extractTradeData, isTronTrade } from './trade-utils';
-import { CHAIN_IDS } from '../constants/chains';
-import type {
-  QuoteResponse,
-  L1GasFees,
-  NonEvmFees,
-  TxData,
-  BridgeControllerMessenger,
-} from '../types';
+import { extractTradeData } from './trade-utils';
 
 /**
  * Appends transaction fees for EVM chains to quotes
@@ -23,9 +24,9 @@ import type {
  * @returns Array of quotes with fees appended, or undefined if quotes are for non-EVM chains
  */
 const appendL1GasFees = async (
-  quotes: QuoteResponse<TxData, TxData>[],
+  quotes: QuoteResponseV1<TxData, TxData>[],
   getLayer1GasFee: typeof TransactionController.prototype.getLayer1GasFee,
-): Promise<(QuoteResponse<TxData, TxData> & L1GasFees)[] | undefined> => {
+): Promise<(QuoteResponseV1<TxData, TxData> & L1GasFees)[] | undefined> => {
   // Indicates whether some of the quotes are not for optimism or base
   const hasInvalidQuotes = quotes.some(({ quote }) => {
     const chainId = formatChainIdToCaip(quote.srcChainId);
@@ -74,7 +75,7 @@ const appendL1GasFees = async (
   );
 
   const quotesWithL1GasFees = (await l1GasFeePromises).reduce<
-    (QuoteResponse<TxData, TxData> & L1GasFees)[]
+    (QuoteResponseV1<TxData, TxData> & L1GasFees)[]
   >((acc, result) => {
     if (result.status === 'fulfilled' && result.value) {
       acc.push(result.value);
@@ -96,10 +97,10 @@ const appendL1GasFees = async (
  * @returns Array of quotes with fees appended, or undefined if quotes are for EVM chains
  */
 const appendNonEvmFees = async (
-  quotes: QuoteResponse[],
+  quotes: QuoteResponseV1[],
   messenger: BridgeControllerMessenger,
   selectedAccount?: InternalAccount,
-): Promise<(QuoteResponse & NonEvmFees)[] | undefined> => {
+): Promise<(QuoteResponseV1 & NonEvmFees)[] | undefined> => {
   if (
     quotes.some(({ quote: { srcChainId } }) => !isNonEvmChainId(srcChainId))
   ) {
@@ -175,7 +176,7 @@ const appendNonEvmFees = async (
   );
 
   const quotesWithNonEvmFees = (await nonEvmFeePromises).reduce<
-    (QuoteResponse & NonEvmFees)[]
+    (QuoteResponseV1 & NonEvmFees)[]
   >((acc, result) => {
     if (result.status === 'fulfilled' && result.value) {
       acc.push(result.value);
@@ -196,14 +197,14 @@ const appendNonEvmFees = async (
  * @returns Array of quotes with fees appended, or undefined if quotes are for EVM chains
  */
 export const appendFeesToQuotes = async (
-  quotes: QuoteResponse[],
+  quotes: QuoteResponseV1[],
   messenger: BridgeControllerMessenger,
   getLayer1GasFee: typeof TransactionController.prototype.getLayer1GasFee,
   selectedAccount?: InternalAccount,
-): Promise<(QuoteResponse & L1GasFees & NonEvmFees)[]> => {
+): Promise<(QuoteResponseV1 & L1GasFees & NonEvmFees)[]> => {
   // Safe to cast: appendL1GasFees checks if all quotes are EVM and returns undefined otherwise
   const quotesWithL1GasFees = await appendL1GasFees(
-    quotes as QuoteResponse<TxData, TxData>[],
+    quotes as QuoteResponseV1<TxData, TxData>[],
     getLayer1GasFee,
   );
   const quotesWithNonEvmFees = await appendNonEvmFees(

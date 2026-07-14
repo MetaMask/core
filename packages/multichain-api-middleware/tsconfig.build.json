@@ -7,6 +7,7 @@
     "rootDir": "./src"
   },
   "references": [
+    { "path": "../accounts-controller/tsconfig.build.json" },
     { "path": "../chain-agnostic-permission/tsconfig.build.json" },
     { "path": "../json-rpc-engine/tsconfig.build.json" },
     { "path": "../network-controller/tsconfig.build.json" },

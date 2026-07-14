@@ -2,12 +2,6 @@
 import type { Json, JsonRpcId } from '@metamask/utils';
 import { createDeferredPromise } from '@metamask/utils';
 
-import type { JsonRpcMiddleware, ResultConstraint } from './JsonRpcEngineV2';
-import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
-import type { EmptyContext } from './MiddlewareContext';
-import { MiddlewareContext } from './MiddlewareContext';
-import { isRequest, JsonRpcEngineError, stringify } from './utils';
-import type { JsonRpcCall, JsonRpcNotification, JsonRpcRequest } from './utils';
 import {
   makeNotification,
   makeNotificationMiddleware,
@@ -15,6 +9,12 @@ import {
   makeRequest,
   makeRequestMiddleware,
 } from '../../tests/utils';
+import type { JsonRpcMiddleware, ResultConstraint } from './JsonRpcEngineV2';
+import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
+import type { EmptyContext } from './MiddlewareContext';
+import { MiddlewareContext } from './MiddlewareContext';
+import { isRequest, JsonRpcEngineError, stringify } from './utils';
+import type { JsonRpcCall, JsonRpcNotification, JsonRpcRequest } from './utils';
 
 const jsonrpc = '2.0' as const;
 

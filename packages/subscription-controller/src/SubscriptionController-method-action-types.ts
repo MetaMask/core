@@ -227,6 +227,11 @@ export type SubscriptionControllerTriggerAccessTokenRefreshAction = {
   handler: SubscriptionController['triggerAccessTokenRefresh'];
 };
 
+export type SubscriptionControllerStopAllPollingAction = {
+  type: `SubscriptionController:stopAllPolling`;
+  handler: SubscriptionController['stopAllPolling'];
+};
+
 /**
  * Union of all SubscriptionController action types.
  */
@@ -252,4 +257,5 @@ export type SubscriptionControllerMethodActions =
   | SubscriptionControllerGetTokenApproveAmountAction
   | SubscriptionControllerGetTokenMinimumBalanceAmountAction
   | SubscriptionControllerClearStateAction
-  | SubscriptionControllerTriggerAccessTokenRefreshAction;
+  | SubscriptionControllerTriggerAccessTokenRefreshAction
+  | SubscriptionControllerStopAllPollingAction;

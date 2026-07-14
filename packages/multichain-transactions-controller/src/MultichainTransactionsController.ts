@@ -24,7 +24,11 @@ import { HandlerType } from '@metamask/snaps-utils';
 import type { CaipChainId, Json, JsonRpcRequest } from '@metamask/utils';
 import type { Draft } from 'immer';
 
+import type { MultichainTransactionsControllerMethodActions } from './MultichainTransactionsController-method-action-types';
+
 const controllerName = 'MultichainTransactionsController';
+
+const MESSENGER_EXPOSED_METHODS = ['updateTransactionsForAccount'] as const;
 
 /**
  * PaginationOptions
@@ -98,7 +102,8 @@ export type MultichainTransactionsControllerStateChange =
  * Actions exposed by the {@link MultichainTransactionsController}.
  */
 export type MultichainTransactionsControllerActions =
-  MultichainTransactionsControllerGetStateAction;
+  | MultichainTransactionsControllerGetStateAction
+  | MultichainTransactionsControllerMethodActions;
 
 /**
  * Events emitted by {@link MultichainTransactionsController}.
@@ -183,6 +188,11 @@ export class MultichainTransactionsController extends BaseController<
         ...state,
       },
     });
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
 
     // Fetch initial transactions for all non-EVM accounts
     for (const account of this.#listAccounts()) {

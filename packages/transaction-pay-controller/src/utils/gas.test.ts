@@ -2,20 +2,21 @@ import { toHex } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 import { clone, cloneDeep } from 'lodash';
 
-import { getFallbackGas, getGasBuffer } from './feature-flags';
-import {
-  calculateGasCost,
-  calculateGasFeeTokenCost,
-  calculateTransactionGasCost,
-  estimateGasLimit,
-} from './gas';
-import { getTokenBalance, getTokenFiatRate } from './token';
 import type { GasFeeEstimates } from '../../../gas-fee-controller/src';
 import type {
   GasFeeToken,
   TransactionMeta,
 } from '../../../transaction-controller/src';
 import { getMessengerMock } from '../tests/messenger-mock';
+import { getFallbackGas, getGasBuffer } from './feature-flags';
+import {
+  calculateGasCost,
+  calculateGasFeeTokenCost,
+  calculateTransactionGasCost,
+  estimateGasLimit,
+  getGasFee,
+} from './gas';
+import { getTokenBalance, getTokenFiatRate } from './token';
 
 jest.mock('./token');
 jest.mock('./feature-flags', () => ({
@@ -561,6 +562,67 @@ describe('Gas Utils', () => {
       expect((result.error as Error).message).toBe(
         'Invalid gas estimate returned: invalid',
       );
+    });
+  });
+
+  describe('getGasFee', () => {
+    it('returns gas fee estimates for a chain', () => {
+      const result = getGasFee(CHAIN_ID_MOCK, messenger);
+
+      expect(result).toStrictEqual({
+        estimatedBaseFee: '4000000000',
+        maxFeePerGas: '7000000000',
+        maxPriorityFeePerGas: '2000000000',
+      });
+    });
+
+    it('returns undefined for all fields when chain state is missing', () => {
+      getGasFeeControllerStateMock.mockReturnValue({
+        gasFeeEstimatesByChainId: {},
+      });
+
+      const result = getGasFee(CHAIN_ID_MOCK, messenger);
+
+      expect(result).toStrictEqual({
+        estimatedBaseFee: undefined,
+        maxFeePerGas: undefined,
+        maxPriorityFeePerGas: undefined,
+      });
+    });
+
+    it('returns undefined for all fields when gas fee controller state is undefined', () => {
+      getGasFeeControllerStateMock.mockReturnValue(undefined);
+
+      const result = getGasFee(CHAIN_ID_MOCK, messenger);
+
+      expect(result).toStrictEqual({
+        estimatedBaseFee: undefined,
+        maxFeePerGas: undefined,
+        maxPriorityFeePerGas: undefined,
+      });
+    });
+
+    it('returns undefined maxFeePerGas and maxPriorityFeePerGas when medium estimates are missing', () => {
+      const gasState = cloneDeep(GAS_FEE_CONTROLLER_STATE_MOCK);
+
+      gasState.gasFeeEstimatesByChainId[
+        CHAIN_ID_MOCK
+      ].gasFeeEstimates.medium.suggestedMaxFeePerGas = undefined as never;
+
+      gasState.gasFeeEstimatesByChainId[
+        CHAIN_ID_MOCK
+      ].gasFeeEstimates.medium.suggestedMaxPriorityFeePerGas =
+        undefined as never;
+
+      getGasFeeControllerStateMock.mockReturnValue(gasState);
+
+      const result = getGasFee(CHAIN_ID_MOCK, messenger);
+
+      expect(result).toStrictEqual({
+        estimatedBaseFee: '4000000000',
+        maxFeePerGas: undefined,
+        maxPriorityFeePerGas: undefined,
+      });
     });
   });
 });

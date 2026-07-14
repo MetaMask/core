@@ -28,19 +28,8 @@ export type ComplianceServiceCheckWalletsComplianceAction = {
 };
 
 /**
- * Fetches the full list of blocked wallets and source metadata.
- *
- * @returns The blocked wallets data.
- */
-export type ComplianceServiceUpdateBlockedWalletsAction = {
-  type: `ComplianceService:updateBlockedWallets`;
-  handler: ComplianceService['updateBlockedWallets'];
-};
-
-/**
  * Union of all ComplianceService action types.
  */
 export type ComplianceServiceMethodActions =
   | ComplianceServiceCheckWalletComplianceAction
-  | ComplianceServiceCheckWalletsComplianceAction
-  | ComplianceServiceUpdateBlockedWalletsAction;
+  | ComplianceServiceCheckWalletsComplianceAction;

@@ -62,6 +62,8 @@ export const PERPS_EVENT_PROPERTY = {
   INTERACTION_TYPE: 'interaction_type',
   TIME_SERIE_SELECTED: 'time_serie_selected',
   CANDLE_PERIOD: 'candle_period',
+  CHART_LIBRARY: 'chart_library',
+  ASSET_TYPE: 'asset_type',
 
   // Risk management properties
   STOP_LOSS_PRICE: 'stop_loss_price',
@@ -110,6 +112,10 @@ export const PERPS_EVENT_PROPERTY = {
   IMAGE_SELECTED: 'image_selected',
   TAB_NUMBER: 'tab_number',
 
+  // VIP rewards properties
+  VIP_TIER: 'vip_tier',
+  VIP_DISCOUNT: 'vip_discount',
+
   // A/B testing properties (flat per test for multiple concurrent tests)
   // Only include AB test properties when test is enabled (event not sent when disabled)
   // Button color test (TAT-1937)
@@ -123,6 +129,9 @@ export const PERPS_EVENT_PROPERTY = {
   // Balance properties
   HAS_PERP_BALANCE: 'has_perp_balance',
 
+  // Service interruption banner
+  OUTAGE_BANNER_SHOWN: 'outage_banner_shown',
+
   // Geo-blocking properties (TAT-2337: track geo-blocked withdrawals for monitoring)
   IS_GEO_BLOCKED: 'is_geo_blocked',
 
@@ -131,11 +140,22 @@ export const PERPS_EVENT_PROPERTY = {
   HAS_STOP_LOSS: 'has_stop_loss',
   TAKE_PROFIT_PERCENTAGE: 'take_profit_percentage',
   STOP_LOSS_PERCENTAGE: 'stop_loss_percentage',
+  // Auto Close TP/SL RoE sign toggle (`'+'` | `'-'`)
+  ROE_SIGN: 'roe_sign',
   // Watchlist/Favorites properties
   FAVORITES_COUNT: 'favorites_count',
 
   // Scroll tracking properties
   SECTION_VIEWED: 'section_viewed',
+
+  // Discovery analytics properties
+  SOURCE_SECTION: 'source_section',
+  RESULT_COUNT: 'result_count',
+  SECTION_NAME: 'section_name',
+  SECTION_INDEX: 'section_index',
+  SECTIONS_DISPLAYED: 'sections_displayed',
+  WATCHLIST_COUNT: 'watchlist_count',
+  WATCHLIST_MARKETS: 'watchlist_markets',
 
   // Order value (USD $ value of the order)
   ORDER_VALUE: 'order_value',
@@ -151,6 +171,75 @@ export const PERPS_EVENT_PROPERTY = {
   // Pay-with UI (PERPS_UI_INTERACTION)
   INITIAL_PAYMENT_METHOD: 'initial_payment_method',
   NEW_PAYMENT_METHOD: 'new_payment_method',
+
+  // Slippage properties
+  MAX_SLIPPAGE_PCT: 'max_slippage_pct',
+  MAX_SLIPPAGE_SOURCE: 'max_slippage_source',
+  ESTIMATED_SLIPPAGE_PCT: 'estimated_slippage_pct',
+
+  // Account setup / abstraction mode (PERPS_ACCOUNT_SETUP)
+  ABSTRACTION_MODE: 'abstraction_mode',
+  PREVIOUS_ABSTRACTION_MODE: 'previous_abstraction_mode',
+
+  // Entry point / discovery attribution (TAT-3080)
+  ENTRY_POINT: 'entry_point',
+  DISCOVERY_SOURCE: 'discovery_source',
+  PERP_DISCOVERY_SOURCE: 'perp_discovery_source',
+
+  // UTM attribution context (TAT-3133, TAT-3140)
+  UTM_SOURCE: 'utm_source',
+  UTM_MEDIUM: 'utm_medium',
+  UTM_CAMPAIGN: 'utm_campaign',
+  UTM_CONTENT: 'utm_content',
+  UTM_TERM: 'utm_term',
+
+  // Watchlist membership at event time (TAT-3148)
+  WATCHLISTED: 'watchlisted',
+
+  // HyperLiquid protocol fee rate on trade + close (TAT-3149)
+  HL_FEE_RATE: 'hl_fee_rate',
+
+  // Bulk action correlation id for batch close/cancel (TAT-3150)
+  BULK_ACTION_ID: 'bulk_action_id',
+
+  // Client environment (Extension supplies value) (TAT-3335)
+  ENVIRONMENT_TYPE: 'environment_type',
+
+  // Order funnel / consideration + quote properties (TAT-3084)
+  ORDER_CONTEXT: 'order_context',
+  ORDER_SIZE_PERCENT: 'order_size_percent',
+  LIMIT_PRICE_INPUT_TYPE: 'limit_price_input_type',
+  LIMIT_PRICE_INPUT_PRESET: 'limit_price_input_preset',
+  ORDER_HAS_TP: 'order_has_tp',
+  ORDER_HAS_SL: 'order_has_sl',
+  QUOTE_LATENCY_MS: 'quote_latency_ms',
+  ERROR_REASON: 'error_reason',
+  SAVED_ORDER: 'saved_order',
+  DEFAULT_PAYMENT_TOKEN: 'default_payment_token',
+  DEFAULT_SIZE_AMOUNT: 'default_size_amount',
+  DEFAULT_LEVERAGE: 'default_leverage',
+  DEFAULT_AUTO_CLOSE: 'default_auto_close',
+  ORDER_EXECUTION_LATENCY_MS: 'order_execution_latency_ms',
+  SCREEN_CONTEXT: 'screen_context',
+  FROM_TOKEN: 'from_token',
+  FROM_CHAIN: 'from_chain',
+  TO_TOKEN: 'to_token',
+  TO_CHAIN: 'to_chain',
+
+  // Search / discovery query properties (TAT-3144, TAT-3202, TAT-3151)
+  SEARCH_QUERY: 'search_query',
+  RESULTS_COUNT: 'results_count',
+  RESULT_RANK: 'result_rank',
+  MODE: 'mode',
+  CURRENT_TOKEN: 'current_token',
+
+  // Sort / filter properties (TAT-3142)
+  SORT_FIELD: 'sort_field',
+  SORT_DIRECTION: 'sort_direction',
+  FILTER_CATEGORY: 'filter_category',
+
+  // Time-on-screen for abandon tracking (TAT-3136)
+  TIME_ON_SCREEN_MS: 'time_on_screen_ms',
 } as const;
 
 /**
@@ -168,6 +257,14 @@ export const PERPS_EVENT_VALUE = {
   ORDER_TYPE_CAPITALIZED: {
     MARKET: 'market',
     LIMIT: 'limit',
+  },
+  CHART_LIBRARY: {
+    LIGHTWEIGHT: 'lightweight',
+    ADVANCED: 'advanced',
+  },
+  ASSET_TYPE: {
+    SPOT: 'spot',
+    PERP: 'perp',
   },
   INPUT_METHOD: {
     SLIDER: 'slider',
@@ -234,6 +331,7 @@ export const PERPS_EVENT_VALUE = {
     ADD_FUNDS_ACTION: 'add_funds_action',
     CANCEL_ORDER: 'cancel_order',
     ASSET_DETAIL_SCREEN: 'asset_detail_screen',
+    MARKET_INSIGHTS: 'market_insights',
     // TAT-2449: Geo-block sources for close/modify actions
     CLOSE_POSITION_ACTION: 'close_position_action',
     MODIFY_POSITION_ACTION: 'modify_position_action',
@@ -282,6 +380,43 @@ export const PERPS_EVENT_VALUE = {
     MARGIN_UPDATE_FAILED: 'margin_update_failed',
     UNKNOWN: 'unknown',
   },
+  SOURCE_SECTION: {
+    // Home sections
+    POSITIONS: 'positions',
+    ORDERS: 'orders',
+    WATCHLIST: 'watchlist',
+    WHATS_HAPPENING: 'whats_happening',
+    PRODUCTS: 'products',
+    TOP_GAINERS: 'top_gainers',
+    TOP_LOSERS: 'top_losers',
+    CRYPTO: 'crypto',
+    COMMODITY: 'commodity',
+    STOCK: 'stock',
+    FOREX: 'forex',
+    // Explore sections
+    PERPS_MOVERS: 'perps_movers',
+    PERPS_CRYPTO: 'perps_crypto',
+    PERPS_STOCKS_COMMODITIES: 'perps_stocks_commodities',
+    PERPS_MARKETS: 'perps_markets',
+    // Market list sections
+    ALL_MARKETS: 'all_markets',
+    NEW: 'new',
+    ACTIVE_SEARCH: 'active_search',
+  },
+  SECTION_NAME: {
+    BALANCE: 'balance',
+    POSITIONS: 'positions',
+    ORDERS: 'orders',
+    WATCHLIST: 'watchlist',
+    WHATS_HAPPENING: 'whats_happening',
+    PRODUCTS: 'products',
+    TOP_MOVERS: 'top_movers',
+    EXPLORE_CRYPTO: 'explore_crypto',
+    EXPLORE_COMMODITIES: 'explore_commodities',
+    EXPLORE_STOCKS: 'explore_stocks',
+    EXPLORE_FOREX: 'explore_forex',
+    RECENT_ACTIVITY: 'recent_activity',
+  },
   INTERACTION_TYPE: {
     TAP: 'tap',
     ZOOM: 'zoom',
@@ -317,6 +452,27 @@ export const PERPS_EVENT_VALUE = {
     PAYMENT_METHOD_CHANGED: 'payment_method_changed',
     // Deposit + order (pay-with token) cancel
     CANCEL_TRADE_WITH_TOKEN: 'cancel_trade_with_token',
+    // Slippage interactions
+    SLIPPAGE_CONFIG_OPENED: 'slippage_config_opened',
+    SLIPPAGE_CONFIG_CHANGED: 'slippage_config_changed',
+    SLIPPAGE_LIMIT_BLOCKED_ORDER: 'slippage_limit_blocked_order',
+    // Auto Close TP/SL RoE sign toggle
+    TPSL_ROE_SIGN_TOGGLED: 'tpsl_roe_sign_toggled',
+    // Discovery analytics
+    MARKET_LIST_FILTER: 'market_list_filter',
+    // Sort / filter interactions (TAT-3142)
+    SORT_APPLIED: 'sort_applied',
+    FILTER_APPLIED: 'filter_applied',
+    // Search interactions (TAT-3144, TAT-3202)
+    SEARCH_RESULT_TAPPED: 'search_result_tapped',
+    SEARCH_CHIP_TAPPED: 'search_chip_tapped',
+    SEARCH_SIGNAL_TILE_TAPPED: 'search_signal_tile_tapped',
+    // Pay-with token selector dismissed (TAT-3151)
+    PAYMENT_TOKEN_SELECTOR_DISMISSED: 'payment_token_selector_dismissed',
+  },
+  MAX_SLIPPAGE_SOURCE: {
+    DEFAULT: 'default',
+    USER_CONFIGURED: 'user_configured',
   },
   ACTION_TYPE: {
     START_TRADING: 'start_trading',
@@ -353,6 +509,12 @@ export const PERPS_EVENT_VALUE = {
     PARTIALLY_FILLED: 'partially_filled',
     FAILED: 'failed',
     SUCCESS: 'success',
+    ALREADY_ENABLED: 'already_enabled',
+    MIGRATION_REQUIRED: 'migration_required',
+    // Emitted when a migration attempt is skipped because it is not applicable
+    // (e.g. the user has no Hyperliquid account yet — nothing to migrate).
+    // Distinguishes expected no-ops from real failures in dashboards.
+    NOT_APPLICABLE: 'not_applicable',
   },
   SCREEN_TYPE: {
     MARKETS: 'markets',
@@ -388,11 +550,16 @@ export const PERPS_EVENT_VALUE = {
     ADD_MARGIN: 'add_margin',
     REMOVE_MARGIN: 'remove_margin',
     GEO_BLOCK_NOTIF: 'geo_block_notif',
+    COMPLIANCE_BLOCK_NOTIF: 'compliance_block_notif',
     // Deposit + order (pay-with token) cancel toast
     CANCEL_TRADE_WITH_TOKEN_TOAST: 'cancel_trade_with_token_toast',
+    // Search result screen states (TAT-3144)
+    SEARCH_RESULTS_SHOWN: 'search_results_shown',
+    SEARCH_NO_RESULTS: 'search_no_results',
   },
   SETTING_TYPE: {
     LEVERAGE: 'leverage',
+    SLIPPAGE: 'slippage',
   },
   SCREEN_NAME: {
     CONNECTION_ERROR: 'connection_error',
@@ -421,6 +588,8 @@ export const PERPS_EVENT_VALUE = {
     // Flip position actions with direction specificity
     FLIP_LONG_TO_SHORT: 'flip_long_to_short',
     FLIP_SHORT_TO_LONG: 'flip_short_to_long',
+    // Order funnel abandonment (TAT-3136)
+    ABANDON_ORDER: 'abandon_order',
   },
   // Risk management sources
   RISK_MANAGEMENT_SOURCE: {
@@ -461,6 +630,13 @@ export const PERPS_EVENT_VALUE = {
     FOREX: 'forex',
     NEW: 'new',
     GIVE_FEEDBACK: 'give_feedback',
+    WATCHLIST: 'watchlist',
+    TOP_MOVERS: 'top_movers',
+    WHATS_HAPPENING: 'whats_happening',
+    // Order + position management CTAs (TAT-3135, TAT-3141)
+    PLACE_ORDER: 'place_order',
+    CLOSE: 'close',
+    REDUCE_EXPOSURE: 'reduce_exposure',
   },
   BUTTON_LOCATION: {
     PERPS_HOME: 'perps_home',
@@ -476,5 +652,6 @@ export const PERPS_EVENT_VALUE = {
     PERP_MARKET_DETAILS: 'perp_market_details',
     ORDER_BOOK: 'order_book',
     FULL_SCREEN_CHART: 'full_screen_chart',
+    ASSET_DETAILS: 'asset_details',
   },
 } as const;

@@ -1,0 +1,249 @@
+/* eslint-disable */
+/**
+ * Shared service mocks for Perps service tests
+ * Provides reusable mock implementations for ServiceContext and related types
+ */
+
+import {
+  type ServiceContext,
+  type PerpsControllerState,
+  type InitializationState,
+  type PerpsControllerMessenger,
+  type PerpsPlatformDependencies,
+} from '@metamask/perps-controller';
+
+/**
+ * Create a mock EVM account (KeyringAccount)
+ */
+export const createMockEvmAccount = () => ({
+  id: '00000000-0000-0000-0000-000000000000',
+  address: '0x1234567890abcdef1234567890abcdef12345678' as `0x${string}`,
+  type: 'eip155:eoa' as const,
+  options: {},
+  scopes: ['eip155:1'],
+  methods: ['eth_signTransaction', 'eth_sign'],
+  metadata: {
+    name: 'Test Account',
+    importTime: Date.now(),
+    keyring: { type: 'HD Key Tree' },
+  },
+});
+
+/**
+ * Create a mock PerpsPlatformDependencies instance.
+ * Returns a type-safe mock with jest.Mock functions for all methods.
+ * Uses `as unknown as jest.Mocked<PerpsPlatformDependencies>` pattern
+ * to ensure compatibility with both the interface contract and Jest mock APIs.
+ *
+ * Architecture:
+ * - Observability: logger, debugLogger, metrics, performance, tracer (stateless utilities)
+ * - Platform: streamManager (mobile/extension specific capabilities)
+ * - Controllers: consolidated access to all external controllers
+ */
+export const createMockInfrastructure =
+  (): jest.Mocked<PerpsPlatformDependencies> =>
+    ({
+      // === Observability (stateless utilities) ===
+      logger: {
+        error: jest.fn(),
+      },
+      debugLogger: {
+        log: jest.fn(),
+      },
+      metrics: {
+        trackEvent: jest.fn(),
+        isEnabled: jest.fn(() => true),
+        trackPerpsEvent: jest.fn(),
+      },
+      performance: {
+        now: jest.fn(() => Date.now()),
+      },
+      tracer: {
+        trace: jest.fn(() => undefined),
+        endTrace: jest.fn(),
+        setMeasurement: jest.fn(),
+        addBreadcrumb: jest.fn(),
+      },
+
+      // === Platform Services ===
+      streamManager: {
+        pauseChannel: jest.fn(),
+        resumeChannel: jest.fn(),
+        clearAllChannels: jest.fn(),
+      },
+
+      // === Feature Flags (platform-specific version gating) ===
+      featureFlags: {
+        validateVersionGated: jest.fn().mockReturnValue(undefined),
+      },
+
+      // === Market Data Formatting ===
+      marketDataFormatters: {
+        formatVolume: jest.fn((v: number) => `$${v.toFixed(0)}`),
+        formatPerpsFiat: jest.fn((v: number) => `$${v.toFixed(2)}`),
+        formatPercentage: jest.fn((p: number) => `${p.toFixed(2)}%`),
+        priceRangesUniversal: [],
+      },
+
+      // === Cache Invalidation ===
+      cacheInvalidator: {
+        invalidate: jest.fn(),
+        invalidateAll: jest.fn(),
+      },
+
+      // === Terminal API ===
+      terminalApiUrl: 'https://terminal.test-api.cx.metamask.io/v1/perpetuals',
+
+      // === Rewards (DI — no RewardsController in Core yet) ===
+      rewards: {
+        getPerpsDiscountForAccount: jest.fn().mockResolvedValue(0),
+      },
+
+      // === Disk Cache (cold-start persistence) ===
+      diskCache: {
+        getItem: jest.fn().mockResolvedValue(null),
+        getItemSync: jest.fn().mockReturnValue(null),
+        setItem: jest.fn().mockResolvedValue(undefined),
+        removeItem: jest.fn().mockResolvedValue(undefined),
+      },
+    }) as unknown as jest.Mocked<PerpsPlatformDependencies>;
+
+/**
+ * Create a mock PerpsControllerState
+ */
+export const createMockPerpsControllerState = (
+  overrides: Partial<PerpsControllerState> = {},
+): PerpsControllerState => ({
+  activeProvider: 'hyperliquid',
+  isTestnet: false,
+  initializationState: 'initialized' as InitializationState,
+  initializationError: null,
+  initializationAttempts: 0,
+  accountState: null,
+  perpsBalances: {},
+  depositInProgress: false,
+  lastDepositTransactionId: null,
+  lastDepositResult: null,
+  withdrawInProgress: false,
+  lastWithdrawResult: null,
+  lastCompletedWithdrawalTimestamp: null,
+  lastCompletedWithdrawalTxHashes: [],
+  withdrawalRequests: [],
+  withdrawalProgress: {
+    progress: 0,
+    lastUpdated: 0,
+    activeWithdrawalId: null,
+  },
+  depositRequests: [],
+  isEligible: true,
+  isFirstTimeUser: {
+    testnet: true,
+    mainnet: true,
+  },
+  hasPlacedFirstOrder: {
+    testnet: false,
+    mainnet: false,
+  },
+  watchlistMarkets: {
+    testnet: [],
+    mainnet: [],
+  },
+  tradeConfigurations: {
+    testnet: {},
+    mainnet: {},
+  },
+  marketFilterPreferences: {
+    optionId: 'volume',
+    direction: 'desc',
+  },
+  lastError: null,
+  lastUpdateTimestamp: Date.now(),
+  hip3ConfigVersion: 0,
+  selectedPaymentToken: null,
+  cachedMarketDataByProvider: {},
+  cachedUserDataByProvider: {},
+  ...overrides,
+});
+
+/**
+ * Create a mock ServiceContext with optional overrides
+ * Note: infrastructure is no longer part of ServiceContext - it's now injected
+ * into service instances via constructor.
+ */
+export const createMockServiceContext = (
+  overrides: Partial<ServiceContext> = {},
+): ServiceContext => ({
+  tracingContext: {
+    provider: 'hyperliquid',
+    isTestnet: false,
+  },
+  errorContext: {
+    controller: 'TestService',
+    method: 'testMethod',
+  },
+  stateManager: {
+    update: jest.fn(),
+    getState: jest.fn(() => createMockPerpsControllerState()),
+  },
+  ...overrides,
+});
+
+/**
+ * Create a mock PerpsControllerMessenger for testing inter-controller communication.
+ * The messenger.call() method should be configured in each test to return appropriate values.
+ *
+ * Common messenger actions used:
+ * - 'AccountTreeController:getAccountsFromSelectedAccountGroup' - returns array of accounts
+ * - 'KeyringController:signTypedMessage' - returns signature string
+ * - 'NetworkController:getState' - returns { selectedNetworkClientId: string }
+ * - 'NetworkController:getNetworkClientById' - returns { configuration: { chainId: string } }
+ * - 'AuthenticationController:getBearerToken' - returns bearer token string
+ *
+ * @param overrides - Optional partial messenger to override default behavior
+ */
+export const createMockMessenger = (
+  overrides?: Partial<PerpsControllerMessenger>,
+): jest.Mocked<PerpsControllerMessenger> => {
+  const mockEvmAccount = createMockEvmAccount();
+  const base = {
+    call: jest.fn().mockImplementation((action: string) => {
+      // Default implementations for common actions
+      if (
+        action === 'AccountTreeController:getAccountsFromSelectedAccountGroup'
+      ) {
+        return [mockEvmAccount];
+      }
+      if (action === 'KeyringController:getState') {
+        return { isUnlocked: true };
+      }
+      if (action === 'KeyringController:signTypedMessage') {
+        return Promise.resolve('0xSignatureResult');
+      }
+      if (action === 'NetworkController:getState') {
+        return { selectedNetworkClientId: 'mainnet' };
+      }
+      if (action === 'NetworkController:getNetworkClientById') {
+        return { configuration: { chainId: '0x1' } };
+      }
+      if (action === 'AuthenticationController:getBearerToken') {
+        return Promise.resolve('mock-bearer-token');
+      }
+      return undefined;
+    }),
+    publish: jest.fn(),
+    subscribe: jest.fn(),
+    unsubscribe: jest.fn(),
+    registerActionHandler: jest.fn(),
+    registerMethodActionHandlers: jest.fn(),
+    unregisterActionHandler: jest.fn(),
+    // Additional methods used by PerpsController
+    registerEventHandler: jest.fn(),
+    registerInitialEventPayload: jest.fn(),
+    unregisterEventHandler: jest.fn(),
+    clearEventSubscriptions: jest.fn(),
+  };
+  return {
+    ...base,
+    ...overrides,
+  } as unknown as jest.Mocked<PerpsControllerMessenger>;
+};

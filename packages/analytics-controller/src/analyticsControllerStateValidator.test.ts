@@ -47,5 +47,36 @@ describe('analyticsControllerStateValidator', () => {
 
       expect(() => validateAnalyticsControllerState(state)).not.toThrow();
     });
+
+    it('does not throw for non-UUID string when skipUUIDv4Check is true', () => {
+      const state: AnalyticsControllerState = {
+        optedIn: false,
+        analyticsId: 'not-a-uuid',
+      };
+
+      expect(() => validateAnalyticsControllerState(state, true)).not.toThrow();
+    });
+
+    it('throws when analyticsId is not UUIDv4 and skipUUIDv4Check is false', () => {
+      const state: AnalyticsControllerState = {
+        optedIn: false,
+        analyticsId: 'not-a-uuid',
+      };
+
+      expect(() => validateAnalyticsControllerState(state, false)).toThrow(
+        'Invalid analyticsId',
+      );
+    });
+
+    it('throws when analyticsId is empty string even if skipUUIDv4Check is true', () => {
+      const state: AnalyticsControllerState = {
+        optedIn: false,
+        analyticsId: '',
+      };
+
+      expect(() => validateAnalyticsControllerState(state, true)).toThrow(
+        'Invalid analyticsId',
+      );
+    });
   });
 });

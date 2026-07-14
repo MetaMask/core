@@ -7,6 +7,83 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Bump `@metamask/keyring-api` from `^23.3.0` to `^23.5.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
+- Bump `@metamask/account-tree-controller` from `^7.5.3` to `^7.5.5` ([#9429](https://github.com/MetaMask/core/pull/9429), [#9470](https://github.com/MetaMask/core/pull/9470))
+
+## [12.2.2]
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.5.2` to `^7.5.3` ([#9231](https://github.com/MetaMask/core/pull/9231))
+- Bump `@metamask/keyring-api` from `^23.1.0` to `^23.3.0` ([#9249](https://github.com/MetaMask/core/pull/9249))
+- Bump `@metamask/network-controller` from `^33.0.0` to `^34.0.0` ([#9349](https://github.com/MetaMask/core/pull/9349))
+
+## [12.2.1]
+
+### Changed
+
+- Bump `@metamask/controller-utils` from `^12.1.0` to `^12.3.0` ([#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
+- Bump `@metamask/account-tree-controller` from `^7.4.0` to `^7.5.2` ([#8912](https://github.com/MetaMask/core/pull/8912), [#8999](https://github.com/MetaMask/core/pull/8999), [#9058](https://github.com/MetaMask/core/pull/9058))
+- Bump `@metamask/transaction-controller` from `^67.1.0` to `^68.0.0` ([#9089](https://github.com/MetaMask/core/pull/9089))
+- Bump `@metamask/network-controller` from `^32.0.0` to `^33.0.0` ([#9218](https://github.com/MetaMask/core/pull/9218))
+
+## [12.2.0]
+
+### Changed
+
+- Pass `isInternal: true` to `addTransactionFn` in `executeLendingDeposit`, `executeLendingWithdraw`, and `executeLendingTokenApprove` so lending transactions bypass dapp-origin restrictions ([#8633](https://github.com/MetaMask/core/pull/8633))
+- Bump `@metamask/account-tree-controller` from `^7.3.0` to `^7.4.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
+- Bump `@metamask/transaction-controller` from `^65.3.0` to `^66.0.0` ([#8796](https://github.com/MetaMask/core/pull/8796), [#8848](https://github.com/MetaMask/core/pull/8848))
+
+## [12.1.2]
+
+### Changed
+
+- Bump `@metamask/network-controller` from `^31.0.0` to `^32.0.0` ([#8765](https://github.com/MetaMask/core/pull/8765), [#8774](https://github.com/MetaMask/core/pull/8774))
+- Bump `@metamask/controller-utils` from `^12.0.0` to `^12.1.0` ([#8774](https://github.com/MetaMask/core/pull/8774))
+
+## [12.1.1]
+
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.2.0` to `^7.3.0` ([#8722](https://github.com/MetaMask/core/pull/8722))
+- Bump `@metamask/controller-utils` from `^11.20.0` to `^12.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+- Bump `@metamask/network-controller` from `^30.1.0` to `^31.0.0` ([#8755](https://github.com/MetaMask/core/pull/8755))
+
+## [12.1.0]
+
+### Changed
+
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+- Bump `@metamask/account-tree-controller` from `^7.0.0` to `^7.2.0` ([#8472](https://github.com/MetaMask/core/pull/8472), [#8665](https://github.com/MetaMask/core/pull/8665))
+- Bump `@metamask/keyring-api` from `^21.6.0` to `^23.1.0` ([#8464](https://github.com/MetaMask/core/pull/8464), [#8647](https://github.com/MetaMask/core/pull/8647))
+- Bump `@metamask/transaction-controller` from `^64.4.0` to `^65.0.0` ([#8613](https://github.com/MetaMask/core/pull/8613))
+- Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/network-controller` from `^30.0.1` to `^30.1.0` ([#8636](https://github.com/MetaMask/core/pull/8636))
+
+## [12.0.0]
+
+### Added
+
+- feat(messenger): add `generate-action-types` CLI tool as subpath export ([#8264](https://github.com/MetaMask/core/pull/8264))
+- Release/895.0.0 ([#8359](https://github.com/MetaMask/core/pull/8359))
+
+### Changed
+
+- feat: extract generate-action-types CLI into @metamask/messenger-cli ([#8378](https://github.com/MetaMask/core/pull/8378))
+- **BREAKING:** `EarnController` constructor no longer accepts `selectedNetworkClientId` and no longer performs async work during construction. Consumers must call `init()` after construction. The messenger must now allow `AccountTreeController:stateChange` and `NetworkController:getState` ([#8421](https://github.com/MetaMask/core/pull/8421))
+- **BREAKING:** `refreshPooledStakingData` and `refreshLendingData` no longer call eligibility checks internally. Eligibility is fetched once during `init()`. Consumers that relied on these methods to keep eligibility state current must call `refreshEarnEligibility` separately ([#8421](https://github.com/MetaMask/core/pull/8421))
+- Bump `@metamask/controller-utils` from `^11.19.0` to `^11.20.0` ([#8344](https://github.com/MetaMask/core/pull/8344))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.1.1` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373))
+- Bump `@metamask/transaction-controller` from `^64.0.0` to `^64.1.0` ([#8432](https://github.com/MetaMask/core/pull/8432))
+
+### Removed
+
+- **BREAKING:** Removed `EarnController:refreshLendingEligibility` messenger action and `EarnControllerRefreshLendingEligibilityAction` type. Use `EarnController:refreshEarnEligibility` instead ([#8421](https://github.com/MetaMask/core/pull/8421))
+
 ## [11.2.1]
 
 ### Changed
@@ -63,7 +140,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/network-controller` from `^29.0.0` to `^30.0.0` ([#7996](https://github.com/MetaMask/core/pull/7996))
 - Bump `@metamask/keyring-api` from `^21.0.0` to `^21.5.0` ([#7857](https://github.com/MetaMask/core/pull/7857))
-- Bump `@metamask/account-tree-controller` from `^4.0.0` to `^4.1.1` ([#7869](https://github.com/MetaMask/core/pull/7869)), ([#7897](https://github.com/MetaMask/core/pull/7897))
+- Bump `@metamask/account-tree-controller` from `^4.0.0` to `^4.1.1`, ([#7869](https://github.com/MetaMask/core/pull/7869), [#7897](https://github.com/MetaMask/core/pull/7897))
 - Bump `@metamask/controller-utils` from `^11.18.0` to `^11.19.0` ([#7995](https://github.com/MetaMask/core/pull/7995))
 
 ## [11.1.0]
@@ -403,7 +480,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5271](https://github.com/MetaMask/core/pull/5271))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.2...HEAD
+[12.2.2]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.1...@metamask/earn-controller@12.2.2
+[12.2.1]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.2.0...@metamask/earn-controller@12.2.1
+[12.2.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.1.2...@metamask/earn-controller@12.2.0
+[12.1.2]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.1.1...@metamask/earn-controller@12.1.2
+[12.1.1]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.1.0...@metamask/earn-controller@12.1.1
+[12.1.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@12.0.0...@metamask/earn-controller@12.1.0
+[12.0.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.2.1...@metamask/earn-controller@12.0.0
 [11.2.1]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.2.0...@metamask/earn-controller@11.2.1
 [11.2.0]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.1.2...@metamask/earn-controller@11.2.0
 [11.1.2]: https://github.com/MetaMask/core/compare/@metamask/earn-controller@11.1.1...@metamask/earn-controller@11.1.2

@@ -1,10 +1,10 @@
 import { toHex } from '@metamask/controller-utils';
 import type { NetworkClientId } from '@metamask/network-controller';
 
-import { getNativeBalance, isNativeBalanceSufficientForGas } from './balance';
-import { rpcRequest } from './provider';
 import type { TransactionMeta } from '..';
 import type { TransactionControllerMessenger } from '../TransactionController';
+import { getNativeBalance, isNativeBalanceSufficientForGas } from './balance';
+import { rpcRequest } from './provider';
 
 jest.mock('./provider', () => ({
   rpcRequest: jest.fn(),

@@ -1,25 +1,39 @@
 import { Interface } from '@ethersproject/abi';
 import { successfulFetch } from '@metamask/controller-utils';
 import { TransactionType } from '@metamask/transaction-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  GasFeeToken,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { getAcrossQuotes } from './across-quotes';
-import * as acrossTransactions from './transactions';
-import type { AcrossSwapApprovalResponse } from './types';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
-import { TransactionPayStrategy } from '../../constants';
+import {
+  ARBITRUM_USDC_ADDRESS,
+  CHAIN_ID_ARBITRUM,
+  CHAIN_ID_HYPERCORE,
+  TransactionPayStrategy,
+} from '../../constants';
 import { getMessengerMock } from '../../tests/messenger-mock';
 import type { QuoteRequest } from '../../types';
-import { getGasBuffer, getSlippage } from '../../utils/feature-flags';
-import { calculateGasCost } from '../../utils/gas';
+import {
+  getGasBuffer,
+  getSlippage,
+  isEIP7702Chain,
+} from '../../utils/feature-flags';
+import { calculateGasCost, calculateGasFeeTokenCost } from '../../utils/gas';
 import * as quoteGasUtils from '../../utils/quote-gas';
-import { getTokenFiatRate } from '../../utils/token';
+import { getTokenBalance, getTokenFiatRate } from '../../utils/token';
+import { getAcrossQuotes } from './across-quotes';
+import { ACROSS_HYPERCORE_USDC_PERPS_ADDRESS } from './perps';
+import * as acrossTransactions from './transactions';
+import type { AcrossSwapApprovalResponse } from './types';
 
 jest.mock('../../utils/token');
 jest.mock('../../utils/gas', () => ({
   ...jest.requireActual('../../utils/gas'),
   calculateGasCost: jest.fn(),
+  calculateGasFeeTokenCost: jest.fn(),
 }));
 jest.mock('../../utils/feature-flags', () => ({
   ...jest.requireActual('../../utils/feature-flags'),
@@ -39,6 +53,12 @@ const TRANSACTION_META_MOCK = {
   txParams: {
     from: FROM_MOCK,
   },
+} as TransactionMeta;
+const PREDICT_WITHDRAW_TRANSACTION_MOCK = {
+  txParams: {
+    from: FROM_MOCK,
+  },
+  nestedTransactions: [{ type: TransactionType.predictWithdraw }],
 } as TransactionMeta;
 
 const QUOTE_REQUEST_MOCK: QuoteRequest = {
@@ -155,15 +175,32 @@ describe('Across Quotes', () => {
   const getTokenFiatRateMock = jest.mocked(getTokenFiatRate);
   const getGasBufferMock = jest.mocked(getGasBuffer);
   const getSlippageMock = jest.mocked(getSlippage);
+  const isEIP7702ChainMock = jest.mocked(isEIP7702Chain);
   const calculateGasCostMock = jest.mocked(calculateGasCost);
+  const calculateGasFeeTokenCostMock = jest.mocked(calculateGasFeeTokenCost);
+  const getTokenBalanceMock = jest.mocked(getTokenBalance);
 
   const {
     messenger,
     estimateGasMock,
     estimateGasBatchMock,
     findNetworkClientIdByChainIdMock,
+    getGasFeeTokensMock,
     getRemoteFeatureFlagControllerStateMock,
   } = getMessengerMock();
+
+  const GAS_FEE_TOKEN_MOCK: GasFeeToken = {
+    amount: '0x64',
+    balance: '0x1000',
+    decimals: 18,
+    gas: '0x5208',
+    maxFeePerGas: '0x1',
+    maxPriorityFeePerGas: '0x1',
+    rateWei: '0x1',
+    recipient: FROM_MOCK,
+    symbol: 'ETH',
+    tokenAddress: QUOTE_REQUEST_MOCK.sourceTokenAddress,
+  };
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -194,8 +231,17 @@ describe('Across Quotes', () => {
       usd: '3.45',
     });
 
+    calculateGasFeeTokenCostMock.mockReturnValue({
+      fiat: '0.0004',
+      human: '0.0001',
+      raw: '100',
+      usd: '0.0002',
+    });
+
+    getTokenBalanceMock.mockReturnValue('1725000000000000000');
     getGasBufferMock.mockReturnValue(1.0);
     getSlippageMock.mockReturnValue(0.005);
+    isEIP7702ChainMock.mockReturnValue(false);
 
     findNetworkClientIdByChainIdMock.mockReturnValue('mainnet');
     estimateGasMock.mockResolvedValue({
@@ -211,6 +257,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -224,6 +271,7 @@ describe('Across Quotes', () => {
 
     it('filters out requests with zero target amount', async () => {
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [
           {
@@ -240,6 +288,7 @@ describe('Across Quotes', () => {
 
     it('filters out non-max requests with missing target amount', async () => {
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [
           {
@@ -259,6 +308,7 @@ describe('Across Quotes', () => {
 
       await expect(
         getAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           requests: [QUOTE_REQUEST_MOCK],
           transaction: TRANSACTION_META_MOCK,
@@ -272,6 +322,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
         transaction: TRANSACTION_META_MOCK,
@@ -284,12 +335,1090 @@ describe('Across Quotes', () => {
       expect(params.get('amount')).toBe(QUOTE_REQUEST_MOCK.sourceTokenAmount);
     });
 
+    it('uses exactInput trade type without destination actions for post-quote predict withdraws with source-chain authorization lists', async () => {
+      const refundTo = '0x5afe000000000000000000000000000000000001' as Hex;
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as Response);
+
+      await getAcrossQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            refundTo,
+            targetAmountMinimum: '0',
+          },
+        ],
+        transaction: {
+          ...PREDICT_WITHDRAW_TRANSACTION_MOCK,
+          txParams: {
+            ...PREDICT_WITHDRAW_TRANSACTION_MOCK.txParams,
+            authorizationList: [{ address: '0xabc' as Hex }],
+            data: '0x12345678' as Hex,
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      const [url] = successfulFetchMock.mock.calls[0];
+      const params = new URL(url as string).searchParams;
+
+      expect(params.get('tradeType')).toBe('exactInput');
+      expect(params.get('amount')).toBe(QUOTE_REQUEST_MOCK.sourceTokenAmount);
+      expect(params.get('refundAddress')).toBe(refundTo);
+      expect(getRequestBody().actions).toStrictEqual([]);
+    });
+
+    it('ignores invalid original transaction gas for post-quote predict withdraws', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as Response);
+
+      const result = await getAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            targetAmountMinimum: '0',
+          },
+        ],
+        transaction: {
+          ...PREDICT_WITHDRAW_TRANSACTION_MOCK,
+          txParams: {
+            ...PREDICT_WITHDRAW_TRANSACTION_MOCK.txParams,
+            gas: '0x0',
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([
+        {
+          estimate: 21000,
+          max: 21000,
+        },
+      ]);
+    });
+
+    it('adds original transaction gas to EIP-7702 gas limits for post-quote predict withdraws', async () => {
+      estimateGasBatchMock.mockResolvedValue({
+        gasLimits: [51000],
+      });
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({
+          ...QUOTE_MOCK,
+          approvalTxns: [
+            {
+              chainId: 1,
+              data: '0xaaaa' as Hex,
+              to: '0xapprove1' as Hex,
+            },
+          ],
+        }),
+      } as Response);
+
+      const result = await getAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            targetAmountMinimum: '0',
+          },
+        ],
+        transaction: {
+          ...PREDICT_WITHDRAW_TRANSACTION_MOCK,
+          txParams: {
+            ...PREDICT_WITHDRAW_TRANSACTION_MOCK.txParams,
+            gas: '0x5208',
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([
+        {
+          estimate: 72000,
+          max: 72000,
+        },
+      ]);
+      expect(result[0].original.metamask.is7702).toBe(true);
+    });
+
+    it('caps excessive prefunded post-quote batch gas at Across fallback gas', async () => {
+      const refundTo = '0x5afe000000000000000000000000000000000001' as Hex;
+
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              across: {
+                enabled: true,
+                apiBase: 'https://test.across.to/api',
+                fallbackGas: {
+                  estimate: 900001,
+                  max: 1500001,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      estimateGasBatchMock.mockResolvedValue({
+        gasLimits: [42000000],
+      });
+      getTokenBalanceMock.mockReturnValue('0');
+      isEIP7702ChainMock.mockReturnValue(true);
+      getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+
+      successfulFetchMock
+        .mockResolvedValueOnce({
+          json: async () => ({
+            ...QUOTE_MOCK,
+            approvalTxns: [
+              {
+                chainId: 1,
+                data: '0xaaaa' as Hex,
+                to: '0xapprove1' as Hex,
+              },
+            ],
+            inputAmount: '1000000000000000000',
+          }),
+        } as Response)
+        .mockResolvedValueOnce({
+          json: async () => ({
+            ...QUOTE_MOCK,
+            approvalTxns: [
+              {
+                chainId: 1,
+                data: '0xaaaa' as Hex,
+                to: '0xapprove1' as Hex,
+              },
+            ],
+            inputAmount: '999999999999999900',
+          }),
+        } as Response);
+
+      const result = await getAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            refundTo,
+            sourceBalanceRaw: '0',
+            targetAmountMinimum: '0',
+          },
+        ],
+        transaction: {
+          ...PREDICT_WITHDRAW_TRANSACTION_MOCK,
+          txParams: {
+            ...PREDICT_WITHDRAW_TRANSACTION_MOCK.txParams,
+            gas: '0x5208',
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([
+        {
+          estimate: 921001,
+          max: 1521001,
+        },
+      ]);
+      expect(calculateGasCostMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          gas: 900001,
+        }),
+      );
+      expect(calculateGasCostMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          gas: 1500001,
+          isMax: true,
+        }),
+      );
+    });
+
+    it('preserves Across per-leg gas pricing when adding original post-quote gas fees', async () => {
+      estimateGasBatchMock.mockResolvedValue({
+        gasLimits: [21000, 21000],
+      });
+
+      const amountByMaxFeePerGas = {
+        '0x2': { estimate: '20', max: '200' },
+        '0x3': { estimate: '30', max: '300' },
+        '0x5': { estimate: '50', max: '500' },
+      };
+
+      calculateGasCostMock.mockImplementation(({ isMax, maxFeePerGas }) => {
+        const amounts =
+          amountByMaxFeePerGas[
+            maxFeePerGas as keyof typeof amountByMaxFeePerGas
+          ];
+        const raw = isMax ? amounts.max : amounts.estimate;
+
+        return {
+          fiat: raw,
+          human: raw,
+          raw,
+          usd: raw,
+        };
+      });
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () =>
+          ({
+            ...QUOTE_MOCK,
+            approvalTxns: [
+              {
+                chainId: 1,
+                data: '0xaaaa' as Hex,
+                maxFeePerGas: '0x2',
+                maxPriorityFeePerGas: '0x1',
+                to: '0xapprove1' as Hex,
+              },
+            ],
+            swapTx: {
+              ...QUOTE_MOCK.swapTx,
+              maxFeePerGas: '0x3',
+              maxPriorityFeePerGas: '0x1',
+            },
+          }) as unknown as AcrossSwapApprovalResponse,
+      } as Response);
+
+      const result = await getAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            targetAmountMinimum: '0',
+          },
+        ],
+        transaction: {
+          ...PREDICT_WITHDRAW_TRANSACTION_MOCK,
+          chainId: '0x1',
+          txParams: {
+            ...PREDICT_WITHDRAW_TRANSACTION_MOCK.txParams,
+            gas: '0x5208',
+            maxFeePerGas: '0x5',
+            maxPriorityFeePerGas: '0x1',
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      expect(result[0].fees.sourceNetwork.estimate.raw).toBe('100');
+      expect(result[0].fees.sourceNetwork.max.raw).toBe('1000');
+      expect(calculateGasCostMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          gas: 21000,
+          maxFeePerGas: '0x5',
+        }),
+      );
+    });
+
+    it('re-quotes max amount quotes after reserving source token for gas fee token', async () => {
+      const adjustedSourceAmount = '999999999999999900';
+
+      getTokenBalanceMock.mockReturnValue('0');
+      isEIP7702ChainMock.mockReturnValue(true);
+      getGasFeeTokensMock.mockResolvedValue([
+        {
+          amount: '0x64',
+          balance: '0x1000',
+          decimals: 18,
+          gas: '0x5208',
+          maxFeePerGas: '0x1',
+          maxPriorityFeePerGas: '0x1',
+          rateWei: '0x1',
+          recipient: FROM_MOCK,
+          symbol: 'ETH',
+          tokenAddress: QUOTE_REQUEST_MOCK.sourceTokenAddress,
+        },
+      ]);
+
+      successfulFetchMock
+        .mockResolvedValueOnce({
+          json: async () => QUOTE_MOCK,
+        } as Response)
+        .mockResolvedValueOnce({
+          json: async () => ({
+            ...QUOTE_MOCK,
+            inputAmount: adjustedSourceAmount,
+          }),
+        } as Response);
+
+      const result = await getAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(successfulFetchMock).toHaveBeenCalledTimes(2);
+
+      const [phase1Url] = successfulFetchMock.mock.calls[0];
+      const [phase2Url] = successfulFetchMock.mock.calls[1];
+
+      expect(new URL(phase1Url as string).searchParams.get('amount')).toBe(
+        QUOTE_REQUEST_MOCK.sourceTokenAmount,
+      );
+      expect(new URL(phase2Url as string).searchParams.get('amount')).toBe(
+        adjustedSourceAmount,
+      );
+      expect(result[0].sourceAmount.raw).toBe(adjustedSourceAmount);
+      expect(result[0].fees.isSourceGasFeeToken).toBe(true);
+    });
+
+    it('re-quotes post-quote predict withdraws after reserving source token for gas fee token', async () => {
+      const refundTo = '0x5afe000000000000000000000000000000000001' as Hex;
+      const adjustedSourceAmount = '900';
+
+      getTokenBalanceMock.mockReturnValue('0');
+      isEIP7702ChainMock.mockReturnValue(true);
+      getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+
+      successfulFetchMock
+        .mockResolvedValueOnce({
+          json: async () => ({
+            ...QUOTE_MOCK,
+            inputAmount: '1000',
+          }),
+        } as Response)
+        .mockResolvedValueOnce({
+          json: async () => ({
+            ...QUOTE_MOCK,
+            inputAmount: adjustedSourceAmount,
+          }),
+        } as Response);
+
+      const result = await getAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            refundTo,
+            sourceBalanceRaw: '0',
+            sourceTokenAmount: '1000',
+            targetAmountMinimum: '0',
+          },
+        ],
+        transaction: {
+          ...PREDICT_WITHDRAW_TRANSACTION_MOCK,
+          txParams: {
+            ...PREDICT_WITHDRAW_TRANSACTION_MOCK.txParams,
+            gas: '0x5208',
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      expect(successfulFetchMock).toHaveBeenCalledTimes(2);
+      expect(getGasFeeTokensMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: FROM_MOCK,
+        }),
+      );
+
+      const [phase1Url] = successfulFetchMock.mock.calls[0];
+      const [phase2Url] = successfulFetchMock.mock.calls[1];
+      expect(new URL(phase1Url as string).searchParams.get('amount')).toBe(
+        '1000',
+      );
+      expect(new URL(phase2Url as string).searchParams.get('amount')).toBe(
+        adjustedSourceAmount,
+      );
+      expect(result[0].sourceAmount.raw).toBe(adjustedSourceAmount);
+      expect(result[0].fees.isSourceGasFeeToken).toBe(true);
+    });
+
+    it('does not return unsafe post-quote predict withdraw source gas quotes when gas consumes the source amount', async () => {
+      const refundTo = '0x5afe000000000000000000000000000000000001' as Hex;
+
+      getTokenBalanceMock.mockReturnValue('0');
+      isEIP7702ChainMock.mockReturnValue(true);
+      getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({
+          ...QUOTE_MOCK,
+          inputAmount: '100',
+        }),
+      } as Response);
+
+      await expect(
+        getAcrossQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              isPostQuote: true,
+              refundTo,
+              sourceBalanceRaw: '0',
+              sourceTokenAmount: '100',
+              targetAmountMinimum: '0',
+            },
+          ],
+          transaction: {
+            ...PREDICT_WITHDRAW_TRANSACTION_MOCK,
+            txParams: {
+              ...PREDICT_WITHDRAW_TRANSACTION_MOCK.txParams,
+              gas: '0x5208',
+              to: '0x000000000000000000000000000000000000dEaD' as Hex,
+            },
+          } as TransactionMeta,
+        }),
+      ).rejects.toThrow(/cannot cover source gas fee token/u);
+
+      expect(successfulFetchMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('prefers source gas fee token pricing for post-quote predict withdraws even when native balance is available', async () => {
+      const refundTo = '0x5afe000000000000000000000000000000000001' as Hex;
+
+      isEIP7702ChainMock.mockReturnValue(true);
+      getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+
+      successfulFetchMock
+        .mockResolvedValueOnce({
+          json: async () => ({
+            ...QUOTE_MOCK,
+            inputAmount: '1000',
+          }),
+        } as Response)
+        .mockResolvedValueOnce({
+          json: async () => ({
+            ...QUOTE_MOCK,
+            inputAmount: '900',
+          }),
+        } as Response);
+
+      const result = await getAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            refundTo,
+            sourceTokenAmount: '1000',
+            targetAmountMinimum: '0',
+          },
+        ],
+        transaction: {
+          ...PREDICT_WITHDRAW_TRANSACTION_MOCK,
+          txParams: {
+            ...PREDICT_WITHDRAW_TRANSACTION_MOCK.txParams,
+            gas: '0x5208',
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      expect(getGasFeeTokensMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: FROM_MOCK,
+        }),
+      );
+      expect(result[0].fees.isSourceGasFeeToken).toBe(true);
+      expect(result[0].fees.sourceNetwork.max.raw).toBe('100');
+    });
+
+    it('rejects post-quote predict withdraws when phase 2 loses gas fee token eligibility', async () => {
+      const refundTo = '0x5afe000000000000000000000000000000000001' as Hex;
+      const sourceFiatRate = {
+        fiatRate: '4.0',
+        usdRate: '2.0',
+      };
+
+      getTokenFiatRateMock
+        .mockReturnValueOnce(sourceFiatRate)
+        .mockReturnValueOnce(undefined)
+        .mockReturnValueOnce(sourceFiatRate)
+        .mockReturnValueOnce(undefined)
+        .mockReturnValueOnce(undefined);
+      isEIP7702ChainMock.mockReturnValue(true);
+      getGasFeeTokensMock
+        .mockResolvedValueOnce([GAS_FEE_TOKEN_MOCK])
+        .mockResolvedValueOnce([]);
+
+      successfulFetchMock
+        .mockResolvedValueOnce({
+          json: async () => ({
+            ...QUOTE_MOCK,
+            inputAmount: '1000',
+          }),
+        } as Response)
+        .mockResolvedValueOnce({
+          json: async () => ({
+            ...QUOTE_MOCK,
+            inputAmount: '900',
+          }),
+        } as Response);
+
+      await expect(
+        getAcrossQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              isPostQuote: true,
+              refundTo,
+              sourceTokenAmount: '1000',
+              targetAmountMinimum: '0',
+            },
+          ],
+          transaction: {
+            ...PREDICT_WITHDRAW_TRANSACTION_MOCK,
+            txParams: {
+              ...PREDICT_WITHDRAW_TRANSACTION_MOCK.txParams,
+              gas: '0x5208',
+              to: '0x000000000000000000000000000000000000dEaD' as Hex,
+            },
+          } as TransactionMeta,
+        }),
+      ).rejects.toThrow(/lost source gas fee token eligibility/u);
+
+      expect(successfulFetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('rejects post-quote predict withdraws when phase 2 exceeds the source amount', async () => {
+      const refundTo = '0x5afe000000000000000000000000000000000001' as Hex;
+
+      isEIP7702ChainMock.mockReturnValue(true);
+      getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+      calculateGasFeeTokenCostMock
+        .mockReturnValueOnce({
+          fiat: '0.0004',
+          human: '0.0001',
+          raw: '100',
+          usd: '0.0002',
+        })
+        .mockReturnValueOnce({
+          fiat: '0.000404',
+          human: '0.000101',
+          raw: '101',
+          usd: '0.000202',
+        });
+
+      successfulFetchMock
+        .mockResolvedValueOnce({
+          json: async () => ({
+            ...QUOTE_MOCK,
+            inputAmount: '1000',
+          }),
+        } as Response)
+        .mockResolvedValueOnce({
+          json: async () => ({
+            ...QUOTE_MOCK,
+            inputAmount: '900',
+          }),
+        } as Response);
+
+      await expect(
+        getAcrossQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [
+            {
+              ...QUOTE_REQUEST_MOCK,
+              isPostQuote: true,
+              refundTo,
+              sourceTokenAmount: '1000',
+              targetAmountMinimum: '0',
+            },
+          ],
+          transaction: {
+            ...PREDICT_WITHDRAW_TRANSACTION_MOCK,
+            txParams: {
+              ...PREDICT_WITHDRAW_TRANSACTION_MOCK.txParams,
+              gas: '0x5208',
+              to: '0x000000000000000000000000000000000000dEaD' as Hex,
+            },
+          } as TransactionMeta,
+        }),
+      ).rejects.toThrow(/exceeds source amount/u);
+
+      expect(successfulFetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps native gas for post-quote predict withdraws when the account cannot use 7702', async () => {
+      const refundTo = '0x5afe000000000000000000000000000000000001' as Hex;
+
+      isEIP7702ChainMock.mockReturnValue(true);
+      getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as Response);
+
+      const result = await getAcrossQuotes({
+        accountSupports7702: false,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            refundTo,
+            sourceTokenAmount: '100',
+            targetAmountMinimum: '0',
+          },
+        ],
+        transaction: {
+          ...PREDICT_WITHDRAW_TRANSACTION_MOCK,
+          txParams: {
+            ...PREDICT_WITHDRAW_TRANSACTION_MOCK.txParams,
+            gas: '0x5208',
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      expect(getGasFeeTokensMock).not.toHaveBeenCalled();
+      expect(result[0].fees.isSourceGasFeeToken).toBeUndefined();
+      expect(result[0].fees.sourceNetwork.max.raw).toBe('3450000000000000000');
+    });
+
+    it('uses fiat-derived source gas fee token pricing for post-quote predict withdraws when gas station cannot price the source token', async () => {
+      const refundTo = '0x5afe000000000000000000000000000000000001' as Hex;
+
+      getTokenBalanceMock.mockReturnValue('0');
+      isEIP7702ChainMock.mockReturnValue(true);
+      getGasFeeTokensMock.mockResolvedValue([
+        {
+          ...GAS_FEE_TOKEN_MOCK,
+          tokenAddress: '0xdifferent' as Hex,
+        },
+      ]);
+
+      successfulFetchMock
+        .mockResolvedValueOnce({
+          json: async () => ({
+            ...QUOTE_MOCK,
+            inputAmount: '10000000000000000000',
+          }),
+        } as Response)
+        .mockResolvedValueOnce({
+          json: async () => ({
+            ...QUOTE_MOCK,
+            inputAmount: '6550000000000000000',
+          }),
+        } as Response);
+
+      const result = await getAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            refundTo,
+            sourceTokenAmount: '10000000000000000000',
+            targetAmountMinimum: '0',
+          },
+        ],
+        transaction: {
+          ...PREDICT_WITHDRAW_TRANSACTION_MOCK,
+          txParams: {
+            ...PREDICT_WITHDRAW_TRANSACTION_MOCK.txParams,
+            gas: '0x5208',
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      expect(getGasFeeTokensMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          from: FROM_MOCK,
+        }),
+      );
+      expect(result[0].fees.isSourceGasFeeToken).toBe(true);
+      expect(result[0].fees.sourceNetwork.max).toStrictEqual({
+        fiat: '13.8',
+        human: '3.45',
+        raw: '3450000000000000000',
+        usd: '6.9',
+      });
+    });
+
+    it('keeps native gas for post-quote predict withdraws when fallback source fiat rate is unavailable', async () => {
+      const refundTo = '0x5afe000000000000000000000000000000000001' as Hex;
+      const sourceFiatRate = {
+        fiatRate: '4.0',
+        usdRate: '2.0',
+      };
+
+      getTokenBalanceMock.mockReturnValue('0');
+      getTokenFiatRateMock
+        .mockReturnValueOnce(sourceFiatRate)
+        .mockReturnValueOnce(undefined)
+        .mockReturnValueOnce(undefined);
+      isEIP7702ChainMock.mockReturnValue(true);
+      getGasFeeTokensMock.mockResolvedValue([
+        {
+          ...GAS_FEE_TOKEN_MOCK,
+          tokenAddress: '0xdifferent' as Hex,
+        },
+      ]);
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({
+          ...QUOTE_MOCK,
+          inputAmount: '10000000000000000000',
+        }),
+      } as Response);
+
+      const result = await getAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            refundTo,
+            sourceTokenAmount: '10000000000000000000',
+            targetAmountMinimum: '0',
+          },
+        ],
+        transaction: {
+          ...PREDICT_WITHDRAW_TRANSACTION_MOCK,
+          txParams: {
+            ...PREDICT_WITHDRAW_TRANSACTION_MOCK.txParams,
+            gas: '0x5208',
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      expect(result[0].fees.isSourceGasFeeToken).toBeUndefined();
+      expect(result[0].fees.sourceNetwork.max.raw).toBe('3450000000000000000');
+    });
+
+    it('keeps native gas for post-quote predict withdraws when fallback gas token amount is invalid', async () => {
+      const refundTo = '0x5afe000000000000000000000000000000000001' as Hex;
+      const sourceFiatRate = {
+        fiatRate: '4.0',
+        usdRate: '2.0',
+      };
+
+      getTokenBalanceMock.mockReturnValue('0');
+      getTokenFiatRateMock
+        .mockReturnValueOnce(sourceFiatRate)
+        .mockReturnValueOnce(undefined)
+        .mockReturnValueOnce({
+          fiatRate: '4.0',
+          usdRate: '0',
+        });
+      isEIP7702ChainMock.mockReturnValue(true);
+      getGasFeeTokensMock.mockResolvedValue([
+        {
+          ...GAS_FEE_TOKEN_MOCK,
+          tokenAddress: '0xdifferent' as Hex,
+        },
+      ]);
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({
+          ...QUOTE_MOCK,
+          inputAmount: '10000000000000000000',
+        }),
+      } as Response);
+
+      const result = await getAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            refundTo,
+            sourceTokenAmount: '10000000000000000000',
+            targetAmountMinimum: '0',
+          },
+        ],
+        transaction: {
+          ...PREDICT_WITHDRAW_TRANSACTION_MOCK,
+          txParams: {
+            ...PREDICT_WITHDRAW_TRANSACTION_MOCK.txParams,
+            gas: '0x5208',
+            to: '0x000000000000000000000000000000000000dEaD' as Hex,
+          },
+        } as TransactionMeta,
+      });
+
+      expect(result[0].fees.isSourceGasFeeToken).toBeUndefined();
+      expect(result[0].fees.sourceNetwork.max.raw).toBe('3450000000000000000');
+    });
+
+    it('estimates post-quote predict withdraw Across transactions from the EOA', async () => {
+      const refundTo = '0x5afe000000000000000000000000000000000001' as Hex;
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as Response);
+
+      await getAcrossQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            refundTo,
+            targetAmountMinimum: '0',
+          },
+        ],
+        transaction: PREDICT_WITHDRAW_TRANSACTION_MOCK,
+      });
+
+      expect(estimateGasMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: QUOTE_MOCK.swapTx.data,
+          from: FROM_MOCK,
+          to: QUOTE_MOCK.swapTx.to,
+        }),
+        'mainnet',
+      );
+    });
+
+    it('uses relaxed per-transaction gas estimates for prefunded post-quote predict withdraws', async () => {
+      const refundTo = '0x5afe000000000000000000000000000000000001' as Hex;
+
+      estimateGasBatchMock.mockRejectedValueOnce(
+        new Error('Batch estimation failed'),
+      );
+      estimateGasMock
+        .mockResolvedValueOnce({
+          gas: '0x1000',
+          simulationFails: undefined,
+        })
+        .mockResolvedValueOnce({
+          gas: '0x2000',
+          simulationFails: true,
+        });
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({
+          ...QUOTE_MOCK,
+          approvalTxns: [
+            {
+              chainId: 1,
+              data: '0x095ea7b3' as Hex,
+              to: '0xapprove1' as Hex,
+            },
+          ],
+        }),
+      } as Response);
+
+      const result = await getAcrossQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            refundTo,
+            sourceBalanceRaw: '100',
+            sourceTokenAmount: '1000',
+            targetAmountMinimum: '0',
+          },
+        ],
+        transaction: PREDICT_WITHDRAW_TRANSACTION_MOCK,
+      });
+
+      expect(estimateGasBatchMock).toHaveBeenCalledTimes(1);
+      expect(estimateGasBatchMock).toHaveBeenCalledWith({
+        chainId: QUOTE_REQUEST_MOCK.sourceChainId,
+        from: FROM_MOCK,
+        transactions: expect.any(Array),
+      });
+      expect(estimateGasMock).toHaveBeenCalledTimes(2);
+      expect(result[0].original.metamask.is7702).toBe(false);
+      expect(result[0].original.metamask.gasLimits).toStrictEqual([
+        {
+          estimate: 4096,
+          max: 4096,
+        },
+        expect.objectContaining({
+          estimate: expect.any(Number),
+          max: expect.any(Number),
+        }),
+      ]);
+      expect(result[0].original.metamask.gasLimits[1].estimate).toBeGreaterThan(
+        8192,
+      );
+    });
+
+    it('falls back to phase 1 max amount quote when adjusted quote is not affordable', async () => {
+      getTokenBalanceMock.mockReturnValue('0');
+      isEIP7702ChainMock.mockReturnValue(true);
+      calculateGasFeeTokenCostMock
+        .mockReturnValueOnce({
+          fiat: '0.0004',
+          human: '0.0001',
+          raw: '100',
+          usd: '0.0002',
+        })
+        .mockReturnValueOnce({
+          fiat: '0.0008',
+          human: '0.0002',
+          raw: '200',
+          usd: '0.0004',
+        });
+      getGasFeeTokensMock.mockResolvedValue([
+        {
+          amount: '0x64',
+          balance: '0x1000',
+          decimals: 18,
+          gas: '0x5208',
+          maxFeePerGas: '0x1',
+          maxPriorityFeePerGas: '0x1',
+          rateWei: '0x1',
+          recipient: FROM_MOCK,
+          symbol: 'ETH',
+          tokenAddress: QUOTE_REQUEST_MOCK.sourceTokenAddress,
+        },
+      ]);
+
+      successfulFetchMock
+        .mockResolvedValueOnce({
+          json: async () => QUOTE_MOCK,
+        } as Response)
+        .mockResolvedValueOnce({
+          json: async () => ({
+            ...QUOTE_MOCK,
+            inputAmount: '999999999999999900',
+          }),
+        } as Response);
+
+      const result = await getAcrossQuotes({
+        messenger,
+        requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(successfulFetchMock).toHaveBeenCalledTimes(2);
+      expect(result[0].sourceAmount.raw).toBe(QUOTE_MOCK.inputAmount);
+    });
+
+    it('falls back to phase 1 max amount quote when gas subtraction consumes the source amount', async () => {
+      getTokenBalanceMock.mockReturnValue('0');
+      isEIP7702ChainMock.mockReturnValue(true);
+      getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as Response);
+
+      const result = await getAcrossQuotes({
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isMaxAmount: true,
+            sourceTokenAmount: '100',
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(successfulFetchMock).toHaveBeenCalledTimes(1);
+      expect(result[0].sourceAmount.raw).toBe(QUOTE_MOCK.inputAmount);
+      expect(result[0].fees.isSourceGasFeeToken).toBe(true);
+    });
+
+    it('falls back to phase 1 max amount quote when phase 2 loses gas fee token eligibility', async () => {
+      getTokenBalanceMock.mockReturnValue('0');
+      isEIP7702ChainMock.mockReturnValue(true);
+      getGasFeeTokensMock
+        .mockResolvedValueOnce([GAS_FEE_TOKEN_MOCK])
+        .mockResolvedValueOnce([]);
+
+      successfulFetchMock
+        .mockResolvedValueOnce({
+          json: async () => QUOTE_MOCK,
+        } as Response)
+        .mockResolvedValueOnce({
+          json: async () => ({
+            ...QUOTE_MOCK,
+            inputAmount: '999999999999999900',
+          }),
+        } as Response);
+
+      const result = await getAcrossQuotes({
+        messenger,
+        requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(successfulFetchMock).toHaveBeenCalledTimes(2);
+      expect(result[0].sourceAmount.raw).toBe(QUOTE_MOCK.inputAmount);
+      expect(result[0].fees.isSourceGasFeeToken).toBe(true);
+    });
+
+    it('falls back to phase 1 max amount quote when phase 2 fetching fails', async () => {
+      getTokenBalanceMock.mockReturnValue('0');
+      isEIP7702ChainMock.mockReturnValue(true);
+      getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+
+      successfulFetchMock
+        .mockResolvedValueOnce({
+          json: async () => QUOTE_MOCK,
+        } as Response)
+        .mockRejectedValueOnce(new Error('Phase 2 quote failed'));
+
+      const result = await getAcrossQuotes({
+        messenger,
+        requests: [{ ...QUOTE_REQUEST_MOCK, isMaxAmount: true }],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(successfulFetchMock).toHaveBeenCalledTimes(2);
+      expect(result[0].sourceAmount.raw).toBe(QUOTE_MOCK.inputAmount);
+      expect(result[0].fees.isSourceGasFeeToken).toBe(true);
+    });
+
+    it('forwards the abort signal to the underlying fetch', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as Response);
+
+      const controller = new AbortController();
+
+      await getAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        signal: controller.signal,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      const [, options] = successfulFetchMock.mock.calls[0];
+
+      expect((options as RequestInit).signal).toBe(controller.signal);
+    });
+
     it('uses exactOutput trade type for non-max amount quotes', async () => {
       successfulFetchMock.mockResolvedValue({
         json: async () => QUOTE_MOCK,
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -310,6 +1439,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -346,6 +1476,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -365,6 +1496,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -383,6 +1515,47 @@ describe('Across Quotes', () => {
       expect(body.actions).toStrictEqual([]);
     });
 
+    it('converts supported perps deposits to Across HyperCore direct deposits', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as Response);
+
+      await getAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            targetAmountMinimum: '1000000',
+            targetChainId: CHAIN_ID_ARBITRUM,
+            targetTokenAddress: ARBITRUM_USDC_ADDRESS,
+          },
+        ],
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          type: TransactionType.perpsDeposit,
+          txParams: {
+            from: FROM_MOCK,
+            to: ARBITRUM_USDC_ADDRESS,
+            data: buildTransferData(TRANSFER_RECIPIENT, 1),
+          },
+        } as TransactionMeta,
+      });
+
+      const [url] = successfulFetchMock.mock.calls[0];
+      const params = new URL(url as string).searchParams;
+
+      expect(params.get('amount')).toBe('100000000');
+      expect(params.get('destinationChainId')).toBe(
+        String(parseInt(CHAIN_ID_HYPERCORE, 16)),
+      );
+      expect(params.get('outputToken')).toBe(
+        ACROSS_HYPERCORE_USDC_PERPS_ADDRESS,
+      );
+      expect(params.get('recipient')).toBe(FROM_MOCK);
+      expect(getRequestBody().actions).toStrictEqual([]);
+    });
+
     it('uses transfer recipient for token transfer transactions', async () => {
       const transferData = buildTransferData(TRANSFER_RECIPIENT);
 
@@ -391,6 +1564,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: {
@@ -417,6 +1591,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: {
@@ -440,6 +1615,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: {
@@ -467,6 +1643,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: {
@@ -493,6 +1670,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: {
@@ -596,6 +1774,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: {
@@ -633,6 +1812,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: {
@@ -683,6 +1863,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -703,6 +1884,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: {
@@ -755,6 +1937,7 @@ describe('Across Quotes', () => {
 
       await expect(
         getAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           requests: [QUOTE_REQUEST_MOCK],
           transaction: {
@@ -779,6 +1962,7 @@ describe('Across Quotes', () => {
 
       await expect(
         getAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           requests: [QUOTE_REQUEST_MOCK],
           transaction: {
@@ -798,6 +1982,7 @@ describe('Across Quotes', () => {
 
       await expect(
         getAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           requests: [QUOTE_REQUEST_MOCK],
           transaction: {
@@ -811,6 +1996,7 @@ describe('Across Quotes', () => {
     it('throws when destination flow is not transfer-style', async () => {
       await expect(
         getAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           requests: [QUOTE_REQUEST_MOCK],
           transaction: {
@@ -827,6 +2013,7 @@ describe('Across Quotes', () => {
     it('throws when txParams include authorization list', async () => {
       await expect(
         getAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           requests: [QUOTE_REQUEST_MOCK],
           transaction: {
@@ -853,6 +2040,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -873,6 +2061,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -894,6 +2083,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -917,6 +2107,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -940,6 +2131,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -964,6 +2156,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [request],
         transaction: TRANSACTION_META_MOCK,
@@ -981,6 +2174,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1000,6 +2194,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1017,6 +2212,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1051,6 +2247,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1070,6 +2267,125 @@ describe('Across Quotes', () => {
           isMax: true,
         }),
       );
+    });
+
+    it('uses source gas fee token pricing when native balance is insufficient', async () => {
+      getTokenBalanceMock.mockReturnValue('0');
+      isEIP7702ChainMock.mockReturnValue(true);
+      getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as Response);
+
+      const result = await getAcrossQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(getGasFeeTokensMock).toHaveBeenCalledWith({
+        chainId: QUOTE_REQUEST_MOCK.sourceChainId,
+        data: QUOTE_MOCK.swapTx.data,
+        from: FROM_MOCK,
+        to: QUOTE_MOCK.swapTx.to,
+        value: '0x0',
+      });
+      expect(result[0].fees.isSourceGasFeeToken).toBe(true);
+      expect(result[0].fees.sourceNetwork.max.raw).toBe('100');
+      expect(result[0].fees.sourceNetwork.estimate.raw).toBe('100');
+    });
+
+    it('preserves authorization-list metadata when source gas fee token pricing is used', async () => {
+      estimateGasBatchMock.mockResolvedValue({
+        totalGasLimit: 51000,
+        gasLimits: [51000],
+        requiresAuthorizationList: true,
+      });
+      getTokenBalanceMock.mockReturnValue('0');
+      isEIP7702ChainMock.mockReturnValue(true);
+      getGasFeeTokensMock.mockResolvedValue([GAS_FEE_TOKEN_MOCK]);
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({
+          ...QUOTE_MOCK,
+          approvalTxns: [
+            {
+              chainId: 1,
+              data: '0xaaaa' as Hex,
+              to: '0xapprove1' as Hex,
+              value: '0x1' as Hex,
+            },
+          ],
+        }),
+      } as Response);
+
+      const result = await getAcrossQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.isSourceGasFeeToken).toBe(true);
+      expect(result[0].original.metamask.requiresAuthorizationList).toBe(true);
+    });
+
+    it('does not use source gas fee token pricing when gas station is disabled for the source chain', async () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          confirmations_pay: {
+            payStrategies: {
+              across: {
+                enabled: true,
+                apiBase: 'https://test.across.to/api',
+              },
+            },
+            relayDisabledGasStationChains: [QUOTE_REQUEST_MOCK.sourceChainId],
+          },
+        },
+      });
+      getTokenBalanceMock.mockReturnValue('0');
+      isEIP7702ChainMock.mockReturnValue(true);
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as Response);
+
+      const result = await getAcrossQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(getGasFeeTokensMock).not.toHaveBeenCalled();
+      expect(result[0].fees.isSourceGasFeeToken).toBeUndefined();
+      expect(result[0].fees.sourceNetwork.max.raw).toBe('1725000000000000000');
+    });
+
+    it('does not use source gas fee token pricing when gas station cannot price the source token', async () => {
+      getTokenBalanceMock.mockReturnValue('0');
+      isEIP7702ChainMock.mockReturnValue(true);
+      getGasFeeTokensMock.mockResolvedValue([
+        {
+          ...GAS_FEE_TOKEN_MOCK,
+          tokenAddress: '0xdifferent' as Hex,
+        },
+      ]);
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => QUOTE_MOCK,
+      } as Response);
+
+      const result = await getAcrossQuotes({
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(getGasFeeTokensMock).toHaveBeenCalledTimes(1);
+      expect(result[0].fees.isSourceGasFeeToken).toBeUndefined();
+      expect(result[0].fees.sourceNetwork.max.raw).toBe('1725000000000000000');
     });
 
     it('includes approval gas costs and gas limits when approval transactions exist', async () => {
@@ -1098,6 +2414,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1142,6 +2459,7 @@ describe('Across Quotes', () => {
       estimateGasBatchMock.mockResolvedValue({
         totalGasLimit: 51000,
         gasLimits: [51000],
+        requiresAuthorizationList: true,
       });
 
       successfulFetchMock.mockResolvedValue({
@@ -1159,6 +2477,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1186,6 +2505,7 @@ describe('Across Quotes', () => {
         },
       ]);
       expect(result[0].original.metamask.is7702).toBe(true);
+      expect(result[0].original.metamask.requiresAuthorizationList).toBe(true);
       expect(calculateGasCostMock).toHaveBeenNthCalledWith(
         1,
         expect.objectContaining({
@@ -1205,6 +2525,70 @@ describe('Across Quotes', () => {
           maxPriorityFeePerGas: '0x1',
         }),
       );
+    });
+
+    it('omits requiresAuthorizationList when batch estimation does not include it', async () => {
+      estimateGasBatchMock.mockResolvedValue({
+        totalGasLimit: 51000,
+        gasLimits: [51000],
+      });
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({
+          ...QUOTE_MOCK,
+          approvalTxns: [
+            {
+              chainId: 1,
+              data: '0xaaaa' as Hex,
+              to: '0xapprove1' as Hex,
+              value: '0x1' as Hex,
+            },
+          ],
+        }),
+      } as Response);
+
+      const result = await getAcrossQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].original.metamask.is7702).toBe(true);
+      expect(
+        result[0].original.metamask.requiresAuthorizationList,
+      ).toBeUndefined();
+    });
+
+    it('returns per-transaction gas limits when account does not support 7702', async () => {
+      estimateGasBatchMock.mockResolvedValue({
+        totalGasLimit: 42000,
+        gasLimits: [21000, 21000],
+      });
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({
+          ...QUOTE_MOCK,
+          approvalTxns: [
+            {
+              chainId: 1,
+              data: '0xaaaa' as Hex,
+              to: '0xapprove1' as Hex,
+              value: '0x1' as Hex,
+            },
+          ],
+        }),
+      } as Response);
+
+      const result = await getAcrossQuotes({
+        accountSupports7702: false,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].original.metamask.is7702).toBe(false);
+      expect(result[0].original.metamask.gasLimits).toHaveLength(2);
     });
 
     it('throws when the shared gas estimator marks a quote as 7702 without a combined gas limit', async () => {
@@ -1236,6 +2620,7 @@ describe('Across Quotes', () => {
 
       await expect(
         getAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           requests: [QUOTE_REQUEST_MOCK],
           transaction: TRANSACTION_META_MOCK,
@@ -1268,6 +2653,7 @@ describe('Across Quotes', () => {
 
       await expect(
         getAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           requests: [QUOTE_REQUEST_MOCK],
           transaction: TRANSACTION_META_MOCK,
@@ -1292,6 +2678,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1324,6 +2711,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1391,6 +2779,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1425,6 +2814,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1466,6 +2856,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1488,6 +2879,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1513,6 +2905,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1532,6 +2925,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1558,6 +2952,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [request],
         transaction: TRANSACTION_META_MOCK,
@@ -1572,6 +2967,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1592,6 +2988,7 @@ describe('Across Quotes', () => {
 
       await expect(
         getAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           requests: [QUOTE_REQUEST_MOCK],
           transaction: {
@@ -1616,6 +3013,7 @@ describe('Across Quotes', () => {
 
       await expect(
         getAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           requests: [QUOTE_REQUEST_MOCK],
           transaction: {
@@ -1638,6 +3036,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1658,6 +3057,7 @@ describe('Across Quotes', () => {
 
       await expect(
         getAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           requests: [QUOTE_REQUEST_MOCK],
           transaction: TRANSACTION_META_MOCK,
@@ -1678,6 +3078,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       const result = await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: TRANSACTION_META_MOCK,
@@ -1695,6 +3096,7 @@ describe('Across Quotes', () => {
 
       await expect(
         getAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           requests: [QUOTE_REQUEST_MOCK],
           transaction: {
@@ -1720,6 +3122,7 @@ describe('Across Quotes', () => {
       } as Response);
 
       await getAcrossQuotes({
+        accountSupports7702: true,
         messenger,
         requests: [QUOTE_REQUEST_MOCK],
         transaction: {
@@ -1745,6 +3148,7 @@ describe('Across Quotes', () => {
 
       await expect(
         getAcrossQuotes({
+          accountSupports7702: true,
           messenger,
           requests: [QUOTE_REQUEST_MOCK],
           transaction: {

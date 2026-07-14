@@ -1,5 +1,7 @@
 import { toHex } from '@metamask/controller-utils';
 
+import { createMockClaimsControllerMessenger } from '../tests/mocks/messenger';
+import type { WithControllerArgs } from '../tests/types';
 import {
   ClaimsController,
   getDefaultClaimsControllerState,
@@ -11,8 +13,6 @@ import type {
   ClaimsConfigurationsResponse,
   CreateClaimRequest,
 } from './types';
-import { createMockClaimsControllerMessenger } from '../tests/mocks/messenger';
-import type { WithControllerArgs } from '../tests/types';
 
 const mockClaimServiceRequestHeaders = jest.fn();
 const mockClaimServiceGetClaimsApiUrl = jest.fn();

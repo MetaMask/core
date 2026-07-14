@@ -6,12 +6,12 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
+import { Env } from '../types';
 import type { GeolocationApiServiceMessenger } from './geolocation-api-service';
 import {
   GeolocationApiService,
   UNKNOWN_LOCATION,
 } from './geolocation-api-service';
-import { Env } from '../types';
 
 describe('GeolocationApiService', () => {
   beforeEach(() => {
@@ -44,11 +44,11 @@ describe('GeolocationApiService', () => {
       await rootMessenger.call('GeolocationApiService:fetchGeolocation');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://on-ramp.api.cx.metamask.io/geolocation',
+        'https://geolocation.api.cx.metamask.io/v1/geolocation',
       );
     });
 
-    it('fetches from the UAT URL when env is UAT', async () => {
+    it('fetches from the production URL when env is UAT, since API Platform has not provisioned a dedicated UAT deployment', async () => {
       const mockFetch = createMockFetch('FR');
       const { rootMessenger } = getService({
         options: { fetch: mockFetch, env: Env.UAT },
@@ -57,7 +57,7 @@ describe('GeolocationApiService', () => {
       await rootMessenger.call('GeolocationApiService:fetchGeolocation');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://on-ramp.uat-api.cx.metamask.io/geolocation',
+        'https://geolocation.api.cx.metamask.io/v1/geolocation',
       );
     });
 
@@ -70,7 +70,7 @@ describe('GeolocationApiService', () => {
       await rootMessenger.call('GeolocationApiService:fetchGeolocation');
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'https://on-ramp.dev-api.cx.metamask.io/geolocation',
+        'https://geolocation.dev-api.cx.metamask.io/v1/geolocation',
       );
     });
   });

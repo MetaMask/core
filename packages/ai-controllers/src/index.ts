@@ -1,8 +1,6 @@
 export type {
   AiDigestControllerActions,
   AiDigestControllerEvents,
-  AiDigestControllerFetchMarketInsightsAction,
-  AiDigestControllerFetchMarketOverviewAction,
   AiDigestControllerGetStateAction,
   AiDigestControllerMessenger,
   AiDigestControllerOptions,
@@ -12,6 +10,11 @@ export {
   AiDigestController,
   getDefaultAiDigestControllerState,
 } from './AiDigestController';
+export type {
+  AiDigestControllerFetchMarketInsightsAction,
+  AiDigestControllerFetchMarketOverviewAction,
+  AiDigestControllerFetchFrontPageItemAction,
+} from './AiDigestController-method-action-types';
 
 export type { AiDigestServiceConfig } from './AiDigestService';
 export { AiDigestService } from './AiDigestService';
@@ -29,6 +32,8 @@ export type {
   MarketInsightsTweet,
   MarketOverview,
   MarketOverviewEntry,
+  MarketOverviewFrontPage,
+  MarketOverviewItem,
   MarketOverviewTrend,
   RelatedAsset,
   Source,

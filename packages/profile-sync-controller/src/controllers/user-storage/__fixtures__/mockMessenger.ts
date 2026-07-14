@@ -1,3 +1,4 @@
+import { KeyringTypes } from '@metamask/keyring-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -152,7 +153,13 @@ export function mockUserStorageMessenger(
     'KeyringController:getState',
   ).mockReturnValue({
     isUnlocked: true,
-    keyrings: [],
+    keyrings: [
+      {
+        type: KeyringTypes.hd,
+        accounts: [],
+        metadata: { id: 'primary-entropy-source-id', name: '' },
+      },
+    ],
   });
 
   const mockAccountsListAccounts = jest.fn();

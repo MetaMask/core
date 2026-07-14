@@ -42,10 +42,16 @@
       "path": "./packages/assets-controllers"
     },
     {
+      "path": "./packages/authenticated-user-storage"
+    },
+    {
       "path": "./packages/base-controller"
     },
     {
       "path": "./packages/base-data-service"
+    },
+    {
+      "path": "./packages/bitcoin-regtest-up"
     },
     {
       "path": "./packages/bridge-controller"
@@ -60,10 +66,16 @@
       "path": "./packages/chain-agnostic-permission"
     },
     {
+      "path": "./packages/chomp-api-service"
+    },
+    {
       "path": "./packages/claims-controller"
     },
     {
       "path": "./packages/client-controller"
+    },
+    {
+      "path": "./packages/client-utils"
     },
     {
       "path": "./packages/compliance-controller"
@@ -117,6 +129,9 @@
       "path": "./packages/geolocation-controller"
     },
     {
+      "path": "./packages/java-tron-up"
+    },
+    {
       "path": "./packages/json-rpc-engine"
     },
     {
@@ -126,10 +141,31 @@
       "path": "./packages/keyring-controller"
     },
     {
+      "path": "./packages/local-node-utils"
+    },
+    {
       "path": "./packages/message-manager"
     },
     {
       "path": "./packages/messenger"
+    },
+    {
+      "path": "./packages/messenger-cli"
+    },
+    {
+      "path": "./packages/money-account-api-data-service"
+    },
+    {
+      "path": "./packages/money-account-balance-service"
+    },
+    {
+      "path": "./packages/money-account-api-data-service"
+    },
+    {
+      "path": "./packages/money-account-controller"
+    },
+    {
+      "path": "./packages/money-account-upgrade-controller"
     },
     {
       "path": "./packages/multichain-account-service"
@@ -147,6 +183,9 @@
       "path": "./packages/name-controller"
     },
     {
+      "path": "./packages/network-connection-banner-controller"
+    },
+    {
       "path": "./packages/network-controller"
     },
     {
@@ -154,6 +193,9 @@
     },
     {
       "path": "./packages/notification-services-controller"
+    },
+    {
+      "path": "./packages/passkey-controller"
     },
     {
       "path": "./packages/permission-controller"
@@ -166,6 +208,9 @@
     },
     {
       "path": "./packages/phishing-controller"
+    },
+    {
+      "path": "./packages/platform-api-docs"
     },
     {
       "path": "./packages/polling-controller"
@@ -207,7 +252,19 @@
       "path": "./packages/signature-controller"
     },
     {
+      "path": "./packages/smart-transactions-controller"
+    },
+    {
+      "path": "./packages/snap-account-service"
+    },
+    {
       "path": "./packages/social-controllers"
+    },
+    {
+      "path": "./packages/solana-test-validator-up"
+    },
+    {
+      "path": "./packages/stellar-quickstart-up"
     },
     {
       "path": "./packages/subscription-controller"
@@ -220,8 +277,17 @@
     },
     {
       "path": "./packages/user-operation-controller"
+    },
+    {
+      "path": "./packages/wallet"
+    },
+    {
+      "path": "./packages/wallet-cli"
+    },
+    {
+      "path": "./packages/wallet-framework-docs"
     }
   ],
   "files": [],
-  "include": ["./types", "./scripts"]
+  "include": ["./docs", "./types", "./scripts", "./knip.config.ts"]
 }

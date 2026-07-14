@@ -8,6 +8,9 @@ jobs:
   check-changelog:
     name: Check changelog
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - name: Check changelog
         uses: MetaMask/github-tools/.github/actions/check-changelog@v1

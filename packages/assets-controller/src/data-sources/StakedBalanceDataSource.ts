@@ -10,6 +10,18 @@ import {
 } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
+import type { AssetsControllerMessenger } from '../AssetsController';
+import { projectLogger, createModuleLogger } from '../logger';
+import type {
+  AccountId,
+  ChainId,
+  Caip19AssetId,
+  AssetBalance,
+  AssetMetadata,
+  DataRequest,
+  DataResponse,
+  Middleware,
+} from '../types';
 import type {
   DataSourceState,
   SubscriptionRequest,
@@ -24,18 +36,6 @@ import {
   getStakingContractAddress,
   getSupportedStakingChainIds,
 } from './evm-rpc-services';
-import type { AssetsControllerMessenger } from '../AssetsController';
-import { projectLogger, createModuleLogger } from '../logger';
-import type {
-  AccountId,
-  ChainId,
-  Caip19AssetId,
-  AssetBalance,
-  AssetMetadata,
-  DataRequest,
-  DataResponse,
-  Middleware,
-} from '../types';
 
 const CONTROLLER_NAME = 'StakedBalanceDataSource';
 const DEFAULT_POLL_INTERVAL = 180_000; // 3 minutes
@@ -192,19 +192,18 @@ export class StakedBalanceDataSource extends AbstractDataSource<
         this.#getProvider(hexChainId),
     });
 
-    // Wire the callback so polling results flow back to subscriptions
-    this.#stakedBalanceFetcher.setOnStakedBalanceUpdate(
-      this.#handleStakedBalanceUpdate.bind(this),
-    );
+    // Polling controller invokes this synchronously; keep failures inside the poll tick.
+    this.#stakedBalanceFetcher.setOnStakedBalanceUpdate((result) => {
+      try {
+        this.#handleStakedBalanceUpdate(result);
+      } catch (error) {
+        log('Staked balance update handler failed', { error });
+      }
+    });
 
     this.#messenger.subscribe(
       'TransactionController:transactionConfirmed',
       this.#onTransactionConfirmed.bind(this),
-    );
-
-    this.#messenger.subscribe(
-      'TransactionController:incomingTransactionsReceived',
-      this.#onIncomingTransactions.bind(this),
     );
 
     this.#messenger.subscribe(
@@ -304,43 +303,6 @@ export class StakedBalanceDataSource extends AbstractDataSource<
     if (toRefresh.length > 0) {
       this.#refreshStakedBalanceAfterTransaction(toRefresh).catch((error) => {
         log('Failed to refresh staked balance after transaction', { error });
-      });
-    }
-  }
-
-  /**
-   * When incoming transactions are received, refresh staked balance only for
-   * chains where at least one transaction is from or to the staking contract.
-   *
-   * @param payload - From TransactionController:incomingTransactionsReceived (array of { chainId?, txParams? }).
-   */
-  #onIncomingTransactions(
-    payload: { chainId?: string; txParams?: { from?: string; to?: string } }[],
-  ): void {
-    if (!this.#enabled) {
-      return;
-    }
-    const chainIdsToRefresh = new Set<string>();
-    for (const item of payload ?? []) {
-      if (!item?.chainId) {
-        continue;
-      }
-      if (this.#isTransactionInvolvingStakingContract(item)) {
-        chainIdsToRefresh.add(item.chainId);
-      }
-    }
-    const caipChainIds = [...chainIdsToRefresh].map(
-      (hexChainId) => `eip155:${parseInt(hexChainId, 16)}` as ChainId,
-    );
-    if (caipChainIds.length === 0) {
-      return;
-    }
-    const toRefresh = this.#getToRefreshForChains(caipChainIds);
-    if (toRefresh.length > 0) {
-      this.#refreshStakedBalanceAfterTransaction(toRefresh).catch((error) => {
-        log('Failed to refresh staked balance after incoming transactions', {
-          error,
-        });
       });
     }
   }

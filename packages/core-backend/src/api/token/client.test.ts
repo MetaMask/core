@@ -2,7 +2,6 @@
  * Token API Client Tests - token.api.cx.metamask.io
  */
 
-import type { NetworkInfo, TokenMetadata } from './types';
 import type { ApiPlatformClient } from '../ApiPlatformClient';
 import { API_URLS } from '../shared-types';
 import {
@@ -10,6 +9,7 @@ import {
   createMockResponse,
   setupTestEnvironment,
 } from '../test-utils';
+import type { NetworkInfo, TokenMetadata } from './types';
 
 describe('TokenApiClient', () => {
   let client: ApiPlatformClient;

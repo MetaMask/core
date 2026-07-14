@@ -1,21 +1,28 @@
+import type {
+  TransactionMeta,
+  TransactionType,
+} from '@metamask/transaction-controller';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { getTokenFiatRate, isSameToken } from './token';
-import { getTransaction } from './transaction';
 import type {
   TransactionPayControllerMessenger,
   TransactionPaymentToken,
 } from '..';
 import { TransactionPayStrategy } from '..';
-import type { TransactionMeta } from '../../../transaction-controller/src';
-import { ARBITRUM_USDC_ADDRESS, CHAIN_ID_ARBITRUM } from '../constants';
+import {
+  ARBITRUM_USDC_ADDRESS,
+  CHAIN_ID_ARBITRUM,
+  PERPS_DEPOSIT_TYPES,
+} from '../constants';
 import { projectLogger } from '../logger';
 import type {
   TransactionPaySourceAmount,
   TransactionData,
   TransactionPayRequiredToken,
 } from '../types';
+import { getTokenFiatRate, isSameToken } from './token';
+import { getTransaction } from './transaction';
 
 const log = createModuleLogger(projectLogger, 'source-amounts');
 
@@ -44,15 +51,20 @@ export function updateSourceAmounts(
   // For post-quote flows, source amounts are calculated differently
   // The source is the transaction's required token, not the selected token
   if (isPostQuote) {
+    const { isHyperliquidSource, isPolymarketDepositWallet } = transactionData;
     const sourceAmounts = calculatePostQuoteSourceAmounts(
       tokens,
       paymentToken,
       isMaxAmount ?? false,
+      isHyperliquidSource,
+      isPolymarketDepositWallet,
     );
     log('Updated post-quote source amounts', { transactionId, sourceAmounts });
     transactionData.sourceAmounts = sourceAmounts;
     return;
   }
+
+  const { isQuoteRequired } = transactionData;
 
   const sourceAmounts = tokens
     .map((singleToken) =>
@@ -62,6 +74,7 @@ export function updateSourceAmounts(
         messenger,
         transactionId,
         isMaxAmount ?? false,
+        isQuoteRequired,
       ),
     )
     .filter(Boolean) as TransactionPaySourceAmount[];
@@ -79,12 +92,16 @@ export function updateSourceAmounts(
  * @param tokens - Required tokens from the transaction.
  * @param paymentToken - Selected payment/destination token.
  * @param isMaxAmount - Whether the transaction is a maximum amount transaction.
+ * @param isHyperliquidSource - Whether the source is HyperLiquid (perps withdrawal).
+ * @param isPolymarketDepositWallet - Whether the source is a Polymarket deposit wallet.
  * @returns Array of source amounts.
  */
 function calculatePostQuoteSourceAmounts(
   tokens: TransactionPayRequiredToken[],
   paymentToken: TransactionPaymentToken,
   isMaxAmount: boolean,
+  isHyperliquidSource?: boolean,
+  isPolymarketDepositWallet?: boolean,
 ): TransactionPaySourceAmount[] {
   return tokens
     .filter((token) => {
@@ -98,8 +115,14 @@ function calculatePostQuoteSourceAmounts(
         return false;
       }
 
-      // Skip same token on same chain
-      if (isSameToken(token, paymentToken)) {
+      // Skip same token on same chain, unless the source is a synthetic
+      // upstream (HyperLiquid HyperCore or Polymarket deposit wallet) that
+      // the strategy renormalizes to a different effective source.
+      if (
+        isSameToken(token, paymentToken) &&
+        !isHyperliquidSource &&
+        !isPolymarketDepositWallet
+      ) {
         log('Skipping token as same as destination token');
         return false;
       }
@@ -124,6 +147,7 @@ function calculatePostQuoteSourceAmounts(
  * @param messenger - Controller messenger.
  * @param transactionId - ID of the transaction.
  * @param isMaxAmount - Whether the transaction is a maximum amount transaction.
+ * @param isQuoteRequired - When true, a quote is always fetched even when source and target tokens are identical.
  * @returns The source amount or undefined if calculation failed.
  */
 function calculateSourceAmount(
@@ -132,6 +156,7 @@ function calculateSourceAmount(
   messenger: TransactionPayControllerMessenger,
   transactionId: string,
   isMaxAmount: boolean,
+  isQuoteRequired?: boolean,
 ): TransactionPaySourceAmount | undefined {
   const paymentTokenFiatRate = getTokenFiatRate(
     messenger,
@@ -152,8 +177,16 @@ function calculateSourceAmount(
     return undefined;
   }
 
-  const strategy = getStrategyType(transactionId, messenger);
-  const isAlwaysRequired = isQuoteAlwaysRequired(token, strategy);
+  const { parentTransactionType, strategy } = getStrategyContext(
+    transactionId,
+    messenger,
+  );
+  const isAlwaysRequired = isQuoteAlwaysRequired(
+    token,
+    strategy,
+    parentTransactionType,
+    isQuoteRequired,
+  );
 
   if (isSameToken(token, paymentToken) && !isAlwaysRequired) {
     log('Skipping token as same as payment token');
@@ -195,34 +228,50 @@ function calculateSourceAmount(
  *
  * @param token - Target token.
  * @param strategy - Payment strategy.
+ * @param parentTransactionType - Parent transaction type, if available.
+ * @param isQuoteRequired - When true, a quote is always fetched even when source and target tokens are identical.
  * @returns True if a quote is always required, false otherwise.
  */
 function isQuoteAlwaysRequired(
   token: TransactionPayRequiredToken,
   strategy: TransactionPayStrategy,
+  parentTransactionType?: TransactionType,
+  isQuoteRequired?: boolean,
 ): boolean {
+  if (isQuoteRequired) {
+    return true;
+  }
+
   const isHyperliquidDeposit =
     token.chainId === CHAIN_ID_ARBITRUM &&
     token.address.toLowerCase() === ARBITRUM_USDC_ADDRESS.toLowerCase();
 
-  return strategy === TransactionPayStrategy.Relay && isHyperliquidDeposit;
+  return (
+    isHyperliquidDeposit &&
+    (strategy === TransactionPayStrategy.Relay ||
+      (strategy === TransactionPayStrategy.Across &&
+        parentTransactionType !== undefined &&
+        PERPS_DEPOSIT_TYPES.includes(parentTransactionType)))
+  );
 }
 
-/**
- * Get the strategy type for a transaction.
- *
- * @param transactionId - ID of the transaction.
- * @param messenger - Controller messenger.
- * @returns Payment strategy type.
- */
-function getStrategyType(
+function getStrategyContext(
   transactionId: string,
   messenger: TransactionPayControllerMessenger,
-): TransactionPayStrategy {
+): {
+  parentTransactionType?: TransactionType;
+  strategy: TransactionPayStrategy;
+} {
   const transaction = getTransaction(
     transactionId,
     messenger,
   ) as TransactionMeta;
 
-  return messenger.call('TransactionPayController:getStrategy', transaction);
+  return {
+    parentTransactionType: transaction.type,
+    strategy: messenger.call(
+      'TransactionPayController:getStrategy',
+      transaction,
+    ),
+  };
 }

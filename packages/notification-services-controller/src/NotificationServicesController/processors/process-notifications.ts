@@ -1,20 +1,20 @@
+import {
+  TRIGGER_TYPES,
+  NOTIFICATION_API_TRIGGER_TYPES_SET,
+} from '../constants/notification-schema';
+import type { FeatureAnnouncementRawNotification } from '../types/feature-announcement/feature-announcement';
+import type { NormalisedAPINotification } from '../types/notification-api/notification-api';
+import type {
+  INotification,
+  RawNotificationUnion,
+} from '../types/notification/notification';
+import type { RawSnapNotification } from '../types/snaps';
 import { processAPINotifications } from './process-api-notifications';
 import {
   isFeatureAnnouncementRead,
   processFeatureAnnouncement,
 } from './process-feature-announcement';
 import { processSnapNotification } from './process-snap-notifications';
-import {
-  TRIGGER_TYPES,
-  NOTIFICATION_API_TRIGGER_TYPES_SET,
-} from '../constants/notification-schema';
-import type { FeatureAnnouncementRawNotification } from '../types/feature-announcement/feature-announcement';
-import type {
-  INotification,
-  RawNotificationUnion,
-} from '../types/notification/notification';
-import type { NormalisedAPINotification } from '../types/notification-api/notification-api';
-import type { RawSnapNotification } from '../types/snaps';
 
 const isOnChainNotification = (
   notification: RawNotificationUnion,

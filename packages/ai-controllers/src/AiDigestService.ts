@@ -12,6 +12,8 @@ import type {
   DigestService,
   MarketInsightsReport,
   MarketOverview,
+  MarketOverviewFrontPage,
+  MarketOverviewTrend,
 } from './ai-digest-types';
 
 export type AiDigestServiceConfig = {
@@ -86,10 +88,10 @@ const MarketInsightsDigestEnvelopeStruct = structType({
 // Market Overview structs
 
 const RelatedAssetStruct = structType({
-  name: string(),
+  name: optional(string()),
   symbol: string(),
   caip19: optional(array(string())),
-  sourceAssetId: string(),
+  sourceAssetId: optional(string()),
   hlPerpsMarket: optional(array(string())),
 });
 
@@ -113,15 +115,30 @@ const MarketOverviewReportEnvelopeStruct = structType({
   report: MarketOverviewStruct,
 });
 
+// A single front-page row. `item` shares the exact same schema as an
+// individual market overview trend; `ctaTitle`/`ctaDescription` are the
+// AI-authored call-to-action copy layered on top.
+const MarketOverviewFrontPageStruct = structType({
+  id: string(),
+  item: MarketOverviewTrendStruct,
+  ctaTitle: string(),
+  ctaDescription: string(),
+  createdAt: string(),
+});
+
+const normalizeItemRelatedAssets = (
+  item: MarketOverviewTrend,
+): MarketOverviewTrend => ({
+  ...item,
+  relatedAssets: item.relatedAssets.map((asset) => ({
+    ...asset,
+    caip19: asset.caip19 ?? [],
+  })),
+});
+
 const normalizeRelatedAssets = (raw: MarketOverview): MarketOverview => ({
   ...raw,
-  trends: raw.trends.map((trend) => ({
-    ...trend,
-    relatedAssets: trend.relatedAssets.map((asset) => ({
-      ...asset,
-      caip19: asset.caip19 ?? [],
-    })),
-  })),
+  trends: raw.trends.map(normalizeItemRelatedAssets),
 });
 
 const getNormalizedMarketOverview = (value: unknown): MarketOverview | null => {
@@ -134,6 +151,16 @@ const getNormalizedMarketOverview = (value: unknown): MarketOverview | null => {
   }
 
   return null;
+};
+
+const getNormalizedFrontPage = (
+  value: unknown,
+): MarketOverviewFrontPage | null => {
+  if (!is(value, MarketOverviewFrontPageStruct)) {
+    return null;
+  }
+
+  return { ...value, item: normalizeItemRelatedAssets(value.item) };
 };
 
 const getNormalizedMarketInsightsReport = (
@@ -180,6 +207,40 @@ export class AiDigestService implements DigestService {
     }
 
     return overview;
+  }
+
+  /**
+   * Fetch a single market overview front page by id.
+   *
+   * Calls `GET ${this.#baseUrl}/market-overview/front-page/:id`.
+   *
+   * @param id - The front-page identifier (UUID).
+   * @returns The market overview front page, or `null` if none exists (404).
+   */
+  async fetchFrontPageItem(
+    id: string,
+  ): Promise<MarketOverviewFrontPage | null> {
+    const response = await fetch(
+      `${this.#baseUrl}/market-overview/front-page/${encodeURIComponent(id)}`,
+    );
+
+    if (response.status === 404) {
+      return null;
+    }
+
+    if (!response.ok) {
+      throw new Error(
+        `${AiDigestControllerErrorMessage.API_REQUEST_FAILED}: ${response.status}`,
+      );
+    }
+
+    const frontPage = getNormalizedFrontPage(await response.json());
+
+    if (!frontPage) {
+      throw new Error(AiDigestControllerErrorMessage.API_INVALID_RESPONSE);
+    }
+
+    return frontPage;
   }
 
   /**

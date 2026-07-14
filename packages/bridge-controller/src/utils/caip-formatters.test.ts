@@ -1,6 +1,8 @@
 import { AddressZero } from '@ethersproject/constants';
-import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope, TrxScope, XlmScope } from '@metamask/keyring-api';
 
+import { CHAIN_IDS } from '../constants/chains';
+import { ChainId } from '../types';
 import {
   formatChainIdToCaip,
   formatChainIdToDec,
@@ -8,8 +10,6 @@ import {
   formatAddressToCaipReference,
   formatAddressToAssetId,
 } from './caip-formatters';
-import { CHAIN_IDS } from '../constants/chains';
-import { ChainId } from '../types';
 
 describe('CAIP Formatters', () => {
   describe('formatChainIdToCaip', () => {
@@ -41,6 +41,12 @@ describe('CAIP Formatters', () => {
       expect(formatChainIdToCaip(TrxScope.Mainnet)).toBe(TrxScope.Mainnet);
     });
 
+    it('should convert Stellar chainId to XlmScope', () => {
+      expect(formatChainIdToCaip(ChainId.STELLAR)).toBe(XlmScope.Pubnet);
+      expect(formatChainIdToCaip(XlmScope.Pubnet)).toBe(XlmScope.Pubnet);
+      expect(formatChainIdToCaip(XlmScope.Testnet)).toBe(XlmScope.Testnet);
+    });
+
     it('should convert number to CAIP format', () => {
       expect(formatChainIdToCaip(1)).toBe('eip155:1');
     });
@@ -66,6 +72,12 @@ describe('CAIP Formatters', () => {
 
     it('should handle Tron mainnet', () => {
       expect(formatChainIdToDec(TrxScope.Mainnet)).toBe(ChainId.TRON);
+    });
+
+    it('should handle Stellar mainnet', () => {
+      expect(formatChainIdToDec(XlmScope.Pubnet)).toBe(ChainId.STELLAR);
+      expect(formatChainIdToDec(XlmScope.Testnet)).toBe(ChainId.STELLAR);
+      expect(formatChainIdToDec(ChainId.STELLAR)).toBe(ChainId.STELLAR);
     });
 
     it('should parse CAIP chainId to decimal', () => {

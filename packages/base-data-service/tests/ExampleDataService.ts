@@ -1,14 +1,14 @@
-import { ConstantBackoff } from '@metamask/controller-utils';
 import { Messenger } from '@metamask/messenger';
 import { CaipAssetId, Duration, inMilliseconds, Json } from '@metamask/utils';
+import { ConstantBackoff } from 'cockatiel';
 
-import { ExampleDataServiceMethodActions } from './ExampleDataService-method-action-types';
 import {
   BaseDataService,
   DataServiceInvalidateQueriesAction,
   DataServiceCacheUpdatedEvent,
   DataServiceGranularCacheUpdatedEvent,
 } from '../src/BaseDataService';
+import { ExampleDataServiceMethodActions } from './ExampleDataService-method-action-types';
 
 export const serviceName = 'ExampleDataService';
 
@@ -94,7 +94,7 @@ export class ExampleDataService extends BaseDataService<
         return response.json();
       },
       staleTime: inMilliseconds(1, Duration.Day),
-      cacheTime: 0, // Not recommended in production, just for testing purposes.
+      cacheTime: inMilliseconds(1, Duration.Day),
     });
   }
 

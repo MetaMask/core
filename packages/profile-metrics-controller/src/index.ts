@@ -16,8 +16,21 @@ export type {
   ProfileMetricsServiceMessenger,
   ProfileMetricsSubmitMetricsRequest,
 } from './ProfileMetricsService';
-export { ProfileMetricsService, serviceName } from './ProfileMetricsService';
+export {
+  ProfileMetricsService,
+  serviceName,
+  serviceName as profileMetricsServiceName,
+} from './ProfileMetricsService';
 export type { ProfileMetricsServiceMethodActions } from './ProfileMetricsService-method-action-types';
+export type {
+  ProofOfOwnershipServiceActions,
+  ProofOfOwnershipServiceEvents,
+  ProofOfOwnershipServiceMessenger,
+} from './ProofOfOwnershipService';
+export {
+  ProofOfOwnershipService,
+  serviceName as proofOfOwnershipServiceName,
+} from './ProofOfOwnershipService';
 export type {
   ProfileMetricsControllerMethodActions,
   ProfileMetricsControllerSkipInitialDelayAction,

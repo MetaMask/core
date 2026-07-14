@@ -1,15 +1,17 @@
-import type { ENV } from './endpoints';
-import * as endpoints from './endpoints';
 import type { PushNotificationEnv } from '../types';
 import type {
   CreateRegToken,
   DeleteRegToken,
 } from '../types/push-service-interface';
+import type { ENV } from './endpoints';
+import * as endpoints from './endpoints';
 
 export type RegToken = {
   token: string;
   platform: 'extension' | 'mobile' | 'portfolio';
   locale: string;
+  os?: 'android' | 'ios';
+  appVersion?: string;
   oldToken?: string;
 };
 
@@ -26,6 +28,8 @@ export type PushTokenRequest = {
     token: string;
     platform: 'extension' | 'mobile' | 'portfolio';
     locale: string;
+    os?: 'android' | 'ios';
+    appVersion?: string;
     oldToken?: string;
   };
 };
@@ -129,7 +133,10 @@ type ActivatePushNotificationsParams = {
   // Other Request Parameters
   bearerToken: string;
   addresses: string[];
-  regToken: Pick<RegToken, 'locale' | 'platform' | 'oldToken'>;
+  regToken: Pick<
+    RegToken,
+    'appVersion' | 'locale' | 'oldToken' | 'os' | 'platform'
+  >;
 };
 
 /**
@@ -155,6 +162,8 @@ export async function activatePushNotifications(
       token: regToken,
       platform: params.regToken.platform,
       locale: params.regToken.locale,
+      os: params.regToken.os,
+      appVersion: params.regToken.appVersion,
       oldToken: params.regToken.oldToken,
     },
     env: params.controllerEnv,

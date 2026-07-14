@@ -10,6 +10,7 @@ import type {
 import { errorCodes, JsonRpcError } from '@metamask/rpc-errors';
 import { nanoid } from 'nanoid';
 
+import { flushPromises } from '../../../tests/helpers';
 import type {
   AddApprovalOptions,
   ApprovalControllerActions,
@@ -31,7 +32,6 @@ import {
   MissingApprovalFlowError,
   NoApprovalFlowsError,
 } from './errors';
-import { flushPromises } from '../../../tests/helpers';
 
 jest.mock('nanoid');
 

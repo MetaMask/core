@@ -1,11 +1,16 @@
 {
   "extends": "../../tsconfig.packages.json",
   "compilerOptions": {
-    "baseUrl": "./"
+    "baseUrl": "./",
+    "module": "ESNext",
+    "moduleResolution": "Bundler"
   },
   "references": [
     {
       "path": "../account-tree-controller"
+    },
+    {
+      "path": "../authenticated-user-storage"
     },
     {
       "path": "../base-controller"

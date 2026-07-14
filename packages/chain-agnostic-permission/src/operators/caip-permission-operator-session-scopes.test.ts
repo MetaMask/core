@@ -1,16 +1,17 @@
 import type { CaipAccountId } from '@metamask/utils';
 
 import {
-  getInternalScopesObject,
-  getPermittedAccountsForScopes,
-  getSessionScopes,
-} from './caip-permission-operator-session-scopes';
-import {
   KnownNotifications,
   KnownRpcMethods,
   KnownWalletNamespaceRpcMethods,
   KnownWalletRpcMethods,
 } from '../scope/constants';
+import {
+  getInternalScopesObject,
+  getPermittedAccountsForScopes,
+  getSessionProperties,
+  getSessionScopes,
+} from './caip-permission-operator-session-scopes';
 
 describe('CAIP-25 session scopes adapters', () => {
   describe('getInternalScopesObject', () => {
@@ -52,6 +53,7 @@ describe('CAIP-25 session scopes adapters', () => {
               accounts: [],
             },
           },
+          sessionProperties: {},
         },
         {
           getNonEvmSupportedMethods,
@@ -76,6 +78,7 @@ describe('CAIP-25 session scopes adapters', () => {
               accounts: ['wallet:eip155:0xdeadbeef'],
             },
           },
+          sessionProperties: {},
         },
         {
           getNonEvmSupportedMethods,
@@ -102,6 +105,7 @@ describe('CAIP-25 session scopes adapters', () => {
               accounts: ['wallet:foobar:0xdeadbeef'],
             },
           },
+          sessionProperties: {},
         },
         {
           getNonEvmSupportedMethods,
@@ -122,6 +126,7 @@ describe('CAIP-25 session scopes adapters', () => {
               accounts: ['wallet:foobar:0xdeadbeef'],
             },
           },
+          sessionProperties: {},
         },
         {
           getNonEvmSupportedMethods,
@@ -148,6 +153,7 @@ describe('CAIP-25 session scopes adapters', () => {
               accounts: ['foo:1:0xdeadbeef'],
             },
           },
+          sessionProperties: {},
         },
         {
           getNonEvmSupportedMethods,
@@ -168,6 +174,7 @@ describe('CAIP-25 session scopes adapters', () => {
               accounts: ['foo:1:0xdeadbeef'],
             },
           },
+          sessionProperties: {},
         },
         {
           getNonEvmSupportedMethods,
@@ -192,6 +199,7 @@ describe('CAIP-25 session scopes adapters', () => {
               accounts: ['eip155:1:0xdeadbeef'],
             },
           },
+          sessionProperties: {},
         },
         {
           getNonEvmSupportedMethods,
@@ -227,6 +235,7 @@ describe('CAIP-25 session scopes adapters', () => {
             },
           },
           optionalScopes: {},
+          sessionProperties: {},
         },
         {
           getNonEvmSupportedMethods,
@@ -257,6 +266,7 @@ describe('CAIP-25 session scopes adapters', () => {
             },
           },
           optionalScopes: {},
+          sessionProperties: {},
         },
         {
           getNonEvmSupportedMethods,
@@ -307,6 +317,7 @@ describe('CAIP-25 session scopes adapters', () => {
               accounts: unsortedAccounts2,
             },
           },
+          sessionProperties: {},
         },
         {
           getNonEvmSupportedMethods,
@@ -335,6 +346,153 @@ describe('CAIP-25 session scopes adapters', () => {
           accounts: sortedAccounts2,
         },
       });
+    });
+  });
+
+  describe('getSessionProperties', () => {
+    it('returns the persisted session properties merged with an empty eip155Capabilities record when there are no permitted accounts', async () => {
+      const getCapabilities = jest.fn();
+
+      const result = await getSessionProperties(
+        {
+          requiredScopes: {},
+          optionalScopes: {},
+          sessionProperties: { 'eip1193-compatible': true },
+        },
+        {
+          getCapabilities,
+        },
+      );
+
+      expect(getCapabilities).not.toHaveBeenCalled();
+      expect(result).toStrictEqual({
+        'eip1193-compatible': true,
+        eip155Capabilities: {},
+      });
+    });
+
+    it('calls getCapabilities with each unique permitted EVM address', async () => {
+      const getCapabilities = jest
+        .fn()
+        .mockResolvedValue({ '0x1': { atomic: { status: 'supported' } } });
+
+      await getSessionProperties(
+        {
+          requiredScopes: {
+            'eip155:1': {
+              accounts: ['eip155:1:0xdead'],
+            },
+          },
+          optionalScopes: {
+            'eip155:137': {
+              accounts: ['eip155:137:0xdead', 'eip155:137:0xbeef'],
+            },
+          },
+          sessionProperties: {},
+        },
+        {
+          getCapabilities,
+        },
+      );
+
+      expect(getCapabilities).toHaveBeenCalledTimes(2);
+      expect(getCapabilities).toHaveBeenCalledWith({ address: '0xdead' });
+      expect(getCapabilities).toHaveBeenCalledWith({ address: '0xbeef' });
+    });
+
+    it('returns the session properties with an eip155Capabilities record keyed by address', async () => {
+      const getCapabilities = jest.fn().mockResolvedValue({
+        '0x1': { atomic: { status: 'supported' } },
+      });
+
+      const result = await getSessionProperties(
+        {
+          requiredScopes: {
+            'eip155:1': {
+              accounts: ['eip155:1:0xdead'],
+            },
+          },
+          optionalScopes: {},
+          sessionProperties: { expiry: '2025-01-01T00:00:00.000Z' },
+        },
+        {
+          getCapabilities,
+        },
+      );
+
+      expect(result).toStrictEqual({
+        expiry: '2025-01-01T00:00:00.000Z',
+        eip155Capabilities: {
+          '0xdead': {
+            '0x1': { atomic: { status: 'supported' } },
+          },
+        },
+      });
+    });
+
+    it('does not call getCapabilities for non-EVM accounts', async () => {
+      const getCapabilities = jest.fn();
+
+      const result = await getSessionProperties(
+        {
+          requiredScopes: {},
+          optionalScopes: {
+            'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp': {
+              accounts: [
+                'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp:DdpL8XNK9hSn8m6ycGAQvBwHJVgVz9eL5tWGtZ8L',
+              ],
+            },
+          },
+          sessionProperties: {},
+        },
+        {
+          getCapabilities,
+        },
+      );
+
+      expect(getCapabilities).not.toHaveBeenCalled();
+      expect(result).toStrictEqual({ eip155Capabilities: {} });
+    });
+
+    it('logs an error and omits the address when getCapabilities rejects', async () => {
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+      const error = new Error('failed');
+      const getCapabilities = jest
+        .fn()
+        .mockResolvedValueOnce({ '0x1': { atomic: { status: 'supported' } } })
+        .mockRejectedValueOnce(error);
+
+      const result = await getSessionProperties(
+        {
+          requiredScopes: {
+            'eip155:1': {
+              accounts: ['eip155:1:0xdead'],
+            },
+          },
+          optionalScopes: {
+            'eip155:137': {
+              accounts: ['eip155:137:0xbeef'],
+            },
+          },
+          sessionProperties: {},
+        },
+        {
+          getCapabilities,
+        },
+      );
+
+      expect(result).toStrictEqual({
+        eip155Capabilities: {
+          '0xdead': { '0x1': { atomic: { status: 'supported' } } },
+        },
+      });
+      expect(consoleErrorSpy).toHaveBeenCalledWith(
+        `Error getting capabilities for address 0xbeef: ${error}`,
+      );
+
+      consoleErrorSpy.mockRestore();
     });
   });
 

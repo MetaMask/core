@@ -264,6 +264,47 @@ export type AddressScanCacheData = {
   label: string;
 };
 
+/**
+ * Similar address match metadata for address poisoning detection.
+ */
+export type SimilarAddressMatch = {
+  /**
+   * The known recipient address that resembles the candidate address.
+   */
+  knownAddress: string;
+  /**
+   * Number of matching characters at the start of the address body.
+   */
+  prefixMatchLength: number;
+  /**
+   * Number of matching characters at the end of the address body.
+   */
+  suffixMatchLength: number;
+  /**
+   * Combined similarity score used to rank matches.
+   */
+  poisoningScore: number;
+  /**
+   * Character positions where the candidate and known addresses differ.
+   * Indices are based on the full hex string, including the `0x` prefix.
+   */
+  diffIndices: number[];
+};
+
+/**
+ * Thresholds for address poisoning similarity detection.
+ */
+export type SimilarityOptions = {
+  /**
+   * Minimum required prefix match length.
+   */
+  prefixLen?: number;
+  /**
+   * Minimum required suffix match length.
+   */
+  suffixLen?: number;
+};
+
 export const APPROVAL_SUPPORTED_CHAINS = [
   'ethereum',
   'polygon',

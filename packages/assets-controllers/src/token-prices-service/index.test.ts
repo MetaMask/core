@@ -10,6 +10,7 @@ describe('token-prices-service', () => {
         "fetchSupportedNetworks",
         "getSupportedNetworks",
         "resetSupportedNetworksCache",
+        "SPOT_PRICES_SUPPORT_INFO",
       ]
     `);
   });

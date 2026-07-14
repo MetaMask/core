@@ -1,7 +1,5 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 
-import { calculateTransactionGasCost } from './gas';
-import { calculateTotals } from './totals';
 import { TransactionPayStrategy } from '..';
 import type { TransactionPayControllerMessenger } from '..';
 import type {
@@ -9,6 +7,8 @@ import type {
   TransactionPayQuote,
   TransactionPayRequiredToken,
 } from '../types';
+import { calculateTransactionGasCost } from './gas';
+import { calculateTotals } from './totals';
 
 jest.mock('./gas');
 
@@ -56,7 +56,7 @@ const QUOTE_1_MOCK: TransactionPayQuote<unknown> = {
     raw: '777000000000000',
     usd: '8.88',
   },
-  strategy: TransactionPayStrategy.Test,
+  strategy: TransactionPayStrategy.Across,
   targetAmount: {
     fiat: '9.99',
     usd: '10.10',
@@ -116,7 +116,7 @@ const QUOTE_2_MOCK: TransactionPayQuote<unknown> = {
     raw: '1313000000000000',
     usd: '14.14',
   },
-  strategy: TransactionPayStrategy.Test,
+  strategy: TransactionPayStrategy.Across,
   targetAmount: {
     fiat: '15.15',
     usd: '16.16',
@@ -177,6 +177,41 @@ describe('Totals Utils', () => {
 
       expect(result.total.fiat).toBe('65.5');
       expect(result.total.usd).toBe('71.68');
+    });
+
+    it('returns total using fiatPaymentAmount when fiat strategy is present', () => {
+      const fiatQuote: TransactionPayQuote<unknown> = {
+        ...QUOTE_1_MOCK,
+        strategy: TransactionPayStrategy.Fiat,
+      };
+
+      const result = calculateTotals({
+        fiatPaymentAmount: '20.00',
+        quotes: [fiatQuote, QUOTE_2_MOCK],
+        tokens: [TOKEN_1_MOCK, TOKEN_2_MOCK],
+        messenger: MESSENGER_MOCK,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result.total.fiat).toBe('60.36');
+      expect(result.total.usd).toBe('65.42');
+    });
+
+    it('returns total with zero payment when fiat strategy is present but fiatPaymentAmount is undefined', () => {
+      const fiatQuote: TransactionPayQuote<unknown> = {
+        ...QUOTE_1_MOCK,
+        strategy: TransactionPayStrategy.Fiat,
+      };
+
+      const result = calculateTotals({
+        quotes: [fiatQuote, QUOTE_2_MOCK],
+        tokens: [TOKEN_1_MOCK, TOKEN_2_MOCK],
+        messenger: MESSENGER_MOCK,
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result.total.fiat).toBe('40.36');
+      expect(result.total.usd).toBe('45.42');
     });
 
     it('returns total excluding token amount not in quote', () => {

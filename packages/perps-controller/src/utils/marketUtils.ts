@@ -1,5 +1,126 @@
-import type { PerpsMarketData } from '../types';
+import type {
+  GetMarketDataWithPricesParams,
+  MarketTypeFilter,
+  PerpsMarketData,
+} from '../types';
 import type { CandleData, CandleStick } from '../types/perps-types';
+import { sortMarkets } from './sortMarkets';
+
+// ============================================================================
+// Market category classification (pure functions)
+// No service dependencies — pure data transformations that can be tested and
+// reused independently. `matchesCategory` and `getMarketTypeFilter` share the
+// same category model.
+// ============================================================================
+
+/**
+ * Whether a market is a HIP-3 (non-main-DEX) market. A `marketSource` DEX id
+ * marks a HIP-3 market even when the `isHip3` flag is unset (e.g. partial route
+ * params), so both signals are checked. Used as the single HIP-3 signal so the
+ * classifiers stay consistent.
+ *
+ * @param market - The market data to test.
+ * @returns True if the market is HIP-3.
+ */
+export const isHip3Market = (
+  market: Pick<PerpsMarketData, 'isHip3' | 'marketSource'>,
+): boolean => Boolean(market.isHip3) || Boolean(market.marketSource);
+
+/**
+ * Returns true when a market matches the given UI filter category.
+ *
+ * @param market - The market data to test.
+ * @param category - The filter category to test against.
+ * @returns Whether the market matches the category.
+ */
+export function matchesCategory(
+  market: PerpsMarketData,
+  category: MarketTypeFilter,
+): boolean {
+  switch (category) {
+    case 'all':
+      return true;
+    case 'new':
+      // Explicitly flagged, or an uncategorized HIP-3 market (kept in sync with
+      // getMarketTypeFilter's 'new' bucket).
+      return (
+        market.isNewMarket === true ||
+        (isHip3Market(market) && market.marketType === undefined)
+      );
+    case 'crypto':
+      // Main-DEX markets, plus HIP-3 assets explicitly typed as CryptoCurrency.
+      return !isHip3Market(market) || market.marketType === 'crypto';
+    default:
+      // Every other filter is a 1:1 data-model category match.
+      return market.marketType !== undefined && market.marketType === category;
+  }
+}
+
+/**
+ * Resolve the user-facing category bucket for a market — one of `crypto`,
+ * `stock`, `pre-ipo`, `index`, `etf`, `commodity`, `forex`, or `new`. Data-model
+ * categories map 1:1. A market with no data-model category is `crypto` when it
+ * is main-DEX, or `new` when it is an uncategorized HIP-3 market (`isHip3`, or a
+ * `marketSource` DEX id when `isHip3` is unset, e.g. minimal route params).
+ * Never returns the `all` sentinel.
+ *
+ * Centralised as the single source of truth so consumers (e.g. category
+ * shortcuts, related markets) share one classification instead of re-deriving
+ * it per client and drifting as new categories are added.
+ *
+ * @param market - The market data to classify.
+ * @returns The market type filter bucket.
+ */
+export function getMarketTypeFilter(market: PerpsMarketData): MarketTypeFilter {
+  const { marketType } = market;
+  if (marketType) {
+    return marketType;
+  }
+  // No data-model category: an uncategorized HIP-3 market is the 'new' bucket;
+  // otherwise it's a main-DEX crypto market.
+  return isHip3Market(market) ? 'new' : 'crypto';
+}
+
+/**
+ * Applies optional category filtering, sorting, and limit to a list of markets.
+ *
+ * @param markets - Source market array.
+ * @param params - Optional filter/sort/limit params.
+ * @returns Filtered, sorted, and/or sliced market array.
+ */
+export function applyMarketFilters(
+  markets: PerpsMarketData[],
+  params?: GetMarketDataWithPricesParams,
+): PerpsMarketData[] {
+  let result = markets;
+
+  if (params?.categories?.length) {
+    const { categories } = params;
+    result = result.filter((market) =>
+      // A market is included if it matches ANY of the requested categories.
+      categories.some((category) => matchesCategory(market, category)),
+    );
+  }
+
+  if (params?.excludeSymbols?.length) {
+    const excluded = new Set(params.excludeSymbols);
+    result = result.filter((market) => !excluded.has(market.symbol));
+  }
+
+  if (params?.sortBy) {
+    result = sortMarkets({
+      markets: result,
+      sortBy: params.sortBy,
+      direction: params.direction,
+    });
+  }
+
+  if (params?.limit !== undefined) {
+    result = result.slice(0, params.limit);
+  }
+
+  return result;
+}
 
 /**
  * Maximum length for market filter patterns (prevents DoS attacks)

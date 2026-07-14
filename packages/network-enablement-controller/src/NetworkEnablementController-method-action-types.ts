@@ -151,11 +151,11 @@ export type NetworkEnablementControllerListPopularEvmNetworksAction = {
 };
 
 /**
- * Returns popular multichain (Bitcoin, Solana, Tron) mainnet chain IDs in
+ * Returns popular multichain (Bitcoin, Solana, Tron, Stellar) mainnet chain IDs in
  * CAIP-2 form, restricted to networks that exist in MultichainNetworkController
  * (multichainNetworkConfigurationsByChainId).
  *
- * @returns CAIP-2 chain IDs for Bitcoin, Solana, and Tron mainnets that are configured.
+ * @returns CAIP-2 chain IDs for Bitcoin, Solana, Tron, and Stellar mainnets that are configured.
  */
 export type NetworkEnablementControllerListPopularMultichainNetworksAction = {
   type: `NetworkEnablementController:listPopularMultichainNetworks`;
@@ -167,7 +167,7 @@ export type NetworkEnablementControllerListPopularMultichainNetworksAction = {
  * networks that exist in NetworkController (networkConfigurationsByChainId) and
  * MultichainNetworkController (multichainNetworkConfigurationsByChainId). EVM
  * popular networks come from POPULAR_NETWORKS; multichain popular are Bitcoin,
- * Solana, and Tron mainnets.
+ * Solana, Tron, and Stellar mainnets.
  *
  * @returns CAIP-2 chain IDs for popular EVM networks and multichain mainnets that are configured.
  */

@@ -4,8 +4,6 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { getRelayMaxGasStationQuote } from './relay-max-gas-station';
-import type { RelayQuote } from './types';
 import { TransactionPayStrategy } from '../..';
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
 import { getMessengerMock } from '../../tests/messenger-mock';
@@ -22,6 +20,8 @@ import {
   getTokenBalance,
   getTokenInfo,
 } from '../../utils/token';
+import { getRelayMaxGasStationQuote } from './relay-max-gas-station';
+import type { RelayQuote } from './types';
 
 jest.mock('../../utils/token');
 jest.mock('../../utils/gas');
@@ -145,6 +145,8 @@ function makeFullRequest(
   request: QuoteRequest,
 ): PayStrategyGetQuotesRequest {
   return {
+    accountSupports7702: false,
+    from: FROM_MOCK,
     messenger,
     requests: [request],
     transaction: TRANSACTION_META_MOCK,
@@ -188,6 +190,22 @@ describe('relay-max-gas-station', () => {
         },
       },
     });
+  });
+
+  it('returns phase-1 quote when quote is an execute flow', async () => {
+    const phase1Quote = makeQuote();
+    phase1Quote.original.metamask.isExecute = true;
+    const getSingleQuote = jest.fn().mockResolvedValue(phase1Quote);
+
+    const request = { ...BASE_REQUEST };
+    const result = await getRelayMaxGasStationQuote(
+      request,
+      makeFullRequest(messenger, request),
+      getSingleQuote,
+    );
+
+    expect(getSingleQuote).toHaveBeenCalledTimes(1);
+    expect(result).toBe(phase1Quote);
   });
 
   it('returns phase-1 quote when native balance is sufficient', async () => {

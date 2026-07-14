@@ -6,6 +6,11 @@ import type {
 } from '@metamask/messenger';
 import type { NetworkClientId } from '@metamask/network-controller';
 
+import { flushPromises } from '../../../../tests/helpers';
+import { CHAIN_IDS } from '../constants';
+import type { TransactionControllerMessenger } from '../TransactionController';
+import type { TransactionMeta } from '../types';
+import { TransactionType, TransactionStatus } from '../types';
 import { rpcRequest } from './provider';
 import {
   updateSwapsTransaction,
@@ -13,11 +18,6 @@ import {
   UPDATE_POST_TX_BALANCE_ATTEMPTS,
   SWAPS_CHAINID_DEFAULT_TOKEN_MAP,
 } from './swaps';
-import { flushPromises } from '../../../../tests/helpers';
-import { CHAIN_IDS } from '../constants';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import type { TransactionMeta } from '../types';
-import { TransactionType, TransactionStatus } from '../types';
 
 jest.mock('./provider', () => ({
   rpcRequest: jest.fn(),

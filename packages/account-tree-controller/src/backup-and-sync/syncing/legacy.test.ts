@@ -1,13 +1,13 @@
 import { AccountGroupType } from '@metamask/account-api';
 import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
 
-import { createMultichainAccountGroupsBatch } from './group';
-import { performLegacyAccountSyncing } from './legacy';
 import type { AccountGroupMultichainAccountObject } from '../../group';
 import { BackupAndSyncAnalyticsEvent } from '../analytics';
 import type { BackupAndSyncContext } from '../types';
 import { getAllLegacyUserStorageAccounts } from '../user-storage';
 import { getLocalGroupsForEntropyWallet } from '../utils';
+import { createMultichainAccountGroupsBatch } from './group';
+import { performLegacyAccountSyncing } from './legacy';
 
 jest.mock('@metamask/accounts-controller');
 jest.mock('../user-storage');
@@ -35,13 +35,19 @@ const mockCreateMultichainAccountGroupsBatch =
 
 describe('BackupAndSync - Syncing - Legacy', () => {
   let mockContext: BackupAndSyncContext;
+  let mockSetLocalWrite: jest.Mock;
 
   beforeEach(() => {
+    mockSetLocalWrite = jest.fn();
+
     mockContext = {
       controller: {
         setAccountGroupName: jest.fn(),
       },
       emitAnalyticsEventFn: jest.fn(),
+      mutationTracker: {
+        setLocalWrite: mockSetLocalWrite,
+      },
     } as unknown as BackupAndSyncContext;
   });
 
@@ -151,6 +157,8 @@ describe('BackupAndSync - Syncing - Legacy', () => {
         'Legacy Account 2',
         true,
       );
+      // Two renames -> two mutations marked.
+      expect(mockSetLocalWrite).toHaveBeenCalledTimes(2);
     });
 
     it('skips legacy accounts with missing name or address', async () => {
@@ -198,6 +206,7 @@ describe('BackupAndSync - Syncing - Legacy', () => {
       );
 
       expect(mockContext.controller.setAccountGroupName).not.toHaveBeenCalled();
+      expect(mockSetLocalWrite).not.toHaveBeenCalled();
     });
 
     it('emits analytics event on completion', async () => {

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
+## [1.0.2]
+
+### Changed
+
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+
 ## [1.0.1]
 
 ### Changed
@@ -29,7 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release of `@metamask/storage-service` ([#7192](https://github.com/MetaMask/core/pull/7192))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/storage-service@1.0.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/storage-service@1.0.2...HEAD
+[1.0.2]: https://github.com/MetaMask/core/compare/@metamask/storage-service@1.0.1...@metamask/storage-service@1.0.2
 [1.0.1]: https://github.com/MetaMask/core/compare/@metamask/storage-service@1.0.0...@metamask/storage-service@1.0.1
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/storage-service@0.0.1...@metamask/storage-service@1.0.0
 [0.0.1]: https://github.com/MetaMask/core/releases/tag/@metamask/storage-service@0.0.1

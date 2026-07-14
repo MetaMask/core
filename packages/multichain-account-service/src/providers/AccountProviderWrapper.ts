@@ -3,12 +3,12 @@ import type {
   CreateAccountOptions,
   EntropySourceId,
   KeyringAccount,
-  KeyringCapabilities,
 } from '@metamask/keyring-api';
+import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 
-import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
 import type { MultichainAccountServiceMessenger } from '../types';
+import { BaseBip44AccountProvider } from './BaseBip44AccountProvider';
 
 /**
  * A simple wrapper that adds disable functionality to any BaseBip44AccountProvider.
@@ -43,6 +43,22 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
    */
   override init(accounts: Bip44Account<KeyringAccount>['id'][]): void {
     this.provider.init(accounts);
+  }
+
+  /**
+   * Returns the underlying (unwrapped) provider.
+   *
+   * Most callers should go through the wrapper's public surface so that the
+   * `disabled` gating is respected. This escape hatch is reserved for
+   * cleanup flows (e.g. wallet removal) that must see the wrapped
+   * provider's accounts regardless of enabled state, so that snap-backed
+   * accounts created while the provider was enabled can still be deleted
+   * after it has been disabled.
+   *
+   * @returns The wrapped provider instance.
+   */
+  unwrap(): BaseBip44AccountProvider {
+    return this.provider;
   }
 
   /**
@@ -106,6 +122,26 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
   }
 
   /**
+   * Returns true immediately when disabled (a disabled provider is considered
+   * aligned by definition). Delegates to the wrapped provider otherwise.
+   *
+   * @param context - The entropy source and group index to check.
+   * @param context.entropySource - The entropy source to check against.
+   * @param context.groupIndex - The group index to check against.
+   * @param accountIds - Account IDs pre-filtered by the caller.
+   * @returns Whether the provider is aligned for the given context.
+   */
+  override isAligned(
+    context: { entropySource: EntropySourceId; groupIndex: number },
+    accountIds: Bip44Account<KeyringAccount>['id'][],
+  ): boolean {
+    if (!this.isEnabled) {
+      return true;
+    }
+    return this.provider.isAligned(context, accountIds);
+  }
+
+  /**
    * Implement abstract method: Check if account is compatible.
    * Delegates directly to wrapped provider - no runtime checks needed!
    *
@@ -129,6 +165,19 @@ export class AccountProviderWrapper extends BaseBip44AccountProvider {
       return [];
     }
     return this.provider.createAccounts(options);
+  }
+
+  /**
+   * Forwards to the wrapped provider unconditionally, because deletion must run even
+   * when the wrapper is disabled, so that wallet-removal flows can clean up
+   * snap-backed accounts that were created while the provider was previously
+   * enabled.
+   *
+   * @param id - The id of the account to delete.
+   * @returns A promise that resolves when the account is deleted.
+   */
+  async deleteAccount(id: Bip44Account<KeyringAccount>['id']): Promise<void> {
+    return this.provider.deleteAccount(id);
   }
 
   /**

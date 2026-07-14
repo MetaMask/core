@@ -13,3 +13,4 @@ export {
   ConnectivityController,
   getDefaultConnectivityControllerState,
 } from './ConnectivityController';
+export { connectivityControllerSelectors } from './selectors';

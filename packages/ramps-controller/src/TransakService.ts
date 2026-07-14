@@ -5,6 +5,7 @@ import type {
 import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 
+import { TRANSAK_ERROR_CODES } from './transakErrorCodes';
 import type { TransakServiceMethodActions } from './TransakService-method-action-types';
 
 // === PUSHER / WEBSOCKET TYPES ===
@@ -392,8 +393,10 @@ export type TransakServiceMessenger = Messenger<
  * (e.g., "credit_debit_card").
  *
  * The translation endpoint only understands the deposit-format IDs.
- * If no mapping exists, the input is returned as-is (it may already be
- * in the deposit format).
+ * Canonical IDs may arrive either with the "/payments/" prefix
+ * (e.g., "/payments/apple-pay") or without it (e.g., "apple-pay"), so both
+ * forms are accepted. If no mapping exists, the input is returned as-is (it
+ * may already be in the deposit format).
  */
 const RAMPS_TO_DEPOSIT_PAYMENT_METHOD: Record<string, string> = {
   '/payments/debit-credit-card': 'credit_debit_card',
@@ -404,13 +407,22 @@ const RAMPS_TO_DEPOSIT_PAYMENT_METHOD: Record<string, string> = {
   '/payments/gbp-bank-transfer': 'gbp_bank_transfer',
 };
 
+const PAYMENTS_PREFIX = '/payments/';
+
 function normalizePaymentMethodForTranslation(
   paymentMethod: string | undefined,
 ): string | undefined {
   if (!paymentMethod) {
     return undefined;
   }
-  return RAMPS_TO_DEPOSIT_PAYMENT_METHOD[paymentMethod] ?? paymentMethod;
+  const prefixed = paymentMethod.startsWith(PAYMENTS_PREFIX)
+    ? paymentMethod
+    : `${PAYMENTS_PREFIX}${paymentMethod}`;
+  return (
+    RAMPS_TO_DEPOSIT_PAYMENT_METHOD[paymentMethod] ??
+    RAMPS_TO_DEPOSIT_PAYMENT_METHOD[prefixed] ??
+    paymentMethod
+  );
 }
 
 function getTransakApiBaseUrl(environment: TransakEnvironment): string {
@@ -456,8 +468,6 @@ function getPaymentWidgetBaseUrl(environment: TransakEnvironment): string {
 
 // === TRANSAK API ERROR ===
 
-const TRANSAK_ORDER_EXISTS_CODE = '4005';
-
 export class TransakApiError extends HttpError {
   readonly errorCode: string | undefined;
 
@@ -485,6 +495,8 @@ export class TransakService {
   readonly #fetch: typeof fetch;
 
   readonly #policy: ServicePolicy;
+
+  readonly #noRetryPolicy: ServicePolicy;
 
   readonly #environment: TransakEnvironment;
 
@@ -525,6 +537,10 @@ export class TransakService {
     this.#messenger = messenger;
     this.#fetch = fetchFunction;
     this.#policy = createServicePolicy(policyOptions);
+    this.#noRetryPolicy = createServicePolicy({
+      ...policyOptions,
+      maxRetries: 0,
+    });
     this.#environment = environment;
     this.#context = context;
     this.#apiKey = apiKey ?? null;
@@ -666,6 +682,7 @@ export class TransakService {
   async #transakPost<ResponseType>(
     path: string,
     body?: Record<string, unknown>,
+    options: { policy?: ServicePolicy } = {},
   ): Promise<ResponseType> {
     const apiKey = this.#ensureApiKey();
     const baseUrl = getTransakApiBaseUrl(this.#environment);
@@ -676,7 +693,9 @@ export class TransakService {
       apiKey,
     };
 
-    const response = await this.#policy.execute(async () => {
+    const policy = options.policy ?? this.#policy;
+
+    const response = await policy.execute(async () => {
       const fetchResponse = await this.#fetch(url.toString(), {
         method: 'POST',
         headers: this.#getHeaders(),
@@ -805,11 +824,15 @@ export class TransakService {
       accessToken: string;
       ttl: number;
       created: string;
-    }>('/api/v2/auth/verify', {
-      email,
-      otp: verificationCode,
-      stateToken,
-    });
+    }>(
+      '/api/v2/auth/verify',
+      {
+        email,
+        otp: verificationCode,
+        stateToken,
+      },
+      { policy: this.#noRetryPolicy },
+    );
 
     const accessToken: TransakAccessToken = {
       accessToken: responseData.accessToken,
@@ -938,7 +961,7 @@ export class TransakService {
       if (
         error instanceof TransakApiError &&
         error.httpStatus === 409 &&
-        error.errorCode === TRANSAK_ORDER_EXISTS_CODE
+        error.errorCode === TRANSAK_ERROR_CODES.ORDER_EXISTS
       ) {
         await this.cancelAllActiveOrders();
         await new Promise((resolve) =>
@@ -1230,26 +1253,30 @@ export class TransakService {
       return;
     }
 
-    if (!this.#pusher) {
-      this.#pusher = this.#createPusher(TRANSAK_PUSHER_KEY, {
-        cluster: TRANSAK_PUSHER_CLUSTER,
-      });
-    }
-
-    const channel = this.#pusher.subscribe(transakOrderId);
-
-    for (const event of TRANSAK_WS_ORDER_EVENTS) {
-      channel.bind(event, (data: unknown) => {
-        const orderData = data as { status?: string } | undefined;
-        this.#messenger.publish('TransakService:orderUpdate', {
-          transakOrderId,
-          status: orderData?.status ?? '',
-          eventType: event,
+    try {
+      if (!this.#pusher) {
+        this.#pusher = this.#createPusher(TRANSAK_PUSHER_KEY, {
+          cluster: TRANSAK_PUSHER_CLUSTER,
         });
-      });
-    }
+      }
 
-    this.#subscribedChannels.set(transakOrderId, channel);
+      const channel = this.#pusher.subscribe(transakOrderId);
+
+      for (const event of TRANSAK_WS_ORDER_EVENTS) {
+        channel.bind(event, (data: unknown) => {
+          const orderData = data as { status?: string } | undefined;
+          this.#messenger.publish('TransakService:orderUpdate', {
+            transakOrderId,
+            status: orderData?.status ?? '',
+            eventType: event,
+          });
+        });
+      }
+
+      this.#subscribedChannels.set(transakOrderId, channel);
+    } catch {
+      // Best-effort: polling remains the fallback if Pusher fails to connect.
+    }
   }
 
   unsubscribeFromOrder(transakOrderId: string): void {

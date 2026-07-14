@@ -1,5 +1,5 @@
-import { ENSNameProvider } from './ens';
 import { NameType } from '../types';
+import { ENSNameProvider } from './ens';
 
 jest.mock('../util');
 

@@ -5,7 +5,7 @@ import {
   convertHexToDecimal,
   toChecksumHexAddress,
 } from '@metamask/controller-utils';
-import { BtcScope, SolScope, TrxScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope, TrxScope, XlmScope } from '@metamask/keyring-api';
 import { toEvmCaipChainId } from '@metamask/multichain-network-controller';
 import {
   isCaipChainId,
@@ -18,15 +18,16 @@ import {
 } from '@metamask/utils';
 import type { CaipAssetType, CaipChainId, Hex } from '@metamask/utils';
 
+import type { GenericQuoteRequest } from '../types';
+import { ChainId } from '../types';
 import {
   getNativeAssetForChainId,
   isBitcoinChainId,
   isNativeAddress,
   isSolanaChainId,
+  isStellarChainId,
   isTronChainId,
 } from './bridge';
-import type { GenericQuoteRequest } from '../types';
-import { ChainId } from '../types';
 
 /**
  * Converts a chainId to a CaipChainId
@@ -52,6 +53,12 @@ export const formatChainIdToCaip = (
   if (isTronChainId(chainId)) {
     return TrxScope.Mainnet;
   }
+  if (isStellarChainId(chainId)) {
+    if (chainId === XlmScope.Testnet) {
+      return XlmScope.Testnet;
+    }
+    return XlmScope.Pubnet;
+  }
   return toEvmCaipChainId(numberToHex(Number(chainId)));
 };
 
@@ -75,6 +82,9 @@ export const formatChainIdToDec = (
   }
   if (chainId === TrxScope.Mainnet) {
     return ChainId.TRON;
+  }
+  if (isStellarChainId(chainId)) {
+    return ChainId.STELLAR;
   }
   if (isCaipChainId(chainId)) {
     return Number(chainId.split(':').at(-1));

@@ -1,10 +1,7 @@
 import { createSelector } from 'reselect';
 
 import type { ComplianceControllerState } from './ComplianceController';
-
-const selectBlockedWallets = (
-  state: ComplianceControllerState,
-): ComplianceControllerState['blockedWallets'] => state.blockedWallets;
+import { getWalletComplianceStatus } from './utils';
 
 const selectWalletComplianceStatusMap = (
   state: ComplianceControllerState,
@@ -13,8 +10,7 @@ const selectWalletComplianceStatusMap = (
 
 /**
  * Creates a selector that returns whether a wallet address is blocked, based
- * on the cached blocklist. The lookup checks the proactively fetched blocklist
- * first, then falls back to the per-address compliance status map.
+ * on the per-address compliance status cache.
  *
  * @param address - The wallet address to check.
  * @returns A selector that takes `ComplianceControllerState` and returns
@@ -24,11 +20,24 @@ export const selectIsWalletBlocked = (
   address: string,
 ): ((state: ComplianceControllerState) => boolean) =>
   createSelector(
-    [selectBlockedWallets, selectWalletComplianceStatusMap],
-    (blockedWallets, statusMap): boolean => {
-      if (blockedWallets?.addresses.includes(address)) {
-        return true;
-      }
-      return statusMap[address]?.blocked ?? false;
-    },
+    [selectWalletComplianceStatusMap],
+    (statusMap): boolean =>
+      getWalletComplianceStatus(statusMap, address)?.blocked ?? false,
+  );
+
+/**
+ * Creates a selector that returns whether any wallet address is blocked, based
+ * on the per-address compliance status cache.
+ *
+ * @param addresses - The wallet addresses to check.
+ * @returns A selector that takes `ComplianceControllerState` and returns
+ * `true` if any wallet is blocked, `false` otherwise.
+ */
+export const selectAreAnyWalletsBlocked = (
+  addresses: string[],
+): ((state: ComplianceControllerState) => boolean) =>
+  createSelector([selectWalletComplianceStatusMap], (statusMap): boolean =>
+    addresses.some(
+      (address) => getWalletComplianceStatus(statusMap, address)?.blocked,
+    ),
   );

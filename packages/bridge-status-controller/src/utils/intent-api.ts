@@ -8,12 +8,12 @@ import {
 } from '@metamask/bridge-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 
+import type { FetchFunction, StatusResponse } from '../types';
 import {
   IntentStatusResponse,
   IntentOrderStatus,
   validateIntentStatusResponse,
 } from './validators';
-import type { FetchFunction, StatusResponse } from '../types';
 
 export type IntentSubmissionParams = {
   srcChainId: ChainId;

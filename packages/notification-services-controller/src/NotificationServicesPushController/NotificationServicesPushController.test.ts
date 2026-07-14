@@ -25,6 +25,7 @@ describe('NotificationServicesPushController', () => {
   ): {
     activatePushNotificationsMock: jest.SpyInstance;
     deactivatePushNotificationsMock: jest.SpyInstance;
+    updateLinksAPIMock: jest.SpyInstance;
     deleteLinksAPIMock: jest.SpyInstance;
   } => {
     const activatePushNotificationsMock = jest
@@ -35,6 +36,10 @@ describe('NotificationServicesPushController', () => {
       .spyOn(services, 'deactivatePushNotifications')
       .mockResolvedValue(true);
 
+    const updateLinksAPIMock = jest
+      .spyOn(services, 'updateLinksAPI')
+      .mockResolvedValue(true);
+
     const deleteLinksAPIMock = jest
       .spyOn(services, 'deleteLinksAPI')
       .mockResolvedValue(true);
@@ -42,6 +47,7 @@ describe('NotificationServicesPushController', () => {
     return {
       activatePushNotificationsMock,
       deactivatePushNotificationsMock,
+      updateLinksAPIMock,
       deleteLinksAPIMock,
     };
   };
@@ -113,6 +119,33 @@ describe('NotificationServicesPushController', () => {
           platform: 'extension',
           locale: 'en',
           oldToken: 'existing-token',
+        },
+        controllerEnv: 'prd',
+      });
+    });
+
+    it('should call activatePushNotifications with mobile OS and app version metadata', async () => {
+      const mocks = arrangeServicesMocks();
+      const { controller, messenger } = arrangeMockMessenger({
+        platform: 'mobile',
+        os: 'android',
+        appVersion: '7.42.0',
+      });
+      mockAuthBearerTokenCall(messenger);
+
+      await controller.enablePushNotifications(MOCK_ADDRESSES);
+
+      expect(mocks.activatePushNotificationsMock).toHaveBeenCalledWith({
+        bearerToken: MOCK_JWT,
+        addresses: MOCK_ADDRESSES,
+        env: expect.any(Object),
+        createRegToken: expect.any(Function),
+        regToken: {
+          platform: 'mobile',
+          locale: 'en',
+          oldToken: '',
+          os: 'android',
+          appVersion: '7.42.0',
         },
         controllerEnv: 'prd',
       });
@@ -343,6 +376,98 @@ describe('NotificationServicesPushController', () => {
         await controller.deletePushNotificationLinks(MOCK_ADDRESSES);
 
       expect(mocks.deleteLinksAPIMock).not.toHaveBeenCalled();
+      expect(result).toBe(false);
+    });
+  });
+
+  describe('addPushNotificationLinks', () => {
+    afterEach(() => {
+      jest.clearAllMocks();
+    });
+
+    it('should call updateLinksAPI with addresses and the existing token', async () => {
+      const mocks = arrangeServicesMocks();
+      const { controller, messenger } = arrangeMockMessenger({
+        state: {
+          fcmToken: MOCK_FCM_TOKEN,
+          isPushEnabled: true,
+          isUpdatingFCMToken: false,
+        },
+      });
+      mockAuthBearerTokenCall(messenger);
+
+      const result = await controller.addPushNotificationLinks(MOCK_ADDRESSES);
+
+      expect(mocks.updateLinksAPIMock).toHaveBeenCalledWith({
+        bearerToken: MOCK_JWT,
+        addresses: MOCK_ADDRESSES,
+        regToken: {
+          token: MOCK_FCM_TOKEN,
+          platform: 'extension',
+          locale: 'en',
+        },
+        env: 'prd',
+      });
+      expect(result).toBe(true);
+    });
+
+    it('should call updateLinksAPI with mobile OS and app version metadata', async () => {
+      const mocks = arrangeServicesMocks();
+      const { controller, messenger } = arrangeMockMessenger({
+        platform: 'mobile',
+        os: 'ios',
+        appVersion: '7.42.0',
+        state: {
+          fcmToken: MOCK_FCM_TOKEN,
+          isPushEnabled: true,
+          isUpdatingFCMToken: false,
+        },
+      });
+      mockAuthBearerTokenCall(messenger);
+
+      const result = await controller.addPushNotificationLinks(MOCK_ADDRESSES);
+
+      expect(mocks.updateLinksAPIMock).toHaveBeenCalledWith({
+        bearerToken: MOCK_JWT,
+        addresses: MOCK_ADDRESSES,
+        regToken: {
+          token: MOCK_FCM_TOKEN,
+          platform: 'mobile',
+          locale: 'en',
+          os: 'ios',
+          appVersion: '7.42.0',
+        },
+        env: 'prd',
+      });
+      expect(result).toBe(true);
+    });
+
+    it('should return false when push feature is disabled', async () => {
+      const mocks = arrangeServicesMocks();
+      const { controller } = arrangeMockMessenger({
+        isPushFeatureEnabled: false,
+      });
+
+      const result = await controller.addPushNotificationLinks(MOCK_ADDRESSES);
+
+      expect(mocks.updateLinksAPIMock).not.toHaveBeenCalled();
+      expect(result).toBe(false);
+    });
+
+    it('should return false when there is no token to add', async () => {
+      const mocks = arrangeServicesMocks();
+      const { controller, messenger } = arrangeMockMessenger({
+        state: {
+          fcmToken: '',
+          isPushEnabled: true,
+          isUpdatingFCMToken: false,
+        },
+      });
+      mockAuthBearerTokenCall(messenger);
+
+      const result = await controller.addPushNotificationLinks(MOCK_ADDRESSES);
+
+      expect(mocks.updateLinksAPIMock).not.toHaveBeenCalled();
       expect(result).toBe(false);
     });
   });

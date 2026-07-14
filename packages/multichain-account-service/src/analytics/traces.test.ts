@@ -2,13 +2,13 @@ import type { TraceRequest } from '@metamask/controller-utils';
 import { AccountCreationType } from '@metamask/keyring-api';
 import type { CreateAccountOptions } from '@metamask/keyring-api';
 
+import type { Bip44AccountProvider } from '../providers';
 import {
   toCreateAccountsV2DataTraces,
   toProviderDataTraces,
   traceFallback,
   TraceName,
 } from './traces';
-import type { Bip44AccountProvider } from '../providers';
 
 describe('MultichainAccountService - Traces', () => {
   describe('traceFallback', () => {

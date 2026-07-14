@@ -1,28 +1,15 @@
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback } from '@metamask/controller-utils';
-import type {
-  EntropySourceId,
-  KeyringAccount,
-  KeyringCapabilities,
-} from '@metamask/keyring-api';
-import {
-  AccountCreationType,
-  TrxAccountType,
-  TrxScope,
-} from '@metamask/keyring-api';
+import { TrxAccountType, TrxScope } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { SnapId } from '@metamask/snaps-sdk';
+import type { CaipChainId } from '@metamask/utils';
 
-import { SnapAccountProvider } from './SnapAccountProvider';
-import type {
-  RestrictedSnapKeyring,
-  SnapAccountProviderConfig,
-} from './SnapAccountProvider';
-import { withRetry, withTimeout } from './utils';
 import { traceFallback } from '../analytics';
-import { TraceName } from '../analytics/traces';
 import type { MultichainAccountServiceMessenger } from '../types';
+import { SnapAccountProvider } from './SnapAccountProvider';
+import type { SnapAccountProviderConfig } from './SnapAccountProvider';
 
 export type TrxAccountProviderConfig = SnapAccountProviderConfig;
 
@@ -37,7 +24,6 @@ export const TRX_ACCOUNT_PROVIDER_DEFAULT_CONFIG: TrxAccountProviderConfig = {
     backOffMs: 1000,
   },
   createAccounts: {
-    batched: false, // For now, the Snap is not fully v2 compliant.
     timeoutMs: 3000,
   },
   resyncAccounts: {
@@ -50,13 +36,9 @@ export class TrxAccountProvider extends SnapAccountProvider {
 
   static TRX_SNAP_ID = 'npm:@metamask/tron-wallet-snap' as SnapId;
 
-  readonly capabilities: KeyringCapabilities = {
-    scopes: [TrxScope.Mainnet, TrxScope.Shasta],
-    bip44: {
-      deriveIndex: true,
-      deriveIndexRange: true,
-    },
-  };
+  // TODO: Remove once the Snap is fully v2 — discovery is then driven by the
+  // Snap's own supported scopes via `createAccounts({ bip44:discover })`.
+  protected readonly v1DiscoveryScopes: CaipChainId[] = [TrxScope.Mainnet];
 
   constructor(
     messenger: MultichainAccountServiceMessenger,
@@ -75,71 +57,5 @@ export class TrxAccountProvider extends SnapAccountProvider {
       account.type === TrxAccountType.Eoa &&
       account.metadata.keyring.type === (KeyringTypes.snap as string)
     );
-  }
-
-  protected override createAccountV1(
-    keyring: RestrictedSnapKeyring,
-    {
-      entropySource,
-      groupIndex,
-    }: { entropySource: EntropySourceId; groupIndex: number },
-  ): Promise<KeyringAccount> {
-    return keyring.createAccount({
-      entropySource,
-      index: groupIndex,
-      addressType: TrxAccountType.Eoa,
-      scope: TrxScope.Mainnet,
-    });
-  }
-
-  async discoverAccounts({
-    entropySource,
-    groupIndex,
-  }: {
-    entropySource: EntropySourceId;
-    groupIndex: number;
-  }): Promise<Bip44Account<KeyringAccount>[]> {
-    return this.withSnap(async ({ client, keyring }) => {
-      return await super.trace(
-        {
-          name: TraceName.SnapDiscoverAccounts,
-          data: {
-            provider: this.getName(),
-          },
-        },
-        async () => {
-          if (!this.config.discovery.enabled) {
-            return [];
-          }
-
-          const discoveredAccounts = await withRetry(
-            () =>
-              withTimeout(
-                () =>
-                  client.discoverAccounts(
-                    [TrxScope.Mainnet],
-                    entropySource,
-                    groupIndex,
-                  ),
-                this.config.discovery.timeoutMs,
-              ),
-            {
-              maxAttempts: this.config.discovery.maxAttempts,
-              backOffMs: this.config.discovery.backOffMs,
-            },
-          );
-
-          if (!discoveredAccounts.length) {
-            return [];
-          }
-
-          return await this.createBip44Accounts(keyring, {
-            type: AccountCreationType.Bip44DeriveIndex,
-            entropySource,
-            groupIndex,
-          });
-        },
-      );
-    });
   }
 }

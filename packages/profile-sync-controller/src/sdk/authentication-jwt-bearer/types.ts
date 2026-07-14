@@ -36,13 +36,30 @@ export type UserProfile = {
    */
   identifierId: string;
   /**
-   * The Unique profile for a logged in user. A Profile can be logged in via multiple Identifiers
+   * The original per-SRP profile ID. Immutable after first login.
+   * Used for user storage key derivation — MUST NOT be replaced with the canonical.
    */
   profileId: string;
+  /**
+   * The unified canonical profile ID across all paired SRPs.
+   * Set from the server response and updated after pairing via canonical propagation.
+   * For pre-upgrade state, defaults to profileId.
+   */
+  canonicalProfileId: string;
   /**
    * Server MetaMetrics ID. Allows grouping of user events cross platform.
    */
   metaMetricsId: string;
+};
+
+/**
+ * Represents a profile alias returned by the server in profile_aliases.
+ * Transient — this is not persisted in LoginResponse or srpSessionData.
+ */
+export type ProfileAlias = {
+  aliasProfileId: string;
+  canonicalProfileId: string;
+  identifierIds: { id: string; type: string }[];
 };
 
 export type LoginResponse = {

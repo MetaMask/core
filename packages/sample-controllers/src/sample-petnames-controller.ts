@@ -17,7 +17,7 @@ import type { SamplePetnamesControllerMethodActions } from './sample-petnames-co
  * controller's actions and events and to namespace the controller's state data
  * when composed with other controllers.
  */
-export const controllerName = 'SamplePetnamesController';
+const CONTROLLER_NAME = 'SamplePetnamesController';
 
 // === STATE ===
 
@@ -70,7 +70,7 @@ const MESSENGER_EXPOSED_METHODS = ['assignPetname'] as const;
  * Retrieves the state of the {@link SamplePetnamesController}.
  */
 export type SamplePetnamesControllerGetStateAction = ControllerGetStateAction<
-  typeof controllerName,
+  typeof CONTROLLER_NAME,
   SamplePetnamesControllerState
 >;
 
@@ -91,7 +91,7 @@ type AllowedActions = never;
  */
 export type SamplePetnamesControllerStateChangeEvent =
   ControllerStateChangeEvent<
-    typeof controllerName,
+    typeof CONTROLLER_NAME,
     SamplePetnamesControllerState
   >;
 
@@ -112,7 +112,7 @@ type AllowedEvents = never;
  * {@link SamplePetnamesController}.
  */
 export type SamplePetnamesControllerMessenger = Messenger<
-  typeof controllerName,
+  typeof CONTROLLER_NAME,
   SamplePetnamesControllerActions | AllowedActions,
   SamplePetnamesControllerEvents | AllowedEvents
 >;
@@ -167,7 +167,7 @@ export type SamplePetnamesControllerMessenger = Messenger<
  * ```
  */
 export class SamplePetnamesController extends BaseController<
-  typeof controllerName,
+  typeof CONTROLLER_NAME,
   SamplePetnamesControllerState,
   SamplePetnamesControllerMessenger
 > {
@@ -189,7 +189,7 @@ export class SamplePetnamesController extends BaseController<
     super({
       messenger,
       metadata: samplePetnamesControllerMetadata,
-      name: controllerName,
+      name: CONTROLLER_NAME,
       state: {
         ...getDefaultPetnamesControllerState(),
         ...state,

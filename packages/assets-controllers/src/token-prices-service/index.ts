@@ -9,4 +9,5 @@ export {
   fetchSupportedNetworks,
   getSupportedNetworks,
   resetSupportedNetworksCache,
+  SPOT_PRICES_SUPPORT_INFO,
 } from './codefi-v2';

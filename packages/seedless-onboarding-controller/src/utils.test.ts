@@ -1,13 +1,15 @@
+import { EncAccountDataType } from '@metamask/toprf-secure-backup';
 import { bytesToBase64 } from '@metamask/utils';
 import { utf8ToBytes } from '@noble/ciphers/utils';
 
+import { createMockJWTToken } from '../tests/mocks/utils';
 import type { DecodedNodeAuthToken } from './types';
 import {
   decodeNodeAuthToken,
   decodeJWTToken,
   compareAndGetLatestToken,
+  getSecretTypeFromDataType,
 } from './utils';
-import { createMockJWTToken } from '../tests/mocks/utils';
 
 describe('utils', () => {
   describe('decodeNodeAuthToken', () => {
@@ -216,6 +218,15 @@ describe('utils', () => {
       const result = compareAndGetLatestToken(token1, token2);
 
       expect(result).toBe(token1);
+    });
+  });
+
+  describe('getSecretTypeFromDataType', () => {
+    it('should throw an error for unknown EncAccountDataType', () => {
+      const unknownDataType = 'UnknownType' as unknown as EncAccountDataType;
+      expect(() => getSecretTypeFromDataType(unknownDataType)).toThrow(
+        'Unknown EncAccountDataType: UnknownType',
+      );
     });
   });
 });

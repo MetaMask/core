@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.packages.json",
+  "compilerOptions": {
+    "baseUrl": "./"
+  },
+  "references": [
+    { "path": "../base-controller/tsconfig.json" },
+    { "path": "../remote-feature-flag-controller/tsconfig.json" },
+    { "path": "../storage-service/tsconfig.json" },
+    { "path": "../wallet/tsconfig.json" }
+  ],
+  "include": ["../../types", "./bin", "./src", "./tests"]
+}

@@ -1,10 +1,13 @@
 import { TransactionPayStrategy } from '../constants';
 import { AcrossStrategy } from '../strategy/across/AcrossStrategy';
-import { BridgeStrategy } from '../strategy/bridge/BridgeStrategy';
 import { FiatStrategy } from '../strategy/fiat/FiatStrategy';
 import { RelayStrategy } from '../strategy/relay/RelayStrategy';
-import { TestStrategy } from '../strategy/test/TestStrategy';
-import type { PayStrategy } from '../types';
+import { ServerStrategy } from '../strategy/server/ServerStrategy';
+import type {
+  PayStrategy,
+  PayStrategyCheckQuoteSupportRequest,
+  PayStrategyGetQuotesRequest,
+} from '../types';
 
 export type NamedStrategy = {
   name: TransactionPayStrategy;
@@ -24,17 +27,14 @@ export function getStrategyByName(
     case TransactionPayStrategy.Across:
       return new AcrossStrategy() as never;
 
-    case TransactionPayStrategy.Bridge:
-      return new BridgeStrategy() as never;
-
     case TransactionPayStrategy.Relay:
       return new RelayStrategy() as never;
 
     case TransactionPayStrategy.Fiat:
       return new FiatStrategy() as never;
 
-    case TransactionPayStrategy.Test:
-      return new TestStrategy() as never;
+    case TransactionPayStrategy.Server:
+      return new ServerStrategy() as never;
 
     default:
       throw new Error(`Unknown strategy: ${strategyName as string}`);
@@ -68,4 +68,40 @@ export function getStrategiesByName(
       (namedStrategy): namedStrategy is NamedStrategy =>
         namedStrategy !== undefined,
     );
+}
+
+/**
+ * Check whether a strategy supports a quote request.
+ *
+ * Defaults to supported when the strategy has no request-level limitations.
+ *
+ * @param strategy - Strategy instance.
+ * @param request - Quote request.
+ * @returns Whether the strategy supports the request.
+ */
+export async function checkStrategySupport(
+  strategy: PayStrategy<unknown>,
+  request: PayStrategyGetQuotesRequest,
+): Promise<boolean> {
+  return strategy.supports ? await strategy.supports(request) : true;
+}
+
+/**
+ * Check whether a strategy supports quotes after quote construction.
+ *
+ * Defaults to supported when the strategy has no post-quote limitations.
+ *
+ * @param strategy - Strategy instance.
+ * @param request - Post-quote support request.
+ * @returns Whether the strategy supports the quotes.
+ */
+export async function checkStrategyQuoteSupport(
+  strategy: PayStrategy<unknown>,
+  request: PayStrategyCheckQuoteSupportRequest<unknown>,
+): Promise<boolean> {
+  if (strategy.checkQuoteSupport) {
+    return await strategy.checkQuoteSupport(request);
+  }
+
+  return true;
 }

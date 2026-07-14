@@ -6,9 +6,9 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
+import { PROTOTYPE_POLLUTION_BLOCKLIST } from '../../controller-utils/src/util';
 import type { SamplePetnamesControllerMessenger } from './sample-petnames-controller';
 import { SamplePetnamesController } from './sample-petnames-controller';
-import { PROTOTYPE_POLLUTION_BLOCKLIST } from '../../controller-utils/src/util';
 
 describe('SamplePetnamesController', () => {
   describe('constructor', () => {

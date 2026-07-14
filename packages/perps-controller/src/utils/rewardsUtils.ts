@@ -12,8 +12,8 @@ import {
   parseCaipChainId,
 } from '@metamask/utils';
 
-import { ensureError } from './errorUtils';
 import type { PerpsLogger } from '../types';
+import { ensureError } from './errorUtils';
 
 /**
  * Converts a numeric or hex chain ID to a CAIP-2 chain ID string.

@@ -13,7 +13,6 @@ import { PendingJsonRpcResponseStruct } from '@metamask/utils';
 import type { PendingJsonRpcResponse, JsonRpcRequest } from '@metamask/utils';
 import { nanoid } from 'nanoid';
 
-import { constants, getters, noop } from './helpers';
 import { LOG_LIMIT, LOG_METHOD_TYPES } from '../src/enums';
 import { PermissionLogController } from '../src/PermissionLogController';
 import type {
@@ -21,6 +20,7 @@ import type {
   PermissionLogControllerState,
   PermissionLogControllerMessenger,
 } from '../src/PermissionLogController';
+import { constants, getters, noop } from './helpers';
 
 const { PERMS, RPC_REQUESTS } = getters;
 const { ACCOUNTS, EXPECTED_HISTORIES, SUBJECTS, PERM_NAMES, REQUEST_IDS } =

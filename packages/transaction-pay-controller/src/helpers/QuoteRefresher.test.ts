@@ -2,7 +2,6 @@
 
 import { createDeferredPromise } from '@metamask/utils';
 
-import { QuoteRefresher } from './QuoteRefresher';
 import { flushPromises } from '../../../../tests/helpers';
 import { TransactionPayStrategy } from '../constants';
 import { getMessengerMock } from '../tests/messenger-mock';
@@ -11,6 +10,7 @@ import type {
   TransactionPayControllerMessenger,
 } from '../types';
 import { refreshQuotes } from '../utils/quotes';
+import { QuoteRefresher } from './QuoteRefresher';
 
 jest.mock('../utils/quotes');
 
@@ -73,6 +73,31 @@ describe('QuoteRefresher', () => {
     });
 
     publishStateChange({ hasQuotes: false });
+
+    jest.runAllTimers();
+    await flushPromises();
+
+    expect(refreshQuotesMock).not.toHaveBeenCalled();
+  });
+
+  it('does not poll if only no-op quotes in state', async () => {
+    new QuoteRefresher({
+      getStrategies: jest.fn().mockReturnValue([TransactionPayStrategy.Relay]),
+      messenger,
+      updateTransactionData: jest.fn(),
+    });
+
+    publish(
+      'TransactionPayController:stateChange',
+      {
+        transactionData: {
+          '123': {
+            quotes: [{ strategy: TransactionPayStrategy.None }],
+          } as TransactionData,
+        },
+      },
+      [],
+    );
 
     jest.runAllTimers();
     await flushPromises();

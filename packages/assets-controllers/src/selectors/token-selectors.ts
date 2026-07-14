@@ -10,10 +10,7 @@ import type { Hex } from '@metamask/utils';
 import { createSelector, weakMapMemoize } from 'reselect';
 import { TokenRwaData } from 'src/token-service';
 
-import {
-  parseBalanceWithDecimals,
-  stringifyBalanceWithDecimals,
-} from './stringify-balance';
+import { shouldIncludeNativeToken } from '../constants';
 import type { CurrencyRateState } from '../CurrencyRateController';
 import type { MultichainAssetsControllerState } from '../MultichainAssetsController';
 import type { MultichainAssetsRatesControllerState } from '../MultichainAssetsRatesController';
@@ -22,6 +19,10 @@ import { getNativeTokenAddress } from '../token-prices-service/codefi-v2';
 import type { TokenBalancesControllerState } from '../TokenBalancesController';
 import type { Token, TokenRatesControllerState } from '../TokenRatesController';
 import type { TokensControllerState } from '../TokensController';
+import {
+  parseBalanceWithDecimals,
+  stringifyBalanceWithDecimals,
+} from './stringify-balance';
 
 // Asset Tron Filters
 export const TRON_RESOURCE = {
@@ -139,6 +140,10 @@ const selectAccountsToGroupIdMap = createAssetListSelector(
         for (const accountId of accounts) {
           const internalAccount = internalAccounts.accounts[accountId];
 
+          if (!internalAccount) {
+            continue;
+          }
+
           accountsMap[
             // TODO: We would not need internalAccounts if evmTokens state had the accountId
             internalAccount.type.startsWith('eip155')
@@ -176,6 +181,10 @@ const selectAllEvmAccountNativeBalances = createAssetListSelector(
     for (const [chainId, chainAccounts] of Object.entries(
       accountsByChainId,
     ) as [Hex, Record<Hex, { balance: Hex | null }>][]) {
+      // Skip native tokens on Tempo networks
+      if (!shouldIncludeNativeToken(chainId)) {
+        continue;
+      }
       for (const [accountAddress, accountBalance] of Object.entries(
         chainAccounts,
       )) {

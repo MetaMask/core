@@ -1,0 +1,61 @@
+{
+  "name": "@metamask/wallet-framework-docs",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Documentation for the Wallet Framework",
+  "keywords": [
+    "Ethereum",
+    "MetaMask"
+  ],
+  "homepage": "https://github.com/MetaMask/core/tree/main/packages/wallet-framework-docs#readme",
+  "bugs": {
+    "url": "https://github.com/MetaMask/core/issues"
+  },
+  "license": "(MIT OR Apache-2.0)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/MetaMask/core.git"
+  },
+  "files": [
+    "dist/"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "docusaurus build site",
+    "changelog:update": "../../scripts/update-changelog.sh @metamask/wallet-framework-docs",
+    "changelog:validate": "../../scripts/validate-changelog.sh @metamask/wallet-framework-docs",
+    "dev": "docusaurus start site",
+    "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts content --formatter oxfmt --check",
+    "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts content --formatter oxfmt --generate",
+    "since-latest-release": "../../scripts/since-latest-release.sh",
+    "start": "docusaurus serve site",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
+    "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
+    "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
+    "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
+  },
+  "devDependencies": {
+    "@docusaurus/core": "^3.10.1",
+    "@docusaurus/plugin-content-docs": "^3.10.1",
+    "@docusaurus/preset-classic": "^3.10.1",
+    "@docusaurus/theme-common": "^3.10.1",
+    "@docusaurus/types": "^3.10.1",
+    "@easyops-cn/docusaurus-search-local": "^0.55.1",
+    "@mdx-js/react": "^3.1.1",
+    "@metamask/auto-changelog": "^6.1.0",
+    "@types/jest": "^29.5.14",
+    "@types/react": "^19.0.0",
+    "deepmerge": "^4.2.2",
+    "jest": "^29.7.0",
+    "prism-react-renderer": "^2.4.1",
+    "raw-loader": "^4.0.2",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "ts-jest": "^29.2.5",
+    "tsx": "^4.20.5",
+    "typescript": "~5.3.3"
+  },
+  "engines": {
+    "node": "^18.18 || >=20"
+  }
+}

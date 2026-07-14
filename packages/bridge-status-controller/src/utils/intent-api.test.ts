@@ -2,6 +2,7 @@
 import { BridgeClientId, StatusTypes } from '@metamask/bridge-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 
+import type { FetchFunction } from '../types';
 import {
   getIntentFromQuote,
   IntentApiImpl,
@@ -11,7 +12,6 @@ import {
 } from './intent-api';
 import type { IntentSubmissionParams } from './intent-api';
 import { IntentOrderStatus } from './validators';
-import type { FetchFunction } from '../types';
 
 describe('IntentApiImpl', () => {
   const baseUrl = 'https://example.com/api';

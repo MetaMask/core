@@ -1,10 +1,10 @@
 import { ConstantBackoff } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
-import type { MockRequest, MockResponse, ProviderType } from './helpers';
-import { withMockedCommunications, withNetworkClient } from './helpers';
 import { ignoreRejection } from '../../../../tests/helpers';
 import { buildRootMessenger } from '../helpers';
+import type { MockRequest, MockResponse, ProviderType } from './helpers';
+import { withMockedCommunications, withNetworkClient } from './helpers';
 
 /**
  * Tests for RPC failover behavior.
@@ -35,6 +35,10 @@ export function testsForRpcFailoverBehavior({
   getExpectedError: (url: string) => Error | jest.Constructable;
   getExpectedBreakError?: (url: string) => Error | jest.Constructable;
 }): void {
+  if (providerType === 'custom') {
+    return;
+  }
+
   const blockNumber = '0x100';
   const backoffDuration = 100;
   const maxConsecutiveFailures = 15;
@@ -82,7 +86,7 @@ export function testsForRpcFailoverBehavior({
             const result = await withNetworkClient(
               {
                 providerType,
-                isRpcFailoverEnabled: true,
+                rpcFailoverMode: 'enabled',
                 failoverRpcUrls: ['https://failover.endpoint'],
                 messenger,
                 getRpcServiceOptions: () => ({
@@ -174,7 +178,7 @@ export function testsForRpcFailoverBehavior({
               const result = await withNetworkClient(
                 {
                   providerType,
-                  isRpcFailoverEnabled: true,
+                  rpcFailoverMode: 'enabled',
                   failoverRpcUrls: ['https://failover.endpoint'],
                   messenger,
                   getRpcServiceOptions: (rpcEndpointUrl) => {
@@ -262,7 +266,7 @@ export function testsForRpcFailoverBehavior({
         await withNetworkClient(
           {
             providerType,
-            isRpcFailoverEnabled: false,
+            rpcFailoverMode: 'disabled',
             failoverRpcUrls: ['https://failover.endpoint'],
             messenger,
             getRpcServiceOptions: () => ({

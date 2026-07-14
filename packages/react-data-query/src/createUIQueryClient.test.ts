@@ -7,7 +7,6 @@ import {
   QueryObserver,
 } from '@tanstack/query-core';
 
-import { createUIQueryClient } from './createUIQueryClient';
 import {
   ExampleDataService,
   ExampleDataServiceActions,
@@ -20,6 +19,7 @@ import {
   mockTransactionsPage1,
   mockTransactionsPage2,
 } from '../../base-data-service/tests/mocks';
+import { createUIQueryClient } from './createUIQueryClient';
 
 const DATA_SERVICES = ['ExampleDataService'];
 

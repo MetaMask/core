@@ -1,12 +1,12 @@
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { Hex } from '@metamask/utils';
 
+import type { UserStorageControllerMessenger } from '../UserStorageController';
+import type { UserStorageController } from '../UserStorageController';
 import type {
   USER_STORAGE_VERSION_KEY,
   USER_STORAGE_VERSION,
 } from './constants';
-import type { UserStorageControllerMessenger } from '../UserStorageController';
-import type { UserStorageController } from '../UserStorageController';
 
 export type UserStorageContactEntry = {
   /**

@@ -6,6 +6,7 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
+import { flushPromises } from '../../../tests/helpers';
 import type { AbstractClientConfigApiService } from './client-config-api-service/abstract-client-config-api-service';
 import {
   RemoteFeatureFlagController,
@@ -17,8 +18,8 @@ import type {
   RemoteFeatureFlagControllerMessenger,
   RemoteFeatureFlagControllerState,
 } from './remote-feature-flag-controller';
+import { ThresholdVersion } from './remote-feature-flag-controller-types';
 import type { FeatureFlags } from './remote-feature-flag-controller-types';
-import { flushPromises } from '../../../tests/helpers';
 
 const MOCK_FLAGS: FeatureFlags = {
   feature1: true,
@@ -121,6 +122,18 @@ describe('RemoteFeatureFlagController', () => {
       const { controller } = createController({ state: customState });
 
       expect(controller.state).toStrictEqual(customState);
+    });
+
+    it('merges undefined localOverrides into remoteFeatureFlags on init', () => {
+      const { controller } = createController({
+        state: {
+          remoteFeatureFlags: { flag: true },
+          localOverrides: undefined,
+        },
+      });
+
+      expect(controller.state.remoteFeatureFlags).toStrictEqual({ flag: true });
+      expect(controller.state.localOverrides).toBeUndefined();
     });
 
     it('accepts valid 3-part SemVer clientVersion', () => {
@@ -425,6 +438,31 @@ describe('RemoteFeatureFlagController', () => {
     });
   });
 
+  describe('feature flag value normalization', () => {
+    it('preserves direct feature flag config objects without value metadata', async () => {
+      const directConfig = {
+        enabled: true,
+        minimumVersion: '13.10.0',
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: {
+          directConfig,
+        },
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(controller.state.remoteFeatureFlags.directConfig).toStrictEqual(
+        directConfig,
+      );
+    });
+  });
+
   describe('threshold feature flags', () => {
     it('processes threshold feature flags based on provided metaMetricsId', async () => {
       const clientConfigApiService = buildClientConfigApiService({
@@ -440,11 +478,45 @@ describe('RemoteFeatureFlagController', () => {
 
       // With MOCK_METRICS_ID + 'testFlagForThreshold' hashed:
       // Threshold = 0.380673, which falls in groupB range (0.3 < t <= 0.5)
+      expect(controller.state.remoteFeatureFlags.testFlagForThreshold).toBe(
+        'valueB',
+      );
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        testFlagForThreshold: 'groupB',
+      });
+    });
+
+    it('ignores threshold version field, processing threshold values normally', async () => {
+      const thresholdFlagValue = {
+        enabled: true,
+      };
+      const mockFlags = {
+        thresholdObjectFlag: [
+          {
+            name: 'enabled',
+            thresholdVersion: 3,
+            scope: { type: 'threshold', value: 1.0 },
+            value: thresholdFlagValue,
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
       expect(
-        controller.state.remoteFeatureFlags.testFlagForThreshold,
-      ).toStrictEqual({
-        name: 'groupB',
-        value: 'valueB',
+        controller.state.remoteFeatureFlags.thresholdObjectFlag,
+      ).toStrictEqual(thresholdFlagValue);
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        thresholdObjectFlag: 'enabled',
       });
     });
 
@@ -509,9 +581,13 @@ describe('RemoteFeatureFlagController', () => {
       // Assert - User gets different groups because each flag uses unique seed
       const { featureA, featureB } = controller.state.remoteFeatureFlags;
       // featureA: hash(MOCK_METRICS_ID + 'featureA') → threshold 0.966682 → groupA2
-      expect(featureA).toStrictEqual({ name: 'groupA2', value: 'A2' });
+      expect(featureA).toBe('A2');
       // featureB: hash(MOCK_METRICS_ID + 'featureB') → threshold 0.398654 → groupB1
-      expect(featureB).toStrictEqual({ name: 'groupB1', value: 'B1' });
+      expect(featureB).toBe('B1');
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        featureA: 'groupA2',
+        featureB: 'groupB1',
+      });
       // Different groups proves independence!
     });
 
@@ -571,9 +647,11 @@ describe('RemoteFeatureFlagController', () => {
       );
 
       // Assert - Invalid item skipped, valid item selected
-      expect(controller.state.remoteFeatureFlags.mixedArray).toStrictEqual({
-        name: 'validGroup',
-        value: 'selectedValue',
+      expect(controller.state.remoteFeatureFlags.mixedArray).toBe(
+        'selectedValue',
+      );
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        mixedArray: 'validGroup',
       });
     });
 
@@ -621,7 +699,390 @@ describe('RemoteFeatureFlagController', () => {
       // Assert - Same user always gets same group (deterministic)
       // testFlag: hash(MOCK_METRICS_ID + 'testFlag') → threshold 0.496587 → control
       expect(firstResult).toStrictEqual(secondResult);
-      expect(firstResult).toStrictEqual({ name: 'control', value: false });
+      expect(firstResult).toBe(false);
+      expect(controller1.state.featureFlagThresholdGroups).toStrictEqual({
+        testFlag: 'control',
+      });
+    });
+  });
+
+  describe('metaMetricsIds explicit targeting', () => {
+    const MOCK_FLAGS_WITH_EXPLICIT_IDS = {
+      testFlag: [
+        {
+          name: 'qaGroup',
+          scope: { type: 'threshold', value: 0.0 }, // would never match via hash
+          value: 'qa-value',
+          metaMetricsIds: [MOCK_METRICS_ID, 'other-id'],
+        },
+        {
+          name: 'groupA',
+          scope: { type: 'threshold', value: 0.5 },
+          value: 'valueA',
+        },
+        {
+          name: 'groupB',
+          scope: { type: 'threshold', value: 1.0 },
+          value: 'valueB',
+        },
+      ],
+    };
+
+    it('selects the entry whose metaMetricsIds matches the current user', async () => {
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: MOCK_FLAGS_WITH_EXPLICIT_IDS,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(controller.state.remoteFeatureFlags.testFlag).toBe('qa-value');
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        testFlag: 'qaGroup',
+      });
+    });
+
+    it('first entry with a matching metaMetricsId wins when multiple entries match', async () => {
+      const mockFlags = {
+        testFlag: [
+          {
+            name: 'first',
+            scope: { type: 'threshold', value: 0.0 },
+            value: 'first-value',
+            metaMetricsIds: [MOCK_METRICS_ID],
+          },
+          {
+            name: 'second',
+            scope: { type: 'threshold', value: 0.0 },
+            value: 'second-value',
+            metaMetricsIds: [MOCK_METRICS_ID],
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(controller.state.remoteFeatureFlags.testFlag).toBe('first-value');
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        testFlag: 'first',
+      });
+    });
+
+    it('falls back to hash-based threshold when no entry matches the metaMetricsId', async () => {
+      const mockFlags = {
+        testFlag: [
+          {
+            name: 'qaGroup',
+            scope: { type: 'threshold', value: 0.0 },
+            value: 'qa-value',
+            metaMetricsIds: ['some-other-id'],
+          },
+          {
+            name: 'groupA',
+            scope: { type: 'threshold', value: 0.5 },
+            value: 'valueA',
+          },
+          {
+            name: 'groupB',
+            scope: { type: 'threshold', value: 1.0 },
+            value: 'valueB',
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      // With MOCK_METRICS_ID + 'testFlag' hashed: threshold 0.496587 → groupA (≤ 0.5)
+      expect(controller.state.remoteFeatureFlags.testFlag).toBe('valueA');
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        testFlag: 'groupA',
+      });
+    });
+
+    it('ignores entries with a malformed metaMetricsIds (non-array) and falls back to hash-based threshold', async () => {
+      const mockFlags = {
+        testFlag: [
+          {
+            name: 'badGroup',
+            scope: { type: 'threshold', value: 0.0 },
+            value: 'bad-value',
+            metaMetricsIds: MOCK_METRICS_ID, // malformed: string instead of array
+          },
+          {
+            name: 'groupA',
+            scope: { type: 'threshold', value: 0.5 },
+            value: 'valueA',
+          },
+          {
+            name: 'groupB',
+            scope: { type: 'threshold', value: 1.0 },
+            value: 'valueB',
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      // Malformed entry ignored; hash-based selects groupA
+      expect(controller.state.remoteFeatureFlags.testFlag).toBe('valueA');
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        testFlag: 'groupA',
+      });
+    });
+
+    it('ignores non-string items within metaMetricsIds when matching', async () => {
+      const mockFlags = {
+        testFlag: [
+          {
+            name: 'badGroup',
+            scope: { type: 'threshold', value: 0.0 },
+            value: 'bad-value',
+            metaMetricsIds: [42, null, MOCK_METRICS_ID], // non-string items mixed in
+          },
+          {
+            name: 'groupA',
+            scope: { type: 'threshold', value: 1.0 },
+            value: 'valueA',
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      // String MOCK_METRICS_ID in the array still matches
+      expect(controller.state.remoteFeatureFlags.testFlag).toBe('bad-value');
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        testFlag: 'badGroup',
+      });
+    });
+
+    it('normalizes metaMetricsId with trim and toLowerCase before matching', async () => {
+      const mockFlags = {
+        testFlag: [
+          {
+            name: 'qaGroup',
+            scope: { type: 'threshold', value: 0.0 },
+            value: 'qa-value',
+            metaMetricsIds: [MOCK_METRICS_ID.toUpperCase()],
+          },
+          {
+            name: 'groupB',
+            scope: { type: 'threshold', value: 1.0 },
+            value: 'valueB',
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        // Provide the ID with surrounding whitespace and different case
+        getMetaMetricsId: () => `  ${MOCK_METRICS_ID.toLowerCase()}  `,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(controller.state.remoteFeatureFlags.testFlag).toBe('qa-value');
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        testFlag: 'qaGroup',
+      });
+    });
+
+    it('does not update the threshold cache when an explicit-ID match is found', async () => {
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: MOCK_FLAGS_WITH_EXPLICIT_IDS,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      // Cache should be empty because the match was explicit, not hash-based
+      expect(
+        controller.state.thresholdCache?.[`${MOCK_METRICS_ID}:testFlag`],
+      ).toBeUndefined();
+    });
+
+    it('still populates the threshold cache for hash-based fallback when no explicit ID matches', async () => {
+      const mockFlags = {
+        testFlag: [
+          {
+            name: 'qaGroup',
+            scope: { type: 'threshold', value: 0.0 },
+            value: 'qa-value',
+            metaMetricsIds: ['different-id'],
+          },
+          {
+            name: 'groupB',
+            scope: { type: 'threshold', value: 1.0 },
+            value: 'valueB',
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      expect(
+        controller.state.thresholdCache?.[`${MOCK_METRICS_ID}:testFlag`],
+      ).toBeDefined();
+    });
+
+    it('does not include metaMetricsIds values in rawRemoteFeatureFlags state', async () => {
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: MOCK_FLAGS_WITH_EXPLICIT_IDS,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      const rawEntries = controller.state.rawRemoteFeatureFlags
+        .testFlag as Record<string, unknown>[];
+      expect(
+        rawEntries.every((entry) => entry.metaMetricsIds === undefined),
+      ).toBe(true);
+    });
+
+    it('does not include metaMetricsIds values in remoteFeatureFlags state when metaMetricsId is unavailable', async () => {
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: MOCK_FLAGS_WITH_EXPLICIT_IDS,
+      });
+      // No metaMetricsId → threshold arrays are preserved as-is, but
+      // metaMetricsIds must still be stripped from the processed output.
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => '',
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      const processedEntries = controller.state.remoteFeatureFlags
+        .testFlag as Record<string, unknown>[];
+      expect(
+        processedEntries.every((entry) => entry.metaMetricsIds === undefined),
+      ).toBe(true);
+    });
+
+    it('does not include metaMetricsIds values in remoteFeatureFlags state when explicit match is found', async () => {
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: MOCK_FLAGS_WITH_EXPLICIT_IDS,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      // When an explicit match is found, the flag is resolved to a single
+      // value (not an array), so metaMetricsIds is naturally absent.
+      const processed = controller.state.remoteFeatureFlags.testFlag as Record<
+        string,
+        unknown
+      >;
+      expect(processed.metaMetricsIds).toBeUndefined();
+    });
+
+    it('supports ThresholdVersion.DirectValue entries with explicit-ID matching', async () => {
+      const mockFlags = {
+        testFlag: [
+          {
+            thresholdName: 'qaGroup',
+            thresholdVersion: ThresholdVersion.DirectValue,
+            scope: { type: 'threshold', value: 0.0 },
+            value: { enabled: true, qa: true },
+            metaMetricsIds: [MOCK_METRICS_ID],
+          },
+          {
+            thresholdName: 'control',
+            thresholdVersion: ThresholdVersion.DirectValue,
+            scope: { type: 'threshold', value: 1.0 },
+            value: { enabled: false },
+          },
+        ],
+      };
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: mockFlags,
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+
+      // v2 direct-value: value is returned as-is, no wrapper
+      expect(controller.state.remoteFeatureFlags.testFlag).toStrictEqual({
+        enabled: true,
+        qa: true,
+      });
     });
   });
 
@@ -933,8 +1394,11 @@ describe('RemoteFeatureFlagController', () => {
       // With MOCK_METRICS_ID + 'multiVersionABFlag' hashed:
       // Threshold = 0.094878, which falls in groupA range (t <= 0.3)
       expect(multiVersionABFlag).toStrictEqual({
-        name: 'groupA',
-        value: { feature: 'A', enabled: true },
+        feature: 'A',
+        enabled: true,
+      });
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        multiVersionABFlag: 'groupA',
       });
       expect(regularFlag).toBe(true);
     });
@@ -965,6 +1429,9 @@ describe('RemoteFeatureFlagController', () => {
         expect(controller.state.localOverrides).toStrictEqual({
           testFlag: true,
         });
+        expect(controller.state.remoteFeatureFlags).toStrictEqual({
+          testFlag: true,
+        });
       });
 
       it('overwrites existing override for the same flag', () => {
@@ -985,11 +1452,17 @@ describe('RemoteFeatureFlagController', () => {
         expect(controller.state.localOverrides).toStrictEqual({
           testFlag: false,
         });
+        expect(controller.state.remoteFeatureFlags).toStrictEqual({
+          testFlag: false,
+        });
       });
 
       it('preserves other overrides when setting a new one', () => {
         const { controller, messenger } = createController({
           state: {
+            remoteFeatureFlags: {
+              flag1: 'value1',
+            },
             localOverrides: {
               flag1: 'value1',
             },
@@ -1006,6 +1479,10 @@ describe('RemoteFeatureFlagController', () => {
           flag1: 'value1',
           flag2: 'value2',
         });
+        expect(controller.state.remoteFeatureFlags).toStrictEqual({
+          flag1: 'value1',
+          flag2: 'value2',
+        });
       });
     });
 
@@ -1013,6 +1490,11 @@ describe('RemoteFeatureFlagController', () => {
       it('removes a specific override', () => {
         const { controller, messenger } = createController({
           state: {
+            remoteFeatureFlags: {
+              remoteFlag: 'remoteValue',
+              flag1: 'value1',
+              flag2: 'value2',
+            },
             localOverrides: {
               flag1: 'value1',
               flag2: 'value2',
@@ -1028,11 +1510,18 @@ describe('RemoteFeatureFlagController', () => {
         expect(controller.state.localOverrides).toStrictEqual({
           flag2: 'value2',
         });
+        expect(controller.state.remoteFeatureFlags).toStrictEqual({
+          remoteFlag: 'remoteValue',
+          flag2: 'value2',
+        });
       });
 
       it('does not affect state when clearing non-existent override', () => {
         const { controller, messenger } = createController({
           state: {
+            remoteFeatureFlags: {
+              flag1: 'value1',
+            },
             localOverrides: {
               flag1: 'value1',
             },
@@ -1047,6 +1536,9 @@ describe('RemoteFeatureFlagController', () => {
         expect(controller.state.localOverrides).toStrictEqual({
           flag1: 'value1',
         });
+        expect(controller.state.remoteFeatureFlags).toStrictEqual({
+          flag1: 'value1',
+        });
       });
     });
 
@@ -1054,6 +1546,11 @@ describe('RemoteFeatureFlagController', () => {
       it('removes all overrides', () => {
         const { controller, messenger } = createController({
           state: {
+            remoteFeatureFlags: {
+              remoteFlag: 'remoteValue',
+              flag1: 'value1',
+              flag2: 'value2',
+            },
             localOverrides: {
               flag1: 'value1',
               flag2: 'value2',
@@ -1064,6 +1561,9 @@ describe('RemoteFeatureFlagController', () => {
         messenger.call('RemoteFeatureFlagController:clearAllFlagOverrides');
 
         expect(controller.state.localOverrides).toStrictEqual({});
+        expect(controller.state.remoteFeatureFlags).toStrictEqual({
+          remoteFlag: 'remoteValue',
+        });
       });
 
       it('does not affect state when no overrides exist', () => {
@@ -1104,6 +1604,58 @@ describe('RemoteFeatureFlagController', () => {
         expect(controller.state.localOverrides).toStrictEqual({
           overrideFlag: 'overrideValue',
           remoteFlag: 'updatedRemoteValue',
+        });
+        expect(controller.state.remoteFeatureFlags).toStrictEqual({
+          remoteFlag: 'updatedRemoteValue',
+          overrideFlag: 'overrideValue',
+        });
+      });
+
+      it('uses persisted remoteFeatureFlags with overrides on init', () => {
+        const { controller } = createController({
+          state: {
+            remoteFeatureFlags: {
+              remoteFlag: 'remoteValue',
+              overrideFlag: 'overrideValue',
+            },
+            localOverrides: {
+              overrideFlag: 'overrideValue',
+            },
+          },
+        });
+
+        expect(controller.state.remoteFeatureFlags).toStrictEqual({
+          remoteFlag: 'remoteValue',
+          overrideFlag: 'overrideValue',
+        });
+      });
+
+      it('merges legacy persisted localOverrides into remoteFeatureFlags on init', () => {
+        const { controller, messenger } = createController({
+          state: {
+            remoteFeatureFlags: {
+              remoteFlag: 'remoteValue',
+              overrideFlag: 'remoteOnlyValue',
+            },
+            localOverrides: {
+              overrideFlag: 'overrideValue',
+            },
+          },
+        });
+
+        expect(controller.state.remoteFeatureFlags).toStrictEqual({
+          remoteFlag: 'remoteValue',
+          overrideFlag: 'overrideValue',
+        });
+
+        messenger.call(
+          'RemoteFeatureFlagController:removeFlagOverride',
+          'overrideFlag',
+        );
+
+        expect(controller.state.remoteFeatureFlags).toStrictEqual({
+          remoteFlag: 'remoteValue',
+          overrideFlag: 'remoteOnlyValue',
         });
       });
     });
@@ -1176,6 +1728,75 @@ describe('RemoteFeatureFlagController', () => {
       expect(cacheAfterSecond[`${MOCK_METRICS_ID}:flagA`]).toBeUndefined();
 
       jest.useRealTimers();
+    });
+
+    it('removes stale featureFlagThresholdGroups entries when flags are removed from server', async () => {
+      jest.useRealTimers();
+      const clientConfigApiService = buildClientConfigApiService({
+        remoteFeatureFlags: {
+          flagA: [
+            {
+              name: 'groupA',
+              thresholdVersion: ThresholdVersion.DirectValue,
+              scope: { type: 'threshold', value: 1.0 },
+              value: true,
+            },
+          ],
+          flagB: [
+            {
+              name: 'groupB',
+              thresholdVersion: ThresholdVersion.DirectValue,
+              scope: { type: 'threshold', value: 1.0 },
+              value: false,
+            },
+          ],
+        },
+      });
+      const { controller, messenger } = createController({
+        clientConfigApiService,
+        getMetaMetricsId: () => MOCK_METRICS_ID,
+      });
+
+      await messenger.call(
+        'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+      );
+      expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+        flagA: 'groupA',
+        flagB: 'groupB',
+      });
+
+      jest
+        .spyOn(clientConfigApiService, 'fetchRemoteFeatureFlags')
+        .mockResolvedValue({
+          remoteFeatureFlags: {
+            flagB: [
+              {
+                name: 'groupB',
+                thresholdVersion: ThresholdVersion.DirectValue,
+                scope: { type: 'threshold', value: 1.0 },
+                value: false,
+              },
+            ],
+          },
+          cacheTimestamp: Date.now(),
+        });
+
+      jest.useFakeTimers();
+
+      try {
+        jest.advanceTimersByTime(2 * DEFAULT_CACHE_DURATION);
+
+        await messenger.call(
+          'RemoteFeatureFlagController:updateRemoteFeatureFlags',
+        );
+        await flushPromises();
+
+        expect(controller.state.featureFlagThresholdGroups).toStrictEqual({
+          flagB: 'groupB',
+        });
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it('preserves threshold cache entries for flags still in server response', async () => {

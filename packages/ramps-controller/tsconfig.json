@@ -4,6 +4,11 @@
     "baseUrl": "./",
     "resolveJsonModule": true
   },
-  "references": [{ "path": "../base-controller" }, { "path": "../messenger" }],
+  "references": [
+    { "path": "../base-controller" },
+    { "path": "../messenger" },
+    { "path": "../profile-sync-controller" },
+    { "path": "../remote-feature-flag-controller" }
+  ],
   "include": ["../../types", "./src"]
 }

@@ -91,7 +91,7 @@ describe('ApiPlatformClient', () => {
       expect(instance.tokens.queryClient).toBe(customQueryClient);
     });
 
-    it('uses default version when not provided', async () => {
+    it('omits clientversion header when not provided', async () => {
       const instance = new ApiPlatformClient({
         clientProduct: 'test-client',
         queryClient: new QueryClient({
@@ -108,8 +108,8 @@ describe('ApiPlatformClient', () => {
       expect(mockFetch).toHaveBeenCalledWith(
         expect.any(String),
         expect.objectContaining({
-          headers: expect.objectContaining({
-            'X-Client-Version': '1.0.0',
+          headers: expect.not.objectContaining({
+            'x-metamask-clientversion': expect.any(String),
           }),
         }),
       );
@@ -145,8 +145,8 @@ describe('ApiPlatformClient', () => {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
-            'X-Client-Product': 'test-client',
-            'X-Client-Version': '1.0.0',
+            'x-metamask-clientproduct': 'test-client',
+            'x-metamask-clientversion': '1.0.0',
           },
         }),
       );

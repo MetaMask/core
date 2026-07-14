@@ -4,12 +4,12 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
-import nock from 'nock';
+import nock, { cleanAll } from 'nock';
 
-import type { RampsServiceMessenger } from './RampsService';
-import { RampsService, RampsEnvironment } from './RampsService';
 import { flushPromises } from '../../../tests/helpers';
 import packageJson from '../package.json';
+import type { RampsServiceMessenger } from './RampsService';
+import { RampsService, RampsEnvironment } from './RampsService';
 
 const CONTROLLER_VERSION = packageJson.version;
 
@@ -67,8 +67,8 @@ describe('RampsService', () => {
       expect(geolocationResponse).toBe('us-tx');
     });
 
-    it('uses staging URL when environment is Development', async () => {
-      nock('https://on-ramp.uat-api.cx.metamask.io')
+    it('uses development URL when environment is Development', async () => {
+      nock('https://on-ramp.dev-api.cx.metamask.io')
         .get('/geolocation')
         .query({
           sdk: '2.1.6',
@@ -423,8 +423,8 @@ describe('RampsService', () => {
       `);
     });
 
-    it('uses staging cache URL when environment is Development', async () => {
-      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+    it('uses development regions URL without cache hostname', async () => {
+      nock('https://on-ramp.dev-api.cx.metamask.io')
         .get('/v2/regions/countries')
         .query({
           sdk: '2.1.6',
@@ -1237,6 +1237,18 @@ describe('RampsService', () => {
               height: 24,
               width: 77,
             },
+            limits: {
+              fiat: {
+                usd: {
+                  '/payments/debit-credit-card': {
+                    minAmount: 30,
+                    maxAmount: 1000,
+                    feeFixedRate: 1,
+                    feeDynamicRate: 0.02,
+                  },
+                },
+              },
+            },
           },
         ],
       };
@@ -1283,6 +1295,179 @@ describe('RampsService', () => {
       expect(providersResponse.providers).toStrictEqual([]);
     });
 
+    it('preserves provider limits from the API response', async () => {
+      const mockProviders = {
+        providers: [
+          {
+            id: '/providers/paypal-staging',
+            name: 'PayPal (Staging)',
+            environmentType: 'STAGING',
+            description: 'Test provider',
+            hqAddress: '123 Test St',
+            links: [],
+            logos: {
+              light: '/assets/paypal_light.png',
+              dark: '/assets/paypal_dark.png',
+              height: 24,
+              width: 77,
+            },
+            limits: {
+              fiat: {
+                usd: {
+                  '/payments/debit-credit-card': {
+                    minAmount: 30,
+                    maxAmount: 1000,
+                    feeFixedRate: 1,
+                    feeDynamicRate: 0.02,
+                  },
+                },
+              },
+            },
+          },
+        ],
+      };
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/v2/regions/us/providers')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, mockProviders);
+      const { service } = getService();
+
+      const providersPromise = service.getProviders('us');
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      const providersResponse = await providersPromise;
+
+      expect(
+        providersResponse.providers[0]?.limits?.fiat?.usd?.[
+          '/payments/debit-credit-card'
+        ],
+      ).toStrictEqual({
+        minAmount: 30,
+        maxAmount: 1000,
+        feeFixedRate: 1,
+        feeDynamicRate: 0.02,
+      });
+    });
+
+    it('accepts providers without limits field (backward compatibility)', async () => {
+      const mockProviders = {
+        providers: [
+          {
+            id: '/providers/paypal-staging',
+            name: 'PayPal (Staging)',
+            environmentType: 'STAGING',
+            description: 'Test provider',
+            hqAddress: '123 Test St',
+            links: [],
+            logos: {
+              light: '/assets/paypal_light.png',
+              dark: '/assets/paypal_dark.png',
+              height: 24,
+              width: 77,
+            },
+          },
+        ],
+      };
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/v2/regions/us/providers')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, mockProviders);
+      const { service } = getService();
+
+      const providersPromise = service.getProviders('us');
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      const providersResponse = await providersPromise;
+
+      expect(providersResponse.providers).toHaveLength(1);
+      expect(providersResponse.providers[0]?.id).toBe(
+        '/providers/paypal-staging',
+      );
+      expect(providersResponse.providers[0]?.limits).toBeUndefined();
+    });
+
+    it('handles mix of providers with and without limits', async () => {
+      const mockProviders = {
+        providers: [
+          {
+            id: '/providers/paypal-staging',
+            name: 'PayPal (Staging)',
+            environmentType: 'STAGING',
+            description: 'Test provider',
+            hqAddress: '123 Test St',
+            links: [],
+            logos: {
+              light: '/assets/paypal_light.png',
+              dark: '/assets/paypal_dark.png',
+              height: 24,
+              width: 77,
+            },
+            limits: {
+              fiat: {
+                usd: {
+                  '/payments/debit-credit-card': {
+                    minAmount: 30,
+                    maxAmount: 1000,
+                    feeFixedRate: 1,
+                    feeDynamicRate: 0.02,
+                  },
+                },
+              },
+            },
+          },
+          {
+            id: '/providers/ramp-network-staging',
+            name: 'Ramp Network (Staging)',
+            environmentType: 'STAGING',
+            description: 'Another test provider',
+            hqAddress: '123 Test St',
+            links: [],
+            logos: {
+              light: '/assets/providers/ramp_light.png',
+              dark: '/assets/providers/ramp_dark.png',
+              height: 24,
+              width: 77,
+            },
+          },
+        ],
+      };
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/v2/regions/us/providers')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, mockProviders);
+      const { service } = getService();
+
+      const providersPromise = service.getProviders('us');
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      const providersResponse = await providersPromise;
+
+      expect(providersResponse.providers).toHaveLength(2);
+      expect(
+        providersResponse.providers[0]?.limits?.fiat?.usd?.[
+          '/payments/debit-credit-card'
+        ],
+      ).toStrictEqual({
+        minAmount: 30,
+        maxAmount: 1000,
+        feeFixedRate: 1,
+        feeDynamicRate: 0.02,
+      });
+      expect(providersResponse.providers[1]?.limits).toBeUndefined();
+    });
+
     it('passes filter options as query parameters', async () => {
       const mockProviders = {
         providers: [],
@@ -1292,7 +1477,6 @@ describe('RampsService', () => {
         .query({
           provider: 'paypal',
           crypto: 'ETH',
-          fiat: 'USD',
           payments: 'card',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
@@ -1304,7 +1488,6 @@ describe('RampsService', () => {
       const providersPromise = service.getProviders('us', {
         provider: 'paypal',
         crypto: 'ETH',
-        fiat: 'USD',
         payments: 'card',
       });
       await jest.runAllTimersAsync();
@@ -1341,14 +1524,13 @@ describe('RampsService', () => {
       expect(providersResponse.providers).toStrictEqual([]);
     });
 
-    it('handles single value filter options for fiat and payments', async () => {
+    it('handles single value filter options for payments', async () => {
       const mockProviders = {
         providers: [],
       };
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/v2/regions/us/providers')
         .query({
-          fiat: 'USD',
           payments: 'card',
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
@@ -1358,7 +1540,6 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const providersPromise = service.getProviders('us', {
-        fiat: 'USD',
         payments: 'card',
       });
       await jest.runAllTimersAsync();
@@ -1368,14 +1549,13 @@ describe('RampsService', () => {
       expect(providersResponse.providers).toStrictEqual([]);
     });
 
-    it('handles array filter options for fiat and payments', async () => {
+    it('handles array filter options for payments', async () => {
       const mockProviders = {
         providers: [],
       };
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/v2/regions/us/providers')
         .query({
-          fiat: ['USD', 'EUR'],
           payments: ['card', 'bank'],
           sdk: '2.1.6',
           controller: CONTROLLER_VERSION,
@@ -1385,7 +1565,6 @@ describe('RampsService', () => {
       const { service } = getService();
 
       const providersPromise = service.getProviders('us', {
-        fiat: ['USD', 'EUR'],
         payments: ['card', 'bank'],
       });
       await jest.runAllTimersAsync();
@@ -1517,7 +1696,6 @@ describe('RampsService', () => {
         .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
-          fiat: 'usd',
           crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
@@ -1529,7 +1707,6 @@ describe('RampsService', () => {
 
       const paymentMethodsPromise = service.getPaymentMethods({
         region: 'us-al',
-        fiat: 'usd',
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
@@ -1547,12 +1724,11 @@ describe('RampsService', () => {
       ]);
     });
 
-    it('normalizes region and fiat case', async () => {
+    it('normalizes region case', async () => {
       nock('https://on-ramp-cache.uat-api.cx.metamask.io')
         .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
-          fiat: 'usd',
           crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
@@ -1564,7 +1740,6 @@ describe('RampsService', () => {
 
       const paymentMethodsPromise = service.getPaymentMethods({
         region: 'US-AL',
-        fiat: 'USD',
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
@@ -1580,7 +1755,6 @@ describe('RampsService', () => {
         .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
-          fiat: 'usd',
           crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
@@ -1592,7 +1766,6 @@ describe('RampsService', () => {
 
       const paymentMethodsPromise = service.getPaymentMethods({
         region: 'us-al',
-        fiat: 'usd',
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
@@ -1609,7 +1782,6 @@ describe('RampsService', () => {
         .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
-          fiat: 'usd',
           crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
@@ -1621,7 +1793,6 @@ describe('RampsService', () => {
 
       const paymentMethodsPromise = service.getPaymentMethods({
         region: 'us-al',
-        fiat: 'usd',
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
@@ -1638,7 +1809,6 @@ describe('RampsService', () => {
         .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
-          fiat: 'usd',
           crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
@@ -1650,7 +1820,6 @@ describe('RampsService', () => {
 
       const paymentMethodsPromise = service.getPaymentMethods({
         region: 'us-al',
-        fiat: 'usd',
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
@@ -1667,7 +1836,6 @@ describe('RampsService', () => {
         .get('/v2/regions/us-al/payments')
         .query({
           region: 'us-al',
-          fiat: 'usd',
           crypto: 'eip155:1/slip44:60',
           provider: '/providers/stripe',
           sdk: '2.1.6',
@@ -1683,7 +1851,6 @@ describe('RampsService', () => {
 
       const paymentMethodsPromise = service.getPaymentMethods({
         region: 'us-al',
-        fiat: 'usd',
         assetId: 'eip155:1/slip44:60',
         provider: '/providers/stripe',
       });
@@ -1691,8 +1858,62 @@ describe('RampsService', () => {
       await flushPromises();
 
       await expect(paymentMethodsPromise).rejects.toThrow(
-        `Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/v2/regions/us-al/payments?sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios&region=us-al&fiat=usd&crypto=eip155%3A1%2Fslip44%3A60&provider=%2Fproviders%2Fstripe' failed with status '500'`,
+        `Fetching 'https://on-ramp-cache.uat-api.cx.metamask.io/v2/regions/us-al/payments?sdk=2.1.6&controller=${CONTROLLER_VERSION}&context=mobile-ios&region=us-al&crypto=eip155%3A1%2Fslip44%3A60&provider=%2Fproviders%2Fstripe' failed with status '500'`,
       );
+    });
+
+    it('does not request a bearer token', async () => {
+      nock('https://on-ramp-cache.uat-api.cx.metamask.io')
+        .get('/v2/regions/us-al/payments')
+        .query({
+          region: 'us-al',
+          crypto: 'eip155:1/slip44:60',
+          provider: '/providers/stripe',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, mockPaymentMethodsResponse);
+      const { service, mockGetBearerToken } = getService();
+
+      const paymentMethodsPromise = service.getPaymentMethods({
+        region: 'us-al',
+        assetId: 'eip155:1/slip44:60',
+        provider: '/providers/stripe',
+      });
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      await paymentMethodsPromise;
+
+      expect(mockGetBearerToken).not.toHaveBeenCalled();
+    });
+
+    it('does not send an Authorization header', async () => {
+      const scope = nock('https://on-ramp-cache.uat-api.cx.metamask.io', {
+        badheaders: ['authorization'],
+      })
+        .get('/v2/regions/us-al/payments')
+        .query({
+          region: 'us-al',
+          crypto: 'eip155:1/slip44:60',
+          provider: '/providers/stripe',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, mockPaymentMethodsResponse);
+      const { service } = getService();
+
+      const paymentMethodsPromise = service.getPaymentMethods({
+        region: 'us-al',
+        assetId: 'eip155:1/slip44:60',
+        provider: '/providers/stripe',
+      });
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      await paymentMethodsPromise;
+
+      expect(scope.isDone()).toBe(true);
     });
   });
 
@@ -2279,11 +2500,114 @@ describe('RampsService', () => {
 
       expect(quotesResponse.success).toHaveLength(2);
     });
+
+    it('sends an Authorization header containing the bearer token', async () => {
+      const scope = nock('https://on-ramp.uat-api.cx.metamask.io', {
+        reqheaders: {
+          Authorization: 'Bearer mock-bearer-token',
+        },
+      })
+        .get('/v2/quotes')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
+          amount: '100',
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          payments: '/payments/debit-credit-card',
+        })
+        .reply(200, mockQuotesResponse);
+      const { service } = getService();
+
+      const quotesPromise = service.getQuotes({
+        region: 'us',
+        fiat: 'usd',
+        assetId: 'eip155:1/slip44:60',
+        amount: 100,
+        walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        paymentMethods: ['/payments/debit-credit-card'],
+      });
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      await quotesPromise;
+
+      expect(scope.isDone()).toBe(true);
+    });
+
+    it('requests a bearer token exactly once per call', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io', {
+        reqheaders: {
+          Authorization: 'Bearer mock-bearer-token',
+        },
+      })
+        .get('/v2/quotes')
+        .query({
+          action: 'buy',
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+          region: 'us',
+          fiat: 'usd',
+          crypto: 'eip155:1/slip44:60',
+          amount: '100',
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          payments: '/payments/debit-credit-card',
+        })
+        .reply(200, mockQuotesResponse);
+      const { service, mockGetBearerToken } = getService();
+
+      const quotesPromise = service.getQuotes({
+        region: 'us',
+        fiat: 'usd',
+        assetId: 'eip155:1/slip44:60',
+        amount: 100,
+        walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+        paymentMethods: ['/payments/debit-credit-card'],
+      });
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      await quotesPromise;
+
+      expect(mockGetBearerToken).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects without making an HTTP call when the bearer token cannot be retrieved', async () => {
+      const interceptor = nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/v2/quotes')
+        .query(true)
+        .reply(200, mockQuotesResponse);
+      const { service } = getService({
+        mockGetBearerToken: jest
+          .fn()
+          .mockRejectedValue(new Error('Wallet is locked')),
+      });
+
+      await expect(
+        service.getQuotes({
+          region: 'us',
+          fiat: 'usd',
+          assetId: 'eip155:1/slip44:60',
+          amount: 100,
+          walletAddress: '0x1234567890abcdef1234567890abcdef12345678',
+          paymentMethods: ['/payments/debit-credit-card'],
+        }),
+      ).rejects.toThrow('Wallet is locked');
+      expect(interceptor.isDone()).toBe(false);
+      cleanAll();
+    });
   });
 
   describe('RampsService:getBuyWidgetUrl', () => {
     it('returns buy widget data from the buy URL endpoint', async () => {
-      nock('https://on-ramp.uat-api.cx.metamask.io')
+      nock('https://on-ramp.uat-api.cx.metamask.io', {
+        reqheaders: {
+          Authorization: 'Bearer mock-bearer-token',
+        },
+      })
         .get('/providers/transak-staging/buy-widget')
         .query({
           sdk: '2.1.6',
@@ -2313,7 +2637,11 @@ describe('RampsService', () => {
     });
 
     it('throws when the response is not ok', async () => {
-      nock('https://on-ramp.uat-api.cx.metamask.io')
+      nock('https://on-ramp.uat-api.cx.metamask.io', {
+        reqheaders: {
+          Authorization: 'Bearer mock-bearer-token',
+        },
+      })
         .get('/providers/transak-staging/buy-widget')
         .query({
           sdk: '2.1.6',
@@ -2339,7 +2667,11 @@ describe('RampsService', () => {
     });
 
     it('throws when the response does not contain url field', async () => {
-      nock('https://on-ramp.uat-api.cx.metamask.io')
+      nock('https://on-ramp.uat-api.cx.metamask.io', {
+        reqheaders: {
+          Authorization: 'Bearer mock-bearer-token',
+        },
+      })
         .get('/providers/transak-staging/buy-widget')
         .query({
           sdk: '2.1.6',
@@ -2362,6 +2694,101 @@ describe('RampsService', () => {
       await expect(buyWidgetPromise).rejects.toThrow(
         'Malformed response received from buy widget URL API',
       );
+    });
+
+    it('requests a bearer token exactly once per call', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io', {
+        reqheaders: {
+          Authorization: 'Bearer mock-bearer-token',
+        },
+      })
+        .get('/providers/transak-staging/buy-widget')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, {
+          url: 'https://global.transak.com/?apiKey=test',
+          browser: 'APP_BROWSER',
+          orderId: null,
+        });
+      const { service, mockGetBearerToken } = getService();
+
+      const buyWidgetPromise = service.getBuyWidgetUrl(
+        'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+      );
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      await buyWidgetPromise;
+
+      expect(mockGetBearerToken).toHaveBeenCalledTimes(1);
+    });
+
+    it('rejects without making an HTTP call when the bearer token cannot be retrieved', async () => {
+      const interceptor = nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/providers/transak-staging/buy-widget')
+        .query(true)
+        .reply(200, {
+          url: 'https://global.transak.com/?apiKey=test',
+          browser: 'APP_BROWSER',
+          orderId: null,
+        });
+      const { service } = getService({
+        mockGetBearerToken: jest
+          .fn()
+          .mockRejectedValue(new Error('Wallet is locked')),
+      });
+
+      await expect(
+        service.getBuyWidgetUrl(
+          'https://on-ramp.uat-api.cx.metamask.io/providers/transak-staging/buy-widget',
+        ),
+      ).rejects.toThrow('Wallet is locked');
+      expect(interceptor.isDone()).toBe(false);
+      cleanAll();
+    });
+  });
+
+  describe('RampsService bearer auth scope', () => {
+    it('does not request a bearer token for getGeolocation', async () => {
+      nock('https://on-ramp.uat-api.cx.metamask.io')
+        .get('/geolocation')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, 'US');
+      const { service, mockGetBearerToken } = getService();
+
+      const geolocationPromise = service.getGeolocation();
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      await geolocationPromise;
+
+      expect(mockGetBearerToken).not.toHaveBeenCalled();
+    });
+
+    it('does not send an Authorization header for getGeolocation', async () => {
+      const scope = nock('https://on-ramp.uat-api.cx.metamask.io', {
+        badheaders: ['authorization'],
+      })
+        .get('/geolocation')
+        .query({
+          sdk: '2.1.6',
+          controller: CONTROLLER_VERSION,
+          context: 'mobile-ios',
+        })
+        .reply(200, 'US');
+      const { service } = getService();
+
+      const geolocationPromise = service.getGeolocation();
+      await jest.runAllTimersAsync();
+      await flushPromises();
+      await geolocationPromise;
+
+      expect(scope.isDone()).toBe(true);
     });
   });
 
@@ -2732,10 +3159,16 @@ function getRootMessenger(): RootMessenger {
  * @returns The service-specific messenger.
  */
 function getMessenger(rootMessenger: RootMessenger): RampsServiceMessenger {
-  return new Messenger({
+  const messenger: RampsServiceMessenger = new Messenger({
     namespace: 'RampsService',
     parent: rootMessenger,
   });
+  rootMessenger.delegate({
+    actions: ['AuthenticationController:getBearerToken'],
+    events: [],
+    messenger,
+  });
+  return messenger;
 }
 
 /**
@@ -2745,18 +3178,31 @@ function getMessenger(rootMessenger: RootMessenger): RampsServiceMessenger {
  * @param args.options - The options that the service constructor takes. All are
  * optional and will be filled in with defaults in as needed (including
  * `messenger`).
- * @returns The new service, root messenger, and service messenger.
+ * @param args.mockGetBearerToken - Optional override for the
+ * `AuthenticationController:getBearerToken` handler. Defaults to a jest mock
+ * that resolves with `'mock-bearer-token'`.
+ * @returns The new service, root messenger, service messenger, and the bearer
+ * token mock so tests can inspect or override its behavior.
  */
 function getService({
   options = {},
+  mockGetBearerToken,
 }: {
   options?: Partial<ConstructorParameters<typeof RampsService>[0]>;
+  mockGetBearerToken?: jest.Mock;
 } = {}): {
   service: RampsService;
   rootMessenger: RootMessenger;
   messenger: RampsServiceMessenger;
+  mockGetBearerToken: jest.Mock;
 } {
   const rootMessenger = getRootMessenger();
+  const getBearerTokenMock =
+    mockGetBearerToken ?? jest.fn().mockResolvedValue('mock-bearer-token');
+  rootMessenger.registerActionHandler(
+    'AuthenticationController:getBearerToken',
+    getBearerTokenMock,
+  );
   const messenger = getMessenger(rootMessenger);
   const service = new RampsService({
     fetch,
@@ -2765,5 +3211,10 @@ function getService({
     ...options,
   });
 
-  return { service, rootMessenger, messenger };
+  return {
+    service,
+    rootMessenger,
+    messenger,
+    mockGetBearerToken: getBearerTokenMock,
+  };
 }

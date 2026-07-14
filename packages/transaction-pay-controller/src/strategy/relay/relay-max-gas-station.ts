@@ -1,11 +1,6 @@
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import {
-  getGasStationEligibility,
-  getGasStationCostInSourceTokenRaw,
-} from './gas-station';
-import type { RelayQuote, RelayTransactionStep } from './types';
 import { projectLogger } from '../../logger';
 import type {
   PayStrategyGetQuotesRequest,
@@ -14,10 +9,15 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import {
+  getGasStationEligibility,
+  getGasStationCostInSourceTokenRaw,
+} from '../../utils/gas-station';
+import {
   getNativeToken,
   getTokenBalance,
   getTokenInfo,
 } from '../../utils/token';
+import type { RelayQuote, RelayTransactionStep } from './types';
 
 const log = createModuleLogger(projectLogger, 'relay-max-gas-station');
 
@@ -83,6 +83,10 @@ export async function getRelayMaxGasStationQuote(
   };
 
   const phase1Quote = await getSingleQuote(request, fullRequest);
+
+  if (phase1Quote.original.metamask?.isExecute) {
+    return phase1Quote;
+  }
 
   const nativeBalanceCheck = checkEnoughNativeBalanceIfSourceGasFeeTokenNotUsed(
     phase1Quote,

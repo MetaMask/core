@@ -1,6 +1,5 @@
 import { hasProperty } from '@metamask/utils';
 
-import type { ServiceContext } from './ServiceContext';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig';
 import { isVersionGatedFeatureFlag } from '../types';
 import type {
@@ -13,6 +12,7 @@ import {
   parseCommaSeparatedString,
   stripQuotes,
 } from '../utils/stringParseUtils';
+import type { ServiceContext } from './ServiceContext';
 
 /**
  * FeatureFlagConfigurationService

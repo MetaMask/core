@@ -1,12 +1,12 @@
 import type { RemoteFeatureFlagControllerState } from '@metamask/remote-feature-flag-controller';
 
-import { formatChainIdToCaip } from './caip-formatters';
-import { validateFeatureFlagsResponse } from './validators';
 import {
   DEFAULT_CHAIN_RANKING,
   DEFAULT_FEATURE_FLAG_CONFIG,
 } from '../constants/bridge';
 import type { FeatureFlagsPlatformConfig, ChainConfiguration } from '../types';
+import { validateFeatureFlagsResponse } from '../validators/feature-flags';
+import { formatChainIdToCaip } from './caip-formatters';
 
 export const formatFeatureFlags = (
   bridgeFeatureFlags: FeatureFlagsPlatformConfig,

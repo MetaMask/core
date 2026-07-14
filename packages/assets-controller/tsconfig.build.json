@@ -15,6 +15,7 @@
     { "path": "../messenger/tsconfig.build.json" },
     { "path": "../network-enablement-controller/tsconfig.build.json" },
     { "path": "../permission-controller/tsconfig.build.json" },
+    { "path": "../phishing-controller/tsconfig.build.json" },
     { "path": "../preferences-controller/tsconfig.build.json" }
   ],
   "include": ["../../types", "./src"],

@@ -7,6 +7,11 @@ import { BaseController } from '@metamask/base-controller';
 import { DELEGATOR_CONTRACTS } from '@metamask/delegation-deployments';
 import type { Messenger } from '@metamask/messenger';
 import type {
+  NetworkControllerFindNetworkClientIdByChainIdAction,
+  NetworkControllerGetNetworkClientByIdAction,
+  NetworkClientId,
+} from '@metamask/network-controller';
+import type {
   SnapControllerHandleRequestAction,
   SnapControllerHasSnapAction,
 } from '@metamask/snaps-controllers';
@@ -25,9 +30,10 @@ import type { Hex } from '@metamask/utils';
 import { DELEGATION_FRAMEWORK_VERSION } from './constants';
 import type { DecodedPermission } from './decodePermission';
 import {
-  createPermissionRulesForContracts,
-  findRuleWithMatchingCaveatAddresses,
+  createPermissionDecodersForContracts,
+  findDecodersWithMatchingCaveatAddresses,
   reconstructDecodedPermission,
+  selectUniqueDecoderAndDecodedPermission,
 } from './decodePermission';
 import {
   GatorPermissionsFetchError,
@@ -37,10 +43,13 @@ import {
 } from './errors';
 import type { GatorPermissionsControllerMethodActions } from './GatorPermissionsController-method-action-types';
 import { controllerLog } from './logger';
+import { updateGrantedPermissionsStatus } from './permissionOnChainStatus';
+import type { PermissionStatusEip1193Provider } from './permissionOnChainStatus';
 import { GatorPermissionsSnapRpcMethod } from './types';
 import type {
   StoredGatorPermission,
   PermissionInfoWithMetadata,
+  GatorPermissionStatus,
   SupportedPermissionType,
   DelegationDetails,
   RevocationParams,
@@ -105,7 +114,7 @@ export type GatorPermissionsControllerConfig = {
  */
 export type GatorPermissionsControllerState = {
   /**
-   * List of granted permissions with metadata (siteOrigin, revocationMetadata).
+   * List of granted permissions with metadata (siteOrigin, status, revocationMetadata).
    */
   grantedPermissions: PermissionInfoWithMetadata[];
 
@@ -206,7 +215,9 @@ export type GatorPermissionsControllerActions =
  */
 type AllowedActions =
   | SnapControllerHandleRequestAction
-  | SnapControllerHasSnapAction;
+  | SnapControllerHasSnapAction
+  | NetworkControllerFindNetworkClientIdByChainIdAction
+  | NetworkControllerGetNetworkClientByIdAction;
 
 /**
  * The event that {@link GatorPermissionsController} publishes when updating state.
@@ -357,14 +368,56 @@ export class GatorPermissionsController extends BaseController<
   }
 
   /**
+   * Maps permission `context` (lowercase hex) to the last known {@link PermissionStatus}
+   * from the current controller state (used when merging after a snap sync).
+   *
+   * @returns Map from lowercase `permissionResponse.context` to the prior {@link PermissionStatus}.
+   */
+  #buildPreviousStatusByContext(): Map<string, GatorPermissionStatus> {
+    const map = new Map<string, GatorPermissionStatus>();
+    for (const prev of this.state.grantedPermissions) {
+      map.set(
+        prev.permissionResponse.context.toLowerCase(),
+        prev.status ?? 'Active',
+      );
+    }
+    return map;
+  }
+
+  async #getProviderForChainId(
+    chainId: Hex,
+  ): Promise<PermissionStatusEip1193Provider> {
+    const networkClientId: NetworkClientId = this.messenger.call(
+      'NetworkController:findNetworkClientIdByChainId',
+      chainId,
+    );
+    const { provider } = this.messenger.call(
+      'NetworkController:getNetworkClientById',
+      networkClientId,
+    );
+    return provider as PermissionStatusEip1193Provider;
+  }
+
+  async #updateGrantedPermissionsStatus(
+    grantedPermissions: PermissionInfoWithMetadata[],
+  ): Promise<PermissionInfoWithMetadata[]> {
+    return updateGrantedPermissionsStatus(grantedPermissions, {
+      getProviderForChainId: (chainId) => this.#getProviderForChainId(chainId),
+      contractsByChainId,
+    });
+  }
+
+  /**
    * Converts a stored gator permission to permission info with metadata.
    * Strips internal fields (dependencies, to) from the permission response.
    *
    * @param storedGatorPermission - The stored gator permission from the Snap.
+   * @param status - The status for this permission.
    * @returns Permission info with metadata for state/UI.
    */
   #storedPermissionToPermissionInfo(
     storedGatorPermission: StoredGatorPermission,
+    status: GatorPermissionStatus,
   ): PermissionInfoWithMetadata {
     const { permissionResponse: fullPermissionResponse } =
       storedGatorPermission;
@@ -377,6 +430,7 @@ export class GatorPermissionsController extends BaseController<
     return {
       ...storedGatorPermission,
       permissionResponse,
+      status,
     };
   }
 
@@ -393,9 +447,17 @@ export class GatorPermissionsController extends BaseController<
       return [];
     }
 
-    return storedGatorPermissions.map((storedPermission) =>
-      this.#storedPermissionToPermissionInfo(storedPermission),
-    );
+    const previousStatusByContext = this.#buildPreviousStatusByContext();
+
+    return storedGatorPermissions.map((storedPermission) => {
+      const previousStatus = previousStatusByContext.get(
+        storedPermission.permissionResponse.context.toLowerCase(),
+      );
+      return this.#storedPermissionToPermissionInfo(
+        storedPermission,
+        previousStatus ?? 'Active',
+      );
+    });
   }
 
   /**
@@ -436,6 +498,13 @@ export class GatorPermissionsController extends BaseController<
         this.update((state) => {
           state.grantedPermissions = grantedPermissions;
           state.lastSyncedTimestamp = Date.now();
+        });
+
+        const grantedPermissionsWithStatus =
+          await this.#updateGrantedPermissionsStatus(grantedPermissions);
+
+        this.update((state) => {
+          state.grantedPermissions = grantedPermissionsWithStatus;
         });
       } catch (error) {
         controllerLog('Failed to fetch gator permissions', error);
@@ -493,7 +562,9 @@ export class GatorPermissionsController extends BaseController<
    *
    * @returns A decoded permission object suitable for UI consumption and follow-up actions.
    * @throws If the origin is not allowed, the context cannot be decoded into exactly one delegation,
-   * or the enforcers/terms do not match a supported permission type.
+   * the enforcers do not match any supported permission type, no candidate type validates
+   * the caveat terms, or more than one permission type successfully validates
+   * (ambiguous delegation).
    */
   public decodePermissionFromPermissionContextForOrigin({
     origin,
@@ -521,36 +592,36 @@ export class GatorPermissionsController extends BaseController<
 
     try {
       const enforcers = caveats.map((caveat) => caveat.enforcer);
-      const permissionRules = createPermissionRulesForContracts(contracts);
+      const permissionDecoders =
+        createPermissionDecodersForContracts(contracts);
 
-      // find the single rule where the specified enforcers contain all the required enforcers
-      // and no forbidden enforcers
-      const matchingRule = findRuleWithMatchingCaveatAddresses({
+      // Every decoder where enforcer addresses match; multiple types may share the
+      // same caveat pattern and are disambiguated by validateAndDecodePermission.
+      const matchingDecoders = findDecodersWithMatchingCaveatAddresses({
         enforcers,
-        permissionRules,
+        permissionDecoders,
       });
 
-      // validate the terms of each caveat against the matching rule, returning the decoded result
-      // this happens in a single function, as decoding is an inherent part of validation.
-      const decodeResult = matchingRule.validateAndDecodePermission(caveats);
-
-      if (!decodeResult.isValid) {
-        throw new PermissionDecodingError({
-          cause: decodeResult.error,
-        });
-      }
-
-      const { expiry, data } = decodeResult;
+      const {
+        decoder: { permissionType },
+        expiry,
+        data,
+        rules,
+      } = selectUniqueDecoderAndDecodedPermission({
+        candidateDecoders: matchingDecoders,
+        caveats,
+      });
 
       const permission = reconstructDecodedPermission({
         chainId,
-        permissionType: matchingRule.permissionType,
+        permissionType,
         delegator,
         delegate,
         authority,
         expiry,
         data,
         justification,
+        rules,
         specifiedOrigin,
       });
 

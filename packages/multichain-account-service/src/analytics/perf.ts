@@ -4,8 +4,8 @@ import type {
   TraceRequest,
 } from '@metamask/controller-utils';
 
-import { now } from './timer';
 import { createModuleLogger, projectLogger } from '../logger';
+import { now } from './timer';
 
 export const log = createModuleLogger(projectLogger, 'perf');
 

@@ -67,6 +67,38 @@ export type TransactionPayControllerGetDelegationTransactionAction = {
 };
 
 /**
+ * Returns additional transactions for the paymentOverride flow.
+ *
+ * Delegates to the client-supplied {@link GetPaymentOverrideDataCallback}.
+ * Called during quote execution when `paymentOverride` is defined on the transaction.
+ * Returns an empty array when no callback is configured.
+ *
+ * @param args - The arguments forwarded to the {@link GetPaymentOverrideDataCallback}.
+ * @returns A promise resolving to the additional transactions array.
+ */
+export type TransactionPayControllerGetAmountDataAction = {
+  type: `TransactionPayController:getAmountData`;
+  handler: TransactionPayController['getAmountData'];
+};
+
+/**
+ * Returns optional fiat execution configuration.
+ *
+ * This is intentionally not stored in controller state.
+ *
+ * @returns Fiat execution options, if configured.
+ */
+export type TransactionPayControllerGetFiatOptionsAction = {
+  type: `TransactionPayController:getFiatOptions`;
+  handler: TransactionPayController['getFiatOptions'];
+};
+
+export type TransactionPayControllerGetPaymentOverrideDataAction = {
+  type: `TransactionPayController:getPaymentOverrideData`;
+  handler: TransactionPayController['getPaymentOverrideData'];
+};
+
+/**
  * Gets the preferred strategy for a transaction.
  *
  * Returns the first strategy from the ordered list of strategies applicable
@@ -82,6 +114,30 @@ export type TransactionPayControllerGetStrategyAction = {
 };
 
 /**
+ * Derives the Polymarket deposit-wallet address for an EOA via the
+ * client-supplied callback.
+ *
+ * @param args - The arguments forwarded to {@link PolymarketCallbacks.getDepositWalletAddress}.
+ * @returns A promise resolving to the deposit-wallet address.
+ */
+export type TransactionPayControllerPolymarketGetDepositWalletAddressAction = {
+  type: `TransactionPayController:polymarketGetDepositWalletAddress`;
+  handler: TransactionPayController['polymarketGetDepositWalletAddress'];
+};
+
+/**
+ * Signs and broadcasts a Polymarket deposit-wallet batch via the
+ * client-supplied callback.
+ *
+ * @param args - The arguments forwarded to {@link PolymarketCallbacks.submitDepositWalletBatch}.
+ * @returns A promise resolving to the relayer-issued source hash.
+ */
+export type TransactionPayControllerPolymarketSubmitDepositWalletBatchAction = {
+  type: `TransactionPayController:polymarketSubmitDepositWalletBatch`;
+  handler: TransactionPayController['polymarketSubmitDepositWalletBatch'];
+};
+
+/**
  * Union of all TransactionPayController action types.
  */
 export type TransactionPayControllerMethodActions =
@@ -89,4 +145,9 @@ export type TransactionPayControllerMethodActions =
   | TransactionPayControllerUpdatePaymentTokenAction
   | TransactionPayControllerUpdateFiatPaymentAction
   | TransactionPayControllerGetDelegationTransactionAction
-  | TransactionPayControllerGetStrategyAction;
+  | TransactionPayControllerGetAmountDataAction
+  | TransactionPayControllerGetFiatOptionsAction
+  | TransactionPayControllerGetPaymentOverrideDataAction
+  | TransactionPayControllerGetStrategyAction
+  | TransactionPayControllerPolymarketGetDepositWalletAddressAction
+  | TransactionPayControllerPolymarketSubmitDepositWalletBatchAction;

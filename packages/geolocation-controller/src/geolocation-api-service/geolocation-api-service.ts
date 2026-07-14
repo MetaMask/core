@@ -6,12 +6,12 @@ import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { IDisposable } from 'cockatiel';
 
-import type { GeolocationApiServiceMethodActions } from './geolocation-api-service-method-action-types';
 import { Env } from '../types';
+import type { GeolocationApiServiceMethodActions } from './geolocation-api-service-method-action-types';
 
 const DEFAULT_TTL_MS = 5 * 60 * 1000;
 
-const ENDPOINT_PATH = '/geolocation';
+const ENDPOINT_PATH = '/v1/geolocation';
 
 // === GENERAL ===
 
@@ -68,12 +68,17 @@ export type GeolocationApiServiceMessenger = Messenger<
 /**
  * Returns the base URL for the geolocation API for the given environment.
  *
+ * Served by API Platform's `geolocation-api` service, not the legacy
+ * Ramps-owned `on-ramp` endpoint this previously pointed to. API Platform has
+ * not yet provisioned a dedicated UAT deployment for this service, so UAT
+ * temporarily resolves to the production URL until one exists.
+ *
  * @param env - The environment to get the URL for.
  * @returns The full URL for the geolocation endpoint.
  */
 function getGeolocationUrl(env: Env): string {
-  const envPrefix = env === Env.PRD ? '' : `${env}-`;
-  return `https://on-ramp.${envPrefix}api.cx.metamask.io${ENDPOINT_PATH}`;
+  const envPrefix = env === Env.DEV ? 'dev-' : '';
+  return `https://geolocation.${envPrefix}api.cx.metamask.io${ENDPOINT_PATH}`;
 }
 
 /**

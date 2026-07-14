@@ -1,9 +1,9 @@
 /* eslint-disable consistent-return */
 import { v4 as uuid } from 'uuid';
 
-import { createClientTransactionRequest, handleNonEvmTx } from './snaps';
 import { ChainId } from '../../../bridge-controller/src/types';
 import { BridgeStatusControllerMessenger } from '../types';
+import { createClientTransactionRequest, handleNonEvmTx } from './snaps';
 
 jest.mock('uuid', () => ({
   v4: jest.fn(),

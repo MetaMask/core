@@ -10,9 +10,9 @@ import type {
   JsonRpcResponse,
 } from '@metamask/utils';
 
+import { createRequest } from '../test/util/helpers';
 import { createFetchMiddleware } from './fetch';
 import type { AbstractRpcServiceLike } from './types';
-import { createRequest } from '../test/util/helpers';
 
 describe('createFetchMiddleware', () => {
   it.each([

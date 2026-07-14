@@ -10,6 +10,8 @@ import {
   getHostnameAndPathComponents,
   getHostnameFromUrl,
   getHostnameFromWebUrl,
+  getPhishingDetectionScanUrlParam,
+  isPhishingDetectionPathBasedHostname,
   matchPartsAgainstList,
   processConfigs,
   processDomainList,
@@ -979,6 +981,54 @@ describe('getHostnameFromWebUrl', () => {
       expect(isValid).toBe(expectedValid);
     },
   );
+});
+
+describe('isPhishingDetectionPathBasedHostname', () => {
+  it('returns true for registered roots and subdomains', () => {
+    expect(isPhishingDetectionPathBasedHostname('ipfs.io')).toBe(true);
+    expect(isPhishingDetectionPathBasedHostname('gateway.ipfs.io')).toBe(true);
+    expect(isPhishingDetectionPathBasedHostname('dweb.link')).toBe(true);
+    expect(isPhishingDetectionPathBasedHostname('sites.google.com')).toBe(true);
+  });
+
+  it('is case-insensitive', () => {
+    expect(isPhishingDetectionPathBasedHostname('IPFS.IO')).toBe(true);
+    expect(isPhishingDetectionPathBasedHostname('Gateway.IPFS.IO')).toBe(true);
+  });
+
+  it('returns false for unrelated hosts', () => {
+    expect(isPhishingDetectionPathBasedHostname('example.com')).toBe(false);
+    expect(isPhishingDetectionPathBasedHostname('evil-ipfs.io')).toBe(false);
+  });
+});
+
+describe('getPhishingDetectionScanUrlParam', () => {
+  it('returns hostname only for non-gateway hosts', () => {
+    expect(
+      getPhishingDetectionScanUrlParam('https://example.com/path?q=1#h'),
+    ).toStrictEqual(['example.com', true]);
+  });
+
+  it('returns hostname plus path for path-based gateway hosts', () => {
+    expect(
+      getPhishingDetectionScanUrlParam(
+        'https://ipfs.io/ipfs/QmAAA/foo?x=1#frag',
+      ),
+    ).toStrictEqual(['ipfs.io/ipfs/QmAAA/foo', true]);
+  });
+
+  it('does not append path when pathname is /', () => {
+    expect(
+      getPhishingDetectionScanUrlParam('https://dweb.link/'),
+    ).toStrictEqual(['dweb.link', true]);
+  });
+
+  it('returns ok false for invalid web URLs', () => {
+    expect(getPhishingDetectionScanUrlParam('not-a-url')).toStrictEqual([
+      '',
+      false,
+    ]);
+  });
 });
 
 /**

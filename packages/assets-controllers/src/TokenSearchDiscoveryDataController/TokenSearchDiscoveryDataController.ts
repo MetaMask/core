@@ -7,15 +7,15 @@ import type {
 import type { Messenger } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
 
-import type { TokenDisplayData } from './types';
 import { formatIconUrlWithProxy } from '../assetsUtil';
-import type { GetCurrencyRateState } from '../CurrencyRateController';
+import type { CurrencyRateControllerGetStateAction } from '../CurrencyRateController';
 import type { AbstractTokenPricesService } from '../token-prices-service';
 import {
   fetchTokenMetadata,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
 } from '../token-service';
 import type { TokenListToken } from '../TokenListController';
+import type { TokenDisplayData } from './types';
 
 // === GENERAL ===
 
@@ -61,7 +61,7 @@ export type TokenSearchDiscoveryDataControllerActions =
 /**
  * All actions that {@link TokenSearchDiscoveryDataController} calls internally.
  */
-export type AllowedActions = GetCurrencyRateState;
+export type AllowedActions = CurrencyRateControllerGetStateAction;
 
 /**
  * The event that {@link TokenSearchDiscoveryDataController} publishes when updating

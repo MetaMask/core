@@ -53,10 +53,8 @@ import {
   TOKEN_METADATA_NO_SUPPORT_ERROR,
   TokenRwaData,
 } from './token-service';
-import type {
-  TokenListStateChange,
-  TokenListToken,
-} from './TokenListController';
+import type { TokenListMap, TokenListToken } from './TokenListController';
+import type { TokenListService } from './TokenListService';
 import type { Token } from './TokenRatesController';
 import type { TokensControllerMethodActions } from './TokensController-method-action-types';
 
@@ -161,7 +159,6 @@ export type TokensControllerEvents = TokensControllerStateChangeEvent;
 export type AllowedEvents =
   | NetworkControllerStateChangeEvent
   | NetworkControllerNetworkDidChangeEvent
-  | TokenListStateChange
   | AccountsControllerSelectedEvmAccountChangeEvent
   | KeyringControllerAccountRemovedEvent;
 
@@ -209,6 +206,8 @@ export class TokensController extends BaseController<
 
   readonly #abortController: AbortController;
 
+  readonly #isDeprecated: () => boolean;
+
   /**
    * Tokens controller options
    *
@@ -217,16 +216,28 @@ export class TokensController extends BaseController<
    * @param options.provider - Network provider.
    * @param options.state - Initial state to set on this controller.
    * @param options.messenger - The messenger.
+   * @param options.tokenListService - Shared service for fetching token metadata per chain.
+   * @param options.isDeprecated - Optional function that returns true to completely
+   * disable this controller (no requests, no state updates). When it returns
+   * `true`, `allTokens`, `allIgnoredTokens`, and `allDetectedTokens` are reset to
+   * `{}` at construction and at every entry point, so no stale token data remains
+   * in state. The function is evaluated dynamically on each entry point so it can
+   * be toggled at runtime. Intended for use when a higher-level controller
+   * (e.g. AssetsController) supersedes this one.
    */
   constructor({
     provider,
     state,
     messenger,
+    tokenListService,
+    isDeprecated = (): boolean => false,
   }: {
     chainId: Hex;
     provider: Provider;
     state?: Partial<TokensControllerState>;
     messenger: TokensControllerMessenger;
+    tokenListService: TokenListService;
+    isDeprecated?: () => boolean;
   }) {
     super({
       name: controllerName,
@@ -239,6 +250,7 @@ export class TokensController extends BaseController<
     });
 
     this.#provider = provider;
+    this.#isDeprecated = isDeprecated;
 
     this.#selectedAccountId = this.#getSelectedAccount().id;
 
@@ -261,47 +273,100 @@ export class TokensController extends BaseController<
       (accountAddress: string) => this.#handleOnAccountRemoved(accountAddress),
     );
 
-    this.messenger.subscribe(
-      'TokenListController:stateChange',
-      ({ tokensChainsCache }) => {
-        const { allTokens } = this.state;
-        const selectedAddress = this.#getSelectedAddress();
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+    } else {
+      // Enrich persisted tokens with name/rwaData from the token list once at init.
+      this.#enrichTokensFromTokenList(tokenListService).catch(() => {
+        // Tokens remain usable without metadata enrichment
+      });
+    }
+  }
 
-        // Deep clone the `allTokens` object to ensure mutability
-        const updatedAllTokens = cloneDeep(allTokens);
+  /**
+   * Clears all persisted token state so that no stale data remains.
+   *
+   * Called from every entry point when `isDeprecated()` is true so that a
+   * runtime toggle propagates to state immediately, even if the controller was
+   * originally constructed while it was enabled. The update is skipped when
+   * all three maps are already empty to avoid emitting redundant state changes.
+   */
+  #enforceDisabledState(): void {
+    const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
+    if (
+      Object.keys(allTokens).length === 0 &&
+      Object.keys(allIgnoredTokens).length === 0 &&
+      Object.keys(allDetectedTokens).length === 0
+    ) {
+      return;
+    }
+    this.update((state) => {
+      state.allTokens = {};
+      state.allIgnoredTokens = {};
+      state.allDetectedTokens = {};
+    });
+  }
 
-        for (const [chainId, chainCache] of Object.entries(tokensChainsCache)) {
-          const chainData = chainCache?.data ?? {};
+  async #enrichTokensFromTokenList(
+    tokenListService: TokenListService,
+  ): Promise<void> {
+    const chainIds = Object.keys(this.state.allTokens) as Hex[];
+    if (chainIds.length === 0) {
+      return;
+    }
 
-          if (updatedAllTokens[chainId as Hex]) {
-            if (updatedAllTokens[chainId as Hex][selectedAddress]) {
-              const tokens = updatedAllTokens[chainId as Hex][selectedAddress];
+    // Fetch all chain data concurrently before touching state so the async gap
+    // is as short as possible and we never hold a stale T0 snapshot while
+    // awaiting individual chain requests.
+    // Promise.allSettled ensures a transient error on one chain does not
+    // prevent other chains from being enriched.
+    const results = await Promise.allSettled(
+      chainIds.map(async (chainId) => {
+        const data = await tokenListService.fetchTokensByChainId(chainId);
+        return [chainId, data] as const;
+      }),
+    );
+    const chainDataMap = Object.fromEntries(
+      results
+        .filter(
+          (
+            result,
+          ): result is PromiseFulfilledResult<readonly [Hex, TokenListMap]> =>
+            result.status === 'fulfilled',
+        )
+        .map((result) => result.value),
+    );
 
-              for (const [, token] of Object.entries(tokens)) {
-                const cachedToken = chainData[token.address.toLowerCase()];
-                if (cachedToken && cachedToken.name && !token.name) {
-                  token.name = cachedToken.name; // Update the token name
-                }
-                if (cachedToken?.rwaData) {
-                  token.rwaData = cachedToken.rwaData; // Update the token RWA data
-                }
-              }
-            }
+    // Read selectedAddress inside the updater so it reflects the live account
+    // at the moment the state write happens, not a snapshot taken before the
+    // async fetch gap above.
+    this.update((state) => {
+      const selectedAddress = this.#getSelectedAddress();
+      for (const chainId of chainIds) {
+        const chainData = chainDataMap[chainId];
+        const tokens = state.allTokens[chainId]?.[selectedAddress];
+        if (!tokens || !chainData) {
+          continue;
+        }
+        for (const token of tokens) {
+          const cachedToken = chainData[token.address.toLowerCase()];
+          if (cachedToken?.name && !token.name) {
+            token.name = cachedToken.name;
+          }
+          if (cachedToken?.rwaData) {
+            token.rwaData = cachedToken.rwaData;
           }
         }
-
-        // Update the state with the modified tokens
-        this.update(() => {
-          return {
-            ...this.state,
-            allTokens: updatedAllTokens,
-          };
-        });
-      },
-    );
+      }
+    });
   }
 
   #handleOnAccountRemoved(accountAddress: string) {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
     const isEthAddress =
       isStrictHexString(accountAddress.toLowerCase()) &&
       isValidHexAddress(accountAddress);
@@ -347,6 +412,11 @@ export class TokensController extends BaseController<
    * @param patches - An array of patch operations performed on the network state.
    */
   #onNetworkStateChange(_: NetworkState, patches: Patch[]) {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
     // Remove state for deleted networks
     for (const patch of patches) {
       if (
@@ -435,6 +505,11 @@ export class TokensController extends BaseController<
     networkClientId: NetworkClientId;
     rwaData?: TokenRwaData;
   }): Promise<Token[]> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return [];
+    }
+
     const releaseLock = await this.#mutex.acquire();
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
 
@@ -522,6 +597,11 @@ export class TokensController extends BaseController<
    * @param networkClientId - Optional network client ID used to determine interacting chain ID.
    */
   async addTokens(tokensToImport: Token[], networkClientId: NetworkClientId) {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
     const releaseLock = await this.#mutex.acquire();
     const { allTokens, allIgnoredTokens, allDetectedTokens } = this.state;
     const importedTokensMap: { [key: string]: true } = {};
@@ -602,6 +682,11 @@ export class TokensController extends BaseController<
     tokenAddressesToIgnore: string[],
     networkClientId: NetworkClientId,
   ) {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
     const interactingChainId = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
@@ -659,6 +744,11 @@ export class TokensController extends BaseController<
     incomingDetectedTokens: Token[],
     detectionDetails: { selectedAddress?: string; chainId: Hex },
   ) {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
     const releaseLock = await this.#mutex.acquire();
 
     const { chainId } = detectionDetails;
@@ -762,6 +852,11 @@ export class TokensController extends BaseController<
     tokenAddress: string,
     networkClientId: NetworkClientId,
   ): Promise<Token> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      throw new Error('TokensController is deprecated');
+    }
+
     const chainIdToUse = this.messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
@@ -874,6 +969,11 @@ export class TokensController extends BaseController<
     pageMeta?: Record<string, Json>;
     requestMetadata?: WatchAssetRequestMetadata;
   }): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
     if (type !== ERC20) {
       throw new Error(`Asset of type ${type} not supported`);
     }
@@ -1101,6 +1201,11 @@ export class TokensController extends BaseController<
    * Removes all tokens from the ignored list.
    */
   clearIgnoredTokens() {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
     this.update((state) => {
       state.allIgnoredTokens = {};
     });

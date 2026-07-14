@@ -1,6 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
 
-import type { ServiceContext } from './ServiceContext';
 import { PerpsMeasurementName } from '../constants/performanceMetrics';
 import {
   DATA_LAKE_API_CONFIG,
@@ -9,8 +8,9 @@ import {
 import { PerpsTraceNames, PerpsTraceOperations } from '../types';
 import type { PerpsPlatformDependencies } from '../types';
 import type { PerpsControllerMessengerBase } from '../types/messenger';
-import { getSelectedEvmAccount } from '../utils/accountUtils';
+import { getSelectedEvmAccountFromMessenger } from '../utils/accountUtils';
 import { ensureError } from '../utils/errorUtils';
+import type { ServiceContext } from './ServiceContext';
 
 /**
  * DataLakeService
@@ -131,11 +131,7 @@ export class DataLakeService {
 
     try {
       const token = await this.#getBearerToken();
-      const evmAccount = getSelectedEvmAccount(
-        this.#messenger.call(
-          'AccountTreeController:getAccountsFromSelectedAccountGroup',
-        ),
-      );
+      const evmAccount = getSelectedEvmAccountFromMessenger(this.#messenger);
 
       if (!evmAccount || !token) {
         this.#deps.debugLogger.log('DataLake API: Missing requirements', {

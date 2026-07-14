@@ -37,15 +37,113 @@ export type {
   PerpsControllerState,
   PerpsControllerOptions,
   PerpsControllerMessenger,
+  PerpsControllerGetStateAction,
   PerpsControllerActions,
   PerpsControllerEvents,
 } from './PerpsController';
+export type {
+  PerpsControllerCalculateFeesAction,
+  PerpsControllerCalculateLiquidationPriceAction,
+  PerpsControllerCalculateMaintenanceMarginAction,
+  PerpsControllerCancelOrderAction,
+  PerpsControllerCancelOrdersAction,
+  PerpsControllerClearDepositResultAction,
+  PerpsControllerClearPendingTradeConfigurationAction,
+  PerpsControllerClearPendingTransactionRequestsAction,
+  PerpsControllerClearWithdrawResultAction,
+  PerpsControllerClosePositionAction,
+  PerpsControllerClosePositionsAction,
+  PerpsControllerClearAttributionContextAction,
+  PerpsControllerCompleteWithdrawalFromHistoryAction,
+  PerpsControllerDepositWithConfirmationAction,
+  PerpsControllerDepositWithOrderAction,
+  PerpsControllerDisconnectAction,
+  PerpsControllerEditOrderAction,
+  PerpsControllerFetchHistoricalCandlesAction,
+  PerpsControllerFlipPositionAction,
+  PerpsControllerGetAccountStateAction,
+  PerpsControllerGetActiveProviderAction,
+  PerpsControllerGetActiveProviderOrNullAction,
+  PerpsControllerGetAttributionContextAction,
+  PerpsControllerGetAvailableDexsAction,
+  PerpsControllerGetBlockExplorerUrlAction,
+  PerpsControllerGetCachedMarketDataForActiveProviderAction,
+  PerpsControllerGetCachedUserDataForActiveProviderAction,
+  PerpsControllerGetCurrentNetworkAction,
+  PerpsControllerGetFundingAction,
+  PerpsControllerGetHistoricalPortfolioAction,
+  PerpsControllerGetMarketDataWithPricesAction,
+  PerpsControllerGetMarketFilterPreferencesAction,
+  PerpsControllerGetMarketCategoriesAction,
+  PerpsControllerGetMarketsAction,
+  PerpsControllerGetMaxLeverageAction,
+  PerpsControllerGetOpenOrdersAction,
+  PerpsControllerGetOrderBookGroupingAction,
+  PerpsControllerGetOrderFillsAction,
+  PerpsControllerGetOrdersAction,
+  PerpsControllerGetPendingTradeConfigurationAction,
+  PerpsControllerGetPositionsAction,
+  PerpsControllerGetTradeConfigurationAction,
+  PerpsControllerGetRecentlyViewedMarketsAction,
+  PerpsControllerGetWatchlistMarketsAction,
+  PerpsControllerGetWebSocketConnectionStateAction,
+  PerpsControllerGetWithdrawalProgressAction,
+  PerpsControllerGetWithdrawalRoutesAction,
+  PerpsControllerInitAction,
+  PerpsControllerIsCurrentlyReinitializingAction,
+  PerpsControllerIsFirstTimeUserOnCurrentNetworkAction,
+  PerpsControllerIsWatchlistMarketAction,
+  PerpsControllerMarkFirstOrderCompletedAction,
+  PerpsControllerMarkTutorialCompletedAction,
+  PerpsControllerPlaceOrderAction,
+  PerpsControllerReconnectAction,
+  PerpsControllerRecordMarketViewedAction,
+  PerpsControllerRefreshEligibilityAction,
+  PerpsControllerResetFirstTimeUserStateAction,
+  PerpsControllerResetSelectedPaymentTokenAction,
+  PerpsControllerSaveMarketFilterPreferencesAction,
+  PerpsControllerSaveOrderBookGroupingAction,
+  PerpsControllerSavePendingTradeConfigurationAction,
+  PerpsControllerSaveTradeConfigurationAction,
+  PerpsControllerSetAttributionContextAction,
+  PerpsControllerSetLiveDataConfigAction,
+  PerpsControllerSetSelectedPaymentTokenAction,
+  PerpsControllerStartEligibilityMonitoringAction,
+  PerpsControllerStartMarketDataPreloadAction,
+  PerpsControllerStopEligibilityMonitoringAction,
+  PerpsControllerStopMarketDataPreloadAction,
+  PerpsControllerSubscribeToAccountAction,
+  PerpsControllerSubscribeToCandlesAction,
+  PerpsControllerSubscribeToConnectionStateAction,
+  PerpsControllerSubscribeToOICapsAction,
+  PerpsControllerSubscribeToOrderBookAction,
+  PerpsControllerSubscribeToOrderFillsAction,
+  PerpsControllerSubscribeToOrdersAction,
+  PerpsControllerSubscribeToPositionsAction,
+  PerpsControllerSubscribeToPricesAction,
+  PerpsControllerSwitchProviderAction,
+  PerpsControllerToggleTestnetAction,
+  PerpsControllerToggleWatchlistMarketAction,
+  PerpsControllerUpdateMarginAction,
+  PerpsControllerUpdatePositionTPSLAction,
+  PerpsControllerUpdateWithdrawalProgressAction,
+  PerpsControllerUpdateWithdrawalStatusAction,
+  PerpsControllerValidateClosePositionAction,
+  PerpsControllerValidateOrderAction,
+  PerpsControllerValidateWithdrawalAction,
+  PerpsControllerWithdrawAction,
+} from './PerpsController-method-action-types';
 
 // Provider interfaces and implementations
 export { HyperLiquidProvider } from './providers/HyperLiquidProvider';
 
 // Type definitions (explicit named exports)
-export { WebSocketConnectionState, PerpsAnalyticsEvent } from './types';
+export {
+  WebSocketConnectionState,
+  PerpsAnalyticsEvent,
+  MARKET_CATEGORIES,
+  MarketCategory,
+} from './types';
 export type {
   RawLedgerUpdate,
   UserHistoryItem,
@@ -108,6 +206,9 @@ export type {
   GetSupportedPathsParams,
   GetAvailableDexsParams,
   GetMarketsParams,
+  GetMarketDataWithPricesParams,
+  SortField,
+  SortDirection,
   SubscribePricesParams,
   SubscribePositionsParams,
   SubscribeOrderFillsParams,
@@ -137,6 +238,7 @@ export type {
   PerpsTraceName,
   PerpsTraceValue,
   PerpsAnalyticsProperties,
+  PerpsAttributionContext,
   PerpsMetrics,
   PerpsDebugLogger,
   PerpsStreamManager,
@@ -148,6 +250,8 @@ export type {
   PerpsInternalAccount,
   PerpsRemoteFeatureFlagState,
   PerpsPlatformDependencies,
+  PerpsTerminalMarketService,
+  TerminalAssetMetadata,
   PerpsCacheType,
   InvalidateCacheParams,
   PerpsCacheInvalidator,
@@ -322,6 +426,7 @@ export {
   WITHDRAWAL_CONSTANTS,
   VALIDATION_THRESHOLDS,
   ORDER_SLIPPAGE_CONFIG,
+  MAX_SLIPPAGE_BOUNDS,
   PERFORMANCE_CONFIG,
   TP_SL_CONFIG,
   HYPERLIQUID_ORDER_LIMITS,
@@ -331,6 +436,7 @@ export {
   DECIMAL_PRECISION_CONFIG,
   MARKET_SORTING_CONFIG,
   PROVIDER_CONFIG,
+  FUNDING_RATE_CONFIG,
 } from './constants';
 export type { SortOptionId } from './constants';
 
@@ -343,7 +449,7 @@ export {
   aggregateAccountStates,
 } from './utils';
 export type { ReturnOnEquityInput } from './utils';
-export { ensureError } from './utils';
+export { ensureError, isAbortError } from './utils';
 export type {
   OrderBookCacheEntry,
   ProcessL2BookDataParams,
@@ -372,20 +478,16 @@ export {
 } from './utils';
 export {
   calculateOpenInterestUSD,
+  isMarketTradable,
   transformMarketData,
   formatChange,
 } from './utils';
 export type { HyperLiquidMarketData } from './utils';
 export {
-  adaptMarketFromMYX,
-  adaptPriceFromMYX,
-  adaptMarketDataFromMYX,
-  filterMYXExclusiveMarkets,
-  isOverlappingMarket,
-  buildPoolSymbolMap,
-  buildSymbolPoolsMap,
-  extractSymbolFromPoolId,
-} from './utils';
+  getPerpsConnectionAttemptContext,
+  withPerpsConnectionAttemptContext,
+} from './utils/perpsConnectionAttemptContext';
+export type { PerpsConnectionAttemptContext } from './utils/perpsConnectionAttemptContext';
 export {
   MAX_MARKET_PATTERN_LENGTH,
   escapeRegex,
@@ -398,7 +500,14 @@ export {
   calculateFundingCountdown,
   calculate24hHighLow,
   filterMarketsByQuery,
+  matchesCategory,
+  getMarketTypeFilter,
+  applyMarketFilters,
+  isHip3Market,
+  rankMarketsByQuery,
+  getMarketMatchRank,
 } from './utils';
+export { MarketMatchRank } from './utils';
 export type { MarketPatternMatcher, CompiledMarketPattern } from './utils';
 export type {
   OrderCalculationsDebugLogger,
@@ -427,7 +536,7 @@ export {
   hasExceededSignificantFigures,
   roundToSignificantFigures,
 } from './utils';
-export type { SortField, SortDirection, SortMarketsParams } from './utils';
+export type { SortMarketsParams } from './utils';
 export { parseVolume, sortMarkets } from './utils';
 export type { StandaloneInfoClientOptions } from './utils';
 export {
@@ -452,6 +561,18 @@ export {
   adaptHyperLiquidLedgerUpdateToUserHistoryItem,
 } from './utils';
 export { getEnvironment } from './utils';
+export type { FiatRangeConfig } from './utils';
+export {
+  PRICE_THRESHOLD,
+  formatWithSignificantDigits,
+  PRICE_RANGES_MINIMAL_VIEW,
+  PRICE_RANGES_UNIVERSAL,
+  formatPerpsFiat,
+  formatPositionSize,
+  formatPnl,
+  formatPercentage,
+  formatFundingRate,
+} from './utils';
 
 // Error codes (explicit named exports)
 export { PERPS_ERROR_CODES } from './perpsErrorCodes';
@@ -463,6 +584,7 @@ export {
   selectHasPlacedFirstOrder,
   selectWatchlistMarkets,
   selectIsWatchlistMarket,
+  selectRecentlyViewedMarkets,
   selectTradeConfiguration,
   selectPendingTradeConfiguration,
   selectMarketFilterPreferences,

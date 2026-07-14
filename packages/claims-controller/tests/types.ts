@@ -1,10 +1,10 @@
-import type { RootControllerMessenger } from './mocks/messenger';
 import type {
   ClaimsController,
   ClaimsControllerMessenger,
   ClaimsControllerOptions,
 } from '../src/ClaimsController';
 import type { ClaimsControllerState } from '../src/types';
+import type { RootControllerMessenger } from './mocks/messenger';
 
 /**
  * Helper function to create controller with options.

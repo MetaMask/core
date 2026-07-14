@@ -9,6 +9,7 @@ import type {
   ControllerEvents,
   ControllerGetStateAction,
   ControllerStateChangeEvent,
+  ControllerStateChangedEvent,
   StatePropertyMetadata,
 } from './BaseController';
 import { BaseController, deriveStateFromMetadata } from './BaseController';
@@ -24,10 +25,15 @@ export type CountControllerAction = ControllerGetStateAction<
   CountControllerState
 >;
 
-export type CountControllerEvent = ControllerStateChangeEvent<
-  typeof countControllerName,
-  CountControllerState
->;
+export type CountControllerEvent =
+  | ControllerStateChangedEvent<
+      typeof countControllerName,
+      CountControllerState
+    >
+  | ControllerStateChangeEvent<
+      typeof countControllerName,
+      CountControllerState
+    >;
 
 export const countControllerStateMetadata = {
   count: {
@@ -100,7 +106,7 @@ type MessagesControllerAction = ControllerGetStateAction<
   MessagesControllerState
 >;
 
-type MessagesControllerEvent = ControllerStateChangeEvent<
+type MessagesControllerEvent = ControllerStateChangedEvent<
   typeof messagesControllerName,
   MessagesControllerState
 >;
@@ -370,178 +376,207 @@ describe('BaseController', () => {
     expect(controller.state).toStrictEqual({ count: 0 });
   });
 
-  it('should inform subscribers of state changes as a result of applying patches', () => {
-    const messenger = getCountMessenger();
-    const controller = new CountController({
-      messenger,
-      name: 'CountController',
-      state: { count: 0 },
-      metadata: countControllerStateMetadata,
-    });
-    const listener1 = jest.fn();
+  for (const eventName of [
+    'CountController:stateChanged',
+    'CountController:stateChange',
+  ] as const) {
+    const shortEventName = eventName.replace(/^(.+)(:.+)$/u, '$2');
 
-    messenger.subscribe('CountController:stateChange', listener1);
-    const { inversePatches } = controller.update(() => {
-      return { count: 1 };
-    });
+    it(`should inform subscribers of state changes via ${shortEventName} as a result of applying patches`, () => {
+      const messenger = getCountMessenger();
+      const controller = new CountController({
+        messenger,
+        name: 'CountController',
+        state: { count: 0 },
+        metadata: countControllerStateMetadata,
+      });
+      const listener1 = jest.fn();
 
-    controller.applyPatches(inversePatches);
+      messenger.subscribe(eventName, listener1);
+      const { inversePatches } = controller.update(() => {
+        return { count: 1 };
+      });
 
-    expect(listener1).toHaveBeenCalledTimes(2);
-    expect(listener1.mock.calls[0]).toStrictEqual([
-      { count: 1 },
-      [{ op: 'replace', path: [], value: { count: 1 } }],
-    ]);
+      controller.applyPatches(inversePatches);
 
-    expect(listener1.mock.calls[1]).toStrictEqual([
-      { count: 0 },
-      [{ op: 'replace', path: [], value: { count: 0 } }],
-    ]);
-  });
+      expect(listener1).toHaveBeenCalledTimes(2);
+      expect(listener1.mock.calls[0]).toStrictEqual([
+        { count: 1 },
+        [{ op: 'replace', path: [], value: { count: 1 } }],
+      ]);
 
-  it('should inform subscribers of state changes', () => {
-    const messenger = getCountMessenger();
-    const controller = new CountController({
-      messenger,
-      name: 'CountController',
-      state: { count: 0 },
-      metadata: countControllerStateMetadata,
-    });
-    const listener1 = jest.fn();
-    const listener2 = jest.fn();
-
-    messenger.subscribe('CountController:stateChange', listener1);
-    messenger.subscribe('CountController:stateChange', listener2);
-    controller.update(() => {
-      return { count: 1 };
+      expect(listener1.mock.calls[1]).toStrictEqual([
+        { count: 0 },
+        [{ op: 'replace', path: [], value: { count: 0 } }],
+      ]);
     });
 
-    expect(listener1).toHaveBeenCalledTimes(1);
-    expect(listener1.mock.calls[0]).toStrictEqual([
-      { count: 1 },
-      [{ op: 'replace', path: [], value: { count: 1 } }],
-    ]);
-    expect(listener2).toHaveBeenCalledTimes(1);
-    expect(listener2.mock.calls[0]).toStrictEqual([
-      { count: 1 },
-      [{ op: 'replace', path: [], value: { count: 1 } }],
-    ]);
-  });
+    it(`should inform subscribers of state changes via ${shortEventName}`, () => {
+      const messenger = getCountMessenger();
+      const controller = new CountController({
+        messenger,
+        name: 'CountController',
+        state: { count: 0 },
+        metadata: countControllerStateMetadata,
+      });
+      const listener1 = jest.fn();
+      const listener2 = jest.fn();
 
-  it('should notify a subscriber with a selector of state changes', () => {
-    const messenger = getCountMessenger();
-    const controller = new CountController({
-      messenger,
-      name: 'CountController',
-      state: { count: 0 },
-      metadata: countControllerStateMetadata,
-    });
-    const listener = jest.fn();
-    messenger.subscribe(
-      'CountController:stateChange',
-      listener,
-      ({ count }) => {
-        // Selector rounds down to nearest multiple of 10
-        return Math.floor(count / 10);
-      },
-    );
+      messenger.subscribe(eventName, listener1);
+      messenger.subscribe(eventName, listener2);
+      controller.update(() => {
+        return { count: 1 };
+      });
 
-    controller.update(() => {
-      return { count: 10 };
+      expect(listener1).toHaveBeenCalledTimes(1);
+      expect(listener1.mock.calls[0]).toStrictEqual([
+        { count: 1 },
+        [{ op: 'replace', path: [], value: { count: 1 } }],
+      ]);
+      expect(listener2).toHaveBeenCalledTimes(1);
+      expect(listener2.mock.calls[0]).toStrictEqual([
+        { count: 1 },
+        [{ op: 'replace', path: [], value: { count: 1 } }],
+      ]);
     });
 
-    expect(listener).toHaveBeenCalledTimes(1);
-    expect(listener.mock.calls[0]).toStrictEqual([1, 0]);
-  });
+    it(`should notify a subscriber with a selector of state changes via ${shortEventName}`, () => {
+      const messenger = getCountMessenger();
+      const controller = new CountController({
+        messenger,
+        name: 'CountController',
+        state: { count: 0 },
+        metadata: countControllerStateMetadata,
+      });
+      const listener = jest.fn();
+      messenger.subscribe(
+        eventName,
+        listener,
+        ({ count }: CountControllerState) => {
+          // Selector rounds down to nearest multiple of 10
+          return Math.floor(count / 10);
+        },
+      );
 
-  it('should not inform a subscriber of state changes if the selected value is unchanged', () => {
-    const messenger = getCountMessenger();
-    const controller = new CountController({
-      messenger,
-      name: 'CountController',
-      state: { count: 0 },
-      metadata: countControllerStateMetadata,
-    });
-    const listener = jest.fn();
-    messenger.subscribe(
-      'CountController:stateChange',
-      listener,
-      ({ count }) => {
-        // Selector rounds down to nearest multiple of 10
-        return Math.floor(count / 10);
-      },
-    );
+      controller.update(() => {
+        return { count: 10 };
+      });
 
-    controller.update(() => {
-      // Note that this rounds down to zero, so the selected value is still zero
-      return { count: 1 };
-    });
-
-    expect(listener).toHaveBeenCalledTimes(0);
-  });
-
-  it('should inform a subscriber of each state change once even after multiple subscriptions', () => {
-    const messenger = getCountMessenger();
-    const controller = new CountController({
-      messenger,
-      name: 'CountController',
-      state: { count: 0 },
-      metadata: countControllerStateMetadata,
-    });
-    const listener1 = jest.fn();
-
-    messenger.subscribe('CountController:stateChange', listener1);
-    messenger.subscribe('CountController:stateChange', listener1);
-
-    controller.update(() => {
-      return { count: 1 };
+      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener.mock.calls[0]).toStrictEqual([1, 0]);
     });
 
-    expect(listener1).toHaveBeenCalledTimes(1);
-    expect(listener1.mock.calls[0]).toStrictEqual([
-      { count: 1 },
-      [{ op: 'replace', path: [], value: { count: 1 } }],
-    ]);
-  });
+    it(`should not inform a subscriber of state changes via ${shortEventName} if the selected value is unchanged`, () => {
+      const messenger = getCountMessenger();
+      const controller = new CountController({
+        messenger,
+        name: 'CountController',
+        state: { count: 0 },
+        metadata: countControllerStateMetadata,
+      });
+      const listener = jest.fn();
+      messenger.subscribe(
+        eventName,
+        listener,
+        ({ count }: CountControllerState) => {
+          // Selector rounds down to nearest multiple of 10
+          return Math.floor(count / 10);
+        },
+      );
 
-  it('should no longer inform a subscriber about state changes after unsubscribing', () => {
-    const messenger = getCountMessenger();
-    const controller = new CountController({
-      messenger,
-      name: 'CountController',
-      state: { count: 0 },
-      metadata: countControllerStateMetadata,
-    });
-    const listener1 = jest.fn();
+      controller.update(() => {
+        // Note that this rounds down to zero, so the selected value is still zero
+        return { count: 1 };
+      });
 
-    messenger.subscribe('CountController:stateChange', listener1);
-    messenger.unsubscribe('CountController:stateChange', listener1);
-    controller.update(() => {
-      return { count: 1 };
-    });
-
-    expect(listener1).toHaveBeenCalledTimes(0);
-  });
-
-  it('should no longer inform a subscriber about state changes after unsubscribing once, even if they subscribed many times', () => {
-    const messenger = getCountMessenger();
-    const controller = new CountController({
-      messenger,
-      name: 'CountController',
-      state: { count: 0 },
-      metadata: countControllerStateMetadata,
-    });
-    const listener1 = jest.fn();
-
-    messenger.subscribe('CountController:stateChange', listener1);
-    messenger.subscribe('CountController:stateChange', listener1);
-    messenger.unsubscribe('CountController:stateChange', listener1);
-    controller.update(() => {
-      return { count: 1 };
+      expect(listener).toHaveBeenCalledTimes(0);
     });
 
-    expect(listener1).toHaveBeenCalledTimes(0);
-  });
+    it(`should inform a subscriber of each state change via ${shortEventName} once even after multiple subscriptions`, () => {
+      const messenger = getCountMessenger();
+      const controller = new CountController({
+        messenger,
+        name: 'CountController',
+        state: { count: 0 },
+        metadata: countControllerStateMetadata,
+      });
+      const listener1 = jest.fn();
+
+      messenger.subscribe(eventName, listener1);
+      messenger.subscribe(eventName, listener1);
+
+      controller.update(() => {
+        return { count: 1 };
+      });
+
+      expect(listener1).toHaveBeenCalledTimes(1);
+      expect(listener1.mock.calls[0]).toStrictEqual([
+        { count: 1 },
+        [{ op: 'replace', path: [], value: { count: 1 } }],
+      ]);
+    });
+
+    it(`should no longer inform a subscriber about state changes via ${shortEventName} after unsubscribing`, () => {
+      const messenger = getCountMessenger();
+      const controller = new CountController({
+        messenger,
+        name: 'CountController',
+        state: { count: 0 },
+        metadata: countControllerStateMetadata,
+      });
+      const listener1 = jest.fn();
+
+      messenger.subscribe(eventName, listener1);
+      messenger.unsubscribe(eventName, listener1);
+      controller.update(() => {
+        return { count: 1 };
+      });
+
+      expect(listener1).toHaveBeenCalledTimes(0);
+    });
+
+    it(`should no longer inform a subscriber about state changes via ${shortEventName} after unsubscribing once, even if they subscribed many times`, () => {
+      const messenger = getCountMessenger();
+      const controller = new CountController({
+        messenger,
+        name: 'CountController',
+        state: { count: 0 },
+        metadata: countControllerStateMetadata,
+      });
+      const listener1 = jest.fn();
+
+      messenger.subscribe(eventName, listener1);
+      messenger.subscribe(eventName, listener1);
+      messenger.unsubscribe(eventName, listener1);
+      controller.update(() => {
+        return { count: 1 };
+      });
+
+      expect(listener1).toHaveBeenCalledTimes(0);
+    });
+
+    it(`should no longer update subscribers via ${shortEventName} after being destroyed`, () => {
+      const messenger = getCountMessenger();
+      const controller = new CountController({
+        messenger,
+        name: 'CountController',
+        state: { count: 0 },
+        metadata: countControllerStateMetadata,
+      });
+      const listener1 = jest.fn();
+      const listener2 = jest.fn();
+
+      messenger.subscribe(eventName, listener1);
+      messenger.subscribe(eventName, listener2);
+      controller.destroy();
+      controller.update(() => {
+        return { count: 1 };
+      });
+
+      expect(listener1).toHaveBeenCalledTimes(0);
+      expect(listener2).toHaveBeenCalledTimes(0);
+    });
+  }
 
   it('should throw when unsubscribing listener who was never subscribed', () => {
     const messenger = getCountMessenger();
@@ -556,30 +591,10 @@ describe('BaseController', () => {
     const listener1 = jest.fn();
 
     expect(() => {
-      messenger.unsubscribe('CountController:stateChange', listener1);
-    }).toThrow('Subscription not found for event: CountController:stateChange');
-  });
-
-  it('should no longer update subscribers after being destroyed', () => {
-    const messenger = getCountMessenger();
-    const controller = new CountController({
-      messenger,
-      name: 'CountController',
-      state: { count: 0 },
-      metadata: countControllerStateMetadata,
-    });
-    const listener1 = jest.fn();
-    const listener2 = jest.fn();
-
-    messenger.subscribe('CountController:stateChange', listener1);
-    messenger.subscribe('CountController:stateChange', listener2);
-    controller.destroy();
-    controller.update(() => {
-      return { count: 1 };
-    });
-
-    expect(listener1).toHaveBeenCalledTimes(0);
-    expect(listener2).toHaveBeenCalledTimes(0);
+      messenger.unsubscribe('CountController:stateChanged', listener1);
+    }).toThrow(
+      'Subscription not found for event: CountController:stateChanged',
+    );
   });
 
   describe('inter-controller communication', () => {
@@ -598,15 +613,15 @@ describe('BaseController', () => {
       handler: () => void;
     };
     type VisitorExternalActions = VisitorOverflowUpdateMaxAction;
-    type VisitorControllerActions =
-      | VisitorControllerClearAction
-      | ControllerActions<typeof visitorName, VisitorControllerState>;
-    type VisitorControllerStateChangeEvent = ControllerEvents<
+    type VisitorControllerStateChangedEvent = ControllerStateChangedEvent<
       typeof visitorName,
       VisitorControllerState
     >;
-    type VisitorExternalEvents = VisitorOverflowStateChangeEvent;
-    type VisitorControllerEvents = VisitorControllerStateChangeEvent;
+    type VisitorControllerActions =
+      | VisitorControllerClearAction
+      | ControllerActions<typeof visitorName, VisitorControllerState>;
+    type VisitorExternalEvents = VisitorOverflowStateChangedEvent;
+    type VisitorControllerEvents = VisitorControllerStateChangedEvent;
 
     const visitorControllerStateMetadata = {
       visitors: {
@@ -671,12 +686,12 @@ describe('BaseController', () => {
           typeof visitorOverflowName,
           VisitorOverflowControllerState
         >;
-    type VisitorOverflowStateChangeEvent = ControllerEvents<
+    type VisitorOverflowStateChangedEvent = ControllerEvents<
       typeof visitorOverflowName,
       VisitorOverflowControllerState
     >;
-    type VisitorOverflowExternalEvents = VisitorControllerStateChangeEvent;
-    type VisitorOverflowControllerEvents = VisitorOverflowStateChangeEvent;
+    type VisitorOverflowExternalEvents = VisitorControllerStateChangedEvent;
+    type VisitorOverflowControllerEvents = VisitorOverflowStateChangedEvent;
 
     const visitorOverflowControllerMetadata = {
       maxVisitors: {
@@ -711,7 +726,7 @@ describe('BaseController', () => {
           this.updateMax,
         );
 
-        messenger.subscribe('VisitorController:stateChange', this.onVisit);
+        messenger.subscribe('VisitorController:stateChanged', this.onVisit);
       }
 
       onVisit: ({ visitors }: VisitorControllerState) => void = ({
@@ -744,24 +759,24 @@ describe('BaseController', () => {
       const visitorControllerMessenger = new Messenger<
         typeof visitorName,
         VisitorControllerActions | VisitorOverflowUpdateMaxAction,
-        VisitorControllerEvents | VisitorOverflowStateChangeEvent,
+        VisitorControllerEvents | VisitorOverflowStateChangedEvent,
         typeof rootMessenger
       >({ namespace: visitorName, parent: rootMessenger });
       const visitorOverflowControllerMessenger = new Messenger<
         typeof visitorOverflowName,
         VisitorOverflowControllerActions | VisitorControllerClearAction,
-        VisitorOverflowControllerEvents | VisitorControllerStateChangeEvent,
+        VisitorOverflowControllerEvents | VisitorControllerStateChangedEvent,
         typeof rootMessenger
       >({ namespace: visitorOverflowName, parent: rootMessenger });
       // Delegate external actions/events to controller messengers
       rootMessenger.delegate({
         actions: ['VisitorController:clear'],
-        events: ['VisitorController:stateChange'],
+        events: ['VisitorController:stateChanged'],
         messenger: visitorOverflowControllerMessenger,
       });
       rootMessenger.delegate({
         actions: ['VisitorOverflowController:updateMax'],
-        events: ['VisitorOverflowController:stateChange'],
+        events: ['VisitorOverflowController:stateChanged'],
         messenger: visitorControllerMessenger,
       });
       // Construct controllers

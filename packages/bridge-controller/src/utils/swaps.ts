@@ -1,6 +1,5 @@
 import type { Hex } from '@metamask/utils';
 
-import { formatChainIdToDec } from './caip-formatters';
 import { CHAIN_IDS } from '../constants/chains';
 import {
   ALLOWED_CONTRACT_ADDRESSES,
@@ -11,6 +10,7 @@ import {
   SWAPS_CHAINID_DEFAULT_TOKEN_MAP,
 } from '../constants/tokens';
 import type { FetchFunction } from '../types';
+import { formatChainIdToDec } from './caip-formatters';
 
 /**
  * Checks if the given contract address is valid for the given chain ID.

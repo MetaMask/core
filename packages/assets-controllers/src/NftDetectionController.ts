@@ -16,9 +16,10 @@ import {
 import type { Messenger } from '@metamask/messenger';
 import type {
   NetworkClient,
+  NetworkControllerFindNetworkClientIdByChainIdAction,
   NetworkControllerGetNetworkClientByIdAction,
-  NetworkControllerStateChangeEvent,
   NetworkControllerGetStateAction,
+  NetworkControllerStateChangeEvent,
 } from '@metamask/network-controller';
 import type {
   PreferencesControllerGetStateAction,
@@ -34,7 +35,6 @@ import type {
   NftControllerState,
   NftMetadata,
 } from './NftController';
-import type { NetworkControllerFindNetworkClientIdByChainIdAction } from '../../network-controller/src/NetworkController';
 
 const controllerName = 'NftDetectionController';
 

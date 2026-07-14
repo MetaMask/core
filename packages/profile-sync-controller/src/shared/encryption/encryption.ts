@@ -4,6 +4,7 @@ import { scryptAsync } from '@noble/hashes/scrypt';
 import { sha256 } from '@noble/hashes/sha256';
 import { utf8ToBytes, concatBytes, bytesToHex } from '@noble/hashes/utils';
 
+import type { NativeScrypt } from '../types/encryption';
 import {
   getCachedKeyBySalt,
   getCachedKeyGeneratedWithSharedSalt,
@@ -25,7 +26,6 @@ import {
   bytesToUtf8,
   stringToByteArray,
 } from './utils';
-import type { NativeScrypt } from '../types/encryption';
 
 export type EncryptedPayload = {
   // version

@@ -17,6 +17,7 @@ import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { Hex } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
+import type { CurrencyRateControllerMethodActions } from './CurrencyRateController-method-action-types';
 import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service';
 import { getNativeTokenAddress } from './token-prices-service/codefi-v2';
 
@@ -45,6 +46,11 @@ export type CurrencyRateState = {
 
 const name = 'CurrencyRateController';
 
+const MESSENGER_EXPOSED_METHODS = [
+  'setCurrentCurrency',
+  'updateExchangeRate',
+] as const;
+
 export type CurrencyRateStateChange = ControllerStateChangeEvent<
   typeof name,
   CurrencyRateState
@@ -52,12 +58,14 @@ export type CurrencyRateStateChange = ControllerStateChangeEvent<
 
 export type CurrencyRateControllerEvents = CurrencyRateStateChange;
 
-export type GetCurrencyRateState = ControllerGetStateAction<
+export type CurrencyRateControllerGetStateAction = ControllerGetStateAction<
   typeof name,
   CurrencyRateState
 >;
 
-export type CurrencyRateControllerActions = GetCurrencyRateState;
+export type CurrencyRateControllerActions =
+  | CurrencyRateControllerGetStateAction
+  | CurrencyRateControllerMethodActions;
 
 type AllowedActions =
   | NetworkControllerGetNetworkClientByIdAction
@@ -132,6 +140,8 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
 
   readonly #tokenPricesService: AbstractTokenPricesService;
 
+  readonly #isDeprecated: () => boolean;
+
   /**
    * Creates a CurrencyRateController instance.
    *
@@ -142,11 +152,18 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
    * @param options.state - Initial state to set on this controller.
    * @param options.useExternalServices - Feature Switch for using external services (default: true)
    * @param options.tokenPricesService - An object in charge of retrieving token prices
+   * @param options.isDeprecated - Optional function that returns true to completely
+   * disable this controller (no requests, no state updates). When it returns
+   * `true`, `currencyRates` is reset to `{}` at construction and at every entry point,
+   * so no stale rates remain in state. The function is evaluated dynamically
+   * on each entry point so it can be toggled at runtime. Intended for use when
+   * a higher-level controller (e.g. AssetsController) supersedes this one.
    */
   constructor({
     includeUsdRate = false,
     interval = 180000,
     useExternalServices = () => true,
+    isDeprecated = (): boolean => false,
     messenger,
     state,
     tokenPricesService,
@@ -156,6 +173,7 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
     messenger: CurrencyRateMessenger;
     state?: Partial<CurrencyRateState>;
     useExternalServices?: () => boolean;
+    isDeprecated?: () => boolean;
     tokenPricesService: AbstractTokenPricesService;
   }) {
     super({
@@ -168,6 +186,33 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
     this.#useExternalServices = useExternalServices;
     this.setIntervalLength(interval);
     this.#tokenPricesService = tokenPricesService;
+    this.#isDeprecated = isDeprecated;
+
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+    }
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
+  }
+
+  /**
+   * Clears all persisted `currencyRates` so that no stale rates remain in state.
+   *
+   * Called from every entry point when `isDeprecated()` is true so that a
+   * runtime toggle propagates to state immediately, even if the controller was
+   * originally constructed while it was enabled. The update is skipped when
+   * `currencyRates` is already empty to avoid emitting redundant state changes.
+   */
+  #enforceDisabledState(): void {
+    if (Object.keys(this.state.currencyRates).length === 0) {
+      return;
+    }
+    this.update((state) => {
+      state.currencyRates = {};
+    });
   }
 
   /**
@@ -176,6 +221,11 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
    * @param currentCurrency - ISO 4217 currency code.
    */
   async setCurrentCurrency(currentCurrency: string): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
     const releaseLock = await this.#mutex.acquire();
     const nativeCurrencies = Object.keys(this.state.currencyRates);
     try {
@@ -419,6 +469,11 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
   async updateExchangeRate(
     nativeCurrencies: (string | undefined)[],
   ): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
     if (!this.#useExternalServices()) {
       return;
     }
@@ -478,6 +533,11 @@ export class CurrencyRateController extends StaticIntervalPollingController<Curr
   async _executePoll({
     nativeCurrencies,
   }: CurrencyRatePollingInput): Promise<void> {
+    if (this.#isDeprecated()) {
+      this.#enforceDisabledState();
+      return;
+    }
+
     await this.updateExchangeRate(nativeCurrencies);
   }
 }

@@ -1094,6 +1094,8 @@ describe('RpcServiceChain', () => {
       expect(onDegradedListener).toHaveBeenCalledWith({
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
+        duration: undefined,
+        traceId: undefined,
       });
     });
 
@@ -1141,6 +1143,8 @@ describe('RpcServiceChain', () => {
       expect(onDegradedListener).toHaveBeenCalledTimes(1);
       expect(onDegradedListener).toHaveBeenCalledWith({
         rpcMethodName: 'eth_chainId',
+        duration: expect.any(Number),
+        traceId: undefined,
       });
     });
 
@@ -1216,6 +1220,8 @@ describe('RpcServiceChain', () => {
       expect(onDegradedListener).toHaveBeenCalledWith({
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
+        duration: undefined,
+        traceId: undefined,
       });
     });
 
@@ -1284,6 +1290,8 @@ describe('RpcServiceChain', () => {
       expect(onDegradedListener).toHaveBeenCalledWith({
         error: expectedDegradedError,
         rpcMethodName: 'eth_blockNumber',
+        duration: undefined,
+        traceId: undefined,
       });
     });
 
@@ -1361,6 +1369,8 @@ describe('RpcServiceChain', () => {
       expect(onDegradedListener).toHaveBeenCalledWith({
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
+        duration: undefined,
+        traceId: undefined,
       });
     });
 
@@ -1434,9 +1444,13 @@ describe('RpcServiceChain', () => {
       expect(onDegradedListener).toHaveBeenNthCalledWith(1, {
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
+        duration: undefined,
+        traceId: undefined,
       });
       expect(onDegradedListener).toHaveBeenNthCalledWith(2, {
         rpcMethodName: 'eth_chainId',
+        duration: expect.any(Number),
+        traceId: undefined,
       });
     });
 
@@ -1535,9 +1549,13 @@ describe('RpcServiceChain', () => {
       expect(onDegradedListener).toHaveBeenNthCalledWith(1, {
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
+        duration: undefined,
+        traceId: undefined,
       });
       expect(onDegradedListener).toHaveBeenNthCalledWith(2, {
         rpcMethodName: 'eth_chainId',
+        duration: expect.any(Number),
+        traceId: undefined,
       });
     });
 
@@ -1594,12 +1612,16 @@ describe('RpcServiceChain', () => {
         endpointUrl: `${endpointUrl}/`,
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
+        duration: undefined,
+        traceId: undefined,
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
+        duration: undefined,
+        traceId: undefined,
       });
     });
 
@@ -1649,11 +1671,15 @@ describe('RpcServiceChain', () => {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
         rpcMethodName: 'eth_chainId',
+        duration: expect.any(Number),
+        traceId: undefined,
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
         rpcMethodName: 'eth_chainId',
+        duration: expect.any(Number),
+        traceId: undefined,
       });
     });
 
@@ -1731,17 +1757,23 @@ describe('RpcServiceChain', () => {
         endpointUrl: `${endpointUrl}/`,
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
+        duration: undefined,
+        traceId: undefined,
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
         rpcMethodName: 'eth_chainId',
+        duration: expect.any(Number),
+        traceId: undefined,
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(3, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
+        duration: undefined,
+        traceId: undefined,
       });
     });
 
@@ -1821,17 +1853,23 @@ describe('RpcServiceChain', () => {
         endpointUrl: `${primaryEndpointUrl}/`,
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
+        duration: undefined,
+        traceId: undefined,
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${primaryEndpointUrl}/`,
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
+        duration: undefined,
+        traceId: undefined,
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(3, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${secondaryEndpointUrl}/`,
         rpcMethodName: 'eth_chainId',
+        duration: expect.any(Number),
+        traceId: undefined,
       });
     });
 
@@ -1907,17 +1945,23 @@ describe('RpcServiceChain', () => {
         endpointUrl: `${endpointUrl}/`,
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
+        duration: undefined,
+        traceId: undefined,
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
+        duration: undefined,
+        traceId: undefined,
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(3, {
         primaryEndpointUrl: `${endpointUrl}/`,
         endpointUrl: `${endpointUrl}/`,
         rpcMethodName: 'eth_chainId',
+        duration: expect.any(Number),
+        traceId: undefined,
       });
     });
 
@@ -2018,29 +2062,135 @@ describe('RpcServiceChain', () => {
         endpointUrl: `${primaryEndpointUrl}/`,
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
+        duration: undefined,
+        traceId: undefined,
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(2, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${primaryEndpointUrl}/`,
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
+        duration: undefined,
+        traceId: undefined,
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(3, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${secondaryEndpointUrl}/`,
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
+        duration: undefined,
+        traceId: undefined,
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(4, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${secondaryEndpointUrl}/`,
         error: expectedDegradedError,
         rpcMethodName: 'eth_chainId',
+        duration: undefined,
+        traceId: undefined,
       });
       expect(onServiceDegradedListener).toHaveBeenNthCalledWith(5, {
         primaryEndpointUrl: `${primaryEndpointUrl}/`,
         endpointUrl: `${primaryEndpointUrl}/`,
         rpcMethodName: 'eth_chainId',
+        duration: expect.any(Number),
+        traceId: undefined,
+      });
+    });
+
+    it('forwards duration and traceId from the underlying service via onDegraded', async () => {
+      const endpointUrl = 'https://some.endpoint';
+      nock(endpointUrl)
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .reply(
+          200,
+          () => {
+            jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
+            return {
+              id: 1,
+              jsonrpc: '2.0',
+              result: '0x1',
+            };
+          },
+          { 'x-trace-id': 'some-trace' },
+        );
+      const rpcServiceChain = new RpcServiceChain([
+        {
+          fetch,
+          btoa,
+          isOffline: (): boolean => false,
+          endpointUrl,
+        },
+      ]);
+      const onDegradedListener = jest.fn();
+      rpcServiceChain.onDegraded(onDegradedListener);
+
+      await rpcServiceChain.request({
+        id: 1,
+        jsonrpc: '2.0' as const,
+        method: 'eth_chainId',
+        params: [],
+      });
+
+      expect(onDegradedListener).toHaveBeenCalledTimes(1);
+      expect(onDegradedListener).toHaveBeenCalledWith({
+        rpcMethodName: 'eth_chainId',
+        duration: expect.any(Number),
+        traceId: 'some-trace',
+      });
+    });
+
+    it('forwards duration and traceId from the underlying service via onServiceDegraded', async () => {
+      const endpointUrl = 'https://some.endpoint';
+      nock(endpointUrl)
+        .post('/', {
+          id: 1,
+          jsonrpc: '2.0',
+          method: 'eth_chainId',
+          params: [],
+        })
+        .reply(
+          200,
+          () => {
+            jest.advanceTimersByTime(DEFAULT_DEGRADED_THRESHOLD + 1);
+            return {
+              id: 1,
+              jsonrpc: '2.0',
+              result: '0x1',
+            };
+          },
+          { 'x-trace-id': 'some-trace' },
+        );
+      const rpcServiceChain = new RpcServiceChain([
+        {
+          fetch,
+          btoa,
+          isOffline: (): boolean => false,
+          endpointUrl,
+        },
+      ]);
+      const onServiceDegradedListener = jest.fn();
+      rpcServiceChain.onServiceDegraded(onServiceDegradedListener);
+
+      await rpcServiceChain.request({
+        id: 1,
+        jsonrpc: '2.0' as const,
+        method: 'eth_chainId',
+        params: [],
+      });
+
+      expect(onServiceDegradedListener).toHaveBeenCalledTimes(1);
+      expect(onServiceDegradedListener).toHaveBeenCalledWith({
+        primaryEndpointUrl: `${endpointUrl}/`,
+        endpointUrl: `${endpointUrl}/`,
+        rpcMethodName: 'eth_chainId',
+        duration: expect.any(Number),
+        traceId: 'some-trace',
       });
     });
 
@@ -2213,6 +2363,8 @@ describe('RpcServiceChain', () => {
       expect(onDegradedListener).toHaveBeenCalledTimes(1);
       expect(onDegradedListener).toHaveBeenCalledWith({
         rpcMethodName: 'eth_chainId',
+        duration: expect.any(Number),
+        traceId: undefined,
       });
 
       // Verify recovery occurred after the second (fast) request

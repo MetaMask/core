@@ -10,3 +10,4 @@ export * from './SolAccountProvider';
 export * from './EvmAccountProvider';
 export * from './BtcAccountProvider';
 export * from './TrxAccountProvider';
+export * from './XlmAccountProvider';

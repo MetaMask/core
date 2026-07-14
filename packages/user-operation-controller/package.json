@@ -1,21 +1,26 @@
 {
   "name": "@metamask/user-operation-controller",
-  "version": "41.1.1",
+  "version": "41.2.7",
   "description": "Creates user operations and manages their life cycle",
   "keywords": [
-    "MetaMask",
-    "Ethereum"
+    "Ethereum",
+    "MetaMask"
   ],
   "homepage": "https://github.com/MetaMask/core/tree/main/packages/user-operation-controller#readme",
   "bugs": {
     "url": "https://github.com/MetaMask/core/issues"
   },
+  "license": "MIT",
   "repository": {
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
-  "license": "MIT",
+  "files": [
+    "dist/"
+  ],
   "sideEffects": false,
+  "main": "./dist/index.cjs",
+  "types": "./dist/index.d.cts",
   "exports": {
     ".": {
       "import": {
@@ -29,18 +34,18 @@
     },
     "./package.json": "./package.json"
   },
-  "main": "./dist/index.cjs",
-  "types": "./dist/index.d.cts",
-  "files": [
-    "dist/"
-  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
     "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
     "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/user-operation-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/user-operation-controller",
-    "generate-method-action-types": "tsx ../../scripts/generate-method-action-types.ts",
+    "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --check",
+    "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --generate",
     "prepare-manifest:preview": "../../scripts/prepare-preview-manifest.sh",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
@@ -49,26 +54,26 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/approval-controller": "^9.0.1",
-    "@metamask/base-controller": "^9.0.1",
-    "@metamask/controller-utils": "^11.19.0",
+    "@metamask/approval-controller": "^9.0.2",
+    "@metamask/base-controller": "^9.1.0",
+    "@metamask/controller-utils": "^12.3.0",
     "@metamask/eth-query": "^4.0.0",
-    "@metamask/gas-fee-controller": "^26.1.1",
-    "@metamask/keyring-controller": "^25.1.1",
-    "@metamask/messenger": "^1.0.0",
-    "@metamask/network-controller": "^30.0.1",
-    "@metamask/polling-controller": "^16.0.4",
+    "@metamask/gas-fee-controller": "^26.2.4",
+    "@metamask/keyring-controller": "^27.1.0",
+    "@metamask/messenger": "^2.0.0",
+    "@metamask/network-controller": "^34.0.0",
+    "@metamask/polling-controller": "^16.0.8",
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/superstruct": "^3.1.0",
-    "@metamask/transaction-controller": "^63.3.1",
-    "@metamask/utils": "^11.9.0",
+    "@metamask/transaction-controller": "^69.0.0",
+    "@metamask/utils": "^11.11.0",
     "bn.js": "^5.2.1",
     "immer": "^9.0.6",
     "lodash": "^4.17.21",
     "uuid": "^8.3.2"
   },
   "devDependencies": {
-    "@metamask/auto-changelog": "^3.4.4",
+    "@metamask/auto-changelog": "^6.1.0",
     "@metamask/eth-block-tracker": "^15.0.0",
     "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
@@ -85,9 +90,5 @@
   },
   "engines": {
     "node": "^18.18 || >=20"
-  },
-  "publishConfig": {
-    "access": "public",
-    "registry": "https://registry.npmjs.org/"
   }
 }

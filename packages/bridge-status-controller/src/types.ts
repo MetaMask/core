@@ -4,16 +4,21 @@ import type {
   ControllerStateChangeEvent,
 } from '@metamask/base-controller';
 import type {
-  BridgeBackgroundAction,
-  BridgeControllerAction,
   ChainId,
   FeatureId,
   Quote,
   QuoteMetadata,
   QuoteResponse,
   MetaMetricsSwapsEventSource,
+  SimulatedGasFeeLimits,
+  TxData,
+  TxFeeGasLimits,
+  BridgeControllerTrackUnifiedSwapBridgeEventAction,
+  BridgeControllerStopPollingForQuotesAction,
+  BatchSellTradesResponse,
+  BridgeControllerGetStateAction,
+  InputPrimaryDenomination,
 } from '@metamask/bridge-controller';
-import type { GetGasFeeState } from '@metamask/gas-fee-controller';
 import type { KeyringControllerSignTypedMessageAction } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
 import type {
@@ -22,6 +27,7 @@ import type {
   NetworkControllerGetStateAction,
 } from '@metamask/network-controller';
 import type { AuthenticationControllerGetBearerTokenAction } from '@metamask/profile-sync-controller/auth';
+import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { Infer } from '@metamask/superstruct';
 import type {
@@ -29,16 +35,18 @@ import type {
   TransactionControllerEstimateGasFeeAction,
   TransactionControllerGetStateAction,
   TransactionControllerIsAtomicBatchSupportedAction,
-  TransactionControllerTransactionConfirmedEvent,
-  TransactionControllerTransactionFailedEvent,
+  TransactionControllerTransactionStatusUpdatedEvent,
+  TransactionControllerTransactionSubmittedEvent,
   TransactionControllerUpdateTransactionAction,
   TransactionMeta,
+  TransactionType,
 } from '@metamask/transaction-controller';
 import type { CaipAssetType } from '@metamask/utils';
 
-import type { BridgeStatusController } from './bridge-status-controller';
+import type { BridgeStatusControllerMethodActions } from './bridge-status-controller-method-action-types';
 import { BRIDGE_STATUS_CONTROLLER_NAME } from './constants';
-import type { StatusResponseSchema } from './utils/validators';
+import { QuoteStatusState } from './quote-status-manager/constants';
+import { StatusResponseSchema } from './utils/validators';
 
 // All fields need to be types not interfaces, same with their children fields
 // o/w you get a type error
@@ -106,6 +114,28 @@ export type StatusResponse = Infer<typeof StatusResponseSchema>;
 
 export type RefuelStatusResponse = object & StatusResponse;
 
+/**
+ * This type ties together the quote, its tx params and the submitted txMeta.
+ * Each trade/approval will have its own QuoteAndTxMetadata object.
+ */
+export type QuoteAndTxMetadata = {
+  type: TransactionType;
+  quoteResponse: QuoteResponse & QuoteMetadata;
+  /**
+   * The approval or trade object from the quote response
+   */
+  tx: TxData;
+  assetsFiatValues?: { sending?: string; receiving?: string };
+  /**
+   * The simulated gas fee limits for the transaction provided by the bridge-api
+   */
+  txFee?: SimulatedGasFeeLimits | TxFeeGasLimits;
+  /**
+   * Transaction metadata from the TransactionController after submission
+   */
+  txMeta?: TransactionMeta;
+};
+
 export type BridgeHistoryItem = {
   txMetaId?: string; // Optional: not available pre-submission or on sync failure
   actionId?: string; // Only for non-batch EVM transactions
@@ -114,9 +144,21 @@ export type BridgeHistoryItem = {
    */
   originalTransactionId?: string; // Keep original transaction ID for intent transactions
   batchId?: string;
+  /**
+   * This is defined when the history item is for a batch sell transaction
+   */
+  batchSellData?: BatchSellTradesResponse;
+  /**
+   * This is defined when the history item corresponds to the 7702 batch's delegation tx.
+   * It contains the list of quoteIds for the BatchSell quotes that are part of the 7702 batch.
+   * Each quote can be retrieved from txHistory as `txHistory[quoteId]`.
+   */
+  quoteIds?: string[];
   quote: Quote;
+  quoteId?: string; // Optional: absent on history items persisted before this field was introduced
+  reportedSubmittedTxHash?: string;
   status: StatusResponse;
-  startTime?: number; // timestamp in ms
+  startTime: number; // timestamp in ms
   estimatedProcessingTimeInSeconds: number;
   slippagePercentage: number;
   completionTime?: number; // timestamp in ms
@@ -163,8 +205,25 @@ export type BridgeHistoryItem = {
     counter: number;
     lastAttemptTime: number; // timestamp in ms
   };
+  /**
+   * Client-supplied security classification for the destination token at the
+   * time the swap/bridge was submitted. Persisted so post-submit analytics
+   * events (Completed, Failed, StatusValidationFailed) can include
+   * `token_security_type_destination`. `null` when no security data was
+   * available for the destination token.
+   */
+  tokenSecurityTypeDestination?: string | null;
+  /**
+   * The denomination shown as the primary source amount input when the
+   * swap/bridge was submitted.
+   */
+  inputPrimaryDenomination?: InputPrimaryDenomination;
 };
 
+/**
+ * @deprecated Use the separate action types instead (e.g.
+ * `BridgeStatusControllerStartPollingForBridgeTxStatusAction`).
+ */
 export enum BridgeStatusAction {
   StartPollingForBridgeTxStatus = 'StartPollingForBridgeTxStatus',
   WipeBridgeStatus = 'WipeBridgeStatus',
@@ -216,23 +275,30 @@ export type QuoteMetadataSerialized = {
 export type StartPollingForBridgeTxStatusArgs = {
   bridgeTxMeta?: Pick<TransactionMeta, 'id' | 'hash' | 'batchId'>;
   actionId?: string;
+  batchSellData?: BridgeHistoryItem['batchSellData'];
+  quoteIds?: BridgeHistoryItem['quoteIds'];
   /**
    * @deprecated the txMeta or orderUid should be used instead
    */
   originalTransactionId?: string;
   quoteResponse: QuoteResponse & QuoteMetadata;
-  startTime?: BridgeHistoryItem['startTime'];
+  startTime: BridgeHistoryItem['startTime'];
   slippagePercentage: BridgeHistoryItem['slippagePercentage'];
   initialDestAssetBalance?: BridgeHistoryItem['initialDestAssetBalance'];
   targetContractAddress?: BridgeHistoryItem['targetContractAddress'];
   approvalTxId?: BridgeHistoryItem['approvalTxId'];
   isStxEnabled?: BridgeHistoryItem['isStxEnabled'];
-  location?: BridgeHistoryItem['location'];
+  location: MetaMetricsSwapsEventSource;
   // Legacy field for `ab_tests` metrics payload.
   abTests?: BridgeHistoryItem['abTests'];
   // New field for `active_ab_tests` metrics payload.
   activeAbTests?: BridgeHistoryItem['activeAbTests'];
   accountAddress: string;
+  // Client-supplied destination token security classification, persisted on
+  // the history item for post-submit analytics events.
+  tokenSecurityTypeDestination?: BridgeHistoryItem['tokenSecurityTypeDestination'];
+  // Primary denomination at submission time, persisted for post-submit analytics.
+  inputPrimaryDenomination?: BridgeHistoryItem['inputPrimaryDenomination'];
 };
 
 /**
@@ -244,59 +310,34 @@ export type StartPollingForBridgeTxStatusArgsSerialized = Omit<
   StartPollingForBridgeTxStatusArgs,
   'quoteResponse'
 > & {
-  quoteResponse: QuoteResponse & Partial<QuoteMetadata>;
+  quoteResponse: QuoteResponse & QuoteMetadata;
 };
 
 export type SourceChainTxMetaId = string;
 
+export type QuoteStatusPersistEntry = {
+  quoteId: string;
+  srcTxHash: string;
+  status: QuoteStatusState;
+  createdAt: number;
+  lastAttemptAt: number;
+  txMetaId?: string;
+};
+
 export type BridgeStatusControllerState = {
   txHistory: Record<SourceChainTxMetaId, BridgeHistoryItem>;
+  quoteUpdateStatusStore: Record<string, QuoteStatusPersistEntry>;
 };
 
 // Actions
-type BridgeStatusControllerAction<
-  FunctionName extends keyof BridgeStatusController,
-> = {
-  type: `${typeof BRIDGE_STATUS_CONTROLLER_NAME}:${FunctionName}`;
-  handler: BridgeStatusController[FunctionName];
-};
-
 export type BridgeStatusControllerGetStateAction = ControllerGetStateAction<
   typeof BRIDGE_STATUS_CONTROLLER_NAME,
   BridgeStatusControllerState
 >;
 
-// Maps to BridgeController function names
-export type BridgeStatusControllerStartPollingForBridgeTxStatusAction =
-  BridgeStatusControllerAction<'startPollingForBridgeTxStatus'>;
-
-export type BridgeStatusControllerWipeBridgeStatusAction =
-  BridgeStatusControllerAction<'wipeBridgeStatus'>;
-
-export type BridgeStatusControllerResetStateAction =
-  BridgeStatusControllerAction<'resetState'>;
-
-export type BridgeStatusControllerSubmitTxAction =
-  BridgeStatusControllerAction<'submitTx'>;
-
-export type BridgeStatusControllerSubmitIntentAction =
-  BridgeStatusControllerAction<'submitIntent'>;
-
-export type BridgeStatusControllerRestartPollingForFailedAttemptsAction =
-  BridgeStatusControllerAction<'restartPollingForFailedAttempts'>;
-
-export type BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction =
-  BridgeStatusControllerAction<'getBridgeHistoryItemByTxMetaId'>;
-
 export type BridgeStatusControllerActions =
-  | BridgeStatusControllerStartPollingForBridgeTxStatusAction
-  | BridgeStatusControllerWipeBridgeStatusAction
-  | BridgeStatusControllerResetStateAction
   | BridgeStatusControllerGetStateAction
-  | BridgeStatusControllerSubmitTxAction
-  | BridgeStatusControllerSubmitIntentAction
-  | BridgeStatusControllerRestartPollingForFailedAttemptsAction
-  | BridgeStatusControllerGetBridgeHistoryItemByTxMetaIdAction;
+  | BridgeStatusControllerMethodActions;
 
 // Events
 export type BridgeStatusControllerStateChangeEvent = ControllerStateChangeEvent<
@@ -323,15 +364,16 @@ type AllowedActions =
   | NetworkControllerFindNetworkClientIdByChainIdAction
   | NetworkControllerGetStateAction
   | NetworkControllerGetNetworkClientByIdAction
+  | RemoteFeatureFlagControllerGetStateAction
   | SnapControllerHandleRequestAction
   | TransactionControllerGetStateAction
   | TransactionControllerUpdateTransactionAction
   | TransactionControllerAddTransactionAction
   | TransactionControllerEstimateGasFeeAction
   | TransactionControllerIsAtomicBatchSupportedAction
-  | BridgeControllerAction<BridgeBackgroundAction.TRACK_METAMETRICS_EVENT>
-  | BridgeControllerAction<BridgeBackgroundAction.STOP_POLLING_FOR_QUOTES>
-  | GetGasFeeState
+  | BridgeControllerTrackUnifiedSwapBridgeEventAction
+  | BridgeControllerStopPollingForQuotesAction
+  | BridgeControllerGetStateAction
   | AccountsControllerGetAccountByAddressAction
   | AuthenticationControllerGetBearerTokenAction
   | KeyringControllerSignTypedMessageAction;
@@ -340,8 +382,8 @@ type AllowedActions =
  * The external events available to the BridgeStatusController.
  */
 type AllowedEvents =
-  | TransactionControllerTransactionFailedEvent
-  | TransactionControllerTransactionConfirmedEvent;
+  | TransactionControllerTransactionStatusUpdatedEvent
+  | TransactionControllerTransactionSubmittedEvent;
 
 /**
  * The messenger for the BridgeStatusController.

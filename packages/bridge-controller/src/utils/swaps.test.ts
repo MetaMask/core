@@ -1,12 +1,5 @@
 import type { Hex } from '@metamask/utils';
 
-import {
-  API_BASE_URL,
-  fetchTokens,
-  getSwapsContractAddress,
-  isValidSwapsContractAddress,
-} from './swaps';
-import type { SwapsToken } from './swaps';
 import { CHAIN_IDS } from '../constants/chains';
 import {
   ALLOWED_CONTRACT_ADDRESSES,
@@ -17,6 +10,13 @@ import {
   SWAPS_CHAINID_DEFAULT_TOKEN_MAP,
 } from '../constants/tokens';
 import type { FetchFunction } from '../types';
+import {
+  API_BASE_URL,
+  fetchTokens,
+  getSwapsContractAddress,
+  isValidSwapsContractAddress,
+} from './swaps';
+import type { SwapsToken } from './swaps';
 
 describe('Swaps utils', () => {
   beforeEach(() => {

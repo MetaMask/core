@@ -191,7 +191,7 @@ When adding or updating controllers in packages, follow these guidelines:
 - Controller classes should extend `BaseController`.
 - Controllers should not be stateless; if a controller does not have state, it should be a service.
 - The controller should define a public messenger type.
-- All messenger actions and events should be publicly defined. The default set should include the `:getState` action and `:stateChange` event.
+- All messenger actions and events should be publicly defined. The default set should include the `:getState` action and `:stateChanged` event.
 - All actions and events the messenger uses from other controllers and services should also be declared in the messenger type.
 - Controllers should initialize state by combining default and provided state. Provided state should be optional.
 - The constructor should take `messenger` and `state` options at a minimum.

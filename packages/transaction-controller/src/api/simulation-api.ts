@@ -142,6 +142,9 @@ export type SimulationResponseCallTrace = {
 
   /** Raw event logs created by the call. */
   logs?: SimulationResponseLog[] | null;
+
+  /** Raw return data from the call (revert hex when reverted). */
+  output?: Hex;
 };
 
 /**

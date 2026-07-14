@@ -1,13 +1,13 @@
 import type { DecodedPermission } from '@metamask/gator-permissions-controller';
 import type { Json } from '@metamask/utils';
 
+import type { SignatureControllerMessenger } from '../SignatureController';
+import type { MessageParamsTyped, MessageParamsTypedData } from '../types';
 import {
   decodePermissionFromRequest,
   isDelegationRequest,
   validateExecutionPermissionMetadata,
 } from './delegations';
-import type { SignatureControllerMessenger } from '../SignatureController';
-import type { MessageParamsTyped, MessageParamsTypedData } from '../types';
 
 describe('delegations utils', () => {
   describe('isDelegationRequest', () => {

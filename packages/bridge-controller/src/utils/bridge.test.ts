@@ -1,17 +1,6 @@
-import { BtcScope, SolScope } from '@metamask/keyring-api';
+import { BtcScope, SolScope, XlmScope } from '@metamask/keyring-api';
 import type { Hex } from '@metamask/utils';
 
-import {
-  getNativeAssetForChainId,
-  isBitcoinChainId,
-  isCrossChain,
-  isEthUsdt,
-  isNonEvmChainId,
-  isSolanaChainId,
-  isSwapsDefaultTokenAddress,
-  isSwapsDefaultTokenSymbol,
-  sumHexes,
-} from './bridge';
 import {
   ETH_USDT_ADDRESS,
   METABRIDGE_ETHEREUM_ADDRESS,
@@ -19,6 +8,18 @@ import {
 import { CHAIN_IDS } from '../constants/chains';
 import { SWAPS_CHAINID_DEFAULT_TOKEN_MAP } from '../constants/tokens';
 import { ChainId } from '../types';
+import {
+  getNativeAssetForChainId,
+  isBitcoinChainId,
+  isCrossChain,
+  isEthUsdt,
+  isNonEvmChainId,
+  isSolanaChainId,
+  isStellarChainId,
+  isSwapsDefaultTokenAddress,
+  isSwapsDefaultTokenSymbol,
+  sumHexes,
+} from './bridge';
 
 describe('Bridge utils', () => {
   beforeEach(() => {
@@ -185,6 +186,24 @@ describe('Bridge utils', () => {
     });
   });
 
+  describe('isStellarChainId', () => {
+    it('returns true for Stellar CAIP-2 chain ids', () => {
+      expect(isStellarChainId(XlmScope.Pubnet)).toBe(true);
+      expect(isStellarChainId(XlmScope.Testnet)).toBe(true);
+    });
+
+    it('returns true for internal Stellar bridge chain id', () => {
+      expect(isStellarChainId(ChainId.STELLAR)).toBe(true);
+      expect(isStellarChainId(String(ChainId.STELLAR))).toBe(true);
+    });
+
+    it('returns false for other chainIds', () => {
+      expect(isStellarChainId(SolScope.Mainnet)).toBe(false);
+      expect(isStellarChainId('0x1')).toBe(false);
+      expect(isStellarChainId(1)).toBe(false);
+    });
+  });
+
   describe('isNonEvmChainId', () => {
     it('returns true for Solana chainIds', () => {
       expect(isNonEvmChainId(ChainId.SOLANA)).toBe(true);
@@ -196,6 +215,12 @@ describe('Bridge utils', () => {
       expect(isNonEvmChainId(ChainId.BTC)).toBe(true);
       expect(isNonEvmChainId(BtcScope.Mainnet)).toBe(true);
       expect(isNonEvmChainId('20000000000001')).toBe(true);
+    });
+
+    it('returns true for Stellar chainIds', () => {
+      expect(isNonEvmChainId(XlmScope.Pubnet)).toBe(true);
+      expect(isNonEvmChainId(XlmScope.Testnet)).toBe(true);
+      expect(isNonEvmChainId(ChainId.STELLAR)).toBe(true);
     });
 
     it('returns false for EVM chainIds', () => {
@@ -265,6 +290,15 @@ describe('Bridge utils', () => {
         ...SWAPS_CHAINID_DEFAULT_TOKEN_MAP[BtcScope.Mainnet],
         chainId: 20000000000001,
         assetId: 'bip122:000000000019d6689c085ae165831e93/slip44:0',
+      });
+    });
+
+    it('should return native asset for Stellar chainId', () => {
+      const result = getNativeAssetForChainId(XlmScope.Pubnet);
+      expect(result).toStrictEqual({
+        ...SWAPS_CHAINID_DEFAULT_TOKEN_MAP[XlmScope.Pubnet],
+        chainId: ChainId.STELLAR,
+        assetId: 'stellar:pubnet/slip44:148',
       });
     });
 

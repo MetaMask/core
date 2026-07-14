@@ -19,10 +19,6 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import BN from 'bn.js';
 
-import type { AccountTrackerControllerMessenger } from './AccountTrackerController';
-import { AccountTrackerController } from './AccountTrackerController';
-import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
-import { getTokenBalancesForMultipleAddresses } from './multicall';
 import { FakeProvider } from '../../../tests/fake-provider';
 import { jestAdvanceTime } from '../../../tests/helpers';
 import { createMockInternalAccount } from '../../accounts-controller/tests/mocks';
@@ -30,6 +26,10 @@ import {
   buildCustomNetworkClientConfiguration,
   buildMockGetNetworkClientById,
 } from '../../network-controller/tests/helpers';
+import type { AccountTrackerControllerMessenger } from './AccountTrackerController';
+import { AccountTrackerController } from './AccountTrackerController';
+import { AccountsApiBalanceFetcher } from './multi-chain-accounts-service/api-balance-fetcher';
+import { getTokenBalancesForMultipleAddresses } from './multicall';
 
 type AllAccountTrackerControllerActions =
   MessengerActions<AccountTrackerControllerMessenger>;
@@ -399,6 +399,72 @@ describe('AccountTrackerController', () => {
         expect(
           controller.state.accountsByChainId['0x1'][CHECKSUM_ADDRESS_1].balance,
         ).toBe('0xabcdef');
+      },
+    );
+  });
+
+  it('should not wipe existing balances when syncing accounts and the selected chain has no state entry', async () => {
+    const networkClientId = 'networkClientId1';
+
+    mockedGetTokenBalancesForMultipleAddresses.mockResolvedValueOnce({
+      tokenBalances: {
+        '0x0000000000000000000000000000000000000000': {},
+      },
+      stakedBalances: {},
+    });
+
+    await withController(
+      {
+        options: {
+          state: {
+            accountsByChainId: {
+              '0xe705': {
+                [CHECKSUM_ADDRESS_1]: {
+                  balance: '0xabc',
+                  stakedBalance: '0x5',
+                },
+              },
+            },
+          },
+        },
+        isMultiAccountBalancesEnabled: true,
+        selectedAccount: ACCOUNT_1,
+        listAccounts: [ACCOUNT_1],
+        networkClientById: {
+          [networkClientId]: buildCustomNetworkClientConfiguration({
+            chainId: '0x999',
+          }),
+        },
+      },
+      async ({ controller, refresh }) => {
+        // Verify initial state has the balance we expect to preserve
+        expect(
+          controller.state.accountsByChainId['0xe705'][CHECKSUM_ADDRESS_1],
+        ).toStrictEqual({
+          balance: '0xabc',
+          stakedBalance: '0x5',
+        });
+
+        // Refresh for a new chain. The selected network (mainnet / 0x1) is
+        // NOT in accountsByChainId, so #syncAccounts sees an empty "existing"
+        // set. Without the fix this would overwrite every address on every
+        // chain with { balance: '0x0' }, wiping both balance and stakedBalance.
+        await refresh(['networkClientId1'], true);
+
+        // Existing balances must be preserved
+        expect(
+          controller.state.accountsByChainId['0xe705'][CHECKSUM_ADDRESS_1],
+        ).toStrictEqual({
+          balance: '0xabc',
+          stakedBalance: '0x5',
+        });
+
+        // New chain should have been initialised with a zero balance
+        expect(
+          controller.state.accountsByChainId['0x999'][CHECKSUM_ADDRESS_1],
+        ).toStrictEqual({
+          balance: '0x0',
+        });
       },
     );
   });
@@ -1646,6 +1712,62 @@ describe('AccountTrackerController', () => {
       );
     });
 
+    it('should return zero-balance entries if network is Tempo Mainnet', async () => {
+      await withController(
+        {
+          isMultiAccountBalancesEnabled: true,
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [],
+          networkClientById: {
+            'tempo-mainnet-mock-client-id':
+              buildCustomNetworkClientConfiguration({
+                chainId: '0x1079',
+                ticker: 'USD',
+              }),
+          },
+        },
+        async ({ controller }) => {
+          mockedQuery
+            .mockReturnValueOnce(Promise.resolve('0x10'))
+            .mockReturnValueOnce(Promise.resolve('0x20'));
+          const result = await controller.syncBalanceWithAddresses(
+            [ADDRESS_1, ADDRESS_2],
+            'tempo-mainnet-mock-client-id',
+          );
+          expect(result[ADDRESS_1].balance).toBe('0x0');
+          expect(result[ADDRESS_2].balance).toBe('0x0');
+        },
+      );
+    });
+
+    it('should return zero-balance entries if network is Tempo Testnet', async () => {
+      await withController(
+        {
+          isMultiAccountBalancesEnabled: true,
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [],
+          networkClientById: {
+            'tempo-testnet-mock-client-id':
+              buildCustomNetworkClientConfiguration({
+                chainId: '0xa5bf',
+                ticker: 'USD',
+              }),
+          },
+        },
+        async ({ controller }) => {
+          mockedQuery
+            .mockReturnValueOnce(Promise.resolve('0x10'))
+            .mockReturnValueOnce(Promise.resolve('0x20'));
+          const result = await controller.syncBalanceWithAddresses(
+            [ADDRESS_1, ADDRESS_2],
+            'tempo-testnet-mock-client-id',
+          );
+          expect(result[ADDRESS_1].balance).toBe('0x0');
+          expect(result[ADDRESS_2].balance).toBe('0x0');
+        },
+      );
+    });
+
     it('should sync staked balance with addresses', async () => {
       await withController(
         {
@@ -1946,6 +2068,176 @@ describe('AccountTrackerController', () => {
           }
         `);
       });
+    });
+  });
+
+  describe('isDeprecated', () => {
+    const initialState = {
+      accountsByChainId: {
+        '0x1': {
+          [CHECKSUM_ADDRESS_1]: { balance: '0x1' },
+        },
+      },
+    };
+
+    it('clears persisted accountsByChainId at construction when isDeprecated() returns true', async () => {
+      await withController(
+        {
+          options: { state: initialState, isDeprecated: () => true },
+        },
+        ({ controller }) => {
+          expect(controller.state.accountsByChainId).toStrictEqual({});
+        },
+      );
+    });
+
+    it('preserves persisted accountsByChainId at construction when isDeprecated() returns false', async () => {
+      await withController(
+        {
+          options: { state: initialState, isDeprecated: () => false },
+        },
+        ({ controller }) => {
+          expect(controller.state.accountsByChainId).toStrictEqual(
+            initialState.accountsByChainId,
+          );
+        },
+      );
+    });
+
+    it('does not throw at construction when isDeprecated() is true and state is already empty', async () => {
+      await withController(
+        {
+          options: {
+            state: { accountsByChainId: {} },
+            isDeprecated: () => true,
+          },
+        },
+        ({ controller }) => {
+          expect(controller.state.accountsByChainId).toStrictEqual({});
+        },
+      );
+    });
+
+    it('does not fetch and clears stale state on refresh when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      await withController(
+        {
+          options: { state: initialState, isDeprecated: () => deprecated },
+          selectedAccount: ACCOUNT_1,
+          listAccounts: [ACCOUNT_1],
+        },
+        async ({ controller, refresh }) => {
+          expect(controller.state.accountsByChainId).toStrictEqual(
+            initialState.accountsByChainId,
+          );
+
+          deprecated = true;
+
+          await refresh(['mainnet']);
+
+          expect(
+            mockedGetTokenBalancesForMultipleAddresses,
+          ).not.toHaveBeenCalled();
+          expect(controller.state.accountsByChainId).toStrictEqual({});
+        },
+      );
+    });
+
+    it('clears stale state on _executePoll when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      await withController(
+        {
+          options: { state: initialState, isDeprecated: () => deprecated },
+        },
+        async ({ controller }) => {
+          deprecated = true;
+
+          await controller._executePoll({ networkClientIds: ['mainnet'] });
+
+          expect(controller.state.accountsByChainId).toStrictEqual({});
+        },
+      );
+    });
+
+    it('clears stale state on refreshAddresses when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      await withController(
+        {
+          options: { state: initialState, isDeprecated: () => deprecated },
+          listAccounts: [ACCOUNT_1],
+        },
+        async ({ controller }) => {
+          deprecated = true;
+
+          await controller.refreshAddresses({
+            networkClientIds: ['mainnet'],
+            addresses: [ADDRESS_1],
+          });
+
+          expect(controller.state.accountsByChainId).toStrictEqual({});
+        },
+      );
+    });
+
+    it('returns no balances and clears stale state on syncBalanceWithAddresses when isDeprecated returns true', async () => {
+      let deprecated = false;
+      await withController(
+        {
+          options: { state: initialState, isDeprecated: () => deprecated },
+        },
+        async ({ controller }) => {
+          deprecated = true;
+
+          const result = await controller.syncBalanceWithAddresses([ADDRESS_1]);
+
+          expect(result).toStrictEqual({});
+          expect(controller.state.accountsByChainId).toStrictEqual({});
+        },
+      );
+    });
+
+    it('clears stale state on updateNativeBalances when isDeprecated returns true', async () => {
+      let deprecated = false;
+      await withController(
+        {
+          options: { state: initialState, isDeprecated: () => deprecated },
+        },
+        ({ controller }) => {
+          deprecated = true;
+
+          controller.updateNativeBalances([
+            {
+              address: CHECKSUM_ADDRESS_1,
+              chainId: '0x1' as const,
+              balance: '0x5',
+            },
+          ]);
+
+          expect(controller.state.accountsByChainId).toStrictEqual({});
+        },
+      );
+    });
+
+    it('clears stale state on updateStakedBalances when isDeprecated returns true', async () => {
+      let deprecated = false;
+      await withController(
+        {
+          options: { state: initialState, isDeprecated: () => deprecated },
+        },
+        ({ controller }) => {
+          deprecated = true;
+
+          controller.updateStakedBalances([
+            {
+              address: CHECKSUM_ADDRESS_1,
+              chainId: '0x1' as const,
+              stakedBalance: '0x5',
+            },
+          ]);
+
+          expect(controller.state.accountsByChainId).toStrictEqual({});
+        },
+      );
     });
   });
 });

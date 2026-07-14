@@ -7,6 +7,66 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [28.3.0]
+
+### Added
+
+- Add `AuthenticationController.getCustomerServiceToken` method and messenger action to retrieve a Customer Service specific access token ([#9442](https://github.com/MetaMask/core/pull/9442))
+  - Exchanges the OIDC access token for a short-lived token scoped to the customer-service audience via `POST /api/v2/customer-service/token`, which Customer Service tooling consumes to identify and authenticate the user.
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^27.0.0` to `^27.1.0` ([#9129](https://github.com/MetaMask/core/pull/9129))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+
+## [28.2.0]
+
+### Changed
+
+- Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
+- Bump `@metamask/keyring-controller` from `^26.0.0` to `^27.0.0` ([#9058](https://github.com/MetaMask/core/pull/9058))
+
+### Fixed
+
+- Deduplicate SRP profile pairing calls by payload in `SRPJwtBearerAuth.pairSrpProfiles` ([#8984](https://github.com/MetaMask/core/pull/8984))
+  - Concurrent and short-interval sequential `performSignIn` triggers (multiple UI surfaces, unlock-time effects, pairing retries) previously each issued their own `POST /api/v2/profile/pair`. A promise cache keyed by the token set now coalesces in-flight calls and reuses a successful result for a short TTL, collapsing the redundant calls into one. The key is order-insensitive (the same token set in any order dedupes), and failures are never cached so the existing `needsProfilePairing` retry loop still re-hits the endpoint.
+- Scope the storage-key and snap-signature caches in `UserStorageController` per `entropySourceId` ([#8948](https://github.com/MetaMask/core/pull/8948))
+  - In the edge case where two SRPs resolve to the same `profileId` (e.g. a shared canonical profile after pairing), the previously message-keyed caches could hand one SRP the other's cached key — letting it read/decrypt the other SRP's user storage (which surfaced as a second SRP inheriting the first SRP's account names) or write under its key. Scoping by `entropySourceId` keeps each SRP's key isolated even then; the signed `metamask:${profileId}` message is unchanged, so existing storage keys are preserved.
+
+## [28.1.1]
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^25.5.0` to `^26.0.0` ([#8912](https://github.com/MetaMask/core/pull/8912))
+
+## [28.1.0]
+
+### Added
+
+- Add SRP profile pairing support (Accounts ADR 0006) ([#8504](https://github.com/MetaMask/core/pull/8504), [#8642](https://github.com/MetaMask/core/pull/8642))
+  - Pairing runs at the end of `performSignIn`; pair failures are swallowed and retried on the next gate fire.
+  - Add `needsProfilePairing?: boolean` to state (defaults `true`, cleared on successful pair, re-armed via `requestProfilePairing()`). Optional in the type to keep partial-state selectors assignable; treat `undefined` as `true`.
+  - Add `requestProfilePairing()` (and `AuthenticationController:requestProfilePairing` action) for clients to signal SRP-set changes so the next auto-sign-in cycle re-pairs.
+  - Upgrade path: existing signed-in users re-pair automatically on the first auto-sign-in cycle. Pre-pairing sessions miss `canonicalProfileId` and re-login on the next `getAccessToken`, so the pair call runs against fresh v2 JWTs — no client migration needed.
+  - JWT staleness note: a newly added SRP's JWT keeps `sub = alias_id` until that SRP's session is re-logged-in. User storage is unaffected (it keys on `x-profile-id`, not `sub`).
+  - Add `canonicalProfileId` to `UserProfile` — the unified profile ID across paired SRPs
+  - Add `ProfileAlias` type for transient alias data returned by the pairing API
+  - Add `pairSrpProfiles` method to `SRPJwtBearerAuth` and `JwtBearerAuth`
+  - Add `ProfileSignInEvent` (`AuthenticationController:profileSignIn`) emitted after successful pairing when the canonical profile ID changes or new aliases are returned
+  - Send `X-MetaMask-Profile-Pairing: enabled` header on all `/srp/login` requests
+  - Resolve original per-SRP `profileId` from `profile_aliases` using `computeIdentifierId`
+  - Propagate canonical profile ID to all `srpSessionData` entries after pairing
+  - Add `refreshCanonicalProfileId` method — forces a fresh canonical retrieval from the server (1 primary SRP login) and propagates it to all cached SRP sessions. For best-effort reads, use `getSessionProfile().canonicalProfileId` instead.
+  - Force re-login when cached session is missing `canonicalProfileId`
+- Add optional `getAppVersion` callback to `MetaMetricsAuth`, forwarded as `metametrics.app_version` in the `POST /api/v2/srp/login` payload. ([#8626](https://github.com/MetaMask/core/pull/8626))
+
+### Changed
+
+- Bump `@metamask/keyring-controller` from `^25.1.1` to `^25.5.0` ([#8363](https://github.com/MetaMask/core/pull/8363), [#8634](https://github.com/MetaMask/core/pull/8634), [#8665](https://github.com/MetaMask/core/pull/8665), [#8722](https://github.com/MetaMask/core/pull/8722))
+- Bump `@metamask/messenger` from `^1.0.0` to `^1.2.0` ([#8364](https://github.com/MetaMask/core/pull/8364), [#8373](https://github.com/MetaMask/core/pull/8373), [#8632](https://github.com/MetaMask/core/pull/8632))
+- Bump `@metamask/base-controller` from `^9.0.1` to `^9.1.0` ([#8457](https://github.com/MetaMask/core/pull/8457))
+- Bump `@metamask/address-book-controller` from `^7.1.1` to `^7.1.2` ([#8755](https://github.com/MetaMask/core/pull/8755))
+
 ## [28.0.2]
 
 ### Changed
@@ -28,7 +88,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Expose missing public `UserStorageController` methods through its messenger ([#7976](https://github.com/MetaMask/core/pull/7976/))
+- Expose missing public `UserStorageController` methods through its messenger ([#7976](https://github.com/MetaMask/core/pull/7976))
   - The following actions are now available:
     - `UserStorageController:performDeleteStorageAllFeatureEntries`
     - `UserStorageController:listEntropySources`
@@ -42,7 +102,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Add client-side JWT `exp` claim validation to prevent stale cached tokens from being returned ([#8144](https://github.com/MetaMask/core/pull/8144))
   - `validateLoginResponse` now decodes the JWT `exp` claim and rejects tokens that have actually expired, regardless of client-side TTL tracking (`obtainedAt`/`expiresIn`)
   - Non-JWT access tokens are now rejected as invalid. In production this has no effect (access tokens are always JWTs from the OIDC server), but E2E test mocks that use raw identifier strings as access tokens must be updated. `getMockAuthAccessTokenResponse` now wraps identifiers in a JWT; consumers should use `getE2EIdentifierFromJwt` (newly exported) to extract the identifier from the bearer token in mock servers.
-- **BREAKING:** Standardize names of `AuthenticationController` and `UserStorageController` messenger action types ([#7976](https://github.com/MetaMask/core/pull/7976/))
+- **BREAKING:** Standardize names of `AuthenticationController` and `UserStorageController` messenger action types ([#7976](https://github.com/MetaMask/core/pull/7976))
   - All existing types for messenger actions have been renamed so they end in `Action` (e.g. `AuthenticationControllerPerformSignIn` -> `AuthenticationControllerPerformSignInAction`). You will need to update imports appropriately.
   - This change only affects the types. The action type strings themselves have not changed, so you do not need to update the list of actions you pass when initializing `AuthenticationController` and `UserStorageController` messengers.
 
@@ -316,7 +376,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Peer dependencies `@metamask/keyring-controller` and `@metamask/network-controller` are no longer also direct dependencies ([#5464](https://github.com/MetaMask/core/pull/5464)))
+- Peer dependencies `@metamask/keyring-controller` and `@metamask/network-controller` are no longer also direct dependencies) ([#5464](https://github.com/MetaMask/core/pull/5464))
 
 ## [10.1.0]
 
@@ -416,7 +476,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^21.0.0` to `^22.0.0` ([#5218](https://github.com/MetaMask/core/pull/5218))
-- Bump `@metamask/keyring-api` from `^14.0.0` to `^16.1.0` ([#5190](https://github.com/MetaMask/core/pull/5190)), ([#5208](https://github.com/MetaMask/core/pull/5208))
+- Bump `@metamask/keyring-api` from `^14.0.0` to `^16.1.0` ([#5190](https://github.com/MetaMask/core/pull/5190), [#5208](https://github.com/MetaMask/core/pull/5208))
 
 ## [4.1.1]
 
@@ -443,7 +503,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^20.0.0` to `^21.0.0` ([#5140](https://github.com/MetaMask/core/pull/5140))
 - Bump `@metamask/base-controller` from `7.1.0` to `^7.1.1` ([#5135](https://github.com/MetaMask/core/pull/5135))
 - Bump `@metamask/keyring-api` from `^12.0.0` to `^13.0.0` ([#5066](https://github.com/MetaMask/core/pull/5066))
-- Bump `@metamask/keyring-internal-api` from `^1.0.0` to `^2.0.0` ([#5066](https://github.com/MetaMask/core/pull/5066)), ([#5136](https://github.com/MetaMask/core/pull/5136))
+- Bump `@metamask/keyring-internal-api` from `^1.0.0` to `^2.0.0` ([#5066](https://github.com/MetaMask/core/pull/5066), [#5136](https://github.com/MetaMask/core/pull/5136))
 - Bump `@metamask/keyring-controller` from `^19.0.2` to `^19.0.3` ([#5140](https://github.com/MetaMask/core/pull/5140))
 
 ## [3.3.0]
@@ -522,8 +582,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^18.0.0` to `^19.0.0` ([#4195](https://github.com/MetaMask/core/pull/4956))
-- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^19.0.0` to `^20.0.0` ([#4195](https://github.com/MetaMask/core/pull/4956))
+- **BREAKING:** Bump `@metamask/keyring-controller` peer dependency from `^18.0.0` to `^19.0.0` ([#4195](https://github.com/MetaMask/core/pull/4195))
+- **BREAKING:** Bump `@metamask/accounts-controller` peer dependency from `^19.0.0` to `^20.0.0` ([#4195](https://github.com/MetaMask/core/pull/4195))
 
 ## [1.0.2]
 
@@ -610,7 +670,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Bump accounts related packages ([#4713](https://github.com/MetaMask/core/pull/4713)), ([#4728](https://github.com/MetaMask/core/pull/4728))
+- Bump accounts related packages ([#4713](https://github.com/MetaMask/core/pull/4713), [#4728](https://github.com/MetaMask/core/pull/4728))
   - Those packages are now built slightly differently and are part of the [accounts monorepo](https://github.com/MetaMask/accounts).
   - Bump `@metamask/keyring-api` from `^8.1.0` to `^8.1.4`
 
@@ -689,7 +749,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     ["Are the Types Wrong?"](https://arethetypeswrong.github.io/) tool as
     ["masquerading as CJS"](https://github.com/arethetypeswrong/arethetypeswrong.github.io/blob/main/docs/problems/FalseCJS.md).
     All of the ATTW checks now pass.
-- Remove chunk files ([#4648](https://github.com/MetaMask/core/pull/4648)).
+- Remove chunk files. ([#4648](https://github.com/MetaMask/core/pull/4648))
   - Previously, the build tool we used to generate JavaScript files extracted
     common code to "chunk" files. While this was intended to make this package
     more tree-shakeable, it also made debugging more difficult for our
@@ -794,7 +854,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - added `LoginResponse` validation in profile syncing SDK ([#4541](https://github.com/MetaMask/core/pull/4541))
-
 - added snap caching when calling the message signing snap ([#4532](https://github.com/MetaMask/core/pull/4532))
 
 ### Removed
@@ -816,7 +875,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - added platform field when logging in to receive correct OIDC access token ([#4480](https://github.com/MetaMask/core/pull/4480))
-
 - added metametrics validation in constructor ([#4480](https://github.com/MetaMask/core/pull/4480))
 
 ### Changed
@@ -839,7 +897,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.0.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.3.0...HEAD
+[28.3.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.2.0...@metamask/profile-sync-controller@28.3.0
+[28.2.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.1.1...@metamask/profile-sync-controller@28.2.0
+[28.1.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.1.0...@metamask/profile-sync-controller@28.1.1
+[28.1.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.0.2...@metamask/profile-sync-controller@28.1.0
 [28.0.2]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.0.1...@metamask/profile-sync-controller@28.0.2
 [28.0.1]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@28.0.0...@metamask/profile-sync-controller@28.0.1
 [28.0.0]: https://github.com/MetaMask/core/compare/@metamask/profile-sync-controller@27.1.0...@metamask/profile-sync-controller@28.0.0

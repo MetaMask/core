@@ -1,3 +1,4 @@
+import { createMockClaimsServiceMessenger } from '../tests/mocks/messenger';
 import { ClaimsService } from './ClaimsService';
 import {
   CLAIMS_API_URL_MAP,
@@ -11,7 +12,6 @@ import type {
   GenerateSignatureMessageResponse,
 } from './types';
 import { createSentryError } from './utils';
-import { createMockClaimsServiceMessenger } from '../tests/mocks/messenger';
 
 const mockAuthenticationControllerGetBearerToken = jest.fn();
 const mockFetchFunction = jest.fn();

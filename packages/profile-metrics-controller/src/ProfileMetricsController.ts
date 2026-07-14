@@ -16,12 +16,20 @@ import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import { TransactionControllerTransactionSubmittedEvent } from '@metamask/transaction-controller';
-import { Duration, inMilliseconds } from '@metamask/utils';
+import { Duration, inMilliseconds, parseCaipChainId } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 
-import type { ProfileMetricsServiceMethodActions } from '.';
-import type { ProfileMetricsControllerMethodActions } from '.';
-import type { AccountWithScopes } from './ProfileMetricsService';
+import type { ProfileMetricsControllerMethodActions } from './ProfileMetricsController-method-action-types';
+import type {
+  AccountOwnershipProof,
+  AccountWithScopes,
+} from './ProfileMetricsService';
+import type { ProfileMetricsServiceMethodActions } from './ProfileMetricsService-method-action-types';
+import type { ProofOfOwnershipServiceMethodActions } from './ProofOfOwnershipService-method-action-types';
+import {
+  canonicalizeAddress,
+  ProofUnsupportedNamespaceError,
+} from './utils/canonicalize';
 
 /**
  * The name of the {@link ProfileMetricsController}, used to namespace the
@@ -58,6 +66,14 @@ export type ProfileMetricsControllerState = {
    * The timestamp when the first data sending can be attempted.
    */
   initialDelayEndTimestamp?: number;
+  /**
+   * Whether previously-synced accounts have been re-enqueued so their
+   * proofs of ownership are submitted alongside everything else. Set on
+   * the first unlock after upgrading to a version that signs proofs of
+   * ownership; fresh installs flip this on their initial sync since the
+   * first poll already attaches proofs.
+   */
+  proofBackfillEnqueued: boolean;
 };
 
 /**
@@ -82,6 +98,12 @@ const profileMetricsControllerMetadata = {
     includeInStateLogs: true,
     usedInUi: false,
   },
+  proofBackfillEnqueued: {
+    persist: true,
+    includeInDebugSnapshot: true,
+    includeInStateLogs: true,
+    usedInUi: false,
+  },
 } satisfies StateMetadata<ProfileMetricsControllerState>;
 
 /**
@@ -96,6 +118,7 @@ export function getDefaultProfileMetricsControllerState(): ProfileMetricsControl
   return {
     initialEnqueueCompleted: false,
     syncQueue: {},
+    proofBackfillEnqueued: false,
   };
 }
 
@@ -121,6 +144,7 @@ export type ProfileMetricsControllerActions =
  */
 type AllowedActions =
   | ProfileMetricsServiceMethodActions
+  | ProofOfOwnershipServiceMethodActions
   | AccountsControllerGetStateAction;
 
 /**
@@ -159,6 +183,12 @@ export type ProfileMetricsControllerMessenger = Messenger<
   ProfileMetricsControllerEvents | AllowedEvents
 >;
 
+/**
+ * Manages user profile metrics.
+ *
+ * For users who opt-in to metrics, this controller ensures we have metrics about their user
+ * profile (metrics ID and accounts).
+ */
 export class ProfileMetricsController extends StaticIntervalPollingController()<
   typeof controllerName,
   ProfileMetricsControllerState,
@@ -229,7 +259,7 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
         // it must have opted in during onboarding, or during a previous session.
         this.skipInitialDelay();
       }
-      this.#queueFirstSyncIfNeeded().catch(
+      this.#enqueueAccountsIfNeeded().catch(
         this.messenger.captureException ?? console.error,
       );
       this.startPolling(null);
@@ -267,9 +297,10 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
   /**
    * Execute a single poll to sync user profile data.
    *
-   * The queued accounts are sent to the ProfileMetricsService, and the sync
-   * queue is cleared. This operation is mutexed to prevent concurrent
-   * executions.
+   * The queued accounts are sent to the ProfileMetricsService, each with
+   * a proof of ownership when one can be produced (see {@link #attachProofs}),
+   * and the sync queue is cleared. This operation is mutexed to prevent
+   * concurrent executions.
    *
    * @returns A promise that resolves when the poll is complete.
    */
@@ -282,15 +313,26 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
       if (!this.#isInitialDelayComplete()) {
         return;
       }
+      const fullAccountsByAddress = this.#getFullAccountsByAddress();
       for (const [entropySourceId, accounts] of Object.entries(
         this.state.syncQueue,
       )) {
+        const normalizedEntropySourceId =
+          entropySourceId === 'null' ? null : entropySourceId;
+        // Skip proof-of-ownership for accounts without an entropy source
+        const accountsWithProofs =
+          normalizedEntropySourceId === null
+            ? accounts
+            : await this.#attachProofs(
+                accounts,
+                fullAccountsByAddress,
+                normalizedEntropySourceId,
+              );
         try {
           await this.messenger.call('ProfileMetricsService:submitMetrics', {
             metametricsId: this.#getMetaMetricsId(),
-            entropySourceId:
-              entropySourceId === 'null' ? null : entropySourceId,
-            accounts,
+            entropySourceId: normalizedEntropySourceId,
+            accounts: accountsWithProofs,
           });
           this.update((state) => {
             delete state.syncQueue[entropySourceId];
@@ -307,30 +349,165 @@ export class ProfileMetricsController extends StaticIntervalPollingController()<
   }
 
   /**
-   * Add existing accounts to the sync queue if it has not been done yet.
+   * Attach a proof of ownership to each account in a single entropy-source
+   * batch when possible, canonicalizing the address along the way.
    *
-   * This method ensures that the first sync is only executed once,
-   * and only if the user has opted in to user profile features.
+   * Per-account failures (unknown namespace, snap missing the
+   * `signProofOfOwnership` method, snap rejection) and whole-batch nonce
+   * failures are caught and downgraded to "submit without a proof" so the
+   * batch still goes through and the proof is retried on the next poll.
+   *
+   * @param accounts - The queued accounts for a single batch.
+   * @param fullAccountsByAddress - Live `InternalAccount` lookup keyed by address.
+   * @param entropySourceId - The entropy source ID for this batch. Callers
+   * are expected to short-circuit before invoking this method when the
+   * batch has no entropy source; see `_executePoll` for why.
+   * @returns The accounts with `proof` populated where signing succeeded.
    */
-  async #queueFirstSyncIfNeeded(): Promise<void> {
+  async #attachProofs(
+    accounts: AccountWithScopes[],
+    fullAccountsByAddress: Map<string, InternalAccount>,
+    entropySourceId: string,
+  ): Promise<AccountWithScopes[]> {
+    const candidates = new Map<
+      string,
+      { account: InternalAccount; canonicalAddress: string }
+    >();
+    const identifiers = new Set<string>();
+    for (const queued of accounts) {
+      const fullAccount = fullAccountsByAddress.get(queued.address);
+      if (!fullAccount) {
+        continue;
+      }
+      try {
+        const [scope] = fullAccount.scopes;
+        if (!scope) {
+          throw new Error(`Scope not found for account ${fullAccount.id}`);
+        }
+        const { namespace } = parseCaipChainId(scope);
+        const canonicalAddress = canonicalizeAddress(
+          fullAccount.address,
+          namespace,
+        );
+        candidates.set(queued.address, {
+          account: fullAccount,
+          canonicalAddress,
+        });
+        identifiers.add(canonicalAddress);
+      } catch (error) {
+        // Unsupported namespaces are an expected pass-through; anything
+        // else is logged so a new namespace doesn't go unnoticed.
+        if (!(error instanceof ProofUnsupportedNamespaceError)) {
+          console.error(`Skipping proof for account ${fullAccount.id}:`, error);
+        }
+      }
+    }
+
+    if (candidates.size === 0) {
+      return accounts;
+    }
+
+    let nonces: Record<string, string> = {};
+    try {
+      nonces = await this.messenger.call('ProfileMetricsService:fetchNonces', {
+        identifiers: [...identifiers],
+        entropySourceId,
+      });
+    } catch (error) {
+      console.error(
+        `Failed to fetch proof-of-ownership nonces for entropy source ID ${entropySourceId}:`,
+        error,
+      );
+    }
+
+    return await Promise.all(
+      accounts.map(async (queued): Promise<AccountWithScopes> => {
+        const candidate = candidates.get(queued.address);
+        if (!candidate) {
+          return queued;
+        }
+        const nonce = nonces[candidate.canonicalAddress];
+        if (!nonce) {
+          return { ...queued, address: candidate.canonicalAddress };
+        }
+        let proof: AccountOwnershipProof;
+        try {
+          proof = await this.messenger.call('ProofOfOwnershipService:sign', {
+            account: candidate.account,
+            nonce,
+          });
+        } catch (error) {
+          console.error(
+            `Failed to sign proof of ownership for account ${candidate.account.id}:`,
+            error,
+          );
+          return { ...queued, address: candidate.canonicalAddress };
+        }
+        return {
+          address: candidate.canonicalAddress,
+          scopes: queued.scopes,
+          proof,
+        };
+      }),
+    );
+  }
+
+  /**
+   * Snapshot the live `InternalAccount` map keyed by address for the
+   * current poll.
+   *
+   * @returns A map of address → `InternalAccount`.
+   */
+  #getFullAccountsByAddress(): Map<string, InternalAccount> {
+    const byAddress = new Map<string, InternalAccount>();
+    const accountsState = this.messenger.call('AccountsController:getState');
+    for (const account of Object.values(
+      accountsState.internalAccounts.accounts,
+    )) {
+      byAddress.set(account.address, account);
+    }
+    return byAddress;
+  }
+
+  /**
+   * Enqueue all currently-known accounts onto the sync queue if needed.
+   * Single entry point covering both the fresh-install first sync and
+   * the one-time proof-of-ownership backfill for users upgrading.
+   *
+   * Bails for opted-out users (the poll wouldn't drain the queue
+   * anyway), and bails once both bootstrap steps have already run.
+   * Otherwise enqueues all known accounts and flips both flags so this
+   * becomes a permanent no-op for the lifetime of the install.
+   */
+  async #enqueueAccountsIfNeeded(): Promise<void> {
     await this.#mutex.runExclusive(async () => {
-      if (this.state.initialEnqueueCompleted) {
+      if (!this.#assertUserOptedIn()) {
         return;
       }
-      const newGroupedAccounts = groupAccountsByEntropySourceId(
+      if (
+        this.state.initialEnqueueCompleted &&
+        this.state.proofBackfillEnqueued
+      ) {
+        return;
+      }
+      const groupedAccounts = groupAccountsByEntropySourceId(
         Object.values(
           this.messenger.call('AccountsController:getState').internalAccounts
             .accounts,
         ),
       );
       this.update((state) => {
-        for (const key of Object.keys(newGroupedAccounts)) {
-          if (!state.syncQueue[key]) {
-            state.syncQueue[key] = [];
-          }
-          state.syncQueue[key].push(...newGroupedAccounts[key]);
-        }
+        // Replace the queue rather than append. `AccountsController` is
+        // the source of truth and the queue is otherwise kept in sync
+        // with it via the `accountAdded` / `accountRemoved` subscriptions,
+        // so assigning here avoids duplicating entries that survived from
+        // a prior session or were pushed earlier in this same unlock
+        // cycle. Duplicates would matter because nonces are single-use:
+        // letting one through causes `#attachProofs` to sign and submit
+        // twice with the same nonce.
+        state.syncQueue = groupedAccounts;
         state.initialEnqueueCompleted = true;
+        state.proofBackfillEnqueued = true;
       });
     });
   }

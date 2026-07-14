@@ -1,9 +1,14 @@
-import { getClientHeaders } from '@metamask/bridge-controller';
+import {
+  getClientHeaders,
+  isNonEvmChainId,
+  StatusTypes,
+} from '@metamask/bridge-controller';
 import type { Quote, QuoteResponse } from '@metamask/bridge-controller';
+import type { Provider } from '@metamask/network-controller';
 import { StructError } from '@metamask/superstruct';
 
-import { validateBridgeStatusResponse } from './validators';
 import { REFRESH_INTERVAL_MS } from '../constants';
+import { QuoteStatusManager } from '../quote-status-manager/quotes-status-manager';
 import type {
   StatusResponse,
   StatusRequestWithSrcTxHash,
@@ -11,7 +16,11 @@ import type {
   FetchFunction,
   BridgeHistoryItem,
   StatusRequest,
+  BridgeStatusControllerMessenger,
 } from '../types';
+import { isHistoryItemTooOld } from './history';
+import { getNetworkClientByChainId } from './network';
+import { validateBridgeStatusResponse } from './validators';
 
 export const getBridgeStatusUrl = (bridgeApiBaseUrl: string): string =>
   `${bridgeApiBaseUrl}/getTxStatus`;
@@ -34,6 +43,24 @@ export const getStatusRequestDto = (
   return {
     ...statusRequestNoQuoteFormatted,
     ...requestId,
+  };
+};
+
+export const fetchBridgeQuoteStatus = async (
+  quoteStatusManager: QuoteStatusManager,
+  quoteId: string,
+): Promise<{ status: StatusResponse; validationFailures: string[] } | null> => {
+  const response = await quoteStatusManager.getStatus(quoteId);
+
+  const status = response?.response?.submittedTx;
+
+  if (!status) {
+    return null;
+  }
+
+  return {
+    status,
+    validationFailures: response.error?.details?.validationFailures ?? [],
   };
 };
 
@@ -110,6 +137,66 @@ export const shouldSkipFetchDueToFetchFailures = (
     }
   }
   return false;
+};
+
+/*
+ * Checks if a pending history item is older than 2 days and does not have a valid tx hash
+ *
+ * @param messenger - The messenger to use to get the transaction meta by hash or id
+ * @param historyItem - The history item to check
+ *
+ * @returns true if the src tx hash is valid or we should still wait for it, false otherwise
+ */
+export const shouldWaitForFinalBridgeStatus = async (
+  messenger: BridgeStatusControllerMessenger,
+  historyItem: BridgeHistoryItem,
+): Promise<boolean> => {
+  // Keep waiting for status if the history is not pending or is not old enough yet
+  if (
+    !(
+      isHistoryItemTooOld(messenger, historyItem) &&
+      [StatusTypes.PENDING, StatusTypes.UNKNOWN].includes(
+        historyItem.status.status,
+      )
+    )
+  ) {
+    return true;
+  }
+
+  if (isNonEvmChainId(historyItem.quote.srcChainId)) {
+    return false;
+  }
+
+  let provider: Provider;
+  try {
+    provider = getNetworkClientByChainId(
+      messenger,
+      historyItem.quote.srcChainId,
+    );
+  } catch {
+    // This happens when the network is disabled while the tx is pending
+    return true;
+  }
+
+  if (!historyItem.status.srcChain.txHash) {
+    return false;
+  }
+
+  // Otherwise check if the tx has been mined on chain
+  return provider
+    .request({
+      method: 'eth_getTransactionReceipt',
+      params: [historyItem.status.srcChain.txHash],
+    })
+    .then((txReceipt) => {
+      if (txReceipt) {
+        return true;
+      }
+      return false;
+    })
+    .catch(() => {
+      return false;
+    });
 };
 
 /**

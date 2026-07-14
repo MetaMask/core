@@ -1,12 +1,12 @@
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import BN from 'bn.js';
 
-import { AccountsApiBalanceFetcher } from './api-balance-fetcher';
-import type { ChainIdHex, ChecksumAddress } from './api-balance-fetcher';
-import type { GetBalancesResponse } from './types';
 import { createMockInternalAccount } from '../../../accounts-controller/tests/mocks';
 import { SUPPORTED_NETWORKS_ACCOUNTS_API_V4 } from '../constants';
 import * as ConstantsModule from '../constants';
+import { AccountsApiBalanceFetcher } from './api-balance-fetcher';
+import type { ChainIdHex, ChecksumAddress } from './api-balance-fetcher';
+import type { GetBalancesResponse } from './types';
 
 // Mock dependencies that cause import issues
 jest.mock('../AssetsContractController', () => ({

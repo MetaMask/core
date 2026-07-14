@@ -1,15 +1,18 @@
 import {
-  DEFAULT_CIRCUIT_BREAK_DURATION,
   DEFAULT_DEGRADED_THRESHOLD,
+  InfuraNetworkType,
 } from '@metamask/controller-utils';
+import { Duration, inMilliseconds } from '@metamask/utils';
 import nock from 'nock';
 
+import { NetworkStatus } from '../src/constants';
 import {
   buildCustomNetworkConfiguration,
   buildCustomRpcEndpoint,
+  buildInfuraNetworkConfiguration,
+  buildInfuraRpcEndpoint,
   withController,
 } from './helpers';
-import { NetworkStatus } from '../src/constants';
 
 describe('NetworkController provider tests', () => {
   beforeEach(() => {
@@ -51,7 +54,7 @@ describe('NetworkController provider tests', () => {
 
     await withController(
       {
-        isRpcFailoverEnabled: true,
+        rpcFailoverMode: 'enabled',
         state: {
           networkConfigurationsByChainId: {
             '0x1337': buildCustomNetworkConfiguration({
@@ -134,7 +137,7 @@ describe('NetworkController provider tests', () => {
 
     await withController(
       {
-        isRpcFailoverEnabled: true,
+        rpcFailoverMode: 'enabled',
         state: {
           networkConfigurationsByChainId: {
             '0x1337': buildCustomNetworkConfiguration({
@@ -191,7 +194,7 @@ describe('NetworkController provider tests', () => {
 
     await withController(
       {
-        isRpcFailoverEnabled: true,
+        rpcFailoverMode: 'enabled',
         state: {
           networkConfigurationsByChainId: {
             '0x1337': buildCustomNetworkConfiguration({
@@ -237,13 +240,14 @@ describe('NetworkController provider tests', () => {
   });
 
   it('transitions the status of a network client from "degraded" to "available" the first time a failover is activated and returns a 2xx response', async () => {
-    const primaryEndpointUrl = 'https://first.endpoint';
+    const primaryEndpointUrl = 'https://mainnet.infura.io';
+    const primaryEndpointPath = '/v3/infura-project-id';
     const secondaryEndpointUrl = 'https://second.endpoint';
-    const networkClientId = 'AAAA-AAAA-AAAA-AAAA';
+    const networkClientId = InfuraNetworkType.mainnet;
     const rpcMethod = 'eth_gasPrice';
 
     nock(primaryEndpointUrl)
-      .post('/', {
+      .post(primaryEndpointPath, {
         id: /^\d+$/u,
         jsonrpc: '2.0',
         method: 'eth_blockNumber',
@@ -277,16 +281,12 @@ describe('NetworkController provider tests', () => {
 
     await withController(
       {
-        isRpcFailoverEnabled: true,
+        rpcFailoverMode: 'enabled',
         state: {
           networkConfigurationsByChainId: {
-            '0x1337': buildCustomNetworkConfiguration({
-              chainId: '0x1337',
-              name: 'Test Network',
+            '0x1': buildInfuraNetworkConfiguration(InfuraNetworkType.mainnet, {
               rpcEndpoints: [
-                buildCustomRpcEndpoint({
-                  networkClientId,
-                  url: primaryEndpointUrl,
+                buildInfuraRpcEndpoint(InfuraNetworkType.mainnet, {
                   failoverUrls: [secondaryEndpointUrl],
                 }),
               ],
@@ -333,7 +333,7 @@ describe('NetworkController provider tests', () => {
           [
             {
               op: 'replace',
-              path: ['networksMetadata', 'AAAA-AAAA-AAAA-AAAA', 'status'],
+              path: ['networksMetadata', networkClientId, 'status'],
               value: 'degraded',
             },
           ],
@@ -344,7 +344,7 @@ describe('NetworkController provider tests', () => {
           [
             {
               op: 'replace',
-              path: ['networksMetadata', 'AAAA-AAAA-AAAA-AAAA', 'status'],
+              path: ['networksMetadata', networkClientId, 'status'],
               value: 'available',
             },
           ],
@@ -354,13 +354,14 @@ describe('NetworkController provider tests', () => {
   });
 
   it('does not transition the status of a network client from "degraded" the first time a failover is activated if it returns a non-2xx response', async () => {
-    const primaryEndpointUrl = 'https://first.endpoint';
+    const primaryEndpointUrl = 'https://mainnet.infura.io';
+    const primaryEndpointPath = '/v3/infura-project-id';
     const secondaryEndpointUrl = 'https://second.endpoint';
-    const networkClientId = 'AAAA-AAAA-AAAA-AAAA';
+    const networkClientId = InfuraNetworkType.mainnet;
     const rpcMethod = 'eth_gasPrice';
 
     nock(primaryEndpointUrl)
-      .post('/', {
+      .post(primaryEndpointPath, {
         id: /^\d+$/u,
         jsonrpc: '2.0',
         method: 'eth_blockNumber',
@@ -380,16 +381,12 @@ describe('NetworkController provider tests', () => {
 
     await withController(
       {
-        isRpcFailoverEnabled: true,
+        rpcFailoverMode: 'enabled',
         state: {
           networkConfigurationsByChainId: {
-            '0x1337': buildCustomNetworkConfiguration({
-              chainId: '0x1337',
-              name: 'Test Network',
+            '0x1': buildInfuraNetworkConfiguration(InfuraNetworkType.mainnet, {
               rpcEndpoints: [
-                buildCustomRpcEndpoint({
-                  networkClientId,
-                  url: primaryEndpointUrl,
+                buildInfuraRpcEndpoint(InfuraNetworkType.mainnet, {
                   failoverUrls: [secondaryEndpointUrl],
                 }),
               ],
@@ -438,13 +435,14 @@ describe('NetworkController provider tests', () => {
   });
 
   it('does not transition the status of a network client from "degraded" the first time a failover is activated if requests are slow to complete', async () => {
-    const primaryEndpointUrl = 'https://first.endpoint';
+    const primaryEndpointUrl = 'https://mainnet.infura.io';
+    const primaryEndpointPath = '/v3/infura-project-id';
     const secondaryEndpointUrl = 'https://second.endpoint';
-    const networkClientId = 'AAAA-AAAA-AAAA-AAAA';
+    const networkClientId = InfuraNetworkType.mainnet;
     const rpcMethod = 'eth_gasPrice';
 
     nock(primaryEndpointUrl)
-      .post('/', {
+      .post(primaryEndpointPath, {
         id: /^\d+$/u,
         jsonrpc: '2.0',
         method: 'eth_blockNumber',
@@ -490,16 +488,12 @@ describe('NetworkController provider tests', () => {
 
     await withController(
       {
-        isRpcFailoverEnabled: true,
+        rpcFailoverMode: 'enabled',
         state: {
           networkConfigurationsByChainId: {
-            '0x1337': buildCustomNetworkConfiguration({
-              chainId: '0x1337',
-              name: 'Test Network',
+            '0x1': buildInfuraNetworkConfiguration(InfuraNetworkType.mainnet, {
               rpcEndpoints: [
-                buildCustomRpcEndpoint({
-                  networkClientId,
-                  url: primaryEndpointUrl,
+                buildInfuraRpcEndpoint(InfuraNetworkType.mainnet, {
                   failoverUrls: [secondaryEndpointUrl],
                 }),
               ],
@@ -547,19 +541,20 @@ describe('NetworkController provider tests', () => {
   });
 
   it('sets the status of a network client to "unavailable" when all of its RPC endpoints consistently return 5xx errors, reaching the max consecutive number of failures', async () => {
-    const primaryEndpointUrl = 'https://first.endpoint';
+    const primaryEndpointUrl = 'https://mainnet.infura.io';
+    const primaryEndpointPath = '/v3/infura-project-id';
     const secondaryEndpointUrl = 'https://second.endpoint';
-    const networkClientId = 'AAAA-AAAA-AAAA-AAAA';
+    const networkClientId = InfuraNetworkType.mainnet;
     const rpcMethod = 'eth_gasPrice';
 
     nock(primaryEndpointUrl)
-      .post('/', {
+      .post(primaryEndpointPath, {
         id: /^\d+$/u,
         jsonrpc: '2.0',
         method: 'eth_blockNumber',
         params: [],
       })
-      .times(15)
+      .times(12)
       .reply(503);
     nock(secondaryEndpointUrl)
       .post('/', {
@@ -568,21 +563,17 @@ describe('NetworkController provider tests', () => {
         method: 'eth_blockNumber',
         params: [],
       })
-      .times(15)
+      .times(40)
       .reply(503);
 
     await withController(
       {
-        isRpcFailoverEnabled: true,
+        rpcFailoverMode: 'enabled',
         state: {
           networkConfigurationsByChainId: {
-            '0x1337': buildCustomNetworkConfiguration({
-              chainId: '0x1337',
-              name: 'Test Network',
+            '0x1': buildInfuraNetworkConfiguration(InfuraNetworkType.mainnet, {
               rpcEndpoints: [
-                buildCustomRpcEndpoint({
-                  networkClientId,
-                  url: primaryEndpointUrl,
+                buildInfuraRpcEndpoint(InfuraNetworkType.mainnet, {
                   failoverUrls: [secondaryEndpointUrl],
                 }),
               ],
@@ -617,14 +608,119 @@ describe('NetworkController provider tests', () => {
         // Hit the primary, break the circuit, fail over to the secondary,
         // run out of retries.
         await expect(provider.request(request)).rejects.toThrow(expectedError);
-        // Hit the secondary, run out of retries.
-        await expect(provider.request(request)).rejects.toThrow(expectedError);
+
+        for (let i = 0; i < 8; i++) {
+          // Hit the secondary, run out of retries.
+          await expect(provider.request(request)).rejects.toThrow(
+            expectedError,
+          );
+        }
+
         // Hit the secondary, break the circuit.
         await expect(provider.request(request)).rejects.toThrow(expectedError);
 
         expect(controller.state.networksMetadata[networkClientId].status).toBe(
           NetworkStatus.Unavailable,
         );
+      },
+    );
+  });
+
+  it('does not fail over when the selected RPC endpoint of a network is custom, even if failover URLs are configured and failover is enabled', async () => {
+    const customEndpointUrl = 'https://custom.endpoint';
+    const failoverEndpointUrl = 'https://failover.endpoint';
+    const networkClientId = 'custom-network-client-id';
+    const rpcMethod = 'eth_gasPrice';
+
+    // The selected (custom) endpoint always errors.
+    nock(customEndpointUrl)
+      .post('/', {
+        id: /^\d+$/u,
+        jsonrpc: '2.0',
+        method: 'eth_blockNumber',
+        params: [],
+      })
+      .times(15)
+      .reply(503);
+    // The failover endpoint would happily serve requests. If failover were
+    // (wrongly) honored for a custom endpoint, the request would divert here
+    // and succeed instead of throwing. We assert below that it is never hit.
+    const failoverScope = nock(failoverEndpointUrl)
+      .post('/', {
+        id: /^\d+$/u,
+        jsonrpc: '2.0',
+        method: 'eth_blockNumber',
+        params: [],
+      })
+      .reply(200, {
+        id: 1,
+        jsonrpc: '2.0',
+        result: '0x1',
+      })
+      .post('/', {
+        id: 1,
+        jsonrpc: '2.0',
+        method: rpcMethod,
+        params: [],
+      })
+      .reply(200, {
+        id: 1,
+        jsonrpc: '2.0',
+        result: 'ok',
+      });
+
+    await withController(
+      {
+        rpcFailoverMode: 'enabled',
+        state: {
+          networkConfigurationsByChainId: {
+            // The network offers both an Infura and a custom endpoint, with the
+            // custom one selected.
+            '0x1': buildInfuraNetworkConfiguration(InfuraNetworkType.mainnet, {
+              rpcEndpoints: [
+                buildInfuraRpcEndpoint(InfuraNetworkType.mainnet),
+                buildCustomRpcEndpoint({
+                  networkClientId,
+                  url: customEndpointUrl,
+                  failoverUrls: [failoverEndpointUrl],
+                }),
+              ],
+              defaultRpcEndpointIndex: 1,
+            }),
+          },
+          networksMetadata: {
+            [networkClientId]: {
+              EIPS: {},
+              status: NetworkStatus.Unknown,
+            },
+          },
+          selectedNetworkClientId: networkClientId,
+        },
+      },
+      async ({ controller, messenger }) => {
+        messenger.subscribe('NetworkController:rpcEndpointRetried', () => {
+          jest.advanceTimersToNextTimer();
+        });
+        const { provider } = controller.getNetworkClientById(networkClientId);
+        const request = {
+          id: 1,
+          jsonrpc: '2.0' as const,
+          method: rpcMethod,
+          params: [],
+        };
+        const expectedError = 'RPC endpoint not found or unavailable';
+
+        // Hit the primary, run out of retries.
+        await expect(provider.request(request)).rejects.toThrow(expectedError);
+        // Hit the primary, run out of retries.
+        await expect(provider.request(request)).rejects.toThrow(expectedError);
+        // Hit the primary, break the circuit. Since failover is not honored for
+        // a custom endpoint, there is nowhere to divert to, so this still
+        // throws rather than succeeding via the failover endpoint.
+        await expect(provider.request(request)).rejects.toThrow(expectedError);
+
+        // The failover endpoint was never contacted.
+        expect(failoverScope.isDone()).toBe(false);
       },
     );
   });
@@ -641,7 +737,7 @@ describe('NetworkController provider tests', () => {
         method: 'eth_blockNumber',
         params: [],
       })
-      .times(15)
+      .times(12)
       .reply(503)
       .post('/', {
         id: /^\d+$/u,
@@ -668,7 +764,7 @@ describe('NetworkController provider tests', () => {
 
     await withController(
       {
-        isRpcFailoverEnabled: true,
+        rpcFailoverMode: 'enabled',
         state: {
           networkConfigurationsByChainId: {
             '0x1337': buildCustomNetworkConfiguration({
@@ -717,7 +813,7 @@ describe('NetworkController provider tests', () => {
         await expect(provider.request(request)).rejects.toThrow(expectedError);
         // Wait until the circuit break duration passes and hit the endpoint
         // again.
-        jest.advanceTimersByTime(DEFAULT_CIRCUIT_BREAK_DURATION);
+        jest.advanceTimersByTime(inMilliseconds(30, Duration.Second));
         await provider.request(request);
 
         expect(stateChangeListener).toHaveBeenCalledTimes(3);
@@ -781,7 +877,7 @@ describe('NetworkController provider tests', () => {
         method: 'eth_blockNumber',
         params: [],
       })
-      .times(15)
+      .times(12)
       .reply(503)
       .post('/', {
         id: 1,
@@ -797,7 +893,7 @@ describe('NetworkController provider tests', () => {
 
     await withController(
       {
-        isRpcFailoverEnabled: true,
+        rpcFailoverMode: 'enabled',
         state: {
           networkConfigurationsByChainId: {
             '0x1337': buildCustomNetworkConfiguration({

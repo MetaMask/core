@@ -30,6 +30,177 @@ The name of the controller should reflect its responsibility. If, when creating 
 
 Each public method and each state property of a controller should have a purpose, and the name of the method or state property should be readable and should reflect the purpose clearly. If something does not need to be public, it should be made private; if it is unnecessary, it should be removed.
 
+## Define, but do not export, a name for the controller
+
+Every controller has a name, which is used to namespace not only the controller's messenger actions and events, but also the controller's state data when composed with other controllers.
+
+The name should be defined in a constant called `CONTROLLER_NAME` so that it can be easily changed if the need arises. The name should be used to initialize the messenger, and it should also be passed to the `BaseController` constructor.
+
+The constant should be used to define actions and events. It may be exported from the file in which it is defined, but should not listed as an export of the package.
+
+🚫 **The messenger namespace is not defined as a constant, but is repeated**
+
+```typescript
+export type TransactionsControllerStateChangedEvent =
+  ControllerStateChangedEvent<
+    // 🚫 Name is repeated.
+    'TransactionsController',
+    TransactionsControllerState
+  >;
+
+export type TransactionsControllerTransactionApprovedEvent = {
+  // 🚫 Name is repeated.
+  type: 'TransactionsController:transactionApprovedEvent';
+  payload: [transaction: Transaction];
+};
+
+export type TransactionsControllerEvents =
+  | TransactionsControllerStateChangedEvent
+  | TransactionsControllerTransactionApprovedEvent;
+
+export type TransactionsControllerMessenger = Messenger<
+  // 🚫 Name is repeated.
+  'TransactionsController',
+  never,
+  TransactionsControllerEvents
+>;
+
+// 🚫 Name is repeated.
+export class TransactionsController extends BaseController<'TransactionsController' /*,  ... */> {
+  constructor(/* ... */) {
+    // 🚫 Name is repeated.
+    super({ name: 'TransactionsController' /* ... */ });
+
+    // ...
+  }
+}
+```
+
+🚫 **The messenger namespace is defined as a constant, but it is called `controllerName` (legacy name)**
+
+```typescript
+// 🚫 Uses legacy name.
+const controllerName = 'TransactionsController';
+
+export type TransactionsControllerStateChangedEvent = ControllerStateChangedEvent<
+  typeof controllerName,
+  TransactionsControllerState
+>;
+
+export type TransactionsControllerTransactionApprovedEvent = {
+  type: `${typeof controllerName}:transactionApprovedEvent`;
+  payload: [transaction: Transaction]
+};
+
+export type TransactionsControllerEvents =
+  | TransactionsControllerStateChangedEvent
+  | TransactionsControllerTransactionApprovedEvent
+
+export type TransactionsControllerMessenger = Messenger<
+  typeof controllerName,
+  never,
+  TransactionsControllerEvents
+>;
+
+export class TransactionsController extends BaseController<typeof controllerName /*, ... */ {
+  constructor(/* ... */) {
+    super({ name: controllerName, /* ... */ })
+
+    // ...
+  }
+}
+```
+
+🚫 **The messenger namespace is defined as a constant, but it is exported from the package**
+
+```typescript
+/* packages/transactions-controller/src/transactions-controller.ts */
+
+export const CONTROLLER_NAME = 'TransactionsController';
+
+export type TransactionsControllerStateChangedEvent = ControllerStateChangedEvent<
+  typeof CONTROLLER_NAME,
+  TransactionsControllerState
+>;
+
+export type TransactionsControllerTransactionApprovedEvent = {
+  type: `${typeof CONTROLLER_NAME}:transactionApprovedEvent`;
+  payload: [transaction: Transaction]
+};
+
+export type TransactionsControllerEvents =
+  | TransactionsControllerStateChangedEvent
+  | TransactionsControllerTransactionApprovedEvent
+
+export type TransactionsControllerMessenger = Messenger<
+  typeof CONTROLLER_NAME,
+  never,
+  TransactionsControllerEvents
+>;
+
+export class TransactionsController extends BaseController<typeof CONTROLLER_NAME /*, ... */ {
+  constructor(/* ... */) {
+    super({ name: CONTROLLER_NAME, /* ... */ })
+
+    // ...
+  }
+}
+
+/* packages/transactions-controller/src/index.ts */
+
+export {
+  // 🚫 The controller name should not be exported from the package.
+  CONTROLLER_NAME,
+  TransactionsController,
+  // ...
+} from './transactions-controller';
+```
+
+✅ **The messenger namespace is defined as a constant, and it is kept internal instead of being exported**
+
+```typescript
+/* packages/transactions-controller/src/transactions-controller.ts */
+
+// ✅ Using correct name.
+const CONTROLLER_NAME = 'TransactionsController';
+
+export type TransactionsControllerStateChangedEvent = ControllerStateChangedEvent<
+  typeof CONTROLLER_NAME,
+  TransactionsControllerState
+>;
+
+export type TransactionsControllerTransactionApprovedEvent = {
+  type: `${typeof CONTROLLER_NAME}:transactionApprovedEvent`;
+  payload: [transaction: Transaction]
+};
+
+export type TransactionsControllerEvents =
+  | TransactionsControllerStateChangedEvent
+  | TransactionsControllerTransactionApprovedEvent
+
+export type TransactionsControllerMessenger = Messenger<
+  typeof CONTROLLER_NAME,
+  never,
+  TransactionsControllerEvents
+>;
+
+export class TransactionsController extends BaseController<typeof CONTROLLER_NAME /*, ... */ {
+  constructor(/* ... */) {
+    super({ name: CONTROLLER_NAME, /* ... */ })
+
+    // ...
+  }
+}
+
+/* packages/transactions-controller/src/index.ts */
+
+export {
+  // ✅ Name is not exported.
+  TransactionsController,
+  // ...
+} from './transactions-controller';
+```
+
 ## Accept an optional, partial representation of state
 
 Although `BaseController` requires a full representation of controller state, in practice, controllers should accept a partial version and then supply missing properties with defaults. In fact, the `state` argument should be optional:
@@ -64,7 +235,7 @@ class FooController extends BaseController</* ... */> {
 
 ## Provide a default representation of state
 
-Each controller needs a default representation in order to fully initialize itself when [receiving a partial representation of state](#accept-an-optional-partial-representation-of-state). A default representation of state is also useful when testing interactions with a controller's `*:stateChange` event.
+Each controller needs a default representation in order to fully initialize itself when [receiving a partial representation of state](#accept-an-optional-partial-representation-of-state). A default representation of state is also useful when testing interactions with a controller's `*:stateChanged` event.
 
 A function which returns this default representation should be defined and exported. It should be called `getDefault${ControllerName}State`.
 
@@ -226,7 +397,7 @@ const fooController = new FooController({
 
 If the recipient controller uses a messenger, however, the callback pattern is unnecessary. Using the messenger not only aligns the controller with `BaseController`, but also reduces the number of options that consumers need to remember in order to use the controller:
 
-✅ **The constructor subscribes to the `BarController:stateChange` event**
+✅ **The constructor subscribes to the `BarController:stateChanged` event**
 
 ```typescript
 /* === This repo: packages/foo-controller/src/FooController.ts === */
@@ -247,7 +418,7 @@ class FooController extends BaseController<
   constructor({ messenger /*, ... */ }, { messenger: FooControllerMessenger }) {
     super({ messenger /* ... */ });
 
-    messenger.subscribe('BarController:stateChange', (state) => {
+    messenger.subscribe('BarController:stateChanged', (state) => {
       // do something with the state
     });
   }
@@ -280,7 +451,7 @@ const fooControllerMessenger = new Messenger<
   parent: rootMessenger,
 });
 rootMessenger.delegate({
-  events: ['BarController:stateChange'],
+  events: ['BarController:stateChanged'],
   messenger: fooControllerMessenger,
 });
 const fooController = new FooController({
@@ -457,7 +628,7 @@ Instead, you can follow this process:
 
 1. Define a constant in your controller file called `MESSENGER_EXPOSED_METHODS`, listing the methods you want to expose.
 2. Remove manual action registrations; instead, call `registerMethodActionHandlers` and pass `MESSENGER_EXPOSED_METHODS`.
-3. Remove messenger action types; instead, run `yarn generate-method-action-types`. This will create a file called `${ControllerName}-method-action-types.ts`, which exports a type called `${ControllerName}MethodActions`.
+3. Remove messenger action types; instead, run `yarn messenger-action-types:generate`. This will create a file called `${ControllerName}-method-action-types.ts`, which exports a type called `${ControllerName}MethodActions`.
 4. Import `${ControllerName}-method-action-types.ts` in your controller file, and add `${ControllerName}MethodActions` to `${ControllerName}Actions`.
 5. Export the action types from `${ControllerName}-method-action-types.ts` in your package's `index.ts` file. Do **not** export the `${ControllerName}MethodActions` type.
 
@@ -541,16 +712,16 @@ type FooControllerGetStateAction = ControllerGetStateAction<
 >;
 ```
 
-## Define the `*:stateChange` event using the `ControllerStateChangeEvent` utility type
+## Define the `*:stateChanged` event using the `ControllerStateChangedEvent` utility type
 
-Each controller needs a type for its `*:stateChange` event. The `ControllerStateChangeEvent` utility type from the `@metamask/base-controller` package should be used to define this type.
+Each controller needs a type for its `*:stateChanged` event. The `ControllerStateChangedEvent` utility type from the `@metamask/base-controller` package should be used to define this type.
 
-The name of this type should be `${ControllerName}StateChangeEvent`.
+The name of this type should be `${ControllerName}StateChangedEvent`.
 
 ```typescript
-import type { ControllerStateChangeEvent } from '@metamask/base-controller';
+import type { ControllerStateChangedEvent } from '@metamask/base-controller';
 
-type FooControllerStateChangeEvent = ControllerStateChangeEvent<
+type FooControllerStateChangedEvent = ControllerStateChangedEvent<
   'FooController',
   FooControllerState
 >;
@@ -890,7 +1061,7 @@ This type should include:
   - This should always include `${controllerName}GetStateAction`
 - Actions imported from other controllers that the controller calls (i.e., _external actions_)
 - Events defined and exported by the controller that it publishes and expects consumers to subscribe to (i.e., _internal events_)
-  - This should always include `${controllerName}StateChangeEvent`
+  - This should always include `${controllerName}StateChangedEvent`
 - Events imported from other controllers that the controller subscribes to (i.e., _external events_)
 
 The name of this type should be `${ControllerName}Messenger`.
@@ -923,7 +1094,7 @@ export type AllowedActions =
   | ApprovalControllerAddApprovalRequestAction
   | ApprovalControllerAcceptApprovalRequestAction;
 
-export type SwapsControllerStateChangeEvent = ControllerStateChangeEvent<
+export type SwapsControllerStateChangedEvent = ControllerStateChangedEvent<
   'SwapsController',
   SwapsControllerState
 >;
@@ -934,7 +1105,7 @@ export type SwapsControllerSwapCreatedEvent = {
 };
 
 export type SwapsControllerEvents =
-  | SwapsControllerStateChangeEvent
+  | SwapsControllerStateChangedEvent
   | SwapsControllerSwapCreatedEvent;
 
 export type AllowedEvents =
@@ -952,6 +1123,51 @@ A messenger that allows no actions or events (whether internal or external) look
 
 ```typescript
 export type FooServiceMessenger = Messenger<'FooService', never, never>;
+```
+
+## Do not call messenger actions in the constructor
+
+One of the responsibilities of the messenger is to act as a liaison between controllers and services. A controller should not require direct access to another controller or service in order to communicate with it. This decouples controllers and services from each other and allows clients to initialize controllers and services in any order.
+
+Calling `this.messenger.call(...)` inside a controller's constructor, however, prevents this goal from being achieved. The action's handler must already be registered by the time the constructor runs, which means the controller that owns that handler must have been instantiated first.
+
+Instead of accessing actions in controller constructors, move any calls to an `init()` method (which clients are free to call after instantiating all controllers and services).
+
+🚫 **A messenger action is called during construction**
+
+```typescript
+class TokensController extends BaseController</* ... */> {
+  #selectedAccountId: string;
+
+  constructor({ messenger }: { messenger: TokensControllerMessenger }) {
+    super({ messenger /* ... */ });
+
+    // This requires AccountsController to have already been initialized
+    const { id } = this.messenger.call('AccountsController:getSelectedAccount');
+    this.#selectedAccountId = id;
+
+    // ...
+  }
+}
+```
+
+✅ **The call is deferred to an `init()` method**
+
+```typescript
+class TokensController extends BaseController</* ... */> {
+  #selectedAccountId: string | null = null;
+
+  constructor({ messenger }: { messenger: TokensControllerMessenger }) {
+    super({ messenger /* ... */ });
+
+    // ...
+  }
+
+  init() {
+    const { id } = this.messenger.call('AccountsController:getSelectedAccount');
+    this.#selectedAccountId = id;
+  }
+}
 ```
 
 ## Define and export a type for the controller's state
@@ -1045,7 +1261,7 @@ class GasFeeController extends BaseController</* ... */> {
     // ...
 
     messenger.subscribe(
-      'NetworkController:stateChange',
+      'NetworkController:stateChanged',
       (networkControllerState) => {
         this.#updateGasFees(networkControllerState.selectedNetworkClientId);
       },
@@ -1054,9 +1270,9 @@ class GasFeeController extends BaseController</* ... */> {
 }
 ```
 
-One way to fix this is to check if the other controller (the one being subscribed to) has a more suitable, granular event for the data being acted upon. For instance, `NetworkController` has a `networkDidChange` event which can be used in place of `NetworkController:stateChange` if the subscribing controller needs to know when the network has been switched:
+One way to fix this is to check if the other controller (the one being subscribed to) has a more suitable, granular event for the data being acted upon. For instance, `NetworkController` has a `networkDidChange` event which can be used in place of `NetworkController:stateChanged` if the subscribing controller needs to know when the network has been switched:
 
-✅ **`NetworkController:networkDidChange` is used instead of `NetworkController:stateChange`**
+✅ **`NetworkController:networkDidChange` is used instead of `NetworkController:stateChanged`**
 
 ```typescript
 class GasFeeController extends BaseController</* ... */> {
@@ -1098,7 +1314,7 @@ class TokensController extends BaseController</* ... */> {
     let selectedAccount = accountsController.internalAccounts.selectedAccount;
 
     messenger.subscribe(
-      'AccountsController:stateChange',
+      'AccountsController:stateChanged',
       (newAccountsControllerState) => {
         if (newAccountsControllerState.selectedAccount !== selectedAccount) {
           this.#updateTokens(
@@ -1125,7 +1341,7 @@ class NftController extends BaseController/*<...>*/ {
     );
 
     messenger.subscribe(
-      'PreferencesController:stateChange',
+      'PreferencesController:stateChanged',
       (newPreferencesControllerState) => {
         if (
           preferencesControllerState.ipfsGateway !== newPreferencesControllerState.ipfsGateway,
@@ -1190,7 +1406,7 @@ class NftController extends BaseController /*<...>*/ {
     // ...
 
     messenger.subscribe(
-      'PreferencesController:stateChange',
+      'PreferencesController:stateChanged',
       ({ ipfsGateway, openSeaEnabled, isIpfsGatewayEnabled }) => {
         this.#updateNfts(ipfsGateway, openSeaEnabled, isIpfsGatewayEnabled);
       },

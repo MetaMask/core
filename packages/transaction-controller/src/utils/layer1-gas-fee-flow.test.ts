@@ -1,11 +1,11 @@
 import type { Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
-import { updateTransactionLayer1GasFee } from './layer1-gas-fee-flow';
-import { getProvider } from './provider';
 import type { TransactionControllerMessenger } from '../TransactionController';
 import { TransactionStatus } from '../types';
 import type { Layer1GasFeeFlow, TransactionMeta } from '../types';
+import { updateTransactionLayer1GasFee } from './layer1-gas-fee-flow';
+import { getProvider } from './provider';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),

@@ -22,6 +22,7 @@ describe('@metamask/chain-agnostic-permission', () => {
         "getAllScopesFromScopesObjects",
         "getInternalScopesObject",
         "getSessionScopes",
+        "getSessionProperties",
         "getPermittedAccountsForScopes",
         "validateAndNormalizeScopes",
         "bucketScopes",

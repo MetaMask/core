@@ -1,18 +1,23 @@
-import { Contract } from '@ethersproject/contracts';
-import { Web3Provider } from '@ethersproject/providers';
+import { Interface } from '@ethersproject/abi';
 import { TokensControllerState } from '@metamask/assets-controllers';
 import { toChecksumHexAddress } from '@metamask/controller-utils';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
-import type { Hex } from '@metamask/utils';
+import type { CaipAssetType, Hex } from '@metamask/utils';
+import { hexToBigInt, toCaipAssetType } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { getAssetsUnifyStateFeature } from './feature-flags';
 import {
   CHAIN_ID_POLYGON,
   NATIVE_TOKEN_ADDRESS,
-  STABLECOINS,
+  SLIP44_COIN_TYPE_BY_CHAIN,
 } from '../constants';
 import type { FiatRates, TransactionPayControllerMessenger } from '../types';
+import {
+  getAssetsUnifyStateFeature,
+  getStablecoins,
+  isChainExcludedFromInfura,
+} from './feature-flags';
+import { getNetworkClientId, rpcRequest } from './provider';
 
 /**
  * Check if two tokens are the same (same address and chain).
@@ -204,18 +209,18 @@ export function getTokenFiatRate(
   if (nativeToFiatRate === null || nativeToUsdRate === null) {
     return undefined;
   }
-  const isStablecoin = STABLECOINS[chainId]?.includes(
+  const isStablecoin = getStablecoins(messenger)[chainId]?.includes(
     tokenAddress.toLowerCase() as Hex,
   );
 
   const usdRate = isStablecoin
     ? '1'
-    : new BigNumber(tokenToNativeRate ?? 1)
-        .multipliedBy(nativeToUsdRate)
+    : new BigNumber(String(tokenToNativeRate ?? 1))
+        .multipliedBy(String(nativeToUsdRate))
         .toString(10);
 
-  const fiatRate = new BigNumber(tokenToNativeRate ?? 1)
-    .multipliedBy(nativeToFiatRate)
+  const fiatRate = new BigNumber(String(tokenToNativeRate ?? 1))
+    .multipliedBy(String(nativeToFiatRate))
     .toString(10);
 
   return { usdRate, fiatRate };
@@ -304,6 +309,10 @@ export function getNativeToken(chainId: Hex): Hex {
  * Unlike {@link getTokenBalance}, this bypasses the cached state in
  * `TokenBalancesController` and reads directly from the chain.
  *
+ * Uses the Infura RPC endpoint for the chain when one is configured, falling
+ * back to the chain's default endpoint. This avoids errors on custom mainnet
+ * RPC endpoints that may not support pending block queries.
+ *
  * @param messenger - Controller messenger.
  * @param account - Address of the account.
  * @param chainId - Chain ID.
@@ -316,28 +325,72 @@ export async function getLiveTokenBalance(
   chainId: Hex,
   tokenAddress: Hex,
 ): Promise<string> {
-  const networkClientId = messenger.call(
-    'NetworkController:findNetworkClientIdByChainId',
-    chainId,
-  );
-
-  const { provider } = messenger.call(
-    'NetworkController:getNetworkClientById',
-    networkClientId,
-  );
-
-  const ethersProvider = new Web3Provider(provider);
+  const options = {
+    preferInfura: !isChainExcludedFromInfura(messenger, chainId),
+  };
   const isNative =
     tokenAddress.toLowerCase() === getNativeToken(chainId).toLowerCase();
 
   if (isNative) {
-    const balance = await ethersProvider.getBalance(account);
-    return balance.toString();
+    const result = await rpcRequest<string>({
+      messenger,
+      chainId,
+      method: 'eth_getBalance',
+      params: [account, 'pending'],
+      options,
+    });
+
+    return new BigNumber(result, 16).toString(10);
   }
 
-  const contract = new Contract(tokenAddress, abiERC20, ethersProvider);
-  const balance = await contract.balanceOf(account);
-  return balance.toString();
+  const calldata = new Interface(abiERC20).encodeFunctionData('balanceOf', [
+    account,
+  ]) as Hex;
+
+  const result = await rpcRequest<string>({
+    messenger,
+    chainId,
+    method: 'eth_call',
+    params: [{ to: tokenAddress, data: calldata }, 'pending'],
+    options,
+  });
+
+  return new BigNumber(result, 16).toString(10);
+}
+
+/**
+ * Build a CAIP-19 asset type identifier for an EVM token.
+ *
+ * For native tokens the SLIP-44 coin type is resolved automatically from
+ * a built-in chain→coin-type map, falling back to 60 (ETH).  Callers can
+ * override via the optional third parameter.
+ *
+ * @param chainId - Hex chain ID (e.g. `0x1`).
+ * @param tokenAddress - Token contract address, or the native token address.
+ * @param slip44CoinType - Optional SLIP-44 coin type override for native tokens.
+ * @returns CAIP-19 asset type string.
+ */
+export function buildCaipAssetType(
+  chainId: Hex,
+  tokenAddress: Hex,
+  slip44CoinType?: number,
+): CaipAssetType {
+  const chainReference = String(hexToBigInt(chainId));
+  const isNative =
+    tokenAddress.toLowerCase() === getNativeToken(chainId).toLowerCase();
+
+  if (isNative) {
+    const coinType = slip44CoinType ?? SLIP44_COIN_TYPE_BY_CHAIN[chainId] ?? 60;
+
+    return toCaipAssetType(
+      'eip155',
+      chainReference,
+      'slip44',
+      String(coinType),
+    );
+  }
+
+  return toCaipAssetType('eip155', chainReference, 'erc20', tokenAddress);
 }
 
 function getTicker(
@@ -345,17 +398,12 @@ function getTicker(
   messenger: TransactionPayControllerMessenger,
 ): string | undefined {
   try {
-    const networkClientId = messenger.call(
-      'NetworkController:findNetworkClientIdByChainId',
-      chainId,
-    );
+    const networkClientId = getNetworkClientId(messenger, chainId);
 
-    const networkConfiguration = messenger.call(
+    return messenger.call(
       'NetworkController:getNetworkClientById',
       networkClientId,
-    );
-
-    return networkConfiguration.configuration.ticker;
+    ).configuration.ticker;
   } catch {
     return undefined;
   }

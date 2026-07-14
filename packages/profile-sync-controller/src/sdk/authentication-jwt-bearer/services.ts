@@ -1,10 +1,3 @@
-import type {
-  AccessToken,
-  ErrorMessage,
-  UserProfile,
-  UserProfileLineage,
-} from './types';
-import { AuthType } from './types';
 import type { Env, Platform } from '../../shared/env';
 import { getEnvUrls, getOidcClientId } from '../../shared/env';
 import type { MetaMetricsAuth } from '../../shared/types/services';
@@ -16,6 +9,15 @@ import {
   ValidationError,
   RateLimitedError,
 } from '../errors';
+import { validatePairResponse } from '../utils/validate-pair-response';
+import type {
+  AccessToken,
+  ErrorMessage,
+  ProfileAlias,
+  UserProfile,
+  UserProfileLineage,
+} from './types';
+import { AuthType } from './types';
 
 /**
  * Parse Retry-After header into milliseconds if possible.
@@ -150,8 +152,14 @@ export const SRP_LOGIN_URL = (env: Env): string =>
 export const SIWE_LOGIN_URL = (env: Env): string =>
   `${getEnvUrls(env).authApiUrl}/api/v2/siwe/login`;
 
+export const PAIR_PROFILES_URL = (env: Env): string =>
+  `${getEnvUrls(env).authApiUrl}/api/v2/profile/pair`;
+
 export const PROFILE_LINEAGE_URL = (env: Env): string =>
   `${getEnvUrls(env).authApiUrl}/api/v2/profile/lineage`;
+
+export const CUSTOMER_SERVICE_TOKEN_URL = (env: Env): string =>
+  `${getEnvUrls(env).authApiUrl}/api/v2/customer-service/token`;
 
 const getAuthenticationUrl = (authType: AuthType, env: Env): string => {
   switch (authType) {
@@ -171,6 +179,23 @@ type NonceResponse = {
   nonce: string;
   identifier: string;
   expiresIn: number;
+};
+
+type RawProfileAlias = {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  alias_profile_id: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  canonical_profile_id: string;
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  identifier_ids: { id: string; type: string }[];
+};
+
+const parseProfileAliases = (raw: RawProfileAlias[]): ProfileAlias[] => {
+  return raw.map((alias) => ({
+    aliasProfileId: alias.alias_profile_id,
+    canonicalProfileId: alias.canonical_profile_id,
+    identifierIds: alias.identifier_ids ?? [],
+  }));
 };
 
 type PairRequest = {
@@ -227,6 +252,64 @@ export async function pairIdentifiers(
       'Failed to pair identifiers',
       PairError,
     );
+  }
+}
+
+export type PairProfilesResponse = {
+  profile: UserProfile;
+  profileAliases: ProfileAlias[];
+};
+
+/**
+ * Pair multiple profiles using their OIDC access tokens.
+ * Idempotent — calling with already-paired tokens is a no-op.
+ *
+ * @param accessTokens - Two or more OIDC access tokens to pair
+ * @param authAccessToken - A valid access token for the Authorization header
+ * @param env - server environment
+ * @returns The pair response containing the canonical profile and aliases
+ */
+export async function pairProfiles(
+  accessTokens: string[],
+  authAccessToken: string,
+  env: Env,
+): Promise<PairProfilesResponse> {
+  const pairUrl = new URL(PAIR_PROFILES_URL(env));
+
+  try {
+    const response = await fetch(pairUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${authAccessToken}`,
+      },
+      body: JSON.stringify({
+        jwts: accessTokens,
+      }),
+    });
+
+    if (!response.ok) {
+      return await throwServiceError(
+        response,
+        'Failed to pair profiles',
+        PairError,
+      );
+    }
+
+    const pairResponse: unknown = await response.json();
+    validatePairResponse(pairResponse);
+
+    return {
+      profile: {
+        identifierId: pairResponse.profile.identifier_id,
+        metaMetricsId: pairResponse.profile.metametrics_id ?? '',
+        profileId: pairResponse.profile.profile_id,
+        canonicalProfileId: pairResponse.profile.profile_id,
+      },
+      profileAliases: parseProfileAliases(pairResponse.profile_aliases ?? []),
+    };
+  } catch (error) {
+    return await throwServiceError(error, 'Failed to pair profiles', PairError);
   }
 }
 
@@ -323,6 +406,7 @@ type Authentication = {
   token: string;
   expiresIn: number;
   profile: UserProfile;
+  profileAliases: ProfileAlias[];
 };
 /**
  * Service to Authenticate/Login a user via SIWE or SRP derived key.
@@ -348,6 +432,9 @@ export async function authenticate(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(authType === AuthType.SRP
+          ? { 'X-MetaMask-Profile-Pairing': 'enabled' }
+          : {}),
       },
       body: JSON.stringify({
         signature,
@@ -357,6 +444,7 @@ export async function authenticate(
               metametrics: {
                 metametrics_id: await metametrics.getMetaMetricsId(),
                 agent: metametrics.agent,
+                app_version: await metametrics.getAppVersion?.(),
               },
             }
           : {}),
@@ -372,6 +460,7 @@ export async function authenticate(
     }
 
     const loginResponse = await response.json();
+
     return {
       token: loginResponse.token,
       expiresIn: loginResponse.expires_in,
@@ -379,7 +468,9 @@ export async function authenticate(
         identifierId: loginResponse.profile.identifier_id,
         metaMetricsId: loginResponse.profile.metametrics_id,
         profileId: loginResponse.profile.profile_id,
+        canonicalProfileId: loginResponse.profile.profile_id,
       },
+      profileAliases: parseProfileAliases(loginResponse.profile_aliases ?? []),
     };
   } catch (error) {
     return await throwServiceError(
@@ -425,6 +516,55 @@ export async function getUserProfileLineage(
     return await throwServiceError(
       error,
       'Failed to get profile lineage',
+      SignInError,
+    );
+  }
+}
+
+/**
+ * Service to get a Customer Service specific access token.
+ *
+ * Exchanges a valid OIDC access token for a short-lived token scoped to the
+ * customer-service audience, which Customer Service tooling consumes to
+ * identify and authenticate the user.
+ *
+ * @param env - server environment
+ * @param accessToken - JWT access token used to access protected resources
+ * @returns The customer-service access token.
+ */
+export async function getCustomerServiceToken(
+  env: Env,
+  accessToken: string,
+): Promise<string> {
+  const customerServiceTokenUrl = new URL(CUSTOMER_SERVICE_TOKEN_URL(env));
+
+  try {
+    const response = await fetch(customerServiceTokenUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    if (!response.ok) {
+      return await throwServiceError(
+        response,
+        'Failed to get customer service token',
+        SignInError,
+      );
+    }
+
+    const tokenResponse = await response.json();
+    if (typeof tokenResponse?.access_token !== 'string') {
+      throw new SignInError(
+        'Failed to get customer service token: missing access_token',
+      );
+    }
+    return tokenResponse.access_token;
+  } catch (error) {
+    return await throwServiceError(
+      error,
+      'Failed to get customer service token',
       SignInError,
     );
   }

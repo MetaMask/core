@@ -9,16 +9,18 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [18.x, 20.x, 22.x]
+        node-version: [18.x, 20.x, 22.x, 24.x]
     outputs:
       child-workspace-package-names: ${{ steps.workspace-package-names.outputs.child-workspace-package-names }}
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v2
+        uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: false
+          persist-credentials: false
           cache-node-modules: true
           node-version: ${{ matrix.node-version }}
+          force-setup: true
       - name: Fetch workspace package names
         id: workspace-package-names
         run: |
@@ -31,19 +33,21 @@ jobs:
     needs: prepare
     strategy:
       matrix:
-        node-version: [22.x]
+        node-version: [24.x]
         script:
           - lint:eslint
           - lint:misc:check
           - constraints
           - lint:dependencies
           - lint:teams
-          - generate-method-action-types:check
+          - messenger-action-types:check
+          - readme-content:check
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v2
+        uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: false
+          persist-credentials: false
           node-version: ${{ matrix.node-version }}
       - name: Run yarn ${{ matrix.script }}
         run: yarn "$SCRIPT"
@@ -63,15 +67,18 @@ jobs:
     needs: prepare
     strategy:
       matrix:
-        node-version: [22.x]
+        node-version: [24.x]
         package-name: ${{ fromJson(needs.prepare.outputs.child-workspace-package-names) }}
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v2
+        uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: false
+          persist-credentials: false
           node-version: ${{ matrix.node-version }}
-      - run: yarn workspace ${{ matrix.package-name }} changelog:validate
+      - run: yarn workspace "$PACKAGE_NAME" changelog:validate
+        env:
+          PACKAGE_NAME: ${{ matrix.package-name }}
       - name: Require clean working directory
         shell: bash
         run: |
@@ -86,7 +93,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - name: Validate changelog diffs
         uses: ./.github/actions/check-merge-queue-changelogs
 
@@ -96,12 +105,13 @@ jobs:
     needs: prepare
     strategy:
       matrix:
-        node-version: [22.x]
+        node-version: [24.x]
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v2
+        uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: false
+          persist-credentials: false
           node-version: ${{ matrix.node-version }}
       - run: yarn build
       - name: Require clean working directory
@@ -118,12 +128,13 @@ jobs:
     needs: prepare
     strategy:
       matrix:
-        node-version: [22.x]
+        node-version: [24.x]
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v2
+        uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: false
+          persist-credentials: false
           node-version: ${{ matrix.node-version }}
       - run: yarn test:scripts
       - name: Require clean working directory
@@ -134,21 +145,121 @@ jobs:
             exit 1
           fi
 
-  test:
-    name: Test
+  # The following `test-*` jobs are duplicated because a single job may only
+  # create a maximum of 256 matrix combinations, and we have more than 256 total
+  # test combinations across all Node.js versions.
+  test-18:
+    name: Test (18.x)
     runs-on: ubuntu-latest
     needs: prepare
     strategy:
       matrix:
-        node-version: [18.x, 20.x, 22.x]
         package-name: ${{ fromJson(needs.prepare.outputs.child-workspace-package-names) }}
     steps:
       - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v2
+        uses: MetaMask/action-checkout-and-setup@v3
         with:
           is-high-risk-environment: false
+          persist-credentials: false
+          node-version: 18.x
+      - run: yarn workspace "$PACKAGE_NAME" run test
+        env:
+          PACKAGE_NAME: ${{ matrix.package-name }}
+      - name: Require clean working directory
+        shell: bash
+        run: |
+          if ! git diff --exit-code; then
+            echo "Working tree dirty at end of job"
+            exit 1
+          fi
+
+  test-20:
+    name: Test (20.x)
+    runs-on: ubuntu-latest
+    needs: prepare
+    strategy:
+      matrix:
+        package-name: ${{ fromJson(needs.prepare.outputs.child-workspace-package-names) }}
+    steps:
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v3
+        with:
+          is-high-risk-environment: false
+          persist-credentials: false
+          node-version: 20.x
+      - run: yarn workspace "$PACKAGE_NAME" run test
+        env:
+          PACKAGE_NAME: ${{ matrix.package-name }}
+      - name: Require clean working directory
+        shell: bash
+        run: |
+          if ! git diff --exit-code; then
+            echo "Working tree dirty at end of job"
+            exit 1
+          fi
+
+  test-22:
+    name: Test (22.x)
+    runs-on: ubuntu-latest
+    needs: prepare
+    strategy:
+      matrix:
+        package-name: ${{ fromJson(needs.prepare.outputs.child-workspace-package-names) }}
+    steps:
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v3
+        with:
+          is-high-risk-environment: false
+          persist-credentials: false
+          node-version: 22.x
+      - run: yarn workspace "$PACKAGE_NAME" run test
+        env:
+          PACKAGE_NAME: ${{ matrix.package-name }}
+      - name: Require clean working directory
+        shell: bash
+        run: |
+          if ! git diff --exit-code; then
+            echo "Working tree dirty at end of job"
+            exit 1
+          fi
+
+  build-platform-api-docs:
+    name: Build Platform API docs
+    runs-on: ubuntu-latest
+    needs: prepare
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v3
+        with:
+          is-high-risk-environment: false
+          persist-credentials: false
+          node-version: 24.x
+
+      - name: Generate and build Platform API docs
+        run: yarn docs:platform-api:build
+
+  # The wallet-cli daemon e2e spawns the BUILT `mm` CLI and the native
+  # better-sqlite3 addon as real child processes, so it needs its dependency
+  # subtree built first and cannot run in the per-package `test-*` matrix above.
+  test-wallet-cli-e2e:
+    name: Test wallet-cli daemon e2e (${{ matrix.node-version }})
+    runs-on: ubuntu-latest
+    needs: prepare
+    strategy:
+      matrix:
+        node-version: [20.x, 22.x, 24.x]
+    steps:
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v3
+        with:
+          is-high-risk-environment: false
+          persist-credentials: false
           node-version: ${{ matrix.node-version }}
-      - run: yarn workspace ${{ matrix.package-name }} run test
+      - name: Build wallet-cli and its dependencies
+        run: yarn workspaces foreach --topological-dev --recursive --from '@metamask/wallet-cli' run build
+      - run: yarn workspace @metamask/wallet-cli run test:e2e
       - name: Require clean working directory
         shell: bash
         run: |

@@ -1,13 +1,13 @@
 import { toMultichainAccountWalletId } from '@metamask/account-api';
 import { getUUIDFromAddressOfNormalAccount } from '@metamask/accounts-controller';
 
-import { createMultichainAccountGroupsBatch } from './group';
 import { backupAndSyncLogger } from '../../logger';
 import { BackupAndSyncAnalyticsEvent } from '../analytics';
 import type { ProfileId } from '../authentication';
 import type { BackupAndSyncContext } from '../types';
 import { getAllLegacyUserStorageAccounts } from '../user-storage';
 import { getLocalGroupsForEntropyWallet } from '../utils';
+import { createMultichainAccountGroupsBatch } from './group';
 
 /**
  * Performs a stripped down version of legacy account syncing, replacing the current
@@ -88,6 +88,7 @@ export const performLegacyAccountSyncing = async (
       );
       if (localGroup) {
         context.controller.setAccountGroupName(localGroup.id, n, true);
+        context.mutationTracker?.setLocalWrite(true);
 
         context.emitAnalyticsEventFn({
           action: BackupAndSyncAnalyticsEvent.LegacyGroupRenamed,

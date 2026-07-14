@@ -11,6 +11,8 @@ import {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
+import { jestAdvanceTime } from '../../../tests/helpers';
+import { generateMockTxMeta } from '../tests/utils';
 import {
   controllerName,
   SubscriptionControllerErrorMessage,
@@ -51,8 +53,6 @@ import {
   SUBSCRIPTION_STATUSES,
   SubscriptionUserEvent,
 } from './types';
-import { jestAdvanceTime } from '../../../tests/helpers';
-import { generateMockTxMeta } from '../tests/utils';
 
 type AllActions = MessengerActions<SubscriptionControllerMessenger>;
 

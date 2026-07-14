@@ -784,7 +784,7 @@ describe('AiDigestService', () => {
             trends: [
               {
                 ...mockMarketOverview.trends[0],
-                relatedAssets: [{ name: 'Bitcoin' }], // missing required fields
+                relatedAssets: [{ name: 'Bitcoin' }], // missing required symbol
               },
             ],
           }),
@@ -797,6 +797,76 @@ describe('AiDigestService', () => {
       await expect(service.fetchMarketOverview()).rejects.toThrow(
         AiDigestControllerErrorMessage.API_INVALID_RESPONSE,
       );
+    });
+
+    it('returns overview when an asset is missing sourceAssetId', async () => {
+      const assetWithoutSourceId = {
+        name: 'Bitcoin',
+        symbol: 'BTC',
+        caip19: ['bip122:000000000019d6689c085ae165831e93/slip44:0'],
+        hlPerpsMarket: ['BTC'],
+        // sourceAssetId intentionally absent
+      };
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            ...mockMarketOverview,
+            trends: [
+              {
+                ...mockMarketOverview.trends[0],
+                relatedAssets: [assetWithoutSourceId],
+              },
+            ],
+          }),
+      });
+
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
+      const result = await service.fetchMarketOverview();
+
+      expect(result?.trends).toHaveLength(1);
+      expect(result?.trends[0].relatedAssets).toHaveLength(1);
+      expect(result?.trends[0].relatedAssets[0].symbol).toBe('BTC');
+      expect(result?.trends[0].relatedAssets[0].sourceAssetId).toBeUndefined();
+    });
+
+    it('returns overview when an asset is missing name', async () => {
+      const assetWithoutName = {
+        symbol: 'ETH',
+        sourceAssetId: 'ethereum',
+        caip19: ['eip155:1/slip44:60'],
+        hlPerpsMarket: ['ETH'],
+        // name intentionally absent
+      };
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            ...mockMarketOverview,
+            trends: [
+              {
+                ...mockMarketOverview.trends[0],
+                relatedAssets: [assetWithoutName],
+              },
+            ],
+          }),
+      });
+
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
+      const result = await service.fetchMarketOverview();
+
+      expect(result?.trends).toHaveLength(1);
+      expect(result?.trends[0].relatedAssets).toHaveLength(1);
+      expect(result?.trends[0].relatedAssets[0].symbol).toBe('ETH');
+      expect(result?.trends[0].relatedAssets[0].name).toBeUndefined();
     });
 
     it('accepts additional unknown fields in payload', async () => {
@@ -823,6 +893,158 @@ describe('AiDigestService', () => {
       const result = await service.fetchMarketOverview();
 
       expect(result).toStrictEqual(withExtras);
+    });
+  });
+
+  describe('fetchFrontPageItem', () => {
+    const mockRelatedAsset = {
+      name: 'Bitcoin',
+      symbol: 'BTC',
+      caip19: ['bip122:000000000019d6689c085ae165831e93/slip44:0'],
+      sourceAssetId: 'bitcoin',
+      hlPerpsMarket: ['BTC'],
+    };
+
+    const mockFrontPage = {
+      id: 'a3f1c2d4-5e6f-4a7b-8c9d-0e1f2a3b4c5d',
+      item: {
+        title: 'Institutional adoption',
+        description: 'Institutional players continue accumulating.',
+        category: 'macro',
+        impact: 'positive',
+        articles: [
+          {
+            title: 'Crypto adoption rises',
+            url: 'https://example.com/crypto-adoption',
+            source: 'example.com',
+            date: '2026-02-16',
+          },
+        ],
+        relatedAssets: [mockRelatedAsset],
+      },
+      ctaTitle: 'Majors steady as volatility cools',
+      ctaDescription:
+        'Bitcoin and Ethereum held firm as funding rates normalized.',
+      createdAt: '2026-02-16T10:00:00.000Z',
+    };
+
+    it('fetches a front page item from the correct endpoint', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFrontPage),
+      });
+
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
+      const result = await service.fetchFrontPageItem(mockFrontPage.id);
+
+      expect(result).toStrictEqual(mockFrontPage);
+      expect(mockFetch).toHaveBeenCalledWith(
+        `http://test.com/api/v1/market-overview/front-page/${mockFrontPage.id}`,
+      );
+    });
+
+    it('url-encodes the id in the request path', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFrontPage),
+      });
+
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
+      await service.fetchFrontPageItem('a b/c');
+
+      expect(mockFetch).toHaveBeenCalledWith(
+        'http://test.com/api/v1/market-overview/front-page/a%20b%2Fc',
+      );
+    });
+
+    it('returns null when API returns 404', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 404 });
+
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
+      const result = await service.fetchFrontPageItem(mockFrontPage.id);
+
+      expect(result).toBeNull();
+    });
+
+    it('throws on non-404 non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 500 });
+
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
+
+      await expect(
+        service.fetchFrontPageItem(mockFrontPage.id),
+      ).rejects.toThrow('API request failed: 500');
+    });
+
+    it('throws when the item schema is invalid', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({ ...mockFrontPage, item: 'not-an-object' }),
+      });
+
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
+
+      await expect(
+        service.fetchFrontPageItem(mockFrontPage.id),
+      ).rejects.toThrow(AiDigestControllerErrorMessage.API_INVALID_RESPONSE);
+    });
+
+    it('throws when ctaTitle is missing', async () => {
+      const { ctaTitle: _ctaTitle, ...withoutCtaTitle } = mockFrontPage;
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(withoutCtaTitle),
+      });
+
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
+
+      await expect(
+        service.fetchFrontPageItem(mockFrontPage.id),
+      ).rejects.toThrow(AiDigestControllerErrorMessage.API_INVALID_RESPONSE);
+    });
+
+    it('normalises missing caip19 on the item to []', async () => {
+      const perpsOnlyAsset = {
+        name: 'ETHFI',
+        symbol: 'ETHFI',
+        sourceAssetId: '',
+        hlPerpsMarket: ['ETHFI'],
+      };
+
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            ...mockFrontPage,
+            item: { ...mockFrontPage.item, relatedAssets: [perpsOnlyAsset] },
+          }),
+      });
+
+      const service = new AiDigestService({
+        baseUrl: 'http://test.com/api/v1',
+      });
+      const result = await service.fetchFrontPageItem(mockFrontPage.id);
+
+      expect(result?.item.relatedAssets[0].caip19).toStrictEqual([]);
     });
   });
 });

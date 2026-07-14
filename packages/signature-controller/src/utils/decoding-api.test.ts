@@ -1,6 +1,6 @@
-import { decodeSignature } from './decoding-api';
 import { EthMethod } from '../types';
 import type { OriginalRequest } from '../types';
+import { decodeSignature } from './decoding-api';
 
 const PERMIT_REQUEST_MOCK = {
   method: EthMethod.SignTypedDataV4,

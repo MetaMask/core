@@ -16,7 +16,8 @@ import type { AccountWalletObjectOf } from '../wallet';
 
 export class EntropyRule
   extends BaseRule
-  implements Rule<AccountWalletType.Entropy, AccountGroupType.MultichainAccount>
+  implements
+    Rule<AccountWalletType.Entropy, AccountGroupType.MultichainAccount>
 {
   readonly walletType = AccountWalletType.Entropy;
 

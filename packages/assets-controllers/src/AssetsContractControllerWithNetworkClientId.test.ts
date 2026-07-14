@@ -2,11 +2,11 @@ import { BigNumber } from '@ethersproject/bignumber';
 import { BUILT_IN_NETWORKS } from '@metamask/controller-utils';
 import { NetworkClientType } from '@metamask/network-controller';
 
+import { SECONDS } from '../../../tests/constants';
 import {
   setupAssetContractControllers,
   mockNetworkWithDefaultChainId,
 } from './AssetsContractController.test';
-import { SECONDS } from '../../../tests/constants';
 
 const ERC20_UNI_ADDRESS = '0x1f9840a85d5af5bf1d1762f925bdaddc4201f984';
 const ERC20_SAI_ADDRESS = '0x89d24a6b4ccb1b6faa2625fe562bdd9a23260359';

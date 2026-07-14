@@ -47,7 +47,9 @@ export type GatorPermissionsControllerInitializeAction = {
  *
  * @returns A decoded permission object suitable for UI consumption and follow-up actions.
  * @throws If the origin is not allowed, the context cannot be decoded into exactly one delegation,
- * or the enforcers/terms do not match a supported permission type.
+ * the enforcers do not match any supported permission type, no candidate type validates
+ * the caveat terms, or more than one permission type successfully validates
+ * (ambiguous delegation).
  */
 export type GatorPermissionsControllerDecodePermissionFromPermissionContextForOriginAction =
   {

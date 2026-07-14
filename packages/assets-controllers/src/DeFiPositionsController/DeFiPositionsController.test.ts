@@ -7,6 +7,12 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
+import { flushPromises } from '../../../../tests/helpers';
+import { createMockInternalAccount } from '../../../accounts-controller/tests/mocks';
+import type {
+  InternalAccount,
+  TransactionMeta,
+} from '../../../transaction-controller/src/types';
 import * as calculateDefiMetrics from './calculate-defi-metrics';
 import type { DeFiPositionsControllerMessenger } from './DeFiPositionsController';
 import {
@@ -15,12 +21,6 @@ import {
 } from './DeFiPositionsController';
 import * as fetchPositions from './fetch-positions';
 import * as groupDeFiPositions from './group-defi-positions';
-import { flushPromises } from '../../../../tests/helpers';
-import { createMockInternalAccount } from '../../../accounts-controller/tests/mocks';
-import type {
-  InternalAccount,
-  TransactionMeta,
-} from '../../../transaction-controller/src/types';
 
 const GROUP_ACCOUNTS = [
   createMockInternalAccount({

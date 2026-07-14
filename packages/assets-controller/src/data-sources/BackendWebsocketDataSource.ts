@@ -13,22 +13,16 @@ import {
   KnownCaipNamespace,
   toCaipChainId,
 } from '@metamask/utils';
-import BigNumberJS from 'bignumber.js';
 
+import type { AssetsControllerMessenger } from '../AssetsController';
+import { projectLogger, createModuleLogger } from '../logger';
+import type { ChainId, Caip19AssetId, DataResponse } from '../types';
+import { processAccountActivityBalanceUpdates } from '../utils/processAccountActivityBalanceUpdates';
 import { AbstractDataSource } from './AbstractDataSource';
 import type {
   DataSourceState,
   SubscriptionRequest,
 } from './AbstractDataSource';
-import type { AssetsControllerMessenger } from '../AssetsController';
-import { projectLogger, createModuleLogger } from '../logger';
-import type {
-  ChainId,
-  Caip19AssetId,
-  AssetMetadata,
-  AssetBalance,
-  DataResponse,
-} from '../types';
 
 // ============================================================================
 // CONSTANTS
@@ -76,6 +70,8 @@ export type BackendWebsocketDataSourceOptions = {
     chains: ChainId[],
     previousChains: ChainId[],
   ) => void;
+  /** Returns the asset type ('native' | 'erc20' | 'spl') for a given CAIP-19 asset ID. */
+  getAssetType: (assetId: Caip19AssetId) => 'native' | 'erc20' | 'spl';
   state?: Partial<BackendWebsocketDataSourceState>;
 };
 
@@ -158,6 +154,43 @@ function buildAccountActivityChannel(
 }
 
 /**
+ * Normalize addresses for stable comparison when detecting account changes.
+ *
+ * @param address - Account address (hex or base58).
+ * @returns Normalized address for comparison.
+ */
+function normalizeAddressForComparison(address: string): string {
+  return address.startsWith('0x') ? address.toLowerCase() : address;
+}
+
+/**
+ * Check whether subscribed account addresses changed (case-insensitive for EVM).
+ *
+ * @param nextAddresses - Addresses from the incoming subscribe request.
+ * @param existingAddresses - Addresses from the active subscription.
+ * @returns True when the address sets differ.
+ */
+function haveAddressesChanged(
+  nextAddresses: string[],
+  existingAddresses: string[],
+): boolean {
+  if (nextAddresses.length !== existingAddresses.length) {
+    return true;
+  }
+
+  const normalizedNext = nextAddresses
+    .map(normalizeAddressForComparison)
+    .sort();
+  const normalizedExisting = existingAddresses
+    .map(normalizeAddressForComparison)
+    .sort();
+
+  return normalizedNext.some(
+    (address, index) => address !== normalizedExisting[index],
+  );
+}
+
+/**
  * Normalize API chain identifier to CAIP-2 ChainId.
  * Passes through strings already in CAIP-2 form (e.g. eip155:1, solana:5eykt...).
  * Converts bare decimals to eip155:decimal.
@@ -207,6 +240,8 @@ function toChainId(chainIdOrDecimal: number | string): ChainId {
  * - BackendWebSocketService:subscribe
  * - BackendWebSocketService:getConnectionInfo
  * - BackendWebSocketService:findSubscriptionsByChannelPrefix
+ * - BackendWebSocketService:addChannelCallback
+ * - BackendWebSocketService:removeChannelCallback
  */
 const DEFAULT_CHAINS_REFRESH_INTERVAL_MS = 20 * 60 * 1000; // 20 minutes
 
@@ -224,8 +259,18 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     previousChains: ChainId[],
   ) => void;
 
+  readonly #getAssetType: (
+    assetId: Caip19AssetId,
+  ) => 'native' | 'erc20' | 'spl';
+
   /** Chains refresh timer */
   #chainsRefreshTimer: ReturnType<typeof setInterval> | null = null;
+
+  /** Chains the backend API reports as supported (preserved across disconnects). */
+  #supportedChains: ChainId[] = [];
+
+  /** Whether the WebSocket is currently connected. Chains are only claimed when true. */
+  #isConnected = false;
 
   /** WebSocket subscriptions by our internal subscription ID */
   readonly #wsSubscriptions: Map<string, WebSocketSubscription> = new Map();
@@ -236,6 +281,12 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
   /** Store original subscription requests for reconnection */
   readonly #subscriptionRequests: Map<string, SubscriptionRequest> = new Map();
 
+  /** Channels with registered BackendWebSocketService channel callbacks */
+  readonly #registeredChannelCallbacks: Set<string> = new Set();
+
+  /** Serializes subscribe/unsubscribe so account switches cannot interleave. */
+  #subscribeLock: Promise<void> = Promise.resolve();
+
   constructor(options: BackendWebsocketDataSourceOptions) {
     super(CONTROLLER_NAME, {
       ...defaultState,
@@ -245,6 +296,7 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     this.#messenger = options.messenger;
     this.#apiClient = options.queryApiClient;
     this.#onActiveChainsUpdated = options.onActiveChainsUpdated;
+    this.#getAssetType = options.getAssetType;
 
     this.#subscribeToEvents();
     this.#initializeActiveChains().catch(console.error);
@@ -257,10 +309,17 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
   async #initializeActiveChains(): Promise<void> {
     try {
       const chains = await this.#fetchActiveChains();
-      const previous = [...this.state.activeChains];
-      this.updateActiveChains(chains, (updatedChains) =>
-        this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
-      );
+      this.#supportedChains = chains;
+
+      // Only claim chains if the websocket is already connected.
+      // If not connected, chains stay unclaimed so AccountsApiDataSource
+      // can pick them up via polling. They'll be claimed on reconnect.
+      if (this.#isConnected) {
+        const previous = [...this.state.activeChains];
+        this.updateActiveChains(chains, (updatedChains) =>
+          this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
+        );
+      }
 
       this.#chainsRefreshTimer = setInterval(() => {
         this.#refreshActiveChains().catch(console.error);
@@ -273,6 +332,13 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
   async #refreshActiveChains(): Promise<void> {
     try {
       const chains = await this.#fetchActiveChains();
+      this.#supportedChains = chains;
+
+      // Only update activeChains if connected; otherwise keep them unclaimed.
+      if (!this.#isConnected) {
+        return;
+      }
+
       const previousChains = new Set(this.state.activeChains);
       const newChains = new Set(chains);
 
@@ -290,6 +356,17 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     } catch (error) {
       log('Failed to refresh active chains', error);
     }
+  }
+
+  /**
+   * Re-fetch supported networks and refresh `activeChains` when connected.
+   * When disconnected, only `#supportedChains` is updated so reconnect can
+   * reclaim chains. Called on EVM network switch from AssetsController.
+   *
+   * @returns Resolves when supported networks have been re-fetched.
+   */
+  refreshActiveChains(): Promise<void> {
+    return this.#refreshActiveChains();
   }
 
   async #fetchActiveChains(): Promise<ChainId[]> {
@@ -311,10 +388,12 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       'BackendWebSocketService:connectionStateChanged',
       (connectionInfo: ConnectionStatePayload) => {
         if (connectionInfo.state === ('connected' as WebSocketState)) {
-          this.#processPendingSubscriptions().catch(console.error);
+          this.#isConnected = true;
+          this.#handleReconnect();
         } else if (
           connectionInfo.state === ('disconnected' as WebSocketState)
         ) {
+          this.#isConnected = false;
           this.#handleDisconnect();
         }
       },
@@ -337,19 +416,19 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
    * Moves all active subscriptions to pending for re-subscription on reconnect.
    */
   #handleDisconnect(): void {
-    log('WebSocket disconnected, preserving subscriptions for reconnect', {
+    log('WebSocket disconnected, releasing chains for fallback', {
       activeSubscriptionCount: this.activeSubscriptions.size,
       wsSubscriptionCount: this.#wsSubscriptions.size,
+      chainCount: this.state.activeChains.length,
     });
 
     // Move active subscriptions to pending for re-subscription
     for (const [subscriptionId] of this.activeSubscriptions) {
       const originalRequest = this.#subscriptionRequests.get(subscriptionId);
       if (originalRequest) {
-        // Mark as update since it was previously active
         this.#pendingSubscriptions.set(subscriptionId, {
           ...originalRequest,
-          isUpdate: false, // Treat as new subscription since server cleared it
+          isUpdate: false,
         });
       }
     }
@@ -359,30 +438,42 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
 
     // Clear active subscriptions (they're no longer valid)
     this.activeSubscriptions.clear();
+
+    // Release chains so the chain-claiming loop assigns them to
+    // AccountsApiDataSource (polling fallback) on the next #subscribeAssets.
+    const previous = [...this.state.activeChains];
+    if (previous.length > 0) {
+      this.updateActiveChains([], (updatedChains) =>
+        this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
+      );
+    }
   }
 
   /**
-   * Process any pending subscriptions that were queued while WebSocket was disconnected.
+   * Handle WebSocket reconnection.
+   * Clears stale pending subscriptions and restores activeChains so the
+   * chain-claiming loop re-assigns them to this data source, triggering
+   * fresh subscriptions with current accounts and chains.
    */
-  async #processPendingSubscriptions(): Promise<void> {
-    if (this.#pendingSubscriptions.size === 0) {
-      return;
-    }
+  #handleReconnect(): void {
+    log('WebSocket reconnected, reclaiming chains', {
+      supportedChainCount: this.#supportedChains.length,
+      pendingSubscriptionCount: this.#pendingSubscriptions.size,
+    });
 
-    // Process all pending subscriptions
-    const pendingEntries = Array.from(this.#pendingSubscriptions.entries());
+    // Discard stale pending subscriptions captured at disconnect time.
+    // The chain reclaim below triggers #onActiveChainsUpdated →
+    // #subscribeAssets() in AssetsController, which creates fresh
+    // subscriptions with current accounts and chains. Processing the
+    // stale pending entries afterwards would overwrite those with
+    // outdated request data.
+    this.#pendingSubscriptions.clear();
 
-    for (const [subscriptionId, request] of pendingEntries) {
-      try {
-        // Remove from pending before processing to avoid infinite loop
-        this.#pendingSubscriptions.delete(subscriptionId);
-        await this.subscribe(request);
-      } catch (error) {
-        log('Failed to process pending subscription', {
-          subscriptionId,
-          error,
-        });
-      }
+    if (this.#supportedChains.length > 0) {
+      const previous = [...this.state.activeChains];
+      this.updateActiveChains(this.#supportedChains, (updatedChains) =>
+        this.#onActiveChainsUpdated(this.getName(), updatedChains, previous),
+      );
     }
   }
 
@@ -407,6 +498,23 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
   // ============================================================================
 
   async subscribe(subscriptionRequest: SubscriptionRequest): Promise<void> {
+    const previousLock = this.#subscribeLock;
+    let releaseLock: () => void = () => undefined;
+    this.#subscribeLock = new Promise<void>((resolve) => {
+      releaseLock = resolve;
+    });
+
+    await previousLock;
+    try {
+      await this.#subscribeInternal(subscriptionRequest);
+    } finally {
+      releaseLock();
+    }
+  }
+
+  async #subscribeInternal(
+    subscriptionRequest: SubscriptionRequest,
+  ): Promise<void> {
     const { request, subscriptionId, isUpdate } = subscriptionRequest;
 
     // Filter to active chains only
@@ -447,21 +555,24 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       if (existing) {
         // Check if accounts changed - if so, we need to re-subscribe to different channels
         const existingAddresses = existing.addresses ?? [];
-        const addressesChanged =
-          addresses.length !== existingAddresses.length ||
-          addresses.some((addr) => !existingAddresses.includes(addr));
+        const addressesChanged = haveAddressesChanged(
+          addresses,
+          existingAddresses,
+        );
 
         if (!addressesChanged) {
-          // Only chains changed - just update chains and return
+          // Only chains changed - update chains, request, and callback
           existing.chains = chainsToSubscribe;
+          existing.onAssetsUpdate = subscriptionRequest.onAssetsUpdate;
+          this.#subscriptionRequests.set(subscriptionId, subscriptionRequest);
           return;
         }
         // Accounts changed - fall through to re-subscribe with new channels
       }
     }
 
-    // Clean up existing subscription if any
-    await this.unsubscribe(subscriptionId);
+    // Clean up existing subscription if any (inline teardown — subscribe holds the lock)
+    await this.#teardownSubscription(subscriptionId);
 
     // Always subscribe to eip155 and solana account activity, plus any namespaces from requested chains
     const namespaces = getNamespacesForAccountActivity(chainsToSubscribe);
@@ -477,7 +588,23 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       }
     }
 
+    if (channels.length === 0) {
+      return;
+    }
+
     try {
+      // Register request/callback before awaiting server subscribe so notifications
+      // that arrive during the subscribe handshake are not dropped.
+      this.#subscriptionRequests.set(subscriptionId, subscriptionRequest);
+      this.activeSubscriptions.set(subscriptionId, {
+        cleanup: () => {
+          this.#teardownSubscription(subscriptionId).catch(() => undefined);
+        },
+        chains: chainsToSubscribe,
+        addresses,
+        onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
+      });
+
       // Create WebSocket subscription
       const wsSubscription = await this.#messenger.call(
         'BackendWebSocketService:subscribe',
@@ -490,30 +617,19 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
         },
       );
 
-      // Store WebSocket subscription
       this.#wsSubscriptions.set(subscriptionId, wsSubscription);
 
-      // Store in abstract class tracking
-      this.activeSubscriptions.set(subscriptionId, {
-        cleanup: () => {
-          const wsSub = this.#wsSubscriptions.get(subscriptionId);
-          if (wsSub) {
-            wsSub.unsubscribe().catch((unsubErr: unknown) => {
-              log('Error unsubscribing', { subscriptionId, error: unsubErr });
-            });
-            this.#wsSubscriptions.delete(subscriptionId);
-          }
-          // Also clean up the stored request
-          this.#subscriptionRequests.delete(subscriptionId);
-        },
-        chains: chainsToSubscribe,
-        addresses,
-        onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
-      });
-
-      // Store original request for reconnection
-      this.#subscriptionRequests.set(subscriptionId, subscriptionRequest);
+      try {
+        this.#registerChannelCallbacks(subscriptionId, channels);
+      } catch (channelCallbackError) {
+        log(
+          'Channel callback registration failed; ws subscription still active',
+          { subscriptionId, error: channelCallbackError },
+        );
+      }
     } catch (error) {
+      this.activeSubscriptions.delete(subscriptionId);
+      this.#subscriptionRequests.delete(subscriptionId);
       log('WebSocket subscription FAILED', {
         subscriptionId,
         error,
@@ -531,14 +647,19 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     subscriptionId: string,
   ): void {
     try {
-      const subscription = this.activeSubscriptions.get(subscriptionId);
-      const request = this.#subscriptionRequests.get(subscriptionId)?.request;
+      const activityMessage =
+        notification.data as unknown as AccountActivityMessage;
+
+      const storedSubscription = this.#subscriptionRequests.get(subscriptionId);
+      const request = storedSubscription?.request;
+      const onAssetsUpdate =
+        this.activeSubscriptions.get(subscriptionId)?.onAssetsUpdate ??
+        storedSubscription?.onAssetsUpdate;
+
       if (!request) {
         return;
       }
 
-      const activityMessage =
-        notification.data as unknown as AccountActivityMessage;
       const { address, tx, updates } = activityMessage;
 
       if (!address || !tx || !updates) {
@@ -564,10 +685,13 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       // Process all balance updates from the activity message
       const response = this.#processBalanceUpdates(updates, chainId, accountId);
 
-      if (Object.keys(response).length > 0 && subscription) {
-        Promise.resolve(subscription.onAssetsUpdate(response)).catch(
-          console.error,
-        );
+      const balanceEntries = response.assetsBalance?.[accountId] ?? {};
+      const hasBalances = Object.keys(balanceEntries).length > 0;
+
+      if (hasBalances && onAssetsUpdate) {
+        Promise.resolve(onAssetsUpdate(response, request)).catch((error) => {
+          console.error(error);
+        });
       }
     } catch (error) {
       log('Error handling notification', error);
@@ -588,60 +712,93 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
     _chainId: ChainId,
     accountId: string,
   ): DataResponse {
-    const assetsBalance: Record<string, Record<Caip19AssetId, AssetBalance>> = {
-      [accountId]: {},
-    };
-    const assetsMetadata: Record<Caip19AssetId, AssetMetadata> = {};
+    return processAccountActivityBalanceUpdates(updates, accountId, (assetId) =>
+      this.#getAssetType(assetId),
+    );
+  }
 
-    for (const update of updates) {
-      const { asset, postBalance } = update;
+  // ============================================================================
+  // UNSUBSCRIBE
+  // ============================================================================
 
-      if (!asset || !postBalance) {
-        continue;
+  /**
+   * Unsubscribe and await server-side teardown so a re-subscribe does not race
+   * with stale subscription IDs on incoming notifications.
+   *
+   * @param subscriptionId - The ID of the subscription to cancel.
+   */
+  async unsubscribe(subscriptionId: string): Promise<void> {
+    const previousLock = this.#subscribeLock;
+    let releaseLock: () => void = () => undefined;
+    this.#subscribeLock = new Promise<void>((resolve) => {
+      releaseLock = resolve;
+    });
+
+    await previousLock;
+    try {
+      await this.#teardownSubscription(subscriptionId);
+    } finally {
+      releaseLock();
+    }
+  }
+
+  async #teardownSubscription(subscriptionId: string): Promise<void> {
+    const wsSub = this.#wsSubscriptions.get(subscriptionId);
+
+    if (wsSub) {
+      const channels = [...wsSub.channels];
+      try {
+        await wsSub.unsubscribe();
+      } catch (unsubErr: unknown) {
+        log('Error unsubscribing', { subscriptionId, error: unsubErr });
       }
-
-      // Asset type is in CAIP format: "eip155:1/erc20:0x..." or "eip155:1/slip44:60"
-      // We can use it directly as the asset ID
-      const assetId = asset.type as Caip19AssetId;
-
-      // Determine token type from asset type string
-      const isNative = asset.type.includes('/slip44:');
-      const tokenType = isNative ? 'native' : 'erc20';
-
-      // We assume decimals are always present; skip malformed updates
-      if (asset.decimals === undefined) {
-        continue;
-      }
-
-      // Parse raw balance (hex like "0x26f0e5" or decimal string)
-      const rawBalanceStr = postBalance.amount.startsWith('0x')
-        ? BigInt(postBalance.amount).toString()
-        : postBalance.amount;
-
-      // Convert to human-readable using asset decimals (match RpcDataSource / pipeline format)
-      const humanReadableAmount = new BigNumberJS(rawBalanceStr)
-        .dividedBy(new BigNumberJS(10).pow(asset.decimals))
-        .toString();
-
-      assetsBalance[accountId][assetId] = {
-        amount: humanReadableAmount,
-      };
-
-      assetsMetadata[assetId] = {
-        type: tokenType,
-        symbol: asset.unit,
-        name: asset.unit, // Use unit as name (actual name may not be in the message)
-        decimals: asset.decimals,
-      };
+      this.#wsSubscriptions.delete(subscriptionId);
+      this.#removeChannelCallbacks(channels);
     }
 
-    const response: DataResponse = { updateMode: 'merge' };
-    if (Object.keys(assetsBalance[accountId]).length > 0) {
-      response.assetsBalance = assetsBalance;
-      response.assetsInfo = assetsMetadata;
+    this.#subscriptionRequests.delete(subscriptionId);
+    this.activeSubscriptions.delete(subscriptionId);
+  }
+
+  #registerChannelCallbacks(subscriptionId: string, channels: string[]): void {
+    for (const channel of channels) {
+      this.#unregisterChannelCallback(channel);
+
+      try {
+        this.#messenger.call('BackendWebSocketService:addChannelCallback', {
+          channelName: channel,
+          callback: (notification: ServerNotificationMessage) => {
+            this.#handleNotification(notification, subscriptionId);
+          },
+        });
+        this.#registeredChannelCallbacks.add(channel);
+      } catch {
+        // Channel callbacks are optional; ws subscription still works without them.
+      }
+    }
+  }
+
+  #unregisterChannelCallback(channel: string): void {
+    if (!this.#registeredChannelCallbacks.has(channel)) {
+      return;
     }
 
-    return response;
+    try {
+      this.#messenger.call(
+        'BackendWebSocketService:removeChannelCallback',
+        channel,
+      );
+    } catch {
+      // Best-effort cleanup when the channel callback was never registered.
+    }
+
+    this.#registeredChannelCallbacks.delete(channel);
+  }
+
+  #removeChannelCallbacks(channels: string[]): void {
+    for (const channel of channels) {
+      this.#unregisterChannelCallback(channel);
+    }
   }
 
   // ============================================================================
@@ -654,22 +811,17 @@ export class BackendWebsocketDataSource extends AbstractDataSource<
       this.#chainsRefreshTimer = null;
     }
 
-    // Clean up WebSocket subscriptions
-    // Convert to array first to avoid modifying map during iteration
-    const subscriptions = [...this.#wsSubscriptions.values()];
-    for (const wsSub of subscriptions) {
-      try {
-        // Fire and forget - don't await in destroy
-        wsSub.unsubscribe().catch(() => {
-          // Ignore errors during cleanup
-        });
-      } catch {
-        // Ignore errors during cleanup
-      }
+    const subscriptionIds = [
+      ...new Set([
+        ...this.#wsSubscriptions.keys(),
+        ...this.activeSubscriptions.keys(),
+      ]),
+    ];
+    for (const subscriptionId of subscriptionIds) {
+      this.#teardownSubscription(subscriptionId).catch(() => undefined);
     }
-    this.#wsSubscriptions.clear();
 
-    // Clean up base class subscriptions
+    // Clean up base class subscriptions (no-op if already torn down)
     super.destroy();
   }
 }

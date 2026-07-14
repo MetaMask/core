@@ -2,12 +2,6 @@
  * Accounts API Client Tests - accounts.api.cx.metamask.io
  */
 
-import type {
-  V1SupportedNetworksResponse,
-  V2SupportedNetworksResponse,
-  V2BalancesResponse,
-  V5BalancesResponse,
-} from './types';
 import type { ApiPlatformClient } from '../ApiPlatformClient';
 import { API_URLS, HttpError } from '../shared-types';
 import {
@@ -15,6 +9,13 @@ import {
   createMockResponse,
   setupTestEnvironment,
 } from '../test-utils';
+import type {
+  V1SupportedNetworksResponse,
+  V2SupportedNetworksResponse,
+  V2BalancesResponse,
+  V5BalancesResponse,
+  V6BalancesResponse,
+} from './types';
 
 describe('AccountsApiClient', () => {
   let client: ApiPlatformClient;
@@ -251,6 +252,89 @@ describe('AccountsApiClient', () => {
       });
       expect(mockFetch).not.toHaveBeenCalled();
     });
+
+    it('fetches v6 multi-account balances with token and defi rows', async () => {
+      const mockResponse: V6BalancesResponse = {
+        unprocessedNetworks: ['eip155:1329'],
+        unprocessedIncludeAssetIds: ['eip155:1/erc20:0xabc'],
+        accounts: [
+          {
+            accountId: 'eip155:1:0x123',
+            balances: [
+              {
+                category: 'token',
+                assetId: 'eip155:1/erc20:0xc02aaa39',
+                name: 'Wrapped Ether',
+                symbol: 'WETH',
+                decimals: 18,
+                balance: '0.283549083429656057',
+                price: '2119.66',
+              },
+              {
+                category: 'token',
+                assetId:
+                  'stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
+                name: 'USD Coin',
+                symbol: 'USDC',
+                decimals: 7,
+                balance: '10.5',
+                metadata: {
+                  limit: '9223372036854775807',
+                  authorized: true,
+                },
+              },
+              {
+                category: 'defi',
+                assetId: 'eip155:1/erc20:0x4fef9d74',
+                name: 'MetaMask Swaps',
+                symbol: 'MMS',
+                decimals: 18,
+                balance: '1.0',
+                metadata: {
+                  protocolId: 'metamask',
+                  protocolName: 'MetaMask Swaps',
+                  description: 'MetaMask Swaps on ethereum',
+                  protocolUrl: 'https://metamask.io/',
+                  protocolIconUrl: 'https://example.com/icon.jpg',
+                  positionType: 'deposit',
+                  poolAddress: '0x4fef9d741011476750a243ac70b9789a63dd47df',
+                },
+              },
+            ],
+            processingDefiPositions: false,
+          },
+        ],
+      };
+      mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+      const result = await client.accounts.fetchV6MultiAccountBalances(
+        ['eip155:1:0x123'],
+        {
+          includeDeFiBalances: true,
+          includePrices: true,
+          vsCurrency: 'usd',
+          includeAssetIds: ['eip155:1/erc20:0xabc'],
+        },
+      );
+
+      expect(result).toStrictEqual(mockResponse);
+      const calledUrl = mockFetch.mock.calls[0]?.[0] as string;
+      expect(calledUrl).toContain('/v6/multiaccount/balances');
+      expect(calledUrl).toContain('includeDeFiBalances=true');
+      expect(calledUrl).toContain('includePrices=true');
+      expect(calledUrl).toContain('vsCurrency=usd');
+    });
+
+    it('returns empty balances for empty accountIds in v6', async () => {
+      const result = await client.accounts.fetchV6MultiAccountBalances([]);
+
+      expect(result).toStrictEqual({
+        unprocessedNetworks: [],
+        unprocessedIncludeAssetIds: [],
+        accounts: [],
+      });
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
   });
 
   describe('Transactions', () => {
@@ -472,6 +556,80 @@ describe('AccountsApiClient', () => {
         expect(result.staleTime).toBe(60_000);
         expect(result.gcTime).toBe(120_000);
       });
+
+      it('queryFn fetches paginated transactions and getNextPageParam uses endCursor', async () => {
+        const mockResponse = {
+          unprocessedNetworks: [],
+          pageInfo: {
+            count: 1,
+            hasNextPage: true,
+            endCursor: 'cursor-page-2',
+          },
+          data: [
+            {
+              hash: '0xabc123',
+              timestamp: '2024-01-01T00:00:00Z',
+              chainId: 1,
+              blockNumber: 12345,
+              blockHash: '0xdef',
+              gas: 21000,
+              gasUsed: 21000,
+              gasPrice: '20000000000',
+              effectiveGasPrice: '20000000000',
+              nonce: 0,
+              cumulativeGasUsed: 21000,
+              value: '1000000000000000000',
+              to: '0x456',
+              from: '0x123',
+            },
+          ],
+        };
+        mockFetch.mockResolvedValueOnce(createMockResponse(mockResponse));
+
+        const queryOptions =
+          client.accounts.getV4MultiAccountTransactionsInfiniteQueryOptions(
+            {
+              accountAddresses: ['eip155:1:0x123'],
+              networks: ['eip155:1'],
+              sortDirection: 'DESC',
+              includeLogs: true,
+              includeTxMetadata: true,
+              maxLogsPerTx: 10,
+              lang: 'en',
+            },
+            { initialPageParam: 'cursor-page-1' },
+          );
+
+        expect(typeof queryOptions.queryFn).toBe('function');
+        expect(queryOptions.getNextPageParam).toBeDefined();
+
+        const page = await queryOptions.queryFn({
+          pageParam: 'cursor-page-1',
+          signal: undefined,
+        });
+        expect(page).toStrictEqual(mockResponse);
+        expect(mockFetch).toHaveBeenCalledWith(
+          expect.stringContaining('/v4/multiaccount/transactions'),
+          expect.objectContaining({
+            method: 'GET',
+            signal: undefined,
+          }),
+        );
+        expect(mockFetch.mock.calls[0]?.[0]).toContain('cursor=cursor-page-1');
+        expect(mockFetch.mock.calls[0]?.[0]).toContain(
+          'accountAddresses=eip155%3A1%3A0x123',
+        );
+
+        expect(queryOptions.getNextPageParam?.(mockResponse)).toBe(
+          'cursor-page-2',
+        );
+        expect(
+          queryOptions.getNextPageParam?.({
+            ...mockResponse,
+            pageInfo: { count: 1, hasNextPage: false },
+          }),
+        ).toBeUndefined();
+      });
     });
   });
 
@@ -678,6 +836,32 @@ describe('AccountsApiClient', () => {
       ]);
     });
 
+    it('getV6MultiAccountBalancesQueryOptions includes sorted networks, includeAssetIds and excludeAssetIds in queryKey when provided', () => {
+      const options = client.accounts.getV6MultiAccountBalancesQueryOptions(
+        ['eip155:1:0xzzz', 'eip155:1:0xaaa'],
+        {
+          networks: ['eip155:137', 'eip155:1'],
+          includeAssetIds: ['eip155:1/erc20:0xddd', 'eip155:1/erc20:0xccc'],
+          excludeAssetIds: ['eip155:1/erc20:0xbbb', 'eip155:1/erc20:0xaaa'],
+          includeDeFiBalances: true,
+        },
+      );
+      expect(options.queryKey).toStrictEqual([
+        'accounts',
+        'balances',
+        'v6',
+        {
+          accountIds: ['eip155:1:0xaaa', 'eip155:1:0xzzz'],
+          options: {
+            networks: ['eip155:1', 'eip155:137'],
+            includeAssetIds: ['eip155:1/erc20:0xccc', 'eip155:1/erc20:0xddd'],
+            excludeAssetIds: ['eip155:1/erc20:0xaaa', 'eip155:1/erc20:0xbbb'],
+            includeDeFiBalances: true,
+          },
+        },
+      ]);
+    });
+
     it('getV2AccountNftsQueryOptions includes sorted networks in queryKey when queryOptions.networks provided', () => {
       const options = client.accounts.getV2AccountNftsQueryOptions('0x123', {
         networks: [137, 1],
@@ -790,6 +974,27 @@ describe('AccountsApiClient', () => {
         count: 0,
         balances: [],
         unprocessedNetworks: [],
+      });
+      expect(mockFetch).not.toHaveBeenCalled();
+    });
+
+    it('getV6MultiAccountBalancesQueryOptions queryFn returns empty result for empty accountIds without calling fetch', async () => {
+      const options = client.accounts.getV6MultiAccountBalancesQueryOptions([]);
+      const { queryFn } = options;
+      if (typeof queryFn !== 'function') {
+        throw new Error('queryFn is required');
+      }
+      const result = await queryFn({
+        client: client.queryClient,
+        queryKey: options.queryKey,
+        signal: new AbortController().signal,
+        meta: undefined,
+      });
+
+      expect(result).toStrictEqual({
+        unprocessedNetworks: [],
+        unprocessedIncludeAssetIds: [],
+        accounts: [],
       });
       expect(mockFetch).not.toHaveBeenCalled();
     });

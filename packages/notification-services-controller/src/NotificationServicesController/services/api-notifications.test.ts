@@ -1,7 +1,5 @@
-import * as OnChainNotifications from './api-notifications';
 import {
   mockGetOnChainNotificationsConfig,
-  mockUpdateOnChainNotifications,
   mockGetAPINotifications,
   mockMarkNotificationsAsRead,
 } from '../__fixtures__/mockServices';
@@ -9,6 +7,7 @@ import {
   createMockNotificationERC20Sent,
   createMockPlatformNotification,
 } from '../mocks';
+import * as OnChainNotifications from './api-notifications';
 
 const MOCK_BEARER_TOKEN = 'MOCK_BEARER_TOKEN';
 const MOCK_ADDRESSES = ['0x123', '0x456', '0x789'];
@@ -54,62 +53,6 @@ describe('On Chain Notifications - getAPINotificationsConfig()', () => {
 
     expect(mockBadEndpoint.isDone()).toBe(true);
     expect(result).toStrictEqual([]);
-  });
-});
-
-describe('On Chain Notifications - updateOnChainNotifications()', () => {
-  const mockAddressesWithStatus = [
-    { address: '0x123', enabled: true },
-    { address: '0x456', enabled: false },
-    { address: '0x789', enabled: true },
-  ];
-
-  it('should successfully update notification settings', async () => {
-    const mockEndpoint = mockUpdateOnChainNotifications();
-
-    await OnChainNotifications.updateOnChainNotifications(
-      MOCK_BEARER_TOKEN,
-      mockAddressesWithStatus,
-    );
-
-    expect(mockEndpoint.isDone()).toBe(true);
-  });
-
-  it('should bail early if given empty list of addresses', async () => {
-    const mockEndpoint = mockUpdateOnChainNotifications();
-
-    await OnChainNotifications.updateOnChainNotifications(
-      MOCK_BEARER_TOKEN,
-      [],
-    );
-
-    expect(mockEndpoint.isDone()).toBe(false); // bailed before API was called
-  });
-
-  it('should handle endpoint failure gracefully', async () => {
-    const mockBadEndpoint = mockUpdateOnChainNotifications({
-      status: 500,
-      body: { error: 'mock api failure' },
-    });
-
-    // Should not throw error, should handle gracefully
-    await OnChainNotifications.updateOnChainNotifications(
-      MOCK_BEARER_TOKEN,
-      mockAddressesWithStatus,
-    );
-
-    expect(mockBadEndpoint.isDone()).toBe(true);
-  });
-
-  it('should send addresses with enabled status in request body', async () => {
-    const mockEndpoint = mockUpdateOnChainNotifications();
-
-    await OnChainNotifications.updateOnChainNotifications(
-      MOCK_BEARER_TOKEN,
-      mockAddressesWithStatus,
-    );
-
-    expect(mockEndpoint.isDone()).toBe(true);
   });
 });
 

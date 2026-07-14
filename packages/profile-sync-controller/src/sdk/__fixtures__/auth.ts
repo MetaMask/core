@@ -6,12 +6,16 @@ import {
   MOCK_OIDC_TOKEN_RESPONSE,
   MOCK_OIDC_TOKEN_URL,
   MOCK_PAIR_IDENTIFIERS_URL,
+  MOCK_PAIR_PROFILES_RESPONSE,
+  MOCK_PAIR_PROFILES_URL,
   MOCK_PROFILE_LINEAGE_URL,
   MOCK_SIWE_LOGIN_RESPONSE,
   MOCK_SIWE_LOGIN_URL,
   MOCK_SRP_LOGIN_RESPONSE,
   MOCK_SRP_LOGIN_URL,
   MOCK_USER_PROFILE_LINEAGE_RESPONSE,
+  MOCK_CUSTOMER_SERVICE_TOKEN_URL,
+  MOCK_CUSTOMER_SERVICE_TOKEN_RESPONSE,
 } from '../mocks/auth';
 
 type MockReply = {
@@ -19,7 +23,7 @@ type MockReply = {
   body?: nock.Body;
 };
 
-export const handleMockNonce = (mockReply?: MockReply) => {
+export const handleMockNonce = (mockReply?: MockReply): nock.Scope => {
   const reply = mockReply ?? { status: 200, body: MOCK_NONCE_RESPONSE };
 
   const mockNonceEndpoint = nock(MOCK_NONCE_URL)
@@ -31,7 +35,7 @@ export const handleMockNonce = (mockReply?: MockReply) => {
   return mockNonceEndpoint;
 };
 
-export const handleMockSiweLogin = (mockReply?: MockReply) => {
+export const handleMockSiweLogin = (mockReply?: MockReply): nock.Scope => {
   const reply = mockReply ?? { status: 200, body: MOCK_SIWE_LOGIN_RESPONSE };
   const mockLoginEndpoint = nock(MOCK_SIWE_LOGIN_URL)
     .persist()
@@ -41,7 +45,9 @@ export const handleMockSiweLogin = (mockReply?: MockReply) => {
   return mockLoginEndpoint;
 };
 
-export const handleMockPairIdentifiers = (mockReply?: MockReply) => {
+export const handleMockPairIdentifiers = (
+  mockReply?: MockReply,
+): nock.Scope => {
   const reply = mockReply ?? { status: 204 };
   const mockPairIdentifiersEndpoint = nock(MOCK_PAIR_IDENTIFIERS_URL)
     .persist()
@@ -51,7 +57,20 @@ export const handleMockPairIdentifiers = (mockReply?: MockReply) => {
   return mockPairIdentifiersEndpoint;
 };
 
-export const handleMockSrpLogin = (mockReply?: MockReply) => {
+export const handleMockPairProfiles = (mockReply?: MockReply): nock.Scope => {
+  const reply = mockReply ?? {
+    status: 200,
+    body: MOCK_PAIR_PROFILES_RESPONSE,
+  };
+  const mockPairProfilesEndpoint = nock(MOCK_PAIR_PROFILES_URL)
+    .persist()
+    .post('')
+    .reply(reply.status, reply.body);
+
+  return mockPairProfilesEndpoint;
+};
+
+export const handleMockSrpLogin = (mockReply?: MockReply): nock.Scope => {
   const reply = mockReply ?? { status: 200, body: MOCK_SRP_LOGIN_RESPONSE };
   const mockLoginEndpoint = nock(MOCK_SRP_LOGIN_URL)
     .persist()
@@ -61,7 +80,7 @@ export const handleMockSrpLogin = (mockReply?: MockReply) => {
   return mockLoginEndpoint;
 };
 
-export const handleMockOAuth2Token = (mockReply?: MockReply) => {
+export const handleMockOAuth2Token = (mockReply?: MockReply): nock.Scope => {
   const reply = mockReply ?? { status: 200, body: MOCK_OIDC_TOKEN_RESPONSE };
   const mockTokenEndpoint = nock(MOCK_OIDC_TOKEN_URL)
     .persist()
@@ -71,7 +90,9 @@ export const handleMockOAuth2Token = (mockReply?: MockReply) => {
   return mockTokenEndpoint;
 };
 
-export const handleMockUserProfileLineage = (mockReply?: MockReply) => {
+export const handleMockUserProfileLineage = (
+  mockReply?: MockReply,
+): nock.Scope => {
   const reply = mockReply ?? {
     status: 200,
     body: MOCK_USER_PROFILE_LINEAGE_RESPONSE,
@@ -85,14 +106,40 @@ export const handleMockUserProfileLineage = (mockReply?: MockReply) => {
   return mockUserProfileLineageEndpoint;
 };
 
+export const handleMockCustomerServiceToken = (
+  mockReply?: MockReply,
+): nock.Scope => {
+  const reply = mockReply ?? {
+    status: 200,
+    body: MOCK_CUSTOMER_SERVICE_TOKEN_RESPONSE,
+  };
+  const mockCustomerServiceTokenEndpoint = nock(MOCK_CUSTOMER_SERVICE_TOKEN_URL)
+    .persist()
+    .post('')
+    .reply(reply.status, reply.body);
+
+  return mockCustomerServiceTokenEndpoint;
+};
+
 export const arrangeAuthAPIs = (options?: {
   mockNonceUrl?: MockReply;
   mockOAuth2TokenUrl?: MockReply;
   mockSrpLoginUrl?: MockReply;
   mockSiweLoginUrl?: MockReply;
   mockPairIdentifiers?: MockReply;
+  mockPairProfiles?: MockReply;
   mockUserProfileLineageUrl?: MockReply;
-}) => {
+  mockCustomerServiceTokenUrl?: MockReply;
+}): {
+  mockNonceUrl: nock.Scope;
+  mockOAuth2TokenUrl: nock.Scope;
+  mockSrpLoginUrl: nock.Scope;
+  mockSiweLoginUrl: nock.Scope;
+  mockPairIdentifiersUrl: nock.Scope;
+  mockPairProfilesUrl: nock.Scope;
+  mockUserProfileLineageUrl: nock.Scope;
+  mockCustomerServiceTokenUrl: nock.Scope;
+} => {
   const mockNonceUrl = handleMockNonce(options?.mockNonceUrl);
   const mockOAuth2TokenUrl = handleMockOAuth2Token(options?.mockOAuth2TokenUrl);
   const mockSrpLoginUrl = handleMockSrpLogin(options?.mockSrpLoginUrl);
@@ -100,8 +147,12 @@ export const arrangeAuthAPIs = (options?: {
   const mockPairIdentifiersUrl = handleMockPairIdentifiers(
     options?.mockPairIdentifiers,
   );
+  const mockPairProfilesUrl = handleMockPairProfiles(options?.mockPairProfiles);
   const mockUserProfileLineageUrl = handleMockUserProfileLineage(
     options?.mockUserProfileLineageUrl,
+  );
+  const mockCustomerServiceTokenUrl = handleMockCustomerServiceToken(
+    options?.mockCustomerServiceTokenUrl,
   );
 
   return {
@@ -110,6 +161,8 @@ export const arrangeAuthAPIs = (options?: {
     mockSrpLoginUrl,
     mockSiweLoginUrl,
     mockPairIdentifiersUrl,
+    mockPairProfilesUrl,
     mockUserProfileLineageUrl,
+    mockCustomerServiceTokenUrl,
   };
 };

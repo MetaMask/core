@@ -16,8 +16,8 @@ import type { OnAssetHistoricalPriceResponse } from '@metamask/snaps-sdk';
 import { v4 as uuidv4 } from 'uuid';
 
 import { MultichainAssetsRatesController } from '.';
-import type { MultichainAssetsRatesControllerMessenger } from './MultichainAssetsRatesController';
 import { jestAdvanceTime } from '../../../../tests/helpers';
+import type { MultichainAssetsRatesControllerMessenger } from './MultichainAssetsRatesController';
 
 type AllMultichainAssetsRateControllerActions =
   MessengerActions<MultichainAssetsRatesControllerMessenger>;
@@ -150,41 +150,43 @@ const setupController = ({
   controller: MultichainAssetsRatesController;
   messenger: RootMessenger;
   updateSpy: jest.SpyInstance;
+  mockGetAssetsState: jest.Mock;
 } => {
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
 
+  const mockGetAssetsState = jest.fn().mockImplementation(() => ({
+    accountsAssets: {
+      account1: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
+      account2: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
+      account3: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
+      account5: [
+        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
+      ],
+    },
+    assetsMetadata: {
+      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
+        name: 'Solana',
+        symbol: 'SOL',
+        fungible: true,
+        iconUrl: 'https://example.com/solana.png',
+        units: [{ symbol: 'SOL', name: 'Solana', decimals: 9 }],
+      },
+      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v':
+        {
+          name: 'USDC',
+          symbol: 'USDC',
+          fungible: true,
+          iconUrl: 'https://example.com/usdc.png',
+          units: [{ symbol: 'USDC', name: 'USDC', decimals: 2 }],
+        },
+    },
+    allIgnoredAssets: {},
+  }));
   messenger.registerActionHandler(
     'MultichainAssetsController:getState',
-    () => ({
-      accountsAssets: {
-        account1: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
-        account2: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
-        account3: ['solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501'],
-        account5: [
-          'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v',
-        ],
-      },
-      assetsMetadata: {
-        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501': {
-          name: 'Solana',
-          symbol: 'SOL',
-          fungible: true,
-          iconUrl: 'https://example.com/solana.png',
-          units: [{ symbol: 'SOL', name: 'Solana', decimals: 9 }],
-        },
-        'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v':
-          {
-            name: 'USDC',
-            symbol: 'USDC',
-            fungible: true,
-            iconUrl: 'https://example.com/usdc.png',
-            units: [{ symbol: 'USDC', name: 'USDC', decimals: 2 }],
-          },
-      },
-      allIgnoredAssets: {},
-    }),
+    mockGetAssetsState,
   );
 
   messenger.registerActionHandler(
@@ -240,6 +242,7 @@ const setupController = ({
     controller,
     messenger,
     updateSpy,
+    mockGetAssetsState,
   };
 };
 
@@ -520,6 +523,149 @@ describe('MultichainAssetsRatesController', () => {
         rate: '200',
         conversionTime: 1738539923277,
         currency: 'swift:0/iso4217:USD',
+      },
+    });
+  });
+
+  it('removes stale rates and historical prices for assets no longer tracked by any account', async () => {
+    const removedAsset =
+      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:removed-token' as CaipAssetType;
+    const keptAsset =
+      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501' as CaipAssetType;
+    const { controller, messenger, mockGetAssetsState } = setupController({
+      config: {
+        state: {
+          conversionRates: {
+            [removedAsset]: {
+              rate: '10',
+              conversionTime: 1738539923277,
+              currency: 'swift:0/iso4217:USD',
+            },
+            [keptAsset]: {
+              rate: '202.11',
+              conversionTime: 1738539923277,
+              currency: 'swift:0/iso4217:USD',
+            },
+          },
+          historicalPrices: {
+            [removedAsset]: {
+              USD: {
+                intervals: fakeHistoricalPrices.historicalPrice.intervals,
+                updateTime: 1737542312,
+                expirationTime: 1737542312,
+              },
+            },
+            [keptAsset]: {
+              USD: {
+                intervals: fakeHistoricalPrices.historicalPrice.intervals,
+                updateTime: 1737542312,
+                expirationTime: 1737542312,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    mockGetAssetsState.mockReturnValue({
+      accountsAssets: {
+        account1: [keptAsset],
+      },
+      assetsMetadata: {},
+      allIgnoredAssets: {},
+    });
+
+    messenger.publish('MultichainAssetsController:accountAssetListUpdated', {
+      assets: {
+        account1: {
+          added: [],
+          removed: [removedAsset],
+        },
+      },
+    });
+
+    await Promise.resolve();
+    await jestAdvanceTime({ duration: 10 });
+
+    expect(controller.state.conversionRates).toStrictEqual({
+      [keptAsset]: {
+        rate: '202.11',
+        conversionTime: 1738539923277,
+        currency: 'swift:0/iso4217:USD',
+      },
+    });
+    expect(controller.state.historicalPrices).toStrictEqual({
+      [keptAsset]: {
+        USD: {
+          intervals: fakeHistoricalPrices.historicalPrice.intervals,
+          updateTime: 1737542312,
+          expirationTime: 1737542312,
+        },
+      },
+    });
+  });
+
+  it('keeps rates for removed assets that are still tracked by another account', async () => {
+    const sharedAsset =
+      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/token:shared-token' as CaipAssetType;
+    const { controller, messenger, mockGetAssetsState } = setupController({
+      config: {
+        state: {
+          conversionRates: {
+            [sharedAsset]: {
+              rate: '77',
+              conversionTime: 1738539923277,
+              currency: 'swift:0/iso4217:USD',
+            },
+          },
+          historicalPrices: {
+            [sharedAsset]: {
+              USD: {
+                intervals: fakeHistoricalPrices.historicalPrice.intervals,
+                updateTime: 1737542312,
+                expirationTime: 1737542312,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    mockGetAssetsState.mockReturnValue({
+      accountsAssets: {
+        account1: [],
+        account2: [sharedAsset],
+      },
+      assetsMetadata: {},
+      allIgnoredAssets: {},
+    });
+
+    messenger.publish('MultichainAssetsController:accountAssetListUpdated', {
+      assets: {
+        account1: {
+          added: [],
+          removed: [sharedAsset],
+        },
+      },
+    });
+
+    await Promise.resolve();
+    await jestAdvanceTime({ duration: 10 });
+
+    expect(controller.state.conversionRates).toStrictEqual({
+      [sharedAsset]: {
+        rate: '77',
+        conversionTime: 1738539923277,
+        currency: 'swift:0/iso4217:USD',
+      },
+    });
+    expect(controller.state.historicalPrices).toStrictEqual({
+      [sharedAsset]: {
+        USD: {
+          intervals: fakeHistoricalPrices.historicalPrice.intervals,
+          updateTime: 1737542312,
+          expirationTime: 1737542312,
+        },
       },
     });
   });
@@ -1271,6 +1417,160 @@ describe('MultichainAssetsRatesController', () => {
           currency: 'swift:0/iso4217:USD',
         },
       });
+    });
+  });
+
+  describe('isDeprecated', () => {
+    const testAsset =
+      'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp/slip44:501' as CaipAssetType;
+
+    const initialState = {
+      conversionRates: {
+        [testAsset]: {
+          rate: '202.11',
+          conversionTime: 1738539923277,
+          currency: 'swift:0/iso4217:USD' as CaipAssetType,
+        },
+      },
+      historicalPrices: {
+        [testAsset]: {
+          USD: {
+            intervals: {},
+            updateTime: 1737542312,
+          },
+        },
+      },
+    };
+
+    it('clears persisted rates at construction when isDeprecated() returns true', () => {
+      const { controller } = setupController({
+        config: { isDeprecated: () => true, state: initialState },
+      });
+
+      expect(controller.state.conversionRates).toStrictEqual({});
+      expect(controller.state.historicalPrices).toStrictEqual({});
+    });
+
+    it('preserves persisted rates at construction when isDeprecated() returns false', () => {
+      const { controller } = setupController({
+        config: { isDeprecated: () => false, state: initialState },
+      });
+
+      expect(controller.state.conversionRates).toStrictEqual(
+        initialState.conversionRates,
+      );
+      expect(controller.state.historicalPrices).toStrictEqual(
+        initialState.historicalPrices,
+      );
+    });
+
+    it('does not fetch and clears stale rates when isDeprecated returns true', async () => {
+      let deprecated = false;
+      const { controller, messenger } = setupController({
+        config: { isDeprecated: () => deprecated, state: initialState },
+      });
+
+      const snapHandler = jest.fn().mockResolvedValue(fakeAccountRates);
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        snapHandler,
+      );
+
+      deprecated = true;
+
+      await controller.updateAssetsRates();
+
+      expect(snapHandler).not.toHaveBeenCalled();
+      expect(controller.state.conversionRates).toStrictEqual({});
+      expect(controller.state.historicalPrices).toStrictEqual({});
+    });
+
+    it('clears stale rates on _executePoll when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      const { controller, messenger } = setupController({
+        config: { isDeprecated: () => deprecated, state: initialState },
+      });
+
+      const snapHandler = jest.fn().mockResolvedValue(fakeAccountRates);
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        snapHandler,
+      );
+
+      deprecated = true;
+
+      await controller._executePoll();
+
+      expect(snapHandler).not.toHaveBeenCalled();
+      expect(controller.state.conversionRates).toStrictEqual({});
+      expect(controller.state.historicalPrices).toStrictEqual({});
+    });
+
+    it('clears stale rates on CurrencyRateController:stateChange when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      const { controller, messenger } = setupController({
+        config: { isDeprecated: () => deprecated, state: initialState },
+      });
+
+      deprecated = true;
+
+      messenger.publish(
+        'CurrencyRateController:stateChange',
+        {
+          currentCurrency: 'EUR',
+          currencyRates: {},
+        },
+        [],
+      );
+
+      await Promise.resolve();
+
+      expect(controller.state.conversionRates).toStrictEqual({});
+      expect(controller.state.historicalPrices).toStrictEqual({});
+    });
+
+    it('clears stale rates on MultichainAssetsController:accountAssetListUpdated when isDeprecated toggles to true at runtime', async () => {
+      let deprecated = false;
+      const { controller, messenger } = setupController({
+        config: { isDeprecated: () => deprecated, state: initialState },
+      });
+
+      deprecated = true;
+
+      messenger.publish('MultichainAssetsController:accountAssetListUpdated', {
+        assets: {
+          account1: {
+            added: [testAsset],
+            removed: [],
+          },
+        },
+      });
+
+      await Promise.resolve();
+
+      expect(controller.state.conversionRates).toStrictEqual({});
+      expect(controller.state.historicalPrices).toStrictEqual({});
+    });
+
+    it('does not fetch historical prices when isDeprecated returns true', async () => {
+      let deprecated = false;
+      const { controller, messenger } = setupController({
+        config: { isDeprecated: () => deprecated, state: initialState },
+      });
+
+      const snapHandler = jest.fn().mockResolvedValue(fakeHistoricalPrices);
+      messenger.registerActionHandler(
+        'SnapController:handleRequest',
+        snapHandler,
+      );
+
+      deprecated = true;
+
+      await controller.fetchHistoricalPricesForAsset(testAsset);
+
+      expect(snapHandler).not.toHaveBeenCalled();
+      expect(controller.state.conversionRates).toStrictEqual({});
+      expect(controller.state.historicalPrices).toStrictEqual({});
     });
   });
 
