@@ -106,8 +106,11 @@ export class QuoteRefresher {
   }
 
   #onStateChange(state: TransactionPayControllerState): void {
+    // No-op quotes never refresh, so they don't need the refresh loop.
     const hasQuotes = Object.values(state.transactionData).some((transaction) =>
-      Boolean(transaction.quotes?.length),
+      transaction.quotes?.some(
+        (quote) => quote.strategy !== TransactionPayStrategy.None,
+      ),
     );
 
     if (hasQuotes && !this.#isRunning) {
