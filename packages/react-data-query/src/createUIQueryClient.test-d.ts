@@ -18,6 +18,11 @@ type SecondDataServiceGetTokensAction = {
   handler: (tokenIds: string[]) => Promise<unknown>;
 };
 
+type SecondDataServiceAssetsFetchedEvent = {
+  type: 'SecondDataService:assetsFetched';
+  payload: unknown[];
+};
+
 type RootMessengerActions =
   | FirstDataServiceGetAssetsAction
   | DataServiceInvalidateQueriesAction<'FirstDataService'>
@@ -25,6 +30,7 @@ type RootMessengerActions =
   | DataServiceInvalidateQueriesAction<'SecondDataService'>;
 
 type RootMessengerEvents =
+  | SecondDataServiceAssetsFetchedEvent
   | DataServiceGranularCacheUpdatedEvent<'FirstDataService'>
   | DataServiceGranularCacheUpdatedEvent<'SecondDataService'>;
 

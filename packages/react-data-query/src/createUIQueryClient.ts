@@ -17,7 +17,7 @@ import {
 /**
  * Handles granular cache update events emitted by data services.
  */
-type JsonSubscriptionHandler = (
+type DataServiceGranularCacheUpdatedHandler = (
   payload: DataServiceGranularCacheUpdatedPayload,
 ) => void;
 
@@ -36,12 +36,12 @@ type MessengerAdapter<DataServiceName extends string> = {
 
   subscribe(
     eventType: DataServiceGranularCacheUpdatedEvent<DataServiceName>['type'],
-    handler: JsonSubscriptionHandler,
+    handler: DataServiceGranularCacheUpdatedHandler,
   ): void;
 
   unsubscribe(
     eventType: DataServiceGranularCacheUpdatedEvent<DataServiceName>['type'],
-    handler: JsonSubscriptionHandler,
+    handler: DataServiceGranularCacheUpdatedHandler,
   ): void;
 };
 
@@ -58,7 +58,10 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
   messenger: MessengerAdapter<DataServiceNames[number]>,
   config: QueryClientConfig = {},
 ): QueryClient {
-  const subscriptions = new Map<string, JsonSubscriptionHandler>();
+  const subscriptions = new Map<
+    string,
+    DataServiceGranularCacheUpdatedHandler
+  >();
 
   /**
    * Check whether a name is one of the configured data service names.
@@ -153,9 +156,9 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
       event.type === 'observerAdded' &&
       observerCount === 1
     ) {
-      const cacheListener = (
-        payload: DataServiceGranularCacheUpdatedPayload,
-      ): void => {
+      const cacheListener: DataServiceGranularCacheUpdatedHandler = (
+        payload,
+      ) => {
         if (payload.type === 'removed') {
           const currentQuery = cache.get(hash);
 
@@ -199,9 +202,9 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
 
     const queries = client.getQueryCache().findAll(filters);
 
-    const services = Array.from(
-      new Set(queries.map((query) => parseQueryKey(query.queryKey))),
-    );
+    const services = [
+      ...new Set(queries.map((query) => parseQueryKey(query.queryKey))),
+    ];
 
     await Promise.all(
       services.map(async (service) => {
