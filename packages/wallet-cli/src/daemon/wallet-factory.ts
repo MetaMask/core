@@ -120,8 +120,8 @@ function buildInstanceOptions(
  * supplied, the wallet starts locked and the caller is expected to invoke
  * `mm wallet unlock` before any keyring-bound operation. First-run startup
  * without a password is rejected (the SRP cannot be imported without one).
- * On a subsequent run, a wrong password surfaces as the rejection thrown by
- * `submitPassword`.
+ * On a subsequent run, a wrong password rejects startup with a `Failed to
+ * unlock the persisted vault` error that wraps the `submitPassword` rejection.
  *
  * On any failure after the store is opened, the store is closed (and the wallet
  * destroyed, if constructed). On a first-run failure, the on-disk database is
@@ -203,9 +203,10 @@ export async function createWallet({
     }
 
     if (wasFirstRun) {
-      // The precondition check above guards this branch on `password`, but TS
-      // does not narrow it across the intervening `await wallet.init()`, hence
-      // the assertion.
+      // The precondition check above throws when `wasFirstRun && password ===
+      // undefined`, so `password` is defined here. TS does not correlate the
+      // two separate variables, so it cannot narrow `password` from
+      // `wasFirstRun` alone — hence the assertion.
       await importSecretRecoveryPhrase(
         wallet,
         (password as Password).unwrap(),

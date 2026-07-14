@@ -90,10 +90,11 @@ export async function ensureDaemon(
     INFURA_PROJECT_ID: config.infuraProjectId,
     MM_WALLET_SRP: config.srp.unwrap(),
   };
-  // Strip any inherited `MM_WALLET_PASSWORD` from the child env when the
-  // caller did not pass a password: the daemon treats an absent variable as
-  // "start locked", but assigning `undefined` via `env` would set the literal
-  // string `'undefined'` and be interpreted as a (wrong) password.
+  // `childEnv` spreads `process.env`, so an inherited `MM_WALLET_PASSWORD`
+  // would otherwise leak into the child and unlock a daemon the caller meant
+  // to start locked. When no password was supplied, delete the inherited key
+  // so the daemon comes up locked; otherwise overwrite it with the supplied
+  // value.
   if (config.password === undefined) {
     delete childEnv.MM_WALLET_PASSWORD;
   } else {

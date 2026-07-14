@@ -165,6 +165,45 @@ describe('createWallet (integration)', () => {
     }
   });
 
+  it('re-submitting the password on an already-unlocked vault resolves and stays unlocked', async () => {
+    const databasePath = createTempDbPath('idempotent-unlock');
+
+    const first = await createWallet({
+      databasePath,
+      infuraProjectId: INFURA_PROJECT_ID,
+      password: Password.from(TEST_PASSWORD),
+      srp: Srp.from(TEST_PHRASE),
+    });
+    await first.dispose();
+
+    // Subsequent run with the password: auto-unlocked on construction.
+    const second = await createWallet({
+      databasePath,
+      infuraProjectId: INFURA_PROJECT_ID,
+      password: Password.from(TEST_PASSWORD),
+      srp: Srp.from(TEST_PHRASE),
+    });
+
+    try {
+      expect(second.wallet.state.KeyringController.isUnlocked).toBe(true);
+
+      // Re-submitting on an already-unlocked keyring resolves rather than
+      // throwing, and the keyring stays unlocked — the contract that lets a
+      // user safely re-run `mm wallet unlock` when they aren't sure of state.
+      await second.wallet.messenger.call(
+        'KeyringController:submitPassword',
+        TEST_PASSWORD,
+      );
+
+      expect(second.wallet.state.KeyringController.isUnlocked).toBe(true);
+      expect(
+        second.wallet.messenger.call('AccountsController:listAccounts'),
+      ).toHaveLength(1);
+    } finally {
+      await second.dispose();
+    }
+  });
+
   it('rejects subsequent-run startup with a wrong password and leaves the DB usable for a retry', async () => {
     const databasePath = createTempDbPath('wrong-password');
 

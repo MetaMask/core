@@ -51,4 +51,24 @@ describe('daemon start', () => {
       expect.objectContaining({ password: undefined }),
     );
   });
+
+  it('passes password: undefined to ensureDaemon when --password is empty', async () => {
+    mockEnsureDaemon.mockResolvedValue({
+      state: 'started',
+      socketPath: '/tmp/daemon.sock',
+    });
+
+    await runCommand(DaemonStart, [
+      '--infura-project-id',
+      'key',
+      '--srp',
+      SRP,
+      '--password',
+      '',
+    ]);
+
+    expect(mockEnsureDaemon).toHaveBeenCalledWith(
+      expect.objectContaining({ password: undefined }),
+    );
+  });
 });

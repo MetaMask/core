@@ -255,13 +255,11 @@ describe('wallet unlock', () => {
     expect(error?.message).toContain('MM_DAEMON_DATA_DIR');
   });
 
-  it('is idempotent: re-running unlock against an already-unlocked daemon succeeds', async () => {
-    // The keyring controller's `submitPassword` is a no-op when the vault
-    // is already unlocked (returns the unlocked state). Asserting that a
-    // second `mm wallet unlock` invocation reports "Wallet unlocked"
-    // pins the contract so a future change can't silently make
-    // re-unlocking fail (which would be a UX trap when a user re-runs
-    // the command not knowing the wallet is already unlocked).
+  it('reports success on each of two successive unlock invocations', async () => {
+    // `sendCommand` is mocked, so this only pins the CLI-layer contract: a
+    // second `mm wallet unlock` still reports success rather than erroring.
+    // Real keyring idempotency (submitPassword on an already-unlocked vault)
+    // is exercised against a real Wallet in wallet-factory.integration.test.ts.
     const { stdout: firstStdout } = await runCommand(
       WalletUnlock,
       SUCCESS_FLAGS,

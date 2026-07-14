@@ -25,12 +25,7 @@ export async function confirmPurge(): Promise<boolean> {
  */
 export async function promptPassword(): Promise<string> {
   const { default: password } = await import('@inquirer/password');
-  return (
-    password as unknown as (c: {
-      message: string;
-      mask?: boolean | string;
-    }) => Promise<string>
-  )({
+  return password({
     message: 'Wallet password:',
     mask: true,
   });
