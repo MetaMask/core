@@ -52,7 +52,7 @@ const DOCSITE_PACKAGES = ['@metamask/wallet-framework-docs'];
 /**
  * We don't check that test scripts are defined for these packages.
  *
- * (We exclude `@metamask/wallet-cli` because it prepend a `better-sqlite3`
+ * Here we exclude `@metamask/wallet-cli`: it prepends a `better-sqlite3`
  * prebuild fetch to its "test" script, as the native addon isn't built
  * during `yarn install` (Yarn runs with `enableScripts: false`).
  */
