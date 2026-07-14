@@ -6,12 +6,6 @@ import { lintPackageTsconfigs } from './lint-package-tsconfigs.mjs';
 import { lintRootTsconfigs } from './lint-root-tsconfigs.mjs';
 import { readPackageManifest } from './utils.mjs';
 
-/**
- * Packages whose tsconfig files are intentionally excluded from linting and
- * fixing, e.g. because their references are managed by hand.
- */
-const EXCLUDED_PACKAGE_NAMES = new Set(['@metamask/snap-account-service']);
-
 // Run this script!
 await main();
 
@@ -20,20 +14,12 @@ await main();
  * within a package, then lints the appropriate tsconfig files.
  *
  * When run from the root, lints only the root tsconfig pair.
- * When run from a package, lints only that package's tsconfig pair, unless
- * the package is excluded (see `EXCLUDED_PACKAGE_NAMES`).
+ * When run from a package, lints only that package's tsconfig pair.
  */
 async function main(): Promise<void> {
   const cwd = process.cwd();
   const shouldFix = process.argv.includes('--fix');
   const manifest = await readPackageManifest(cwd);
-
-  if (EXCLUDED_PACKAGE_NAMES.has(manifest.name)) {
-    console.log(
-      `ℹ️ Not linting tsconfig files in ${manifest.name}, as they are managed by hand.`,
-    );
-    return;
-  }
 
   let didLintPass;
   if (hasProperty(manifest, 'workspaces')) {
