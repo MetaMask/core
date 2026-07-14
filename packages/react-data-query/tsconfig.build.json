@@ -7,5 +7,5 @@
   },
   "references": [{ "path": "../base-data-service/tsconfig.build.json" }],
   "include": ["../../types", "./src"],
-  "exclude": ["**/*.test.ts", "**/*.test-d.ts"]
+  "exclude": ["**/*.test.ts", "**/*.type-test.ts"]
 }
