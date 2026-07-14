@@ -8189,6 +8189,28 @@ describe('TransactionController', () => {
         }
       `);
     });
+
+    it('accepts ignored incoming transaction compatibility options', () => {
+      expect(() =>
+        setupController({
+          options: {
+            incomingTransactions: {
+              client: 'extension-test',
+              includeTokenTransfers: false,
+              isEnabled: () => false,
+              updateTransactions: true,
+            },
+          },
+        }),
+      ).not.toThrow();
+    });
+
+    it('keeps incoming transaction polling compatibility methods as no-ops', () => {
+      const { controller } = setupController();
+
+      expect(() => controller.startIncomingTransactionPolling()).not.toThrow();
+      expect(() => controller.stopIncomingTransactionPolling()).not.toThrow();
+    });
   });
 
   describe('messenger actions', () => {

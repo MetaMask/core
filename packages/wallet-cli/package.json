@@ -36,10 +36,10 @@
     "changelog:update": "../../scripts/update-changelog.sh @metamask/wallet-cli",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/wallet-cli",
     "since-latest-release": "../../scripts/since-latest-release.sh",
-    "test:prepare": "./scripts/install-binaries.sh",
     "test": "yarn test:prepare && NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:e2e": "yarn test:prepare && NODE_OPTIONS=--experimental-vm-modules jest --config jest.config.e2e.js",
+    "test:prepare": "./scripts/install-binaries.sh",
     "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
@@ -50,7 +50,7 @@
     "@metamask/rpc-errors": "^7.0.2",
     "@metamask/storage-service": "^1.0.2",
     "@metamask/utils": "^11.11.0",
-    "@metamask/wallet": "^7.0.0",
+    "@metamask/wallet": "^7.0.1",
     "@oclif/core": "^4.10.5",
     "better-sqlite3": "^12.9.0",
     "immer": "^9.0.6"

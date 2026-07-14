@@ -4,6 +4,7 @@ import type { PublishHookResult } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
+import { TransactionPayStrategy } from '../constants';
 import { projectLogger } from '../logger';
 import type {
   TransactionPayControllerMessenger,
@@ -64,18 +65,23 @@ export class TransactionPayPublishHook {
     );
 
     const transactionData = controllerState.transactionData?.[transactionId];
-    const quotes =
-      (transactionData?.quotes as TransactionPayQuote<unknown>[]) ?? [];
+
+    // No-op quotes mark direct routes and cannot be executed by any strategy.
+    const quotes = (
+      (transactionData?.quotes as TransactionPayQuote<unknown>[]) ?? []
+    ).filter((quote) => quote.strategy !== TransactionPayStrategy.None);
+
     const isFiatSelected = Boolean(
       transactionData?.fiatPayment?.selectedPaymentMethodId,
     );
 
-    if (!quotes?.length) {
+    if (!quotes.length) {
       if (isFiatSelected) {
         throw new Error('Fiat: Missing quote');
       }
 
-      log('Skipping as no quotes found');
+      log('Skipping as no executable quotes found', { transactionId });
+
       return EMPTY_RESULT;
     }
 

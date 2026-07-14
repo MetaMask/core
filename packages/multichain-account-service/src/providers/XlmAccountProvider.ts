@@ -1,6 +1,5 @@
 import type { Bip44Account } from '@metamask/account-api';
 import type { TraceCallback } from '@metamask/controller-utils';
-import type { EntropySourceId, KeyringAccount } from '@metamask/keyring-api';
 import { XlmAccountType, XlmScope } from '@metamask/keyring-api';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
@@ -10,10 +9,7 @@ import type { CaipChainId } from '@metamask/utils';
 import { traceFallback } from '../analytics';
 import type { MultichainAccountServiceMessenger } from '../types';
 import { SnapAccountProvider } from './SnapAccountProvider';
-import type {
-  RestrictedSnapKeyring,
-  SnapAccountProviderConfig,
-} from './SnapAccountProvider';
+import type { SnapAccountProviderConfig } from './SnapAccountProvider';
 
 export type XlmAccountProviderConfig = SnapAccountProviderConfig;
 
@@ -61,25 +57,5 @@ export class XlmAccountProvider extends SnapAccountProvider {
       account.type === XlmAccountType.Account &&
       account.metadata.keyring.type === (KeyringTypes.snap as string)
     );
-  }
-
-  protected override createAccountV1(
-    keyring: RestrictedSnapKeyring,
-    {
-      entropySource,
-      groupIndex,
-    }: { entropySource: EntropySourceId; groupIndex: number },
-  ): Promise<KeyringAccount> {
-    if (!keyring.v1) {
-      throw new Error(
-        `Snap "${XlmAccountProvider.XLM_SNAP_ID}" is v2-only and does not support v1 account creation`,
-      );
-    }
-    return keyring.v1.createAccount({
-      entropySource,
-      index: groupIndex,
-      addressType: XlmAccountType.Account,
-      scope: XlmScope.Pubnet,
-    });
   }
 }

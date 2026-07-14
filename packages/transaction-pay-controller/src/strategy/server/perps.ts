@@ -65,14 +65,22 @@ export function isServerPerpsDepositRequest(
  * 6 decimals); HyperCore expects an 8-decimal amount, so the target amount is
  * shifted accordingly.
  *
+ * Also handles the perps-withdraw direction: when `request.isHyperliquidSource`
+ * is set the source is rewritten to the HyperCore sentinel and the amount is
+ * shifted from 8 to 6 decimals.
+ *
  * @param request - Quote request from the transaction-pay controller.
  * @param transaction - Parent transaction whose calldata is inspected.
- * @returns Normalized request, or the original request if not a perps deposit.
+ * @returns Normalized request, or the original request if not a perps flow.
  */
 export function normalizeServerPerpsRequest(
   request: QuoteRequest,
   transaction: Pick<TransactionMeta, 'txParams' | 'nestedTransactions'>,
 ): QuoteRequest {
+  if (request.isHyperliquidSource) {
+    return normalizePerpsWithdrawRequest(request);
+  }
+
   if (!isServerPerpsDepositRequest(request, transaction)) {
     return request;
   }
@@ -84,6 +92,17 @@ export function normalizeServerPerpsRequest(
       .toFixed(0),
     targetChainId: CHAIN_ID_HYPERCORE,
     targetTokenAddress: SERVER_HYPERCORE_USDC_PERPS_ADDRESS,
+  };
+}
+
+function normalizePerpsWithdrawRequest(request: QuoteRequest): QuoteRequest {
+  return {
+    ...request,
+    sourceChainId: CHAIN_ID_HYPERCORE,
+    sourceTokenAddress: SERVER_HYPERCORE_USDC_PERPS_ADDRESS,
+    sourceTokenAmount: new BigNumber(request.sourceTokenAmount)
+      .shiftedBy(USDC_DECIMALS - HYPERCORE_USDC_DECIMALS)
+      .toFixed(0),
   };
 }
 

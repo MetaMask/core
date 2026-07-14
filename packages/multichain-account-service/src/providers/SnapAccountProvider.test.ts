@@ -33,10 +33,7 @@ import {
 } from '../tests';
 import type { MultichainAccountServiceMessenger } from '../types';
 import { BtcAccountProvider } from './BtcAccountProvider';
-import type {
-  RestrictedSnapKeyring,
-  SnapAccountProviderConfig,
-} from './SnapAccountProvider';
+import type { SnapAccountProviderConfig } from './SnapAccountProvider';
 import {
   isSnapAccountProvider,
   SnapAccountProvider,
@@ -107,20 +104,6 @@ class MockSnapAccountProvider extends SnapAccountProvider {
 
   async discoverAccounts(): Promise<Bip44Account<KeyringAccount>[]> {
     return [];
-  }
-
-  protected async createAccountV1(
-    keyring: RestrictedSnapKeyring,
-    options: { entropySource: EntropySourceId; groupIndex: number },
-  ): Promise<KeyringAccount> {
-    if (!keyring.v1) {
-      throw new Error(
-        'Snap is v2-only and does not support v1 account creation',
-      );
-    }
-    // Forward to the mocked keyring (no real purposes apart from implementing
-    // this abstract method).
-    return await keyring.v1.createAccount(options);
   }
 
   async createAccounts(
@@ -259,9 +242,6 @@ const setup = ({
   const keyring = {
     type: keyringOverrides.type ?? 'snap',
     snapId: keyringOverrides.snapId ?? TEST_SNAP_ID,
-    v1: {
-      createAccount: jest.fn(),
-    },
     createAccounts: jest.fn(),
     deleteAccount: jest.fn().mockResolvedValue(undefined),
     lookupByAddress: jest
@@ -593,7 +573,6 @@ describe('SnapAccountProvider', () => {
         },
         createAccounts: {
           timeoutMs: 3000,
-          batched: false,
         },
       };
       const testProvider = new MockSnapAccountProvider(
@@ -626,7 +605,6 @@ describe('SnapAccountProvider', () => {
         },
         createAccounts: {
           timeoutMs: 3000,
-          batched: false,
         },
       };
       const testProvider = new MockSnapAccountProvider(
@@ -994,37 +972,6 @@ describe('SnapAccountProvider', () => {
       expect(consoleErrorSpy).not.toHaveBeenCalled();
       consoleWarnSpy.mockRestore();
       consoleErrorSpy.mockRestore();
-    });
-  });
-
-  describe('withKeyringV2 selector', () => {
-    const mockAccounts = [
-      MockAccountBuilder.from(MOCK_HD_ACCOUNT_1)
-        .withUuid()
-        .withSnapId(TEST_SNAP_ID)
-        .get(),
-    ].filter(isBip44Account);
-
-    it('rejects when the keyring type is not a Snap keyring', async () => {
-      const { provider } = setup({
-        accounts: mockAccounts,
-        keyring: { type: 'not-a-snap-keyring' },
-      });
-
-      await expect(provider.resyncAccounts(mockAccounts)).rejects.toThrow(
-        'No keyring matches the selector',
-      );
-    });
-
-    it('rejects when the Snap keyring is for a different Snap ID', async () => {
-      const { provider } = setup({
-        accounts: mockAccounts,
-        keyring: { snapId: 'npm:@metamask/other-snap' as SnapId },
-      });
-
-      await expect(provider.resyncAccounts(mockAccounts)).rejects.toThrow(
-        'No keyring matches the selector',
-      );
     });
   });
 
