@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Constrain `createUIQuery`'s messenger-like type to match the given data services ([#9475](https://github.com/MetaMask/core/pull/9475))
-  - The messenger that `createUIQuery` takes must now support calling actions and managing events for the given data services (i.e. the actions and events that are a part of the messenger's type must be namespaced appropriately).
+- **BREAKING:** Constrain `createUIQueryClient`'s messenger-like type to match the given data services ([#9475](https://github.com/MetaMask/core/pull/9475))
+  - The messenger that `createUIQueryClient` takes must now support calling actions and managing events for the given data services (i.e. the actions and events that are a part of the messenger's type must be namespaced appropriately).
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Make `react-dom` and `react-native` peer dependencies optional ([#9295](https://github.com/MetaMask/core/pull/9295))
 
