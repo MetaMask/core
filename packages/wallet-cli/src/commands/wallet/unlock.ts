@@ -5,7 +5,7 @@ import { sendCommand } from '../../daemon/daemon-client';
 import { getDaemonPaths } from '../../daemon/paths';
 import { promptPassword } from '../../daemon/prompts';
 import {
-  blankToUndefined,
+  emptyToUndefined,
   makeDaemonConnectionError,
 } from '../../daemon/utils';
 
@@ -40,9 +40,9 @@ export default class WalletUnlock extends Command {
     const { flags } = await this.parse(WalletUnlock);
     const { timeout: timeoutMs } = flags;
 
-    // `blankToUndefined` collapses `--password ''` and `MM_WALLET_PASSWORD=''`
+    // `emptyToUndefined` collapses `--password ''` and `MM_WALLET_PASSWORD=''`
     // to undefined so the prompt fires instead of sending an empty string.
-    const flagPassword = blankToUndefined(flags.password);
+    const flagPassword = emptyToUndefined(flags.password);
     let password: string;
     try {
       password = flagPassword ?? (await promptPassword());

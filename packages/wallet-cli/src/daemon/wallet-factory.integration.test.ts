@@ -30,13 +30,13 @@ const createdTempDbPaths: string[] = [];
 
 /**
  * Build a unique on-disk SQLite path under the OS temp dir and remember it
- * for `afterEach` cleanup. Includes a random suffix so concurrent test runs
+ * for `afterAll` cleanup. Includes a random suffix so concurrent test runs
  * cannot collide.
  *
  * @param label - A short label that makes the resulting filename traceable.
  * @returns An absolute file path inside `os.tmpdir()`.
  */
-function tempDbPath(label: string): string {
+function createTempDbPath(label: string): string {
   const path = join(
     tmpdir(),
     `wallet-cli-it-${label}-${process.pid}-${Date.now()}-${Math.random()}.db`,
@@ -69,7 +69,7 @@ describe('createWallet (real Wallet, in-memory)', () => {
 });
 
 describe('createWallet (integration)', () => {
-  afterEach(() => {
+  afterAll(() => {
     while (createdTempDbPaths.length > 0) {
       const path = createdTempDbPaths.pop() as string;
       for (const candidate of [path, `${path}-wal`, `${path}-shm`]) {
@@ -79,7 +79,7 @@ describe('createWallet (integration)', () => {
   });
 
   it('imports the SRP on first run and lists accounts via the messenger', async () => {
-    const databasePath = tempDbPath('first-run');
+    const databasePath = createTempDbPath('first-run');
 
     const { wallet, dispose } = await createWallet({
       databasePath,
@@ -98,7 +98,7 @@ describe('createWallet (integration)', () => {
   });
 
   it('auto-unlocks on a subsequent run when the password is supplied', async () => {
-    const databasePath = tempDbPath('subsequent-unlock');
+    const databasePath = createTempDbPath('subsequent-unlock');
 
     const first = await createWallet({
       databasePath,
@@ -132,7 +132,7 @@ describe('createWallet (integration)', () => {
   });
 
   it('starts a subsequent run locked when no password is supplied, then unlocks via submitPassword', async () => {
-    const databasePath = tempDbPath('subsequent-no-password');
+    const databasePath = createTempDbPath('subsequent-no-password');
 
     const first = await createWallet({
       databasePath,
@@ -166,7 +166,7 @@ describe('createWallet (integration)', () => {
   });
 
   it('rejects subsequent-run startup with a wrong password and leaves the DB usable for a retry', async () => {
-    const databasePath = tempDbPath('wrong-password');
+    const databasePath = createTempDbPath('wrong-password');
 
     const first = await createWallet({
       databasePath,

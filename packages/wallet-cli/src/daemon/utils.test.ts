@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 
 import {
-  blankToUndefined,
+  emptyToUndefined,
   formatJsonRpcError,
   isStringArray,
   makeDaemonConnectionError,
@@ -76,17 +76,17 @@ describe('makeDaemonConnectionError', () => {
   });
 });
 
-describe('blankToUndefined', () => {
+describe('emptyToUndefined', () => {
   it('returns undefined for an empty string', () => {
-    expect(blankToUndefined('')).toBeUndefined();
+    expect(emptyToUndefined('')).toBeUndefined();
   });
 
   it('returns undefined when the value is already undefined', () => {
-    expect(blankToUndefined(undefined)).toBeUndefined();
+    expect(emptyToUndefined(undefined)).toBeUndefined();
   });
 
   it('returns the value unchanged for a non-empty string', () => {
-    expect(blankToUndefined('pw')).toBe('pw');
+    expect(emptyToUndefined('pw')).toBe('pw');
   });
 });
 

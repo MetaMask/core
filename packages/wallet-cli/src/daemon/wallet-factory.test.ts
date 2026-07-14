@@ -65,7 +65,7 @@ function makeMockWallet(): Wallet {
  * @param label - A short label that makes the resulting filename traceable.
  * @returns An absolute file path inside `os.tmpdir()`.
  */
-function tempDbPath(label: string): string {
+function createTempDbPath(label: string): string {
   const path = join(
     tmpdir(),
     `wallet-cli-${label}-${Date.now()}-${Math.random()}.db`,
@@ -379,7 +379,7 @@ describe('createWallet', () => {
     await expect(
       createWallet({
         ...CONFIG,
-        databasePath: tempDbPath('subsequent-unlock-failure'),
+        databasePath: createTempDbPath('subsequent-unlock-failure'),
       }),
     ).rejects.toThrow('wrong password');
 
@@ -625,7 +625,7 @@ describe('createWallet', () => {
 
     it('removes the on-disk database files when first-run SRP import rejects, after closing the store', async () => {
       mockImportSrp.mockRejectedValue(new Error('bad SRP'));
-      const databasePath = tempDbPath('rm-on-failure');
+      const databasePath = createTempDbPath('rm-on-failure');
       const closeSpy = jest.spyOn(KeyValueStore.prototype, 'close');
 
       await expect(createWallet({ ...CONFIG, databasePath })).rejects.toThrow(
@@ -654,7 +654,7 @@ describe('createWallet', () => {
     });
 
     it('does not remove the database when SRP import succeeds on first run', async () => {
-      const databasePath = tempDbPath('success');
+      const databasePath = createTempDbPath('success');
 
       const { dispose } = await createWallet({ ...CONFIG, databasePath });
 
@@ -673,7 +673,10 @@ describe('createWallet', () => {
         });
 
       await expect(
-        createWallet({ ...CONFIG, databasePath: tempDbPath('subsequent-run') }),
+        createWallet({
+          ...CONFIG,
+          databasePath: createTempDbPath('subsequent-run'),
+        }),
       ).rejects.toThrow('subscribe failed');
 
       expect(mockRm).not.toHaveBeenCalled();
@@ -688,7 +691,7 @@ describe('createWallet', () => {
       await expect(
         createWallet({
           ...CONFIG,
-          databasePath: tempDbPath('rm-rejection'),
+          databasePath: createTempDbPath('rm-rejection'),
           log,
         }),
       ).rejects.toThrow(original);

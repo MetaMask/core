@@ -12,7 +12,7 @@ or
 
 ## Usage
 
-The CLI drives a long-lived background **daemon** that holds a `@metamask/wallet` in memory and exposes its messenger over a per-user Unix socket. All commands live under the `mm daemon` and `mm wallet` topics; run `mm --help` (or `mm <topic> <command> --help`) for the full reference.
+The CLI drives a long-lived background daemon that holds a `@metamask/wallet` in memory and exposes its messenger over a per-user Unix socket. All commands live under the `mm daemon` and `mm wallet` topics; run `mm --help` (or `mm <topic> <command> --help`) for the full reference.
 
 Start the daemon (flags may also be supplied as the `INFURA_PROJECT_ID`, `MM_WALLET_PASSWORD`, and `MM_WALLET_SRP` environment variables — preferred for secrets):
 

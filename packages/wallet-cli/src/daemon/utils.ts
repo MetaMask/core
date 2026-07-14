@@ -67,7 +67,7 @@ export function formatJsonRpcError(error: JsonRpcError): string {
  * @param value - The value to normalise.
  * @returns `undefined` if `value` is `undefined` or `''`; `value` otherwise.
  */
-export function blankToUndefined(
+export function emptyToUndefined(
   value: string | undefined,
 ): string | undefined {
   return value === '' ? undefined : value;
