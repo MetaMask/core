@@ -9,11 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `getStablecoins` feature flag reader that resolves the stablecoin list from the `stable-tokens` LaunchDarkly flag, falling back to the hardcoded constant when absent ([#9495](https://github.com/MetaMask/core/pull/9495))
 - Add generic signature steps to the server pay strategy, supporting EIP-712 sign-then-POST flows ([#9051](https://github.com/MetaMask/core/pull/9051))
   - Trigger quote refresh when `txParams.to` or `requiredAssets` changes on a transaction, in addition to the existing `txParams.data` trigger
 
 ### Changed
 
+- Replace hardcoded `STABLECOINS` usage in `token.ts` and `relay-quotes.ts` with the remotely configurable `getStablecoins(messenger)` lookup ([#9495](https://github.com/MetaMask/core/pull/9495))
 - Bump `@metamask/assets-controller` from `^10.2.1` to `^11.0.0` ([#9485](https://github.com/MetaMask/core/pull/9485))
 - Bump `@metamask/ramps-controller` from `^16.0.0` to `^17.0.0` ([#9491](https://github.com/MetaMask/core/pull/9491))
 
