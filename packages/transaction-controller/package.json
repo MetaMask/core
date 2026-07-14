@@ -1,6 +1,6 @@
 {
   "name": "@metamask/transaction-controller",
-  "version": "68.3.0",
+  "version": "69.0.0",
   "description": "Stores transactions alongside their periodically updated statuses and manages interactions such as approval and cancellation",
   "keywords": [
     "Ethereum",
@@ -60,7 +60,7 @@
     "@ethersproject/contracts": "^5.7.0",
     "@ethersproject/providers": "^5.7.0",
     "@ethersproject/wallet": "^5.7.0",
-    "@metamask/accounts-controller": "^39.0.4",
+    "@metamask/accounts-controller": "^39.0.5",
     "@metamask/approval-controller": "^9.0.2",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/controller-utils": "^12.3.0",
@@ -84,7 +84,7 @@
   "devDependencies": {
     "@babel/runtime": "^7.23.9",
     "@metamask/auto-changelog": "^6.1.0",
-    "@metamask/connectivity-controller": "^0.2.0",
+    "@metamask/connectivity-controller": "^0.3.0",
     "@metamask/eth-block-tracker": "^15.0.0",
     "@metamask/eth-json-rpc-provider": "^6.0.1",
     "@metamask/ethjs-provider-http": "^0.3.0",

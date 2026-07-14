@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump `@metamask/account-tree-controller` from `^7.5.4` to `^7.5.5` ([#9470](https://github.com/MetaMask/core/pull/9470))
+
+## [2.0.0]
+
 ### Added
 
 - Add `getCapabilities` action to expose a Snap's keyring capabilities ([#9377](https://github.com/MetaMask/core/pull/9377))
@@ -23,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/keyring-snap-sdk` from `^9.0.1` to `^9.2.0` ([#9249](https://github.com/MetaMask/core/pull/9249), [#9390](https://github.com/MetaMask/core/pull/9390))
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 - Bump `@metamask/eth-snap-keyring` from `^22.3.0` to `^23.0.0` ([#9390](https://github.com/MetaMask/core/pull/9390))
+- Bump `@metamask/account-tree-controller` from `^7.5.3` to `^7.5.4` ([#9429](https://github.com/MetaMask/core/pull/9429))
 
 ## [1.0.0]
 
@@ -128,7 +135,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/messenger` from `^1.1.1` to `^1.2.0` ([#8632](https://github.com/MetaMask/core/pull/8632))
 - Bump `@metamask/account-tree-controller` from `^7.3.0` to `^7.4.0` ([#8783](https://github.com/MetaMask/core/pull/8783))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@1.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@2.0.0...HEAD
+[2.0.0]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@1.0.0...@metamask/snap-account-service@2.0.0
 [1.0.0]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@0.3.1...@metamask/snap-account-service@1.0.0
 [0.3.1]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@0.3.0...@metamask/snap-account-service@0.3.1
 [0.3.0]: https://github.com/MetaMask/core/compare/@metamask/snap-account-service@0.2.1...@metamask/snap-account-service@0.3.0

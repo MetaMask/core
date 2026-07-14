@@ -100,6 +100,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/multichain-network-controller`](packages/multichain-network-controller)
 - [`@metamask/multichain-transactions-controller`](packages/multichain-transactions-controller)
 - [`@metamask/name-controller`](packages/name-controller)
+- [`@metamask/network-connection-banner-controller`](packages/network-connection-banner-controller)
 - [`@metamask/network-controller`](packages/network-controller)
 - [`@metamask/network-enablement-controller`](packages/network-enablement-controller)
 - [`@metamask/notification-services-controller`](packages/notification-services-controller)
@@ -203,6 +204,7 @@ linkStyle default opacity:0.5
   multichain_network_controller(["@metamask/multichain-network-controller"]);
   multichain_transactions_controller(["@metamask/multichain-transactions-controller"]);
   name_controller(["@metamask/name-controller"]);
+  network_connection_banner_controller(["@metamask/network-connection-banner-controller"]);
   network_controller(["@metamask/network-controller"]);
   network_enablement_controller(["@metamask/network-enablement-controller"]);
   notification_services_controller(["@metamask/notification-services-controller"]);
@@ -461,6 +463,13 @@ linkStyle default opacity:0.5
   name_controller --> base_controller;
   name_controller --> controller_utils;
   name_controller --> messenger;
+  network_connection_banner_controller --> base_controller;
+  network_connection_banner_controller --> client_controller;
+  network_connection_banner_controller --> connectivity_controller;
+  network_connection_banner_controller --> keyring_controller;
+  network_connection_banner_controller --> messenger;
+  network_connection_banner_controller --> network_controller;
+  network_connection_banner_controller --> network_enablement_controller;
   network_controller --> base_controller;
   network_controller --> connectivity_controller;
   network_controller --> controller_utils;
@@ -529,6 +538,7 @@ linkStyle default opacity:0.5
   ramps_controller --> controller_utils;
   ramps_controller --> messenger;
   ramps_controller --> profile_sync_controller;
+  ramps_controller --> remote_feature_flag_controller;
   rate_limit_controller --> base_controller;
   rate_limit_controller --> messenger;
   react_data_query --> base_data_service;
@@ -573,7 +583,6 @@ linkStyle default opacity:0.5
   smart_transactions_controller --> remote_feature_flag_controller;
   smart_transactions_controller --> transaction_controller;
   smart_transactions_controller --> json_rpc_engine;
-  snap_account_service --> account_tree_controller;
   snap_account_service --> keyring_controller;
   snap_account_service --> messenger;
   social_controllers --> base_controller;

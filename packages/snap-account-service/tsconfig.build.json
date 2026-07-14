@@ -6,15 +6,6 @@
     "rootDir": "./src"
   },
   "references": [
-    // READ THIS CAREFULLY:
-    // `account-tree-controller` is intentionally NOT referenced here to break
-    // a project-reference cycle:
-    //   account-tree-controller -> multichain-account-service
-    //                           -> snap-account-service
-    //                           -> account-tree-controller
-    // The types we'd otherwise pull from `@metamask/account-tree-controller`
-    // are mirrored locally in `./src/types.ts` — keep them in sync.
-    // { "path": "../account-tree-controller/tsconfig.build.json" },
     { "path": "../keyring-controller/tsconfig.build.json" },
     { "path": "../messenger/tsconfig.build.json" }
   ],

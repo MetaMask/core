@@ -796,50 +796,6 @@ describe('MultichainAssetsController', () => {
       });
     });
 
-    it('publishes refreshed assets when snap reports adds that are already tracked', async () => {
-      const mockSolanaAccountId1 = 'account1';
-      const existingToken =
-        'solana:EtWTRABZaYq6iMfeYKouRu166VU2xqa1/token:Gh9ZwEmdLJ8DscKNTkTqPbNwLNNBjuSzaG9Vp2KGtKJr' as CaipAssetType;
-      const { controller, messenger } = setupController({
-        state: {
-          accountsAssets: {
-            [mockSolanaAccountId1]: mockHandleRequestOnAssetsLookupReturnValue,
-          },
-          assetsMetadata: mockGetMetadataReturnValue,
-          allIgnoredAssets: {},
-        } as MultichainAssetsControllerState,
-      });
-
-      const eventListener = jest.fn();
-      messenger.subscribe(
-        'MultichainAssetsController:accountAssetListUpdated',
-        eventListener,
-      );
-
-      messenger.publish('AccountsController:accountAssetListUpdated', {
-        assets: {
-          [mockSolanaAccountId1]: {
-            added: [existingToken],
-            removed: [],
-          },
-        },
-      });
-      await jestAdvanceTime({ duration: 1 });
-
-      expect(
-        controller.state.accountsAssets[mockSolanaAccountId1],
-      ).toStrictEqual(mockHandleRequestOnAssetsLookupReturnValue);
-      expect(eventListener).toHaveBeenCalledWith({
-        assets: {
-          [mockSolanaAccountId1]: {
-            added: [],
-            removed: [],
-            refreshed: [existingToken],
-          },
-        },
-      });
-    });
-
     it('updates the assets list for an account when a an asset is removed', async () => {
       const mockSolanaAccountId1 = 'account1';
       const mockSolanaAccountId2 = 'account2';

@@ -61,6 +61,7 @@ const CURRENCY_SYMBOLS = {
   MEGAETH: 'ETH',
   XLM: 'XLM',
   ARC: 'USDC',
+  ROBINHOOD: 'ETH',
 } as const;
 
 const ETH_SWAPS_TOKEN_OBJECT = {
@@ -199,6 +200,10 @@ const MEGAETH_SWAPS_TOKEN_OBJECT = {
   ...ETH_SWAPS_TOKEN_OBJECT,
 } as const;
 
+const ROBINHOOD_SWAPS_TOKEN_OBJECT = {
+  ...ETH_SWAPS_TOKEN_OBJECT,
+} as const;
+
 // Leaving for code consistency but we won't display it in the asset picker
 const ARC_SWAPS_TOKEN_OBJECT = {
   symbol: 'USDC',
@@ -226,6 +231,7 @@ export const SWAPS_CHAINID_DEFAULT_TOKEN_MAP = {
   [CHAIN_IDS.HYPEREVM]: HYPEREVM_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.MEGAETH]: MEGAETH_SWAPS_TOKEN_OBJECT,
   [CHAIN_IDS.ARC]: ARC_SWAPS_TOKEN_OBJECT,
+  [CHAIN_IDS.ROBINHOOD]: ROBINHOOD_SWAPS_TOKEN_OBJECT,
   [SolScope.Mainnet]: SOLANA_SWAPS_TOKEN_OBJECT,
   [SolScope.Devnet]: SOLANA_SWAPS_TOKEN_OBJECT,
   [BtcScope.Mainnet]: BTC_SWAPS_TOKEN_OBJECT,

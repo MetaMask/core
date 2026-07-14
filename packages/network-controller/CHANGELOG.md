@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Remove validation that required an Infura RPC endpoint URL's implied chain ID to match the chain ID of the network configuration it belongs to ([#9432](https://github.com/MetaMask/core/pull/9432))
   - This allows Infura-backed networks to be added and updated dynamically without being constrained to the known Infura network list bundled in `@metamask/controller-utils`.
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Bump `@metamask/connectivity-controller` from `^0.2.0` to `^0.3.0` ([#9435](https://github.com/MetaMask/core/pull/9435))
 
 ## [34.0.0]
 
