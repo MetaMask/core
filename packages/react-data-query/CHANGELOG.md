@@ -12,6 +12,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Make `react-dom` and `react-native` peer dependencies optional ([#9295](https://github.com/MetaMask/core/pull/9295))
 
+### Fixed
+
+- Keep actively observed queries when a data service removes its cache entry ([#9490](https://github.com/MetaMask/core/pull/9490))
+  - Data services garbage-collect their internal cache entries (which never have observers) `cacheTime` after each fetch, publishing a `removed` cache event. Previously `createUIQueryClient` honoured that event by removing the UI-side query even while components actively observed it — an operation unsupported by TanStack Query — so mounted consumers whose refetch interval met or exceeded the service-side `cacheTime` lost their data on a timer. `removed` events now only remove queries with no observers; observed queries keep their data and refetch on their own schedule.
+
 ## [0.2.1]
 
 ### Changed
