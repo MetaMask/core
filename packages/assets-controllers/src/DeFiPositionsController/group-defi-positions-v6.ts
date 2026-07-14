@@ -232,9 +232,7 @@ type MutableProtocolGroup = {
  * @param group - The accumulated protocol group.
  * @returns The finalized protocol position group.
  */
-function finalizeGroup(
-  group: MutableProtocolGroup,
-): DeFiProtocolPositionGroup {
+function finalizeGroup(group: MutableProtocolGroup): DeFiProtocolPositionGroup {
   const iconGroup = orderIconGroup([...group.iconBySymbol.values()]);
 
   const sections: DeFiPositionDetailsSection[] = [
@@ -331,9 +329,9 @@ export function groupDeFiPositionsV6(
       poolGroups.set(poolAddress, poolPositions);
     }
 
-    result[resolveAccountId(account.accountId)] = [
-      ...groupsByKey.values(),
-    ].map(finalizeGroup);
+    result[resolveAccountId(account.accountId)] = [...groupsByKey.values()].map(
+      finalizeGroup,
+    );
   }
 
   return result;

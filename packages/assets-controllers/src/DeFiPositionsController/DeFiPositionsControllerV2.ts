@@ -13,9 +13,9 @@ import {
   DEFI_BALANCES_V6_REQUEST_OPTIONS,
   normalizeCaipAccountId,
 } from './build-defi-balances-query';
+import type { DeFiPositionsControllerV2MethodActions } from './DeFiPositionsControllerV2-method-action-types';
 import type { DeFiPositionsByAccount } from './group-defi-positions-v6';
 import { groupDeFiPositionsV6 } from './group-defi-positions-v6';
-import type { DeFiPositionsControllerV2MethodActions } from './DeFiPositionsControllerV2-method-action-types';
 
 const controllerName = 'DeFiPositionsControllerV2';
 
@@ -224,9 +224,8 @@ export class DeFiPositionsControllerV2 extends BaseController<
     this.#lastFetchByKey.set(throttleKey, now);
 
     try {
-      const response = await this.#apiClient.accounts.fetchV6MultiAccountBalances(
-        accountIds,
-        {
+      const response =
+        await this.#apiClient.accounts.fetchV6MultiAccountBalances(accountIds, {
           networks,
           includeDeFiBalances:
             DEFI_BALANCES_V6_REQUEST_OPTIONS.includeDeFiBalances,
@@ -234,8 +233,7 @@ export class DeFiPositionsControllerV2 extends BaseController<
             DEFI_BALANCES_V6_REQUEST_OPTIONS.forceFetchDeFiPositions,
           includePrices: DEFI_BALANCES_V6_REQUEST_OPTIONS.includePrices,
           vsCurrency: this.#getVsCurrency().toLowerCase(),
-        },
-      );
+        });
 
       const positionsByAccount = groupDeFiPositionsV6(
         response,

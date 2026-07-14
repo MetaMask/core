@@ -1,4 +1,8 @@
-import { isEvmAccountType, SolAccountType, SolScope } from '@metamask/keyring-api';
+import {
+  isEvmAccountType,
+  SolAccountType,
+  SolScope,
+} from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { CaipAccountId, CaipChainId } from '@metamask/utils';
 import { KnownCaipNamespace, toCaipAccountId } from '@metamask/utils';
