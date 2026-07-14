@@ -1,5 +1,8 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
-import type { ApiPlatformClient, V6BalancesResponse } from '@metamask/core-backend';
+import type {
+  ApiPlatformClient,
+  V6BalancesResponse,
+} from '@metamask/core-backend';
 import {
   BtcAccountType,
   EthAccountType,
@@ -102,7 +105,8 @@ function buildMockBalancesResponse(
         balances: [
           {
             category: 'defi',
-            assetId: 'eip155:1/erc20:0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+            assetId:
+              'eip155:1/erc20:0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
             name: 'Wrapped Ether',
             symbol: 'WETH',
             decimals: 18,
@@ -152,9 +156,7 @@ function setupController({
   minimumFetchIntervalMs?: number;
   mockGroupAccounts?: InternalAccount[];
   mockFetchV6MultiAccountBalances?: jest.Mock;
-  state?: Partial<
-    ReturnType<typeof getDefaultDeFiPositionsControllerV2State>
-  >;
+  state?: Partial<ReturnType<typeof getDefaultDeFiPositionsControllerV2State>>;
 } = {}) {
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
@@ -313,7 +315,9 @@ describe('DeFiPositionsControllerV2', () => {
 
     await controller.fetchDeFiPositions();
 
-    expect(controller.state.allDeFiPositionsV2).toHaveProperty('evm-account-id');
+    expect(controller.state.allDeFiPositionsV2).toHaveProperty(
+      'evm-account-id',
+    );
     expect(controller.state.allDeFiPositionsV2['evm-account-id']).toHaveLength(
       1,
     );
