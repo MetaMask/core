@@ -39,12 +39,17 @@ export type DeFiPositionsControllerV2State = {
    * filtering plus the details-page sections embedded inside it. This is
    * exactly the shape the client consumes, so no further transformation is
    * needed on read.
+   *
+   * Named `allDeFiPositionsV2` (rather than `allDeFiPositions`) so it can live
+   * alongside the legacy `DeFiPositionsController` in clients that flatten every
+   * controller's state into a single object (e.g. the extension background),
+   * without colliding on the shared `allDeFiPositions` key.
    */
-  allDeFiPositions: DeFiPositionsByAccount;
+  allDeFiPositionsV2: DeFiPositionsByAccount;
 };
 
 const controllerMetadata: StateMetadata<DeFiPositionsControllerV2State> = {
-  allDeFiPositions: {
+  allDeFiPositionsV2: {
     includeInStateLogs: false,
     persist: true,
     includeInDebugSnapshot: false,
@@ -55,7 +60,7 @@ const controllerMetadata: StateMetadata<DeFiPositionsControllerV2State> = {
 export const getDefaultDeFiPositionsControllerV2State =
   (): DeFiPositionsControllerV2State => {
     return {
-      allDeFiPositions: {},
+      allDeFiPositionsV2: {},
     };
   };
 
@@ -247,7 +252,7 @@ export class DeFiPositionsControllerV2 extends BaseController<
         for (const [accountId, positions] of Object.entries(
           positionsByAccount,
         )) {
-          state.allDeFiPositions[accountId] = positions;
+          state.allDeFiPositionsV2[accountId] = positions;
         }
       });
     } catch (error) {
