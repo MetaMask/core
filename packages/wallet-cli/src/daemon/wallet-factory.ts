@@ -16,14 +16,15 @@ import { rm } from 'node:fs/promises';
 
 import { KeyValueStore } from '../persistence/KeyValueStore';
 import { loadState, subscribeToChanges } from '../persistence/persistence';
+import type { Password, Srp } from './secrets';
 import type { Logger } from './types';
 
 const IN_MEMORY_DATABASE_PATH = ':memory:';
 
 export type CreateWalletConfig = {
   databasePath: string;
-  password: string;
-  srp: string;
+  password?: Password;
+  srp: Srp;
   infuraProjectId: string;
   log?: Logger;
 };
@@ -112,10 +113,15 @@ function buildInstanceOptions(
  * persist-flagged properties are written through.
  *
  * If the store does not yet contain a keyring vault (first run), the supplied
- * secret recovery phrase is imported. On subsequent runs the persisted vault is
- * reused — `password`/`srp` go unused and the wallet starts locked; the caller
- * unlocks it via `KeyringController:submitPassword` before any keyring-bound
- * operation.
+ * secret recovery phrase is imported using the supplied password. On
+ * subsequent runs, the persisted vault is reused: when a password is
+ * supplied, the wallet is unlocked via `KeyringController:submitPassword` so
+ * keyring-bound messenger actions work immediately; when no password is
+ * supplied, the wallet starts locked and the caller is expected to invoke
+ * `mm wallet unlock` before any keyring-bound operation. First-run startup
+ * without a password is rejected (the SRP cannot be imported without one).
+ * On a subsequent run, a wrong password rejects startup with a `Failed to
+ * unlock the persisted vault` error that wraps the `submitPassword` rejection.
  *
  * On any failure after the store is opened, the store is closed (and the wallet
  * destroyed, if constructed). On a first-run failure, the on-disk database is
@@ -126,8 +132,11 @@ function buildInstanceOptions(
  * @param config - Wallet configuration.
  * @param config.databasePath - Path to the SQLite database file (or
  * `':memory:'` for ephemeral use).
- * @param config.password - The wallet password.
- * @param config.srp - The secret recovery phrase (BIP-39 mnemonic).
+ * @param config.password - The wallet password. Optional on subsequent runs;
+ * when omitted, the daemon starts with a locked keyring. Required on first
+ * run (to import the SRP).
+ * @param config.srp - The secret recovery phrase (BIP-39 mnemonic). Used
+ * only on first run.
  * @param config.infuraProjectId - The Infura project ID for the
  * `NetworkController`.
  * @param config.log - Optional logger for persistence-write and teardown
@@ -151,6 +160,16 @@ export async function createWallet({
   try {
     const state = await loadPersistedState(store, infuraProjectId, logFn);
     wasFirstRun = !hasPersistedKeyring(state);
+
+    // Validate the first-run precondition BEFORE constructing the wallet,
+    // so a doomed startup doesn't build a Wallet (and wire persistence
+    // handlers) just to tear it down.
+    if (wasFirstRun && password === undefined) {
+      throw new Error(
+        'A password is required on first run to import the secret recovery phrase. ' +
+          'Pass `--password` (or `MM_WALLET_PASSWORD`) on `mm daemon start`.',
+      );
+    }
 
     wallet = new Wallet({
       state,
@@ -184,7 +203,26 @@ export async function createWallet({
     }
 
     if (wasFirstRun) {
-      await importSecretRecoveryPhrase(wallet, password, srp);
+      // The precondition check above throws when `wasFirstRun && password ===
+      // undefined`, so `password` is defined here. TS does not correlate the
+      // two separate variables, so it cannot narrow `password` from
+      // `wasFirstRun` alone — hence the assertion.
+      await importSecretRecoveryPhrase(
+        wallet,
+        (password as Password).unwrap(),
+        srp.unwrap(),
+      );
+    } else if (password !== undefined) {
+      try {
+        await wallet.messenger.call(
+          'KeyringController:submitPassword',
+          password.unwrap(),
+        );
+      } catch (error) {
+        throw new Error(
+          `Failed to unlock the persisted vault: ${String(error)}`,
+        );
+      }
     }
 
     let disposePromise: Promise<void> | undefined;
