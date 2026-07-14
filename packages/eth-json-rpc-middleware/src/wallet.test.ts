@@ -171,7 +171,7 @@ describe('wallet', () => {
 
       await expect(
         engine.handle(...createHandleParams(payload)),
-      ).rejects.toThrow(/Invalid params/u);
+      ).rejects.toThrow('Invalid input.');
     });
 
     it('throws for the incident repro payload with deeply-nested junk', async () => {
@@ -204,7 +204,7 @@ describe('wallet', () => {
 
       await expect(
         engine.handle(...createHandleParams(payload)),
-      ).rejects.toThrow(/Invalid params|Invalid input/u);
+      ).rejects.toThrow('Invalid input.');
     });
 
     it('should not override other request params', async () => {
@@ -365,7 +365,7 @@ describe('wallet', () => {
 
       await expect(
         engine.handle(...createHandleParams(payload)),
-      ).rejects.toThrow(/Invalid params/u);
+      ).rejects.toThrow('Invalid input.');
     });
 
     it('throws for the incident repro payload with deeply-nested junk', async () => {
@@ -398,7 +398,7 @@ describe('wallet', () => {
 
       await expect(
         engine.handle(...createHandleParams(payload)),
-      ).rejects.toThrow(/Invalid params|Invalid input/u);
+      ).rejects.toThrow('Invalid input.');
     });
   });
 
