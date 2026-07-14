@@ -13,6 +13,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Include `transaction_internal_id` in `Unified SwapBridge Completed` events for EVM source transactions. ([#9494](https://github.com/MetaMask/core/pull/9494))
 
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^77.4.1` to `^77.5.0` ([#9508](https://github.com/MetaMask/core/pull/9508))
+
 ### Fixed
 
 - chore: MIT license text update ([#9472](https://github.com/MetaMask/core/pull/9472))
