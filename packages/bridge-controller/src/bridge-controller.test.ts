@@ -3703,6 +3703,7 @@ describe('BridgeController', function () {
             usd_actual_gas: 10,
             quote_vs_execution_ratio: 1,
             quoted_vs_used_gas_ratio: 1,
+            transaction_internal_id: 'transaction-id',
             chain_id_source: formatChainIdToCaip(1),
             token_symbol_source: 'ETH',
             token_address_source: getNativeAssetForChainId(1).assetId,
