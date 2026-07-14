@@ -50,7 +50,7 @@
     "test:verbose": "yarn test:jest:verbose && yarn test:types",
     "test:jest": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:jest:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
-    "test:types": "yarn build:all && tsd",
+    "test:types": "tsc --noEmit --project tsconfig.test-d.json",
     "test:jest:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
@@ -68,8 +68,6 @@
     "deepmerge": "^4.2.2",
     "jest": "^29.7.0",
     "ts-jest": "^29.2.5",
-    "tsd": "^0.29.0",
-    "tstyche": "7.2.1",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
     "typescript": "~5.3.3"
@@ -86,16 +84,6 @@
     "react-native": {
       "optional": true
     }
-  },
-  "tsd": {
-    "compilerOptions": {
-      "paths": {
-        "@metamask/*": [
-          "../*/dist"
-        ]
-      }
-    },
-    "directory": "src"
   },
   "engines": {
     "node": "^18.18 || >=20"

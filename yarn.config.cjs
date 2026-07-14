@@ -626,8 +626,9 @@ function expectCorrectWorkspaceChangelogScripts(workspace) {
 /**
  * Expect that the workspace has scripts for running tests.
  *
- * If the workspace includes `tsd` has a dev dependency, it must have scripts
- * that run both Jest and tsd, otherwise just Jest.
+ * If the workspace has a `test:types` script (i.e. it runs type tests in
+ * addition to Jest tests), it must have scripts that run both Jest and the type
+ * tests, otherwise just Jest.
  *
  * It must also provide scripts that allow Jest to be run in silent mode, clean
  * mode, verbose mode, and watch mode.
@@ -641,7 +642,7 @@ function expectTestScripts(workspace) {
     'NODE_OPTIONS=--experimental-vm-modules jest --watch',
   );
 
-  if (workspace.manifest.devDependencies.tsd === undefined) {
+  if (workspace.manifest.scripts['test:types'] === undefined) {
     expectWorkspaceField(
       workspace,
       'scripts.test',
