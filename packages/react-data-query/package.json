@@ -45,10 +45,13 @@
     "changelog:update": "../../scripts/update-changelog.sh @metamask/react-data-query",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/react-data-query",
     "since-latest-release": "../../scripts/since-latest-release.sh",
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
-    "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
+    "test": "yarn test:jest && yarn test:types",
+    "test:clean": "yarn test:jest:clean && yarn test:types",
+    "test:verbose": "yarn test:jest:verbose && yarn test:types",
+    "test:jest": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
+    "test:jest:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:types": "yarn build:all && tsd",
-    "test:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
+    "test:jest:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
