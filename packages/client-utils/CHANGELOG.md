@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `createFormatters` factory for shared display formatters ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- Add `createFormatters` factory for shared display formatters ([#9504](https://github.com/MetaMask/core/pull/9504))
   - `formatNumber` — generic number with optional `Intl.NumberFormat` overrides
   - `formatCurrency` — currency string (ISO 4217 code)
   - `formatCurrencyCompact` — compact currency (e.g. `$1.2K`, `$3.4M`)
