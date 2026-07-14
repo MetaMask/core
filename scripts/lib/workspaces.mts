@@ -11,7 +11,6 @@ const IGNORED_ROOT_FILES = new Set([
   'AGENTS.md',
   'CLAUDE.md',
   'README.md',
-  'eslint-suppressions.json',
   'teams.json',
   'yarn.lock',
 ]);
@@ -85,13 +84,16 @@ export async function getWorkspaceDependencies(
     workspaces.map(({ name }) => [name, new Set<string>()]),
   );
 
-  for (const { name, location } of workspaces) {
-    const pkg = JSON.parse(
-      await readFile(join(ROOT_WORKSPACE, location, 'package.json'), {
+  const packages = await Promise.all(
+    workspaces.map(({ location }) =>
+      readFile(join(ROOT_WORKSPACE, location, 'package.json'), {
         encoding: 'utf-8',
-      }),
-    );
+      }).then(JSON.parse),
+    ),
+  );
 
+  for (const [index, { name }] of workspaces.entries()) {
+    const pkg = packages[index];
     for (const dependency of Object.keys({
       ...pkg.dependencies,
       ...pkg.devDependencies,
