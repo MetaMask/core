@@ -267,10 +267,6 @@ export const TransactionParamsStruct = object({
   value: optional(StrictHexStruct),
 });
 
-const ALLOWED_TRANSACTION_PARAM_KEYS = new Set<string>(
-  Object.keys(TransactionParamsStruct.schema as Record<string, unknown>),
-);
-
 // Upper bound derived from the largest valid eth_sendTransaction payload:
 // EIP-3860 caps initcode at 49,152 bytes → hex-encoded in 'data' field ≈ 98 KB of JSON.
 // 200 KB is ~2× that ceiling, giving clear headroom above any protocol-legal
@@ -319,15 +315,9 @@ export function validateTransactionParams(params: unknown): void {
     throw rpcErrors.invalidInput();
   }
 
-  for (const key of Object.keys(params)) {
-    if (!ALLOWED_TRANSACTION_PARAM_KEYS.has(key)) {
-      throw rpcErrors.invalidInput();
-    }
-  }
+  validateParams(params, TransactionParamsStruct);
 
   if (JSON.stringify(params).length > MAX_TRANSACTION_PARAMS_SIZE_BYTES) {
     throw rpcErrors.invalidInput();
   }
-
-  validateParams(params, TransactionParamsStruct);
 }
