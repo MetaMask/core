@@ -12,8 +12,8 @@ import type { DeFiPositionsControllerV2 } from './DeFiPositionsControllerV2';
  * response, and updating state.
  *
  * Throttled per set of accounts by an in-memory minimum interval, so repeated
- * calls within the window are no-ops. Disabled controllers and empty account
- * groups return without fetching.
+ * calls within the window are no-ops (no HTTP, no regroup, no state write).
+ * Disabled controllers and empty account groups return without fetching.
  */
 export type DeFiPositionsControllerV2FetchDeFiPositionsAction = {
   type: `DeFiPositionsControllerV2:fetchDeFiPositions`;

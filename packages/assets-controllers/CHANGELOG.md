@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add `DeFiPositionsControllerV2`, which fetches DeFi positions from the Accounts API v6 multiaccount balances endpoint and stores them in a client-ready shape under `allDeFiPositionsV2` ([#9503](https://github.com/MetaMask/core/pull/9503))
+  - Export `DeFiPositionsControllerV2` and `getDefaultDeFiPositionsControllerV2State`
+  - Export types including `DeFiPositionsControllerV2State`, messenger/action/event types, `DeFiPositionsByAccount`, and related position group types
+  - Export `DeFiPositionsControllerV2FetchDeFiPositionsAction` and `buildDeFiBalancesQuery` helpers
 - Add Robinhood Chain (`4663`/`0x1237`) BalanceFetcher support for legacy single-call token detection ([#9473](https://github.com/MetaMask/core/pull/9473))
   - Add `Robinhood` in `SupportedTokenDetectionNetworks`
   - Add Robinhood BalanceFetcher address in `SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID`
