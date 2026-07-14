@@ -5,7 +5,7 @@ import { any, validate } from '@metamask/superstruct';
 
 import type { WalletMiddlewareKeyValues } from '../wallet.js';
 import {
-  MAX_TRANSACTION_PARAM_DEPTH,
+  MAX_TRANSACTION_PARAMS_SIZE_BYTES,
   resemblesAddress,
   validateAndNormalizeKeyholder,
   validateParams,
@@ -283,7 +283,14 @@ describe('Validation Utils', () => {
 
   describe('validateTransactionParams', () => {
     const VALID_FROM = '0xbe93f9bacbcffc8ee6663f2647917ed7a20a57bb';
-    const VALID_TO = '0xdAC17F958D2ee523a2206206994597C13D831ec7';
+    const VALID_TO = '0xdac17f958d2ee523a2206206994597c13d831ec7';
+
+    beforeEach(() => {
+      const actual = jest.requireActual<{
+        validate: typeof validate;
+      }>('@metamask/superstruct');
+      validateMock.mockImplementation(actual.validate);
+    });
 
     it('does not throw for minimal valid params', () => {
       expect(() =>
@@ -291,7 +298,7 @@ describe('Validation Utils', () => {
       ).not.toThrow();
     });
 
-    it('does not throw for the full allowlisted param set', () => {
+    it('does not throw for the full valid param set', () => {
       expect(() =>
         validateTransactionParams({
           accessList: [
@@ -331,7 +338,9 @@ describe('Validation Utils', () => {
       ['a boolean', true],
       ['an array', [{ from: VALID_FROM }]],
     ])('throws when params is %s', (_label, value) => {
-      expect(() => validateTransactionParams(value)).toThrow('Invalid input.');
+      expect(() => validateTransactionParams(value)).toThrow(
+        /Invalid params|Invalid input/u,
+      );
     });
 
     it('throws for an extraneous top-level key', () => {
@@ -341,7 +350,7 @@ describe('Validation Utils', () => {
           to: VALID_TO,
           extraKey: 'unexpected',
         }),
-      ).toThrow('Invalid input.');
+      ).toThrow(/Invalid params/u);
     });
 
     it('throws for the incident repro payload (deeply-nested junk field)', () => {
@@ -358,47 +367,86 @@ describe('Validation Utils', () => {
           data: '0x095ea7b3',
           test: junk,
         }),
-      ).toThrow('Invalid input.');
+      ).toThrow(/Invalid params|Invalid input/u);
     });
 
-    it('throws when an allowlisted field nests beyond the depth limit', () => {
-      let deep: Record<string, unknown> = { leaf: true };
-      for (let i = 0; i < MAX_TRANSACTION_PARAM_DEPTH + 5; i++) {
-        deep = { nested: deep };
-      }
+    it('throws when a typed field has the wrong type', () => {
+      expect(() =>
+        validateTransactionParams({
+          from: VALID_FROM,
+          to: { nested: 'not-an-address' },
+        }),
+      ).toThrow(/Invalid params/u);
+    });
+
+    it('throws when `to` is not a hex address', () => {
+      expect(() =>
+        validateTransactionParams({
+          from: VALID_FROM,
+          to: 'not-an-address',
+        }),
+      ).toThrow(/Invalid params/u);
+    });
+
+    it('throws when `data` is not a hex string', () => {
+      expect(() =>
+        validateTransactionParams({
+          from: VALID_FROM,
+          data: 1234 as unknown as string,
+        }),
+      ).toThrow(/Invalid params/u);
+    });
+
+    it('throws when `accessList` entries are malformed', () => {
+      expect(() =>
+        validateTransactionParams({
+          from: VALID_FROM,
+          accessList: [{ address: 'not-hex', storageKeys: 'not-an-array' }],
+        }),
+      ).toThrow(/Invalid params/u);
+    });
+
+    it('throws for a data-padding attack that passes the schema', () => {
+      const padded = `0x${'00'.repeat(MAX_TRANSACTION_PARAMS_SIZE_BYTES)}`;
 
       expect(() =>
         validateTransactionParams({
           from: VALID_FROM,
-          data: deep as unknown as string,
+          to: VALID_TO,
+          data: padded,
         }),
       ).toThrow('Invalid input.');
     });
 
-    it('throws when a deeply-nested array exceeds the depth limit', () => {
-      let deepArray: unknown = 'leaf';
-      for (let i = 0; i < MAX_TRANSACTION_PARAM_DEPTH + 5; i++) {
-        deepArray = [deepArray];
-      }
+    it('throws for an accessList-padding attack that passes the schema', () => {
+      const padded = Array.from(
+        { length: Math.ceil(MAX_TRANSACTION_PARAMS_SIZE_BYTES / 64) },
+        () => ({
+          address: VALID_TO,
+          storageKeys: [`0x${'00'.repeat(32)}`],
+        }),
+      );
 
       expect(() =>
         validateTransactionParams({
           from: VALID_FROM,
-          accessList: deepArray as never,
+          to: VALID_TO,
+          accessList: padded,
         }),
       ).toThrow('Invalid input.');
     });
 
-    it('does not throw when params sit exactly at the depth limit', () => {
-      let deep: unknown = 'leaf';
-      for (let i = 0; i < MAX_TRANSACTION_PARAM_DEPTH - 1; i++) {
-        deep = { nested: deep };
-      }
+    it('does not throw for a legitimate multi-entry accessList well under the size limit', () => {
+      const entries = Array.from({ length: 16 }, () => ({
+        address: VALID_TO,
+        storageKeys: [`0x${'11'.repeat(32)}`, `0x${'22'.repeat(32)}`],
+      }));
 
       expect(() =>
         validateTransactionParams({
           from: VALID_FROM,
-          data: deep,
+          to: VALID_TO,
+          accessList: entries,
         }),
       ).not.toThrow();
     });

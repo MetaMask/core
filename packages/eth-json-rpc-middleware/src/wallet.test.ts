@@ -116,9 +116,7 @@ describe('wallet', () => {
         method: 'eth_sendTransaction',
         params: [txParams],
       });
-      await expect(engine.handle(payload)).rejects.toThrow(
-        new Error('Invalid parameters: must provide an Ethereum address.'),
-      );
+      await expect(engine.handle(payload)).rejects.toThrow(/Invalid params/u);
     });
 
     it('throws unauthorized for unknown addresses', async () => {
@@ -173,7 +171,7 @@ describe('wallet', () => {
 
       await expect(
         engine.handle(...createHandleParams(payload)),
-      ).rejects.toThrow('Invalid input.');
+      ).rejects.toThrow(/Invalid params/u);
     });
 
     it('throws for the incident repro payload with deeply-nested junk', async () => {
@@ -206,7 +204,7 @@ describe('wallet', () => {
 
       await expect(
         engine.handle(...createHandleParams(payload)),
-      ).rejects.toThrow('Invalid input.');
+      ).rejects.toThrow(/Invalid params|Invalid input/u);
     });
 
     it('should not override other request params', async () => {
@@ -315,9 +313,7 @@ describe('wallet', () => {
 
       await expect(
         engine.handle(...createHandleParams(payload)),
-      ).rejects.toThrow(
-        new Error('Invalid parameters: must provide an Ethereum address.'),
-      );
+      ).rejects.toThrow(/Invalid params/u);
     });
 
     it('should throw when provided unknown address', async () => {
@@ -369,7 +365,7 @@ describe('wallet', () => {
 
       await expect(
         engine.handle(...createHandleParams(payload)),
-      ).rejects.toThrow('Invalid input.');
+      ).rejects.toThrow(/Invalid params/u);
     });
 
     it('throws for the incident repro payload with deeply-nested junk', async () => {
@@ -402,7 +398,7 @@ describe('wallet', () => {
 
       await expect(
         engine.handle(...createHandleParams(payload)),
-      ).rejects.toThrow('Invalid input.');
+      ).rejects.toThrow(/Invalid params|Invalid input/u);
     });
   });
 
