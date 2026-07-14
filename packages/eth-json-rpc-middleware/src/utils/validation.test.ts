@@ -350,7 +350,7 @@ describe('Validation Utils', () => {
           to: VALID_TO,
           extraKey: 'unexpected',
         }),
-      ).toThrow(/Invalid params/u);
+      ).toThrow('Invalid input.');
     });
 
     it('throws for the incident repro payload (deeply-nested junk field)', () => {
@@ -367,7 +367,37 @@ describe('Validation Utils', () => {
           data: '0x095ea7b3',
           test: junk,
         }),
-      ).toThrow(/Invalid params|Invalid input/u);
+      ).toThrow('Invalid input.');
+    });
+
+    it('rejects an extraneous top-level key without walking its value (no JSON.stringify, no Superstruct)', () => {
+      const stringifySpy = jest.spyOn(JSON, 'stringify');
+      validateMock.mockClear();
+
+      const params = {
+        from: VALID_FROM,
+        to: VALID_TO,
+        test: {
+          get b(): never {
+            throw new Error('subtree must not be walked');
+          },
+        },
+      };
+
+      let thrown: unknown;
+      try {
+        validateTransactionParams(params);
+      } catch (error) {
+        thrown = error;
+      }
+      const stringifyCallsAtRejection = stringifySpy.mock.calls.length;
+      const validateCallsAtRejection = validateMock.mock.calls.length;
+      stringifySpy.mockRestore();
+
+      expect(thrown).toBeInstanceOf(Error);
+      expect((thrown as Error).message).toBe('Invalid input.');
+      expect(stringifyCallsAtRejection).toBe(0);
+      expect(validateCallsAtRejection).toBe(0);
     });
 
     it('throws when a typed field has the wrong type', () => {
