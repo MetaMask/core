@@ -47,9 +47,13 @@ export type DeFiUnderlyingPosition = {
 };
 
 /**
- * A section of the details page, grouping positions by protocol name.
+ * A section of the details page, grouping positions that share the same
+ * API `protocolName`. A single `protocolId` can have multiple names
+ * (different pools/products under one protocol), so a group may contain
+ * several sections.
  */
 export type DeFiPositionDetailsSection = {
+  /** Section label from the API (`metadata.protocolName`). */
   protocolName: string;
   positions: DeFiUnderlyingPosition[];
 };
@@ -60,6 +64,7 @@ export type DeFiPositionDetailsSection = {
  */
 export type DeFiProtocolPositionGroup = {
   protocolId: string;
+  /** Display name from the first position seen for this protocol. */
   protocolName: string;
   protocolIconUrl: string;
   chainId: CaipChainId;
@@ -67,7 +72,10 @@ export type DeFiProtocolPositionGroup = {
   marketValue: number;
   /** Icon-group entries for the list row. */
   iconGroup: DeFiPositionIconGroupItem[];
-  /** Detail sections consumed by the details page. */
+  /**
+   * Detail sections consumed by the details page, one per distinct API
+   * `protocolName` under this `protocolId`.
+   */
   sections: DeFiPositionDetailsSection[];
 };
 
@@ -148,25 +156,19 @@ function getMarketValue(balance: V6BalanceItem): number | undefined {
 }
 
 /**
- * Moves a priority symbol (ETH/WETH) to the front of the icon group.
+ * Moves a priority symbol (ETH/WETH) to the front of the icon group, in place.
  *
- * @param iconGroup - The icon-group entries to order.
- * @returns The ordered icon-group entries.
+ * @param iconGroup - The icon-group entries to reorder.
  */
-function orderIconGroup(
-  iconGroup: DeFiPositionIconGroupItem[],
-): DeFiPositionIconGroupItem[] {
-  const orderedIcons = [...iconGroup];
-  const priorityIndex = orderedIcons.findIndex((item) =>
+function orderIconGroup(iconGroup: DeFiPositionIconGroupItem[]): void {
+  const priorityIndex = iconGroup.findIndex((item) =>
     SYMBOL_PRIORITY.includes(item.symbol),
   );
 
   if (priorityIndex > 0) {
-    const [priorityIcon] = orderedIcons.splice(priorityIndex, 1);
-    orderedIcons.unshift(priorityIcon);
+    const [priorityIcon] = iconGroup.splice(priorityIndex, 1);
+    iconGroup.unshift(priorityIcon);
   }
-
-  return orderedIcons;
 }
 
 /**
@@ -193,48 +195,6 @@ function toUnderlyingPosition(
     positionType,
     poolAddress,
     tokenImage: getDefiTokenImageUrl(assetId),
-  };
-}
-
-/**
- * Mutable accumulator used while grouping a single protocol's positions.
- */
-type MutableProtocolGroup = {
-  protocolId: string;
-  protocolName: string;
-  protocolIconUrl: string;
-  chainId: CaipChainId;
-  marketValue: number;
-  /** Underlying token symbol -> icon-group entry, deduped by symbol. */
-  iconBySymbol: Map<string, DeFiPositionIconGroupItem>;
-  /** protocolName -> positions, for details-page sections. */
-  sectionByName: Map<string, DeFiUnderlyingPosition[]>;
-};
-
-/**
- * Finalizes a mutable protocol group into its stored, client-ready shape.
- *
- * @param group - The accumulated protocol group.
- * @returns The finalized protocol position group.
- */
-function finalizeGroup(group: MutableProtocolGroup): DeFiProtocolPositionGroup {
-  const iconGroup = orderIconGroup([...group.iconBySymbol.values()]);
-
-  const sections: DeFiPositionDetailsSection[] = [
-    ...group.sectionByName.entries(),
-  ].map(([protocolName, positions]) => ({
-    protocolName,
-    positions,
-  }));
-
-  return {
-    protocolId: group.protocolId,
-    protocolName: group.protocolName,
-    protocolIconUrl: group.protocolIconUrl,
-    chainId: group.chainId,
-    marketValue: group.marketValue,
-    iconGroup,
-    sections,
   };
 }
 
@@ -272,23 +232,16 @@ export function groupDeFiPositionsV6(
 
     // Seed every queried account so accounts that no longer hold positions
     // overwrite (clear) any previously stored data.
-    const groupsByKey = new Map<string, MutableProtocolGroup>();
+    const groupsByKey = new Map<string, DeFiProtocolPositionGroup>();
 
     for (const balance of account.balances) {
       if (!isDefiBalanceWithMetadata(balance)) {
         continue;
       }
 
-      const assetId = balance.assetId as CaipAssetType;
-      const { chainId } = parseCaipAssetType(assetId);
-      const { protocolId, protocolName, protocolIconUrl } = balance.metadata;
-      const groupKey = `${chainId}#${protocolId}`;
-      const marketValue = getMarketValue(balance);
-      const iconEntry: DeFiPositionIconGroupItem = {
-        symbol: balance.symbol,
-        avatarValue: getDefiTokenImageUrl(assetId),
-      };
       const position = toUnderlyingPosition(balance);
+      const { protocolId, protocolName, protocolIconUrl } = balance.metadata;
+      const groupKey = `${position.chainId}#${protocolId}`;
 
       let group = groupsByKey.get(groupKey);
       if (!group) {
@@ -296,25 +249,40 @@ export function groupDeFiPositionsV6(
           protocolId,
           protocolName,
           protocolIconUrl,
-          chainId,
+          chainId: position.chainId,
           marketValue: 0,
-          iconBySymbol: new Map(),
-          sectionByName: new Map(),
+          iconGroup: [],
+          sections: [],
         };
         groupsByKey.set(groupKey, group);
       }
 
-      if (marketValue !== undefined) {
-        group.marketValue += marketValue;
+      if (position.marketValue !== undefined) {
+        group.marketValue += position.marketValue;
       }
-      group.iconBySymbol.set(balance.symbol, iconEntry);
 
-      const sectionPositions = group.sectionByName.get(protocolName) ?? [];
-      sectionPositions.push(position);
-      group.sectionByName.set(protocolName, sectionPositions);
+      if (!group.iconGroup.some((item) => item.symbol === position.symbol)) {
+        group.iconGroup.push({
+          symbol: position.symbol,
+          avatarValue: position.tokenImage,
+        });
+      }
+
+      let section = group.sections.find(
+        (item) => item.protocolName === protocolName,
+      );
+      if (!section) {
+        section = { protocolName, positions: [] };
+        group.sections.push(section);
+      }
+      section.positions.push(position);
     }
 
-    result[accountId] = [...groupsByKey.values()].map(finalizeGroup);
+    const groups = [...groupsByKey.values()];
+    for (const group of groups) {
+      orderIconGroup(group.iconGroup);
+    }
+    result[accountId] = groups;
   }
 
   return result;
