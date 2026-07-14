@@ -105,9 +105,7 @@ export function toAccountMatchKey(caipAccountId: string): string {
       address,
     } = parseCaipAccountId(caipAccountId as CaipAccountId);
     const normalizedAddress =
-      namespace === KnownCaipNamespace.Eip155
-        ? address.toLowerCase()
-        : address;
+      namespace === KnownCaipNamespace.Eip155 ? address.toLowerCase() : address;
     return `${namespace}:${normalizedAddress}`;
   } catch {
     return normalizeCaipAccountId(caipAccountId);
