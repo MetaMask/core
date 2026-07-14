@@ -8,6 +8,13 @@ const invalidValues = [
   Number.NEGATIVE_INFINITY,
 ];
 
+describe('createFormatters', () => {
+  it('uses the fallback locale when none is provided', () => {
+    const { formatCurrency } = createFormatters({});
+    expect(formatCurrency(1, 'USD')).toBe('$1.00');
+  });
+});
+
 describe('formatNumber', () => {
   const { formatNumber } = createFormatters({ locale });
 
@@ -55,6 +62,32 @@ describe('formatCurrency', () => {
       locale: 'en-GB',
     });
     expect(formatCurrencyGB(1234.56, 'GBP')).toBe('£1,234.56');
+  });
+
+  it('falls back to two-decimal format when given an invalid currency code (RangeError)', () => {
+    // An invalid currency code causes Intl.NumberFormat to throw RangeError;
+    // the implementation falls back to a plain decimal format.
+    expect(() => formatCurrency(1, 'INVALID_CURRENCY')).not.toThrow();
+    expect(formatCurrency(1, 'INVALID_CURRENCY')).toBe('1.00');
+  });
+
+  it('re-throws non-RangeError errors from Intl.NumberFormat', () => {
+    const original = Intl.NumberFormat;
+    const typeError = new TypeError('unexpected');
+    Intl.NumberFormat = jest.fn().mockImplementation(() => {
+      throw typeError;
+    }) as unknown as typeof Intl.NumberFormat;
+
+    // Use a unique locale so the cache doesn't short-circuit the constructor call.
+    const { formatCurrency: formatFresh } = createFormatters({
+      locale: 'zz-ZZ-rethrow',
+    });
+
+    try {
+      expect(() => formatFresh(1, 'USD')).toThrow(typeError);
+    } finally {
+      Intl.NumberFormat = original;
+    }
   });
 });
 

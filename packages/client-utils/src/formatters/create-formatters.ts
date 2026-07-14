@@ -20,7 +20,7 @@ const dateTimeFormatCache: Record<string, Intl.DateTimeFormat> = {};
 
 function getCachedNumberFormat(
   locale: string,
-  options: Intl.NumberFormatOptions = {},
+  options: Intl.NumberFormatOptions,
 ) {
   const key = `${locale}_${JSON.stringify(options)}`;
 
@@ -46,7 +46,7 @@ function getCachedNumberFormat(
 
 function getCachedDateTimeFormat(
   locale: string,
-  options: Intl.DateTimeFormatOptions = {},
+  options: Intl.DateTimeFormatOptions,
 ) {
   const key = `${locale}_${JSON.stringify(options)}`;
   if (!dateTimeFormatCache[key]) {
