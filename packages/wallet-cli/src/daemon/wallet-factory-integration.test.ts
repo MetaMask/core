@@ -1,3 +1,4 @@
+import { Password, Srp } from './secrets';
 import { createWallet } from './wallet-factory';
 
 // Unlike the unit test alongside it, this does NOT mock `@metamask/wallet`, so
@@ -7,15 +8,16 @@ import { createWallet } from './wallet-factory';
 // fetches in `updateRemoteFeatureFlags`, and NetworkController's `init()` is
 // synchronous and does not call `lookupNetwork`.
 
-const TEST_SRP = 'test test test test test test test test test test test ball';
+const TEST_SRP =
+  'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 const TEST_PASSWORD = 'testpass';
 
 describe('createWallet (real Wallet, in-memory)', () => {
   it('constructs an unlocked wallet on first run and dispatches messenger actions', async () => {
     const { wallet, dispose } = await createWallet({
       databasePath: ':memory:',
-      password: TEST_PASSWORD,
-      srp: TEST_SRP,
+      password: Password.from(TEST_PASSWORD),
+      srp: Srp.from(TEST_SRP),
       infuraProjectId: 'test-infura-id',
       log: () => undefined,
     });
