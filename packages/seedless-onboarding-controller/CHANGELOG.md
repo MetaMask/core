@@ -50,6 +50,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `SecretMetadata.matchesType` static method for checking if metadata matches a given type ([#7284](https://github.com/MetaMask/core/pull/7284))
 - Re-export `EncAccountDataType` from `@metamask/toprf-secure-backup` ([#7284](https://github.com/MetaMask/core/pull/7284))
 - Add third generic type parameter `EncryptionResult` to `SeedlessOnboardingController` and `SeedlessOnboardingControllerOptions`, constrained by `EncryptionResultConstraint` and defaulting to `DefaultEncryptionResult`, so the vault `encryptor` matches the full `Encryptor` typing from `@metamask/keyring-controller` ([#8411](https://github.com/MetaMask/core/pull/8411))
+- Add Telegram to AuthConnection enum ([#8562](https://github.com/MetaMask/core/pull/8562))
 
 ### Changed
 
