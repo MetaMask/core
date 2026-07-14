@@ -98,6 +98,7 @@ describe('updateTransactionLayer1GasFee', () => {
     });
 
     expect(matchingLayer1GasFeeFlow.getLayer1Fee).toHaveBeenCalledWith({
+      messenger: messengerMock,
       provider: providerMock,
       transactionMeta: transactionMetaMock,
     });
@@ -123,6 +124,7 @@ describe('updateTransactionLayer1GasFee', () => {
       });
 
       expect(matchingLayer1GasFeeFlow.getLayer1Fee).toHaveBeenCalledWith({
+        messenger: messengerMock,
         provider: providerMock,
         transactionMeta: transactionMetaMock,
       });

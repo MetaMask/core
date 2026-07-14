@@ -102,6 +102,7 @@ export async function getTransactionLayer1GasFee({
     });
 
     const { layer1Fee } = await layer1GasFeeFlow.getLayer1Fee({
+      messenger,
       provider,
       transactionMeta,
     });

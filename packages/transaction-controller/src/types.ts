@@ -1527,6 +1527,9 @@ export type GasFeeFlow = {
 
 /** Request to a layer 1 gas fee flow to obtain layer 1 fee estimate. */
 export type Layer1GasFeeFlowRequest = {
+  /** The messenger instance. */
+  messenger: TransactionControllerMessenger;
+
   /** RPC Provider instance. */
   provider: Provider;
 
