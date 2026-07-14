@@ -1,4 +1,5 @@
 export { createFormatters } from './formatters/create-formatters';
+export type { Formatters } from './formatters/create-formatters';
 
 export { mapApiTransaction } from './mappers/api-transaction-mapper';
 export { mapKeyringTransaction } from './mappers/keyring-transaction-mapper';

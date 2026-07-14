@@ -18,10 +18,12 @@ const threeSignificantDigits = {
 const numberFormatCache: Record<string, Intl.NumberFormat> = {};
 const dateTimeFormatCache: Record<string, Intl.DateTimeFormat> = {};
 
+type Value = number | bigint | `${number}`;
+
 function getCachedNumberFormat(
   locale: string,
   options: Intl.NumberFormatOptions,
-) {
+): Intl.NumberFormat {
   const key = `${locale}_${JSON.stringify(options)}`;
 
   let format = numberFormatCache[key];
@@ -47,7 +49,7 @@ function getCachedNumberFormat(
 function getCachedDateTimeFormat(
   locale: string,
   options: Intl.DateTimeFormatOptions,
-) {
+): Intl.DateTimeFormat {
   const key = `${locale}_${JSON.stringify(options)}`;
   if (!dateTimeFormatCache[key]) {
     dateTimeFormatCache[key] = new Intl.DateTimeFormat(locale, options);
@@ -55,13 +57,11 @@ function getCachedDateTimeFormat(
   return dateTimeFormatCache[key];
 }
 
-type Value = number | bigint | `${number}`;
-
 function formatNumber(
   config: { locale: string },
   value: Value,
   options: Intl.NumberFormatOptions = {},
-) {
+): string {
   if (!Number.isFinite(Number(value))) {
     return '';
   }
@@ -77,7 +77,7 @@ function formatCurrency(
   value: Value,
   currency: Intl.NumberFormatOptions['currency'],
   options: Intl.NumberFormatOptions = {},
-) {
+): string {
   if (!Number.isFinite(Number(value))) {
     return '';
   }
@@ -96,7 +96,7 @@ function formatCurrencyCompact(
   config: { locale: string },
   value: Value,
   currency: Intl.NumberFormatOptions['currency'],
-) {
+): string {
   return formatCurrency(config, value, currency, {
     notation: 'compact',
     ...twoDecimals,
@@ -107,7 +107,7 @@ function formatCurrencyWithMinThreshold(
   config: { locale: string },
   value: Value,
   currency: Intl.NumberFormatOptions['currency'],
-) {
+): string {
   const minThreshold = 0.01;
   const number = Number(value);
   const absoluteValue = Math.abs(number);
@@ -132,7 +132,7 @@ function formatCurrencyTokenPrice(
   config: { locale: string },
   value: Value,
   currency: Intl.NumberFormatOptions['currency'],
-) {
+): string {
   const minThreshold = 0.00000001;
   const number = Number(value);
   const absoluteValue = Math.abs(number);
@@ -165,7 +165,7 @@ function formatToken(
   value: Value,
   symbol: string,
   options: Intl.NumberFormatOptions = {},
-) {
+): string {
   if (!Number.isFinite(Number(value))) {
     return '';
   }
@@ -185,7 +185,7 @@ function formatTokenQuantity(
   config: { locale: string },
   value: Value,
   symbol: string,
-) {
+): string {
   const minThreshold = 0.00001;
   const number = Number(value);
   const absoluteValue = Math.abs(number);
@@ -221,7 +221,7 @@ function formatTokenAmount(
   config: { locale: string },
   value: Value,
   symbol: string,
-) {
+): string {
   const minThreshold = 0.00001;
   const number = Number(value);
   const absoluteValue = Math.abs(number);
@@ -266,7 +266,7 @@ function formatPercentWithMinThreshold(
   config: { locale: string },
   value: Value,
   options: Intl.NumberFormatOptions = {},
-) {
+): string {
   const minThreshold = 0.0001; // 0.01%
   const number = Number(value);
 
@@ -287,7 +287,7 @@ function formatPercentWithMinThreshold(
   });
 }
 
-function formatCompact(config: { locale: string }, value: Value) {
+function formatCompact(config: { locale: string }, value: Value): string {
   return formatNumber(config, value, {
     notation: 'compact',
     minimumFractionDigits: 2,
@@ -299,7 +299,7 @@ function formatDateTime(
   config: { locale: string },
   timestamp: string | number,
   options?: Intl.DateTimeFormatOptions,
-) {
+): string {
   if (!timestamp) {
     return '';
   }
@@ -314,7 +314,48 @@ function formatDateTime(
   }).format(new Date(timestamp));
 }
 
-export function createFormatters({ locale = FALLBACK_LOCALE }) {
+export type Formatters = {
+  formatNumber: (value: Value, options?: Intl.NumberFormatOptions) => string;
+  formatCurrency: (
+    value: Value,
+    currency: Intl.NumberFormatOptions['currency'],
+    options?: Intl.NumberFormatOptions,
+  ) => string;
+  formatCurrencyCompact: (
+    value: Value,
+    currency: Intl.NumberFormatOptions['currency'],
+  ) => string;
+  formatCurrencyWithMinThreshold: (
+    value: Value,
+    currency: Intl.NumberFormatOptions['currency'],
+  ) => string;
+  formatCurrencyTokenPrice: (
+    value: Value,
+    currency: Intl.NumberFormatOptions['currency'],
+  ) => string;
+  formatToken: (
+    value: Value,
+    symbol: string,
+    options?: Intl.NumberFormatOptions,
+  ) => string;
+  formatTokenQuantity: (value: Value, symbol: string) => string;
+  formatTokenAmount: (value: Value, symbol: string) => string;
+  formatPercentWithMinThreshold: (
+    value: Value,
+    options?: Intl.NumberFormatOptions,
+  ) => string;
+  formatCompact: (value: Value) => string;
+  formatDateTime: (
+    timestamp: string | number,
+    options?: Intl.DateTimeFormatOptions,
+  ) => string;
+};
+
+export function createFormatters({
+  locale = FALLBACK_LOCALE,
+}: {
+  locale?: string;
+}): Formatters {
   const config = { locale };
   return {
     formatNumber: formatNumber.bind(null, config),
