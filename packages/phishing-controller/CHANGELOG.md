@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Extend `DEFAULT_CHAIN_ID_TO_NAME` with 19 additional chains: `xlayer`, `megaeth`, `tempo`, `tempo-testnet`, `kaia`, `robinhood`, `arc`, `plasma`, `mantle`, `katana`, `plume`, `kite-ai`, `monad-testnet`, `starknet`, `starknet-sepolia`, `stellar`, `bitcoin`, `sui`, `tron`
+- Add `TOKEN_SCAN_SUPPORTED_CHAINS` constant, `TokenScanSupportedChain` type, and `isTokenScanSupportedChain` type guard to gate `bulkScanTokens` per chain
+- Add `ADDRESS_SCAN_SUPPORTED_CHAINS` constant, `AddressScanSupportedChain` type, and `isAddressScanSupportedChain` type guard to gate `scanAddress` per chain
+
+### Changed
+
+- `bulkScanTokens` now returns `{}` without calling the security-alerts API when the resolved chain is not in `TOKEN_SCAN_SUPPORTED_CHAINS`
+- `scanAddress` now returns `{ result_type: 'ErrorResult', label: '' }` without calling the security-alerts API when the resolved chain is not in `ADDRESS_SCAN_SUPPORTED_CHAINS`
+
 ## [17.2.1]
 
 ### Changed
