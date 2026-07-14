@@ -58,8 +58,6 @@ describe('createWallet (real Wallet, in-memory)', () => {
     try {
       expect(wallet.state.KeyringController?.isUnlocked).toBe(true);
 
-      // `getState` resolves synchronously; awaiting a non-thenable trips
-      // `@typescript-eslint/await-thenable`.
       const { keyrings } = wallet.messenger.call('KeyringController:getState');
       expect(keyrings[0]?.accounts[0]).toMatch(/^0x[0-9a-fA-F]{40}$/u);
     } finally {
