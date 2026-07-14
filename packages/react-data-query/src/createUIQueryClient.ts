@@ -1,16 +1,9 @@
 import type {
   DataServiceGranularCacheUpdatedEvent,
   DataServiceGranularCacheUpdatedPayload,
-  DataServiceInvalidateQueriesAction,
 } from '@metamask/base-data-service';
+import type { Json } from '@metamask/utils';
 import { assert } from '@metamask/utils';
-import {
-  ActionConstraint,
-  EventConstraint,
-  Messenger,
-  MessengerActions,
-  MessengerEvents,
-} from '@metamask/messenger';
 import {
   hydrate,
   QueryClient,
@@ -30,24 +23,62 @@ type DataServiceGranularCacheUpdatedHandler = (
 ) => void;
 
 /**
- * A UI messenger used by `createUIQueryClient`.
- *
- * This represents the public UI-facing messenger surface: async actions and
- * event subscriptions over JSON-compatible payloads.
+ * Handles UI messenger events, which carry JSON-compatible payloads.
  */
-type SupportsDataServices<
-  TMessenger extends Messenger<string, ActionConstraint, EventConstraint>,
-  DataServiceName extends string,
-> = DataServiceInvalidateQueriesAction<DataServiceName> extends MessengerActions<TMessenger>
-  ? DataServiceGranularCacheUpdatedEvent<DataServiceName> extends MessengerEvents<TMessenger>
-    ? unknown
-    : never
-  : never;
+type JsonSubscriptionHandler = (data: Json) => void;
 
-type UIMessengerAdapter<
-  TMessenger extends Messenger<string, ActionConstraint, EventConstraint>,
-  DataServiceName extends string,
-> = TMessenger;
+/**
+ * The minimum "UI messenger" shape needed by `createUIQueryClient`.
+ *
+ * A UI messenger is a special form of the messenger whose actions are expected
+ * to be asynchronous and return JSON-compatible values, and whose event
+ * subscription handlers are expected to receive JSON-compatible data.
+ *
+ * The `call`, `subscribe`, and `unsubscribe` methods are restricted to the data
+ * service names passed to `createUIQueryClient`, so that only actions and events
+ * namespaced under those services can be used.
+ *
+ * @template DataServiceName - A union of the configured data service names.
+ */
+type UIMessengerAdapter<DataServiceName extends string> = {
+  /**
+   * Call an action on one of the configured data services.
+   *
+   * Actions are expected to be asynchronous and return JSON-compatible values.
+   *
+   * Note: The parameters are typed as `unknown[]` rather than `Json[]` on
+   * purpose. Concrete messengers declare each action's parameters as a fixed
+   * tuple, and a variadic `Json[]` is not assignable to a fixed-length tuple,
+   * so using `Json[]` here would reject otherwise valid messengers. The
+   * parameters are still expected to be JSON-compatible at runtime.
+   */
+  call(
+    actionType: `${DataServiceName}:${string}`,
+    ...params: unknown[]
+  ): Promise<unknown>;
+
+  /**
+   * Subscribe to a granular cache update event on one of the configured data
+   * services.
+   *
+   * Handlers are expected to receive JSON-compatible data.
+   */
+  subscribe(
+    eventType: DataServiceGranularCacheUpdatedEvent<DataServiceName>['type'],
+    handler: JsonSubscriptionHandler,
+  ): void;
+
+  /**
+   * Unsubscribe from a granular cache update event on one of the configured
+   * data services.
+   *
+   * Handlers are expected to receive JSON-compatible data.
+   */
+  unsubscribe(
+    eventType: DataServiceGranularCacheUpdatedEvent<DataServiceName>['type'],
+    handler: JsonSubscriptionHandler,
+  ): void;
+};
 
 /**
  * Create a QueryClient queries and subscribes to data services using the messenger.
@@ -59,29 +90,13 @@ type UIMessengerAdapter<
  */
 export function createUIQueryClient<DataServiceNames extends readonly string[]>(
   dataServices: DataServiceNames,
-  messenger: UIMessengerAdapter<
-    Messenger<string, ActionConstraint, EventConstraint>,
-    DataServiceNames[number]
-  > & SupportsDataServices<
-    UIMessengerAdapter<Messenger<string, ActionConstraint, EventConstraint>, DataServiceNames[number]>,
-    DataServiceNames[number]
-  >,
+  messenger: UIMessengerAdapter<DataServiceNames[number]>,
   config: QueryClientConfig = {},
 ): QueryClient {
   const subscriptions = new Map<
     string,
     DataServiceGranularCacheUpdatedHandler
   >();
-  /**
-   * Cast the messenger to the configured service surface for internal use.
-   * Type assertion: the public signature ensures the configured services are
-   * supported.
-   */
-  const uiMessenger = messenger as Messenger<
-    string,
-    DataServiceInvalidateQueriesAction<DataServiceNames[number]>,
-    DataServiceGranularCacheUpdatedEvent<DataServiceNames[number]>
-  >;
 
   /**
    * Check whether a name is one of the configured data service names.
@@ -145,22 +160,14 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
           );
 
           // Type assertion: The query key and page param are validated at
-          // runtime to correspond to a configured data service action.
+          // runtime to correspond to a configured data service action, and are
+          // expected to be JSON-compatible.
           const params = [
             ...options.queryKey.slice(1),
             options.pageParam,
-          ] as unknown as Parameters<
-            DataServiceInvalidateQueriesAction<
-              DataServiceNames[number]
-            >['handler']
-          >;
+          ] as Json[];
 
-          return await uiMessenger.call(
-            action as DataServiceInvalidateQueriesAction<
-              DataServiceNames[number]
-            >['type'],
-            ...params,
-          );
+          return await messenger.call(action, ...params);
         },
       },
       mutations: config.defaultOptions?.mutations,
@@ -202,7 +209,12 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
       };
 
       subscriptions.set(hash, cacheListener);
-      uiMessenger.subscribe(`${service}:cacheUpdated:${hash}`, cacheListener);
+      // Type assertion: The UI messenger provides JSON-compatible payloads to
+      // subscription handlers, which we know are granular cache update payloads.
+      messenger.subscribe(
+        `${service}:cacheUpdated:${hash}`,
+        cacheListener as JsonSubscriptionHandler,
+      );
     } else if (
       event.type === 'observerRemoved' &&
       observerCount === 0 &&
@@ -211,9 +223,12 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
       const subscriptionListener = subscriptions.get(hash);
 
       if (subscriptionListener) {
-        uiMessenger.unsubscribe(
+        // Type assertion: The UI messenger provides JSON-compatible payloads to
+        // subscription handlers, which we know are granular cache update
+        // payloads.
+        messenger.unsubscribe(
           `${service}:cacheUpdated:${hash}`,
-          subscriptionListener,
+          subscriptionListener as JsonSubscriptionHandler,
         );
       }
       subscriptions.delete(hash);
@@ -244,16 +259,16 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
         }
 
         if (options === undefined) {
-          return uiMessenger.call(
-            `${service}:invalidateQueries` as DataServiceInvalidateQueriesAction<DataServiceNames[number]>['type'],
-            filters,
+          return messenger.call(
+            `${service}:invalidateQueries`,
+            filters as Json,
           );
         }
 
-        return uiMessenger.call(
-          `${service}:invalidateQueries` as DataServiceInvalidateQueriesAction<DataServiceNames[number]>['type'],
-          filters,
-          options,
+        return messenger.call(
+          `${service}:invalidateQueries`,
+          filters as Json,
+          options as Json,
         );
       }),
     );
