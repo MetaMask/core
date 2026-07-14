@@ -218,6 +218,43 @@ describe('createUIQueryClient', () => {
     observerB.destroy();
   });
 
+  it('supports customizing invalidation', async () => {
+    const { clientA, messenger } = createClients();
+
+    const spy = jest.spyOn(messenger, 'call');
+
+    const observer = new QueryObserver(clientA, {
+      queryKey: getAssetsQueryKey,
+    });
+
+    const promise = new Promise((resolve) => {
+      observer.subscribe((event) => {
+        if (event.status === 'success') {
+          resolve(event.data);
+        }
+      });
+    });
+
+    await promise;
+
+    // Replace the mock response and invalidate
+    mockAssets({
+      status: 200,
+      body: [],
+    });
+
+    await clientA.invalidateQueries(
+      { queryKey: getAssetsQueryKey, refetchType: 'all' },
+      { throwOnError: true },
+    );
+
+    expect(spy).toHaveBeenCalledWith(
+      'ExampleDataService:invalidateQueries',
+      { queryKey: getAssetsQueryKey, refetchType: 'all' },
+      { throwOnError: true },
+    );
+  });
+
   it('synchronizes cache removal after remove event', async () => {
     const { messenger, clientA, clientB } = createClients();
 
