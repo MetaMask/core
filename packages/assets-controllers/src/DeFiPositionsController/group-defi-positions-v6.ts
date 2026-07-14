@@ -278,9 +278,8 @@ function finalizeGroup(group: MutableProtocolGroup): DeFiProtocolPositionGroup {
  */
 export function groupDeFiPositionsV6(
   response: V6BalancesResponse,
-  resolveAccountId: (
-    responseAccountId: string,
-  ) => string | undefined = (id) => id,
+  resolveAccountId: (responseAccountId: string) => string | undefined = (id) =>
+    id,
 ): DeFiPositionsByAccount {
   const result: DeFiPositionsByAccount = {};
 
