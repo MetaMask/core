@@ -444,9 +444,9 @@ describe('Quote Metadata Utils', () => {
         },
       );
 
-      expect(result.amount).toStrictEqual(new BigNumber(0));
-      expect(result.valueInCurrency).toStrictEqual(new BigNumber(0));
-      expect(result.usd).toStrictEqual(new BigNumber(0));
+      expect(result.amount).toBeUndefined();
+      expect(result.valueInCurrency).toBeUndefined();
+      expect(result.usd).toBeUndefined();
     });
 
     it('should handle native token address', () => {

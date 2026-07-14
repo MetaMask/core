@@ -197,10 +197,12 @@ export const calcRelayerFee = (
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
   const { quote, trade } = quoteResponse;
-  const relayerFeeAmount = new BigNumber(
-    convertHexToDecimal(trade.value || '0x0'),
-  );
-  let relayerFeeInNative = calcTokenAmount(relayerFeeAmount, 18);
+  const relayerFeeAmount = trade.value
+    ? new BigNumber(convertHexToDecimal(trade.value))
+    : undefined;
+  let relayerFeeInNative = relayerFeeAmount
+    ? calcTokenAmount(relayerFeeAmount, 18)
+    : undefined;
 
   // Subtract srcAmount and other fees from trade value if srcAsset is native
   if (isNativeAddress(quote.srcAsset.address)) {
@@ -208,15 +210,15 @@ export const calcRelayerFee = (
       exchangeRate,
       usdExchangeRate,
     }).amount;
-    relayerFeeInNative = relayerFeeInNative.minus(sentAmountInNative);
+    relayerFeeInNative = relayerFeeInNative?.minus(sentAmountInNative);
   }
 
   return {
     amount: relayerFeeInNative,
     valueInCurrency: exchangeRate
-      ? relayerFeeInNative.times(exchangeRate)
+      ? relayerFeeInNative?.times(exchangeRate)
       : null,
-    usd: usdExchangeRate ? relayerFeeInNative.times(usdExchangeRate) : null,
+    usd: usdExchangeRate ? relayerFeeInNative?.times(usdExchangeRate) : null,
   };
 };
 
@@ -375,7 +377,9 @@ export const calcTotalMaxNetworkFee = (
   return {
     amount:
       gasFee?.max?.amount &&
-      new BigNumber(gasFee.max.amount).plus(relayerFee.amount).toString(),
+      new BigNumber(gasFee.max.amount)
+        .plus(relayerFee.amount ?? '0')
+        .toString(),
     valueInCurrency:
       gasFee?.max?.valueInCurrency &&
       new BigNumber(gasFee.max.valueInCurrency)
