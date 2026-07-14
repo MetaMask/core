@@ -23,16 +23,11 @@ type DataServiceGranularCacheUpdatedHandler = (
 ) => void;
 
 /**
- * Handles UI messenger events, which carry JSON-compatible payloads.
- */
-type JsonSubscriptionHandler = (data: Json) => void;
-
-/**
  * The minimum "UI messenger" shape needed by `createUIQueryClient`.
  *
  * A UI messenger is a special form of the messenger whose actions are expected
- * to be asynchronous and return JSON-compatible values, and whose event
- * subscription handlers are expected to receive JSON-compatible data.
+ * to be asynchronous, and whose granular cache update events can be subscribed
+ * to.
  *
  * The `call`, `subscribe`, and `unsubscribe` methods are restricted to the data
  * service names passed to `createUIQueryClient`, so that only actions and events
@@ -44,13 +39,10 @@ type UIMessengerAdapter<DataServiceName extends string> = {
   /**
    * Call an action on one of the configured data services.
    *
-   * Actions are expected to be asynchronous and return JSON-compatible values.
-   *
-   * Note: The parameters are typed as `unknown[]` rather than `Json[]` on
-   * purpose. Concrete messengers declare each action's parameters as a fixed
+   * Note: The parameters are typed as `unknown[]` rather than `Json[]`.
+   * Concrete messengers declare each action's parameters as a fixed-length
    * tuple, and a variadic `Json[]` is not assignable to a fixed-length tuple,
-   * so using `Json[]` here would reject otherwise valid messengers. The
-   * parameters are still expected to be JSON-compatible at runtime.
+   * so using `Json[]` here would reject otherwise valid messengers.
    */
   call(
     actionType: `${DataServiceName}:${string}`,
@@ -60,23 +52,19 @@ type UIMessengerAdapter<DataServiceName extends string> = {
   /**
    * Subscribe to a granular cache update event on one of the configured data
    * services.
-   *
-   * Handlers are expected to receive JSON-compatible data.
    */
   subscribe(
     eventType: DataServiceGranularCacheUpdatedEvent<DataServiceName>['type'],
-    handler: JsonSubscriptionHandler,
+    handler: DataServiceGranularCacheUpdatedHandler,
   ): void;
 
   /**
    * Unsubscribe from a granular cache update event on one of the configured
    * data services.
-   *
-   * Handlers are expected to receive JSON-compatible data.
    */
   unsubscribe(
     eventType: DataServiceGranularCacheUpdatedEvent<DataServiceName>['type'],
-    handler: JsonSubscriptionHandler,
+    handler: DataServiceGranularCacheUpdatedHandler,
   ): void;
 };
 
@@ -209,12 +197,7 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
       };
 
       subscriptions.set(hash, cacheListener);
-      // Type assertion: The UI messenger provides JSON-compatible payloads to
-      // subscription handlers, which we know are granular cache update payloads.
-      messenger.subscribe(
-        `${service}:cacheUpdated:${hash}`,
-        cacheListener as JsonSubscriptionHandler,
-      );
+      messenger.subscribe(`${service}:cacheUpdated:${hash}`, cacheListener);
     } else if (
       event.type === 'observerRemoved' &&
       observerCount === 0 &&
@@ -223,12 +206,9 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
       const subscriptionListener = subscriptions.get(hash);
 
       if (subscriptionListener) {
-        // Type assertion: The UI messenger provides JSON-compatible payloads to
-        // subscription handlers, which we know are granular cache update
-        // payloads.
         messenger.unsubscribe(
           `${service}:cacheUpdated:${hash}`,
-          subscriptionListener as JsonSubscriptionHandler,
+          subscriptionListener,
         );
       }
       subscriptions.delete(hash);
