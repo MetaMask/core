@@ -1,9 +1,10 @@
 import { Messenger } from '@metamask/messenger';
+import { Duration, inMilliseconds } from '@metamask/utils';
 import {
-  hashQueryKey,
   InfiniteData,
   InfiniteQueryObserver,
   QueryClient,
+  QueryClientConfig,
   QueryObserver,
 } from '@tanstack/query-core';
 
@@ -23,7 +24,7 @@ import { createUIQueryClient } from './createUIQueryClient';
 
 const DATA_SERVICES = ['ExampleDataService'];
 
-function createClients(): {
+function createClients(config?: QueryClientConfig): {
   service: ExampleDataService;
   clientA: QueryClient;
   clientB: QueryClient;
@@ -40,8 +41,8 @@ function createClients(): {
   >({ namespace: 'ExampleDataService' });
   const service = new ExampleDataService(serviceMessenger);
 
-  const clientA = createUIQueryClient(DATA_SERVICES, serviceMessenger);
-  const clientB = createUIQueryClient(DATA_SERVICES, serviceMessenger);
+  const clientA = createUIQueryClient(DATA_SERVICES, serviceMessenger, config);
+  const clientB = createUIQueryClient(DATA_SERVICES, serviceMessenger, config);
 
   return { service, clientA, clientB, messenger: serviceMessenger };
 }
@@ -65,6 +66,10 @@ describe('createUIQueryClient', () => {
     mockAssets();
     mockTransactionsPage1();
     mockTransactionsPage2();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('proxies requests to the underlying service', async () => {
@@ -218,8 +223,10 @@ describe('createUIQueryClient', () => {
     observerB.destroy();
   });
 
-  it('synchronizes cache removal after remove event', async () => {
-    const { messenger, clientA, clientB } = createClients();
+  it('does not remove from the cache if observers still are subscribed', async () => {
+    jest.useFakeTimers();
+
+    const { clientA, clientB } = createClients();
 
     const observerA = new QueryObserver(clientA, {
       queryKey: getAssetsQueryKey,
@@ -231,7 +238,7 @@ describe('createUIQueryClient', () => {
 
     const promiseA = new Promise((resolve) => {
       observerA.subscribe((event) => {
-        if (event.status === 'success') {
+        if (event.status === 'success' && !event.isFetching) {
           resolve(event.data);
         }
       });
@@ -239,28 +246,77 @@ describe('createUIQueryClient', () => {
 
     const promiseB = new Promise((resolve) => {
       observerB.subscribe((event) => {
-        if (event.status === 'success') {
+        if (event.status === 'success' && !event.isFetching) {
           resolve(event.data);
         }
       });
     });
 
+    jest.advanceTimersByTime(0);
+
     await Promise.all([promiseA, promiseB]);
 
-    const hash = hashQueryKey(getAssetsQueryKey);
-
-    messenger.publish(`ExampleDataService:cacheUpdated:${hash}`, {
-      type: 'removed',
-      state: null,
-    });
+    jest.advanceTimersByTime(inMilliseconds(1, Duration.Day));
 
     const queryData = clientA.getQueryData(getAssetsQueryKey);
 
-    expect(queryData).toBeUndefined();
+    expect(queryData).toBeDefined();
     expect(queryData).toStrictEqual(clientB.getQueryData(getAssetsQueryKey));
 
     observerA.destroy();
     observerB.destroy();
+  });
+
+  it('cleans up removed cache entries once all observers are removed', async () => {
+    jest.useFakeTimers();
+
+    const defaultOptions = {
+      queries: { cacheTime: inMilliseconds(5, Duration.Minute) },
+    };
+
+    const { clientA, clientB } = createClients({ defaultOptions });
+
+    const observerA = new QueryObserver(clientA, {
+      queryKey: getAssetsQueryKey,
+    });
+
+    const observerB = new QueryObserver(clientB, {
+      queryKey: getAssetsQueryKey,
+    });
+
+    const promiseA = new Promise((resolve) => {
+      observerA.subscribe((event) => {
+        if (event.status === 'success' && !event.isFetching) {
+          resolve(event.data);
+        }
+      });
+    });
+
+    const promiseB = new Promise((resolve) => {
+      observerB.subscribe((event) => {
+        if (event.status === 'success' && !event.isFetching) {
+          resolve(event.data);
+        }
+      });
+    });
+
+    jest.advanceTimersByTime(0);
+
+    await Promise.all([promiseA, promiseB]);
+
+    jest.advanceTimersByTime(inMilliseconds(1, Duration.Day));
+
+    const queryData = clientA.getQueryData(getAssetsQueryKey);
+
+    expect(queryData).toBeDefined();
+    expect(queryData).toStrictEqual(clientB.getQueryData(getAssetsQueryKey));
+
+    observerA.destroy();
+    observerB.destroy();
+
+    jest.advanceTimersByTime(inMilliseconds(5, Duration.Minute));
+
+    expect(clientA.getQueryData(getAssetsQueryKey)).toBeUndefined();
   });
 
   it('fetches using paginated observers', async () => {
