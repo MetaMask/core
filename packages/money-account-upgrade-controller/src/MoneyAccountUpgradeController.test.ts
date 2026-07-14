@@ -10,11 +10,14 @@ import type { Hex } from '@metamask/utils';
 
 import type {
   MoneyAccountUpgradeControllerMessenger,
+  MoneyAccountUpgradeControllerState,
   MoneyAccountUpgradeStepError,
 } from '.';
 import {
   MoneyAccountUpgradeController,
+  getDefaultMoneyAccountUpgradeControllerState,
   isMoneyAccountUpgradeStepError,
+  isTerminalMoneyAccountUpgradeError,
 } from '.';
 
 const MOCK_CHAIN_ID = '0x1' as Hex; // mainnet, supported in delegation-deployments@1.3.0
@@ -84,7 +87,11 @@ type Mocks = {
   createIntents: jest.Mock;
 };
 
-function setup(): {
+function setup({
+  state,
+}: {
+  state?: Partial<MoneyAccountUpgradeControllerState>;
+} = {}): {
   controller: MoneyAccountUpgradeController;
   rootMessenger: RootMessenger;
   messenger: MoneyAccountUpgradeControllerMessenger;
@@ -230,9 +237,23 @@ function setup(): {
 
   const controller = new MoneyAccountUpgradeController({
     messenger,
+    state,
   });
 
   return { controller, rootMessenger, messenger, mocks };
+}
+
+/**
+ * Resets the call history of every mock in the bag, preserving their
+ * configured implementations. Useful for asserting that a later
+ * `upgradeAccount` call performs no work.
+ *
+ * @param mocks - The mocks bag from `setup`.
+ */
+function clearMockCalls(mocks: Mocks): void {
+  for (const mock of Object.values(mocks)) {
+    mock.mockClear();
+  }
 }
 
 describe('MoneyAccountUpgradeController', () => {
@@ -241,6 +262,27 @@ describe('MoneyAccountUpgradeController', () => {
       const { mocks } = setup();
 
       expect(mocks.getServiceDetails).not.toHaveBeenCalled();
+    });
+
+    it('starts with the default empty state', () => {
+      const { controller } = setup();
+
+      expect(controller.state).toStrictEqual(
+        getDefaultMoneyAccountUpgradeControllerState(),
+      );
+      expect(controller.state.upgradedAccounts).toStrictEqual({});
+    });
+
+    it('merges provided partial state with the defaults', () => {
+      const status = { configFingerprint: 'fingerprint', completedAt: 123 };
+
+      const { controller } = setup({
+        state: { upgradedAccounts: { [MOCK_ACCOUNT_ADDRESS]: status } },
+      });
+
+      expect(
+        controller.state.upgradedAccounts[MOCK_ACCOUNT_ADDRESS],
+      ).toStrictEqual(status);
     });
   });
 
@@ -515,6 +557,380 @@ describe('MoneyAccountUpgradeController', () => {
       expect((error as MoneyAccountUpgradeStepError).message).toBe(
         'Money Account upgrade failed at step "associate-address": plain string failure',
       );
+    });
+
+    it('marks the failure terminal when the account is delegated to another implementation', async () => {
+      const { controller, mocks } = setup();
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      // EIP-7702 delegation code pointing at a third-party impl.
+      mocks.providerRequest.mockImplementation(
+        async ({ method }: { method: string }) => {
+          if (method === 'eth_getCode') {
+            return `0xef0100${'9'.repeat(40)}`;
+          }
+          return '0x0';
+        },
+      );
+
+      const error = await controller
+        .upgradeAccount(MOCK_ACCOUNT_ADDRESS)
+        .catch((thrown: unknown) => thrown);
+
+      expect(isTerminalMoneyAccountUpgradeError(error)).toBe(true);
+    });
+
+    it('marks ordinary step failures as non-terminal', async () => {
+      const { controller, mocks } = setup();
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      mocks.signPersonalMessage.mockRejectedValue(new Error('network down'));
+
+      const error = await controller
+        .upgradeAccount(MOCK_ACCOUNT_ADDRESS)
+        .catch((thrown: unknown) => thrown);
+
+      expect(isMoneyAccountUpgradeStepError(error)).toBe(true);
+      expect(isTerminalMoneyAccountUpgradeError(error)).toBe(false);
+    });
+  });
+
+  describe('upgrade status tracking', () => {
+    it('records a successful upgrade against the lowercased address', async () => {
+      const { controller, mocks } = setup();
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      const mixedCaseAddress = MOCK_ACCOUNT_ADDRESS.replace(
+        '0xabc',
+        '0xABC',
+      ) as Hex;
+
+      await controller.upgradeAccount(mixedCaseAddress);
+
+      expect(mocks.signPersonalMessage).toHaveBeenCalled();
+      expect(
+        controller.state.upgradedAccounts[MOCK_ACCOUNT_ADDRESS],
+      ).toStrictEqual({
+        configFingerprint: expect.any(String),
+        completedAt: expect.any(Number),
+      });
+    });
+
+    it('skips the steps on a subsequent call for an already-upgraded account', async () => {
+      const { controller, mocks } = setup();
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+      clearMockCalls(mocks);
+
+      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+
+      expect(mocks.signPersonalMessage).not.toHaveBeenCalled();
+      expect(mocks.providerRequest).not.toHaveBeenCalled();
+      expect(mocks.listDelegations).not.toHaveBeenCalled();
+      expect(mocks.getIntentsByAddress).not.toHaveBeenCalled();
+    });
+
+    it('treats recorded upgrades case-insensitively', async () => {
+      const { controller, mocks } = setup();
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+      clearMockCalls(mocks);
+
+      await controller.upgradeAccount(
+        MOCK_ACCOUNT_ADDRESS.replace('0xabc', '0xABC') as Hex,
+      );
+
+      expect(mocks.signPersonalMessage).not.toHaveBeenCalled();
+    });
+
+    it('skips the steps when constructed with state from a previous successful upgrade', async () => {
+      const first = setup();
+      await first.controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      await first.controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+
+      const second = setup({ state: first.controller.state });
+      await second.controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      await second.controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+
+      expect(second.mocks.signPersonalMessage).not.toHaveBeenCalled();
+      expect(second.mocks.providerRequest).not.toHaveBeenCalled();
+    });
+
+    it('does not record the account when a step fails, and re-runs on the next call', async () => {
+      const { controller, mocks } = setup();
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      mocks.signPersonalMessage.mockRejectedValueOnce(
+        new Error('signing failed'),
+      );
+
+      await expect(
+        controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow('signing failed');
+
+      expect(controller.state.upgradedAccounts).toStrictEqual({});
+
+      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+
+      expect(
+        controller.state.upgradedAccounts[MOCK_ACCOUNT_ADDRESS],
+      ).toBeDefined();
+    });
+
+    it('re-runs the sequence when the active config no longer matches the recorded fingerprint', async () => {
+      const { controller, mocks } = setup();
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+      const { configFingerprint: originalFingerprint } =
+        controller.state.upgradedAccounts[MOCK_ACCOUNT_ADDRESS];
+
+      // CHOMP rotates its delegate address — the recorded upgrade no longer
+      // reflects the active config.
+      mocks.getServiceDetails.mockResolvedValue({
+        ...MOCK_SERVICE_DETAILS_RESPONSE,
+        chains: {
+          [MOCK_CHAIN_ID]: {
+            ...MOCK_SERVICE_DETAILS_RESPONSE.chains[MOCK_CHAIN_ID],
+            autoDepositDelegate:
+              '0x2222222222222222222222222222222222222222' as Hex,
+          },
+        },
+      });
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      clearMockCalls(mocks);
+
+      await controller.upgradeAccount(MOCK_ACCOUNT_ADDRESS);
+
+      expect(mocks.signPersonalMessage).toHaveBeenCalled();
+      expect(
+        controller.state.upgradedAccounts[MOCK_ACCOUNT_ADDRESS]
+          .configFingerprint,
+      ).not.toBe(originalFingerprint);
+    });
+  });
+
+  describe('upgradeAccountWithRetry', () => {
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('resolves after a single attempt when the upgrade succeeds', async () => {
+      const { controller, mocks } = setup();
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+
+      await controller.upgradeAccountWithRetry(MOCK_ACCOUNT_ADDRESS);
+
+      expect(mocks.signPersonalMessage).toHaveBeenCalledTimes(1);
+      expect(
+        controller.state.upgradedAccounts[MOCK_ACCOUNT_ADDRESS],
+      ).toBeDefined();
+    });
+
+    it('retries a failed attempt after 10 seconds', async () => {
+      const { controller, mocks } = setup();
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      mocks.signPersonalMessage.mockRejectedValueOnce(
+        new Error('network down'),
+      );
+      jest.useFakeTimers();
+
+      const promise = controller.upgradeAccountWithRetry(MOCK_ACCOUNT_ADDRESS);
+      await jest.advanceTimersByTimeAsync(0);
+      expect(mocks.signPersonalMessage).toHaveBeenCalledTimes(1);
+
+      await jest.advanceTimersByTimeAsync(9_999);
+      expect(mocks.signPersonalMessage).toHaveBeenCalledTimes(1);
+
+      await jest.advanceTimersByTimeAsync(1);
+      await promise;
+
+      expect(mocks.signPersonalMessage).toHaveBeenCalledTimes(2);
+      expect(
+        controller.state.upgradedAccounts[MOCK_ACCOUNT_ADDRESS],
+      ).toBeDefined();
+    });
+
+    it('backs off exponentially between attempts, capped at 60 seconds', async () => {
+      const { controller, mocks } = setup();
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      mocks.signPersonalMessage.mockRejectedValue(new Error('network down'));
+      jest.useFakeTimers();
+
+      const promise = controller.upgradeAccountWithRetry(MOCK_ACCOUNT_ADDRESS, {
+        maxAttempts: 6,
+      });
+      // Swallow the eventual rejection so advancing timers doesn't surface an
+      // unhandled rejection; the real assertion happens below.
+      promise.catch(() => undefined);
+
+      await jest.advanceTimersByTimeAsync(0);
+      expect(mocks.signPersonalMessage).toHaveBeenCalledTimes(1);
+      await jest.advanceTimersByTimeAsync(10_000);
+      expect(mocks.signPersonalMessage).toHaveBeenCalledTimes(2);
+      await jest.advanceTimersByTimeAsync(20_000);
+      expect(mocks.signPersonalMessage).toHaveBeenCalledTimes(3);
+      await jest.advanceTimersByTimeAsync(40_000);
+      expect(mocks.signPersonalMessage).toHaveBeenCalledTimes(4);
+      await jest.advanceTimersByTimeAsync(60_000);
+      expect(mocks.signPersonalMessage).toHaveBeenCalledTimes(5);
+      // The cap repeats once the schedule is exhausted.
+      await jest.advanceTimersByTimeAsync(60_000);
+      expect(mocks.signPersonalMessage).toHaveBeenCalledTimes(6);
+
+      await expect(promise).rejects.toThrow('network down');
+    });
+
+    it('gives up after maxAttempts and rethrows the last step error', async () => {
+      const { controller, mocks } = setup();
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      mocks.signPersonalMessage.mockRejectedValue(new Error('network down'));
+      jest.useFakeTimers();
+
+      const promise = controller.upgradeAccountWithRetry(MOCK_ACCOUNT_ADDRESS, {
+        maxAttempts: 2,
+      });
+      promise.catch(() => undefined);
+      await jest.advanceTimersByTimeAsync(10_000);
+
+      await expect(promise).rejects.toMatchObject({
+        step: 'associate-address',
+      });
+      expect(mocks.signPersonalMessage).toHaveBeenCalledTimes(2);
+      expect(controller.state.upgradedAccounts).toStrictEqual({});
+    });
+
+    it('does not retry terminal failures', async () => {
+      const { controller, mocks } = setup();
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      // Account delegated to a third-party impl — retrying cannot help.
+      mocks.providerRequest.mockImplementation(
+        async ({ method }: { method: string }) => {
+          if (method === 'eth_getCode') {
+            return `0xef0100${'9'.repeat(40)}`;
+          }
+          return '0x0';
+        },
+      );
+
+      await expect(
+        controller.upgradeAccountWithRetry(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow('already upgraded to another smart account');
+
+      expect(mocks.signEip7702Authorization).not.toHaveBeenCalled();
+      expect(mocks.signPersonalMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not retry non-step errors such as calling before init', async () => {
+      const { controller, mocks } = setup();
+
+      await expect(
+        controller.upgradeAccountWithRetry(MOCK_ACCOUNT_ADDRESS),
+      ).rejects.toThrow(
+        'MoneyAccountUpgradeController must be initialized via init() before upgradeAccount() can be called',
+      );
+
+      expect(mocks.signPersonalMessage).not.toHaveBeenCalled();
+    });
+
+    it('throws without attempting when the signal is already aborted', async () => {
+      const { controller, mocks } = setup();
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      const abortController = new AbortController();
+      abortController.abort();
+
+      await expect(
+        controller.upgradeAccountWithRetry(MOCK_ACCOUNT_ADDRESS, {
+          signal: abortController.signal,
+        }),
+      ).rejects.toThrow('Money Account upgrade retry aborted');
+
+      expect(mocks.signPersonalMessage).not.toHaveBeenCalled();
+    });
+
+    it('stops retrying when the signal aborts during the backoff wait', async () => {
+      const { controller, mocks } = setup();
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      mocks.signPersonalMessage.mockRejectedValue(new Error('network down'));
+      jest.useFakeTimers();
+      const abortController = new AbortController();
+
+      const promise = controller.upgradeAccountWithRetry(MOCK_ACCOUNT_ADDRESS, {
+        signal: abortController.signal,
+      });
+      promise.catch(() => undefined);
+      await jest.advanceTimersByTimeAsync(0);
+      expect(mocks.signPersonalMessage).toHaveBeenCalledTimes(1);
+
+      abortController.abort();
+      await expect(promise).rejects.toThrow(
+        'Money Account upgrade retry aborted',
+      );
+
+      // The pending wait was cancelled — advancing time runs no further attempts.
+      await jest.advanceTimersByTimeAsync(120_000);
+      expect(mocks.signPersonalMessage).toHaveBeenCalledTimes(1);
+    });
+
+    it('is callable via the messenger', async () => {
+      const { controller, rootMessenger } = setup();
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+
+      expect(
+        await rootMessenger.call(
+          'MoneyAccountUpgradeController:upgradeAccountWithRetry',
+          MOCK_ACCOUNT_ADDRESS,
+        ),
+      ).toBeUndefined();
     });
   });
 });
