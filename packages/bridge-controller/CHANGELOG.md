@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [77.5.0]
 
-### Uncategorized
-
-- chore: MIT license text update ([#9472](https://github.com/MetaMask/core/pull/9472))
-
 ### Added
 
 - Add the optional `transaction_internal_id` property to `Unified SwapBridge Completed` events. ([#9494](https://github.com/MetaMask/core/pull/9494))
@@ -20,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/assets-controller` from `^10.2.1` to `^11.0.0` ([#9485](https://github.com/MetaMask/core/pull/9485))
+
+### Fixed
+
+- chore: MIT license text update ([#9472](https://github.com/MetaMask/core/pull/9472))
 
 ## [77.4.1]
 

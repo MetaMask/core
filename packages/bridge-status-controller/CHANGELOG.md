@@ -9,13 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [74.2.0]
 
-### Uncategorized
-
-- chore: MIT license text update ([#9472](https://github.com/MetaMask/core/pull/9472))
-
 ### Added
 
 - Include `transaction_internal_id` in `Unified SwapBridge Completed` events for EVM source transactions. ([#9494](https://github.com/MetaMask/core/pull/9494))
+
+### Fixed
+
+- chore: MIT license text update ([#9472](https://github.com/MetaMask/core/pull/9472))
 
 ## [74.1.2]
 
