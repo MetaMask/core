@@ -118,6 +118,8 @@ describe('createWallet', () => {
     expect(instanceOptions.storageService.storage).toBeInstanceOf(
       InMemoryStorageAdapter,
     );
+    expect(instanceOptions.transactionController?.disableSwaps).toBe(true);
+    expect(instanceOptions.transactionController?.hooks).toStrictEqual({});
     expect(ClientConfigApiService).toHaveBeenCalled();
 
     await dispose();

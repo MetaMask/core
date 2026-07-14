@@ -62,6 +62,9 @@ export type CreateWalletResult = {
  *   flags over the network.
  * - `approvalController` — a no-op `showApprovalRequest` (the daemon is
  *   headless).
+ * - `transactionController` — swaps processing disabled and no client hooks;
+ *   see the slot's inline comment for why the daemon relies on the
+ *   controller's defaults for everything else.
  *
  * The optional `keyringController` slot is intentionally omitted so the
  * controller's built-in defaults (e.g. the PBKDF2 encryptor) apply.
@@ -100,7 +103,19 @@ function buildInstanceOptions(
     storageService: {
       storage: new InMemoryStorageAdapter(),
     },
-    // TODO(#8975): add the `transactionController` slot once it is wired.
+    transactionController: {
+      // The CLI exposes no swaps surface, so skip the swaps-specific
+      // post-processing a full wallet client runs (mobile makes the same
+      // choice; the extension keeps swaps enabled).
+      disableSwaps: true,
+      // No CLI-specific transaction hooks: the controller's built-in publish
+      // path broadcasts through the wired `NetworkController` provider, and the
+      // remaining hooks (metrics, notifications, gas-fee tokens) are client-UI
+      // concerns the headless daemon has no equivalent for. Every other option
+      // (`getPermittedAccounts`, `isSimulationEnabled`, `trace`, …) is left at
+      // the controller's default.
+      hooks: {},
+    },
   };
 }
 
