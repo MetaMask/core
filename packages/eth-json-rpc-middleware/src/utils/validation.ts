@@ -311,7 +311,7 @@ export const MAX_TRANSACTION_PARAMS_SIZE_BYTES = 200 * 1024;
  * the schema mismatch is on a typed field.
  */
 export function validateTransactionParams(params: unknown): void {
-  if (params === null || typeof params !== 'object' || Array.isArray(params)) {
+  if (Array.isArray(params)) {
     throw rpcErrors.invalidInput();
   }
 
