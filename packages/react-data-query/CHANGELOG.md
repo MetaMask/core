@@ -16,7 +16,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Retain queries in cache until GC ([#9502](https://github.com/MetaMask/core/pull/9502))
 
-
 ## [0.2.1]
 
 ### Changed
