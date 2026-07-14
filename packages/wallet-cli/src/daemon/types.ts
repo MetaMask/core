@@ -32,21 +32,26 @@ export type RpcHandlerDefinition<TParams, TResult extends Json | void> = {
 /**
  * A map of RPC method names to their handler definitions.
  *
- * `TParams` is widened to `any` here so definitions with different narrow
- * params types (e.g. `null` vs. a tuple) can coexist in the same map. The
- * runtime struct guard validates `params` before each `run` invocation, so the
- * widening cannot let an unvalidated value reach a handler body.
+ * `TParams` is erased to `unknown` here so definitions with different narrow
+ * params types (e.g. `null` vs. a tuple) can coexist in the same map. Consumers
+ * therefore see each `run` as accepting `unknown` and must validate `params`
+ * against the paired `paramsStruct` before invoking it — which is exactly what
+ * the server (see `rpc-socket-server.ts`) does. The concrete `TParams` is
+ * captured inside {@link defineHandler}, where the struct and handler are bound
+ * together.
  */
 export type RpcHandlerMap = Record<
   string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  RpcHandlerDefinition<any, Json | void>
+  RpcHandlerDefinition<unknown, Json | void>
 >;
 
 /**
  * Bundle a params struct with the handler that runs once `params` is
  * validated. The server invokes `run` only after `paramsStruct` accepts the
  * value, so `run` can trust the type of its argument.
+ *
+ * The returned definition erases `TParams` to `unknown` so heterogeneous
+ * handlers can share an {@link RpcHandlerMap}.
  *
  * @param paramsStruct - Struct that validates `params` for this method.
  * @param run - Handler invoked with the validated params.
@@ -55,8 +60,11 @@ export type RpcHandlerMap = Record<
 export function defineHandler<TParams, TResult extends Json | void>(
   paramsStruct: Struct<TParams>,
   run: RpcHandler<TParams, TResult>,
-): RpcHandlerDefinition<TParams, TResult> {
-  return { paramsStruct, run };
+): RpcHandlerDefinition<unknown, TResult> {
+  return { paramsStruct, run } as unknown as RpcHandlerDefinition<
+    unknown,
+    TResult
+  >;
 }
 
 /**
