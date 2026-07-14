@@ -222,7 +222,14 @@ export function groupDeFiPositionsV6(
   resolveAccountId: (responseAccountId: string) => string | undefined = (id) =>
     id,
 ): DeFiPositionsByAccount {
-  const result: DeFiPositionsByAccount = {};
+  // Accumulate groups per resolved internal account ID. The v6 response returns
+  // a separate entry per chain (e.g. `eip155:1:<addr>`, `eip155:137:<addr>`),
+  // and several of them can resolve to the same internal account ID, so we must
+  // merge across all of them rather than overwrite per response account.
+  const groupsByAccountKey = new Map<
+    string,
+    Map<string, DeFiProtocolPositionGroup>
+  >();
 
   for (const account of response.accounts) {
     const accountId = resolveAccountId(account.accountId);
@@ -232,7 +239,11 @@ export function groupDeFiPositionsV6(
 
     // Seed every queried account so accounts that no longer hold positions
     // overwrite (clear) any previously stored data.
-    const groupsByKey = new Map<string, DeFiProtocolPositionGroup>();
+    let groupsByKey = groupsByAccountKey.get(accountId);
+    if (!groupsByKey) {
+      groupsByKey = new Map<string, DeFiProtocolPositionGroup>();
+      groupsByAccountKey.set(accountId, groupsByKey);
+    }
 
     for (const balance of account.balances) {
       if (!isDefiBalanceWithMetadata(balance)) {
@@ -277,7 +288,10 @@ export function groupDeFiPositionsV6(
       }
       section.positions.push(position);
     }
+  }
 
+  const result: DeFiPositionsByAccount = {};
+  for (const [accountId, groupsByKey] of groupsByAccountKey) {
     const groups = [...groupsByKey.values()];
     for (const group of groups) {
       orderIconGroup(group.iconGroup);

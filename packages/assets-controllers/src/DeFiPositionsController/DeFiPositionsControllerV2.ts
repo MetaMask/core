@@ -11,7 +11,7 @@ import type { Messenger } from '@metamask/messenger';
 import {
   buildDeFiBalancesQuery,
   DEFI_BALANCES_V6_REQUEST_OPTIONS,
-  normalizeCaipAccountId,
+  toAccountMatchKey,
 } from './build-defi-balances-query';
 import type { DeFiPositionsControllerV2MethodActions } from './DeFiPositionsControllerV2-method-action-types';
 import type { DeFiPositionsByAccount } from './group-defi-positions-v6';
@@ -236,12 +236,22 @@ export class DeFiPositionsControllerV2 extends BaseController<
           vsCurrency: this.#getVsCurrency().toLowerCase(),
         });
 
-      // The v6 response echoes the CAIP-10 IDs we sent; map them back to the
+      // The v6 response echoes a per-chain CAIP-10 ID for every chain
+      // (`eip155:1:<addr>`, `eip155:137:<addr>`, ...), while we requested with
+      // the all-chains reference (`eip155:0:<addr>`). Match on namespace +
+      // address (ignoring the chain reference) so responses map back to the
       // internal account IDs used to key state. Unmatched accounts are skipped.
+      const internalAccountIdByMatchKey = new Map<string, string>();
+      for (const [caipAccountId, internalId] of internalAccountIdByCaip) {
+        internalAccountIdByMatchKey.set(
+          toAccountMatchKey(caipAccountId),
+          internalId,
+        );
+      }
       const resolveAccountId = (
         responseAccountId: string,
       ): string | undefined =>
-        internalAccountIdByCaip.get(normalizeCaipAccountId(responseAccountId));
+        internalAccountIdByMatchKey.get(toAccountMatchKey(responseAccountId));
 
       const positionsByAccount = groupDeFiPositionsV6(
         response,

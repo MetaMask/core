@@ -5,7 +5,11 @@ import {
 } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { CaipAccountId, CaipChainId } from '@metamask/utils';
-import { KnownCaipNamespace, toCaipAccountId } from '@metamask/utils';
+import {
+  KnownCaipNamespace,
+  parseCaipAccountId,
+  toCaipAccountId,
+} from '@metamask/utils';
 
 /**
  * Networks the DeFi balances (v6 multiaccount) endpoint supports.
@@ -78,6 +82,36 @@ export function normalizeCaipAccountId(caipAccountId: string): string {
   return caipAccountId.startsWith(`${KnownCaipNamespace.Eip155}:`)
     ? caipAccountId.toLowerCase()
     : caipAccountId;
+}
+
+/**
+ * Builds a chain-reference-agnostic key (`namespace:address`) for matching the
+ * CAIP-10 account IDs we send against the ones the v6 API echoes back.
+ *
+ * We request EVM balances with the all-chains reference (`eip155:0:<address>`),
+ * but the response echoes a separate per-chain ID for every chain
+ * (`eip155:1:<address>`, `eip155:137:<address>`, ...). Matching on the full
+ * CAIP-10 string therefore fails, so we drop the reference and match on
+ * namespace + address instead. EVM addresses are lowercased (case-insensitive);
+ * other namespaces (e.g. Solana) keep their case.
+ *
+ * @param caipAccountId - A CAIP-10 account ID.
+ * @returns The match key, or the normalized ID if it cannot be parsed.
+ */
+export function toAccountMatchKey(caipAccountId: string): string {
+  try {
+    const {
+      chain: { namespace },
+      address,
+    } = parseCaipAccountId(caipAccountId as CaipAccountId);
+    const normalizedAddress =
+      namespace === KnownCaipNamespace.Eip155
+        ? address.toLowerCase()
+        : address;
+    return `${namespace}:${normalizedAddress}`;
+  } catch {
+    return normalizeCaipAccountId(caipAccountId);
+  }
 }
 
 /**
