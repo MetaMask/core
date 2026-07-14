@@ -351,17 +351,17 @@ export const calcTotalEstimatedNetworkFee = (
   const { total: gasFeeToDisplay } = gasFee ?? {};
   return {
     amount:
-      (gasFeeToDisplay?.amount || relayerFee.amount) &&
+      (gasFeeToDisplay?.amount ?? relayerFee.amount) &&
       new BigNumber(gasFeeToDisplay?.amount ?? '0')
         .plus(relayerFee.amount ?? '0')
         .toString(),
     valueInCurrency:
-      (gasFeeToDisplay?.valueInCurrency || relayerFee.valueInCurrency) &&
+      (gasFeeToDisplay?.valueInCurrency ?? relayerFee.valueInCurrency) &&
       new BigNumber(gasFeeToDisplay?.valueInCurrency ?? '0')
         .plus(relayerFee.valueInCurrency ?? '0')
         .toString(),
     usd:
-      (gasFeeToDisplay?.usd || relayerFee.usd) &&
+      (gasFeeToDisplay?.usd ?? relayerFee.usd) &&
       new BigNumber(gasFeeToDisplay?.usd ?? '0')
         .plus(relayerFee.usd ?? '0')
         .toString(),
@@ -419,7 +419,7 @@ export const calcIncludedTxFees = (
 
 export const calcAdjustedReturn = (
   toTokenAmount: ReturnType<typeof calcToAmount>,
-  totalEstimatedNetworkFee: ReturnType<typeof calcTotalEstimatedNetworkFee>,
+  totalEstimatedNetworkFee: Partial<TokenAmountValues>,
   { feeData: { txFee }, destAsset: { assetId: destAssetId } }: Quote,
 ) => {
   // If gas is included and is taken from the dest token, don't subtract network fee from return
