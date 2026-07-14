@@ -267,6 +267,8 @@ export type { GroupedDeFiPositions } from './DeFiPositionsController/group-defi-
 export {
   DeFiPositionsControllerV2,
   getDefaultDeFiPositionsControllerV2State,
+  DEFI_POSITION_TYPES,
+  DEFI_POSITION_LIABILITY_TYPES,
 } from './DeFiPositionsController/DeFiPositionsControllerV2';
 export type {
   DeFiPositionsControllerV2State,
@@ -280,6 +282,7 @@ export type {
   DeFiPositionDetailsSection,
   DeFiUnderlyingPosition,
   DeFiPositionIconGroupItem,
+  DeFiPositionType,
 } from './DeFiPositionsController/DeFiPositionsControllerV2';
 export type { DeFiPositionsControllerV2FetchDeFiPositionsAction } from './DeFiPositionsController/DeFiPositionsControllerV2-method-action-types';
 export {

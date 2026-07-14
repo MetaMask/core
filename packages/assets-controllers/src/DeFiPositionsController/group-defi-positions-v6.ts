@@ -1,7 +1,9 @@
+import { V6_DEFI_POSITION_TYPES } from '@metamask/core-backend';
 import type {
   V6BalanceItem,
   V6BalanceMetadata,
   V6BalancesResponse,
+  V6DeFiPositionType,
 } from '@metamask/core-backend';
 import type { CaipAssetType, CaipChainId } from '@metamask/utils';
 import {
@@ -15,6 +17,25 @@ import {
 // no shared equivalent yet, so the minimal builder below is inlined. Replace it
 // with a shared helper if/when one lands in core.
 const STATIC_METAMASK_BASE_URL = 'https://static.cx.metamask.io';
+
+/**
+ * Possible `positionType` values from Accounts API v6 DeFi metadata.
+ * Re-export of {@link V6_DEFI_POSITION_TYPES} from `@metamask/core-backend`.
+ */
+export const DEFI_POSITION_TYPES = V6_DEFI_POSITION_TYPES;
+
+/**
+ * The specific module or functionality within a DeFi protocol where a position
+ * is held. Alias of {@link V6DeFiPositionType} from `@metamask/core-backend`.
+ */
+export type DeFiPositionType = V6DeFiPositionType;
+
+/**
+ * Position types whose fiat value is a liability and is subtracted from the
+ * protocol group's aggregated `marketValue`.
+ */
+export const DEFI_POSITION_LIABILITY_TYPES: ReadonlySet<DeFiPositionType> =
+  new Set<DeFiPositionType>(['lending']);
 
 /**
  * An icon-group entry shown next to a protocol in the DeFi tab list.
@@ -38,8 +59,8 @@ export type DeFiUnderlyingPosition = {
   balance: string;
   /** Fiat market value in the requested currency, when a price is available. */
   marketValue?: number;
-  /** Position type from protocol metadata (e.g. supply, borrow, stake, reward). */
-  positionType: string;
+  /** Position type from protocol metadata. */
+  positionType: DeFiPositionType;
   /** Address of the pool this position belongs to. */
   poolAddress: string;
   /** Token icon URL, when one can be built for the asset. */
@@ -68,7 +89,10 @@ export type DeFiProtocolPositionGroup = {
   protocolName: string;
   protocolIconUrl: string;
   chainId: CaipChainId;
-  /** Aggregated fiat market value across all positions in the group. */
+  /**
+   * Aggregated fiat market value across all positions in the group.
+   * `lending` positions are subtracted; all other types are added.
+   */
   marketValue: number;
   /** Icon-group entries for the list row. */
   iconGroup: DeFiPositionIconGroupItem[];
@@ -153,6 +177,17 @@ function getMarketValue(balance: V6BalanceItem): number | undefined {
   }
 
   return normalizedBalance * price;
+}
+
+/**
+ * Returns the sign used when rolling a position's market value into a protocol
+ * group total. Liability types (currently `lending`) subtract; all others add.
+ *
+ * @param positionType - The position's protocol module type.
+ * @returns `-1` for liabilities, `1` otherwise.
+ */
+function getMarketValueSign(positionType: DeFiPositionType): 1 | -1 {
+  return DEFI_POSITION_LIABILITY_TYPES.has(positionType) ? -1 : 1;
 }
 
 /**
@@ -269,7 +304,8 @@ export function groupDeFiPositionsV6(
       }
 
       if (position.marketValue !== undefined) {
-        group.marketValue += position.marketValue;
+        group.marketValue +=
+          position.marketValue * getMarketValueSign(position.positionType);
       }
 
       if (!group.iconGroup.some((item) => item.symbol === position.symbol)) {

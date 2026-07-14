@@ -9,7 +9,7 @@ const AAVE_METADATA = {
   description: 'Aave V3 on ethereum',
   protocolUrl: 'https://aave.com/',
   protocolIconUrl: 'https://example.com/aave.png',
-  positionType: 'supply',
+  positionType: 'deposit',
   poolAddress: '0xpool',
 };
 
@@ -64,7 +64,7 @@ describe('groupDeFiPositionsV6', () => {
             price: '1',
             metadata: {
               ...AAVE_METADATA,
-              positionType: 'supply',
+              positionType: 'deposit',
               poolAddress: '0xpool2',
             },
           },
@@ -262,6 +262,51 @@ describe('groupDeFiPositionsV6', () => {
     expect(group.sections[2].positions[0].marketValue).toBe(5);
   });
 
+  it('subtracts lending positions from the protocol market value', () => {
+    const response = buildResponse([
+      {
+        accountId: 'account-1',
+        balances: [
+          {
+            category: 'defi',
+            assetId: WETH_ASSET_ID,
+            name: 'Wrapped Ether',
+            symbol: 'WETH',
+            decimals: 18,
+            balance: '1',
+            price: '2000',
+            metadata: {
+              ...AAVE_METADATA,
+              protocolName: 'Aave V3 Supply',
+              positionType: 'deposit',
+            },
+          },
+          {
+            category: 'defi',
+            assetId: USDC_ASSET_ID,
+            name: 'USD Coin',
+            symbol: 'USDC',
+            decimals: 6,
+            balance: '500',
+            price: '1',
+            metadata: {
+              ...AAVE_METADATA,
+              protocolName: 'Aave V3 Borrow',
+              positionType: 'lending',
+            },
+          },
+        ],
+      },
+    ]);
+
+    const [group] = groupDeFiPositionsV6(response)['account-1'];
+
+    expect(group.marketValue).toBe(1500);
+    expect(group.sections[0].positions[0].marketValue).toBe(2000);
+    expect(group.sections[1].positions[0].marketValue).toBe(500);
+    expect(group.sections[1].positions[0].positionType).toBe('lending');
+  });
+
   it('creates separate detail sections per protocolName under one protocolId', () => {
     const response = buildResponse([
       {
@@ -291,7 +336,7 @@ describe('groupDeFiPositionsV6', () => {
             metadata: {
               ...AAVE_METADATA,
               protocolName: 'Aave V3 Borrow',
-              positionType: 'borrow',
+              positionType: 'lending',
             },
           },
         ],
@@ -307,7 +352,7 @@ describe('groupDeFiPositionsV6', () => {
         positions: [
           expect.objectContaining({
             symbol: 'WETH',
-            positionType: 'supply',
+            positionType: 'deposit',
           }),
         ],
       },
@@ -316,7 +361,7 @@ describe('groupDeFiPositionsV6', () => {
         positions: [
           expect.objectContaining({
             symbol: 'USDC',
-            positionType: 'borrow',
+            positionType: 'lending',
           }),
         ],
       },
@@ -358,7 +403,7 @@ describe('groupDeFiPositionsV6', () => {
             price: '2000',
             metadata: {
               ...AAVE_METADATA,
-              positionType: 'reward',
+              positionType: 'rewards',
             },
           },
         ],
@@ -406,7 +451,7 @@ describe('groupDeFiPositionsV6', () => {
       decimals: 18,
       balance: '1.5',
       marketValue: 3000,
-      positionType: 'supply',
+      positionType: 'deposit',
       poolAddress: '0xpool',
       tokenImage:
         'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/1/erc20/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png',

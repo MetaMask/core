@@ -30,6 +30,11 @@ export type {
   DeFiPositionDetailsSection,
   DeFiUnderlyingPosition,
   DeFiPositionIconGroupItem,
+  DeFiPositionType,
+} from './group-defi-positions-v6';
+export {
+  DEFI_POSITION_TYPES,
+  DEFI_POSITION_LIABILITY_TYPES,
 } from './group-defi-positions-v6';
 
 export type DeFiPositionsControllerV2State = {

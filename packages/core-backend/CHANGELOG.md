@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Export `V6_DEFI_POSITION_TYPES` and inferred `V6DeFiPositionType`, and type `V6BalanceMetadata.positionType` with the Accounts API v6 DeFi position module values (`deposit`, `lending`, `yield`, `liquidity_pool`, `staked`, `leveraged_farming`, `nft_staked`, `farming`, `locked`, `vesting`, `rewards`, `investment`)
+
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
