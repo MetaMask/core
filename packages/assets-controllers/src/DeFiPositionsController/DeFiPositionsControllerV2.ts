@@ -27,7 +27,6 @@ export type {
   DeFiPositionsByAccount,
   DeFiProtocolPositionGroup,
   DeFiPositionDetailsSection,
-  DeFiPositionPoolGroup,
   DeFiUnderlyingPosition,
   DeFiPositionIconGroupItem,
 } from './group-defi-positions-v6';

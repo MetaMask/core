@@ -20,7 +20,8 @@ const STATIC_METAMASK_BASE_URL = 'https://static.cx.metamask.io';
  * An icon-group entry shown next to a protocol in the DeFi tab list.
  */
 export type DeFiPositionIconGroupItem = {
-  avatarValue: string;
+  /** Token icon URL, when one can be built for the asset. */
+  avatarValue?: string;
   symbol: string;
 };
 
@@ -32,33 +33,25 @@ export type DeFiUnderlyingPosition = {
   chainId: CaipChainId;
   symbol: string;
   name: string;
+  decimals: number;
   /** Raw balance string as returned by the API. */
   balance: string;
-  /** Parsed balance amount, or 0 when invalid. */
-  normalizedBalance: number;
-  decimals: number;
-  /** Fiat market value in the requested currency. */
-  marketValue: number;
+  /** Fiat market value in the requested currency, when a price is available. */
+  marketValue?: number;
   /** Position type from protocol metadata (e.g. supply, borrow, stake, reward). */
   positionType: string;
+  /** Address of the pool this position belongs to. */
   poolAddress: string;
-  tokenImage: string;
+  /** Token icon URL, when one can be built for the asset. */
+  tokenImage?: string;
 };
 
 /**
- * A group of underlying positions that share a pool address.
- */
-export type DeFiPositionPoolGroup = {
-  poolAddress: string;
-  positions: DeFiUnderlyingPosition[];
-};
-
-/**
- * A section of the details page, grouping pools by protocol name.
+ * A section of the details page, grouping positions by protocol name.
  */
 export type DeFiPositionDetailsSection = {
   protocolName: string;
-  poolGroups: DeFiPositionPoolGroup[];
+  positions: DeFiUnderlyingPosition[];
 };
 
 /**
@@ -72,8 +65,6 @@ export type DeFiProtocolPositionGroup = {
   chainId: CaipChainId;
   /** Aggregated fiat market value across all positions in the group. */
   marketValue: number;
-  /** Symbols of the underlying tokens, ordered for display. */
-  underlyingSymbols: string[];
   /** Icon-group entries for the list row. */
   iconGroup: DeFiPositionIconGroupItem[];
   /** Detail sections consumed by the details page. */
@@ -90,6 +81,8 @@ export type DeFiPositionsByAccount = {
   [accountId: string]: DeFiProtocolPositionGroup[];
 };
 
+// Prefer ETH/WETH first in the list-row icon stack when a protocol has multiple
+// underlyings. Display-only.
 const SYMBOL_PRIORITY = ['ETH', 'WETH'];
 
 type DefiBalanceWithMetadata = V6BalanceItem & { metadata: V6BalanceMetadata };
@@ -98,9 +91,9 @@ type DefiBalanceWithMetadata = V6BalanceItem & { metadata: V6BalanceMetadata };
  * Builds a static token icon URL for a CAIP asset ID.
  *
  * @param assetId - The CAIP-19 asset ID.
- * @returns The token icon URL, or an empty string when it cannot be built.
+ * @returns The token icon URL, or `undefined` when it cannot be built.
  */
-function getDefiTokenImageUrl(assetId: CaipAssetType): string {
+function getDefiTokenImageUrl(assetId: CaipAssetType): string | undefined {
   try {
     const { chainId } = parseCaipAssetType(assetId);
     const { namespace } = parseCaipChainId(chainId);
@@ -112,7 +105,7 @@ function getDefiTokenImageUrl(assetId: CaipAssetType): string {
 
     return `${STATIC_METAMASK_BASE_URL}/api/v2/tokenIcons/assets/${normalizedAssetId}.png`;
   } catch {
-    return '';
+    return undefined;
   }
 }
 
@@ -133,29 +126,22 @@ function isDefiBalanceWithMetadata(
 }
 
 /**
- * Returns the parsed balance amount for a v6 balance row.
- *
- * @param balance - A balance row from the v6 API.
- * @returns The parsed balance, or 0 when invalid.
- */
-function getNormalizedBalance(balance: V6BalanceItem): number {
-  const normalizedBalance = Number.parseFloat(balance.balance);
-
-  return Number.isFinite(normalizedBalance) ? normalizedBalance : 0;
-}
-
-/**
  * Returns the fiat market value for a v6 DeFi balance row.
  *
  * @param balance - A balance row from the v6 API.
- * @returns The fiat value, or 0 when unavailable.
+ * @returns The fiat value, or `undefined` when price is missing or the
+ * balance/price is invalid.
  */
-function getMarketValue(balance: V6BalanceItem): number {
-  const normalizedBalance = getNormalizedBalance(balance);
-  const price = Number.parseFloat(balance.price ?? '0');
+function getMarketValue(balance: V6BalanceItem): number | undefined {
+  if (balance.price === undefined) {
+    return undefined;
+  }
 
-  if (!Number.isFinite(price)) {
-    return 0;
+  const normalizedBalance = Number.parseFloat(balance.balance);
+  const price = Number.parseFloat(balance.price);
+
+  if (!Number.isFinite(normalizedBalance) || !Number.isFinite(price)) {
+    return undefined;
   }
 
   return normalizedBalance * price;
@@ -194,7 +180,7 @@ function toUnderlyingPosition(
 ): DeFiUnderlyingPosition {
   const assetId = balance.assetId as CaipAssetType;
   const { chainId } = parseCaipAssetType(assetId);
-  const { positionType, poolAddress, protocolIconUrl } = balance.metadata;
+  const { positionType, poolAddress } = balance.metadata;
 
   return {
     assetId,
@@ -202,12 +188,11 @@ function toUnderlyingPosition(
     symbol: balance.symbol,
     name: balance.name,
     balance: balance.balance,
-    normalizedBalance: getNormalizedBalance(balance),
     decimals: balance.decimals,
     marketValue: getMarketValue(balance),
     positionType,
     poolAddress,
-    tokenImage: getDefiTokenImageUrl(assetId) || protocolIconUrl,
+    tokenImage: getDefiTokenImageUrl(assetId),
   };
 }
 
@@ -222,8 +207,8 @@ type MutableProtocolGroup = {
   marketValue: number;
   /** Underlying token symbol -> icon-group entry, deduped by symbol. */
   iconBySymbol: Map<string, DeFiPositionIconGroupItem>;
-  /** protocolName -> (poolAddress -> positions), for details-page sections. */
-  sectionByName: Map<string, Map<string, DeFiUnderlyingPosition[]>>;
+  /** protocolName -> positions, for details-page sections. */
+  sectionByName: Map<string, DeFiUnderlyingPosition[]>;
 };
 
 /**
@@ -237,12 +222,9 @@ function finalizeGroup(group: MutableProtocolGroup): DeFiProtocolPositionGroup {
 
   const sections: DeFiPositionDetailsSection[] = [
     ...group.sectionByName.entries(),
-  ].map(([protocolName, poolGroups]) => ({
+  ].map(([protocolName, positions]) => ({
     protocolName,
-    poolGroups: [...poolGroups.entries()].map(([poolAddress, positions]) => ({
-      poolAddress,
-      positions,
-    })),
+    positions,
   }));
 
   return {
@@ -251,7 +233,6 @@ function finalizeGroup(group: MutableProtocolGroup): DeFiProtocolPositionGroup {
     protocolIconUrl: group.protocolIconUrl,
     chainId: group.chainId,
     marketValue: group.marketValue,
-    underlyingSymbols: iconGroup.map(({ symbol }) => symbol),
     iconGroup,
     sections,
   };
@@ -300,8 +281,7 @@ export function groupDeFiPositionsV6(
 
       const assetId = balance.assetId as CaipAssetType;
       const { chainId } = parseCaipAssetType(assetId);
-      const { protocolId, protocolName, protocolIconUrl, poolAddress } =
-        balance.metadata;
+      const { protocolId, protocolName, protocolIconUrl } = balance.metadata;
       const groupKey = `${chainId}#${protocolId}`;
       const marketValue = getMarketValue(balance);
       const iconEntry: DeFiPositionIconGroupItem = {
@@ -324,17 +304,14 @@ export function groupDeFiPositionsV6(
         groupsByKey.set(groupKey, group);
       }
 
-      group.marketValue += marketValue;
+      if (marketValue !== undefined) {
+        group.marketValue += marketValue;
+      }
       group.iconBySymbol.set(balance.symbol, iconEntry);
 
-      let poolGroups = group.sectionByName.get(protocolName);
-      if (!poolGroups) {
-        poolGroups = new Map();
-        group.sectionByName.set(protocolName, poolGroups);
-      }
-      const poolPositions = poolGroups.get(poolAddress) ?? [];
-      poolPositions.push(position);
-      poolGroups.set(poolAddress, poolPositions);
+      const sectionPositions = group.sectionByName.get(protocolName) ?? [];
+      sectionPositions.push(position);
+      group.sectionByName.set(protocolName, sectionPositions);
     }
 
     result[accountId] = [...groupsByKey.values()].map(finalizeGroup);

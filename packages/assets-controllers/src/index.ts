@@ -278,7 +278,6 @@ export type {
   DeFiPositionsByAccount,
   DeFiProtocolPositionGroup,
   DeFiPositionDetailsSection,
-  DeFiPositionPoolGroup,
   DeFiUnderlyingPosition,
   DeFiPositionIconGroupItem,
 } from './DeFiPositionsController/DeFiPositionsControllerV2';
