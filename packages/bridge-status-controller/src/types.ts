@@ -175,11 +175,11 @@ export type BridgeHistoryItem = {
     /**
      * The actual amount sent by user in non-atomic decimal form
      */
-    amountSent: QuoteMetadata['sentAmount']['amount'];
-    amountSentInUsd?: QuoteMetadata['sentAmount']['usd'];
-    quotedGasInUsd?: QuoteMetadata['gasFee']['effective']['usd'];
-    quotedGasAmount?: QuoteMetadata['gasFee']['effective']['amount'];
-    quotedReturnInUsd?: QuoteMetadata['toTokenAmount']['usd'];
+    amountSent: string;
+    amountSentInUsd?: string;
+    quotedGasInUsd?: string;
+    quotedGasAmount?: string;
+    quotedReturnInUsd?: string;
     quotedRefuelSrcAmountInUsd?: string;
     quotedRefuelDestAmountInUsd?: string;
   };

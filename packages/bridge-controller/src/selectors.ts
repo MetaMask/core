@@ -36,7 +36,7 @@ import { processFeatureFlags } from './utils/feature-flags';
 import { calcBatchFees } from './utils/quote';
 import type { ExchangeRate } from './utils/quote-metadata';
 import type { TokenAmountValues } from './utils/quote-metadata';
-import { calcQuoteMetadata } from './utils/quote-metadata';
+import { calcQuoteMetadata, mergeQuoteMetadata } from './utils/quote-metadata';
 import type { QuoteMetadata } from './utils/quote-metadata';
 import { getDefaultSlippagePercentage } from './utils/slippage';
 import type { QuoteResponseV1 } from './validators/quote-response-v1';
@@ -369,10 +369,7 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
         destTokenExchangeRate,
         nativeExchangeRate,
       });
-      return {
-        ...quote,
-        ...quoteMetadata,
-      };
+      return mergeQuoteMetadata(quote, quoteMetadata);
     });
   },
 );
@@ -391,10 +388,10 @@ const selectSortedBridgeQuotes = createBridgeSelector(
           'asc',
         );
       default:
-        if (quotesWithMetadata.every((quote) => quote.cost.valueInCurrency)) {
+        if (quotesWithMetadata.every((quote) => quote?.cost?.valueInCurrency)) {
           return orderBy(
             quotesWithMetadata,
-            ({ cost }) => Number(cost.valueInCurrency),
+            ({ cost }) => Number(cost?.valueInCurrency),
             'asc',
           );
         }

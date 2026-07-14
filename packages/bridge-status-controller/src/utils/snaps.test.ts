@@ -1,7 +1,7 @@
 /* eslint-disable consistent-return */
 import { v4 as uuid } from 'uuid';
 
-import { ChainId } from '../../../bridge-controller/src/types';
+import { ChainId, mergeQuoteMetadata } from '@metamask/bridge-controller';
 import { BridgeStatusControllerMessenger } from '../types';
 import { createClientTransactionRequest, handleNonEvmTx } from './snaps';
 
@@ -74,16 +74,20 @@ describe('Snaps Utils', () => {
         const { time, ...result } = await handleNonEvmTx(
           messenger,
           transaction,
-          {
-            quote: {
-              srcChainId: ChainId.SOLANA,
-              srcAsset: { symbol: 'SOL' },
-              destAsset: { symbol: 'MATIC' },
+          mergeQuoteMetadata(
+            {
+              quote: {
+                srcChainId: ChainId.SOLANA,
+                srcAsset: { symbol: 'SOL' },
+                destAsset: { symbol: 'MATIC' },
+              },
             },
-            sentAmount: {
-              amount: '1000000000',
+            {
+              sentAmount: {
+                amount: '1000000000',
+              },
             },
-          } as never,
+          ) as never,
           { id: accountId, metadata: { snap: { id: snapId } } } as never,
         );
 
@@ -157,16 +161,20 @@ describe('Snaps Utils', () => {
       const { time, ...result } = await handleNonEvmTx(
         messenger,
         transaction,
-        {
-          quote: {
-            srcChainId: ChainId.SOLANA,
-            srcAsset: { symbol: 'SOL' },
-            destAsset: { symbol: 'MATIC' },
+        mergeQuoteMetadata(
+          {
+            quote: {
+              srcChainId: ChainId.SOLANA,
+              srcAsset: { symbol: 'SOL' },
+              destAsset: { symbol: 'MATIC' },
+            },
           },
-          sentAmount: {
-            amount: '1000000000',
+          {
+            sentAmount: {
+              amount: '1000000000',
+            },
           },
-        } as never,
+        ) as never,
         { id: accountId, metadata: { snap: { id: snapId } } } as never,
       );
 

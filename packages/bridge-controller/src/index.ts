@@ -38,6 +38,7 @@ export {
 } from './utils/metrics/properties';
 
 export type { QuoteMetadata, TokenAmountValues } from './utils/quote-metadata';
+export { mergeQuoteMetadata } from './utils/quote-metadata';
 
 export type {
   ChainConfiguration,

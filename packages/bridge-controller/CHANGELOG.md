@@ -30,7 +30,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Extract `QuoteMetadata` type and calculation to a new file
+- **BREAKING:** Make `QuoteMetadata` fields optional, remove `0` and `null` amount fallbacks
+- Refactor quoteMetadata calculation and data access to prepare for metadata migration
+  - Extract `QuoteMetadata` type and calculation to a new file
+  - Implement `mergeQuoteMetadata` util which appends QuoteMetadata to QuoteResponse
 - Bump `@metamask/assets-controller` from `^10.2.1` to `^11.0.0` ([#9485](https://github.com/MetaMask/core/pull/9485))
 
 ### Fixed

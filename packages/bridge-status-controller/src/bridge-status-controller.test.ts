@@ -18,6 +18,7 @@ import {
   getQuotesReceivedProperties,
   UnifiedSwapBridgeEventName,
   MetaMetricsSwapsEventSource,
+  mergeQuoteMetadata,
 } from '@metamask/bridge-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -310,32 +311,36 @@ const getMockStartPollingForBridgeTxStatusArgs = ({
     id: txMetaId,
     hash: srcTxHash === 'undefined' ? undefined : srcTxHash,
   } as TransactionMeta,
-  quoteResponse: {
-    quote: getMockQuote({ srcChainId, destChainId }),
-    trade: {
-      chainId: srcChainId,
-      to: '0x23981fC34e69eeDFE2BD9a0a9fCb0719Fe09DbFC',
-      from: account as Hex,
-      value: '0x038d7ea4c68000',
-      data: '0x3ce33bff0000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000038d7ea4c6800000000000000000000000000000000000000000000000000000000000000000c0000000000000000000000000000000000000000000000000000000000000000d6c6966694164617074657256320000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001c0000000000000000000000000e397c4883ec89ed4fc9d258f00c689708b2799c9000000000000000000000000e397c4883ec89ed4fc9d258f00c689708b2799c9000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000038589602234000000000000000000000000000000000000000000000000000000000000000140000000000000000000000000000000000000000000000000000007f544a44c0000000000000000000000000056ca675c3633cc16bd6849e2b431d4e8de5e23bf000000000000000000000000000000000000000000000000000000000000006c5a39b10a4f4f0747826140d2c5fe6ef47965741f6f7a4734bf784bf3ae3f24520000000a000222266cc2dca0671d2a17ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd00dfeeddeadbeef8932eb23bad9bddb5cf81426f78279a53c6c3b7100000000000000000000000000000000000000009ce3c510b3f58edc8d53ae708056e30926f62d0b42d5c9b61c391bb4e8a2c1917f8ed995169ffad0d79af2590303e83c57e15a9e0b248679849556c2e03a1c811b',
-      gasLimit: 282915,
+  quoteResponse: mergeQuoteMetadata(
+    {
+      quote: getMockQuote({ srcChainId, destChainId }),
+      trade: {
+        chainId: srcChainId,
+        to: '0x23981fC34e69eeDFE2BD9a0a9fCb0719Fe09DbFC',
+        from: account as Hex,
+        value: '0x038d7ea4c68000',
+        data: '0x3ce33bff0000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000038d7ea4c6800000000000000000000000000000000000000000000000000000000000000000c0000000000000000000000000000000000000000000000000000000000000000d6c6966694164617074657256320000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001c0000000000000000000000000e397c4883ec89ed4fc9d258f00c689708b2799c9000000000000000000000000e397c4883ec89ed4fc9d258f00c689708b2799c9000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000038589602234000000000000000000000000000000000000000000000000000000000000000140000000000000000000000000000000000000000000000000000007f544a44c0000000000000000000000000056ca675c3633cc16bd6849e2b431d4e8de5e23bf000000000000000000000000000000000000000000000000000000000000006c5a39b10a4f4f0747826140d2c5fe6ef47965741f6f7a4734bf784bf3ae3f24520000000a000222266cc2dca0671d2a17ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffd00dfeeddeadbeef8932eb23bad9bddb5cf81426f78279a53c6c3b7100000000000000000000000000000000000000009ce3c510b3f58edc8d53ae708056e30926f62d0b42d5c9b61c391bb4e8a2c1917f8ed995169ffad0d79af2590303e83c57e15a9e0b248679849556c2e03a1c811b',
+        gasLimit: 282915,
+      },
+      approval: null as never,
+      estimatedProcessingTimeInSeconds: 15,
     },
-    approval: null as never,
-    estimatedProcessingTimeInSeconds: 15,
-    sentAmount: { amount: '1.234', valueInCurrency: null, usd: null },
-    toTokenAmount: { amount: '1.234', valueInCurrency: null, usd: null },
-    minToTokenAmount: { amount: '1.17', valueInCurrency: null, usd: null },
-    totalNetworkFee: { amount: '1.234', valueInCurrency: null, usd: null },
-    totalMaxNetworkFee: { amount: '1.234', valueInCurrency: null, usd: null },
-    gasFee: {
-      effective: { amount: '.00055', valueInCurrency: null, usd: '2.5778' },
-      total: { amount: '1.234', valueInCurrency: null, usd: null },
-      max: { amount: '1.234', valueInCurrency: null, usd: null },
+    {
+      sentAmount: { amount: '1.234', valueInCurrency: null, usd: null },
+      toTokenAmount: { amount: '1.234', valueInCurrency: null, usd: null },
+      minToTokenAmount: { amount: '1.17', valueInCurrency: null, usd: null },
+      totalNetworkFee: { amount: '1.234', valueInCurrency: null, usd: null },
+      totalMaxNetworkFee: { amount: '1.234', valueInCurrency: null, usd: null },
+      gasFee: {
+        effective: { amount: '.00055', valueInCurrency: null, usd: '2.5778' },
+        total: { amount: '1.234', valueInCurrency: null, usd: null },
+        max: { amount: '1.234', valueInCurrency: null, usd: null },
+      },
+      adjustedReturn: { valueInCurrency: null, usd: null },
+      swapRate: '1.234',
+      cost: { valueInCurrency: null, usd: null },
     },
-    adjustedReturn: { valueInCurrency: null, usd: null },
-    swapRate: '1.234',
-    cost: { valueInCurrency: null, usd: null },
-  },
+  ),
   accountAddress: account,
   startTime: 1729964825189,
   slippagePercentage: 0,
@@ -2173,7 +2178,7 @@ describe('BridgeStatusController', () => {
   });
 
   describe('submitTx: Solana bridge', () => {
-    const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
+    const mockQuote: QuoteResponse<string> = {
       quote: {
         requestId: '123',
         srcChainId: ChainId.SOLANA,
@@ -2239,6 +2244,8 @@ describe('BridgeStatusController', () => {
       estimatedProcessingTimeInSeconds: 300,
       trade:
         'AQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAACAAQAHDXLY8oVRIwA8ZdRSGjM5RIZJW8Wv+Twyw3NqU4Hov+OHoHp/dmeDvstKbICW3ezeGR69t3/PTAvdXgZVdJFJXaxkoKXUTWfEAyQyCCG9nwVoDsd10OFdnM9ldSi+9SLqHpqWVDV+zzkmftkF//DpbXxqeH8obNXHFR7pUlxG9uNVOn64oNsFdeUvD139j1M51iRmUY839Y25ET4jDRscT081oGb+rLnywLjLSrIQx6MkqNBhCFbxqY1YmoGZVORW/QMGRm/lIRcy/+ytunLDm+e8jOW7xfcSayxDmzpAAAAAjJclj04kifG7PRApFI4NgwtaE5na/xCEBI572Nvp+FkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbd9uHXZaGT2cvhRs7reawctIXtX1s3kTqM9YV+/wCpBHnVW/IxwG7udMVuzmgVB/2xst6j9I5RArHNola8E4+0P/on9df2SnTAmx8pWHneSwmrNt/J3VFLMhqns4zl6JmXkZ+niuxMhAGrmKBaBo94uMv2Sl+Xh3i+VOO0m5BdNZ1ElenbwQylHQY+VW1ydG1MaUEeNpG+EVgswzPMwPoLBgAFAsBcFQAGAAkDQA0DAAAAAAAHBgABAhMICQAHBgADABYICQEBCAIAAwwCAAAAUEYVOwAAAAAJAQMBEQoUCQADBAETCgsKFw0ODxARAwQACRQj5RfLl3rjrSoBAAAAQ2QAAVBGFTsAAAAAyYZnBwAAAABkAAAJAwMAAAEJDAkAAAIBBBMVCQjGASBMKQwnooTbKNxdBwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHTKomh4KXvNgA0ovYKS5F8GIOBgAAAAAAAAAAAAAAAAAQgAAAAAAAAAAAAAAAAAAAAAAAEIF7RFOAwAAAAAAAAAAAAAAaAIAAAAAAAC4CwAAAAAAAOAA2mcAAAAAAAAAAAAAAAAAAAAApapuIXG0FuHSfsU8qME9s/kaic0AAwGCsZdSuxV5eCm+Ria4LEQPgTg4bg65gNrTAefEzpAfPQgCABIMAgAAAAAAAAAAAAAACAIABQwCAAAAsIOFAAAAAAADWk6DVOZO8lMFQg2r0dgfltD6tRL/B1hH3u00UzZdgqkAAxEqIPdq2eRt/F6mHNmFe7iwZpdrtGmHNJMFlK7c6Bc6k6kjBezr6u/tAgvu3OGsJSwSElmcOHZ21imqH/rhJ2KgqDJdBPFH4SYIM1kBAAA=',
+    };
+    const mockQuoteResponse = mergeQuoteMetadata(mockQuote, {
       sentAmount: {
         amount: '1',
         valueInCurrency: '100',
@@ -2278,7 +2285,7 @@ describe('BridgeStatusController', () => {
         usd: '15',
       },
       swapRate: '0.5',
-    };
+    });
 
     const mockSolanaAccount = {
       id: 'solana-account-1',

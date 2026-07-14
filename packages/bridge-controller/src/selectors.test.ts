@@ -39,6 +39,7 @@ import {
 import { BatchSellTransactionType } from './validators/batch-sell';
 import type { QuoteResponseV1 } from './validators/quote-response-v1';
 import { validateQuoteResponseV1 } from './validators/quote-response-v1';
+import { mergeQuoteMetadata } from './utils/quote-metadata';
 
 const MOCK_USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 const MOCK_MUSD_ADDRESS = '0x12345A7890123456789012345678901234567890';
@@ -1956,7 +1957,10 @@ describe('Bridge Selectors', () => {
         },
       };
       const solanaQuote = solanaState.quotes[1];
-      const quoteResponseV1 = { ...solanaQuote, ...expectedQuoteMetadata };
+      const quoteResponseV1 = mergeQuoteMetadata(
+        solanaQuote,
+        expectedQuoteMetadata,
+      );
       validateQuoteResponseV1(quoteResponseV1);
       expect(result.recommendedQuote).toStrictEqual(quoteResponseV1);
     });
@@ -2092,7 +2096,7 @@ describe('Bridge Selectors', () => {
         ]
       `);
       expect(
-        recommendedQuotes.map((quote) => quote?.sentAmount.usd),
+        recommendedQuotes.map((quote) => quote?.sentAmount?.usd),
       ).toStrictEqual(['18', '140']);
     });
 
@@ -2375,7 +2379,7 @@ describe('Bridge Selectors', () => {
         batchSellTrades: null,
       });
 
-      expect(result.totalNetworkFee).toMatchInlineSnapshot(`undefined`);
+      expect(result.totalNetworkFee?.usd).toMatchInlineSnapshot(`undefined`);
       expect(result.isBatchSellTradeAvailable).toBe(false);
       expect(result.isLoading).toBe(false);
     });

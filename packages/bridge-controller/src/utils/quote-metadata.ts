@@ -1,4 +1,5 @@
 import { QuoteResponse } from '..';
+import type { DeepPartial } from '../types';
 import { isEvmQuoteResponse } from './bridge';
 import {
   calcAdjustedReturn,
@@ -48,7 +49,7 @@ export type TokenAmountValues = {
  *
  * @deprecated Avoid introducing new usages and use the QuoteResponse V2 type instead
  */
-export type QuoteMetadata = {
+type QuoteMetadataV1 = {
   /**
    * If gas is included, this is the value of the src or dest token that was used to pay for the gas.
    * Show this value to indicate transaction fees for gasless quotes.
@@ -100,16 +101,7 @@ export type QuoteMetadata = {
    */
   cost: Omit<TokenAmountValues, 'amount'>; // sentAmount - adjustedReturn
 };
-
-export const mergeQuoteMetadata = (
-  quote: QuoteResponse,
-  quoteMetadata: QuoteMetadata,
-) => {
-  return {
-    ...quote,
-    ...quoteMetadata,
-  };
-};
+export type QuoteMetadata = DeepPartial<QuoteMetadataV1>;
 
 export const calcQuoteMetadata = (
   quote: QuoteResponse,
@@ -209,3 +201,19 @@ export const calcQuoteMetadata = (
     includedTxFees,
   });
 };
+
+/**
+ * Merges the quote metadata into the quote
+ *
+ * @param quote The quote to merge the metadata into
+ * @param quoteMetadata The metadata to merge into the quote
+ * @returns The quote with the metadata merged in
+ */
+export function mergeQuoteMetadata<
+  QuoteType extends DeepPartial<QuoteResponse>,
+>(quote: QuoteType, quoteMetadata: QuoteMetadata): QuoteType & QuoteMetadata {
+  return {
+    ...quote,
+    ...quoteMetadata,
+  };
+}

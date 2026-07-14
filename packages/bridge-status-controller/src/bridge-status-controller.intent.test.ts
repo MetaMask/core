@@ -3,8 +3,10 @@
 /* eslint-disable jest/no-restricted-matchers */
 import {
   BridgeClientId,
-  StatusTypes,
   UnifiedSwapBridgeEventName,
+  mergeQuoteMetadata,
+  StatusTypes,
+  QuoteResponse as QuoteResponseV1,
 } from '@metamask/bridge-controller';
 import type {
   GasFeeEstimates,
@@ -28,8 +30,10 @@ jest
   .spyOn(intentApi.IntentApiImpl.prototype, 'getOrderStatus')
   .mockImplementation(jest.fn());
 
-const minimalIntentQuoteResponse = (overrides?: Partial<any>): any => {
-  return {
+const minimalIntentQuoteResponse = (
+  overrides?: Partial<QuoteResponseV1>,
+): any => {
+  const quote = {
     quote: {
       requestId: 'req-1',
       srcChainId: 1,
@@ -43,7 +47,7 @@ const minimalIntentQuoteResponse = (overrides?: Partial<any>): any => {
         symbol: 'ETH',
         chainId: 1,
         address: '0x0000000000000000000000000000000000000000',
-        assetId: 'eip155:1/slip44:60',
+        assetId: 'eip155:1/slip44:60' as const,
         name: 'ETH',
         decimals: 18,
       },
@@ -51,11 +55,13 @@ const minimalIntentQuoteResponse = (overrides?: Partial<any>): any => {
         symbol: 'ETH',
         chainId: 1,
         address: '0x0000000000000000000000000000000000000000',
-        assetId: 'eip155:1/slip44:60',
+        assetId: 'eip155:1/slip44:60' as const,
         name: 'ETH',
         decimals: 18,
       },
-      feeData: { txFee: { maxFeePerGas: '1', maxPriorityFeePerGas: '1' } },
+      feeData: {
+        txFee: { maxFeePerGas: '1', maxPriorityFeePerGas: '1' },
+      } as never,
       intent: {
         protocol: 'cowswap',
         order: { some: 'order' },
@@ -68,9 +74,6 @@ const minimalIntentQuoteResponse = (overrides?: Partial<any>): any => {
         },
       },
     },
-    sentAmount: { amount: '1', usd: '1' },
-    gasFee: { effective: { amount: '0', usd: '0' } },
-    toTokenAmount: { usd: '1' },
     estimatedProcessingTimeInSeconds: 15,
     featureId: undefined,
     approval: undefined,
@@ -85,13 +88,18 @@ const minimalIntentQuoteResponse = (overrides?: Partial<any>): any => {
     },
     ...overrides,
   };
+  return mergeQuoteMetadata(quote as never, {
+    sentAmount: { amount: '1', usd: '1' },
+    gasFee: { effective: { amount: '0', usd: '0' } },
+    toTokenAmount: { usd: '1' },
+  });
 };
 
 const minimalBridgeQuoteResponse = (
   accountAddress: string,
-  overrides?: Partial<any>,
+  overrides?: Partial<QuoteResponseV1>,
 ): any => {
-  return {
+  const quote = {
     quote: {
       requestId: 'req-bridge-1',
       srcChainId: 1,
@@ -119,9 +127,7 @@ const minimalBridgeQuoteResponse = (
       bridges: ['across'],
       bridgeId: 'socket',
     },
-    sentAmount: { amount: '1', usd: '1' },
-    gasFee: { effective: { amount: '0', usd: '0' } },
-    toTokenAmount: { usd: '1' },
+
     estimatedProcessingTimeInSeconds: 15,
     featureId: undefined,
     approval: undefined,
@@ -136,6 +142,11 @@ const minimalBridgeQuoteResponse = (
     },
     ...overrides,
   };
+  return mergeQuoteMetadata(quote as never, {
+    sentAmount: { amount: '1', usd: '1' },
+    gasFee: { effective: { amount: '0', usd: '0' } },
+    toTokenAmount: { usd: '1' },
+  });
 };
 
 const createMessengerHarness = (
@@ -920,13 +931,17 @@ describe('BridgeStatusController (target uncovered branches)', () => {
     // make startPolling return different tokens for the same tx
     startPollingSpy.mockReturnValueOnce('tok1').mockReturnValueOnce('tok2');
 
-    const quoteResponse: any = {
-      quote: { srcChainId: 1, destChainId: 10, destAsset: { assetId: 'x' } },
-      estimatedProcessingTimeInSeconds: 1,
-      sentAmount: { amount: '0' },
-      gasFee: { effective: { amount: '0' } },
-      toTokenAmount: { usd: '0' },
-    };
+    const quoteResponse: any = mergeQuoteMetadata(
+      {
+        quote: { srcChainId: 1, destChainId: 10, destAsset: { assetId: 'x' } },
+        estimatedProcessingTimeInSeconds: 1,
+      },
+      {
+        sentAmount: { amount: '0' },
+        gasFee: { effective: { amount: '0' } },
+        toTokenAmount: { usd: '0' },
+      },
+    );
 
     // first time => starts polling tok1
     controller.startPollingForBridgeTxStatus({
@@ -979,18 +994,22 @@ describe('BridgeStatusController (target uncovered branches)', () => {
       mockTxHistory,
     });
 
-    const quoteResponse: any = {
-      quote: {
-        srcChainId: 1,
-        destChainId: 10,
-        destAsset: { assetId: 'x' },
-        bridges: ['across'],
+    const quoteResponse: any = mergeQuoteMetadata(
+      {
+        quote: {
+          srcChainId: 1,
+          destChainId: 10,
+          destAsset: { assetId: 'x' },
+          bridges: ['across'],
+        },
+        estimatedProcessingTimeInSeconds: 1,
       },
-      estimatedProcessingTimeInSeconds: 1,
-      sentAmount: { amount: '0' },
-      gasFee: { effective: { amount: '0' } },
-      toTokenAmount: { usd: '0' },
-    };
+      {
+        sentAmount: { amount: '0' },
+        gasFee: { effective: { amount: '0' } },
+        toTokenAmount: { usd: '0' },
+      },
+    );
 
     const statusResponse = {
       status: {

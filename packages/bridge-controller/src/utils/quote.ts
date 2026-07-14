@@ -108,14 +108,18 @@ export const calcNonEvmTotalNetworkFee = (
 ) => {
   const { nonEvmFeesInNative } = bridgeQuote;
   // Fees are now stored directly in native units (SOL, BTC) without conversion
-  const feeInNative = new BigNumber(nonEvmFeesInNative ?? '0');
+  const feeInNative = nonEvmFeesInNative
+    ? new BigNumber(nonEvmFeesInNative)
+    : undefined;
 
   return {
-    amount: feeInNative.toString(),
+    amount: feeInNative?.toString(),
     valueInCurrency: exchangeRate
-      ? feeInNative.times(exchangeRate).toString()
+      ? feeInNative?.times(exchangeRate).toString()
       : null,
-    usd: usdExchangeRate ? feeInNative.times(usdExchangeRate).toString() : null,
+    usd: usdExchangeRate
+      ? feeInNative?.times(usdExchangeRate).toString()
+      : null,
   };
 };
 
@@ -232,27 +236,29 @@ const calcTotalGasFee = ({
   nativeToDisplayCurrencyExchangeRate?: string;
   nativeToUsdExchangeRate?: string;
 }) => {
-  const totalGasLimitInDec = new BigNumber(tradeGasLimit?.toString() ?? '0')
-    .plus(approvalGasLimit?.toString() ?? '0')
-    .plus(resetApprovalGasLimit?.toString() ?? '0');
+  const totalGasLimitInDec = tradeGasLimit
+    ? new BigNumber(tradeGasLimit.toString())
+        .plus(approvalGasLimit?.toString() ?? '0')
+        .plus(resetApprovalGasLimit?.toString() ?? '0')
+    : undefined;
 
   const l1GasFeesInDecGWei = weiHexToGweiDec(toHex(l1GasFeesInHexWei ?? '0'));
   const gasFeesInDecGwei = totalGasLimitInDec
-    .times(feePerGasInDecGwei ?? '0')
+    ?.times(feePerGasInDecGwei ?? '0')
     .plus(l1GasFeesInDecGWei);
-  const gasFeesInDecEth = gasFeesInDecGwei.times(new BigNumber(10).pow(-9));
+  const gasFeesInDecEth = gasFeesInDecGwei?.times(new BigNumber(10).pow(-9));
 
   const gasFeesInDisplayCurrency = nativeToDisplayCurrencyExchangeRate
-    ? gasFeesInDecEth.times(nativeToDisplayCurrencyExchangeRate.toString())
+    ? gasFeesInDecEth?.times(nativeToDisplayCurrencyExchangeRate.toString())
     : null;
   const gasFeesInUSD = nativeToUsdExchangeRate
-    ? gasFeesInDecEth.times(nativeToUsdExchangeRate.toString())
+    ? gasFeesInDecEth?.times(nativeToUsdExchangeRate.toString())
     : null;
 
   return {
-    amount: gasFeesInDecEth.toString(),
-    valueInCurrency: gasFeesInDisplayCurrency?.toString() ?? null,
-    usd: gasFeesInUSD?.toString() ?? null,
+    amount: gasFeesInDecEth?.toString(),
+    valueInCurrency: gasFeesInDisplayCurrency?.toString(),
+    usd: gasFeesInUSD?.toString(),
   };
 };
 
@@ -338,23 +344,22 @@ export const calcEstimatedAndMaxTotalGasFee = ({
  * @returns The total estimated network fee for the bridge transaction, including the relayer fee paid to bridge providers
  */
 export const calcTotalEstimatedNetworkFee = (
-  { total: gasFeeToDisplay }: ReturnType<typeof calcEstimatedAndMaxTotalGasFee>,
+  gasFee: ReturnType<typeof calcEstimatedAndMaxTotalGasFee>,
   relayerFee: ReturnType<typeof calcRelayerFee>,
 ) => {
+  const { total: gasFeeToDisplay } = gasFee ?? {};
   return {
-    amount: new BigNumber(gasFeeToDisplay?.amount ?? '0')
-      .plus(relayerFee.amount)
-      .toString(),
-    valueInCurrency: gasFeeToDisplay?.valueInCurrency
-      ? new BigNumber(gasFeeToDisplay.valueInCurrency)
-          .plus(relayerFee.valueInCurrency ?? '0')
-          .toString()
-      : null,
-    usd: gasFeeToDisplay?.usd
-      ? new BigNumber(gasFeeToDisplay.usd)
-          .plus(relayerFee.usd ?? '0')
-          .toString()
-      : null,
+    amount:
+      gasFeeToDisplay?.amount &&
+      new BigNumber(gasFeeToDisplay.amount).plus(relayerFee.amount).toString(),
+    valueInCurrency:
+      gasFeeToDisplay?.valueInCurrency &&
+      new BigNumber(gasFeeToDisplay.valueInCurrency)
+        .plus(relayerFee.valueInCurrency ?? '0')
+        .toString(),
+    usd:
+      gasFeeToDisplay?.usd &&
+      new BigNumber(gasFeeToDisplay.usd).plus(relayerFee.usd ?? '0').toString(),
   };
 };
 
@@ -363,15 +368,17 @@ export const calcTotalMaxNetworkFee = (
   relayerFee: ReturnType<typeof calcRelayerFee>,
 ) => {
   return {
-    amount: new BigNumber(gasFee.max.amount).plus(relayerFee.amount).toString(),
-    valueInCurrency: gasFee.max.valueInCurrency
-      ? new BigNumber(gasFee.max.valueInCurrency)
-          .plus(relayerFee.valueInCurrency ?? '0')
-          .toString()
-      : null,
-    usd: gasFee.max.usd
-      ? new BigNumber(gasFee.max.usd).plus(relayerFee.usd ?? '0').toString()
-      : null,
+    amount:
+      gasFee?.max?.amount &&
+      new BigNumber(gasFee.max.amount).plus(relayerFee.amount).toString(),
+    valueInCurrency:
+      gasFee?.max?.valueInCurrency &&
+      new BigNumber(gasFee.max.valueInCurrency)
+        .plus(relayerFee.valueInCurrency ?? '0')
+        .toString(),
+    usd:
+      gasFee?.max?.usd &&
+      new BigNumber(gasFee.max.usd).plus(relayerFee.usd ?? '0').toString(),
   };
 };
 
