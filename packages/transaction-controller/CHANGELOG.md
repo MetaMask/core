@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Add `messenger` property to `Layer1GasFeeFlowRequest` ([#9502](https://github.com/MetaMask/core/pull/9502))
-- Query layer 1 gas fee oracles via direct `eth_call` RPC requests instead of an ethers `Contract` backed by `Web3Provider` ([#9502](https://github.com/MetaMask/core/pull/9502))
+- Add `messenger` property to `Layer1GasFeeFlowRequest` ([#9505](https://github.com/MetaMask/core/pull/9505))
+- Query layer 1 gas fee oracles via direct `eth_call` RPC requests instead of an ethers `Contract` backed by `Web3Provider` ([#9505](https://github.com/MetaMask/core/pull/9505))
   - `Web3Provider` schedules its JSON-RPC dispatch with `setTimeout`, which never fires on React Native iOS when the timer pump is starved, blocking `addTransaction` indefinitely and preventing dapp confirmations from appearing ([MetaMask/metamask-mobile#32863](https://github.com/MetaMask/metamask-mobile/issues/32863))
 
 ## [69.0.0]
