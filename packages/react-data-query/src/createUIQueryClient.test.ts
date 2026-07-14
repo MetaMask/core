@@ -73,7 +73,7 @@ describe('createUIQueryClient', () => {
   });
 
   it('proxies requests to the underlying service', async () => {
-    const { clientA: client } = createClients();
+    const { clientA: client, service } = createClients();
 
     const result = await client.fetchQuery({
       queryKey: getAssetsQueryKey,
@@ -99,10 +99,12 @@ describe('createUIQueryClient', () => {
         symbol: 'ETH',
       },
     ]);
+
+    service.destroy();
   });
 
   it('fetches using observers', async () => {
-    const { clientA, clientB } = createClients();
+    const { clientA, clientB, service } = createClients();
 
     const observerA = new QueryObserver(clientA, {
       queryKey: getAssetsQueryKey,
@@ -137,10 +139,11 @@ describe('createUIQueryClient', () => {
 
     observerA.destroy();
     observerB.destroy();
+    service.destroy();
   });
 
   it('fetches using observers in the same client', async () => {
-    const { clientA } = createClients();
+    const { clientA, service } = createClients();
 
     const observerA = new QueryObserver(clientA, {
       queryKey: getAssetsQueryKey,
@@ -175,10 +178,11 @@ describe('createUIQueryClient', () => {
 
     observerA.destroy();
     observerB.destroy();
+    service.destroy();
   });
 
   it('synchronizes caches after invalidation', async () => {
-    const { clientA, clientB } = createClients();
+    const { clientA, clientB, service } = createClients();
 
     const observerA = new QueryObserver(clientA, {
       queryKey: getAssetsQueryKey,
@@ -221,12 +225,13 @@ describe('createUIQueryClient', () => {
 
     observerA.destroy();
     observerB.destroy();
+    service.destroy();
   });
 
   it('does not remove from the cache if observers still are subscribed', async () => {
     jest.useFakeTimers();
 
-    const { clientA, clientB } = createClients();
+    const { clientA, clientB, service } = createClients();
 
     const observerA = new QueryObserver(clientA, {
       queryKey: getAssetsQueryKey,
@@ -265,6 +270,7 @@ describe('createUIQueryClient', () => {
 
     observerA.destroy();
     observerB.destroy();
+    service.destroy();
   });
 
   it('cleans up removed cache entries once all observers are removed', async () => {
@@ -274,7 +280,7 @@ describe('createUIQueryClient', () => {
       queries: { cacheTime: inMilliseconds(5, Duration.Minute) },
     };
 
-    const { clientA, clientB } = createClients({ defaultOptions });
+    const { clientA, clientB, service } = createClients({ defaultOptions });
 
     const observerA = new QueryObserver(clientA, {
       queryKey: getAssetsQueryKey,
@@ -317,10 +323,11 @@ describe('createUIQueryClient', () => {
     jest.advanceTimersByTime(inMilliseconds(5, Duration.Minute));
 
     expect(clientA.getQueryData(getAssetsQueryKey)).toBeUndefined();
+    service.destroy();
   });
 
   it('fetches using paginated observers', async () => {
-    const { clientA, clientB } = createClients();
+    const { clientA, clientB, service } = createClients();
 
     const getPreviousPageParam = ({
       pageInfo,
@@ -379,6 +386,7 @@ describe('createUIQueryClient', () => {
 
     observerA.destroy();
     observerB.destroy();
+    service.destroy();
   });
 
   it('errors if observer attempts to use default query function without a data service', async () => {
