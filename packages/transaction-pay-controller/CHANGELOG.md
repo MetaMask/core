@@ -11,12 +11,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Store a no-op quote (`TransactionPayStrategy.None`) when a payment token is selected but the route needs no conversion, so clients can tell "no conversion needed" apart from "quote missing" ([#9484](https://github.com/MetaMask/core/pull/9484))
 - Add `None` value to `TransactionPayStrategy` enum ([#9484](https://github.com/MetaMask/core/pull/9484))
+
+### Changed
+
+- **BREAKING:** Quotes stored in `transactionData` can now contain a single no-op quote with the `none` strategy; clients that read quotes for display, metrics, or publish validation must ignore or handle no-op quotes ([#9484](https://github.com/MetaMask/core/pull/9484))
+
+## [24.1.0]
+
+### Added
+
+- Add `getStablecoins` feature flag reader that resolves the stablecoin list from the `stable-tokens` LaunchDarkly flag, falling back to the hardcoded constant when absent ([#9495](https://github.com/MetaMask/core/pull/9495))
 - Add generic signature steps to the server pay strategy, supporting EIP-712 sign-then-POST flows ([#9051](https://github.com/MetaMask/core/pull/9051))
   - Trigger quote refresh when `txParams.to` or `requiredAssets` changes on a transaction, in addition to the existing `txParams.data` trigger
 
 ### Changed
 
-- **BREAKING:** Quotes stored in `transactionData` can now contain a single no-op quote with the `none` strategy; clients that read quotes for display, metrics, or publish validation must ignore or handle no-op quotes ([#9484](https://github.com/MetaMask/core/pull/9484))
+- Replace hardcoded `STABLECOINS` usage in `token.ts` and `relay-quotes.ts` with the remotely configurable `getStablecoins(messenger)` lookup ([#9495](https://github.com/MetaMask/core/pull/9495))
 - Bump `@metamask/assets-controller` from `^10.2.1` to `^11.0.0` ([#9485](https://github.com/MetaMask/core/pull/9485))
 - Bump `@metamask/ramps-controller` from `^16.0.0` to `^17.0.0` ([#9491](https://github.com/MetaMask/core/pull/9491))
 
@@ -1288,7 +1298,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#6820](https://github.com/MetaMask/core/pull/6820))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@24.0.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@24.1.0...HEAD
+[24.1.0]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@24.0.3...@metamask/transaction-pay-controller@24.1.0
 [24.0.3]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@24.0.2...@metamask/transaction-pay-controller@24.0.3
 [24.0.2]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@24.0.1...@metamask/transaction-pay-controller@24.0.2
 [24.0.1]: https://github.com/MetaMask/core/compare/@metamask/transaction-pay-controller@24.0.0...@metamask/transaction-pay-controller@24.0.1
