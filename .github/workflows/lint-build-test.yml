@@ -27,6 +27,62 @@ jobs:
           echo "child-workspace-package-names=$(yarn workspaces list --no-private --json | jq --slurp --raw-output 'map(.name) | @json')" >> "$GITHUB_OUTPUT"
         shell: bash
 
+
+  get-changed-packages:
+    name: Get changed packages
+    runs-on: ubuntu-latest
+    needs: prepare
+    outputs:
+      merge-base: ${{ steps.fetch-merge-base.outputs.merge-base }}
+      package-names: ${{ steps.packages.outputs.package-names }}
+      eslint-paths: ${{ steps.packages.outputs.eslint-paths }}
+    steps:
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v3
+        with:
+          is-high-risk-environment: false
+          persist-credentials: false
+          node-version: 24.x
+      - name: Fetch merge base
+        id: fetch-merge-base
+        if: github.base_ref != '' || github.event.merge_group.base_ref != ''
+        run: |
+          set -euo pipefail
+
+          PREFIXED_REF_REGEX='refs/heads/(.+)'
+          if [[ "$BASE_REF" =~ $PREFIXED_REF_REGEX ]]; then
+            BASE_REF="${BASH_REMATCH[1]}"
+          fi
+
+          MERGE_BASE=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BASE_REF...$HEAD_SHA" --jq '.merge_base_commit.sha')
+          git fetch --unshallow --filter=blob:none --no-tags origin HEAD
+
+          echo "merge-base=$MERGE_BASE" >> "$GITHUB_OUTPUT"
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
+          GH_TOKEN: ${{ github.token }}
+      - name: Get changed package names
+        id: packages
+        run: |
+          if [[ -n "$MERGE_BASE" ]]; then
+            OUTPUT=$(yarn tsx scripts/get-changed-workspaces.mts "$MERGE_BASE" "$HEAD_SHA")
+            PACKAGES=$(echo "$OUTPUT" | jq '.names')
+            if [[ $(echo "$OUTPUT" | jq '.hasRootChange') == "true" ]]; then
+              ESLINT_PATHS="full"
+            else
+              ESLINT_PATHS=$(echo "$OUTPUT" | jq '.locations')
+            fi
+          else
+            PACKAGES=$(yarn workspaces list --no-private --json | jq --slurp --raw-output 'map(.name) | @json')
+            ESLINT_PATHS="full"
+          fi
+          echo "package-names=$PACKAGES" >> "$GITHUB_OUTPUT"
+          echo "eslint-paths=$ESLINT_PATHS" >> "$GITHUB_OUTPUT"
+        env:
+          MERGE_BASE: ${{ steps.fetch-merge-base.outputs.merge-base }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
+
   lint:
     name: Lint (${{ matrix.script }})
     runs-on: ubuntu-latest
@@ -38,7 +94,6 @@ jobs:
           - codeowners:check
           - constraints
           - lint:dependencies
-          - lint:eslint
           - lint:misc:check
           - lint:teams
           - lint:tsconfigs:all
@@ -55,6 +110,40 @@ jobs:
         run: yarn "$SCRIPT"
         env:
           SCRIPT: ${{ matrix.script }}
+      - name: Require clean working directory
+        shell: bash
+        run: |
+          if ! git diff --exit-code; then
+            echo "Working tree dirty at end of job"
+            exit 1
+          fi
+
+  lint-eslint:
+    name: Lint (lint:eslint)
+    runs-on: ubuntu-latest
+    if: needs.get-changed-packages.outputs.eslint-paths != '[]'
+    needs:
+      - prepare
+      - get-changed-packages
+    strategy:
+      matrix:
+        node-version: [24.x]
+    steps:
+      - name: Checkout and setup environment
+        uses: MetaMask/action-checkout-and-setup@v3
+        with:
+          is-high-risk-environment: false
+          persist-credentials: false
+          node-version: ${{ matrix.node-version }}
+      - name: Lint
+        run: |
+          if [[ "$ESLINT_PATHS" == "full" ]]; then
+            yarn lint:eslint
+          else
+            yarn lint:eslint $(echo "$ESLINT_PATHS" | jq -r '.[]' | tr '\n' ' ')
+          fi
+        env:
+          ESLINT_PATHS: ${{ needs.get-changed-packages.outputs.eslint-paths }}
       - name: Require clean working directory
         shell: bash
         run: |
@@ -94,52 +183,6 @@ jobs:
             echo "Working tree dirty at end of job"
             exit 1
           fi
-
-  get-changed-packages:
-    name: Get changed packages
-    runs-on: ubuntu-latest
-    needs: prepare
-    outputs:
-      merge-base: ${{ steps.fetch-merge-base.outputs.merge-base }}
-      package-names: ${{ steps.packages.outputs.package-names }}
-    steps:
-      - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v3
-        with:
-          is-high-risk-environment: false
-          persist-credentials: false
-          node-version: 24.x
-      - name: Fetch merge base
-        id: fetch-merge-base
-        if: github.base_ref != '' || github.event.merge_group.base_ref != ''
-        run: |
-          set -euo pipefail
-
-          PREFIXED_REF_REGEX='refs/heads/(.+)'
-          if [[ "$BASE_REF" =~ $PREFIXED_REF_REGEX ]]; then
-            BASE_REF="${BASH_REMATCH[1]}"
-          fi
-
-          MERGE_BASE=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BASE_REF...$HEAD_SHA" --jq '.merge_base_commit.sha')
-          git fetch --unshallow --filter=blob:none --no-tags origin HEAD
-
-          echo "merge-base=$MERGE_BASE" >> "$GITHUB_OUTPUT"
-        env:
-          BASE_REF: ${{ github.event.pull_request.base.ref || github.event.merge_group.base_ref }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
-          GH_TOKEN: ${{ github.token }}
-      - name: Get changed package names
-        id: packages
-        run: |
-          if [[ -n "$MERGE_BASE" ]]; then
-            PACKAGES=$(yarn tsx scripts/get-changed-workspaces.mts "$MERGE_BASE" "$HEAD_SHA")
-          else
-            PACKAGES=$(yarn workspaces list --no-private --json | jq --slurp --raw-output 'map(.name) | @json')
-          fi
-          echo "package-names=$PACKAGES" >> "$GITHUB_OUTPUT"
-        env:
-          MERGE_BASE: ${{ steps.fetch-merge-base.outputs.merge-base }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
 
   validate-changelog-diffs:
     name: Validate changelog diffs

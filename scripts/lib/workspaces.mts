@@ -130,6 +130,26 @@ export async function getChangedFiles(
 }
 
 /**
+ * Check whether any changed file lives outside all package directories and
+ * is not in the ignored root files list. When true, a full
+ * rebuild/test/lint run is required.
+ *
+ * @param workspaces - The workspace set to check against.
+ * @param changedFiles - The list of changed file paths.
+ * @returns Whether any non-ignored root file changed.
+ */
+export function checkRootChange(
+  workspaces: Workspace[],
+  changedFiles: string[],
+): boolean {
+  return changedFiles.some(
+    (file) =>
+      !IGNORED_ROOT_FILES.has(file) &&
+      !workspaces.some(({ location }) => file.startsWith(`${location}/`)),
+  );
+}
+
+/**
  * Compute the set of workspace names that need to be checked given a merge
  * base, by finding changed packages and expanding to transitive dependants.
  *
@@ -141,6 +161,7 @@ export async function getChangedFiles(
  * @param mergeBase - The merge base SHA.
  * @param headRef - The PR branch tip SHA (or "HEAD" as fallback).
  * @param includeDependencies - Whether to also expand to transitive dependencies.
+ * @param changedFiles - Pre-fetched list of changed files; fetched if omitted.
  * @returns The set of workspace names to check.
  */
 export async function computeChangedWorkspaces(
@@ -148,25 +169,20 @@ export async function computeChangedWorkspaces(
   mergeBase: string,
   headRef: string,
   includeDependencies: boolean,
+  changedFiles?: string[],
 ): Promise<Set<string>> {
-  const changedFiles = await getChangedFiles(mergeBase, headRef);
+  const files = changedFiles ?? (await getChangedFiles(mergeBase, headRef));
   const { dependants, dependencies } =
     await getWorkspaceDependencies(workspaces);
 
   // If any changed file lives outside all package directories (e.g. root
   // configs, workflow files, scripts), rebuild and test everything.
-  const hasRootChange = changedFiles.some(
-    (file) =>
-      !IGNORED_ROOT_FILES.has(file) &&
-      !workspaces.some(({ location }) => file.startsWith(`${location}/`)),
-  );
-
-  if (hasRootChange) {
+  if (checkRootChange(workspaces, files)) {
     return new Set(workspaces.map(({ name }) => name));
   }
 
   const result = new Set(
-    changedFiles.flatMap((file) => {
+    files.flatMap((file) => {
       const workspace = workspaces.find(({ location }) =>
         file.startsWith(`${location}/`),
       );
