@@ -1,3 +1,9 @@
+/**
+ * This file is intended to be run via `tsc` (using `tsconfig.type-tests.json`)
+ * instead of Jest. If `tsc` runs successfully, the test file succeeds with no
+ * output, otherwise it fails.
+ */
+
 import type {
   DataServiceGranularCacheUpdatedEvent,
   DataServiceInvalidateQueriesAction,
@@ -54,16 +60,15 @@ const messenger = new Messenger<
   RootMessengerEvents
 >({ namespace: 'Root' });
 
-// Assert that `createUIQueryClient` takes a messenger that supports calling any
-// action and subscribing to `:cacheUpdated:${hash}` events, as long as they are
-// namespaced under the given data service names, and that it returns a
-// `QueryClient`.
+// "Assert" that `createUIQueryClient` 1) takes a messenger that supports
+// actions and `:cacheUpdated:${hash}` events as long as they are namespaced
+// under the given data service names, and 2) it returns a `QueryClient`.
 createUIQueryClient(
   ['FirstDataService', 'SecondDataService'] as const,
   messenger,
 ) satisfies QueryClient;
 
-// Assert that `createUIQueryClient` rejects a messenger that does not support
+// "Assert" that `createUIQueryClient` rejects a messenger that does not support
 // the given data service names.
 //
 // Note: `@ts-expect-error` is used here so that the negative case is validated

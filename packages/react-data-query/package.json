@@ -47,11 +47,11 @@
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "yarn test:jest && yarn test:types",
     "test:clean": "yarn test:jest:clean && yarn test:types",
-    "test:verbose": "yarn test:jest:verbose && yarn test:types",
     "test:jest": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:jest:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
-    "test:types": "tsc --noEmit --project tsconfig.test-d.json",
     "test:jest:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
+    "test:types": "tsc --noEmit --project tsconfig.type-tests.json",
+    "test:verbose": "yarn test:jest:verbose && yarn test:types",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
