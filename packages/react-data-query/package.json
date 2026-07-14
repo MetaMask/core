@@ -50,7 +50,7 @@
     "test:jest": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:jest:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
     "test:jest:verbose": "NODE_OPTIONS=--experimental-vm-modules jest --verbose",
-    "test:types": "tsc --noEmit --project tsconfig.type-tests.json",
+    "test:types": "tsc --noEmit --project tsconfig.type-tests.json && echo \"Type tests pass\"",
     "test:verbose": "yarn test:jest:verbose && yarn test:types",
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
