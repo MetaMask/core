@@ -1,6 +1,7 @@
 import { Command, Flags } from '@oclif/core';
 
 import { ensureDaemon } from '../../daemon/daemon-spawn';
+import { Password, Srp } from '../../daemon/secrets';
 
 export default class DaemonStart extends Command {
   static override description = 'Start the wallet daemon';
@@ -35,7 +36,8 @@ export default class DaemonStart extends Command {
   public async run(): Promise<void> {
     const { flags } = await this.parse(DaemonStart);
     const infuraProjectId = flags['infura-project-id'];
-    const { password, srp } = flags;
+    const password = flags.password ? Password.from(flags.password) : undefined;
+    const srp = Srp.from(flags.srp);
 
     const { state, socketPath } = await ensureDaemon({
       dataDir: this.config.dataDir,

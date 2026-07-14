@@ -7,7 +7,6 @@ export type {
   RampsControllerStateChangeEvent,
   RampsControllerOrderStatusChangedEvent,
   RampsControllerOptions,
-  ProviderScope,
   UserRegion,
   ResourceState,
   TransakState,
@@ -141,6 +140,28 @@ export {
 export { RAMPS_ERROR_CODES } from './rampsErrorCodes';
 export type { RequestSelectorResult } from './selectors';
 export { createRequestSelector } from './selectors';
+export type { HeadlessFeatureFlagsLookup } from './featureFlags';
+export {
+  MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY,
+  isHeadlessAllProvidersEnabled,
+} from './featureFlags';
+export {
+  providerServesAsset,
+  getProvidersServingAsset,
+  regionHasProviderForAsset,
+  isFiatDepositAvailable,
+} from './providerAvailability';
+export {
+  isExternalBrowserQuote,
+  isCustomActionQuote,
+  isInAppOnlyQuote,
+} from './quoteClassification';
+export type { TypedError } from './errorNormalization';
+export {
+  getErrorMessage,
+  extractExplicitTypedError,
+  normalizeToTypedError,
+} from './errorNormalization';
 export type {
   TransakServiceActions,
   TransakServiceEvents,

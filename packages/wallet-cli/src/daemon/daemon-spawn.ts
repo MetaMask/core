@@ -88,7 +88,7 @@ export async function ensureDaemon(
     MM_DAEMON_DATA_DIR: config.dataDir,
     MM_DAEMON_SOCKET_PATH: socketPath,
     INFURA_PROJECT_ID: config.infuraProjectId,
-    MM_WALLET_SRP: config.srp,
+    MM_WALLET_SRP: config.srp.unwrap(),
   };
   // Strip any inherited `MM_WALLET_PASSWORD` from the child env when the
   // caller did not pass a password: the daemon treats an absent variable as
@@ -97,7 +97,7 @@ export async function ensureDaemon(
   if (config.password === undefined) {
     delete childEnv.MM_WALLET_PASSWORD;
   } else {
-    childEnv.MM_WALLET_PASSWORD = config.password;
+    childEnv.MM_WALLET_PASSWORD = config.password.unwrap();
   }
 
   const child = spawn(process.execPath, [...args, entryPath], {

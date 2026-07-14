@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "1117.0.0",
+  "version": "1121.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -20,8 +20,8 @@
     "build:types": "tsc --build tsconfig.build.json --verbose",
     "changelog:update": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run changelog:update",
     "changelog:validate": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run changelog:validate",
-    "create-release-branch": "create-release-branch --formatter oxfmt",
     "create-package": "tsx scripts/create-package",
+    "create-release-branch": "create-release-branch --formatter oxfmt",
     "docs:platform-api:build": "yarn workspace @metamask/platform-api-docs cli ../.. --build --project-label Core",
     "docs:platform-api:dev": "yarn workspace @metamask/platform-api-docs cli ../.. --dev --project-label Core",
     "docs:platform-api:serve": "yarn workspace @metamask/platform-api-docs cli ../.. --serve --project-label Core",
@@ -35,20 +35,20 @@
     "lint:teams": "tsx scripts/lint-teams-json.ts",
     "messenger-action-types:check": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run messenger-action-types:check",
     "messenger-action-types:generate": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run messenger-action-types:generate",
+    "postinstall": "yarn skills:postinstall",
     "prepack": "./scripts/prepack.sh",
     "prepare-preview-builds": "./scripts/prepare-preview-builds.sh",
     "readme-content:check": "tsx scripts/update-readme-content.ts --check",
     "readme-content:update": "tsx scripts/update-readme-content.ts",
     "setup": "yarn install",
+    "skills": "metamask-skills sync",
+    "skills:postinstall": "metamask-skills postinstall",
     "test": "yarn test:scripts --silent --collectCoverage=false --reporters=jest-silent-reporter && yarn test:packages",
     "test:clean": "yarn workspaces foreach --all --parallel --verbose run test:clean && yarn test",
     "test:packages": "yarn test:verbose --silent --collectCoverage=false --reporters=jest-silent-reporter",
     "test:scripts": "NODE_OPTIONS=--experimental-vm-modules yarn jest --config ./jest.config.scripts.js --silent",
     "test:verbose": "yarn workspaces foreach --all --parallel --verbose run test:verbose",
-    "workspaces:list-versions": "./scripts/list-workspace-versions.sh",
-    "skills": "metamask-skills sync",
-    "skills:postinstall": "metamask-skills postinstall",
-    "postinstall": "yarn skills:postinstall"
+    "workspaces:list-versions": "./scripts/list-workspace-versions.sh"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",

@@ -2,6 +2,7 @@ import { rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { Password, Srp } from './secrets';
 import { createWallet } from './wallet-factory';
 
 /**
@@ -48,8 +49,8 @@ describe('createWallet (real Wallet, in-memory)', () => {
   it('constructs an unlocked wallet on first run and dispatches messenger actions', async () => {
     const { wallet, dispose } = await createWallet({
       databasePath: ':memory:',
-      password: TEST_PASSWORD,
-      srp: TEST_PHRASE,
+      password: Password.from(TEST_PASSWORD),
+      srp: Srp.from(TEST_PHRASE),
       infuraProjectId: INFURA_PROJECT_ID,
       log: () => undefined,
     });
@@ -83,8 +84,8 @@ describe('createWallet (integration)', () => {
     const { wallet, dispose } = await createWallet({
       databasePath,
       infuraProjectId: INFURA_PROJECT_ID,
-      password: TEST_PASSWORD,
-      srp: TEST_PHRASE,
+      password: Password.from(TEST_PASSWORD),
+      srp: Srp.from(TEST_PHRASE),
     });
 
     try {
@@ -102,8 +103,8 @@ describe('createWallet (integration)', () => {
     const first = await createWallet({
       databasePath,
       infuraProjectId: INFURA_PROJECT_ID,
-      password: TEST_PASSWORD,
-      srp: TEST_PHRASE,
+      password: Password.from(TEST_PASSWORD),
+      srp: Srp.from(TEST_PHRASE),
     });
     const firstAddress = first.wallet.messenger
       .call('AccountsController:listAccounts')
@@ -113,8 +114,8 @@ describe('createWallet (integration)', () => {
     const second = await createWallet({
       databasePath,
       infuraProjectId: INFURA_PROJECT_ID,
-      password: TEST_PASSWORD,
-      srp: TEST_PHRASE,
+      password: Password.from(TEST_PASSWORD),
+      srp: Srp.from(TEST_PHRASE),
     });
 
     try {
@@ -136,15 +137,15 @@ describe('createWallet (integration)', () => {
     const first = await createWallet({
       databasePath,
       infuraProjectId: INFURA_PROJECT_ID,
-      password: TEST_PASSWORD,
-      srp: TEST_PHRASE,
+      password: Password.from(TEST_PASSWORD),
+      srp: Srp.from(TEST_PHRASE),
     });
     await first.dispose();
 
     const second = await createWallet({
       databasePath,
       infuraProjectId: INFURA_PROJECT_ID,
-      srp: TEST_PHRASE,
+      srp: Srp.from(TEST_PHRASE),
     });
 
     try {
@@ -170,8 +171,8 @@ describe('createWallet (integration)', () => {
     const first = await createWallet({
       databasePath,
       infuraProjectId: INFURA_PROJECT_ID,
-      password: TEST_PASSWORD,
-      srp: TEST_PHRASE,
+      password: Password.from(TEST_PASSWORD),
+      srp: Srp.from(TEST_PHRASE),
     });
     await first.dispose();
 
@@ -179,8 +180,8 @@ describe('createWallet (integration)', () => {
       createWallet({
         databasePath,
         infuraProjectId: INFURA_PROJECT_ID,
-        password: 'definitely-not-the-right-password',
-        srp: TEST_PHRASE,
+        password: Password.from('definitely-not-the-right-password'),
+        srp: Srp.from(TEST_PHRASE),
       }),
     ).rejects.toThrow(/incorrect password|decrypt/iu);
 
@@ -188,8 +189,8 @@ describe('createWallet (integration)', () => {
     const retry = await createWallet({
       databasePath,
       infuraProjectId: INFURA_PROJECT_ID,
-      password: TEST_PASSWORD,
-      srp: TEST_PHRASE,
+      password: Password.from(TEST_PASSWORD),
+      srp: Srp.from(TEST_PHRASE),
     });
 
     try {

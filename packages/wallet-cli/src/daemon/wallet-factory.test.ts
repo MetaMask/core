@@ -12,6 +12,7 @@ import { join } from 'node:path';
 
 import { KeyValueStore } from '../persistence/KeyValueStore';
 import * as persistenceModule from '../persistence/persistence';
+import { Password, Srp } from './secrets';
 import { createWallet } from './wallet-factory';
 
 jest.mock('@metamask/wallet');
@@ -29,8 +30,8 @@ const SRP =
 
 const CONFIG = {
   databasePath: ':memory:',
-  password: 'test-pass',
-  srp: SRP,
+  password: Password.from('test-pass'),
+  srp: Srp.from(SRP),
   infuraProjectId: 'test-infura-id',
 };
 
@@ -299,30 +300,6 @@ describe('createWallet', () => {
     const { password: _password, ...configWithoutPassword } = CONFIG;
 
     await expect(createWallet(configWithoutPassword)).rejects.toThrow(
-      /password is required on first run/iu,
-    );
-
-    expect(mockImportSrp).not.toHaveBeenCalled();
-  });
-
-  it('treats an empty-string password as no password (subsequent run stays locked)', async () => {
-    jest.spyOn(persistenceModule, 'loadState').mockReturnValue({
-      KeyringController: { vault: 'encrypted-vault-blob' },
-    });
-
-    const { wallet, dispose } = await createWallet({ ...CONFIG, password: '' });
-
-    expect(mockImportSrp).not.toHaveBeenCalled();
-    expect(wallet.messenger.call).not.toHaveBeenCalledWith(
-      'KeyringController:submitPassword',
-      expect.anything(),
-    );
-
-    await dispose();
-  });
-
-  it('rejects empty-string password on first run with the same error as missing password', async () => {
-    await expect(createWallet({ ...CONFIG, password: '' })).rejects.toThrow(
       /password is required on first run/iu,
     );
 

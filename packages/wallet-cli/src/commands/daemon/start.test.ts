@@ -6,14 +6,10 @@ jest.mock('../../daemon/daemon-spawn');
 
 const mockEnsureDaemon = jest.mocked(ensureDaemon);
 
-const FLAGS = [
-  '--infura-project-id',
-  'key',
-  '--password',
-  'pw',
-  '--srp',
-  'phrase',
-];
+const SRP =
+  'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+
+const FLAGS = ['--infura-project-id', 'key', '--password', 'pw', '--srp', SRP];
 
 describe('daemon start', () => {
   it('reports the socket path on a fresh start', async () => {
@@ -25,13 +21,10 @@ describe('daemon start', () => {
     const { stdout } = await runCommand(DaemonStart, FLAGS);
 
     expect(stdout).toContain('Daemon running. Socket: /tmp/daemon.sock');
-    expect(mockEnsureDaemon).toHaveBeenCalledWith(
-      expect.objectContaining({
-        infuraProjectId: 'key',
-        password: 'pw',
-        srp: 'phrase',
-      }),
-    );
+    const config = mockEnsureDaemon.mock.calls[0][0];
+    expect(config.infuraProjectId).toBe('key');
+    expect(config.password?.unwrap()).toBe('pw');
+    expect(config.srp.unwrap()).toBe(SRP);
   });
 
   it('warns that flags were not applied when a daemon is already running', async () => {
@@ -52,12 +45,7 @@ describe('daemon start', () => {
       socketPath: '/tmp/daemon.sock',
     });
 
-    await runCommand(DaemonStart, [
-      '--infura-project-id',
-      'key',
-      '--srp',
-      'phrase',
-    ]);
+    await runCommand(DaemonStart, ['--infura-project-id', 'key', '--srp', SRP]);
 
     expect(mockEnsureDaemon).toHaveBeenCalledWith(
       expect.objectContaining({ password: undefined }),

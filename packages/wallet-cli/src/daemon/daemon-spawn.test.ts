@@ -6,6 +6,7 @@ import { pingDaemon } from './daemon-client';
 import { ensureDaemon } from './daemon-spawn';
 import { ensureOwnerOnlyDirectory } from './data-dir';
 import { getDaemonPaths } from './paths';
+import { Password, Srp } from './secrets';
 import type { DaemonSpawnConfig } from './types';
 
 jest.mock('node:child_process');
@@ -26,11 +27,14 @@ const mockGetDaemonPaths = jest.mocked(getDaemonPaths);
 // assert it is wired into the child's stdio and later closed in the parent.
 const LOG_FILE_DESCRIPTOR = 7;
 
+const SRP =
+  'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+
 const CONFIG: DaemonSpawnConfig = {
   dataDir: '/tmp/data',
   infuraProjectId: 'test-key',
-  password: 'test-pass',
-  srp: 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
+  password: Password.from('test-pass'),
+  srp: Srp.from(SRP),
   packageRoot: '/pkg',
 };
 
@@ -146,8 +150,7 @@ describe('ensureDaemon', () => {
           MM_DAEMON_SOCKET_PATH: '/tmp/test.sock',
           INFURA_PROJECT_ID: 'test-key',
           MM_WALLET_PASSWORD: 'test-pass',
-          MM_WALLET_SRP:
-            'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
+          MM_WALLET_SRP: SRP,
         }),
       }),
     );
@@ -412,7 +415,7 @@ describe('ensureDaemon', () => {
       .mockResolvedValueOnce(RESPONSIVE);
     mockExistsSync.mockReturnValue(true);
 
-    await ensureDaemon({ ...CONFIG, password: 'explicit-pass' });
+    await ensureDaemon({ ...CONFIG, password: Password.from('explicit-pass') });
 
     const spawnOpts = mockSpawn.mock.calls[0][2] as { env: NodeJS.ProcessEnv };
     expect(spawnOpts.env.MM_WALLET_PASSWORD).toBe('explicit-pass');

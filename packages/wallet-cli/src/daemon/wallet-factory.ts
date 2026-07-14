@@ -16,15 +16,15 @@ import { rm } from 'node:fs/promises';
 
 import { KeyValueStore } from '../persistence/KeyValueStore';
 import { loadState, subscribeToChanges } from '../persistence/persistence';
+import type { Password, Srp } from './secrets';
 import type { Logger } from './types';
-import { blankToUndefined } from './utils';
 
 const IN_MEMORY_DATABASE_PATH = ':memory:';
 
 export type CreateWalletConfig = {
   databasePath: string;
-  password?: string;
-  srp: string;
+  password?: Password;
+  srp: Srp;
   infuraProjectId: string;
   log?: Logger;
 };
@@ -151,8 +151,6 @@ export async function createWallet({
   infuraProjectId,
   log,
 }: CreateWalletConfig): Promise<CreateWalletResult> {
-  const effectivePassword = blankToUndefined(password);
-
   const logFn = log ?? ((message: string): void => console.error(message));
   const store = new KeyValueStore(databasePath);
   let wallet: Wallet | undefined;
@@ -166,7 +164,7 @@ export async function createWallet({
     // Validate the first-run precondition BEFORE constructing the wallet,
     // so a doomed startup doesn't build a Wallet (and wire persistence
     // handlers) just to tear it down.
-    if (wasFirstRun && effectivePassword === undefined) {
+    if (wasFirstRun && password === undefined) {
       throw new Error(
         'A password is required on first run to import the secret recovery phrase. ' +
           'Pass `--password` (or `MM_WALLET_PASSWORD`) on `mm daemon start`.',
@@ -205,19 +203,19 @@ export async function createWallet({
     }
 
     if (wasFirstRun) {
-      // The precondition check above guards this branch on `effectivePassword`,
-      // but TS does not narrow it across the intervening `await wallet.init()`,
-      // hence the assertion.
+      // The precondition check above guards this branch on `password`, but TS
+      // does not narrow it across the intervening `await wallet.init()`, hence
+      // the assertion.
       await importSecretRecoveryPhrase(
         wallet,
-        effectivePassword as string,
-        srp,
+        (password as Password).unwrap(),
+        srp.unwrap(),
       );
-    } else if (effectivePassword !== undefined) {
+    } else if (password !== undefined) {
       try {
         await wallet.messenger.call(
           'KeyringController:submitPassword',
-          effectivePassword,
+          password.unwrap(),
         );
       } catch (error) {
         throw new Error(

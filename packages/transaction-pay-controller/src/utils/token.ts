@@ -10,11 +10,11 @@ import {
   CHAIN_ID_POLYGON,
   NATIVE_TOKEN_ADDRESS,
   SLIP44_COIN_TYPE_BY_CHAIN,
-  STABLECOINS,
 } from '../constants';
 import type { FiatRates, TransactionPayControllerMessenger } from '../types';
 import {
   getAssetsUnifyStateFeature,
+  getStablecoins,
   isChainExcludedFromInfura,
 } from './feature-flags';
 import { getNetworkClientId, rpcRequest } from './provider';
@@ -209,7 +209,7 @@ export function getTokenFiatRate(
   if (nativeToFiatRate === null || nativeToUsdRate === null) {
     return undefined;
   }
-  const isStablecoin = STABLECOINS[chainId]?.includes(
+  const isStablecoin = getStablecoins(messenger)[chainId]?.includes(
     tokenAddress.toLowerCase() as Hex,
   );
 
