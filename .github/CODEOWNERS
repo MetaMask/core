@@ -120,6 +120,9 @@
 /packages/subscription-controller        @MetaMask/web3auth
 /packages/claims-controller              @MetaMask/web3auth
 
+## Network Team
+/packages/stellar-assets-controller @MetaMask/networks
+
 ## Joint team ownership
 /packages/announcement-controller               @MetaMask/core-extension-ux @MetaMask/mobile-core-ux
 /packages/client-utils                          @MetaMask/core-extension-ux @MetaMask/mobile-core-ux

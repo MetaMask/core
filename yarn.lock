@@ -8776,6 +8776,23 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@metamask/stellar-assets-controller@workspace:packages/stellar-assets-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/stellar-assets-controller@workspace:packages/stellar-assets-controller"
+  dependencies:
+    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@ts-bridge/cli": "npm:^0.6.4"
+    "@types/jest": "npm:^29.5.14"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^29.7.0"
+    ts-jest: "npm:^29.2.5"
+    tsx: "npm:^4.20.5"
+    typedoc: "npm:^0.25.13"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.3.3"
+  languageName: unknown
+  linkType: soft
+
 "@metamask/stellar-quickstart-up@workspace:packages/stellar-quickstart-up":
   version: 0.0.0-use.local
   resolution: "@metamask/stellar-quickstart-up@workspace:packages/stellar-quickstart-up"

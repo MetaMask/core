@@ -127,6 +127,7 @@ yarn skills --reset                 # clear saved local selection
 - [`@metamask/snap-account-service`](packages/snap-account-service)
 - [`@metamask/social-controllers`](packages/social-controllers)
 - [`@metamask/solana-test-validator-up`](packages/solana-test-validator-up)
+- [`@metamask/stellar-assets-controller`](packages/stellar-assets-controller)
 - [`@metamask/stellar-quickstart-up`](packages/stellar-quickstart-up)
 - [`@metamask/storage-service`](packages/storage-service)
 - [`@metamask/subscription-controller`](packages/subscription-controller)
@@ -231,6 +232,7 @@ linkStyle default opacity:0.5
   snap_account_service(["@metamask/snap-account-service"]);
   social_controllers(["@metamask/social-controllers"]);
   solana_test_validator_up(["@metamask/solana-test-validator-up"]);
+  stellar_assets_controller(["@metamask/stellar-assets-controller"]);
   stellar_quickstart_up(["@metamask/stellar-quickstart-up"]);
   storage_service(["@metamask/storage-service"]);
   subscription_controller(["@metamask/subscription-controller"]);

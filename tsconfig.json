@@ -264,6 +264,9 @@
       "path": "./packages/solana-test-validator-up"
     },
     {
+      "path": "./packages/stellar-assets-controller"
+    },
+    {
       "path": "./packages/stellar-quickstart-up"
     },
     {

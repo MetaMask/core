@@ -272,6 +272,9 @@
       "path": "./packages/solana-test-validator-up/tsconfig.build.json"
     },
     {
+      "path": "./packages/stellar-assets-controller/tsconfig.build.json"
+    },
+    {
       "path": "./packages/stellar-quickstart-up/tsconfig.build.json"
     },
     {
