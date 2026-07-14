@@ -94,7 +94,7 @@ export class ExampleDataService extends BaseDataService<
         return response.json();
       },
       staleTime: inMilliseconds(1, Duration.Day),
-      cacheTime: 0, // Not recommended in production, just for testing purposes.
+      cacheTime: inMilliseconds(1, Duration.Day),
     });
   }
 

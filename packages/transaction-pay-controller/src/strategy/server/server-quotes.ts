@@ -1,11 +1,18 @@
 import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  AuthorizationList,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { CHAIN_ID_HYPERCORE, TransactionPayStrategy } from '../../constants';
+import {
+  CHAIN_ID_HYPERCORE,
+  PaymentOverride,
+  TransactionPayStrategy,
+} from '../../constants';
 import { projectLogger } from '../../logger';
 import type {
   PayStrategyGetQuotesRequest,
@@ -38,7 +45,7 @@ import type {
   ServerQuote,
   ServerQuoteRequest,
   ServerQuoteResult,
-  ServerQuoteStep,
+  ServerTransactionStep,
 } from './types';
 import { ServerTradeType } from './types';
 
@@ -64,6 +71,12 @@ type SourceNetworkCost = Pick<
   maxFeePerGas: string | undefined;
   maxPriorityFeePerGas: string | undefined;
 };
+
+function isTransactionStep(
+  step: ServerQuote['steps'][number],
+): step is ServerTransactionStep {
+  return step.type === 'transaction';
+}
 
 /**
  * Fetch server intents-api quotes and normalize them into Transaction Pay quotes.
@@ -138,6 +151,7 @@ async function buildServerQuoteRequest(
     from,
     isMaxAmount,
     isPostQuote,
+    paymentOverride,
     sourceChainId,
     sourceTokenAddress,
     sourceTokenAmount,
@@ -146,7 +160,10 @@ async function buildServerQuoteRequest(
     targetTokenAddress,
   } = normalizedRequest;
 
-  const useExactInput = (isMaxAmount ?? false) || (isPostQuote ?? false);
+  const useExactInput =
+    (isMaxAmount ?? false) ||
+    (isPostQuote ?? false) ||
+    Boolean(normalizedRequest.isHyperliquidSource);
   const singleData = getSingleTransactionData(transaction);
   const isHypercore = targetChainId === CHAIN_ID_HYPERCORE;
   const isTokenTransfer =
@@ -158,8 +175,11 @@ async function buildServerQuoteRequest(
     recipient = decodeTransferRecipient(singleData);
   }
 
+  const isHypercoreSource = sourceChainId === CHAIN_ID_HYPERCORE;
   const supportsGasless =
-    accountSupports7702 && isEIP7702Chain(messenger, sourceChainId);
+    !isHypercoreSource &&
+    accountSupports7702 &&
+    isEIP7702Chain(messenger, sourceChainId);
 
   const body: ServerQuoteRequest = {
     source: { chainId: Number(sourceChainId), token: sourceTokenAddress },
@@ -181,10 +201,18 @@ async function buildServerQuoteRequest(
     hasNoData ||
     isTokenTransfer ||
     isHypercore ||
+    isHypercoreSource ||
     (isPostQuote ?? false) ||
     (isMaxAmount ?? false);
 
-  if (!skipDelegation) {
+  if (isPostQuote && paymentOverride === PaymentOverride.MoneyAccount) {
+    await processMoneyAccountPostQuote(
+      transaction,
+      normalizedRequest,
+      body,
+      messenger,
+    );
+  } else if (!skipDelegation) {
     const delegation = await messenger.call(
       'TransactionPayController:getDelegationTransaction',
       { transaction },
@@ -204,25 +232,89 @@ async function buildServerQuoteRequest(
     ];
 
     if (delegation.authorizationList?.length) {
-      body.authorizationList = delegation.authorizationList.map((entry) => ({
-        address: entry.address,
-        chainId: Number(entry.chainId),
-        nonce: Number(entry.nonce),
-        r: entry.r as Hex,
-        s: entry.s as Hex,
-        yParity: Number(entry.yParity),
-      }));
+      body.authorizationList = normalizeAuthorizationList(
+        delegation.authorizationList,
+      );
     }
   }
 
   return body;
 }
 
+function normalizeAuthorizationList(
+  authorizationList: AuthorizationList,
+): NonNullable<ServerQuoteRequest['authorizationList']> {
+  return authorizationList.map((entry) => ({
+    address: entry.address,
+    chainId: Number(entry.chainId),
+    nonce: Number(entry.nonce),
+    r: entry.r as Hex,
+    s: entry.s as Hex,
+    yParity: Number(entry.yParity),
+  }));
+}
+
+async function processMoneyAccountPostQuote(
+  transaction: TransactionMeta,
+  request: QuoteRequest,
+  body: ServerQuoteRequest,
+  messenger: TransactionPayControllerMessenger,
+): Promise<void> {
+  const { transactionData: transactionDataList } = messenger.call(
+    'TransactionPayController:getState',
+  );
+
+  const transactionData = transactionDataList[transaction.id];
+  const amountHuman = transactionData?.tokens?.[0]?.amountHuman ?? '0';
+
+  const {
+    calls: overrideCalls,
+    recipient,
+    authorizationList,
+  } = await messenger.call('TransactionPayController:getPaymentOverrideData', {
+    amount: amountHuman,
+    transaction,
+    transactionData,
+  });
+
+  if (!overrideCalls.length) {
+    log('No payment override calls for money account post-quote');
+    return;
+  }
+
+  const fundingRecipient = recipient ?? request.from;
+
+  body.tradeType = ServerTradeType.ExactInput;
+  body.amount = request.sourceTokenAmount;
+
+  body.calls = [
+    {
+      data: buildTransferData(fundingRecipient, request.sourceTokenAmount),
+      to: request.targetTokenAddress,
+      value: '0x0',
+    },
+    ...overrideCalls.map((call) => ({
+      data: call.data as Hex,
+      to: call.to as Hex,
+      value: call.value ?? '0x0',
+    })),
+  ];
+
+  if (authorizationList?.length) {
+    body.authorizationList = normalizeAuthorizationList(authorizationList);
+  }
+
+  log('Added money account post-quote calls to server quote body', {
+    callCount: overrideCalls.length,
+  });
+}
+
 function shouldRequestQuote(quoteRequest: QuoteRequest): boolean {
   return (
     quoteRequest.targetAmountMinimum !== '0' ||
     Boolean(quoteRequest.isPostQuote) ||
-    Boolean(quoteRequest.isMaxAmount)
+    Boolean(quoteRequest.isMaxAmount) ||
+    Boolean(quoteRequest.isHyperliquidSource)
   );
 }
 
@@ -233,11 +325,13 @@ async function normalizeQuote(
 ): Promise<TransactionPayQuote<ServerQuote>> {
   const { quote } = result;
   const { gasless } = quote;
+  const transactionSteps = quote.steps.filter(isTransactionStep);
+  const isSignatureOnly = transactionSteps.length === 0;
   const sourceNetwork = await calculateSourceNetworkCost({
-    gasless,
+    gasless: gasless || isSignatureOnly,
     messenger,
     quoteRequest,
-    steps: quote.steps,
+    steps: transactionSteps,
   });
 
   const sourceFiatRate = getTokenFiatRate(
@@ -323,7 +417,7 @@ async function calculateSourceNetworkCost({
   gasless: boolean;
   messenger: TransactionPayControllerMessenger;
   quoteRequest: QuoteRequest;
-  steps: ServerQuoteStep[];
+  steps: ServerTransactionStep[];
 }): Promise<SourceNetworkCost> {
   const noFees = {
     estimate: ZERO_AMOUNT,
@@ -336,11 +430,6 @@ async function calculateSourceNetworkCost({
 
   if (gasless) {
     log('Zeroing source network fees for gasless quote');
-    return noFees;
-  }
-
-  if (steps.length === 0) {
-    log('No quote steps; zeroing source network fees');
     return noFees;
   }
 
@@ -452,7 +541,7 @@ async function calculateSourceNetworkCost({
 }
 
 function stepToGasTransaction(
-  step: ServerQuoteStep,
+  step: ServerTransactionStep,
   from: Hex,
 ): QuoteGasTransaction {
   return {
