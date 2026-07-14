@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Wire the `transactionController` slot in the daemon wallet's instance options, so the daemon runs the `TransactionController` with an explicit CLI-appropriate configuration (swaps processing disabled, no client hooks) rather than relying on the controller's implicit defaults ([#9539](https://github.com/MetaMask/core/pull/9539))
+- Wire the `transactionController` slot in the daemon wallet's instance options, so the daemon runs the `TransactionController` with an explicit CLI-appropriate configuration (swaps processing disabled, no client hooks) rather than relying on the controller's implicit defaults ([#9509](https://github.com/MetaMask/core/pull/9509))
 - Add the `mm wallet unlock` command, which dispatches `KeyringController:submitPassword` over the daemon socket, allowing the keyring to be unlocked after a daemon start with no password or after a `mm daemon call KeyringController:setLocked` ([#8821](https://github.com/MetaMask/core/pull/8821))
 - Add the `mm daemon list` command, which prints the messenger actions the running daemon can dispatch via `daemon call`, enumerated from the live messenger so the list cannot drift from what `call` accepts ([#9339](https://github.com/MetaMask/core/pull/9339))
 - Add the `mm daemon` command suite (`start`, `stop`, `status`, `purge`, and `call`) for running the wallet daemon and dispatching messenger actions over its socket ([#9255](https://github.com/MetaMask/core/pull/9255))
