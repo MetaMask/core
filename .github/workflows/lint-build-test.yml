@@ -2,6 +2,11 @@ name: Lint, Build, and Test
 
 on:
   workflow_call:
+    secrets:
+      SECURITY_SCAN_METRICS_TOKEN:
+        required: false
+      APPSEC_BOT_SLACK_WEBHOOK:
+        required: false
 
 jobs:
   prepare:
@@ -35,6 +40,7 @@ jobs:
       merge-base: ${{ steps.fetch-merge-base.outputs.merge-base }}
       package-names: ${{ steps.packages.outputs.package-names }}
       eslint-paths: ${{ steps.packages.outputs.eslint-paths }}
+      scan-paths: ${{ steps.packages.outputs.scan-paths }}
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
@@ -69,15 +75,29 @@ jobs:
             PACKAGES=$(echo "$OUTPUT" | jq -c '.names')
             if [[ $(echo "$OUTPUT" | jq '.hasRootChange') == "true" ]]; then
               ESLINT_PATHS="full"
+              SCAN_PATHS=""
             else
               ESLINT_PATHS=$(echo "$OUTPUT" | jq -c '.locations')
+              SCAN_PATHS=$(echo "$OUTPUT" | jq -r '.locations[] | . + "/"')
             fi
           else
             PACKAGES=$(yarn workspaces list --no-private --json | jq --slurp --raw-output 'map(.name) | @json')
             ESLINT_PATHS="full"
+            SCAN_PATHS=""
           fi
+
           echo "package-names=$PACKAGES" >> "$GITHUB_OUTPUT"
           echo "eslint-paths=$ESLINT_PATHS" >> "$GITHUB_OUTPUT"
+
+          if [[ -n "$SCAN_PATHS" ]]; then
+            {
+              echo "scan-paths<<SCAN_PATHS_EOF"
+              echo "$SCAN_PATHS"
+              echo "SCAN_PATHS_EOF"
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "scan-paths=" >> "$GITHUB_OUTPUT"
+          fi
         env:
           MERGE_BASE: ${{ steps.fetch-merge-base.outputs.merge-base }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
@@ -150,6 +170,41 @@ jobs:
             echo "Working tree dirty at end of job"
             exit 1
           fi
+
+  analyse-code:
+    name: Analyse code
+    needs: get-changed-packages
+    uses: MetaMask/action-security-code-scanner/.github/workflows/security-scan.yml@da7cf8b27792d992d87cf37c2e0e7e27b4c4ad0a
+    with:
+      scanner-ref: v2
+      paths: ${{ needs.get-changed-packages.outputs.scan-paths }}
+      paths-ignored: |
+        .storybook/
+        **/__snapshots__/
+        **/*.snap
+        **/*.stories.js
+        **/*.stories.tsx
+        **/*.test.browser.ts*
+        **/*.test.js*
+        **/*.test.ts*
+        **/fixtures/
+        **/jest.config.js
+        **/jest.environment.js
+        **/mocks/
+        **/test*/
+        docs/
+        e2e/
+        merged-packages/
+        node_modules/
+        storybook/
+        test*/
+    secrets:
+      project-metrics-token: ${{ secrets.SECURITY_SCAN_METRICS_TOKEN }}
+      slack-webhook: ${{ secrets.APPSEC_BOT_SLACK_WEBHOOK }}
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
 
   validate-changelog:
     name: Validate changelog

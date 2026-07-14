@@ -51,44 +51,17 @@ jobs:
         env:
           ACTIONLINT: ${{ steps.download-actionlint.outputs.executable }}
 
-  analyse-code:
-    name: Analyse code
-    needs: check-workflows
-    uses: MetaMask/action-security-code-scanner/.github/workflows/security-scan.yml@v2
-    with:
-      scanner-ref: v2
-      paths-ignored: |
-        .storybook/
-        **/__snapshots__/
-        **/*.snap
-        **/*.stories.js
-        **/*.stories.tsx
-        **/*.test.browser.ts*
-        **/*.test.js*
-        **/*.test.ts*
-        **/fixtures/
-        **/jest.config.js
-        **/jest.environment.js
-        **/mocks/
-        **/test*/
-        docs/
-        e2e/
-        merged-packages/
-        node_modules/
-        storybook/
-        test*/
-    secrets:
-      project-metrics-token: ${{ secrets.SECURITY_SCAN_METRICS_TOKEN }}
-      slack-webhook: ${{ secrets.APPSEC_BOT_SLACK_WEBHOOK }}
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
-
   lint-build-test:
     name: Lint, build, and test
     needs: check-workflows
     uses: ./.github/workflows/lint-build-test.yml
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    secrets:
+      SECURITY_SCAN_METRICS_TOKEN: ${{ secrets.SECURITY_SCAN_METRICS_TOKEN }}
+      APPSEC_BOT_SLACK_WEBHOOK: ${{ secrets.APPSEC_BOT_SLACK_WEBHOOK }}
 
   deploy-platform-api-docs:
     name: Deploy Platform API Docs
@@ -156,7 +129,6 @@ jobs:
     name: All jobs complete
     runs-on: ubuntu-latest
     needs:
-      - analyse-code
       - check-release
       - lint-build-test
     outputs:
