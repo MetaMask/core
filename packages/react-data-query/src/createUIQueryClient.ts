@@ -2,7 +2,6 @@ import type {
   DataServiceGranularCacheUpdatedEvent,
   DataServiceGranularCacheUpdatedPayload,
 } from '@metamask/base-data-service';
-import type { Json } from '@metamask/utils';
 import { assert } from '@metamask/utils';
 import {
   hydrate,
@@ -147,15 +146,11 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
             "Queries must call actions on the messenger provided to createUIQueryClient, e.g. `queryKey: ['ExampleDataService:getAssets', ...]`.",
           );
 
-          // Type assertion: The query key and page param are validated at
-          // runtime to correspond to a configured data service action, and are
-          // expected to be JSON-compatible.
-          const params = [
+          return await messenger.call(
+            action,
             ...options.queryKey.slice(1),
             options.pageParam,
-          ] as Json[];
-
-          return await messenger.call(action, ...params);
+          );
         },
       },
       mutations: config.defaultOptions?.mutations,
@@ -238,18 +233,7 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
           return null;
         }
 
-        if (options === undefined) {
-          return messenger.call(
-            `${service}:invalidateQueries`,
-            filters as Json,
-          );
-        }
-
-        return messenger.call(
-          `${service}:invalidateQueries`,
-          filters as Json,
-          options as Json,
-        );
+        return messenger.call(`${service}:invalidateQueries`, filters, options);
       }),
     );
 
