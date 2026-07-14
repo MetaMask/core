@@ -1,6 +1,6 @@
 {
   "name": "@metamask/authenticated-user-storage",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "SDK for authenticated (non-encrypted) user storage endpoints",
   "keywords": [
     "Ethereum",

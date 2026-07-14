@@ -46,7 +46,9 @@ export type ActivityKind =
   | 'perpsCloseLongTakeProfit'
   | 'marketShort'
   | 'stopMarketCloseShort'
-  | 'marketCloseShort';
+  | 'marketCloseShort'
+  | 'assetActivation'
+  | 'assetDeactivation';
 
 export type Status = 'pending' | 'success' | 'failed' | 'cancelled';
 
@@ -83,6 +85,14 @@ type ActivityData<Type extends ActivityKind, Data> = {
 export type ActivityItem =
   | ActivityData<
       'approveSpendingCap' | 'revokeSpendingCap' | 'increaseSpendingCap',
+      {
+        from?: string;
+        token?: TokenAmount;
+        fees?: Fee[];
+      }
+    >
+  | ActivityData<
+      'assetActivation' | 'assetDeactivation',
       {
         from?: string;
         token?: TokenAmount;

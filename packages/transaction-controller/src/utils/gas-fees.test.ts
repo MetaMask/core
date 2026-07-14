@@ -2,7 +2,12 @@ import type { NetworkClientId } from '@metamask/network-controller';
 
 import type { TransactionControllerMessenger } from '../TransactionController';
 import type { GasFeeFlow, GasFeeFlowResponse } from '../types';
-import { GasFeeEstimateType, TransactionType, UserFeeLevel } from '../types';
+import {
+  GasFeeEstimateLevel,
+  GasFeeEstimateType,
+  TransactionType,
+  UserFeeLevel,
+} from '../types';
 import type { UpdateGasFeesRequest } from './gas-fees';
 import { gweiDecimalToWeiDecimal, updateGasFees } from './gas-fees';
 import { rpcRequest } from './provider';
@@ -15,8 +20,12 @@ jest.mock('./provider', () => ({
 console.error = jest.fn();
 
 const GAS_MOCK = 123;
+const GAS_LOW_MOCK = 111;
+const GAS_HIGH_MOCK = 789;
 const GAS_HEX_MOCK = toHex(GAS_MOCK);
 const GAS_HEX_WEI_MOCK = toHex(GAS_MOCK * 1e9);
+const GAS_LOW_HEX_WEI_MOCK = toHex(GAS_LOW_MOCK * 1e9);
+const GAS_HIGH_HEX_WEI_MOCK = toHex(GAS_HIGH_MOCK * 1e9);
 const ORIGIN_MOCK = 'test.com';
 const MESSENGER_MOCK = {} as unknown as TransactionControllerMessenger;
 const NETWORK_CLIENT_ID_MOCK = 'testNetworkClientId' as NetworkClientId;
@@ -35,9 +44,17 @@ const UPDATE_GAS_FEES_REQUEST_MOCK = {
 const FLOW_RESPONSE_FEE_MARKET_MOCK = {
   estimates: {
     type: GasFeeEstimateType.FeeMarket,
+    low: {
+      maxFeePerGas: GAS_LOW_HEX_WEI_MOCK,
+      maxPriorityFeePerGas: GAS_LOW_HEX_WEI_MOCK,
+    },
     medium: {
       maxFeePerGas: GAS_HEX_WEI_MOCK,
       maxPriorityFeePerGas: GAS_HEX_WEI_MOCK,
+    },
+    high: {
+      maxFeePerGas: GAS_HIGH_HEX_WEI_MOCK,
+      maxPriorityFeePerGas: GAS_HIGH_HEX_WEI_MOCK,
     },
   },
 } as GasFeeFlowResponse;
@@ -45,7 +62,9 @@ const FLOW_RESPONSE_FEE_MARKET_MOCK = {
 const FLOW_RESPONSE_LEGACY_MOCK = {
   estimates: {
     type: GasFeeEstimateType.Legacy,
+    low: GAS_LOW_HEX_WEI_MOCK,
     medium: GAS_HEX_WEI_MOCK,
+    high: GAS_HIGH_HEX_WEI_MOCK,
   },
 } as GasFeeFlowResponse;
 
@@ -220,6 +239,122 @@ describe('gas-fees', () => {
       await updateGasFees(updateGasFeeRequest);
 
       expect(updateGasFeeRequest.getGasFeeEstimates).not.toHaveBeenCalled();
+    });
+
+    it('calls getSavedGasFees with the transaction metadata', async () => {
+      updateGasFeeRequest.txMeta.type = TransactionType.simpleSend;
+
+      await updateGasFees(updateGasFeeRequest);
+
+      expect(updateGasFeeRequest.getSavedGasFees).toHaveBeenCalledWith(
+        updateGasFeeRequest.txMeta,
+      );
+    });
+
+    it('does not call getSavedGasFees if initial gas fee params are provided', async () => {
+      updateGasFeeRequest.txMeta.type = TransactionType.simpleSend;
+      updateGasFeeRequest.txMeta.txParams.maxFeePerGas = GAS_HEX_MOCK;
+      updateGasFeeRequest.txMeta.txParams.maxPriorityFeePerGas = GAS_HEX_MOCK;
+
+      await updateGasFees(updateGasFeeRequest);
+
+      expect(updateGasFeeRequest.getSavedGasFees).not.toHaveBeenCalled();
+    });
+
+    it('uses saved fee market estimate level if saved gas fees include a level', async () => {
+      updateGasFeeRequest.txMeta.type = TransactionType.simpleSend;
+      updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce({
+        level: GasFeeEstimateLevel.High,
+      });
+      mockGasFeeFlowMockResponse(FLOW_RESPONSE_FEE_MARKET_MOCK);
+
+      await updateGasFees(updateGasFeeRequest);
+
+      expect(updateGasFeeRequest.txMeta.txParams.maxFeePerGas).toBe(
+        GAS_HIGH_HEX_WEI_MOCK,
+      );
+      expect(updateGasFeeRequest.txMeta.txParams.maxPriorityFeePerGas).toBe(
+        GAS_HIGH_HEX_WEI_MOCK,
+      );
+      expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(
+        GasFeeEstimateLevel.High,
+      );
+    });
+
+    it('uses saved legacy estimate level if saved gas fees include a level', async () => {
+      updateGasFeeRequest.eip1559 = false;
+      updateGasFeeRequest.txMeta.type = TransactionType.simpleSend;
+      updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce({
+        level: GasFeeEstimateLevel.Low,
+      });
+      mockGasFeeFlowMockResponse(FLOW_RESPONSE_LEGACY_MOCK);
+
+      await updateGasFees(updateGasFeeRequest);
+
+      expect(updateGasFeeRequest.txMeta.txParams.gasPrice).toBe(
+        GAS_LOW_HEX_WEI_MOCK,
+      );
+      expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(
+        GasFeeEstimateLevel.Low,
+      );
+    });
+
+    it('sets userFeeLevel to custom if saved gas fees include both a level and a custom override', async () => {
+      updateGasFeeRequest.txMeta.type = TransactionType.simpleSend;
+      updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce({
+        level: GasFeeEstimateLevel.High,
+        maxBaseFee: '123',
+      });
+      mockGasFeeFlowMockResponse(FLOW_RESPONSE_FEE_MARKET_MOCK);
+
+      await updateGasFees(updateGasFeeRequest);
+
+      expect(updateGasFeeRequest.txMeta.txParams.maxFeePerGas).toBe(
+        '0x1ca35f0e00', // 123 gwei
+      );
+      expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(UserFeeLevel.CUSTOM);
+    });
+
+    it('sets userFeeLevel to custom if saved gas fees include a level but flow returns a flat gas price estimate', async () => {
+      updateGasFeeRequest.txMeta.type = TransactionType.simpleSend;
+      updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce({
+        level: GasFeeEstimateLevel.High,
+      });
+      mockGasFeeFlowMockResponse(FLOW_RESPONSE_GAS_PRICE_MOCK);
+
+      await updateGasFees(updateGasFeeRequest);
+
+      expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(UserFeeLevel.CUSTOM);
+    });
+
+    it('sets userFeeLevel to custom if saved gas fees include a level but getGasFeeEstimates throws', async () => {
+      updateGasFeeRequest.txMeta.type = TransactionType.simpleSend;
+      updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce({
+        level: GasFeeEstimateLevel.High,
+      });
+      updateGasFeeRequest.getGasFeeEstimates.mockReset();
+      updateGasFeeRequest.getGasFeeEstimates.mockRejectedValueOnce(
+        new Error('TestError'),
+      );
+      rpcRequestMock.mockResolvedValueOnce(GAS_HEX_MOCK);
+
+      await updateGasFees(updateGasFeeRequest);
+
+      expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(UserFeeLevel.CUSTOM);
+    });
+
+    it('uses saved gasPrice if saved gas fees include a legacy custom value', async () => {
+      updateGasFeeRequest.eip1559 = false;
+      updateGasFeeRequest.txMeta.type = TransactionType.simpleSend;
+      updateGasFeeRequest.getSavedGasFees.mockReturnValueOnce({
+        level: UserFeeLevel.CUSTOM,
+        gasPrice: '10',
+      });
+
+      await updateGasFees(updateGasFeeRequest);
+
+      expect(updateGasFeeRequest.txMeta.txParams.gasPrice).toBe('0x2540be400');
+      expect(updateGasFeeRequest.txMeta.userFeeLevel).toBe(UserFeeLevel.CUSTOM);
     });
 
     describe('sets maxFeePerGas', () => {

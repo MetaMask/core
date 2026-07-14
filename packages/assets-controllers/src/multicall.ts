@@ -317,6 +317,8 @@ const MULTICALL_CONTRACT_BY_CHAINID = {
   '0x1079': '0xcA11bde05977b3631167028862bE2a173976CA11',
   // Arc (5042)
   '0x13b2': '0xcA11bde05977b3631167028862bE2a173976CA11',
+  // Robinhood Chain (4663)
+  '0x1237': '0xcA11bde05977b3631167028862bE2a173976CA11',
 } as Record<Hex, Hex>;
 
 const multicallAbi = [

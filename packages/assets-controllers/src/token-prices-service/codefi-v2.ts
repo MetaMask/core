@@ -296,6 +296,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x13b2': 'eip155:5042/erc20:0x0000000000000000000000000000000000000000', // Arc - Native symbol: USDC
   '0x1b58': 'eip155:7000/slip44:7000', // ZetaChain - Native symbol: ZETA
   '0x2105': 'eip155:8453/slip44:60', // Base - Native symbol: ETH
+  '0x1237': 'eip155:4663/slip44:60', // Robinhood Chain - Native symbol: ETH
   '0x2611': 'eip155:9745/erc20:0x0000000000000000000000000000000000000000', // Plasma mainnet - native symbol: XPL
   '0x2710': 'eip155:10000/slip44:145', // Smart Bitcoin Cash - Native symbol: BCH
   '0x8173': 'eip155:33139/erc20:0x0000000000000000000000000000000000000000', // Apechain Mainnet - Native symbol: APE

@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Robinhood Chain (`4663`/`0x1237`) BalanceFetcher support for legacy single-call token detection ([#9473](https://github.com/MetaMask/core/pull/9473))
+  - Add `Robinhood` in `SupportedTokenDetectionNetworks`
+  - Add Robinhood BalanceFetcher address in `SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID`
+
+### Removed
+
+- **BREAKING:** Revert Snap account-asset enrichment added in 109.3.0 ([#9454](https://github.com/MetaMask/core/pull/9454))
+  - `MultichainBalancesController` no longer fetches or stores `accountAssetInfo` on balance rows; enrichment is handled client-side by the unified assets controller.
+  - Remove exported types `AccountAssetInfo` and `MultichainAccountBalance`.
+  - Remove optional `accountAssetInfo` from selector `Asset` items.
+  - `MultichainAssetsController:accountAssetListUpdated` no longer includes a `refreshed` asset list for already-tracked snap adds;
+
+## [109.4.1]
+
+### Changed
+
+- Bump `@metamask/transaction-controller` from `^68.3.0` to `^69.0.0` ([#9456](https://github.com/MetaMask/core/pull/9456), [#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/profile-sync-controller` from `^28.2.0` to `^28.3.0` ([#9463](https://github.com/MetaMask/core/pull/9463))
+- Bump `@metamask/accounts-controller` from `^39.0.4` to `^39.0.5` ([#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/multichain-account-service` from `^12.0.0` to `^13.0.0` ([#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/account-tree-controller` from `^7.5.4` to `^7.5.5` ([#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/network-enablement-controller` from `^5.4.1` to `^5.5.0` ([#9470](https://github.com/MetaMask/core/pull/9470))
+- Bump `@metamask/phishing-controller` from `^17.2.0` to `^17.2.1` ([#9470](https://github.com/MetaMask/core/pull/9470))
+
+## [109.4.0]
+
+### Added
+
+- Add Robinhood Chain (`4663`/`0x1237`) entries in `multicall.ts` and `codefi-v2.ts` ([#9443](https://github.com/MetaMask/core/pull/9443))
+
 ## [109.3.1]
 
 ### Changed
@@ -3277,7 +3309,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use Ethers for AssetsContractController ([#845](https://github.com/MetaMask/core/pull/845))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.3.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.4.1...HEAD
+[109.4.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.4.0...@metamask/assets-controllers@109.4.1
+[109.4.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.3.1...@metamask/assets-controllers@109.4.0
 [109.3.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.3.0...@metamask/assets-controllers@109.3.1
 [109.3.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.2.2...@metamask/assets-controllers@109.3.0
 [109.2.2]: https://github.com/MetaMask/core/compare/@metamask/assets-controllers@109.2.1...@metamask/assets-controllers@109.2.2

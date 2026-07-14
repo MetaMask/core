@@ -5,7 +5,10 @@ import {
   TransactionType,
 } from '@metamask/keyring-api';
 
+import { CustomTransactionTypeLabel } from '../../src/mappers/keyring-transaction-mapper';
+
 const accountId = '00000000-0000-4000-8000-000000000000';
+const stellarUsdcAsset = `stellar:pubnet/asset:USDC-GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN`;
 
 export const keyringTransactionFixtures = {
   addresses: {
@@ -285,6 +288,108 @@ export const keyringTransactionFixtures = {
             },
           },
         ],
+        fees: [],
+        events: [],
+      } as never,
+    },
+    trustlineApprove: {
+      transaction: {
+        id: 'trustline-approve-id',
+        chain: 'stellar:pubnet',
+        account: accountId,
+        status: TransactionStatus.Confirmed,
+        timestamp: 1716367781,
+        type: TransactionType.TokenApprove,
+        details: {
+          typeLabel: CustomTransactionTypeLabel.TrustlineApprove,
+        },
+        from: [
+          {
+            address: 'owner-address',
+            asset: {
+              fungible: true,
+              type: stellarUsdcAsset,
+              unit: 'USDC',
+              amount: '0',
+            },
+          },
+        ],
+        to: [{ address: 'issuer-address', asset: null }],
+        fees: [],
+        events: [],
+      } as never,
+    },
+    trustlineApproveNoAmount: {
+      transaction: {
+        id: 'trustline-approve-no-amount-id',
+        chain: 'stellar:pubnet',
+        account: accountId,
+        status: TransactionStatus.Confirmed,
+        timestamp: 1716367781,
+        type: TransactionType.TokenApprove,
+        details: {
+          typeLabel: CustomTransactionTypeLabel.TrustlineApprove,
+        },
+        from: [{ address: 'owner-address', asset: null }],
+        to: [{ address: 'issuer-address', asset: null }],
+        fees: [],
+        events: [],
+      } as never,
+    },
+    trustlineDisapprove: {
+      transaction: {
+        id: 'trustline-disapprove-id',
+        chain: 'stellar:pubnet',
+        account: accountId,
+        status: TransactionStatus.Confirmed,
+        timestamp: 1716367781,
+        type: TransactionType.TokenDisapprove,
+        details: {
+          typeLabel: CustomTransactionTypeLabel.TrustlineDisapprove,
+        },
+        from: [
+          {
+            address: 'owner-address',
+            asset: {
+              fungible: true,
+              type: stellarUsdcAsset,
+              unit: 'USDC',
+              amount: '0',
+            },
+          },
+        ],
+        to: [{ address: 'issuer-address', asset: null }],
+        fees: [],
+        events: [],
+      } as never,
+    },
+    trustlineDisapproveNoAmount: {
+      transaction: {
+        id: 'trustline-disapprove-no-amount-id',
+        chain: 'stellar:pubnet',
+        account: accountId,
+        status: TransactionStatus.Confirmed,
+        timestamp: 1716367781,
+        type: TransactionType.TokenDisapprove,
+        details: {
+          typeLabel: CustomTransactionTypeLabel.TrustlineDisapprove,
+        },
+        from: [{ address: 'owner-address', asset: null }],
+        to: [{ address: 'issuer-address', asset: null }],
+        fees: [],
+        events: [],
+      } as never,
+    },
+    disapproveNonTrustline: {
+      transaction: {
+        id: 'plain-disapprove-id',
+        chain: SolScope.Mainnet,
+        account: accountId,
+        status: TransactionStatus.Confirmed,
+        timestamp: 1716367781,
+        type: TransactionType.TokenDisapprove,
+        from: [{ address: 'owner-address', asset: null }],
+        to: [{ address: 'spender-address', asset: null }],
         fees: [],
         events: [],
       } as never,
