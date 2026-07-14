@@ -267,20 +267,29 @@ function finalizeGroup(group: MutableProtocolGroup): DeFiProtocolPositionGroup {
  *
  * The v6 response keys accounts by the CAIP-10 ID sent to the API, so
  * `resolveAccountId` maps that back to the internal MetaMask account ID used to
- * key state. It defaults to the identity function (leaving the response ID) for
- * callers that don't need the mapping (e.g. tests).
+ * key state. Accounts that do not resolve are skipped. It defaults to the
+ * identity function (leaving the response ID) for callers that don't need the
+ * mapping (e.g. tests).
  *
  * @param response - The v6 multiaccount balances response.
- * @param resolveAccountId - Maps a response (CAIP-10) account ID to the internal account ID.
+ * @param resolveAccountId - Maps a response (CAIP-10) account ID to the internal
+ * account ID, or `undefined` to skip the account.
  * @returns DeFi positions keyed by internal account ID and chain.
  */
 export function groupDeFiPositionsV6(
   response: V6BalancesResponse,
-  resolveAccountId: (responseAccountId: string) => string = (id) => id,
+  resolveAccountId: (
+    responseAccountId: string,
+  ) => string | undefined = (id) => id,
 ): DeFiPositionsByAccount {
   const result: DeFiPositionsByAccount = {};
 
   for (const account of response.accounts) {
+    const accountId = resolveAccountId(account.accountId);
+    if (accountId === undefined) {
+      continue;
+    }
+
     // Seed every queried account so accounts that no longer hold positions
     // overwrite (clear) any previously stored data.
     const groupsByKey = new Map<string, MutableProtocolGroup>();
@@ -329,9 +338,7 @@ export function groupDeFiPositionsV6(
       poolGroups.set(poolAddress, poolPositions);
     }
 
-    result[resolveAccountId(account.accountId)] = [...groupsByKey.values()].map(
-      finalizeGroup,
-    );
+    result[accountId] = [...groupsByKey.values()].map(finalizeGroup);
   }
 
   return result;

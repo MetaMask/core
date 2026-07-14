@@ -9,8 +9,11 @@ import { KnownCaipNamespace, toCaipAccountId } from '@metamask/utils';
 
 /**
  * Networks the DeFi balances (v6 multiaccount) endpoint supports.
+ * Cross-section of the supported chains from:
+ * https://developers.zerion.io/supported-blockchains
+ * https://accounts.api.cx.metamask.io/v2/supportedNetworks
  */
-export const DEFI_SUPPORTED_NETWORKS = [
+export const DEFI_SUPPORTED_NETWORKS: readonly CaipChainId[] = [
   'eip155:1',
   'eip155:137',
   'eip155:56',
@@ -24,37 +27,32 @@ export const DEFI_SUPPORTED_NETWORKS = [
   'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp',
   'eip155:999',
   'eip155:5042',
-] as const satisfies readonly CaipChainId[];
+];
 
-const SOLANA_MAINNET_CAIP_CHAIN_ID = SolScope.Mainnet as CaipChainId;
+const SOLANA_MAINNET_CAIP_CHAIN_ID: CaipChainId = SolScope.Mainnet;
 
 /**
  * Fixed request flags used against the v6 multiaccount balances endpoint so the
  * response only carries what the DeFi views need (positions + prices).
+ * Fiat currency (`vsCurrency`) is not fixed here — it comes from
+ * AssetsController `selectedCurrency` at fetch time.
  */
 export const DEFI_BALANCES_V6_REQUEST_OPTIONS = {
   includeDeFiBalances: true,
   forceFetchDeFiPositions: true,
   includePrices: true,
-  vsCurrency: 'usd',
 } as const;
 
-/**
- * A single account to query, pairing the CAIP-10 ID sent to the API with the
- * internal MetaMask account ID (`InternalAccount.id`) used to key state.
- */
-export type DeFiBalanceAccountQuery = {
-  caipAccountId: CaipAccountId;
-  internalAccountId: string;
-};
-
 export type DeFiBalancesQuery = {
-  /** Per-account entries linking CAIP-10 IDs to internal account IDs. */
-  accounts: DeFiBalanceAccountQuery[];
-  /** CAIP-10 account IDs to query (EVM and/or Solana). */
-  accountIds: CaipAccountId[];
   /** CAIP-2 networks to query, deduped across accounts. */
   networks: CaipChainId[];
+  /**
+   * Normalized CAIP-10 account IDs → internal MetaMask account IDs
+   * (`InternalAccount.id`). Keys are normalized via
+   * {@link normalizeCaipAccountId} so they can be sent as the v6 request
+   * account IDs and used to match response IDs case-insensitively for EVM.
+   */
+  internalAccountIdByCaip: Map<string, string>;
 };
 
 /**
@@ -92,31 +90,30 @@ export function normalizeCaipAccountId(caipAccountId: string): string {
  * the client can filter by enabled networks when reading state.
  *
  * @param internalAccounts - Accounts belonging to the selected account group.
- * @param supportedNetworks - Networks supported by the DeFi balances API.
- * @returns Account IDs and networks for the v6 multiaccount balances request.
+ * @returns Networks and a CAIP→internal account ID map for the v6 multiaccount
+ * balances request. Map keys are the CAIP account IDs to query.
  */
 export function buildDeFiBalancesQuery(
   internalAccounts: InternalAccount[],
-  supportedNetworks: readonly CaipChainId[] = DEFI_SUPPORTED_NETWORKS,
 ): DeFiBalancesQuery {
-  const evmNetworks = supportedNetworks.filter((network) =>
+  const evmNetworks = DEFI_SUPPORTED_NETWORKS.filter((network) =>
     network.startsWith(`${KnownCaipNamespace.Eip155}:`),
   );
-  const solanaNetworks = supportedNetworks.filter((network) =>
+  const solanaNetworks = DEFI_SUPPORTED_NETWORKS.filter((network) =>
     network.startsWith(`${KnownCaipNamespace.Solana}:`),
   );
 
-  const accounts: DeFiBalanceAccountQuery[] = [];
   const networks: CaipChainId[] = [];
+  const internalAccountIdByCaip = new Map<string, string>();
 
   const evmAccount = internalAccounts.find((account) =>
     isEvmAccountType(account.type),
   );
   if (evmAccount && evmNetworks.length > 0) {
-    accounts.push({
-      caipAccountId: toEvmCaipAccountId(evmAccount.address),
-      internalAccountId: evmAccount.id,
-    });
+    internalAccountIdByCaip.set(
+      normalizeCaipAccountId(toEvmCaipAccountId(evmAccount.address)),
+      evmAccount.id,
+    );
     networks.push(...evmNetworks);
   }
 
@@ -125,21 +122,21 @@ export function buildDeFiBalancesQuery(
   );
   if (solanaAccount && solanaNetworks.length > 0) {
     const [, solanaReference] = SOLANA_MAINNET_CAIP_CHAIN_ID.split(':');
-
-    accounts.push({
-      caipAccountId: toCaipAccountId(
-        KnownCaipNamespace.Solana,
-        solanaReference,
-        solanaAccount.address,
+    internalAccountIdByCaip.set(
+      normalizeCaipAccountId(
+        toCaipAccountId(
+          KnownCaipNamespace.Solana,
+          solanaReference,
+          solanaAccount.address,
+        ),
       ),
-      internalAccountId: solanaAccount.id,
-    });
+      solanaAccount.id,
+    );
     networks.push(...solanaNetworks);
   }
 
   return {
-    accounts,
-    accountIds: accounts.map((account) => account.caipAccountId),
     networks: [...new Set(networks)] as CaipChainId[],
+    internalAccountIdByCaip,
   };
 }

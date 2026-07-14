@@ -119,9 +119,16 @@ export class DeFiPositionsControllerV2 extends BaseController<
   readonly #minimumFetchIntervalMs: number;
 
   /**
-   * In-memory timestamp (ms) of the last fetch per query, keyed by the sorted
-   * account IDs. Intentionally not persisted: it resets on restart, so the
-   * first fetch after a restart always goes through.
+   * In-memory timestamp (ms) of the last fetch per set of accounts.
+   *
+   * This is a controller-level gate, separate from TanStack's `staleTime` inside
+   * `fetchV6MultiAccountBalances`: when the interval has not elapsed we
+   * early-return without regrouping or writing state. TanStack still dedupes
+   * in-flight HTTP for identical query keys; this Map skips that work entirely.
+   *
+   * Keyed by sorted CAIP account IDs only (not networks / vsCurrency).
+   * Intentionally not persisted: resets on restart, so the first fetch after a
+   * restart always goes through.
    */
   readonly #lastFetchByKey = new Map<string, number>();
 
@@ -137,15 +144,15 @@ export class DeFiPositionsControllerV2 extends BaseController<
   constructor({
     messenger,
     apiClient,
-    isEnabled = (): boolean => false,
-    getVsCurrency = (): string => DEFI_BALANCES_V6_REQUEST_OPTIONS.vsCurrency,
+    isEnabled,
+    getVsCurrency,
     minimumFetchIntervalMs = ONE_MINUTE_IN_MS,
     state,
   }: {
     messenger: DeFiPositionsControllerV2Messenger;
     apiClient: ApiPlatformClient;
-    isEnabled?: () => boolean;
-    getVsCurrency?: () => string;
+    isEnabled: () => boolean;
+    getVsCurrency: () => string;
     minimumFetchIntervalMs?: number;
     state?: Partial<DeFiPositionsControllerV2State>;
   }) {
@@ -177,40 +184,28 @@ export class DeFiPositionsControllerV2 extends BaseController<
    * response, and updating state.
    *
    * Throttled per set of accounts by an in-memory minimum interval, so repeated
-   * calls within the window are no-ops. Disabled controllers and empty account
-   * groups return without fetching.
+   * calls within the window are no-ops (no HTTP, no regroup, no state write).
+   * Disabled controllers and empty account groups return without fetching.
    */
   async fetchDeFiPositions(): Promise<void> {
     if (!this.#isEnabled()) {
       return;
     }
 
-    const accounts = this.messenger.call(
+    const selectedAccounts = this.messenger.call(
       'AccountTreeController:getAccountsFromSelectedAccountGroup',
     );
 
-    const {
-      accounts: accountQueries,
-      accountIds,
-      networks,
-    } = buildDeFiBalancesQuery(accounts);
+    const { networks, internalAccountIdByCaip } =
+      buildDeFiBalancesQuery(selectedAccounts);
 
-    if (accountIds.length === 0 || networks.length === 0) {
+    if (internalAccountIdByCaip.size === 0 || networks.length === 0) {
       return;
     }
 
-    // The v6 response echoes the CAIP-10 IDs we sent; map them back to the
-    // internal account IDs used to key state.
-    const internalAccountIdByCaip = new Map(
-      accountQueries.map((account) => [
-        normalizeCaipAccountId(account.caipAccountId),
-        account.internalAccountId,
-      ]),
-    );
-    const resolveAccountId = (responseAccountId: string): string =>
-      internalAccountIdByCaip.get(normalizeCaipAccountId(responseAccountId)) ??
-      responseAccountId;
-
+    const accountIds = [...internalAccountIdByCaip.keys()];
+    // Stable key so the same account set throttles together regardless of map
+    // iteration order.
     const throttleKey = [...accountIds].sort().join(',');
     const now = Date.now();
     const lastFetchedAt = this.#lastFetchByKey.get(throttleKey);
@@ -220,7 +215,9 @@ export class DeFiPositionsControllerV2 extends BaseController<
     ) {
       return;
     }
-    // Mark before awaiting so concurrent calls within the window are throttled.
+    // Claim the slot before awaiting so a second call that arrives while the
+    // first is in flight is also dropped (TanStack would share that promise;
+    // we intentionally skip instead).
     this.#lastFetchByKey.set(throttleKey, now);
 
     try {
@@ -235,6 +232,13 @@ export class DeFiPositionsControllerV2 extends BaseController<
           vsCurrency: this.#getVsCurrency().toLowerCase(),
         });
 
+      // The v6 response echoes the CAIP-10 IDs we sent; map them back to the
+      // internal account IDs used to key state. Unmatched accounts are skipped.
+      const resolveAccountId = (
+        responseAccountId: string,
+      ): string | undefined =>
+        internalAccountIdByCaip.get(normalizeCaipAccountId(responseAccountId));
+
       const positionsByAccount = groupDeFiPositionsV6(
         response,
         resolveAccountId,
@@ -248,13 +252,13 @@ export class DeFiPositionsControllerV2 extends BaseController<
         }
       });
     } catch (error) {
-      // Allow a retry before the interval elapses when a fetch fails.
+      // Clear the claim so a failed fetch does not burn the throttle window.
       this.#lastFetchByKey.delete(throttleKey);
       console.error('Failed to fetch DeFi positions', error);
     }
 
     // TODO: The previous controller emitted position-count analytics via a
     // `trackEvent` hook (see calculate-defi-metrics). Deliberately dropped here;
-    // confirm with the analytics owners what metrics V2 needs before re-adding.
+    // confirm what analytics will be needed before re-adding.
   }
 }
