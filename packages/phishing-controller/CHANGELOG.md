@@ -9,14 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Extend `DEFAULT_CHAIN_ID_TO_NAME` with 19 additional chains: `xlayer`, `megaeth`, `tempo`, `tempo-testnet`, `kaia`, `robinhood`, `arc`, `plasma`, `mantle`, `katana`, `plume`, `kite-ai`, `monad-testnet`, `starknet`, `starknet-sepolia`, `stellar`, `bitcoin`, `sui`, `tron`
-- Add `TOKEN_SCAN_SUPPORTED_CHAINS` constant, `TokenScanSupportedChain` type, and `isTokenScanSupportedChain` type guard to gate `bulkScanTokens` per chain
-- Add `ADDRESS_SCAN_SUPPORTED_CHAINS` constant, `AddressScanSupportedChain` type, and `isAddressScanSupportedChain` type guard to gate `scanAddress` per chain
+- Extend `DEFAULT_CHAIN_ID_TO_NAME` with 19 additional chains: `xlayer`, `megaeth`, `tempo`, `tempo-testnet`, `kaia`, `robinhood`, `arc`, `plasma`, `mantle`, `katana`, `plume`, `kite-ai`, `monad-testnet`, `starknet`, `starknet-sepolia`, `stellar`, `bitcoin`, `sui`, `tron` ([#9506](https://github.com/MetaMask/core/pull/9506))
+- Add `TOKEN_SCAN_SUPPORTED_CHAINS` constant, `TokenScanSupportedChain` type, and `isTokenScanSupportedChain` type guard to gate `bulkScanTokens` per chain ([#9506](https://github.com/MetaMask/core/pull/9506))
+- Add `ADDRESS_SCAN_SUPPORTED_CHAINS` constant, `AddressScanSupportedChain` type, and `isAddressScanSupportedChain` type guard to gate `scanAddress` per chain ([#9506](https://github.com/MetaMask/core/pull/9506))
 
 ### Changed
 
-- `bulkScanTokens` now returns `{}` without calling the security-alerts API when the resolved chain is not in `TOKEN_SCAN_SUPPORTED_CHAINS`
-- `scanAddress` now returns `{ result_type: 'ErrorResult', label: '' }` without calling the security-alerts API when the resolved chain is not in `ADDRESS_SCAN_SUPPORTED_CHAINS`
+- `bulkScanTokens` now returns `{}` without calling the security-alerts API when the resolved chain is not in `TOKEN_SCAN_SUPPORTED_CHAINS` ([#9506](https://github.com/MetaMask/core/pull/9506))
+- `scanAddress` now returns `{ result_type: 'ErrorResult', label: '' }` without calling the security-alerts API when the resolved chain is not in `ADDRESS_SCAN_SUPPORTED_CHAINS` ([#9506](https://github.com/MetaMask/core/pull/9506))
 
 ## [17.2.1]
 
