@@ -19,7 +19,7 @@ import {
 } from 'reselect';
 
 import { BRIDGE_PREFERRED_GAS_ESTIMATE } from './constants/bridge';
-import type { BridgeControllerState } from './types';
+import type { BridgeControllerState, ExchangeRate } from './types';
 import { RequestStatus, SortOrder } from './types';
 import {
   getNativeAssetForChainId,
@@ -34,7 +34,6 @@ import {
 } from './utils/caip-formatters';
 import { processFeatureFlags } from './utils/feature-flags';
 import { calcBatchFees } from './utils/quote';
-import type { ExchangeRate } from './utils/quote-metadata';
 import type { TokenAmountValues } from './utils/quote-metadata';
 import { calcQuoteMetadata, mergeQuoteMetadata } from './utils/quote-metadata';
 import type { QuoteMetadata } from './utils/quote-metadata';
@@ -464,8 +463,8 @@ export const selectIsQuoteExpired = createBridgeSelector(
   (isQuoteGoingToRefresh, quotesLastFetched, refreshRate, currentTimeInMs) =>
     Boolean(
       !isQuoteGoingToRefresh &&
-        quotesLastFetched &&
-        currentTimeInMs - quotesLastFetched > refreshRate,
+      quotesLastFetched &&
+      currentTimeInMs - quotesLastFetched > refreshRate,
     ),
 );
 

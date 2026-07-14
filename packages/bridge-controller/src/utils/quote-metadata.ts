@@ -1,5 +1,5 @@
 import { QuoteResponse } from '..';
-import type { DeepPartial } from '../types';
+import type { DeepPartial, ExchangeRate } from '../types';
 import { isEvmQuoteResponse } from './bridge';
 import {
   calcAdjustedReturn,
@@ -14,11 +14,6 @@ import {
   calcTotalEstimatedNetworkFee,
   calcTotalMaxNetworkFee,
 } from './quote';
-
-/**
- * Asset exchange rate values for a given chain and address
- */
-export type ExchangeRate = { exchangeRate?: string; usdExchangeRate?: string };
 
 /**
  * The types of values for the token amount and its values when converted to the user's selected currency and USD

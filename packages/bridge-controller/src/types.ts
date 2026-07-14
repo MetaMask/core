@@ -30,7 +30,6 @@ import type {
 import type { BridgeController } from './bridge-controller';
 import type { BridgeControllerMethodActions } from './bridge-controller-method-action-types';
 import type { BRIDGE_CONTROLLER_NAME } from './constants/bridge';
-import { ExchangeRate } from './utils/quote-metadata';
 import type { SimulatedGasFeeLimitsSchema } from './validators/batch-sell';
 import type { BatchSellTradesResponseSchema } from './validators/batch-sell';
 import type { BridgeAssetSchema } from './validators/bridge-asset';
@@ -90,6 +89,11 @@ export type NonEvmFees = {
 };
 
 export type InputPrimaryDenomination = 'token_amount' | 'fiat_value';
+
+/**
+ * Asset exchange rate values for a given chain and address
+ */
+export type ExchangeRate = { exchangeRate?: string; usdExchangeRate?: string };
 
 /**
  * Sort order set by the user

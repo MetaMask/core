@@ -1,7 +1,7 @@
+import { ChainId, mergeQuoteMetadata } from '@metamask/bridge-controller';
 /* eslint-disable consistent-return */
 import { v4 as uuid } from 'uuid';
 
-import { ChainId, mergeQuoteMetadata } from '@metamask/bridge-controller';
 import { BridgeStatusControllerMessenger } from '../types';
 import { createClientTransactionRequest, handleNonEvmTx } from './snaps';
 

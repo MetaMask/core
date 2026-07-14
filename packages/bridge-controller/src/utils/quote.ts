@@ -6,10 +6,12 @@ import {
 } from '@metamask/controller-utils';
 import { BigNumber } from 'bignumber.js';
 
+import { TokenAmountValues } from '..';
 import type {
   BridgeAsset,
   GenericQuoteRequest,
   L1GasFees,
+  ExchangeRate,
   NonEvmFees,
 } from '../types';
 import { FeatureId } from '../validators/feature-flags';
@@ -17,7 +19,6 @@ import type { Quote } from '../validators/quote';
 import type { QuoteResponseV1 } from '../validators/quote-response-v1';
 import { TxData } from '../validators/trade';
 import { isNativeAddress, isNonEvmChainId } from './bridge';
-import type { ExchangeRate, QuoteMetadata } from './quote-metadata';
 
 export const isValidQuoteRequest = (
   partialRequest: Partial<GenericQuoteRequest>,
@@ -272,7 +273,7 @@ export const calcEstimatedAndMaxTotalGasFee = ({
   bridgeQuote: QuoteResponseV1<TxData, TxData> & L1GasFees;
   maxFeePerGasInDecGwei?: string;
   feePerGasInDecGwei?: string;
-} & ExchangeRate): QuoteMetadata['gasFee'] => {
+} & ExchangeRate) => {
   // Estimated gas fees spent after receiving refunds, this is shown to the user
   const {
     amount: amountEffective,
@@ -344,7 +345,7 @@ export const calcEstimatedAndMaxTotalGasFee = ({
  * @returns The total estimated network fee for the bridge transaction, including the relayer fee paid to bridge providers
  */
 export const calcTotalEstimatedNetworkFee = (
-  gasFee: ReturnType<typeof calcEstimatedAndMaxTotalGasFee>,
+  gasFee: { total?: Partial<TokenAmountValues> } | undefined,
   relayerFee: ReturnType<typeof calcRelayerFee>,
 ) => {
   const { total: gasFeeToDisplay } = gasFee ?? {};
@@ -364,7 +365,7 @@ export const calcTotalEstimatedNetworkFee = (
 };
 
 export const calcTotalMaxNetworkFee = (
-  gasFee: ReturnType<typeof calcEstimatedAndMaxTotalGasFee>,
+  gasFee: { max?: Partial<TokenAmountValues> } | undefined,
   relayerFee: ReturnType<typeof calcRelayerFee>,
 ) => {
   return {

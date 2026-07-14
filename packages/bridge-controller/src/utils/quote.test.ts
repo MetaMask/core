@@ -219,19 +219,9 @@ describe('Quote Metadata Utils', () => {
     it('should handle missing exchange rates', () => {
       const mockQuote: Quote = {
         srcTokenAmount: '1000000000',
-        srcAsset: {
-          decimals: 6,
-          assetId:
-            'eip155:1/erc20:0x0000000000000000000000000000000000000000' as const,
-        },
+        srcAsset: { decimals: 6 },
         feeData: {
-          metabridge: {
-            amount: '100000000',
-            asset: {
-              assetId:
-                'eip155:1/erc20:0x0000000000000000000000000000000000000000' as const,
-            },
-          },
+          metabridge: { amount: '100000000' },
         },
       } as unknown as Quote;
       const result = calcSentAmount(mockQuote, {});
@@ -244,19 +234,9 @@ describe('Quote Metadata Utils', () => {
     it('should handle zero values', () => {
       const mockQuote: Quote = {
         srcTokenAmount: '0',
-        srcAsset: {
-          decimals: 6,
-          assetId:
-            'eip155:1/erc20:0x0000000000000000000000000000000000000000' as const,
-        },
+        srcAsset: { decimals: 6 },
         feeData: {
-          metabridge: {
-            amount: '0',
-            asset: {
-              assetId:
-                'eip155:1/erc20:0x0000000000000000000000000000000000000000' as const,
-            },
-          },
+          metabridge: { amount: '0' },
         },
       } as unknown as Quote;
       const zeroQuote = {
