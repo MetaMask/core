@@ -14,9 +14,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - If you have code that narrows on `BuiltInNetworkClientId`, you will need to remove the narrowing or check the network client type via `NetworkClientType` instead.
 - **BREAKING:** `InfuraNetworkClientConfiguration.network` is now `string` instead of `InfuraNetworkType` ([#9432](https://github.com/MetaMask/core/pull/9432))
   - Previously only known Infura network names were accepted. Any valid Infura subdomain string is now accepted.
-- **BREAKING:** `NetworkController.getNetworkClientById` no longer distinguishes between Infura and custom network clients when the provided ID is not found ([#9432](https://github.com/MetaMask/core/pull/9432))
-  - The method now checks the Infura registry first and falls back to the custom registry, without using `isInfuraNetworkType` to decide which registry to consult.
-  - The error message when no client is found has changed from `"No Infura network client was found with the ID \"<id>\"."` / `"No custom network client was found with the ID \"<id>\"."` to `"No network client was found with ID \"<id>\"."`.
 - Remove validation that prevented a custom RPC endpoint from having a `networkClientId` that matches a known Infura network name ([#9432](https://github.com/MetaMask/core/pull/9432))
 - Remove validation that required an Infura RPC endpoint URL's implied chain ID to match the chain ID of the network configuration it belongs to ([#9432](https://github.com/MetaMask/core/pull/9432))
   - This allows Infura-backed networks to be added and updated dynamically without being constrained to the known Infura network list bundled in `@metamask/controller-utils`.
