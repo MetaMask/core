@@ -171,7 +171,7 @@ describe('wallet', () => {
 
       await expect(
         engine.handle(...createHandleParams(payload)),
-      ).rejects.toThrow('Invalid input.');
+      ).rejects.toThrow(/Invalid params/u);
     });
 
     it('throws when params contain deeply nested invalid data', async () => {
@@ -204,7 +204,7 @@ describe('wallet', () => {
 
       await expect(
         engine.handle(...createHandleParams(payload)),
-      ).rejects.toThrow('Invalid input.');
+      ).rejects.toThrow(/Invalid params/u);
     });
 
     it('should not override other request params', async () => {
@@ -365,7 +365,7 @@ describe('wallet', () => {
 
       await expect(
         engine.handle(...createHandleParams(payload)),
-      ).rejects.toThrow('Invalid input.');
+      ).rejects.toThrow(/Invalid params/u);
     });
 
     it('throws when params contain deeply nested invalid data', async () => {
@@ -398,7 +398,7 @@ describe('wallet', () => {
 
       await expect(
         engine.handle(...createHandleParams(payload)),
-      ).rejects.toThrow('Invalid input.');
+      ).rejects.toThrow(/Invalid params/u);
     });
   });
 
