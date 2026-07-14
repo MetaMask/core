@@ -61,8 +61,6 @@ const GROUP_ACCOUNTS_WITH_SOLANA: InternalAccount[] = [
       lastSelected: Date.now(),
       snap: {
         id: 'mock-sol-snap',
-        name: 'mock-sol-snap',
-        enabled: true,
       },
     },
   },
@@ -142,8 +140,8 @@ function buildMockBalancesResponse(
  * @returns The controller instance and mocks.
  */
 function setupController({
-  isEnabled = () => true,
-  getVsCurrency = () => 'USD',
+  isEnabled = (): boolean => true,
+  getVsCurrency = (): string => 'USD',
   minimumFetchIntervalMs,
   mockGroupAccounts = GROUP_ACCOUNTS,
   mockFetchV6MultiAccountBalances = jest
@@ -157,7 +155,16 @@ function setupController({
   mockGroupAccounts?: InternalAccount[];
   mockFetchV6MultiAccountBalances?: jest.Mock;
   state?: Partial<ReturnType<typeof getDefaultDeFiPositionsControllerV2State>>;
-} = {}) {
+} = {}): {
+  controller: DeFiPositionsControllerV2;
+  controllerMessenger: Messenger<
+    'DeFiPositionsControllerV2',
+    AllDeFiPositionsControllerV2Actions,
+    AllDeFiPositionsControllerV2Events,
+    RootMessenger
+  >;
+  mockFetchV6MultiAccountBalances: jest.Mock;
+} {
   const messenger: RootMessenger = new Messenger({
     namespace: MOCK_ANY_NAMESPACE,
   });
