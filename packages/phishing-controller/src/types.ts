@@ -228,8 +228,6 @@ export const DEFAULT_CHAIN_ID_TO_NAME = {
   '0x18232': 'plume',
   '0x93e': 'kite-ai',
   '0x279f': 'monad-testnet',
-  // TODO: Add lordchain, lordchain-testnet, metacade, metacade-testnet
-  // once their canonical chain IDs are available.
   solana: 'solana',
   starknet: 'starknet',
   'starknet-sepolia': 'starknet-sepolia',
@@ -387,10 +385,6 @@ export const ADDRESS_SCAN_SUPPORTED_CHAINS = [
   'avalanche',
   'base',
   'base-sepolia',
-  'lordchain',
-  'lordchain-testnet',
-  'metacade',
-  'metacade-testnet',
   'bsc',
   'ethereum',
   'optimism',
