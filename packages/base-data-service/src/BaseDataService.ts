@@ -271,6 +271,7 @@ export class BaseDataService<
    */
   destroy(): void {
     this.#queryCacheUnsubscribe();
+    this.#queryClient.clear();
     this.messenger.clearSubscriptions();
     this.messenger.clearActions();
   }
