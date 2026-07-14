@@ -140,7 +140,7 @@ jobs:
           if [[ "$ESLINT_PATHS" == "full" ]]; then
             yarn lint:eslint
           else
-            yarn lint:eslint $(echo "$ESLINT_PATHS" | jq -r '.[]' | tr '\n' ' ')
+            echo "$ESLINT_PATHS" | jq -r '.[]' | xargs yarn lint:eslint
           fi
         env:
           ESLINT_PATHS: ${{ needs.get-changed-packages.outputs.eslint-paths }}
