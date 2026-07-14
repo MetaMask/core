@@ -176,7 +176,7 @@ jobs:
     needs: get-changed-packages
     uses: MetaMask/action-security-code-scanner/.github/workflows/security-scan.yml@da7cf8b27792d992d87cf37c2e0e7e27b4c4ad0a
     with:
-      scanner-ref: v2
+      scanner-ref: da7cf8b27792d992d87cf37c2e0e7e27b4c4ad0a
       paths: ${{ needs.get-changed-packages.outputs.scan-paths }}
       paths-ignored: |
         .storybook/
