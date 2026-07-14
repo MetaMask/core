@@ -353,7 +353,7 @@ describe('Validation Utils', () => {
       ).toThrow('Invalid input.');
     });
 
-    it('throws for the incident repro payload (deeply-nested junk field)', () => {
+    it('throws given deeply-nested invalid data', () => {
       let junk: Record<string, unknown> = {};
       for (let i = 0; i < 1200; i++) {
         junk = { b: junk };
