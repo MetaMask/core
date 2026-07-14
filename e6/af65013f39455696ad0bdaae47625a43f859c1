@@ -1,0 +1,24 @@
+packages/transaction-controller/CHANGELOG.md
+  s_93fe31e99ca8b8::t_82dd23b08b360b 12-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.14",
+  "base_commit_sha": "e6af65013f39455696ad0bdaae47625a43f859c1",
+  "prompts": {},
+  "humans": {
+    "h_d6a04d82b61d5e": {
+      "author": "cryptotavares <joao.tavares@consensys.net>"
+    }
+  },
+  "sessions": {
+    "s_93fe31e99ca8b8": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ses_09efb27a8ffeIDfR4lgNJBgLrd",
+        "model": "unknown"
+      },
+      "human_author": "cryptotavares <joao.tavares@consensys.net>"
+    }
+  }
+}
