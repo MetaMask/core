@@ -4,7 +4,7 @@ import type {
 } from '@metamask/base-data-service';
 import { Messenger } from '@metamask/messenger';
 import type { QueryClient } from '@tanstack/query-core';
-import { expectError, expectType } from 'tsd';
+import { expectType } from 'tsd';
 
 import { createUIQueryClient } from '.';
 
@@ -49,6 +49,15 @@ expectType<QueryClient>(
     messenger,
   ),
 );
-expectError(
-  createUIQueryClient(['UnsupportedDataService'] as const, messenger),
+// Assert that `createUIQueryClient` rejects a messenger that does not support
+// the given data service names.
+//
+// Note: `@ts-expect-error` is used here rather than `expectError` so that the
+// negative case is validated by `tsc` itself. This way, a regression that
+// changes the positive case above (or removes the expected error here) causes
+// `tsc` to fail, instead of being silently swallowed.
+createUIQueryClient(
+  ['UnsupportedDataService'] as const,
+  // @ts-expect-error The messenger does not support `UnsupportedDataService`.
+  messenger,
 );
