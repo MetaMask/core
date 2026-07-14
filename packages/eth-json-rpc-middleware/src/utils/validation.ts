@@ -271,7 +271,12 @@ const ALLOWED_TRANSACTION_PARAM_KEYS = new Set<string>(
   Object.keys(TransactionParamsStruct.schema as Record<string, unknown>),
 );
 
-export const MAX_TRANSACTION_PARAMS_SIZE_BYTES = 128 * 1024;
+// Upper bound derived from the largest valid eth_sendTransaction payload:
+// EIP-3860 caps initcode at 49,152 bytes → hex-encoded in 'data' field ≈ 98 KB of JSON.
+// 200 KB is ~2× that ceiling, giving clear headroom above any protocol-legal
+// transaction while blocking the padding attacks this cap defends against.
+// TODO(CONF-1662): tighten once P99 production data is available.
+export const MAX_TRANSACTION_PARAMS_SIZE_BYTES = 200 * 1024;
 
 /**
  * Validates `eth_sendTransaction` / `eth_signTransaction` params against the
