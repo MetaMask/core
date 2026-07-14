@@ -86,27 +86,27 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
   >();
 
   /**
-   * Check whether a name is one of the configured data service names.
+   * Check whether a name is one of the provided data service names.
    *
    * @param service - The service name to check.
    * @returns Whether the service name is configured.
    */
-  function isConfiguredDataService(
+  function isRecognizedDataService(
     service: string,
   ): service is DataServiceNames[number] {
     return dataServices.some((dataService) => dataService === service);
   }
 
   /**
-   * Check whether an action belongs to one of the configured data services.
+   * Check whether an action belongs to one of the provided data services.
    *
    * @param action - The action name to check.
    * @returns Whether the action belongs to a configured data service.
    */
-  function isConfiguredDataServiceAction(
+  function isRecognizedDataServiceAction(
     action: string,
   ): action is `${DataServiceNames[number]}:${string}` {
-    return isConfiguredDataService(action.split(':')[0]);
+    return isRecognizedDataService(action.split(':')[0]);
   }
 
   /**
@@ -124,7 +124,7 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
 
     const service = action.split(':')[0];
 
-    if (!isConfiguredDataService(service)) {
+    if (!isRecognizedDataService(service)) {
       return null;
     }
 
@@ -142,7 +142,7 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
           const action = queryKey[0];
 
           assert(
-            typeof action === 'string' && isConfiguredDataServiceAction(action),
+            typeof action === 'string' && isRecognizedDataServiceAction(action),
             "Queries must call actions on the messenger provided to createUIQueryClient, e.g. `queryKey: ['ExampleDataService:getAssets', ...]`.",
           );
 
