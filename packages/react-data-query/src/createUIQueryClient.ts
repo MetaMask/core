@@ -1,8 +1,16 @@
 import type {
   DataServiceGranularCacheUpdatedEvent,
   DataServiceGranularCacheUpdatedPayload,
+  DataServiceInvalidateQueriesAction,
 } from '@metamask/base-data-service';
 import { assert } from '@metamask/utils';
+import {
+  ActionConstraint,
+  EventConstraint,
+  Messenger,
+  MessengerActions,
+  MessengerEvents,
+} from '@metamask/messenger';
 import {
   hydrate,
   QueryClient,
@@ -22,28 +30,24 @@ type DataServiceGranularCacheUpdatedHandler = (
 ) => void;
 
 /**
- * The minimum messenger-like shape needed by `createUIQueryClient`.
+ * A UI messenger used by `createUIQueryClient`.
  *
- * This keeps the supported actions and granular cache events restricted to the
- * data service names passed to `createUIQueryClient` without requiring the full
- * `Messenger` class type.
+ * This represents the public UI-facing messenger surface: async actions and
+ * event subscriptions over JSON-compatible payloads.
  */
-type MessengerAdapter<DataServiceName extends string> = {
-  call(
-    actionType: `${DataServiceName}:${string}`,
-    ...params: unknown[]
-  ): Promise<unknown>;
+type SupportsDataServices<
+  TMessenger extends Messenger<string, ActionConstraint, EventConstraint>,
+  DataServiceName extends string,
+> = DataServiceInvalidateQueriesAction<DataServiceName> extends MessengerActions<TMessenger>
+  ? DataServiceGranularCacheUpdatedEvent<DataServiceName> extends MessengerEvents<TMessenger>
+    ? unknown
+    : never
+  : never;
 
-  subscribe(
-    eventType: DataServiceGranularCacheUpdatedEvent<DataServiceName>['type'],
-    handler: DataServiceGranularCacheUpdatedHandler,
-  ): void;
-
-  unsubscribe(
-    eventType: DataServiceGranularCacheUpdatedEvent<DataServiceName>['type'],
-    handler: DataServiceGranularCacheUpdatedHandler,
-  ): void;
-};
+type UIMessengerAdapter<
+  TMessenger extends Messenger<string, ActionConstraint, EventConstraint>,
+  DataServiceName extends string,
+> = TMessenger;
 
 /**
  * Create a QueryClient queries and subscribes to data services using the messenger.
@@ -55,13 +59,29 @@ type MessengerAdapter<DataServiceName extends string> = {
  */
 export function createUIQueryClient<DataServiceNames extends readonly string[]>(
   dataServices: DataServiceNames,
-  messenger: MessengerAdapter<DataServiceNames[number]>,
+  messenger: UIMessengerAdapter<
+    Messenger<string, ActionConstraint, EventConstraint>,
+    DataServiceNames[number]
+  > & SupportsDataServices<
+    UIMessengerAdapter<Messenger<string, ActionConstraint, EventConstraint>, DataServiceNames[number]>,
+    DataServiceNames[number]
+  >,
   config: QueryClientConfig = {},
 ): QueryClient {
   const subscriptions = new Map<
     string,
     DataServiceGranularCacheUpdatedHandler
   >();
+  /**
+   * Cast the messenger to the configured service surface for internal use.
+   * Type assertion: the public signature ensures the configured services are
+   * supported.
+   */
+  const uiMessenger = messenger as Messenger<
+    string,
+    DataServiceInvalidateQueriesAction<DataServiceNames[number]>,
+    DataServiceGranularCacheUpdatedEvent<DataServiceNames[number]>
+  >;
 
   /**
    * Check whether a name is one of the configured data service names.
@@ -124,12 +144,23 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
             "Queries must call actions on the messenger provided to createUIQueryClient, e.g. `queryKey: ['ExampleDataService:getAssets', ...]`.",
           );
 
+          // Type assertion: The query key and page param are validated at
+          // runtime to correspond to a configured data service action.
           const params = [
             ...options.queryKey.slice(1),
             options.pageParam,
-          ] as unknown[];
+          ] as unknown as Parameters<
+            DataServiceInvalidateQueriesAction<
+              DataServiceNames[number]
+            >['handler']
+          >;
 
-          return await messenger.call(action, ...params);
+          return await uiMessenger.call(
+            action as DataServiceInvalidateQueriesAction<
+              DataServiceNames[number]
+            >['type'],
+            ...params,
+          );
         },
       },
       mutations: config.defaultOptions?.mutations,
@@ -171,7 +202,7 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
       };
 
       subscriptions.set(hash, cacheListener);
-      messenger.subscribe(`${service}:cacheUpdated:${hash}`, cacheListener);
+      uiMessenger.subscribe(`${service}:cacheUpdated:${hash}`, cacheListener);
     } else if (
       event.type === 'observerRemoved' &&
       observerCount === 0 &&
@@ -180,7 +211,7 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
       const subscriptionListener = subscriptions.get(hash);
 
       if (subscriptionListener) {
-        messenger.unsubscribe(
+        uiMessenger.unsubscribe(
           `${service}:cacheUpdated:${hash}`,
           subscriptionListener,
         );
@@ -202,9 +233,9 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
 
     const queries = client.getQueryCache().findAll(filters);
 
-    const services = [
-      ...new Set(queries.map((query) => parseQueryKey(query.queryKey))),
-    ];
+    const services = Array.from(
+      new Set(queries.map((query) => parseQueryKey(query.queryKey))),
+    );
 
     await Promise.all(
       services.map(async (service) => {
@@ -213,10 +244,17 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
         }
 
         if (options === undefined) {
-          return messenger.call(`${service}:invalidateQueries`, filters);
+          return uiMessenger.call(
+            `${service}:invalidateQueries` as DataServiceInvalidateQueriesAction<DataServiceNames[number]>['type'],
+            filters,
+          );
         }
 
-        return messenger.call(`${service}:invalidateQueries`, filters, options);
+        return uiMessenger.call(
+          `${service}:invalidateQueries` as DataServiceInvalidateQueriesAction<DataServiceNames[number]>['type'],
+          filters,
+          options,
+        );
       }),
     );
 
