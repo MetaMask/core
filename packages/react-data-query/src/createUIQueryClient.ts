@@ -17,25 +17,31 @@ import {
 /**
  * Handles granular cache update events emitted by data services.
  */
-type SubscriptionHandler = (
+type JsonSubscriptionHandler = (
   payload: DataServiceGranularCacheUpdatedPayload,
 ) => void;
 
 /**
  * The minimum messenger-like shape needed by `createUIQueryClient`.
  *
- * This follows the shape of `Messenger`, but is suited toward calling actions
- * and subscribing to events on data services.
+ * This keeps the supported actions and granular cache events restricted to the
+ * data service names passed to `createUIQueryClient` without requiring the full
+ * `Messenger` class type.
  */
 type MessengerAdapter<DataServiceName extends string> = {
-  call(method: `${DataServiceName}:${string}`, ...params: unknown[]): unknown;
+  call(
+    actionType: `${DataServiceName}:${string}`,
+    ...params: unknown[]
+  ): Promise<unknown>;
+
   subscribe(
     eventType: DataServiceGranularCacheUpdatedEvent<DataServiceName>['type'],
-    handler: SubscriptionHandler,
+    handler: JsonSubscriptionHandler,
   ): void;
+
   unsubscribe(
     eventType: DataServiceGranularCacheUpdatedEvent<DataServiceName>['type'],
-    handler: SubscriptionHandler,
+    handler: JsonSubscriptionHandler,
   ): void;
 };
 
@@ -47,12 +53,12 @@ type MessengerAdapter<DataServiceName extends string> = {
  * @param config - Optional query client configuration options.
  * @returns The QueryClient.
  */
-export function createUIQueryClient<DataServiceName extends string>(
-  dataServices: readonly DataServiceName[],
-  messenger: MessengerAdapter<DataServiceName>,
+export function createUIQueryClient<DataServiceNames extends readonly string[]>(
+  dataServices: DataServiceNames,
+  messenger: MessengerAdapter<DataServiceNames[number]>,
   config: QueryClientConfig = {},
 ): QueryClient {
-  const subscriptions = new Map<string, SubscriptionHandler>();
+  const subscriptions = new Map<string, JsonSubscriptionHandler>();
 
   /**
    * Check whether a name is one of the configured data service names.
@@ -62,7 +68,7 @@ export function createUIQueryClient<DataServiceName extends string>(
    */
   function isConfiguredDataService(
     service: string,
-  ): service is DataServiceName {
+  ): service is DataServiceNames[number] {
     return dataServices.some((dataService) => dataService === service);
   }
 
@@ -74,7 +80,7 @@ export function createUIQueryClient<DataServiceName extends string>(
    */
   function isConfiguredDataServiceAction(
     action: string,
-  ): action is `${DataServiceName}:${string}` {
+  ): action is `${DataServiceNames[number]}:${string}` {
     return isConfiguredDataService(action.split(':')[0]);
   }
 
@@ -84,7 +90,7 @@ export function createUIQueryClient<DataServiceName extends string>(
    * @param queryKey - The query key.
    * @returns The service name if it parsing succeeded, otherwise null.
    */
-  function parseQueryKey(queryKey: QueryKey): DataServiceName | null {
+  function parseQueryKey(queryKey: QueryKey): DataServiceNames[number] | null {
     const action = queryKey[0];
 
     if (typeof action !== 'string') {
@@ -115,11 +121,12 @@ export function createUIQueryClient<DataServiceName extends string>(
             "Queries must call actions on the messenger provided to createUIQueryClient, e.g. `queryKey: ['ExampleDataService:getAssets', ...]`.",
           );
 
-          return await messenger.call(
-            action,
+          const params = [
             ...options.queryKey.slice(1),
             options.pageParam,
-          );
+          ] as unknown[];
+
+          return await messenger.call(action, ...params);
         },
       },
       mutations: config.defaultOptions?.mutations,
@@ -192,14 +199,18 @@ export function createUIQueryClient<DataServiceName extends string>(
 
     const queries = client.getQueryCache().findAll(filters);
 
-    const services = [
-      ...new Set(queries.map((query) => parseQueryKey(query.queryKey))),
-    ];
+    const services = Array.from(
+      new Set(queries.map((query) => parseQueryKey(query.queryKey))),
+    );
 
     await Promise.all(
       services.map(async (service) => {
         if (!service) {
           return null;
+        }
+
+        if (options === undefined) {
+          return messenger.call(`${service}:invalidateQueries`, filters);
         }
 
         return messenger.call(`${service}:invalidateQueries`, filters, options);

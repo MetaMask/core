@@ -8,32 +8,41 @@ import { expectError, expectType } from 'tsd';
 
 import { createUIQueryClient } from '.';
 
-const DATA_SERVICES = ['ExampleDataService'] as const;
-
-type ExampleDataServiceGetAssetsAction = {
-  type: 'ExampleDataService:getAssets';
-  handler: (assets: string[]) => Promise<unknown>;
+type FirstDataServiceGetAssetsAction = {
+  type: 'FirstDataService:getAssets';
+  handler: (assetIds: string[]) => Promise<unknown>;
 };
 
-type ExampleDataServiceActions =
-  | ExampleDataServiceGetAssetsAction
-  | DataServiceInvalidateQueriesAction<'ExampleDataService'>;
+type SecondDataServiceGetTokensAction = {
+  type: 'SecondDataService:getTokens';
+  handler: (tokenIds: string[]) => Promise<unknown>;
+};
 
-type ExampleDataServiceEvents =
-  DataServiceGranularCacheUpdatedEvent<'ExampleDataService'>;
+type RootMessengerActions =
+  | FirstDataServiceGetAssetsAction
+  | DataServiceInvalidateQueriesAction<'FirstDataService'>
+  | SecondDataServiceGetTokensAction
+  | DataServiceInvalidateQueriesAction<'SecondDataService'>;
+
+type RootMessengerEvents =
+  | DataServiceGranularCacheUpdatedEvent<'FirstDataService'>
+  | DataServiceGranularCacheUpdatedEvent<'SecondDataService'>;
 
 const messenger = new Messenger<
-  'ExampleDataService',
-  ExampleDataServiceActions,
-  ExampleDataServiceEvents
->({ namespace: 'ExampleDataService' });
+  'Root',
+  RootMessengerActions,
+  RootMessengerEvents
+>({ namespace: 'Root' });
 
-// Assert that we don't see type errors when attempting to use
-// createUIQueryClient in the way we advertise.
-// Such type errors don't show up when running ESLint or Jest tests.
-expectType<QueryClient>(createUIQueryClient(DATA_SERVICES, messenger));
-
-// Assert that the messenger supports calling actions and managing events for
-// the given data services (i.e. the supported capabilities are namespaced
-// appropriately).
-expectError(createUIQueryClient(['OtherDataService'] as const, messenger));
+// Assert that `createUIQueryClient` takes a messenger that supports calling
+// any action and `:cacheUpdated:${hash}` events, as long as they are namespaced
+// under the given data service names.
+expectType<QueryClient>(
+  createUIQueryClient(
+    ['FirstDataService', 'SecondDataService'] as const,
+    messenger,
+  ),
+);
+expectError(
+  createUIQueryClient(['UnsupportedDataService'] as const, messenger),
+);
