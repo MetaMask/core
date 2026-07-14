@@ -104,7 +104,6 @@ export class Srp {
         `Secret recovery phrase must be 12, 15, 18, 21, or 24 words (got ${words.length})`,
       );
     }
-    const normalized = words.join(' ');
     for (const word of words) {
       if (!WORDLIST_SET.has(word)) {
         throw new Error(
@@ -112,6 +111,8 @@ export class Srp {
         );
       }
     }
+
+    const normalized = words.join(' ');
     if (!validateMnemonic(normalized, wordlist)) {
       throw new Error('Secret recovery phrase has an invalid checksum');
     }
