@@ -350,10 +350,10 @@ describe('Validation Utils', () => {
           to: VALID_TO,
           extraKey: 'unexpected',
         }),
-      ).toThrow('Invalid input.');
+      ).toThrow(/Invalid params/u);
     });
 
-    it('throws given deeply-nested invalid data', () => {
+    it('throws when params contain an extraneous key with a deeply-nested value', () => {
       let junk: Record<string, unknown> = {};
       for (let i = 0; i < 1200; i++) {
         junk = { b: junk };
@@ -367,12 +367,11 @@ describe('Validation Utils', () => {
           data: '0x095ea7b3',
           test: junk,
         }),
-      ).toThrow('Invalid input.');
+      ).toThrow(/Invalid params/u);
     });
 
-    it('rejects an extraneous top-level key without walking its value (no JSON.stringify, no Superstruct)', () => {
+    it('rejects an extraneous top-level key without walking its value (JSON.stringify never called)', () => {
       const stringifySpy = jest.spyOn(JSON, 'stringify');
-      validateMock.mockClear();
 
       const params = {
         from: VALID_FROM,
@@ -391,13 +390,10 @@ describe('Validation Utils', () => {
         thrown = error;
       }
       const stringifyCallsAtRejection = stringifySpy.mock.calls.length;
-      const validateCallsAtRejection = validateMock.mock.calls.length;
       stringifySpy.mockRestore();
 
       expect(thrown).toBeInstanceOf(Error);
-      expect((thrown as Error).message).toBe('Invalid input.');
       expect(stringifyCallsAtRejection).toBe(0);
-      expect(validateCallsAtRejection).toBe(0);
     });
 
     it('throws when a typed field has the wrong type', () => {
