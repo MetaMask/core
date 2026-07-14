@@ -1,8 +1,9 @@
 import { TYPED_MESSAGE_SCHEMA } from '@metamask/eth-sig-util';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Struct, StructError } from '@metamask/superstruct';
-import { validate } from '@metamask/superstruct';
+import { array, object, optional, validate } from '@metamask/superstruct';
 import type { Hex } from '@metamask/utils';
+import { HexAddressStruct, StrictHexStruct } from '@metamask/utils';
 
 import type { WalletMiddlewareContext } from '../wallet.js';
 import { parseTypedMessage } from './normalize.js';
@@ -235,100 +236,64 @@ export function validateTypedMessageKeys(data: string): void {
   }
 }
 
+const AccessListEntryStruct = object({
+  address: HexAddressStruct,
+  storageKeys: array(StrictHexStruct),
+});
+
+const AuthorizationListEntryStruct = object({
+  address: HexAddressStruct,
+  chainId: StrictHexStruct,
+  nonce: StrictHexStruct,
+  r: optional(StrictHexStruct),
+  s: optional(StrictHexStruct),
+  yParity: optional(StrictHexStruct),
+});
+
+export const TransactionParamsStruct = object({
+  accessList: optional(array(AccessListEntryStruct)),
+  authorizationList: optional(array(AuthorizationListEntryStruct)),
+  chainId: optional(StrictHexStruct),
+  data: optional(StrictHexStruct),
+  from: HexAddressStruct,
+  gas: optional(StrictHexStruct),
+  gasLimit: optional(StrictHexStruct),
+  gasPrice: optional(StrictHexStruct),
+  maxFeePerGas: optional(StrictHexStruct),
+  maxPriorityFeePerGas: optional(StrictHexStruct),
+  nonce: optional(StrictHexStruct),
+  to: optional(HexAddressStruct),
+  type: optional(StrictHexStruct),
+  value: optional(StrictHexStruct),
+});
+
+export const MAX_TRANSACTION_PARAMS_SIZE_BYTES = 128 * 1024;
+
 /**
- * Top-level keys explicitly permitted on `eth_sendTransaction` and
- * `eth_signTransaction` params. Any additional top-level key causes the
- * request to be rejected before it reaches downstream consumers such as PPOM
- * or the Security Alerts API.
+ * Validates `eth_sendTransaction` / `eth_signTransaction` params against the
+ * standard transaction schema and rejects payloads whose serialized size
+ * exceeds `MAX_TRANSACTION_PARAMS_SIZE_BYTES`.
  *
- * Derived from the dapp-facing subset of `TransactionParams` in
- * `@metamask/transaction-controller`. Internal-only fields
- * (`estimateGasError`, `estimatedBaseFee`, `estimateSuggested`,
- * `estimateUsed`, `gasUsed`) are intentionally omitted — dapps should not be
- * able to inject them.
- */
-export const ALLOWED_TRANSACTION_PARAM_KEYS = new Set<string>([
-  'accessList',
-  'authorizationList',
-  'chainId',
-  'data',
-  'from',
-  'gas',
-  'gasLimit',
-  'gasPrice',
-  'maxFeePerGas',
-  'maxPriorityFeePerGas',
-  'nonce',
-  'to',
-  'type',
-  'value',
-]);
-
-/**
- * Maximum nesting depth permitted anywhere inside a transaction params
- * object. Legitimate params (including `accessList` and
- * `authorizationList`) are at most ~4 levels deep. Anything beyond this is
- * treated as a denial-of-service attempt against downstream normalization
- * (which recurses and can overflow the call stack in native/WASM code).
- */
-export const MAX_TRANSACTION_PARAM_DEPTH = 10;
-
-/**
- * Recursively checks that a value does not nest beyond
- * `MAX_TRANSACTION_PARAM_DEPTH`.
- *
- * @param value - The value to check.
- * @param depth - The current depth. Callers should pass `0`.
- * @throws rpcErrors.invalidInput() if the value nests too deeply.
- */
-function assertMaxDepth(value: unknown, depth: number): void {
-  if (depth > MAX_TRANSACTION_PARAM_DEPTH) {
-    throw rpcErrors.invalidInput();
-  }
-
-  if (value === null || typeof value !== 'object') {
-    return;
-  }
-
-  if (Array.isArray(value)) {
-    for (const item of value) {
-      assertMaxDepth(item, depth + 1);
-    }
-    return;
-  }
-
-  for (const key of Object.getOwnPropertyNames(
-    value as Record<string, unknown>,
-  )) {
-    assertMaxDepth((value as Record<string, unknown>)[key], depth + 1);
-  }
-}
-
-/**
- * Validates that `eth_sendTransaction` / `eth_signTransaction` params contain
- * only spec-defined top-level keys and no excessively-nested structures.
- *
- * This guards against malicious dapps attaching deeply-nested junk fields
- * (e.g. `{ from, to, data, test: { b: { b: { b: /* ~1200 levels *\/ } } } }`)
- * that would otherwise crash downstream normalization or PPOM WASM with a
- * `RangeError: Maximum call stack size exceeded`, bypassing security checks.
+ * Guards against two attack shapes:
+ * 1. Structural: extraneous top-level keys or ill-typed nested values
+ *    (e.g. `{ from, to, data, test: { b: { b: ... } } }`) that would crash
+ *    downstream normalization / PPOM WASM with `RangeError: Maximum call
+ *    stack size exceeded`, silently bypassing security checks.
+ * 2. Size: valid-shaped but oversized payloads (e.g. `data` padded with
+ *    millions of hex zeros, or `accessList` with millions of entries) that
+ *    exhaust memory / stack in the same downstream code.
  *
  * @param params - The transaction params object supplied by the dapp.
- * @throws rpcErrors.invalidInput() if params is not a plain object, contains
- * an extraneous top-level key, or nests beyond `MAX_TRANSACTION_PARAM_DEPTH`.
+ * @throws rpcErrors.invalidInput() if params does not match the schema or
+ * exceeds the size limit.
+ * @throws rpcErrors.invalidParams() with a Superstruct failure summary if
+ * the schema mismatch is on a typed field.
  */
 export function validateTransactionParams(params: unknown): void {
-  if (params === null || typeof params !== 'object' || Array.isArray(params)) {
+  const serializedSize = JSON.stringify(params ?? null).length;
+  if (serializedSize > MAX_TRANSACTION_PARAMS_SIZE_BYTES) {
     throw rpcErrors.invalidInput();
   }
 
-  const hasExtraneousKey = Object.keys(params).some(
-    (key) => !ALLOWED_TRANSACTION_PARAM_KEYS.has(key),
-  );
-
-  if (hasExtraneousKey) {
-    throw rpcErrors.invalidInput();
-  }
-
-  assertMaxDepth(params, 0);
+  validateParams(params, TransactionParamsStruct);
 }
