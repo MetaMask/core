@@ -53,7 +53,7 @@ const MESSENGER_EXPOSED_METHODS = ['subscribe', 'unsubscribe'] as const;
 
 const SUBSCRIPTION_NAMESPACE = 'account-activity.v1';
 
-const SUPPORTED_CHAIN_PREFIXES = ['eip155', 'solana'] as const;
+const SUPPORTED_CHAIN_PREFIXES = ['eip155'] as const;
 
 /**
  * Account subscription options
