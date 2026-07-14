@@ -27,7 +27,6 @@ jobs:
           echo "child-workspace-package-names=$(yarn workspaces list --no-private --json | jq --slurp --raw-output 'map(.name) | @json')" >> "$GITHUB_OUTPUT"
         shell: bash
 
-
   get-changed-packages:
     name: Get changed packages
     runs-on: ubuntu-latest
@@ -67,11 +66,11 @@ jobs:
         run: |
           if [[ -n "$MERGE_BASE" ]]; then
             OUTPUT=$(yarn tsx scripts/get-changed-workspaces.mts "$MERGE_BASE" "$HEAD_SHA")
-            PACKAGES=$(echo "$OUTPUT" | jq '.names')
+            PACKAGES=$(echo "$OUTPUT" | jq -c '.names')
             if [[ $(echo "$OUTPUT" | jq '.hasRootChange') == "true" ]]; then
               ESLINT_PATHS="full"
             else
-              ESLINT_PATHS=$(echo "$OUTPUT" | jq '.locations')
+              ESLINT_PATHS=$(echo "$OUTPUT" | jq -c '.locations')
             fi
           else
             PACKAGES=$(yarn workspaces list --no-private --json | jq --slurp --raw-output 'map(.name) | @json')
