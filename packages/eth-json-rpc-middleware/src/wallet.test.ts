@@ -174,7 +174,7 @@ describe('wallet', () => {
       ).rejects.toThrow('Invalid input.');
     });
 
-    it('throws for the incident repro payload with deeply-nested junk', async () => {
+    it('throws when params contain deeply nested invalid data', async () => {
       const getAccounts = async (): Promise<string[]> =>
         testAddresses.slice(0, 2);
       const processTransaction = async (): Promise<string> => testTxHash;
