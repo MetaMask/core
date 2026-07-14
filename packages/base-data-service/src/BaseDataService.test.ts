@@ -22,6 +22,14 @@ const MOCK_ASSETS = [
 ];
 
 describe('BaseDataService', () => {
+  beforeAll(() => {
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+  });
+
+  afterAll(() => {
+    jest.useRealTimers();
+  });
+
   beforeEach(() => {
     mockAssets();
     mockTransactionsPage1();
@@ -170,7 +178,7 @@ describe('BaseDataService', () => {
     await service.getAssets(MOCK_ASSETS);
 
     // Wait for GC
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    jest.runAllTimers();
 
     const queryKey = ['ExampleDataService:getAssets', MOCK_ASSETS];
 
@@ -214,6 +222,14 @@ describe('BaseDataService', () => {
   });
 
   describe('service policy', () => {
+    beforeAll(() => {
+      jest.useRealTimers();
+    });
+
+    afterAll(() => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+    });
+
     beforeEach(() => {
       cleanAll();
     });
@@ -248,6 +264,8 @@ describe('BaseDataService', () => {
           symbol: 'ETH',
         },
       ]);
+
+      service.destroy();
     });
 
     it('throws after exhausting service policy retries', async () => {
@@ -261,6 +279,8 @@ describe('BaseDataService', () => {
       await expect(service.getAssets(MOCK_ASSETS)).rejects.toThrow(
         'Query failed with status code: 500.',
       );
+
+      service.destroy();
     });
 
     it('breaks the circuit after consecutive failures', async () => {
@@ -278,6 +298,8 @@ describe('BaseDataService', () => {
       await expect(service.getAssets(MOCK_ASSETS)).rejects.toThrow(
         BrokenCircuitError,
       );
+
+      service.destroy();
     });
   });
 });
