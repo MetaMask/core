@@ -223,9 +223,9 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
 
     const queries = client.getQueryCache().findAll(filters);
 
-    const services = Array.from(
-      new Set(queries.map((query) => parseQueryKey(query.queryKey))),
-    );
+    const services = [
+      ...new Set(queries.map((query) => parseQueryKey(query.queryKey))),
+    ];
 
     await Promise.all(
       services.map(async (service) => {
