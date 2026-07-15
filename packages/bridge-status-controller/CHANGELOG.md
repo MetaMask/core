@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Support batch sell (EIP-7702/nested batch) transactions in the quote-status flow, so every quote submitted under a single batch transaction is reported to the backend. All quotes sharing one batch source transaction are reported as `SUBMITTED` under the shared source transaction hash and `txMetaId`, and are finalized together when that transaction confirms or fails. ([#0000](https://github.com/MetaMask/core/pull/0000))
+- Support batch sell (EIP-7702/nested batch) transactions in the quote-status flow, so every quote submitted under a single batch transaction is reported to the backend. All quotes sharing one batch source transaction are reported as `SUBMITTED` under the shared source transaction hash and `txMetaId`, and are finalized together when that transaction confirms or fails. ([#9514](https://github.com/MetaMask/core/pull/9514))
 
 ## [74.2.0]
 
