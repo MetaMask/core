@@ -63,7 +63,7 @@ export class ExampleDataService extends BaseDataService<
 
   constructor(
     messenger: ExampleMessenger,
-    { persistConfig }: { persistConfig: PersistenceConfiguration } = {
+    { persistConfig }: { persistConfig?: PersistenceConfiguration } = {
       persistConfig: { maxAge: inMilliseconds(1, Duration.Day) },
     },
   ) {
