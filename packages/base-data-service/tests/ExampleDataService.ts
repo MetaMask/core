@@ -16,15 +16,7 @@ export type ExampleDataServiceActions =
   | ExampleDataServiceMethodActions
   | DataServiceInvalidateQueriesAction<typeof serviceName>;
 
-// This is just here to make sure that the types on `createUIQueryClient` are
-// correct, we do not actually publish this
-type ExampleDataServiceActivityFetchedEvent = {
-  type: `${typeof serviceName}:activityFetched`;
-  payload: [response: GetActivityResponse];
-};
-
 export type ExampleDataServiceEvents =
-  | ExampleDataServiceActivityFetchedEvent
   | DataServiceCacheUpdatedEvent<typeof serviceName>
   | DataServiceGranularCacheUpdatedEvent<typeof serviceName>;
 
