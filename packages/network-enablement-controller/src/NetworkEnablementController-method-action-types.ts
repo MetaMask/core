@@ -128,10 +128,6 @@ export type NetworkEnablementControllerDisableNetworkAction = {
 /**
  * Restores the enabled network map to a previously snapshotted state.
  *
- * This is used when adding a network without switching the active network
- * filter. Callers should snapshot `enabledNetworkMap` before adding a
- * network, then restore it after the controller reacts to `networkAdded`.
- *
  * @param enabledNetworkMap - Previously snapshotted enabledNetworkMap.
  */
 export type NetworkEnablementControllerRestoreEnabledNetworkMapAction = {

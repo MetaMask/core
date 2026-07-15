@@ -616,9 +616,11 @@ export class NetworkEnablementController extends BaseController<
   /**
    * Restores the enabled network map to a previously snapshotted state.
    *
-   * This is used when adding a network without switching the active network
-   * filter. Callers should snapshot `enabledNetworkMap` before adding a
-   * network, then restore it after the controller reacts to `networkAdded`.
+   * Not a general merge API: only updates keys already present in the current
+   * map. Missing snapshot values default to `false`. Callers should deep-clone
+   * `enabledNetworkMap` before adding a network, then restore after
+   * `NetworkController:networkAdded` completes. Must be a controller method
+   * because state writes require protected `update()`.
    *
    * @param enabledNetworkMap - Previously snapshotted enabledNetworkMap.
    */
