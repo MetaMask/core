@@ -432,6 +432,9 @@ describe('HyperLiquidSubscriptionService', () => {
         return Promise.resolve(mockSubscription);
       }),
       assetCtxs: jest.fn(() => Promise.resolve(mockSubscription)),
+      fastAssetCtxs: jest.fn((_callback: any) =>
+        Promise.resolve(mockSubscription),
+      ),
       spotState: jest.fn((_params: any, _callback: any) =>
         Promise.resolve(mockSubscription),
       ),

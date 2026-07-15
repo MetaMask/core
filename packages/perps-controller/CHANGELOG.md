@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/account-tree-controller` from `^7.5.3` to `7.5.4` ([#9429](https://github.com/MetaMask/core/pull/9429))
+- Subscribe to HyperLiquid's `fastAssetCtxs` WebSocket feed for mark/mid price updates, replacing `assetCtxs` as the latency-sensitive price source now that HyperLiquid has slowed the public `assetCtxs` feed cadence
+  - `assetCtxs` continues to populate funding, open interest, volume, and oracle price data, and remains the price source for any symbol `fastAssetCtxs` doesn't cover.
+  - `fastAssetCtxs` is a single global subscription (the HyperLiquid SDK exposes no per-DEX variant): the first message is a full snapshot keyed by coin, and later messages contain diffs for only the coins that changed. Coins without an active price subscriber are ignored.
+  - Established alongside the global `allMids` subscription, restored together on WebSocket reconnect, and torn down on `clearAll()`. Subscribe attempts use the same 3-attempt/500ms-backoff retry as `assetCtxs` for transient SDK errors.
 
 ### Fixed
 

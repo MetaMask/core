@@ -10,6 +10,7 @@ import type {
   BboWsEvent,
   L2BookResponse,
   AssetCtxsWsEvent,
+  FastAssetCtxsWsEvent,
   FrontendOpenOrdersResponse,
   ClearinghouseStateWsEvent,
   OpenOrdersWsEvent,
@@ -136,6 +137,13 @@ export class HyperLiquidSubscriptionService {
   #globalAllMidsSubscription?: ISubscription;
 
   #globalAllMidsPromise?: Promise<void>; // Track in-progress subscription
+
+  // fastAssetCtxs (TAT-3387): single global feed (no per-DEX param) that owns
+  // the latency-sensitive mark/mid price path at HyperLiquid's fast (~5s)
+  // cadence, now that the public assetCtxs feed has been slowed down.
+  #globalFastAssetCtxsSubscription?: ISubscription;
+
+  #globalFastAssetCtxsPromise?: Promise<void>; // Track in-progress subscription
 
   readonly #globalActiveAssetSubscriptions = new Map<string, ISubscription>();
 
@@ -1559,6 +1567,7 @@ export class HyperLiquidSubscriptionService {
 
     // Ensure global subscriptions are established
     this.#ensureGlobalAllMidsSubscription();
+    this.#ensureGlobalFastAssetCtxsSubscription();
 
     // Extract unique DEXs from requested symbols
     const dexsNeeded = new Set<string | null>();
@@ -3087,6 +3096,132 @@ export class HyperLiquidSubscriptionService {
   }
 
   /**
+   * Ensure global fastAssetCtxs subscription is active (singleton pattern)
+   *
+   * TAT-3387: Hyperliquid slowed the public assetCtxs feed cadence and
+   * introduced fastAssetCtxs to preserve a fast (~5 s) cadence specifically
+   * for mark/mid price diffs. This subscription owns the #cachedPriceData
+   * price path going forward; assetCtxs continues to populate
+   * #marketDataCache (funding/OI/volume/oracle price) unchanged, and remains
+   * the price source for any symbol fastAssetCtxs does not cover.
+   *
+   * The SDK exposes fastAssetCtxs as a single global feed with no `dex`
+   * parameter (unlike assetCtxs, which is per-DEX). The first message after
+   * subscribing is a full snapshot keyed by coin; later messages contain
+   * diffs for only the coins that changed. Coins without an active price
+   * subscriber are ignored, matching the allMids handler's filtering.
+   */
+  #ensureGlobalFastAssetCtxsSubscription(): void {
+    // Check both the subscription AND the promise to prevent race conditions
+    if (
+      this.#globalFastAssetCtxsSubscription ??
+      this.#globalFastAssetCtxsPromise
+    ) {
+      return;
+    }
+
+    const subscriptionClient = this.#clientService.getSubscriptionClient();
+    if (!subscriptionClient) {
+      return;
+    }
+
+    const handleFastAssetCtxsUpdate = (data: FastAssetCtxsWsEvent): void => {
+      this.#cachedPriceData ??= new Map<string, PriceUpdate>();
+
+      // Track which subscribed symbols actually changed price, so
+      // notification can be scoped to just those symbols
+      const changedSymbols = new Set<string>();
+
+      for (const coin in data) {
+        // Skip coins nobody is subscribed to (snapshot messages include
+        // every asset on the exchange, most of which have no subscriber)
+        if (!this.#priceSubscribers.get(coin)?.size) {
+          continue;
+        }
+
+        const ctx = data[coin];
+        const priceRaw = ctx.midPx ?? ctx.markPx;
+        if (priceRaw === undefined) {
+          continue;
+        }
+
+        const price = priceRaw.toString();
+        const cachedPrice = this.#cachedPriceData.get(coin);
+
+        // Skip if price hasn't changed
+        if (cachedPrice?.price === price) {
+          continue;
+        }
+
+        const priceUpdate = this.#createPriceUpdate(coin, price);
+        this.#cachedPriceData.set(coin, priceUpdate);
+        changedSymbols.add(coin);
+      }
+
+      // Only notify subscribers of symbols whose price actually changed
+      if (changedSymbols.size > 0) {
+        this.#notifyAllPriceSubscribers(changedSymbols);
+      }
+    };
+
+    const subscribeWithRetry = async (): Promise<ISubscription> => {
+      const maxAttempts = 3;
+
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          return await subscriptionClient.fastAssetCtxs(
+            handleFastAssetCtxsUpdate,
+          );
+        } catch (error) {
+          const ensuredError = ensureError(
+            error,
+            'HyperLiquidSubscriptionService.ensureGlobalFastAssetCtxsSubscription',
+          );
+          const isLastAttempt = attempt === maxAttempts;
+          if (isLastAttempt || !this.#isTransientSdkError(ensuredError)) {
+            throw ensuredError;
+          }
+
+          const retryDelayMs = attempt * 500;
+          this.#deps.debugLogger.log(
+            'Transient fastAssetCtxs subscription failure during reconnect, retrying',
+            {
+              attempt,
+              retryDelayMs,
+              error: ensuredError.message,
+            },
+          );
+          await new Promise((_resolve) => setTimeout(_resolve, retryDelayMs));
+        }
+      }
+
+      throw new Error('Failed to establish fastAssetCtxs subscription');
+    };
+
+    // Store the promise immediately to prevent duplicate calls
+    this.#globalFastAssetCtxsPromise = subscribeWithRetry()
+      .then((sub) => {
+        this.#globalFastAssetCtxsSubscription = sub;
+        this.#deps.debugLogger.log(
+          'HyperLiquid: Global fastAssetCtxs subscription established',
+        );
+        return undefined;
+      })
+      .catch((error) => {
+        // Clear the promise on error so it can be retried
+        this.#globalFastAssetCtxsPromise = undefined;
+
+        this.#logErrorUnlessClearing(
+          ensureError(
+            error,
+            'HyperLiquidSubscriptionService.ensureGlobalFastAssetCtxsSubscription',
+          ),
+          this.#getErrorContext('ensureGlobalFastAssetCtxsSubscription'),
+        );
+      });
+  }
+
+  /**
    * Ensure activeAssetCtx subscription for specific symbol (with reference counting)
    *
    * @param symbol - The trading pair symbol to subscribe to.
@@ -4040,6 +4175,11 @@ export class HyperLiquidSubscriptionService {
 
       // Re-establish the subscription
       this.#ensureGlobalAllMidsSubscription();
+
+      // Re-establish the fastAssetCtxs subscription alongside allMids (TAT-3387)
+      this.#globalFastAssetCtxsSubscription = undefined;
+      this.#globalFastAssetCtxsPromise = undefined;
+      this.#ensureGlobalFastAssetCtxsSubscription();
     }
 
     // Re-establish order fill subscriptions if there are fill subscribers
@@ -4313,6 +4453,19 @@ export class HyperLiquidSubscriptionService {
     }
     this.#globalAllMidsSubscription = undefined;
     this.#globalAllMidsPromise = undefined;
+
+    if (this.#globalFastAssetCtxsSubscription) {
+      this.#globalFastAssetCtxsSubscription
+        .unsubscribe()
+        .catch((error: Error) => {
+          this.#logErrorUnlessClearing(
+            ensureError(error, 'HyperLiquidSubscriptionService.clearAll'),
+            this.#getErrorContext('clearAll.globalFastAssetCtxs'),
+          );
+        });
+    }
+    this.#globalFastAssetCtxsSubscription = undefined;
+    this.#globalFastAssetCtxsPromise = undefined;
 
     this.#globalActiveAssetSubscriptions.forEach((sub, symbol) => {
       sub.unsubscribe().catch((error: Error) => {

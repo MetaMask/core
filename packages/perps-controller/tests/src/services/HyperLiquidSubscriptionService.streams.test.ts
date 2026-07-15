@@ -431,6 +431,9 @@ describe('HyperLiquidSubscriptionService', () => {
         return Promise.resolve(mockSubscription);
       }),
       assetCtxs: jest.fn(() => Promise.resolve(mockSubscription)),
+      fastAssetCtxs: jest.fn((_callback: any) =>
+        Promise.resolve(mockSubscription),
+      ),
       spotState: jest.fn((_params: any, _callback: any) =>
         Promise.resolve(mockSubscription),
       ),
@@ -659,6 +662,135 @@ describe('HyperLiquidSubscriptionService', () => {
 
       unsubscribeBtc();
       unsubscribeEth();
+    });
+
+    it('establishes a global fastAssetCtxs subscription when subscribing to prices', async () => {
+      const mockCallback = jest.fn();
+
+      const unsubscribe = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: mockCallback,
+      });
+
+      await jest.runAllTimersAsync();
+
+      expect(mockSubscriptionClient.fastAssetCtxs).toHaveBeenCalledTimes(1);
+      expect(mockSubscriptionClient.fastAssetCtxs).toHaveBeenCalledWith(
+        expect.any(Function),
+      );
+
+      unsubscribe();
+    });
+
+    it('only creates a single global fastAssetCtxs subscription for multiple subscribers', async () => {
+      const unsubscribeBtc = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: jest.fn(),
+      });
+      const unsubscribeEth = await service.subscribeToPrices({
+        symbols: ['ETH'],
+        callback: jest.fn(),
+      });
+
+      await jest.runAllTimersAsync();
+
+      expect(mockSubscriptionClient.fastAssetCtxs).toHaveBeenCalledTimes(1);
+
+      unsubscribeBtc();
+      unsubscribeEth();
+    });
+
+    it('applies a fastAssetCtxs snapshot to cached price data and notifies subscribers', async () => {
+      const btcCallback = jest.fn();
+
+      const unsubscribe = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: btcCallback,
+      });
+
+      await jest.runAllTimersAsync();
+      btcCallback.mockClear();
+
+      const fastAssetCtxsCallback =
+        mockSubscriptionClient.fastAssetCtxs.mock.calls[0][0];
+
+      // First message after subscribing is a full snapshot keyed by coin
+      fastAssetCtxsCallback({
+        BTC: { midPx: '52000' },
+        SOL: { midPx: '150' }, // no subscriber for SOL; should be ignored
+      });
+
+      expect(btcCallback).toHaveBeenCalledWith([
+        expect.objectContaining({ symbol: 'BTC', price: '52000' }),
+      ]);
+
+      unsubscribe();
+    });
+
+    it('only notifies subscribers of symbols present in a fastAssetCtxs diff message', async () => {
+      const btcCallback = jest.fn();
+      const ethCallback = jest.fn();
+
+      const unsubscribeBtc = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: btcCallback,
+      });
+      const unsubscribeEth = await service.subscribeToPrices({
+        symbols: ['ETH'],
+        callback: ethCallback,
+      });
+
+      await jest.runAllTimersAsync();
+
+      const fastAssetCtxsCallback =
+        mockSubscriptionClient.fastAssetCtxs.mock.calls[0][0];
+
+      // Snapshot establishes a baseline for both symbols
+      fastAssetCtxsCallback({
+        BTC: { midPx: '52000' },
+        ETH: { midPx: '3000' },
+      });
+
+      btcCallback.mockClear();
+      ethCallback.mockClear();
+
+      // Later messages are diffs containing only the coins that changed
+      fastAssetCtxsCallback({
+        BTC: { midPx: '52500' },
+      });
+
+      expect(btcCallback).toHaveBeenCalledWith([
+        expect.objectContaining({ symbol: 'BTC', price: '52500' }),
+      ]);
+      expect(ethCallback).not.toHaveBeenCalled();
+
+      unsubscribeBtc();
+      unsubscribeEth();
+    });
+
+    it('falls back to markPx when midPx is absent in a fastAssetCtxs update', async () => {
+      const btcCallback = jest.fn();
+
+      const unsubscribe = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: btcCallback,
+      });
+
+      await jest.runAllTimersAsync();
+      btcCallback.mockClear();
+
+      const fastAssetCtxsCallback =
+        mockSubscriptionClient.fastAssetCtxs.mock.calls[0][0];
+
+      fastAssetCtxsCallback({
+        BTC: { markPx: '53000' },
+      });
+
+      expect(btcCallback).toHaveBeenCalledWith([
+        expect.objectContaining({ symbol: 'BTC', price: '53000' }),
+      ]);
+
+      unsubscribe();
     });
   });
 
