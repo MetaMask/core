@@ -5,12 +5,6 @@
   },
   "references": [
     {
-      "path": "../controller-utils"
-    },
-    {
-      "path": "../json-rpc-engine"
-    },
-    {
       "path": "../messenger"
     }
   ],

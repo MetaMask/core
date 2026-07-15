@@ -4,6 +4,10 @@
     "baseUrl": "./",
     "rootDir": "../.."
   },
-  "references": [],
+  "references": [
+    {
+      "path": "../controller-utils"
+    }
+  ],
   "include": ["../../types", "./src"]
 }

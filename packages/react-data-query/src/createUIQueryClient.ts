@@ -184,14 +184,10 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
         payload,
       ) => {
         if (payload.type === 'removed') {
-          const currentQuery = cache.get(hash);
-
-          if (currentQuery) {
-            cache.remove(currentQuery);
-          }
-        } else {
-          hydrate(client, payload.state);
+          return;
         }
+
+        hydrate(client, payload.state);
       };
 
       subscriptions.set(hash, cacheListener);

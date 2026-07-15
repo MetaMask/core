@@ -188,6 +188,19 @@ module.exports = defineConfig({
         if (!PACKAGES_WITH_CUSTOM_TEST_SCRIPTS.includes(workspace.ident)) {
           expectTestScripts(workspace);
         }
+
+        // All non-root packages must have scripts that lint-check tsconfig
+        // project references for this package.
+        expectWorkspaceField(
+          workspace,
+          'scripts.lint:tsconfigs',
+          'tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts',
+        );
+        expectWorkspaceField(
+          workspace,
+          'scripts.lint:tsconfigs:fix',
+          'tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix',
+        );
       }
 
       if (isChildWorkspace) {
@@ -201,6 +214,10 @@ module.exports = defineConfig({
         // `node/no-unpublished-require` ESLint rule will disallow it.)
         expectWorkspaceField(workspace, 'files', []);
       }
+
+      // All packages must have tsx as a dev dependency. (This is required to
+      // run various TypeScript scripts.)
+      expectWorkspaceField(workspace, 'devDependencies["tsx"]');
 
       // If one workspace package lists another workspace package within
       // `dependencies` or `devDependencies`, the version used within the
