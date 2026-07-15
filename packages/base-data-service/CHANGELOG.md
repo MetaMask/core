@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - `ExponentialBackoff`
     - `handleAll`
     - `handleWhen`
+- Add `executeMutation` to `BaseDataService` to allow for making state-mutating requests ([#9324](https://github.com/MetaMask/core/pull/9324))
 
 ### Changed
 

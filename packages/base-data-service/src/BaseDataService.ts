@@ -13,6 +13,7 @@ import {
   InfiniteData,
   InvalidateOptions,
   InvalidateQueryFilters,
+  MutationOptions,
   OmitKeyof,
   QueryClient,
   QueryClientConfig,
@@ -249,6 +250,39 @@ export class BaseDataService<
     );
 
     return result.pages[pageIndex];
+  }
+
+  /**
+   * Execute a mutation (a request that is expected to change the state of a server).
+   * Unlike `fetchQuery`, the request will not be cached.
+   *
+   * @param options - The options defining the mutation. Keep in mind that `mutationKey` and `mutationFn` are required when using data services.
+   * Additionally `retry` and `retryDelay` are not available, retries can be customized using the `servicePolicyOptions`.
+   * @returns The mutation results.
+   */
+  protected async executeMutation<
+    TData extends Json,
+    TError = unknown,
+    TVariables = void,
+    TContext = unknown,
+  >(
+    options: WithRequired<
+      OmitKeyof<
+        MutationOptions<TData, TError, TVariables, TContext>,
+        'retry' | 'retryDelay'
+      >,
+      'mutationKey' | 'mutationFn'
+    >,
+  ): Promise<TData> {
+    const mutationCache = this.#queryClient.getMutationCache();
+    const mutation = mutationCache.build(this.#queryClient, {
+      ...options,
+      mutationFn: (context) =>
+        this.#policy.circuitBreakerPolicy.execute(() =>
+          options.mutationFn(context),
+        ),
+    });
+    return await mutation.execute();
   }
 
   /**

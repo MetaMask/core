@@ -5,6 +5,7 @@ import { cleanAll } from 'nock';
 
 import { ExampleDataService, serviceName } from '../tests/ExampleDataService';
 import {
+  mockAddFollowerRequest,
   mockAssets,
   mockTransactionsPage1,
   mockTransactionsPage2,
@@ -169,6 +170,44 @@ describe('BaseDataService', () => {
     );
   });
 
+  it('handles mutations', async () => {
+    mockAddFollowerRequest();
+
+    const messenger = new Messenger({ namespace: serviceName });
+    const service = new ExampleDataService(messenger);
+
+    expect(await service.addFollower('1')).toStrictEqual({
+      followed: [
+        {
+          profileId: '550e8400-e29b-41d4-a716-446655440000',
+          address: '0x1234567890abcdef1234567890abcdef12345678',
+          name: 'TraderAlice',
+          imageUrl: 'https://example.com/avatar.png',
+        },
+      ],
+    });
+  });
+
+  it('never retries mutations even if they fail', async () => {
+    mockAddFollowerRequest({ status: 504 });
+    mockAddFollowerRequest();
+
+    const messenger = new Messenger({ namespace: serviceName });
+    const service = new ExampleDataService(messenger);
+
+    await expect(service.addFollower('1')).rejects.toThrow('Mutation failed');
+    expect(await service.addFollower('1')).toStrictEqual({
+      followed: [
+        {
+          profileId: '550e8400-e29b-41d4-a716-446655440000',
+          address: '0x1234567890abcdef1234567890abcdef12345678',
+          name: 'TraderAlice',
+          imageUrl: 'https://example.com/avatar.png',
+        },
+      ],
+    });
+  });
+
   it('emits `:cacheUpdated` events when cache entry is removed', async () => {
     const messenger = new Messenger({ namespace: serviceName });
     const service = new ExampleDataService(messenger);
@@ -192,6 +231,18 @@ describe('BaseDataService', () => {
         state: null,
       },
     );
+  });
+
+  it('does not emit `:cacheUpdated` when a mutation is executed', async () => {
+    mockAddFollowerRequest();
+
+    const messenger = new Messenger({ namespace: serviceName });
+    const service = new ExampleDataService(messenger);
+    const publishSpy = jest.spyOn(messenger, 'publish');
+
+    await service.addFollower('1');
+
+    expect(publishSpy).not.toHaveBeenCalled();
   });
 
   it('does not emit events after being destroyed', async () => {
