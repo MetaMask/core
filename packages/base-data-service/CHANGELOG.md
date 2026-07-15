@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add support for cache persistence ([#9445](https://github.com/MetaMask/core/pull/9445))
+  - Persistence can be configured by passing a `persistConfig` to the constructor.
 - Add `createServicePolicy` and related symbols, copied from `@metamask/controller-utils` ([#9418](https://github.com/MetaMask/core/pull/9418))
   - Added functions:
     `createServicePolicy`
