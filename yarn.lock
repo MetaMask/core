@@ -4559,19 +4559,19 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@inquirer/password@npm:^5.0.5":
-  version: 5.0.7
-  resolution: "@inquirer/password@npm:5.0.7"
+"@inquirer/password@npm:^5.0.5, @inquirer/password@npm:^5.1.1":
+  version: 5.1.1
+  resolution: "@inquirer/password@npm:5.1.1"
   dependencies:
-    "@inquirer/ansi": "npm:^2.0.3"
-    "@inquirer/core": "npm:^11.1.4"
-    "@inquirer/type": "npm:^4.0.3"
+    "@inquirer/ansi": "npm:^2.0.7"
+    "@inquirer/core": "npm:^11.2.1"
+    "@inquirer/type": "npm:^4.0.7"
   peerDependencies:
     "@types/node": ">=18"
   peerDependenciesMeta:
     "@types/node":
       optional: true
-  checksum: 10/72f862b793b9d0fa9e1bfae87a23700be2779782221c16ebdce0d7ebc3334303d6b4227ec05323a9c52ebfab1ddc6d1b52172e263448c43212ec89ba5e1df89c
+  checksum: 10/b0b9994de1b49096cc1bf47910b122dd1704cd12434de304081f09090f42d83af699c202e5b8b0c12eb5f87acb7cc4c62a6d97a8781aefe7352b4695eb2b242f
   languageName: node
   linkType: hard
 
@@ -5682,7 +5682,7 @@ __metadata:
     "@metamask/keyring-snap-client": "npm:^9.2.0"
     "@metamask/messenger": "npm:^2.0.0"
     "@metamask/network-controller": "npm:^34.0.0"
-    "@metamask/network-enablement-controller": "npm:^5.5.0"
+    "@metamask/network-enablement-controller": "npm:^5.6.0"
     "@metamask/permission-controller": "npm:^13.1.1"
     "@metamask/phishing-controller": "npm:^17.2.1"
     "@metamask/polling-controller": "npm:^16.0.8"
@@ -5739,7 +5739,7 @@ __metadata:
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/multichain-account-service": "npm:^13.0.0"
     "@metamask/network-controller": "npm:^34.0.0"
-    "@metamask/network-enablement-controller": "npm:^5.5.0"
+    "@metamask/network-enablement-controller": "npm:^5.6.0"
     "@metamask/permission-controller": "npm:^13.1.1"
     "@metamask/phishing-controller": "npm:^17.2.1"
     "@metamask/polling-controller": "npm:^16.0.8"
@@ -5928,7 +5928,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/bridge-controller@npm:^77.4.1, @metamask/bridge-controller@workspace:packages/bridge-controller":
+"@metamask/bridge-controller@npm:^77.5.0, @metamask/bridge-controller@workspace:packages/bridge-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/bridge-controller@workspace:packages/bridge-controller"
   dependencies:
@@ -5982,7 +5982,7 @@ __metadata:
     "@metamask/accounts-controller": "npm:^39.0.5"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
-    "@metamask/bridge-controller": "npm:^77.4.1"
+    "@metamask/bridge-controller": "npm:^77.5.0"
     "@metamask/controller-utils": "npm:^12.3.0"
     "@metamask/gas-fee-controller": "npm:^26.2.4"
     "@metamask/keyring-controller": "npm:^27.1.0"
@@ -7764,7 +7764,7 @@ __metadata:
     "@metamask/keyring-controller": "npm:^27.1.0"
     "@metamask/messenger": "npm:^2.0.0"
     "@metamask/network-controller": "npm:^34.0.0"
-    "@metamask/network-enablement-controller": "npm:^5.5.0"
+    "@metamask/network-enablement-controller": "npm:^5.6.0"
     "@metamask/utils": "npm:^11.11.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
@@ -7828,7 +7828,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/network-enablement-controller@npm:^5.5.0, @metamask/network-enablement-controller@workspace:packages/network-enablement-controller":
+"@metamask/network-enablement-controller@npm:^5.6.0, @metamask/network-enablement-controller@workspace:packages/network-enablement-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/network-enablement-controller@workspace:packages/network-enablement-controller"
   dependencies:
@@ -9067,11 +9067,14 @@ __metadata:
   resolution: "@metamask/wallet-cli@workspace:packages/wallet-cli"
   dependencies:
     "@inquirer/confirm": "npm:^6.0.11"
+    "@inquirer/password": "npm:^5.1.1"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/base-controller": "npm:^9.1.0"
     "@metamask/remote-feature-flag-controller": "npm:^4.2.2"
     "@metamask/rpc-errors": "npm:^7.0.2"
+    "@metamask/scure-bip39": "npm:^2.1.1"
     "@metamask/storage-service": "npm:^1.0.2"
+    "@metamask/superstruct": "npm:^3.1.0"
     "@metamask/utils": "npm:^11.11.0"
     "@metamask/wallet": "npm:^7.0.1"
     "@oclif/core": "npm:^4.10.5"
