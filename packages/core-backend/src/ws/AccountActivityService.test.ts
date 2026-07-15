@@ -1188,6 +1188,44 @@ describe('AccountActivityService', () => {
         });
       });
 
+      it('does not resubscribe when a change in unrelated feature flags leaves the enabled chains unchanged', async () => {
+        await withService(async ({ mocks, rootMessenger }) => {
+          const evmAccount = createMockInternalAccount({
+            address: '0xevmaccount',
+          });
+          mocks.getAccountsFromSelectedAccountGroup.mockReturnValue([
+            evmAccount,
+          ]);
+          mocks.subscribe.mockResolvedValue({
+            subscriptionId: 'sub-123',
+            unsubscribe: jest.fn(),
+          });
+
+          // Prime the selector cache with an initial publish
+          rootMessenger.publish(
+            'RemoteFeatureFlagController:stateChange',
+            featureFlagState(1),
+            [],
+          );
+          await completeAsyncOperations();
+          mocks.subscribe.mockClear();
+          mocks.findSubscriptionsByChannelPrefix.mockClear();
+
+          // An unrelated flag changes while the migration flags are the same
+          const newState = featureFlagState(1);
+          newState.remoteFeatureFlags.someUnrelatedFlag = true;
+          rootMessenger.publish(
+            'RemoteFeatureFlagController:stateChange',
+            newState,
+            [],
+          );
+          await completeAsyncOperations();
+
+          expect(mocks.subscribe).not.toHaveBeenCalled();
+          expect(mocks.findSubscriptionsByChannelPrefix).not.toHaveBeenCalled();
+        });
+      });
+
       it('does not resubscribe on flag change when the websocket is not connected', async () => {
         await withService(async ({ mocks, rootMessenger }) => {
           mocks.getConnectionInfo.mockReturnValue({

@@ -270,15 +270,11 @@ export class AccountActivityService {
       // Promise result intentionally not awaited
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       async () => await this.#handleFeatureFlagsStateChange(),
-      // only react to changes in the relevant feature flags for chain prefixes
-      (state) => ({
-        remoteFeatureFlags: Object.fromEntries(
-          Object.entries(CHAIN_PREFIX_FEATURE_FLAGS).map(([_prefix, flag]) => [
-            flag,
-            state.remoteFeatureFlags[flag],
-          ]),
-        ),
-      }),
+      // Only react to changes in the set of enabled chain prefixes. The
+      // messenger compares selector results with strict equality, so the
+      // selector must return a primitive rather than a fresh object.
+      (state) =>
+        this.#getSupportedChainPrefixes(state.remoteFeatureFlags).join(','),
     );
     this.#messenger.call('BackendWebSocketService:addChannelCallback', {
       channelName: `system-notifications.v1.${this.#options.subscriptionNamespace}`,
