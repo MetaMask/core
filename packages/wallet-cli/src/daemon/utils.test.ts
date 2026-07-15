@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 
 import {
+  emptyToUndefined,
   formatJsonRpcError,
   isStringArray,
   makeDaemonConnectionError,
@@ -60,7 +61,7 @@ describe('makeDaemonConnectionError', () => {
     (code) => {
       const error = Object.assign(new Error('boom'), { code });
       expect(makeDaemonConnectionError(error)).toContain('permission denied');
-      expect(makeDaemonConnectionError(error)).toContain('MM_DATA_DIR');
+      expect(makeDaemonConnectionError(error)).toContain('MM_DAEMON_DATA_DIR');
     },
   );
 
@@ -72,6 +73,20 @@ describe('makeDaemonConnectionError', () => {
 
   it('stringifies a non-Error throw', () => {
     expect(makeDaemonConnectionError('kaboom')).toBe('kaboom');
+  });
+});
+
+describe('emptyToUndefined', () => {
+  it('returns undefined for an empty string', () => {
+    expect(emptyToUndefined('')).toBeUndefined();
+  });
+
+  it('returns undefined when the value is already undefined', () => {
+    expect(emptyToUndefined(undefined)).toBeUndefined();
+  });
+
+  it('returns the value unchanged for a non-empty string', () => {
+    expect(emptyToUndefined('pw')).toBe('pw');
   });
 });
 

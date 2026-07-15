@@ -21,6 +21,10 @@ describe('daemon start', () => {
     const { stdout } = await runCommand(DaemonStart, FLAGS);
 
     expect(stdout).toContain('Daemon running. Socket: /tmp/daemon.sock');
+    const config = mockEnsureDaemon.mock.calls[0][0];
+    expect(config.infuraProjectId).toBe('key');
+    expect(config.password?.unwrap()).toBe('pw');
+    expect(config.srp.unwrap()).toBe(SRP);
   });
 
   it('warns that flags were not applied when a daemon is already running', async () => {
@@ -33,5 +37,38 @@ describe('daemon start', () => {
 
     expect(stdout).toContain('Daemon already running');
     expect(stdout).toContain('not applied');
+  });
+
+  it('passes password: undefined to ensureDaemon when --password is omitted', async () => {
+    mockEnsureDaemon.mockResolvedValue({
+      state: 'started',
+      socketPath: '/tmp/daemon.sock',
+    });
+
+    await runCommand(DaemonStart, ['--infura-project-id', 'key', '--srp', SRP]);
+
+    expect(mockEnsureDaemon).toHaveBeenCalledWith(
+      expect.objectContaining({ password: undefined }),
+    );
+  });
+
+  it('passes password: undefined to ensureDaemon when --password is empty', async () => {
+    mockEnsureDaemon.mockResolvedValue({
+      state: 'started',
+      socketPath: '/tmp/daemon.sock',
+    });
+
+    await runCommand(DaemonStart, [
+      '--infura-project-id',
+      'key',
+      '--srp',
+      SRP,
+      '--password',
+      '',
+    ]);
+
+    expect(mockEnsureDaemon).toHaveBeenCalledWith(
+      expect.objectContaining({ password: undefined }),
+    );
   });
 });
