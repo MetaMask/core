@@ -3653,15 +3653,30 @@ export class HyperLiquidSubscriptionService {
             this.#marketDataCache.set(asset.name, marketData);
 
             // HIP-3: Extract price from assetCtx and update cached prices.
-            // Skip symbols fastAssetCtxs already covers (TAT-3387 owns their
-            // price path with fresher, ~5s-cadence data); assetCtxs remains
-            // the price source only for symbols outside fastAssetCtxs'
-            // coverage, e.g. HIP-3 dex:SYMBOL assets.
+            // For HIP-3 DEXs, meta() returns asset.name already containing the
+            // DEX prefix (e.g., "xyz:XYZ100"), so use it directly.
+            const symbol = asset.name;
             const price = ctx.midPx?.toString() ?? ctx.markPx?.toString();
-            if (price && !this.#fastAssetCtxsCoins.has(asset.name)) {
-              // For HIP-3 DEXs, meta() returns asset.name already containing the DEX prefix
-              // (e.g., "xyz:XYZ100"), so use it directly
-              const symbol = asset.name;
+            if (this.#fastAssetCtxsCoins.has(symbol)) {
+              // fastAssetCtxs (TAT-3387) owns the price string for this coin
+              // with fresher, ~5s-cadence data, so don't overwrite it with
+              // this batch's price. Still rebuild the baseline (keeping the
+              // existing price) so derived fields just refreshed above in
+              // #marketDataCache (funding, openInterest, volume24h,
+              // oraclePrice, percentChange24h/isTradable via markPrice) reach
+              // list subscribers instead of going stale until the next
+              // fastAssetCtxs/allMids price change. Only rebuild an existing
+              // baseline to preserve the startup zero-price guard: we never
+              // want to synthesize a baseline from a '0' / absent allMids
+              // price.
+              const existingBaseline = this.#cachedPriceData?.get(symbol);
+              if (this.#cachedPriceData && existingBaseline) {
+                this.#cachedPriceData.set(
+                  symbol,
+                  this.#createPriceUpdate(symbol, existingBaseline.price),
+                );
+              }
+            } else if (price) {
               const priceUpdate = this.#createPriceUpdate(symbol, price);
               this.#cachedPriceData ??= new Map<string, PriceUpdate>();
               this.#cachedPriceData.set(symbol, priceUpdate);
