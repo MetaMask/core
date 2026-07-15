@@ -405,11 +405,12 @@ export class BaseDataService<
     const state = dehydrate(this.#queryClient);
 
     if (state.queries.length === 0 && state.mutations.length === 0) {
-      return this.#externalMessenger.call(
+      await this.#externalMessenger.call(
         'StorageService:removeItem',
         this.name,
         STORAGE_SERVICE_KEY,
       );
+      return;
     }
 
     const cache: PersistedCache = {
@@ -449,11 +450,12 @@ export class BaseDataService<
     const cache = persisted as unknown as PersistedCache;
 
     if (Date.now() - cache.timestamp >= this.#persistConfig.maxAge) {
-      return this.#externalMessenger.call(
+      await this.#externalMessenger.call(
         'StorageService:removeItem',
         this.name,
         STORAGE_SERVICE_KEY,
       );
+      return;
     }
 
     hydrate(this.#queryClient, cache.state);
