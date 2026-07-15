@@ -1608,6 +1608,14 @@ describe('BridgeStatusController', () => {
         expect(controller.state.txHistory).toStrictEqual(
           MockTxHistory.getComplete(),
         );
+        const completedEventCall = messengerCallSpy.mock.calls.find(
+          ([, eventName]) => eventName === UnifiedSwapBridgeEventName.Completed,
+        );
+        expect(completedEventCall?.[2]).toStrictEqual(
+          expect.objectContaining({
+            transaction_internal_id: 'bridgeTxMetaId1',
+          }),
+        );
 
         expect(messengerCallSpy.mock.calls).toMatchSnapshot();
         expect(messengerPublishSpy.mock.calls.at(-1)).toMatchSnapshot();
@@ -2574,6 +2582,18 @@ describe('BridgeStatusController', () => {
           expect(mockMessengerCall.mock.calls).toMatchSnapshot();
           expect(result).toMatchSnapshot();
           expect(controller.state.txHistory[result.id]).toMatchSnapshot();
+          expect(
+            mockMessengerCall.mock.calls.find(
+              ([, eventName]) =>
+                eventName === UnifiedSwapBridgeEventName.Completed,
+            ),
+          ).toStrictEqual([
+            'BridgeController:trackUnifiedSwapBridgeEvent',
+            UnifiedSwapBridgeEventName.Completed,
+            expect.not.objectContaining({
+              transaction_internal_id: expect.anything(),
+            }),
+          ]);
           expect(startPollingForBridgeTxStatusSpy).toHaveBeenCalledTimes(0);
         },
       );
@@ -4168,13 +4188,10 @@ describe('BridgeStatusController', () => {
         {
           "atomic": true,
           "disable7702": true,
-          "excludeNativeTokenForFee": true,
-          "gasFeeToken": undefined,
           "isDelegatedAccount": false,
           "isGasFeeIncluded": false,
           "isGasFeeSponsored": false,
           "requireApproval": false,
-          "skipInitialGasEstimate": false,
         }
       `);
     });
@@ -4251,13 +4268,10 @@ describe('BridgeStatusController', () => {
         {
           "atomic": true,
           "disable7702": true,
-          "excludeNativeTokenForFee": false,
-          "gasFeeToken": "0x0000000000000000000000000000000000000032",
           "isDelegatedAccount": false,
           "isGasFeeIncluded": false,
           "isGasFeeSponsored": false,
           "requireApproval": false,
-          "skipInitialGasEstimate": true,
         }
       `);
     });
@@ -4584,13 +4598,10 @@ describe('BridgeStatusController', () => {
         {
           "atomic": true,
           "disable7702": false,
-          "excludeNativeTokenForFee": true,
-          "gasFeeToken": undefined,
           "isDelegatedAccount": true,
           "isGasFeeIncluded": false,
           "isGasFeeSponsored": false,
           "requireApproval": false,
-          "skipInitialGasEstimate": false,
         }
       `);
     });
@@ -4710,13 +4721,10 @@ describe('BridgeStatusController', () => {
         {
           "atomic": true,
           "disable7702": false,
-          "excludeNativeTokenForFee": true,
-          "gasFeeToken": undefined,
           "isDelegatedAccount": false,
           "isGasFeeIncluded": true,
           "isGasFeeSponsored": false,
           "requireApproval": false,
-          "skipInitialGasEstimate": false,
         }
       `);
     });
@@ -4768,13 +4776,10 @@ describe('BridgeStatusController', () => {
         {
           "atomic": true,
           "disable7702": true,
-          "excludeNativeTokenForFee": true,
-          "gasFeeToken": undefined,
           "isDelegatedAccount": false,
           "isGasFeeIncluded": false,
           "isGasFeeSponsored": false,
           "requireApproval": false,
-          "skipInitialGasEstimate": false,
         }
       `);
     });
@@ -6281,6 +6286,14 @@ describe('BridgeStatusController', () => {
           },
         );
 
+        const completedEventCall = messengerCallSpy.mock.calls.find(
+          ([, eventName]) => eventName === UnifiedSwapBridgeEventName.Completed,
+        );
+        expect(completedEventCall?.[2]).toStrictEqual(
+          expect.objectContaining({
+            transaction_internal_id: 'swapTxMetaId1',
+          }),
+        );
         expect(messengerCallSpy.mock.calls).toMatchSnapshot();
       });
 

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/client-utils",
-  "version": "0.0.0",
+  "version": "1.1.0",
   "description": "Shared functions and utilities used across MetaMask clients (extension and mobile)",
   "keywords": [
     "Ethereum",
@@ -56,8 +56,8 @@
     "@metamask/contract-metadata": "^2.4.0",
     "@metamask/controller-utils": "^12.3.0",
     "@metamask/core-backend": "^6.5.0",
-    "@metamask/keyring-api": "^23.3.0",
-    "@metamask/transaction-controller": "^68.3.0",
+    "@metamask/keyring-api": "^23.5.0",
+    "@metamask/transaction-controller": "^69.0.0",
     "@metamask/utils": "^11.11.0"
   },
   "devDependencies": {

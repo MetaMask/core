@@ -158,9 +158,14 @@
       "count": 6
     }
   },
+  "packages/assets-controller/src/AssetsController.ts": {
+    "no-restricted-syntax": {
+      "count": 3
+    }
+  },
   "packages/assets-controller/src/__fixtures__/MockAssetControllerMessenger.ts": {
     "no-restricted-syntax": {
-      "count": 4
+      "count": 6
     }
   },
   "packages/assets-controller/src/data-sources/AccountsApiDataSource.ts": {
@@ -1226,11 +1231,6 @@
       "count": 2
     }
   },
-  "packages/multichain-account-service/src/providers/BtcAccountProvider.test.ts": {
-    "no-negated-condition": {
-      "count": 1
-    }
-  },
   "packages/multichain-account-service/src/providers/BtcAccountProvider.ts": {
     "@typescript-eslint/naming-convention": {
       "count": 2
@@ -2238,6 +2238,11 @@
   "packages/transaction-pay-controller/src/strategy/across/across-actions.ts": {
     "no-restricted-syntax": {
       "count": 2
+    }
+  },
+  "packages/transaction-pay-controller/src/strategy/bridge/bridge-submit.ts": {
+    "no-restricted-syntax": {
+      "count": 1
     }
   },
   "packages/transaction-pay-controller/src/strategy/relay/hyperliquid-withdraw.ts": {

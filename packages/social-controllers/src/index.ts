@@ -29,6 +29,7 @@ export { SocialService } from './SocialService';
 
 export type {
   SocialServiceFetchClosedPositionsAction,
+  SocialServiceFetchFeedAction,
   SocialServiceFetchFollowersAction,
   SocialServiceFetchFollowingAction,
   SocialServiceFetchLeaderboardAction,
@@ -43,6 +44,10 @@ export type {
 
 export { TradeStruct } from './social-types';
 export type {
+  FeedItem,
+  FeedPagination,
+  FeedResponse,
+  FetchFeedOptions,
   FetchFollowersOptions,
   FetchLeaderboardOptions,
   FetchPositionByIdOptions,

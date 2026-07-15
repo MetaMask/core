@@ -3656,6 +3656,25 @@ describe('PhishingController', () => {
       });
     });
 
+    it('will return an AddressScanResult with an ErrorResult for a known chain that is not supported by address scanning', async () => {
+      const scope = nock(SECURITY_ALERTS_BASE_URL)
+        .post(ADDRESS_SCAN_ENDPOINT)
+        .reply(200, mockResponse);
+
+      const response = await rootMessenger.call(
+        'PhishingController:scanAddress',
+        'solana',
+        testAddress,
+      );
+
+      expect(response).toMatchObject({
+        result_type: AddressScanResultType.ErrorResult,
+        label: '',
+      });
+      expect(scope.isDone()).toBe(false);
+      cleanAll();
+    });
+
     it('will normalize address to lowercase', async () => {
       const mixedCaseAddress = '0xAbCdEf1234567890123456789012345678901234';
       const scope = nock(SECURITY_ALERTS_BASE_URL)

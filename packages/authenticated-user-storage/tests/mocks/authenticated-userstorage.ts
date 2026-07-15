@@ -9,7 +9,7 @@ import { DEFAULT_PRICE_ALERT_PREFERENCES } from '../../src/validators';
 
 export const MOCK_DELEGATIONS_URL = `${getAuthenticatedStorageUrl('prod')}/delegations`;
 export const MOCK_NOTIFICATION_PREFERENCES_URL = `${getAuthenticatedStorageUrl('prod')}/preferences/notifications`;
-export const MOCK_ASSETS_WATCHLIST_URL = `${getAuthenticatedStorageUrl('prod')}/assets-watchlist`;
+export const MOCK_ASSETS_WATCHLIST_URL = `${getAuthenticatedStorageUrl('prod')}/preferences/assets-watchlist`;
 
 export const MOCK_DELEGATION_SUBMISSION: DelegationSubmission = {
   signedDelegation: {

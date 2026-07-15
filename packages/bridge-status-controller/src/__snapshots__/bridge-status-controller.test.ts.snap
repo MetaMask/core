@@ -435,6 +435,7 @@ exports[`BridgeStatusController startPollingForBridgeTxStatus stops polling when
       "token_security_type_destination": null,
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
+      "transaction_internal_id": "bridgeTxMetaId1",
       "usd_actual_gas": 0,
       "usd_actual_return": 0,
       "usd_amount_source": 0,
@@ -1240,16 +1241,13 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
     {
       "atomic": true,
       "disable7702": true,
-      "excludeNativeTokenForFee": true,
       "from": "0xaccount1",
-      "gasFeeToken": undefined,
       "isGasFeeIncluded": false,
       "isGasFeeSponsored": false,
       "isInternal": true,
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
-      "skipInitialGasEstimate": false,
       "transactions": [
         {
           "assetsFiatValues": {
@@ -3953,16 +3951,13 @@ exports[`BridgeStatusController submitTx: EVM swap should handle smart transacti
     {
       "atomic": true,
       "disable7702": true,
-      "excludeNativeTokenForFee": true,
       "from": "0xaccount1",
-      "gasFeeToken": undefined,
       "isGasFeeIncluded": false,
       "isGasFeeSponsored": false,
       "isInternal": true,
       "networkClientId": "arbitrum",
       "origin": "metamask",
       "requireApproval": false,
-      "skipInitialGasEstimate": false,
       "transactions": [
         {
           "assetsFiatValues": undefined,
@@ -6399,6 +6394,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
       "token_security_type_destination": null,
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
+      "transaction_internal_id": "swapTxMetaId1",
       "usd_actual_gas": 0,
       "usd_actual_return": 0,
       "usd_amount_source": 0,

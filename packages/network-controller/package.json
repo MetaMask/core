@@ -54,7 +54,7 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^9.1.0",
-    "@metamask/connectivity-controller": "^0.2.0",
+    "@metamask/connectivity-controller": "^0.3.0",
     "@metamask/controller-utils": "^12.3.0",
     "@metamask/eth-block-tracker": "^15.0.1",
     "@metamask/eth-json-rpc-infura": "^10.3.0",
