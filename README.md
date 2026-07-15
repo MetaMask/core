@@ -378,6 +378,7 @@ linkStyle default opacity:0.5
   earn_controller --> network_controller;
   earn_controller --> transaction_controller;
   eip_5792_middleware --> messenger;
+  eip_5792_middleware --> preferences_controller;
   eip_5792_middleware --> transaction_controller;
   eip_5792_middleware --> keyring_controller;
   eip_7702_internal_rpc_middleware --> controller_utils;
@@ -412,6 +413,7 @@ linkStyle default opacity:0.5
   json_rpc_engine --> messenger;
   json_rpc_middleware_stream --> json_rpc_engine;
   keyring_controller --> base_controller;
+  keyring_controller --> controller_utils;
   keyring_controller --> messenger;
   logging_controller --> base_controller;
   logging_controller --> controller_utils;

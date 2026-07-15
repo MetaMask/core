@@ -282,6 +282,18 @@
       "path": "./packages/user-operation-controller"
     },
     {
+      "path": "./packages/eip-5792-middleware"
+    },
+    {
+      "path": "./packages/eip-7702-internal-rpc-middleware"
+    },
+    {
+      "path": "./packages/logging-controller"
+    },
+    {
+      "path": "./packages/storage-service"
+    },
+    {
       "path": "./packages/wallet"
     },
     {

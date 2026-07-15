@@ -2074,7 +2074,6 @@ export class PerpsController extends BaseController<
       },
       stateManager: {
         update: (updater: (state: PerpsControllerState) => void) =>
-          // @ts-expect-error TS2589 - excessively deep instantiation from BaseController generic
           this.update(updater),
         getState: (): PerpsControllerState => this.#getControllerState(),
       },
