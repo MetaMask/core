@@ -717,9 +717,7 @@ describe('HyperLiquidProvider', () => {
               ? Promise.resolve([xyzMeta, []])
               : Promise.resolve([
                   {
-                    universe: [
-                      { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
-                    ],
+                    universe: [{ name: 'BTC', szDecimals: 3, maxLeverage: 50 }],
                   },
                   [],
                 ]),
@@ -769,9 +767,7 @@ describe('HyperLiquidProvider', () => {
               ? Promise.resolve([xyzMeta, []])
               : Promise.resolve([
                   {
-                    universe: [
-                      { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
-                    ],
+                    universe: [{ name: 'BTC', szDecimals: 3, maxLeverage: 50 }],
                   },
                   [],
                 ]),
