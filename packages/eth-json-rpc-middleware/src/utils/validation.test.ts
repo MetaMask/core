@@ -338,9 +338,7 @@ describe('Validation Utils', () => {
       ['a boolean', true],
       ['an array', [{ from: VALID_FROM }]],
     ])('throws when params is %s', (_label, value) => {
-      expect(() => validateTransactionParams(value)).toThrow(
-        /Invalid params|Invalid input/u,
-      );
+      expect(() => validateTransactionParams(value)).toThrow(/Invalid params/u);
     });
 
     it('throws for an extraneous top-level key', () => {

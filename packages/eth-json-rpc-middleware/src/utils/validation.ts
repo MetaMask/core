@@ -3,7 +3,7 @@ import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Struct, StructError } from '@metamask/superstruct';
 import { array, object, optional, validate } from '@metamask/superstruct';
 import type { Hex } from '@metamask/utils';
-import { HexAddressStruct, StrictHexStruct } from '@metamask/utils';
+import { getJsonSize, HexAddressStruct, StrictHexStruct } from '@metamask/utils';
 
 import type { WalletMiddlewareContext } from '../wallet.js';
 import { parseTypedMessage } from './normalize.js';
@@ -290,19 +290,15 @@ export const MAX_TRANSACTION_PARAMS_SIZE_BYTES = 200 * 1024;
  *   millions of hex zeros) that exhaust memory in downstream code.
  *
  * @param params - The transaction params object supplied by the dapp.
- * @throws rpcErrors.invalidInput() if params is an array or exceeds the
+ * @throws rpcErrors.invalidParams() if params is an array or exceeds the
  * serialized size limit.
- * @throws rpcErrors.invalidParams() if params fails schema validation
+ * @throws rpcErrors.invalidInput() if params fails schema validation
  * (wrong type, extraneous top-level key, or malformed nested field).
  */
 export function validateTransactionParams(params: unknown): void {
-  if (Array.isArray(params)) {
-    throw rpcErrors.invalidInput();
-  }
-
   validateParams(params, TransactionParamsStruct);
 
-  if (JSON.stringify(params).length > MAX_TRANSACTION_PARAMS_SIZE_BYTES) {
+  if (getJsonSize(params) > MAX_TRANSACTION_PARAMS_SIZE_BYTES) {
     throw rpcErrors.invalidInput();
   }
 }
