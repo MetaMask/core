@@ -136,6 +136,7 @@
 /packages/multichain-network-controller         @MetaMask/core-platform @MetaMask/accounts-engineers @MetaMask/metamask-assets
 /packages/network-controller                    @MetaMask/core-platform @MetaMask/metamask-assets
 /packages/remote-feature-flag-controller        @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
+/packages/sentinel-api-service                  @MetaMask/confirmations @MetaMask/transactions
 /packages/storage-service                       @MetaMask/extension-platform @MetaMask/mobile-platform @MetaMask/core-platform
 /packages/client-controller                     @MetaMask/core-platform @MetaMask/extension-platform @MetaMask/mobile-platform
 /packages/profile-metrics-controller            @MetaMask/mobile-platform @MetaMask/extension-platform
@@ -221,6 +222,8 @@
 /packages/signature-controller/CHANGELOG.md       @MetaMask/confirmations @MetaMask/core-platform
 /packages/smart-transactions-controller/package.json @MetaMask/transactions @MetaMask/core-platform
 /packages/smart-transactions-controller/CHANGELOG.md @MetaMask/transactions @MetaMask/core-platform
+/packages/sentinel-api-service/package.json       @MetaMask/confirmations @MetaMask/transactions @MetaMask/core-platform
+/packages/sentinel-api-service/CHANGELOG.md       @MetaMask/confirmations @MetaMask/transactions @MetaMask/core-platform
 /packages/transaction-controller/package.json     @MetaMask/confirmations @MetaMask/core-platform
 /packages/transaction-controller/CHANGELOG.md     @MetaMask/confirmations @MetaMask/core-platform
 /packages/transaction-pay-controller/package.json @MetaMask/confirmations @MetaMask/core-platform

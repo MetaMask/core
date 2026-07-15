@@ -246,6 +246,9 @@
       "path": "./packages/selected-network-controller"
     },
     {
+      "path": "./packages/sentinel-api-service"
+    },
+    {
       "path": "./packages/shield-controller"
     },
     {
