@@ -1,9 +1,14 @@
 import { TYPED_MESSAGE_SCHEMA } from '@metamask/eth-sig-util';
 import { providerErrors, rpcErrors } from '@metamask/rpc-errors';
 import type { Struct, StructError } from '@metamask/superstruct';
-import { array, object, optional, validate } from '@metamask/superstruct';
+import {
+  array,
+  object,
+  optional,
+  string,
+  validate,
+} from '@metamask/superstruct';
 import type { Hex } from '@metamask/utils';
-import { getJsonSize, HexAddressStruct, StrictHexStruct } from '@metamask/utils';
 
 import type { WalletMiddlewareContext } from '../wallet.js';
 import { parseTypedMessage } from './normalize.js';
@@ -236,35 +241,34 @@ export function validateTypedMessageKeys(data: string): void {
   }
 }
 
-const AccessListEntryStruct = object({
-  address: HexAddressStruct,
-  storageKeys: array(StrictHexStruct),
-});
-
-const AuthorizationListEntryStruct = object({
-  address: HexAddressStruct,
-  chainId: StrictHexStruct,
-  nonce: StrictHexStruct,
-  r: optional(StrictHexStruct),
-  s: optional(StrictHexStruct),
-  yParity: optional(StrictHexStruct),
-});
-
 export const TransactionParamsStruct = object({
-  accessList: optional(array(AccessListEntryStruct)),
-  authorizationList: optional(array(AuthorizationListEntryStruct)),
-  chainId: optional(StrictHexStruct),
-  data: optional(StrictHexStruct),
-  from: HexAddressStruct,
-  gas: optional(StrictHexStruct),
-  gasLimit: optional(StrictHexStruct),
-  gasPrice: optional(StrictHexStruct),
-  maxFeePerGas: optional(StrictHexStruct),
-  maxPriorityFeePerGas: optional(StrictHexStruct),
-  nonce: optional(StrictHexStruct),
-  to: optional(HexAddressStruct),
-  type: optional(StrictHexStruct),
-  value: optional(StrictHexStruct),
+  accessList: optional(
+    array(object({ address: string(), storageKeys: array(string()) })),
+  ),
+  authorizationList: optional(
+    array(
+      object({
+        address: string(),
+        chainId: string(),
+        nonce: string(),
+        r: optional(string()),
+        s: optional(string()),
+        yParity: optional(string()),
+      }),
+    ),
+  ),
+  chainId: optional(string()),
+  data: optional(string()),
+  from: string(),
+  gas: optional(string()),
+  gasLimit: optional(string()),
+  gasPrice: optional(string()),
+  maxFeePerGas: optional(string()),
+  maxPriorityFeePerGas: optional(string()),
+  nonce: optional(string()),
+  to: optional(string()),
+  type: optional(string()),
+  value: optional(string()),
 });
 
 // Upper bound derived from the largest valid eth_sendTransaction payload:
@@ -298,7 +302,10 @@ export const MAX_TRANSACTION_PARAMS_SIZE_BYTES = 200 * 1024;
 export function validateTransactionParams(params: unknown): void {
   validateParams(params, TransactionParamsStruct);
 
-  if (getJsonSize(params) > MAX_TRANSACTION_PARAMS_SIZE_BYTES) {
+  if (
+    new TextEncoder().encode(JSON.stringify(params)).byteLength >
+    MAX_TRANSACTION_PARAMS_SIZE_BYTES
+  ) {
     throw rpcErrors.invalidInput();
   }
 }

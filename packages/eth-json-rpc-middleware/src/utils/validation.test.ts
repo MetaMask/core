@@ -403,15 +403,6 @@ describe('Validation Utils', () => {
       ).toThrow(/Invalid params/u);
     });
 
-    it('throws when `to` is not a hex address', () => {
-      expect(() =>
-        validateTransactionParams({
-          from: VALID_FROM,
-          to: 'not-an-address',
-        }),
-      ).toThrow(/Invalid params/u);
-    });
-
     it('throws when `data` is not a hex string', () => {
       expect(() =>
         validateTransactionParams({

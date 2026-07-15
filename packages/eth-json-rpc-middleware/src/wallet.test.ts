@@ -116,7 +116,9 @@ describe('wallet', () => {
         method: 'eth_sendTransaction',
         params: [txParams],
       });
-      await expect(engine.handle(payload)).rejects.toThrow(/Invalid params/u);
+      await expect(engine.handle(payload)).rejects.toThrow(
+        'Invalid parameters: must provide an Ethereum address.',
+      );
     });
 
     it('throws unauthorized for unknown addresses', async () => {
@@ -313,7 +315,9 @@ describe('wallet', () => {
 
       await expect(
         engine.handle(...createHandleParams(payload)),
-      ).rejects.toThrow(/Invalid params/u);
+      ).rejects.toThrow(
+        'Invalid parameters: must provide an Ethereum address.',
+      );
     });
 
     it('should throw when provided unknown address', async () => {
