@@ -198,8 +198,11 @@ export const calcRelayerFee = (
   );
   let relayerFeeInNative = calcTokenAmount(relayerFeeAmount, 18);
 
-  // Subtract srcAmount and other fees from trade value if srcAsset is native
-  if (isNativeAddress(quote.srcAsset.address)) {
+  // trade.value carries the native amount sent in the tx, so the relayer fee is
+  // back-calculated as trade.value - sentAmount. This only holds when the native
+  // asset actually flows through trade.value; when trade.value is 0 there is
+  // nothing to back out and the relayer fee is 0.
+  if (isNativeAddress(quote.srcAsset.address) && relayerFeeAmount.gt(0)) {
     const sentAmountInNative = calcSentAmount(quote, {
       exchangeRate,
       usdExchangeRate,
