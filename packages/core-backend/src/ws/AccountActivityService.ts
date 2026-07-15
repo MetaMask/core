@@ -220,10 +220,6 @@ export class AccountActivityService {
   // Track chains that are currently up (based on system notifications)
   readonly #chainsUp: Set<string> = new Set();
 
-  // Chain prefixes used for the current subscriptions, to detect feature flag
-  // changes that require resubscribing
-  #enabledChainPrefixes: string[] = [];
-
   // =============================================================================
   // Constructor and Initialization
   // =============================================================================
