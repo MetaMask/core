@@ -436,9 +436,7 @@ export class AccountActivityService {
       // First, unsubscribe from all current account activity subscriptions to avoid multiple subscriptions
       await this.#unsubscribeFromAllAccountActivity();
 
-      for (const address of this.#getSupportedMultichainCaip10Addresses(
-        selectedAccounts,
-      )) {
+      for (const address of this.#convertToCaip10Addresses(selectedAccounts)) {
         // Subscribe to the new selected account in CAIP-10 format
         await this.subscribe({ address });
       }
@@ -540,9 +538,7 @@ export class AccountActivityService {
       'AccountTreeController:getAccountsFromSelectedAccountGroup',
     );
 
-    for (const address of this.#getSupportedMultichainCaip10Addresses(
-      selectedAccounts,
-    )) {
+    for (const address of this.#convertToCaip10Addresses(selectedAccounts)) {
       await this.subscribe({ address });
     }
   }
@@ -568,24 +564,29 @@ export class AccountActivityService {
   // =============================================================================
 
   /**
-   * Convert an InternalAccount address to CAIP-10 format, using the first
+   * Convert a list of InternalAccount addresses to CAIP-10 format, using the first
    * supported chain prefix matching the account's scopes
    *
-   * @param account - The internal account to convert
-   * @param account.address - The raw address of the account
-   * @param account.scopes - The scopes of the account (used to determine chain type)
-   * @returns The CAIP-10 formatted address (e.g. `eip155:0:address`, meaning
-   * all chains of that namespace), or `undefined` if none of the account's
+   * @param accounts - The internal accounts to convert
+   * @returns The CAIP-10 formatted addresses (e.g. [`eip155:0:address`], meaning
+   * all chains of that namespace), or an empty array if none of the account's
    * scopes are supported
    */
-  #convertToCaip10Address(account: {
-    address: InternalAccount['address'];
-    scopes: InternalAccount['scopes'];
-  }): string | undefined {
-    const chainPrefix = this.#getSupportedChainPrefixes().find((prefix) =>
-      account.scopes.some((scope) => scope.startsWith(`${prefix}:`)),
-    );
-    return chainPrefix ? `${chainPrefix}:0:${account.address}` : undefined;
+  #convertToCaip10Addresses(accounts: InternalAccount[]): string[] {
+    const supportedChainPrefixes = this.#getSupportedChainPrefixes();
+    return accounts.reduce<string[]>((result, account) => {
+      const accountPrefix = supportedChainPrefixes.find((prefix) =>
+        account.scopes.some((scope) => scope.startsWith(`${prefix}:`)),
+      );
+
+      if (!accountPrefix) {
+        // Skip unsupported accounts
+        return result;
+      }
+
+      result.push(`${accountPrefix}:0:${account.address}`);
+      return result;
+    }, []);
   }
 
   /**
@@ -637,21 +638,6 @@ export class AccountActivityService {
     } catch (error) {
       log('Feature flag change handling failed', { error });
     }
-  }
-
-  /**
-   * Get all supported multichain CAIP-10 addresses for a given account
-   * This is used to determine which accounts to subscribe to for activity updates
-   *
-   * @param accounts - The internal accounts to get supported addresses for
-   * @returns An array of CAIP-10 formatted addresses that are supported for subscription
-   */
-  #getSupportedMultichainCaip10Addresses(
-    accounts: InternalAccount[],
-  ): string[] {
-    return accounts
-      .map((account) => this.#convertToCaip10Address(account))
-      .filter((address): address is string => address !== undefined);
   }
 
   /**
