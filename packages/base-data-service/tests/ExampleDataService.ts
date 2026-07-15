@@ -63,8 +63,8 @@ export class ExampleDataService extends BaseDataService<
 
   constructor(
     messenger: ExampleMessenger,
-    { persistConfig }: { persistConfig?: PersistenceConfiguration } = {
-      persistConfig: { maxAge: inMilliseconds(1, Duration.Day) },
+    { persistenceConfig }: { persistenceConfig?: PersistenceConfiguration } = {
+      persistenceConfig: { maxAge: inMilliseconds(1, Duration.Day) },
     },
   ) {
     super({
@@ -75,7 +75,7 @@ export class ExampleDataService extends BaseDataService<
         maxConsecutiveFailures: 3,
         backoff: new ConstantBackoff(0),
       },
-      persistConfig,
+      persistenceConfig,
     });
 
     this.messenger.registerMethodActionHandlers(

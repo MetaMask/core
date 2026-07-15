@@ -151,20 +151,20 @@ export class BaseDataService<
 
   readonly #debouncedPersist?: DebouncedFunc<() => void>;
 
-  readonly #persistConfig?: PersistenceConfiguration;
+  readonly #persistenceConfig?: PersistenceConfiguration;
 
   constructor({
     name,
     messenger,
     queryClientConfig = {},
     policyOptions,
-    persistConfig,
+    persistenceConfig,
   }: {
     name: ServiceName;
     messenger: ServiceMessenger;
     queryClientConfig?: QueryClientConfig;
     policyOptions?: CreateServicePolicyOptions;
-    persistConfig?: PersistenceConfiguration;
+    persistenceConfig?: PersistenceConfiguration;
   }) {
     this.name = name;
 
@@ -194,12 +194,12 @@ export class BaseDataService<
       },
     });
 
-    this.#persistConfig = persistConfig;
+    this.#persistenceConfig = persistenceConfig;
 
     this.#policy = createServicePolicy(policyOptions);
 
     this.#debouncedPersist =
-      this.#persistConfig &&
+      this.#persistenceConfig &&
       debounce(
         () => {
           this.#persistCache().catch(
@@ -207,10 +207,10 @@ export class BaseDataService<
             (error) => this.#messenger.captureException?.(error),
           );
         },
-        this.#persistConfig.debounce ?? inMilliseconds(10, Duration.Second),
+        this.#persistenceConfig.debounce ?? inMilliseconds(10, Duration.Second),
         {
           maxWait:
-            this.#persistConfig.debounceMaxWait ??
+            this.#persistenceConfig.debounceMaxWait ??
             inMilliseconds(1, Duration.Minute),
         },
       );
@@ -346,7 +346,7 @@ export class BaseDataService<
    * Initialize the service, rehydrating the cache with persisted data if possible.
    */
   init(): void {
-    this.#rehydrateCache().catch(
+    this.#loadCache().catch(
       /* istanbul ignore next */
       (error) => this.#messenger.captureException?.(error),
     );
@@ -430,29 +430,29 @@ export class BaseDataService<
   }
 
   /**
-   * Rehydrate the query client cache using the StorageService, if persistence is configured
+   * Load the query client cache from the StorageService, if persistence is configured
    * and the persisted cache is not expired.
    *
    * @returns Nothing.
    */
-  async #rehydrateCache(): Promise<void> {
-    if (!this.#persistConfig) {
+  async #loadCache(): Promise<void> {
+    if (!this.#persistenceConfig) {
       return;
     }
 
-    const { result: persisted } = await this.#externalMessenger.call(
+    const { result: untypedCache } = await this.#externalMessenger.call(
       'StorageService:getItem',
       this.name,
       STORAGE_SERVICE_KEY,
     );
 
-    if (!persisted) {
+    if (!untypedCache) {
       return;
     }
 
-    const cache = persisted as unknown as PersistedCache;
+    const cache = untypedCache as unknown as PersistedCache;
 
-    if (Date.now() - cache.timestamp >= this.#persistConfig.maxAge) {
+    if (Date.now() - cache.timestamp >= this.#persistenceConfig.maxAge) {
       await this.#externalMessenger.call(
         'StorageService:removeItem',
         this.name,
