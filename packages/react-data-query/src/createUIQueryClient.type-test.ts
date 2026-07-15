@@ -17,42 +17,33 @@ import type { QueryClient } from '@tanstack/query-core';
 
 import { createUIQueryClient } from '.';
 
-/**
- * An example action for a data service that returns some assets.
- */
 type FirstDataServiceGetAssetsAction = {
   type: 'FirstDataService:getAssets';
   handler: (assetIds: string[]) => Promise<unknown>;
 };
 
-/**
- * An example action for a second data service that returns some tokens.
- */
 type SecondDataServiceGetTokensAction = {
   type: 'SecondDataService:getTokens';
   handler: (tokenIds: string[]) => Promise<unknown>;
 };
 
-/**
- * An example event for the second data service that is unrelated to the cache.
- */
 type SecondDataServiceAssetsFetchedEvent = {
   type: 'SecondDataService:assetsFetched';
   payload: unknown[];
 };
 
-/**
- * The actions that the example root messenger supports.
- */
+type ThirdDataServiceGetTransactionsAction = {
+  type: 'ThirdDataService:getTransactions';
+  handler: (transactionIds: string[]) => Promise<unknown>;
+};
+
 type RootMessengerActions =
   | FirstDataServiceGetAssetsAction
   | DataServiceInvalidateQueriesAction<'FirstDataService'>
   | SecondDataServiceGetTokensAction
-  | DataServiceInvalidateQueriesAction<'SecondDataService'>;
+  | DataServiceInvalidateQueriesAction<'SecondDataService'>
+  | ThirdDataServiceGetTransactionsAction;
 
-/**
- * The events that the example root messenger supports.
- */
 type RootMessengerEvents =
   | SecondDataServiceAssetsFetchedEvent
   | DataServiceGranularCacheUpdatedEvent<'FirstDataService'>
@@ -64,9 +55,11 @@ const messenger = new Messenger<
   RootMessengerEvents
 >({ namespace: 'Root' });
 
-// "Assert" that `createUIQueryClient` 1) takes a messenger that supports
-// actions and `:cacheUpdated:${hash}` events as long as they are namespaced
-// under the given data service names, and 2) it returns a `QueryClient`.
+// "Assert" that `createUIQueryClient` 1) takes a messenger that minimally
+// supports actions and `:cacheUpdated:${hash}` events for the given data
+// service names, even when the messenger additionally supports actions and
+// events from other namespaces (here, `ThirdDataService`), and 2) it returns a
+// `QueryClient`.
 createUIQueryClient(
   ['FirstDataService', 'SecondDataService'] as const,
   messenger,
