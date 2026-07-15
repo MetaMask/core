@@ -10,7 +10,11 @@ import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote
 import type { Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
-import { isHeadlessAllProvidersEnabled } from './featureFlags.js';
+import {
+  getHeadlessProviderAllowlist,
+  isHeadlessAllProvidersEnabled,
+  normalizeHeadlessProviderId,
+} from './featureFlags.js';
 import { getProvidersServingAsset } from './providerAvailability.js';
 import type { RampsControllerMethodActions } from './RampsController-method-action-types.js';
 import type { RampsErrorCode } from './rampsErrorCodes.js';
@@ -978,26 +982,41 @@ export class RampsController extends BaseController<
   }
 
   /**
-   * Whether the Headless Buy all-providers feature flag is enabled.
+   * Resolves the Headless Buy all-providers feature flag: whether widening is
+   * enabled, and the provider-id allowlist the widened pick is restricted to
+   * (if the flag's object payload carries one).
    *
    * Reads `RemoteFeatureFlagController` state through the messenger on every
    * call, so a remote flag fetch or a local dev override takes effect at
-   * runtime without reconstructing the controller. Key lookup, local-override
-   * merging, and boolean coercion live in the shared
-   * `isHeadlessAllProvidersEnabled` helper so UI consumers resolve the flag
+   * runtime without reconstructing the controller. The single read keeps the
+   * enabled bit and the allowlist consistent even if the flag changes while a
+   * quote request is in flight. Key lookup, local-override merging, and value
+   * coercion live in the shared `isHeadlessAllProvidersEnabled` /
+   * `getHeadlessProviderAllowlist` helpers so UI consumers resolve the flag
    * identically. Fails closed: when `RemoteFeatureFlagController:getState` is
    * not wired up, quoting stays native-only.
    *
-   * @returns Whether all provider classes are enabled for fiat quote widening.
+   * @param surface - Optional consumer surface key selecting a per-surface
+   * allowlist from the flag payload's `surfaces` map.
+   * @returns The enabled bit and the optional provider-id allowlist.
    */
-  #isAllProvidersEnabled(): boolean {
+  #resolveAllProvidersFlag(surface?: string): {
+    enabled: boolean;
+    allowlist?: string[];
+  } {
     try {
       const remoteFeatureFlagState = this.messenger.call(
         'RemoteFeatureFlagController:getState',
       );
-      return isHeadlessAllProvidersEnabled(remoteFeatureFlagState);
+      return {
+        enabled: isHeadlessAllProvidersEnabled(remoteFeatureFlagState),
+        allowlist: getHeadlessProviderAllowlist(
+          remoteFeatureFlagState,
+          surface,
+        ),
+      };
     } catch {
-      return false;
+      return { enabled: false };
     }
   }
 
@@ -1845,6 +1864,13 @@ export class RampsController extends BaseController<
    *   passed `providers` list is filtered to those supporting the region and
    *   asset. If nothing qualifies, `getQuotes` returns an empty response
    *   instead of quoting other providers.
+   * @param options.surface - Optional consumer surface key for the
+   *   `moneyHeadlessAllProviders` flag payload's `surfaces` map (canonical
+   *   values: `money` | `perps` | `predictions`). Selects that surface's
+   *   provider allowlist over the payload's top-level `providerIds`. Only
+   *   consulted on the widened all-providers path; has no effect on fetching
+   *   or caching, and a surface absent from the payload falls back to the
+   *   top-level list.
    * @param options.redirectUrl - Optional redirect URL after order completion.
    * @param options.action - The ramp action type. Defaults to 'buy'.
    * @param options.forceRefresh - Whether to bypass cache.
@@ -1862,6 +1888,7 @@ export class RampsController extends BaseController<
     autoSelectProvider?: boolean;
     preferredProviderIds?: string[];
     restrictToKnownOrNativeProviders?: boolean;
+    surface?: string;
     redirectUrl?: string;
     action?: RampAction;
     forceRefresh?: boolean;
@@ -1895,8 +1922,14 @@ export class RampsController extends BaseController<
       !options.providers &&
       (options.autoSelectProvider === true ||
         options.restrictToKnownOrNativeProviders === true);
-    const widenToAllProviders =
-      wantsAutoSelection && this.#isAllProvidersEnabled();
+    // Single flag read per call: the enabled bit and the allowlist come from
+    // the same `RemoteFeatureFlagController` state snapshot, so a flag edit
+    // during the awaited quote fetch cannot produce a mixed read.
+    const { enabled: allProvidersEnabled, allowlist: providerAllowlist } =
+      wantsAutoSelection
+        ? this.#resolveAllProvidersFlag(options.surface)
+        : { enabled: false, allowlist: undefined };
+    const widenToAllProviders = wantsAutoSelection && allProvidersEnabled;
 
     let providersToUse: string[];
     let widenedProviderCatalog: Provider[] = this.state.providers.data;
@@ -2031,6 +2064,7 @@ export class RampsController extends BaseController<
       amount: options.amount,
       fiat: normalizedFiat,
       providers: widenedProviderCatalog,
+      allowlist: providerAllowlist,
     });
 
     if (!selectedQuote) {
@@ -2057,16 +2091,19 @@ export class RampsController extends BaseController<
    * Selects the best quote from a widened multi-provider response.
    *
    * Every provider class is eligible (native, in-app WebView aggregator, and
-   * external-browser / custom-action). Enforces per-provider fiat limits up
-   * front, then orders by reliability and falls back to price using the
-   * server-provided `sorted` order. Returns `undefined` when no quote fits
-   * the published limits.
+   * external-browser / custom-action). When the feature flag payload carries a
+   * provider allowlist, candidates from unlisted providers are dropped first.
+   * Enforces per-provider fiat limits up front, then orders by reliability and
+   * falls back to price using the server-provided `sorted` order. Returns
+   * `undefined` when no quote survives.
    *
    * @param response - The multi-provider quotes response.
    * @param options - Selection inputs.
    * @param options.amount - Fiat amount, for the limit-fit check.
    * @param options.fiat - Lowercased fiat short code, for the limit lookup.
    * @param options.providers - Provider catalog for the limit lookup.
+   * @param options.allowlist - Optional provider ids (either `/providers/x`
+   * or bare form) the pick is restricted to.
    * @returns The selected quote, or `undefined` when none is usable.
    */
   #pickWidenedQuote(
@@ -2075,15 +2112,25 @@ export class RampsController extends BaseController<
       amount,
       fiat,
       providers,
+      allowlist,
     }: {
       amount: number;
       fiat: string;
       providers: Provider[];
+      allowlist?: string[];
     },
   ): Quote | undefined {
     const providerByCode = new Map(
       providers.map((provider) => [provider.id, provider]),
     );
+
+    const allowedProviderIds =
+      allowlist && allowlist.length > 0
+        ? new Set(allowlist.map(normalizeHeadlessProviderId))
+        : undefined;
+    const isAllowedProvider = (quote: Quote): boolean =>
+      !allowedProviderIds ||
+      allowedProviderIds.has(normalizeHeadlessProviderId(quote.provider));
 
     const fitsProviderLimits = (quote: Quote): boolean => {
       const provider = providerByCode.get(quote.provider);
@@ -2096,7 +2143,9 @@ export class RampsController extends BaseController<
       return amount >= limit.minAmount && amount <= limit.maxAmount;
     };
 
-    const candidates = response.success.filter(fitsProviderLimits);
+    const candidates = response.success.filter(
+      (quote) => isAllowedProvider(quote) && fitsProviderLimits(quote),
+    );
     if (candidates.length === 0) {
       return undefined;
     }

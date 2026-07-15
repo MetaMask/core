@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add the pure `getHeadlessProviderAllowlist(remoteFeatureFlagState, surface?)` helper plus the `HEADLESS_ALLOWLIST_SURFACES` constant and `HeadlessAllowlistSurface` type, resolving the provider-id allowlist carried by the `moneyHeadlessAllProviders` flag's object payload (`surfaces[surface]` overrides the top-level `providerIds`; absent, empty, or malformed levels fall through to no restriction) ([#9999](https://github.com/MetaMask/core/pull/9999))
+- Add an optional `surface` option to `RampsController.getQuotes` (canonical values `money` | `perps` | `predictions`) selecting the per-surface allowlist from the flag payload on the widened all-providers path; it does not affect fetching or caching ([#9999](https://github.com/MetaMask/core/pull/9999))
+
+### Changed
+
+- Widen the `moneyHeadlessAllProviders` flag value contract to accept an object payload `{ enabled: true, providerIds?: string[], surfaces?: Record<string, string[]> }` alongside the boolean form ([#9999](https://github.com/MetaMask/core/pull/9999))
+  - `isHeadlessAllProvidersEnabled` now returns `true` for an object payload whose `enabled` is the literal `true`; every other previously-false value (strings, numbers, arrays, disabled or malformed payloads) still resolves to `false`, and the boolean forms behave exactly as before, so boolean-only configurations see no behavior change
+  - When the payload lists provider ids, the widened quote pick drops candidates whose provider is not listed (ids match in prefixed `/providers/x` or bare form, case-insensitively); if nothing survives, `getQuotes` returns an empty `success[]` with `sorted` / `error` / `customActions` preserved
+  - Clients on earlier versions coerce the object payload to `false` (native-only), so serving it cannot enable widening for a client that cannot parse it
+
 ## [17.0.0]
 
 ### Added
