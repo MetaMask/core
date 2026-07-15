@@ -792,6 +792,45 @@ describe('HyperLiquidSubscriptionService', () => {
 
       unsubscribe();
     });
+
+    it('skips a coin with a null midPx and no markPx in a fastAssetCtxs update without throwing', async () => {
+      const btcCallback = jest.fn();
+      const ethCallback = jest.fn();
+
+      const unsubscribeBtc = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: btcCallback,
+      });
+      const unsubscribeEth = await service.subscribeToPrices({
+        symbols: ['ETH'],
+        callback: ethCallback,
+      });
+
+      await jest.runAllTimersAsync();
+      btcCallback.mockClear();
+      ethCallback.mockClear();
+
+      const fastAssetCtxsCallback =
+        mockSubscriptionClient.fastAssetCtxs.mock.calls[0][0];
+
+      // BTC has a null midPx (and no markPx), which the SDK types allow at
+      // runtime; ETH is a valid update (with a price change from the allMids
+      // baseline of 3000) in the same payload.
+      expect(() =>
+        fastAssetCtxsCallback({
+          BTC: { midPx: null },
+          ETH: { midPx: '3100' },
+        }),
+      ).not.toThrow();
+
+      expect(btcCallback).not.toHaveBeenCalled();
+      expect(ethCallback).toHaveBeenCalledWith([
+        expect.objectContaining({ symbol: 'ETH', price: '3100' }),
+      ]);
+
+      unsubscribeBtc();
+      unsubscribeEth();
+    });
   });
 
   describe('Position Subscriptions', () => {

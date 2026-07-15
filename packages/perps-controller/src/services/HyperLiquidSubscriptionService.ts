@@ -145,6 +145,14 @@ export class HyperLiquidSubscriptionService {
 
   #globalFastAssetCtxsPromise?: Promise<void>; // Track in-progress subscription
 
+  // Coins seen in any fastAssetCtxs event (snapshot or diff). Once a coin
+  // appears here, the per-DEX assetCtxs handler stops writing its price into
+  // #cachedPriceData, since fastAssetCtxs is the fresher/authoritative source
+  // for that coin going forward. Cleared on clearAll() and when the
+  // fastAssetCtxs subscription is re-established after a reconnect, so
+  // assetCtxs can serve prices again until a fresh snapshot arrives.
+  readonly #fastAssetCtxsCoins = new Set<string>();
+
   readonly #globalActiveAssetSubscriptions = new Map<string, ISubscription>();
 
   // Track in-progress activeAssetCtx subscription promises to prevent leaks
@@ -3133,6 +3141,16 @@ export class HyperLiquidSubscriptionService {
       const changedSymbols = new Set<string>();
 
       for (const coin in data) {
+        if (!hasProperty(data, coin)) {
+          continue;
+        }
+
+        // Mark this coin as covered by fastAssetCtxs regardless of whether
+        // there's currently a subscriber, so the slower per-DEX assetCtxs
+        // handler knows to defer to this feed for the coin's price once
+        // there is one.
+        this.#fastAssetCtxsCoins.add(coin);
+
         // Skip coins nobody is subscribed to (snapshot messages include
         // every asset on the exchange, most of which have no subscriber)
         if (!this.#priceSubscribers.get(coin)?.size) {
@@ -3141,7 +3159,7 @@ export class HyperLiquidSubscriptionService {
 
         const ctx = data[coin];
         const priceRaw = ctx.midPx ?? ctx.markPx;
-        if (priceRaw === undefined) {
+        if (priceRaw === undefined || priceRaw === null) {
           continue;
         }
 
@@ -3634,9 +3652,13 @@ export class HyperLiquidSubscriptionService {
 
             this.#marketDataCache.set(asset.name, marketData);
 
-            // HIP-3: Extract price from assetCtx and update cached prices
+            // HIP-3: Extract price from assetCtx and update cached prices.
+            // Skip symbols fastAssetCtxs already covers (TAT-3387 owns their
+            // price path with fresher, ~5s-cadence data); assetCtxs remains
+            // the price source only for symbols outside fastAssetCtxs'
+            // coverage, e.g. HIP-3 dex:SYMBOL assets.
             const price = ctx.midPx?.toString() ?? ctx.markPx?.toString();
-            if (price) {
+            if (price && !this.#fastAssetCtxsCoins.has(asset.name)) {
               // For HIP-3 DEXs, meta() returns asset.name already containing the DEX prefix
               // (e.g., "xyz:XYZ100"), so use it directly
               const symbol = asset.name;
@@ -4176,9 +4198,12 @@ export class HyperLiquidSubscriptionService {
       // Re-establish the subscription
       this.#ensureGlobalAllMidsSubscription();
 
-      // Re-establish the fastAssetCtxs subscription alongside allMids (TAT-3387)
+      // Re-establish the fastAssetCtxs subscription alongside allMids (TAT-3387).
+      // Clear fastAssetCtxsCoins so assetCtxs can serve prices in the gap
+      // until the fresh post-reconnect snapshot re-establishes coverage.
       this.#globalFastAssetCtxsSubscription = undefined;
       this.#globalFastAssetCtxsPromise = undefined;
+      this.#fastAssetCtxsCoins.clear();
       this.#ensureGlobalFastAssetCtxsSubscription();
     }
 
@@ -4466,6 +4491,7 @@ export class HyperLiquidSubscriptionService {
     }
     this.#globalFastAssetCtxsSubscription = undefined;
     this.#globalFastAssetCtxsPromise = undefined;
+    this.#fastAssetCtxsCoins.clear();
 
     this.#globalActiveAssetSubscriptions.forEach((sub, symbol) => {
       sub.unsubscribe().catch((error: Error) => {

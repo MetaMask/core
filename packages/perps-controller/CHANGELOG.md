@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The collateral check fails open (treats the DEX as USDC-collateral) when the collateral token can't be resolved against spot metadata, so incomplete metadata doesn't spuriously block an otherwise-valid market.
   - Removed the now-unreachable USDH auto-swap machinery this replaces (spot USDH/USDC balance lookups, the USDC→USDH spot swap, and the auto-swap orchestration).
 - Subscribe to HyperLiquid's `fastAssetCtxs` WebSocket feed for mark/mid price updates, replacing `assetCtxs` as the latency-sensitive price source now that HyperLiquid has slowed the public `assetCtxs` feed cadence ([#9530](https://github.com/MetaMask/core/pull/9530))
-  - `assetCtxs` continues to populate funding, open interest, volume, and oracle price data, and remains the price source for any symbol `fastAssetCtxs` doesn't cover.
+  - `assetCtxs` continues to populate funding, open interest, volume, and oracle price data, and no longer writes prices for any symbol `fastAssetCtxs` covers, so a slower `assetCtxs` batch tick can't overwrite a fresher `fastAssetCtxs` price; it remains the price source only for symbols outside `fastAssetCtxs`' coverage (e.g. HIP-3 DEX markets).
   - `fastAssetCtxs` is a single global subscription (the HyperLiquid SDK exposes no per-DEX variant): the first message is a full snapshot keyed by coin, and later messages contain diffs for only the coins that changed. Coins without an active price subscriber are ignored.
   - Established alongside the global `allMids` subscription, restored together on WebSocket reconnect, and torn down on `clearAll()`. Subscribe attempts use the same 3-attempt/500ms-backoff retry as `assetCtxs` for transient SDK errors.
 

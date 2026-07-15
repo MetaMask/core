@@ -3103,6 +3103,119 @@ describe('HyperLiquidSubscriptionService', () => {
 
       unsubscribe();
     });
+
+    it('does not let a slower assetCtxs batch update overwrite a price already covered by fastAssetCtxs', async () => {
+      let fastAssetCtxsCallback: ((data: any) => void) | undefined;
+      let assetCtxsCallback: ((data: any) => void) | undefined;
+
+      service.setDexMetaCache('', { universe: [{ name: 'BTC' }] } as any);
+
+      mockSubscriptionClient.fastAssetCtxs.mockImplementation(
+        (callback: any) => {
+          fastAssetCtxsCallback = callback;
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      mockSubscriptionClient.assetCtxs.mockImplementation(
+        (_params: any, callback: any) => {
+          assetCtxsCallback = callback;
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      const listCallback = jest.fn();
+      const unsubscribe = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: listCallback,
+      });
+
+      await jest.runAllTimersAsync();
+
+      // fastAssetCtxs establishes the authoritative price for BTC
+      fastAssetCtxsCallback?.({ BTC: { midPx: '52000' } });
+      await jest.runAllTimersAsync();
+
+      listCallback.mockClear();
+
+      // A slower assetCtxs batch tick fires for BTC with a different price.
+      // It should not overwrite the fresher fastAssetCtxs price.
+      assetCtxsCallback?.({
+        ctxs: [
+          {
+            prevDayPx: '49000',
+            funding: '0.01',
+            openInterest: '1000000',
+            dayNtlVlm: '50000000',
+            oraclePx: '50100',
+            midPx: '50200',
+          },
+        ],
+      });
+      await jest.runAllTimersAsync();
+
+      expect(listCallback).not.toHaveBeenCalledWith([
+        expect.objectContaining({ symbol: 'BTC', price: '50200' }),
+      ]);
+
+      unsubscribe();
+    });
+
+    it('lets assetCtxs update the price for a symbol not covered by fastAssetCtxs (e.g. a HIP-3 dex:symbol asset)', async () => {
+      let assetCtxsCallback: ((data: any) => void) | undefined;
+
+      jest.mocked(parseAssetName).mockImplementation((symbol: string) => ({
+        symbol,
+        dex: symbol === 'xyz:STOCK1' ? 'xyz' : null,
+      }));
+
+      service.setDexMetaCache('xyz', {
+        universe: [{ name: 'xyz:STOCK1' }],
+      } as any);
+
+      mockSubscriptionClient.assetCtxs.mockImplementation(
+        (_params: any, callback: any) => {
+          assetCtxsCallback = callback;
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      const listCallback = jest.fn();
+      const unsubscribe = await service.subscribeToPrices({
+        symbols: ['xyz:STOCK1'],
+        callback: listCallback,
+      });
+
+      await jest.runAllTimersAsync();
+
+      listCallback.mockClear();
+
+      assetCtxsCallback?.({
+        ctxs: [
+          {
+            prevDayPx: '9',
+            funding: '0.01',
+            openInterest: '1000',
+            dayNtlVlm: '5000',
+            oraclePx: '10',
+            midPx: '10.5',
+          },
+        ],
+      });
+      await jest.runAllTimersAsync();
+
+      expect(listCallback).toHaveBeenCalledWith([
+        expect.objectContaining({ symbol: 'xyz:STOCK1', price: '10.5' }),
+      ]);
+
+      unsubscribe();
+    });
   });
 
   describe('Market tradability (isTradable)', () => {
