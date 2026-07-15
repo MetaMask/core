@@ -23,14 +23,13 @@ type DataServiceGranularCacheUpdatedHandler = (
 
 /**
  * The minimum messenger shape needed by `createUIQueryClient`. This messenger
- * has some restrictions:
+ * has some constraints:
  *
- * 1. The messenger must at least support `call`, `subscribe` and `unsubscribe`.
- * 2. Its actions are expected to be asynchronous.
- * 3. Its action handler arguments and event payloads are expected to be JSON-compatible.
- * 4. It must support actions and granular cache update events that belong to the designated data services.
- *
- * @template DataServiceName - A union of the configured data service names.
+ * 1. The messenger must minimally support the `call`, `subscribe` and `unsubscribe` methods.
+ * 2. All action handlers must be asynchronous (must return promises).
+ * 3. All action handler arguments and event payloads must be JSON-compatible.
+ * 4. The messenger must minimally support capabilities that belong to the designated data services,
+ *    and it must minimally support the `:cacheUpdated:${hash}` event of the the designated data services.
  */
 type MessengerAdapter<DataServiceName extends string> = {
   /**
@@ -69,11 +68,12 @@ type MessengerAdapter<DataServiceName extends string> = {
  * Create a QueryClient queries and subscribes to data services using the messenger.
  *
  * @param dataServices - A list of data services.
- * @param messenger - A messenger-like object, with some restrictions:
- * 1. The messenger must at least support `call`, `subscribe` and `unsubscribe`.
- * 2. Its actions are expected to be asynchronous.
- * 3. Its action handler arguments and event payloads are expected to be JSON-compatible.
- * 4. It must support actions and granular cache update events that belong to `dataServices`.
+ * @param messenger - A messenger-like object, with some constraints:
+ * 1. The messenger must minimally support the `call`, `subscribe` and `unsubscribe` methods.
+ * 2. All action handlers must be asynchronous (must return promises).
+ * 3. All action handler arguments and event payloads must be JSON-compatible.
+ * 4. The messenger must minimally support capabilities that belong to the designated data services,
+ *    and it must minimally support the `:cacheUpdated:${hash}` event of the the designated data services.
  * @param config - Optional query client configuration options.
  * @returns The QueryClient.
  */
