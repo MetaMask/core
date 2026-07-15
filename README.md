@@ -366,6 +366,7 @@ linkStyle default opacity:0.5
   core_backend --> keyring_controller;
   core_backend --> messenger;
   core_backend --> profile_sync_controller;
+  core_backend --> remote_feature_flag_controller;
   delegation_controller --> base_controller;
   delegation_controller --> keyring_controller;
   delegation_controller --> messenger;
