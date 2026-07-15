@@ -7377,7 +7377,6 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
-    "@types/node": "npm:^26.1.1"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^29.7.0"
@@ -11501,15 +11500,6 @@ __metadata:
   version: 17.0.45
   resolution: "@types/node@npm:17.0.45"
   checksum: 10/b45fff7270b5e81be19ef91a66b764a8b21473a97a8d211218a52e3426b79ad48f371819ab9153370756b33ba284e5c875463de4d2cf48a472e9098d7f09e8a2
-  languageName: node
-  linkType: hard
-
-"@types/node@npm:^26.1.1":
-  version: 26.1.1
-  resolution: "@types/node@npm:26.1.1"
-  dependencies:
-    undici-types: "npm:~8.3.0"
-  checksum: 10/df6555a94c6b4cf74e6238373e2881e72dc91058cf2ba173be77ea3974aaa8f459c2f10fbb7eb644fb1e5189dd8407097f5d39506fad39c89bde18acb3b90316
   languageName: node
   linkType: hard
 
@@ -25307,13 +25297,6 @@ __metadata:
   version: 6.19.8
   resolution: "undici-types@npm:6.19.8"
   checksum: 10/cf0b48ed4fc99baf56584afa91aaffa5010c268b8842f62e02f752df209e3dea138b372a60a963b3b2576ed932f32329ce7ddb9cb5f27a6c83040d8cd74b7a70
-  languageName: node
-  linkType: hard
-
-"undici-types@npm:~8.3.0":
-  version: 8.3.0
-  resolution: "undici-types@npm:8.3.0"
-  checksum: 10/6681d2837ac75a75ac1cc46090aa2b8ddc7c6b8ecc295a6cdb06838752a730da3d8afeecf05e5ab7903160eafad3a8b6ffa1927e5ded260590f4d4fef18646d5
   languageName: node
   linkType: hard
 
