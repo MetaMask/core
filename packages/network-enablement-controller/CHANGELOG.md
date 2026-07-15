@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `restoreEnabledNetworkMap` on `NetworkEnablementController` to restore a previously snapshotted `enabledNetworkMap` when adding a network without switching the active network filter. Not exposed as a messenger action ([#9480](https://github.com/MetaMask/core/pull/9480))
+
 ## [5.5.0]
 
 ### Added

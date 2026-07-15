@@ -613,6 +613,33 @@ export class NetworkEnablementController extends BaseController<
   }
 
   /**
+   * Restores the enabled network map to a previously snapshotted state.
+   *
+   * Not a general merge API: only updates keys already present in the current
+   * map. Missing snapshot values default to `false`. Intended for callers with
+   * direct controller access (e.g. extension) to undo `#onAddNetwork` filter
+   * switches when adding a network without changing the active selection.
+   *
+   * @param enabledNetworkMap - Previously snapshotted enabledNetworkMap.
+   */
+  restoreEnabledNetworkMap(
+    enabledNetworkMap: NetworkEnablementControllerState['enabledNetworkMap'],
+  ): void {
+    this.update((state) => {
+      Object.entries(state.enabledNetworkMap).forEach(
+        ([namespace, currentNetworks]) => {
+          Object.keys(currentNetworks).forEach((chainId) => {
+            const storageKey = chainId as CaipChainId | Hex;
+            const previousValue = enabledNetworkMap[namespace]?.[storageKey];
+            state.enabledNetworkMap[namespace][storageKey] =
+              previousValue ?? false;
+          });
+        },
+      );
+    });
+  }
+
+  /**
    * Checks if a network is enabled.
    *
    * @param chainId - The chain ID of the network to check. Can be either:
