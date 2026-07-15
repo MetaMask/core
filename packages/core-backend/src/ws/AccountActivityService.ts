@@ -15,7 +15,6 @@ import type { Messenger } from '@metamask/messenger';
 import type {
   FeatureFlags,
   RemoteFeatureFlagControllerGetStateAction,
-  RemoteFeatureFlagControllerState,
   RemoteFeatureFlagControllerStateChangeEvent,
 } from '@metamask/remote-feature-flag-controller';
 import { isObject } from '@metamask/utils';
