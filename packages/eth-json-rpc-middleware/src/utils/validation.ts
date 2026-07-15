@@ -279,36 +279,21 @@ export const MAX_TRANSACTION_PARAMS_SIZE_BYTES = 200 * 1024;
  * standard transaction schema and rejects payloads whose serialized size
  * exceeds `MAX_TRANSACTION_PARAMS_SIZE_BYTES`.
  *
- * Checks run in this order to guarantee we never recurse into hostile
- * subtrees:
- *
- * 1. Top-level shape: params must be a plain object whose top-level keys
- *    are all in the schema. Runs in O(top-level-keys) without visiting
- *    nested values, so a deeply-nested subtree under an extraneous key
- *    (e.g. `{ from, to, test: { b: { b: ... × 1200 } } }`) is rejected
- *    before any recursive walk can `RangeError`.
- * 2. Serialized size: `JSON.stringify(params).length` must be
- *    `<= MAX_TRANSACTION_PARAMS_SIZE_BYTES`. Safe to walk at this point
- *    because step 1 guarantees the only nested values live under
- *    schema-declared fields (`accessList`, `authorizationList`) which are
- *    shallow arrays of flat objects.
- * 3. Full schema validation: per-field types (hex strings, addresses,
- *    `accessList` / `authorizationList` entry shapes).
- *
- * Together these guard against:
- * - Structural attacks: extraneous top-level keys or ill-typed nested
- *   values that would crash downstream normalization / PPOM WASM with
- *   `RangeError: Maximum call stack size exceeded`, silently bypassing
- *   security checks.
- * - Size attacks: valid-shaped but oversized payloads (e.g. `data` padded
- *   with millions of hex zeros) that exhaust memory / stack in the same
- *   downstream code.
+ * Guards against two attack shapes:
+ * - Structural: extraneous top-level keys or ill-typed fields (e.g.
+ *   `{ from, to, test: { b: { b: ... × 1200 } } }`) that would crash
+ *   downstream normalization / PPOM WASM with `RangeError: Maximum call
+ *   stack size exceeded`, silently bypassing security checks. Superstruct's
+ *   `object()` rejects unknown keys by name without accessing their values,
+ *   so hostile nested subtrees are never traversed.
+ * - Size: valid-shaped but oversized payloads (e.g. `data` padded with
+ *   millions of hex zeros) that exhaust memory in downstream code.
  *
  * @param params - The transaction params object supplied by the dapp.
- * @throws rpcErrors.invalidInput() if params is not a plain object,
- * contains an extraneous top-level key, or exceeds the size limit.
- * @throws rpcErrors.invalidParams() with a Superstruct failure summary if
- * the schema mismatch is on a typed field.
+ * @throws rpcErrors.invalidInput() if params is an array or exceeds the
+ * serialized size limit.
+ * @throws rpcErrors.invalidParams() if params fails schema validation
+ * (wrong type, extraneous top-level key, or malformed nested field).
  */
 export function validateTransactionParams(params: unknown): void {
   if (Array.isArray(params)) {
