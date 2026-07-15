@@ -104,11 +104,11 @@ export type PersistenceConfiguration = {
   /**
    * The number of milliseconds to wait before triggering persistence following a cache update.
    */
-  debounce?: number;
+  writeDelay?: number;
   /**
    * The maximum number of milliseconds to wait between persistence writes.
    */
-  debounceMaxWait?: number;
+  maxWriteDelay?: number;
 };
 
 type PersistedCache = {
@@ -207,10 +207,11 @@ export class BaseDataService<
             (error) => this.#messenger.captureException?.(error),
           );
         },
-        this.#persistenceConfig.debounce ?? inMilliseconds(10, Duration.Second),
+        this.#persistenceConfig.writeDelay ??
+          inMilliseconds(10, Duration.Second),
         {
           maxWait:
-            this.#persistenceConfig.debounceMaxWait ??
+            this.#persistenceConfig.maxWriteDelay ??
             inMilliseconds(1, Duration.Minute),
         },
       );
