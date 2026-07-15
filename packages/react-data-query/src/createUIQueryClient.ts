@@ -22,18 +22,17 @@ type DataServiceGranularCacheUpdatedHandler = (
 ) => void;
 
 /**
- * The minimum "UI messenger" shape needed by `createUIQueryClient`.
+ * The minimum messenger shape needed by `createUIQueryClient`. This messenger
+ * has some restrictions:
  *
- * A UI messenger is a special form of the messenger whose actions are expected
- * to be asynchronous, and whose action handler arguments and event payloads are
- * expected to be JSON-compatible.
- *
- * Furthermore, the messenger must support actions and granular cache update
- * events that belong to the given data services.
+ * 1. The messenger must at least support `call`, `subscribe` and `unsubscribe`.
+ * 2. Its actions are expected to be asynchronous.
+ * 3. Its action handler arguments and event payloads are expected to be JSON-compatible.
+ * 4. It must support actions and granular cache update events that belong to the designated data services.
  *
  * @template DataServiceName - A union of the configured data service names.
  */
-type UIMessengerAdapter<DataServiceName extends string> = {
+type MessengerAdapter<DataServiceName extends string> = {
   /**
    * Call an action on one of the configured data services.
    *
@@ -80,7 +79,7 @@ type UIMessengerAdapter<DataServiceName extends string> = {
  */
 export function createUIQueryClient<DataServiceNames extends readonly string[]>(
   dataServices: DataServiceNames,
-  messenger: UIMessengerAdapter<DataServiceNames[number]>,
+  messenger: MessengerAdapter<DataServiceNames[number]>,
   config: QueryClientConfig = {},
 ): QueryClient {
   const subscriptions = new Map<
