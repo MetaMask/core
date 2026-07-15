@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Export `V6_DEFI_POSITION_TYPES` and inferred `V6DeFiPositionType`, and type `V6BalanceMetadata.positionType` with the Accounts API v6 DeFi position module values (`deposit`, `lending`, `yield`, `liquidity_pool`, `staked`, `leveraged_farming`, `nft_staked`, `farming`, `locked`, `vesting`, `rewards`, `investment`)
+- Export `V6_DEFI_POSITION_TYPES` and inferred `V6DeFiPositionType`, and type `V6BalanceMetadata.positionType` with the Accounts API v6 DeFi position module values (`deposit`, `lending`, `yield`, `liquidity_pool`, `staked`, `leveraged_farming`, `nft_staked`, `farming`, `locked`, `vesting`, `rewards`, `investment`) ([#9503](https://github.com/MetaMask/core/pull/9503))
 
 ### Changed
 
