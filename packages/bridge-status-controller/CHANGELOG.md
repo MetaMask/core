@@ -11,6 +11,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Support batch sell (EIP-7702/nested batch) transactions in the quote-status flow, so every quote submitted under a single batch transaction is reported to the backend. All quotes sharing one batch source transaction are reported as `SUBMITTED` under the shared source transaction hash and `txMetaId`, and are finalized together when that transaction confirms or fails. ([#0000](https://github.com/MetaMask/core/pull/0000))
 
+## [74.2.0]
+
+### Added
+
+- Include `transaction_internal_id` in `Unified SwapBridge Completed` events for EVM source transactions. ([#9494](https://github.com/MetaMask/core/pull/9494))
+
+### Changed
+
+- Bump `@metamask/bridge-controller` from `^77.4.1` to `^77.5.0` ([#9508](https://github.com/MetaMask/core/pull/9508))
+
+### Fixed
+
+- chore: MIT license text update ([#9472](https://github.com/MetaMask/core/pull/9472))
+
 ## [74.1.2]
 
 ### Changed
@@ -1404,7 +1418,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.1.2...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.2.0...HEAD
+[74.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.1.2...@metamask/bridge-status-controller@74.2.0
 [74.1.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.1.1...@metamask/bridge-status-controller@74.1.2
 [74.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.1.0...@metamask/bridge-status-controller@74.1.1
 [74.1.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.0.2...@metamask/bridge-status-controller@74.1.0

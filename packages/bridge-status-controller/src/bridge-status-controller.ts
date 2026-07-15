@@ -1703,10 +1703,15 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       ...getTxStatusesFromHistory(historyItem),
       ...getFinalizedTxProperties(historyItem, txMeta, approvalTxMeta),
       ...getPriceImpactFromQuote(quote),
-      ...(eventName === UnifiedSwapBridgeEventName.Completed &&
-        historyItem.inputPrimaryDenomination && {
+      ...(eventName === UnifiedSwapBridgeEventName.Completed && {
+        ...(!isNonEvmChainId(historyItem.quote.srcChainId) &&
+          historyItem.txMetaId && {
+            transaction_internal_id: historyItem.txMetaId,
+          }),
+        ...(historyItem.inputPrimaryDenomination && {
           input_primary_denomination: historyItem.inputPrimaryDenomination,
         }),
+      }),
     };
 
     trackMetricsEvent({
