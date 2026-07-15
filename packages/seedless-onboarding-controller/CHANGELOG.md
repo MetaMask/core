@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- chore: MIT license text update ([#9472](https://github.com/MetaMask/core/pull/9472))
+
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
@@ -302,7 +306,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Added an optional parameter, `passwordOutdatedCacheTTL` to the constructor params and exported `SecretMetadata` class from the controller.([#6169](https://github.com/MetaMask/core/pull/6169))
-
 - Added `revokeRefreshToken` function to revoke refresh token and update vault with the new revoke token.([#6187](https://github.com/MetaMask/core/pull/6187))
 
 ## [2.4.0]
@@ -351,7 +354,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `PrivateKey sync` feature to the controller ([#5948](https://github.com/MetaMask/core/pull/5948)).
+- Added `PrivateKey sync` feature to the controller. ([#5948](https://github.com/MetaMask/core/pull/5948))
   - **BREAKING** Updated controller methods signatures.
   - removed `addNewSeedPhraseBackup` and replaced with `addNewSecretData` method.
   - added `addNewSecretData` method implementation to support adding different secret data types.
@@ -374,7 +377,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `createToprfKeyAndBackupSeedPhrase`, `fetchAllSecretData` store revoke token in vault
   - check for token expired in toprf call, refresh token and retry if expired
   - `submitPassword` revoke refresh token and replace with new one after password submit to prevent malicious use if refresh token leak in persisted state
-- Removed `recoveryRatelimitCache` from the controller state. ([#5976](https://github.com/MetaMask/core/pull/5976)).
+- Removed `recoveryRatelimitCache` from the controller state.. ([#5976](https://github.com/MetaMask/core/pull/5976))
 - **BREAKING:** Changed `syncLatestGlobalPassword`. ([#5995](https://github.com/MetaMask/core/pull/5995))
   - removed parameter `oldPassword`
   - no longer verifying old password
