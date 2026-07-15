@@ -7377,6 +7377,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
+    "@types/node": "npm:^26.1.1"
     "@typescript/native": "npm:typescript@^7.0.2"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^29.7.0"
@@ -11503,6 +11504,15 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/node@npm:^26.1.1":
+  version: 26.1.1
+  resolution: "@types/node@npm:26.1.1"
+  dependencies:
+    undici-types: "npm:~8.3.0"
+  checksum: 10/df6555a94c6b4cf74e6238373e2881e72dc91058cf2ba173be77ea3974aaa8f459c2f10fbb7eb644fb1e5189dd8407097f5d39506fad39c89bde18acb3b90316
+  languageName: node
+  linkType: hard
+
 "@types/npm-which@npm:^3":
   version: 3.0.4
   resolution: "@types/npm-which@npm:3.0.4"
@@ -11981,13 +11991,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@typescript/old@npm:typescript@^6":
+"@typescript/old@patch:typescript@npm%3A6.0.3#~/.yarn/patches/typescript-npm-6.0.3-585eecd158.patch":
   version: 6.0.3
-  resolution: "typescript@npm:6.0.3"
+  resolution: "@typescript/old@patch:typescript@npm%3A6.0.3#~/.yarn/patches/typescript-npm-6.0.3-585eecd158.patch::version=6.0.3&hash=ad880d"
   bin:
     tsc: bin/tsc
     tsserver: bin/tsserver
-  checksum: 10/0ef2357a4cffd916b52b683a021cdab0f81eea4e9aa35f2d254581c9a5106da02224e3392e1b0ed42b7a48f80c966e5f52b8e1a27941fa0523c1705a9c2e0330
+  checksum: 10/c9f3d7f5c7f95789157ef60e1c9a043828d20691a1e7b500f6a33bb9aa5d2e80b16d2ed4fd6942d834d5173319e51eca85a06b80c843d3d8fe418fe37023bf82
   languageName: node
   linkType: hard
 
@@ -25236,6 +25246,16 @@ __metadata:
   languageName: node
   linkType: hard
 
+"typescript@npm:6.0.3":
+  version: 6.0.3
+  resolution: "typescript@npm:6.0.3"
+  bin:
+    tsc: bin/tsc
+    tsserver: bin/tsserver
+  checksum: 10/0ef2357a4cffd916b52b683a021cdab0f81eea4e9aa35f2d254581c9a5106da02224e3392e1b0ed42b7a48f80c966e5f52b8e1a27941fa0523c1705a9c2e0330
+  languageName: node
+  linkType: hard
+
 "typescript@npm:@typescript/typescript6@^6.0.2":
   version: 6.0.2
   resolution: "@typescript/typescript6@npm:6.0.2"
@@ -25287,6 +25307,13 @@ __metadata:
   version: 6.19.8
   resolution: "undici-types@npm:6.19.8"
   checksum: 10/cf0b48ed4fc99baf56584afa91aaffa5010c268b8842f62e02f752df209e3dea138b372a60a963b3b2576ed932f32329ce7ddb9cb5f27a6c83040d8cd74b7a70
+  languageName: node
+  linkType: hard
+
+"undici-types@npm:~8.3.0":
+  version: 8.3.0
+  resolution: "undici-types@npm:8.3.0"
+  checksum: 10/6681d2837ac75a75ac1cc46090aa2b8ddc7c6b8ecc295a6cdb06838752a730da3d8afeecf05e5ab7903160eafad3a8b6ffa1927e5ded260590f4d4fef18646d5
   languageName: node
   linkType: hard
 
