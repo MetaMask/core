@@ -12,7 +12,7 @@ export const SUPPORTED_NETWORKS_ACCOUNTS_API_V4 = [
   '0x1', // 1
   '0x89', // 137
   '0x38', // 56
-  '0xe728', // 59144
+  '0xe708', // 59144
   '0x2105', // 8453
   '0xa', // 10
   '0xa4b1', // 42161
