@@ -124,6 +124,7 @@ jobs:
         run: |
           if [[ "$CHANGED_PATHS" == "full" ]]; then
             echo "Running ESLint on all packages."
+            echo ""
             yarn lint:eslint
           else
             echo "Running ESLint on:"
@@ -220,6 +221,7 @@ jobs:
             rm -f "$TSCONFIG"
           else
             echo "Building all packages."
+            echo ""
             yarn build
           fi
         env:
