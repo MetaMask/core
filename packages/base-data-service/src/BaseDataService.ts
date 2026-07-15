@@ -91,6 +91,8 @@ const STORAGE_SERVICE_KEY = 'cache';
 
 type PersistConfiguration = {
   maxAge: number;
+  debounce?: number;
+  debounceMaxWait?: number;
 };
 
 type PersistedCache = {
@@ -189,8 +191,12 @@ export class BaseDataService<
             (error) => this.#messenger.captureException?.(error),
           );
         },
-        inMilliseconds(10, Duration.Second),
-        { maxWait: inMilliseconds(1, Duration.Minute) },
+        this.#persistConfig.debounce ?? inMilliseconds(10, Duration.Second),
+        {
+          maxWait:
+            this.#persistConfig.debounceMaxWait ??
+            inMilliseconds(1, Duration.Minute),
+        },
       );
 
     this.#queryCacheUnsubscribe = this.#queryClient
