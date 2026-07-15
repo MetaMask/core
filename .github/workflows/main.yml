@@ -51,11 +51,6 @@ jobs:
         env:
           ACTIONLINT: ${{ steps.download-actionlint.outputs.executable }}
 
-  lint-build-test:
-    name: Lint, build, and test
-    needs: check-workflows
-    uses: ./.github/workflows/lint-build-test.yml
-
   analyse-code:
     name: Analyse code
     needs: check-workflows
@@ -89,6 +84,11 @@ jobs:
       actions: read
       contents: read
       security-events: write
+
+  lint-build-test:
+    name: Lint, build, and test
+    needs: check-workflows
+    uses: ./.github/workflows/lint-build-test.yml
 
   deploy-platform-api-docs:
     name: Deploy Platform API Docs
