@@ -261,6 +261,7 @@ describe('createUIQueryClient', () => {
 
     await Promise.all([promiseA, promiseB]);
 
+    // Advance the full cacheTime of ExampleDataService
     jest.advanceTimersByTime(inMilliseconds(1, Duration.Day));
 
     const queryData = clientA.getQueryData(getAssetsQueryKey);
