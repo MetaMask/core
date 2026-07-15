@@ -14,7 +14,7 @@ jobs:
       child-workspace-package-names: ${{ steps.workspace-package-names.outputs.child-workspace-package-names }}
       merge-base: ${{ steps.fetch-merge-base.outputs.merge-base }}
       package-names: ${{ steps.packages.outputs.package-names }}
-      eslint-paths: ${{ steps.packages.outputs.eslint-paths }}
+      changed-paths: ${{ steps.packages.outputs.changed-paths }}
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
@@ -56,16 +56,16 @@ jobs:
             OUTPUT=$(yarn tsx scripts/get-changed-workspaces.mts "$MERGE_BASE" "$HEAD_SHA")
             PACKAGES=$(echo "$OUTPUT" | jq -c '.names')
             if [[ $(echo "$OUTPUT" | jq '.hasRootChange') == "true" ]]; then
-              ESLINT_PATHS="full"
+              CHANGED_PATHS="full"
             else
-              ESLINT_PATHS=$(echo "$OUTPUT" | jq -c '.locations')
+              CHANGED_PATHS=$(echo "$OUTPUT" | jq -c '.locations')
             fi
           else
             PACKAGES=$(yarn workspaces list --no-private --json | jq --slurp --raw-output 'map(.name) | @json')
-            ESLINT_PATHS="full"
+            CHANGED_PATHS="full"
           fi
           echo "package-names=$PACKAGES" >> "$GITHUB_OUTPUT"
-          echo "eslint-paths=$ESLINT_PATHS" >> "$GITHUB_OUTPUT"
+          echo "changed-paths=$CHANGED_PATHS" >> "$GITHUB_OUTPUT"
         env:
           MERGE_BASE: ${{ steps.fetch-merge-base.outputs.merge-base }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
@@ -108,7 +108,7 @@ jobs:
   lint-eslint:
     name: Lint (lint:eslint)
     runs-on: ubuntu-latest
-    if: needs.prepare.outputs.eslint-paths != '[]'
+    if: needs.prepare.outputs.changed-paths != '[]'
     needs: prepare
     strategy:
       matrix:
@@ -122,17 +122,17 @@ jobs:
           node-version: ${{ matrix.node-version }}
       - name: Lint
         run: |
-          if [[ "$ESLINT_PATHS" == "full" ]]; then
+          if [[ "$CHANGED_PATHS" == "full" ]]; then
             echo "Running ESLint on all packages."
             yarn lint:eslint
           else
             echo "Running ESLint on:"
-            echo "$ESLINT_PATHS" | jq -r '"- " + .[]'
+            echo "$CHANGED_PATHS" | jq -r '"- " + .[]'
             echo ""
-            echo "$ESLINT_PATHS" | jq -r '.[]' | xargs yarn lint:eslint
+            echo "$CHANGED_PATHS" | jq -r '.[]' | xargs yarn lint:eslint
           fi
         env:
-          ESLINT_PATHS: ${{ needs.prepare.outputs.eslint-paths }}
+          CHANGED_PATHS: ${{ needs.prepare.outputs.changed-paths }}
       - name: Require clean working directory
         shell: bash
         run: |
@@ -206,7 +206,7 @@ jobs:
           git fetch --unshallow --filter=blob:none --no-tags origin HEAD
       - name: Build
         run: |
-          if [[ -n "$MERGE_BASE" ]]; then
+          if [[ -n "$MERGE_BASE" && "$CHANGED_PATHS" != "full" ]]; then
             TSCONFIG=$(mktemp --tmpdir="$GITHUB_WORKSPACE" --suffix=.json)
             yarn tsx scripts/generate-partial-build-tsconfig.mts "$MERGE_BASE" "$HEAD_SHA" > "$TSCONFIG"
             if [[ -s "$TSCONFIG" ]]; then
@@ -225,6 +225,7 @@ jobs:
         env:
           MERGE_BASE: ${{ needs.prepare.outputs.merge-base }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
+          CHANGED_PATHS: ${{ needs.prepare.outputs.changed-paths }}
       - name: Require clean working directory
         shell: bash
         run: |
