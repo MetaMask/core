@@ -402,7 +402,10 @@ export class BaseDataService<
    * @returns Nothing.
    */
   async #persistCache(): Promise<void> {
-    const state = dehydrate(this.#queryClient);
+    const state = dehydrate(this.#queryClient, {
+      // This is the default, but we specify it to be explicit.
+      shouldDehydrateQuery: (query) => query.state.status === 'success',
+    });
 
     if (state.queries.length === 0 && state.mutations.length === 0) {
       await this.#externalMessenger.call(
