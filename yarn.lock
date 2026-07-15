@@ -5681,7 +5681,7 @@ __metadata:
     "@metamask/keyring-snap-client": "npm:^9.2.0"
     "@metamask/messenger": "npm:^2.0.0"
     "@metamask/network-controller": "npm:^34.0.0"
-    "@metamask/network-enablement-controller": "npm:^5.5.0"
+    "@metamask/network-enablement-controller": "npm:^5.6.0"
     "@metamask/permission-controller": "npm:^13.1.1"
     "@metamask/phishing-controller": "npm:^17.2.1"
     "@metamask/polling-controller": "npm:^16.0.8"
@@ -5738,7 +5738,7 @@ __metadata:
     "@metamask/metamask-eth-abis": "npm:^3.1.1"
     "@metamask/multichain-account-service": "npm:^13.0.0"
     "@metamask/network-controller": "npm:^34.0.0"
-    "@metamask/network-enablement-controller": "npm:^5.5.0"
+    "@metamask/network-enablement-controller": "npm:^5.6.0"
     "@metamask/permission-controller": "npm:^13.1.1"
     "@metamask/phishing-controller": "npm:^17.2.1"
     "@metamask/polling-controller": "npm:^16.0.8"
@@ -7742,7 +7742,7 @@ __metadata:
     "@metamask/keyring-controller": "npm:^27.1.0"
     "@metamask/messenger": "npm:^2.0.0"
     "@metamask/network-controller": "npm:^34.0.0"
-    "@metamask/network-enablement-controller": "npm:^5.5.0"
+    "@metamask/network-enablement-controller": "npm:^5.6.0"
     "@metamask/utils": "npm:^11.11.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
@@ -7806,7 +7806,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/network-enablement-controller@npm:^5.5.0, @metamask/network-enablement-controller@workspace:packages/network-enablement-controller":
+"@metamask/network-enablement-controller@npm:^5.6.0, @metamask/network-enablement-controller@workspace:packages/network-enablement-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/network-enablement-controller@workspace:packages/network-enablement-controller"
   dependencies:

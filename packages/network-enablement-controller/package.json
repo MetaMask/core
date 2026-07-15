@@ -1,6 +1,6 @@
 {
   "name": "@metamask/network-enablement-controller",
-  "version": "5.5.0",
+  "version": "5.6.0",
   "description": "Provides an interface to the currently enabled network using a MetaMask-compatible provider object",
   "keywords": [
     "Ethereum",
