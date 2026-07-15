@@ -39,6 +39,7 @@ import type {
 } from './webauthn/types';
 import { verifyAuthenticationResponse } from './webauthn/verify-authentication-response';
 import { verifyRegistrationResponse } from './webauthn/verify-registration-response';
+import { PasskeyControllerMethodActions } from './PasskeyController-method-action-types';
 
 export type PasskeyControllerState = {
   passkeyRecord: PasskeyRecord | null;
@@ -59,7 +60,9 @@ export type PasskeyControllerGetStateAction = ControllerGetStateAction<
  * return non-`Json` runtime values (WebAuthn `PublicKeyCredential` objects
  * and the vault key string), so they require a direct controller reference.
  */
-export type PasskeyControllerActions = PasskeyControllerGetStateAction;
+export type PasskeyControllerActions =
+  | PasskeyControllerGetStateAction
+  | PasskeyControllerMethodActions;
 
 export type PasskeyControllerStateChangedEvent = ControllerStateChangedEvent<
   typeof controllerName,
@@ -105,6 +108,20 @@ export const passkeyControllerSelectors = {
   selectIsPasskeyEnrolled: (state: PasskeyControllerState): boolean =>
     state.passkeyRecord !== null,
 };
+
+const MESSENGER_EXPOSED_METHODS = [
+  'isPasskeyEnrolled',
+  'generateRegistrationOptions',
+  'generatePostRegistrationAuthenticationOptions',
+  'generateAuthenticationOptions',
+  'protectVaultKeyWithPasskey',
+  'retrieveVaultKeyWithPasskey',
+  'verifyPasskeyAuthentication',
+  'renewVaultKeyProtection',
+  'removePasskey',
+  'clearState',
+  'destroy',
+] as const;
 
 /**
  * Controller that enrolls a WebAuthn passkey and uses it to protect and unlock
@@ -180,6 +197,11 @@ export class PasskeyController extends BaseController<
     this.#expectedOrigin = expectedOrigin;
     this.#userName = userName ?? rpName;
     this.#userDisplayName = userDisplayName ?? rpName;
+
+    this.messenger.registerMethodActionHandlers(
+      this,
+      MESSENGER_EXPOSED_METHODS,
+    );
   }
 
   #requireEnrolled(): PasskeyRecord {
