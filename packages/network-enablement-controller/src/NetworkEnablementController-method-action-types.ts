@@ -126,16 +126,6 @@ export type NetworkEnablementControllerDisableNetworkAction = {
 };
 
 /**
- * Restores the enabled network map to a previously snapshotted state.
- *
- * @param enabledNetworkMap - Previously snapshotted enabledNetworkMap.
- */
-export type NetworkEnablementControllerRestoreEnabledNetworkMapAction = {
-  type: `NetworkEnablementController:restoreEnabledNetworkMap`;
-  handler: NetworkEnablementController['restoreEnabledNetworkMap'];
-};
-
-/**
  * Checks if a network is enabled.
  *
  * @param chainId - The chain ID of the network to check. Can be either:
@@ -196,7 +186,6 @@ export type NetworkEnablementControllerMethodActions =
   | NetworkEnablementControllerInitAction
   | NetworkEnablementControllerInitNativeAssetIdentifiersAction
   | NetworkEnablementControllerDisableNetworkAction
-  | NetworkEnablementControllerRestoreEnabledNetworkMapAction
   | NetworkEnablementControllerIsNetworkEnabledAction
   | NetworkEnablementControllerListPopularEvmNetworksAction
   | NetworkEnablementControllerListPopularMultichainNetworksAction

@@ -34,7 +34,6 @@ const MESSENGER_EXPOSED_METHODS = [
   'initNativeAssetIdentifiers',
   'enableNetwork',
   'disableNetwork',
-  'restoreEnabledNetworkMap',
   'enableNetworkInNamespace',
   'enableAllPopularNetworks',
   'isNetworkEnabled',
@@ -617,10 +616,9 @@ export class NetworkEnablementController extends BaseController<
    * Restores the enabled network map to a previously snapshotted state.
    *
    * Not a general merge API: only updates keys already present in the current
-   * map. Missing snapshot values default to `false`. Callers should deep-clone
-   * `enabledNetworkMap` before adding a network, then restore after
-   * `NetworkController:networkAdded` completes. Must be a controller method
-   * because state writes require protected `update()`.
+   * map. Missing snapshot values default to `false`. Intended for callers with
+   * direct controller access (e.g. extension) to undo `#onAddNetwork` filter
+   * switches when adding a network without changing the active selection.
    *
    * @param enabledNetworkMap - Previously snapshotted enabledNetworkMap.
    */
