@@ -123,8 +123,10 @@ jobs:
       - name: Lint
         run: |
           if [[ "$ESLINT_PATHS" == "full" ]]; then
+            echo "Running ESLint on all packages."
             yarn lint:eslint
           else
+            echo "Running ESLint on: $(echo "$ESLINT_PATHS" | jq -r '[.[]] | join(", ")')."
             echo "$ESLINT_PATHS" | jq -r '.[]' | xargs yarn lint:eslint
           fi
         env:
@@ -206,10 +208,14 @@ jobs:
             TSCONFIG=$(mktemp --tmpdir="$GITHUB_WORKSPACE" --suffix=.json)
             yarn tsx scripts/generate-partial-build-tsconfig.mts "$MERGE_BASE" "$HEAD_SHA" > "$TSCONFIG"
             if [[ -s "$TSCONFIG" ]]; then
+              echo "Building changed packages: $(jq -r '[.references[].path | ltrimstr("./") | rtrimstr("/tsconfig.build.json")] | join(", ")' "$TSCONFIG")."
               yarn ts-bridge --project "$TSCONFIG" --verbose
+            else
+              echo "No packages to build."
             fi
             rm -f "$TSCONFIG"
           else
+            echo "Building all packages."
             yarn build
           fi
         env:
