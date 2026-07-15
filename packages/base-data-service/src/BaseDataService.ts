@@ -131,7 +131,7 @@ export class BaseDataService<
 
   readonly #queryCacheUnsubscribe: () => void;
 
-  readonly #debouncedPersist: DebouncedFunc<() => void>;
+  readonly #debouncedPersist?: DebouncedFunc<() => void>;
 
   readonly #persistConfig?: PersistConfiguration;
 
@@ -180,16 +180,18 @@ export class BaseDataService<
 
     this.#policy = createServicePolicy(policyOptions);
 
-    this.#debouncedPersist = debounce(
-      () => {
-        this.#persistCache().catch(
-          /* istanbul ignore next */
-          (error) => this.#messenger.captureException?.(error),
-        );
-      },
-      inMilliseconds(10, Duration.Second),
-      { maxWait: inMilliseconds(1, Duration.Minute) },
-    );
+    this.#debouncedPersist =
+      this.#persistConfig &&
+      debounce(
+        () => {
+          this.#persistCache().catch(
+            /* istanbul ignore next */
+            (error) => this.#messenger.captureException?.(error),
+          );
+        },
+        inMilliseconds(10, Duration.Second),
+        { maxWait: inMilliseconds(1, Duration.Minute) },
+      );
 
     this.#queryCacheUnsubscribe = this.#queryClient
       .getQueryCache()
@@ -200,7 +202,7 @@ export class BaseDataService<
             event.type as CacheUpdatedType,
           );
 
-          this.#debouncedPersist();
+          this.#debouncedPersist?.();
         }
       });
 
@@ -333,7 +335,7 @@ export class BaseDataService<
    * by any subclasses to clean up any additional connections or events.
    */
   destroy(): void {
-    this.#debouncedPersist.cancel();
+    this.#debouncedPersist?.cancel();
     this.#queryCacheUnsubscribe();
     this.#queryClient.clear();
     this.messenger.clearSubscriptions();
@@ -372,11 +374,11 @@ export class BaseDataService<
     );
   }
 
+  /**
+   * Persist the query client cache using the StorageService, if the cache is not empty.
+   * @returns Nothing.
+   */
   async #persistCache(): Promise<void> {
-    if (!this.#persistConfig) {
-      return;
-    }
-
     const state = dehydrate(this.#queryClient);
 
     if (state.queries.length === 0 && state.mutations.length === 0) {
@@ -396,6 +398,11 @@ export class BaseDataService<
     );
   }
 
+  /**
+   * Rehydrate the query client cache using the StorageService, if persistence is configured
+   * and the persisted cache is not expired.
+   * @returns Nothing.
+   */
   async #rehydrateCache(): Promise<void> {
     if (!this.#persistConfig) {
       return;
