@@ -280,3 +280,5 @@
 /packages/money-account-upgrade-controller/CHANGELOG.md @MetaMask/earn @MetaMask/delegation @MetaMask/core-platform
 /packages/snap-account-service/package.json @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/snap-account-service/CHANGELOG.md @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/stellar-assets-controller/package.json @MetaMask/networks @MetaMask/core-platform
+/packages/stellar-assets-controller/CHANGELOG.md @MetaMask/networks @MetaMask/core-platform
