@@ -270,11 +270,9 @@ export class AccountActivityService {
       'RemoteFeatureFlagController:stateChange',
       // Promise result intentionally not awaited
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      async (state: RemoteFeatureFlagControllerState) =>
-        await this.#handleFeatureFlagsStateChange(state),
+      async () => await this.#handleFeatureFlagsStateChange(),
       // only react to changes in the relevant feature flags for chain prefixes
       (state) => ({
-        ...state,
         remoteFeatureFlags: Object.fromEntries(
           Object.entries(CHAIN_PREFIX_FEATURE_FLAGS).map(([_prefix, flag]) => [
             flag,
