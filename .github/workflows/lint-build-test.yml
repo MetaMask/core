@@ -12,6 +12,9 @@ jobs:
         node-version: [18.x, 20.x, 22.x, 24.x]
     outputs:
       child-workspace-package-names: ${{ steps.workspace-package-names.outputs.child-workspace-package-names }}
+      merge-base: ${{ steps.fetch-merge-base.outputs.merge-base }}
+      package-names: ${{ steps.packages.outputs.package-names }}
+      eslint-paths: ${{ steps.packages.outputs.eslint-paths }}
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
@@ -26,25 +29,9 @@ jobs:
         run: |
           echo "child-workspace-package-names=$(yarn workspaces list --no-private --json | jq --slurp --raw-output 'map(.name) | @json')" >> "$GITHUB_OUTPUT"
         shell: bash
-
-  get-changed-packages:
-    name: Get changed packages
-    runs-on: ubuntu-latest
-    needs: prepare
-    outputs:
-      merge-base: ${{ steps.fetch-merge-base.outputs.merge-base }}
-      package-names: ${{ steps.packages.outputs.package-names }}
-      eslint-paths: ${{ steps.packages.outputs.eslint-paths }}
-    steps:
-      - name: Checkout and setup environment
-        uses: MetaMask/action-checkout-and-setup@v3
-        with:
-          is-high-risk-environment: false
-          persist-credentials: false
-          node-version: 24.x
       - name: Fetch merge base
         id: fetch-merge-base
-        if: github.base_ref != '' || github.event.merge_group.base_ref != ''
+        if: matrix.node-version == '24.x' && (github.base_ref != '' || github.event.merge_group.base_ref != '')
         run: |
           set -euo pipefail
 
@@ -63,6 +50,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
       - name: Get changed package names
         id: packages
+        if: matrix.node-version == '24.x'
         run: |
           if [[ -n "$MERGE_BASE" ]]; then
             OUTPUT=$(yarn tsx scripts/get-changed-workspaces.mts "$MERGE_BASE" "$HEAD_SHA")
@@ -120,10 +108,8 @@ jobs:
   lint-eslint:
     name: Lint (lint:eslint)
     runs-on: ubuntu-latest
-    if: needs.get-changed-packages.outputs.eslint-paths != '[]'
-    needs:
-      - prepare
-      - get-changed-packages
+    if: needs.prepare.outputs.eslint-paths != '[]'
+    needs: prepare
     strategy:
       matrix:
         node-version: [24.x]
@@ -142,7 +128,7 @@ jobs:
             echo "$ESLINT_PATHS" | jq -r '.[]' | xargs yarn lint:eslint
           fi
         env:
-          ESLINT_PATHS: ${{ needs.get-changed-packages.outputs.eslint-paths }}
+          ESLINT_PATHS: ${{ needs.prepare.outputs.eslint-paths }}
       - name: Require clean working directory
         shell: bash
         run: |
@@ -154,14 +140,12 @@ jobs:
   validate-changelog:
     name: Validate changelog
     runs-on: ubuntu-latest
-    if: needs.get-changed-packages.outputs.package-names != '[]'
-    needs:
-      - prepare
-      - get-changed-packages
+    if: needs.prepare.outputs.package-names != '[]'
+    needs: prepare
     strategy:
       matrix:
         node-version: [24.x]
-        package-name: ${{ fromJson(needs.get-changed-packages.outputs.package-names) }}
+        package-name: ${{ fromJson(needs.prepare.outputs.package-names) }}
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
@@ -198,9 +182,7 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
-    needs:
-      - prepare
-      - get-changed-packages
+    needs: prepare
     strategy:
       matrix:
         node-version: [24.x]
@@ -212,7 +194,7 @@ jobs:
           persist-credentials: false
           node-version: ${{ matrix.node-version }}
       - name: Unshallow checkout
-        if: needs.get-changed-packages.outputs.merge-base != ''
+        if: needs.prepare.outputs.merge-base != ''
         run: |
           # Unshallow so git can walk history back to the merge base for
           # `git diff --name-only`. Using `--filter=blob:none` avoids
@@ -231,7 +213,7 @@ jobs:
             yarn build
           fi
         env:
-          MERGE_BASE: ${{ needs.get-changed-packages.outputs.merge-base }}
+          MERGE_BASE: ${{ needs.prepare.outputs.merge-base }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
       - name: Require clean working directory
         shell: bash
@@ -271,13 +253,11 @@ jobs:
   test-18:
     name: Test (18.x)
     runs-on: ubuntu-latest
-    if: needs.get-changed-packages.outputs.package-names != '[]'
-    needs:
-      - prepare
-      - get-changed-packages
+    if: needs.prepare.outputs.package-names != '[]'
+    needs: prepare
     strategy:
       matrix:
-        package-name: ${{ fromJson(needs.get-changed-packages.outputs.package-names) }}
+        package-name: ${{ fromJson(needs.prepare.outputs.package-names) }}
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
@@ -299,13 +279,11 @@ jobs:
   test-20:
     name: Test (20.x)
     runs-on: ubuntu-latest
-    if: needs.get-changed-packages.outputs.package-names != '[]'
-    needs:
-      - prepare
-      - get-changed-packages
+    if: needs.prepare.outputs.package-names != '[]'
+    needs: prepare
     strategy:
       matrix:
-        package-name: ${{ fromJson(needs.get-changed-packages.outputs.package-names) }}
+        package-name: ${{ fromJson(needs.prepare.outputs.package-names) }}
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
@@ -327,13 +305,11 @@ jobs:
   test-22:
     name: Test (22.x)
     runs-on: ubuntu-latest
-    if: needs.get-changed-packages.outputs.package-names != '[]'
-    needs:
-      - prepare
-      - get-changed-packages
+    if: needs.prepare.outputs.package-names != '[]'
+    needs: prepare
     strategy:
       matrix:
-        package-name: ${{ fromJson(needs.get-changed-packages.outputs.package-names) }}
+        package-name: ${{ fromJson(needs.prepare.outputs.package-names) }}
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
@@ -375,10 +351,8 @@ jobs:
   test-wallet-cli-e2e:
     name: Test wallet-cli daemon e2e (${{ matrix.node-version }})
     runs-on: ubuntu-latest
-    if: needs.get-changed-packages.outputs.package-names == '[]' || contains(fromJson(needs.get-changed-packages.outputs.package-names), '@metamask/wallet-cli')
-    needs:
-      - prepare
-      - get-changed-packages
+    if: needs.prepare.outputs.package-names == '[]' || contains(fromJson(needs.prepare.outputs.package-names), '@metamask/wallet-cli')
+    needs: prepare
     strategy:
       matrix:
         node-version: [20.x, 22.x, 24.x]
