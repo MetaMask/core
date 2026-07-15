@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [5.6.0]
 
-### Uncategorized
-
-- chore: MIT license text update ([#9472](https://github.com/MetaMask/core/pull/9472))
-
 ### Added
 
 - Add `restoreEnabledNetworkMap` on `NetworkEnablementController` to restore a previously snapshotted `enabledNetworkMap` when adding a network without switching the active network filter. Not exposed as a messenger action ([#9480](https://github.com/MetaMask/core/pull/9480))
