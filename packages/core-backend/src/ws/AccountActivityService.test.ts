@@ -30,6 +30,20 @@ type RootMessenger = Messenger<
   AllAccountActivityServiceEvents
 >;
 
+type TestMocks = {
+  getAccountsFromSelectedAccountGroup: jest.Mock<InternalAccount[]>;
+  connect: jest.Mock;
+  subscribe: jest.Mock;
+  channelHasSubscription: jest.Mock;
+  getSubscriptionsByChannel: jest.Mock;
+  findSubscriptionsByChannelPrefix: jest.Mock;
+  forceReconnection: jest.Mock;
+  addChannelCallback: jest.Mock;
+  removeChannelCallback: jest.Mock;
+  getConnectionInfo: jest.Mock;
+  getFeatureFlagState: jest.Mock;
+};
+
 // Helper function for completing async operations
 const completeAsyncOperations = async (timeoutMs = 0): Promise<void> => {
   await flushPromises();
@@ -43,6 +57,7 @@ const completeAsyncOperations = async (timeoutMs = 0): Promise<void> => {
 // Mock function to create test accounts
 const createMockInternalAccount = (overrides: {
   address: string;
+  scopes?: InternalAccount['scopes'];
   options?: InternalAccount['options'];
 }): InternalAccount => ({
   address: overrides.address.toLowerCase() as Hex,
@@ -57,7 +72,7 @@ const createMockInternalAccount = (overrides: {
   options: overrides.options ?? {},
   methods: [],
   type: 'eip155:eoa',
-  scopes: ['eip155:1'], // Required scopes property
+  scopes: overrides.scopes ?? ['eip155:1'], // Required scopes property
 });
 
 /**
@@ -98,20 +113,7 @@ function getRootMessenger(): RootMessenger {
 const getMessenger = (): {
   rootMessenger: RootMessenger;
   messenger: AccountActivityServiceMessenger;
-  mocks: {
-    getSelectedAccount: jest.Mock;
-    listMultichainAccounts: jest.Mock;
-    connect: jest.Mock;
-    subscribe: jest.Mock;
-    channelHasSubscription: jest.Mock;
-    getSubscriptionsByChannel: jest.Mock;
-    findSubscriptionsByChannelPrefix: jest.Mock;
-    forceReconnection: jest.Mock;
-    addChannelCallback: jest.Mock;
-    removeChannelCallback: jest.Mock;
-    getConnectionInfo: jest.Mock;
-    getFeatureFlagState: jest.Mock;
-  };
+  mocks: TestMocks;
 } => {
   // Use any types for the root messenger to avoid complex type constraints in tests
   // Create a unique root messenger for each test
@@ -128,8 +130,7 @@ const getMessenger = (): {
 
   rootMessenger.delegate({
     actions: [
-      'AccountsController:getSelectedAccount',
-      'AccountsController:listMultichainAccounts',
+      'AccountTreeController:getAccountsFromSelectedAccountGroup',
       'BackendWebSocketService:connect',
       'BackendWebSocketService:forceReconnection',
       'BackendWebSocketService:subscribe',
@@ -142,7 +143,7 @@ const getMessenger = (): {
       'RemoteFeatureFlagController:getState',
     ],
     events: [
-      'AccountsController:selectedAccountChange',
+      'AccountTreeController:selectedAccountGroupChange',
       'BackendWebSocketService:connectionStateChanged',
       // eslint-disable-next-line no-restricted-syntax
       'RemoteFeatureFlagController:stateChange',
@@ -151,8 +152,7 @@ const getMessenger = (): {
   });
 
   // Create mock action handlers
-  const mockGetSelectedAccount = jest.fn();
-  const mockListMultichainAccounts = jest.fn();
+  const mockGetAccountsFromSelectedAccountGroup = jest.fn();
   const mockConnect = jest.fn();
   const mockForceReconnection = jest.fn();
   const mockSubscribe = jest.fn();
@@ -174,12 +174,8 @@ const getMessenger = (): {
 
   // Register all action handlers
   rootMessenger.registerActionHandler(
-    'AccountsController:getSelectedAccount',
-    mockGetSelectedAccount,
-  );
-  rootMessenger.registerActionHandler(
-    'AccountsController:listMultichainAccounts',
-    mockListMultichainAccounts,
+    'AccountTreeController:getAccountsFromSelectedAccountGroup',
+    mockGetAccountsFromSelectedAccountGroup,
   );
   rootMessenger.registerActionHandler(
     'BackendWebSocketService:connect',
@@ -226,8 +222,8 @@ const getMessenger = (): {
     rootMessenger,
     messenger,
     mocks: {
-      getSelectedAccount: mockGetSelectedAccount,
-      listMultichainAccounts: mockListMultichainAccounts,
+      getAccountsFromSelectedAccountGroup:
+        mockGetAccountsFromSelectedAccountGroup,
       connect: mockConnect,
       forceReconnection: mockForceReconnection,
       subscribe: mockSubscribe,
@@ -256,20 +252,7 @@ const createIndependentService = (options?: {
   service: AccountActivityService;
   messenger: AccountActivityServiceMessenger;
   rootMessenger: RootMessenger;
-  mocks: {
-    getSelectedAccount: jest.Mock;
-    listMultichainAccounts: jest.Mock;
-    connect: jest.Mock;
-    subscribe: jest.Mock;
-    channelHasSubscription: jest.Mock;
-    getSubscriptionsByChannel: jest.Mock;
-    findSubscriptionsByChannelPrefix: jest.Mock;
-    forceReconnection: jest.Mock;
-    addChannelCallback: jest.Mock;
-    removeChannelCallback: jest.Mock;
-    getConnectionInfo: jest.Mock;
-    getFeatureFlagState: jest.Mock;
-  };
+  mocks: TestMocks;
   destroy: () => void;
 } => {
   const { subscriptionNamespace } = options ?? {};
@@ -305,46 +288,37 @@ const createServiceWithTestAccount = (
   service: AccountActivityService;
   messenger: AccountActivityServiceMessenger;
   rootMessenger: RootMessenger;
-  mocks: {
-    getSelectedAccount: jest.Mock;
-    listMultichainAccounts: jest.Mock;
-    connect: jest.Mock;
-    subscribe: jest.Mock;
-    channelHasSubscription: jest.Mock;
-    getSubscriptionsByChannel: jest.Mock;
-    findSubscriptionsByChannelPrefix: jest.Mock;
-    forceReconnection: jest.Mock;
-    addChannelCallback: jest.Mock;
-    removeChannelCallback: jest.Mock;
-    getConnectionInfo: jest.Mock;
-    getFeatureFlagState: jest.Mock;
-  };
+  mocks: TestMocks;
   destroy: () => void;
-  mockSelectedAccount: InternalAccount;
+  mockSelectedAccounts: InternalAccount[];
 } => {
   const serviceSetup = createIndependentService();
 
   // Create mock selected account
-  const mockSelectedAccount: InternalAccount = {
-    id: 'test-account-1',
-    address: accountAddress as Hex,
-    metadata: {
-      name: 'Test Account',
-      importTime: Date.now(),
-      keyring: { type: 'HD Key Tree' },
+  const mockSelectedAccounts: InternalAccount[] = [
+    {
+      id: 'test-account-1',
+      address: accountAddress as Hex,
+      metadata: {
+        name: 'Test Account',
+        importTime: Date.now(),
+        keyring: { type: 'HD Key Tree' },
+      },
+      options: {},
+      methods: [],
+      scopes: ['eip155:1'],
+      type: 'eip155:eoa',
     },
-    options: {},
-    methods: [],
-    scopes: ['eip155:1'],
-    type: 'eip155:eoa',
-  };
+  ];
 
   // Setup account-related mock implementations
-  serviceSetup.mocks.getSelectedAccount.mockReturnValue(mockSelectedAccount);
+  serviceSetup.mocks.getAccountsFromSelectedAccountGroup.mockReturnValue(
+    mockSelectedAccounts,
+  );
 
   return {
     ...serviceSetup,
-    mockSelectedAccount,
+    mockSelectedAccounts,
   };
 };
 
@@ -363,21 +337,8 @@ type WithServiceCallback<ReturnValue> = (payload: {
   service: AccountActivityService;
   messenger: AccountActivityServiceMessenger;
   rootMessenger: RootMessenger;
-  mocks: {
-    getSelectedAccount: jest.Mock;
-    listMultichainAccounts: jest.Mock;
-    connect: jest.Mock;
-    forceReconnection: jest.Mock;
-    subscribe: jest.Mock;
-    channelHasSubscription: jest.Mock;
-    getSubscriptionsByChannel: jest.Mock;
-    findSubscriptionsByChannelPrefix: jest.Mock;
-    addChannelCallback: jest.Mock;
-    removeChannelCallback: jest.Mock;
-    getConnectionInfo: jest.Mock;
-    getFeatureFlagState: jest.Mock;
-  };
-  mockSelectedAccount?: InternalAccount;
+  mocks: TestMocks;
+  mockSelectedAccounts: InternalAccount[];
   destroy: () => void;
 }) => Promise<ReturnValue> | ReturnValue;
 
@@ -446,10 +407,10 @@ async function withService<ReturnValue>(
       messenger: setup.messenger,
       rootMessenger: setup.rootMessenger,
       mocks: setup.mocks,
-      mockSelectedAccount:
-        'mockSelectedAccount' in setup
-          ? (setup.mockSelectedAccount as InternalAccount)
-          : undefined,
+      mockSelectedAccounts:
+        'mockSelectedAccounts' in setup
+          ? (setup.mockSelectedAccounts as InternalAccount[])
+          : [],
       destroy: setup.destroy,
     });
   } finally {
@@ -510,7 +471,7 @@ describe('AccountActivityService', () => {
     it('should handle account activity messages by processing transactions and balance updates and publishing events', async () => {
       await withService(
         { accountAddress: '0x1234567890123456789012345678901234567890' },
-        async ({ service, mocks, messenger, mockSelectedAccount }) => {
+        async ({ service, mocks, messenger, mockSelectedAccounts }) => {
           let capturedCallback: (
             notification: ServerNotificationMessage,
           ) => void = jest.fn();
@@ -524,7 +485,9 @@ describe('AccountActivityService', () => {
               unsubscribe: () => Promise.resolve(),
             });
           });
-          mocks.getSelectedAccount.mockReturnValue(mockSelectedAccount);
+          mocks.getAccountsFromSelectedAccountGroup.mockReturnValue(
+            mockSelectedAccounts,
+          );
 
           await service.subscribe(mockSubscription);
 
@@ -658,7 +621,7 @@ describe('AccountActivityService', () => {
     it('should handle unsubscribe errors by forcing WebSocket reconnection instead of throwing', async () => {
       await withService(
         { accountAddress: '0x1234567890123456789012345678901234567890' },
-        async ({ service, mocks, mockSelectedAccount }) => {
+        async ({ service, mocks, mockSelectedAccounts }) => {
           const error = new Error('Unsubscribe failed');
           const mockUnsubscribeError = jest.fn().mockRejectedValue(error);
 
@@ -672,7 +635,9 @@ describe('AccountActivityService', () => {
               unsubscribe: mockUnsubscribeError,
             },
           ]);
-          mocks.getSelectedAccount.mockReturnValue(mockSelectedAccount);
+          mocks.getAccountsFromSelectedAccountGroup.mockReturnValue(
+            mockSelectedAccounts,
+          );
 
           // unsubscribe catches errors and forces reconnection instead of throwing
           await service.unsubscribe(mockSubscription);
@@ -765,7 +730,7 @@ describe('AccountActivityService', () => {
             statusChangedEventListener,
           );
 
-          mocks.getSelectedAccount.mockReturnValue(null);
+          mocks.getAccountsFromSelectedAccountGroup.mockReturnValue([]);
 
           // First, simulate receiving a system notification with chains up
           const systemCallback = getSystemNotificationCallback(mocks);
@@ -811,7 +776,7 @@ describe('AccountActivityService', () => {
             statusChangedEventListener,
           );
 
-          mocks.getSelectedAccount.mockReturnValue(null);
+          mocks.getAccountsFromSelectedAccountGroup.mockReturnValue([]);
 
           // Publish WebSocket DISCONNECTED state event without any tracked chains
           rootMessenger.publish(
@@ -838,47 +803,15 @@ describe('AccountActivityService', () => {
       it('should handle valid account scope conversion by processing account change events without errors', async () => {
         await withService(async ({ service, rootMessenger }) => {
           // Publish valid account change event
-          const validAccount = createMockInternalAccount({
-            address: '0x123abc',
-          });
           rootMessenger.publish(
-            'AccountsController:selectedAccountChange',
-            validAccount,
+            'AccountTreeController:selectedAccountGroupChange',
+            '',
+            '',
           );
 
           // Verify service remains functional after processing valid account
           expect(service).toBeInstanceOf(AccountActivityService);
           expect(service.name).toBe('AccountActivityService');
-        });
-      });
-
-      it('should handle Solana account scope conversion by subscribing to Solana-specific channels', async () => {
-        await withService(async ({ mocks, rootMessenger }) => {
-          const solanaAccount = createMockInternalAccount({
-            address: 'SolanaAddress123abc',
-          });
-          solanaAccount.scopes = ['solana:mainnet-beta'];
-
-          mocks.subscribe.mockResolvedValue({
-            subscriptionId: 'solana-sub-123',
-            unsubscribe: jest.fn(),
-          });
-
-          // Publish account change event - will be picked up by controller subscription
-          rootMessenger.publish(
-            'AccountsController:selectedAccountChange',
-            solanaAccount,
-          );
-          // Wait for async handler to complete
-          await completeAsyncOperations();
-
-          expect(mocks.subscribe).toHaveBeenCalledWith(
-            expect.objectContaining({
-              channels: expect.arrayContaining([
-                expect.stringContaining('solana:0:solanaaddress123abc'),
-              ]),
-            }),
-          );
         });
       });
 
@@ -891,8 +824,9 @@ describe('AccountActivityService', () => {
 
           // Publish account change event - will be picked up by controller subscription
           rootMessenger.publish(
-            'AccountsController:selectedAccountChange',
-            unknownAccount,
+            'AccountTreeController:selectedAccountGroupChange',
+            '',
+            '',
           );
           // Wait for async handler to complete
           await completeAsyncOperations();
@@ -913,14 +847,39 @@ describe('AccountActivityService', () => {
             subscriptionId: 'tron-sub-123',
             unsubscribe: jest.fn(),
           });
+          const evmAccount = createMockInternalAccount({
+            address: '0xEvmAddress123abc',
+            scopes: ['eip155:1'],
+            options: {
+              entropy: {
+                type: 'mnemonic',
+                id: '0xentropy1',
+                groupIndex: 0,
+                derivationPath: "m/44'/60'/0'/0/0",
+              },
+            },
+          });
           const tronAccount = createMockInternalAccount({
             address: 'TronAddress123abc',
+            scopes: ['tron:1234'],
+            options: {
+              entropy: {
+                type: 'mnemonic',
+                id: '0xentropy1',
+                groupIndex: 0,
+                derivationPath: "m/44'/195'/0'/0/0",
+              },
+            },
           });
-          tronAccount.scopes = ['tron:mainnet'];
+          mocks.getAccountsFromSelectedAccountGroup.mockReturnValue([
+            evmAccount,
+            tronAccount,
+          ]);
 
           rootMessenger.publish(
-            'AccountsController:selectedAccountChange',
-            tronAccount,
+            'AccountTreeController:selectedAccountGroupChange',
+            '',
+            '',
           );
           await completeAsyncOperations();
 
@@ -957,7 +916,10 @@ describe('AccountActivityService', () => {
               },
             },
           });
-          mocks.listMultichainAccounts.mockReturnValue([account1, account2]);
+          mocks.getAccountsFromSelectedAccountGroup.mockReturnValue([
+            account1,
+            account2,
+          ]);
           mocks.subscribe.mockResolvedValue({
             subscriptionId: 'sub-789',
             unsubscribe: jest.fn(),
@@ -965,8 +927,9 @@ describe('AccountActivityService', () => {
 
           // Publish account change event for account1
           rootMessenger.publish(
-            'AccountsController:selectedAccountChange',
-            account1,
+            'AccountTreeController:selectedAccountGroupChange',
+            '',
+            '',
           );
           // Wait for async handler to complete
           await completeAsyncOperations();
@@ -994,12 +957,24 @@ describe('AccountActivityService', () => {
           });
           const solanaAccount = createMockInternalAccount({
             address: 'SolanaAddress123abc',
+            scopes: ['solana:mainnet-beta'],
+            options: {
+              entropy: {
+                type: 'mnemonic',
+                id: '0xentropy1',
+                groupIndex: 0,
+                derivationPath: "m/44'/501'/0'/0'",
+              },
+            },
           });
-          solanaAccount.scopes = ['solana:mainnet-beta'];
+          mocks.getAccountsFromSelectedAccountGroup.mockReturnValue([
+            solanaAccount,
+          ]);
 
           rootMessenger.publish(
-            'AccountsController:selectedAccountChange',
-            solanaAccount,
+            'AccountTreeController:selectedAccountGroupChange',
+            '',
+            '',
           );
           await completeAsyncOperations();
 
@@ -1017,12 +992,16 @@ describe('AccountActivityService', () => {
           });
           const solanaAccount = createMockInternalAccount({
             address: 'SolanaAddress123abc',
+            scopes: ['solana:mainnet-beta'],
           });
-          solanaAccount.scopes = ['solana:mainnet-beta'];
+          mocks.getAccountsFromSelectedAccountGroup.mockReturnValue([
+            solanaAccount,
+          ]);
 
           rootMessenger.publish(
-            'AccountsController:selectedAccountChange',
-            solanaAccount,
+            'AccountTreeController:selectedAccountGroupChange',
+            '',
+            '',
           );
           await completeAsyncOperations();
 
@@ -1030,46 +1009,9 @@ describe('AccountActivityService', () => {
         });
       });
 
-      it('subscribes to EVM channels only when RemoteFeatureFlagController is unavailable', async () => {
-        await withService(async ({ mocks, rootMessenger }) => {
-          mocks.getFeatureFlagState.mockImplementation(() => {
-            throw new Error('RemoteFeatureFlagController not available');
-          });
-          mocks.subscribe.mockResolvedValue({
-            subscriptionId: 'sub-123',
-            unsubscribe: jest.fn(),
-          });
-          const evmAccount = createMockInternalAccount({
-            address: '0xevmaccount',
-          });
-          const solanaAccount = createMockInternalAccount({
-            address: 'SolanaAddress123abc',
-          });
-          solanaAccount.scopes = ['solana:mainnet-beta'];
-
-          rootMessenger.publish(
-            'AccountsController:selectedAccountChange',
-            evmAccount,
-          );
-          await completeAsyncOperations();
-          rootMessenger.publish(
-            'AccountsController:selectedAccountChange',
-            solanaAccount,
-          );
-          await completeAsyncOperations();
-
-          expect(mocks.subscribe).toHaveBeenCalledTimes(1);
-          expect(mocks.subscribe).toHaveBeenCalledWith(
-            expect.objectContaining({
-              channels: ['account-activity.v1.eip155:0:0xevmaccount'],
-            }),
-          );
-        });
-      });
-
       it('should handle WebSocket connection when no selected account exists by attempting to get selected account', async () => {
         await withService(async ({ rootMessenger, mocks }) => {
-          mocks.getSelectedAccount.mockReturnValue(null);
+          mocks.getAccountsFromSelectedAccountGroup.mockReturnValue([]);
 
           // Publish WebSocket connection event - will be picked up by controller subscription
           rootMessenger.publish(
@@ -1088,8 +1030,9 @@ describe('AccountActivityService', () => {
           await completeAsyncOperations();
 
           // Should attempt to get selected account even when none exists
-          expect(mocks.getSelectedAccount).toHaveBeenCalledTimes(1);
-          expect(mocks.getSelectedAccount).toHaveReturnedWith(null);
+          expect(
+            mocks.getAccountsFromSelectedAccountGroup,
+          ).toHaveBeenCalledTimes(1);
         });
       });
 
@@ -1098,23 +1041,19 @@ describe('AccountActivityService', () => {
           { accountAddress: '0x123abc' },
           async ({ mocks, rootMessenger }) => {
             // Set up mocks
-            mocks.getSelectedAccount.mockReturnValue(
+            mocks.getAccountsFromSelectedAccountGroup.mockReturnValue([
               createMockInternalAccount({ address: '0x123abc' }),
-            );
+            ]);
             mocks.channelHasSubscription.mockReturnValue(true); // Already subscribed
             mocks.subscribe.mockResolvedValue({
               unsubscribe: jest.fn(),
             });
 
-            // Create a new account
-            const newAccount = createMockInternalAccount({
-              address: '0x123abc',
-            });
-
             // Publish account change event on root messenger
             rootMessenger.publish(
-              'AccountsController:selectedAccountChange',
-              newAccount,
+              'AccountTreeController:selectedAccountGroupChange',
+              '',
+              '',
             );
             await completeAsyncOperations();
 
@@ -1129,9 +1068,9 @@ describe('AccountActivityService', () => {
           { accountAddress: '0x123abc' },
           async ({ service, mocks, rootMessenger }) => {
             // Set up mocks to cause an error in the unsubscribe step
-            mocks.getSelectedAccount.mockReturnValue(
+            mocks.getAccountsFromSelectedAccountGroup.mockReturnValue([
               createMockInternalAccount({ address: '0x123abc' }),
-            );
+            ]);
             mocks.channelHasSubscription.mockReturnValue(false);
             mocks.findSubscriptionsByChannelPrefix.mockReturnValue([
               {
@@ -1144,15 +1083,11 @@ describe('AccountActivityService', () => {
               unsubscribe: jest.fn(),
             });
 
-            // Create a new account
-            const newAccount = createMockInternalAccount({
-              address: '0x123abc',
-            });
-
             // Publish account change event on root messenger
             rootMessenger.publish(
-              'AccountsController:selectedAccountChange',
-              newAccount,
+              'AccountTreeController:selectedAccountGroupChange',
+              '',
+              '',
             );
             await completeAsyncOperations();
 
@@ -1166,21 +1101,6 @@ describe('AccountActivityService', () => {
         );
       });
 
-      it('should handle error for account without address in selectedAccountChange by processing gracefully without throwing', async () => {
-        await withService(async ({ rootMessenger }) => {
-          // Test that account without address is handled gracefully when published via messenger
-          const accountWithoutAddress = createMockInternalAccount({
-            address: '',
-          });
-          expect(() => {
-            rootMessenger.publish(
-              'AccountsController:selectedAccountChange',
-              accountWithoutAddress,
-            );
-          }).not.toThrow();
-        });
-      });
-
       it('should resubscribe to selected account when WebSocket connects', async () => {
         await withService(
           { accountAddress: '0x123abc' },
@@ -1189,7 +1109,9 @@ describe('AccountActivityService', () => {
             const testAccount = createMockInternalAccount({
               address: '0x123abc',
             });
-            mocks.getSelectedAccount.mockReturnValue(testAccount);
+            mocks.getAccountsFromSelectedAccountGroup.mockReturnValue([
+              testAccount,
+            ]);
 
             // Publish WebSocket connection event
             rootMessenger.publish(
@@ -1224,7 +1146,9 @@ describe('AccountActivityService', () => {
             address: 'SolanaAddress123abc',
           });
           solanaAccount.scopes = ['solana:mainnet-beta'];
-          mocks.getSelectedAccount.mockReturnValue(solanaAccount);
+          mocks.getAccountsFromSelectedAccountGroup.mockReturnValue([
+            solanaAccount,
+          ]);
           mocks.getFeatureFlagState.mockReturnValue(featureFlagState(0));
           mocks.subscribe.mockResolvedValue({
             subscriptionId: 'sub-123',
@@ -1261,45 +1185,6 @@ describe('AccountActivityService', () => {
               channels: ['account-activity.v1.solana:0:solanaaddress123abc'],
             }),
           );
-        });
-      });
-
-      it('does not resubscribe when the enabled chains are unchanged', async () => {
-        await withService(async ({ mocks, rootMessenger }) => {
-          const evmAccount = createMockInternalAccount({
-            address: '0xevmaccount',
-          });
-          mocks.getSelectedAccount.mockReturnValue(evmAccount);
-          mocks.subscribe.mockResolvedValue({
-            subscriptionId: 'sub-123',
-            unsubscribe: jest.fn(),
-          });
-
-          rootMessenger.publish(
-            'BackendWebSocketService:connectionStateChanged',
-            {
-              state: WebSocketState.CONNECTED,
-              url: 'ws://test',
-              reconnectAttempts: 0,
-              timeout: 10000,
-              reconnectDelay: 500,
-              maxReconnectDelay: 5000,
-              requestTimeout: 30000,
-            },
-          );
-          await completeAsyncOperations();
-          expect(mocks.subscribe).toHaveBeenCalledTimes(1);
-
-          // Same flags published again: no resubscription
-          rootMessenger.publish(
-            'RemoteFeatureFlagController:stateChange',
-            featureFlagState(1),
-            [],
-          );
-          await completeAsyncOperations();
-
-          expect(mocks.subscribe).toHaveBeenCalledTimes(1);
-          expect(mocks.findSubscriptionsByChannelPrefix).not.toHaveBeenCalled();
         });
       });
 

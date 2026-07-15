@@ -6,15 +6,16 @@
  */
 
 import type {
-  AccountsControllerGetSelectedAccountAction,
-  AccountsControllerSelectedAccountChangeEvent,
-} from '@metamask/accounts-controller';
-import { AccountsControllerListMultichainAccountsAction } from '@metamask/accounts-controller';
+  AccountTreeControllerSelectedAccountGroupChangeEvent,
+  AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
+} from '@metamask/account-tree-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
 import type {
+  FeatureFlags,
   RemoteFeatureFlagControllerGetStateAction,
+  RemoteFeatureFlagControllerState,
   RemoteFeatureFlagControllerStateChangeEvent,
 } from '@metamask/remote-feature-flag-controller';
 import { isObject } from '@metamask/utils';
@@ -96,8 +97,7 @@ export type AccountActivityServiceActions = AccountActivityServiceMethodActions;
 
 // Allowed actions that AccountActivityService can call on other controllers
 export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
-  'AccountsController:getSelectedAccount',
-  'AccountsController:listMultichainAccounts',
+  'AccountTreeController:getAccountsFromSelectedAccountGroup',
   'BackendWebSocketService:connect',
   'BackendWebSocketService:forceReconnection',
   'BackendWebSocketService:subscribe',
@@ -112,14 +112,13 @@ export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
 
 // Allowed events that AccountActivityService can listen to
 export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS = [
-  'AccountsController:selectedAccountChange',
+  'AccountTreeController:selectedAccountGroupChange',
   'BackendWebSocketService:connectionStateChanged',
   'RemoteFeatureFlagController:stateChange',
 ] as const;
 
 export type AllowedActions =
-  | AccountsControllerGetSelectedAccountAction
-  | AccountsControllerListMultichainAccountsAction
+  | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction
   | BackendWebSocketServiceMethodActions
   | RemoteFeatureFlagControllerGetStateAction;
 
@@ -158,7 +157,7 @@ export type AccountActivityServiceEvents =
   | AccountActivityServiceStatusChangedEvent;
 
 export type AllowedEvents =
-  | AccountsControllerSelectedAccountChangeEvent
+  | AccountTreeControllerSelectedAccountGroupChangeEvent
   | BackendWebSocketServiceConnectionStateChangedEvent
   | RemoteFeatureFlagControllerStateChangeEvent;
 
@@ -223,7 +222,7 @@ export class AccountActivityService {
 
   // Chain prefixes used for the current subscriptions, to detect feature flag
   // changes that require resubscribing
-  #appliedChainPrefixes: string | undefined;
+  #enabledChainPrefixes: string[] = [];
 
   // =============================================================================
   // Constructor and Initialization
@@ -258,11 +257,10 @@ export class AccountActivityService {
       MESSENGER_EXPOSED_METHODS,
     );
     this.#messenger.subscribe(
-      'AccountsController:selectedAccountChange',
+      'AccountTreeController:selectedAccountGroupChange',
       // Promise result intentionally not awaited
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      async (account: InternalAccount) =>
-        await this.#handleSelectedAccountChange(account),
+      async () => await this.#handleSelectedAccountChange(),
     );
     this.#messenger.subscribe(
       'BackendWebSocketService:connectionStateChanged',
@@ -276,7 +274,18 @@ export class AccountActivityService {
       'RemoteFeatureFlagController:stateChange',
       // Promise result intentionally not awaited
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      async () => await this.#handleFeatureFlagsStateChange(),
+      async (state: RemoteFeatureFlagControllerState) =>
+        await this.#handleFeatureFlagsStateChange(state),
+      // only react to changes in the relevant feature flags for chain prefixes
+      (state) => ({
+        ...state,
+        remoteFeatureFlags: Object.fromEntries(
+          Object.entries(CHAIN_PREFIX_FEATURE_FLAGS).map(([_prefix, flag]) => [
+            flag,
+            state.remoteFeatureFlags[flag],
+          ]),
+        ),
+      }),
     );
     this.#messenger.call('BackendWebSocketService:addChannelCallback', {
       channelName: `system-notifications.v1.${this.#options.subscriptionNamespace}`,
@@ -428,22 +437,18 @@ export class AccountActivityService {
 
   /**
    * Handle selected account change event
-   *
-   * @param newAccount - The newly selected account
    */
-  async #handleSelectedAccountChange(
-    newAccount: InternalAccount | null,
-  ): Promise<void> {
-    if (!newAccount?.address) {
-      return;
-    }
+  async #handleSelectedAccountChange(): Promise<void> {
+    const selectedAccounts = this.#messenger.call(
+      'AccountTreeController:getAccountsFromSelectedAccountGroup',
+    );
 
     try {
       // First, unsubscribe from all current account activity subscriptions to avoid multiple subscriptions
       await this.#unsubscribeFromAllAccountActivity();
 
       for (const address of this.#getSupportedMultichainCaip10Addresses(
-        newAccount,
+        selectedAccounts,
       )) {
         // Subscribe to the new selected account in CAIP-10 format
         await this.subscribe({ address });
@@ -542,16 +547,12 @@ export class AccountActivityService {
    * Subscribe to the currently selected account only
    */
   async #subscribeToSelectedAccount(): Promise<void> {
-    const selectedAccount = this.#messenger.call(
-      'AccountsController:getSelectedAccount',
+    const selectedAccounts = this.#messenger.call(
+      'AccountTreeController:getAccountsFromSelectedAccountGroup',
     );
 
-    if (!selectedAccount?.address) {
-      return;
-    }
-
     for (const address of this.#getSupportedMultichainCaip10Addresses(
-      selectedAccount,
+      selectedAccounts,
     )) {
       await this.subscribe({ address });
     }
@@ -584,19 +585,15 @@ export class AccountActivityService {
    * @param account - The internal account to convert
    * @param account.address - The raw address of the account
    * @param account.scopes - The scopes of the account (used to determine chain type)
-   * @param supportedChainPrefixes - The chain prefixes currently enabled for subscriptions
    * @returns The CAIP-10 formatted address (e.g. `eip155:0:address`, meaning
    * all chains of that namespace), or `undefined` if none of the account's
    * scopes are supported
    */
-  #convertToCaip10Address(
-    account: {
-      address: InternalAccount['address'];
-      scopes: InternalAccount['scopes'];
-    },
-    supportedChainPrefixes: string[],
-  ): string | undefined {
-    const chainPrefix = supportedChainPrefixes.find((prefix) =>
+  #convertToCaip10Address(account: {
+    address: InternalAccount['address'];
+    scopes: InternalAccount['scopes'];
+  }): string | undefined {
+    const chainPrefix = this.#getSupportedChainPrefixes().find((prefix) =>
       account.scopes.some((scope) => scope.startsWith(`${prefix}:`)),
     );
     return chainPrefix ? `${chainPrefix}:0:${account.address}` : undefined;
@@ -607,33 +604,26 @@ export class AccountActivityService {
    * enabled, while other chains are gated behind their per-network remote
    * feature flag (enabled when the flag payload has `stage >= 1`).
    *
-   * Falls back to EVM-only when `RemoteFeatureFlagController` is unavailable.
-   *
+   * @param remoteFeatureFlags - The remote feature flags state to check for enabled chains.
    * @returns An array of enabled CAIP-2 namespace prefixes (e.g. `['eip155', 'solana']`)
    */
-  #getSupportedChainPrefixes(): string[] {
+  #getSupportedChainPrefixes(
+    remoteFeatureFlags: FeatureFlags = this.#messenger.call(
+      'RemoteFeatureFlagController:getState',
+    ).remoteFeatureFlags,
+  ): string[] {
     const prefixes: string[] = [...ALWAYS_SUPPORTED_CHAIN_PREFIXES];
-    try {
-      const { remoteFeatureFlags } = this.#messenger.call(
-        'RemoteFeatureFlagController:getState',
-      );
-      for (const [prefix, flagName] of Object.entries(
-        CHAIN_PREFIX_FEATURE_FLAGS,
-      )) {
-        const flagValue = remoteFeatureFlags[flagName];
-        if (
-          isObject(flagValue) &&
-          typeof flagValue.stage === 'number' &&
-          flagValue.stage >= 1
-        ) {
-          prefixes.push(prefix);
-        }
+    for (const [prefix, flagName] of Object.entries(
+      CHAIN_PREFIX_FEATURE_FLAGS,
+    )) {
+      const flagValue = remoteFeatureFlags[flagName];
+      if (
+        isObject(flagValue) &&
+        typeof flagValue.stage === 'number' &&
+        flagValue.stage >= 1
+      ) {
+        prefixes.push(prefix);
       }
-    } catch (error) {
-      log(
-        'RemoteFeatureFlagController unavailable, using default chain prefixes',
-        { error },
-      );
     }
     return prefixes;
   }
@@ -645,11 +635,6 @@ export class AccountActivityService {
    */
   async #handleFeatureFlagsStateChange(): Promise<void> {
     try {
-      const chainPrefixes = this.#getSupportedChainPrefixes().join(',');
-      if (chainPrefixes === this.#appliedChainPrefixes) {
-        return;
-      }
-
       const { state } = this.#messenger.call(
         'BackendWebSocketService:getConnectionInfo',
       );
@@ -669,33 +654,14 @@ export class AccountActivityService {
    * Get all supported multichain CAIP-10 addresses for a given account
    * This is used to determine which accounts to subscribe to for activity updates
    *
-   * @param account - The internal account to get supported addresses for
+   * @param accounts - The internal accounts to get supported addresses for
    * @returns An array of CAIP-10 formatted addresses that are supported for subscription
    */
-  #getSupportedMultichainCaip10Addresses(account: InternalAccount): string[] {
-    const multichainAccounts =
-      account.options.entropy?.type === 'mnemonic'
-        ? // If the account is derived from a mnemonic, find all multichain accounts
-          // with the same entropy ID and group index
-          this.#messenger
-            .call('AccountsController:listMultichainAccounts')
-            .filter(
-              (multichainAccount) =>
-                multichainAccount.options.entropy?.type === 'mnemonic' &&
-                account.options.entropy?.type === 'mnemonic' &&
-                multichainAccount.options.entropy.id ===
-                  account.options.entropy.id &&
-                multichainAccount.options.entropy.groupIndex ===
-                  account.options.entropy.groupIndex,
-            )
-        : // If the account is not derived from a mnemonic, just use the single account
-          [account];
-    const supportedChainPrefixes = this.#getSupportedChainPrefixes();
-    this.#appliedChainPrefixes = supportedChainPrefixes.join(',');
-    return multichainAccounts
-      .map((multichainAccount) =>
-        this.#convertToCaip10Address(multichainAccount, supportedChainPrefixes),
-      )
+  #getSupportedMultichainCaip10Addresses(
+    accounts: InternalAccount[],
+  ): string[] {
+    return accounts
+      .map((account) => this.#convertToCaip10Address(account))
       .filter((address): address is string => address !== undefined);
   }
 
