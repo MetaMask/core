@@ -336,8 +336,8 @@ export class BaseDataService<
    * @param options - Additional optional options for query invalidations.
    * @returns Nothing.
    */
-  async invalidateQueries<TPageData extends Json>(
-    filters?: InvalidateQueryFilters<TPageData>,
+  async invalidateQueries(
+    filters?: InvalidateQueryFilters<Json>,
     options?: InvalidateOptions,
   ): Promise<void> {
     return this.#queryClient.invalidateQueries(filters, options);
