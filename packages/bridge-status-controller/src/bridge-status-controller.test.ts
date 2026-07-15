@@ -6799,6 +6799,38 @@ describe('BridgeStatusController', () => {
           },
         );
       });
+
+      it('does not report SUBMITTED when the rekeyed history item is missing', async () => {
+        await withController(
+          { options: { isQuoteStatusManagerEnabled: () => true } },
+          async ({ controller, rootMessenger }) => {
+            registerSubmitTxHandlers(rootMessenger);
+
+            // Simulate a rekey that finds no pre-submission history item: the
+            // item is never moved to the trade-meta key, so the subsequent
+            // `#reportSubmittedOnce` runs against a non-existent history item
+            // and must bail out safely without reporting or throwing.
+            jest
+              .spyOn(historyUtils, 'rekeyHistoryItemInState')
+              .mockReturnValue(false);
+
+            await rootMessenger.call(
+              'BridgeStatusController:submitTx',
+              (mockEvmSwapQuoteResponse.trade as TxData).from,
+              mockEvmSwapQuoteResponse,
+              false,
+            );
+            controller.stopAllPolling();
+
+            // Nothing was rekeyed onto the trade-meta id, so no submitted
+            // status was reported for it.
+            expect(controller.state.txHistory[EVM_TX_META_ID]).toBeUndefined();
+            expect(controller.state.quoteUpdateStatusStore).toStrictEqual({});
+
+            controller.resetState();
+          },
+        );
+      });
     });
 
     describe('7702/nested batch sell', () => {
