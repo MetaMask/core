@@ -25,12 +25,11 @@ type DataServiceGranularCacheUpdatedHandler = (
  * The minimum "UI messenger" shape needed by `createUIQueryClient`.
  *
  * A UI messenger is a special form of the messenger whose actions are expected
- * to be asynchronous, and whose granular cache update events can be subscribed
- * to.
+ * to be asynchronous, and whose action handler arguments and event payloads are
+ * expected to be JSON-compatible.
  *
- * The `call`, `subscribe`, and `unsubscribe` methods are restricted to the data
- * service names passed to `createUIQueryClient`, so that only actions and events
- * namespaced under those services can be used.
+ * Furthermore, the messenger must support actions and granular cache update
+ * events that belong to the given data services.
  *
  * @template DataServiceName - A union of the configured data service names.
  */
@@ -71,7 +70,11 @@ type UIMessengerAdapter<DataServiceName extends string> = {
  * Create a QueryClient queries and subscribes to data services using the messenger.
  *
  * @param dataServices - A list of data services.
- * @param messenger - A messenger adapter.
+ * @param messenger - A messenger-like object, with some restrictions:
+ * 1. The messenger must at least support `call`, `subscribe` and `unsubscribe`.
+ * 2. Its actions are expected to be asynchronous.
+ * 3. Its action handler arguments and event payloads are expected to be JSON-compatible.
+ * 4. It must support actions and granular cache update events that belong to `dataServices`.
  * @param config - Optional query client configuration options.
  * @returns The QueryClient.
  */
