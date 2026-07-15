@@ -89,9 +89,23 @@ const QUERY_CLIENT_DEFAULTS: DefaultOptions = {
 
 export const STORAGE_SERVICE_KEY = 'cache';
 
+/**
+ * Options for persistence configuration.
+ */
 type PersistenceConfiguration = {
+  /**
+   * The maximum age before the cache is treated as expired in milliseconds.
+   * This is relevant for rehydrating the state during initialization,
+   * if the cached state is too old it will be discarded.
+   */
   maxAge: number;
+  /**
+   * The number of milliseconds to wait before triggering persistence following a cache update.
+   */
   debounce?: number;
+  /**
+   * The maximum number of milliseconds to wait between persistence writes.
+   */
   debounceMaxWait?: number;
 };
 
