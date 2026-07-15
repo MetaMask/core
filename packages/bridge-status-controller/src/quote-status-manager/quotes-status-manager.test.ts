@@ -749,6 +749,161 @@ describe('QuoteStatusUpdateManager', () => {
       expect(onError).not.toHaveBeenCalled();
       expect(mockUpdate).not.toHaveBeenCalled();
     });
+
+    describe('batch (7702/nested) finalization', () => {
+      /**
+       * Collects the `{ quoteId, newStatus }` pairs reported to the backend.
+       *
+       * @returns The reported quote id / status pairs.
+       */
+      function getReportedQuoteStatuses(): {
+        quoteId: string;
+        newStatus: QuoteStatusBackendStatus;
+      }[] {
+        return mockUpdate.mock.calls.map(([payload]) => ({
+          quoteId: payload.quoteId,
+          newStatus: payload.newStatus,
+        }));
+      }
+
+      it('finalizes every quote sharing the batch txMetaId as success', async () => {
+        const { manager, onError } = createManager();
+        // A single 7702/nested batch submits multiple quotes under one txMetaId.
+        manager.reportSubmitted('quote-1', '0xabc', 'tx-1');
+        manager.reportSubmitted('quote-2', '0xdef', 'tx-1');
+        await flush();
+        mockUpdate.mockClear();
+
+        manager.reportFinalised('tx-1', true);
+        await flush();
+
+        expect(getReportedQuoteStatuses()).toStrictEqual(
+          expect.arrayContaining([
+            {
+              quoteId: 'quote-1',
+              newStatus: QuoteStatusBackendStatus.FinalizedSuccess,
+            },
+            {
+              quoteId: 'quote-2',
+              newStatus: QuoteStatusBackendStatus.FinalizedSuccess,
+            },
+          ]),
+        );
+        expect(onError).not.toHaveBeenCalled();
+      });
+
+      it('finalizes every quote sharing the batch txMetaId as failure', async () => {
+        const { manager, onError } = createManager();
+        manager.reportSubmitted('quote-1', '0xabc', 'tx-1');
+        manager.reportSubmitted('quote-2', '0xdef', 'tx-1');
+        await flush();
+        mockUpdate.mockClear();
+
+        manager.reportFinalised('tx-1', false);
+        await flush();
+
+        expect(getReportedQuoteStatuses()).toStrictEqual(
+          expect.arrayContaining([
+            {
+              quoteId: 'quote-1',
+              newStatus: QuoteStatusBackendStatus.FinalizedFailed,
+            },
+            {
+              quoteId: 'quote-2',
+              newStatus: QuoteStatusBackendStatus.FinalizedFailed,
+            },
+          ]),
+        );
+        expect(onError).not.toHaveBeenCalled();
+      });
+
+      it('finalizes only the still-pending quotes and skips terminal siblings', async () => {
+        const { manager, onError } = createManager({
+          initialData: {
+            'quote-1:0xabc': createPersistEntry({
+              quoteId: 'quote-1',
+              srcTxHash: '0xabc',
+              txMetaId: 'tx-1',
+            }),
+            'quote-2:0xdef': createPersistEntry({
+              quoteId: 'quote-2',
+              srcTxHash: '0xdef',
+              txMetaId: 'tx-1',
+              status: QuoteStatusState.Completed,
+            }),
+          },
+        });
+
+        manager.init();
+        await flush();
+        mockUpdate.mockClear();
+
+        manager.reportFinalised('tx-1', true);
+        await flush();
+
+        const reported = getReportedQuoteStatuses();
+        expect(reported).toContainEqual({
+          quoteId: 'quote-1',
+          newStatus: QuoteStatusBackendStatus.FinalizedSuccess,
+        });
+        // The sibling already in a terminal state cannot transition again, so it
+        // is skipped rather than re-reported or surfacing an error.
+        expect(reported).not.toContainEqual({
+          quoteId: 'quote-2',
+          newStatus: QuoteStatusBackendStatus.FinalizedSuccess,
+        });
+        expect(onError).not.toHaveBeenCalled();
+      });
+
+      it('ignores a duplicate batch finalization once every quote is terminal', async () => {
+        mockUpdate.mockResolvedValue(
+          new QuoteStatusUpdateWithRetryOutcome(
+            QuoteStatusFetchWithRetryOutcomeType.Accepted,
+          ),
+        );
+        const { manager, onError } = createManager();
+        manager.reportSubmitted('quote-1', '0xabc', 'tx-1');
+        manager.reportSubmitted('quote-2', '0xdef', 'tx-1');
+        await flush();
+        manager.reportFinalised('tx-1', true);
+        await flush();
+        onError.mockClear();
+        mockUpdate.mockClear();
+
+        // Every entry is now Completed; a repeated batch finalization finds them
+        // all in a terminal state and no-ops instead of re-reporting or erroring.
+        manager.reportFinalised('tx-1', true);
+        await flush();
+
+        expect(onError).not.toHaveBeenCalled();
+        expect(mockUpdate).not.toHaveBeenCalled();
+      });
+
+      it('retains every batch entry as Completed once finalization is accepted', async () => {
+        mockUpdate.mockResolvedValue(
+          new QuoteStatusUpdateWithRetryOutcome(
+            QuoteStatusFetchWithRetryOutcomeType.Accepted,
+          ),
+        );
+        const { manager, onPersistUpdates } = createManager();
+        manager.reportSubmitted('quote-1', '0xabc', 'tx-1');
+        manager.reportSubmitted('quote-2', '0xdef', 'tx-1');
+        await flush();
+
+        manager.reportFinalised('tx-1', true);
+        await flush();
+
+        const lastSnapshot = onPersistUpdates.mock.calls.at(-1)?.[0];
+        expect(lastSnapshot).toMatchObject({
+          'quote-1:0xabc': expect.objectContaining({
+            status: QuoteStatusState.Completed,
+          }),
+          'quote-2:0xdef': expect.objectContaining({
+            status: QuoteStatusState.Completed,
+          }),
+        });
+      });
+    });
   });
 
   describe('destroy', () => {
