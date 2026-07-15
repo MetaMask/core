@@ -5,6 +5,7 @@ import {
 } from '@metamask/messenger';
 import type {
   StorageServiceGetItemAction,
+  StorageServiceRemoveItemAction,
   StorageServiceSetItemAction,
 } from '@metamask/storage-service';
 import { Duration, inMilliseconds } from '@metamask/utils';
@@ -63,7 +64,8 @@ type DataServiceActions<ServiceName extends string> =
 
 type DataServiceAllowedActions =
   | StorageServiceGetItemAction
-  | StorageServiceSetItemAction;
+  | StorageServiceSetItemAction
+  | StorageServiceRemoveItemAction;
 
 export type DataServiceCacheUpdatedEvent<ServiceName extends string> = {
   type: `${ServiceName}:cacheUpdated`;
@@ -403,7 +405,11 @@ export class BaseDataService<
     const state = dehydrate(this.#queryClient);
 
     if (state.queries.length === 0 && state.mutations.length === 0) {
-      return;
+      return this.#externalMessenger.call(
+        'StorageService:removeItem',
+        this.name,
+        STORAGE_SERVICE_KEY,
+      );
     }
 
     const cache: PersistedCache = {
@@ -443,7 +449,11 @@ export class BaseDataService<
     const cache = persisted as unknown as PersistedCache;
 
     if (Date.now() - cache.timestamp >= this.#persistConfig.maxAge) {
-      return;
+      return this.#externalMessenger.call(
+        'StorageService:removeItem',
+        this.name,
+        STORAGE_SERVICE_KEY,
+      );
     }
 
     hydrate(this.#queryClient, cache.state);

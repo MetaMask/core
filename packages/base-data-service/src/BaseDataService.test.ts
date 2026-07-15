@@ -491,9 +491,18 @@ describe('BaseDataService', () => {
         };
       });
 
+      rootMessenger.registerActionHandler(
+        'StorageService:removeItem',
+        jest.fn(),
+      );
+
       const messenger = rootMessenger.buildChild({
         namespace: serviceName,
-        actions: ['StorageService:getItem', 'StorageService:setItem'],
+        actions: [
+          'StorageService:getItem',
+          'StorageService:setItem',
+          'StorageService:removeItem',
+        ],
       });
 
       const callSpy = jest.spyOn(messenger, 'call');
@@ -509,6 +518,44 @@ describe('BaseDataService', () => {
       );
 
       expect(publishSpy).not.toHaveBeenCalled();
+
+      await Promise.resolve();
+
+      expect(callSpy).toHaveBeenCalledWith(
+        'StorageService:removeItem',
+        serviceName,
+        STORAGE_SERVICE_KEY,
+      );
+    });
+
+    it('removes the persisted cache from the StorageService if the cache is empty', async () => {
+      const rootMessenger = new Messenger({
+        namespace: MOCK_ANY_NAMESPACE,
+        captureException: console.error,
+      });
+
+      const setItem = jest.fn();
+      const removeItem = jest.fn();
+      rootMessenger.registerActionHandler('StorageService:setItem', setItem);
+      rootMessenger.registerActionHandler(
+        'StorageService:removeItem',
+        removeItem,
+      );
+
+      const messenger = rootMessenger.buildChild({
+        namespace: serviceName,
+        actions: ['StorageService:setItem', 'StorageService:removeItem'],
+      });
+      const service = new ExampleDataService(messenger);
+
+      mockAssets();
+
+      await service.getAssets(MOCK_ASSETS);
+
+      // Wait for GC
+      jest.runAllTimers();
+
+      expect(removeItem).toHaveBeenCalledWith(serviceName, STORAGE_SERVICE_KEY);
     });
 
     it('skips persisting cache if persistConfig is not set', async () => {
