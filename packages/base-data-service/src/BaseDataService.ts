@@ -382,6 +382,7 @@ export class BaseDataService<
 
   /**
    * Persist the query client cache using the StorageService, if the cache is not empty.
+   *
    * @returns Nothing.
    */
   async #persistCache(): Promise<void> {
@@ -407,6 +408,7 @@ export class BaseDataService<
   /**
    * Rehydrate the query client cache using the StorageService, if persistence is configured
    * and the persisted cache is not expired.
+   *
    * @returns Nothing.
    */
   async #rehydrateCache(): Promise<void> {
