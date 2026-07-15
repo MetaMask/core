@@ -115,7 +115,7 @@ export abstract class OracleLayer1GasFeeFlow implements Layer1GasFeeFlow {
    * Defaults to returning the fee unchanged.
    *
    * @param oracleFee - The raw L1 fee returned by the oracle contract.
-   * @param _request - The original fee flow request (provider + transaction).
+   * @param _request - The original fee flow request (messenger + transaction).
    * @returns The transformed fee.
    */
   protected async transformOracleFee(

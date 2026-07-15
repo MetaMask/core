@@ -3,7 +3,7 @@
 import type { AccessList } from '@ethereumjs/tx';
 import type { AccountsController } from '@metamask/accounts-controller';
 import type { GasFeeState } from '@metamask/gas-fee-controller';
-import type { NetworkClientId, Provider } from '@metamask/network-controller';
+import type { NetworkClientId } from '@metamask/network-controller';
 import type { Hex, Json } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
@@ -1529,9 +1529,6 @@ export type GasFeeFlow = {
 export type Layer1GasFeeFlowRequest = {
   /** The messenger instance. */
   messenger: TransactionControllerMessenger;
-
-  /** RPC Provider instance. */
-  provider: Provider;
 
   /** The metadata of the transaction to obtain estimates for. */
   transactionMeta: TransactionMeta;
