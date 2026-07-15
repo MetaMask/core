@@ -19,7 +19,6 @@ export type {
   NetworkEnablementControllerInitAction,
   NetworkEnablementControllerInitNativeAssetIdentifiersAction,
   NetworkEnablementControllerDisableNetworkAction,
-  NetworkEnablementControllerRestoreEnabledNetworkMapAction,
   NetworkEnablementControllerIsNetworkEnabledAction,
   NetworkEnablementControllerListPopularEvmNetworksAction,
   NetworkEnablementControllerListPopularMultichainNetworksAction,

@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `restoreEnabledNetworkMap` messenger action to restore a previously snapshotted `enabledNetworkMap` when adding a network without switching the active network filter ([#9480](https://github.com/MetaMask/core/pull/9480))
+- Add `restoreEnabledNetworkMap` as an internal messenger method (not exported from the package public API) to restore a previously snapshotted `enabledNetworkMap` when adding a network without switching the active network filter ([#9480](https://github.com/MetaMask/core/pull/9480))
 
 ## [5.5.0]
 
