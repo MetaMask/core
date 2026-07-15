@@ -16,6 +16,7 @@ import {
 import { PasskeyControllerError } from './errors';
 import { deriveKeyFromAuthenticationResponse } from './key-derivation';
 import { createModuleLogger, projectLogger } from './logger';
+import { PasskeyControllerMethodActions } from './PasskeyController-method-action-types';
 import type {
   AuthenticatorTransportFuture,
   PasskeyCredentialInfo,
@@ -39,7 +40,6 @@ import type {
 } from './webauthn/types';
 import { verifyAuthenticationResponse } from './webauthn/verify-authentication-response';
 import { verifyRegistrationResponse } from './webauthn/verify-registration-response';
-import { PasskeyControllerMethodActions } from './PasskeyController-method-action-types';
 
 export type PasskeyControllerState = {
   passkeyRecord: PasskeyRecord | null;
