@@ -361,7 +361,7 @@ linkStyle default opacity:0.5
   config_registry_controller --> remote_feature_flag_controller;
   connectivity_controller --> base_controller;
   connectivity_controller --> messenger;
-  core_backend --> accounts_controller;
+  core_backend --> account_tree_controller;
   core_backend --> controller_utils;
   core_backend --> keyring_controller;
   core_backend --> messenger;
