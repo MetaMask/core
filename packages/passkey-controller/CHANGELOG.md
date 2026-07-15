@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Expose public `PasskeyController` methods through its messenger ([#9515](https://github.com/MetaMask/core/pull/9515))
+  - The following actions are now available:
+    - `PasskeyController:isPasskeyEnrolled`
+    - `PasskeyController:generateRegistrationOptions`
+    - `PasskeyController:verifyRegistrationResponse`
+    - `PasskeyController:generatePostRegistrationAuthenticationOptions`
+    - `PasskeyController:generateAuthenticationOptions`
+    - `PasskeyController:verifyAuthenticationResponse`
+    - `PasskeyController:protectVaultKeyWithPasskey`
+    - `PasskeyController:retrieveVaultKeyWithPasskey`
+    - `PasskeyController:verifyPasskeyAuthentication`
+    - `PasskeyController:renewVaultKeyProtection`
+    - `PasskeyController:removePasskey`
+    - `PasskeyController:clearState`
+    - `PasskeyController:destroy`
+  - Corresponding action types (e.g. `PasskeyControllerIsPasskeyEnrolledAction`) are available as well.
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
