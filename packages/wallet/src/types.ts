@@ -22,6 +22,12 @@ export type WalletOptions = {
     unknown
   >[];
   instanceOptions: InstanceSpecificOptions;
+  /**
+   * An optional logger used to emit initialization diagnostics. When provided,
+   * a breadcrumb is logged immediately after each controller's `init()`
+   * completes, in initialization order. Defaults to no output.
+   */
+  logger?: Pick<Console, 'info'>;
 };
 
 export type InstanceSpecificOptions = {

@@ -6,6 +6,7 @@ import { Json } from '@metamask/utils';
 import { webcrypto } from 'crypto';
 
 import MockEncryptor from '../../keyring-controller/tests/mocks/mockEncryptor';
+import { defaultConfigurations } from './initialization/defaults';
 import * as initializationModule from './initialization/initialization';
 import { AlwaysOnlineAdapter } from './initialization/instances/connectivity-controller/always-online-adapter';
 import { importSecretRecoveryPhrase } from './utilities';
@@ -157,6 +158,51 @@ describe('Wallet', () => {
     });
 
     expect((state as Record<string, Json>).TestService).toBeUndefined();
+  });
+
+  it('logs an initialization breadcrumb for each controller in order when a logger is provided', () => {
+    const info = jest.fn();
+
+    const wallet = new Wallet({
+      logger: { info },
+      instanceOptions: {
+        connectivityController: {
+          connectivityAdapter: new AlwaysOnlineAdapter(),
+        },
+        storageService: {
+          storage: new InMemoryStorageAdapter(),
+        },
+        remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+      },
+    });
+
+    const loggedMessages = info.mock.calls.map(([message]) => message);
+    const expectedMessages = Object.values(defaultConfigurations).map(
+      (config) => `[wallet] ${config.name}: initialized`,
+    );
+
+    expect(loggedMessages).toStrictEqual(expectedMessages);
+    // The constructed wallet exposes the controllers it logged.
+    expect(
+      wallet.getInstance(defaultConfigurations.keyringController.name),
+    ).toBeDefined();
+  });
+
+  it('does not throw when no logger is provided', () => {
+    expect(
+      () =>
+        new Wallet({
+          instanceOptions: {
+            connectivityController: {
+              connectivityAdapter: new AlwaysOnlineAdapter(),
+            },
+            storageService: {
+              storage: new InMemoryStorageAdapter(),
+            },
+            remoteFeatureFlagController: REMOTE_FEATURE_FLAG_OPTIONS,
+          },
+        }),
+    ).not.toThrow();
   });
 
   it('exposes controllerMetadata for each initialized controller', async () => {
