@@ -538,11 +538,11 @@ describe('HyperLiquidProvider', () => {
       ).toHaveBeenCalled();
     });
 
-    it('does not count USDH-only spot balance in funded-state totals', async () => {
+    it('does not count non-USDC-only spot balance in funded-state totals', async () => {
       mockClientService.getInfoClient = jest.fn().mockReturnValue(
         createMockInfoClient({
           spotClearinghouseState: jest.fn().mockResolvedValue({
-            balances: [{ coin: 'USDH', hold: '1000', total: '10000' }],
+            balances: [{ coin: 'DAI', hold: '1000', total: '10000' }],
           }),
         }),
       );
@@ -688,6 +688,108 @@ describe('HyperLiquidProvider', () => {
       expect(
         mockClientService.getInfoClient().metaAndAssetCtxs,
       ).toHaveBeenCalled();
+    });
+
+    it('filters out a HIP-3 DEX from market discovery when its collateral token is not USDC (TAT-3304)', async () => {
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+      });
+      const xyzMeta = {
+        universe: [{ name: 'xyz:STOCK1', szDecimals: 2, maxLeverage: 20 }],
+        collateralToken: 5,
+      };
+      const mockInfoClient = createMockInfoClient({
+        perpDexs: jest
+          .fn()
+          .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
+        meta: jest.fn().mockImplementation((params?: { dex?: string }) =>
+          params?.dex === 'xyz'
+            ? Promise.resolve(xyzMeta)
+            : Promise.resolve({
+                universe: [{ name: 'BTC', szDecimals: 3, maxLeverage: 50 }],
+              }),
+        ),
+        metaAndAssetCtxs: jest
+          .fn()
+          .mockImplementation((params?: { dex?: string }) =>
+            params?.dex === 'xyz'
+              ? Promise.resolve([xyzMeta, []])
+              : Promise.resolve([
+                  {
+                    universe: [
+                      { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
+                    ],
+                  },
+                  [],
+                ]),
+          ),
+        spotMeta: jest.fn().mockResolvedValue({
+          tokens: [
+            { name: 'USDC', tokenId: '0xdef456', index: 0 },
+            { name: 'USDH', tokenId: '0xabc123', index: 5 },
+          ],
+          universe: [],
+        }),
+      });
+
+      mockClientService.getInfoClient = jest
+        .fn()
+        .mockReturnValue(mockInfoClient);
+
+      const markets = await hip3Provider.getMarkets({ dex: 'xyz' });
+
+      expect(markets).toEqual([]);
+    });
+
+    it('does not filter a HIP-3 DEX whose collateral token resolves to USDC', async () => {
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+      });
+      const xyzMeta = {
+        universe: [{ name: 'xyz:STOCK1', szDecimals: 2, maxLeverage: 20 }],
+        collateralToken: 0,
+      };
+      const mockInfoClient = createMockInfoClient({
+        perpDexs: jest
+          .fn()
+          .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
+        meta: jest.fn().mockImplementation((params?: { dex?: string }) =>
+          params?.dex === 'xyz'
+            ? Promise.resolve(xyzMeta)
+            : Promise.resolve({
+                universe: [{ name: 'BTC', szDecimals: 3, maxLeverage: 50 }],
+              }),
+        ),
+        metaAndAssetCtxs: jest
+          .fn()
+          .mockImplementation((params?: { dex?: string }) =>
+            params?.dex === 'xyz'
+              ? Promise.resolve([xyzMeta, []])
+              : Promise.resolve([
+                  {
+                    universe: [
+                      { name: 'BTC', szDecimals: 3, maxLeverage: 50 },
+                    ],
+                  },
+                  [],
+                ]),
+          ),
+        spotMeta: jest.fn().mockResolvedValue({
+          tokens: [{ name: 'USDC', tokenId: '0xdef456', index: 0 }],
+          universe: [],
+        }),
+      });
+
+      mockClientService.getInfoClient = jest
+        .fn()
+        .mockReturnValue(mockInfoClient);
+
+      const markets = await hip3Provider.getMarkets({ dex: 'xyz' });
+
+      expect(markets.length).toBe(1);
+      expect(markets[0].name).toBe('xyz:STOCK1');
     });
 
     it('handles data retrieval errors gracefully', async () => {

@@ -24,10 +24,9 @@ import {
   HYPERLIQUID_CONFIG,
   HYPERLIQUID_WITHDRAWAL_MINUTES,
   REFERRAL_CONFIG,
-  SPOT_ASSET_ID_OFFSET,
   TRADING_DEFAULTS,
   USDC_DECIMALS,
-  USDH_CONFIG,
+  USDC_SYMBOL,
 } from '../constants/hyperLiquidConfig';
 import {
   ORDER_SLIPPAGE_CONFIG,
@@ -325,7 +324,7 @@ export class HyperLiquidProvider implements PerpsProvider {
   // Last known-good market list for stale fallback when every enabled DEX fails in one fetch window.
   #cachedMarketDataWithPrices: CachedMarketDataSnapshot | null = null;
 
-  // Session cache for spot metadata (contains USDC/USDH token info for HIP-3 collateral checks)
+  // Session cache for spot metadata (contains token info for HIP-3 collateral checks)
   // Pre-fetched in ensureReadyForTrading() to avoid API failures during order placement
   #cachedSpotMeta: SpotMetaResponse | null = null;
 
@@ -1153,7 +1152,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
     this.#tradingSetupPromise = (async (): Promise<void> => {
       // Pre-fetch spotMeta for HIP-3 operations (non-blocking if it fails)
-      // This ensures token info (USDC/USDH indices) is available during order placement
+      // This ensures token info (e.g. USDC token index) is available during order placement
       if (this.#hip3Enabled) {
         try {
           await this.#getCachedSpotMeta();
@@ -1647,7 +1646,7 @@ export class HyperLiquidProvider implements PerpsProvider {
 
   /**
    * Fetch spot metadata with session-based caching
-   * Contains token info (USDC, USDH indices) needed for HIP-3 collateral checks
+   * Contains token info (e.g. USDC token index) needed for HIP-3 collateral checks
    * Pre-fetched in ensureReadyForTrading() to ensure availability during order placement
    *
    * @returns SpotMetaResponse with tokens and universe data
@@ -1843,6 +1842,18 @@ export class HyperLiquidProvider implements PerpsProvider {
       return [];
     }
 
+    // TAT-3304: Following the USDH sunset, only USDC-collateral HIP-3 DEXs
+    // are supported for trading. Gate non-USDC-collateral DEXs out of market
+    // discovery entirely (regardless of skipFilters) so their markets can
+    // never be surfaced to trade, even via an allowlist entry naming the DEX.
+    if (dex !== null && !(await this.#isUsdcCollateralDex(dex))) {
+      this.#deps.debugLogger.log(
+        'HyperLiquidProvider: Filtering out non-USDC-collateral HIP-3 DEX from market discovery',
+        { dex },
+      );
+      return [];
+    }
+
     // Transform to MarketInfo format
     const markets = meta.universe.map((asset) => adaptMarketFromSDK(asset));
 
@@ -1899,13 +1910,23 @@ export class HyperLiquidProvider implements PerpsProvider {
   }
 
   /**
-   * Check if a HIP-3 DEX uses USDH as collateral (vs USDC)
-   * Per HyperLiquid docs: USDH DEXs pull collateral from spot balance automatically
+   * Check if a HIP-3 DEX uses USDC as its collateral token
+   *
+   * TAT-3304: Following the USDH sunset, only USDC-collateral DEXs are
+   * supported for trading. This gate filters non-USDC-collateral DEXs
+   * (e.g. the now-sunset USDH) out of market discovery and blocks order
+   * placement, replacing the previous USDH-specific auto-swap path.
+   *
+   * Fails open (treated as USDC) when the collateral token index can't be
+   * resolved against spot metadata, so an unexpected/incomplete metadata
+   * shape doesn't spuriously block an otherwise-valid market — only a DEX
+   * whose collateral token positively resolves to something other than
+   * USDC is gated.
    *
    * @param dexName - The DEX identifier (empty string for main DEX).
    * @returns A promise that resolves to the boolean result.
    */
-  async #isUsdhCollateralDex(dexName: string): Promise<boolean> {
+  async #isUsdcCollateralDex(dexName: string): Promise<boolean> {
     const meta = await this.#getCachedMeta({ dexName });
     const spotMeta = await this.#getCachedSpotMeta();
 
@@ -1913,7 +1934,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       (tok: { index: number }) => tok.index === meta.collateralToken,
     );
 
-    const isUsdh = collateralToken?.name === USDH_CONFIG.TokenName;
+    const isUsdc = !collateralToken || collateralToken.name === USDC_SYMBOL;
 
     this.#deps.debugLogger.log(
       'HyperLiquidProvider: Checked DEX collateral type',
@@ -1921,388 +1942,11 @@ export class HyperLiquidProvider implements PerpsProvider {
         dexName,
         collateralTokenIndex: meta.collateralToken,
         collateralTokenName: collateralToken?.name,
-        isUsdh,
+        isUsdc,
       },
     );
 
-    return isUsdh;
-  }
-
-  /**
-   * Get user's USDH balance in spot wallet
-   *
-   * @returns A promise that resolves to the numeric result.
-   */
-  async #getSpotUsdhBalance(): Promise<number> {
-    const infoClient = this.#clientService.getInfoClient();
-    const userAddress = await this.#walletService.getUserAddressWithDefault();
-
-    const spotState = await infoClient.spotClearinghouseState({
-      user: userAddress,
-    });
-
-    const usdhBalance = spotState.balances.find(
-      (b: { coin: string }) => b.coin === USDH_CONFIG.TokenName,
-    );
-
-    const balance = usdhBalance ? parseFloat(usdhBalance.total) : 0;
-
-    this.#deps.debugLogger.log('HyperLiquidProvider: Spot USDH balance', {
-      balance,
-      userAddress,
-    });
-
-    return balance;
-  }
-
-  /**
-   * Get user's USDC balance in spot wallet
-   * Required for USDH DEX orders - need USDC in spot to swap to USDH
-   *
-   * @returns A promise that resolves to the numeric result.
-   */
-  async #getSpotUsdcBalance(): Promise<number> {
-    const infoClient = this.#clientService.getInfoClient();
-    const userAddress = await this.#walletService.getUserAddressWithDefault();
-
-    const spotState = await infoClient.spotClearinghouseState({
-      user: userAddress,
-    });
-
-    const usdcBalance = spotState.balances.find(
-      (b: { coin: string }) => b.coin === 'USDC',
-    );
-
-    const balance = usdcBalance ? parseFloat(usdcBalance.total) : 0;
-
-    this.#deps.debugLogger.log('HyperLiquidProvider: Spot USDC balance', {
-      balance,
-      userAddress,
-    });
-
-    return balance;
-  }
-
-  /**
-   * Transfer USDC from main perps wallet to spot wallet
-   * Required before swapping USDC→USDH for USDH DEX orders
-   *
-   * @param amount - The amount value.
-   * @returns A promise that resolves to the result.
-   */
-  async #transferUsdcToSpot(
-    amount: number,
-  ): Promise<{ success: boolean; error?: string }> {
-    const exchangeClient = this.#clientService.getExchangeClient();
-    const userAddress = await this.#walletService.getUserAddressWithDefault();
-
-    this.#deps.debugLogger.log(
-      'HyperLiquidProvider: Transferring USDC to spot',
-      {
-        amount,
-        userAddress,
-      },
-    );
-
-    try {
-      const result = await exchangeClient.sendAsset({
-        destination: userAddress,
-        sourceDex: '', // Main perps DEX (empty string)
-        destinationDex: 'spot',
-        token: await this.#getUsdcTokenId(),
-        amount: amount.toString(),
-      });
-
-      if (result.status === 'ok') {
-        this.#deps.debugLogger.log(
-          'HyperLiquidProvider: USDC transferred to spot',
-          {
-            amount,
-          },
-        );
-        return { success: true };
-      }
-
-      return { success: false, error: PERPS_ERROR_CODES.TRANSFER_FAILED };
-    } catch (error) {
-      const errorMsg = ensureError(
-        error,
-        'HyperLiquidProvider.transferUSDCToPerps',
-      ).message;
-      this.#deps.debugLogger.log(
-        'HyperLiquidProvider: USDC transfer to spot failed',
-        {
-          error: errorMsg,
-        },
-      );
-      return { success: false, error: errorMsg };
-    }
-  }
-
-  /**
-   * Swap USDC to USDH on spot market
-   * Returns the result of the swap including filled size
-   *
-   * @param amount - The amount value.
-   * @returns A promise that resolves to the result.
-   */
-  async #swapUsdcToUsdh(
-    amount: number,
-  ): Promise<{ success: boolean; filledSize?: number; error?: string }> {
-    const spotMeta = await this.#getCachedSpotMeta();
-
-    // Find USDH and USDC tokens by name
-    const usdhToken = spotMeta.tokens.find(
-      (tok: { name: string }) => tok.name === USDH_CONFIG.TokenName,
-    );
-    const usdcToken = spotMeta.tokens.find(
-      (tok: { name: string }) => tok.name === 'USDC',
-    );
-
-    if (!usdhToken || !usdcToken) {
-      return {
-        success: false,
-        error: PERPS_ERROR_CODES.SPOT_PAIR_NOT_FOUND,
-      };
-    }
-
-    // Find USDH/USDC pair by token indices (NOT by name - name is @230)
-    const usdhUsdcPair = spotMeta.universe.find(
-      (univ: { tokens: number[] }) =>
-        univ.tokens.includes(usdhToken.index) &&
-        univ.tokens.includes(usdcToken.index),
-    );
-
-    if (!usdhUsdcPair) {
-      return { success: false, error: PERPS_ERROR_CODES.SPOT_PAIR_NOT_FOUND };
-    }
-
-    const spotAssetId = SPOT_ASSET_ID_OFFSET + usdhUsdcPair.index;
-
-    this.#deps.debugLogger.log(
-      'HyperLiquidProvider: Found USDH/USDC spot pair',
-      {
-        pairIndex: usdhUsdcPair.index,
-        pairName: usdhUsdcPair.name,
-        spotAssetId,
-        usdhTokenIndex: usdhToken.index,
-        usdcTokenIndex: usdcToken.index,
-      },
-    );
-
-    // Get current mid price
-    const infoClient = this.#clientService.getInfoClient();
-    const allMids = await infoClient.allMids();
-    const pairKey = `@${usdhUsdcPair.index}`;
-    const usdhPrice = parseFloat(allMids[pairKey] || '1');
-
-    if (usdhPrice === 0) {
-      return {
-        success: false,
-        error: PERPS_ERROR_CODES.PRICE_UNAVAILABLE,
-      };
-    }
-
-    // Calculate order parameters
-    // USDH is pegged 1:1 to USDC, add small slippage buffer
-    const slippageMultiplier =
-      1 + USDH_CONFIG.SwapSlippageBps / BASIS_POINTS_DIVISOR;
-    const maxPrice = usdhPrice * slippageMultiplier;
-
-    // Size in USDH = amount / price (since we're buying USDH with USDC)
-    let sizeInUsdh = amount / usdhPrice;
-
-    // Format size according to HyperLiquid requirements
-    let formattedSize = sizeInUsdh.toFixed(usdhToken.szDecimals);
-
-    // CRITICAL: Ensure USDC cost meets $10 minimum after rounding
-    // At price ~0.999995, buying 10.00 USDH costs 9.99995 USDC (under minimum)
-    // Bump up by one increment if needed to meet minimum
-    const minSpotOrderValue = TRADING_DEFAULTS.amount.mainnet;
-    const estimatedCost = parseFloat(formattedSize) * usdhPrice;
-    if (estimatedCost < minSpotOrderValue) {
-      const increment = Math.pow(10, -usdhToken.szDecimals); // 0.01 for szDecimals=2
-      sizeInUsdh = parseFloat(formattedSize) + increment;
-      formattedSize = sizeInUsdh.toFixed(usdhToken.szDecimals);
-    }
-
-    // Format price according to HyperLiquid requirements
-    const formattedPrice = formatHyperLiquidPrice({
-      price: maxPrice,
-      szDecimals: usdhToken.szDecimals,
-    });
-
-    this.#deps.debugLogger.log(
-      'HyperLiquidProvider: Placing USDC→USDH swap order',
-      {
-        usdcAmount: amount,
-        usdhPrice,
-        maxPrice: formattedPrice,
-        size: formattedSize,
-        szDecimals: usdhToken.szDecimals,
-      },
-    );
-
-    try {
-      const exchangeClient = this.#clientService.getExchangeClient();
-      const result = await exchangeClient.order({
-        orders: [
-          {
-            a: spotAssetId,
-            b: true, // Buy USDH
-            p: formattedPrice,
-            s: formattedSize,
-            r: false, // Not reduce-only
-            t: { limit: { tif: 'Ioc' } }, // Immediate-or-cancel
-          },
-        ],
-        grouping: 'na',
-      });
-
-      if (result.status !== 'ok') {
-        return {
-          success: false,
-          error: PERPS_ERROR_CODES.SWAP_FAILED,
-        };
-      }
-
-      // Check order status
-      const status = result.response?.data?.statuses?.[0];
-      if (isStatusObject(status) && hasProperty(status, 'error')) {
-        return { success: false, error: String(status.error) };
-      }
-
-      // Note: `in` narrows the HyperLiquid SDK discriminated union to the
-      // branch that has `filled`; `hasProperty` only narrows the key and
-      // types `status.filled` as `unknown`, which loses access to `.totalSz`.
-      /* eslint-disable no-restricted-syntax */
-      const filledSize =
-        isStatusObject(status) && 'filled' in status
-          ? parseFloat(status.filled?.totalSz ?? '0')
-          : 0;
-      /* eslint-enable no-restricted-syntax */
-
-      this.#deps.debugLogger.log(
-        'HyperLiquidProvider: USDC→USDH swap completed',
-        {
-          success: true,
-          filledSize,
-          requestedSize: formattedSize,
-        },
-      );
-
-      return { success: true, filledSize };
-    } catch (error) {
-      const errorMsg = ensureError(
-        error,
-        'HyperLiquidProvider.swapUSDCToUSDH',
-      ).message;
-      this.#deps.debugLogger.log('HyperLiquidProvider: USDC→USDH swap error', {
-        error: errorMsg,
-      });
-      return { success: false, error: errorMsg };
-    }
-  }
-
-  /**
-   * Ensure sufficient USDH collateral in spot for HIP-3 DEX order
-   * If user lacks USDH, auto-swap from USDC
-   *
-   * @param dexName - The DEX identifier (empty string for main DEX).
-   * @param requiredMargin - The required margin amount.
-   */
-  async #ensureUsdhCollateralForOrder(
-    dexName: string,
-    requiredMargin: number,
-  ): Promise<void> {
-    const spotUsdhBalance = await this.#getSpotUsdhBalance();
-
-    this.#deps.debugLogger.log(
-      'HyperLiquidProvider: Checking USDH collateral',
-      {
-        dexName,
-        requiredMargin,
-        spotUsdhBalance,
-      },
-    );
-
-    if (spotUsdhBalance >= requiredMargin) {
-      this.#deps.debugLogger.log(
-        'HyperLiquidProvider: Sufficient USDH in spot',
-      );
-      return;
-    }
-
-    const shortfall = requiredMargin - spotUsdhBalance;
-    // HyperLiquid spot has $10 minimum order value
-    const minSpotOrderValue = TRADING_DEFAULTS.amount.mainnet;
-
-    // If user has some USDH already, we can swap just the shortfall (if >= $10)
-    // If user has zero USDH, they need at least $10 for first swap
-    const swapAmount =
-      spotUsdhBalance > 0 && shortfall >= minSpotOrderValue
-        ? shortfall
-        : Math.max(shortfall, minSpotOrderValue);
-
-    // Step 1: Check spot USDC balance
-    const spotUsdcBalance = await this.#getSpotUsdcBalance();
-
-    // Calculate total available USDC (spot + what we can transfer from perps)
-    // For now, check if we have enough in spot first
-    const totalUsdcNeeded = swapAmount - spotUsdcBalance;
-
-    // Step 2: If insufficient USDC in spot, transfer from main perps
-    if (spotUsdcBalance < swapAmount) {
-      const transferAmount = totalUsdcNeeded;
-
-      this.#deps.debugLogger.log(
-        'HyperLiquidProvider: Transferring USDC to spot for swap',
-        {
-          spotUsdcBalance,
-          swapAmount,
-          transferAmount,
-        },
-      );
-
-      const transferResult = await this.#transferUsdcToSpot(transferAmount);
-      if (!transferResult.success) {
-        // Provide user-friendly error for insufficient funds
-        if (transferResult.error?.includes('Insufficient balance')) {
-          throw new Error(
-            `Insufficient USDC balance. Need $${swapAmount.toFixed(2)} for USDH swap but transfer failed. Please deposit more USDC to your HyperLiquid account.`,
-          );
-        }
-        throw new Error(
-          `Failed to transfer USDC to spot: ${transferResult.error}`,
-        );
-      }
-    }
-
-    // Step 3: Swap USDC → USDH
-    this.#deps.debugLogger.log(
-      'HyperLiquidProvider: Swapping USDC→USDH for collateral',
-      {
-        shortfall,
-        swapAmount,
-        minOrderValue: minSpotOrderValue,
-      },
-    );
-
-    const swapResult = await this.#swapUsdcToUsdh(swapAmount);
-
-    if (!swapResult.success) {
-      throw new Error(
-        `Failed to acquire USDH collateral for ${dexName}: ${swapResult.error}`,
-      );
-    }
-
-    this.#deps.debugLogger.log(
-      'HyperLiquidProvider: USDH collateral acquired',
-      {
-        dexName,
-        filledSize: swapResult.filledSize,
-      },
-    );
+    return isUsdc;
   }
 
   /**
@@ -3510,32 +3154,23 @@ export class HyperLiquidProvider implements PerpsProvider {
     const { dexName, symbol, orderPrice, positionSize, leverage, isBuy } =
       params;
 
-    // Check if this DEX uses USDH collateral (vs USDC)
-    // For USDH DEXs, HyperLiquid automatically pulls from spot balance
-    const isUsdhDex = await this.#isUsdhCollateralDex(dexName);
-    if (isUsdhDex) {
+    // TAT-3304: Only USDC-collateral HIP-3 DEXs are supported for trading.
+    // Following the USDH sunset, reject orders on any non-USDC-collateral
+    // DEX here instead of attempting the (now-removed) USDH auto-swap path.
+    // Market discovery (#fetchMarketsForDex) already filters such DEXs out,
+    // so this is a defense-in-depth check against stale caches or a
+    // misconfigured allowlist entry.
+    const isUsdcDex = await this.#isUsdcCollateralDex(dexName);
+    if (!isUsdcDex) {
       this.#deps.debugLogger.log(
-        'HyperLiquidProvider: USDH-collateralized DEX detected',
+        'HyperLiquidProvider: Rejecting order for non-USDC-collateral DEX',
         {
           dexName,
           symbol,
         },
       );
 
-      // Calculate required margin and ensure USDH is in spot
-      const requiredMargin = await this.#calculateHip3RequiredMargin({
-        symbol,
-        dexName,
-        positionSize,
-        orderPrice,
-        leverage,
-        isBuy,
-      });
-
-      await this.#ensureUsdhCollateralForOrder(dexName, requiredMargin);
-
-      // Unified Account will pull USDH from spot automatically
-      return { transferInfo: null };
+      throw new Error(PERPS_ERROR_CODES.UNSUPPORTED_COLLATERAL);
     }
 
     if (this.#useUnifiedAccount) {
