@@ -9,15 +9,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `AccountActivityService` now tracks the selected account group via `AccountTreeController` instead of the selected account via `AccountsController` ([#9379](https://github.com/MetaMask/core/pull/9379))
+  - On websocket connection or selected account group change, the service subscribes to all accounts of the selected account group, rather than deriving sibling multichain accounts from the selected account's entropy ID and group index.
+  - The `@metamask/accounts-controller` dependency is replaced with `@metamask/account-tree-controller` `^7.5.5`.
 - **BREAKING:** `AccountActivityService` now determines which non-EVM chains to subscribe to from remote feature flags instead of a bundled list ([#9379](https://github.com/MetaMask/core/pull/9379))
-  - The `AccountActivityService` messenger must now allow the `RemoteFeatureFlagController:getState` action and the `RemoteFeatureFlagController:stateChange` event.
-  - EVM (`eip155`) subscriptions are always enabled. Solana, Tron, and Stellar subscriptions are enabled when the corresponding `networkAssetsSnapsMigrationSolana` / `networkAssetsSnapsMigrationTron` / `networkAssetsSnapsMigrationStellar` feature flag has `stage >= 1`, and disabled otherwise (including when `RemoteFeatureFlagController` is unavailable).
-  - Accounts whose scopes do not match an enabled chain are no longer subscribed at all; previously they were subscribed with a raw (non-CAIP-10) address.
+  - The `AccountActivityServiceMessenger` now requires the following delegate actions and events: 
+    - `RemoteFeatureFlagController:getState` action and `RemoteFeatureFlagController:stateChange` event
+    - `AccountTreeController:getAccountsFromSelectedAccountGroup` action and `AccountTreeController:selectedAccountGroupChange` event
+  - EVM (`eip155`) subscriptions are always enabled. Solana, Tron, and Stellar subscriptions are enabled when the corresponding `networkAssetsSnapsMigrationSolana` / `networkAssetsSnapsMigrationTron` / `networkAssetsSnapsMigrationStellar` feature flag has `stage >= 1`, and disabled otherwise.
+  - Accounts whose scopes do not match an enabled chain are no longer subscribed at all.
   - When the enabled chains change via a feature flag update while the websocket is connected, the service automatically resubscribes the selected account.
 - Add `@metamask/remote-feature-flag-controller` `^4.2.2` as a dependency ([#9379](https://github.com/MetaMask/core/pull/9379))
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 - Bump `@metamask/profile-sync-controller` from `^28.2.0` to `^28.3.0` ([#9463](https://github.com/MetaMask/core/pull/9463))
-- Bump `@metamask/accounts-controller` from `^39.0.4` to `^39.0.5` ([#9470](https://github.com/MetaMask/core/pull/9470))
 
 ### Fixed
 
