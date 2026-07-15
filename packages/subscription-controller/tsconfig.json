@@ -18,6 +18,9 @@
     },
     {
       "path": "../transaction-controller"
+    },
+    {
+      "path": "../controller-utils"
     }
   ],
   "include": ["../../types", "./src", "./tests"]

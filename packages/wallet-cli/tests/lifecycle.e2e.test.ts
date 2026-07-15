@@ -21,7 +21,8 @@ import { isProcessAlive, readPidFile } from '../src/daemon/utils';
 // only action called here, `KeyringController:getState`, is local.
 
 // A valid 12-word BIP-39 mnemonic — the same fixtures the in-process e2e uses.
-const TEST_SRP = 'test test test test test test test test test test test ball';
+const TEST_SRP =
+  'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 const TEST_PASSWORD = 'testpass';
 // NetworkController requires a project ID but is never reached over the network
 // here, so any well-formed-looking value works.
@@ -46,21 +47,38 @@ type RunResult = { code: number | null; stdout: string; stderr: string };
  *
  * @param args - CLI arguments (e.g. `['daemon', 'start']`).
  * @param dataDir - Data directory to point the CLI at (via `MM_DATA_DIR`).
+ * @param envOverrides - Optional overrides applied on top of the default env.
+ * Pass `{ MM_WALLET_PASSWORD: undefined }` to start without a password.
  * @returns The exit code and captured stdout/stderr.
  */
-async function runMm(args: string[], dataDir: string): Promise<RunResult> {
+async function runMm(
+  args: string[],
+  dataDir: string,
+  envOverrides: Record<string, string | undefined> = {},
+): Promise<RunResult> {
   const env = { ...process.env };
   delete env.NODE_OPTIONS;
 
+  const childEnv: NodeJS.ProcessEnv = {
+    ...env,
+    MM_DATA_DIR: dataDir,
+    INFURA_PROJECT_ID: TEST_INFURA_PROJECT_ID,
+    MM_WALLET_PASSWORD: TEST_PASSWORD,
+    MM_WALLET_SRP: TEST_SRP,
+    ...envOverrides,
+  };
+  // An override set to `undefined` means "unset this variable" (e.g. start
+  // without a password). Delete it explicitly rather than leaving an
+  // `undefined`-valued key in `childEnv`.
+  for (const [key, value] of Object.entries(envOverrides)) {
+    if (value === undefined) {
+      delete childEnv[key];
+    }
+  }
+
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [BIN_PATH, ...args], {
-      env: {
-        ...env,
-        MM_DATA_DIR: dataDir,
-        INFURA_PROJECT_ID: TEST_INFURA_PROJECT_ID,
-        MM_WALLET_PASSWORD: TEST_PASSWORD,
-        MM_WALLET_SRP: TEST_SRP,
-      },
+      env: childEnv,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 
@@ -235,13 +253,66 @@ describe('mm daemon lifecycle (subprocess e2e)', () => {
 
       await runMm(['daemon', 'start'], dataDir);
 
-      // On the second start the persisted vault is found, so first-run SRP
-      // import is skipped and the wallet resumes LOCKED — a re-import would
-      // have left it unlocked. This is the observable signature of the
-      // `hasPersistedKeyring` resume path.
+      // On the second start the persisted vault is found (first-run SRP import
+      // is skipped) and, because MM_WALLET_PASSWORD is supplied, the vault is
+      // auto-unlocked via KeyringController:submitPassword. A re-import would
+      // re-encrypt with a fresh random salt and produce a different vault blob;
+      // that `isUnlocked: true` here (not a fresh import) is the observable
+      // signature of the resume path.
       const resumed = await callAction('KeyringController:getState', dataDir);
-      expect(resumed.isUnlocked).toBe(false);
+      expect(resumed.isUnlocked).toBe(true);
       expect(typeof resumed.vault).toBe('string');
+
+      await runMm(['daemon', 'stop'], dataDir);
+    },
+    STEP_TIMEOUT_MS,
+  );
+
+  it(
+    'starts locked without a password; rejects a wrong password, then unlocks via `mm wallet unlock`',
+    async () => {
+      // First run: must supply a password to import the SRP.
+      await runMm(['daemon', 'start'], dataDir);
+      const firstRun = await callAction('KeyringController:getState', dataDir);
+      expect(firstRun.isUnlocked).toBe(true);
+      await runMm(['daemon', 'stop'], dataDir);
+
+      // Second start: omit the password — the daemon comes up with a locked
+      // keyring. KeyringController:getState still succeeds (state is readable
+      // while locked); the wallet is just not usable for signing.
+      await runMm(['daemon', 'start'], dataDir, {
+        MM_WALLET_PASSWORD: undefined,
+      });
+      const locked = await callAction('KeyringController:getState', dataDir);
+      expect(locked.isUnlocked).toBe(false);
+      expect(typeof locked.vault).toBe('string');
+
+      // A wrong password fails loudly (non-zero exit, friendly message) and
+      // leaves the keyring locked. The real daemon wraps the KeyringController
+      // rejection as a JSON-RPC error over the socket — a shape a unit test's
+      // mocked response can't exercise. The explicit `--password` overrides the
+      // inherited MM_WALLET_PASSWORD.
+      const wrongUnlock = await runMm(
+        ['wallet', 'unlock', '--password', 'not-the-password'],
+        dataDir,
+      );
+      expect(wrongUnlock.code).not.toBe(0);
+      expect(wrongUnlock.stderr).toContain('Failed to unlock');
+      const stillLocked = await callAction(
+        'KeyringController:getState',
+        dataDir,
+      );
+      expect(stillLocked.isUnlocked).toBe(false);
+
+      // Unlock via the CLI command (the correct password comes from the
+      // inherited MM_WALLET_PASSWORD).
+      const unlock = await runMm(['wallet', 'unlock'], dataDir);
+      await expectSuccessfulRun('wallet unlock', unlock, dataDir);
+      expect(unlock.stdout).toContain('Wallet unlocked.');
+
+      // The keyring is now available for signing.
+      const unlocked = await callAction('KeyringController:getState', dataDir);
+      expect(unlocked.isUnlocked).toBe(true);
 
       await runMm(['daemon', 'stop'], dataDir);
     },
