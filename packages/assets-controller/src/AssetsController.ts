@@ -182,6 +182,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getAssets',
   'getAssetsBalance',
   'getAssetMetadata',
+  'getAsset',
   'getAssetsPrice',
   'getExchangeRatesForBridge',
   'getStateForTransactionPay',
@@ -1779,6 +1780,51 @@ export class AssetsController extends BaseController<
     return this.state.assetsInfo[assetId] as AssetMetadata | undefined;
   }
 
+  /**
+   * Get a single combined asset (balance + metadata + price + computed
+   * `fiatValue`) for an account directly from controller state.
+   *
+   * Reuses the same state-composition and filtering logic as `getAssets`
+   * (balance and metadata are required, a missing price falls back to
+   * `{ price: 0, lastUpdated: 0 }` with `fiatValue: 0`, and hidden or
+   * otherwise filtered assets are excluded) so the returned shape never
+   * drifts from `getAssets`. Reads from current state only and does not
+   * trigger a data-source refresh.
+   *
+   * @param accountId - The account ID (`InternalAccount.id`, not an address).
+   * @param assetId - The CAIP-19 asset ID including chain scope
+   * (e.g. `eip155:1/erc20:0x...`).
+   * @returns The combined `Asset`, or `undefined` when no complete
+   * renderable asset (balance + metadata) exists for the account/asset pair.
+   * @throws If `accountId` is empty or `assetId` is not a valid CAIP-19 asset ID.
+   */
+  getAsset(accountId: AccountId, assetId: Caip19AssetId): Asset | undefined {
+    if (typeof accountId !== 'string' || accountId.length === 0) {
+      throw new Error(
+        'AssetsController.getAsset: accountId must be a non-empty string',
+      );
+    }
+
+    let normalizedAssetId: Caip19AssetId;
+    try {
+      normalizedAssetId = normalizeAssetId(assetId);
+    } catch {
+      throw new Error(
+        `AssetsController.getAsset: invalid CAIP-19 assetId "${assetId}"`,
+      );
+    }
+
+    const chainId = extractChainId(normalizedAssetId);
+
+    const assets = this.#getAssetsFromState(
+      [{ id: accountId }],
+      [chainId],
+      ['fungible'],
+    );
+
+    return assets[accountId]?.[normalizedAssetId];
+  }
+
   async getAssetsPrice(
     accounts: InternalAccount[],
     options?: {
@@ -2702,7 +2748,7 @@ export class AssetsController extends BaseController<
   }
 
   #getAssetsFromState(
-    accounts: InternalAccount[],
+    accounts: Pick<InternalAccount, 'id'>[],
     chainIds: ChainId[],
     assetTypes: AssetType[],
   ): Record<AccountId, Record<Caip19AssetId, Asset>> {
@@ -3675,6 +3721,7 @@ export class AssetsController extends BaseController<
     this.messenger.unregisterActionHandler('AssetsController:getAssets');
     this.messenger.unregisterActionHandler('AssetsController:getAssetsBalance');
     this.messenger.unregisterActionHandler('AssetsController:getAssetMetadata');
+    this.messenger.unregisterActionHandler('AssetsController:getAsset');
     this.messenger.unregisterActionHandler('AssetsController:getAssetsPrice');
     this.messenger.unregisterActionHandler(
       'AssetsController:getExchangeRatesForBridge',
