@@ -1666,9 +1666,7 @@ describe('RampsController', () => {
           customActionQuote(MOONPAY, 90),
           appBrowserQuote(REVOLUT, 80),
         ];
-        response.sorted = [
-          { sortBy: 'reliability', ids: [MOONPAY, REVOLUT] },
-        ];
+        response.sorted = [{ sortBy: 'reliability', ids: [MOONPAY, REVOLUT] }];
 
         await withController(
           { options: { state: fourProviderState } },

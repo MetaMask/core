@@ -198,5 +198,8 @@ export function getHeadlessProviderAllowlist(
  * @returns The normalized id used for allowlist comparison.
  */
 export function normalizeHeadlessProviderId(id: string): string {
-  return id.trim().replace(/^\/providers\//u, '').toLowerCase();
+  return id
+    .trim()
+    .replace(/^\/providers\//u, '')
+    .toLowerCase();
 }
