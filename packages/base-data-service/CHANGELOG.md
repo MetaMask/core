@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- test(base-data-service): Use fake timers ([#9496](https://github.com/MetaMask/core/pull/9496))
-
 ### Added
 
 - Add `createServicePolicy` and related symbols, copied from `@metamask/controller-utils` ([#9418](https://github.com/MetaMask/core/pull/9418))
