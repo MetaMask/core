@@ -71,6 +71,7 @@
     "@types/semver": "^7",
     "@typescript-eslint/eslint-plugin": "^8.48.0",
     "@typescript-eslint/parser": "^8.48.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "@yarnpkg/types": "^4.0.0",
     "comment-json": "^4.5.1",
     "eslint": "^9.39.1",
@@ -96,12 +97,13 @@
     "semver": "^7.6.3",
     "simple-git-hooks": "^2.8.0",
     "tsx": "^4.20.5",
-    "typescript": "~5.3.3",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-eslint": "^8.48.0",
     "uuid": "^8.3.2",
     "yargs": "^17.7.2"
   },
   "resolutions": {
+    "@typescript/old": "patch:typescript@npm%3A6.0.3#~/.yarn/patches/typescript-npm-6.0.3-585eecd158.patch",
     "elliptic@6.5.4": "^6.5.7",
     "fast-xml-parser@^4.3.4": "^4.4.1",
     "ws@7.4.6": "^7.5.10"
@@ -112,7 +114,7 @@
   "engines": {
     "node": "^18.18 || >=20"
   },
-  "packageManager": "yarn@4.16.0+sha256.ba05224324578801b9cc98170d64aa50b9a36733b440fb0942306da3fbbdc7d1",
+  "packageManager": "yarn@4.17.1+sha256.471ffb15e0523663865bbf46a69e7d157ecf532412eb436c48dfab6e3f2abe88",
   "lavamoat": {
     "allowScripts": {
       "$root$": true,
