@@ -12,6 +12,7 @@ import {
   TRANSACTIONS_PAGE_2_CURSOR,
   TRANSACTIONS_PAGE_3_CURSOR,
 } from '../tests/mocks';
+import { STORAGE_SERVICE_KEY } from './BaseDataService';
 
 const TEST_ADDRESS = '0x4bbeEB066eD09B7AEd07bF39EEe0460DFa261520';
 
@@ -325,7 +326,7 @@ describe('BaseDataService', () => {
 
       jest.runAllTimers();
 
-      expect(setItem).toHaveBeenCalledWith(serviceName, 'cache', {
+      expect(setItem).toHaveBeenCalledWith(serviceName, STORAGE_SERVICE_KEY, {
         state: {
           queries: [
             {
@@ -467,7 +468,7 @@ describe('BaseDataService', () => {
       expect(spy).toHaveBeenCalledWith(
         'StorageService:getItem',
         serviceName,
-        'cache',
+        STORAGE_SERVICE_KEY,
       );
     });
 
@@ -504,7 +505,7 @@ describe('BaseDataService', () => {
       expect(callSpy).toHaveBeenCalledWith(
         'StorageService:getItem',
         serviceName,
-        'cache',
+        STORAGE_SERVICE_KEY,
       );
 
       expect(publishSpy).not.toHaveBeenCalled();
@@ -570,7 +571,7 @@ describe('BaseDataService', () => {
       expect(callSpy).toHaveBeenCalledWith(
         'StorageService:getItem',
         serviceName,
-        'cache',
+        STORAGE_SERVICE_KEY,
       );
 
       expect(publishSpy).not.toHaveBeenCalled();

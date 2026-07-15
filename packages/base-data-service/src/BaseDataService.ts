@@ -87,9 +87,9 @@ const QUERY_CLIENT_DEFAULTS: DefaultOptions = {
   },
 };
 
-const STORAGE_SERVICE_KEY = 'cache';
+export const STORAGE_SERVICE_KEY = 'cache';
 
-type PersistConfiguration = {
+type PersistenceConfiguration = {
   maxAge: number;
   debounce?: number;
   debounceMaxWait?: number;
@@ -135,7 +135,7 @@ export class BaseDataService<
 
   readonly #debouncedPersist?: DebouncedFunc<() => void>;
 
-  readonly #persistConfig?: PersistConfiguration;
+  readonly #persistConfig?: PersistenceConfiguration;
 
   constructor({
     name,
@@ -148,7 +148,7 @@ export class BaseDataService<
     messenger: ServiceMessenger;
     queryClientConfig?: QueryClientConfig;
     policyOptions?: CreateServicePolicyOptions;
-    persistConfig?: PersistConfiguration;
+    persistConfig?: PersistenceConfiguration;
   }) {
     this.name = name;
 
