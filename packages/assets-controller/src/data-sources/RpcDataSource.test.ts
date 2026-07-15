@@ -1276,7 +1276,74 @@ describe('RpcDataSource', () => {
       });
     });
 
-    it('updates existing subscription when isUpdate true', async () => {
+    it('restarts polling on update when the scope changes', async () => {
+      const balanceStartSpy = jest.spyOn(
+        BalanceFetcher.prototype,
+        'startPolling',
+      );
+      const secondAccount = createMockInternalAccount({
+        id: 'account-2',
+        address: '0x9999999999999999999999999999999999999999',
+      });
+      await withController(async ({ controller }) => {
+        await controller.subscribe({
+          request: createDataRequest(),
+          subscriptionId: 'test-sub',
+          isUpdate: false,
+          onAssetsUpdate: jest.fn(),
+        });
+        balanceStartSpy.mockClear();
+
+        // Adding a second account changes the subscription scope, so polling is
+        // restarted for the new set of accounts.
+        await controller.subscribe({
+          request: createDataRequest({
+            accounts: [createMockInternalAccount(), secondAccount],
+          }),
+          subscriptionId: 'test-sub',
+          isUpdate: true,
+          onAssetsUpdate: jest.fn(),
+        });
+        expect(balanceStartSpy).toHaveBeenCalledWith(
+          expect.objectContaining({ accountId: 'account-2' }),
+        );
+      });
+    });
+
+    it('skips restarting polling when re-subscribing with an unchanged scope within one interval', async () => {
+      const balanceStartSpy = jest.spyOn(
+        BalanceFetcher.prototype,
+        'startPolling',
+      );
+      const balanceStopSpy = jest.spyOn(
+        BalanceFetcher.prototype,
+        'stopPollingByPollingToken',
+      );
+      await withController(async ({ controller }) => {
+        await controller.subscribe({
+          request: createDataRequest(),
+          subscriptionId: 'test-sub',
+          isUpdate: false,
+          onAssetsUpdate: jest.fn(),
+        });
+        balanceStartSpy.mockClear();
+        balanceStopSpy.mockClear();
+
+        // Re-subscribing with the identical scope (e.g. a chain flapping back
+        // from the WebSocket source) is a no-op: polling is neither stopped nor
+        // restarted, so no redundant immediate RPC fetch is triggered.
+        await controller.subscribe({
+          request: createDataRequest(),
+          subscriptionId: 'test-sub',
+          isUpdate: true,
+          onAssetsUpdate: jest.fn(),
+        });
+        expect(balanceStartSpy).not.toHaveBeenCalled();
+        expect(balanceStopSpy).not.toHaveBeenCalled();
+      });
+    });
+
+    it('restarts polling when re-subscribing with forceUpdate even if the scope is unchanged', async () => {
       const balanceStartSpy = jest.spyOn(
         BalanceFetcher.prototype,
         'startPolling',
@@ -1288,13 +1355,17 @@ describe('RpcDataSource', () => {
           isUpdate: false,
           onAssetsUpdate: jest.fn(),
         });
+        balanceStartSpy.mockClear();
+
         await controller.subscribe({
-          request: createDataRequest(),
+          request: createDataRequest({ forceUpdate: true }),
           subscriptionId: 'test-sub',
           isUpdate: true,
           onAssetsUpdate: jest.fn(),
         });
-        expect(balanceStartSpy).toHaveBeenCalledTimes(2);
+        expect(balanceStartSpy).toHaveBeenCalledWith(
+          expect.objectContaining({ accountId: MOCK_ACCOUNT_ID }),
+        );
       });
     });
 

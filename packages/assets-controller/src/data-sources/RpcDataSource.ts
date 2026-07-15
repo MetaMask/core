@@ -35,7 +35,7 @@ import type {
   DataResponse,
   Middleware,
 } from '../types';
-import { normalizeAssetId } from '../utils';
+import { computeSubscriptionScopeKey, normalizeAssetId } from '../utils';
 import { ZERO_ADDRESS } from '../utils/constants';
 import { AbstractDataSource } from './AbstractDataSource';
 import type {
@@ -156,6 +156,10 @@ type SubscriptionData = {
   chains: ChainId[];
   /** Accounts being polled */
   accounts: InternalAccount[];
+  /** Stable scope key for this subscription (accounts + chains + interval + mode). */
+  scopeKey: string;
+  /** Timestamp (ms) when polling for this scope was (re)started. */
+  subscribedAt: number;
   /** Callback to report asset updates to the controller */
   onAssetsUpdate: (
     response: DataResponse,
@@ -1379,17 +1383,45 @@ export class RpcDataSource extends AbstractDataSource<
       return;
     }
 
+    const pollInterval =
+      request.updateInterval ??
+      this.#balanceFetcher.getIntervalLength() ??
+      DEFAULT_BALANCE_INTERVAL;
+    const scopeKey = computeSubscriptionScopeKey(
+      request,
+      chainsToSubscribe,
+      pollInterval,
+    );
+
+    const existing = this.#activeSubscriptions.get(subscriptionId);
+
+    // Skip a redundant restart when an existing subscription already covers the
+    // exact same scope and its polling (re)started within one interval.
+    // Restarting would stop/start polling and trigger an immediate duplicate
+    // RPC fetch for data we just requested (e.g. a chain flapping between the
+    // WebSocket source and RPC). `forceUpdate` always restarts (it is excluded
+    // from the scope key). The existing polling keeps refreshing on its own
+    // interval, so no data is lost.
+    if (
+      !request.forceUpdate &&
+      existing?.scopeKey === scopeKey &&
+      Date.now() - (existing?.subscribedAt ?? 0) < pollInterval
+    ) {
+      log('Skipping redundant re-subscribe (scope unchanged)', {
+        subscriptionId,
+        chains: chainsToSubscribe,
+      });
+      return;
+    }
+
     // Handle subscription update - restart polling for new chains
-    if (isUpdate) {
-      const existing = this.#activeSubscriptions.get(subscriptionId);
-      if (existing) {
-        log('Updating existing subscription - restarting polling', {
-          subscriptionId,
-          existingChains: existing.chains,
-          newChains: chainsToSubscribe,
-        });
-        // Don't return early - continue to unsubscribe and restart polling
-      }
+    if (isUpdate && existing) {
+      log('Updating existing subscription - restarting polling', {
+        subscriptionId,
+        existingChains: existing.chains,
+        newChains: chainsToSubscribe,
+      });
+      // Don't return early - continue to unsubscribe and restart polling
     }
 
     // Clean up existing subscription (stops old polling)
@@ -1454,6 +1486,8 @@ export class RpcDataSource extends AbstractDataSource<
       detectionPollingTokens,
       chains: chainsToSubscribe,
       accounts,
+      scopeKey,
+      subscribedAt: Date.now(),
       onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
     });
 

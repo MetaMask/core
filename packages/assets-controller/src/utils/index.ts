@@ -26,3 +26,4 @@ export {
   buildNativeAssetsFromConstant,
   buildNativeAssetsFromApi,
 } from './native-assets';
+export { computeSubscriptionScopeKey } from './subscriptionScope';

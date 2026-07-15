@@ -774,6 +774,135 @@ describe('AccountsApiDataSource', () => {
     controller.destroy();
   });
 
+  it('skips the immediate fetch when re-subscribing with an unchanged scope within one poll interval', async () => {
+    const { controller, apiClient, assetsUpdateHandler } =
+      await setupController();
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    expect(
+      apiClient.accounts.fetchV5MultiAccountBalances,
+    ).toHaveBeenCalledTimes(1);
+    expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
+
+    // Re-subscribe with the identical scope (e.g. a chain flapped back from the
+    // WebSocket source). The immediate fetch is skipped as redundant.
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    expect(
+      apiClient.accounts.fetchV5MultiAccountBalances,
+    ).toHaveBeenCalledTimes(1);
+    expect(assetsUpdateHandler).toHaveBeenCalledTimes(1);
+
+    controller.destroy();
+  });
+
+  it('performs the immediate fetch when re-subscribing with forceUpdate even if the scope is unchanged', async () => {
+    const { controller, apiClient, assetsUpdateHandler } =
+      await setupController();
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    expect(
+      apiClient.accounts.fetchV5MultiAccountBalances,
+    ).toHaveBeenCalledTimes(1);
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest({ forceUpdate: true }),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    expect(
+      apiClient.accounts.fetchV5MultiAccountBalances,
+    ).toHaveBeenCalledTimes(2);
+
+    controller.destroy();
+  });
+
+  it('performs the immediate fetch when re-subscribing with a different scope', async () => {
+    const { controller, apiClient, assetsUpdateHandler } =
+      await setupController();
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest({ chainIds: [CHAIN_MAINNET] }),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    expect(
+      apiClient.accounts.fetchV5MultiAccountBalances,
+    ).toHaveBeenCalledTimes(1);
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest({ chainIds: [CHAIN_MAINNET, CHAIN_POLYGON] }),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    expect(
+      apiClient.accounts.fetchV5MultiAccountBalances,
+    ).toHaveBeenCalledTimes(2);
+
+    controller.destroy();
+  });
+
+  it('performs the immediate fetch when re-subscribing after the previous fetch has gone stale', async () => {
+    const { controller, apiClient, assetsUpdateHandler } =
+      await setupController();
+
+    const nowSpy = jest.spyOn(Date, 'now');
+    const startTime = 1_000_000;
+    nowSpy.mockReturnValue(startTime);
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    expect(
+      apiClient.accounts.fetchV5MultiAccountBalances,
+    ).toHaveBeenCalledTimes(1);
+
+    // Advance the clock past the default poll interval (30s) so the previous
+    // fetch is no longer fresh.
+    nowSpy.mockReturnValue(startTime + 30_001);
+
+    await controller.subscribe({
+      subscriptionId: 'sub-1',
+      request: createDataRequest(),
+      isUpdate: false,
+      onAssetsUpdate: assetsUpdateHandler,
+    });
+
+    expect(
+      apiClient.accounts.fetchV5MultiAccountBalances,
+    ).toHaveBeenCalledTimes(2);
+
+    nowSpy.mockRestore();
+    controller.destroy();
+  });
+
   it('subscribe does nothing when no chains', async () => {
     const { controller, assetsUpdateHandler } = await setupController();
 

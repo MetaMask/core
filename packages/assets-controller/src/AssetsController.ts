@@ -16,9 +16,9 @@ import type { TraceCallback } from '@metamask/controller-utils';
 import type {
   ApiPlatformClient,
   AccountActivityServiceBalanceUpdatedEvent,
+  AccountActivityServiceStatusChangedEvent,
   BackendWebSocketServiceActions,
   BackendWebSocketServiceEvents,
-  BalanceUpdate,
   SupportedCurrency,
 } from '@metamask/core-backend';
 import type {
@@ -78,6 +78,7 @@ import type {
 } from './data-sources/AbstractDataSource';
 import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource';
 import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource';
+import { AccountActivityDataSource } from './data-sources/AccountActivityDataSource';
 import { BackendWebsocketDataSource } from './data-sources/BackendWebsocketDataSource';
 import { shouldSkipNativeForCaipChainId } from './data-sources/evm-rpc-services/utils/assets';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
@@ -147,7 +148,6 @@ import type {
 } from './utils';
 import { ZERO_ADDRESS } from './utils/constants';
 import { pickRpcCustomAssetsSupplement } from './utils/customAssetsRpcSupplement';
-import { processAccountActivityBalanceUpdates } from './utils/processAccountActivityBalanceUpdates';
 
 const NATIVE_ASSETS_QUERY_KEY = ['nativeAssets'];
 
@@ -199,6 +199,26 @@ const MESSENGER_EXPOSED_METHODS = [
 
 /** Default polling interval hint for data sources (30 seconds) */
 const DEFAULT_POLLING_INTERVAL_MS = 30_000;
+
+/**
+ * Trailing debounce window (ms) for coalescing event-driven re-subscribes.
+ * A burst of `onActiveChainsUpdated` callbacks (e.g. many `statusChanged`
+ * up/down notifications, or several data sources reporting supported chains at
+ * init) collapses into a single re-subscribe pass so polling data sources are
+ * not torn down and re-created (with a fresh immediate fetch) once per event.
+ */
+const RESUBSCRIBE_DEBOUNCE_MS = 250;
+
+/**
+ * Maximum random jitter (ms) added to the re-subscribe delay when a data source
+ * *claims* new chains (e.g. WebSocket `statusChanged: 'up'`). Staggers the
+ * resulting WS-subscribe fan-out across clients that all receive the same
+ * backend broadcast, avoiding a thundering herd. Only applied to chain
+ * *additions*: additions are non-urgent (polling still covers the chain until
+ * re-subscribe), whereas removals are re-subscribed promptly so polling fallback
+ * resumes without a data gap.
+ */
+const RESUBSCRIBE_JITTER_MS = 5000;
 
 // ============================================================================
 // TRACE NAMES — used in Sentry spans (search these strings in Discover)
@@ -355,8 +375,9 @@ type AllowedEvents =
   | SnapControllerSnapInstalledEvent
   // BackendWebsocketDataSource
   | BackendWebSocketServiceEvents
-  // AccountActivityService (real-time balance updates for unified assets)
-  | AccountActivityServiceBalanceUpdatedEvent;
+  // AccountActivityService (real-time balance updates + chain status for unified assets)
+  | AccountActivityServiceBalanceUpdatedEvent
+  | AccountActivityServiceStatusChangedEvent;
 
 export type AssetsControllerMessenger = Messenger<
   typeof CONTROLLER_NAME,
@@ -748,6 +769,20 @@ export class AssetsController extends BaseController<
    */
   readonly #activeSubscriptions: Map<string, SubscriptionResponse> = new Map();
 
+  /**
+   * Pending trailing-debounce timer for coalesced re-subscribes. Bursts of
+   * event-driven `#scheduleSubscribeAssets()` calls collapse into a single
+   * `#subscribeAssets()` run. See {@link RESUBSCRIBE_DEBOUNCE_MS}.
+   */
+  #resubscribeTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Scheduled fire time (epoch ms) of {@link #resubscribeTimer}. Lets an urgent
+   * (non-jittered) re-subscribe pre-empt a pending jittered one so a chain
+   * removal is not delayed behind a chain addition's jitter window.
+   */
+  #resubscribeRunAt = 0;
+
   /** Currently enabled chains from NetworkEnablementController */
   #enabledChains: Set<ChainId> = new Set();
 
@@ -782,6 +817,8 @@ export class AssetsController extends BaseController<
   }
 
   readonly #backendWebsocketDataSource: BackendWebsocketDataSource;
+
+  readonly #accountActivityDataSource: AccountActivityDataSource;
 
   readonly #accountsApiDataSource: AccountsApiDataSource;
 
@@ -899,6 +936,12 @@ export class AssetsController extends BaseController<
     this.#backendWebsocketDataSource = new BackendWebsocketDataSource({
       messenger: this.messenger,
       queryApiClient,
+      onActiveChainsUpdated: this.#onActiveChainsUpdated,
+      getAssetType: (assetId: Caip19AssetId): 'native' | 'erc20' | 'spl' =>
+        this.#getAssetType(assetId),
+    });
+    this.#accountActivityDataSource = new AccountActivityDataSource({
+      messenger: this.messenger,
       onActiveChainsUpdated: this.#onActiveChainsUpdated,
       getAssetType: (assetId: Caip19AssetId): 'native' | 'erc20' | 'spl' =>
         this.#getAssetType(assetId),
@@ -1180,15 +1223,8 @@ export class AssetsController extends BaseController<
       },
     );
 
-    // Real-time post-tx balances from AccountActivityService (same WS payload as
-    // TokenBalancesController; BackendWebsocketDataSource may not receive the
-    // callback when AccountActivityService owns the server subscription).
-    this.messenger.subscribe(
-      'AccountActivityService:balanceUpdated',
-      (event) => {
-        this.#onAccountActivityBalanceUpdated(event);
-      },
-    );
+    // Real-time post-tx balances and chain status from AccountActivityService are
+    // consumed by AccountActivityDataSource (subscribed in #subscribeAssets).
   }
 
   #onUnapprovedTransactionAdded(transactionMeta: TransactionMeta): void {
@@ -1245,49 +1281,6 @@ export class AssetsController extends BaseController<
     }).catch((error) => {
       log('Failed to refresh assets after transaction confirmed', { error });
     });
-  }
-
-  #onAccountActivityBalanceUpdated({
-    address,
-    chain,
-    updates,
-  }: {
-    address: string;
-    chain: string;
-    updates: BalanceUpdate[];
-  }): void {
-    const account = this.#getSelectedAccounts().find((a) =>
-      a.address.startsWith('0x')
-        ? a.address.toLowerCase() === address.toLowerCase()
-        : a.address === address,
-    );
-
-    if (!account) {
-      return;
-    }
-
-    const chainId = chain as ChainId;
-    const response = processAccountActivityBalanceUpdates(
-      updates,
-      account.id,
-      (assetId) => this.#getAssetType(assetId),
-    );
-
-    if (!response.assetsBalance) {
-      return;
-    }
-
-    const request: DataRequest = {
-      accountsWithSupportedChains: [{ account, supportedChains: [chainId] }],
-      chainIds: [chainId],
-      dataTypes: ['balance', 'metadata'],
-    };
-
-    this.handleAssetsUpdate(response, 'AccountActivityService', request).catch(
-      (error) => {
-        log('Failed to apply AccountActivityService balance update', { error });
-      },
-    );
   }
 
   /**
@@ -1450,12 +1443,23 @@ export class AssetsController extends BaseController<
     const addedChains = activeChains.filter((ch) => !previousSet.has(ch));
     const removedChains = previous.filter((ch) => !activeChains.includes(ch));
 
-    if (addedChains.length > 0 || removedChains.length > 0) {
-      // Refresh subscriptions to use updated data source availability.
-      // No one-time fetch needed here — #handleEnabledNetworksChanged
-      // handles fetches when the user enables a network, and
-      // #subscribeAssets re-subscribes with the correct chain assignment.
-      this.#subscribeAssets();
+    // Refresh subscriptions to use updated data source availability.
+    // No one-time fetch needed here — #handleEnabledNetworksChanged
+    // handles fetches when the user enables a network, and
+    // #subscribeAssets re-subscribes with the correct chain assignment.
+    // Coalesce bursts of chain updates into a single re-subscribe so polling
+    // data sources are not torn down/re-created (with a redundant immediate
+    // fetch) once per event.
+    if (removedChains.length > 0) {
+      // Urgent: a data source dropped chains (e.g. WebSocket went down). Until
+      // re-subscribe hands those chains to a polling source there is a data gap,
+      // so run promptly without jitter.
+      this.#scheduleSubscribeAssets();
+    } else if (addedChains.length > 0) {
+      // Non-urgent: a data source claimed new chains (polling still covers them
+      // until re-subscribe). Add jitter to stagger the resulting WS-subscribe
+      // fan-out across clients receiving the same backend broadcast.
+      this.#scheduleSubscribeAssets({ jitter: true });
     }
   }
 
@@ -2947,6 +2951,13 @@ export class AssetsController extends BaseController<
     this.#stateSizeReported = false;
     this.#lastKnownAccountIds = new Set();
 
+    // Cancel any pending coalesced re-subscribe so it cannot fire after stop.
+    if (this.#resubscribeTimer) {
+      clearTimeout(this.#resubscribeTimer);
+      this.#resubscribeTimer = null;
+    }
+    this.#resubscribeRunAt = 0;
+
     // Stop price subscription first (uses direct messenger call)
     this.unsubscribeAssetsPrice();
 
@@ -2956,6 +2967,7 @@ export class AssetsController extends BaseController<
     // every source that may have been subscribed.
     const allSources = [
       ...this.#allBalanceDataSources,
+      this.#accountActivityDataSource,
       this.#stakedBalanceDataSource,
     ];
     const subscriptionKeys = [...this.#activeSubscriptions.keys()];
@@ -2990,6 +3002,53 @@ export class AssetsController extends BaseController<
   handleBasicFunctionalityChange(_isBasic: boolean): void {
     this.#stop();
     this.#subscribeAssets();
+  }
+
+  /**
+   * Schedule a coalesced re-subscribe. Multiple calls within
+   * {@link RESUBSCRIBE_DEBOUNCE_MS} collapse into a single `#subscribeAssets()`
+   * run. Used for event-driven bursts (e.g. `onActiveChainsUpdated` from many
+   * `statusChanged` notifications) so polling data sources are not repeatedly
+   * torn down and re-created (each re-create firing an immediate, redundant
+   * fetch). Explicit flows (startup, account changes, enabled-network changes)
+   * keep calling `#subscribeAssets()` directly so their re-subscribe is not
+   * delayed.
+   *
+   * When `jitter` is set, a random delay up to {@link RESUBSCRIBE_JITTER_MS} is
+   * added to stagger the WS-subscribe fan-out across clients (used for chain
+   * additions). A later non-jittered call pre-empts a pending jittered one so an
+   * urgent chain removal is not held back by an addition's jitter window.
+   *
+   * @param options - Scheduling options.
+   * @param options.jitter - Add random jitter to the delay (for chain additions).
+   */
+  #scheduleSubscribeAssets({ jitter = false }: { jitter?: boolean } = {}): void {
+    const delay = jitter
+      ? RESUBSCRIBE_DEBOUNCE_MS + Math.floor(Math.random() * RESUBSCRIBE_JITTER_MS)
+      : RESUBSCRIBE_DEBOUNCE_MS;
+    const runAt = Date.now() + delay;
+
+    if (this.#resubscribeTimer) {
+      // Keep the earliest scheduled run so an urgent (shorter-delay) request can
+      // pre-empt a pending jittered one, but a jittered request never pushes a
+      // sooner pending run later.
+      if (runAt >= this.#resubscribeRunAt) {
+        return;
+      }
+      clearTimeout(this.#resubscribeTimer);
+      this.#resubscribeTimer = null;
+    }
+
+    this.#resubscribeRunAt = runAt;
+    this.#resubscribeTimer = setTimeout(() => {
+      this.#resubscribeTimer = null;
+      this.#resubscribeRunAt = 0;
+      try {
+        this.#subscribeAssets();
+      } catch (error) {
+        log('Failed to run coalesced re-subscribe', error);
+      }
+    }, delay);
   }
 
   /**
@@ -3087,6 +3146,17 @@ export class AssetsController extends BaseController<
       accounts,
       chainToAccounts,
       rpcAssignedChains,
+    );
+
+    // AccountActivityDataSource consumes real-time AccountActivityService events.
+    // It does not participate in chain-claiming; it is subscribed with all
+    // selected accounts and enabled chains so it can route `balanceUpdated`
+    // events to the matching account. Chain up/down is managed internally from
+    // `statusChanged` (see AccountActivityDataSource).
+    this.#subscribeDataSource(
+      this.#accountActivityDataSource,
+      accounts,
+      chainIds,
     );
   }
 
@@ -3686,7 +3756,7 @@ export class AssetsController extends BaseController<
     const shouldGraduateCustomAssets =
       sourceId === 'AccountsApiDataSource' ||
       sourceId === 'BackendWebsocketDataSource' ||
-      sourceId === 'AccountActivityService';
+      sourceId === 'AccountActivityDataSource';
 
     const enrichmentSources: AssetsDataSource[] = [
       ...(shouldGraduateCustomAssets
@@ -3738,6 +3808,7 @@ export class AssetsController extends BaseController<
 
     // Destroy instantiated data sources
     this.#backendWebsocketDataSource?.destroy?.();
+    this.#accountActivityDataSource?.destroy?.();
     this.#accountsApiDataSource?.destroy?.();
     this.#snapDataSource?.destroy?.();
     this.#rpcDataSource?.destroy?.();

@@ -22,6 +22,14 @@ export {
 } from './BackendWebsocketDataSource';
 
 export {
+  AccountActivityDataSource,
+  createAccountActivityDataSource,
+  type AccountActivityDataSourceOptions,
+  type AccountActivityDataSourceState,
+  type AccountActivityDataSourceAllowedEvents,
+} from './AccountActivityDataSource';
+
+export {
   RpcDataSource,
   createRpcDataSource,
   type RpcDataSourceConfig,
