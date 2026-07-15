@@ -78,6 +78,7 @@
     "@metamask/providers": "^22.1.0",
     "@types/jest": "^30.0.0",
     "@types/uuid": "^8.3.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.2.2",
     "jest": "^30.4.2",
     "rimraf": "^5.0.5",
@@ -85,7 +86,7 @@
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.3.3",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
     "uuid": "^8.3.2",
     "webextension-polyfill": "^0.12.0"
   },

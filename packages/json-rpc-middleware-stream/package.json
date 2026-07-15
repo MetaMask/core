@@ -57,6 +57,7 @@
     "@metamask/auto-changelog": "^6.1.0",
     "@types/jest": "^30.0.0",
     "@types/readable-stream": "^2.3.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "deepmerge": "^4.2.2",
     "extension-port-stream": "^3.0.0",
     "jest": "^30.4.2",
@@ -65,7 +66,7 @@
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.3.3",
+    "typescript": "npm:@typescript/typescript6@^6.0.2",
     "webextension-polyfill-ts": "^0.26.0"
   },
   "engines": {

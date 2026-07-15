@@ -63,6 +63,7 @@
     "@metamask/auto-changelog": "^6.1.0",
     "@types/deep-freeze-strict": "^1.1.0",
     "@types/jest": "^30.0.0",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "deep-freeze-strict": "^1.1.1",
     "deepmerge": "^4.2.2",
     "jest": "^30.4.2",
@@ -70,7 +71,7 @@
     "ts-jest": "^29.4.11",
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
-    "typescript": "~5.3.3"
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "engines": {
     "node": "^22.14.0 || ^24"
