@@ -21,6 +21,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Remove optional `accountAssetInfo` from selector `Asset` items.
   - `MultichainAssetsController:accountAssetListUpdated` no longer includes a `refreshed` asset list for already-tracked snap adds;
 
+### Fixed
+
+- Fix incorrect Linea chain ID (`0xe728` → `0xe708`) in `SUPPORTED_NETWORKS_ACCOUNTS_API_V4`, which caused the legacy `AssetsController` (used in production when the Unified Assets Controller feature flag is off) to fall back to RPC instead of the Accounts API V4 ([#9519](https://github.com/MetaMask/core/pull/9519))
+
 ## [109.4.1]
 
 ### Changed
@@ -3299,7 +3303,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Initial release
+
   - As a result of converting our shared controllers repo into a monorepo ([#831](https://github.com/MetaMask/core/pull/831)), we've created this package from select parts of [`@metamask/controllers` v33.0.0](https://github.com/MetaMask/core/tree/v33.0.0), namely:
+
     - Everything in `src/assets`
     - Asset-related functions from `src/util.ts` and accompanying tests
 
