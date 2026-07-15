@@ -5,7 +5,7 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
-import type { Hex } from '@metamask/utils';
+import type { Hex, Json } from '@metamask/utils';
 
 import { flushPromises } from '../../../../tests/helpers';
 import type { Transaction, BalanceUpdate } from '../types';
@@ -61,6 +61,24 @@ const createMockInternalAccount = (overrides: {
 });
 
 /**
+ * Builds a RemoteFeatureFlagController state with the Solana migration flag
+ * at the given stage (or with no migration flags when undefined)
+ *
+ * @param stage - The migration stage for the Solana flag
+ * @returns A RemoteFeatureFlagController state object
+ */
+const featureFlagState = (
+  stage: number | undefined,
+): {
+  remoteFeatureFlags: Record<string, Json>;
+  cacheTimestamp: number;
+} => ({
+  remoteFeatureFlags:
+    stage === undefined ? {} : { networkAssetsSnapsMigrationSolana: { stage } },
+  cacheTimestamp: 0,
+});
+
+/**
  * Creates and returns a root messenger for testing
  *
  * @returns A messenger instance
@@ -91,6 +109,8 @@ const getMessenger = (): {
     forceReconnection: jest.Mock;
     addChannelCallback: jest.Mock;
     removeChannelCallback: jest.Mock;
+    getConnectionInfo: jest.Mock;
+    getFeatureFlagState: jest.Mock;
   };
 } => {
   // Use any types for the root messenger to avoid complex type constraints in tests
@@ -119,10 +139,13 @@ const getMessenger = (): {
       'BackendWebSocketService:findSubscriptionsByChannelPrefix',
       'BackendWebSocketService:addChannelCallback',
       'BackendWebSocketService:removeChannelCallback',
+      'RemoteFeatureFlagController:getState',
     ],
     events: [
       'AccountsController:selectedAccountChange',
       'BackendWebSocketService:connectionStateChanged',
+      // eslint-disable-next-line no-restricted-syntax
+      'RemoteFeatureFlagController:stateChange',
     ],
     messenger,
   });
@@ -138,6 +161,16 @@ const getMessenger = (): {
   const mockFindSubscriptionsByChannelPrefix = jest.fn().mockReturnValue([]);
   const mockAddChannelCallback = jest.fn();
   const mockRemoveChannelCallback = jest.fn();
+  const mockGetConnectionInfo = jest.fn().mockReturnValue({
+    state: WebSocketState.CONNECTED,
+  });
+  // Solana enabled by default so tests exercise the multichain path
+  const mockGetFeatureFlagState = jest.fn().mockReturnValue({
+    remoteFeatureFlags: {
+      networkAssetsSnapsMigrationSolana: { stage: 1 },
+    },
+    cacheTimestamp: 0,
+  });
 
   // Register all action handlers
   rootMessenger.registerActionHandler(
@@ -180,6 +213,14 @@ const getMessenger = (): {
     'BackendWebSocketService:removeChannelCallback',
     mockRemoveChannelCallback,
   );
+  rootMessenger.registerActionHandler(
+    'BackendWebSocketService:getConnectionInfo',
+    mockGetConnectionInfo,
+  );
+  rootMessenger.registerActionHandler(
+    'RemoteFeatureFlagController:getState',
+    mockGetFeatureFlagState,
+  );
 
   return {
     rootMessenger,
@@ -195,6 +236,8 @@ const getMessenger = (): {
       findSubscriptionsByChannelPrefix: mockFindSubscriptionsByChannelPrefix,
       addChannelCallback: mockAddChannelCallback,
       removeChannelCallback: mockRemoveChannelCallback,
+      getConnectionInfo: mockGetConnectionInfo,
+      getFeatureFlagState: mockGetFeatureFlagState,
     },
   };
 };
@@ -224,6 +267,8 @@ const createIndependentService = (options?: {
     forceReconnection: jest.Mock;
     addChannelCallback: jest.Mock;
     removeChannelCallback: jest.Mock;
+    getConnectionInfo: jest.Mock;
+    getFeatureFlagState: jest.Mock;
   };
   destroy: () => void;
 } => {
@@ -271,6 +316,8 @@ const createServiceWithTestAccount = (
     forceReconnection: jest.Mock;
     addChannelCallback: jest.Mock;
     removeChannelCallback: jest.Mock;
+    getConnectionInfo: jest.Mock;
+    getFeatureFlagState: jest.Mock;
   };
   destroy: () => void;
   mockSelectedAccount: InternalAccount;
@@ -327,6 +374,8 @@ type WithServiceCallback<ReturnValue> = (payload: {
     findSubscriptionsByChannelPrefix: jest.Mock;
     addChannelCallback: jest.Mock;
     removeChannelCallback: jest.Mock;
+    getConnectionInfo: jest.Mock;
+    getFeatureFlagState: jest.Mock;
   };
   mockSelectedAccount?: InternalAccount;
   destroy: () => void;
@@ -833,17 +882,12 @@ describe('AccountActivityService', () => {
         });
       });
 
-      it('should handle unknown scope fallback by subscribing to channels with fallback naming convention', async () => {
+      it('does not subscribe accounts whose scopes are not supported', async () => {
         await withService(async ({ mocks, rootMessenger }) => {
           const unknownAccount = createMockInternalAccount({
             address: 'UnknownChainAddress456def',
           });
           unknownAccount.scopes = ['bitcoin:mainnet', 'unknown:chain'];
-
-          mocks.subscribe.mockResolvedValue({
-            subscriptionId: 'unknown-sub-456',
-            unsubscribe: jest.fn(),
-          });
 
           // Publish account change event - will be picked up by controller subscription
           rootMessenger.publish(
@@ -853,11 +897,36 @@ describe('AccountActivityService', () => {
           // Wait for async handler to complete
           await completeAsyncOperations();
 
+          expect(mocks.subscribe).not.toHaveBeenCalled();
+        });
+      });
+
+      it('subscribes to chains beyond EVM and Solana when their migration flag is active', async () => {
+        await withService(async ({ mocks, rootMessenger }) => {
+          mocks.getFeatureFlagState.mockReturnValue({
+            remoteFeatureFlags: {
+              networkAssetsSnapsMigrationTron: { stage: 1 },
+            },
+            cacheTimestamp: 0,
+          });
+          mocks.subscribe.mockResolvedValue({
+            subscriptionId: 'tron-sub-123',
+            unsubscribe: jest.fn(),
+          });
+          const tronAccount = createMockInternalAccount({
+            address: 'TronAddress123abc',
+          });
+          tronAccount.scopes = ['tron:mainnet'];
+
+          rootMessenger.publish(
+            'AccountsController:selectedAccountChange',
+            tronAccount,
+          );
+          await completeAsyncOperations();
+
           expect(mocks.subscribe).toHaveBeenCalledWith(
             expect.objectContaining({
-              channels: expect.arrayContaining([
-                expect.stringContaining('unknownchainaddress456def'),
-              ]),
+              channels: ['account-activity.v1.tron:0:tronaddress123abc'],
             }),
           );
         });
@@ -912,6 +981,87 @@ describe('AccountActivityService', () => {
           expect(mocks.subscribe).toHaveBeenCalledWith(
             expect.objectContaining({
               channels: ['account-activity.v1.eip155:0:0xaccount2'],
+            }),
+          );
+        });
+      });
+
+      it('does not subscribe to Solana channels when the Solana migration flag is not set', async () => {
+        await withService(async ({ mocks, rootMessenger }) => {
+          mocks.getFeatureFlagState.mockReturnValue({
+            remoteFeatureFlags: {},
+            cacheTimestamp: 0,
+          });
+          const solanaAccount = createMockInternalAccount({
+            address: 'SolanaAddress123abc',
+          });
+          solanaAccount.scopes = ['solana:mainnet-beta'];
+
+          rootMessenger.publish(
+            'AccountsController:selectedAccountChange',
+            solanaAccount,
+          );
+          await completeAsyncOperations();
+
+          expect(mocks.subscribe).not.toHaveBeenCalled();
+        });
+      });
+
+      it('does not subscribe to Solana channels when the Solana migration flag stage is 0', async () => {
+        await withService(async ({ mocks, rootMessenger }) => {
+          mocks.getFeatureFlagState.mockReturnValue({
+            remoteFeatureFlags: {
+              networkAssetsSnapsMigrationSolana: { stage: 0 },
+            },
+            cacheTimestamp: 0,
+          });
+          const solanaAccount = createMockInternalAccount({
+            address: 'SolanaAddress123abc',
+          });
+          solanaAccount.scopes = ['solana:mainnet-beta'];
+
+          rootMessenger.publish(
+            'AccountsController:selectedAccountChange',
+            solanaAccount,
+          );
+          await completeAsyncOperations();
+
+          expect(mocks.subscribe).not.toHaveBeenCalled();
+        });
+      });
+
+      it('subscribes to EVM channels only when RemoteFeatureFlagController is unavailable', async () => {
+        await withService(async ({ mocks, rootMessenger }) => {
+          mocks.getFeatureFlagState.mockImplementation(() => {
+            throw new Error('RemoteFeatureFlagController not available');
+          });
+          mocks.subscribe.mockResolvedValue({
+            subscriptionId: 'sub-123',
+            unsubscribe: jest.fn(),
+          });
+          const evmAccount = createMockInternalAccount({
+            address: '0xevmaccount',
+          });
+          const solanaAccount = createMockInternalAccount({
+            address: 'SolanaAddress123abc',
+          });
+          solanaAccount.scopes = ['solana:mainnet-beta'];
+
+          rootMessenger.publish(
+            'AccountsController:selectedAccountChange',
+            evmAccount,
+          );
+          await completeAsyncOperations();
+          rootMessenger.publish(
+            'AccountsController:selectedAccountChange',
+            solanaAccount,
+          );
+          await completeAsyncOperations();
+
+          expect(mocks.subscribe).toHaveBeenCalledTimes(1);
+          expect(mocks.subscribe).toHaveBeenCalledWith(
+            expect.objectContaining({
+              channels: ['account-activity.v1.eip155:0:0xevmaccount'],
             }),
           );
         });
@@ -1064,6 +1214,130 @@ describe('AccountActivityService', () => {
             });
           },
         );
+      });
+    });
+
+    describe('handleFeatureFlagsStateChange', () => {
+      it('resubscribes with the new chains when the enabled chains change', async () => {
+        await withService(async ({ mocks, rootMessenger }) => {
+          const solanaAccount = createMockInternalAccount({
+            address: 'SolanaAddress123abc',
+          });
+          solanaAccount.scopes = ['solana:mainnet-beta'];
+          mocks.getSelectedAccount.mockReturnValue(solanaAccount);
+          mocks.getFeatureFlagState.mockReturnValue(featureFlagState(0));
+          mocks.subscribe.mockResolvedValue({
+            subscriptionId: 'sub-123',
+            unsubscribe: jest.fn(),
+          });
+
+          // Connect with the Solana flag off: no subscription
+          rootMessenger.publish(
+            'BackendWebSocketService:connectionStateChanged',
+            {
+              state: WebSocketState.CONNECTED,
+              url: 'ws://test',
+              reconnectAttempts: 0,
+              timeout: 10000,
+              reconnectDelay: 500,
+              maxReconnectDelay: 5000,
+              requestTimeout: 30000,
+            },
+          );
+          await completeAsyncOperations();
+          expect(mocks.subscribe).not.toHaveBeenCalled();
+
+          // Flag flips to stage 1: service resubscribes with the Solana channel
+          mocks.getFeatureFlagState.mockReturnValue(featureFlagState(1));
+          rootMessenger.publish(
+            'RemoteFeatureFlagController:stateChange',
+            featureFlagState(1),
+            [],
+          );
+          await completeAsyncOperations();
+
+          expect(mocks.subscribe).toHaveBeenCalledWith(
+            expect.objectContaining({
+              channels: ['account-activity.v1.solana:0:solanaaddress123abc'],
+            }),
+          );
+        });
+      });
+
+      it('does not resubscribe when the enabled chains are unchanged', async () => {
+        await withService(async ({ mocks, rootMessenger }) => {
+          const evmAccount = createMockInternalAccount({
+            address: '0xevmaccount',
+          });
+          mocks.getSelectedAccount.mockReturnValue(evmAccount);
+          mocks.subscribe.mockResolvedValue({
+            subscriptionId: 'sub-123',
+            unsubscribe: jest.fn(),
+          });
+
+          rootMessenger.publish(
+            'BackendWebSocketService:connectionStateChanged',
+            {
+              state: WebSocketState.CONNECTED,
+              url: 'ws://test',
+              reconnectAttempts: 0,
+              timeout: 10000,
+              reconnectDelay: 500,
+              maxReconnectDelay: 5000,
+              requestTimeout: 30000,
+            },
+          );
+          await completeAsyncOperations();
+          expect(mocks.subscribe).toHaveBeenCalledTimes(1);
+
+          // Same flags published again: no resubscription
+          rootMessenger.publish(
+            'RemoteFeatureFlagController:stateChange',
+            featureFlagState(1),
+            [],
+          );
+          await completeAsyncOperations();
+
+          expect(mocks.subscribe).toHaveBeenCalledTimes(1);
+          expect(mocks.findSubscriptionsByChannelPrefix).not.toHaveBeenCalled();
+        });
+      });
+
+      it('does not resubscribe on flag change when the websocket is not connected', async () => {
+        await withService(async ({ mocks, rootMessenger }) => {
+          mocks.getConnectionInfo.mockReturnValue({
+            state: WebSocketState.DISCONNECTED,
+          });
+
+          rootMessenger.publish(
+            'RemoteFeatureFlagController:stateChange',
+            featureFlagState(1),
+            [],
+          );
+          await completeAsyncOperations();
+
+          expect(mocks.subscribe).not.toHaveBeenCalled();
+          expect(mocks.findSubscriptionsByChannelPrefix).not.toHaveBeenCalled();
+        });
+      });
+
+      it('handles errors during flag change handling gracefully', async () => {
+        await withService(async ({ mocks, rootMessenger }) => {
+          mocks.getConnectionInfo.mockImplementation(() => {
+            throw new Error('Connection info unavailable');
+          });
+
+          expect(() =>
+            rootMessenger.publish(
+              'RemoteFeatureFlagController:stateChange',
+              featureFlagState(1),
+              [],
+            ),
+          ).not.toThrow();
+          await completeAsyncOperations();
+
+          expect(mocks.subscribe).not.toHaveBeenCalled();
+        });
       });
     });
   });

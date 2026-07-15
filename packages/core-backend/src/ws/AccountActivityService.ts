@@ -13,6 +13,11 @@ import { AccountsControllerListMultichainAccountsAction } from '@metamask/accoun
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
+import type {
+  RemoteFeatureFlagControllerGetStateAction,
+  RemoteFeatureFlagControllerStateChangeEvent,
+} from '@metamask/remote-feature-flag-controller';
+import { isObject } from '@metamask/utils';
 
 import { projectLogger, createModuleLogger } from '../logger';
 import type {
@@ -53,7 +58,17 @@ const MESSENGER_EXPOSED_METHODS = ['subscribe', 'unsubscribe'] as const;
 
 const SUBSCRIPTION_NAMESPACE = 'account-activity.v1';
 
-const SUPPORTED_CHAIN_PREFIXES = ['eip155', 'solana'] as const;
+// EVM subscriptions are always enabled.
+const ALWAYS_SUPPORTED_CHAIN_PREFIXES = ['eip155'] as const;
+
+// Non-EVM chains are gated behind the
+// per-network snaps-migration remote feature flags: a chain is
+// enabled when its flag payload has `stage >= 1`.
+const CHAIN_PREFIX_FEATURE_FLAGS = {
+  solana: 'networkAssetsSnapsMigrationSolana',
+  tron: 'networkAssetsSnapsMigrationTron',
+  stellar: 'networkAssetsSnapsMigrationStellar',
+} as const;
 
 /**
  * Account subscription options
@@ -92,18 +107,21 @@ export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
   'BackendWebSocketService:findSubscriptionsByChannelPrefix',
   'BackendWebSocketService:addChannelCallback',
   'BackendWebSocketService:removeChannelCallback',
+  'RemoteFeatureFlagController:getState',
 ] as const;
 
 // Allowed events that AccountActivityService can listen to
 export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS = [
   'AccountsController:selectedAccountChange',
   'BackendWebSocketService:connectionStateChanged',
+  'RemoteFeatureFlagController:stateChange',
 ] as const;
 
 export type AllowedActions =
   | AccountsControllerGetSelectedAccountAction
   | AccountsControllerListMultichainAccountsAction
-  | BackendWebSocketServiceMethodActions;
+  | BackendWebSocketServiceMethodActions
+  | RemoteFeatureFlagControllerGetStateAction;
 
 // Event types for the messaging system
 
@@ -141,7 +159,8 @@ export type AccountActivityServiceEvents =
 
 export type AllowedEvents =
   | AccountsControllerSelectedAccountChangeEvent
-  | BackendWebSocketServiceConnectionStateChangedEvent;
+  | BackendWebSocketServiceConnectionStateChangedEvent
+  | RemoteFeatureFlagControllerStateChangeEvent;
 
 export type AccountActivityServiceMessenger = Messenger<
   typeof SERVICE_NAME,
@@ -202,6 +221,10 @@ export class AccountActivityService {
   // Track chains that are currently up (based on system notifications)
   readonly #chainsUp: Set<string> = new Set();
 
+  // Chain prefixes used for the current subscriptions, to detect feature flag
+  // changes that require resubscribing
+  #appliedChainPrefixes: string | undefined;
+
   // =============================================================================
   // Constructor and Initialization
   // =============================================================================
@@ -247,6 +270,13 @@ export class AccountActivityService {
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       (connectionInfo: WebSocketConnectionInfo) =>
         this.#handleWebSocketStateChange(connectionInfo),
+    );
+    this.#messenger.subscribe(
+      // eslint-disable-next-line no-restricted-syntax
+      'RemoteFeatureFlagController:stateChange',
+      // Promise result intentionally not awaited
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      async () => await this.#handleFeatureFlagsStateChange(),
     );
     this.#messenger.call('BackendWebSocketService:addChannelCallback', {
       channelName: `system-notifications.v1.${this.#options.subscriptionNamespace}`,
@@ -548,31 +578,91 @@ export class AccountActivityService {
   // =============================================================================
 
   /**
-   * Convert an InternalAccount address to CAIP-10 format or raw address
+   * Convert an InternalAccount address to CAIP-10 format, using the first
+   * supported chain prefix matching the account's scopes
    *
    * @param account - The internal account to convert
    * @param account.address - The raw address of the account
    * @param account.scopes - The scopes of the account (used to determine chain type)
-   * @returns The CAIP-10 formatted address or raw address
+   * @param supportedChainPrefixes - The chain prefixes currently enabled for subscriptions
+   * @returns The CAIP-10 formatted address (e.g. `eip155:0:address`, meaning
+   * all chains of that namespace), or `undefined` if none of the account's
+   * scopes are supported
    */
-  #convertToCaip10Address(account: {
-    address: InternalAccount['address'];
-    scopes: InternalAccount['scopes'];
-  }): string {
-    // Check if account has EVM scopes
-    if (account.scopes.some((scope) => scope.startsWith('eip155:'))) {
-      // CAIP-10 format: eip155:0:address (subscribe to all EVM chains)
-      return `eip155:0:${account.address}`;
-    }
+  #convertToCaip10Address(
+    account: {
+      address: InternalAccount['address'];
+      scopes: InternalAccount['scopes'];
+    },
+    supportedChainPrefixes: string[],
+  ): string | undefined {
+    const chainPrefix = supportedChainPrefixes.find((prefix) =>
+      account.scopes.some((scope) => scope.startsWith(`${prefix}:`)),
+    );
+    return chainPrefix ? `${chainPrefix}:0:${account.address}` : undefined;
+  }
 
-    // Check if account has Solana scopes
-    if (account.scopes.some((scope) => scope.startsWith('solana:'))) {
-      // CAIP-10 format: solana:0:address (subscribe to all Solana chains)
-      return `solana:0:${account.address}`;
+  /**
+   * Get the chain prefixes currently enabled for subscriptions: EVM is always
+   * enabled, while other chains are gated behind their per-network remote
+   * feature flag (enabled when the flag payload has `stage >= 1`).
+   *
+   * Falls back to EVM-only when `RemoteFeatureFlagController` is unavailable.
+   *
+   * @returns An array of enabled CAIP-2 namespace prefixes (e.g. `['eip155', 'solana']`)
+   */
+  #getSupportedChainPrefixes(): string[] {
+    const prefixes: string[] = [...ALWAYS_SUPPORTED_CHAIN_PREFIXES];
+    try {
+      const { remoteFeatureFlags } = this.#messenger.call(
+        'RemoteFeatureFlagController:getState',
+      );
+      for (const [prefix, flagName] of Object.entries(
+        CHAIN_PREFIX_FEATURE_FLAGS,
+      )) {
+        const flagValue = remoteFeatureFlags[flagName];
+        if (
+          isObject(flagValue) &&
+          typeof flagValue.stage === 'number' &&
+          flagValue.stage >= 1
+        ) {
+          prefixes.push(prefix);
+        }
+      }
+    } catch (error) {
+      log(
+        'RemoteFeatureFlagController unavailable, using default chain prefixes',
+        { error },
+      );
     }
+    return prefixes;
+  }
 
-    // For other chains or unknown scopes, return raw address
-    return account.address;
+  /**
+   * Handle remote feature flag changes: if the set of enabled chain prefixes
+   * changed while connected, resubscribe the selected account so new chains
+   * are picked up and disabled ones are dropped.
+   */
+  async #handleFeatureFlagsStateChange(): Promise<void> {
+    try {
+      const chainPrefixes = this.#getSupportedChainPrefixes().join(',');
+      if (chainPrefixes === this.#appliedChainPrefixes) {
+        return;
+      }
+
+      const { state } = this.#messenger.call(
+        'BackendWebSocketService:getConnectionInfo',
+      );
+      if (state !== WebSocketState.CONNECTED) {
+        // Not connected: the next connection will subscribe with fresh flags
+        return;
+      }
+
+      await this.#unsubscribeFromAllAccountActivity();
+      await this.#subscribeToSelectedAccount();
+    } catch (error) {
+      log('Feature flag change handling failed', { error });
+    }
   }
 
   /**
@@ -600,15 +690,13 @@ export class AccountActivityService {
             )
         : // If the account is not derived from a mnemonic, just use the single account
           [account];
+    const supportedChainPrefixes = this.#getSupportedChainPrefixes();
+    this.#appliedChainPrefixes = supportedChainPrefixes.join(',');
     return multichainAccounts
       .map((multichainAccount) =>
-        this.#convertToCaip10Address(multichainAccount),
+        this.#convertToCaip10Address(multichainAccount, supportedChainPrefixes),
       )
-      .filter(
-        (address) =>
-          !address.includes(':') ||
-          SUPPORTED_CHAIN_PREFIXES.some((prefix) => address.startsWith(prefix)),
-      );
+      .filter((address): address is string => address !== undefined);
   }
 
   /**

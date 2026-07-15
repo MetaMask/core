@@ -20,6 +20,9 @@
     },
     {
       "path": "../profile-sync-controller"
+    },
+    {
+      "path": "../remote-feature-flag-controller"
     }
   ],
   "include": ["../../types", "./src"]

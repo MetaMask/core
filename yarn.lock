@@ -6314,6 +6314,7 @@ __metadata:
     "@metamask/keyring-controller": "npm:^27.1.0"
     "@metamask/messenger": "npm:^2.0.0"
     "@metamask/profile-sync-controller": "npm:^28.3.0"
+    "@metamask/remote-feature-flag-controller": "npm:^4.2.2"
     "@metamask/utils": "npm:^11.11.0"
     "@tanstack/query-core": "npm:^5.62.16"
     "@ts-bridge/cli": "npm:^0.6.4"
