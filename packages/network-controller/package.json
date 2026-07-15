@@ -83,6 +83,7 @@
     "@types/jest-when": "^2.7.3",
     "@types/lodash": "^4.14.191",
     "@types/node-fetch": "^2.6.12",
+    "@typescript/native": "npm:typescript@^7.0.2",
     "cockatiel": "^3.1.2",
     "deep-freeze-strict": "^1.1.1",
     "deepmerge": "^4.2.2",
@@ -96,7 +97,7 @@
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.3.3"
+    "typescript": "npm:@typescript/typescript6@^6.0.2"
   },
   "engines": {
     "node": "^18.18 || >=20"
