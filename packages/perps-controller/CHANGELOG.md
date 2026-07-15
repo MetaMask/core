@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Bump `@metamask/account-tree-controller` from `^7.5.3` to `7.5.4` ([#9429](https://github.com/MetaMask/core/pull/9429))
 
+### Fixed
+
+- Scope `#notifyAllPriceSubscribers` to the symbols that actually changed, instead of always fanning out to every price subscriber
+  - The `allMids` handler now tracks a per-symbol `changedSymbols` set (replacing the previous all-or-nothing `hasUpdates` boolean) and only notifies subscribers of symbols whose price changed.
+  - The `activeAssetCtx` handler now notifies only the subscribers of the symbol it just updated, instead of re-notifying every subscribed symbol on each tick.
+  - This eliminates redundant reference-equal `PriceUpdate` deliveries to list-view subscribers (e.g. market overview, watchlist) whenever an unrelated symbol's fast-stream price ticks.
+
 ## [9.2.1]
 
 ### Changed

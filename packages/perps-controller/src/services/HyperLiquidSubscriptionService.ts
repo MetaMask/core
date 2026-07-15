@@ -3029,8 +3029,9 @@ export class HyperLiquidSubscriptionService {
           }
         }
 
-        // Track if any subscribed symbol was updated
-        let hasUpdates = false;
+        // Track which subscribed symbols actually changed price, so
+        // notification can be scoped to just those symbols
+        const changedSymbols = new Set<string>();
 
         // Only process symbols that are actually subscribed to
         for (const symbol in data.mids) {
@@ -3050,13 +3051,13 @@ export class HyperLiquidSubscriptionService {
           // Price changed or new symbol - update cache
           const priceUpdate = this.#createPriceUpdate(symbol, price);
           this.#cachedPriceData.set(symbol, priceUpdate);
-          hasUpdates = true;
+          changedSymbols.add(symbol);
         }
 
-        // Only notify subscribers if we actually have updates
+        // Only notify subscribers of symbols whose price actually changed
         // This prevents unnecessary React re-renders when prices haven't changed
-        if (hasUpdates) {
-          this.#notifyAllPriceSubscribers();
+        if (changedSymbols.size > 0) {
+          this.#notifyAllPriceSubscribers(changedSymbols);
         }
       })
       .then((sub) => {
@@ -3181,12 +3182,14 @@ export class HyperLiquidSubscriptionService {
               );
             }
 
-            // Notify subscribers. #notifyAllPriceSubscribers projects the
-            // fast-stream price (now stored in #marketDataCache) for focused
-            // (includeMarketData: true) subscribers, while list subscribers
+            // Notify subscribers of this symbol only. #notifyAllPriceSubscribers
+            // projects the fast-stream price (now stored in #marketDataCache) for
+            // focused (includeMarketData: true) subscribers, while list subscribers
             // continue to receive only the allMids baseline from #cachedPriceData.
-            // List subscribers are skipped until an allMids tick has arrived.
-            this.#notifyAllPriceSubscribers();
+            // Scoping to this symbol avoids redundant reference-equal allMids
+            // updates to list subscribers watching other symbols, since their
+            // allMids baseline hasn't changed on this tick.
+            this.#notifyAllPriceSubscribers(new Set([symbol]));
           }
         },
       )
@@ -3951,14 +3954,26 @@ export class HyperLiquidSubscriptionService {
    * - When no allMids baseline exists yet but a fresh `activeAssetCtxPrice` is
    *   available, focused callbacks still receive an update so detail screens
    *   stay responsive on first render.
+   *
+   * @param changedSymbols - When provided, only subscribers for symbols in
+   * this set are notified. This avoids redundant reference-equal updates to
+   * list subscribers whose symbols were untouched by the triggering event
+   * (e.g. a per-symbol `activeAssetCtx` tick for a different symbol). When
+   * omitted, all symbols with subscribers are notified (fan-out-all), which
+   * is the correct behavior for callers whose event isn't scoped to specific
+   * symbols (e.g. subscription-established replays, per-DEX `assetCtxs`).
    */
-  #notifyAllPriceSubscribers(): void {
+  #notifyAllPriceSubscribers(changedSymbols?: Set<string>): void {
     const subscriberUpdates = new Map<
       (prices: PriceUpdate[]) => void,
       PriceUpdate[]
     >();
 
     this.#priceSubscribers.forEach((subscriberSet, symbol) => {
+      if (changedSymbols && !changedSymbols.has(symbol)) {
+        return;
+      }
+
       const allMidsBase = this.#cachedPriceData?.get(symbol);
       const fastPrice = this.#getFreshActiveAssetCtxPrice(symbol);
       const now = Date.now();

@@ -574,6 +574,92 @@ describe('HyperLiquidSubscriptionService', () => {
       expect(typeof unsubscribe1).toBe('function');
       expect(typeof unsubscribe2).toBe('function');
     });
+
+    it('does not notify a list subscriber for symbol A when only symbol B activeAssetCtx fires', async () => {
+      const listCallback = jest.fn();
+      const focusedCallback = jest.fn();
+
+      // List subscriber watching BTC (no market data -> no activeAssetCtx subscription)
+      const unsubscribeList = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: listCallback,
+        includeMarketData: false,
+      });
+
+      // Focused subscriber watching ETH (market data -> activeAssetCtx subscription)
+      const unsubscribeFocused = await service.subscribeToPrices({
+        symbols: ['ETH'],
+        callback: focusedCallback,
+        includeMarketData: true,
+      });
+
+      // Let initial allMids + activeAssetCtx ticks settle
+      await jest.runAllTimersAsync();
+
+      listCallback.mockClear();
+      focusedCallback.mockClear();
+
+      // Fire a fresh activeAssetCtx tick for ETH only (simulates the fast-stream
+      // price cadence for a focused symbol while BTC's allMids baseline is untouched)
+      const ethCall = mockSubscriptionClient.activeAssetCtx.mock.calls.find(
+        ([params]: [{ coin: string }]) => params.coin === 'ETH',
+      );
+      expect(ethCall).toBeDefined();
+      const ethCallback = ethCall[1];
+
+      ethCallback({
+        coin: 'ETH',
+        ctx: {
+          prevDayPx: '2900',
+          funding: '0.02',
+          openInterest: '2000000',
+          dayNtlVlm: '60000000',
+          oraclePx: '3010',
+          midPx: '3010',
+        },
+      });
+
+      expect(focusedCallback).toHaveBeenCalled();
+      expect(listCallback).not.toHaveBeenCalled();
+
+      unsubscribeList();
+      unsubscribeFocused();
+    });
+
+    it('only notifies subscribers of symbols whose allMids price actually changed', async () => {
+      const btcCallback = jest.fn();
+      const ethCallback = jest.fn();
+
+      const unsubscribeBtc = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: btcCallback,
+      });
+      const unsubscribeEth = await service.subscribeToPrices({
+        symbols: ['ETH'],
+        callback: ethCallback,
+      });
+
+      // Let the initial allMids snapshot settle
+      await jest.runAllTimersAsync();
+
+      btcCallback.mockClear();
+      ethCallback.mockClear();
+
+      // Re-invoke the allMids handler directly with only BTC's price changed
+      const allMidsCallback = mockSubscriptionClient.allMids.mock.calls[0][0];
+      allMidsCallback({
+        mids: {
+          BTC: 51000, // changed
+          ETH: 3000, // unchanged from initial snapshot
+        },
+      });
+
+      expect(btcCallback).toHaveBeenCalled();
+      expect(ethCallback).not.toHaveBeenCalled();
+
+      unsubscribeBtc();
+      unsubscribeEth();
+    });
   });
 
   describe('Position Subscriptions', () => {
