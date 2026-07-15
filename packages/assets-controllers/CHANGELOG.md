@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add Robinhood Chain (`4663`/`0x1237`) BalanceFetcher support for legacy single-call token detection ([#9473](https://github.com/MetaMask/core/pull/9473))
+  - Add `Robinhood` in `SupportedTokenDetectionNetworks`
+  - Add Robinhood BalanceFetcher address in `SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID`
+
+### Removed
+
+- **BREAKING:** Revert Snap account-asset enrichment added in 109.3.0 ([#9454](https://github.com/MetaMask/core/pull/9454))
+  - `MultichainBalancesController` no longer fetches or stores `accountAssetInfo` on balance rows; enrichment is handled client-side by the unified assets controller.
+  - Remove exported types `AccountAssetInfo` and `MultichainAccountBalance`.
+  - Remove optional `accountAssetInfo` from selector `Asset` items.
+  - `MultichainAssetsController:accountAssetListUpdated` no longer includes a `refreshed` asset list for already-tracked snap adds;
+
 ## [109.4.1]
 
 ### Changed

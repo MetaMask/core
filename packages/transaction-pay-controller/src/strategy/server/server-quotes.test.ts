@@ -1,7 +1,11 @@
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { CHAIN_ID_HYPERCORE, TransactionPayStrategy } from '../../constants';
+import {
+  CHAIN_ID_HYPERCORE,
+  PaymentOverride,
+  TransactionPayStrategy,
+} from '../../constants';
 import { getMessengerMock } from '../../tests/messenger-mock';
 import type {
   GetDelegationTransactionCallback,
@@ -90,6 +94,7 @@ const FULFILLED_RESULT_MOCK = {
     },
     steps: [
       {
+        type: 'transaction' as const,
         chainId: 1,
         data: '0xdef' as Hex,
         to: '0x4560000000000000000000000000000000000000' as Hex,
@@ -124,7 +129,12 @@ describe('server-quotes', () => {
   const fetchServerQuoteMock = jest.mocked(fetchServerQuote);
   const getSlippageMock = jest.mocked(getSlippage);
   const isEIP7702ChainMock = jest.mocked(isEIP7702Chain);
-  const { getDelegationTransactionMock, messenger } = getMessengerMock();
+  const {
+    getControllerStateMock,
+    getDelegationTransactionMock,
+    getPaymentOverrideDataMock,
+    messenger,
+  } = getMessengerMock();
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -497,6 +507,7 @@ describe('server-quotes', () => {
         gasless: false,
         steps: [
           {
+            type: 'transaction' as const,
             chainId: 1,
             data: '0xdef' as Hex,
             maxFeePerGas: '0x1',
@@ -627,6 +638,7 @@ describe('server-quotes', () => {
               ...NON_GASLESS_RESULT_MOCK.quote,
               steps: [
                 {
+                  type: 'transaction' as const,
                   chainId: 1,
                   data: '0xdef' as Hex,
                   to: '0x4560000000000000000000000000000000000000' as Hex,
@@ -685,6 +697,7 @@ describe('server-quotes', () => {
               ...NON_GASLESS_RESULT_MOCK.quote,
               steps: [
                 {
+                  type: 'transaction' as const,
                   chainId: 1,
                   data: '0xdef' as Hex,
                   to: '0x4560000000000000000000000000000000000000' as Hex,
@@ -709,6 +722,250 @@ describe('server-quotes', () => {
           maxFeePerGas: '0',
           maxPriorityFeePerGas: '0',
         }),
+      );
+    });
+
+    it('zeroes source network fees when quote has no steps and is not gasless', async () => {
+      fetchServerQuoteMock.mockResolvedValue({
+        results: [
+          {
+            ...FULFILLED_RESULT_MOCK,
+            quote: {
+              ...FULFILLED_RESULT_MOCK.quote,
+              gasless: false,
+              steps: [],
+            },
+          },
+        ],
+      });
+
+      const result = await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(result[0].fees.sourceNetwork.estimate).toStrictEqual(
+        expect.objectContaining({ raw: '0' }),
+      );
+    });
+  });
+
+  describe('processMoneyAccountPostQuote', () => {
+    const OVERRIDE_CALL_MOCK = {
+      data: '0xoverride' as Hex,
+      to: '0xcccc000000000000000000000000000000000000' as Hex,
+      value: '0x0' as Hex,
+    };
+
+    beforeEach(() => {
+      getControllerStateMock.mockReturnValue({
+        transactionData: {
+          [TRANSACTION_META_MOCK.id]: {
+            tokens: [{ amountHuman: '1.5' }],
+          },
+        },
+      } as never);
+
+      getPaymentOverrideDataMock.mockResolvedValue({
+        calls: [OVERRIDE_CALL_MOCK],
+        recipient: TOKEN_TRANSFER_RECIPIENT_MOCK,
+        authorizationList: undefined,
+      } as never);
+    });
+
+    it('adds override calls and transfer call to server quote body when isPostQuote + MoneyAccount', async () => {
+      await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            paymentOverride: PaymentOverride.MoneyAccount,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+        messenger,
+        expect.objectContaining({
+          calls: expect.arrayContaining([
+            expect.objectContaining({ to: OVERRIDE_CALL_MOCK.to }),
+          ]),
+        }),
+        undefined,
+      );
+    });
+
+    it('falls back to request.from as recipient when getPaymentOverrideData returns no recipient', async () => {
+      getPaymentOverrideDataMock.mockResolvedValue({
+        calls: [OVERRIDE_CALL_MOCK],
+        recipient: undefined,
+        authorizationList: undefined,
+      } as never);
+
+      await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            paymentOverride: PaymentOverride.MoneyAccount,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      // The transfer call targets the source token address with FROM_MOCK as recipient.
+      expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+        messenger,
+        expect.objectContaining({
+          calls: expect.arrayContaining([
+            expect.objectContaining({
+              to: TARGET_TOKEN_ADDRESS_MOCK,
+              // data encodes FROM_MOCK (lower-cased, no 0x prefix) as the recipient
+              data: expect.stringContaining(
+                FROM_MOCK.slice(2).toLowerCase(),
+              ) as string,
+            }),
+          ]),
+        }),
+        undefined,
+      );
+    });
+
+    it('attaches authorizationList when getPaymentOverrideData returns one', async () => {
+      getPaymentOverrideDataMock.mockResolvedValue({
+        calls: [OVERRIDE_CALL_MOCK],
+        recipient: TOKEN_TRANSFER_RECIPIENT_MOCK,
+        authorizationList: [
+          {
+            address: '0xaaaa000000000000000000000000000000000000' as Hex,
+            chainId: '0x1' as Hex,
+            nonce: '0x1' as Hex,
+            r: '0xr' as Hex,
+            s: '0xs' as Hex,
+            yParity: '0x1' as Hex,
+          },
+        ],
+      } as never);
+
+      await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            paymentOverride: PaymentOverride.MoneyAccount,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+        messenger,
+        expect.objectContaining({
+          authorizationList: expect.arrayContaining([
+            expect.objectContaining({
+              address: '0xaaaa000000000000000000000000000000000000',
+            }),
+          ]),
+        }),
+        undefined,
+      );
+    });
+
+    it('falls back to 0 amount when transactionData has no tokens', async () => {
+      getControllerStateMock.mockReturnValue({
+        transactionData: {},
+      } as never);
+
+      await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            paymentOverride: PaymentOverride.MoneyAccount,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(getPaymentOverrideDataMock).toHaveBeenCalledWith(
+        expect.objectContaining({ amount: '0' }),
+      );
+    });
+
+    it('defaults override call value to 0x0 when call.value is undefined', async () => {
+      getPaymentOverrideDataMock.mockResolvedValue({
+        calls: [
+          {
+            to: '0xcccc000000000000000000000000000000000000' as Hex,
+            data: '0xdata' as Hex,
+          },
+        ],
+        recipient: TOKEN_TRANSFER_RECIPIENT_MOCK,
+        authorizationList: undefined,
+      } as never);
+
+      await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            paymentOverride: PaymentOverride.MoneyAccount,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+        messenger,
+        expect.objectContaining({
+          calls: expect.arrayContaining([
+            expect.objectContaining({
+              to: '0xcccc000000000000000000000000000000000000',
+              value: '0x0',
+            }),
+          ]),
+        }),
+        undefined,
+      );
+    });
+
+    it('skips override when getPaymentOverrideData returns empty calls', async () => {
+      getPaymentOverrideDataMock.mockResolvedValue({
+        calls: [],
+        recipient: undefined,
+        authorizationList: undefined,
+      } as never);
+
+      await getServerQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [
+          {
+            ...QUOTE_REQUEST_MOCK,
+            isPostQuote: true,
+            paymentOverride: PaymentOverride.MoneyAccount,
+          },
+        ],
+        transaction: TRANSACTION_META_MOCK,
+      });
+
+      expect(fetchServerQuoteMock).toHaveBeenCalledWith(
+        messenger,
+        expect.not.objectContaining({ calls: expect.anything() }),
+        undefined,
       );
     });
   });

@@ -566,6 +566,7 @@ describe('BridgeStatusController', () => {
                           token_security_type_destination: null,
                           token_symbol_destination: 'USDC',
                           token_symbol_source: 'USDC',
+                          transaction_internal_id: mockTxMetas[0].id,
                           usd_amount_source: 100,
                           usd_actual_gas: 0,
                           usd_actual_return: 0,

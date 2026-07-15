@@ -7,9 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.0.0]
+
+### Added
+
+- Add the `MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY` constant (`moneyHeadlessAllProviders`) and the pure `isHeadlessAllProvidersEnabled(remoteFeatureFlagState)` helper (with a `HeadlessFeatureFlagsLookup` type) that own the flag key lookup, `localOverrides`-over-`remoteFeatureFlags` merging, and boolean coercion (only the literal `true` enables), so UI consumers resolve the flag exactly like the controller does ([#9409](https://github.com/MetaMask/core/pull/9409))
+- Add pure provider-availability helpers `providerServesAsset`, `getProvidersServingAsset`, `regionHasProviderForAsset`, and `isFiatDepositAvailable` so headless-buy consumers can share the controller's case-insensitive CAIP-19 asset matching and flag-aware region/availability gating instead of re-deriving it, keeping the two from disagreeing; `regionHasProviderForAsset` and `isFiatDepositAvailable` take an `allProvidersEnabled` boolean ([#9409](https://github.com/MetaMask/core/pull/9409))
+- Add pure quote-classification helpers `isExternalBrowserQuote`, `isCustomActionQuote`, and `isInAppOnlyQuote` so consumers can share the in-app-vs-external browser-mode classification without owning host redirect/deeplink concerns ([#9409](https://github.com/MetaMask/core/pull/9409))
+- Add pure error-normalization helpers `getErrorMessage`, `extractExplicitTypedError`, and `normalizeToTypedError` (with a `TypedError<Code>` type) so consumers can share error-shape extraction while keeping their own error-code taxonomy ([#9409](https://github.com/MetaMask/core/pull/9409))
+- Add `@metamask/remote-feature-flag-controller` `^4.2.2` as a runtime dependency ([#9409](https://github.com/MetaMask/core/pull/9409))
+
+### Changed
+
+- **BREAKING:** Replace the `getProviderScope` constructor option and the exported `ProviderScope` type (`'off' | 'in-app' | 'all'`) with a controller-side read of the `moneyHeadlessAllProviders` boolean remote feature flag ([#9409](https://github.com/MetaMask/core/pull/9409))
+  - `RampsController.getQuotes` resolves the flag through the `RemoteFeatureFlagController:getState` messenger action on each auto-selection call, so a remote fetch or a local dev override takes effect at runtime; consumers should delegate that action to the controller's messenger (when it is missing, the flag read fails closed and quoting stays native-only)
+  - When the flag is `true`, the auto-selection path (`autoSelectProvider` / `restrictToKnownOrNativeProviders`) widens to every supporting provider class (native, in-app WebView aggregator, and external-browser / custom-action) and returns the best quote at `success[0]`, enforcing per-provider fiat limits; when the flag is `false`, missing, or any non-boolean value, the path stays native-only
+  - The intermediate `in-app` scope (which excluded external-browser and custom-action quotes from selection) is removed
+- `RampsController` now derives its internal region provider-asset matching from the shared `providerAvailability` helpers, so the exposed helpers stay behaviourally identical to the controller's own selection ([#9409](https://github.com/MetaMask/core/pull/9409))
+
+## [16.0.0]
+
 ### Changed
 
 - **BREAKING:** Provider IDs are no longer normalized by stripping a `/providers/` prefix. `RampsController.getQuotes` now matches provider IDs from the providers list, quotes, custom actions, and sort order as-is, and a precreated stub order's `provider.id` is the canonical provider code passed to the create-order call rather than a `/providers/`-prefixed value. Consumers must supply non-prefixed (canonical) provider IDs ([#9448](https://github.com/MetaMask/core/pull/9448))
+- Update `LICENSE` text ([#9472](https://github.com/MetaMask/core/pull/9472))
 - Bump `@metamask/profile-sync-controller` from `^28.2.0` to `^28.3.0` ([#9463](https://github.com/MetaMask/core/pull/9463))
 
 ### Removed
@@ -420,7 +441,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Add `OnRampService` for interacting with the OnRamp API
   - Add geolocation detection via IP address lookup
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@15.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@17.0.0...HEAD
+[17.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@16.0.0...@metamask/ramps-controller@17.0.0
+[16.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@15.1.0...@metamask/ramps-controller@16.0.0
 [15.1.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@15.0.0...@metamask/ramps-controller@15.1.0
 [15.0.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.3.0...@metamask/ramps-controller@15.0.0
 [14.3.0]: https://github.com/MetaMask/core/compare/@metamask/ramps-controller@14.2.0...@metamask/ramps-controller@14.3.0

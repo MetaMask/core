@@ -143,6 +143,103 @@ describe('Transaction Utils', () => {
       expect(updateTransactionDataMock).toHaveBeenCalledTimes(2);
     });
 
+    it('updates state when txParams.to changes', () => {
+      const updateTransactionDataMock = jest.fn();
+
+      parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
+
+      subscribeTransactionChanges(messenger, updateTransactionDataMock, noop);
+
+      publish(
+        'TransactionController:stateChange',
+        {
+          transactions: [TRANSACTION_META_MOCK],
+        } as TransactionControllerState,
+        [],
+      );
+
+      publish(
+        'TransactionController:stateChange',
+        {
+          transactions: [
+            {
+              ...TRANSACTION_META_MOCK,
+              txParams: {
+                ...TRANSACTION_META_MOCK.txParams,
+                to: '0xnewrecipient' as Hex,
+              },
+            },
+          ],
+        } as TransactionControllerState,
+        [],
+      );
+
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('updates state when requiredAssets changes', () => {
+      const updateTransactionDataMock = jest.fn();
+
+      parseRequiredTokensMock.mockReturnValue([TRANSCTION_TOKEN_REQUIRED_MOCK]);
+
+      subscribeTransactionChanges(messenger, updateTransactionDataMock, noop);
+
+      publish(
+        'TransactionController:stateChange',
+        {
+          transactions: [TRANSACTION_META_MOCK],
+        } as TransactionControllerState,
+        [],
+      );
+
+      publish(
+        'TransactionController:stateChange',
+        {
+          transactions: [
+            {
+              ...TRANSACTION_META_MOCK,
+              requiredAssets: [
+                { address: '0xtoken' as Hex, chainId: '0x1' as Hex },
+              ],
+            },
+          ],
+        } as TransactionControllerState,
+        [],
+      );
+
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('does not update state when txParams.data, txParams.to, and requiredAssets are unchanged', () => {
+      const updateTransactionDataMock = jest.fn();
+
+      subscribeTransactionChanges(messenger, updateTransactionDataMock, noop);
+
+      publish(
+        'TransactionController:stateChange',
+        {
+          transactions: [TRANSACTION_META_MOCK],
+        } as TransactionControllerState,
+        [],
+      );
+
+      publish(
+        'TransactionController:stateChange',
+        {
+          transactions: [
+            {
+              ...TRANSACTION_META_MOCK,
+              status: TransactionStatus.submitted,
+            },
+          ],
+        } as TransactionControllerState,
+        [],
+      );
+
+      // Only the initial new-transaction event triggers the update
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(1);
+    });
+
     it.each(FINALIZED_STATUSES)(
       'removes state if transaction status is %s',
       (status) => {
