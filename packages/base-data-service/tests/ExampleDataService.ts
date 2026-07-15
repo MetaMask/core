@@ -7,6 +7,7 @@ import {
   DataServiceInvalidateQueriesAction,
   DataServiceCacheUpdatedEvent,
   DataServiceGranularCacheUpdatedEvent,
+  PersistenceConfiguration,
 } from '../src/BaseDataService';
 import { ExampleDataServiceMethodActions } from './ExampleDataService-method-action-types';
 
@@ -62,7 +63,7 @@ export class ExampleDataService extends BaseDataService<
 
   constructor(
     messenger: ExampleMessenger,
-    { persistConfig }: { persistConfig?: { maxAge: number } } = {
+    { persistConfig }: { persistConfig: PersistenceConfiguration } = {
       persistConfig: { maxAge: inMilliseconds(1, Duration.Day) },
     },
   ) {

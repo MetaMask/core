@@ -92,7 +92,7 @@ export const STORAGE_SERVICE_KEY = 'cache';
 /**
  * Options for persistence configuration.
  */
-type PersistenceConfiguration = {
+export type PersistenceConfiguration = {
   /**
    * The maximum age before the cache is treated as expired in milliseconds.
    * This is relevant for rehydrating the state during initialization,
