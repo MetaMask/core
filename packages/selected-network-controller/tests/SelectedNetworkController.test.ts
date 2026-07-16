@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -25,11 +26,11 @@ import type {
   Domain,
   NetworkProxy,
   SelectedNetworkControllerMessenger,
-} from '../src/SelectedNetworkController';
+} from '../src/SelectedNetworkController.js';
 import {
   METAMASK_DOMAIN,
   SelectedNetworkController,
-} from '../src/SelectedNetworkController';
+} from '../src/SelectedNetworkController.js';
 
 const controllerName = 'SelectedNetworkController';
 
