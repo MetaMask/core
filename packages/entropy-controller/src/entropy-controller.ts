@@ -8,6 +8,7 @@ import type { HdKeyring } from '@metamask/eth-hd-keyring/v2';
 import type { SimpleKeyring } from '@metamask/eth-simple-keyring/v2';
 import type {
   KeyringControllerGetStateAction,
+  KeyringControllerUnlockEvent,
   KeyringControllerWithKeyringV2UnsafeAction,
 } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
@@ -111,7 +112,7 @@ export type EntropyControllerEvents = EntropyControllerStateChangeEvent;
  * Events from other messengers that {@link EntropyControllerMessenger}
  * subscribes to.
  */
-type AllowedEvents = never;
+type AllowedEvents = KeyringControllerUnlockEvent;
 
 /**
  * The messenger restricted to actions and events accessed by
@@ -162,6 +163,10 @@ export class EntropyController extends BaseController<
         ...state,
       },
     });
+
+    this.messenger.subscribe('KeyringController:unlock', () => {
+      this.syncEntropies().catch(console.error);
+    });
   }
 
   /**
@@ -174,7 +179,13 @@ export class EntropyController extends BaseController<
    * automatically removed.
    */
   async syncEntropies(): Promise<void> {
-    const { keyrings } = this.messenger.call('KeyringController:getState');
+    const { isUnlocked, keyrings } = this.messenger.call(
+      'KeyringController:getState',
+    );
+    if (!isUnlocked) {
+      return;
+    }
+
     const entropyKeyrings = keyrings.filter(isKeyringOwningEntropy);
 
     const newSources: EntropyControllerState['entropySources'] = {};

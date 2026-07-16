@@ -134,7 +134,7 @@ async function setup({
       'KeyringController:getState',
       'KeyringController:withKeyringV2Unsafe',
     ],
-    events: [],
+    events: ['KeyringController:unlock'],
   });
 
   const controller = new EntropyController({
@@ -313,6 +313,55 @@ describe('EntropyController', () => {
         [expectedId]: { type: 'bip44:srp', metadata: {} },
       });
       expect(controller.state.entropySources['stale-id']).toBeUndefined();
+    });
+
+    it('does nothing when the keyring is locked', async () => {
+      const keyringId = 'hd-keyring-id';
+
+      const { controller, mocks } = await setup({
+        keyrings: [
+          {
+            type: 'HD Key Tree',
+            metadata: { id: keyringId, name: '' },
+            mnemonic: HD_MNEMONIC,
+            accounts: [{ address: '0xabc' }],
+          },
+        ],
+      });
+
+      mocks.KeyringController.getState.mockReturnValueOnce({
+        keyrings: [],
+        isUnlocked: false,
+      });
+
+      await controller.syncEntropies();
+
+      expect(controller.state.entropySources).toStrictEqual({});
+    });
+
+    it('synchronizes automatically when KeyringController emits unlock', async () => {
+      const keyringId = 'hd-keyring-id';
+      const expectedId = await toEntropyId(HD_MNEMONIC, 'bip44:srp');
+
+      const { controller, rootMessenger } = await setup({
+        keyrings: [
+          {
+            type: 'HD Key Tree',
+            metadata: { id: keyringId, name: '' },
+            mnemonic: HD_MNEMONIC,
+            accounts: [{ address: '0xabc' }],
+          },
+        ],
+      });
+
+      // Spy before publishing so we can await the async sync triggered by the event.
+      const syncSpy = jest.spyOn(controller, 'syncEntropies');
+      rootMessenger.publish('KeyringController:unlock');
+      await syncSpy.mock.results[0]?.value;
+
+      expect(controller.state.entropySources).toStrictEqual({
+        [expectedId]: { type: 'bip44:srp', metadata: {} },
+      });
     });
   });
 
