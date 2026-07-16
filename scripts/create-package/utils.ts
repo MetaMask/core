@@ -5,9 +5,9 @@ import path from 'path';
 import { format as prettierFormat } from 'prettier';
 import type { Options as PrettierOptions } from 'prettier';
 
-import { MonorepoFiles, Placeholders } from './constants';
-import type { FileMap } from './fs-utils';
-import { readAllFiles, writeFiles } from './fs-utils';
+import { MonorepoFiles, Placeholders } from './constants.js';
+import type { FileMap } from './fs-utils.js';
+import { readAllFiles, writeFiles } from './fs-utils.js';
 
 const PACKAGE_TEMPLATE_DIR = path.join(import.meta.dirname, 'package-template');
 const REPO_ROOT = path.join(import.meta.dirname, '..', '..');
