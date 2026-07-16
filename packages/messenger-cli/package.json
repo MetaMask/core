@@ -16,7 +16,7 @@
     "url": "https://github.com/MetaMask/core.git"
   },
   "bin": {
-    "messenger-action-types": "./dist/cli.mjs"
+    "messenger-action-types": "./dist/cli.js"
   },
   "files": [
     "dist/"

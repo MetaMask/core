@@ -15,7 +15,7 @@
     "type": "git",
     "url": "https://github.com/MetaMask/core.git"
   },
-  "bin": "./dist/cli.mjs",
+  "bin": "./dist/cli.js",
   "files": [
     "dist/",
     "site/"
