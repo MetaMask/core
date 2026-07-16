@@ -57,7 +57,7 @@ async function setupSite(outDir: string): Promise<void> {
   const skip = new Set(['node_modules', 'docs', 'tsconfig.json']);
 
   console.log(`\nSetting up Docusaurus site in ${outDir}...`);
-   
+
   await fs.cp(siteDir, outDir, {
     recursive: true,
     filter: (source) => !skip.has(path.basename(source)),
