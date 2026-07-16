@@ -18,6 +18,19 @@ export type MoneyAccountBalanceServiceGetMusdBalanceAction = {
 };
 
 /**
+ * Fetches the account's total Money balance, orchestrating across the
+ * configured balance sources (RPC / Money API) with fallback.
+ *
+ * @param accountAddress - The Money account's Ethereum address.
+ * @returns The mUSD balance, mUSD-equivalent vault-share value, and total, as
+ * raw uint256 strings.
+ */
+export type MoneyAccountBalanceServiceGetBalanceAction = {
+  type: `MoneyAccountBalanceService:getBalance`;
+  handler: MoneyAccountBalanceService['getBalance'];
+};
+
+/**
  * Fetches the account's total Money balance inputs in a single batched RPC
  * request via Multicall3's `aggregate3`
  *
@@ -87,6 +100,7 @@ export type MoneyAccountBalanceServiceGetVaultApyAction = {
  * Union of all MoneyAccountBalanceService action types.
  */
 export type MoneyAccountBalanceServiceMethodActions =
+  | MoneyAccountBalanceServiceGetBalanceAction
   | MoneyAccountBalanceServiceGetMusdBalanceAction
   | MoneyAccountBalanceServiceGetMoneyAccountBalanceAction
   | MoneyAccountBalanceServiceGetVmusdBalanceAction

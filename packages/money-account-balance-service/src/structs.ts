@@ -1,5 +1,6 @@
 import {
   array,
+  enums,
   number,
   optional,
   record,
@@ -7,6 +8,37 @@ import {
   type,
 } from '@metamask/superstruct';
 import { StrictHexStruct } from '@metamask/utils';
+
+/**
+ * Superstruct schema for a single {@link BalanceSource}.
+ */
+export const BalanceSourceStruct = enums(['rpc', 'api'] as const);
+
+/**
+ * Superstruct schema for the balance-source orchestration config feature flag.
+ *
+ * Uses `type()` (loose validation) and optional fields so partial configs and
+ * future additions do not break validation. Missing fields are filled from
+ * {@link DEFAULT_BALANCE_SOURCE_CONFIG} by the service.
+ */
+export const BalanceSourceConfigStruct = type({
+  enabledSources: optional(array(BalanceSourceStruct)),
+  preferredSource: optional(BalanceSourceStruct),
+  maxAttempts: optional(number()),
+});
+
+/**
+ * Superstruct schema for the `balance` object returned by the Money Account
+ * API positions endpoint. Values are raw uint256 strings in the smallest mUSD
+ * unit (6 decimals), matching {@link MoneyAccountBalanceResponse}.
+ */
+export const MoneyApiBalanceStruct = type({
+  /* eslint-disable @typescript-eslint/naming-convention */
+  musd_balance: string(),
+  total_balance: string(),
+  vmusd_value_in_musd: string(),
+  /* eslint-enable @typescript-eslint/naming-convention */
+});
 
 /**
  * Superstruct schema for {@link VaultConfig}.

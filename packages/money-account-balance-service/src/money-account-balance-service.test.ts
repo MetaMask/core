@@ -18,6 +18,7 @@ import nock, { cleanAll as nockCleanAll } from 'nock';
 
 import {
   LENS_ABI,
+  MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY,
   MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY,
   MULTICALL3_ADDRESS_BY_CHAIN_ID,
   VAULT_CONFIG_FEATURE_FLAG_KEY,
@@ -67,6 +68,25 @@ const MOCK_VAULT_CONFIG = {
 const MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN = {
   ...MOCK_VAULT_CONFIG,
   underlyingToken: MOCK_UNDERLYING_TOKEN_ADDRESS,
+};
+
+/**
+ * A Money Account API positions response including the top-level `balance`
+ * object the `'api'` balance source maps from. Values are raw uint256 (6-dp)
+ * strings, matching the RPC source's response shape.
+ */
+const MOCK_API_POSITIONS = {
+  address: MOCK_ACCOUNT_ADDRESS,
+  as_of_block: 0,
+  as_of_timestamp: '2026-01-01T00:00:00Z',
+  data_freshness: 'live',
+  indexer_lag_seconds: 0,
+  positions: [],
+  balance: {
+    musd_balance: '5000000',
+    total_balance: '7200000',
+    vmusd_value_in_musd: '2200000',
+  },
 };
 
 const MOCK_NETWORK_CONFIG = {
@@ -221,6 +241,7 @@ function createService({
   mockGetNetworkConfig: jest.Mock;
   mockGetNetworkClient: jest.Mock;
   mockGetRFFCState: jest.Mock;
+  mockFetchPositions: jest.Mock;
   captureException: jest.Mock;
 } {
   const rootMessenger = createRootMessenger(captureException);
@@ -233,6 +254,7 @@ function createService({
   const mockGetRFFCState = jest
     .fn()
     .mockReturnValue({ remoteFeatureFlags: rffcFlags, cacheTimestamp: 0 });
+  const mockFetchPositions = jest.fn().mockResolvedValue(MOCK_API_POSITIONS);
 
   rootMessenger.registerActionHandler(
     'NetworkController:getNetworkConfigurationByChainId',
@@ -246,12 +268,17 @@ function createService({
     'RemoteFeatureFlagController:getState',
     mockGetRFFCState,
   );
+  rootMessenger.registerActionHandler(
+    'MoneyAccountApiDataService:fetchPositions',
+    mockFetchPositions,
+  );
 
   rootMessenger.delegate({
     actions: [
       'NetworkController:getNetworkConfigurationByChainId',
       'NetworkController:getNetworkClientById',
       'RemoteFeatureFlagController:getState',
+      'MoneyAccountApiDataService:fetchPositions',
     ],
     // eslint-disable-next-line no-restricted-syntax
     events: ['RemoteFeatureFlagController:stateChange'],
@@ -271,6 +298,7 @@ function createService({
     mockGetNetworkConfig,
     mockGetNetworkClient,
     mockGetRFFCState,
+    mockFetchPositions,
     captureException,
   };
 }
@@ -1396,6 +1424,161 @@ describe('MoneyAccountBalanceService', () => {
   // ----------------------------------------------------------
   // getMoneyAccountBalance
   // ----------------------------------------------------------
+
+  describe('getBalance (source orchestration)', () => {
+    const RPC_ONLY_FLAGS = {
+      [VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+    };
+
+    const withSourceConfig = (
+      config: Record<string, unknown>,
+    ): Record<string, Json> => ({
+      ...RPC_ONLY_FLAGS,
+      [MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY]: config as Json,
+    });
+
+    it("defaults to the RPC source and does not call the Money API", async () => {
+      const aggregate3 = mockMoneyAccountBalanceMulticall({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+      });
+      const { service, mockFetchPositions } = createService({
+        rffcFlags: RPC_ONLY_FLAGS,
+      });
+
+      const result = await service.getBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+        totalBalance: '7200000',
+      });
+      expect(aggregate3).toHaveBeenCalledTimes(1);
+      expect(mockFetchPositions).not.toHaveBeenCalled();
+    });
+
+    it("uses the Money API source when preferred, mapping the balance object", async () => {
+      const aggregate3 = mockMoneyAccountBalanceMulticall();
+      const { service, mockFetchPositions } = createService({
+        rffcFlags: withSourceConfig({
+          enabledSources: ['api', 'rpc'],
+          preferredSource: 'api',
+          maxAttempts: 2,
+        }),
+      });
+
+      const result = await service.getBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+        totalBalance: '7200000',
+      });
+      expect(mockFetchPositions).toHaveBeenCalledWith(MOCK_ACCOUNT_ADDRESS);
+      expect(aggregate3).not.toHaveBeenCalled();
+    });
+
+    it("falls back to RPC when the preferred API source throws", async () => {
+      const aggregate3 = mockMoneyAccountBalanceMulticall({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+      });
+      const { service, mockFetchPositions } = createService({
+        rffcFlags: withSourceConfig({
+          enabledSources: ['api', 'rpc'],
+          preferredSource: 'api',
+          maxAttempts: 2,
+        }),
+      });
+      mockFetchPositions.mockRejectedValueOnce(new Error('Money API down'));
+
+      const result = await service.getBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+        totalBalance: '7200000',
+      });
+      expect(mockFetchPositions).toHaveBeenCalledTimes(1);
+      expect(aggregate3).toHaveBeenCalledTimes(1);
+    });
+
+    it("falls back to RPC when the API response has no usable balance object", async () => {
+      const aggregate3 = mockMoneyAccountBalanceMulticall({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+      });
+      const { service, mockFetchPositions } = createService({
+        rffcFlags: withSourceConfig({
+          enabledSources: ['api', 'rpc'],
+          preferredSource: 'api',
+          maxAttempts: 2,
+        }),
+      });
+      mockFetchPositions.mockResolvedValueOnce({
+        ...MOCK_API_POSITIONS,
+        balance: undefined,
+      });
+
+      const result = await service.getBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result.totalBalance).toBe('7200000');
+      expect(aggregate3).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not fall back beyond maxAttempts", async () => {
+      mockMoneyAccountBalanceMulticall();
+      const { service, mockFetchPositions } = createService({
+        rffcFlags: withSourceConfig({
+          enabledSources: ['api', 'rpc'],
+          preferredSource: 'api',
+          maxAttempts: 1,
+        }),
+      });
+      mockFetchPositions.mockRejectedValue(new Error('Money API down'));
+
+      await expect(service.getBalance(MOCK_ACCOUNT_ADDRESS)).rejects.toThrow(
+        'Money API down',
+      );
+    });
+
+    it("picks up a source config change published via RemoteFeatureFlagController", async () => {
+      const aggregate3 = mockMoneyAccountBalanceMulticall();
+      const { service, rootMessenger, mockFetchPositions } = createService({
+        rffcFlags: RPC_ONLY_FLAGS,
+      });
+
+      publishRFFCStateChange(rootMessenger, {
+        ...RPC_ONLY_FLAGS,
+        [MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY]: {
+          enabledSources: ['api'],
+          preferredSource: 'api',
+          maxAttempts: 1,
+        },
+      });
+
+      await service.getBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(mockFetchPositions).toHaveBeenCalledTimes(1);
+      expect(aggregate3).not.toHaveBeenCalled();
+    });
+
+    it("ignores a malformed source config flag and keeps using RPC", async () => {
+      const aggregate3 = mockMoneyAccountBalanceMulticall({
+        musdBalance: '1',
+        vmusdValueInMusd: '2',
+      });
+      const { service, mockFetchPositions } = createService({
+        rffcFlags: withSourceConfig({ preferredSource: 'carrier-pigeon' }),
+      });
+
+      const result = await service.getBalance(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result.totalBalance).toBe('3');
+      expect(aggregate3).toHaveBeenCalledTimes(1);
+      expect(mockFetchPositions).not.toHaveBeenCalled();
+    });
+  });
 
   describe('getMoneyAccountBalance', () => {
     it('returns musdBalance, vmusdValueInMusd, and totalBalance from a single aggregate3 call', async () => {

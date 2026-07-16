@@ -21,3 +21,30 @@ export type VaultConfig = {
    */
   underlyingToken?: Hex;
 };
+
+/**
+ * A balance data source the orchestration layer can fetch from.
+ *
+ * - `'rpc'`: on-chain Multicall3 reads via the wallet's RPC provider
+ *   (this service's {@link MoneyAccountBalanceService.getMoneyAccountBalance}).
+ * - `'api'`: the indexed Money Account API, reached via
+ *   `MoneyAccountApiDataService:fetchPositions`.
+ */
+export type BalanceSource = 'rpc' | 'api';
+
+/**
+ * Orchestration config for {@link MoneyAccountBalanceService.getBalance}, read
+ * from the remote feature flag and validated by `BalanceSourceConfigStruct`.
+ *
+ * The orchestrator tries `preferredSource` first, then the remaining
+ * `enabledSources` in order, stopping at the first success (bounded by
+ * `maxAttempts`). This keeps source selection and fallback out of clients.
+ */
+export type BalanceSourceConfig = {
+  /** Sources the orchestrator is allowed to use. */
+  enabledSources: BalanceSource[];
+  /** Source tried first; must also appear in `enabledSources` to be used. */
+  preferredSource: BalanceSource;
+  /** Maximum number of source attempts before giving up. */
+  maxAttempts: number;
+};

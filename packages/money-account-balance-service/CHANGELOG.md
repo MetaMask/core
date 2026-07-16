@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `getBalance` orchestration entry point to `MoneyAccountBalanceService` that fetches Money account balances from a configurable source (`'rpc'` on-chain Multicall3, or `'api'` via `MoneyAccountApiDataService:fetchPositions`) with fallback, keeping source selection out of clients
+- Add balance-source orchestration config via the `moneyAccountBalanceSource` remote feature flag (`enabledSources`, `preferredSource`, `maxAttempts`), read the same way as the existing vault-config and balance stale-time flags; defaults to RPC only
+- Export `BalanceSource` and `BalanceSourceConfig` types, the `MoneyAccountBalanceServiceGetBalanceAction` action type, and the `MoneyApiBalanceUnavailableError` error
+
+### Changed
+
+- `MoneyAccountBalanceService` now depends on `@metamask/money-account-api-data-service` (type + `fetchPositions` action) to power the `'api'` balance source
+
 ## [2.2.0]
 
 ### Added

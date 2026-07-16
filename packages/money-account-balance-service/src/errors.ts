@@ -35,3 +35,19 @@ export class VaultConfigValidationError extends Error {
     this.name = 'VaultConfigValidationError';
   }
 }
+
+/**
+ * Thrown by the `'api'` balance strategy when the Money Account API positions
+ * response does not include a usable `balance` object. This is a "source
+ * unavailable" signal that lets {@link MoneyAccountBalanceService.getBalance}
+ * fall back to the next configured source rather than failing outright.
+ */
+export class MoneyApiBalanceUnavailableError extends Error {
+  constructor(message?: string) {
+    super(
+      message ??
+        'MoneyAccountBalanceService: Money API positions response did not include a usable balance object.',
+    );
+    this.name = 'MoneyApiBalanceUnavailableError';
+  }
+}
