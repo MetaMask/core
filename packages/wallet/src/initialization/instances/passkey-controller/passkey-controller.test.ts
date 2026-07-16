@@ -127,7 +127,7 @@ describe('passkeyController', () => {
 
     expect(PasskeyController).toHaveBeenCalledWith(
       expect.objectContaining({
-        rpId: undefined,
+        rpId: 'rp-id',
         rpName: 'Custom RP',
         userName: 'custom-user',
         userDisplayName: 'Custom Display Name',
