@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import type { InternalProvider } from '@metamask/eth-json-rpc-provider';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
@@ -7,11 +8,11 @@ import {
   assertIsJsonRpcSuccess,
 } from '@metamask/utils';
 
-import { createRequest } from '../test/util/helpers';
+import { createRequest } from '../test/util/helpers.js';
 import {
   providerAsMiddleware,
   providerAsMiddlewareV2,
-} from './providerAsMiddleware';
+} from './providerAsMiddleware.js';
 
 const createMockProvider = (resultOrError: Json | Error): InternalProvider =>
   ({

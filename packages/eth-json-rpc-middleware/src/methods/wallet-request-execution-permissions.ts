@@ -15,8 +15,8 @@ import {
 import { HexChecksumAddressStruct, StrictHexStruct } from '@metamask/utils';
 import type { Hex, Json, JsonRpcRequest } from '@metamask/utils';
 
-import { validateParams } from '../utils/validation';
-import type { WalletMiddlewareContext } from '../wallet';
+import { validateParams } from '../utils/validation.js';
+import type { WalletMiddlewareContext } from '../wallet.js';
 
 const PermissionStruct = object({
   type: string(),

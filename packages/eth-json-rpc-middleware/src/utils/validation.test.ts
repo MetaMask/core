@@ -1,41 +1,21 @@
+import { jest } from '@jest/globals';
 import { MiddlewareContext } from '@metamask/json-rpc-engine/v2';
 import { providerErrors } from '@metamask/rpc-errors';
-import type { StructError } from '@metamask/superstruct';
-import { any, validate } from '@metamask/superstruct';
+import { any, object, string } from '@metamask/superstruct';
 
-import type { WalletMiddlewareKeyValues } from '../wallet';
+import type { WalletMiddlewareKeyValues } from '../wallet.js';
 import {
   resemblesAddress,
   validateAndNormalizeKeyholder,
   validateParams,
   validateTypedMessageKeys,
-} from './validation';
-
-jest.mock('@metamask/superstruct', () => ({
-  ...jest.requireActual('@metamask/superstruct'),
-  validate: jest.fn(),
-}));
+} from './validation.js';
 
 const ADDRESS_MOCK = '0xABCDabcdABCDabcdABCDabcdABCDabcdABCDabcd';
 const createContext = (): MiddlewareContext<WalletMiddlewareKeyValues> =>
   new MiddlewareContext<WalletMiddlewareKeyValues>([['origin', 'test']]);
 
-const STRUCT_ERROR_MOCK = {
-  failures: () => [
-    {
-      path: ['test1', 'test2'],
-      message: 'test message',
-    },
-    {
-      path: ['test3'],
-      message: 'test message 2',
-    },
-  ],
-} as StructError;
-
 describe('Validation Utils', () => {
-  const validateMock = jest.mocked(validate);
-
   let getAccountsMock: jest.MockedFn<(origin: string) => Promise<string[]>>;
 
   beforeEach(() => {
@@ -110,19 +90,18 @@ describe('Validation Utils', () => {
 
   describe('validateParams', () => {
     it('does now throw if superstruct returns no error', () => {
-      validateMock.mockReturnValue([undefined, undefined]);
       expect(() => validateParams({}, any())).not.toThrow();
     });
 
     it('throws if superstruct returns error', () => {
-      validateMock.mockReturnValue([STRUCT_ERROR_MOCK, undefined]);
+      const struct = object({ test1: object({ test2: string() }), test3: string() });
 
-      expect(() => validateParams({}, any()))
+      expect(() => validateParams({ test1: { test2: 42 }, test3: 42 }, struct))
         .toThrowErrorMatchingInlineSnapshot(`
         "Invalid params
 
-        test1 > test2 - test message
-        test3 - test message 2"
+        test1 > test2 - Expected a string, but received: 42
+        test3 - Expected a string, but received: 42"
       `);
     });
   });

@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import type { PollingBlockTracker } from '@metamask/eth-block-tracker';
 import { JsonRpcEngineV2 } from '@metamask/json-rpc-engine/v2';
 import { rpcErrors } from '@metamask/rpc-errors';
@@ -6,8 +7,8 @@ import { Hex, Json } from '@metamask/utils';
 import {
   createFinalMiddlewareWithDefaultResult,
   createRequest,
-} from '../test/util/helpers';
-import { createBlockTrackerInspectorMiddleware } from './block-tracker-inspector';
+} from '../test/util/helpers.js';
+import { createBlockTrackerInspectorMiddleware } from './block-tracker-inspector.js';
 
 const createMockBlockTracker = (): PollingBlockTracker => {
   return {
