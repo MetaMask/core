@@ -6361,6 +6361,7 @@ __metadata:
     rimraf: "npm:^5.0.5"
     semver: "npm:^7.6.3"
     simple-git-hooks: "npm:^2.8.0"
+    ts-jest: "npm:^29.2.5"
     tsx: "npm:^4.20.5"
     typescript: "npm:~5.3.3"
     typescript-eslint: "npm:^8.48.0"
