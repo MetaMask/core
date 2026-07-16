@@ -1,4 +1,5 @@
 import * as providersModule from '@ethersproject/providers';
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   toChecksumHexAddress,
@@ -20,12 +21,12 @@ import type {
 import {
   buildMockGetNetworkClientById,
   buildCustomNetworkClientConfiguration,
-} from '../../network-controller/tests/helpers';
-import { EnsController, DEFAULT_ENS_NETWORK_MAP } from './EnsController';
+} from '../../network-controller/tests/helpers.js';
+import { EnsController, DEFAULT_ENS_NETWORK_MAP } from './EnsController.js';
 import type {
   EnsControllerState,
   EnsControllerMessenger,
-} from './EnsController';
+} from './EnsController.js';
 
 const defaultState: EnsControllerState = {
   ensEntries: {},
