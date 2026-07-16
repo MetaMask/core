@@ -1,29 +1,29 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 import type { AccountsControllerState } from '@metamask/accounts-controller';
 
-import { DEFAULT_BRIDGE_CONTROLLER_STATE } from '../../constants/bridge';
-import { ChainId } from '../../types';
+import { DEFAULT_BRIDGE_CONTROLLER_STATE } from '../../constants/bridge.js';
+import { ChainId } from '../../types.js';
 import type {
   GenericQuoteRequest,
   QuoteMetadata,
   QuoteRequest,
-} from '../../types';
-import { FeatureId } from '../../validators/feature-flags';
-import type { QuoteResponseV1 } from '../../validators/quote-response-v1';
-import type { TxData } from '../../validators/trade';
-import { getNativeAssetForChainId, isCrossChain } from '../bridge';
+} from '../../types.js';
+import { FeatureId } from '../../validators/feature-flags.js';
+import type { QuoteResponseV1 } from '../../validators/quote-response-v1.js';
+import type { TxData } from '../../validators/trade.js';
+import { getNativeAssetForChainId, isCrossChain } from '../bridge.js';
 import {
   formatAddressToAssetId,
   formatChainIdToCaip,
-} from '../caip-formatters';
-import { MetricsSwapType } from './constants';
+} from '../caip-formatters.js';
+import { MetricsSwapType } from './constants.js';
 import type {
   AccountHardwareType,
   InputKeys,
   InputValues,
   QuoteWarning,
   RequestParams,
-} from './types';
+} from './types.js';
 
 export const toInputChangedPropertyKey: Partial<
   Record<keyof QuoteRequest, InputKeys>

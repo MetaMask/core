@@ -2,10 +2,10 @@ import { AddressZero } from '@ethersproject/constants';
 import { convertHexToDecimal } from '@metamask/controller-utils';
 import { BigNumber } from 'bignumber.js';
 
-import type { GenericQuoteRequest, NonEvmFees, L1GasFees } from '../types';
-import type { Quote } from '../validators/quote';
-import type { QuoteResponseV1 } from '../validators/quote-response-v1';
-import type { TxData } from '../validators/trade';
+import type { GenericQuoteRequest, NonEvmFees, L1GasFees } from '../types.js';
+import type { QuoteResponseV1 } from '../validators/quote-response-v1.js';
+import type { Quote } from '../validators/quote.js';
+import type { TxData } from '../validators/trade.js';
 import {
   isValidQuoteRequest,
   getQuoteIdentifier,
@@ -21,7 +21,7 @@ import {
   calcCost,
   formatEtaInMinutes,
   calcSlippagePercentage,
-} from './quote';
+} from './quote.js';
 
 describe('Quote Utils', () => {
   describe('isValidQuoteRequest', () => {
@@ -500,7 +500,7 @@ describe('Quote Metadata Utils', () => {
           ...mockBridgeQuote,
           trade: { gasLimit: 21000, effectiveGas: 10000 },
           approval: { gasLimit: 46000, effectiveGas: 20000 },
-        } as QuoteResponseV1<TxData, TxData> & L1GasFees,
+        },
         feePerGasInDecGwei: '52',
         maxFeePerGasInDecGwei: '102',
         exchangeRate: '2000',

@@ -12,33 +12,33 @@ import type {
 import type { CaipAssetType } from '@metamask/utils';
 import { isStrictHexString, parseCaipAssetType } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
-import { orderBy } from 'lodash';
+import { orderBy } from 'lodash-es';
 import {
   createSelector as createSelector_,
   createStructuredSelector as createStructuredSelector_,
 } from 'reselect';
 
-import { BRIDGE_PREFERRED_GAS_ESTIMATE } from './constants/bridge';
+import { BRIDGE_PREFERRED_GAS_ESTIMATE } from './constants/bridge.js';
 import type {
   BridgeControllerState,
   ExchangeRate,
   QuoteMetadata,
   TokenAmountValues,
-} from './types';
-import { RequestStatus, SortOrder } from './types';
+} from './types.js';
+import { RequestStatus, SortOrder } from './types.js';
 import {
   getNativeAssetForChainId,
   isEvmQuoteResponse,
   isNativeAddress,
   isNonEvmChainId,
-} from './utils/bridge';
+} from './utils/bridge.js';
 import {
   formatAddressToAssetId,
   formatAddressToCaipReference,
   formatChainIdToCaip,
   formatChainIdToHex,
-} from './utils/caip-formatters';
-import { processFeatureFlags } from './utils/feature-flags';
+} from './utils/caip-formatters.js';
+import { processFeatureFlags } from './utils/feature-flags.js';
 import {
   calcAdjustedReturn,
   calcCost,
@@ -52,9 +52,9 @@ import {
   calcTotalEstimatedNetworkFee,
   calcTotalMaxNetworkFee,
   calcBatchFees,
-} from './utils/quote';
-import { getDefaultSlippagePercentage } from './utils/slippage';
-import type { QuoteResponseV1 } from './validators/quote-response-v1';
+} from './utils/quote.js';
+import { getDefaultSlippagePercentage } from './utils/slippage.js';
+import type { QuoteResponseV1 } from './validators/quote-response-v1.js';
 
 /**
  * The controller states that provide exchange rates

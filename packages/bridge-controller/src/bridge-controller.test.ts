@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 /* eslint-disable jest/no-restricted-matchers */
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
@@ -16,32 +17,35 @@ import type {
 import type { CaipAssetType } from '@metamask/utils';
 import nock from 'nock';
 
-import { flushPromises } from '../../../tests/helpers';
-import { handleFetch } from '../../controller-utils/src';
-import { mockBridgeQuotesErc20NativeV1 } from '../tests/mock-quotes-erc20-native';
-import { mockBridgeQuotesNativeErc20V1 } from '../tests/mock-quotes-native-erc20';
-import { mockBridgeQuotesNativeErc20EthV1 } from '../tests/mock-quotes-native-erc20-eth';
-import { mockBridgeQuotesSolErc20V1 } from '../tests/mock-quotes-sol-erc20';
-import { advanceToNthTimerThenFlush } from '../tests/mock-sse';
-import { BridgeController } from './bridge-controller';
+import { flushPromises } from '../../../tests/helpers.js';
+import { handleFetch } from '../../controller-utils/src/index.js';
+import { mockBridgeQuotesErc20NativeV1 } from '../tests/mock-quotes-erc20-native.js';
+import { mockBridgeQuotesNativeErc20EthV1 } from '../tests/mock-quotes-native-erc20-eth.js';
+import { mockBridgeQuotesNativeErc20V1 } from '../tests/mock-quotes-native-erc20.js';
+import { mockBridgeQuotesSolErc20V1 } from '../tests/mock-quotes-sol-erc20.js';
+import { advanceToNthTimerThenFlush } from '../tests/mock-sse.js';
+import { BridgeController } from './bridge-controller.js';
 import {
   BridgeClientId,
   BRIDGE_PROD_API_BASE_URL,
   DEFAULT_BRIDGE_CONTROLLER_STATE,
   ETH_USDT_ADDRESS,
-} from './constants/bridge';
-import { SWAPS_API_V2_BASE_URL } from './constants/swaps';
-import * as selectors from './selectors';
-import { ChainId, RequestStatus, SortOrder, StatusTypes } from './types';
-import type { BridgeControllerMessenger, GenericQuoteRequest } from './types';
-import * as balanceUtils from './utils/balance';
-import { getNativeAssetForChainId, isSolanaChainId } from './utils/bridge';
+} from './constants/bridge.js';
+import { SWAPS_API_V2_BASE_URL } from './constants/swaps.js';
+import * as selectors from './selectors.js';
+import { ChainId, RequestStatus, SortOrder, StatusTypes } from './types.js';
+import type {
+  BridgeControllerMessenger,
+  GenericQuoteRequest,
+} from './types.js';
+import * as balanceUtils from './utils/balance.js';
+import { getNativeAssetForChainId, isSolanaChainId } from './utils/bridge.js';
 import {
   formatAddressToAssetId,
   formatChainIdToCaip,
-} from './utils/caip-formatters';
-import * as featureFlagUtils from './utils/feature-flags';
-import * as fetchUtils from './utils/fetch';
+} from './utils/caip-formatters.js';
+import * as featureFlagUtils from './utils/feature-flags.js';
+import * as fetchUtils from './utils/fetch.js';
 import {
   BatchSellMetricsEventName,
   BatchSellMetricsLocation,
@@ -50,9 +54,9 @@ import {
   MetricsActionType,
   MetricsSwapType,
   UnifiedSwapBridgeEventName,
-} from './utils/metrics/constants';
-import { FeatureId } from './validators/feature-flags';
-import type { QuoteResponseV1 } from './validators/quote-response-v1';
+} from './utils/metrics/constants.js';
+import { FeatureId } from './validators/feature-flags.js';
+import type { QuoteResponseV1 } from './validators/quote-response-v1.js';
 
 const EMPTY_INIT_STATE = DEFAULT_BRIDGE_CONTROLLER_STATE;
 
@@ -995,8 +999,8 @@ describe('BridgeController', function () {
         );
         expect(fetchBridgeQuotesSpy).toHaveBeenCalledTimes(2);
         const secondFetchTime = bridgeController.state.quotesLastFetched;
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        expect(secondFetchTime).toBeGreaterThan(firstFetchTime!);
+
+        expect(secondFetchTime).toBeGreaterThan(firstFetchTime);
 
         // After 3nd fetch throws an error
         jest.advanceTimersToNextTimer();
@@ -1019,10 +1023,9 @@ describe('BridgeController', function () {
             quotesRefreshCount: 3,
           }),
         );
-        expect(
-          bridgeController.state.quotesLastFetched,
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        ).toBeGreaterThan(secondFetchTime!);
+        expect(bridgeController.state.quotesLastFetched).toBeGreaterThan(
+          secondFetchTime,
+        );
         const thirdFetchTime = bridgeController.state.quotesLastFetched;
 
         // Incoming request update aborts current polling
@@ -1065,10 +1068,7 @@ describe('BridgeController', function () {
           ...mockBridgeQuotesNativeErc20EthV1,
           ...mockBridgeQuotesNativeErc20EthV1,
         ]);
-        expect(
-          quotesLastFetched,
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-        ).toBeGreaterThan(thirdFetchTime!);
+        expect(quotesLastFetched).toBeGreaterThan(thirdFetchTime);
 
         expect(hasSufficientBalanceSpy).toHaveBeenCalledTimes(1);
         expect(getLayer1GasFeeMock).not.toHaveBeenCalled();

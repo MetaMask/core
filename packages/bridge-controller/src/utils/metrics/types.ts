@@ -5,8 +5,8 @@ import type {
   InputPrimaryDenomination,
   SortOrder,
   StatusTypes,
-} from '../../types';
-import type { FeatureId } from '../../validators/feature-flags';
+} from '../../types.js';
+import type { FeatureId } from '../../validators/feature-flags.js';
 import type {
   UnifiedSwapBridgeEventName,
   BatchSellMetricsEventName,
@@ -16,7 +16,7 @@ import type {
   MetricsActionType,
   MetricsSwapType,
   PollingStatus,
-} from './constants';
+} from './constants.js';
 
 /**
  * These properties map to properties required by the segment-schema. For example: https://github.com/Consensys/segment-schema/blob/main/libraries/properties/cross-chain-swaps-action.yaml
