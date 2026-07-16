@@ -7,7 +7,7 @@ import type {
   PermissionType,
   PermissionDecoder,
   ValidateAndDecodeResult,
-} from './types';
+} from './types.js';
 
 /**
  * Returns every permission decoder whose caveat-address pattern matches the

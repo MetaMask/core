@@ -2,9 +2,9 @@ import { decodeAllowedCalldataTerms } from '@metamask/delegation-core';
 import { getChecksumAddress } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { EXECUTION_PERMISSION_PAYEE_RULE_TYPE } from '../../constants';
-import type { RuleDecoder } from '../types';
-import { getByteLength } from '../utils';
+import { EXECUTION_PERMISSION_PAYEE_RULE_TYPE } from '../../constants.js';
+import type { RuleDecoder } from '../types.js';
+import { getByteLength } from '../utils.js';
 
 const ERC20_TRANSFER_PAYEE_START_INDEX = 4;
 const ERC20_PAYEE_VALUE_BYTE_LENGTH = 32;
