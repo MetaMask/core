@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `beginAtomicBatchUpdate` for coherent multi-call updates with monotonic revisions and revision-bound gas preparation
+
 ## [69.0.0]
 
 ### Changed

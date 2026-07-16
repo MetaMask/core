@@ -352,7 +352,26 @@ async function getSingleQuote(
 
     log('Fetched relay quote', quote);
 
-    return await normalizeQuote(quote, request, fullRequest);
+    let normalizationRequest = fullRequest;
+    const transactionPreparation =
+      !request.isMaxAmount && !request.isPostQuote
+        ? fullRequest.transactionPreparation
+        : undefined;
+
+    if (transactionPreparation) {
+      const preparationResult = await transactionPreparation;
+
+      if (preparationResult.status !== 'prepared') {
+        throw new Error('Transaction preparation was superseded');
+      }
+
+      normalizationRequest = {
+        ...fullRequest,
+        transaction: preparationResult.transaction,
+      };
+    }
+
+    return await normalizeQuote(quote, request, normalizationRequest);
   } catch (error) {
     log('Error fetching relay quote', error);
     throw error;

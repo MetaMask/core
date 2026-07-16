@@ -1,6 +1,9 @@
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  BeginAtomicBatchUpdateResult,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import type { Draft } from 'immer';
 import { noop } from 'lodash';
 
@@ -17,12 +20,15 @@ import type {
   GetDelegationTransactionCallback,
   GetPaymentOverrideDataCallback,
   PolymarketCallbacks,
+  PrepareTransactionAmountCallback,
+  PrepareTransactionAmountResult,
   TransactionConfigCallback,
   TransactionData,
   TransactionPayControllerMessenger,
   TransactionPayFiatOptions,
   TransactionPayControllerOptions,
   TransactionPayControllerState,
+  UpdateAmountRequest,
   UpdateFiatPaymentRequest,
   UpdatePaymentTokenRequest,
 } from './types';
@@ -30,6 +36,7 @@ import { getStrategyOrder } from './utils/feature-flags';
 import { updateQuotes } from './utils/quotes';
 import { updateSourceAmounts } from './utils/source-amounts';
 import {
+  getTransaction,
   subscribeAssetChanges,
   subscribeTransactionChanges,
 } from './utils/transaction';
@@ -43,6 +50,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'polymarketGetDepositWalletAddress',
   'polymarketSubmitDepositWalletBatch',
   'setTransactionConfig',
+  'updateAmount',
   'updateFiatPayment',
   'updatePaymentToken',
 ] as const;
@@ -83,6 +91,19 @@ export class TransactionPayController extends BaseController<
 
   readonly #polymarket?: PolymarketCallbacks;
 
+  readonly #prepareTransactionAmount?: PrepareTransactionAmountCallback;
+
+  readonly #quoteSuppressedTransactionIds = new Set<string>();
+
+  readonly #amountUpdates = new Map<
+    string,
+    {
+      controller: AbortController;
+      intentKey: string;
+      promise: Promise<boolean>;
+    }
+  >();
+
   constructor({
     fiatOptions,
     getAmountData,
@@ -92,6 +113,7 @@ export class TransactionPayController extends BaseController<
     getStrategies,
     messenger,
     polymarket,
+    prepareTransactionAmount,
     state,
   }: TransactionPayControllerOptions) {
     super({
@@ -108,6 +130,7 @@ export class TransactionPayController extends BaseController<
     this.#getStrategy = getStrategy;
     this.#getStrategies = getStrategies;
     this.#polymarket = polymarket;
+    this.#prepareTransactionAmount = prepareTransactionAmount;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -180,6 +203,152 @@ export class TransactionPayController extends BaseController<
         transactionData.paymentToken = undefined;
       }
     });
+  }
+
+  /**
+   * Prepares and atomically commits an exact transaction amount, then launches
+   * one quote generation joined to revision-bound local preparation.
+   * Identical in-flight intents share the same promise; different intents
+   * supersede and abort earlier work.
+   *
+   * @param request - Exact amount and transaction ID.
+   * @returns Whether the matching quote generation was published.
+   */
+  updateAmount(request: UpdateAmountRequest): Promise<boolean> {
+    const { amountHuman, transactionId } = request;
+    const intentKey = JSON.stringify({ amountHuman, transactionId });
+    const existing = this.#amountUpdates.get(transactionId);
+
+    if (
+      existing?.intentKey === intentKey &&
+      !existing.controller.signal.aborted
+    ) {
+      return existing.promise;
+    }
+
+    existing?.controller.abort(new Error('Superseded by newer amount update'));
+
+    const controller = new AbortController();
+    const promise = this.#updateAmountInternal(request, controller.signal);
+    const trackedPromise = promise.finally(() => {
+      if (this.#amountUpdates.get(transactionId)?.promise === trackedPromise) {
+        this.#updateTransactionData(transactionId, (transactionData) => {
+          transactionData.isLoading = false;
+        });
+        this.#amountUpdates.delete(transactionId);
+      }
+    });
+
+    this.#amountUpdates.set(transactionId, {
+      controller,
+      intentKey,
+      promise: trackedPromise,
+    });
+
+    return trackedPromise;
+  }
+
+  async #updateAmountInternal(
+    { amountHuman, transactionId }: UpdateAmountRequest,
+    signal: AbortSignal,
+  ): Promise<boolean> {
+    const transaction = getTransaction(transactionId, this.messenger);
+
+    if (!transaction) {
+      throw new Error(`Transaction not found: ${transactionId}`);
+    }
+
+    if (!this.#prepareTransactionAmount) {
+      throw new Error('Transaction amount preparation is not configured');
+    }
+
+    this.#updateTransactionData(transactionId, (transactionData) => {
+      transactionData.isLoading = true;
+      transactionData.quotes = undefined;
+      transactionData.quotesLastUpdated = undefined;
+      transactionData.totals = undefined;
+    });
+
+    const amountPreparation = await this.#prepareTransactionAmount({
+      amountHuman,
+      signal,
+      transaction,
+    });
+
+    if (signal.aborted) {
+      return false;
+    }
+
+    this.#validateAmountPreparation(amountPreparation);
+
+    if (amountPreparation.kind === 'not-applicable') {
+      throw new Error('Transaction amount preparation is not applicable');
+    }
+
+    const atomicUpdate = this.#beginAtomicBatchUpdate(
+      transactionId,
+      amountPreparation,
+    );
+
+    return await updateQuotes({
+      getStrategies: this.#getStrategiesWithFallback.bind(this),
+      messenger: this.messenger,
+      signal,
+      transactionData: this.state.transactionData[transactionId],
+      transactionId,
+      transactionPreparation: atomicUpdate.preparation,
+      transactionRevision: atomicUpdate.revision,
+      updateTransactionData: this.#updateTransactionData.bind(this),
+    });
+  }
+
+  #beginAtomicBatchUpdate(
+    transactionId: string,
+    amountPreparation: Extract<
+      PrepareTransactionAmountResult,
+      { kind: 'prepared' }
+    >,
+  ): BeginAtomicBatchUpdateResult {
+    this.#quoteSuppressedTransactionIds.add(transactionId);
+
+    try {
+      return this.messenger.call(
+        'TransactionController:beginAtomicBatchUpdate',
+        {
+          transactionId,
+          requiredAssets: amountPreparation.requiredAssets,
+          nestedTransactionUpdates: amountPreparation.nestedTransactionUpdates,
+        },
+      );
+    } finally {
+      this.#quoteSuppressedTransactionIds.delete(transactionId);
+    }
+  }
+
+  #validateAmountPreparation(result: PrepareTransactionAmountResult): void {
+    if (result.kind === 'not-applicable') {
+      return;
+    }
+
+    const requiredIndexes = new Set(result.requiredNestedTransactionIndexes);
+    const updateIndexes = new Set(
+      result.nestedTransactionUpdates.map(
+        ({ transactionIndex }) => transactionIndex,
+      ),
+    );
+
+    const hasCompletePatch =
+      requiredIndexes.size > 0 &&
+      requiredIndexes.size === result.requiredNestedTransactionIndexes.length &&
+      updateIndexes.size === result.nestedTransactionUpdates.length &&
+      requiredIndexes.size === updateIndexes.size &&
+      [...requiredIndexes].every((index) => updateIndexes.has(index));
+
+    if (!hasCompletePatch) {
+      throw new Error(
+        'Transaction amount preparation returned an incomplete patch',
+      );
+    }
   }
 
   /**
@@ -385,7 +554,10 @@ export class TransactionPayController extends BaseController<
       }
     });
 
-    if (shouldUpdateQuotes) {
+    if (
+      shouldUpdateQuotes &&
+      !this.#quoteSuppressedTransactionIds.has(transactionId)
+    ) {
       updateQuotes({
         getStrategies: this.#getStrategiesWithFallback.bind(this),
         messenger: this.messenger,

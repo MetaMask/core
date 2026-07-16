@@ -1,7 +1,11 @@
 import { TransactionStatus } from '@metamask/transaction-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  AtomicBatchPreparationResult,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import type { BatchTransaction } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
+import { createDeferredPromise } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
 import { TransactionPayStrategy } from '../constants';
@@ -198,6 +202,40 @@ describe('Quotes Utils', () => {
   });
 
   describe('updateQuotes', () => {
+    it('does not publish an executable quote until matching preparation completes', async () => {
+      const transactionPreparation =
+        createDeferredPromise<AtomicBatchPreparationResult>();
+      const preparedTransaction = {
+        ...TRANSACTION_META_MOCK,
+        transactionRevision: 1,
+      };
+      getTransactionMock.mockReturnValue(preparedTransaction);
+
+      const resultPromise = run({
+        transactionPreparation: transactionPreparation.promise,
+        transactionRevision: 1,
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(getQuotesMock).toHaveBeenCalled();
+      expect(calculateTotalsMock).not.toHaveBeenCalled();
+
+      transactionPreparation.resolve({
+        revision: 1,
+        status: 'prepared',
+        transaction: preparedTransaction,
+      });
+
+      expect(await resultPromise).toBe(true);
+      expect(calculateTotalsMock).toHaveBeenCalledWith(
+        expect.objectContaining({ transaction: preparedTransaction }),
+      );
+    });
+
     it('updates quotes in state', async () => {
       await run();
 
