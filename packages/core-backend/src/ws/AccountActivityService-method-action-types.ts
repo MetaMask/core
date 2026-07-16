@@ -7,9 +7,11 @@ import type { AccountActivityService } from './AccountActivityService';
 
 /**
  * Subscribe to account activity (transactions and balance updates)
- * Address should be in CAIP-10 format (e.g., "eip155:0:0x1234..." or "solana:0:ABC123...")
+ * Addresses should be in CAIP-10 format (e.g., "eip155:0:0x1234..." or "solana:0:ABC123...")
  *
- * @param subscription - Account subscription configuration with address
+ * @param subscription - The subscription configuration
+ * @param subscription.addresses - Array of addresses to subscribe to, each in CAIP-10 format
+ * or an `addresses` array for batch subscription
  */
 export type AccountActivityServiceSubscribeAction = {
   type: `AccountActivityService:subscribe`;

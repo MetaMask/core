@@ -465,7 +465,7 @@ describe('AccountActivityService', () => {
   // =============================================================================
   describe('subscribe', () => {
     const mockSubscription: SubscriptionOptions = {
-      address: 'eip155:1:0x1234567890123456789012345678901234567890',
+      addresses: ['eip155:1:0x1234567890123456789012345678901234567890'],
     };
 
     it('should handle account activity messages by processing transactions and balance updates and publishing events', async () => {
@@ -574,13 +574,31 @@ describe('AccountActivityService', () => {
       );
     });
 
+    it('should allow subscription to multiple addresses with a single subscription', async () => {
+      await withService(async ({ service, mocks }) => {
+        const addresses = ['eip155:1:0x123abc', 'eip155:1:0x456def'];
+
+        await service.subscribe({ addresses });
+
+        expect(mocks.subscribe).toHaveBeenCalledWith(
+          expect.objectContaining({
+            channels: [
+              'account-activity.v1.eip155:1:0x123abc',
+              'account-activity.v1.eip155:1:0x456def',
+            ],
+            callback: expect.any(Function),
+          }),
+        );
+      });
+    });
+
     it('should handle subscription failure by calling forceReconnection', async () => {
       await withService(async ({ service, mocks }) => {
         // Mock subscribe to fail
         mocks.subscribe.mockRejectedValue(new Error('Subscription failed'));
 
         // Should handle subscription failure gracefully - should not throw
-        const result = await service.subscribe({ address: '0x123abc' });
+        const result = await service.subscribe({ addresses: ['0x123abc'] });
         expect(result).toBeUndefined();
 
         // Verify the subscription was attempted
@@ -885,7 +903,10 @@ describe('AccountActivityService', () => {
 
           expect(mocks.subscribe).toHaveBeenCalledWith(
             expect.objectContaining({
-              channels: ['account-activity.v1.tron:0:tronaddress123abc'],
+              channels: [
+                'account-activity.v1.eip155:0:0xevmaddress123abc',
+                'account-activity.v1.tron:0:tronaddress123abc',
+              ],
             }),
           );
         });
@@ -935,15 +956,13 @@ describe('AccountActivityService', () => {
           await completeAsyncOperations();
 
           // Verify that subscribe was called for both accounts with the same entropy and group index
-          expect(mocks.subscribe).toHaveBeenCalledTimes(2);
+          expect(mocks.subscribe).toHaveBeenCalledTimes(1);
           expect(mocks.subscribe).toHaveBeenCalledWith(
             expect.objectContaining({
-              channels: ['account-activity.v1.eip155:0:0xaccount1'],
-            }),
-          );
-          expect(mocks.subscribe).toHaveBeenCalledWith(
-            expect.objectContaining({
-              channels: ['account-activity.v1.eip155:0:0xaccount2'],
+              channels: [
+                'account-activity.v1.eip155:0:0xaccount1',
+                'account-activity.v1.eip155:0:0xaccount2',
+              ],
             }),
           );
         });
