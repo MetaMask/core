@@ -4,7 +4,7 @@ import { QueryKey } from './BaseDataService';
 
 /**
  * Process query responses, validating them using Superstruct if a struct is defined.
- * 
+ *
  * @param queryKey - The query key.
  * @param response - The query response
  * @param struct - The struct defining the schema for the query response.
