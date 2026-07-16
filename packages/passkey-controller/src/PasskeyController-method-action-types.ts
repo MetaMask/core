@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { PasskeyController } from './PasskeyController';
+import type { PasskeyController } from './PasskeyController.js';
 
 /**
  * Whether a passkey is enrolled and vault key material is stored.

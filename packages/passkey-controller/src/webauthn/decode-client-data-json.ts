@@ -1,5 +1,5 @@
-import { base64URLToBytes } from '../utils/encoding';
-import type { ClientDataJSON } from './types';
+import { base64URLToBytes } from '../utils/encoding.js';
+import type { ClientDataJSON } from './types.js';
 
 /**
  * Decode an authenticator's base64url-encoded clientDataJSON to JSON.

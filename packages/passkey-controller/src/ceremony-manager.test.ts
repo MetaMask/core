@@ -1,8 +1,10 @@
+import { jest } from '@jest/globals';
+
 import {
   CEREMONY_MAX_AGE_MS,
   CeremonyManager,
   MAX_CONCURRENT_PASSKEY_CEREMONIES,
-} from './ceremony-manager';
+} from './ceremony-manager.js';
 
 describe('CeremonyManager', () => {
   const baseReg = { userHandle: 'u' };

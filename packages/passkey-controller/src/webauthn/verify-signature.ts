@@ -3,8 +3,8 @@ import { ed25519 } from '@noble/curves/ed25519';
 import { p256, p384, p521 } from '@noble/curves/nist';
 import { sha256, sha384, sha512 } from '@noble/hashes/sha2';
 
-import { bytesToBase64URL } from '../utils/encoding';
-import { COSEALG, COSECRV, COSEKEYS, COSEKTY } from './constants';
+import { bytesToBase64URL } from '../utils/encoding.js';
+import { COSEALG, COSECRV, COSEKEYS, COSEKTY } from './constants.js';
 
 type COSEPublicKey = Map<number, number | Uint8Array>;
 

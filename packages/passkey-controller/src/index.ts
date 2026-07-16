@@ -1,13 +1,13 @@
 export {
   PasskeyControllerErrorCode,
   PasskeyControllerErrorMessage,
-} from './constants';
-export { PasskeyControllerError } from './errors';
+} from './constants.js';
+export { PasskeyControllerError } from './errors.js';
 export {
   PasskeyController,
   getDefaultPasskeyControllerState,
   passkeyControllerSelectors,
-} from './PasskeyController';
+} from './PasskeyController.js';
 export type {
   PasskeyControllerState,
   PasskeyControllerMessenger,
@@ -15,7 +15,7 @@ export type {
   PasskeyControllerActions,
   PasskeyControllerStateChangedEvent,
   PasskeyControllerEvents,
-} from './PasskeyController';
+} from './PasskeyController.js';
 export type {
   PasskeyCredentialInfo,
   PasskeyDerivationMethod,
@@ -23,13 +23,13 @@ export type {
   PasskeyRecord,
   PrfEvalExtension,
   PrfClientExtensionResults,
-} from './types';
+} from './types.js';
 export type {
   PasskeyRegistrationOptions,
   PasskeyRegistrationResponse,
   PasskeyAuthenticationOptions,
   PasskeyAuthenticationResponse,
-} from './webauthn/types';
+} from './webauthn/types.js';
 export type {
   PasskeyControllerIsPasskeyEnrolledAction,
   PasskeyControllerGenerateRegistrationOptionsAction,
@@ -42,4 +42,4 @@ export type {
   PasskeyControllerRemovePasskeyAction,
   PasskeyControllerClearStateAction,
   PasskeyControllerDestroyAction,
-} from './PasskeyController-method-action-types';
+} from './PasskeyController-method-action-types.js';

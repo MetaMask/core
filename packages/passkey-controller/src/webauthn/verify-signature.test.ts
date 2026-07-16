@@ -3,9 +3,9 @@ import { p384, p521 } from '@noble/curves/nist';
 import { sha384, sha512 } from '@noble/hashes/sha2';
 import { webcrypto } from 'node:crypto';
 
-import { base64URLToBytes } from '../utils/encoding';
-import { COSEALG, COSECRV, COSEKEYS, COSEKTY } from './constants';
-import { verifySignature } from './verify-signature';
+import { base64URLToBytes } from '../utils/encoding.js';
+import { COSEALG, COSECRV, COSEKEYS, COSEKTY } from './constants.js';
+import { verifySignature } from './verify-signature.js';
 
 function decodeJwkBase64Url(value: string): Uint8Array {
   return Uint8Array.from(
