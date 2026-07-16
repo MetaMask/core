@@ -1,12 +1,14 @@
-import type { FeatureFlags } from '../../utils/feature-flags';
-import { getFeatureFlags } from '../../utils/feature-flags';
-import { RELAY_STATUS_URL } from './constants';
+import { jest } from '@jest/globals';
+
+import type { FeatureFlags } from '../../utils/feature-flags.js';
+import { getFeatureFlags } from '../../utils/feature-flags.js';
+import { RELAY_STATUS_URL } from './constants.js';
 import {
   fetchRelayQuote,
   getRelayStatus,
   submitRelayExecute,
-} from './relay-api';
-import type { RelayQuoteRequest } from './types';
+} from './relay-api.js';
+import type { RelayQuoteRequest } from './types.js';
 
 jest.mock('../../utils/feature-flags');
 

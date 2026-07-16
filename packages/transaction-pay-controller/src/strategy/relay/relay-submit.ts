@@ -9,50 +9,50 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { projectLogger } from '../../logger';
+import { projectLogger } from '../../logger.js';
 import type {
   PayStrategyExecuteRequest,
   TransactionPayControllerMessenger,
   TransactionPayQuote,
-} from '../../types';
-import { prefixError } from '../../utils/error-prefix';
+} from '../../types.js';
+import { prefixError } from '../../utils/error-prefix.js';
 import {
   getFeatureFlags,
   getRelayPollingInterval,
   getRelayPollingTimeout,
-} from '../../utils/feature-flags';
-import { getNetworkClientId } from '../../utils/provider';
+} from '../../utils/feature-flags.js';
+import { getNetworkClientId } from '../../utils/provider.js';
 import {
   getLiveTokenBalance,
   normalizeTokenAddress,
   TokenAddressTarget,
-} from '../../utils/token';
+} from '../../utils/token.js';
 import {
   collectTransactionIds,
   getTransaction,
   updateTransaction,
   waitForTransactionConfirmed,
-} from '../../utils/transaction';
+} from '../../utils/transaction.js';
 import {
   FALLBACK_HASH,
   RELAY_DEPOSIT_TYPES,
   RELAY_FAILURE_STATUSES,
   RELAY_PENDING_STATUSES,
-} from './constants';
-import { submitHyperliquidWithdraw } from './hyperliquid-withdraw';
+} from './constants.js';
+import { submitHyperliquidWithdraw } from './hyperliquid-withdraw.js';
 import {
   sweepPolymarketDepositWallet,
   submitPolymarketWithdraw,
-} from './polymarket/withdraw';
-import { getRelayStatus } from './relay-api';
-import { submitViaRelayExecute } from './relay-submit-execute';
+} from './polymarket/withdraw.js';
+import { getRelayStatus } from './relay-api.js';
+import { submitViaRelayExecute } from './relay-submit-execute.js';
 import type {
   RelayCompletionOutcome,
   RelayQuote,
   RelayStatus,
   RelayStatusResponse,
   RelayTransactionStep,
-} from './types';
+} from './types.js';
 
 const log = createModuleLogger(projectLogger, 'relay-strategy');
 const RELAY_ERROR_PREFIX = 'Relay: ';

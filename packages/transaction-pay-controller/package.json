@@ -68,7 +68,7 @@
     "bignumber.js": "^9.1.2",
     "bn.js": "^5.2.1",
     "immer": "^9.0.6",
-    "lodash": "^4.17.21"
+    "lodash-es": "^4.17.21"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",

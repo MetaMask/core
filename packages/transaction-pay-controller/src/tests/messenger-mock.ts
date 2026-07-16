@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import type { TokensControllerGetStateAction } from '@metamask/assets-controllers';
 import type { TokenBalancesControllerGetStateAction } from '@metamask/assets-controllers';
 import type { TokenRatesControllerGetStateAction } from '@metamask/assets-controllers';

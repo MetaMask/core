@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import type {
   Quote as RampsQuote,
   QuotesResponse as RampsQuotesResponse,
@@ -6,29 +7,32 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { NATIVE_TOKEN_ADDRESS, TransactionPayStrategy } from '../../constants';
+import {
+  NATIVE_TOKEN_ADDRESS,
+  TransactionPayStrategy,
+} from '../../constants.js';
 import type {
   PayStrategyGetQuotesRequest,
   TransactionFiatPayment,
   TransactionPayQuote,
   TransactionPayRequiredToken,
-} from '../../types';
+} from '../../types.js';
 import {
   buildCaipAssetType,
   computeRawFromFiatAmount,
   getTokenFiatRate,
   getTokenInfo,
-} from '../../utils/token';
-import { getRelayQuotes } from '../relay/relay-quotes';
-import type { RelayQuote } from '../relay/types';
-import type { TransactionPayFiatAsset } from './constants';
-import { DEFAULT_FIAT_CURRENCY, MUSD_MONAD_FIAT_ASSET } from './constants';
-import { getFiatQuotes } from './fiat-quotes';
+} from '../../utils/token.js';
+import { getRelayQuotes } from '../relay/relay-quotes.js';
+import type { RelayQuote } from '../relay/types.js';
+import type { TransactionPayFiatAsset } from './constants.js';
+import { DEFAULT_FIAT_CURRENCY, MUSD_MONAD_FIAT_ASSET } from './constants.js';
+import { getFiatQuotes } from './fiat-quotes.js';
 import {
   deriveFiatAssetForFiatPayment,
   getRawSourceAmountFromOrderCryptoAmount,
   isMoneyAccountDepositTransaction,
-} from './utils';
+} from './utils.js';
 
 jest.mock('../relay/relay-quotes');
 jest.mock('../../utils/token');

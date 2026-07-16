@@ -289,7 +289,13 @@ export function getGasFee(
   const chainState = gasFeeControllerState?.gasFeeEstimatesByChainId?.[chainId];
 
   const { estimatedBaseFee: estimatedBaseFeeGwei, medium } =
-    chainState?.gasFeeEstimates ?? {};
+    (chainState?.gasFeeEstimates ?? {}) as {
+      estimatedBaseFee?: string;
+      medium?: {
+        suggestedMaxFeePerGas?: string;
+        suggestedMaxPriorityFeePerGas?: string;
+      };
+    };
 
   const maxFeePerGasGwei = medium?.suggestedMaxFeePerGas;
   const maxPriorityFeePerGasGwei = medium?.suggestedMaxPriorityFeePerGas;

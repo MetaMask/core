@@ -1,4 +1,5 @@
 import { Interface } from '@ethersproject/abi';
+import { jest } from '@jest/globals';
 import { successfulFetch } from '@metamask/controller-utils';
 import { TransactionType } from '@metamask/transaction-controller';
 import type {
@@ -7,27 +8,27 @@ import type {
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
+import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
   CHAIN_ID_HYPERCORE,
   TransactionPayStrategy,
-} from '../../constants';
-import { getMessengerMock } from '../../tests/messenger-mock';
-import type { QuoteRequest } from '../../types';
+} from '../../constants.js';
+import { getMessengerMock } from '../../tests/messenger-mock.js';
+import type { QuoteRequest } from '../../types.js';
 import {
   getGasBuffer,
   getSlippage,
   isEIP7702Chain,
-} from '../../utils/feature-flags';
-import { calculateGasCost, calculateGasFeeTokenCost } from '../../utils/gas';
-import * as quoteGasUtils from '../../utils/quote-gas';
-import { getTokenBalance, getTokenFiatRate } from '../../utils/token';
-import { getAcrossQuotes } from './across-quotes';
-import { ACROSS_HYPERCORE_USDC_PERPS_ADDRESS } from './perps';
-import * as acrossTransactions from './transactions';
-import type { AcrossSwapApprovalResponse } from './types';
+} from '../../utils/feature-flags.js';
+import { calculateGasCost, calculateGasFeeTokenCost } from '../../utils/gas.js';
+import * as quoteGasUtils from '../../utils/quote-gas.js';
+import { getTokenBalance, getTokenFiatRate } from '../../utils/token.js';
+import { getAcrossQuotes } from './across-quotes.js';
+import { ACROSS_HYPERCORE_USDC_PERPS_ADDRESS } from './perps.js';
+import * as acrossTransactions from './transactions.js';
+import type { AcrossSwapApprovalResponse } from './types.js';
 
 jest.mock('../../utils/token');
 jest.mock('../../utils/gas', () => ({

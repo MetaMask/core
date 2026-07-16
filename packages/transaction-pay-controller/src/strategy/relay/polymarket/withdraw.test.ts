@@ -1,22 +1,23 @@
+import { jest } from '@jest/globals';
 import type { Hex } from '@metamask/utils';
 
 import {
   POLYGON_PUSD_ADDRESS,
   POLYGON_USDCE_ADDRESS,
-} from '../../../constants';
-import { getMessengerMock } from '../../../tests/messenger-mock';
-import type { QuoteRequest, TransactionPayQuote } from '../../../types';
-import { getLiveTokenBalance } from '../../../utils/token';
-import type { RelayQuote, RelayQuoteRequest } from '../types';
+} from '../../../constants.js';
+import { getMessengerMock } from '../../../tests/messenger-mock.js';
+import type { QuoteRequest, TransactionPayQuote } from '../../../types.js';
+import { getLiveTokenBalance } from '../../../utils/token.js';
+import type { RelayQuote, RelayQuoteRequest } from '../types.js';
 import {
   POLYMARKET_COLLATERAL_OFFRAMP_POLYGON,
   POLYMARKET_COLLATERAL_ONRAMP_POLYGON,
-} from './constants';
+} from './constants.js';
 import {
   applyPolymarketDepositWalletOverrides,
   submitPolymarketWithdraw,
   sweepPolymarketDepositWallet,
-} from './withdraw';
+} from './withdraw.js';
 
 jest.mock('../../../utils/token');
 

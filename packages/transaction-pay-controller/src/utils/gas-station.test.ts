@@ -1,13 +1,14 @@
+import { jest } from '@jest/globals';
 import type { GasFeeToken } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
-import { getMessengerMock } from '../tests/messenger-mock';
-import { calculateGasFeeTokenCost } from './gas';
+import { getDefaultRemoteFeatureFlagControllerState } from '../../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
+import { getMessengerMock } from '../tests/messenger-mock.js';
 import {
   getGasStationEligibility,
   getGasStationCostInSourceTokenRaw,
-} from './gas-station';
+} from './gas-station.js';
+import { calculateGasFeeTokenCost } from './gas.js';
 
 jest.mock('./gas');
 

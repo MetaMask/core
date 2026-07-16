@@ -1,12 +1,14 @@
-import type { PayStrategiesConfig } from '../../utils/feature-flags';
-import { getPayStrategiesConfig } from '../../utils/feature-flags';
+import { jest } from '@jest/globals';
+
+import type { PayStrategiesConfig } from '../../utils/feature-flags.js';
+import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
 import {
   fetchServerQuote,
   getServerStatus,
   submitServerIntent,
-} from './server-api';
-import { ServerProviderName, ServerStatus, ServerTradeType } from './types';
-import type { ServerQuoteRequest, ServerSubmitRequest } from './types';
+} from './server-api.js';
+import { ServerProviderName, ServerStatus, ServerTradeType } from './types.js';
+import type { ServerQuoteRequest, ServerSubmitRequest } from './types.js';
 
 jest.mock('../../utils/feature-flags');
 

@@ -1,5 +1,5 @@
-import type { TransactionPayControllerMessenger } from '../types';
-import { KEYRING_TYPES_SUPPORTING_7702 } from '../types';
+import type { TransactionPayControllerMessenger } from '../types.js';
+import { KEYRING_TYPES_SUPPORTING_7702 } from '../types.js';
 
 /**
  * Check whether a given account supports EIP-7702 authorization signing.

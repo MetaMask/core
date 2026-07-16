@@ -1,16 +1,16 @@
+import { jest } from '@jest/globals';
 /* eslint-disable no-new */
-
 import { createDeferredPromise } from '@metamask/utils';
 
-import { flushPromises } from '../../../../tests/helpers';
-import { TransactionPayStrategy } from '../constants';
-import { getMessengerMock } from '../tests/messenger-mock';
+import { flushPromises } from '../../../../tests/helpers.js';
+import { TransactionPayStrategy } from '../constants.js';
+import { getMessengerMock } from '../tests/messenger-mock.js';
 import type {
   TransactionData,
   TransactionPayControllerMessenger,
-} from '../types';
-import { refreshQuotes } from '../utils/quotes';
-import { QuoteRefresher } from './QuoteRefresher';
+} from '../types.js';
+import { refreshQuotes } from '../utils/quotes.js';
+import { QuoteRefresher } from './QuoteRefresher.js';
 
 jest.mock('../utils/quotes');
 

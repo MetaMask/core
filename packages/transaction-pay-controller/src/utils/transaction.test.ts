@@ -1,4 +1,5 @@
 import { Interface } from '@ethersproject/abi';
+import { jest } from '@jest/globals';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
 import { NetworkClientType } from '@metamask/network-controller';
 import {
@@ -8,16 +9,16 @@ import {
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { TransactionControllerState } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
-import { noop } from 'lodash';
+import { noop } from 'lodash-es';
 
-import { NATIVE_TOKEN_ADDRESS } from '../constants';
-import { getMessengerMock } from '../tests/messenger-mock';
+import { NATIVE_TOKEN_ADDRESS } from '../constants.js';
+import { getMessengerMock } from '../tests/messenger-mock.js';
 import type {
   TransactionData,
   TransactionPayControllerState,
   TransactionPayRequiredToken,
-} from '../types';
-import { parseRequiredTokens } from './required-tokens';
+} from '../types.js';
+import { parseRequiredTokens } from './required-tokens.js';
 import {
   FINALIZED_STATUSES,
   collectTransactionIds,
@@ -28,7 +29,7 @@ import {
   subscribeTransactionChanges,
   updateTransaction,
   waitForTransactionConfirmed,
-} from './transaction';
+} from './transaction.js';
 
 jest.mock('./required-tokens');
 

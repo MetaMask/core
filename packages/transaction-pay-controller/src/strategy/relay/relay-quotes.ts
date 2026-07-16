@@ -10,7 +10,6 @@ import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
-import { TransactionPayStrategy } from '../../index.js';
 import {
   ARBITRUM_USDC_ADDRESS,
   CHAIN_ID_ARBITRUM,
@@ -23,6 +22,7 @@ import {
   USDC_DECIMALS,
   PaymentOverride,
 } from '../../constants.js';
+import { TransactionPayStrategy } from '../../index.js';
 import { projectLogger } from '../../logger.js';
 import type {
   Amount,

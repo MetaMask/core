@@ -1,15 +1,16 @@
+import { jest } from '@jest/globals';
 import type { Hex } from '@metamask/utils';
 
 import type {
   PayStrategyExecuteRequest,
   PayStrategyGetQuotesRequest,
   TransactionPayQuote,
-} from '../../types';
-import { getPayStrategiesConfig } from '../../utils/feature-flags';
-import { getRelayQuotes } from './relay-quotes';
-import { submitRelayQuotes } from './relay-submit';
-import { RelayStrategy } from './RelayStrategy';
-import type { RelayQuote } from './types';
+} from '../../types.js';
+import { getPayStrategiesConfig } from '../../utils/feature-flags.js';
+import { getRelayQuotes } from './relay-quotes.js';
+import { submitRelayQuotes } from './relay-submit.js';
+import { RelayStrategy } from './RelayStrategy.js';
+import type { RelayQuote } from './types.js';
 
 jest.mock('./relay-quotes');
 jest.mock('./relay-submit');

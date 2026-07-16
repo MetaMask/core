@@ -1,9 +1,10 @@
+import { jest } from '@jest/globals';
 import type { TransactionMeta } from '@metamask/transaction-controller';
-import { noop } from 'lodash';
+import { noop } from 'lodash-es';
 
-import type { TransactionData, TransactionFiatPayment } from '../types';
-import { getTransaction } from '../utils/transaction';
-import { updateFiatPayment } from './update-fiat-payment';
+import type { TransactionData, TransactionFiatPayment } from '../types.js';
+import { getTransaction } from '../utils/transaction.js';
+import { updateFiatPayment } from './update-fiat-payment.js';
 
 jest.mock('../utils/transaction');
 
