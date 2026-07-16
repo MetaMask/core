@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MessengerActions,
@@ -5,18 +6,18 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
-import { flushPromises } from '../../../../tests/helpers';
+import { flushPromises } from '../../../../tests/helpers.js';
 import {
   BackendWebSocketService,
   getCloseReason,
   WebSocketState,
   WebSocketSubscription,
-} from './BackendWebSocketService';
+} from './BackendWebSocketService.js';
 import type {
   BackendWebSocketServiceOptions,
   BackendWebSocketServiceMessenger,
   ServerNotificationMessage,
-} from './BackendWebSocketService';
+} from './BackendWebSocketService.js';
 
 // =====================================================
 // TYPES
@@ -906,8 +907,7 @@ describe('BackendWebSocketService', () => {
           // Mock Math.random to make Cockatiel's jitter deterministic
           jest.spyOn(Math, 'random').mockReturnValue(0);
 
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          service.connect();
+          void service.connect();
 
           // Advance time past the timeout
           await completeAsyncOperations(101);
@@ -956,8 +956,7 @@ describe('BackendWebSocketService', () => {
           // Mock Math.random to make Cockatiel's jitter deterministic
           jest.spyOn(Math, 'random').mockReturnValue(0);
 
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          service.connect();
+          void service.connect();
           await completeAsyncOperations(10);
 
           // Verify we're in CONNECTING state
@@ -1028,8 +1027,7 @@ describe('BackendWebSocketService', () => {
           jest.spyOn(Math, 'random').mockReturnValue(0);
 
           // Start connection (this sets connectionTimeout)
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          service.connect();
+          void service.connect();
           await completeAsyncOperations(10);
 
           const mockWs = getMockWebSocket();
@@ -1138,8 +1136,7 @@ describe('BackendWebSocketService', () => {
           jest.spyOn(Math, 'random').mockReturnValue(0);
 
           // Trigger a connection failure to schedule a reconnect
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          service.connect();
+          void service.connect();
           await completeAsyncOperations(10);
 
           const mockWs = getMockWebSocket();
@@ -1178,8 +1175,7 @@ describe('BackendWebSocketService', () => {
           jest.spyOn(Math, 'random').mockReturnValue(0);
 
           // Trigger a connection failure to schedule a reconnect
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          service.connect();
+          void service.connect();
           await completeAsyncOperations(10);
 
           const mockWs = getMockWebSocket();
@@ -1260,8 +1256,7 @@ describe('BackendWebSocketService', () => {
         },
         async ({ service, getMockWebSocket, completeAsyncOperations }) => {
           // Start connecting
-          // eslint-disable-next-line @typescript-eslint/no-floating-promises
-          service.connect();
+          void service.connect();
           await completeAsyncOperations(0);
 
           expect(service.getConnectionInfo().state).toBe(

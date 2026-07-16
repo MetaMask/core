@@ -2,7 +2,7 @@
  * Accounts API barrel export.
  */
 
-export { AccountsApiClient } from './client';
+export { AccountsApiClient } from './client.js';
 export type {
   V5BalanceItem,
   V5BalancesResponse,
@@ -27,4 +27,4 @@ export type {
   V2NftsResponse,
   TokenDiscoveryItem,
   V2TokensResponse,
-} from './types';
+} from './types.js';

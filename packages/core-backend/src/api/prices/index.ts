@@ -2,7 +2,7 @@
  * Prices API barrel export.
  */
 
-export { PricesApiClient } from './client';
+export { PricesApiClient } from './client.js';
 export type {
   V3SpotPricesResponse,
   CoinGeckoSpotPrice,
@@ -11,4 +11,4 @@ export type {
   PriceSupportedNetworksResponse,
   V1HistoricalPricesResponse,
   V3HistoricalPricesResponse,
-} from './types';
+} from './types.js';

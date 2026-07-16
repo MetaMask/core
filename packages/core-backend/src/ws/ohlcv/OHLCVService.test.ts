@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MessengerActions,
@@ -5,12 +6,12 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
-import { flushPromises } from '../../../../../tests/helpers';
-import type { ServerNotificationMessage } from '../BackendWebSocketService';
-import { WebSocketState } from '../BackendWebSocketService';
-import { OHLCVService } from './OHLCVService';
-import type { OHLCVServiceMessenger } from './OHLCVService';
-import type { OHLCVSubscriptionOptions } from './types';
+import { flushPromises } from '../../../../../tests/helpers.js';
+import type { ServerNotificationMessage } from '../BackendWebSocketService.js';
+import { WebSocketState } from '../BackendWebSocketService.js';
+import { OHLCVService } from './OHLCVService.js';
+import type { OHLCVServiceMessenger } from './OHLCVService.js';
+import type { OHLCVSubscriptionOptions } from './types.js';
 
 // =============================================================================
 // Test Helpers

@@ -9,8 +9,8 @@ import type { AuthenticationController } from '@metamask/profile-sync-controller
 import { getErrorMessage } from '@metamask/utils';
 import { v4 as uuidV4 } from 'uuid';
 
-import { projectLogger, createModuleLogger } from '../logger';
-import type { BackendWebSocketServiceMethodActions } from './BackendWebSocketService-method-action-types';
+import { projectLogger, createModuleLogger } from '../logger.js';
+import type { BackendWebSocketServiceMethodActions } from './BackendWebSocketService-method-action-types.js';
 
 const SERVICE_NAME = 'BackendWebSocketService' as const;
 
@@ -1178,7 +1178,6 @@ export class BackendWebSocketService {
               this.#scheduleReconnect();
             }
 
-            // eslint-disable-next-line @typescript-eslint/no-floating-promises
             this.#trace({
               name: `${SERVICE_NAME} Disconnection`,
               data: {
@@ -1426,7 +1425,7 @@ export class BackendWebSocketService {
       // Trace notification processing wi th latency data
       // Use stored channelType instead of parsing each time
       // Promise result intentionally not awaited
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+
       this.#trace(
         {
           name: `${SERVICE_NAME} Notification`,
