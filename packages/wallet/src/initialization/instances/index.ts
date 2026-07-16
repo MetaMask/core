@@ -4,6 +4,7 @@ export { approvalController } from './approval-controller/approval-controller';
 export { connectivityController } from './connectivity-controller/connectivity-controller';
 export { keyringController } from './keyring-controller/keyring-controller';
 export { networkController } from './network-controller/network-controller';
+export { passkeyController } from './passkey-controller/passkey-controller';
 export { remoteFeatureFlagController } from './remote-feature-flag-controller/remote-feature-flag-controller';
 export { storageService } from './storage-service/storage-service';
 export { transactionController } from './transaction-controller/transaction-controller';

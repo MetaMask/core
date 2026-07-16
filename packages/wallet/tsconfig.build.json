@@ -15,6 +15,7 @@
     { "path": "../keyring-controller/tsconfig.build.json" },
     { "path": "../messenger/tsconfig.build.json" },
     { "path": "../network-controller/tsconfig.build.json" },
+    { "path": "../passkey-controller/tsconfig.build.json" },
     { "path": "../remote-feature-flag-controller/tsconfig.build.json" },
     { "path": "../storage-service/tsconfig.build.json" },
     { "path": "../transaction-controller/tsconfig.build.json" }

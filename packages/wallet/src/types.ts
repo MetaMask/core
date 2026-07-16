@@ -13,6 +13,7 @@ import type { RemoteFeatureFlagControllerInstanceOptions } from './initializatio
 import type { StorageServiceInstanceOptions } from './initialization/instances/storage-service/types';
 import type { TransactionControllerInstanceOptions } from './initialization/instances/transaction-controller/types';
 import type { InitializationConfiguration } from './initialization/types';
+import { PasskeyControllerInstanceOptions } from './initialization/instances/passkey-controller/types';
 
 export type WalletOptions = {
   messenger?: RootMessenger<DefaultActions, DefaultEvents>;
@@ -29,6 +30,7 @@ export type InstanceSpecificOptions = {
   connectivityController: ConnectivityControllerInstanceOptions;
   keyringController?: KeyringControllerInstanceOptions;
   networkController: NetworkControllerInstanceOptions;
+  passkeyController: PasskeyControllerInstanceOptions;
   remoteFeatureFlagController: RemoteFeatureFlagControllerInstanceOptions;
   storageService: StorageServiceInstanceOptions;
   transactionController?: TransactionControllerInstanceOptions;
