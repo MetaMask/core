@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { TokenDetectionController } from './TokenDetectionController';
+import type { TokenDetectionController } from './TokenDetectionController.js';
 
 /**
  * Allows controller to make active and passive polling requests

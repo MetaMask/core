@@ -42,21 +42,21 @@ import { isStrictHexString } from '@metamask/utils';
 import type { Hex, Json } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import type { Patch } from 'immer';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 import { v1 as random } from 'uuid';
 
-import { formatAggregatorNames, formatIconUrlWithProxy } from './assetsUtil';
-import { ERC20Standard } from './Standards/ERC20Standard';
-import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard';
+import { formatAggregatorNames, formatIconUrlWithProxy } from './assetsUtil.js';
+import { ERC20Standard } from './Standards/ERC20Standard.js';
+import { ERC1155Standard } from './Standards/NftStandards/ERC1155/ERC1155Standard.js';
 import {
   fetchTokenMetadata,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
   TokenRwaData,
-} from './token-service';
-import type { TokenListMap, TokenListToken } from './TokenListController';
-import type { TokenListService } from './TokenListService';
-import type { Token } from './TokenRatesController';
-import type { TokensControllerMethodActions } from './TokensController-method-action-types';
+} from './token-service.js';
+import type { TokenListMap, TokenListToken } from './TokenListController.js';
+import type { TokenListService } from './TokenListService.js';
+import type { Token } from './TokenRatesController.js';
+import type { TokensControllerMethodActions } from './TokensController-method-action-types.js';
 
 /**
  * @type SuggestedAssetMeta
@@ -1133,10 +1133,7 @@ export class TokensController extends BaseController<
     let newAllTokens = allTokens;
     if (
       newTokens?.length ||
-      (newTokens &&
-        allTokens &&
-        allTokens[interactingChainId] &&
-        allTokens[interactingChainId][userAddressToAddTokens])
+      (newTokens && allTokens?.[interactingChainId]?.[userAddressToAddTokens])
     ) {
       const networkTokens = allTokens[interactingChainId];
       const newNetworkTokens = {
@@ -1153,9 +1150,7 @@ export class TokensController extends BaseController<
     if (
       newIgnoredTokens?.length ||
       (newIgnoredTokens &&
-        allIgnoredTokens &&
-        allIgnoredTokens[interactingChainId] &&
-        allIgnoredTokens[interactingChainId][userAddressToAddTokens])
+        allIgnoredTokens?.[interactingChainId]?.[userAddressToAddTokens])
     ) {
       const networkIgnoredTokens = allIgnoredTokens[interactingChainId];
       const newIgnoredNetworkTokens = {
@@ -1172,9 +1167,7 @@ export class TokensController extends BaseController<
     if (
       newDetectedTokens?.length ||
       (newDetectedTokens &&
-        allDetectedTokens &&
-        allDetectedTokens[interactingChainId] &&
-        allDetectedTokens[interactingChainId][userAddressToAddTokens])
+        allDetectedTokens?.[interactingChainId]?.[userAddressToAddTokens])
     ) {
       const networkDetectedTokens = allDetectedTokens[interactingChainId];
       const newDetectedNetworkTokens = {

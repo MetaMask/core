@@ -49,16 +49,16 @@ import type {
   AssetsContractControllerGetERC721AssetNameAction,
   AssetsContractControllerGetERC721AssetSymbolAction,
   AssetsContractControllerGetERC721TokenURIAction,
-} from './AssetsContractController-method-action-types';
+} from './AssetsContractController-method-action-types.js';
 import {
   compareNftMetadata,
   getFormattedIpfsUrl,
   hasNewCollectionFields,
   reduceInBatchesSerially,
-} from './assetsUtil';
-import { Source } from './constants';
-import { getNftOwnershipForMultipleNfts } from './multicall';
-import type { NftOwnershipResult } from './multicall';
+} from './assetsUtil.js';
+import { Source } from './constants.js';
+import { getNftOwnershipForMultipleNfts } from './multicall.js';
+import type { NftOwnershipResult } from './multicall.js';
 import type {
   ApiNftContract,
   ReservoirResponse,
@@ -66,7 +66,7 @@ import type {
   Attributes,
   LastSale,
   TopBid,
-} from './NftDetectionController';
+} from './NftDetectionController.js';
 
 export type NFTStandardType = 'ERC721' | 'ERC1155';
 
@@ -458,7 +458,7 @@ export class NftController extends BaseController<
     );
     this.#selectedAccountId = selectedAccount.id;
 
-    const newDisplayNftMedia = Boolean(displayNftMedia || openSeaEnabled);
+    const newDisplayNftMedia = Boolean(displayNftMedia ?? openSeaEnabled);
 
     // Get current state values
     if (
@@ -529,7 +529,7 @@ export class NftController extends BaseController<
 
     this.update((state) => {
       const oldState = state[baseStateKey];
-      const addressState = oldState[userAddress] || {};
+      const addressState = oldState[userAddress] ?? {};
       const newAddressState = {
         ...addressState,
         [chainId]: newCollection,
@@ -603,9 +603,9 @@ export class NftController extends BaseController<
     /* istanbul ignore next */
     const nftMetadata: NftMetadata = Object.assign(
       {},
-      { name: name || null },
-      { description: description || null },
-      { image: image || null },
+      { name: name ?? null },
+      { description: description ?? null },
+      { image: image ?? null },
       collection?.creator && { creator: collection.creator },
       imageOriginal && { imageOriginal },
       imageSmall && { imageThumbnail: imageSmall },
@@ -886,7 +886,7 @@ export class NftController extends BaseController<
     const releaseLock = await this.#mutex.acquire();
     try {
       const { allNfts } = this.state;
-      const allNftsForUser = allNfts[userAddress] || {};
+      const allNftsForUser = allNfts[userAddress] ?? {};
       const allNftsForUserPerChain: {
         [chainId: `0x${string}`]: Nft[];
       } = {};
@@ -1015,7 +1015,7 @@ export class NftController extends BaseController<
     const releaseLock = await this.#mutex.acquire();
     try {
       const { allNftContracts } = this.state;
-      const allNftContractsForUser = allNftContracts[userAddress] || {};
+      const allNftContractsForUser = allNftContracts[userAddress] ?? {};
       const nftContractsForUserPerChain: {
         [chainId: `0x${string}`]: NftContract[];
       } = {};
@@ -1149,7 +1149,7 @@ export class NftController extends BaseController<
     const checksumHexAddress = toChecksumHexAddress(address);
     const { allNfts, ignoredNfts } = this.state;
     const newIgnoredNfts = [...ignoredNfts];
-    const nfts = allNfts[userAddress]?.[chainId] || [];
+    const nfts = allNfts[userAddress]?.[chainId] ?? [];
     const newNfts = nfts.filter((nft) => {
       if (
         nft.address.toLowerCase() === checksumHexAddress.toLowerCase() &&
@@ -1190,7 +1190,7 @@ export class NftController extends BaseController<
   ): void {
     const checksumHexAddress = toChecksumHexAddress(address);
     const { allNfts } = this.state;
-    const nfts = allNfts[userAddress]?.[chainId] || [];
+    const nfts = allNfts[userAddress]?.[chainId] ?? [];
     const newNfts = nfts.filter(
       (nft) =>
         !(
@@ -1219,7 +1219,7 @@ export class NftController extends BaseController<
   ): NftContract[] {
     const checksumHexAddress = toChecksumHexAddress(address);
     const { allNftContracts } = this.state;
-    const nftContracts = allNftContracts[userAddress]?.[chainId] || [];
+    const nftContracts = allNftContracts[userAddress]?.[chainId] ?? [];
 
     const newNftContracts = nftContracts.filter(
       (nftContract) =>
@@ -1250,7 +1250,6 @@ export class NftController extends BaseController<
 
     if (type !== ERC721 && type !== ERC1155) {
       throw rpcErrors.invalidParams(
-        // eslint-disable-next-line @typescript-eslint/restrict-template-expressions
         `Non NFT asset type ${type} not supported by watchNft`,
       );
     }
@@ -1526,9 +1525,7 @@ export class NftController extends BaseController<
 
     // This is the case when the NFT is added manually and not detected automatically
     // TODO: An improvement would be to make the chainId a required field and return it when getting the NFT information
-    if (!nftMetadata.chainId) {
-      nftMetadata.chainId = convertHexToDecimal(chainId);
-    }
+    nftMetadata.chainId ??= convertHexToDecimal(chainId);
 
     if (nftContract) {
       await this.#addMultipleNfts(addressToSearch, [
@@ -1796,7 +1793,7 @@ export class NftController extends BaseController<
       userAddress: addressToSearch,
     });
     const { allNfts } = this.state;
-    const nfts = allNfts[addressToSearch]?.[chainId] || [];
+    const nfts = allNfts[addressToSearch]?.[chainId] ?? [];
     const remainingNft = nfts.find(
       (nft) => nft.address.toLowerCase() === checksumHexAddress.toLowerCase(),
     );
@@ -1837,7 +1834,7 @@ export class NftController extends BaseController<
       userAddress: addressToSearch,
     });
     const { allNfts } = this.state;
-    const nfts = allNfts[addressToSearch]?.[chainId] || [];
+    const nfts = allNfts[addressToSearch]?.[chainId] ?? [];
     const remainingNft = nfts.find(
       (nft) => nft.address.toLowerCase() === checksumHexAddress.toLowerCase(),
     );
@@ -1944,7 +1941,7 @@ export class NftController extends BaseController<
     );
     const { chainId } = client.configuration;
     const { allNfts } = this.state;
-    const nfts = allNfts[addressToSearch]?.[chainId] || [];
+    const nfts = allNfts[addressToSearch]?.[chainId] ?? [];
 
     if (nfts.length === 0) {
       return;
@@ -2008,7 +2005,7 @@ export class NftController extends BaseController<
       networkClientId,
     );
     const { allNfts } = this.state;
-    const nfts = [...(allNfts[addressToSearch]?.[chainId] || [])];
+    const nfts = [...(allNfts[addressToSearch]?.[chainId] ?? [])];
     const index: number = nfts.findIndex(
       (nft) => nft.address === address && nft.tokenId === tokenId,
     );
@@ -2047,7 +2044,7 @@ export class NftController extends BaseController<
     chainId: Hex,
   ): { nft: Nft; index: number } | null {
     const { allNfts } = this.state;
-    const nfts = allNfts[selectedAddress]?.[chainId] || [];
+    const nfts = allNfts[selectedAddress]?.[chainId] ?? [];
     const index: number = nfts.findIndex(
       (nft) =>
         nft.address.toLowerCase() === address.toLowerCase() &&
@@ -2076,7 +2073,7 @@ export class NftController extends BaseController<
     chainId: Hex,
   ): void {
     const { allNfts } = this.state;
-    const nfts = allNfts[selectedAddress]?.[chainId] || [];
+    const nfts = allNfts[selectedAddress]?.[chainId] ?? [];
     const nftInfo = this.findNftByAddressAndTokenId(
       nft.address,
       nft.tokenId,
@@ -2118,7 +2115,7 @@ export class NftController extends BaseController<
     chainId: Hex,
   ): boolean {
     const { allNfts } = this.state;
-    const nfts = allNfts[selectedAddress]?.[chainId] || [];
+    const nfts = allNfts[selectedAddress]?.[chainId] ?? [];
     const index: number = nfts.findIndex(
       (nft) => nft.transactionId === transactionId,
     );
@@ -2179,7 +2176,7 @@ export class NftController extends BaseController<
       'AccountsController:getAccount',
       this.#selectedAccountId,
     );
-    return selectedAccount?.address || '';
+    return selectedAccount?.address ?? '';
   }
 
   /**
@@ -2191,7 +2188,7 @@ export class NftController extends BaseController<
   async #updateNftUpdateForAccount(account: InternalAccount): Promise<void> {
     // get all nfts for the account for all chains
     const nfts: Nft[] = Object.values(
-      this.state.allNfts[account.address] || {},
+      this.state.allNfts[account.address] ?? {},
     ).flat();
 
     // Filter only nfts

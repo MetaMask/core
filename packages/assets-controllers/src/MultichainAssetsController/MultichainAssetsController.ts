@@ -41,8 +41,8 @@ import type { Json, JsonRpcRequest } from '@metamask/utils';
 import type { MutexInterface } from 'async-mutex';
 import { Mutex } from 'async-mutex';
 
-import type { MultichainAssetsControllerMethodActions } from './MultichainAssetsController-method-action-types';
-import { getChainIdsCaveat } from './utils';
+import type { MultichainAssetsControllerMethodActions } from './MultichainAssetsController-method-action-types.js';
+import { getChainIdsCaveat } from './utils.js';
 
 const controllerName = 'MultichainAssetsController';
 
@@ -241,17 +241,17 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
 
     this.messenger.subscribe(
       'AccountsController:accountAdded',
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
       async (account) => await this.#handleOnAccountAddedEvent(account),
     );
     this.messenger.subscribe(
       'AccountsController:accountRemoved',
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
       async (account) => await this.#handleOnAccountRemovedEvent(account),
     );
     this.messenger.subscribe(
       'AccountsController:accountAssetListUpdated',
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
       async (event) => await this.#handleAccountAssetListUpdatedEvent(event),
     );
 
@@ -341,9 +341,7 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
         ].filter((asset) => !assetsToIgnore.includes(asset));
       }
 
-      if (!state.allIgnoredAssets[accountId]) {
-        state.allIgnoredAssets[accountId] = [];
-      }
+      state.allIgnoredAssets[accountId] ??= [];
 
       const newIgnoredAssets = assetsToIgnore.filter(
         (asset) => !state.allIgnoredAssets[accountId].includes(asset),
@@ -366,7 +364,7 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
     accountId: string,
   ): Promise<CaipAssetType[]> {
     if (assetIds.length === 0) {
-      return this.state.accountsAssets[accountId] || [];
+      return this.state.accountsAssets[accountId] ?? [];
     }
 
     // Validate that all assets are from the same chain
@@ -387,9 +385,7 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
 
       this.update((state) => {
         // Initialize account assets if it doesn't exist
-        if (!state.accountsAssets[accountId]) {
-          state.accountsAssets[accountId] = [];
-        }
+        state.accountsAssets[accountId] ??= [];
 
         // Add assets if they don't already exist
         for (const assetId of assetIds) {
@@ -424,7 +420,7 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
         });
       }
 
-      return this.state.accountsAssets[accountId] || [];
+      return this.state.accountsAssets[accountId] ?? [];
     });
   }
 
@@ -457,7 +453,7 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
       event.assets,
     )) {
       if (added.length > 0 || removed.length > 0) {
-        const existing = this.state.accountsAssets[accountId] || [];
+        const existing = this.state.accountsAssets[accountId] ?? [];
 
         // In case accountsAndAssetsToUpdate event is fired with "added" assets that already exist, we don't want to add them again
         // Also filter out ignored assets
@@ -504,7 +500,7 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
         accountsAndAssetsToUpdate,
       )) {
         const assets = new Set([
-          ...(state.accountsAssets[accountId] || []),
+          ...(state.accountsAssets[accountId] ?? []),
           ...added,
         ]);
         for (const asset of removed) {

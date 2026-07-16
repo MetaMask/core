@@ -1,4 +1,4 @@
-import { debounce } from 'lodash';
+import { debounce } from 'lodash-es';
 
 type PendingSettler = {
   resolve: () => void;
@@ -54,7 +54,7 @@ export function createBatchedHandler<Item>(
     return new Promise<void>((resolve, reject) => {
       eventBuffer.push(arg);
       pendingSettlers.push({ resolve, reject });
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises -- Rejections are forwarded to capture() callers via pendingSettlers.
+
       debouncedFlush();
     });
   };

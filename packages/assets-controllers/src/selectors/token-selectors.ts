@@ -8,7 +8,6 @@ import type { NetworkState } from '@metamask/network-controller';
 import { hexToBigInt, parseCaipAssetType } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 import { createSelector, weakMapMemoize } from 'reselect';
-import { TokenRwaData } from 'src/token-service';
 
 import { shouldIncludeNativeToken } from '../constants.js';
 import type { CurrencyRateState } from '../CurrencyRateController.js';
@@ -16,6 +15,7 @@ import type { MultichainAssetsControllerState } from '../MultichainAssetsControl
 import type { MultichainAssetsRatesControllerState } from '../MultichainAssetsRatesController/index.js';
 import type { MultichainBalancesControllerState } from '../MultichainBalancesController/index.js';
 import { getNativeTokenAddress } from '../token-prices-service/codefi-v2.js';
+import type { TokenRwaData } from '../token-service.js';
 import type { TokenBalancesControllerState } from '../TokenBalancesController.js';
 import type {
   Token,
@@ -461,24 +461,29 @@ const selectAllMultichainAssets = createAssetListSelector(
   },
 );
 
-export const selectAllAssets = createAssetListSelector(
-  [
-    selectAllEvmAssets,
-    selectAllMultichainAssets,
-    selectAllEvmAccountNativeBalances,
-  ],
-  (evmAssets, multichainAssets, evmAccountNativeBalances) => {
-    const groupAssets: AssetsByAccountGroup = {};
+export const selectAllAssets: (state: AssetListState) => AssetsByAccountGroup =
+  createAssetListSelector(
+    [
+      selectAllEvmAssets,
+      selectAllMultichainAssets,
+      selectAllEvmAccountNativeBalances,
+    ],
+    (
+      evmAssets,
+      multichainAssets,
+      evmAccountNativeBalances,
+    ): AssetsByAccountGroup => {
+      const groupAssets: AssetsByAccountGroup = {};
 
-    mergeAssets(groupAssets, evmAssets);
+      mergeAssets(groupAssets, evmAssets);
 
-    mergeAssets(groupAssets, multichainAssets);
+      mergeAssets(groupAssets, multichainAssets);
 
-    mergeAssets(groupAssets, evmAccountNativeBalances);
+      mergeAssets(groupAssets, evmAccountNativeBalances);
 
-    return groupAssets;
-  },
-);
+      return groupAssets;
+    },
+  ) as unknown as (state: AssetListState) => AssetsByAccountGroup;
 
 export type SelectAccountGroupAssetOpts = {
   filterTronStakedTokens: boolean;
@@ -514,7 +519,10 @@ const filterTronStakedTokens = (assetsByAccountGroup: AccountGroupAssets) => {
   return newAssetsByAccountGroup;
 };
 
-export const selectAssetsBySelectedAccountGroup = createAssetListSelector(
+export const selectAssetsBySelectedAccountGroup: (
+  state: AssetListState,
+  opts?: SelectAccountGroupAssetOpts,
+) => AccountGroupAssets = createAssetListSelector(
   [
     selectAllAssets,
     (state) => state.selectedAccountGroup,
@@ -523,7 +531,7 @@ export const selectAssetsBySelectedAccountGroup = createAssetListSelector(
       opts: SelectAccountGroupAssetOpts = defaultSelectAccountGroupAssetOpts,
     ) => opts,
   ],
-  (groupAssets, selectedAccountGroup, opts) => {
+  (groupAssets, selectedAccountGroup, opts): AccountGroupAssets => {
     if (!selectedAccountGroup) {
       return {};
     }
@@ -540,7 +548,10 @@ export const selectAssetsBySelectedAccountGroup = createAssetListSelector(
     memoize: weakMapMemoize,
     argsMemoize: weakMapMemoize,
   },
-);
+) as unknown as (
+  state: AssetListState,
+  opts?: SelectAccountGroupAssetOpts,
+) => AccountGroupAssets;
 
 // TODO: Once native assets are part of the evm tokens state, this function can be simplified as chains will always be unique
 /**

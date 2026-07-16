@@ -1,9 +1,10 @@
+import { jest } from '@jest/globals';
 import type { Hex } from '@metamask/utils';
 
-import * as assetsUtil from './assetsUtil';
-import { fetchTokenListByChainId } from './token-service';
-import type { TokenListToken } from './TokenListController';
-import { buildTokenListMap, TokenListService } from './TokenListService';
+import * as assetsUtil from './assetsUtil.js';
+import { fetchTokenListByChainId } from './token-service.js';
+import type { TokenListToken } from './TokenListController.js';
+import { buildTokenListMap, TokenListService } from './TokenListService.js';
 
 jest.mock('./token-service', () => ({
   fetchTokenListByChainId: jest.fn(),

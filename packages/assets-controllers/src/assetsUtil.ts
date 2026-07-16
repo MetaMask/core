@@ -14,9 +14,9 @@ import BN from 'bn.js';
 import { CID } from 'multiformats/cid';
 
 import type { Nft, NftMetadata } from './NftController.js';
+import type { EvmAssetWithMarketData } from './token-prices-service/abstract-token-prices-service.js';
 import { getNativeTokenAddress } from './token-prices-service/index.js';
 import type { AbstractTokenPricesService } from './token-prices-service/index.js';
-import type { EvmAssetWithMarketData } from './token-prices-service/abstract-token-prices-service.js';
 import type {
   ContractExchangeRates,
   ContractMarketData,

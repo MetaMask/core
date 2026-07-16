@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   ChainId,
@@ -13,10 +14,10 @@ import type {
 import type { NetworkConfiguration } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
-import { jestAdvanceTime } from '../../../tests/helpers';
-import type { CurrencyRateMessenger } from './CurrencyRateController';
-import { CurrencyRateController } from './CurrencyRateController';
-import type { AbstractTokenPricesService } from './token-prices-service';
+import { jestAdvanceTime } from '../../../tests/helpers.js';
+import type { CurrencyRateMessenger } from './CurrencyRateController.js';
+import { CurrencyRateController } from './CurrencyRateController.js';
+import type { AbstractTokenPricesService } from './token-prices-service/index.js';
 
 const namespace = 'CurrencyRateController';
 

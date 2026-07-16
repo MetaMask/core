@@ -12,17 +12,20 @@ import type {
 import type { NetworkEnablementControllerGetStateAction } from '@metamask/network-enablement-controller';
 import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { Hex } from '@metamask/utils';
-import { isEqual } from 'lodash';
+import { isEqual } from 'lodash-es';
 
-import { reduceInBatchesSerially, TOKEN_PRICES_BATCH_SIZE } from './assetsUtil';
-import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service';
-import { getNativeTokenAddress } from './token-prices-service/codefi-v2';
-import { TokenRwaData } from './token-service';
+import {
+  reduceInBatchesSerially,
+  TOKEN_PRICES_BATCH_SIZE,
+} from './assetsUtil.js';
+import type { AbstractTokenPricesService } from './token-prices-service/abstract-token-prices-service.js';
+import { getNativeTokenAddress } from './token-prices-service/codefi-v2.js';
+import { TokenRwaData } from './token-service.js';
 import type {
   TokensControllerGetStateAction,
   TokensControllerStateChangeEvent,
   TokensControllerState,
-} from './TokensController';
+} from './TokensController.js';
 
 /**
  * @type Token
@@ -280,7 +283,7 @@ export class TokenRatesController extends StaticIntervalPollingController<TokenR
     this.messenger.subscribe(
       'TokensController:stateChange',
       // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
       async ({ allTokens, allDetectedTokens }) => {
         if (this.#isDeprecated()) {
           this.#enforceDisabledState();

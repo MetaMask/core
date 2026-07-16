@@ -89,7 +89,7 @@
     "bitcoin-address-validation": "^2.2.3",
     "bn.js": "^5.2.1",
     "immer": "^9.0.6",
-    "lodash": "^4.17.21",
+    "lodash-es": "^4.17.21",
     "multiformats": "^9.9.0",
     "reselect": "^5.1.1",
     "single-call-balance-checker-abi": "^1.0.0",

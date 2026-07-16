@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   ChainId,
@@ -17,20 +18,20 @@ import { StorageGetResult } from '@metamask/storage-service';
 import type { Hex } from '@metamask/utils';
 import nock from 'nock';
 
-import { jestAdvanceTime } from '../../../tests/helpers';
+import { jestAdvanceTime } from '../../../tests/helpers.js';
 import {
   buildCustomNetworkClientConfiguration,
   buildInfuraNetworkClientConfiguration,
   buildMockGetNetworkClientById,
-} from '../../network-controller/tests/helpers';
-import * as tokenService from './token-service';
+} from '../../network-controller/tests/helpers.js';
+import * as tokenService from './token-service.js';
 import type {
   TokenListMap,
   TokenListState,
   TokenListControllerMessenger,
   DataCache,
-} from './TokenListController';
-import { TokenListController } from './TokenListController';
+} from './TokenListController.js';
+import { TokenListController } from './TokenListController.js';
 
 const namespace = 'TokenListController';
 const timestamp = Date.now();
@@ -669,8 +670,8 @@ describe('TokenListController', () => {
       messenger: restrictedMessenger,
     });
     // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    controller.start();
+
+    void controller.start();
     await new Promise<void>((resolve) => setTimeout(() => resolve(), 150));
     onNetworkStateChangeCallback({
       selectedNetworkClientId,
