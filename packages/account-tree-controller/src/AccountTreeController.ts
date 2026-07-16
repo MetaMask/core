@@ -15,33 +15,33 @@ import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { assert } from '@metamask/utils';
 
-import type { BackupAndSyncEmitAnalyticsEventParams } from './backup-and-sync/analytics';
+import type { BackupAndSyncEmitAnalyticsEventParams } from './backup-and-sync/analytics/index.js';
 import {
   formatAnalyticsEvent,
   traceFallback,
-} from './backup-and-sync/analytics';
-import { BackupAndSyncService } from './backup-and-sync/service';
-import type { BackupAndSyncContext } from './backup-and-sync/types';
-import { createSyncMutationTracker } from './backup-and-sync/utils';
-import type { AccountGroupObject, AccountTypeOrderKey } from './group';
+} from './backup-and-sync/analytics/index.js';
+import { BackupAndSyncService } from './backup-and-sync/service/index.js';
+import type { BackupAndSyncContext } from './backup-and-sync/types.js';
+import { createSyncMutationTracker } from './backup-and-sync/utils/index.js';
+import type { AccountGroupObject, AccountTypeOrderKey } from './group.js';
 import {
   ACCOUNT_TYPE_TO_SORT_ORDER,
   isAccountGroupNameUnique,
   isAccountGroupNameUniqueFromWallet,
   MAX_SORT_ORDER,
-} from './group';
-import { projectLogger as log } from './logger';
-import type { Rule } from './rule';
-import { EntropyRule } from './rules/entropy';
-import { KeyringRule } from './rules/keyring';
-import { SnapRule } from './rules/snap';
+} from './group.js';
+import { projectLogger as log } from './logger.js';
+import type { Rule } from './rule.js';
+import { EntropyRule } from './rules/entropy.js';
+import { KeyringRule } from './rules/keyring.js';
+import { SnapRule } from './rules/snap.js';
 import type {
   AccountTreeControllerConfig,
   AccountTreeControllerInternalBackupAndSyncConfig,
   AccountTreeControllerMessenger,
   AccountTreeControllerState,
-} from './types';
-import type { AccountWalletObject, AccountWalletObjectOf } from './wallet';
+} from './types.js';
+import type { AccountWalletObject, AccountWalletObjectOf } from './wallet.js';
 
 export const controllerName = 'AccountTreeController';
 
@@ -606,9 +606,7 @@ export class AccountTreeController extends BaseController<
 
     // Parse the highest account index being used (similar to accounts-controller)
     let highestNameIndex = 0;
-    for (const { id: otherGroupId } of Object.values(
-      wallet.groups,
-    ) as AccountGroupObject[]) {
+    for (const { id: otherGroupId } of Object.values(wallet.groups)) {
       // Skip the current group being processed
       if (otherGroupId === group.id) {
         continue;
@@ -1317,9 +1315,7 @@ export class AccountTreeController extends BaseController<
       const now = Date.now();
 
       /* istanbul ignore next */
-      if (!state.accountGroupsMetadata[groupId]) {
-        state.accountGroupsMetadata[groupId] = {};
-      }
+      state.accountGroupsMetadata[groupId] ??= {};
       state.accountGroupsMetadata[groupId].lastSelected = now;
 
       const walletId = this.#groupIdToWalletId.get(groupId);
@@ -1457,9 +1453,7 @@ export class AccountTreeController extends BaseController<
           id,
         );
 
-        if (!candidate) {
-          candidate = id;
-        }
+        candidate ??= id;
         if (account && isEvmAccountType(account.type)) {
           // EVM accounts have a higher priority, so if we find any, we just
           // use that account!
@@ -1594,9 +1588,7 @@ export class AccountTreeController extends BaseController<
 
     this.update((state) => {
       /* istanbul ignore next */
-      if (!state.accountGroupsMetadata[groupId]) {
-        state.accountGroupsMetadata[groupId] = {};
-      }
+      state.accountGroupsMetadata[groupId] ??= {};
 
       // Update persistent metadata
       state.accountGroupsMetadata[groupId].name = {
@@ -1664,9 +1656,7 @@ export class AccountTreeController extends BaseController<
 
     this.update((state) => {
       /* istanbul ignore next */
-      if (!state.accountGroupsMetadata[groupId]) {
-        state.accountGroupsMetadata[groupId] = {};
-      }
+      state.accountGroupsMetadata[groupId] ??= {};
 
       // Update persistent metadata
       state.accountGroupsMetadata[groupId].pinned = {
@@ -1710,9 +1700,7 @@ export class AccountTreeController extends BaseController<
 
     this.update((state) => {
       /* istanbul ignore next */
-      if (!state.accountGroupsMetadata[groupId]) {
-        state.accountGroupsMetadata[groupId] = {};
-      }
+      state.accountGroupsMetadata[groupId] ??= {};
 
       // Update persistent metadata
       state.accountGroupsMetadata[groupId].hidden = {

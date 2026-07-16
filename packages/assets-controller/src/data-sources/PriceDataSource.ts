@@ -5,8 +5,8 @@ import type {
 import { ApiPlatformClient } from '@metamask/core-backend';
 import { parseCaipAssetType } from '@metamask/utils';
 
-import { projectLogger, createModuleLogger } from '../logger';
-import { forDataTypes } from '../types';
+import { projectLogger, createModuleLogger } from '../logger.js';
+import { forDataTypes } from '../types.js';
 import type {
   Caip19AssetId,
   DataRequest,
@@ -14,11 +14,11 @@ import type {
   FungibleAssetPrice,
   Middleware,
   AssetsControllerStateInternal,
-} from '../types';
-import { fetchWithTimeout, normalizeAssetId } from '../utils';
-import { DedupingBatchFetcher } from '../utils/dedupingBatchFetcher';
-import type { SubscriptionRequest } from './AbstractDataSource';
-import { reduceInBatchesSerially } from './evm-rpc-services';
+} from '../types.js';
+import { fetchWithTimeout, normalizeAssetId } from '../utils/index.js';
+import { DedupingBatchFetcher } from '../utils/dedupingBatchFetcher.js';
+import type { SubscriptionRequest } from './AbstractDataSource.js';
+import { reduceInBatchesSerially } from './evm-rpc-services/index.js';
 
 // ============================================================================
 // CONSTANTS

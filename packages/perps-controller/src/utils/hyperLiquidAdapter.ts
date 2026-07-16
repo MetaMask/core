@@ -1,7 +1,7 @@
 import { hasProperty, Hex, isHexString } from '@metamask/utils';
 
-import { HIP3_ASSET_ID_CONFIG } from '../constants/hyperLiquidConfig';
-import { DECIMAL_PRECISION_CONFIG } from '../constants/perpsConfig';
+import { HIP3_ASSET_ID_CONFIG } from '../constants/hyperLiquidConfig.js';
+import { DECIMAL_PRECISION_CONFIG } from '../constants/perpsConfig.js';
 import type {
   AccountState,
   MarketInfo,
@@ -10,18 +10,18 @@ import type {
   Position,
   RawLedgerUpdate,
   UserHistoryItem,
-} from '../types';
+} from '../types/index.js';
 import type {
   AssetPosition,
   FrontendOrder,
   ClearinghouseStateResponse,
   MetaResponse,
   SDKOrderParams,
-} from '../types/hyperliquid-types';
+} from '../types/hyperliquid-types.js';
 import {
   countSignificantFigures,
   roundToSignificantFigures,
-} from './significantFigures';
+} from './significantFigures.js';
 
 type FrontendOrderWithParentTpsl = FrontendOrder & {
   takeProfitPrice?: unknown;

@@ -572,35 +572,16 @@ async function expectWorkspaceLicense(workspace) {
 function expectCorrectWorkspaceExports(workspace) {
   // All non-root packages must provide the location of the ESM-compatible
   // JavaScript entrypoint and its matching type declaration file.
-  expectWorkspaceField(
-    workspace,
-    'exports["."].import.types',
-    './dist/index.d.mts',
-  );
-  expectWorkspaceField(
-    workspace,
-    'exports["."].import.default',
-    './dist/index.mjs',
-  );
+  expectWorkspaceField(workspace, 'exports["."].types', './dist/index.d.ts');
+  expectWorkspaceField(workspace, 'exports["."].default', './dist/index.js');
 
-  // All non-root package must provide the location of the CommonJS-compatible
-  // entrypoint and its matching type declaration file.
-  expectWorkspaceField(
-    workspace,
-    'exports["."].require.types',
-    './dist/index.d.cts',
-  );
-  expectWorkspaceField(
-    workspace,
-    'exports["."].require.default',
-    './dist/index.cjs',
-  );
-  expectWorkspaceField(workspace, 'main', './dist/index.cjs');
-  expectWorkspaceField(workspace, 'types', './dist/index.d.cts');
+  // Packages should not provide separate CommonJS/ESM exports.
+  expectWorkspaceField(workspace, 'exports["."].require', null);
+  expectWorkspaceField(workspace, 'exports["."].import', null);
 
-  // Types should not be set in the export object directly, but rather in the
-  // `import` and `require` subfields.
-  expectWorkspaceField(workspace, 'exports["."].types', null);
+  // Packages should not provide a "main" or "types" field.
+  expectWorkspaceField(workspace, 'main', null);
+  expectWorkspaceField(workspace, 'types', null);
 
   // All non-root packages must export a `package.json` file.
   expectWorkspaceField(
@@ -608,6 +589,36 @@ function expectCorrectWorkspaceExports(workspace) {
     'exports["./package.json"]',
     './package.json',
   );
+
+  const nonRootExports = Object.keys(workspace.manifest.exports).filter(
+    (key) => key !== '.' && key !== './package.json',
+  );
+
+  for (const key of nonRootExports) {
+    const prefix = `exports["${key}"]`;
+    expectWorkspaceField(workspace, `${prefix}.types`);
+    expectWorkspaceField(workspace, `${prefix}.default`);
+
+    const typesValue = get(workspace.manifest, `${prefix}.types`);
+    if (
+      typesValue &&
+      (typeof typesValue !== 'string' || !typesValue.endsWith('.d.ts'))
+    ) {
+      workspace.error(
+        `Expected package's "${prefix}.types" field to end with ".d.ts", but it was "${typesValue}".`,
+      );
+    }
+
+    const importValue = get(workspace.manifest, `${prefix}.default`);
+    if (
+      importValue &&
+      (typeof importValue !== 'string' || !importValue.endsWith('.js'))
+    ) {
+      workspace.error(
+        `Expected package's "${prefix}.default" field to end with ".js", but it was "${importValue}".`,
+      );
+    }
+  }
 }
 
 /**

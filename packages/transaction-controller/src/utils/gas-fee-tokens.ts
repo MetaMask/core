@@ -3,23 +3,23 @@ import { rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
+import { simulateTransactions } from '../api/simulation-api.js';
+import type { SimulationRequestTransaction } from '../api/simulation-api.js';
+import type {
+  SimulationResponse,
+  SimulationResponseTransaction,
+} from '../api/simulation-api.js';
+import { projectLogger } from '../logger.js';
+import type { GetSimulationConfig } from '../types.js';
 import type {
   GasFeeToken,
   TransactionControllerMessenger,
   TransactionMeta,
-} from '..';
-import { simulateTransactions } from '../api/simulation-api';
-import type { SimulationRequestTransaction } from '../api/simulation-api';
-import type {
-  SimulationResponse,
-  SimulationResponseTransaction,
-} from '../api/simulation-api';
-import { projectLogger } from '../logger';
-import type { GetSimulationConfig } from '../types';
-import { isNativeBalanceSufficientForGas } from './balance';
-import { ERROR_MESSAGE_NO_UPGRADE_CONTRACT } from './batch';
-import { ERROR_MESSGE_PUBLIC_KEY, doesChainSupportEIP7702 } from './eip7702';
-import { getEIP7702UpgradeContractAddress } from './feature-flags';
+} from './../index.js';
+import { isNativeBalanceSufficientForGas } from './balance.js';
+import { ERROR_MESSAGE_NO_UPGRADE_CONTRACT } from './batch.js';
+import { ERROR_MESSGE_PUBLIC_KEY, doesChainSupportEIP7702 } from './eip7702.js';
+import { getEIP7702UpgradeContractAddress } from './feature-flags.js';
 
 const log = createModuleLogger(projectLogger, 'gas-fee-tokens');
 

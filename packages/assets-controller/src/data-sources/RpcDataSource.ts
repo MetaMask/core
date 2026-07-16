@@ -24,8 +24,8 @@ import BigNumberJS from 'bignumber.js';
 import type {
   AssetsControllerGetStateAction,
   AssetsControllerMessenger,
-} from '../AssetsController';
-import { projectLogger, createModuleLogger } from '../logger';
+} from '../AssetsController.js';
+import { projectLogger, createModuleLogger } from '../logger.js';
 import type {
   ChainId,
   Caip19AssetId,
@@ -34,33 +34,33 @@ import type {
   DataRequest,
   DataResponse,
   Middleware,
-} from '../types';
-import { normalizeAssetId } from '../utils';
-import { ZERO_ADDRESS } from '../utils/constants';
-import { AbstractDataSource } from './AbstractDataSource';
+} from '../types.js';
+import { normalizeAssetId } from '../utils/index.js';
+import { ZERO_ADDRESS } from '../utils/constants.js';
+import { AbstractDataSource } from './AbstractDataSource.js';
 import type {
   DataSourceState,
   SubscriptionRequest,
-} from './AbstractDataSource';
+} from './AbstractDataSource.js';
 import {
   BalanceFetcher,
   MulticallClient,
   TokenDetector,
   TokensApiClient,
-} from './evm-rpc-services';
+} from './evm-rpc-services/index.js';
 import type {
   BalancePollingInput,
   DetectionPollingInput,
   TokenListQueryClient,
-} from './evm-rpc-services';
+} from './evm-rpc-services/index.js';
 import type {
   Address,
   AssetFetchEntry,
   Provider as RpcProvider,
   BalanceFetchResult,
   TokenDetectionResult,
-} from './evm-rpc-services/types';
-import { shouldSkipNativeForCaipChainId } from './evm-rpc-services/utils/assets';
+} from './evm-rpc-services/types/index.js';
+import { shouldSkipNativeForCaipChainId } from './evm-rpc-services/utils/assets.js';
 
 const CONTROLLER_NAME = 'RpcDataSource';
 const DEFAULT_BALANCE_INTERVAL = 30_000; // 30 seconds

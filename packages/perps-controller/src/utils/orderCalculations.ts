@@ -1,17 +1,17 @@
 import type { Hex } from '@metamask/utils';
 
-import { BASIS_POINTS_DIVISOR } from '../constants/hyperLiquidConfig';
+import { BASIS_POINTS_DIVISOR } from '../constants/hyperLiquidConfig.js';
 import {
   MAX_ORDER_MARGIN_BUFFER,
   ORDER_SLIPPAGE_CONFIG,
-} from '../constants/perpsConfig';
-import { PERPS_ERROR_CODES } from '../perpsErrorCodes';
-import type { PerpsDebugLogger } from '../types';
-import type { SDKOrderParams } from '../types/hyperliquid-types';
+} from '../constants/perpsConfig.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import type { PerpsDebugLogger } from '../types/index.js';
+import type { SDKOrderParams } from '../types/hyperliquid-types.js';
 import {
   formatHyperLiquidPrice,
   formatHyperLiquidSize,
-} from './hyperLiquidAdapter';
+} from './hyperLiquidAdapter.js';
 
 /**
  * Optional debug logger for order calculation functions.

@@ -36,23 +36,23 @@ import {
   VAULT_CONFIG_FEATURE_FLAG_KEY,
   VEDA_API_NETWORK_NAMES,
   VEDA_PERFORMANCE_API_BASE_URL,
-} from './constants';
+} from './constants.js';
 import {
   VaultConfigNotAvailableError,
   VaultConfigValidationError,
   VedaResponseValidationError,
-} from './errors';
-import { projectLogger, createModuleLogger } from './logger';
-import type { MoneyAccountBalanceServiceMethodActions } from './money-account-balance-service-method-action-types';
-import { normalizeVaultApyResponse } from './requestNormalization';
+} from './errors.js';
+import { projectLogger, createModuleLogger } from './logger.js';
+import type { MoneyAccountBalanceServiceMethodActions } from './money-account-balance-service-method-action-types.js';
+import { normalizeVaultApyResponse } from './requestNormalization.js';
 import type {
   ExchangeRateResponse,
   MoneyAccountBalanceResponse,
   MusdEquivalentValueResponse,
   NormalizedVaultApyResponse,
-} from './response.types';
-import { VaultApyRawResponseStruct, VaultConfigStruct } from './structs';
-import type { VaultConfig } from './types';
+} from './response.types.js';
+import { VaultApyRawResponseStruct, VaultConfigStruct } from './structs.js';
+import type { VaultConfig } from './types.js';
 
 // === GENERAL ===
 
@@ -422,7 +422,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
           'Vault config cleared — flag key absent; cache invalidated',
           previousConfig,
         );
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+
         this.invalidateQueries();
       } else {
         configLogger(
@@ -443,7 +443,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
           'Vault config validation failed — previous config cleared; cache invalidated',
           { previousConfig, error },
         );
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
+
         this.invalidateQueries();
       } else {
         configLogger(
@@ -464,7 +464,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
         previous: previousConfig,
         next: newConfig,
       });
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
+
       this.invalidateQueries();
     } else {
       configLogger('Vault config loaded', newConfig);

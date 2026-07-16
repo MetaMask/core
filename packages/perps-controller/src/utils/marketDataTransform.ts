@@ -9,20 +9,20 @@ import { hasProperty } from '@metamask/utils';
 import {
   HYPERLIQUID_CONFIG,
   getHyperLiquidAssetName,
-} from '../constants/hyperLiquidConfig';
-import { PERPS_CONSTANTS } from '../constants/perpsConfig';
+} from '../constants/hyperLiquidConfig.js';
+import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
 import type {
   PerpsMarketData,
   MarketType,
   MarketDataFormatters,
-} from '../types';
+} from '../types/index.js';
 import type {
   AllMidsResponse,
   PerpsUniverse,
   PerpsAssetCtx,
   PredictedFunding,
-} from '../types/hyperliquid-types';
-import { parseAssetName } from './hyperLiquidAdapter';
+} from '../types/hyperliquid-types.js';
+import { parseAssetName } from './hyperLiquidAdapter.js';
 
 /**
  * Calculate open interest in USD

@@ -6,10 +6,12 @@ import type { Infer } from '@metamask/superstruct';
 import { is, number, string, type } from '@metamask/superstruct';
 import { hexToBytes } from '@metamask/utils';
 import { sha256 } from 'ethereum-cryptography/sha256';
-import type { V4Options } from 'uuid';
 import { v4 as uuid } from 'uuid';
 
 import type { AccountId } from './AccountsController';
+
+// `uuid` declares this type but it's not importable in ESM.
+type V4Options = Exclude<Parameters<typeof uuid>[0], undefined>;
 
 /**
  * Returns the name of the keyring type.

@@ -7,13 +7,13 @@ import type {
   NotNamespacedBy,
 } from '@metamask/messenger';
 
+import { MOCK_LOGIN_RESPONSE } from '../../authentication/mocks/index.js';
+import { MOCK_STORAGE_KEY_SIGNATURE } from '../mocks/index.js';
 import type {
   AllowedActions,
   AllowedEvents,
   UserStorageControllerMessenger,
-} from '..';
-import { MOCK_LOGIN_RESPONSE } from '../../authentication/mocks';
-import { MOCK_STORAGE_KEY_SIGNATURE } from '../mocks';
+} from './../index.js';
 
 const controllerName = 'UserStorageController';
 

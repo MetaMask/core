@@ -2,11 +2,11 @@ export {
   findDecodersWithMatchingCaveatAddresses,
   reconstructDecodedPermission,
   selectUniqueDecoderAndDecodedPermission,
-} from './decodePermission';
-export { createPermissionDecodersForContracts } from './decoders';
+} from './decodePermission.js';
+export { createPermissionDecodersForContracts } from './decoders/index.js';
 
 export type {
   DecodedPermission,
   PermissionDecoder,
   ValidateAndDecodeResult,
-} from './types';
+} from './types.js';

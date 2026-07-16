@@ -19,9 +19,9 @@ import {
   MYX_PRICE_POLLING_INTERVAL_MS,
   getMYXChainId,
   getMYXHttpEndpoint,
-} from '../constants/myxConfig';
-import { PERPS_CONSTANTS, ZERO_ADDRESS } from '../constants/perpsConfig';
-import type { PerpsPlatformDependencies } from '../types';
+} from '../constants/myxConfig.js';
+import { PERPS_CONSTANTS, ZERO_ADDRESS } from '../constants/perpsConfig.js';
+import type { PerpsPlatformDependencies } from '../types/index.js';
 import type {
   MYXAuthConfig,
   MYXPoolSymbol,
@@ -31,8 +31,8 @@ import type {
   MYXPositionHistoryItem,
   MYXTradeFlowItem,
   MYXGetHistoryOrdersParams,
-} from '../types/myx-types';
-import { ensureError } from '../utils/errorUtils';
+} from '../types/myx-types.js';
+import { ensureError } from '../utils/errorUtils.js';
 
 // ============================================================================
 // Types

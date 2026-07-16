@@ -4,9 +4,9 @@ import {
   MARKET_SORTING_CONFIG,
   PERPS_CONSTANTS,
   SortOptionId,
-} from './constants/perpsConfig';
-import type { PerpsControllerState } from './PerpsController';
-import type { PerpsSelectedPaymentToken, SortDirection } from './types';
+} from './constants/perpsConfig.js';
+import type { PerpsControllerState } from './PerpsController.js';
+import type { PerpsSelectedPaymentToken, SortDirection } from './types/index.js';
 
 /**
  * Select whether the user is a first-time perps user

@@ -6,20 +6,20 @@ export type {
   AccountTrackerControllerGetStateAction,
   AccountTrackerControllerStateChangeEvent,
   AccountTrackerControllerEvents,
-} from './AccountTrackerController';
-export { AccountTrackerController } from './AccountTrackerController';
+} from './AccountTrackerController.js';
+export { AccountTrackerController } from './AccountTrackerController.js';
 export type {
   AccountTrackerControllerUpdateNativeBalancesAction,
   AccountTrackerControllerUpdateStakedBalancesAction,
   AccountTrackerControllerRefreshAction,
   AccountTrackerControllerSyncBalanceWithAddressesAction,
-} from './AccountTrackerController-method-action-types';
+} from './AccountTrackerController-method-action-types.js';
 export type {
   AssetsContractControllerActions,
   AssetsContractControllerEvents,
   AssetsContractControllerMessenger,
   BalanceMap,
-} from './AssetsContractController';
+} from './AssetsContractController.js';
 export type {
   AssetsContractControllerGetERC20StandardAction,
   AssetsContractControllerGetERC721StandardAction,
@@ -38,16 +38,16 @@ export type {
   AssetsContractControllerGetTokenStandardAndDetailsAction,
   AssetsContractControllerGetBalancesInSingleCallAction,
   AssetsContractControllerGetStakedBalanceForChainAction,
-} from './AssetsContractController-method-action-types';
+} from './AssetsContractController-method-action-types.js';
 export {
   SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID,
   AssetsContractController,
-} from './AssetsContractController';
-export * from './CurrencyRateController';
+} from './AssetsContractController.js';
+export * from './CurrencyRateController.js';
 export type {
   CurrencyRateControllerSetCurrentCurrencyAction,
   CurrencyRateControllerUpdateExchangeRateAction,
-} from './CurrencyRateController-method-action-types';
+} from './CurrencyRateController-method-action-types.js';
 export type {
   NftControllerState,
   NftControllerMessenger,
@@ -58,8 +58,11 @@ export type {
   Nft,
   NftContract,
   NftMetadata,
-} from './NftController';
-export { getDefaultNftControllerState, NftController } from './NftController';
+} from './NftController.js';
+export {
+  getDefaultNftControllerState,
+  NftController,
+} from './NftController.js';
 export type {
   NftDetectionControllerMessenger,
   ApiNft,
@@ -82,8 +85,8 @@ export type {
   FloorAsk,
   Price,
   Metadata,
-} from './NftDetectionController';
-export { NftDetectionController } from './NftDetectionController';
+} from './NftDetectionController.js';
+export { NftDetectionController } from './NftDetectionController.js';
 export type {
   TokenBalancesControllerActions,
   TokenBalancesControllerGetStateAction,
@@ -92,21 +95,21 @@ export type {
   TokenBalancesControllerOptions,
   TokenBalancesControllerStateChangeEvent,
   TokenBalancesControllerState,
-} from './TokenBalancesController';
-export { TokenBalancesController } from './TokenBalancesController';
+} from './TokenBalancesController.js';
+export { TokenBalancesController } from './TokenBalancesController.js';
 export type {
   TokenBalancesControllerUpdateChainPollingConfigsAction,
   TokenBalancesControllerGetChainPollingConfigAction,
   TokenBalancesControllerUpdateBalancesAction,
   TokenBalancesControllerResetStateAction,
-} from './TokenBalancesController-method-action-types';
+} from './TokenBalancesController-method-action-types.js';
 export type {
   TokenDetectionControllerMessenger,
   TokenDetectionControllerActions,
   TokenDetectionControllerGetStateAction,
   TokenDetectionControllerEvents,
   TokenDetectionControllerStateChangeEvent,
-} from './TokenDetectionController';
+} from './TokenDetectionController.js';
 export type {
   TokenDetectionControllerEnableAction,
   TokenDetectionControllerDisableAction,
@@ -115,8 +118,8 @@ export type {
   TokenDetectionControllerDetectTokensAction,
   TokenDetectionControllerAddDetectedTokensViaWsAction,
   TokenDetectionControllerAddDetectedTokensViaPollingAction,
-} from './TokenDetectionController-method-action-types';
-export { TokenDetectionController } from './TokenDetectionController';
+} from './TokenDetectionController-method-action-types.js';
+export { TokenDetectionController } from './TokenDetectionController.js';
 export type {
   TokenListState,
   TokenListToken,
@@ -126,9 +129,9 @@ export type {
   GetTokenListState,
   TokenListControllerActions,
   TokenListControllerMessenger,
-} from './TokenListController';
-export { TokenListController } from './TokenListController';
-export { TokenListService, buildTokenListMap } from './TokenListService';
+} from './TokenListController.js';
+export { TokenListController } from './TokenListController.js';
+export { TokenListService, buildTokenListMap } from './TokenListService.js';
 export type {
   ContractExchangeRates,
   ContractMarketData,
@@ -140,11 +143,11 @@ export type {
   TokenRatesControllerState,
   TokenRatesControllerStateChangeEvent,
   MarketDataDetails,
-} from './TokenRatesController';
+} from './TokenRatesController.js';
 export {
   getDefaultTokenRatesControllerState,
   TokenRatesController,
-} from './TokenRatesController';
+} from './TokenRatesController.js';
 export type {
   TokensControllerState,
   TokensControllerActions,
@@ -152,7 +155,7 @@ export type {
   TokensControllerEvents,
   TokensControllerStateChangeEvent,
   TokensControllerMessenger,
-} from './TokensController';
+} from './TokensController.js';
 export type {
   TokensControllerAddTokenAction,
   TokensControllerAddTokensAction,
@@ -162,29 +165,29 @@ export type {
   TokensControllerWatchAssetAction,
   TokensControllerClearIgnoredTokensAction,
   TokensControllerResetStateAction,
-} from './TokensController-method-action-types';
-export { TokensController } from './TokensController';
+} from './TokensController-method-action-types.js';
+export { TokensController } from './TokensController.js';
 export {
   isTokenDetectionSupportedForNetwork,
   formatIconUrlWithProxy,
   getFormattedIpfsUrl,
   fetchTokenContractExchangeRates,
   getKeyByValue,
-} from './assetsUtil';
+} from './assetsUtil.js';
 export {
   CodefiTokenPricesServiceV2,
   SUPPORTED_CHAIN_IDS,
   getNativeTokenAddress,
   SPOT_PRICES_SUPPORT_INFO,
   getAssetId,
-} from './token-prices-service';
+} from './token-prices-service/index.js';
 export {
   fetchRwas,
   searchTokens,
   getTrendingTokens,
   fetchTokenAssets,
-} from './token-service';
-export { RatesController, Cryptocurrency } from './RatesController';
+} from './token-service.js';
+export { RatesController, Cryptocurrency } from './RatesController/index.js';
 export type {
   RatesControllerState,
   RatesControllerEvents,
@@ -194,8 +197,8 @@ export type {
   RatesControllerStateChangeEvent,
   RatesControllerPollingStartedEvent,
   RatesControllerPollingStoppedEvent,
-} from './RatesController';
-export { MultichainBalancesController } from './MultichainBalancesController';
+} from './RatesController/index.js';
+export { MultichainBalancesController } from './MultichainBalancesController/index.js';
 export type {
   MultichainBalancesControllerState,
   MultichainBalancesControllerGetStateAction,
@@ -203,12 +206,12 @@ export type {
   MultichainBalancesControllerActions,
   MultichainBalancesControllerEvents,
   MultichainBalancesControllerMessenger,
-} from './MultichainBalancesController';
+} from './MultichainBalancesController/index.js';
 
 export {
   MultichainAssetsController,
   getDefaultMultichainAssetsControllerState,
-} from './MultichainAssetsController';
+} from './MultichainAssetsController/index.js';
 
 export type {
   MultichainAssetsControllerState,
@@ -218,18 +221,18 @@ export type {
   MultichainAssetsControllerEvents,
   MultichainAssetsControllerAccountAssetListUpdatedEvent,
   MultichainAssetsControllerMessenger,
-} from './MultichainAssetsController';
+} from './MultichainAssetsController/index.js';
 export type {
   MultichainAssetsControllerGetAssetMetadataAction,
   MultichainAssetsControllerIgnoreAssetsAction,
   MultichainAssetsControllerAddAssetsAction,
-} from './MultichainAssetsController/MultichainAssetsController-method-action-types';
+} from './MultichainAssetsController/MultichainAssetsController-method-action-types.js';
 
 export {
   MultichainAssetsRatesController,
   getDefaultMultichainAssetsRatesControllerState,
-} from './MultichainAssetsRatesController';
-export { MAP_CAIP_CURRENCIES } from './MultichainAssetsRatesController';
+} from './MultichainAssetsRatesController/index.js';
+export { MAP_CAIP_CURRENCIES } from './MultichainAssetsRatesController/index.js';
 
 export type {
   MultichainAssetsRatesControllerState,
@@ -238,14 +241,14 @@ export type {
   MultichainAssetsRatesControllerGetStateAction,
   MultichainAssetsRatesControllerStateChange,
   MultichainAssetsRatesControllerMessenger,
-} from './MultichainAssetsRatesController';
+} from './MultichainAssetsRatesController/index.js';
 
 export type {
   MultichainAssetsRatesControllerUpdateAssetsRatesAction,
   MultichainAssetsRatesControllerFetchHistoricalPricesForAssetAction,
-} from './MultichainAssetsRatesController/MultichainAssetsRatesController-method-action-types';
+} from './MultichainAssetsRatesController/MultichainAssetsRatesController-method-action-types.js';
 
-export { TokenSearchDiscoveryDataController } from './TokenSearchDiscoveryDataController';
+export { TokenSearchDiscoveryDataController } from './TokenSearchDiscoveryDataController/index.js';
 export type {
   TokenDisplayData,
   TokenSearchDiscoveryDataControllerState,
@@ -254,8 +257,8 @@ export type {
   TokenSearchDiscoveryDataControllerStateChangeEvent,
   TokenSearchDiscoveryDataControllerActions,
   TokenSearchDiscoveryDataControllerMessenger,
-} from './TokenSearchDiscoveryDataController';
-export { DeFiPositionsController } from './DeFiPositionsController/DeFiPositionsController';
+} from './TokenSearchDiscoveryDataController/index.js';
+export { DeFiPositionsController } from './DeFiPositionsController/DeFiPositionsController.js';
 export type {
   DeFiPositionsControllerState,
   DeFiPositionsControllerActions,
@@ -263,34 +266,34 @@ export type {
   DeFiPositionsControllerGetStateAction,
   DeFiPositionsControllerStateChangeEvent,
   DeFiPositionsControllerMessenger,
-} from './DeFiPositionsController/DeFiPositionsController';
-export type { GroupedDeFiPositions } from './DeFiPositionsController/group-defi-positions';
+} from './DeFiPositionsController/DeFiPositionsController.js';
+export type { GroupedDeFiPositions } from './DeFiPositionsController/group-defi-positions.js';
 export type {
   AccountGroupBalance,
   WalletBalance,
   AllWalletsBalance,
-} from './balances';
-export { calculateBalanceForAllWallets } from './balances';
+} from './balances.js';
+export { calculateBalanceForAllWallets } from './balances.js';
 export type {
   BalanceChangePeriod,
   BalanceChangeResult,
   NetworkConfigurationNativeCurrency,
-} from './balances';
+} from './balances.js';
 export {
   calculateBalanceChangeForAllWallets,
   calculateBalanceChangeForAccountGroup,
-} from './balances';
+} from './balances.js';
 export type {
   AssetsByAccountGroup,
   AccountGroupAssets,
   Asset,
   AssetListState,
-} from './selectors/token-selectors';
+} from './selectors/token-selectors.js';
 export {
   selectAssetsBySelectedAccountGroup,
   selectAllAssets,
-} from './selectors/token-selectors';
-export { createFormatters } from './utils/formatters';
+} from './selectors/token-selectors.js';
+export { createFormatters } from './utils/formatters.js';
 export type {
   SortTrendingBy,
   TrendingAsset,
@@ -312,4 +315,4 @@ export type {
   RwasResponse,
   RwaSortBy,
   FetchRwasParams,
-} from './token-service';
+} from './token-service.js';

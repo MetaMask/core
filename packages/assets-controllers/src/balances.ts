@@ -13,15 +13,15 @@ import {
   isStrictHexString,
 } from '@metamask/utils';
 
-import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController';
-import type { CurrencyRateState } from './CurrencyRateController';
-import type { MultichainAssetsControllerState } from './MultichainAssetsController';
-import type { MultichainAssetsRatesControllerState } from './MultichainAssetsRatesController';
-import type { MultichainBalancesControllerState } from './MultichainBalancesController';
-import { getNativeTokenAddress } from './token-prices-service/codefi-v2';
-import type { TokenBalancesControllerState } from './TokenBalancesController';
-import type { TokenRatesControllerState } from './TokenRatesController';
-import type { TokensControllerState } from './TokensController';
+import { STAKING_CONTRACT_ADDRESS_BY_CHAINID } from './AssetsContractController.js';
+import type { CurrencyRateState } from './CurrencyRateController.js';
+import type { MultichainAssetsControllerState } from './MultichainAssetsController/index.js';
+import type { MultichainAssetsRatesControllerState } from './MultichainAssetsRatesController/index.js';
+import type { MultichainBalancesControllerState } from './MultichainBalancesController/index.js';
+import { getNativeTokenAddress } from './token-prices-service/codefi-v2.js';
+import type { TokenBalancesControllerState } from './TokenBalancesController.js';
+import type { TokenRatesControllerState } from './TokenRatesController.js';
+import type { TokensControllerState } from './TokensController.js';
 
 export type AccountGroupBalance = {
   walletId: string;
@@ -260,7 +260,7 @@ function getNonEvmAssetBalances(
 ) {
   const accountBalances = multichainBalancesState.balances[account.id] ?? {};
   const ignoredAssets =
-    multichainAssetsState.allIgnoredAssets[account.id] || [];
+    multichainAssetsState.allIgnoredAssets[account.id] ?? [];
 
   return Object.entries(accountBalances)
     .filter(
@@ -423,7 +423,7 @@ export function calculateBalanceForAllWallets(
   const getFlatAccountBalances = () =>
     Object.entries(accountTreeState.accountTree.wallets ?? {})
       .flatMap(([walletId, wallet]) =>
-        Object.keys(wallet?.groups || {}).flatMap((groupId) => {
+        Object.keys(wallet?.groups ?? {}).flatMap((groupId) => {
           const accounts = getInternalAccountsForGroup(
             accountTreeState,
             accountsState,
@@ -490,7 +490,7 @@ export function calculateBalanceForAllWallets(
           return;
         }
         wallets[walletId] ??= defaultWalletBalance(walletId);
-        Object.keys(wallet.groups || {}).forEach((groupId) => {
+        Object.keys(wallet.groups ?? {}).forEach((groupId) => {
           wallets[walletId].groups[groupId] ??= defaultGroupBalance(
             walletId,
             groupId,
@@ -582,7 +582,7 @@ export function calculateBalanceChangeForAllWallets(
   const getFlatAccountChanges = () =>
     Object.entries(accountTreeState.accountTree.wallets ?? {})
       .flatMap(([walletId, wallet]) =>
-        Object.keys(wallet?.groups || {}).flatMap((groupId) => {
+        Object.keys(wallet?.groups ?? {}).flatMap((groupId) => {
           const accounts = getInternalAccountsForGroup(
             accountTreeState,
             accountsState,

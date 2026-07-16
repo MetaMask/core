@@ -6,11 +6,11 @@ import type {
 } from '@nktkas/hyperliquid';
 import { v4 as uuidv4 } from 'uuid';
 
-import type { CandlePeriod } from '../constants/chartConfig';
+import type { CandlePeriod } from '../constants/chartConfig.js';
 import {
   PERPS_EVENT_PROPERTY,
   PERPS_EVENT_VALUE,
-} from '../constants/eventNames';
+} from '../constants/eventNames.js';
 import {
   BASIS_POINTS_DIVISOR,
   BUILDER_FEE_CONFIG,
@@ -28,28 +28,28 @@ import {
   TRADING_DEFAULTS,
   USDC_DECIMALS,
   USDH_CONFIG,
-} from '../constants/hyperLiquidConfig';
+} from '../constants/hyperLiquidConfig.js';
 import {
   ORDER_SLIPPAGE_CONFIG,
   PERFORMANCE_CONFIG,
   PERPS_CONSTANTS,
   TP_SL_CONFIG,
   WITHDRAWAL_CONSTANTS,
-} from '../constants/perpsConfig';
-import { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from '../constants/transactionsHistoryConfig';
-import { PERPS_ERROR_CODES } from '../perpsErrorCodes';
-import { DexDiscoveryCacheManager } from '../services/DexDiscoveryCacheManager';
+} from '../constants/perpsConfig.js';
+import { PERPS_TRANSACTIONS_HISTORY_CONSTANTS } from '../constants/transactionsHistoryConfig.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import { DexDiscoveryCacheManager } from '../services/DexDiscoveryCacheManager.js';
 import {
   HyperLiquidClientService,
   WebSocketConnectionState,
-} from '../services/HyperLiquidClientService';
-import { HyperLiquidSubscriptionService } from '../services/HyperLiquidSubscriptionService';
-import { HyperLiquidWalletService } from '../services/HyperLiquidWalletService';
+} from '../services/HyperLiquidClientService.js';
+import { HyperLiquidSubscriptionService } from '../services/HyperLiquidSubscriptionService.js';
+import { HyperLiquidWalletService } from '../services/HyperLiquidWalletService.js';
 import {
   TradingReadinessCache,
   PerpsSigningCache,
-} from '../services/TradingReadinessCache';
-import { PerpsAnalyticsEvent } from '../types';
+} from '../services/TradingReadinessCache.js';
+import { PerpsAnalyticsEvent } from '../types/index.js';
 import type {
   AccountState,
   AssetRoute,
@@ -111,30 +111,33 @@ import type {
   WithdrawResult,
   RawLedgerUpdate,
   PerpsReadOptions,
-} from '../types';
+} from '../types/index.js';
 import type {
   SDKOrderParams,
   MetaResponse,
   PerpsAssetCtx,
   SpotMetaResponse,
-} from '../types/hyperliquid-types';
+} from '../types/hyperliquid-types.js';
 import {
   HL_ABSTRACTION_WIRE,
   HL_UNIFIED_ACCOUNT_MODE,
   hyperLiquidModeFoldsSpot,
-} from '../types/hyperliquid-types';
-import type { PerpsControllerMessengerBase } from '../types/messenger';
-import type { ExtendedAssetMeta, ExtendedPerpDex } from '../types/perps-types';
+} from '../types/hyperliquid-types.js';
+import type { PerpsControllerMessengerBase } from '../types/messenger.js';
+import type {
+  ExtendedAssetMeta,
+  ExtendedPerpDex,
+} from '../types/perps-types.js';
 import {
   addSpotBalanceToAccountState,
   aggregateAccountStates,
-} from '../utils/accountUtils';
+} from '../utils/accountUtils.js';
 import {
   ensureError,
   isHyperLiquidUserNotFoundError,
   isKeyringLockedError,
-} from '../utils/errorUtils';
-import { shouldDeferUnifiedAccountSetup } from '../utils/hyperLiquidAbstraction';
+} from '../utils/errorUtils.js';
+import { shouldDeferUnifiedAccountSetup } from '../utils/hyperLiquidAbstraction.js';
 import {
   adaptAccountStateFromSDK,
   adaptHyperLiquidLedgerUpdateToUserHistoryItem,
@@ -145,7 +148,7 @@ import {
   formatHyperLiquidPrice,
   formatHyperLiquidSize,
   parseAssetName,
-} from '../utils/hyperLiquidAdapter';
+} from '../utils/hyperLiquidAdapter.js';
 import {
   createErrorResult,
   getMaxOrderValue,
@@ -156,23 +159,23 @@ import {
   validateDepositParams,
   validateOrderParams,
   validateWithdrawalParams,
-} from '../utils/hyperLiquidValidation';
-import { transformMarketData } from '../utils/marketDataTransform';
+} from '../utils/hyperLiquidValidation.js';
+import { transformMarketData } from '../utils/marketDataTransform.js';
 import {
   compileMarketPattern,
   shouldIncludeMarket,
-} from '../utils/marketUtils';
-import type { CompiledMarketPattern } from '../utils/marketUtils';
+} from '../utils/marketUtils.js';
+import type { CompiledMarketPattern } from '../utils/marketUtils.js';
 import {
   buildOrdersArray,
   calculateFinalPositionSize,
   calculateOrderPriceAndSize,
-} from '../utils/orderCalculations';
+} from '../utils/orderCalculations.js';
 import {
   createStandaloneInfoClient,
   queryStandaloneClearinghouseStates,
   queryStandaloneOpenOrders,
-} from '../utils/standaloneInfoClient';
+} from '../utils/standaloneInfoClient.js';
 // getStreamManagerInstance removed: use this.#deps.streamManager instead
 
 /**
@@ -3946,7 +3949,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#deps.debugLogger.log('Editing order:', params);
 
       // Validate size is positive (validateOrderParams no longer validates size)
-      const size = parseFloat(params.newOrder.size || '0');
+      const size = parseFloat(params.newOrder.size ?? '0');
       if (size <= 0) {
         return {
           success: false,
@@ -4581,6 +4584,7 @@ export class HyperLiquidProvider implements PerpsProvider {
             order.isPositionTpsl ===
               Boolean(TP_SL_CONFIG.UsePositionBoundTpsl) &&
             order.detailedOrderType &&
+            // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
             (order.detailedOrderType.includes('Take Profit') ||
               order.detailedOrderType.includes('Stop')),
         );
@@ -6907,7 +6911,7 @@ export class HyperLiquidProvider implements PerpsProvider {
           );
         } else {
           // Fallback: Calculate from size × price
-          const size = parseFloat(params.size || '0');
+          const size = parseFloat(params.size ?? '0');
           let priceForValidation = params.currentPrice;
 
           // For limit orders without currentPrice, use limit price as fallback
@@ -7419,8 +7423,8 @@ export class HyperLiquidProvider implements PerpsProvider {
       this.#deps.debugLogger.log(
         'HyperLiquidProvider: CALLING SEND_ASSET API',
         {
-          sourceDex: params.sourceDex || '(main)',
-          destinationDex: params.destinationDex || '(main)',
+          sourceDex: params.sourceDex ?? '(main)',
+          destinationDex: params.destinationDex ?? '(main)',
           amount: params.amount,
         },
       );

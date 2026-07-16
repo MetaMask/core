@@ -20,7 +20,7 @@ export type {
   MoneyAccountBalanceResponse,
   MusdEquivalentValueResponse,
   NormalizedVaultApyResponse,
-} from './response.types';
+} from './response.types.js';
 export {
   VaultConfigNotAvailableError,
   VaultConfigValidationError,

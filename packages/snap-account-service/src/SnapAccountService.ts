@@ -41,6 +41,7 @@ import {
   KeyringTypes,
 } from '@metamask/keyring-controller';
 import { KeyringInternalSnapClient } from '@metamask/keyring-internal-snap-client/v2';
+import type { KeyringInternalSnapClientMessenger } from '@metamask/keyring-internal-snap-client';
 import { SnapManageAccountsMethod } from '@metamask/keyring-snap-sdk';
 import type {
   AccountId,
@@ -289,7 +290,10 @@ export class SnapAccountService {
       messenger: messenger.buildChild({
         namespace: 'KeyringInternalSnapClient',
         actions: ['SnapController:handleRequest'],
-      }),
+        // `keyring-internal-snap-client` depends on `@metamask/messenger@^1.1.1`
+        // while this package uses v2. Both versions are structurally identical
+        // but TypeScript's `#private` field check rejects cross-version assignment.
+      }) as unknown as KeyringInternalSnapClientMessenger,
     });
 
     this.#messenger.registerMethodActionHandlers(

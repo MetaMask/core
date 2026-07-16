@@ -1,8 +1,8 @@
 import {
   MARKET_SORTING_CONFIG,
   PERPS_CONSTANTS,
-} from '../constants/perpsConfig';
-import type { PerpsMarketData, SortDirection, SortField } from '../types';
+} from '../constants/perpsConfig.js';
+import type { PerpsMarketData, SortDirection, SortField } from '../types/index.js';
 
 export type SortMarketsParams = {
   markets: PerpsMarketData[];
@@ -87,9 +87,11 @@ export const sortMarkets = ({
 
       case MARKET_SORTING_CONFIG.SortFields.PriceChange: {
         const changeA = parseFloat(
+          // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
           a.change24hPercent?.replace(/[%+]/gu, '') || '0',
         );
         const changeB = parseFloat(
+          // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
           b.change24hPercent?.replace(/[%+]/gu, '') || '0',
         );
         compareValue = changeA - changeB;

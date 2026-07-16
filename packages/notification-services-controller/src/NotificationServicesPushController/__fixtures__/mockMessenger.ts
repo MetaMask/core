@@ -5,7 +5,7 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
-import type { NotificationServicesPushControllerMessenger } from '..';
+import type { NotificationServicesPushControllerMessenger } from './../index.js';
 
 const controllerName = 'NotificationServicesPushController';
 

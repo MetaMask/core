@@ -9,8 +9,8 @@ import type {
   OpenrpcDocument,
   ReferenceObject,
 } from '@open-rpc/meta-schema';
-import dereferenceDocument from '@open-rpc/schema-utils-js/build/dereference-document';
-import { makeCustomResolver } from '@open-rpc/schema-utils-js/build/parse-open-rpc-document';
+import { dereferenceDocument } from '@open-rpc/schema-utils-js';
+import { makeCustomResolver } from '@open-rpc/schema-utils-js/build/parse-open-rpc-document.js';
 import type { Schema, ValidationError } from 'jsonschema';
 import { Validator } from 'jsonschema';
 

@@ -10,8 +10,8 @@ import {
   toCaipChainId,
 } from '@metamask/utils';
 
-import type { AssetsControllerMessenger } from '../AssetsController';
-import { projectLogger, createModuleLogger } from '../logger';
+import type { AssetsControllerMessenger } from '../AssetsController.js';
+import { projectLogger, createModuleLogger } from '../logger.js';
 import type {
   ChainId,
   Caip19AssetId,
@@ -20,13 +20,13 @@ import type {
   DataResponse,
   Middleware,
   AssetsControllerStateInternal,
-} from '../types';
-import { fetchWithTimeout, normalizeAssetId } from '../utils';
+} from '../types.js';
+import { fetchWithTimeout, normalizeAssetId } from '../utils/index.js';
 import type {
   DataSourceState,
   SubscriptionRequest,
-} from './AbstractDataSource';
-import { AbstractDataSource } from './AbstractDataSource';
+} from './AbstractDataSource.js';
+import { AbstractDataSource } from './AbstractDataSource.js';
 
 // ============================================================================
 // CONSTANTS

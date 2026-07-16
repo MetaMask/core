@@ -29,7 +29,7 @@ import type { Draft } from 'immer';
 import type {
   MultichainAssetsControllerGetStateAction,
   MultichainAssetsControllerAccountAssetListUpdatedEvent,
-} from '../MultichainAssetsController';
+} from '../MultichainAssetsController/index.js';
 
 const controllerName = 'MultichainBalancesController';
 
@@ -183,7 +183,7 @@ export class MultichainBalancesController extends BaseController<
       // Fetch initial balances for all non-EVM accounts
       for (const account of this.#listAccounts()) {
         // Fetching the balance is asynchronous and we cannot use `await` here.
-        // eslint-disable-next-line no-void
+
         void this.updateBalance(account.id);
       }
     }
@@ -200,7 +200,7 @@ export class MultichainBalancesController extends BaseController<
 
     this.messenger.subscribe(
       'MultichainAssetsController:accountAssetListUpdated',
-      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+
       async ({ assets }) => {
         const updatedAccountAssets = Object.entries(assets).map(
           ([accountId, { added, removed }]) => ({

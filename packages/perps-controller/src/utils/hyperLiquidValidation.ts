@@ -5,10 +5,10 @@ import {
   HYPERLIQUID_ASSET_CONFIGS,
   getSupportedAssets,
   TRADING_DEFAULTS,
-} from '../constants/hyperLiquidConfig';
-import { HYPERLIQUID_ORDER_LIMITS } from '../constants/perpsConfig';
-import { PERPS_ERROR_CODES } from '../perpsErrorCodes';
-import type { GetSupportedPathsParams, PerpsDebugLogger } from '../types';
+} from '../constants/hyperLiquidConfig.js';
+import { HYPERLIQUID_ORDER_LIMITS } from '../constants/perpsConfig.js';
+import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import type { GetSupportedPathsParams, PerpsDebugLogger } from '../types/index.js';
 
 /**
  * Optional debug logger for validation functions.
