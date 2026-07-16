@@ -182,6 +182,50 @@ describe('TransactionPayController', () => {
       expect(transactionData.totals).toBeUndefined();
     }
 
+    it('rejects an update for an unknown transaction', async () => {
+      getTransactionMock.mockReturnValue(undefined);
+      const controller = createController({
+        prepareTransactionAmount: jest.fn(),
+      });
+
+      await expect(
+        controller.updateAmount({
+          transactionId: TRANSACTION_ID_MOCK,
+          amountHuman: '1.23',
+        }),
+      ).rejects.toThrow(`Transaction not found: ${TRANSACTION_ID_MOCK}`);
+    });
+
+    it('rejects an update when amount preparation is not configured', async () => {
+      getTransactionMock.mockReturnValue(transaction);
+      const controller = createController();
+
+      await expect(
+        controller.updateAmount({
+          transactionId: TRANSACTION_ID_MOCK,
+          amountHuman: '1.23',
+        }),
+      ).rejects.toThrow('Transaction amount preparation is not configured');
+    });
+
+    it('rejects a non-applicable amount preparation', async () => {
+      getTransactionMock.mockReturnValue(transaction);
+      const controller = createController({
+        prepareTransactionAmount: jest.fn().mockResolvedValue({
+          kind: 'not-applicable',
+        }),
+      });
+      updateQuotesMock.mockClear();
+
+      await expect(
+        controller.updateAmount({
+          transactionId: TRANSACTION_ID_MOCK,
+          amountHuman: '1.23',
+        }),
+      ).rejects.toThrow('Transaction amount preparation is not applicable');
+      expect(beginAtomicBatchUpdateMock).not.toHaveBeenCalled();
+    });
+
     it('passes the exact human amount and commits the complete patch once', async () => {
       const prepareTransactionAmount = jest.fn().mockResolvedValue({
         kind: 'prepared',

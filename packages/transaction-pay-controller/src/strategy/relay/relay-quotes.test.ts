@@ -280,6 +280,30 @@ describe('Relay Quotes Utils', () => {
       expect(calculateGasCostMock).toHaveBeenCalled();
     });
 
+    it('rejects a raw standard quote when transaction preparation was superseded', async () => {
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await expect(
+        getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: TRANSACTION_META_MOCK,
+          transactionPreparation: Promise.resolve({
+            revision: 1,
+            status: 'superseded',
+            transaction: TRANSACTION_META_MOCK,
+          }),
+        }),
+      ).rejects.toThrow('Transaction preparation was superseded');
+
+      expect(successfulFetchMock).toHaveBeenCalledTimes(1);
+      expect(calculateGasCostMock).not.toHaveBeenCalled();
+    });
+
     it('returns quotes from Relay', async () => {
       successfulFetchMock.mockResolvedValue({
         ok: true,
