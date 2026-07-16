@@ -6,9 +6,12 @@ import { createServicePolicy, HttpError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type { IDisposable } from 'cockatiel';
 
-import type { AnalyticsDataRegulationServiceMethodActions } from './AnalyticsDataRegulationService-method-action-types';
-import { DATA_DELETE_RESPONSE_STATUSES, DATA_DELETE_STATUSES } from './types';
-import type { DataDeleteStatus } from './types';
+import type { AnalyticsDataRegulationServiceMethodActions } from './AnalyticsDataRegulationService-method-action-types.js';
+import {
+  DATA_DELETE_RESPONSE_STATUSES,
+  DATA_DELETE_STATUSES,
+} from './types.js';
+import type { DataDeleteStatus } from './types.js';
 
 /**
  * Segment API regulation type for DELETE_ONLY operations.

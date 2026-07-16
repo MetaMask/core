@@ -1,18 +1,22 @@
+import { jest } from '@jest/globals';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
 
+import type { AnalyticsDataRegulationServiceActions } from './AnalyticsDataRegulationService.js';
 import {
   AnalyticsDataRegulationController,
   getDefaultAnalyticsDataRegulationControllerState,
-} from '.';
+} from './index.js';
 import type {
   AnalyticsDataRegulationControllerMessenger,
   AnalyticsDataRegulationControllerActions,
   AnalyticsDataRegulationControllerEvents,
   AnalyticsDataRegulationControllerState,
-} from '.';
-import type { AnalyticsDataRegulationServiceActions } from './AnalyticsDataRegulationService';
-import { DATA_DELETE_RESPONSE_STATUSES, DATA_DELETE_STATUSES } from './types';
+} from './index.js';
+import {
+  DATA_DELETE_RESPONSE_STATUSES,
+  DATA_DELETE_STATUSES,
+} from './types.js';
 
 type SetupControllerOptions = {
   state?: Partial<AnalyticsDataRegulationControllerState>;
