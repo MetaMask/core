@@ -6804,7 +6804,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/eth-json-rpc-provider": "npm:^6.0.1"
     "@metamask/json-rpc-engine": "npm:^10.5.0"
-    "@metamask/safe-event-emitter": "npm:^3.0.0"
+    "@metamask/safe-event-emitter": "patch:@metamask/safe-event-emitter@npm%3A3.1.1#~/.yarn/patches/@metamask-safe-event-emitter-npm-3.1.1-a7872b1f5a.patch"
     "@metamask/utils": "npm:^11.11.0"
     "@types/jest": "npm:^29.5.14"
     "@types/json-rpc-random-id": "npm:^1.0.1"
@@ -7288,7 +7288,7 @@ __metadata:
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/messenger": "npm:^2.0.0"
     "@metamask/rpc-errors": "npm:^7.0.2"
-    "@metamask/safe-event-emitter": "npm:^3.0.0"
+    "@metamask/safe-event-emitter": "patch:@metamask/safe-event-emitter@npm%3A3.1.1#~/.yarn/patches/@metamask-safe-event-emitter-npm-3.1.1-a7872b1f5a.patch"
     "@metamask/utils": "npm:^11.11.0"
     "@types/deep-freeze-strict": "npm:^1.1.0"
     "@types/jest": "npm:^29.5.14"
@@ -7309,7 +7309,7 @@ __metadata:
   dependencies:
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/json-rpc-engine": "npm:^10.5.0"
-    "@metamask/safe-event-emitter": "npm:^3.0.0"
+    "@metamask/safe-event-emitter": "patch:@metamask/safe-event-emitter@npm%3A3.1.1#~/.yarn/patches/@metamask-safe-event-emitter-npm-3.1.1-a7872b1f5a.patch"
     "@metamask/utils": "npm:^11.11.0"
     "@types/jest": "npm:^29.5.14"
     "@types/readable-stream": "npm:^2.3.0"
@@ -7771,7 +7771,7 @@ __metadata:
     "@metamask/network-controller": "npm:^34.0.0"
     "@metamask/permission-controller": "npm:^13.1.1"
     "@metamask/rpc-errors": "npm:^7.0.2"
-    "@metamask/safe-event-emitter": "npm:^3.0.0"
+    "@metamask/safe-event-emitter": "patch:@metamask/safe-event-emitter@npm%3A3.1.1#~/.yarn/patches/@metamask-safe-event-emitter-npm-3.1.1-a7872b1f5a.patch"
     "@metamask/snaps-controllers": "npm:^19.0.0"
     "@metamask/utils": "npm:^11.11.0"
     "@open-rpc/meta-schema": "npm:^1.14.6"
@@ -8489,10 +8489,17 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@metamask/safe-event-emitter@npm:^3.0.0, @metamask/safe-event-emitter@npm:^3.1.1":
+"@metamask/safe-event-emitter@npm:3.1.1":
   version: 3.1.1
   resolution: "@metamask/safe-event-emitter@npm:3.1.1"
   checksum: 10/e24db4d7c20764bfc5b025065f92518c805f0ffb1da4820078b8cff7dcae964c0f354cf053fcb7ac659de015d5ffdf21aae5e8d44e191ee8faa9066855f22653
+  languageName: node
+  linkType: hard
+
+"@metamask/safe-event-emitter@patch:@metamask/safe-event-emitter@npm%3A3.1.1#~/.yarn/patches/@metamask-safe-event-emitter-npm-3.1.1-a7872b1f5a.patch":
+  version: 3.1.1
+  resolution: "@metamask/safe-event-emitter@patch:@metamask/safe-event-emitter@npm%3A3.1.1#~/.yarn/patches/@metamask-safe-event-emitter-npm-3.1.1-a7872b1f5a.patch::version=3.1.1&hash=4a033d"
+  checksum: 10/b47560199f61105a5a719b907400395893c52aa6a1d9aa37a4128b054351dd45fb485655dcb71f926e58da406f39f6a93c60396cc00ed1753a97ac3f5a2c7e5e
   languageName: node
   linkType: hard
 

@@ -64,7 +64,7 @@
     "@metamask/auto-changelog": "^6.1.0",
     "@metamask/eth-json-rpc-filters": "^9.0.0",
     "@metamask/multichain-transactions-controller": "^7.1.1",
-    "@metamask/safe-event-emitter": "^3.0.0",
+    "@metamask/safe-event-emitter": "patch:@metamask/safe-event-emitter@npm%3A3.1.1#~/.yarn/patches/@metamask-safe-event-emitter-npm-3.1.1-a7872b1f5a.patch",
     "@types/jest": "^29.5.14",
     "deepmerge": "^4.2.2",
     "jest": "^29.7.0",

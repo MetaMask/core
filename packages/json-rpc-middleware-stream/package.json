@@ -47,7 +47,7 @@
   },
   "dependencies": {
     "@metamask/json-rpc-engine": "^10.5.0",
-    "@metamask/safe-event-emitter": "^3.0.0",
+    "@metamask/safe-event-emitter": "patch:@metamask/safe-event-emitter@npm%3A3.1.1#~/.yarn/patches/@metamask-safe-event-emitter-npm-3.1.1-a7872b1f5a.patch",
     "@metamask/utils": "^11.11.0",
     "readable-stream": "^3.6.2"
   },
