@@ -1,6 +1,6 @@
 import type { KeyringControllerOptions } from '@metamask/keyring-controller';
 
-import type { GenericEncryptor } from './encryptor';
+import type { GenericEncryptor } from './encryptor.js';
 
 /**
  * Per-instance options for the wallet's `KeyringController`. All fields are
