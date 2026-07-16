@@ -49,6 +49,7 @@
   },
   "dependencies": {
     "@ethereumjs/util": "^9.1.0",
+    "@ethereumjs/wallet": "^10.0.0",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/browser-passworder": "^6.0.0",
     "@metamask/controller-utils": "^12.3.0",
@@ -60,9 +61,8 @@
     "@metamask/messenger": "^2.0.0",
     "@metamask/utils": "^11.11.0",
     "async-mutex": "^0.5.0",
-    "ethereumjs-wallet": "^1.0.1",
     "immer": "^9.0.6",
-    "lodash": "^4.17.21",
+    "lodash-es": "^4.17.21",
     "ulid": "^2.3.0"
   },
   "devDependencies": {
@@ -80,8 +80,7 @@
     "tsx": "^4.20.5",
     "typedoc": "^0.25.13",
     "typedoc-plugin-missing-exports": "^2.0.0",
-    "typescript": "~5.3.3",
-    "uuid": "^8.3.2"
+    "typescript": "~5.3.3"
   },
   "engines": {
     "node": "^22.14.0 || ^24"

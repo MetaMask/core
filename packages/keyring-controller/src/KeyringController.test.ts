@@ -1,6 +1,7 @@
 import { Chain, Common, Hardfork } from '@ethereumjs/common';
 import type { TypedTxData } from '@ethereumjs/tx';
 import { TransactionFactory } from '@ethereumjs/tx';
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { HdKeyring } from '@metamask/eth-hd-keyring';
 import {
@@ -30,17 +31,17 @@ import MockEncryptor, {
   DECRYPTION_ERROR,
   MOCK_ENCRYPTION_KEY,
   SALT,
-} from '../tests/mocks/mockEncryptor';
-import { MockErc4337Keyring } from '../tests/mocks/mockErc4337Keyring';
+} from '../tests/mocks/mockEncryptor.js';
+import { MockErc4337Keyring } from '../tests/mocks/mockErc4337Keyring.js';
 import {
   HardwareWalletError,
   MockHardwareKeyring,
-} from '../tests/mocks/mockHardwareKeyring';
-import { MockKeyring } from '../tests/mocks/mockKeyring';
-import MockShallowKeyring from '../tests/mocks/mockShallowKeyring';
-import { buildMockTransaction } from '../tests/mocks/mockTransaction';
-import { KeyringControllerErrorMessage } from './constants';
-import { KeyringControllerError } from './errors';
+} from '../tests/mocks/mockHardwareKeyring.js';
+import { MockKeyring } from '../tests/mocks/mockKeyring.js';
+import MockShallowKeyring from '../tests/mocks/mockShallowKeyring.js';
+import { buildMockTransaction } from '../tests/mocks/mockTransaction.js';
+import { KeyringControllerErrorMessage } from './constants.js';
+import { KeyringControllerError } from './errors.js';
 import type {
   KeyringControllerEvents,
   KeyringControllerMessenger,
@@ -51,14 +52,14 @@ import type {
   SerializedKeyring,
   KeyringSelector,
   KeyringSelectorV2,
-} from './KeyringController';
+} from './KeyringController.js';
 import {
   AccountImportStrategy,
   KeyringController,
   KeyringTypes,
   isCustodyKeyring,
   keyringBuilderFactory,
-} from './KeyringController';
+} from './KeyringController.js';
 
 type AllKeyringControllerActions = MessengerActions<KeyringControllerMessenger>;
 
@@ -1326,8 +1327,7 @@ describe('KeyringController', () => {
           const normalizedInitialAccounts =
             controller.state.keyrings[0].accounts.map(normalize);
           const keyring = (await controller.getKeyringForAccount(
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-            normalizedInitialAccounts[0]!,
+            normalizedInitialAccounts[0],
           )) as EthKeyring;
           expect(keyring.type).toBe('HD Key Tree');
           expect(await keyring.getAccounts()).toStrictEqual(

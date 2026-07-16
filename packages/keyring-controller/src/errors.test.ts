@@ -1,9 +1,9 @@
-import { KeyringControllerErrorMessage } from './constants';
+import { KeyringControllerErrorMessage } from './constants.js';
 import {
   isKeyringControllerError,
   isKeyringNotFoundError,
   KeyringControllerError,
-} from './errors';
+} from './errors.js';
 
 describe('isKeyringControllerError', () => {
   it('returns true for a KeyringControllerError', () => {

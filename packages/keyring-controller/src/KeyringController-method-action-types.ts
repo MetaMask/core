@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { KeyringController } from './KeyringController';
+import type { KeyringController } from './KeyringController.js';
 
 /**
  * Adds a new account to the default (first) HD seed phrase keyring.

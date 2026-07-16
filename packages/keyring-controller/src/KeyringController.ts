@@ -1,5 +1,6 @@
 import type { TypedTransaction, TypedTxData } from '@ethereumjs/tx';
 import { isValidPrivate, getBinarySize } from '@ethereumjs/util';
+import { Wallet, thirdparty as importers } from '@ethereumjs/wallet';
 import { BaseController } from '@metamask/base-controller';
 import type * as encryptorUtils from '@metamask/browser-passworder';
 import { HdKeyring } from '@metamask/eth-hd-keyring';
@@ -37,21 +38,20 @@ import {
 } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
 import type { MutexInterface } from 'async-mutex';
-import Wallet, { thirdparty as importers } from 'ethereumjs-wallet';
 import type { Patch } from 'immer';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 // When generating a ULID within the same millisecond, monotonicFactory provides some guarantees regarding sort order.
 import { ulid } from 'ulid';
 
-import { KeyringControllerErrorMessage } from './constants';
-import { KeyringControllerError } from './errors';
-import type { KeyringControllerMethodActions } from './KeyringController-method-action-types';
+import { KeyringControllerErrorMessage } from './constants.js';
+import { KeyringControllerError } from './errors.js';
+import type { KeyringControllerMethodActions } from './KeyringController-method-action-types.js';
 import type {
   Eip7702AuthorizationParams,
   Credentials,
   PersonalMessageParams,
   TypedMessageParams,
-} from './types';
+} from './types.js';
 
 const name = 'KeyringController';
 
@@ -1374,7 +1374,7 @@ export class KeyringController<
           let wallet;
           const [input, password] = args;
           try {
-            wallet = importers.fromEtherWallet(input, password);
+            wallet = await importers.fromEtherWallet(input, password);
           } catch {
             wallet = wallet ?? (await Wallet.fromV3(input, password, true));
           }
