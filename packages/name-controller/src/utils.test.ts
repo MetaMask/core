@@ -1,4 +1,6 @@
-import { assertIsError, graphQL } from './util';
+import { jest } from '@jest/globals';
+
+import { assertIsError, graphQL } from './util.js';
 
 describe('Utils', () => {
   describe('graphQL', () => {
