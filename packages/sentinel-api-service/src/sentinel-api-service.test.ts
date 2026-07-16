@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { HttpError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -6,7 +7,7 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 import type { Hex } from '@metamask/utils';
-import nock, { cleanAll as nockCleanAll } from 'nock';
+import nock from 'nock';
 
 import {
   BASE_URL_TEMPLATE,
@@ -16,23 +17,23 @@ import {
   RPC_METHOD_SIMULATE,
   SentinelEnvironment,
   serviceName,
-} from './constants';
+} from './constants.js';
 import {
   SentinelApiResponseValidationError,
   SentinelChainNotSupportedError,
   SentinelJsonRpcError,
-} from './errors';
-import { SentinelApiService } from './sentinel-api-service';
+} from './errors.js';
+import { SentinelApiService } from './sentinel-api-service.js';
 import {
   SentinelFeature,
   SentinelKind,
   SentinelSmartTransactionStatus,
-} from './types';
+} from './types.js';
 import type {
   SentinelApiServiceMessenger,
   SentinelRelaySubmitRequest,
   SentinelSimulationRequest,
-} from './types';
+} from './types.js';
 
 // ============================================================
 // Fixtures
@@ -212,7 +213,7 @@ function mockNetworks(times = 1): nock.Scope {
 
 describe('SentinelApiService', () => {
   afterEach(() => {
-    nockCleanAll();
+    nock.cleanAll();
   });
 
   describe('errors', () => {
