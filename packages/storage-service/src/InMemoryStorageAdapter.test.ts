@@ -1,4 +1,6 @@
-import { InMemoryStorageAdapter } from './InMemoryStorageAdapter';
+import { jest } from '@jest/globals';
+
+import { InMemoryStorageAdapter } from './InMemoryStorageAdapter.js';
 
 describe('InMemoryStorageAdapter', () => {
   describe('constructor', () => {

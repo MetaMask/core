@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -5,8 +6,8 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
-import { StorageService } from './StorageService';
-import type { StorageServiceMessenger, StorageAdapter } from './types';
+import { StorageService } from './StorageService.js';
+import type { StorageServiceMessenger, StorageAdapter } from './types.js';
 
 describe('StorageService', () => {
   let consoleWarnSpy: jest.SpyInstance;
