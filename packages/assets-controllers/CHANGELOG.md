@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Modified native asset addresses for Stable (`988`), Rootstock (`30`) and Gnosis (`100`) in `codefi-v2.ts` ([#9386](https://github.com/MetaMask/core/pull/9386))
 
+### Changed
+
+- Bump `@metamask/network-enablement-controller` from `^5.5.0` to `^5.6.0` ([#9520](https://github.com/MetaMask/core/pull/9520))
+
 ### Removed
 
 - **BREAKING:** Revert Snap account-asset enrichment added in 109.3.0 ([#9454](https://github.com/MetaMask/core/pull/9454))
@@ -25,6 +29,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Remove exported types `AccountAssetInfo` and `MultichainAccountBalance`.
   - Remove optional `accountAssetInfo` from selector `Asset` items.
   - `MultichainAssetsController:accountAssetListUpdated` no longer includes a `refreshed` asset list for already-tracked snap adds;
+
+### Fixed
+
+- Fix incorrect Linea chain ID (`0xe728` → `0xe708`) in `SUPPORTED_NETWORKS_ACCOUNTS_API_V4`, which caused the legacy `AssetsController` (used in production when the Unified Assets Controller feature flag is off) to fall back to RPC instead of the Accounts API V4 ([#9519](https://github.com/MetaMask/core/pull/9519))
 
 ## [109.4.1]
 

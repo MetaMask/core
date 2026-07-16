@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [74.3.0]
+
+### Added
+
+- Support batch sell (EIP-7702/nested batch) transactions in the quote-status flow, so every quote submitted under a single batch transaction is reported to the backend. All quotes sharing one batch source transaction are reported as `SUBMITTED` under the shared source transaction hash and `txMetaId`, and are finalized together when that transaction confirms or fails. ([#9514](https://github.com/MetaMask/core/pull/9514))
+
+### Changed
+
+- Ensure refs in tsconfig files are synced with internal deps ([#8384](https://github.com/MetaMask/core/pull/8384))
+
 ## [74.2.0]
 
 ### Added
@@ -1414,7 +1424,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.3.0...HEAD
+[74.3.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.2.0...@metamask/bridge-status-controller@74.3.0
 [74.2.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.1.2...@metamask/bridge-status-controller@74.2.0
 [74.1.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.1.1...@metamask/bridge-status-controller@74.1.2
 [74.1.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-status-controller@74.1.0...@metamask/bridge-status-controller@74.1.1

@@ -476,6 +476,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * poll where the hash is known, and the final-status branch) and the poll
    * path runs on every interval.
    *
+   * For 7702/nested batch sells a single source transaction carries multiple
+   * quotes: the parent history item lists all of them in `quoteIds` (each a key
+   * into `txHistory`). In that case every quote is reported under the shared
+   * source tx hash and `txMetaId`.
+   *
    * @param historyKey - The key of the history item in `txHistory`
    * @param srcTxHash - The source chain transaction hash
    * @param txMetaId - The transaction meta id, used for finalization matching
@@ -486,20 +491,39 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     txMetaId: string,
   ): void => {
     const historyItem = this.state.txHistory[historyKey];
-    if (!historyItem?.quoteId) {
+    if (!historyItem) {
       return;
     }
+
+    // For a 7702/nested batch the parent item lists every quote in `quoteIds`
+    // (keys into `txHistory`); resolve each to its real quote id. Otherwise fall
+    // back to the item's own single quote id.
+    let quoteIds: string[];
+    if (historyItem.quoteIds?.length) {
+      quoteIds = historyItem.quoteIds
+        .map((quoteKey) => this.state.txHistory[quoteKey]?.quoteId)
+        .filter((quoteId): quoteId is string => Boolean(quoteId));
+    } else if (historyItem.quoteId) {
+      quoteIds = [historyItem.quoteId];
+    } else {
+      quoteIds = [];
+    }
+
+    if (quoteIds.length === 0) {
+      return;
+    }
+
     // `reportedSubmittedTxHash` is set once `reportSubmitted` is called.
     // This avoids processing multiple `eportSubmitted` for the
     // same swap/bridge.
     if (historyItem.reportedSubmittedTxHash === srcTxHash) {
       return;
     }
-    this.#quoteStatusManager.reportSubmitted(
-      historyItem.quoteId,
-      srcTxHash,
-      txMetaId,
-    );
+
+    for (const quoteId of quoteIds) {
+      this.#quoteStatusManager.reportSubmitted(quoteId, srcTxHash, txMetaId);
+    }
+
     this.update((state) => {
       const item = state.txHistory[historyKey];
       if (item) {
@@ -646,8 +670,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     for (const [historyKey, historyItem] of Object.entries(
       this.state.txHistory,
     )) {
-      const { quoteId, txMetaId } = historyItem;
-      if (!quoteId || !txMetaId) {
+      const { quoteId, quoteIds, txMetaId } = historyItem;
+      // A 7702/nested batch parent reports its quotes via `quoteIds` rather than
+      // its own single `quoteId`, so accept either. `#reportSubmittedOnce`
+      // resolves the actual set of quotes to report.
+      if ((!quoteId && !quoteIds?.length) || !txMetaId) {
         continue;
       }
 
