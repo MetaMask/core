@@ -338,6 +338,10 @@ describe('formatDateTime', () => {
     expect(formatDateTime('')).toBe('');
   });
 
+  it('returns empty string for an invalid date string', () => {
+    expect(formatDateTime('not-a-date')).toBe('');
+  });
+
   it('accepts string timestamps', () => {
     const result = formatDateTime('2024-03-15T14:30:00Z');
     expect(result).toMatch(/2024/u);

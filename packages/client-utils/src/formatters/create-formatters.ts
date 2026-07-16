@@ -303,6 +303,10 @@ function formatDateTime(
   if (!timestamp) {
     return '';
   }
+  const date = new Date(timestamp);
+  if (isNaN(date.getTime())) {
+    return '';
+  }
   return getCachedDateTimeFormat(config.locale, {
     month: 'short',
     day: 'numeric',
@@ -311,7 +315,7 @@ function formatDateTime(
     minute: 'numeric',
     hour12: true,
     ...options,
-  }).format(new Date(timestamp));
+  }).format(date);
 }
 
 export type Formatters = {
