@@ -1,10 +1,10 @@
 import { TOPRFErrorCode } from '@metamask/toprf-secure-backup';
 
-import { SeedlessOnboardingControllerErrorMessage } from './constants';
+import { SeedlessOnboardingControllerErrorMessage } from './constants.js';
 import {
   getErrorMessageFromTOPRFErrorCode,
   SeedlessOnboardingError,
-} from './errors';
+} from './errors.js';
 
 describe('getErrorMessageFromTOPRFErrorCode', () => {
   it('returns TooManyLoginAttempts for RateLimitExceeded', () => {

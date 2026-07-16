@@ -1,7 +1,7 @@
 import type { KeyPair, NodeAuthTokens } from '@metamask/toprf-secure-backup';
 import type { MutexInterface } from 'async-mutex';
 
-import type { AuthConnection, SecretType } from './constants';
+import type { AuthConnection, SecretType } from './constants.js';
 
 /**
  * The backup state of the secret data.
