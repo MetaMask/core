@@ -3052,44 +3052,7 @@ export class NetworkController extends BaseController<
       updateState?: (state: Draft<NetworkState>) => void;
     } = {},
   ): void {
-    const networkClient = this.getNetworkClientById(networkClientId);
-
-    const autoManagedNetworkClientRegistry =
-      this.#ensureAutoManagedNetworkClientRegistryPopulated();
-
-    let autoManagedNetworkClient:
-      | AutoManagedNetworkClient<CustomNetworkClientConfiguration>
-      | AutoManagedNetworkClient<InfuraNetworkClientConfiguration>;
-
-    if (networkClient.configuration.type === NetworkClientType.Infura) {
-      const possibleAutoManagedNetworkClient =
-        autoManagedNetworkClientRegistry[NetworkClientType.Infura][
-          networkClientId
-        ];
-
-      // This is impossible to reach
-      /* istanbul ignore if */
-      if (!possibleAutoManagedNetworkClient) {
-        throw new Error(
-          `No Infura network client found with ID '${networkClientId}'`,
-        );
-      }
-
-      autoManagedNetworkClient = possibleAutoManagedNetworkClient;
-    } else {
-      const possibleAutoManagedNetworkClient =
-        autoManagedNetworkClientRegistry[NetworkClientType.Custom][
-          networkClientId
-        ];
-
-      if (!possibleAutoManagedNetworkClient) {
-        throw new Error(`No network client found with ID '${networkClientId}'`);
-      }
-
-      autoManagedNetworkClient = possibleAutoManagedNetworkClient;
-    }
-
-    this.#autoManagedNetworkClient = autoManagedNetworkClient;
+    this.#autoManagedNetworkClient = this.getNetworkClientById(networkClientId);
 
     this.update((state) => {
       state.selectedNetworkClientId = networkClientId;
