@@ -16,7 +16,7 @@ import type {
   PendingJsonRpcResponse,
 } from '@metamask/utils';
 
-import { CaveatTypes, EndowmentTypes, RestrictedMethods } from './types';
+import { CaveatTypes, EndowmentTypes, RestrictedMethods } from './types.js';
 
 export type GetPermissionsHooks = {
   getPermissionsForOrigin: () => ReturnType<
@@ -65,7 +65,7 @@ async function getPermissionsImplementation(
   const caip25Endowment = permissions[Caip25EndowmentPermissionName];
   const caip25CaveatValue = caip25Endowment?.caveats?.find(
     ({ type }) => type === Caip25CaveatType,
-  )?.value as Caip25CaveatValue | undefined;
+  )?.value;
   delete permissions[Caip25EndowmentPermissionName];
 
   if (caip25CaveatValue) {
@@ -86,7 +86,9 @@ async function getPermissionsImplementation(
       };
     }
 
-    const ethChainIds = getPermittedEthChainIds(caip25CaveatValue);
+    const ethChainIds = getPermittedEthChainIds(
+      caip25CaveatValue as Caip25CaveatValue,
+    );
 
     if (ethChainIds.length > 0) {
       permissions[EndowmentTypes.PermittedChains] = {

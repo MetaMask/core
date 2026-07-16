@@ -51,7 +51,7 @@
     "@metamask/json-rpc-engine": "^10.5.0",
     "@metamask/permission-controller": "^13.1.1",
     "@metamask/utils": "^11.11.0",
-    "lodash": "^4.17.21"
+    "lodash-es": "^4.17.21"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",

@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import * as chainAgnosticPermissionModule from '@metamask/chain-agnostic-permission';
 import type {
   Json,
@@ -5,8 +6,8 @@ import type {
   PendingJsonRpcResponse,
 } from '@metamask/utils';
 
-import { CaveatTypes, EndowmentTypes, RestrictedMethods } from './types';
-import { getPermissionsHandler } from './wallet-getPermissions';
+import { CaveatTypes, EndowmentTypes, RestrictedMethods } from './types.js';
+import { getPermissionsHandler } from './wallet-getPermissions.js';
 
 jest.mock('@metamask/chain-agnostic-permission', () => ({
   ...jest.requireActual('@metamask/chain-agnostic-permission'),
