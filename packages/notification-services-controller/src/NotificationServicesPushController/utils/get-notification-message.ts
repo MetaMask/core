@@ -1,6 +1,6 @@
-import type { Types } from '../../NotificationServicesController';
-import type { Constants } from '../../NotificationServicesController';
-import { getAmount, formatAmount } from './get-notification-data';
+import type { Types } from '../../NotificationServicesController/index.js';
+import type { Constants } from '../../NotificationServicesController/index.js';
+import { getAmount, formatAmount } from './get-notification-data.js';
 
 export type TranslationKeys = {
   pushPlatformNotificationsFundsSentTitle: () => string;
@@ -287,20 +287,16 @@ export function createOnChainPushNotificationMessage(
   let description: string | null = null;
   try {
     description =
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      notificationMessage?.getDescription?.(notification as any) ??
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      notificationMessage.defaultDescription?.(notification as any) ??
+      notificationMessage?.getDescription?.(notification as never) ??
+      notificationMessage.defaultDescription?.(notification as never) ??
       null;
   } catch {
     description =
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      notificationMessage.defaultDescription?.(notification as any) ?? null;
+      notificationMessage.defaultDescription?.(notification as never) ?? null;
   }
 
   return {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    title: notificationMessage?.title?.(notification as any) ?? '', // Ensure title is always a string
+    title: notificationMessage?.title?.(notification as never) ?? '', // Ensure title is always a string
     description: description ?? '', // Fallback to empty string if null
   };
 }

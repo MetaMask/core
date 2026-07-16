@@ -1,13 +1,13 @@
-import { NotificationServicesPushController } from './NotificationServicesPushController';
+import { NotificationServicesPushController } from './NotificationServicesPushController.js';
 
 export { NotificationServicesPushController as Controller };
 export default NotificationServicesPushController;
-export * from './NotificationServicesPushController';
-export type * as Types from './types';
-export type * from './types';
-export * as Utils from './utils';
-export * from './utils';
-export * as Mocks from './mocks';
+export * from './NotificationServicesPushController.js';
+export type * as Types from './types/index.js';
+export type * from './types/index.js';
+export type * as Utils from './utils/index.js';
+export type * from './utils/index.js';
+export type * as Mocks from './mocks/index.js';
 
 export type {
   NotificationServicesPushControllerSubscribeToPushNotificationsAction,
@@ -17,4 +17,4 @@ export type {
   NotificationServicesPushControllerUpdateTriggerPushNotificationsAction,
   NotificationServicesPushControllerDeletePushNotificationLinksAction,
   NotificationServicesPushControllerMethodActions,
-} from './NotificationServicesPushController-method-action-types';
+} from './NotificationServicesPushController-method-action-types.js';

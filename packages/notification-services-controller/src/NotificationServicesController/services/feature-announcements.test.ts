@@ -1,12 +1,14 @@
-import type { INotification } from '..';
-import { mockFetchFeatureAnnouncementNotifications } from '../__fixtures__/mockServices';
-import { TRIGGER_TYPES } from '../constants/notification-schema';
-import { createMockFeatureAnnouncementAPIResult } from '../mocks/mock-feature-announcements';
+import { jest } from '@jest/globals';
+
+import { mockFetchFeatureAnnouncementNotifications } from '../__fixtures__/mockServices.js';
+import { TRIGGER_TYPES } from '../constants/notification-schema.js';
+import type { INotification } from '../index.js';
+import { createMockFeatureAnnouncementAPIResult } from '../mocks/mock-feature-announcements.js';
 import {
   ContentfulResult,
   getFeatureAnnouncementNotifications,
   getFeatureAnnouncementUrl,
-} from './feature-announcements';
+} from './feature-announcements.js';
 
 // Mocked type for testing, allows overwriting TS to test erroneous values
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

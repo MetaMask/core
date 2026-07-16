@@ -1,7 +1,7 @@
 import { v4 as uuid } from 'uuid';
 
-import type { INotification } from '../types';
-import type { RawSnapNotification } from '../types/snaps';
+import type { INotification } from '../types/notification/index.js';
+import type { RawSnapNotification } from '../types/snaps/index.js';
 
 /**
  * Processes a snap notification into a normalized shape.

@@ -1,6 +1,6 @@
-import type { NormalisedAPINotification } from '../types/notification-api/notification-api';
-import type { INotification } from '../types/notification/notification';
-import { shouldAutoExpire } from '../utils/should-auto-expire';
+import type { NormalisedAPINotification } from '../types/notification-api/notification-api.js';
+import type { INotification } from '../types/notification/notification.js';
+import { shouldAutoExpire } from '../utils/should-auto-expire.js';
 
 /**
  * Processes API notifications to a normalized INotification shape

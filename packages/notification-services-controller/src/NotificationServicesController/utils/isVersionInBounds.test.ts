@@ -1,4 +1,4 @@
-import { isVersionInBounds } from './isVersionInBounds';
+import { isVersionInBounds } from './isVersionInBounds.js';
 
 describe('isVersionInBounds', () => {
   const version = '7.57.0';
