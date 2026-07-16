@@ -8,7 +8,7 @@ import { hexToBytes } from '@metamask/utils';
 import { sha256 } from 'ethereum-cryptography/sha256';
 import { v4 as uuid } from 'uuid';
 
-import type { AccountId } from './AccountsController';
+import type { AccountId } from './AccountsController.js';
 
 // `uuid` declares this type but it's not importable in ESM.
 type V4Options = Exclude<Parameters<typeof uuid>[0], undefined>;

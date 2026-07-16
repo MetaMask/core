@@ -1,9 +1,10 @@
 import { toChecksumAddress } from '@ethereumjs/util';
+import { jest } from '@jest/globals';
 import { KeyringType } from '@metamask/keyring-api/v2';
 import type { KeyringObject } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 
-import { createMockInternalAccount } from '../tests/mocks';
+import { createMockInternalAccount } from '../tests/mocks.js';
 import {
   constructAccountIdByAddress,
   getEvmGroupIndexFromAddressIndex,
@@ -12,7 +13,7 @@ import {
   isSimpleKeyringType,
   isSnapKeyringV2Type,
   keyringTypeToName,
-} from './utils';
+} from './utils.js';
 
 describe('utils', () => {
   describe('keyringTypeToName', () => {
