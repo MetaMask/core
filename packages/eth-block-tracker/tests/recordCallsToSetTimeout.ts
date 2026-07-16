@@ -1,6 +1,7 @@
+import { jest } from '@jest/globals';
 import EventEmitter from 'events';
 
-import EMPTY_FUNCTION from './emptyFunction';
+import EMPTY_FUNCTION from './emptyFunction.js';
 
 type SetTimeoutCallback = () => unknown;
 
