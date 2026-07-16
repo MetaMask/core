@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Ensure refs in tsconfig files are synced with internal deps ([#8384](https://github.com/MetaMask/core/pull/8384))
+- Release 1094.0.0 ([#9392](https://github.com/MetaMask/core/pull/9392))
+- chore(react-data-query): declare @metamask/messenger as a devDep ([#8971](https://github.com/MetaMask/core/pull/8971))
+
 ### Changed
 
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))

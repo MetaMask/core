@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Ensure refs in tsconfig files are synced with internal deps ([#8384](https://github.com/MetaMask/core/pull/8384))
+- Release/1115.0.0 ([#9470](https://github.com/MetaMask/core/pull/9470))
+- Release 1114.0.0 ([#9463](https://github.com/MetaMask/core/pull/9463))
+- Release/1112.0.0 ([#9458](https://github.com/MetaMask/core/pull/9458))
+- Release/1111.0.0 ([#9456](https://github.com/MetaMask/core/pull/9456))
+- Release 1102.0.0 ([#9421](https://github.com/MetaMask/core/pull/9421))
+
 ### Changed
 
 - Bump `@metamask/account-tree-controller` from `^7.5.3` to `7.5.4` ([#9429](https://github.com/MetaMask/core/pull/9429))
