@@ -6319,12 +6319,13 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/core-backend@workspace:packages/core-backend"
   dependencies:
-    "@metamask/accounts-controller": "npm:^39.0.5"
+    "@metamask/account-tree-controller": "npm:^7.5.5"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/controller-utils": "npm:^12.3.0"
     "@metamask/keyring-controller": "npm:^27.1.0"
     "@metamask/messenger": "npm:^2.0.0"
     "@metamask/profile-sync-controller": "npm:^28.3.0"
+    "@metamask/remote-feature-flag-controller": "npm:^4.2.2"
     "@metamask/utils": "npm:^11.11.0"
     "@tanstack/query-core": "npm:^5.62.16"
     "@ts-bridge/cli": "npm:^0.6.4"

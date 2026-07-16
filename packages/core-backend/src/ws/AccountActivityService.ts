@@ -6,12 +6,18 @@
  */
 
 import type {
-  AccountsControllerGetSelectedAccountAction,
-  AccountsControllerSelectedAccountChangeEvent,
-} from '@metamask/accounts-controller';
+  AccountTreeControllerSelectedAccountGroupChangeEvent,
+  AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
+} from '@metamask/account-tree-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { Messenger } from '@metamask/messenger';
+import type {
+  FeatureFlags,
+  RemoteFeatureFlagControllerGetStateAction,
+  RemoteFeatureFlagControllerStateChangeEvent,
+} from '@metamask/remote-feature-flag-controller';
+import { isObject } from '@metamask/utils';
 
 import { projectLogger, createModuleLogger } from '../logger';
 import type {
@@ -52,6 +58,18 @@ const MESSENGER_EXPOSED_METHODS = ['subscribe', 'unsubscribe'] as const;
 
 const SUBSCRIPTION_NAMESPACE = 'account-activity.v1';
 
+// EVM subscriptions are always enabled.
+const ALWAYS_SUPPORTED_CHAIN_PREFIXES = ['eip155'] as const;
+
+// Non-EVM chains are gated behind the
+// per-network snaps-migration remote feature flags: a chain is
+// enabled when its flag payload has `stage >= 1`.
+const CHAIN_PREFIX_FEATURE_FLAGS = {
+  solana: 'networkAssetsSnapsMigrationSolana',
+  tron: 'networkAssetsSnapsMigrationTron',
+  stellar: 'networkAssetsSnapsMigrationStellar',
+} as const;
+
 /**
  * Account subscription options
  */
@@ -78,7 +96,7 @@ export type AccountActivityServiceActions = AccountActivityServiceMethodActions;
 
 // Allowed actions that AccountActivityService can call on other controllers
 export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
-  'AccountsController:getSelectedAccount',
+  'AccountTreeController:getAccountsFromSelectedAccountGroup',
   'BackendWebSocketService:connect',
   'BackendWebSocketService:forceReconnection',
   'BackendWebSocketService:subscribe',
@@ -88,17 +106,20 @@ export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
   'BackendWebSocketService:findSubscriptionsByChannelPrefix',
   'BackendWebSocketService:addChannelCallback',
   'BackendWebSocketService:removeChannelCallback',
+  'RemoteFeatureFlagController:getState',
 ] as const;
 
 // Allowed events that AccountActivityService can listen to
 export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_EVENTS = [
-  'AccountsController:selectedAccountChange',
+  'AccountTreeController:selectedAccountGroupChange',
   'BackendWebSocketService:connectionStateChanged',
+  'RemoteFeatureFlagController:stateChange',
 ] as const;
 
 export type AllowedActions =
-  | AccountsControllerGetSelectedAccountAction
-  | BackendWebSocketServiceMethodActions;
+  | AccountTreeControllerGetAccountsFromSelectedAccountGroupAction
+  | BackendWebSocketServiceMethodActions
+  | RemoteFeatureFlagControllerGetStateAction;
 
 // Event types for the messaging system
 
@@ -135,8 +156,9 @@ export type AccountActivityServiceEvents =
   | AccountActivityServiceStatusChangedEvent;
 
 export type AllowedEvents =
-  | AccountsControllerSelectedAccountChangeEvent
-  | BackendWebSocketServiceConnectionStateChangedEvent;
+  | AccountTreeControllerSelectedAccountGroupChangeEvent
+  | BackendWebSocketServiceConnectionStateChangedEvent
+  | RemoteFeatureFlagControllerStateChangeEvent;
 
 export type AccountActivityServiceMessenger = Messenger<
   typeof SERVICE_NAME,
@@ -230,11 +252,10 @@ export class AccountActivityService {
       MESSENGER_EXPOSED_METHODS,
     );
     this.#messenger.subscribe(
-      'AccountsController:selectedAccountChange',
+      'AccountTreeController:selectedAccountGroupChange',
       // Promise result intentionally not awaited
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
-      async (account: InternalAccount) =>
-        await this.#handleSelectedAccountChange(account),
+      async () => await this.#handleSelectedAccountChange(),
     );
     this.#messenger.subscribe(
       'BackendWebSocketService:connectionStateChanged',
@@ -242,6 +263,18 @@ export class AccountActivityService {
       // eslint-disable-next-line @typescript-eslint/no-misused-promises
       (connectionInfo: WebSocketConnectionInfo) =>
         this.#handleWebSocketStateChange(connectionInfo),
+    );
+    this.#messenger.subscribe(
+      // eslint-disable-next-line no-restricted-syntax
+      'RemoteFeatureFlagController:stateChange',
+      // Promise result intentionally not awaited
+      // eslint-disable-next-line @typescript-eslint/no-misused-promises
+      async () => await this.#handleFeatureFlagsStateChange(),
+      // Only react to changes in the set of enabled chain prefixes. The
+      // messenger compares selector results with strict equality, so the
+      // selector must return a primitive rather than a fresh object.
+      (state) =>
+        this.#getSupportedChainPrefixes(state.remoteFeatureFlags).join(','),
     );
     this.#messenger.call('BackendWebSocketService:addChannelCallback', {
       channelName: `system-notifications.v1.${this.#options.subscriptionNamespace}`,
@@ -393,25 +426,20 @@ export class AccountActivityService {
 
   /**
    * Handle selected account change event
-   *
-   * @param newAccount - The newly selected account
    */
-  async #handleSelectedAccountChange(
-    newAccount: InternalAccount | null,
-  ): Promise<void> {
-    if (!newAccount?.address) {
-      return;
-    }
+  async #handleSelectedAccountChange(): Promise<void> {
+    const selectedAccounts = this.#messenger.call(
+      'AccountTreeController:getAccountsFromSelectedAccountGroup',
+    );
 
     try {
-      // Convert new account to CAIP-10 format
-      const newAddress = this.#convertToCaip10Address(newAccount);
-
       // First, unsubscribe from all current account activity subscriptions to avoid multiple subscriptions
       await this.#unsubscribeFromAllAccountActivity();
 
-      // Then, subscribe to the new selected account
-      await this.subscribe({ address: newAddress });
+      for (const address of this.#convertToCaip10Addresses(selectedAccounts)) {
+        // Subscribe to the new selected account in CAIP-10 format
+        await this.subscribe({ address });
+      }
     } catch (error) {
       log('Account change failed', { error });
     }
@@ -506,17 +534,13 @@ export class AccountActivityService {
    * Subscribe to the currently selected account only
    */
   async #subscribeToSelectedAccount(): Promise<void> {
-    const selectedAccount = this.#messenger.call(
-      'AccountsController:getSelectedAccount',
+    const selectedAccounts = this.#messenger.call(
+      'AccountTreeController:getAccountsFromSelectedAccountGroup',
     );
 
-    if (!selectedAccount?.address) {
-      return;
+    for (const address of this.#convertToCaip10Addresses(selectedAccounts)) {
+      await this.subscribe({ address });
     }
-
-    // Convert to CAIP-10 format and subscribe
-    const address = this.#convertToCaip10Address(selectedAccount);
-    await this.subscribe({ address });
   }
 
   /**
@@ -540,26 +564,80 @@ export class AccountActivityService {
   // =============================================================================
 
   /**
-   * Convert an InternalAccount address to CAIP-10 format or raw address
+   * Convert a list of InternalAccount addresses to CAIP-10 format, using the first
+   * supported chain prefix matching the account's scopes
    *
-   * @param account - The internal account to convert
-   * @returns The CAIP-10 formatted address or raw address
+   * @param accounts - The internal accounts to convert
+   * @returns The CAIP-10 formatted addresses (e.g. [`eip155:0:address`], meaning
+   * all chains of that namespace), or an empty array if none of the account's
+   * scopes are supported
    */
-  #convertToCaip10Address(account: InternalAccount): string {
-    // Check if account has EVM scopes
-    if (account.scopes.some((scope) => scope.startsWith('eip155:'))) {
-      // CAIP-10 format: eip155:0:address (subscribe to all EVM chains)
-      return `eip155:0:${account.address}`;
-    }
+  #convertToCaip10Addresses(accounts: InternalAccount[]): string[] {
+    const supportedChainPrefixes = this.#getSupportedChainPrefixes();
+    return accounts.reduce<string[]>((result, account) => {
+      const accountPrefix = supportedChainPrefixes.find((prefix) =>
+        account.scopes.some((scope) => scope.startsWith(`${prefix}:`)),
+      );
 
-    // Check if account has Solana scopes
-    if (account.scopes.some((scope) => scope.startsWith('solana:'))) {
-      // CAIP-10 format: solana:0:address (subscribe to all Solana chains)
-      return `solana:0:${account.address}`;
-    }
+      if (!accountPrefix) {
+        // Skip unsupported accounts
+        return result;
+      }
 
-    // For other chains or unknown scopes, return raw address
-    return account.address;
+      result.push(`${accountPrefix}:0:${account.address}`);
+      return result;
+    }, []);
+  }
+
+  /**
+   * Get the chain prefixes currently enabled for subscriptions: EVM is always
+   * enabled, while other chains are gated behind their per-network remote
+   * feature flag (enabled when the flag payload has `stage >= 1`).
+   *
+   * @param remoteFeatureFlags - The remote feature flags state to check for enabled chains.
+   * @returns An array of enabled CAIP-2 namespace prefixes (e.g. `['eip155', 'solana']`)
+   */
+  #getSupportedChainPrefixes(
+    remoteFeatureFlags: FeatureFlags = this.#messenger.call(
+      'RemoteFeatureFlagController:getState',
+    ).remoteFeatureFlags,
+  ): string[] {
+    const prefixes: string[] = [...ALWAYS_SUPPORTED_CHAIN_PREFIXES];
+    for (const [prefix, flagName] of Object.entries(
+      CHAIN_PREFIX_FEATURE_FLAGS,
+    )) {
+      const flagValue = remoteFeatureFlags[flagName];
+      if (
+        isObject(flagValue) &&
+        typeof flagValue.stage === 'number' &&
+        flagValue.stage >= 1
+      ) {
+        prefixes.push(prefix);
+      }
+    }
+    return prefixes;
+  }
+
+  /**
+   * Handle remote feature flag changes: if the set of enabled chain prefixes
+   * changed while connected, resubscribe the selected account so new chains
+   * are picked up and disabled ones are dropped.
+   */
+  async #handleFeatureFlagsStateChange(): Promise<void> {
+    try {
+      const { state } = this.#messenger.call(
+        'BackendWebSocketService:getConnectionInfo',
+      );
+      if (state !== WebSocketState.CONNECTED) {
+        // Not connected: the next connection will subscribe with fresh flags
+        return;
+      }
+
+      await this.#unsubscribeFromAllAccountActivity();
+      await this.#subscribeToSelectedAccount();
+    } catch (error) {
+      log('Feature flag change handling failed', { error });
+    }
   }
 
   /**
