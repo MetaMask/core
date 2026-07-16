@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import * as Utils from '@metamask/utils';
 
 import {
@@ -6,10 +7,10 @@ import {
   assertIsExternalScopesObject,
   assertIsInternalScopesObject,
   assertIsInternalScopeString,
-} from './assert';
-import { Caip25Errors } from './errors';
-import * as Supported from './supported';
-import type { NormalizedScopeObject } from './types';
+} from './assert.js';
+import { Caip25Errors } from './errors.js';
+import * as Supported from './supported.js';
+import type { NormalizedScopeObject } from './types.js';
 
 jest.mock('./supported', () => ({
   isSupportedScopeString: jest.fn(),

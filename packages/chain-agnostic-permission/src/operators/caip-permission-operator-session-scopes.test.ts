@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import type { CaipAccountId } from '@metamask/utils';
 
 import {
@@ -5,13 +6,13 @@ import {
   KnownRpcMethods,
   KnownWalletNamespaceRpcMethods,
   KnownWalletRpcMethods,
-} from '../scope/constants';
+} from '../scope/constants.js';
 import {
   getInternalScopesObject,
   getPermittedAccountsForScopes,
   getSessionProperties,
   getSessionScopes,
-} from './caip-permission-operator-session-scopes';
+} from './caip-permission-operator-session-scopes.js';
 
 describe('CAIP-25 session scopes adapters', () => {
   describe('getInternalScopesObject', () => {
