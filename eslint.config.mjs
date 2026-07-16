@@ -126,7 +126,7 @@ const config = createConfig([
   {
     files: ['**/*.{js,cjs}'],
     languageOptions: {
-      sourceType: 'script',
+      sourceType: 'module',
       ecmaVersion: 2020,
     },
   },

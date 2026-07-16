@@ -1,11 +1,11 @@
-const merge = require('deepmerge');
-const path = require('path');
+import merge from 'deepmerge';
+import path from 'path';
 
-const baseConfig = require('../../jest.config.packages');
+import baseConfig from '../../jest.config.packages.js';
 
 const displayName = path.basename(import.meta.dirname);
 
-module.exports = merge(baseConfig, {
+export default merge(baseConfig, {
   displayName,
   coverageThreshold: {
     global: { branches: 100, functions: 100, lines: 100, statements: 100 },

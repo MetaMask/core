@@ -1,10 +1,13 @@
-import { disableNetConnect, cleanAll, enableNetConnect } from 'nock';
+// Types for `nock` are wrong.
+/* eslint-disable import-x/no-named-as-default-member */
+
+import nock from 'nock';
 
 beforeEach(() => {
-  disableNetConnect();
+  nock.disableNetConnect();
 });
 
 afterEach(() => {
-  cleanAll();
-  enableNetConnect();
+  nock.cleanAll();
+  nock.enableNetConnect();
 });

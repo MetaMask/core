@@ -3,7 +3,16 @@
  * https://jestjs.io/docs/configuration
  */
 
-module.exports = {
+import { fileURLToPath } from 'node:url';
+import { createDefaultEsmPreset } from 'ts-jest';
+
+const presetConfig = createDefaultEsmPreset({
+  tsconfig: '<rootDir>/tsconfig.json',
+});
+
+const config = {
+  ...presetConfig,
+
   // All imported modules in your tests should be mocked automatically
   // automock: false,
 
@@ -80,17 +89,20 @@ module.exports = {
   // Here we ensure that Jest resolves `@metamask/*` imports to the uncompiled source code for packages that live in this repo.
   // NOTE: This must be synchronized with the `paths` option in `tsconfig.base.json`.
   moduleNameMapper: {
+    '^(\\..+)\\.js$': '$1',
     '^@metamask/json-rpc-engine/v2$': [
       '<rootDir>/../json-rpc-engine/src/v2/index.ts',
     ],
-    '^@metamask/utils/node$': require.resolve('@metamask/utils/node'),
+    '^@metamask/utils/node$': fileURLToPath(
+      import.meta.resolve('@metamask/utils/node'),
+    ),
     '^@metamask/(.+)$': [
       '<rootDir>/../$1/src',
       // Some @metamask/* packages we are referencing aren't in this monorepo,
       // so in that case use their published versions
       '<rootDir>/../../node_modules/@metamask/$1',
     ],
-    '^uuid$': require.resolve('uuid'),
+    '^uuid$': fileURLToPath(import.meta.resolve('uuid')),
   },
 
   // An array of regexp pattern strings, matched against all module paths before considered 'visible' to the module loader
@@ -103,11 +115,11 @@ module.exports = {
   // notifyMode: "failure-change",
 
   // A preset that is used as a base for Jest's configuration
-  preset: 'ts-jest',
+  // preset: 'ts-jest',
 
   // The path to the Prettier executable used to format snapshots
   // Jest doesn't support Prettier 3 yet, so we use Prettier 2
-  prettierPath: require.resolve('prettier-2'),
+  prettierPath: fileURLToPath(import.meta.resolve('prettier-2')),
 
   // Run tests from one or more projects
   // projects: undefined
@@ -208,3 +220,5 @@ module.exports = {
   // Whether to use watchman for file crawling
   // watchman: true,
 };
+
+export default config;
