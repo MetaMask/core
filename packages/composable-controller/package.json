@@ -50,6 +50,7 @@
     "@metamask/messenger": "^2.0.0"
   },
   "devDependencies": {
+    "@jest/globals": "^30.4.1",
     "@metamask/auto-changelog": "^6.1.0",
     "@metamask/json-rpc-engine": "^10.5.0",
     "@types/jest": "^29.5.14",
