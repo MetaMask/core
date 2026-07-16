@@ -1,6 +1,7 @@
+import { jest } from '@jest/globals';
 import { fetchWithErrorHandling } from '@metamask/controller-utils';
 
-import { Slip44Service } from './Slip44Service';
+import { Slip44Service } from './Slip44Service.js';
 
 jest.mock('@metamask/controller-utils', () => ({
   fetchWithErrorHandling: jest.fn(),

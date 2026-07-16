@@ -35,4 +35,8 @@ export {
   selectEnabledSolanaNetworks,
 } from './selectors.js';
 
-export { Slip44Service, getEvmSlip44, getSlip44BySymbol } from './services/index.js';
+export {
+  Slip44Service,
+  getEvmSlip44,
+  getSlip44BySymbol,
+} from './services/index.js';
