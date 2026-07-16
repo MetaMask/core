@@ -12,6 +12,7 @@
     "packages/*"
   ],
   "files": [],
+  "type": "module",
   "scripts": {
     "build": "yarn tsc --build tsconfig.build.json --verbose",
     "build:clean": "yarn build:only-clean && yarn build",
