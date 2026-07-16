@@ -5,14 +5,17 @@ import * as path from 'node:path';
 import { promisify } from 'node:util';
 import type { Project } from 'ts-morph';
 
-import { findDtsFiles, findTsFiles } from './discovery';
-import { createExtractionProject, extractFromSourceFile } from './extraction';
+import { findDtsFiles, findTsFiles } from './discovery.js';
+import {
+  createExtractionProject,
+  extractFromSourceFile,
+} from './extraction.js';
 import {
   generateIndexPage,
   generateNamespacePage,
   generateSidebars,
-} from './markdown';
-import type { MessengerCapabilityPacket, NamespaceGroup } from './types';
+} from './markdown.js';
+import type { MessengerCapabilityPacket, NamespaceGroup } from './types.js';
 
 /**
  * Compute a deduplication score for a messenger item, preferring items with
