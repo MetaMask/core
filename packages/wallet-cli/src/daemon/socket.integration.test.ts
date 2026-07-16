@@ -1,13 +1,14 @@
+import { jest } from '@jest/globals';
 import { any } from '@metamask/superstruct';
 import { stat } from 'node:fs/promises';
 import { createConnection } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { pingDaemon, sendCommand } from './daemon-client';
-import { startRpcSocketServer } from './rpc-socket-server';
-import type { RpcSocketServerHandle } from './rpc-socket-server';
-import type { RpcHandlerDefinition } from './types';
+import { pingDaemon, sendCommand } from './daemon-client.js';
+import { startRpcSocketServer } from './rpc-socket-server.js';
+import type { RpcSocketServerHandle } from './rpc-socket-server.js';
+import type { RpcHandlerDefinition } from './types.js';
 
 // any() paramsStruct so integration test inputs are never rejected by the struct guard.
 function handlerDefinition(

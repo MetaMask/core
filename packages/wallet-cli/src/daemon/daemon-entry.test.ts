@@ -1,13 +1,14 @@
+import { jest } from '@jest/globals';
 import { validate } from '@metamask/superstruct';
 import { appendFile, readFile, rm, writeFile } from 'node:fs/promises';
 
-import { pingDaemon } from './daemon-client';
-import { ensureOwnerOnlyDirectory } from './data-dir';
-import { getDaemonPaths } from './paths';
-import { startRpcSocketServer } from './rpc-socket-server';
-import type { RpcSocketServerHandle } from './rpc-socket-server';
-import { isProcessAlive } from './utils';
-import { createWallet } from './wallet-factory';
+import { pingDaemon } from './daemon-client.js';
+import { ensureOwnerOnlyDirectory } from './data-dir.js';
+import { getDaemonPaths } from './paths.js';
+import { startRpcSocketServer } from './rpc-socket-server.js';
+import type { RpcSocketServerHandle } from './rpc-socket-server.js';
+import { isProcessAlive } from './utils.js';
+import { createWallet } from './wallet-factory.js';
 
 jest.mock('node:fs/promises');
 jest.mock('./data-dir');
@@ -126,7 +127,7 @@ describe('daemon-entry', () => {
    */
   async function importDaemonEntry(): Promise<void> {
     await jest.isolateModulesAsync(async () => {
-      await import('./daemon-entry');
+      await import('./daemon-entry.js');
       for (let i = 0; i < 10; i++) {
         await new Promise((resolve) => process.nextTick(resolve));
       }

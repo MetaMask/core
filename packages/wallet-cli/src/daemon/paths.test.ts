@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 
-import { getDaemonPaths } from './paths';
+import { getDaemonPaths } from './paths.js';
 
 describe('getDaemonPaths', () => {
   it('returns correct paths for the given data directory', () => {
