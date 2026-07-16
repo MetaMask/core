@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import type {
   MockAnyNamespace,
   MessengerActions,
@@ -5,15 +6,15 @@ import type {
 } from '@metamask/messenger';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 
-import { createMockNetworkConfig } from '../tests/helpers';
-import type { RegistryNetworkConfig } from './config-registry-api-service/types';
-import type { FetchConfigResult } from './config-registry-api-service/types';
-import type { ConfigRegistryControllerMessenger } from './ConfigRegistryController';
+import { createMockNetworkConfig } from '../tests/helpers.js';
+import type { RegistryNetworkConfig } from './config-registry-api-service/types.js';
+import type { FetchConfigResult } from './config-registry-api-service/types.js';
+import type { ConfigRegistryControllerMessenger } from './ConfigRegistryController.js';
 import {
   ConfigRegistryController,
   DEFAULT_POLLING_INTERVAL,
-} from './ConfigRegistryController';
-import { selectFeaturedNetworks, selectNetworks } from './selectors';
+} from './ConfigRegistryController.js';
+import { selectFeaturedNetworks, selectNetworks } from './selectors.js';
 
 const namespace = 'ConfigRegistryController' as const;
 
