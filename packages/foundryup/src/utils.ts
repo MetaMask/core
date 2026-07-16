@@ -1,13 +1,13 @@
 import { execFileSync, execSync } from 'node:child_process';
 import { arch } from 'node:os';
 
-import { Architecture } from './types';
+import { Architecture } from './types.js';
 import type {
   Checksums,
   PlatformArchChecksums,
   Binary,
   Platform,
-} from './types';
+} from './types.js';
 
 /**
  * No Operation. A function that does nothing and returns nothing.
@@ -114,7 +114,7 @@ export function transformChecksums(
   const key = `${targetPlatform}-${targetArch}` as const;
   return {
     algorithm: checksums.algorithm,
-    binaries: Object.entries(checksums.binaries).reduce(
+    binaries: Object.entries(checksums.binaries).reduce<Record<Binary, string>>(
       (acc, [name, record]) => {
         acc[name as Binary] = record[key];
         return acc;

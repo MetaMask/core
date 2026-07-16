@@ -1,7 +1,8 @@
+import { jest } from '@jest/globals';
 import type { Dir } from 'fs';
 import { readFileSync } from 'fs';
 import fs from 'fs/promises';
-import nock, { cleanAll } from 'nock';
+import nock from 'nock';
 import { join, relative } from 'path';
 import { parse as parseYaml } from 'yaml';
 
@@ -9,11 +10,11 @@ import {
   checkAndDownloadBinaries,
   getBinaryArchiveUrl,
   getCacheDirectory,
-} from '.';
-import { parseArgs } from './options';
-import type { Binary, Checksums } from './types';
-import { Architecture, Platform } from './types';
-import { isCodedError } from './utils';
+} from './index.js';
+import { parseArgs } from './options.js';
+import type { Binary, Checksums } from './types.js';
+import { Architecture, Platform } from './types.js';
+import { isCodedError } from './utils.js';
 
 type OperationDetails = {
   path?: string;
@@ -217,13 +218,13 @@ describe('foundryup', () => {
 
     beforeEach(() => {
       jest.clearAllMocks();
-      cleanAll();
+      nock.cleanAll();
     });
 
     it('handles download errors gracefully', async () => {
       (fs.opendir as jest.Mock).mockRejectedValue({ code: 'ENOENT' });
 
-      cleanAll();
+      nock.cleanAll();
       nock('https://example.com')
         .head('/binaries.zip')
         .reply(500, 'Internal Server Error')
