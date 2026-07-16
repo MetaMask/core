@@ -7,8 +7,6 @@ import type {
   ActionConstraint,
   EventConstraint,
   Messenger,
-  MessengerActions,
-  MessengerEvents,
 } from '@metamask/messenger';
 import { assert } from '@metamask/utils';
 import {
@@ -21,33 +19,6 @@ import {
   QueryKey,
   QueryClientConfig,
 } from '@tanstack/query-core';
-
-/**
- * The supertype of all messengers.
- */
-type GenericMessenger = Messenger<
-  string,
-  ActionConstraint,
-  EventConstraint,
-  // Use `any` for the parent so any messenger, delegated or not, is accepted.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  any
->;
-
-/**
- * A messenger that minimally supports a subset of capabilities that data
- * services with the given namespaces would provide. Specifically, of these
- * namespaces, it must at least allow all data service actions to be called, and
- * it must at least allow the `:cacheUpdated:${hash}` event to be subscribed to.
- */
-type SupportsDataServices<
-  MessengerInstance extends GenericMessenger,
-  DataServiceName extends string,
-> = DataServiceActions<DataServiceName>['type'] extends MessengerActions<MessengerInstance>['type']
-  ? DataServiceGranularCacheUpdatedEvent<DataServiceName>['type'] extends MessengerEvents<MessengerInstance>['type']
-    ? MessengerInstance
-    : never
-  : never;
 
 /**
  * Handles granular cache update events emitted by data services.
@@ -94,6 +65,43 @@ type MessengerAdapter<DataServiceName extends string> = {
 };
 
 /**
+ * Given a messenger, resolves to that same messenger when it minimally supports
+ * the capabilities that data services with the given namespaces provide, and to
+ * `never` otherwise.
+ *
+ * Specifically, of these namespaces, the messenger must at least allow all data
+ * service actions to be called, and it must at least allow the
+ * `:cacheUpdated:${hash}` event to be subscribed to.
+ *
+ * Notes on the implementation:
+ *
+ * - The messenger type is not constrained (e.g. to `Messenger`). A concrete
+ *   messenger declares a narrow action/event union, which is *not* assignable to
+ *   the wide `ActionConstraint`/`EventConstraint` used by the base `Messenger`
+ *   type (the handler parameters are effectively invariant), so constraining the
+ *   type variable would reject real messengers such as subclasses with large
+ *   action unions. Instead we `infer` the action and event unions directly.
+ * - The supported branch resolves to the messenger type itself. Resolving it to
+ *   `MessengerAdapter` instead would reject a real messenger, because a concrete
+ *   messenger's generic `call` cannot satisfy the adapter's open-ended
+ *   `${DataServiceName}:${string}` action type.
+ */
+type SupportsDataServices<MessengerInstance, DataServiceName extends string> =
+  MessengerInstance extends Messenger<
+    string,
+    infer Action extends ActionConstraint,
+    infer Event extends EventConstraint,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    any
+  >
+    ? DataServiceActions<DataServiceName>['type'] extends Action['type']
+      ? DataServiceGranularCacheUpdatedEvent<DataServiceName>['type'] extends Event['type']
+        ? MessengerInstance
+        : never
+      : never
+    : never;
+
+/**
  * Create a QueryClient that queries and subscribes to data services using a
  * messenger adapter, a messenger-like object that carries some constraints:
  *
@@ -131,13 +139,10 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
  */
 export function createUIQueryClient<
   DataServiceNames extends readonly string[],
-  MessengerInstance extends GenericMessenger,
+  MessengerInstance,
 >(
   dataServices: DataServiceNames,
-  messenger: Pick<
-    SupportsDataServices<MessengerInstance, DataServiceNames[number]>,
-    'call' | 'subscribe' | 'unsubscribe'
-  >,
+  messenger: SupportsDataServices<MessengerInstance, DataServiceNames[number]>,
   config?: QueryClientConfig,
 ): QueryClient;
 
