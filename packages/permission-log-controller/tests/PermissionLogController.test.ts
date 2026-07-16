@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type {
   JsonRpcEngineReturnHandler,
@@ -13,14 +14,14 @@ import { PendingJsonRpcResponseStruct } from '@metamask/utils';
 import type { PendingJsonRpcResponse, JsonRpcRequest } from '@metamask/utils';
 import { nanoid } from 'nanoid';
 
-import { LOG_LIMIT, LOG_METHOD_TYPES } from '../src/enums';
-import { PermissionLogController } from '../src/PermissionLogController';
+import { LOG_LIMIT, LOG_METHOD_TYPES } from '../src/enums.js';
+import { PermissionLogController } from '../src/PermissionLogController.js';
 import type {
   Permission,
   PermissionLogControllerState,
   PermissionLogControllerMessenger,
-} from '../src/PermissionLogController';
-import { constants, getters, noop } from './helpers';
+} from '../src/PermissionLogController.js';
+import { constants, getters, noop } from './helpers.js';
 
 const { PERMS, RPC_REQUESTS } = getters;
 const { ACCOUNTS, EXPECTED_HISTORIES, SUBJECTS, PERM_NAMES, REQUEST_IDS } =

@@ -1,8 +1,8 @@
-export { PermissionLogController } from './PermissionLogController';
+export { PermissionLogController } from './PermissionLogController.js';
 export type {
   PermissionLogControllerUpdateAccountsHistoryAction,
   PermissionLogControllerCreateMiddlewareAction,
-} from './PermissionLogController-method-action-types';
+} from './PermissionLogController-method-action-types.js';
 export type {
   JsonRpcRequestWithOrigin,
   Caveat,
@@ -18,4 +18,4 @@ export type {
   PermissionLogControllerMessenger,
   PermissionLogControllerState,
   PermissionLogControllerOptions,
-} from './PermissionLogController';
+} from './PermissionLogController.js';
