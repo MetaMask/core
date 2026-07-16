@@ -77,6 +77,11 @@ import type {
   TransakOrder,
 } from './TransakService';
 import type { TransakServiceActions } from './TransakService';
+import type { TransakOrderUpdatesClient } from './transakOrderUpdates';
+import {
+  createPusherTransakOrderUpdatesClient,
+  isTransakNativeProvider,
+} from './transakOrderUpdates';
 import type {
   TransakServiceSetApiKeyAction,
   TransakServiceSetAccessTokenAction,
@@ -685,6 +690,12 @@ export type RampsControllerOptions = {
    * `undefined` when omitted.
    */
   getDefaultRedirectUrl?: () => string | undefined;
+  /**
+   * Optional Transak order-updates client (Pusher). When omitted, a default
+   * Pusher-backed client is created lazily on first native-order subscription.
+   * Inject a mock in tests.
+   */
+  transakOrderUpdatesClient?: TransakOrderUpdatesClient;
 };
 
 // === HELPER FUNCTIONS ===
@@ -794,6 +805,7 @@ const PENDING_ORDER_STATUSES = new Set<RampsOrderStatus>([
 
 const DEFAULT_POLLING_INTERVAL_MS = 30_000;
 const MAX_ERROR_COUNT = 5;
+const TRANSAK_ORDER_UPDATE_DEBOUNCE_MS = 250;
 
 type OrderPollingMetadata = {
   lastTimeFetched: number;
@@ -904,6 +916,29 @@ export class RampsController extends BaseController<
   #initPromise: Promise<void> | null = null;
 
   /**
+   * Lazily created (or injected) client for Transak native order Pusher updates.
+   */
+  #transakOrderUpdates: TransakOrderUpdatesClient | null;
+
+  /**
+   * True when the Transak order-updates client was supplied via constructor options.
+   */
+  readonly #hasInjectedTransakOrderUpdatesClient: boolean;
+
+  /**
+   * Order IDs currently subscribed on the Transak Pusher client.
+   */
+  readonly #subscribedTransakOrderIds: Set<string> = new Set();
+
+  /**
+   * Debounce timers keyed by Transak order ID for wake-up refreshes.
+   */
+  readonly #transakOrderUpdateDebounceTimers: Map<
+    string,
+    ReturnType<typeof setTimeout>
+  > = new Map();
+
+  /**
    * Clears the pending resource count map. Used only in tests to exercise the
    * defensive path when get() returns undefined in the finally block.
    *
@@ -953,6 +988,7 @@ export class RampsController extends BaseController<
     requestCacheTTL = DEFAULT_REQUEST_CACHE_TTL,
     requestCacheMaxSize = DEFAULT_REQUEST_CACHE_MAX_SIZE,
     getDefaultRedirectUrl,
+    transakOrderUpdatesClient,
   }: RampsControllerOptions) {
     super({
       messenger,
@@ -970,6 +1006,9 @@ export class RampsController extends BaseController<
     this.#requestCacheMaxSize = requestCacheMaxSize;
     this.#getDefaultRedirectUrl =
       getDefaultRedirectUrl ?? ((): string | undefined => undefined);
+    this.#hasInjectedTransakOrderUpdatesClient =
+      transakOrderUpdatesClient !== undefined;
+    this.#transakOrderUpdates = transakOrderUpdatesClient ?? null;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -2346,6 +2385,8 @@ export class RampsController extends BaseController<
         } as Draft<RampsOrder>;
       }
     });
+
+    this.#maybeSubscribeTransakOrder(healedOrder);
   }
 
   /**
@@ -2361,6 +2402,7 @@ export class RampsController extends BaseController<
     });
 
     this.#orderPollingMeta.delete(providerOrderId);
+    this.#unsubscribeTransakOrder(providerOrderId);
   }
 
   /**
@@ -2410,6 +2452,7 @@ export class RampsController extends BaseController<
 
       if (TERMINAL_ORDER_STATUSES.has(updatedOrder.status)) {
         this.#orderPollingMeta.delete(order.providerOrderId);
+        this.#unsubscribeTransakOrder(order.providerOrderId);
       }
     } catch {
       const meta = this.#orderPollingMeta.get(order.providerOrderId) ?? {
@@ -2426,8 +2469,12 @@ export class RampsController extends BaseController<
    * Starts polling all pending V2 orders at a fixed interval.
    * Each poll cycle iterates orders with non-terminal statuses,
    * respects pollingSecondsMinimum and backoff from error count.
+   * Also ensures Transak native pending orders are subscribed for
+   * real-time Pusher wake-ups (including orders restored from persisted state).
    */
   startOrderPolling(): void {
+    this.#ensureTransakOrderSubscriptions();
+
     if (this.#orderPollingTimer) {
       return;
     }
@@ -2441,12 +2488,14 @@ export class RampsController extends BaseController<
 
   /**
    * Stops order polling and clears the interval.
+   * Also tears down Transak Pusher subscriptions.
    */
   stopOrderPolling(): void {
     if (this.#orderPollingTimer) {
       clearInterval(this.#orderPollingTimer);
       this.#orderPollingTimer = null;
     }
+    this.#teardownTransakOrderUpdates();
   }
 
   async #pollPendingOrders(): Promise<void> {
@@ -2460,9 +2509,18 @@ export class RampsController extends BaseController<
       );
 
       const now = Date.now();
+      const transakUpdatesConnected =
+        this.#transakOrderUpdates?.isConnected() ?? false;
 
       await Promise.allSettled(
         pendingOrders.map(async (order) => {
+          if (
+            transakUpdatesConnected &&
+            this.#subscribedTransakOrderIds.has(order.providerOrderId)
+          ) {
+            return;
+          }
+
           const meta = this.#orderPollingMeta.get(order.providerOrderId);
 
           if (meta) {
@@ -2489,6 +2547,99 @@ export class RampsController extends BaseController<
     } finally {
       this.#isPolling = false;
     }
+  }
+
+  #getTransakOrderUpdates(): TransakOrderUpdatesClient {
+    if (!this.#transakOrderUpdates) {
+      this.#transakOrderUpdates = createPusherTransakOrderUpdatesClient();
+    }
+    return this.#transakOrderUpdates;
+  }
+
+  #maybeSubscribeTransakOrder(order: RampsOrder): void {
+    if (!isTransakNativeProvider(order.provider?.id)) {
+      return;
+    }
+    if (!PENDING_ORDER_STATUSES.has(order.status)) {
+      return;
+    }
+
+    const orderId = getInternalOrderCode(order);
+    if (!orderId || this.#subscribedTransakOrderIds.has(orderId)) {
+      return;
+    }
+
+    this.#subscribedTransakOrderIds.add(orderId);
+    this.#getTransakOrderUpdates().subscribeOrder(orderId, (event) => {
+      this.#scheduleTransakOrderRefresh(event.orderId);
+    });
+  }
+
+  #unsubscribeTransakOrder(orderId: string): void {
+    const debounceTimer = this.#transakOrderUpdateDebounceTimers.get(orderId);
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+      this.#transakOrderUpdateDebounceTimers.delete(orderId);
+    }
+
+    if (!this.#subscribedTransakOrderIds.has(orderId)) {
+      return;
+    }
+
+    this.#subscribedTransakOrderIds.delete(orderId);
+    this.#transakOrderUpdates?.unsubscribeOrder(orderId);
+  }
+
+  #ensureTransakOrderSubscriptions(): void {
+    const orders = this.state.orders;
+    if (!Array.isArray(orders)) {
+      return;
+    }
+    for (const order of orders) {
+      this.#maybeSubscribeTransakOrder(order);
+    }
+  }
+
+  #scheduleTransakOrderRefresh(orderId: string): void {
+    const existingTimer = this.#transakOrderUpdateDebounceTimers.get(orderId);
+    if (existingTimer) {
+      clearTimeout(existingTimer);
+    }
+
+    const timer = setTimeout(() => {
+      this.#transakOrderUpdateDebounceTimers.delete(orderId);
+      const order = this.state.orders.find(
+        (candidate) => getInternalOrderCode(candidate) === orderId,
+      );
+      if (!order || TERMINAL_ORDER_STATUSES.has(order.status)) {
+        this.#unsubscribeTransakOrder(orderId);
+        return;
+      }
+      // #refreshOrder swallows fetch errors internally.
+      void this.#refreshOrder(order);
+    }, TRANSAK_ORDER_UPDATE_DEBOUNCE_MS);
+
+    this.#transakOrderUpdateDebounceTimers.set(orderId, timer);
+  }
+
+  #teardownTransakOrderUpdates(): void {
+    for (const timer of this.#transakOrderUpdateDebounceTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.#transakOrderUpdateDebounceTimers.clear();
+    this.#subscribedTransakOrderIds.clear();
+
+    if (!this.#transakOrderUpdates) {
+      return;
+    }
+
+    if (this.#hasInjectedTransakOrderUpdatesClient) {
+      this.#transakOrderUpdates.unsubscribeAll();
+      return;
+    }
+
+    this.#transakOrderUpdates.destroy();
+    this.#transakOrderUpdates = null;
   }
 
   /**

@@ -8299,6 +8299,7 @@ __metadata:
     deepmerge: "npm:^4.2.2"
     jest: "npm:^29.7.0"
     nock: "npm:^13.3.1"
+    pusher-js: "npm:^8.4.0"
     ts-jest: "npm:^29.2.5"
     tsx: "npm:^4.20.5"
     typedoc: "npm:^0.25.13"
@@ -22587,6 +22588,15 @@ __metadata:
   version: 6.1.0
   resolution: "pure-rand@npm:6.1.0"
   checksum: 10/256aa4bcaf9297256f552914e03cbdb0039c8fe1db11fa1e6d3f80790e16e563eb0a859a1e61082a95e224fc0c608661839439f8ecc6a3db4e48d46d99216ee4
+  languageName: node
+  linkType: hard
+
+"pusher-js@npm:^8.4.0":
+  version: 8.5.0
+  resolution: "pusher-js@npm:8.5.0"
+  dependencies:
+    tweetnacl: "npm:^1.0.3"
+  checksum: 10/99e6c102aa0d35c7cdd4341770c69b9b63f3bf3552f2238b105745a164630c94c84caa485758a7c147d1c9523e5e372678080e1caad6b8c2b05af8bd42a7414e
   languageName: node
   linkType: hard
 

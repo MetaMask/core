@@ -62,6 +62,18 @@ import type {
   TransakOrderPaymentMethod,
   PatchUserRequestBody,
 } from './TransakService';
+import type {
+  TransakOrderUpdateListener,
+  TransakOrderUpdatesClient,
+} from './transakOrderUpdates';
+import Pusher from 'pusher-js';
+
+jest.mock('pusher-js', () => ({
+  __esModule: true,
+  default: jest.fn(),
+}));
+
+const MockedPusher = Pusher as unknown as jest.Mock;
 
 describe('RampsController', () => {
   const circuitBreakerOpenErrorMessage =
@@ -9389,6 +9401,516 @@ describe('RampsController', () => {
 
         rootMessenger.call('RampsController:stopOrderPolling');
       });
+    });
+  });
+
+  describe('Transak native order websocket updates', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    const createMockTransakOrderUpdatesClient = (): TransakOrderUpdatesClient & {
+      listeners: Map<string, TransakOrderUpdateListener>;
+      connected: boolean;
+    } => {
+      const listeners = new Map<string, TransakOrderUpdateListener>();
+      let connected = true;
+      return {
+        listeners,
+        get connected() {
+          return connected;
+        },
+        set connected(value: boolean) {
+          connected = value;
+        },
+        subscribeOrder: jest.fn((orderId, onUpdate) => {
+          listeners.set(orderId, onUpdate);
+        }),
+        unsubscribeOrder: jest.fn((orderId) => {
+          listeners.delete(orderId);
+        }),
+        unsubscribeAll: jest.fn(() => {
+          listeners.clear();
+        }),
+        isConnected: jest.fn(() => connected),
+        destroy: jest.fn(() => {
+          listeners.clear();
+          connected = false;
+        }),
+      };
+    };
+
+    it('subscribes pending transak-native orders on addOrder', async () => {
+      const transakOrderUpdatesClient = createMockTransakOrderUpdatesClient();
+      await withController(
+        { options: { transakOrderUpdatesClient } },
+        async ({ rootMessenger }) => {
+          const pendingOrder = createMockOrder({
+            id: '/providers/transak-native/orders/ws-1',
+            providerOrderId: 'ws-1',
+            status: RampsOrderStatus.Pending,
+            provider: createMockProvider({
+              id: 'transak-native',
+              name: 'Transak Native',
+            }),
+            walletAddress: '0xabc',
+          });
+
+          rootMessenger.call('RampsController:addOrder', pendingOrder);
+
+          expect(transakOrderUpdatesClient.subscribeOrder).toHaveBeenCalledWith(
+            'ws-1',
+            expect.any(Function),
+          );
+        },
+      );
+    });
+
+    it('does not subscribe non-native providers', async () => {
+      const transakOrderUpdatesClient = createMockTransakOrderUpdatesClient();
+      await withController(
+        { options: { transakOrderUpdatesClient } },
+        async ({ rootMessenger }) => {
+          rootMessenger.call(
+            'RampsController:addOrder',
+            createMockOrder({
+              providerOrderId: 'agg-1',
+              status: RampsOrderStatus.Pending,
+              provider: createMockProvider({
+                id: '/providers/transak',
+                name: 'Transak',
+              }),
+            }),
+          );
+
+          expect(
+            transakOrderUpdatesClient.subscribeOrder,
+          ).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('refreshes order via RampsService when a Pusher event arrives', async () => {
+      const transakOrderUpdatesClient = createMockTransakOrderUpdatesClient();
+      await withController(
+        { options: { transakOrderUpdatesClient } },
+        async ({ controller, rootMessenger, messenger }) => {
+          const pendingOrder = createMockOrder({
+            id: '/providers/transak-native/orders/ws-refresh-1',
+            providerOrderId: 'ws-refresh-1',
+            status: RampsOrderStatus.Pending,
+            provider: createMockProvider({
+              id: 'transak-native',
+              name: 'Transak Native',
+            }),
+            walletAddress: '0xabc',
+          });
+          rootMessenger.call('RampsController:addOrder', pendingOrder);
+
+          const updatedOrder = {
+            ...pendingOrder,
+            status: RampsOrderStatus.Completed,
+          };
+          rootMessenger.registerActionHandler(
+            'RampsService:getOrder',
+            async () => updatedOrder,
+          );
+
+          const statusChangedListener = jest.fn();
+          messenger.subscribe(
+            'RampsController:orderStatusChanged',
+            statusChangedListener,
+          );
+
+          const listener =
+            transakOrderUpdatesClient.listeners.get('ws-refresh-1');
+          expect(listener).toBeDefined();
+          listener?.({
+            orderId: 'ws-refresh-1',
+            eventName: 'ORDER_COMPLETED',
+            status: 'COMPLETED',
+          });
+
+          await jest.advanceTimersByTimeAsync(250);
+
+          expect(controller.state.orders[0]?.status).toBe(
+            RampsOrderStatus.Completed,
+          );
+          expect(statusChangedListener).toHaveBeenCalledWith({
+            order: {
+              ...updatedOrder,
+              providerOrderId: 'ws-refresh-1',
+            },
+            previousStatus: RampsOrderStatus.Pending,
+          });
+          expect(
+            transakOrderUpdatesClient.unsubscribeOrder,
+          ).toHaveBeenCalledWith('ws-refresh-1');
+        },
+      );
+    });
+
+    it('skips HTTP polling for subscribed native orders while connected', async () => {
+      const transakOrderUpdatesClient = createMockTransakOrderUpdatesClient();
+      await withController(
+        { options: { transakOrderUpdatesClient } },
+        async ({ rootMessenger }) => {
+          const pendingOrder = createMockOrder({
+            id: '/providers/transak-native/orders/ws-skip-poll',
+            providerOrderId: 'ws-skip-poll',
+            status: RampsOrderStatus.Pending,
+            provider: createMockProvider({
+              id: 'transak-native',
+              name: 'Transak Native',
+            }),
+            walletAddress: '0xabc',
+          });
+          rootMessenger.call('RampsController:addOrder', pendingOrder);
+
+          const handler = jest.fn(async () => pendingOrder);
+          rootMessenger.registerActionHandler('RampsService:getOrder', handler);
+
+          rootMessenger.call('RampsController:startOrderPolling');
+          await jest.advanceTimersByTimeAsync(0);
+
+          expect(handler).not.toHaveBeenCalled();
+
+          rootMessenger.call('RampsController:stopOrderPolling');
+        },
+      );
+    });
+
+    it('falls back to HTTP polling when Pusher is disconnected', async () => {
+      const transakOrderUpdatesClient = createMockTransakOrderUpdatesClient();
+      transakOrderUpdatesClient.connected = false;
+      await withController(
+        { options: { transakOrderUpdatesClient } },
+        async ({ rootMessenger }) => {
+          const pendingOrder = createMockOrder({
+            id: '/providers/transak-native/orders/ws-fallback',
+            providerOrderId: 'ws-fallback',
+            status: RampsOrderStatus.Pending,
+            provider: createMockProvider({
+              id: 'transak-native',
+              name: 'Transak Native',
+            }),
+            walletAddress: '0xabc',
+          });
+          rootMessenger.call('RampsController:addOrder', pendingOrder);
+
+          const updatedOrder = {
+            ...pendingOrder,
+            status: RampsOrderStatus.Completed,
+          };
+          const handler = jest.fn(async () => updatedOrder);
+          rootMessenger.registerActionHandler('RampsService:getOrder', handler);
+
+          rootMessenger.call('RampsController:startOrderPolling');
+          await jest.advanceTimersByTimeAsync(0);
+
+          expect(handler).toHaveBeenCalled();
+
+          rootMessenger.call('RampsController:stopOrderPolling');
+        },
+      );
+    });
+
+    it('unsubscribes on removeOrder and stopOrderPolling', async () => {
+      const transakOrderUpdatesClient = createMockTransakOrderUpdatesClient();
+      await withController(
+        { options: { transakOrderUpdatesClient } },
+        async ({ rootMessenger }) => {
+          rootMessenger.call(
+            'RampsController:addOrder',
+            createMockOrder({
+              id: '/providers/transak-native/orders/ws-remove',
+              providerOrderId: 'ws-remove',
+              status: RampsOrderStatus.Pending,
+              provider: createMockProvider({
+                id: '/providers/transak-native',
+                name: 'Transak Native',
+              }),
+              walletAddress: '0xabc',
+            }),
+          );
+
+          rootMessenger.call('RampsController:removeOrder', 'ws-remove');
+          expect(
+            transakOrderUpdatesClient.unsubscribeOrder,
+          ).toHaveBeenCalledWith('ws-remove');
+
+          rootMessenger.call(
+            'RampsController:addOrder',
+            createMockOrder({
+              id: '/providers/transak-native/orders/ws-stop',
+              providerOrderId: 'ws-stop',
+              status: RampsOrderStatus.Created,
+              provider: createMockProvider({
+                id: 'transak-native',
+                name: 'Transak Native',
+              }),
+              walletAddress: '0xabc',
+            }),
+          );
+
+          rootMessenger.call('RampsController:stopOrderPolling');
+          expect(transakOrderUpdatesClient.unsubscribeAll).toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('does not subscribe terminal native orders', async () => {
+      const transakOrderUpdatesClient = createMockTransakOrderUpdatesClient();
+      await withController(
+        { options: { transakOrderUpdatesClient } },
+        async ({ rootMessenger }) => {
+          rootMessenger.call(
+            'RampsController:addOrder',
+            createMockOrder({
+              id: '/providers/transak-native/orders/ws-done',
+              providerOrderId: 'ws-done',
+              status: RampsOrderStatus.Completed,
+              provider: createMockProvider({
+                id: 'transak-native',
+                name: 'Transak Native',
+              }),
+            }),
+          );
+
+          expect(
+            transakOrderUpdatesClient.subscribeOrder,
+          ).not.toHaveBeenCalled();
+        },
+      );
+    });
+
+    it('debounces burst events and clears pending debounce on unsubscribe', async () => {
+      const transakOrderUpdatesClient = createMockTransakOrderUpdatesClient();
+      await withController(
+        { options: { transakOrderUpdatesClient } },
+        async ({ rootMessenger }) => {
+          const pendingOrder = createMockOrder({
+            id: '/providers/transak-native/orders/ws-debounce',
+            providerOrderId: 'ws-debounce',
+            status: RampsOrderStatus.Pending,
+            provider: createMockProvider({
+              id: 'transak-native',
+              name: 'Transak Native',
+            }),
+            walletAddress: '0xabc',
+          });
+          rootMessenger.call('RampsController:addOrder', pendingOrder);
+
+          const handler = jest.fn(async () => ({
+            ...pendingOrder,
+            status: RampsOrderStatus.Pending,
+          }));
+          rootMessenger.registerActionHandler('RampsService:getOrder', handler);
+
+          const listener =
+            transakOrderUpdatesClient.listeners.get('ws-debounce');
+          listener?.({
+            orderId: 'ws-debounce',
+            eventName: 'ORDER_PROCESSING',
+          });
+          listener?.({
+            orderId: 'ws-debounce',
+            eventName: 'ORDER_PROCESSING',
+          });
+
+          await jest.advanceTimersByTimeAsync(250);
+          expect(handler).toHaveBeenCalledTimes(1);
+
+          listener?.({
+            orderId: 'ws-debounce',
+            eventName: 'ORDER_PROCESSING',
+          });
+          rootMessenger.call('RampsController:removeOrder', 'ws-debounce');
+          await jest.advanceTimersByTimeAsync(250);
+          expect(handler).toHaveBeenCalledTimes(1);
+        },
+      );
+    });
+
+    it('unsubscribes when a wake-up finds a missing or terminal order', async () => {
+      const transakOrderUpdatesClient = createMockTransakOrderUpdatesClient();
+      await withController(
+        { options: { transakOrderUpdatesClient } },
+        async ({ rootMessenger }) => {
+          rootMessenger.call(
+            'RampsController:addOrder',
+            createMockOrder({
+              id: '/providers/transak-native/orders/ws-gone',
+              providerOrderId: 'ws-gone',
+              status: RampsOrderStatus.Pending,
+              provider: createMockProvider({
+                id: 'transak-native',
+                name: 'Transak Native',
+              }),
+              walletAddress: '0xabc',
+            }),
+          );
+
+          const listener = transakOrderUpdatesClient.listeners.get('ws-gone');
+          rootMessenger.call('RampsController:removeOrder', 'ws-gone');
+          // Re-add subscription bookkeeping only via listener inject: fire for unknown id
+          listener?.({
+            orderId: 'ws-gone',
+            eventName: 'ORDER_COMPLETED',
+          });
+          await jest.advanceTimersByTimeAsync(250);
+
+          rootMessenger.call(
+            'RampsController:addOrder',
+            createMockOrder({
+              id: '/providers/transak-native/orders/ws-terminal',
+              providerOrderId: 'ws-terminal',
+              status: RampsOrderStatus.Pending,
+              provider: createMockProvider({
+                id: 'transak-native',
+                name: 'Transak Native',
+              }),
+              walletAddress: '0xabc',
+            }),
+          );
+          // Force state to terminal without going through refresh
+          rootMessenger.call(
+            'RampsController:addOrder',
+            createMockOrder({
+              id: '/providers/transak-native/orders/ws-terminal',
+              providerOrderId: 'ws-terminal',
+              status: RampsOrderStatus.Failed,
+              provider: createMockProvider({
+                id: 'transak-native',
+                name: 'Transak Native',
+              }),
+              walletAddress: '0xabc',
+            }),
+          );
+
+          const terminalListener =
+            transakOrderUpdatesClient.listeners.get('ws-terminal');
+          terminalListener?.({
+            orderId: 'ws-terminal',
+            eventName: 'ORDER_FAILED',
+          });
+          await jest.advanceTimersByTimeAsync(250);
+
+          expect(
+            transakOrderUpdatesClient.unsubscribeOrder,
+          ).toHaveBeenCalledWith('ws-terminal');
+        },
+      );
+    });
+
+    it('resubscribes restored pending native orders on startOrderPolling', async () => {
+      const transakOrderUpdatesClient = createMockTransakOrderUpdatesClient();
+      await withController(
+        {
+          options: {
+            transakOrderUpdatesClient,
+            state: {
+              orders: [
+                createMockOrder({
+                  id: '/providers/transak-native/orders/ws-restored',
+                  providerOrderId: 'ws-restored',
+                  status: RampsOrderStatus.Pending,
+                  provider: createMockProvider({
+                    id: 'transak-native',
+                    name: 'Transak Native',
+                  }),
+                  walletAddress: '0xabc',
+                }),
+              ],
+            },
+          },
+        },
+        async ({ rootMessenger }) => {
+          rootMessenger.call('RampsController:startOrderPolling');
+          expect(transakOrderUpdatesClient.subscribeOrder).toHaveBeenCalledWith(
+            'ws-restored',
+            expect.any(Function),
+          );
+          rootMessenger.call('RampsController:stopOrderPolling');
+        },
+      );
+    });
+
+    it('creates a default Pusher client when none is injected and destroys it on stop', async () => {
+      const disconnect = jest.fn();
+      MockedPusher.mockReset();
+      MockedPusher.mockImplementation(() => ({
+        subscribe: jest.fn(() => ({
+          bind_global: jest.fn(),
+          unbind_all: jest.fn(),
+        })),
+        unsubscribe: jest.fn(),
+        disconnect,
+        connection: { state: 'connected' },
+      }));
+
+      await withController(async ({ rootMessenger }) => {
+        rootMessenger.call(
+          'RampsController:addOrder',
+          createMockOrder({
+            id: '/providers/transak-native/orders/ws-lazy',
+            providerOrderId: 'ws-lazy',
+            status: RampsOrderStatus.Pending,
+            provider: createMockProvider({
+              id: 'transak-native',
+              name: 'Transak Native',
+            }),
+            walletAddress: '0xabc',
+          }),
+        );
+
+        expect(MockedPusher).toHaveBeenCalled();
+        rootMessenger.call('RampsController:stopOrderPolling');
+        expect(disconnect).toHaveBeenCalled();
+      });
+    });
+
+    it('clears pending wake-up timers when stopping order polling', async () => {
+      const transakOrderUpdatesClient = createMockTransakOrderUpdatesClient();
+      await withController(
+        { options: { transakOrderUpdatesClient } },
+        async ({ rootMessenger }) => {
+          rootMessenger.call(
+            'RampsController:addOrder',
+            createMockOrder({
+              id: '/providers/transak-native/orders/ws-timer',
+              providerOrderId: 'ws-timer',
+              status: RampsOrderStatus.Pending,
+              provider: createMockProvider({
+                id: 'transak-native',
+                name: 'Transak Native',
+              }),
+              walletAddress: '0xabc',
+            }),
+          );
+
+          const handler = jest.fn(async () =>
+            createMockOrder({
+              providerOrderId: 'ws-timer',
+              status: RampsOrderStatus.Pending,
+            }),
+          );
+          rootMessenger.registerActionHandler('RampsService:getOrder', handler);
+
+          transakOrderUpdatesClient.listeners.get('ws-timer')?.({
+            orderId: 'ws-timer',
+            eventName: 'ORDER_PROCESSING',
+          });
+          rootMessenger.call('RampsController:stopOrderPolling');
+          await jest.advanceTimersByTimeAsync(250);
+
+          expect(handler).not.toHaveBeenCalled();
+        },
+      );
     });
   });
 
