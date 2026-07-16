@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {

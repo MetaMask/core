@@ -1,18 +1,19 @@
+import { jest } from '@jest/globals';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { AddressBookEntry } from '@metamask/address-book-controller';
 
-import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema';
+import { USER_STORAGE_FEATURE_NAMES } from '../../../shared/storage-schema.js';
 import {
   MOCK_LOCAL_CONTACTS,
   MOCK_REMOTE_CONTACTS,
-} from './__fixtures__/mockContacts';
+} from './__fixtures__/mockContacts.js';
 import {
   mockUserStorageMessengerForContactSyncing,
   createMockUserStorageContacts,
-} from './__fixtures__/test-utils';
-import * as ContactSyncingControllerIntegrationModule from './controller-integration';
-import * as ContactSyncingUtils from './sync-utils';
-import type { ContactSyncingOptions } from './types';
+} from './__fixtures__/test-utils.js';
+import * as ContactSyncingControllerIntegrationModule from './controller-integration.js';
+import * as ContactSyncingUtils from './sync-utils.js';
+import type { ContactSyncingOptions } from './types.js';
 
 // Mock UserStorageController to avoid json-rpc-engine dependency issues
 class MockUserStorageController {

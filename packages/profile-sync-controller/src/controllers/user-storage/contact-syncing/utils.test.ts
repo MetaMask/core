@@ -1,12 +1,13 @@
+import { jest } from '@jest/globals';
 import type { AddressBookEntry } from '@metamask/address-book-controller';
 
-import { USER_STORAGE_VERSION, USER_STORAGE_VERSION_KEY } from './constants';
-import type { UserStorageContactEntry } from './types';
+import { USER_STORAGE_VERSION, USER_STORAGE_VERSION_KEY } from './constants.js';
+import type { UserStorageContactEntry } from './types.js';
 import {
   mapAddressBookEntryToUserStorageEntry,
   mapUserStorageEntryToAddressBookEntry,
-} from './utils';
-import type { SyncAddressBookEntry } from './utils';
+} from './utils.js';
+import type { SyncAddressBookEntry } from './utils.js';
 
 describe('user-storage/contact-syncing/utils', () => {
   // Use checksum address format for consistent testing

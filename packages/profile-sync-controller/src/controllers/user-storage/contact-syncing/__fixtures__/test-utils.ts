@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import type {
   AddressBookEntry,
   AddressType,
@@ -12,7 +13,7 @@ import {
   Messenger as MessengerImpl,
 } from '@metamask/messenger';
 
-import { MOCK_LOCAL_CONTACTS } from './mockContacts';
+import { MOCK_LOCAL_CONTACTS } from './mockContacts.js';
 
 /**
  * Test Utility - create a mock user storage messenger for contact syncing tests

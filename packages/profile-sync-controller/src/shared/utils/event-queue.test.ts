@@ -1,4 +1,6 @@
-import { EventQueue } from './event-queue';
+import { jest } from '@jest/globals';
+
+import { EventQueue } from './event-queue.js';
 
 describe('EventQueue', () => {
   let eventQueue: EventQueue;

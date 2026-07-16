@@ -1,5 +1,7 @@
-import { canPerformContactSyncing } from './sync-utils';
-import type { ContactSyncingOptions } from './types';
+import { jest } from '@jest/globals';
+
+import { canPerformContactSyncing } from './sync-utils.js';
+import type { ContactSyncingOptions } from './types.js';
 
 describe('user-storage/contact-syncing/sync-utils', () => {
   describe('canPerformContactSyncing', () => {
