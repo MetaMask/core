@@ -148,7 +148,10 @@ export function createUIQueryClient<
   MessengerInstance extends GenericMessenger,
 >(
   dataServices: DataServiceNames,
-  messenger: SupportsDataServices<MessengerInstance, DataServiceNames[number]>,
+  messenger: Pick<
+    SupportsDataServices<MessengerInstance, DataServiceNames[number]>,
+    'call' | 'subscribe' | 'unsubscribe'
+  >,
   config?: QueryClientConfig,
 ): QueryClient;
 
