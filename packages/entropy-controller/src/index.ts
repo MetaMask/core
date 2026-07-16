@@ -13,4 +13,4 @@ export type {
   EntropyMetadata,
   EntropyType,
 } from './types';
-export { toEntropyFingerprint, toEntropyId } from './utils';
+export { isKeyringOwningEntropy, toEntropyFingerprint, toEntropyId } from './utils';

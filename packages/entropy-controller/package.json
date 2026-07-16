@@ -56,7 +56,10 @@
   },
   "dependencies": {
     "@metamask/base-controller": "^9.1.0",
+    "@metamask/eth-hd-keyring": "^14.1.1",
+    "@metamask/keyring-controller": "^27.1.0",
     "@metamask/messenger": "^2.0.0",
+    "@metamask/utils": "^11.11.0",
     "@noble/hashes": "^1.8.0",
     "uuid": "^8.3.2"
   },

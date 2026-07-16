@@ -1,9 +1,25 @@
+import type { KeyringObject } from '@metamask/keyring-controller';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import { hmac } from '@noble/hashes/hmac';
 import { sha256 } from '@noble/hashes/sha256';
 import { bytesToHex } from '@noble/hashes/utils';
 import { v4 as uuid } from 'uuid';
 
 import type { EntropyId, EntropyType } from './types';
+
+/**
+ * Checks whether a keyring is a source of entropy — i.e. whether it owns
+ * secret material that the {@link EntropyController} should track.
+ *
+ * Currently matches HD keyrings (`'HD Key Tree'`, which own a BIP-39 mnemonic)
+ * and Simple keyrings (`'Simple Key Pair'`, which own imported private keys).
+ *
+ * @param keyring - The keyring object from `KeyringController` state.
+ * @returns `true` if the keyring owns entropy, `false` otherwise.
+ */
+export function isKeyringOwningEntropy(keyring: KeyringObject): boolean {
+  return keyring.type === KeyringTypes.hd || keyring.type === KeyringTypes.simple;
+}
 
 /**
  * Computes the raw HMAC-SHA256 digest for a piece of entropy — the shared

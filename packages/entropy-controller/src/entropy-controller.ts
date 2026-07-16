@@ -4,9 +4,18 @@ import type {
   StateMetadata,
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
+import type { HdKeyring } from '@metamask/eth-hd-keyring/v2';
+import type { SimpleKeyring } from '@metamask/eth-simple-keyring/v2';
+import type {
+  KeyringControllerGetStateAction,
+  KeyringControllerWithKeyringV2UnsafeAction,
+} from '@metamask/keyring-controller';
+import { KeyringTypes } from '@metamask/keyring-controller';
 import type { Messenger } from '@metamask/messenger';
+import { hexToBytes } from '@metamask/utils';
 
 import type { EntropyId, EntropyMetadata, EntropyType } from './types';
+import { isKeyringOwningEntropy, toEntropyId } from './utils';
 
 /**
  * The name of the {@link EntropyController}, used to namespace the
@@ -81,7 +90,9 @@ export type EntropyControllerActions = EntropyControllerGetStateAction;
 /**
  * Actions from other messengers that {@link EntropyControllerMessenger} calls.
  */
-type AllowedActions = never;
+type AllowedActions =
+  | KeyringControllerGetStateAction
+  | KeyringControllerWithKeyringV2UnsafeAction;
 
 /**
  * Published when the state of {@link EntropyController} changes.
@@ -151,5 +162,100 @@ export class EntropyController extends BaseController<
         ...state,
       },
     });
+  }
+
+  /**
+   * Scans the keyrings managed by `KeyringController` and rebuilds the
+   * `entropySources` registry from scratch.
+   *
+   * Only keyrings that own entropy are considered (see
+   * {@link isKeyringOwningEntropy}). This method replaces the entire
+   * `entropySources` map in a single state update — stale entries are
+   * automatically removed.
+   */
+  async syncEntropies(): Promise<void> {
+    const { keyrings } = this.messenger.call('KeyringController:getState');
+    const entropyKeyrings = keyrings.filter(isKeyringOwningEntropy);
+
+    const newSources: EntropyControllerState['entropySources'] = {};
+
+    for (const keyringObj of entropyKeyrings) {
+      const { id } = keyringObj.metadata;
+
+      if (keyringObj.type === KeyringTypes.hd) {
+        await this.#syncHdKeyring(id, newSources);
+      } else if (keyringObj.type === KeyringTypes.simple) {
+        await this.#syncSimpleKeyring(id, newSources);
+      }
+    }
+
+    this.update((state) => {
+      state.entropySources = newSources;
+    });
+  }
+
+  /**
+   * Derives the entropy source entry for a single HD keyring and adds it to
+   * the given map.
+   *
+   * Reads the mnemonic via `withKeyringV2Unsafe` and derives a stable
+   * `EntropyId` with type `'bip44:srp'`. Skips the keyring silently if the
+   * mnemonic is not yet initialised.
+   *
+   * @param id - The keyring metadata ID.
+   * @param sources - The map to populate in-place.
+   */
+  async #syncHdKeyring(
+    id: string,
+    sources: EntropyControllerState['entropySources'],
+  ): Promise<void> {
+    await this.messenger.call(
+      'KeyringController:withKeyringV2Unsafe',
+      { id },
+      async ({ keyring }) => {
+        const hdKeyring = keyring as HdKeyring;
+        if (!hdKeyring.mnemonic) {
+          return;
+        }
+        const entropyId = await toEntropyId(hdKeyring.mnemonic, 'bip44:srp');
+        sources[entropyId] = { type: 'bip44:srp', metadata: {} };
+      },
+    );
+  }
+
+  /**
+   * Derives entropy source entries for a single Simple keyring and adds them
+   * to the given map.
+   *
+   * Enumerates accounts via `withKeyringV2Unsafe`, exports each private key
+   * via `exportAccount`, and derives a stable `EntropyId` with type
+   * `'raw:private-key'` for each one.
+   *
+   * @param id - The keyring metadata ID.
+   * @param sources - The map to populate in-place.
+   */
+  async #syncSimpleKeyring(
+    id: string,
+    sources: EntropyControllerState['entropySources'],
+  ): Promise<void> {
+    await this.messenger.call(
+      'KeyringController:withKeyringV2Unsafe',
+      { id },
+      async ({ keyring }) => {
+        const simpleKeyring = keyring as SimpleKeyring;
+        const accounts = await simpleKeyring.getAccounts();
+        for (const account of accounts) {
+          const exported = await simpleKeyring.exportAccount(account.id, {
+            type: 'private-key',
+            encoding: 'hexadecimal',
+          });
+          const entropyId = await toEntropyId(
+            hexToBytes(exported.privateKey),
+            'raw:private-key',
+          );
+          sources[entropyId] = { type: 'raw:private-key', metadata: {} };
+        }
+      },
+    );
   }
 }

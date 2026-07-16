@@ -8,10 +8,147 @@ import type {
 
 import type { EntropyControllerMessenger } from './entropy-controller';
 import { EntropyController } from './entropy-controller';
+import { toEntropyId } from './utils';
+
+// Stable test secrets
+const HD_MNEMONIC = new TextEncoder().encode(
+  'test test test test test test test test test test test junk',
+);
+const PRIVATE_KEY_HEX =
+  '4af1bceebf7f3634ec3cff8a2c38e51178d5d4ce585c52d6043e5e2cc3f1d3e1';
+const PRIVATE_KEY_BYTES = Uint8Array.from(
+  PRIVATE_KEY_HEX.match(/../gu)!.map((b) => parseInt(b, 16)),
+);
+
+type KeyringStub = {
+  type: string;
+  metadata: { id: string; name: string };
+  /** HD keyring: mnemonic bytes, or null if not yet initialised. */
+  mnemonic?: Uint8Array | null;
+  /** Accounts held by this keyring. `id` and `privateKey` are only relevant for Simple keyrings. */
+  accounts: { address: string; id?: string; privateKey?: string }[];
+};
+
+type RootMessenger = Messenger<
+  MockAnyNamespace,
+  MessengerActions<EntropyControllerMessenger>,
+  MessengerEvents<EntropyControllerMessenger>
+>;
+
+type Mocks = {
+  // eslint-disable-next-line @typescript-eslint/naming-convention
+  KeyringController: {
+    getState: jest.Mock;
+    withKeyringV2Unsafe: jest.Mock;
+  };
+};
+
+async function setup({
+  keyrings = [],
+  options = {},
+}: {
+  keyrings?: KeyringStub[];
+  options?: Partial<ConstructorParameters<typeof EntropyController>[0]>;
+} = {}): Promise<{
+  controller: EntropyController;
+  rootMessenger: RootMessenger;
+  messenger: EntropyControllerMessenger;
+  mocks: Mocks;
+}> {
+  const mocks: Mocks = {
+    KeyringController: {
+      getState: jest.fn(),
+      withKeyringV2Unsafe: jest.fn(),
+    },
+  };
+
+  mocks.KeyringController.getState.mockImplementation(
+    () => ({
+      keyrings: keyrings.map((k) => ({
+        type: k.type,
+        accounts: k.accounts.map((a) => a.address),
+        metadata: k.metadata,
+      })),
+      isUnlocked: true,
+    }) as never,
+  );
+
+  mocks.KeyringController.withKeyringV2Unsafe.mockImplementation(
+    async (
+      selector: { id: string },
+      operation: (payload: {
+        keyring: unknown;
+        metadata: unknown;
+      }) => Promise<unknown>,
+    ) => {
+      const stub = keyrings.find((k) => k.metadata.id === selector.id);
+      return operation({
+        keyring: {
+          mnemonic: stub?.mnemonic ?? null,
+          getAccounts: async () =>
+            (stub?.accounts ?? [])
+              .filter((a) => a.id !== undefined)
+              .map(({ id }) => ({ id })),
+          exportAccount: async (accountId: string) => {
+            const account = stub?.accounts.find((a) => a.id === accountId);
+            return {
+              type: 'private-key',
+              encoding: 'hexadecimal',
+              privateKey: account?.privateKey ?? '',
+            };
+          },
+        },
+        metadata: { id: selector.id, name: '' },
+      });
+    },
+  );
+
+  const rootMessenger = new Messenger<
+    MockAnyNamespace,
+    MessengerActions<EntropyControllerMessenger>,
+    MessengerEvents<EntropyControllerMessenger>
+  >({ namespace: MOCK_ANY_NAMESPACE });
+
+  rootMessenger.registerActionHandler(
+    'KeyringController:getState',
+    mocks.KeyringController.getState,
+  );
+
+  rootMessenger.registerActionHandler(
+    'KeyringController:withKeyringV2Unsafe',
+    mocks.KeyringController.withKeyringV2Unsafe,
+  );
+
+  const messenger = new Messenger<
+    'EntropyController',
+    MessengerActions<EntropyControllerMessenger>,
+    MessengerEvents<EntropyControllerMessenger>
+  >({
+    namespace: 'EntropyController',
+    parent: rootMessenger,
+  });
+
+  rootMessenger.delegate({
+    messenger,
+    actions: [
+      'KeyringController:getState',
+      'KeyringController:withKeyringV2Unsafe',
+    ],
+    events: [],
+  });
+
+  const controller = new EntropyController({
+    messenger,
+    ...options,
+  });
+
+  return { controller, rootMessenger, messenger, mocks };
+}
+
 
 describe('EntropyController', () => {
   describe('constructor', () => {
-    it('accepts initial state', () => {
+    it('accepts initial state', async () => {
       const givenState = {
         entropySources: {
           'entropy-1': {
@@ -21,160 +158,223 @@ describe('EntropyController', () => {
         },
       };
 
-      withController({ options: { state: givenState } }, ({ controller }) => {
-        expect(controller.state).toStrictEqual(givenState);
+      const { controller } = await setup({ options: { state: givenState } });
+
+      expect(controller.state).toStrictEqual(givenState);
+    });
+
+    it('fills in missing initial state with defaults', async () => {
+      const { controller } = await setup();
+
+      expect(controller.state).toMatchInlineSnapshot(`
+        {
+          "entropySources": {},
+        }
+      `);
+    });
+  });
+
+  describe('syncEntropies', () => {
+    it('populates entropySources from an HD keyring', async () => {
+      const keyringId = 'hd-keyring-id';
+      const expectedId = await toEntropyId(HD_MNEMONIC, 'bip44:srp');
+
+      const { controller } = await setup({
+        keyrings: [
+          {
+            type: 'HD Key Tree',
+            metadata: { id: keyringId, name: '' },
+            mnemonic: HD_MNEMONIC,
+            accounts: [{ address: '0xabc' }],
+          },
+        ],
+      });
+
+      await controller.syncEntropies();
+
+      expect(controller.state.entropySources).toStrictEqual({
+        [expectedId]: { type: 'bip44:srp', metadata: {} },
       });
     });
 
-    it('fills in missing initial state with defaults', () => {
-      withController(({ controller }) => {
-        expect(controller.state).toMatchInlineSnapshot(`
+    it('populates entropySources from a Simple keyring', async () => {
+      const keyringId = 'simple-keyring-id';
+      const accountId = 'account-uuid-1';
+      const expectedId = await toEntropyId(PRIVATE_KEY_BYTES, 'raw:private-key');
+
+      const { controller } = await setup({
+        keyrings: [
           {
-            "entropySources": {},
-          }
-        `);
+            type: 'Simple Key Pair',
+            metadata: { id: keyringId, name: '' },
+            accounts: [{ address: '0xdef', id: accountId, privateKey: PRIVATE_KEY_HEX }],
+          },
+        ],
       });
+
+      await controller.syncEntropies();
+
+      expect(controller.state.entropySources).toStrictEqual({
+        [expectedId]: { type: 'raw:private-key', metadata: {} },
+      });
+    });
+
+    it('handles a Simple keyring with multiple accounts', async () => {
+      const keyringId = 'simple-keyring-id';
+      const secondKeyHex =
+        '1111111111111111111111111111111111111111111111111111111111111111';
+      const secondKeyBytes = Uint8Array.from(
+        secondKeyHex.match(/../gu)!.map((b) => parseInt(b, 16)),
+      );
+      const expectedId1 = await toEntropyId(PRIVATE_KEY_BYTES, 'raw:private-key');
+      const expectedId2 = await toEntropyId(secondKeyBytes, 'raw:private-key');
+
+      const { controller } = await setup({
+        keyrings: [
+          {
+            type: 'Simple Key Pair',
+            metadata: { id: keyringId, name: '' },
+            accounts: [
+              { address: '0xaaa', id: 'account-1', privateKey: PRIVATE_KEY_HEX },
+              { address: '0xbbb', id: 'account-2', privateKey: secondKeyHex },
+            ],
+          },
+        ],
+      });
+
+      await controller.syncEntropies();
+
+      expect(controller.state.entropySources).toStrictEqual({
+        [expectedId1]: { type: 'raw:private-key', metadata: {} },
+        [expectedId2]: { type: 'raw:private-key', metadata: {} },
+      });
+    });
+
+    it('ignores keyrings that do not own entropy', async () => {
+      const { controller } = await setup({
+        keyrings: [
+          {
+            type: 'Snap Keyring',
+            metadata: { id: 'snap-id', name: '' },
+            accounts: [{ address: '0xabc' }],
+          },
+        ],
+      });
+
+      await controller.syncEntropies();
+
+      expect(controller.state.entropySources).toStrictEqual({});
+    });
+
+    it('skips an HD keyring whose mnemonic is not yet initialised', async () => {
+      const keyringId = 'hd-keyring-id';
+
+      const { controller } = await setup({
+        keyrings: [
+          {
+            type: 'HD Key Tree',
+            metadata: { id: keyringId, name: '' },
+            mnemonic: null,
+            accounts: [],
+          },
+        ],
+      });
+
+      await controller.syncEntropies();
+
+      expect(controller.state.entropySources).toStrictEqual({});
+    });
+
+    it('replaces the entire entropySources map on each call', async () => {
+      const keyringId = 'hd-keyring-id';
+      const expectedId = await toEntropyId(HD_MNEMONIC, 'bip44:srp');
+
+      const { controller } = await setup({
+        options: {
+          state: {
+            entropySources: {
+              'stale-id': { type: 'bip44:srp', metadata: {} },
+            },
+          },
+        },
+        keyrings: [
+          {
+            type: 'HD Key Tree',
+            metadata: { id: keyringId, name: '' },
+            mnemonic: HD_MNEMONIC,
+            accounts: [{ address: '0xabc' }],
+          },
+        ],
+      });
+
+      await controller.syncEntropies();
+
+      expect(controller.state.entropySources).toStrictEqual({
+        [expectedId]: { type: 'bip44:srp', metadata: {} },
+      });
+      expect(controller.state.entropySources['stale-id']).toBeUndefined();
     });
   });
 
   describe('metadata', () => {
-    it('does not include entropy sources in debug snapshots', () => {
-      withController(({ controller }) => {
-        expect(
-          deriveStateFromMetadata(
-            controller.state,
-            controller.metadata,
-            'includeInDebugSnapshot',
-          ),
-        ).toMatchInlineSnapshot(`{}`);
-      });
+    it('does not include entropy sources in debug snapshots', async () => {
+      const { controller } = await setup();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInDebugSnapshot',
+        ),
+      ).toMatchInlineSnapshot(`{}`);
     });
 
-    it('includes entropy sources in state logs', () => {
-      withController(({ controller }) => {
-        expect(
-          deriveStateFromMetadata(
-            controller.state,
-            controller.metadata,
-            'includeInStateLogs',
-          ),
-        ).toMatchInlineSnapshot(`
-          {
-            "entropySources": {},
-          }
-        `);
-      });
+    it('includes entropy sources in state logs', async () => {
+      const { controller } = await setup();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'includeInStateLogs',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "entropySources": {},
+        }
+      `);
     });
 
-    it('persists entropy sources', () => {
-      withController(({ controller }) => {
-        expect(
-          deriveStateFromMetadata(
-            controller.state,
-            controller.metadata,
-            'persist',
-          ),
-        ).toMatchInlineSnapshot(`
-          {
-            "entropySources": {},
-          }
-        `);
-      });
+    it('persists entropy sources', async () => {
+      const { controller } = await setup();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'persist',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "entropySources": {},
+        }
+      `);
     });
 
-    it('exposes entropy sources to UI', () => {
-      withController(({ controller }) => {
-        expect(
-          deriveStateFromMetadata(
-            controller.state,
-            controller.metadata,
-            'usedInUi',
-          ),
-        ).toMatchInlineSnapshot(`
-          {
-            "entropySources": {},
-          }
-        `);
-      });
+    it('exposes entropy sources to UI', async () => {
+      const { controller } = await setup();
+
+      expect(
+        deriveStateFromMetadata(
+          controller.state,
+          controller.metadata,
+          'usedInUi',
+        ),
+      ).toMatchInlineSnapshot(`
+        {
+          "entropySources": {},
+        }
+      `);
     });
   });
 });
-
-/**
- * The type of the messenger populated with all external actions and events
- * required by the controller under test.
- */
-type RootMessenger = Messenger<
-  MockAnyNamespace,
-  MessengerActions<EntropyControllerMessenger>,
-  MessengerEvents<EntropyControllerMessenger>
->;
-
-/**
- * The callback that `withController` calls.
- */
-type WithControllerCallback<ReturnValue> = (payload: {
-  controller: EntropyController;
-  rootMessenger: RootMessenger;
-  controllerMessenger: EntropyControllerMessenger;
-}) => ReturnValue;
-
-/**
- * The options that `withController` takes.
- */
-type WithControllerOptions = {
-  options: Partial<ConstructorParameters<typeof EntropyController>[0]>;
-};
-
-/**
- * Constructs the messenger populated with all external actions and events
- * required by the controller under test.
- *
- * @returns The root messenger.
- */
-function getRootMessenger(): RootMessenger {
-  return new Messenger({ namespace: MOCK_ANY_NAMESPACE });
-}
-
-/**
- * Constructs the messenger for the controller under test.
- *
- * @param rootMessenger - The root messenger, with all external actions and
- * events required by the controller's messenger.
- * @returns The controller-specific messenger.
- */
-function getMessenger(
-  rootMessenger: RootMessenger,
-): EntropyControllerMessenger {
-  return new Messenger({
-    namespace: 'EntropyController',
-    parent: rootMessenger,
-  });
-}
-
-/**
- * Wrap tests for the controller under test by ensuring that the controller is
- * created ahead of time with the given options.
- *
- * @param args - Either a function, or an options bag + a function. The options
- * bag contains arguments for the controller constructor. All constructor
- * arguments are optional and will be filled in with defaults as needed
- * (including `messenger`). The function is called with the instantiated
- * controller, root messenger, and controller messenger.
- * @returns The same return value as the given function.
- */
-function withController<ReturnValue>(
-  ...args:
-    | [WithControllerCallback<ReturnValue>]
-    | [WithControllerOptions, WithControllerCallback<ReturnValue>]
-): ReturnValue {
-  const [{ options = {} }, testFunction] =
-    args.length === 2 ? args : [{}, args[0]];
-  const rootMessenger = getRootMessenger();
-  const controllerMessenger = getMessenger(rootMessenger);
-  const controller = new EntropyController({
-    messenger: controllerMessenger,
-    ...options,
-  });
-  return testFunction({ controller, rootMessenger, controllerMessenger });
-}

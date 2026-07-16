@@ -1,6 +1,25 @@
-import { toEntropyFingerprint, toEntropyId } from './utils';
+import type { KeyringObject } from '@metamask/keyring-controller';
+
+import { isKeyringOwningEntropy, toEntropyFingerprint, toEntropyId } from './utils';
 
 const SECRET = new Uint8Array(32).fill(1);
+
+describe('isKeyringOwningEntropy', () => {
+  it.each([
+    { type: 'HD Key Tree', expected: true },
+    { type: 'Simple Key Pair', expected: true },
+    { type: 'Snap Keyring', expected: false },
+    { type: 'Ledger Hardware', expected: false },
+    { type: 'Trezor Hardware', expected: false },
+  ])('returns $expected for type "$type"', ({ type, expected }) => {
+    const keyring = {
+      type,
+      accounts: [],
+      metadata: { id: 'test-id', name: '' },
+    } as KeyringObject;
+    expect(isKeyringOwningEntropy(keyring)).toBe(expected);
+  });
+});
 
 describe('toEntropyFingerprint', () => {
   it('returns a 64-character lowercase hex string', async () => {
