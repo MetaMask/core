@@ -9,6 +9,7 @@ export type {
 } from './chomp-api-service';
 export type {
   ChompApiServiceAssociateAddressAction,
+  ChompApiServiceGetAssociatedAddressesAction,
   ChompApiServiceCreateUpgradeAction,
   ChompApiServiceGetUpgradesAction,
   ChompApiServiceVerifyDelegationAction,
@@ -31,6 +32,7 @@ export type {
   IntentEntry,
   IntentMetadataParams,
   IntentMetadataResponse,
+  ProfileAddressEntry,
   SendIntentParams,
   SendIntentResponse,
   ServiceDetailsChain,

@@ -12,6 +12,7 @@ import type {
   ChompApiServiceAssociateAddressAction,
   ChompApiServiceCreateIntentsAction,
   ChompApiServiceCreateUpgradeAction,
+  ChompApiServiceGetAssociatedAddressesAction,
   ChompApiServiceGetIntentsByAddressAction,
   ChompApiServiceGetServiceDetailsAction,
   ChompApiServiceVerifyDelegationAction,
@@ -70,6 +71,7 @@ type AllowedActions =
   | ChompApiServiceAssociateAddressAction
   | ChompApiServiceCreateIntentsAction
   | ChompApiServiceCreateUpgradeAction
+  | ChompApiServiceGetAssociatedAddressesAction
   | ChompApiServiceGetIntentsByAddressAction
   | ChompApiServiceGetServiceDetailsAction
   | ChompApiServiceVerifyDelegationAction

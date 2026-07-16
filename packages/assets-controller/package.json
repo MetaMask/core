@@ -76,6 +76,7 @@
     "@metamask/phishing-controller": "^17.3.0",
     "@metamask/polling-controller": "^16.0.8",
     "@metamask/preferences-controller": "^23.1.0",
+    "@metamask/remote-feature-flag-controller": "^4.2.2",
     "@metamask/snaps-controllers": "^19.0.0",
     "@metamask/snaps-utils": "^12.1.2",
     "@metamask/transaction-controller": "^69.0.0",
