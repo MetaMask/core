@@ -177,6 +177,7 @@ export class ExampleDataService extends BaseDataService<
 
         return response.json();
       },
+      cacheTime: 0, // Not recommended in production, just for testing purposes.
     });
   }
 

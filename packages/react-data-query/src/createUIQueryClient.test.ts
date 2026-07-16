@@ -125,7 +125,7 @@ describe('createUIQueryClient', () => {
     service.destroy();
   });
 
-  it('fetches using observers', async () => {
+  it('fetches queries using observers', async () => {
     const { clientA, clientB, service } = createClients();
 
     const observerA = new QueryObserver(clientA, {
@@ -164,7 +164,7 @@ describe('createUIQueryClient', () => {
     service.destroy();
   });
 
-  it('fetches using observers in the same client', async () => {
+  it('fetches queries using observers in the same client', async () => {
     const { clientA, service } = createClients();
 
     const observerA = new QueryObserver(clientA, {
