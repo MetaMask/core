@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Remove Sei Mainnet (`0x531`) from the default-enabled EVM network map, fixing a crash in consumers that call `findNetworkClientIdByChainId` for chains with no built-in `NetworkController` client ([#9542](https://github.com/MetaMask/core/pull/9542))
+
 ## [5.6.0]
 
 ### Added
