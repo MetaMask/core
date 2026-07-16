@@ -12,7 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `BuiltInNetworkClientId` is now `string` instead of `InfuraNetworkType` ([#9432](https://github.com/MetaMask/core/pull/9432))
   - This type was previously constrained to known Infura network names (e.g. `"mainnet"`, `"sepolia"`). It is now `string` to allow dynamically configured Infura networks whose names are not bundled into the package.
   - If you have code that narrows on `BuiltInNetworkClientId`, you will need to remove the narrowing or check the network client type via `NetworkClientType` instead.
-- **BREAKING:** `InfuraNetworkClientConfiguration.network` is now `string` instead of `InfuraNetworkType` ([#9432](https://github.com/MetaMask/core/pull/9432))
+- `InfuraNetworkClientConfiguration.network` is now `string` instead of `InfuraNetworkType` ([#9432](https://github.com/MetaMask/core/pull/9432))
   - Previously only known Infura network names were accepted. Any valid Infura subdomain string is now accepted.
 - Remove validation that prevented a custom RPC endpoint from having a `networkClientId` that matches a known Infura network name ([#9432](https://github.com/MetaMask/core/pull/9432))
 - Remove validation that required an Infura RPC endpoint URL's implied chain ID to match the chain ID of the network configuration it belongs to ([#9432](https://github.com/MetaMask/core/pull/9432))
