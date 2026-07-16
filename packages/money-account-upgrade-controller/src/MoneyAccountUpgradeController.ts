@@ -89,7 +89,7 @@ export type MoneyAccountUpgradeControllerState = {
 const moneyAccountUpgradeControllerMetadata = {
   upgradedAccounts: {
     includeInDebugSnapshot: false,
-    includeInStateLogs: true,
+    includeInStateLogs: false,
     persist: true,
     usedInUi: false,
   },
@@ -334,7 +334,7 @@ export class MoneyAccountUpgradeController extends BaseController<
    * further attempts. An aborted run rejects with an error stating the retry
    * was aborted.
    * @param options.maxAttempts - Maximum number of attempts, including the
-   * first. Defaults to 5.
+   * first. Must be an integer of at least 1. Defaults to 5.
    */
   async upgradeAccountWithRetry(
     address: Hex,
@@ -343,6 +343,9 @@ export class MoneyAccountUpgradeController extends BaseController<
       maxAttempts = DEFAULT_MAX_RETRY_ATTEMPTS,
     }: { signal?: AbortSignal; maxAttempts?: number } = {},
   ): Promise<void> {
+    if (!Number.isInteger(maxAttempts) || maxAttempts < 1) {
+      throw new Error(`maxAttempts must be an integer >= 1, got ${maxAttempts}`);
+    }
     for (let attempt = 1; ; attempt++) {
       if (signal?.aborted) {
         throw new Error(RETRY_ABORTED_MESSAGE);
@@ -403,7 +406,9 @@ function retryDelayMs(attempt: number): number {
 }
 
 /**
- * Waits for the given duration, rejecting early if `signal` aborts.
+ * Waits for the given duration, rejecting early if `signal` aborts. Rejects
+ * immediately when the signal is already aborted on entry (e.g. the abort
+ * landed while an upgrade attempt was in flight).
  *
  * @param durationMs - How long to wait.
  * @param signal - Abort signal that cancels the wait.
@@ -414,6 +419,11 @@ async function waitUnlessAborted(
   signal?: AbortSignal,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new Error(RETRY_ABORTED_MESSAGE));
+      return;
+    }
+
     const timer = setTimeout(() => {
       signal?.removeEventListener('abort', onAbort);
       resolve();

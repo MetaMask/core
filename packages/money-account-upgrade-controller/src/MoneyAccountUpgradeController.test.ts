@@ -873,6 +873,32 @@ describe('MoneyAccountUpgradeController', () => {
       expect(mocks.signPersonalMessage).not.toHaveBeenCalled();
     });
 
+    it.each([
+      ['zero', 0],
+      ['negative', -1],
+      ['a non-integer', 2.5],
+      ['NaN', Number.NaN],
+    ])(
+      'rejects without attempting when maxAttempts is %s',
+      async (_label, maxAttempts) => {
+        const { controller, mocks } = setup();
+        await controller.init({
+          chainId: MOCK_CHAIN_ID,
+          boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+        });
+
+        await expect(
+          controller.upgradeAccountWithRetry(MOCK_ACCOUNT_ADDRESS, {
+            maxAttempts,
+          }),
+        ).rejects.toThrow(
+          `maxAttempts must be an integer >= 1, got ${maxAttempts}`,
+        );
+
+        expect(mocks.signPersonalMessage).not.toHaveBeenCalled();
+      },
+    );
+
     it('throws without attempting when the signal is already aborted', async () => {
       const { controller, mocks } = setup();
       await controller.init({
@@ -889,6 +915,35 @@ describe('MoneyAccountUpgradeController', () => {
       ).rejects.toThrow('Money Account upgrade retry aborted');
 
       expect(mocks.signPersonalMessage).not.toHaveBeenCalled();
+    });
+
+    it('rejects immediately when the signal aborts during an attempt', async () => {
+      const { controller, mocks } = setup();
+      await controller.init({
+        chainId: MOCK_CHAIN_ID,
+        boringVaultAddress: MOCK_BORING_VAULT_ADDRESS,
+      });
+      const abortController = new AbortController();
+      // The abort lands while the attempt is in flight, so the signal is
+      // already aborted by the time the backoff wait would begin.
+      mocks.signPersonalMessage.mockImplementation(async () => {
+        abortController.abort();
+        throw new Error('network down');
+      });
+      jest.useFakeTimers();
+
+      const promise = controller.upgradeAccountWithRetry(MOCK_ACCOUNT_ADDRESS, {
+        signal: abortController.signal,
+      });
+
+      await expect(promise).rejects.toThrow(
+        'Money Account upgrade retry aborted',
+      );
+      expect(mocks.signPersonalMessage).toHaveBeenCalledTimes(1);
+
+      // No backoff timer was left running.
+      await jest.advanceTimersByTimeAsync(120_000);
+      expect(mocks.signPersonalMessage).toHaveBeenCalledTimes(1);
     });
 
     it('stops retrying when the signal aborts during the backoff wait', async () => {

@@ -40,7 +40,7 @@ export type MoneyAccountUpgradeControllerUpgradeAccountAction = {
  * further attempts. An aborted run rejects with an error stating the retry
  * was aborted.
  * @param options.maxAttempts - Maximum number of attempts, including the
- * first. Defaults to 5.
+ * first. Must be an integer of at least 1. Defaults to 5.
  */
 export type MoneyAccountUpgradeControllerUpgradeAccountWithRetryAction = {
   type: `MoneyAccountUpgradeController:upgradeAccountWithRetry`;
