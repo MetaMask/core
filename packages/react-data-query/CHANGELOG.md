@@ -13,7 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **BREAKING:** Constrain `createUIQueryClient`'s messenger-like type to match the given data services ([#9475](https://github.com/MetaMask/core/pull/9475))
   - The messenger-like object that `createUIQueryClient` takes must minimally support actions or `:cacheUpdated:${hash}` events which are namespaced by the provided data service names.
-  - You will likely need to update the type of your messenger. See `MessengerAdapter` in `packages/react-data-query/src/createUIQueryClient.ts` for an example.
+  - If you're passing a messenger, it should "just work" as long as your messenger supports the right actions and events.
+  - If you're passing a messenger adapter defined in its own variable, you may need to update its type. See `MessengerAdapter` in `packages/react-data-query/src/createUIQueryClient.ts` for an example.
+  - If you're passing a messenger adapter directly (it is not defined in its own variable), then it should also "just work".
+- The types for `createUIQueryClient` no longer check that the provided messenger's actions are JSON-compatible ([#9475](https://github.com/MetaMask/core/pull/9475))
+  - If you are experiencing any errors calling actions through the query client, check to make sure their parameters are JSON-compatible.
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Make `react-dom` and `react-native` peer dependencies optional ([#9295](https://github.com/MetaMask/core/pull/9295))
 
