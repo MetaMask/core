@@ -8,7 +8,7 @@ import codeownersSections from '../../codeowners.js';
  * The path to the generated CODEOWNERS file.
  */
 const CODEOWNERS_FILE_PATH = path.resolve(
-  __dirname,
+  import.meta.dirname,
   '../../.github/CODEOWNERS',
 );
 
