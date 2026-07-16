@@ -6,16 +6,12 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 
-// === GENERAL ===
-
 /**
  * The name of the {@link EntropyController}, used to namespace the
  * controller's actions and events and to namespace the controller's state data
  * when composed with other controllers.
  */
 const CONTROLLER_NAME = 'EntropyController';
-
-// === TYPES ===
 
 /**
  * The category of an entropy source.
@@ -45,8 +41,6 @@ export type EntropyId = string;
  * Currently a placeholder — fields will be added as requirements emerge.
  */
 export type EntropyMetadata = Record<string, never>;
-
-// === STATE ===
 
 /**
  * Describes the shape of the state object for {@link EntropyController}.
@@ -98,8 +92,6 @@ export function getDefaultEntropyControllerState(): EntropyControllerState {
   };
 }
 
-// === MESSENGER ===
-
 /**
  * Retrieves the state of the {@link EntropyController}.
  */
@@ -146,8 +138,6 @@ export type EntropyControllerMessenger = Messenger<
   EntropyControllerActions | AllowedActions,
   EntropyControllerEvents | AllowedEvents
 >;
-
-// === CONTROLLER DEFINITION ===
 
 /**
  * `EntropyController` maintains a registry that maps entropy source identifiers
