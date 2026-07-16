@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { CircuitState, ConstantBackoff, handleWhen } from 'cockatiel';
 
 import {
@@ -7,7 +8,7 @@ import {
   DEFAULT_MAX_CONSECUTIVE_FAILURES,
   DEFAULT_MAX_RETRIES,
   ServicePolicy,
-} from './create-service-policy';
+} from './create-service-policy.js';
 
 describe('createServicePolicy', () => {
   beforeEach(() => {
