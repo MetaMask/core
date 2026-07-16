@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -8,8 +9,8 @@ import type {
 import { SampleGasPricesController } from '@metamask/sample-controllers';
 import type { SampleGasPricesControllerMessenger } from '@metamask/sample-controllers';
 
-import { flushPromises } from '../../../tests/helpers';
-import { buildMockGetNetworkClientById } from '../../network-controller/tests/helpers';
+import { flushPromises } from '../../../tests/helpers.js';
+import { buildMockGetNetworkClientById } from '../../network-controller/tests/helpers.js';
 
 describe('SampleGasPricesController', () => {
   describe('constructor', () => {
