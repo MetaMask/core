@@ -1,24 +1,24 @@
+import { jest } from '@jest/globals';
 /* eslint-disable jest/expect-expect */
-
 import { TransactionType } from '@metamask/transaction-controller';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
 import type {
   PrepareUserOperationResponse,
   SignUserOperationResponse,
   UpdateUserOperationResponse,
-} from '../types';
+} from '../types.js';
 import type {
   AddUserOperationOptions,
   AddUserOperationRequest,
-} from '../UserOperationController';
+} from '../UserOperationController.js';
 import {
   validateAddUserOperationOptions,
   validateAddUserOperationRequest,
   validatePrepareUserOperationResponse,
   validateSignUserOperationResponse,
   validateUpdateUserOperationResponse,
-} from './validation';
+} from './validation.js';
 
 const ADD_USER_OPERATION_REQUEST_MOCK: AddUserOperationRequest = {
   data: '0x1',

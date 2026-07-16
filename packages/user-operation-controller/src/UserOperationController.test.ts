@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { ApprovalType } from '@metamask/controller-utils';
 import { errorCodes } from '@metamask/rpc-errors';
@@ -5,33 +6,33 @@ import { TransactionType } from '@metamask/transaction-controller';
 import type { TransactionParams } from '@metamask/transaction-controller';
 import { EventEmitter } from 'stream';
 
-import { ADDRESS_ZERO, EMPTY_BYTES, VALUE_ZERO } from './constants';
-import * as BundlerHelper from './helpers/Bundler';
-import * as PendingUserOperationTrackerHelper from './helpers/PendingUserOperationTracker';
-import { SnapSmartContractAccount } from './helpers/SnapSmartContractAccount';
-import { UserOperationStatus } from './types';
-import type { UserOperationMetadata } from './types';
+import { ADDRESS_ZERO, EMPTY_BYTES, VALUE_ZERO } from './constants.js';
+import * as BundlerHelper from './helpers/Bundler.js';
+import * as PendingUserOperationTrackerHelper from './helpers/PendingUserOperationTracker.js';
+import { SnapSmartContractAccount } from './helpers/SnapSmartContractAccount.js';
+import { UserOperationStatus } from './types.js';
+import type { UserOperationMetadata } from './types.js';
 import type {
   PrepareUserOperationResponse,
   SignUserOperationResponse,
   SmartContractAccount,
   UpdateUserOperationResponse,
-} from './types';
+} from './types.js';
 import type {
   AddUserOperationOptions,
   AddUserOperationRequest,
   UserOperationControllerMessenger,
-} from './UserOperationController';
-import { UserOperationController } from './UserOperationController';
-import { updateGas } from './utils/gas';
-import { updateGasFees } from './utils/gas-fees';
+} from './UserOperationController.js';
+import { UserOperationController } from './UserOperationController.js';
+import { updateGasFees } from './utils/gas-fees.js';
+import { updateGas } from './utils/gas.js';
 import {
   validateAddUserOperationRequest,
   validateAddUserOperationOptions,
   validatePrepareUserOperationResponse,
   validateSignUserOperationResponse,
   validateUpdateUserOperationResponse,
-} from './utils/validation';
+} from './utils/validation.js';
 
 jest.mock('./utils/gas');
 jest.mock('./utils/gas-fees');
@@ -237,7 +238,7 @@ describe('UserOperationController', () => {
           return approvalControllerAddRequestMock();
         }
 
-        throw new Error(`Unexpected mock messenger action: ${action}`);
+        throw new Error(`Unexpected mock messenger action: ${String(action)}`);
       },
     );
 
