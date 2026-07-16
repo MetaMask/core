@@ -180,6 +180,13 @@ const config = createConfig([
       'jest/no-alias-methods': 'error',
       'jest/no-commented-out-tests': 'error',
       'jest/no-disabled-tests': 'error',
+
+      // Some package types are wrong (e.g., nock).
+      'import-x/no-named-as-default-member': 'off',
+
+      // `import { jest } from '@jest/globals'` is required in ESM test files
+      // and intentionally shadows the Jest-injected global.
+      '@typescript-eslint/no-shadow': ['error', { allow: ['jest'] }],
     },
     settings: {
       node: {
