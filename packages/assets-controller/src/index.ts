@@ -100,7 +100,10 @@ export type {
 // Data sources - base class and types
 export { AbstractDataSource } from './data-sources/index.js';
 
-export type { DataSourceState, SubscriptionRequest } from './data-sources/index.js';
+export type {
+  DataSourceState,
+  SubscriptionRequest,
+} from './data-sources/index.js';
 
 // Data sources - AccountsApi
 export { AccountsApiDataSource } from './data-sources/index.js';

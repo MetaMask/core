@@ -1,4 +1,6 @@
-import { fetchWithTimeout } from './fetchWithTimeout';
+import { jest } from '@jest/globals';
+
+import { fetchWithTimeout } from './fetchWithTimeout.js';
 
 describe('fetchWithTimeout', () => {
   it('resolves with the task value when it settles in time', async () => {

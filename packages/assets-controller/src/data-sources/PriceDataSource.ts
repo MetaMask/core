@@ -15,8 +15,8 @@ import type {
   Middleware,
   AssetsControllerStateInternal,
 } from '../types.js';
-import { fetchWithTimeout, normalizeAssetId } from '../utils/index.js';
 import { DedupingBatchFetcher } from '../utils/dedupingBatchFetcher.js';
+import { fetchWithTimeout, normalizeAssetId } from '../utils/index.js';
 import type { SubscriptionRequest } from './AbstractDataSource.js';
 import { reduceInBatchesSerially } from './evm-rpc-services/index.js';
 

@@ -67,7 +67,7 @@ import {
   parseCaipChainId,
 } from '@metamask/utils';
 import { Mutex } from 'async-mutex';
-import BigNumberJS from 'bignumber.js';
+import { BigNumber as BigNumberJS } from 'bignumber.js';
 import { isEqual } from 'lodash-es';
 
 import type { AssetsControllerMethodActions } from './AssetsController-method-action-types.js';
@@ -133,6 +133,8 @@ import type {
   SubscriptionResponse,
   Asset,
 } from './types.js';
+import { ZERO_ADDRESS } from './utils/constants.js';
+import { pickRpcCustomAssetsSupplement } from './utils/customAssetsRpcSupplement.js';
 import {
   normalizeAmountString,
   normalizeAssetId,
@@ -145,8 +147,6 @@ import type {
   BridgeExchangeRatesFormat,
   TransactionPayLegacyFormat,
 } from './utils/index.js';
-import { ZERO_ADDRESS } from './utils/constants.js';
-import { pickRpcCustomAssetsSupplement } from './utils/customAssetsRpcSupplement.js';
 import { processAccountActivityBalanceUpdates } from './utils/processAccountActivityBalanceUpdates.js';
 
 const NATIVE_ASSETS_QUERY_KEY = ['nativeAssets'];

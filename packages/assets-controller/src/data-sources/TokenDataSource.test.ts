@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import type { V3AssetResponse } from '@metamask/core-backend';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
@@ -7,10 +8,10 @@ import type {
 } from '@metamask/phishing-controller';
 import { TokenScanResultType } from '@metamask/phishing-controller';
 
-import type { AssetsControllerMessenger } from '../AssetsController';
-import type { Context, DataRequest, Caip19AssetId, ChainId } from '../types';
-import type { TokenDataSourceOptions } from './TokenDataSource';
-import { TokenDataSource } from './TokenDataSource';
+import type { AssetsControllerMessenger } from '../AssetsController.js';
+import type { Context, DataRequest, Caip19AssetId, ChainId } from '../types.js';
+import type { TokenDataSourceOptions } from './TokenDataSource.js';
+import { TokenDataSource } from './TokenDataSource.js';
 
 type AllActions = PhishingControllerBulkScanTokensAction;
 type AllEvents = never;

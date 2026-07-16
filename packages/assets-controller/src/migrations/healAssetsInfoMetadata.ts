@@ -7,15 +7,15 @@ import {
   hasProperty,
   isObject,
 } from '@metamask/utils';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
-import { createModuleLogger, projectLogger } from '../logger';
+import { createModuleLogger, projectLogger } from '../logger.js';
 import type {
   AccountId,
   Caip19AssetId,
   FungibleAssetMetadata,
   AssetsControllerStateInternal,
-} from '../types';
+} from '../types.js';
 
 /**
  * TEMPORARY MODULE — remove in a future release.

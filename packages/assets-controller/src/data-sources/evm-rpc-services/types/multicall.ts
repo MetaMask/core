@@ -1,4 +1,4 @@
-import type { Address } from './core';
+import type { Address } from './core.js';
 
 /**
  * Balance request for batch balance fetching.

@@ -1,4 +1,4 @@
-import { divideIntoBatches, reduceInBatchesSerially } from './batch';
+import { divideIntoBatches, reduceInBatchesSerially } from './batch.js';
 
 describe('batch utilities', () => {
   describe('divideIntoBatches', () => {

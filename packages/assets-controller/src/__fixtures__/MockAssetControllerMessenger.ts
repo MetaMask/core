@@ -1,5 +1,6 @@
 import { defaultAbiCoder } from '@ethersproject/abi';
 import * as ProviderModule from '@ethersproject/providers';
+import { jest } from '@jest/globals';
 import {
   MOCK_ANY_NAMESPACE,
   Messenger,
@@ -17,8 +18,8 @@ import {
 import {
   AssetsControllerMessenger,
   getDefaultAssetsControllerState,
-} from '../AssetsController';
-import { STAKING_INTERFACE } from '../data-sources/evm-rpc-services/services/StakedBalanceFetcher';
+} from '../AssetsController.js';
+import { STAKING_INTERFACE } from '../data-sources/evm-rpc-services/services/StakedBalanceFetcher.js';
 
 // Test escape hatch for mocking areas that do not need explicit types
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

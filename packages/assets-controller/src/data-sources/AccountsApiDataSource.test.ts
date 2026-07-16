@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 /* eslint-disable jest/unbound-method */
 import type {
   V5BalanceItem,
@@ -14,15 +15,15 @@ import type {
   DataRequest,
   Context,
   AssetsControllerStateInternal,
-} from '../types';
+} from '../types.js';
 import type {
   AccountsApiDataSourceOptions,
   AccountsApiDataSourceAllowedActions,
-} from './AccountsApiDataSource';
+} from './AccountsApiDataSource.js';
 import {
   AccountsApiDataSource,
   filterResponseToKnownAssets,
-} from './AccountsApiDataSource';
+} from './AccountsApiDataSource.js';
 
 type AllActions = AccountsApiDataSourceAllowedActions;
 type AllEvents = never;

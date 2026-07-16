@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 /* eslint-disable jest/unbound-method */
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
@@ -7,14 +8,14 @@ import type {
   SubjectPermissions,
 } from '@metamask/permission-controller';
 
-import type { AssetsControllerMessenger } from '../AssetsController';
-import type { ChainId, DataRequest, Context, Caip19AssetId } from '../types';
+import type { AssetsControllerMessenger } from '../AssetsController.js';
+import type { ChainId, DataRequest, Context, Caip19AssetId } from '../types.js';
 import type {
   SnapDataSourceOptions,
   AccountBalancesUpdatedEventPayload,
   SnapDataSourceAllowedActions,
   SnapDataSourceAllowedEvents,
-} from './SnapDataSource';
+} from './SnapDataSource.js';
 import {
   SnapDataSource,
   createSnapDataSource,
@@ -22,7 +23,7 @@ import {
   getChainIdsCaveat,
   KEYRING_PERMISSION,
   ASSETS_PERMISSION,
-} from './SnapDataSource';
+} from './SnapDataSource.js';
 
 // Test chain IDs
 const SOLANA_MAINNET = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp' as ChainId;

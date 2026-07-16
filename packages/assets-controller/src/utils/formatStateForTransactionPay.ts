@@ -8,9 +8,9 @@ import type {
   AssetMetadata,
   AssetPrice,
   Caip19AssetId,
-} from '../types';
-import { formatExchangeRatesForBridge } from './formatExchangeRatesForBridge';
-import type { BridgeExchangeRatesFormat } from './formatExchangeRatesForBridge';
+} from '../types.js';
+import { formatExchangeRatesForBridge } from './formatExchangeRatesForBridge.js';
+import type { BridgeExchangeRatesFormat } from './formatExchangeRatesForBridge.js';
 
 /** Account with id and address for mapping state to legacy format. */
 export type AccountForLegacyFormat = { id: string; address: string };

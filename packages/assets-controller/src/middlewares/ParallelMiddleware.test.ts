@@ -1,6 +1,8 @@
-import type { AssetsDataSource } from '../types';
-import type { Context, DataResponse } from '../types';
-import { createParallelMiddleware } from './ParallelMiddleware';
+import { jest } from '@jest/globals';
+
+import type { AssetsDataSource } from '../types.js';
+import type { Context, DataResponse } from '../types.js';
+import { createParallelMiddleware } from './ParallelMiddleware.js';
 
 const MOCK_ASSET = 'eip155:1/erc20:0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48';
 

@@ -19,7 +19,7 @@ import {
   parseCaipChainId,
 } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
-import BigNumberJS from 'bignumber.js';
+import { BigNumber as BigNumberJS } from 'bignumber.js';
 
 import type {
   AssetsControllerGetStateAction,
@@ -35,8 +35,8 @@ import type {
   DataResponse,
   Middleware,
 } from '../types.js';
-import { normalizeAssetId } from '../utils/index.js';
 import { ZERO_ADDRESS } from '../utils/constants.js';
+import { normalizeAssetId } from '../utils/index.js';
 import { AbstractDataSource } from './AbstractDataSource.js';
 import type {
   DataSourceState,

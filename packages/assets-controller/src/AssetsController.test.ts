@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 /* eslint-disable jest/unbound-method */
 import type { TraceCallback, TraceRequest } from '@metamask/controller-utils';
 import type { ApiPlatformClient } from '@metamask/core-backend';
@@ -13,25 +14,28 @@ import type { NetworkState } from '@metamask/network-controller';
 import {
   AssetsController,
   getDefaultAssetsControllerState,
-} from './AssetsController';
+} from './AssetsController.js';
 import type {
   AssetsControllerMessenger,
   AssetsControllerState,
-} from './AssetsController';
-import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource';
-import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
-import { PriceDataSource } from './data-sources/PriceDataSource';
-import { TokenDataSource } from './data-sources/TokenDataSource';
-import { buildDefaultAssetsInfo } from './defaults';
-import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetadata';
+} from './AssetsController.js';
+import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource.js';
+import type { PriceDataSourceConfig } from './data-sources/PriceDataSource.js';
+import { PriceDataSource } from './data-sources/PriceDataSource.js';
+import { TokenDataSource } from './data-sources/TokenDataSource.js';
+import { buildDefaultAssetsInfo } from './defaults.js';
+import type { Assets3346MigrationState } from './migrations/healAssetsInfoMetadata.js';
 import type {
   Caip19AssetId,
   AccountId,
   DataRequest,
   DataResponse,
   FungibleAssetMetadata,
-} from './types';
-import { formatExchangeRatesForBridge, normalizeAssetId } from './utils';
+} from './types.js';
+import {
+  formatExchangeRatesForBridge,
+  normalizeAssetId,
+} from './utils/index.js';
 
 jest.mock('./utils', () => {
   const actual = jest.requireActual<typeof import('./utils')>('./utils');

@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { TransactionStatus } from '@metamask/transaction-controller';
 
@@ -6,16 +7,16 @@ import {
   createMockAssetControllerMessenger,
   createMockWeb3Provider,
   registerStakedMessengerActions,
-} from '../__fixtures__/MockAssetControllerMessenger';
-import type { AssetsControllerMessenger } from '../AssetsController';
+} from '../__fixtures__/MockAssetControllerMessenger.js';
+import type { AssetsControllerMessenger } from '../AssetsController.js';
 import type {
   AssetsControllerStateInternal,
   ChainId,
   Context,
   DataRequest,
-} from '../types';
-import type { StakedBalanceDataSourceOptions } from './StakedBalanceDataSource';
-import { StakedBalanceDataSource } from './StakedBalanceDataSource';
+} from '../types.js';
+import type { StakedBalanceDataSourceOptions } from './StakedBalanceDataSource.js';
+import { StakedBalanceDataSource } from './StakedBalanceDataSource.js';
 
 const MAINNET_CHAIN_ID_HEX = '0x1';
 const MAINNET_CHAIN_ID_CAIP = 'eip155:1' as ChainId;

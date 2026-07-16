@@ -15,7 +15,7 @@ import type {
   AssetPrice,
   FungibleAssetPrice,
   Caip19AssetId,
-} from '../types';
+} from '../types.js';
 
 /**
  * Exchange rates in the format expected by the bridge controller:
@@ -128,9 +128,7 @@ export function formatExchangeRatesForBridge(params: {
         if (tokenAddress) {
           const priceInNative =
             nativeAssetUsdPrice > 0 ? usdPrice / nativeAssetUsdPrice : usdPrice;
-          if (!marketData[chainIdHex]) {
-            marketData[chainIdHex] = {};
-          }
+          marketData[chainIdHex] ??= {};
           marketData[chainIdHex][tokenAddress] = {
             ...priceData,
             price: priceInNative,

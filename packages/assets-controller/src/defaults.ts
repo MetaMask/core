@@ -3,7 +3,7 @@ import type {
   Caip19AssetId,
   ChainId,
   FungibleAssetMetadata,
-} from './types';
+} from './types.js';
 
 /**
  * EIP-55 checksummed address of MetaMask USD (mUSD) — same canonical contract
