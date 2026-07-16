@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [1.2.0]
 
-### Uncategorized
-
-- Ensure refs in tsconfig files are synced with internal deps ([#8384](https://github.com/MetaMask/core/pull/8384))
-
 ### Added
 
 - Add `createFormatters` factory with shared display formatters (`formatNumber`, `formatCurrency`, `formatCurrencyCompact`, `formatCurrencyWithMinThreshold`, `formatCurrencyTokenPrice`, `formatToken`, `formatTokenQuantity`, `formatTokenAmount`, `formatPercentWithMinThreshold`, `formatCompact`, `formatDateTime`) ([#9504](https://github.com/MetaMask/core/pull/9504))
