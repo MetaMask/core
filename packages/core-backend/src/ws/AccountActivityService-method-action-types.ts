@@ -19,10 +19,11 @@ export type AccountActivityServiceSubscribeAction = {
 };
 
 /**
- * Unsubscribe from account activity for specified address
- * Address should be in CAIP-10 format (e.g., "eip155:0:0x1234..." or "solana:0:ABC123...")
+ * Unsubscribe from account activity for specified addresses
+ * Addresses should be in CAIP-10 format (e.g., "eip155:0:0x1234..." or "solana:0:ABC123...")
  *
- * @param subscription - Account subscription configuration with address to unsubscribe
+ * @param subscription - The subscription configuration
+ * @param subscription.addresses - Array of addresses to unsubscribe from, each in CAIP-10 format
  */
 export type AccountActivityServiceUnsubscribeAction = {
   type: `AccountActivityService:unsubscribe`;

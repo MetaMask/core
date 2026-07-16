@@ -31,7 +31,10 @@ import type {
   BackendWebSocketServiceConnectionStateChangedEvent,
   ServerNotificationMessage,
 } from './BackendWebSocketService';
-import { WebSocketState } from './BackendWebSocketService';
+import {
+  WebSocketState,
+  WebSocketSubscription,
+} from './BackendWebSocketService';
 import type { BackendWebSocketServiceMethodActions } from './BackendWebSocketService-method-action-types';
 
 // =============================================================================
@@ -335,26 +338,30 @@ export class AccountActivityService {
   }
 
   /**
-   * Unsubscribe from account activity for specified address
-   * Address should be in CAIP-10 format (e.g., "eip155:0:0x1234..." or "solana:0:ABC123...")
+   * Unsubscribe from account activity for specified addresses
+   * Addresses should be in CAIP-10 format (e.g., "eip155:0:0x1234..." or "solana:0:ABC123...")
    *
-   * @param subscription - Account subscription configuration with address to unsubscribe
+   * @param subscription - The subscription configuration
+   * @param subscription.addresses - Array of addresses to unsubscribe from, each in CAIP-10 format
    */
-  async unsubscribe(subscription: SubscriptionOptions): Promise<void> {
-    const { address } = subscription;
+  async unsubscribe({ addresses }: SubscriptionOptions): Promise<void> {
     try {
-      // Find channel for the specified address
-      const channel = `${this.#options.subscriptionNamespace}.${address}`;
-      const subscriptions = this.#messenger.call(
-        'BackendWebSocketService:getSubscriptionsByChannel',
-        channel,
+      // Find all subscriptions for the specified addresses
+      const subscriptions = new Set<WebSocketSubscription>(
+        addresses
+          .map((address) =>
+            this.#messenger.call(
+              'BackendWebSocketService:getSubscriptionsByChannel',
+              `${this.#options.subscriptionNamespace}.${address}`,
+            ),
+          )
+          .flat(),
       );
 
-      if (subscriptions.length === 0) {
+      if (subscriptions.size === 0) {
         return;
       }
 
-      // Fast path: Direct unsubscribe using stored unsubscribe function
       // Unsubscribe from all matching subscriptions
       for (const subscriptionInfo of subscriptions) {
         await subscriptionInfo.unsubscribe();

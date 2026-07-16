@@ -618,7 +618,7 @@ describe('AccountActivityService', () => {
   // =============================================================================
   describe('unsubscribe', () => {
     const mockSubscription: SubscriptionOptions = {
-      address: 'eip155:1:0x1234567890123456789012345678901234567890',
+      addresses: ['eip155:1:0x1234567890123456789012345678901234567890'],
     };
 
     it('should handle unsubscribe when not subscribed by returning early without errors', async () => {
@@ -633,6 +633,56 @@ describe('AccountActivityService', () => {
         expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledWith(
           expect.any(String),
         );
+      });
+    });
+
+    it('should unsubscribe from active subscriptions for multiple addresses', async () => {
+      await withService(async ({ service, mocks }) => {
+        const mockUnsubscribe = jest.fn();
+        mocks.getSubscriptionsByChannel.mockReturnValueOnce([
+          {
+            subscriptionId: 'sub-123',
+            channels: ['account-activity.v1.eip155:1:0x123abc'],
+            unsubscribe: mockUnsubscribe,
+          },
+        ]);
+        mocks.getSubscriptionsByChannel.mockReturnValueOnce([
+          {
+            subscriptionId: 'sub-456',
+            channels: ['account-activity.v1.eip155:1:0x456def'],
+            unsubscribe: mockUnsubscribe,
+          },
+        ]);
+
+        await service.unsubscribe({
+          addresses: ['eip155:1:0x123abc', 'eip155:1:0x456def'],
+        });
+
+        expect(mockUnsubscribe).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    it('should not unsubscribe multiple times from the same subscription when multiple addresses share the same subscription', async () => {
+      await withService(async ({ service, mocks }) => {
+        const mockUnsubscribe = jest.fn().mockReturnValue(undefined);
+        const subscriptions = [
+          {
+            subscriptionId: 'sub-123',
+            channels: [
+              'account-activity.v1.eip155:1:0x123abc',
+              'account-activity.v1.eip155:1:0x456def',
+            ],
+            unsubscribe: mockUnsubscribe,
+          },
+        ];
+        mocks.getSubscriptionsByChannel.mockReturnValue(subscriptions);
+
+        await service.unsubscribe({
+          addresses: ['eip155:1:0x123abc', 'eip155:1:0x456def'],
+        });
+
+        expect(mocks.getSubscriptionsByChannel).toHaveBeenCalledTimes(2);
+        expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
       });
     });
 
