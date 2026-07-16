@@ -95,6 +95,9 @@ const config = createConfig([
       // Handled by Oxfmt.
       'prettier/prettier': 'off',
       'import-x/order': 'off',
+      // Allow `void somePromise()` to explicitly mark ignored promises
+      // (required by `no-floating-promises`).
+      'no-void': ['error', { allowAsStatement: true }],
     },
   },
   {
@@ -224,6 +227,19 @@ const config = createConfig([
     rules: {
       // Scripts may be self-executable and thus have hashbangs.
       'n/hashbang': 'off',
+    },
+  },
+  {
+    files: [
+      '**/*.cjs',
+      '**/.prettierrc.js',
+      '**/.eslintrc.js',
+      '**/jest.config*.js',
+      '**/jest.environment.js',
+    ],
+    rules: {
+      // CJS config files have no import/export statements.
+      'import-x/unambiguous': 'off',
     },
   },
   {
@@ -397,6 +413,7 @@ const config = createConfig([
           js: 'ignorePackages',
           ts: 'never',
           tsx: 'never',
+          json: 'always',
         },
       ],
       'import-x/no-useless-path-segments': [
