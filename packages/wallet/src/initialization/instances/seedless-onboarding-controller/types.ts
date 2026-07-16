@@ -1,4 +1,5 @@
 import type { SeedlessOnboardingControllerOptions } from '@metamask/seedless-onboarding-controller';
+
 import { GenericEncryptor } from '../keyring-controller/encryptor';
 
 export type SeedlessOnboardingControllerInstanceOptions = Omit<

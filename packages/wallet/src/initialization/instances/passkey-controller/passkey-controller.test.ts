@@ -39,8 +39,8 @@ function getRootMessenger(): RootMessenger<DefaultActions, DefaultEvents> {
 describe('passkeyController', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    (PasskeyController as jest.Mock).mockImplementation((...args: unknown[]) =>
-      new ActualPasskeyController(...args),
+    (PasskeyController as jest.Mock).mockImplementation(
+      (...args: unknown[]) => new ActualPasskeyController(...args),
     );
   });
 

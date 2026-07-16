@@ -9,12 +9,12 @@ import type { ApprovalControllerInstanceOptions } from './initialization/instanc
 import type { ConnectivityControllerInstanceOptions } from './initialization/instances/connectivity-controller/types';
 import type { KeyringControllerInstanceOptions } from './initialization/instances/keyring-controller/types';
 import type { NetworkControllerInstanceOptions } from './initialization/instances/network-controller/types';
+import { PasskeyControllerInstanceOptions } from './initialization/instances/passkey-controller/types';
 import type { RemoteFeatureFlagControllerInstanceOptions } from './initialization/instances/remote-feature-flag-controller/types';
+import { SeedlessOnboardingControllerInstanceOptions } from './initialization/instances/seedless-onboarding-controller/types';
 import type { StorageServiceInstanceOptions } from './initialization/instances/storage-service/types';
 import type { TransactionControllerInstanceOptions } from './initialization/instances/transaction-controller/types';
 import type { InitializationConfiguration } from './initialization/types';
-import { PasskeyControllerInstanceOptions } from './initialization/instances/passkey-controller/types';
-import { SeedlessOnboardingControllerInstanceOptions } from './initialization/instances/seedless-onboarding-controller/types';
 
 export type WalletOptions = {
   messenger?: RootMessenger<DefaultActions, DefaultEvents>;
