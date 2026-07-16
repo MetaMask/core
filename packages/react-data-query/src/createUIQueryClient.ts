@@ -139,7 +139,7 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
         queryFn: async (options): Promise<unknown> => {
           const { queryKey } = options;
 
-          const [action, ...params] = queryKey;
+          const action = queryKey[0];
 
           assert(
             typeof action === 'string' && isRecognizedDataServiceAction(action),
@@ -233,30 +233,23 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
         payload: DataServiceGranularCacheUpdatedPayload,
       ): void => {
         if (payload.type === 'removed') {
-          const currentMutation = mutationCache.find({
-            mutationKey: mutation.options.mutationKey,
-          });
-
-          if (currentMutation) {
-            mutationCache.remove(currentMutation);
-          }
-        } else {
-          hydrate(client, payload.state);
+          return;
         }
+
+        hydrate(client, payload.state);
       };
 
       subscriptions.set(hash, cacheListener);
-      messenger.subscribe(
-        `${service}:cacheUpdated:${hash}`,
-        cacheListener as JsonSubscriptionCallback,
-      );
+      messenger.subscribe(`${service}:cacheUpdated:${hash}`, cacheListener);
     } else if (event.type === 'observerRemoved' && hasSubscription) {
       const subscriptionListener = subscriptions.get(hash);
 
-      messenger.unsubscribe(
-        `${service}:cacheUpdated:${hash}`,
-        subscriptionListener as JsonSubscriptionCallback,
-      );
+      if (subscriptionListener) {
+        messenger.unsubscribe(
+          `${service}:cacheUpdated:${hash}`,
+          subscriptionListener,
+        );
+      }
       subscriptions.delete(hash);
     }
   });
