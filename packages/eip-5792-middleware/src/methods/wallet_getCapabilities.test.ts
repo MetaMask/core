@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import type { JsonRpcRequest, PendingJsonRpcResponse } from '@metamask/utils';
 import { klona } from 'klona';
 
@@ -5,8 +6,8 @@ import type {
   GetCapabilitiesHook,
   GetCapabilitiesParams,
   GetCapabilitiesResult,
-} from '../types';
-import { walletGetCapabilities } from './wallet_getCapabilities';
+} from '../types.js';
+import { walletGetCapabilities } from './wallet_getCapabilities.js';
 
 type GetPermittedAccountsForOrigin = () => Promise<string[]>;
 

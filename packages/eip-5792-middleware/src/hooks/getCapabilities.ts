@@ -1,13 +1,12 @@
 import type {
   IsAtomicBatchSupportedResult,
-  IsAtomicBatchSupportedResultEntry,
   TransactionController,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 
-import { KEYRING_TYPES_SUPPORTING_7702 } from '../constants';
-import type { EIP5792Messenger, GetCapabilitiesResult } from '../types';
-import { getAccountKeyringType } from '../utils';
+import { KEYRING_TYPES_SUPPORTING_7702 } from '../constants.js';
+import type { EIP5792Messenger, GetCapabilitiesResult } from '../types.js';
+import { getAccountKeyringType } from '../utils.js';
 
 /**
  * Type definition for required controller hooks and utilities of {@link getCapabilities}
@@ -79,11 +78,10 @@ export async function getCapabilities(
   );
 
   return chainIdsNormalized.reduce<GetCapabilitiesResult>((acc, chainId) => {
-    const chainBatchSupport = (batchSupport.find(
-      ({ chainId: batchChainId }) => batchChainId === chainId,
-    ) ?? {}) as IsAtomicBatchSupportedResultEntry & {
-      isRelaySupported: boolean;
-    };
+    const chainBatchSupport =
+      batchSupport.find(
+        ({ chainId: batchChainId }) => batchChainId === chainId,
+      ) ?? ({} as (typeof batchSupport)[0]);
 
     const { delegationAddress, isSupported, upgradeContractAddress } =
       chainBatchSupport;
@@ -169,11 +167,10 @@ async function getAlternateGasFeesCapability(
   }));
 
   return chainIds.reduce<GetCapabilitiesResult>((acc, chainId) => {
-    const chainBatchSupport = (updatedBatchSupport.find(
-      ({ chainId: batchChainId }) => batchChainId === chainId,
-    ) ?? {}) as IsAtomicBatchSupportedResultEntry & {
-      relaySupportedForChain: boolean;
-    };
+    const chainBatchSupport =
+      updatedBatchSupport.find(
+        ({ chainId: batchChainId }) => batchChainId === chainId,
+      ) ?? ({} as (typeof updatedBatchSupport)[0]);
 
     const { isSupported = false, relaySupportedForChain } = chainBatchSupport;
 
