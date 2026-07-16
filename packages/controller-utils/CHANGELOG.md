@@ -11,6 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add optional `startTime` to `TraceRequest` to allow backdating a span's start time ([#9315](https://github.com/MetaMask/core/pull/9315))
 
+### Changed
+
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9168](https://github.com/MetaMask/core/pull/9168))
+
 ### Deprecated
 
 - Deprecate `createServicePolicy` and related symbols ([#9418](https://github.com/MetaMask/core/pull/9418))

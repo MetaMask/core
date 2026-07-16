@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9168](https://github.com/MetaMask/core/pull/9168))
 - Bump `@metamask/core-backend` from `^8.1.1` to `^8.1.2` ([#9886](https://github.com/MetaMask/core/pull/9886))
 - Extend `isSimulationEnabled` option to accept an optional `TransactionMeta` argument, enabling callback consumers to inspect the relevant transaction ([#9800](https://github.com/MetaMask/core/pull/9800))
 

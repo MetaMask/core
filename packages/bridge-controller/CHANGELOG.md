@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9168](https://github.com/MetaMask/core/pull/9168))
 - Bump `@metamask/assets-controller` from `^13.1.2` to `^13.1.4` ([#9873](https://github.com/MetaMask/core/pull/9873), [#9886](https://github.com/MetaMask/core/pull/9886))
 - Bump `@metamask/assets-controllers` from `^111.1.0` to `^111.1.1` ([#9886](https://github.com/MetaMask/core/pull/9886))
 
