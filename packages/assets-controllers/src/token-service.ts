@@ -13,18 +13,110 @@ export const TOKEN_METADATA_NO_SUPPORT_ERROR =
   'TokenService Error: Network does not support fetchTokenMetadata';
 
 /**
+ * Per-chain suggested occurrence floors endpoint. Used as the `occurrenceFloor`
+ * query param when fetching token lists (aligned with assets-controller
+ * TokenDataSource / TokensApiClient).
+ */
+const SUGGESTED_OCCURRENCE_FLOORS_URL = `${TOKEN_END_POINT_API}/v1/suggestedOccurrenceFloors`;
+
+/**
+ * Fallback `occurrenceFloor` when `/v1/suggestedOccurrenceFloors` has no entry
+ * for the chain, or the floors request fails.
+ */
+const DEFAULT_OCCURRENCE_FLOOR = 3;
+
+/** How long to keep suggested occurrence floors cached (1 hour). */
+const SUGGESTED_OCCURRENCE_FLOORS_CACHE_TTL_MS = 60 * 60_000;
+
+/** Decimal chain ID → suggested occurrence floor. */
+let suggestedOccurrenceFloorsCache: Record<string, number> | undefined;
+
+/** Timestamp of the last successful (or failed-open) floors fetch. */
+let suggestedOccurrenceFloorsCachedAt = 0;
+
+/** In-flight floors request shared across concurrent callers. */
+let suggestedOccurrenceFloorsRefreshPromise:
+  | Promise<Record<string, number>>
+  | undefined;
+
+/**
+ * Clears the suggested occurrence floors cache. Exported for unit tests only.
+ */
+export function resetSuggestedOccurrenceFloorsCacheForTesting(): void {
+  suggestedOccurrenceFloorsCache = undefined;
+  suggestedOccurrenceFloorsCachedAt = 0;
+  suggestedOccurrenceFloorsRefreshPromise = undefined;
+}
+
+/**
+ * Fetch `/v1/suggestedOccurrenceFloors` with a 1h in-memory cache. Failures
+ * return an empty map so callers fall back to {@link DEFAULT_OCCURRENCE_FLOOR}.
+ *
+ * @returns Map of decimal chain ID → suggested occurrence floor.
+ */
+async function getSuggestedOccurrenceFloors(): Promise<Record<string, number>> {
+  const now = Date.now();
+  if (
+    suggestedOccurrenceFloorsCache !== undefined &&
+    now - suggestedOccurrenceFloorsCachedAt <
+      SUGGESTED_OCCURRENCE_FLOORS_CACHE_TTL_MS
+  ) {
+    return suggestedOccurrenceFloorsCache;
+  }
+
+  if (suggestedOccurrenceFloorsRefreshPromise !== undefined) {
+    return suggestedOccurrenceFloorsRefreshPromise;
+  }
+
+  suggestedOccurrenceFloorsRefreshPromise = (async (): Promise<
+    Record<string, number>
+  > => {
+    try {
+      const response = await fetch(SUGGESTED_OCCURRENCE_FLOORS_URL);
+      if (response.ok) {
+        const data = (await response.json()) as unknown;
+        suggestedOccurrenceFloorsCache =
+          data && typeof data === 'object' && !Array.isArray(data)
+            ? (data as Record<string, number>)
+            : {};
+      } else {
+        suggestedOccurrenceFloorsCache = {};
+      }
+    } catch {
+      suggestedOccurrenceFloorsCache = {};
+    } finally {
+      suggestedOccurrenceFloorsCachedAt = Date.now();
+      suggestedOccurrenceFloorsRefreshPromise = undefined;
+    }
+    return suggestedOccurrenceFloorsCache ?? {};
+  })();
+
+  return suggestedOccurrenceFloorsRefreshPromise;
+}
+
+/**
+ * Resolve the `occurrenceFloor` query param for a chain from Token API
+ * `/v1/suggestedOccurrenceFloors`. Falls back to
+ * {@link DEFAULT_OCCURRENCE_FLOOR} when the chain is missing or the request
+ * fails.
+ *
+ * @param chainId - Hex chain ID.
+ * @returns Occurrence floor to send to `/tokens/{chainId}`.
+ */
+async function getOccurrenceFloor(chainId: Hex): Promise<number> {
+  const floors = await getSuggestedOccurrenceFloors();
+  const decimalChainId = String(convertHexToDecimal(chainId));
+  return floors[decimalChainId] ?? DEFAULT_OCCURRENCE_FLOOR;
+}
+
+/**
  * Get the tokens URL for a specific network.
  *
  * @param chainId - The chain ID of the network the tokens requested are on.
  * @returns The tokens URL.
  */
-function getTokensURL(chainId: Hex): string {
-  const occurrenceFloor =
-    chainId === ChainId['linea-mainnet'] ||
-    chainId === ChainId['megaeth-mainnet'] ||
-    chainId === '0x1079' // Tempo Mainnet
-      ? 1
-      : 3;
+async function getTokensURL(chainId: Hex): Promise<string> {
+  const occurrenceFloor = await getOccurrenceFloor(chainId);
 
   return `${TOKEN_END_POINT_API}/tokens/${convertHexToDecimal(
     chainId,
@@ -263,7 +355,7 @@ export async function fetchTokenListByChainId(
   abortSignal: AbortSignal,
   { timeout = defaultTimeout } = {},
 ): Promise<unknown> {
-  const tokenURL = getTokensURL(chainId);
+  const tokenURL = await getTokensURL(chainId);
   const response = await queryApi(tokenURL, abortSignal, timeout);
   if (response) {
     const result = await parseJsonResponse(response);
