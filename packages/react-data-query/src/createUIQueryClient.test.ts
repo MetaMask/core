@@ -103,6 +103,21 @@ describe('createUIQueryClient', () => {
     service.destroy();
   });
 
+  it('proxies requests to the messenger adapter', async () => {
+    const messengerAdapter = {
+      call: jest.fn(),
+      subscribe: jest.fn(),
+      unsubscribe: jest.fn(),
+    };
+    const client = createUIQueryClient(DATA_SERVICES, messengerAdapter);
+
+    await client.fetchQuery({
+      queryKey: getAssetsQueryKey,
+    });
+
+    expect(messengerAdapter.call).toHaveBeenCalledWith(...getAssetsQueryKey);
+  });
+
   it('fetches using observers', async () => {
     const { clientA, clientB, service } = createClients();
 

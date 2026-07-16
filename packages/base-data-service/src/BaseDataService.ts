@@ -59,7 +59,7 @@ export type DataServiceInvalidateQueriesAction<ServiceName extends string> = {
   ) => Promise<void>;
 };
 
-type DataServiceActions<ServiceName extends string> =
+export type DataServiceActions<ServiceName extends string> =
   DataServiceInvalidateQueriesAction<ServiceName>;
 
 type DataServiceAllowedActions =
@@ -77,7 +77,7 @@ export type DataServiceGranularCacheUpdatedEvent<ServiceName extends string> = {
   payload: [DataServiceGranularCacheUpdatedPayload];
 };
 
-type DataServiceEvents<ServiceName extends string> =
+export type DataServiceEvents<ServiceName extends string> =
   | DataServiceCacheUpdatedEvent<ServiceName>
   | DataServiceGranularCacheUpdatedEvent<ServiceName>;
 

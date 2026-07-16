@@ -1,7 +1,7 @@
 import type {
+  DataServiceActions,
   DataServiceGranularCacheUpdatedEvent,
   DataServiceGranularCacheUpdatedPayload,
-  DataServiceInvalidateQueriesAction,
 } from '@metamask/base-data-service';
 import type {
   ActionConstraint,
@@ -30,10 +30,7 @@ type DataServiceGranularCacheUpdatedHandler = (
 ) => void;
 
 /**
- * A messenger that is loosely typed so that any concrete messenger can be
- * passed to `createUIQueryClient` regardless of which actions and events it
- * declares. The `SupportsDataServices` constraint is layered on top of this to
- * verify that the required data service capabilities are present.
+ * The supertype of all messengers.
  *
  * This is loose on purpose: modeling the parameter as a fixed structural shape
  * whose `call` accepts an open-ended `${DataServiceName}:${string}` template
@@ -43,7 +40,7 @@ type DataServiceGranularCacheUpdatedHandler = (
  * coincidence — when every action it declared happened to belong to the
  * requested namespaces — and broke as soon as an unrelated namespace was added.
  */
-type LooseMessenger = Messenger<
+type GenericMessenger = Messenger<
   string,
   ActionConstraint,
   EventConstraint,
@@ -53,44 +50,22 @@ type LooseMessenger = Messenger<
 >;
 
 /**
- * Verify that a messenger minimally supports the capabilities that
- * `createUIQueryClient` relies on for each designated data service, while
- * permitting it to declare any number of additional actions and events.
- *
- * The required `:invalidateQueries` action and `:cacheUpdated:${hash}` event
- * are checked to be members of the messenger's own action and event unions
- * (extracted via `MessengerActions`/`MessengerEvents`). This expresses
- * "minimally support these data services, but you may support more" — which is
- * the intended contract.
- *
- * Resolves to the messenger type when it is supported, and to `never` (which
- * makes the parameter unsatisfiable) when it is not. This mirrors the pattern
- * used by `BaseController` in `@metamask/base-controller`.
- *
- * @template MessengerType - The concrete messenger type being passed.
- * @template DataServiceName - The union of designated data service names.
+ * A messenger that minimally supports a subset of capabilities that data
+ * services with the given namespaces would provide. Specifically, of these
+ * namespaces, it must at least allow all data service actions to be called, and
+ * it must at least allow the `:cacheUpdated:${hash}` event to be subscribed to.
  */
 type SupportsDataServices<
-  MessengerType extends LooseMessenger,
+  MessengerInstance extends GenericMessenger,
   DataServiceName extends string,
-> = DataServiceInvalidateQueriesAction<
-  DataServiceName
->['type'] extends MessengerActions<MessengerType>['type']
-  ? DataServiceGranularCacheUpdatedEvent<
-      DataServiceName
-    >['type'] extends MessengerEvents<MessengerType>['type']
-    ? MessengerType
+> = DataServiceActions<DataServiceName>['type'] extends MessengerActions<MessengerInstance>['type']
+  ? DataServiceGranularCacheUpdatedEvent<DataServiceName>['type'] extends MessengerEvents<MessengerInstance>['type']
+    ? MessengerInstance
     : never
   : never;
 
 /**
  * The narrow view of the messenger that `createUIQueryClient` uses internally.
- * Once `SupportsDataServices` has verified that a concrete messenger declares
- * the required capabilities, the messenger is treated as this adapter so that
- * the implementation can call actions and (un)subscribe to events using the
- * template-literal types it constructs at runtime (e.g.
- * `${service}:invalidateQueries`), which the messenger's own generic methods
- * cannot express directly.
  */
 type MessengerAdapter<DataServiceName extends string> = {
   /**
@@ -126,35 +101,30 @@ type MessengerAdapter<DataServiceName extends string> = {
 };
 
 /**
- * Create a QueryClient queries and subscribes to data services using the messenger.
+ * Create a QueryClient that queries and subscribes to data services using the messenger.
  *
  * @param dataServices - A list of data services.
- * @param rawMessenger - A messenger, with some constraints:
- * 1. The messenger must minimally support the `call`, `subscribe` and `unsubscribe` methods.
- * 2. All action handlers must be asynchronous (must return promises).
- * 3. All action handler arguments and event payloads must be JSON-compatible.
- * 4. The messenger must minimally support capabilities that belong to the designated data services,
- *    and it must minimally support the `:cacheUpdated:${hash}` event of the the designated data services.
- *    The messenger may additionally support actions and events from other namespaces.
+ * @param messenger - A messenger, with some constraints:
+ * 1. The messenger must minimally support the `call`, `subscribe` and
+ *    `unsubscribe` methods.
+ * 2. All action handler arguments and event payloads must be JSON-compatible.
+ * 3. The messenger must minimally support capabilities that belong to the
+ *    designated data services and must minimally support the
+ *    `:cacheUpdated:${hash}` event of the the designated data services.
  * @param config - Optional query client configuration options.
  * @returns The QueryClient.
  */
 export function createUIQueryClient<
   DataServiceNames extends readonly string[],
-  MessengerType extends LooseMessenger,
+  MessengerInstance extends GenericMessenger,
 >(
   dataServices: DataServiceNames,
-  rawMessenger: SupportsDataServices<MessengerType, DataServiceNames[number]>,
+  messenger: SupportsDataServices<MessengerInstance, DataServiceNames[number]>,
   config: QueryClientConfig = {},
 ): QueryClient {
-  // Type assertion: `SupportsDataServices` has already verified that the
-  // messenger declares the `:invalidateQueries` action and
-  // `:cacheUpdated:${hash}` event for every designated data service. The
-  // messenger's own generic `call`/`subscribe`/`unsubscribe` methods cannot be
-  // expressed in terms of the open-ended template-literal types the body builds
-  // at runtime, so we view the messenger through the narrower `MessengerAdapter`
-  // shape for the rest of the implementation.
-  const messenger = rawMessenger as unknown as MessengerAdapter<
+  // Type assertion: We've already verified that the messenger supports the
+  // capabilities we expect.
+  const narrowlyTypedMessenger = messenger as unknown as MessengerAdapter<
     DataServiceNames[number]
   >;
 
@@ -224,7 +194,7 @@ export function createUIQueryClient<
             "Queries must call actions on the messenger provided to createUIQueryClient, e.g. `queryKey: ['ExampleDataService:getAssets', ...]`.",
           );
 
-          return await messenger.call(
+          return await narrowlyTypedMessenger.call(
             action,
             ...options.queryKey.slice(1),
             options.pageParam,
@@ -266,7 +236,10 @@ export function createUIQueryClient<
       };
 
       subscriptions.set(hash, cacheListener);
-      messenger.subscribe(`${service}:cacheUpdated:${hash}`, cacheListener);
+      narrowlyTypedMessenger.subscribe(
+        `${service}:cacheUpdated:${hash}`,
+        cacheListener,
+      );
     } else if (
       event.type === 'observerRemoved' &&
       observerCount === 0 &&
@@ -275,7 +248,7 @@ export function createUIQueryClient<
       const subscriptionListener = subscriptions.get(hash);
 
       if (subscriptionListener) {
-        messenger.unsubscribe(
+        narrowlyTypedMessenger.unsubscribe(
           `${service}:cacheUpdated:${hash}`,
           subscriptionListener,
         );
@@ -307,7 +280,11 @@ export function createUIQueryClient<
           return null;
         }
 
-        return messenger.call(`${service}:invalidateQueries`, filters, options);
+        return narrowlyTypedMessenger.call(
+          `${service}:invalidateQueries`,
+          filters,
+          options,
+        );
       }),
     );
 
