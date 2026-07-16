@@ -1,7 +1,7 @@
 /* eslint-disable jest/expect-expect */
 import assert from 'node:assert/strict';
 
-import { runCommand } from './command';
+import { runCommand } from './command.js';
 
 describe('runCommand', () => {
   it('runs a successful command', async () => {

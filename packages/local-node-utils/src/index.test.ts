@@ -10,11 +10,11 @@ import {
   mergeArtifactConfig,
   requireCompletePlatformConfig,
   resolvePlatformConfig,
-} from './artifact';
-import { getMetamaskCacheDirectory } from './cache-directory';
-import { readCliValue } from './cli';
-import { readPackageJsonToolConfig } from './package-json';
-import type { ArtifactConfig } from './types';
+} from './artifact.js';
+import { getMetamaskCacheDirectory } from './cache-directory.js';
+import { readCliValue } from './cli.js';
+import { readPackageJsonToolConfig } from './package-json.js';
+import type { ArtifactConfig } from './types.js';
 
 describe('artifact helpers', () => {
   const defaults: ArtifactConfig = {
