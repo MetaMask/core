@@ -14,16 +14,16 @@ import type {
   TransactionControllerStateChangeEvent,
   TransactionMeta,
 } from '@metamask/transaction-controller';
-import { cloneDeep, isEqual } from 'lodash';
+import { cloneDeep, isEqual } from 'lodash-es';
 
-import { controllerName } from './constants';
-import { projectLogger, createModuleLogger } from './logger';
-import type { ShieldControllerMethodActions } from './ShieldController-method-action-types';
+import { controllerName } from './constants.js';
+import { projectLogger, createModuleLogger } from './logger.js';
+import type { ShieldControllerMethodActions } from './ShieldController-method-action-types.js';
 import type {
   CoverageResult,
   NormalizeSignatureRequestFn,
   ShieldBackend,
-} from './types';
+} from './types.js';
 
 const log = createModuleLogger(projectLogger, 'ShieldController');
 

@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { ShieldController } from './ShieldController';
+import type { ShieldController } from './ShieldController.js';
 
 /**
  * Start the ShieldController and subscribe to the transaction and signature controller state changes.
