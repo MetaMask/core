@@ -11,8 +11,8 @@ import type {
   BridgeStatusControllerMessenger,
   BridgeStatusControllerState,
   StartPollingForBridgeTxStatusArgsSerialized,
-} from '../types';
-import { getMaxPendingHistoryItemAgeMs } from './feature-flags';
+} from '../types.js';
+import { getMaxPendingHistoryItemAgeMs } from './feature-flags.js';
 
 const updateHistoryItem = (
   oldHistoryItem: BridgeHistoryItem,

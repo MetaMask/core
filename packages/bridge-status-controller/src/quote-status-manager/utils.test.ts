@@ -1,4 +1,6 @@
-import { sleep } from './utils';
+import { jest } from '@jest/globals';
+
+import { sleep } from './utils.js';
 
 describe('sleep', () => {
   beforeEach(() => {

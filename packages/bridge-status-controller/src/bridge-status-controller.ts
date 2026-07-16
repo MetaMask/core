@@ -31,7 +31,7 @@ import type { TransactionMeta } from '@metamask/transaction-controller';
 import { numberToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { IntentManager } from './bridge-status-controller.intent';
+import { IntentManager } from './bridge-status-controller.intent.js';
 import {
   ALLOWED_FEATURE_IDS_FOR_STATUS_EVENTS,
   BRIDGE_PROD_API_BASE_URL,

@@ -6,20 +6,20 @@ import {
 } from '@metamask/bridge-controller';
 import { TransactionType } from '@metamask/transaction-controller';
 
-import { getJwt } from '../utils/authentication';
+import { getJwt } from '../utils/authentication.js';
 import {
   getIntentFromQuote,
   mapIntentOrderStatusToTransactionStatus,
   postSubmitOrder,
-} from '../utils/intent-api';
-import { signTypedMessage } from '../utils/keyring';
-import { getNetworkClientIdByChainId } from '../utils/network';
+} from '../utils/intent-api.js';
+import { signTypedMessage } from '../utils/keyring.js';
+import { getNetworkClientIdByChainId } from '../utils/network.js';
 import {
   addSyntheticTransaction,
   waitForTxConfirmation,
-} from '../utils/transaction';
-import { handleEvmApprovals } from './evm-strategy';
-import { SubmitStrategyParams, SubmitStepResult, SubmitStep } from './types';
+} from '../utils/transaction.js';
+import { handleEvmApprovals } from './evm-strategy.js';
+import { SubmitStrategyParams, SubmitStepResult, SubmitStep } from './types.js';
 
 /**
  * Submits a synthetic EVM transaction to the TransactionController in order to display the intent order's

@@ -1,7 +1,7 @@
 import {
   QuoteStatusGetErrorDetails,
   QuoteStatusUpdateErrorDetails,
-} from './types';
+} from './types.js';
 
 /**
  * Error thrown for quote status update failures.

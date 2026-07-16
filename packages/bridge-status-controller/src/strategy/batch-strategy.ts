@@ -7,9 +7,9 @@ import {
   isTradeTx,
   shouldDisable7702,
   toQuoteAndTxMetadata,
-} from '../utils/transaction';
-import { SubmitStep } from './types';
-import type { SubmitStrategyParams, SubmitStepResult } from './types';
+} from '../utils/transaction.js';
+import { SubmitStep } from './types.js';
+import type { SubmitStrategyParams, SubmitStepResult } from './types.js';
 
 /**
  * Submits batched EVM transactions to the TransactionController

@@ -1,11 +1,12 @@
+import { jest } from '@jest/globals';
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { BridgeClientId, StatusTypes } from '@metamask/bridge-controller';
 import { TransactionStatus } from '@metamask/transaction-controller';
 
 import { IntentManager } from './bridge-status-controller.intent';
-import type { BridgeHistoryItem } from './types';
-import { postSubmitOrder } from './utils/intent-api';
-import { IntentOrderStatus } from './utils/validators';
+import type { BridgeHistoryItem } from './types.js';
+import { postSubmitOrder } from './utils/intent-api.js';
+import { IntentOrderStatus } from './utils/validators.js';
 
 const makeHistoryItem = (
   overrides?: Partial<BridgeHistoryItem>,
