@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 /* eslint-disable jest/no-export */
 import type { MockAnyNamespace } from '@metamask/messenger';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
@@ -11,8 +12,8 @@ import type {
   ControllerStateChangeEvent,
   ControllerStateChangedEvent,
   StatePropertyMetadata,
-} from './BaseController';
-import { BaseController, deriveStateFromMetadata } from './BaseController';
+} from './BaseController.js';
+import { BaseController, deriveStateFromMetadata } from './BaseController.js';
 
 export const countControllerName = 'CountController';
 
