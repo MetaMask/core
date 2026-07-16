@@ -23,23 +23,7 @@ import {
 } from '@tanstack/query-core';
 
 /**
- * Handles granular cache update events emitted by data services.
- */
-type DataServiceGranularCacheUpdatedHandler = (
-  payload: DataServiceGranularCacheUpdatedPayload,
-) => void;
-
-/**
  * The supertype of all messengers.
- *
- * Used as the upper bound for the messenger type variable so that any concrete
- * {@link Messenger} can be passed, with {@link SupportsDataServices} layered on
- * top to verify the required data service capabilities are present. We cannot
- * instead require a fixed structural shape whose `call` accepts an open-ended
- * `${DataServiceName}:${string}` template literal: a concrete messenger's own
- * generic `call` is bounded by its declared action union, so it cannot accept
- * action types it does not declare, and such a shape would reject any messenger
- * that declares actions from additional namespaces.
  */
 type GenericMessenger = Messenger<
   string,
@@ -66,11 +50,15 @@ type SupportsDataServices<
   : never;
 
 /**
- * A messenger adapter: the narrow, messenger-like shape that
- * `createUIQueryClient` interacts with. This is what the function uses
- * internally, and it may also be passed in directly by callers that do not have
- * a full {@link Messenger} instance (e.g. a hand-rolled object that forwards to
- * some other transport).
+ * Handles granular cache update events emitted by data services.
+ */
+type DataServiceGranularCacheUpdatedHandler = (
+  payload: DataServiceGranularCacheUpdatedPayload,
+) => void;
+
+/**
+ * A narrower subset of the `Messenger` type, tailored to the messenger
+ * that `createUIQueryClient` interacts with.
  */
 type MessengerAdapter<DataServiceName extends string> = {
   /**
@@ -107,12 +95,14 @@ type MessengerAdapter<DataServiceName extends string> = {
 
 /**
  * Create a QueryClient that queries and subscribes to data services using a
- * messenger adapter.
+ * messenger adapter, a messenger-like object that carries some constraints:
  *
- * This overload accepts a messenger adapter (see {@link MessengerAdapter}) —
- * any object that exposes the `call`, `subscribe`, and `unsubscribe` methods
- * for the designated data services. Use this when you do not have a full
- * {@link Messenger} instance on hand.
+ * 1. The messenger must support the `call`, `subscribe` and
+ *    `unsubscribe` methods.
+ * 2. All action handler arguments and event payloads must be JSON-compatible.
+ * 3. The messenger must minimally support capabilities that belong to the
+ *    designated data services and must minimally support the
+ *    `:cacheUpdated:${hash}` event of the the designated data services.
  *
  * @param dataServices - A list of data services.
  * @param messenger - A messenger adapter.
@@ -127,14 +117,10 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
 
 /**
  * Create a QueryClient that queries and subscribes to data services using a
- * messenger.
+ * messenger. This messenger carries some constraints:
  *
- * This overload accepts a full {@link Messenger} instance, with some
- * constraints:
- * 1. The messenger must minimally support the `call`, `subscribe` and
- *    `unsubscribe` methods.
- * 2. All action handler arguments and event payloads must be JSON-compatible.
- * 3. The messenger must minimally support capabilities that belong to the
+ * 1. All action handler arguments and event payloads must be JSON-compatible.
+ * 2. The messenger must minimally support capabilities that belong to the
  *    designated data services and must minimally support the
  *    `:cacheUpdated:${hash}` event of the the designated data services.
  *
@@ -227,10 +213,6 @@ export function createUIQueryClient<DataServiceNames extends readonly string[]>(
           );
 
           const params = options.queryKey.slice(1);
-
-          // `pageParam` is only present for infinite (paginated) queries. For
-          // regular queries it is `undefined`, so we omit it to avoid passing a
-          // trailing `undefined` argument to the action handler.
           if (options.pageParam !== undefined) {
             params.push(options.pageParam);
           }
