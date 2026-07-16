@@ -35,10 +35,10 @@ type MessengerAdapter<DataServiceName extends string> = {
   /**
    * Call an action on one of the configured data services.
    *
-   * Note: The parameters are typed as `unknown[]` rather than `Json[]`.
-   * Concrete messengers declare each action's parameters as a fixed-length
-   * tuple, and a variadic `Json[]` is not assignable to a fixed-length tuple,
-   * so using `Json[]` here would reject otherwise valid messengers.
+   * Note: The parameters are typed as `unknown[]` rather than `Json[]`. For
+   * concrete messengers, each action's parameters exist as fixed-length tuple,
+   * and a variadic `Json[]` is not assignable to a fixed-length tuple, so using
+   * `Json[]` here would reject otherwise valid messengers.
    */
   call(
     actionType: `${DataServiceName}:${string}`,
@@ -65,42 +65,31 @@ type MessengerAdapter<DataServiceName extends string> = {
 };
 
 /**
- * Given a messenger, resolves to that same messenger when it minimally supports
- * the capabilities that data services with the given namespaces provide, and to
- * `never` otherwise.
- *
- * Specifically, of these namespaces, the messenger must at least allow all data
- * service actions to be called, and it must at least allow the
- * `:cacheUpdated:${hash}` event to be subscribed to.
- *
- * Notes on the implementation:
- *
- * - The messenger type parameter is deliberately *not* constrained (e.g. to
- *   `Messenger<string, ActionConstraint, EventConstraint, any>`); instead we
- *   `infer` the action and event unions directly. This differs from
- *   `BaseController`, which does constrain its `ControllerMessenger` type
- *   parameter to `Messenger<...>`. The reason for the difference is what each
- *   receives:
- *   - `BaseController` is always given a plain, per-controller `Messenger` (e.g.
- *     `Messenger<'AddressBook', AddressBookControllerActions, ...>`). A direct
- *     `Messenger` instantiation is compared against the base `Messenger`
- *     constraint by the class's own declared variance, which succeeds.
- *   - `createUIQueryClient` is given the application's *root* messenger, which
- *     in real consumers is a **subclass** of `Messenger` (e.g. mobile's
- *     `ExtendedMessenger`). A subclass is a different class, so TypeScript falls
- *     back to a structural comparison that includes `Messenger`'s private fields
- *     — notably `#subscriptionDelegationTargets`, a `Map` whose event-handler
- *     values are typed from the messenger's narrow `Event` union
- *     (`(payload: number) => void`) and are not assignable to the constraint's
- *     wide `(...payload: unknown[]) => void` (contravariance: `unknown` is not
- *     assignable to `number`). This makes even an otherwise-empty subclass fail
- *     the `extends Messenger<...>` constraint. Inferring the unions instead of
- *     constraining the type sidesteps this private-field check.
- * - The supported branch resolves to the messenger type itself. Resolving it to
- *   `MessengerAdapter` instead would reject a real messenger, because a concrete
- *   messenger's generic `call` cannot satisfy the adapter's open-ended
- *   `${DataServiceName}:${string}` action type.
+ * Constraints a messenger such that it must minimally support a subset of
+ * capabilities that the given data services provide. Specifically, it must at
+ * least allow all data service actions to be called, and it must at least allow
+ * the `:cacheUpdated:${hash}` event to be subscribed to.
  */
+// Notes on the implementation:
+//
+// - The messenger type parameter is deliberately *not* constrained (e.g. to
+//   `Messenger<string, ActionConstraint, EventConstraint, any>`); instead we
+//   `infer` the action and event unions directly. This differs from
+//   `BaseController`, which does constrain its `ControllerMessenger` type
+//   parameter to `Messenger<...>`. The reason for the difference is what each
+//   receives:
+//   - `BaseController` is always given an instance of Messenger, and expects an
+//     instance of Messenger in its type parameters, so it can make a direct
+//     comparison.
+//   - `createUIQueryClient`, on the other hand, is given a root messenger, which
+//     in Mobile is a *subclass* of `Messenger` (called
+//     `ExtendedRootMessenger`). A subclass is a different class, so TypeScript
+//     falls back to a structural comparison that includes `Messenger`'s private
+//     fields (and because some private fields are functions or contain
+//     functions, it attempts to compare action handlers or event subscriptions (e.g.
+//     `#subscriptionDelegationTargets`), and fails due to contravariance.
+//     Inferring the unions instead of constraining the type sidesteps this
+//     private-field check.
 type SupportsDataServices<MessengerInstance, DataServiceName extends string> =
   MessengerInstance extends Messenger<
     string,
@@ -118,7 +107,8 @@ type SupportsDataServices<MessengerInstance, DataServiceName extends string> =
 
 /**
  * Create a QueryClient that queries and subscribes to data services using a
- * messenger adapter, a messenger-like object that carries some constraints:
+ * messenger adapter. This is a messenger-like object that carries some
+ * constraints:
  *
  * 1. The messenger must support the `call`, `subscribe` and
  *    `unsubscribe` methods.
