@@ -8,8 +8,8 @@ const path = require('path');
  * Watches src/ directory and runs link script on changes
  */
 
-const srcDir = path.join(__dirname, 'src');
-const linkScript = path.join(__dirname, 'link-ramp-controller.js');
+const srcDir = path.join(import.meta.dirname, 'src');
+const linkScript = path.join(import.meta.dirname, 'link-ramp-controller.js');
 
 console.log('👀 Watching ramps-controller src/ directory...');
 console.log('📁 Press Ctrl+C to stop watching\n');
@@ -24,7 +24,7 @@ function runLinkScript() {
     console.log('🔄 Changes detected, rebuilding and linking...');
     const child = spawn('node', [linkScript], {
       stdio: 'inherit',
-      cwd: __dirname,
+      cwd: import.meta.dirname,
     });
 
     child.on('close', (code) => {
