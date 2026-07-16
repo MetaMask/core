@@ -31,14 +31,14 @@ import type {
 import { hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import { MoneyAccountUpgradeStepError } from './errors';
-import type { MoneyAccountUpgradeControllerMethodActions } from './MoneyAccountUpgradeController-method-action-types';
-import { associateAddressStep } from './steps/associate-address';
-import { buildDelegationStep } from './steps/build-delegations';
-import { eip7702AuthorizationStep } from './steps/eip-7702-authorization';
-import { registerIntentsStep } from './steps/register-intents';
-import type { Step } from './steps/step';
-import type { UpgradeConfig } from './types';
+import { MoneyAccountUpgradeStepError } from './errors.js';
+import type { MoneyAccountUpgradeControllerMethodActions } from './MoneyAccountUpgradeController-method-action-types.js';
+import { associateAddressStep } from './steps/associate-address.js';
+import { buildDelegationStep } from './steps/build-delegations.js';
+import { eip7702AuthorizationStep } from './steps/eip-7702-authorization.js';
+import { registerIntentsStep } from './steps/register-intents.js';
+import type { Step } from './steps/step.js';
+import type { UpgradeConfig } from './types.js';
 
 /**
  * The Delegation Framework deployment version we resolve contract addresses

@@ -9,12 +9,12 @@ import {
 import { add0x, bytesToHex } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController';
+import type { MoneyAccountUpgradeControllerMessenger } from '../MoneyAccountUpgradeController.js';
 import {
   equalsIgnoreCase,
   makeHasVedaRedeemerCaveat,
-} from './delegation-matchers';
-import type { Step } from './step';
+} from './delegation-matchers.js';
+import type { Step } from './step.js';
 
 const MAX_UINT256 = 2n ** 256n - 1n;
 const MAX_UINT256_HEX: Hex = add0x(MAX_UINT256.toString(16));
