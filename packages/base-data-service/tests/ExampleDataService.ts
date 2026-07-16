@@ -1,5 +1,12 @@
 import { Messenger } from '@metamask/messenger';
-import { CaipAssetId, Duration, inMilliseconds, Json } from '@metamask/utils';
+import { object, number, string, array } from '@metamask/superstruct';
+import {
+  CaipAssetType,
+  CaipAssetTypeStruct,
+  Duration,
+  inMilliseconds,
+  Json,
+} from '@metamask/utils';
 import { ConstantBackoff } from 'cockatiel';
 
 import {
@@ -28,11 +35,20 @@ export type ExampleMessenger = Messenger<
 >;
 
 export type GetAssetsResponse = {
-  assetId: CaipAssetId;
+  assetId: CaipAssetType;
   decimals: number;
   name: string;
   symbol: string;
-};
+}[];
+
+const GetAssetsResponseStruct = array(
+  object({
+    assetId: CaipAssetTypeStruct,
+    decimals: number(),
+    name: string(),
+    symbol: string(),
+  }),
+);
 
 export type GetActivityResponse = {
   data: Json[];
@@ -102,6 +118,7 @@ export class ExampleDataService extends BaseDataService<
       },
       staleTime: inMilliseconds(1, Duration.Day),
       cacheTime: inMilliseconds(1, Duration.Day),
+      struct: GetAssetsResponseStruct,
     });
   }
 

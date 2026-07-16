@@ -8,6 +8,7 @@ import type {
   StorageServiceRemoveItemAction,
   StorageServiceSetItemAction,
 } from '@metamask/storage-service';
+import { Struct } from '@metamask/superstruct';
 import { Duration, inMilliseconds } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
 import {
@@ -33,6 +34,7 @@ import {
   CreateServicePolicyOptions,
   ServicePolicy,
 } from './createServicePolicy';
+import { processQueryResponse } from './utils';
 
 // Data service queries use the following format: ['ServiceActionName', ...params]
 export type QueryKey = [string, ...Json[]];
@@ -80,6 +82,10 @@ export type DataServiceGranularCacheUpdatedEvent<ServiceName extends string> = {
 type DataServiceEvents<ServiceName extends string> =
   | DataServiceCacheUpdatedEvent<ServiceName>
   | DataServiceGranularCacheUpdatedEvent<ServiceName>;
+
+type AdditionalQueryOptions<QueryFnData> = {
+  struct?: Struct<QueryFnData>;
+};
 
 // Defaults to apply to all data service queries if no default option specified
 const QUERY_CLIENT_DEFAULTS: DefaultOptions = {
@@ -240,6 +246,7 @@ export class BaseDataService<
    *
    * @param options - The options defining the query. Keep in mind that `queryKey` and `queryFn` are required when using data services.
    * Additionally `retry` and `retryDelay` are not available, retries can be customized using the `servicePolicyOptions`.
+   * @param options.struct - An optional struct for validating the response of the query function.
    * @returns The query results.
    */
   protected async fetchQuery<
@@ -247,19 +254,25 @@ export class BaseDataService<
     TError = unknown,
     TData = TQueryFnData,
     TQueryKey extends QueryKey = QueryKey,
-  >(
-    options: WithRequired<
-      OmitKeyof<
-        FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
-        'retry' | 'retryDelay'
-      >,
-      'queryKey' | 'queryFn'
+  >({
+    struct,
+    ...options
+  }: WithRequired<
+    OmitKeyof<
+      FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
+      'retry' | 'retryDelay'
     >,
-  ): Promise<TData> {
+    'queryKey' | 'queryFn'
+  > &
+    AdditionalQueryOptions<TQueryFnData>): Promise<TData> {
     return this.#queryClient.fetchQuery({
       ...options,
       queryFn: (context) =>
-        this.#policy.execute(() => options.queryFn(context)),
+        // TODO: Consider if the validation should happen outside the policy executor
+        this.#policy.execute(async () => {
+          const response = await options.queryFn(context);
+          return processQueryResponse(options.queryKey, response, struct);
+        }),
     });
   }
 
@@ -268,6 +281,7 @@ export class BaseDataService<
    *
    * @param options - The options defining the query. Keep in mind that `queryKey` and `queryFn` are required when using data services.
    * Additionally `retry` and `retryDelay` are not available, retries can be customized using the `servicePolicyOptions`.
+   * @param options.struct - An optional struct for validating the response of the query function.
    * @param pageParam - An optional page parameter.
    * @returns The query result, exclusively the requested page is returned.
    */
@@ -278,13 +292,17 @@ export class BaseDataService<
     TQueryKey extends QueryKey = QueryKey,
     TPageParam extends Json = Json,
   >(
-    options: WithRequired<
+    {
+      struct,
+      ...options
+    }: WithRequired<
       OmitKeyof<
         FetchInfiniteQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
         'retry' | 'retryDelay'
       >,
       'queryKey' | 'queryFn'
-    >,
+    > &
+      AdditionalQueryOptions<TQueryFnData>,
     pageParam?: TPageParam,
   ): Promise<TData> {
     const cache = this.#queryClient.getQueryCache();
@@ -297,12 +315,14 @@ export class BaseDataService<
       const result = await this.#queryClient.fetchInfiniteQuery({
         ...options,
         queryFn: (context) =>
-          this.#policy.execute(() =>
-            options.queryFn({
+          this.#policy.execute(async () => {
+            const response = await options.queryFn({
               ...context,
               pageParam: context.pageParam ?? pageParam,
-            }),
-          ),
+            });
+
+            return processQueryResponse(options.queryKey, response, struct);
+          }),
       });
 
       return result.pages[0];

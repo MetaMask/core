@@ -222,6 +222,35 @@ describe('BaseDataService', () => {
     expect(publishSpy).toHaveBeenCalledTimes(8);
   });
 
+  describe('validation', () => {
+    beforeAll(() => {
+      jest.useRealTimers();
+    });
+
+    afterAll(() => {
+      jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+    });
+
+    beforeEach(() => {
+      cleanAll();
+    });
+
+    it('throws when fetchQuery response fails struct validation', async () => {
+      const messenger = new Messenger({ namespace: serviceName });
+      const service = new ExampleDataService(messenger);
+
+      mockAssets({ status: 200, body: { foo: 'bar' } });
+      mockAssets({ status: 200, body: { foo: 'bar' } });
+      mockAssets({ status: 200, body: { foo: 'bar' } });
+
+      await expect(service.getAssets(MOCK_ASSETS)).rejects.toThrow(
+        /ExampleDataService:getAssets.*returned an invalid response:/u,
+      );
+
+      service.destroy();
+    });
+  });
+
   describe('service policy', () => {
     beforeAll(() => {
       jest.useRealTimers();
