@@ -1,0 +1,24 @@
+diff --git a/dist/esm/index.d.mts b/dist/esm/index.d.mts
+new file mode 100644
+index 0000000000000000000000000000000000000000..d48ab7ade4e48f566f3ca48c60636368919b1044
+--- /dev/null
++++ b/dist/esm/index.d.mts
+@@ -0,0 +1,5 @@
++/// <reference types="node" />
++import { EventEmitter } from 'events';
++export default class SafeEventEmitter extends EventEmitter {
++    emit(type: string, ...args: any[]): boolean;
++}
+diff --git a/package.json b/package.json
+index 87ca2f6363c43d2f9d45be268e8ba03c1669c02c..72211f17fe3976ef8dac7d8512d60a6de1275fbd 100644
+--- a/package.json
++++ b/package.json
+@@ -8,7 +8,7 @@
+   "exports": {
+     ".": {
+       "import": {
+-        "types": "./dist/esm/index.d.ts",
++        "types": "./dist/esm/index.d.mts",
+         "default": "./dist/esm/index.mjs"
+       },
+       "require": {
