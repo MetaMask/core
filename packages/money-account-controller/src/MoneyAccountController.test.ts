@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import {
   KeyringControllerError,
   KeyringControllerErrorMessage,
@@ -10,11 +11,11 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
-import type { MoneyAccount, MoneyAccountControllerMessenger } from '.';
+import type { MoneyAccount, MoneyAccountControllerMessenger } from './index.js';
 import {
   MoneyAccountController,
   getDefaultMoneyAccountControllerState,
-} from '.';
+} from './index.js';
 
 const MOCK_ENTROPY_SOURCE_ID = 'entropy-source-1';
 const MOCK_OTHER_ENTROPY_SOURCE_ID = 'entropy-source-2';
