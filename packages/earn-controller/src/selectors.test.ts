@@ -3,7 +3,7 @@ import type { LendingMarket } from '@metamask/stake-sdk';
 import type {
   EarnControllerState,
   LendingPositionWithMarket,
-} from './EarnController';
+} from './EarnController.js';
 import {
   selectLendingMarkets,
   selectLendingPositions,
@@ -24,7 +24,7 @@ import {
   selectIsLendingEligible,
   selectTronStaking,
   selectTronStakingApy,
-} from './selectors';
+} from './selectors.js';
 
 describe('Earn Controller Selectors', () => {
   const mockMarket1: LendingMarket = {
