@@ -1,16 +1,17 @@
+import { jest } from '@jest/globals';
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 
-import { JsonRpcEngine } from '.';
 import {
   getExtraneousKeys,
   makeNullMiddleware,
   makeRequest,
-} from '../tests/utils';
-import { asV2Middleware } from './asV2Middleware';
-import { JsonRpcEngineV2 } from './v2/JsonRpcEngineV2';
-import type { JsonRpcMiddleware as V2Middleware } from './v2/JsonRpcEngineV2';
-import type { MiddlewareContext } from './v2/MiddlewareContext';
+} from '../tests/utils.js';
+import { asV2Middleware } from './asV2Middleware.js';
+import { JsonRpcEngine } from './index.js';
+import { JsonRpcEngineV2 } from './v2/JsonRpcEngineV2.js';
+import type { JsonRpcMiddleware as V2Middleware } from './v2/JsonRpcEngineV2.js';
+import type { MiddlewareContext } from './v2/MiddlewareContext.js';
 
 describe('asV2Middleware', () => {
   it('converts a legacy engine to a v2 middleware', () => {

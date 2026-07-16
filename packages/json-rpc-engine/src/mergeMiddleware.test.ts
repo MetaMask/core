@@ -1,7 +1,7 @@
 import type { JsonRpcRequest } from '@metamask/utils';
 import { assertIsJsonRpcSuccess, hasProperty } from '@metamask/utils';
 
-import { JsonRpcEngine, mergeMiddleware } from '.';
+import { JsonRpcEngine, mergeMiddleware } from './index.js';
 
 const jsonrpc = '2.0' as const;
 
@@ -42,8 +42,8 @@ describe('mergeMiddleware', () => {
         (_request, response, next, _end): void => {
           next((callback) => {
             // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (response as any).copy = response.result;
+
+            response.copy = response.result;
             callback();
           });
         },
@@ -79,8 +79,8 @@ describe('mergeMiddleware', () => {
         function (request, response, _next, end): void {
           originalRequest = request;
           // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (response as any).xyz = true;
+
+          response.xyz = true;
           response.result = true;
           end();
         },
@@ -96,8 +96,8 @@ describe('mergeMiddleware', () => {
         expect(originalRequest.id).toStrictEqual(res.id);
         expect(originalRequest.jsonrpc).toStrictEqual(res.jsonrpc);
         // TODO: Replace `any` with type
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        expect((res as any).xyz).toBe(true);
+
+        expect(res.xyz).toBe(true);
         resolve();
       });
     });
@@ -112,8 +112,8 @@ describe('mergeMiddleware', () => {
         function (request, response, _next, end): void {
           originalRequest = request;
           // TODO: Replace `any` with type
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (request as any).xyz = true;
+
+          request.xyz = true;
           response.result = true;
           end();
         },
@@ -166,8 +166,8 @@ describe('mergeMiddleware', () => {
         (_request, response, next, _end): void => {
           next((callback) => {
             // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (response as any).copy = response.result;
+
+            response.copy = response.result;
             callback();
           });
         },

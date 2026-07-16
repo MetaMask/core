@@ -1,12 +1,13 @@
+import { jest } from '@jest/globals';
 import { rpcErrors } from '@metamask/rpc-errors';
 import { Json } from '@metamask/utils';
 
-import type { JsonRpcMiddleware } from './JsonRpcEngineV2';
-import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
-import { JsonRpcServer } from './JsonRpcServer';
-import type { MiddlewareContext } from './MiddlewareContext';
-import type { JsonRpcNotification, JsonRpcRequest } from './utils';
-import { isRequest, JsonRpcEngineError, stringify } from './utils';
+import type { JsonRpcMiddleware } from './JsonRpcEngineV2.js';
+import { JsonRpcEngineV2 } from './JsonRpcEngineV2.js';
+import { JsonRpcServer } from './JsonRpcServer.js';
+import type { MiddlewareContext } from './MiddlewareContext.js';
+import type { JsonRpcNotification, JsonRpcRequest } from './utils.js';
+import { isRequest, JsonRpcEngineError, stringify } from './utils.js';
 
 const jsonrpc = '2.0' as const;
 

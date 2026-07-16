@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import {
   assertIsJsonRpcFailure,
@@ -11,8 +12,8 @@ import {
   MethodHandler,
   MethodHandlerImplementation,
   createMethodMiddleware,
-} from './createMethodMiddleware';
-import { JsonRpcEngine, JsonRpcMiddleware } from './JsonRpcEngine';
+} from './createMethodMiddleware.js';
+import { JsonRpcEngine, JsonRpcMiddleware } from './JsonRpcEngine.js';
 
 type AllHooks = {
   hook1: () => number;

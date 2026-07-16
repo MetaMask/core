@@ -19,8 +19,7 @@
     "test": "test"
   },
   "files": [
-    "dist/",
-    "v2.js"
+    "dist/"
   ],
   "type": "module",
   "sideEffects": false,
