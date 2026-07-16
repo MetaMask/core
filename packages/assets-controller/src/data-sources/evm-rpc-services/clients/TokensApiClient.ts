@@ -292,25 +292,28 @@ export class TokensApiClient {
       return this.#suggestedOccurrenceFloorsRefreshPromise;
     }
 
-    this.#suggestedOccurrenceFloorsRefreshPromise = (async (): Promise<void> => {
-      try {
-        const response = await this.#fetch(SUGGESTED_OCCURRENCE_FLOORS_URL);
-        if (response.ok) {
-          const data = (await response.json()) as Record<string, number>;
-          this.#suggestedOccurrenceFloors =
-            data && typeof data === 'object' && !Array.isArray(data) ? data : {};
-          this.#suggestedOccurrenceFloorsCachedAt = now;
-        } else {
+    this.#suggestedOccurrenceFloorsRefreshPromise =
+      (async (): Promise<void> => {
+        try {
+          const response = await this.#fetch(SUGGESTED_OCCURRENCE_FLOORS_URL);
+          if (response.ok) {
+            const data = (await response.json()) as Record<string, number>;
+            this.#suggestedOccurrenceFloors =
+              data && typeof data === 'object' && !Array.isArray(data)
+                ? data
+                : {};
+            this.#suggestedOccurrenceFloorsCachedAt = now;
+          } else {
+            this.#suggestedOccurrenceFloors = {};
+            this.#suggestedOccurrenceFloorsCachedAt = now;
+          }
+        } catch {
           this.#suggestedOccurrenceFloors = {};
           this.#suggestedOccurrenceFloorsCachedAt = now;
+        } finally {
+          this.#suggestedOccurrenceFloorsRefreshPromise = undefined;
         }
-      } catch {
-        this.#suggestedOccurrenceFloors = {};
-        this.#suggestedOccurrenceFloorsCachedAt = now;
-      } finally {
-        this.#suggestedOccurrenceFloorsRefreshPromise = undefined;
-      }
-    })();
+      })();
 
     return this.#suggestedOccurrenceFloorsRefreshPromise;
   }

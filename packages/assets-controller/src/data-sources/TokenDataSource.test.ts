@@ -874,9 +874,7 @@ describe('TokenDataSource', () => {
     const { controller, apiClient } = setupController({
       messenger: createTestMessenger(),
       supportedNetworks: ['eip155:143'],
-      assetsResponse: [
-        createMockAssetResponse(monadToken, { occurrences: 1 }),
-      ],
+      assetsResponse: [createMockAssetResponse(monadToken, { occurrences: 1 })],
       suggestedOccurrenceFloors: { '1': 3, '143': 1 },
     });
 

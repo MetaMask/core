@@ -83,7 +83,10 @@ function createMockFetch(
     fullSupport?: string[];
     partialSupport?: string[];
   } = DEFAULT_SUPPORTED_NETWORKS,
-  suggestedOccurrenceFloors: Record<string, number> = DEFAULT_SUGGESTED_OCCURRENCE_FLOORS,
+  suggestedOccurrenceFloors: Record<
+    string,
+    number
+  > = DEFAULT_SUGGESTED_OCCURRENCE_FLOORS,
 ): jest.MockedFunction<typeof globalThis.fetch> {
   return jest.fn((url: string | URL) => {
     const urlString = url.toString();
