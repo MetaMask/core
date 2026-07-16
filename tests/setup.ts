@@ -9,5 +9,5 @@ delete globalThis.Request;
 // @ts-expect-error - Clear Response to ensure isomorphic-fetch sets up node-fetch version
 delete globalThis.Response;
 // Dynamic import so this runs *after* the deletes above (static imports are hoisted in ESM).
-// eslint-disable-next-line import-x/no-unassigned-import
+ 
 await import('isomorphic-fetch');

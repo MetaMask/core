@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { getKnownPropertyNames } from '@metamask/utils';
 
 /**
