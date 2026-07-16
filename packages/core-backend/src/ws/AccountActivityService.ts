@@ -25,7 +25,6 @@ import type {
   AccountActivityMessage,
   BalanceUpdate,
 } from '../types';
-import type { AccountActivityServiceMethodActions } from './AccountActivityService-method-action-types';
 import type {
   WebSocketConnectionInfo,
   BackendWebSocketServiceConnectionStateChangedEvent,
@@ -94,8 +93,8 @@ export type AccountActivityServiceOptions = {
 // Action and Event Types
 // =============================================================================
 
-// Action types for the messaging system - using generated method actions
-export type AccountActivityServiceActions = AccountActivityServiceMethodActions;
+// Action types for the messaging system
+export type AccountActivityServiceActions = never;
 
 // Allowed actions that AccountActivityService can call on other controllers
 export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
