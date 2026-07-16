@@ -1,7 +1,9 @@
-import { TERMINAL_API_CONFIG } from '../../../src/constants/perpsConfig';
-import { TerminalMarketService } from '../../../src/services/TerminalMarketService';
-import type { PerpsPlatformDependencies } from '../../../src/types';
-import { createMockInfrastructure } from '../../helpers/serviceMocks';
+import { jest } from '@jest/globals';
+
+import { TERMINAL_API_CONFIG } from '../../../src/constants/perpsConfig.js';
+import { TerminalMarketService } from '../../../src/services/TerminalMarketService.js';
+import type { PerpsPlatformDependencies } from '../../../src/types/index.js';
+import { createMockInfrastructure } from '../../helpers/serviceMocks.js';
 
 describe('TerminalMarketService', () => {
   let mockDeps: jest.Mocked<PerpsPlatformDependencies>;

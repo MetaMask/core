@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 /* eslint-disable */
 import type { PerpsPlatformDependencies } from '@metamask/perps-controller';
 

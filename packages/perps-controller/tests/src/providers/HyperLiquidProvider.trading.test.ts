@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 /* eslint-disable */
 jest.mock('@nktkas/hyperliquid', () => ({}));
 

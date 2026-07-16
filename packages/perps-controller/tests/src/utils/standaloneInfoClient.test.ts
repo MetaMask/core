@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 /* eslint-disable */
 import { HttpTransport, InfoClient } from '@nktkas/hyperliquid';
 

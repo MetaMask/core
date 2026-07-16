@@ -3,6 +3,13 @@ import { hasProperty, Hex, isHexString } from '@metamask/utils';
 import { HIP3_ASSET_ID_CONFIG } from '../constants/hyperLiquidConfig.js';
 import { DECIMAL_PRECISION_CONFIG } from '../constants/perpsConfig.js';
 import type {
+  AssetPosition,
+  FrontendOrder,
+  ClearinghouseStateResponse,
+  MetaResponse,
+  SDKOrderParams,
+} from '../types/hyperliquid-types.js';
+import type {
   AccountState,
   MarketInfo,
   Order,
@@ -11,13 +18,6 @@ import type {
   RawLedgerUpdate,
   UserHistoryItem,
 } from '../types/index.js';
-import type {
-  AssetPosition,
-  FrontendOrder,
-  ClearinghouseStateResponse,
-  MetaResponse,
-  SDKOrderParams,
-} from '../types/hyperliquid-types.js';
 import {
   countSignificantFigures,
   roundToSignificantFigures,

@@ -12,16 +12,16 @@ import {
 } from '../constants/hyperLiquidConfig.js';
 import { PERPS_CONSTANTS } from '../constants/perpsConfig.js';
 import type {
-  PerpsMarketData,
-  MarketType,
-  MarketDataFormatters,
-} from '../types/index.js';
-import type {
   AllMidsResponse,
   PerpsUniverse,
   PerpsAssetCtx,
   PredictedFunding,
 } from '../types/hyperliquid-types.js';
+import type {
+  PerpsMarketData,
+  MarketType,
+  MarketDataFormatters,
+} from '../types/index.js';
 import { parseAssetName } from './hyperLiquidAdapter.js';
 
 /**

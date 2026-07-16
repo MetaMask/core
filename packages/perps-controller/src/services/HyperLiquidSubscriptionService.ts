@@ -22,6 +22,12 @@ import {
   PERPS_CONSTANTS,
   ABSTRACTION_MODE_REFRESH_THROTTLE_MS,
 } from '../constants/perpsConfig.js';
+import type {
+  SpotClearinghouseStateResponse,
+  HyperLiquidAbstractionMode,
+  UserAbstractionResponse,
+} from '../types/hyperliquid-types.js';
+import { hyperLiquidModeFoldsSpot } from '../types/hyperliquid-types.js';
 import { WebSocketConnectionState } from '../types/index.js';
 import type {
   PriceUpdate,
@@ -41,12 +47,6 @@ import type {
   PerpsPlatformDependencies,
   PerpsLogger,
 } from '../types/index.js';
-import type {
-  SpotClearinghouseStateResponse,
-  HyperLiquidAbstractionMode,
-  UserAbstractionResponse,
-} from '../types/hyperliquid-types.js';
-import { hyperLiquidModeFoldsSpot } from '../types/hyperliquid-types.js';
 import {
   addSpotBalanceToAccountState,
   calculateWeightedReturnOnEquity,

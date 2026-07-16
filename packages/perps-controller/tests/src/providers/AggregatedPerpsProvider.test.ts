@@ -1,13 +1,15 @@
-import { CandlePeriod } from '../../../src/constants/chartConfig';
-import { AggregatedPerpsProvider } from '../../../src/providers/AggregatedPerpsProvider';
+import { jest } from '@jest/globals';
+
+import { CandlePeriod } from '../../../src/constants/chartConfig.js';
+import { AggregatedPerpsProvider } from '../../../src/providers/AggregatedPerpsProvider.js';
 import type {
   PerpsProvider,
   PerpsProviderType,
   Position,
   MarketInfo,
   Order,
-} from '../../../src/types';
-import { WebSocketConnectionState } from '../../../src/types';
+} from '../../../src/types/index.js';
+import { WebSocketConnectionState } from '../../../src/types/index.js';
 /* eslint-disable */
 import { createMockInfrastructure } from '../../helpers/serviceMocks';
 

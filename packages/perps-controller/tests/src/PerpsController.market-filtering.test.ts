@@ -1,9 +1,9 @@
+import { jest } from '@jest/globals';
 /**
  * Tests for PerpsController market filtering, sorting, and pagination:
  * - getMarketCategories()
  * - getMarketDataWithPrices({ categories, sortBy, direction, limit })
  */
-
 /* eslint-disable */
 
 import {

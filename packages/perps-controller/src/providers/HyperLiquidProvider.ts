@@ -49,6 +49,17 @@ import {
   TradingReadinessCache,
   PerpsSigningCache,
 } from '../services/TradingReadinessCache.js';
+import type {
+  SDKOrderParams,
+  MetaResponse,
+  PerpsAssetCtx,
+  SpotMetaResponse,
+} from '../types/hyperliquid-types.js';
+import {
+  HL_ABSTRACTION_WIRE,
+  HL_UNIFIED_ACCOUNT_MODE,
+  hyperLiquidModeFoldsSpot,
+} from '../types/hyperliquid-types.js';
 import { PerpsAnalyticsEvent } from '../types/index.js';
 import type {
   AccountState,
@@ -112,17 +123,6 @@ import type {
   RawLedgerUpdate,
   PerpsReadOptions,
 } from '../types/index.js';
-import type {
-  SDKOrderParams,
-  MetaResponse,
-  PerpsAssetCtx,
-  SpotMetaResponse,
-} from '../types/hyperliquid-types.js';
-import {
-  HL_ABSTRACTION_WIRE,
-  HL_UNIFIED_ACCOUNT_MODE,
-  hyperLiquidModeFoldsSpot,
-} from '../types/hyperliquid-types.js';
 import type { PerpsControllerMessengerBase } from '../types/messenger.js';
 import type {
   ExtendedAssetMeta,

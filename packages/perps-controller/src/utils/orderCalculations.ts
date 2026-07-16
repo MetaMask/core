@@ -6,8 +6,8 @@ import {
   ORDER_SLIPPAGE_CONFIG,
 } from '../constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
-import type { PerpsDebugLogger } from '../types/index.js';
 import type { SDKOrderParams } from '../types/hyperliquid-types.js';
+import type { PerpsDebugLogger } from '../types/index.js';
 import {
   formatHyperLiquidPrice,
   formatHyperLiquidSize,

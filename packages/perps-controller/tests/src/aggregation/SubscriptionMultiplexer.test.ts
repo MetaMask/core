@@ -1,4 +1,6 @@
-import { SubscriptionMultiplexer } from '../../../src/aggregation/SubscriptionMultiplexer';
+import { jest } from '@jest/globals';
+
+import { SubscriptionMultiplexer } from '../../../src/aggregation/SubscriptionMultiplexer.js';
 /* eslint-disable */
 import type {
   PerpsProvider,

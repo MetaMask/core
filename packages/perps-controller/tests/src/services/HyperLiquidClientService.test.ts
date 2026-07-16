@@ -1,10 +1,9 @@
+import { jest } from '@jest/globals';
 /* eslint-disable */
-
 /* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Unit tests for HyperLiquidClientService
  */
-
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { CandlePeriod } from '../../../src/constants/chartConfig';

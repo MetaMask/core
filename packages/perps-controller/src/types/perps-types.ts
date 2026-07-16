@@ -1,7 +1,7 @@
 /**
  * Test result states for SDK validation
  */
-import { CandlePeriod } from '../constants/chartConfig';
+import { CandlePeriod } from '../constants/chartConfig.js';
 
 // Order type enumeration
 export type OrderType = 'market' | 'limit';
@@ -71,10 +71,10 @@ export type {
   TradingDefaultsConfig,
   FeeRatesConfig,
   HyperLiquidNetwork,
-} from './config';
+} from './config.js';
 
 // Token types
-export type { PerpsToken } from './token';
+export type { PerpsToken } from './token.js';
 
 /**
  * Order form state for the Perps order view

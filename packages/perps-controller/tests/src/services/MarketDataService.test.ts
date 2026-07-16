@@ -1,6 +1,8 @@
-import type { CandlePeriod } from '../../../src/constants/chartConfig';
-import { MarketDataService } from '../../../src/services/MarketDataService';
-import type { ServiceContext } from '../../../src/services/ServiceContext';
+import { jest } from '@jest/globals';
+
+import type { CandlePeriod } from '../../../src/constants/chartConfig.js';
+import { MarketDataService } from '../../../src/services/MarketDataService.js';
+import type { ServiceContext } from '../../../src/services/ServiceContext.js';
 import type {
   PerpsProvider,
   Position,
@@ -16,9 +18,9 @@ import type {
   PerpsMarketData,
   PerpsTerminalMarketService,
   TerminalAssetMetadata,
-} from '../../../src/types';
-import type { CandleData } from '../../../src/types/perps-types';
-import { resetPerpsRestCacheForTests } from '../../../src/utils/coalescePerpsRestRequest';
+} from '../../../src/types/index.js';
+import type { CandleData } from '../../../src/types/perps-types.js';
+import { resetPerpsRestCacheForTests } from '../../../src/utils/coalescePerpsRestRequest.js';
 /* eslint-disable */
 import {
   createMockHyperLiquidProvider,

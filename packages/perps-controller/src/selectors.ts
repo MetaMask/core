@@ -6,7 +6,10 @@ import {
   SortOptionId,
 } from './constants/perpsConfig.js';
 import type { PerpsControllerState } from './PerpsController.js';
-import type { PerpsSelectedPaymentToken, SortDirection } from './types/index.js';
+import type {
+  PerpsSelectedPaymentToken,
+  SortDirection,
+} from './types/index.js';
 
 /**
  * Select whether the user is a first-time perps user

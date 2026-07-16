@@ -8,7 +8,10 @@ import {
 } from '../constants/hyperLiquidConfig.js';
 import { HYPERLIQUID_ORDER_LIMITS } from '../constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
-import type { GetSupportedPathsParams, PerpsDebugLogger } from '../types/index.js';
+import type {
+  GetSupportedPathsParams,
+  PerpsDebugLogger,
+} from '../types/index.js';
 
 /**
  * Optional debug logger for validation functions.

@@ -1,9 +1,9 @@
+import { jest } from '@jest/globals';
 /* eslint-disable */
 /**
  * PerpsController Tests
  * Clean, focused test suite for PerpsController
  */
-
 import {
   GasFeeEstimateLevel,
   GasFeeEstimateType,

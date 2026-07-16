@@ -18,12 +18,12 @@ import {
   PERPS_CONSTANTS,
 } from '../constants/perpsConfig.js';
 import { PERPS_ERROR_CODES } from '../perpsErrorCodes.js';
+import type { HyperLiquidNetwork } from '../types/config.js';
 import { WebSocketConnectionState } from '../types/index.js';
 import type {
   SubscribeCandlesParams,
   PerpsPlatformDependencies,
 } from '../types/index.js';
-import type { HyperLiquidNetwork } from '../types/config.js';
 import type { CandleData } from '../types/perps-types.js';
 import { coalescePerpsRestRequest } from '../utils/coalescePerpsRestRequest.js';
 import { ensureError, isAbortError } from '../utils/errorUtils.js';

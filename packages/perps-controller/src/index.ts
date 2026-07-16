@@ -508,7 +508,10 @@ export {
   getMarketMatchRank,
 } from './utils/index.js';
 export { MarketMatchRank } from './utils/index.js';
-export type { MarketPatternMatcher, CompiledMarketPattern } from './utils/index.js';
+export type {
+  MarketPatternMatcher,
+  CompiledMarketPattern,
+} from './utils/index.js';
 export type {
   OrderCalculationsDebugLogger,
   CalculateFinalPositionSizeParams,
