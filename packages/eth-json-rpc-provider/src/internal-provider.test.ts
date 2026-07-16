@@ -1,4 +1,7 @@
 import { Web3Provider } from '@ethersproject/providers';
+import { jest } from '@jest/globals';
+import { jest } from '@jest/globals';
+import { jest } from '@jest/globals';
 import EthQuery from '@metamask/eth-query';
 import EthJsQuery from '@metamask/ethjs-query';
 import { asV2Middleware, JsonRpcEngine } from '@metamask/json-rpc-engine';
@@ -15,7 +18,7 @@ import { promisify } from 'util';
 import {
   InternalProvider,
   convertEip1193RequestToJsonRpcRequest,
-} from './internal-provider';
+} from './internal-provider.js';
 
 jest.mock('uuid');
 
