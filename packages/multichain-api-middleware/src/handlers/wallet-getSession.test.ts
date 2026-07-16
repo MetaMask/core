@@ -1,7 +1,8 @@
+import { jest } from '@jest/globals';
 import * as chainAgnosticPermissionModule from '@metamask/chain-agnostic-permission';
 import type { JsonRpcRequest } from '@metamask/utils';
 
-import { walletGetSessionHandler } from './wallet-getSession';
+import { walletGetSessionHandler } from './wallet-getSession.js';
 
 jest.mock('@metamask/chain-agnostic-permission', () => ({
   ...jest.requireActual('@metamask/chain-agnostic-permission'),

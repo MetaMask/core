@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import type {
   Caip25Authorization,
   NormalizedScopesObject,
@@ -18,7 +19,7 @@ import type {
   JsonRpcSuccess,
 } from '@metamask/utils';
 
-import { walletCreateSessionHandler } from './wallet-createSession';
+import { walletCreateSessionHandler } from './wallet-createSession.js';
 
 jest.mock('@metamask/rpc-errors', () => ({
   ...jest.requireActual('@metamask/rpc-errors'),
