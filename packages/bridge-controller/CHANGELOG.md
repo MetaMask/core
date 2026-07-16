@@ -47,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9168](https://github.com/MetaMask/core/pull/9168))
 - **BREAKING:** Require `migrationPhase` on `selectBridgeQuotes` / `selectBatchSellQuotes` client params ([#9744](https://github.com/MetaMask/core/pull/9744))
   - `V1Data` (`'1'`): omit API V2 currency metadata; serve legacy `calcQuoteMetadata`
   - `V2WithV1Fallback` (`'1.5'`): prefer API V2 metadata (plus fiat from `usd`); fall back to legacy

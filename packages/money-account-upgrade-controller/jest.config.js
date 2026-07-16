@@ -20,5 +20,4 @@ module.exports = merge(baseConfig, {
       statements: 100,
     },
   },
-  testEnvironment: '<rootDir>/jest.environment.js',
 });

@@ -37,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9168](https://github.com/MetaMask/core/pull/9168))
 - Preserve backend provider ranking metadata in `RampsService.getProviders` and `RampsController.getProviders` responses. ([#9955](https://github.com/MetaMask/core/pull/9955))
 - Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.0.0` ([#9945](https://github.com/MetaMask/core/pull/9945))
 - Bump `@metamask/remote-feature-flag-controller` from `^5.0.0` to `^6.1.0` ([#9945](https://github.com/MetaMask/core/pull/9945), [#9980](https://github.com/MetaMask/core/pull/9980))
