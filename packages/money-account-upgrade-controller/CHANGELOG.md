@@ -14,7 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The constructor now accepts an optional `state` option, merged with the defaults; add `getDefaultMoneyAccountUpgradeControllerState` to construct those defaults.
 - Add `upgradeAccountWithRetry` method and matching `MoneyAccountUpgradeController:upgradeAccountWithRetry` messenger action ([#9500](https://github.com/MetaMask/core/pull/9500))
   - Retries failed `upgradeAccount` attempts with capped exponential backoff (10s, 20s, 40s, then 60s between attempts; 5 attempts by default). Terminal failures and non-step errors are rethrown without retrying. Accepts an `AbortSignal` to cancel waiting between attempts.
-- Add `TerminalUpgradeError` and `isTerminalMoneyAccountUpgradeError`, and a `terminal` property on `MoneyAccountUpgradeStepError`, marking failures that cannot resolve by retrying — currently an account delegated to a third-party EIP-7702 implementation, or an account with unexpected on-chain code ([#9500](https://github.com/MetaMask/core/pull/9500))
+- Add `TerminalUpgradeError` and `isTerminalMoneyAccountUpgradeError`, and a `terminal` property on `MoneyAccountUpgradeStepError`, marking failures that cannot resolve by retrying — currently an account delegated to a third-party EIP-7702 implementation, an account with unexpected on-chain code, or an address confirmed to be associated with a different CHOMP profile ([#9500](https://github.com/MetaMask/core/pull/9500))
 
 ### Changed
 
