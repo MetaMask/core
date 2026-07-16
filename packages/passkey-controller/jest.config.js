@@ -7,7 +7,6 @@ const displayName = path.basename(__dirname);
 
 module.exports = merge(baseConfig, {
   displayName,
-  testEnvironment: '<rootDir>/jest.environment.js',
   coverageThreshold: {
     global: {
       branches: 99.27,
