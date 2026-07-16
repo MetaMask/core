@@ -22,6 +22,7 @@
     "dist/",
     "v2.js"
   ],
+  "type": "module",
   "sideEffects": false,
   "exports": {
     ".": {

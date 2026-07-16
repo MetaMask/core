@@ -19,6 +19,7 @@
     "dist",
     "dist/"
   ],
+  "type": "module",
   "sideEffects": false,
   "exports": {
     ".": {
