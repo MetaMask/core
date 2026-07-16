@@ -38,11 +38,11 @@ import type {
   ExtractCaveat,
   ExtractCaveats,
   ExtractCaveatValue,
-} from './Caveat';
+} from './Caveat.js';
 import {
   decorateWithCaveats,
   isRestrictedMethodCaveatSpecification,
-} from './Caveat';
+} from './Caveat.js';
 import {
   CaveatAlreadyExistsError,
   CaveatDoesNotExistError,
@@ -70,7 +70,7 @@ import {
   UnrecognizedCaveatTypeError,
   UnrecognizedSubjectError,
   userRejectedRequest,
-} from './errors';
+} from './errors.js';
 import type {
   EndowmentSpecificationConstraint,
   ExtractAllowedCaveatTypes,
@@ -86,16 +86,16 @@ import type {
   SideEffectHandler,
   ValidPermission,
   ValidPermissionSpecification,
-} from './Permission';
+} from './Permission.js';
 import {
   constructPermission,
   findCaveat,
   hasSpecificationType,
   PermissionType,
-} from './Permission';
-import type { PermissionControllerMethodActions } from './PermissionController-method-action-types';
-import type { SubjectMetadataControllerGetSubjectMetadataAction } from './SubjectMetadataController-method-action-types';
-import { collectUniqueAndPairedCaveats, MethodNames } from './utils';
+} from './Permission.js';
+import type { PermissionControllerMethodActions } from './PermissionController-method-action-types.js';
+import type { SubjectMetadataControllerGetSubjectMetadataAction } from './SubjectMetadataController-method-action-types.js';
+import { collectUniqueAndPairedCaveats, MethodNames } from './utils.js';
 
 /**
  * Flags for controlling the validation behavior of certain internal methods.
@@ -1895,9 +1895,7 @@ export class PermissionController<
     >,
   ): void {
     this.update((draftState) => {
-      if (!draftState.subjects[origin]) {
-        draftState.subjects[origin] = { origin, permissions: {} };
-      }
+      draftState.subjects[origin] ??= { origin, permissions: {} };
 
       draftState.subjects[origin].permissions = castDraft(permissions);
     });

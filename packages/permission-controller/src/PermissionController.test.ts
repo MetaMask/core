@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { isPlainObject } from '@metamask/controller-utils';
 import { JsonRpcEngine } from '@metamask/json-rpc-engine';
@@ -16,6 +17,7 @@ import {
 } from '@metamask/utils';
 import assert from 'assert';
 
+import * as errors from './errors.js';
 import {
   AsyncRestrictedMethod,
   Caveat,
@@ -33,7 +35,7 @@ import {
   RestrictedMethodOptions,
   RestrictedMethodParameters,
   ValidPermission,
-} from '.';
+} from './index.js';
 import {
   CaveatMutatorOperation,
   constructPermission,
@@ -42,10 +44,9 @@ import {
   MethodNames,
   PermissionController,
   PermissionType,
-} from '.';
-import * as errors from './errors';
-import type { EndowmentGetterParams } from './Permission';
-import { SubjectType } from './SubjectMetadataController';
+} from './index.js';
+import type { EndowmentGetterParams } from './Permission.js';
+import { SubjectType } from './SubjectMetadataController.js';
 
 // Caveat types and specifications
 
@@ -5907,8 +5908,7 @@ describe('PermissionController', () => {
 
       expect(
         Object.keys(
-          // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
-          messenger.call('PermissionController:getPermissions', 'foo')!,
+          messenger.call('PermissionController:getPermissions', 'foo'),
         ),
       ).toStrictEqual(['wallet_getSecretArray']);
 

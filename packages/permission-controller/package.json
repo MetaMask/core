@@ -61,6 +61,7 @@
     "nanoid": "^3.3.8"
   },
   "devDependencies": {
+    "@jest/globals": "^30.4.1",
     "@metamask/auto-changelog": "^6.1.0",
     "@types/jest": "^29.5.14",
     "deepmerge": "^4.2.2",
