@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import type { AccountGroupId } from '@metamask/account-api';
 import { SNAP_KEYRING_TYPE } from '@metamask/eth-snap-keyring';
 import type { SnapMessage } from '@metamask/eth-snap-keyring';
@@ -42,9 +43,9 @@ import type { TruncatedSnap } from '@metamask/snaps-utils';
 import type {
   SnapAccountServiceMessenger,
   SnapAccountServiceOptions,
-} from './SnapAccountService';
-import { SnapAccountService } from './SnapAccountService';
-import type { AccountGroupObject } from './types';
+} from './SnapAccountService.js';
+import { SnapAccountService } from './SnapAccountService.js';
+import type { AccountGroupObject } from './types.js';
 
 jest.mock('@metamask/keyring-internal-snap-client/v2');
 

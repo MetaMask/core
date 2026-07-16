@@ -40,8 +40,8 @@ import {
   isKeyringNotFoundError,
   KeyringTypes,
 } from '@metamask/keyring-controller';
-import { KeyringInternalSnapClient } from '@metamask/keyring-internal-snap-client/v2';
 import type { KeyringInternalSnapClientMessenger } from '@metamask/keyring-internal-snap-client';
+import { KeyringInternalSnapClient } from '@metamask/keyring-internal-snap-client/v2';
 import { SnapManageAccountsMethod } from '@metamask/keyring-snap-sdk';
 import type {
   AccountId,
@@ -66,7 +66,7 @@ import { SnapId } from '@metamask/snaps-sdk';
 import type { Json } from '@metamask/utils';
 import { assertStruct } from '@metamask/utils';
 
-import { projectLogger as log } from './logger';
+import { projectLogger as log } from './logger.js';
 import type {
   SnapAccountServiceEnsureReadyAction,
   SnapAccountServiceEnsureMigratedAction,
@@ -78,10 +78,10 @@ import type {
   SnapAccountServiceHandleKeyringSnapMessageAction,
   SnapAccountServiceResolveAccountAddressAction,
   SnapAccountServiceSetSelectedAccountsAction,
-} from './SnapAccountService-method-action-types';
-import { SnapPlatformWatcher } from './SnapPlatformWatcher';
-import type { SnapPlatformWatcherConfig } from './SnapPlatformWatcher';
-import { SnapTracker } from './SnapTracker';
+} from './SnapAccountService-method-action-types.js';
+import { SnapPlatformWatcher } from './SnapPlatformWatcher.js';
+import type { SnapPlatformWatcherConfig } from './SnapPlatformWatcher.js';
+import { SnapTracker } from './SnapTracker.js';
 import type {
   AccountTreeControllerGetAccountGroupObjectAction,
   AccountTreeControllerGetSelectedAccountGroupAction,
@@ -90,7 +90,7 @@ import type {
   AccountTreeControllerAccountGroupUpdatedEvent,
   AccountTreeControllerAccountGroupRemovedEvent,
   AccountGroupObject,
-} from './types';
+} from './types.js';
 
 /**
  * The name of the {@link SnapAccountService}, used to namespace the service's
@@ -333,7 +333,6 @@ export class SnapAccountService {
    * @param groupId - The ID of the newly selected account group.
    */
   #handleSelectedAccountGroupChange(groupId: AccountGroupId | ''): void {
-    // eslint-disable-next-line no-void
     void this.#forwardSelectedAccounts(
       groupId,
       this.#getAccountGroup(groupId)?.accounts,
@@ -346,7 +345,6 @@ export class SnapAccountService {
    * keyring.
    */
   #handleUnlock(): void {
-    // eslint-disable-next-line no-void
     void this.ensureMigrated()
       .then(async () => {
         // If the migration is successful, we re-forward the current groups to each new keyrings!
@@ -369,7 +367,6 @@ export class SnapAccountService {
    */
   #handleAccountGroupCreatedOrUpdated(group: AccountGroupObject): void {
     if (group.id === this.#getSelectedAccountGroupId()) {
-      // eslint-disable-next-line no-void
       void this.#forwardSelectedAccounts(group.id, group.accounts);
     }
   }
@@ -382,7 +379,6 @@ export class SnapAccountService {
    */
   #handleAccountGroupRemoved(groupId: AccountGroupId): void {
     if (groupId === this.#getSelectedAccountGroupId()) {
-      // eslint-disable-next-line no-void
       void this.#forwardSelectedAccounts(
         groupId,
         [], // Clearing accounts since the group is removed

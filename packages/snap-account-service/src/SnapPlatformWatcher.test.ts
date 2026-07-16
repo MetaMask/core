@@ -1,4 +1,4 @@
-/* eslint-disable no-void */
+import { jest } from '@jest/globals';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MockAnyNamespace,
@@ -8,8 +8,8 @@ import type {
 import type { SnapControllerState } from '@metamask/snaps-controllers';
 import { createDeferredPromise } from '@metamask/utils';
 
-import type { SnapAccountServiceMessenger } from './SnapAccountService';
-import { SnapPlatformWatcher } from './SnapPlatformWatcher';
+import type { SnapAccountServiceMessenger } from './SnapAccountService.js';
+import { SnapPlatformWatcher } from './SnapPlatformWatcher.js';
 
 type RootMessenger = Messenger<
   MockAnyNamespace,

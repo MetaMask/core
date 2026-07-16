@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { SnapAccountService } from './SnapAccountService';
+import type { SnapAccountService } from './SnapAccountService.js';
 
 /**
  * Returns the IDs of all currently tracked account-management Snaps —
