@@ -10,7 +10,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Bump `@metamask/account-tree-controller` from `^7.5.3` to `7.5.4` ([#9429](https://github.com/MetaMask/core/pull/9429))
-<<<<<<< HEAD
 - Gate HIP-3 markets to USDC collateral only, following HyperLiquid's USDH sunset (TAT-3304) ([#9530](https://github.com/MetaMask/core/pull/9530))
   - Market discovery (`getMarkets`) now filters a HIP-3 DEX out entirely when its collateral token positively resolves to something other than USDC, so such a market can never be surfaced to trade, even via an allowlist entry naming the DEX.
   - Placing an order on a non-USDC-collateral HIP-3 DEX now fails immediately with a new `UNSUPPORTED_COLLATERAL` error code instead of attempting the previous USDC→USDH auto-swap path.
@@ -20,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `assetCtxs` continues to populate funding, open interest, volume, and oracle price data, and no longer writes prices for any symbol `fastAssetCtxs` covers, so a slower `assetCtxs` batch tick can't overwrite a fresher `fastAssetCtxs` price; it remains the price source only for symbols outside `fastAssetCtxs`' coverage (e.g. HIP-3 DEX markets).
   - `fastAssetCtxs` is a single global subscription (the HyperLiquid SDK exposes no per-DEX variant): the first message is a full snapshot keyed by coin, and later messages contain diffs for only the coins that changed. Coins without an active price subscriber are ignored.
   - Established alongside the global `allMids` subscription, restored together on WebSocket reconnect, and torn down on `clearAll()`. Subscribe attempts use the same 3-attempt/500ms-backoff retry as `assetCtxs` for transient SDK errors.
+- Report the effective leverage (`positionUSD / marginUSD`, rounded to 1 decimal place) on `PERPS_POSITION_CLOSE_TRANSACTION` analytics instead of the configured `leverage.value`, and populate it for every close including TP/SL triggers ([#9471](https://github.com/MetaMask/core/pull/9471))
+- Emit an additional `partially_filled` `PERPS_TRADE_TRANSACTION` event with `order_size` (the final submitted size), `amount_filled`, and `remaining_amount` when an open trade fills for less than the size actually submitted to the exchange, mirroring the close path so partial fills are visible in analytics; classification uses the provider's post-normalization submitted size (returned as `OrderResult.submittedSize`) rather than the caller's pre-normalization `size`, so a complete fill of the normalized size is not misreported as partial; full fills are unchanged ([#9471](https://github.com/MetaMask/core/pull/9471))
+- Widen the `TradeAction` type to include `flip_long_to_short` and `flip_short_to_long` (already forwarded verbatim at runtime), so clients no longer need casts when deriving flip actions ([#9471](https://github.com/MetaMask/core/pull/9471))
+- Add `number_positions_closed` (the successful-close count) to the batch `PERPS_POSITION_CLOSE_TRANSACTION` summary event emitted by `closePositions`, which previously carried only status/completion_duration/bulk_action_id ([#9471](https://github.com/MetaMask/core/pull/9471))
 
 ### Removed
 
@@ -32,19 +35,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - The `allMids` handler now tracks a per-symbol `changedSymbols` set (replacing the previous all-or-nothing `hasUpdates` boolean) and only notifies subscribers of symbols whose price changed.
   - The `activeAssetCtx` handler now notifies only the subscribers of the symbol it just updated, instead of re-notifying every subscribed symbol on each tick.
   - This eliminates redundant reference-equal `PriceUpdate` deliveries to list-view subscribers (e.g. market overview, watchlist) whenever an unrelated symbol's fast-stream price ticks.
-=======
-- Report the effective leverage (`positionUSD / marginUSD`, rounded to 1 decimal place) on `PERPS_POSITION_CLOSE_TRANSACTION` analytics instead of the configured `leverage.value`, and populate it for every close including TP/SL triggers ([#9471](https://github.com/MetaMask/core/pull/9471))
-- Emit an additional `partially_filled` `PERPS_TRADE_TRANSACTION` event with `order_size` (the final submitted size), `amount_filled`, and `remaining_amount` when an open trade fills for less than the size actually submitted to the exchange, mirroring the close path so partial fills are visible in analytics; classification uses the provider's post-normalization submitted size (returned as `OrderResult.submittedSize`) rather than the caller's pre-normalization `size`, so a complete fill of the normalized size is not misreported as partial; full fills are unchanged ([#9471](https://github.com/MetaMask/core/pull/9471))
-- Widen the `TradeAction` type to include `flip_long_to_short` and `flip_short_to_long` (already forwarded verbatim at runtime), so clients no longer need casts when deriving flip actions ([#9471](https://github.com/MetaMask/core/pull/9471))
-- Add `number_positions_closed` (the successful-close count) to the batch `PERPS_POSITION_CLOSE_TRANSACTION` summary event emitted by `closePositions`, which previously carried only status/completion_duration/bulk_action_id ([#9471](https://github.com/MetaMask/core/pull/9471))
-
-### Fixed
-
 - Emit the failed Perp Risk Management analytics event when `updateMargin` receives a non-throwing `{ success: false }` provider result, which previously lost the terminal event (only the thrown-error path emitted it); the event fires exactly once per operation ([#9471](https://github.com/MetaMask/core/pull/9471))
 - Fix the CommonJS build inlining an absolute `file:` path in place of the `@nktkas/hyperliquid` specifier ([#9471](https://github.com/MetaMask/core/pull/9471))
   - `dist/services/HyperLiquidClientService.cjs` and `dist/utils/standaloneInfoClient.cjs` in `9.2.1` emitted `require("file:///home/runner/work/hyperliquid/hyperliquid/src/mod.ts")` instead of `require("@nktkas/hyperliquid")`, breaking any CommonJS/Jest/bundler consumer with "Cannot find module".
   - Root cause: `@nktkas/hyperliquid@0.33.0`+ ships `.d.ts` files carrying `/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/mod.ts" />` triple-slash directives (an artifact of its Deno/`dnt` build). `ts-bridge` uses that `amd-module` name as the CommonJS `require()` target, so the absolute path leaks into the emitted `.cjs`. A yarn patch (applied via monorepo `resolutions`) strips those directives so the build emits the bare `@nktkas/hyperliquid` specifier; the published dependency range stays `^0.33.1`.
->>>>>>> main
 
 ## [9.2.1]
 
