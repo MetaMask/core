@@ -64,7 +64,9 @@ import {
   splitCacheHits,
   resolveChainName,
   getPathnameFromUrl,
+  isAddressScanSupportedChain,
   isApprovalSupportedChain,
+  isTokenScanSupportedChain,
 } from './utils';
 
 export const PHISHING_CONFIG_BASE_URL =
@@ -1464,7 +1466,7 @@ export class PhishingController extends BaseController<
     const normalizedAddress = address.toLowerCase();
     const chain = resolveChainName(normalizedChainId);
 
-    if (!chain) {
+    if (!chain || !isAddressScanSupportedChain(chain)) {
       return {
         result_type: AddressScanResultType.ErrorResult,
         label: '',
@@ -1629,8 +1631,8 @@ export class PhishingController extends BaseController<
     const normalizedChainId = chainId.toLowerCase();
     const chain = resolveChainName(normalizedChainId);
 
-    if (!chain) {
-      console.warn(`Unknown chain ID: ${chainId}`);
+    if (!chain || !isTokenScanSupportedChain(chain)) {
+      console.warn(`Unsupported chain ID: ${chainId}`);
       return {};
     }
 

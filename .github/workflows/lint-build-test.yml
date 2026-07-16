@@ -42,6 +42,7 @@ jobs:
           - lint:teams
           - messenger-action-types:check
           - readme-content:check
+          - lint:tsconfigs:all
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3

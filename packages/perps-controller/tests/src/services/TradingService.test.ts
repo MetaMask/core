@@ -2200,6 +2200,84 @@ describe('TradingService', () => {
       );
     });
 
+    it('emits a failed Risk Management event on a non-throwing { success: false } result', async () => {
+      const mockResult = { success: false, error: 'Insufficient balance' };
+      mockProvider.updateMargin = jest.fn().mockResolvedValue(mockResult);
+
+      const result = await tradingService.updateMargin({
+        provider: mockProvider,
+        symbol: 'BTC',
+        amount: '100',
+        context: mockContext,
+      });
+
+      expect(result.success).toBe(false);
+
+      const riskCalls = (
+        mockDeps.metrics.trackPerpsEvent as jest.Mock
+      ).mock.calls.filter(
+        ([event]) => event === PerpsAnalyticsEvent.RiskManagement,
+      );
+      // Exactly one terminal Risk Management event, and it is the failure with
+      // the error message carried from the provider result.
+      expect(riskCalls).toHaveLength(1);
+      expect(riskCalls[0][1]).toEqual(
+        expect.objectContaining({
+          status: 'failed',
+          asset: 'BTC',
+          action: 'add_margin',
+          error_message: 'Insufficient balance',
+        }),
+      );
+    });
+
+    it('emits the failed Risk Management event exactly once on a thrown error', async () => {
+      mockProvider.updateMargin = jest
+        .fn()
+        .mockRejectedValue(new Error('Network error'));
+
+      await expect(
+        tradingService.updateMargin({
+          provider: mockProvider,
+          symbol: 'BTC',
+          amount: '100',
+          context: mockContext,
+        }),
+      ).rejects.toThrow('Network error');
+
+      const riskCalls = (
+        mockDeps.metrics.trackPerpsEvent as jest.Mock
+      ).mock.calls.filter(
+        ([event]) => event === PerpsAnalyticsEvent.RiskManagement,
+      );
+      expect(riskCalls).toHaveLength(1);
+      expect(riskCalls[0][1]).toEqual(
+        expect.objectContaining({ status: 'failed' }),
+      );
+    });
+
+    it('emits the Risk Management event exactly once on success', async () => {
+      const mockResult = { success: true };
+      mockProvider.updateMargin = jest.fn().mockResolvedValue(mockResult);
+
+      await tradingService.updateMargin({
+        provider: mockProvider,
+        symbol: 'BTC',
+        amount: '100',
+        context: mockContext,
+      });
+
+      const riskCalls = (
+        mockDeps.metrics.trackPerpsEvent as jest.Mock
+      ).mock.calls.filter(
+        ([event]) => event === PerpsAnalyticsEvent.RiskManagement,
+      );
+      expect(riskCalls).toHaveLength(1);
+      expect(riskCalls[0][1]).toEqual(
+        expect.objectContaining({ status: 'executed' }),
+      );
+    });
+
     it('updates state on success', async () => {
       const mockResult = { success: true };
       mockProvider.updateMargin = jest.fn().mockResolvedValue(mockResult);
@@ -2408,6 +2486,8 @@ describe('TradingService', () => {
           provider: mockProvider,
           position: mockPosition,
           trackingData: {
+            totalFee: 1,
+            marketPrice: 50000,
             entryPoint: 'position_view',
             discoverySource: 'banner',
             hlFeeRate: 0.00045,
@@ -2671,8 +2751,12 @@ describe('TradingService', () => {
       ).toEqual(expect.objectContaining({ metamask_fee: 2.5 }));
     });
 
-    it('adds leverage to the close event properties (TAT-3147)', async () => {
-      mockGetPositions.mockResolvedValue([mockClosePosition]);
+    it('adds effective leverage (positionUSD / marginUSD, 1 dp) to the close event properties', async () => {
+      // positionValue / marginUsed = 25000 / 2727 = 9.167… -> 9.2, which is the
+      // effective leverage rather than the configured leverage.value of 10.
+      mockGetPositions.mockResolvedValue([
+        { ...mockClosePosition, positionValue: '25000', marginUsed: '2727' },
+      ]);
       mockProvider.closePosition.mockResolvedValue({
         success: true,
         orderId: 'close-1',
@@ -2689,7 +2773,65 @@ describe('TradingService', () => {
 
       expect(
         findCall(PerpsAnalyticsEvent.PositionCloseTransaction, 'executed')?.[1],
-      ).toEqual(expect.objectContaining({ leverage: 10 }));
+      ).toEqual(expect.objectContaining({ leverage: 9.2 }));
+    });
+
+    it('populates effective leverage even when configured leverage is missing (TP/SL close)', async () => {
+      // TP/SL closes may carry no configured leverage.value; the effective
+      // leverage is still derived from positionValue / marginUsed = 20000 / 4000 = 5.
+      mockGetPositions.mockResolvedValue([
+        {
+          ...mockClosePosition,
+          positionValue: '20000',
+          marginUsed: '4000',
+          leverage: undefined as unknown as Position['leverage'],
+        },
+      ]);
+      mockProvider.closePosition.mockResolvedValue({
+        success: true,
+        orderId: 'close-2',
+        filledSize: '0.5',
+        averagePrice: '55000',
+      });
+
+      await tradingService.closePosition({
+        provider: mockProvider,
+        params: { symbol: 'BTC' },
+        context: { ...mockContext, getPositions: mockGetPositions },
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      expect(
+        findCall(PerpsAnalyticsEvent.PositionCloseTransaction, 'executed')?.[1],
+      ).toEqual(expect.objectContaining({ leverage: 5 }));
+    });
+
+    it('omits leverage (never NaN) when marginUsed is zero or non-finite', async () => {
+      // Guard against divide-by-zero / NaN: marginUsed '0' must not produce a
+      // leverage property at all (rather than Infinity / NaN).
+      mockGetPositions.mockResolvedValue([
+        { ...mockClosePosition, positionValue: '25000', marginUsed: '0' },
+      ]);
+      mockProvider.closePosition.mockResolvedValue({
+        success: true,
+        orderId: 'close-3',
+        filledSize: '0.5',
+        averagePrice: '55000',
+      });
+
+      await tradingService.closePosition({
+        provider: mockProvider,
+        params: { symbol: 'BTC' },
+        context: { ...mockContext, getPositions: mockGetPositions },
+        reportOrderToDataLake: mockReportOrderToDataLake,
+      });
+
+      const closeProps = findCall(
+        PerpsAnalyticsEvent.PositionCloseTransaction,
+        'executed',
+      )?.[1];
+      expect(closeProps).not.toHaveProperty('leverage');
+      expect(closeProps?.leverage).toBeUndefined();
     });
 
     describe('hl_fee_rate on trade + close (TAT-3149)', () => {
@@ -2747,6 +2889,351 @@ describe('TradingService', () => {
         expect(
           findCall(PerpsAnalyticsEvent.TradeTransaction, 'executed')?.[1],
         ).not.toHaveProperty('hl_fee_rate');
+      });
+    });
+
+    describe('partial fill on open trade', () => {
+      it('emits an additional partially_filled trade event with order_size, amount_filled, and remaining_amount from the submitted size', async () => {
+        mockProvider.placeOrder.mockResolvedValue({
+          success: true,
+          orderId: 'order-1',
+          filledSize: '4',
+          submittedSize: '10',
+          averagePrice: '50000',
+        });
+
+        await tradingService.placeOrder({
+          provider: mockProvider,
+          params: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '10',
+            orderType: 'market',
+          },
+          context: mockContext,
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        // Schema mirrors the close path: order_size = submitted size, the fill is
+        // reported via amount_filled, and remaining_amount = submitted - filled.
+        expect(
+          findCall(
+            PerpsAnalyticsEvent.TradeTransaction,
+            'partially_filled',
+          )?.[1],
+        ).toEqual(
+          expect.objectContaining({
+            order_size: 10,
+            amount_filled: 4,
+            remaining_amount: 6,
+          }),
+        );
+        // The terminal executed event still fires alongside it.
+        expect(
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'executed'),
+        ).toBeDefined();
+      });
+
+      it('does not emit a partially_filled event on a complete fill of the normalized submitted size', async () => {
+        // The provider rounds the requested size (params.size = 10) down to the
+        // normalized size it actually submits (9.99) and that fills completely.
+        // Classifying against params.size would spuriously flag this as partial;
+        // classifying against submittedSize must not.
+        mockProvider.placeOrder.mockResolvedValue({
+          success: true,
+          orderId: 'order-1',
+          filledSize: '9.99',
+          submittedSize: '9.99',
+          averagePrice: '50000',
+        });
+
+        await tradingService.placeOrder({
+          provider: mockProvider,
+          params: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '10',
+            orderType: 'market',
+          },
+          context: mockContext,
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        expect(
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'partially_filled'),
+        ).toBeUndefined();
+        expect(
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'executed'),
+        ).toBeDefined();
+      });
+
+      it('does not classify a partial fill when the provider omits submittedSize', async () => {
+        // Without a submitted size we cannot know the real baseline, so we emit
+        // no partially_filled event rather than guessing from params.size.
+        mockProvider.placeOrder.mockResolvedValue({
+          success: true,
+          orderId: 'order-1',
+          filledSize: '4',
+          averagePrice: '50000',
+        });
+
+        await tradingService.placeOrder({
+          provider: mockProvider,
+          params: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '10',
+            orderType: 'market',
+          },
+          context: mockContext,
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        expect(
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'partially_filled'),
+        ).toBeUndefined();
+        expect(
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'executed'),
+        ).toBeDefined();
+      });
+
+      it('does not leak amount_filled/remaining_amount onto the executed trade event', async () => {
+        mockProvider.placeOrder.mockResolvedValue({
+          success: true,
+          orderId: 'order-1',
+          filledSize: '4',
+          submittedSize: '10',
+          averagePrice: '50000',
+        });
+
+        await tradingService.placeOrder({
+          provider: mockProvider,
+          params: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '10',
+            orderType: 'market',
+          },
+          context: mockContext,
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        const executed = findCall(
+          PerpsAnalyticsEvent.TradeTransaction,
+          'executed',
+        )?.[1];
+        expect(executed).not.toHaveProperty('amount_filled');
+        expect(executed).not.toHaveProperty('remaining_amount');
+      });
+
+      it('computes remaining_amount with exact decimal math (no binary-float dust)', async () => {
+        // 10 - 9.7 evaluates to 0.30000000000000071 in binary floating point;
+        // the decimal (BigNumber) subtraction must report exactly 0.3.
+        mockProvider.placeOrder.mockResolvedValue({
+          success: true,
+          orderId: 'order-1',
+          filledSize: '9.7',
+          submittedSize: '10',
+          averagePrice: '50000',
+        });
+
+        await tradingService.placeOrder({
+          provider: mockProvider,
+          params: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '10',
+            orderType: 'market',
+          },
+          context: mockContext,
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        expect(
+          findCall(
+            PerpsAnalyticsEvent.TradeTransaction,
+            'partially_filled',
+          )?.[1],
+        ).toEqual(
+          expect.objectContaining({
+            order_size: 10,
+            amount_filled: 9.7,
+            remaining_amount: 0.3,
+          }),
+        );
+      });
+
+      it('classifies a partial fill when parseFloat would collapse the two sizes to equal', async () => {
+        // parseFloat('0.10000000000000001') === parseFloat('0.1') === 0.1, so a
+        // Number-based comparison would treat this as a full fill and skip the
+        // event; decimal comparison sees filled < submitted and classifies it.
+        mockProvider.placeOrder.mockResolvedValue({
+          success: true,
+          orderId: 'order-1',
+          filledSize: '0.1',
+          submittedSize: '0.10000000000000001',
+          averagePrice: '50000',
+        });
+
+        await tradingService.placeOrder({
+          provider: mockProvider,
+          params: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '0.10000000000000001',
+            orderType: 'market',
+          },
+          context: mockContext,
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        expect(
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'partially_filled'),
+        ).toBeDefined();
+      });
+
+      it('does not classify a partial fill when filledSize is not a finite number', async () => {
+        mockProvider.placeOrder.mockResolvedValue({
+          success: true,
+          orderId: 'order-1',
+          filledSize: 'not-a-number',
+          submittedSize: '10',
+          averagePrice: '50000',
+        });
+
+        await tradingService.placeOrder({
+          provider: mockProvider,
+          params: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '10',
+            orderType: 'market',
+          },
+          context: mockContext,
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        expect(
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'partially_filled'),
+        ).toBeUndefined();
+      });
+
+      it('does not classify a partial fill or emit any NaN size when submittedSize is not finite', async () => {
+        mockProvider.placeOrder.mockResolvedValue({
+          success: true,
+          orderId: 'order-1',
+          filledSize: '4',
+          submittedSize: 'not-a-number',
+          averagePrice: '50000',
+        });
+
+        await tradingService.placeOrder({
+          provider: mockProvider,
+          params: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '10',
+            orderType: 'market',
+          },
+          context: mockContext,
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        expect(
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'partially_filled'),
+        ).toBeUndefined();
+        // No emitted trade event carries a NaN size property.
+        const tradeCalls = (
+          mockDeps.metrics.trackPerpsEvent as jest.Mock
+        ).mock.calls.filter(
+          ([event]) => event === PerpsAnalyticsEvent.TradeTransaction,
+        );
+        for (const [, props] of tradeCalls) {
+          expect(Number.isNaN(props.order_size)).toBe(false);
+          expect(Number.isNaN(props.amount_filled)).toBe(false);
+          expect(Number.isNaN(props.remaining_amount)).toBe(false);
+        }
+      });
+
+      it('does not emit a partially_filled event for a failed result even when it carries sizes', async () => {
+        mockProvider.placeOrder.mockResolvedValue({
+          success: false,
+          error: 'boom',
+          filledSize: '4',
+          submittedSize: '10',
+        });
+
+        await tradingService.placeOrder({
+          provider: mockProvider,
+          params: {
+            symbol: 'BTC',
+            isBuy: true,
+            size: '10',
+            orderType: 'market',
+          },
+          context: mockContext,
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        // Classification is gated on success — a failed order never emits a
+        // partial event, even if the provider echoed filled/submitted sizes.
+        expect(
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'partially_filled'),
+        ).toBeUndefined();
+        expect(
+          findCall(PerpsAnalyticsEvent.TradeTransaction, 'failed'),
+        ).toBeDefined();
+      });
+    });
+
+    describe('number_positions_closed on batch close', () => {
+      it('carries the successful-close count on the batch close summary event', async () => {
+        mockGetPositions.mockResolvedValue([mockClosePosition]);
+        (mockProvider.closePositions as jest.Mock).mockResolvedValue({
+          success: true,
+          successCount: 2,
+          failureCount: 1,
+          results: [
+            { success: true, orderId: 'close-1', symbol: 'BTC' },
+            { success: true, orderId: 'close-2', symbol: 'ETH' },
+            { success: false, symbol: 'SOL', error: 'Insufficient liquidity' },
+          ],
+        });
+
+        await tradingService.closePositions({
+          provider: mockProvider,
+          params: { closeAll: true },
+          context: { ...mockContext, getPositions: mockGetPositions },
+        });
+
+        expect(mockDeps.metrics.trackPerpsEvent).toHaveBeenCalledWith(
+          PerpsAnalyticsEvent.PositionCloseTransaction,
+          expect.objectContaining({ number_positions_closed: 2 }),
+        );
+      });
+
+      it('does not add number_positions_closed to a single-position close event', async () => {
+        mockGetPositions.mockResolvedValue([mockClosePosition]);
+        mockProvider.closePosition.mockResolvedValue({
+          success: true,
+          orderId: 'close-1',
+          filledSize: '0.5',
+          averagePrice: '55000',
+        });
+
+        await tradingService.closePosition({
+          provider: mockProvider,
+          params: { symbol: 'BTC' },
+          context: { ...mockContext, getPositions: mockGetPositions },
+          reportOrderToDataLake: mockReportOrderToDataLake,
+        });
+
+        expect(
+          findCall(
+            PerpsAnalyticsEvent.PositionCloseTransaction,
+            'executed',
+          )?.[1],
+        ).not.toHaveProperty('number_positions_closed');
       });
     });
 

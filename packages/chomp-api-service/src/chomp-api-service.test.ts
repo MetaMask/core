@@ -45,8 +45,8 @@ describe('ChompApiService', () => {
       });
     });
 
-    it('returns the response on 409 without throwing', async () => {
-      nock(BASE_URL).post('/v1/auth/address').reply(409, {
+    it('returns the response when the address is already associated with the profile', async () => {
+      nock(BASE_URL).post('/v1/auth/address').reply(201, {
         address: '0xabc',
         status: 'active',
       });
@@ -60,7 +60,19 @@ describe('ChompApiService', () => {
       });
     });
 
-    it('throws on non-201/409 status', async () => {
+    it('throws when the address is associated with another profile (409)', async () => {
+      nock(BASE_URL).post('/v1/auth/address').reply(409, {
+        statusCode: 409,
+        message: 'Address is already associated with another profile',
+      });
+      const { service } = createService();
+
+      await expect(service.associateAddress(associateParams)).rejects.toThrow(
+        "POST /v1/auth/address failed with status '409'",
+      );
+    });
+
+    it('throws on non-OK status', async () => {
       nock(BASE_URL)
         .post('/v1/auth/address')
         .times(DEFAULT_MAX_RETRIES + 1)
@@ -80,6 +92,177 @@ describe('ChompApiService', () => {
 
       await expect(service.associateAddress(associateParams)).rejects.toThrow(
         'At path: address',
+      );
+    });
+  });
+
+  describe('getAssociatedAddresses', () => {
+    const addressEntry = {
+      profileId: 'p1',
+      address: '0xabc',
+      status: 'active',
+    };
+
+    it('sends a GET with auth headers and returns the address entries', async () => {
+      nock(BASE_URL)
+        .get('/v1/auth/address')
+        .matchHeader('Authorization', `Bearer ${MOCK_TOKEN}`)
+        .reply(200, [addressEntry]);
+      const { rootMessenger } = createService();
+
+      const result = await rootMessenger.call(
+        'ChompApiService:getAssociatedAddresses',
+      );
+
+      expect(result).toStrictEqual([addressEntry]);
+    });
+
+    it('returns an empty array when no addresses are associated', async () => {
+      nock(BASE_URL).get('/v1/auth/address').reply(200, []);
+      const { service } = createService();
+
+      const result = await service.getAssociatedAddresses();
+
+      expect(result).toStrictEqual([]);
+    });
+
+    it('lowercases returned addresses', async () => {
+      nock(BASE_URL)
+        .get('/v1/auth/address')
+        .reply(200, [
+          {
+            profileId: 'p1',
+            address: '0xABCdef1234567890ABCdef1234567890ABCdef12',
+            status: 'active',
+          },
+        ]);
+      const { service } = createService();
+
+      const result = await service.getAssociatedAddresses();
+
+      expect(result).toStrictEqual([
+        {
+          profileId: 'p1',
+          address: '0xabcdef1234567890abcdef1234567890abcdef12',
+          status: 'active',
+        },
+      ]);
+    });
+
+    it('rejects entries with a non-active status', async () => {
+      nock(BASE_URL)
+        .get('/v1/auth/address')
+        .reply(200, [{ profileId: 'p1', address: '0xabc', status: 'deleted' }]);
+      const { service } = createService();
+
+      await expect(service.getAssociatedAddresses()).rejects.toThrow(
+        'At path: 0.status',
+      );
+    });
+
+    it('does not serve results from cache', async () => {
+      nock(BASE_URL).get('/v1/auth/address').reply(200, []);
+      nock(BASE_URL).get('/v1/auth/address').reply(200, [addressEntry]);
+      const { service } = createService();
+
+      const first = await service.getAssociatedAddresses();
+      const second = await service.getAssociatedAddresses();
+
+      expect(first).toStrictEqual([]);
+      expect(second).toStrictEqual([addressEntry]);
+    });
+
+    it('does not share an in-flight request across different bearer tokens', async () => {
+      const tokens = ['profile-a-token', 'profile-b-token'];
+      const { service } = createService({
+        getBearerToken: async () => tokens.shift() ?? 'exhausted',
+      });
+      // The first profile's request is still in flight when the second
+      // profile's request is issued; the second must not be deduplicated
+      // onto the first, or it would receive the first profile's addresses.
+      nock(BASE_URL)
+        .get('/v1/auth/address')
+        .matchHeader('Authorization', 'Bearer profile-a-token')
+        .delay(100)
+        .reply(200, []);
+      nock(BASE_URL)
+        .get('/v1/auth/address')
+        .matchHeader('Authorization', 'Bearer profile-b-token')
+        .reply(200, [addressEntry]);
+
+      const [first, second] = await Promise.all([
+        service.getAssociatedAddresses(),
+        service.getAssociatedAddresses(),
+      ]);
+
+      expect(first).toStrictEqual([]);
+      expect(second).toStrictEqual([addressEntry]);
+    });
+
+    it('shares an in-flight request across calls with the same bearer token', async () => {
+      // A single interceptor: both concurrent same-profile calls must be
+      // served by one HTTP request.
+      nock(BASE_URL)
+        .get('/v1/auth/address')
+        .delay(100)
+        .reply(200, [addressEntry]);
+      const { service } = createService();
+
+      const [first, second] = await Promise.all([
+        service.getAssociatedAddresses(),
+        service.getAssociatedAddresses(),
+      ]);
+
+      expect(first).toStrictEqual([addressEntry]);
+      expect(second).toStrictEqual([addressEntry]);
+    });
+
+    it('does not leak the bearer token through cache update events', async () => {
+      nock(BASE_URL).get('/v1/auth/address').reply(200, [addressEntry]);
+      const { service, messenger } = createService();
+      const publishSpy = jest.spyOn(messenger, 'publish');
+
+      await service.getAssociatedAddresses();
+
+      expect(publishSpy).toHaveBeenCalled();
+      expect(JSON.stringify(publishSpy.mock.calls)).not.toContain(MOCK_TOKEN);
+    });
+
+    it('evicts the result from the cache once the call settles', async () => {
+      nock(BASE_URL).get('/v1/auth/address').reply(200, [addressEntry]);
+      const { service, messenger } = createService();
+      const publishSpy = jest.spyOn(messenger, 'publish');
+
+      await service.getAssociatedAddresses();
+      // Eviction (`cacheTime: 0`) is scheduled on a macrotask; let it run.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(publishSpy).toHaveBeenCalledWith(
+        'ChompApiService:cacheUpdated',
+        expect.objectContaining({ type: 'removed' }),
+      );
+    });
+
+    it('throws on non-OK status', async () => {
+      nock(BASE_URL)
+        .get('/v1/auth/address')
+        .times(DEFAULT_MAX_RETRIES + 1)
+        .reply(500);
+      const { service } = createService();
+
+      await expect(service.getAssociatedAddresses()).rejects.toThrow(
+        "GET /v1/auth/address failed with status '500'",
+      );
+    });
+
+    it('throws on malformed response', async () => {
+      nock(BASE_URL)
+        .get('/v1/auth/address')
+        .reply(200, JSON.stringify([{ bad: 'data' }]));
+      const { service } = createService();
+
+      await expect(service.getAssociatedAddresses()).rejects.toThrow(
+        'At path: 0.profileId',
       );
     });
   });
@@ -663,12 +846,17 @@ function createServiceMessenger(
  * @param args.options - The options that the service constructor takes. All are
  * optional and will be filled in with defaults as needed (including
  * `messenger`).
+ * @param args.getBearerToken - The handler for the
+ * `AuthenticationController:getBearerToken` action. Defaults to returning
+ * `MOCK_TOKEN`.
  * @returns The new service, root messenger, and service messenger.
  */
 function createService({
   options = {},
+  getBearerToken = async (): Promise<string> => MOCK_TOKEN,
 }: {
   options?: Partial<ConstructorParameters<typeof ChompApiService>[0]>;
+  getBearerToken?: () => Promise<string>;
 } = {}): {
   service: ChompApiService;
   rootMessenger: RootMessenger;
@@ -677,7 +865,7 @@ function createService({
   const rootMessenger = createRootMessenger();
   rootMessenger.registerActionHandler(
     'AuthenticationController:getBearerToken',
-    async () => MOCK_TOKEN,
+    getBearerToken,
   );
   const messenger = createServiceMessenger(rootMessenger);
   rootMessenger.delegate({

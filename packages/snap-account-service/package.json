@@ -44,6 +44,8 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/snap-account-service",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/snap-account-service",
+    "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
+    "lint:tsconfigs:fix": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
     "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --check",
     "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",
@@ -54,7 +56,6 @@
   },
   "dependencies": {
     "@metamask/account-api": "^1.0.4",
-    "@metamask/account-tree-controller": "^7.5.5",
     "@metamask/eth-snap-keyring": "^23.0.0",
     "@metamask/keyring-api": "^23.5.0",
     "@metamask/keyring-controller": "^27.1.0",

@@ -39,7 +39,10 @@ import {
 } from '../../network-controller/tests/helpers';
 import { formatAggregatorNames } from './assetsUtil';
 import { MUSD_ERC20_ADDRESS_LOWER } from './constants';
-import { TOKEN_END_POINT_API } from './token-service';
+import {
+  resetSuggestedOccurrenceFloorsCacheForTesting,
+  TOKEN_END_POINT_API,
+} from './token-service';
 import type { TokenDetectionControllerMessenger } from './TokenDetectionController';
 import {
   TokenDetectionController,
@@ -231,7 +234,10 @@ describe('TokenDetectionController', () => {
   const defaultSelectedAccount = createMockInternalAccount();
 
   beforeEach(async () => {
+    resetSuggestedOccurrenceFloorsCacheForTesting();
     nock(TOKEN_END_POINT_API)
+      .get('/v1/suggestedOccurrenceFloors')
+      .reply(200, { '1': 3, '59144': 1 })
       .get(getTokensPath(ChainId.mainnet))
       .reply(200, sampleTokenList)
       .get(
@@ -4072,7 +4078,7 @@ describe('TokenDetectionController', () => {
 function getTokensPath(chainId: Hex): string {
   return `/tokens/${convertHexToDecimal(
     chainId,
-  )}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false`;
+  )}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`;
 }
 
 type WithControllerCallback<ReturnValue> = ({

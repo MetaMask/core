@@ -1,7 +1,11 @@
 /* eslint-disable @typescript-eslint/explicit-function-return-type */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable jest/no-restricted-matchers */
-import { BridgeClientId, StatusTypes } from '@metamask/bridge-controller';
+import {
+  BridgeClientId,
+  StatusTypes,
+  UnifiedSwapBridgeEventName,
+} from '@metamask/bridge-controller';
 import type {
   GasFeeEstimates,
   TransactionMeta,
@@ -542,7 +546,7 @@ describe('BridgeStatusController (intent swaps)', () => {
   });
 
   it('intent polling: updates history, merges tx hashes, updates TC tx, and stops polling on COMPLETED', async () => {
-    const { controller, accountAddress, stopPollingSpy } = setup();
+    const { controller, accountAddress, messenger, stopPollingSpy } = setup();
 
     const orderUid = 'order-uid-2';
 
@@ -582,6 +586,14 @@ describe('BridgeStatusController (intent swaps)', () => {
     expect(updated.status.srcChain.txHash).toBe('0xnewhash');
 
     expect(stopPollingSpy).toHaveBeenCalledWith('poll-token-1');
+    const completedEventCall = (messenger.call as jest.Mock).mock.calls.find(
+      ([, eventName]) => eventName === UnifiedSwapBridgeEventName.Completed,
+    );
+    expect(completedEventCall?.[2]).toStrictEqual(
+      expect.objectContaining({
+        transaction_internal_id: 'intentDisplayTxId1',
+      }),
+    );
   });
 
   it('intent polling: maps PENDING to PENDING, falls back to txHash when metadata hashes empty', async () => {
