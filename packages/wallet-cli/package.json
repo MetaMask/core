@@ -35,6 +35,8 @@
     "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/wallet-cli",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/wallet-cli",
+    "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
+    "lint:tsconfigs:fix": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "yarn test:prepare && NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -45,6 +47,7 @@
   },
   "dependencies": {
     "@inquirer/confirm": "^6.0.11",
+    "@inquirer/password": "^5.1.1",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/remote-feature-flag-controller": "^4.2.2",
     "@metamask/rpc-errors": "^7.0.2",

@@ -155,15 +155,33 @@ describe('daemon-entry', () => {
     expect(process.exitCode).toBe(1);
   });
 
-  it('writes to stderr and sets exitCode when MM_WALLET_PASSWORD is missing', async () => {
+  it('passes password: undefined to createWallet when MM_WALLET_PASSWORD is absent', async () => {
     delete process.env.MM_WALLET_PASSWORD;
+    mockCreateWallet.mockResolvedValue(createMockWallet());
+    mockStartRpcSocketServer.mockResolvedValue(createMockHandle());
 
     await importDaemonEntry();
 
-    expect(stderrSpy).toHaveBeenCalledWith(
-      expect.stringContaining('MM_WALLET_PASSWORD'),
+    expect(mockCreateWallet).toHaveBeenCalledWith(
+      expect.objectContaining({ password: undefined }),
     );
-    expect(process.exitCode).toBe(1);
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it('passes password: undefined to createWallet when MM_WALLET_PASSWORD is an empty string', async () => {
+    process.env.MM_WALLET_PASSWORD = '';
+    mockCreateWallet.mockResolvedValue(createMockWallet());
+    mockStartRpcSocketServer.mockResolvedValue(createMockHandle());
+
+    await importDaemonEntry();
+
+    // An empty env var means "no password": daemon-entry treats it the same as
+    // an absent one and starts the daemon locked, so createWallet receives
+    // `undefined` rather than an (invalid) empty Password.
+    expect(mockCreateWallet).toHaveBeenCalledWith(
+      expect.objectContaining({ password: undefined }),
+    );
+    expect(process.exitCode).toBeUndefined();
   });
 
   it('writes to stderr and sets exitCode when MM_WALLET_SRP is missing', async () => {
@@ -195,7 +213,7 @@ describe('daemon-entry', () => {
     // (jest.isolateModulesAsync), so their class identity differs from any
     // import in this test file. Verify structurally via `.unwrap()`.
     const passedConfig = mockCreateWallet.mock.calls[0][0];
-    expect(passedConfig.password.unwrap()).toBe('pass');
+    expect(passedConfig.password?.unwrap()).toBe('pass');
     expect(passedConfig.srp.unwrap()).toBe(
       'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
     );
@@ -221,7 +239,7 @@ describe('daemon-entry', () => {
     // The captured values still reach createWallet (as opaque Password/Srp
     // instances, verified structurally via `.unwrap()`)...
     const passedConfig = mockCreateWallet.mock.calls[0][0];
-    expect(passedConfig.password.unwrap()).toBe('pass');
+    expect(passedConfig.password?.unwrap()).toBe('pass');
     expect(passedConfig.srp.unwrap()).toBe(
       'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
     );

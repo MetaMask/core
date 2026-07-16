@@ -7,6 +7,7 @@ import {
   DataServiceInvalidateQueriesAction,
   DataServiceCacheUpdatedEvent,
   DataServiceGranularCacheUpdatedEvent,
+  PersistenceConfiguration,
 } from '../src/BaseDataService';
 import { ExampleDataServiceMethodActions } from './ExampleDataService-method-action-types';
 
@@ -60,7 +61,12 @@ export class ExampleDataService extends BaseDataService<
 
   readonly #tokensBaseUrl = 'https://tokens.api.cx.metamask.io';
 
-  constructor(messenger: ExampleMessenger) {
+  constructor(
+    messenger: ExampleMessenger,
+    { persistenceConfig }: { persistenceConfig?: PersistenceConfiguration } = {
+      persistenceConfig: { maxAge: inMilliseconds(1, Duration.Day) },
+    },
+  ) {
     super({
       name: serviceName,
       messenger,
@@ -69,6 +75,7 @@ export class ExampleDataService extends BaseDataService<
         maxConsecutiveFailures: 3,
         backoff: new ConstantBackoff(0),
       },
+      persistenceConfig,
     });
 
     this.messenger.registerMethodActionHandlers(

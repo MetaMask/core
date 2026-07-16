@@ -31,6 +31,8 @@
     "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/messenger-cli",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/messenger-cli",
+    "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
+    "lint:tsconfigs:fix": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -52,6 +54,7 @@
     "oxfmt": "^0.44.0",
     "prettier": "^3.3.3",
     "ts-jest": "^29.2.5",
+    "tsx": "^4.20.5",
     "typescript": "~5.3.3"
   },
   "peerDependencies": {

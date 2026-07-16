@@ -58,10 +58,12 @@ async function main(): Promise<void> {
     throw new Error('INFURA_PROJECT_ID environment variable is required');
   }
 
+  // Password is optional: when absent, the daemon starts without unlocking
+  // the keyring (e.g. when the user prefers to call `mm wallet unlock`
+  // interactively rather than embed the password in their environment).
+  // First-run startup still requires a password; wallet-factory enforces
+  // that and surfaces a clear error.
   const passwordRaw = process.env.MM_WALLET_PASSWORD;
-  if (!passwordRaw) {
-    throw new Error('MM_WALLET_PASSWORD environment variable is required');
-  }
 
   const srpRaw = process.env.MM_WALLET_SRP;
   if (!srpRaw) {
@@ -73,7 +75,7 @@ async function main(): Promise<void> {
   delete process.env.MM_WALLET_PASSWORD;
   delete process.env.MM_WALLET_SRP;
 
-  const password = Password.from(passwordRaw);
+  const password = passwordRaw ? Password.from(passwordRaw) : undefined;
   const srp = Srp.from(srpRaw);
 
   await ensureOwnerOnlyDirectory(dataDir);

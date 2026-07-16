@@ -283,6 +283,68 @@ describe('QuoteStatusEntryStore', () => {
     });
   });
 
+  describe('getAllByTxMetaId', () => {
+    it('returns every entry sharing the txMetaId', () => {
+      const { store } = createStore();
+      store.put('quote-1:0xabc', createPutValue({ txMetaId: 'tx-1' }));
+      store.put(
+        'quote-2:0xabc',
+        createPutValue({
+          quoteId: 'quote-2',
+          srcTxHash: '0xabc',
+          txMetaId: 'tx-1',
+        }),
+      );
+      store.put(
+        'quote-3:0xdef',
+        createPutValue({
+          quoteId: 'quote-3',
+          srcTxHash: '0xdef',
+          txMetaId: 'tx-2',
+        }),
+      );
+
+      const matches = store.getAllByTxMetaId('tx-1');
+
+      expect(matches).toHaveLength(2);
+      expect(matches.map((entry) => entry.quoteId).sort()).toStrictEqual([
+        'quote-1',
+        'quote-2',
+      ]);
+    });
+
+    it('returns an empty array when no entry matches', () => {
+      const { store } = createStore();
+      store.put('quote-1:0xabc', createPutValue({ txMetaId: 'tx-1' }));
+
+      expect(store.getAllByTxMetaId('tx-missing')).toStrictEqual([]);
+    });
+
+    it('transitions stale matches to Expired but keeps them', () => {
+      const { store } = createStore();
+      store.put('quote-1:0xabc', createPutValue({ txMetaId: 'tx-1' }));
+      store.put(
+        'quote-2:0xabc',
+        createPutValue({
+          quoteId: 'quote-2',
+          srcTxHash: '0xabc',
+          txMetaId: 'tx-1',
+        }),
+      );
+      jest.spyOn(Date, 'now').mockReturnValue(NOW + TTL_MS + 1);
+
+      const matches = store.getAllByTxMetaId('tx-1');
+
+      expect(matches).toHaveLength(2);
+      expect(
+        matches.every(
+          (entry) => entry.status.state === QuoteStatusState.Expired,
+        ),
+      ).toBe(true);
+      expect(store.size).toBe(2);
+    });
+  });
+
   describe('update', () => {
     it('persists when the entry is still tracked', () => {
       const { store, onPersistUpdates } = createStore();
