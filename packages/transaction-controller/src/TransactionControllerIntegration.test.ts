@@ -1,4 +1,5 @@
 import type { TypedTransaction, TypedTxData } from '@ethereumjs/tx';
+import { jest } from '@jest/globals';
 import type { AccountsControllerActions } from '@metamask/accounts-controller';
 import type {
   ApprovalControllerActions,
@@ -35,14 +36,14 @@ import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote
 import assert from 'assert';
 import { v4 as uuidV4 } from 'uuid';
 
-import { jestAdvanceTime } from '../../../tests/helpers';
-import { mockNetwork } from '../../../tests/mock-network';
+import { jestAdvanceTime } from '../../../tests/helpers.js';
+import { mockNetwork } from '../../../tests/mock-network.js';
 import {
   buildAddNetworkFields,
   buildCustomNetworkClientConfiguration,
   buildUpdateNetworkCustomRpcEndpointFields,
-} from '../../network-controller/tests/helpers';
-import { getDefaultRemoteFeatureFlagControllerState } from '../../remote-feature-flag-controller/src/remote-feature-flag-controller';
+} from '../../network-controller/tests/helpers.js';
+import { getDefaultRemoteFeatureFlagControllerState } from '../../remote-feature-flag-controller/src/remote-feature-flag-controller.js';
 import {
   buildEthGasPriceRequestMock,
   buildEthBlockNumberRequestMock,
@@ -53,14 +54,14 @@ import {
   buildEthGetBlockByHashRequestMock,
   buildEthSendRawTransactionRequestMock,
   buildEthGetTransactionReceiptRequestMock,
-} from '../tests/JsonRpcRequestMocks';
+} from '../tests/JsonRpcRequestMocks.js';
 import type {
   TransactionControllerMessenger,
   TransactionControllerOptions,
-} from './TransactionController';
-import { TransactionController } from './TransactionController';
-import type { InternalAccount } from './types';
-import { TransactionStatus, TransactionType } from './types';
+} from './TransactionController.js';
+import { TransactionController } from './TransactionController.js';
+import type { InternalAccount } from './types.js';
+import { TransactionStatus, TransactionType } from './types.js';
 
 jest.mock('uuid', () => {
   const actual = jest.requireActual('uuid');
@@ -1316,9 +1317,7 @@ describe('TransactionController Integration', () => {
           ]);
           expect(secondNonceLockIfAcquired).toBeNull();
 
-          // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-          // eslint-disable-next-line @typescript-eslint/await-thenable
-          await firstNonceLock.releaseLock();
+          firstNonceLock.releaseLock();
           await jestAdvanceTime({ duration: 1 });
 
           secondNonceLockIfAcquired = await Promise.race([
@@ -1409,9 +1408,7 @@ describe('TransactionController Integration', () => {
       ]);
       expect(secondNonceLockIfAcquired).toBeNull();
 
-      // TODO: Either fix this lint violation or explain why it's necessary to ignore.
-      // eslint-disable-next-line @typescript-eslint/await-thenable
-      await firstNonceLock.releaseLock();
+      firstNonceLock.releaseLock();
       await jestAdvanceTime({ duration: 1 });
 
       secondNonceLockIfAcquired = await Promise.race([

@@ -1,21 +1,22 @@
+import { jest } from '@jest/globals';
 import type { Hex } from '@metamask/utils';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
+import { simulateTransactions } from '../api/simulation-api.js';
 import type {
   GasFeeToken,
   GetSimulationConfig,
   TransactionControllerMessenger,
   TransactionMeta,
-} from '..';
-import { simulateTransactions } from '../api/simulation-api';
-import { isNativeBalanceSufficientForGas } from './balance';
-import { doesChainSupportEIP7702 } from './eip7702';
-import { getEIP7702UpgradeContractAddress } from './feature-flags';
-import type { GetGasFeeTokensRequest } from './gas-fee-tokens';
+} from '../index.js';
+import { isNativeBalanceSufficientForGas } from './balance.js';
+import { doesChainSupportEIP7702 } from './eip7702.js';
+import { getEIP7702UpgradeContractAddress } from './feature-flags.js';
+import type { GetGasFeeTokensRequest } from './gas-fee-tokens.js';
 import {
   checkGasFeeTokenBeforePublish,
   getGasFeeTokens,
-} from './gas-fee-tokens';
+} from './gas-fee-tokens.js';
 
 jest.mock('../api/simulation-api');
 jest.mock('./eip7702');

@@ -1,8 +1,8 @@
-import { noop } from 'lodash';
+import { noop } from 'lodash-es';
 
-import type { TransactionMeta } from '..';
-import { flushPromises } from '../../../../tests/helpers';
-import { CollectPublishHook } from './CollectPublishHook';
+import { flushPromises } from '../../../../tests/helpers.js';
+import type { TransactionMeta } from '../index.js';
+import { CollectPublishHook } from './CollectPublishHook.js';
 
 const SIGNED_TX_MOCK = '0x123';
 const SIGNED_TX_2_MOCK = '0x456';
@@ -30,8 +30,8 @@ describe('CollectPublishHook', () => {
       const collectHook = new CollectPublishHook(2);
       const publishHook = collectHook.getHook();
 
-      publishHook(TRANSACTION_META_MOCK, SIGNED_TX_MOCK).catch(noop);
-      publishHook(TRANSACTION_META_2_MOCK, SIGNED_TX_2_MOCK).catch(noop);
+      void publishHook(TRANSACTION_META_MOCK, SIGNED_TX_MOCK).catch(noop);
+      void publishHook(TRANSACTION_META_2_MOCK, SIGNED_TX_2_MOCK).catch(noop);
 
       await flushPromises();
 
@@ -47,8 +47,8 @@ describe('CollectPublishHook', () => {
       const collectHook = new CollectPublishHook(2);
       const publishHook = collectHook.getHook();
 
-      publishHook(TRANSACTION_META_2_MOCK, SIGNED_TX_2_MOCK).catch(noop);
-      publishHook(TRANSACTION_META_MOCK, SIGNED_TX_MOCK).catch(noop);
+      void publishHook(TRANSACTION_META_2_MOCK, SIGNED_TX_2_MOCK).catch(noop);
+      void publishHook(TRANSACTION_META_MOCK, SIGNED_TX_MOCK).catch(noop);
 
       await flushPromises();
 

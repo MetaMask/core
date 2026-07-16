@@ -6,19 +6,19 @@ import type { Json } from '@metamask/utils';
 // This package purposefully relies on Node's EventEmitter module.
 // eslint-disable-next-line import-x/no-nodejs-modules
 import EventEmitter from 'events';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 
-import { createModuleLogger, projectLogger } from '../logger';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import type { TransactionMeta, TransactionReceipt } from '../types';
-import { TransactionStatus, TransactionType } from '../types';
+import { createModuleLogger, projectLogger } from '../logger.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import type { TransactionMeta, TransactionReceipt } from '../types.js';
+import { TransactionStatus, TransactionType } from '../types.js';
 import {
   getAcceleratedPollingParams,
   getTimeoutAttempts,
-} from '../utils/feature-flags';
-import { getChainId, rpcRequest } from '../utils/provider';
-import { extractRevert, OnChainFailureError } from '../utils/revert-reason';
-import { TransactionPoller } from './TransactionPoller';
+} from '../utils/feature-flags.js';
+import { getChainId, rpcRequest } from '../utils/provider.js';
+import { extractRevert, OnChainFailureError } from '../utils/revert-reason.js';
+import { TransactionPoller } from './TransactionPoller.js';
 
 /**
  * We wait this many blocks before emitting a 'transaction-dropped' event

@@ -5,16 +5,16 @@ import type { Hex } from '@metamask/utils';
 import { add0x, createModuleLogger } from '@metamask/utils';
 import BN from 'bn.js';
 
-import { projectLogger } from '../logger';
-import type { TransactionControllerMessenger } from '../TransactionController';
+import { projectLogger } from '../logger.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
 import type {
   Layer1GasFeeFlow,
   Layer1GasFeeFlowRequest,
   Layer1GasFeeFlowResponse,
   TransactionMeta,
-} from '../types';
-import { prepareTransaction } from '../utils/prepare';
-import { padHexToEvenLength, toBN } from '../utils/utils';
+} from '../types.js';
+import { prepareTransaction } from '../utils/prepare.js';
+import { padHexToEvenLength, toBN } from '../utils/utils.js';
 
 const log = createModuleLogger(projectLogger, 'oracle-layer1-gas-fee-flow');
 

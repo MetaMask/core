@@ -1,10 +1,14 @@
+import { jest } from '@jest/globals';
 import type { Hex } from '@metamask/utils';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 import type { GetSimulationConfig } from 'src';
 
-import { CHAIN_IDS, DELEGATION_MANAGER_ADDRESSES } from '../constants';
-import type { SimulationRequest, SimulationResponse } from './simulation-api';
-import { simulateTransactions } from './simulation-api';
+import { CHAIN_IDS, DELEGATION_MANAGER_ADDRESSES } from '../constants.js';
+import type {
+  SimulationRequest,
+  SimulationResponse,
+} from './simulation-api.js';
+import { simulateTransactions } from './simulation-api.js';
 
 const CHAIN_ID_MOCK = '0x1';
 const CHAIN_ID_MOCK_DECIMAL = 1;

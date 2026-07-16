@@ -7,7 +7,7 @@ import type { NetworkClientId, Provider } from '@metamask/network-controller';
 import type { Hex, Json } from '@metamask/utils';
 import type { Operation } from 'fast-json-patch';
 
-import type { TransactionControllerMessenger } from './TransactionController';
+import type { TransactionControllerMessenger } from './TransactionController.js';
 
 /**
  * Given a record, ensures that each property matches the `Json` type.

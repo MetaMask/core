@@ -1,15 +1,16 @@
+import { jest } from '@jest/globals';
 import type { GasFeeEstimates as GasFeeControllerEstimates } from '@metamask/gas-fee-controller';
 
-import type { TransactionControllerMessenger } from '../TransactionController';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
 import type {
   FeeMarketGasFeeEstimates,
   GasFeeFlow,
   GasPriceGasFeeEstimates,
   LegacyGasFeeEstimates,
   TransactionMeta,
-} from '../types';
-import { GasFeeEstimateType, TransactionStatus } from '../types';
-import { getGasFeeFlow, mergeGasFeeEstimates } from './gas-flow';
+} from '../types.js';
+import { GasFeeEstimateType, TransactionStatus } from '../types.js';
+import { getGasFeeFlow, mergeGasFeeEstimates } from './gas-flow.js';
 
 const TRANSACTION_META_MOCK: TransactionMeta = {
   id: '1',

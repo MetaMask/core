@@ -1,13 +1,13 @@
 import type { NetworkClientId } from '@metamask/network-controller';
-import { merge, pickBy } from 'lodash';
+import { merge, pickBy } from 'lodash-es';
 
-import { CHAIN_IDS } from '../constants';
-import { createModuleLogger, projectLogger } from '../logger';
-import type { TransactionControllerMessenger } from '../TransactionController';
-import type { TransactionMeta } from '../types';
-import { TransactionType } from '../types';
-import { rpcRequest } from './provider';
-import { validateIfTransactionUnapproved } from './utils';
+import { CHAIN_IDS } from '../constants.js';
+import { createModuleLogger, projectLogger } from '../logger.js';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import type { TransactionMeta } from '../types.js';
+import { TransactionType } from '../types.js';
+import { rpcRequest } from './provider.js';
+import { validateIfTransactionUnapproved } from './utils.js';
 
 const log = createModuleLogger(projectLogger, 'swaps');
 

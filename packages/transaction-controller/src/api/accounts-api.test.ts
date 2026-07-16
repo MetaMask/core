@@ -1,8 +1,9 @@
+import { jest } from '@jest/globals';
 import { successfulFetch } from '@metamask/controller-utils';
 
-import { FirstTimeInteractionError } from '../errors';
-import type { GetAccountAddressRelationshipRequest } from './accounts-api';
-import { getAccountAddressRelationship } from './accounts-api';
+import { FirstTimeInteractionError } from '../errors.js';
+import type { GetAccountAddressRelationshipRequest } from './accounts-api.js';
+import { getAccountAddressRelationship } from './accounts-api.js';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),

@@ -2354,13 +2354,13 @@ export class TransactionController extends BaseController<
           // are not fully satisfied. We check both txParams and the base
           // object as predicate keys can be either.
           if (key in transaction.txParams) {
-            // TODO: Replace `any` with type
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            if (predicate(transaction.txParams[key as any]) === false) {
+            if (
+              predicate(
+                transaction.txParams[key as keyof TransactionParams],
+              ) === false
+            ) {
               return false;
             }
-            // TODO: Replace `any` with type
-
           } else if (
             predicate(transaction[key as keyof TransactionMeta]) === false
           ) {

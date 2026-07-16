@@ -1,5 +1,6 @@
 import { Interface } from '@ethersproject/abi';
 import type { TransactionDescription } from '@ethersproject/abi';
+import { jest } from '@jest/globals';
 import {
   abiERC721,
   abiERC20,
@@ -8,14 +9,14 @@ import {
 } from '@metamask/metamask-eth-abis';
 import type { NetworkClientId } from '@metamask/network-controller';
 
-import type { TransactionControllerMessenger } from '../TransactionController';
-import { TransactionType } from '../types';
-import { DELEGATION_PREFIX } from './eip7702';
-import { rpcRequest } from './provider';
+import type { TransactionControllerMessenger } from '../TransactionController.js';
+import { TransactionType } from '../types.js';
+import { DELEGATION_PREFIX } from './eip7702.js';
+import { rpcRequest } from './provider.js';
 import {
   decodeTransactionData,
   determineTransactionType,
-} from './transaction-type';
+} from './transaction-type.js';
 
 jest.mock('./provider', () => ({
   rpcRequest: jest.fn(),
