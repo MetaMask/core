@@ -1,15 +1,32 @@
-import type { AccountWalletEntropyObject } from '../../wallet';
-import { BackupAndSyncAnalyticsEvent } from '../analytics';
-import type { BackupAndSyncContext, UserStorageSyncedWallet } from '../types';
-import { pushWalletToUserStorage } from '../user-storage/network-operations';
-import { compareAndSyncMetadata } from './metadata';
-import {
-  syncWalletMetadataAndCheckIfPushNeeded,
-  syncWalletMetadata,
-} from './wallet';
+import { jest } from '@jest/globals';
 
-jest.mock('./metadata');
-jest.mock('../user-storage/network-operations');
+import type { AccountWalletEntropyObject } from '../../wallet.js';
+import { BackupAndSyncAnalyticsEvent } from '../analytics/index.js';
+import type {
+  BackupAndSyncContext,
+  UserStorageSyncedWallet,
+} from '../types.js';
+
+jest.unstable_mockModule('./metadata', () => ({
+  compareAndSyncMetadata: jest.fn(),
+}));
+
+jest.unstable_mockModule('../user-storage/network-operations', () => ({
+  getWalletFromUserStorage: jest.fn(),
+  pushWalletToUserStorage: jest.fn(),
+  getAllGroupsFromUserStorage: jest.fn(),
+  getGroupFromUserStorage: jest.fn(),
+  pushGroupToUserStorage: jest.fn(),
+  pushGroupToUserStorageBatch: jest.fn(),
+  getAllLegacyUserStorageAccounts: jest.fn(),
+}));
+
+const { pushWalletToUserStorage } = await import(
+  '../user-storage/network-operations.js'
+);
+const { compareAndSyncMetadata } = await import('./metadata.js');
+const { syncWalletMetadataAndCheckIfPushNeeded, syncWalletMetadata } =
+  await import('./wallet.js');
 
 const mockCompareAndSyncMetadata =
   compareAndSyncMetadata as jest.MockedFunction<typeof compareAndSyncMetadata>;

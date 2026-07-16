@@ -64,6 +64,7 @@
     "lodash": "^4.17.21"
   },
   "devDependencies": {
+    "@jest/globals": "^30.4.1",
     "@metamask/account-api": "^1.0.4",
     "@metamask/auto-changelog": "^6.1.0",
     "@metamask/providers": "^22.1.0",
