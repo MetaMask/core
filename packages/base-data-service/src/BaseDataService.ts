@@ -8,7 +8,7 @@ import type {
   StorageServiceRemoveItemAction,
   StorageServiceSetItemAction,
 } from '@metamask/storage-service';
-import { Struct, validate } from '@metamask/superstruct';
+import { Struct } from '@metamask/superstruct';
 import { Duration, inMilliseconds } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
 import {
@@ -83,8 +83,8 @@ type DataServiceEvents<ServiceName extends string> =
   | DataServiceCacheUpdatedEvent<ServiceName>
   | DataServiceGranularCacheUpdatedEvent<ServiceName>;
 
-type AdditionalQueryOptions = {
-  struct?: Struct;
+type AdditionalQueryOptions<QueryFnData> = {
+  struct?: Struct<QueryFnData>;
 };
 
 // Defaults to apply to all data service queries if no default option specified
@@ -246,6 +246,7 @@ export class BaseDataService<
    *
    * @param options - The options defining the query. Keep in mind that `queryKey` and `queryFn` are required when using data services.
    * Additionally `retry` and `retryDelay` are not available, retries can be customized using the `servicePolicyOptions`.
+   * @param options.struct - An optional struct for validating the response of the query function.
    * @returns The query results.
    */
   protected async fetchQuery<
@@ -263,13 +264,14 @@ export class BaseDataService<
     >,
     'queryKey' | 'queryFn'
   > &
-    AdditionalQueryOptions): Promise<TData> {
+    AdditionalQueryOptions<TQueryFnData>): Promise<TData> {
     return this.#queryClient.fetchQuery({
       ...options,
       queryFn: (context) =>
+        // TODO: Consider if the validation should happen outside the policy executor
         this.#policy.execute(async () => {
-          const result = await options.queryFn(context);
-          return processQueryResponse(options.queryKey, result, struct);
+          const response = await options.queryFn(context);
+          return processQueryResponse(options.queryKey, response, struct);
         }),
     });
   }
@@ -279,6 +281,7 @@ export class BaseDataService<
    *
    * @param options - The options defining the query. Keep in mind that `queryKey` and `queryFn` are required when using data services.
    * Additionally `retry` and `retryDelay` are not available, retries can be customized using the `servicePolicyOptions`.
+   * @param options.struct - An optional struct for validating the response of the query function.
    * @param pageParam - An optional page parameter.
    * @returns The query result, exclusively the requested page is returned.
    */
@@ -299,7 +302,7 @@ export class BaseDataService<
       >,
       'queryKey' | 'queryFn'
     > &
-      AdditionalQueryOptions,
+      AdditionalQueryOptions<TQueryFnData>,
     pageParam?: TPageParam,
   ): Promise<TData> {
     const cache = this.#queryClient.getQueryCache();
@@ -313,12 +316,12 @@ export class BaseDataService<
         ...options,
         queryFn: (context) =>
           this.#policy.execute(async () => {
-            const result = await options.queryFn({
+            const response = await options.queryFn({
               ...context,
               pageParam: context.pageParam ?? pageParam,
             });
 
-            return processQueryResponse(options.queryKey, result, struct);
+            return processQueryResponse(options.queryKey, response, struct);
           }),
       });
 
