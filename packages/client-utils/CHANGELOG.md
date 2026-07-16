@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `createFormatters` factory with shared display formatters (`formatNumber`, `formatCurrency`, `formatCurrencyCompact`, `formatCurrencyWithMinThreshold`, `formatCurrencyTokenPrice`, `formatToken`, `formatTokenQuantity`, `formatTokenAmount`, `formatPercentWithMinThreshold`, `formatCompact`, `formatDateTime`) ([#9504](https://github.com/MetaMask/core/pull/9504))
+
 ## [1.1.0]
 
 ### Added
@@ -21,7 +25,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `createFormatters` factory with shared display formatters (`formatNumber`, `formatCurrency`, `formatCurrencyCompact`, `formatCurrencyWithMinThreshold`, `formatCurrencyTokenPrice`, `formatToken`, `formatTokenQuantity`, `formatTokenAmount`, `formatPercentWithMinThreshold`, `formatCompact`, `formatDateTime`) ([#9504](https://github.com/MetaMask/core/pull/9504))
 - Initial release of the `@metamask/client-utils` package for functions and utilities shared across MetaMask clients (extension and mobile) ([#9375](https://github.com/MetaMask/core/pull/9375))
 - Add transaction activity mappers and shared activity types ([#9376](https://github.com/MetaMask/core/pull/9376))
   - `mapApiTransaction` for mapping EVM API transactions to activity items
