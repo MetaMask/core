@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { MoneyAccountBalanceService } from './money-account-balance-service';
+import type { MoneyAccountBalanceService } from './money-account-balance-service.js';
 
 /**
  * Fetches the mUSD ERC-20 balance for the given account address via RPC.
