@@ -18,6 +18,7 @@ import type {
   AssetsControllerMessenger,
   AssetsControllerState,
 } from './AssetsController';
+import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
 import { PriceDataSource } from './data-sources/PriceDataSource';
 import { TokenDataSource } from './data-sources/TokenDataSource';
@@ -121,10 +122,16 @@ type WithControllerOptions = {
    * Required for tests that rely on asset tracking running (e.g. trace on unlock).
    */
   clientControllerState?: { isUiOpen: boolean };
+  /**
+   * When set, registers RemoteFeatureFlagController:getState so the controller can
+   * read feature flags (e.g. `assetsAccountsApiV6` gating the balances endpoint).
+   */
+  remoteFeatureFlags?: Record<string, unknown>;
   /** Extra options passed to AssetsController constructor (e.g. trace). */
   controllerOptions?: Partial<{
     trace: TraceCallback;
     priceDataSourceConfig: PriceDataSourceConfig;
+    accountsApiDataSourceConfig: AccountsApiDataSourceConfig;
     isEnabled: () => boolean;
     captureException: (error: Error) => void;
     tempMigrateAssetsInfoMetadataAssets3346: () => Assets3346MigrationState;
@@ -156,6 +163,7 @@ async function withController<ReturnValue>(
       state = {},
       isBasicFunctionality = (): boolean => true,
       clientControllerState,
+      remoteFeatureFlags,
       queryApiClient = createMockQueryApiClient(),
       controllerOptions = {},
     },
@@ -228,6 +236,17 @@ async function withController<ReturnValue>(
       'ClientController:getState',
       () => clientControllerState,
     );
+  }
+
+  if (remoteFeatureFlags !== undefined) {
+    (
+      messenger as {
+        registerActionHandler: (a: string, h: () => unknown) => void;
+      }
+    ).registerActionHandler('RemoteFeatureFlagController:getState', () => ({
+      remoteFeatureFlags,
+      cacheTimestamp: 0,
+    }));
   }
 
   const controller = new AssetsController({
@@ -876,6 +895,51 @@ describe('AssetsController', () => {
         expect(assets).toBeDefined();
         // When queryApiClient is not provided, no data sources run; result is from state
       });
+    });
+
+    // Endpoint selection from the flag is unit-tested in AccountsApiDataSource;
+    // this asserts the controller wires its messenger through so the
+    // `assetsAccountsApiV6` flag drives endpoint selection end-to-end.
+    it('routes to the Accounts API v6 endpoint when the assetsAccountsApiV6 remote flag is enabled', async () => {
+      const fetchV6MultiAccountBalances = jest.fn().mockResolvedValue({
+        accounts: [],
+        unprocessedNetworks: [],
+        unprocessedIncludeAssetIds: [],
+      });
+      const fetchV5MultiAccountBalances = jest.fn().mockResolvedValue({
+        balances: [],
+        unprocessedNetworks: [],
+      });
+
+      const queryApiClient = {
+        ...createMockQueryApiClient(),
+        accounts: {
+          fetchV2SupportedNetworks: jest.fn().mockResolvedValue({
+            fullSupport: [1],
+            partialSupport: [],
+          }),
+          fetchV6MultiAccountBalances,
+          fetchV5MultiAccountBalances,
+        },
+      } as unknown as ApiPlatformClient;
+
+      await withController(
+        {
+          queryApiClient,
+          remoteFeatureFlags: { assetsAccountsApiV6: { value: true } },
+        },
+        async ({ controller }) => {
+          await flushPromises();
+
+          await controller.getAssets([createMockInternalAccount()], {
+            chainIds: ['eip155:1'],
+            forceUpdate: true,
+          });
+
+          expect(fetchV6MultiAccountBalances).toHaveBeenCalled();
+          expect(fetchV5MultiAccountBalances).not.toHaveBeenCalled();
+        },
+      );
     });
 
     describe('pipeline splitting', () => {
