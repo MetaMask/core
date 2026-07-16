@@ -504,12 +504,12 @@
         var NO_POOL = '(no pool address)';
 
         function group(entries) {
-          // protocolId -> protocolName -> poolAddress -> positionType -> [entries]
+          // protocolId -> productName -> poolAddress -> positionType -> [entries]
           var tree = {};
           entries.forEach(function (e) {
             var m = e.raw.metadata || {};
             var pid = m.protocolId || '(no protocolId)';
-            var pname = m.protocolName || '(no protocolName)';
+            var pname = m.productName || '(no productName)';
             var pool = m.poolAddress || NO_POOL;
             var ptype = m.positionType || '(no positionType)';
             tree[pid] = tree[pid] || {};

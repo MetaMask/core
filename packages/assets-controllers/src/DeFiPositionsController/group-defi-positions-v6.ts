@@ -63,19 +63,24 @@ export type DeFiUnderlyingPosition = {
   positionType: DeFiPositionType;
   /** Address of the pool this position belongs to. */
   poolAddress: string;
+  /**
+   * Upstream grouping id from the API. Rows that share a `productName` can
+   * still carry distinct `groupId`s (e.g. multiple Pendle YT markets).
+   */
+  groupId: string;
   /** Token icon URL, when one can be built for the asset. */
   tokenImage?: string;
 };
 
 /**
  * A section of the details page, grouping positions that share the same
- * API `protocolName`. A single `protocolId` can have multiple names
- * (different pools/products under one protocol), so a group may contain
+ * API `productName`. A single `protocolId` can have multiple products
+ * (different pools/markets under one protocol), so a group may contain
  * several sections.
  */
 export type DeFiPositionDetailsSection = {
-  /** Section label from the API (`metadata.protocolName`). */
-  protocolName: string;
+  /** Section label from the API (`metadata.productName`). */
+  productName: string;
   positions: DeFiUnderlyingPosition[];
 };
 
@@ -85,8 +90,12 @@ export type DeFiPositionDetailsSection = {
  */
 export type DeFiProtocolPositionGroup = {
   protocolId: string;
-  /** Display name from the first position seen for this protocol. */
-  protocolName: string;
+  /**
+   * Product name from the first position seen for this protocol. Prefer
+   * `protocolId` for the list-row title; use section `productName`s for
+   * per-product detail headings.
+   */
+  productName: string;
   protocolIconUrl: string;
   chainId: CaipChainId;
   /**
@@ -98,7 +107,7 @@ export type DeFiProtocolPositionGroup = {
   iconGroup: DeFiPositionIconGroupItem[];
   /**
    * Detail sections consumed by the details page, one per distinct API
-   * `protocolName` under this `protocolId`.
+   * `productName` under this `protocolId`.
    */
   sections: DeFiPositionDetailsSection[];
 };
@@ -217,7 +226,7 @@ function toUnderlyingPosition(
 ): DeFiUnderlyingPosition {
   const assetId = balance.assetId as CaipAssetType;
   const { chainId } = parseCaipAssetType(assetId);
-  const { positionType, poolAddress } = balance.metadata;
+  const { positionType, poolAddress, groupId } = balance.metadata;
 
   return {
     assetId,
@@ -229,6 +238,7 @@ function toUnderlyingPosition(
     marketValue: getMarketValue(balance),
     positionType,
     poolAddress,
+    groupId,
     tokenImage: getDefiTokenImageUrl(assetId),
   };
 }
@@ -286,14 +296,14 @@ export function groupDeFiPositionsV6(
       }
 
       const position = toUnderlyingPosition(balance);
-      const { protocolId, protocolName, protocolIconUrl } = balance.metadata;
+      const { protocolId, productName, protocolIconUrl } = balance.metadata;
       const groupKey = `${position.chainId}#${protocolId}`;
 
       let group = groupsByKey.get(groupKey);
       if (!group) {
         group = {
           protocolId,
-          protocolName,
+          productName,
           protocolIconUrl,
           chainId: position.chainId,
           marketValue: 0,
@@ -315,11 +325,13 @@ export function groupDeFiPositionsV6(
         });
       }
 
+      // Sections are keyed by productName; distinct groupIds under the same
+      // product remain available on each underlying position.
       let section = group.sections.find(
-        (item) => item.protocolName === protocolName,
+        (item) => item.productName === productName,
       );
       if (!section) {
-        section = { protocolName, positions: [] };
+        section = { productName, positions: [] };
         group.sections.push(section);
       }
       section.positions.push(position);

@@ -94,12 +94,13 @@ export type V6DeFiPositionType = (typeof V6_DEFI_POSITION_TYPES)[number];
  */
 export type V6BalanceMetadata = {
   protocolId: string;
-  protocolName: string;
+  productName: string;
   description: string;
   protocolUrl: string;
   protocolIconUrl: string;
   positionType: V6DeFiPositionType;
   poolAddress: string;
+  groupId: string;
 };
 
 /**

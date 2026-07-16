@@ -112,12 +112,13 @@ function buildMockBalancesResponse(
             price: '2000',
             metadata: {
               protocolId: 'aave-v3',
-              protocolName: 'Aave V3',
+              productName: 'Aave V3',
               description: 'Aave V3 on ethereum',
               protocolUrl: 'https://aave.com/',
               protocolIconUrl: 'https://example.com/aave.png',
               positionType: 'deposit',
               poolAddress: '0xpool',
+              groupId: 'group-aave-1',
             },
           },
         ],
@@ -278,7 +279,7 @@ describe('DeFiPositionsControllerV2', () => {
       controller.state.allDeFiPositionsV2['evm-account-id'][0],
     ).toMatchObject({
       protocolId: 'aave-v3',
-      protocolName: 'Aave V3',
+      productName: 'Aave V3',
       chainId: 'eip155:1',
       marketValue: 2000,
     });
@@ -302,12 +303,13 @@ describe('DeFiPositionsControllerV2', () => {
                 price: '2000',
                 metadata: {
                   protocolId: 'aave-v3',
-                  protocolName: 'Aave V3',
+                  productName: 'Aave V3',
                   description: 'Aave V3 on ethereum',
                   protocolUrl: 'https://aave.com/',
                   protocolIconUrl: 'https://example.com/aave.png',
                   positionType: 'deposit',
                   poolAddress: '0xpool',
+                  groupId: 'group-aave-1',
                 },
               },
             ],

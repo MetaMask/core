@@ -5,12 +5,13 @@ import { groupDeFiPositionsV6 } from './group-defi-positions-v6';
 
 const AAVE_METADATA = {
   protocolId: 'aave-v3',
-  protocolName: 'Aave V3',
+  productName: 'Aave V3',
   description: 'Aave V3 on ethereum',
   protocolUrl: 'https://aave.com/',
   protocolIconUrl: 'https://example.com/aave.png',
   positionType: 'deposit',
   poolAddress: '0xpool',
+  groupId: 'group-aave-1',
 };
 
 const WETH_ASSET_ID =
@@ -96,7 +97,7 @@ describe('groupDeFiPositionsV6', () => {
 
     expect(ethGroup).toMatchObject({
       protocolId: 'aave-v3',
-      protocolName: 'Aave V3',
+      productName: 'Aave V3',
       protocolIconUrl: 'https://example.com/aave.png',
       chainId: 'eip155:1',
       marketValue: 2100,
@@ -234,7 +235,7 @@ describe('groupDeFiPositionsV6', () => {
             price: '1',
             metadata: {
               ...AAVE_METADATA,
-              protocolName: 'Aave V3 USDC',
+              productName: 'Aave V3 USDC',
             },
           },
           {
@@ -247,7 +248,7 @@ describe('groupDeFiPositionsV6', () => {
             price: '1',
             metadata: {
               ...AAVE_METADATA,
-              protocolName: 'Aave V3 USDT',
+              productName: 'Aave V3 USDT',
             },
           },
         ],
@@ -277,7 +278,7 @@ describe('groupDeFiPositionsV6', () => {
             price: '2000',
             metadata: {
               ...AAVE_METADATA,
-              protocolName: 'Aave V3 Supply',
+              productName: 'Aave V3 Supply',
               positionType: 'deposit',
             },
           },
@@ -291,7 +292,7 @@ describe('groupDeFiPositionsV6', () => {
             price: '1',
             metadata: {
               ...AAVE_METADATA,
-              protocolName: 'Aave V3 Borrow',
+              productName: 'Aave V3 Borrow',
               positionType: 'lending',
             },
           },
@@ -307,7 +308,7 @@ describe('groupDeFiPositionsV6', () => {
     expect(group.sections[1].positions[0].positionType).toBe('lending');
   });
 
-  it('creates separate detail sections per protocolName under one protocolId', () => {
+  it('creates separate detail sections per productName under one protocolId', () => {
     const response = buildResponse([
       {
         accountId: 'account-1',
@@ -322,7 +323,7 @@ describe('groupDeFiPositionsV6', () => {
             price: '2000',
             metadata: {
               ...AAVE_METADATA,
-              protocolName: 'Aave V3 Supply',
+              productName: 'Aave V3 Supply',
             },
           },
           {
@@ -335,7 +336,7 @@ describe('groupDeFiPositionsV6', () => {
             price: '1',
             metadata: {
               ...AAVE_METADATA,
-              protocolName: 'Aave V3 Borrow',
+              productName: 'Aave V3 Borrow',
               positionType: 'lending',
             },
           },
@@ -345,10 +346,10 @@ describe('groupDeFiPositionsV6', () => {
 
     const [group] = groupDeFiPositionsV6(response)['account-1'];
 
-    expect(group.protocolName).toBe('Aave V3 Supply');
+    expect(group.productName).toBe('Aave V3 Supply');
     expect(group.sections).toStrictEqual([
       {
-        protocolName: 'Aave V3 Supply',
+        productName: 'Aave V3 Supply',
         positions: [
           expect.objectContaining({
             symbol: 'WETH',
@@ -357,7 +358,7 @@ describe('groupDeFiPositionsV6', () => {
         ],
       },
       {
-        protocolName: 'Aave V3 Borrow',
+        productName: 'Aave V3 Borrow',
         positions: [
           expect.objectContaining({
             symbol: 'USDC',
@@ -453,8 +454,57 @@ describe('groupDeFiPositionsV6', () => {
       marketValue: 3000,
       positionType: 'deposit',
       poolAddress: '0xpool',
+      groupId: 'group-aave-1',
       tokenImage:
         'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/1/erc20/0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2.png',
     });
+  });
+
+  it('keeps distinct groupIds on positions that share a productName', () => {
+    const response = buildResponse([
+      {
+        accountId: 'account-1',
+        balances: [
+          {
+            category: 'defi',
+            assetId: WETH_ASSET_ID,
+            name: 'Wrapped Ether',
+            symbol: 'WETH',
+            decimals: 18,
+            balance: '1',
+            price: '2000',
+            metadata: {
+              ...AAVE_METADATA,
+              productName: 'Pendle YT',
+              groupId: 'group-yt-1',
+            },
+          },
+          {
+            category: 'defi',
+            assetId: USDC_ASSET_ID,
+            name: 'USD Coin',
+            symbol: 'USDC',
+            decimals: 6,
+            balance: '100',
+            price: '1',
+            metadata: {
+              ...AAVE_METADATA,
+              productName: 'Pendle YT',
+              poolAddress: '0xpool2',
+              groupId: 'group-yt-2',
+            },
+          },
+        ],
+      },
+    ]);
+
+    const [group] = groupDeFiPositionsV6(response)['account-1'];
+
+    expect(group.sections).toHaveLength(1);
+    expect(group.sections[0].productName).toBe('Pendle YT');
+    expect(group.sections[0].positions.map((p) => p.groupId)).toStrictEqual([
+      'group-yt-1',
+      'group-yt-2',
+    ]);
   });
 });

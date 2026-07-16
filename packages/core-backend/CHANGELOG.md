@@ -10,9 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Export `V6_DEFI_POSITION_TYPES` and inferred `V6DeFiPositionType`, and type `V6BalanceMetadata.positionType` with the Accounts API v6 DeFi position module values (`deposit`, `lending`, `yield`, `liquidity_pool`, `staked`, `leveraged_farming`, `nft_staked`, `farming`, `locked`, `vesting`, `rewards`, `investment`) ([#9503](https://github.com/MetaMask/core/pull/9503))
+- Add `groupId` to `V6BalanceMetadata` to match Accounts API v6 DeFi metadata ([#9503](https://github.com/MetaMask/core/pull/9503))
 
 ### Changed
 
+- **BREAKING:** Rename `V6BalanceMetadata.protocolName` to `productName` to match the Accounts API v6 DeFi metadata field ([#9503](https://github.com/MetaMask/core/pull/9503))
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 - Bump `@metamask/profile-sync-controller` from `^28.2.0` to `^28.3.0` ([#9463](https://github.com/MetaMask/core/pull/9463))
 - Bump `@metamask/accounts-controller` from `^39.0.4` to `^39.0.5` ([#9470](https://github.com/MetaMask/core/pull/9470))
