@@ -32,13 +32,14 @@ type DataServiceGranularCacheUpdatedHandler = (
 /**
  * The supertype of all messengers.
  *
- * This is loose on purpose: modeling the parameter as a fixed structural shape
- * whose `call` accepts an open-ended `${DataServiceName}:${string}` template
- * literal would force a concrete messenger's own generic `call` (bounded by its
- * declared action union) to accept action types it does not declare, which is
- * impossible. That is why the previous type only accepted a messenger by
- * coincidence — when every action it declared happened to belong to the
- * requested namespaces — and broke as soon as an unrelated namespace was added.
+ * Used as the upper bound for the messenger type variable so that any concrete
+ * {@link Messenger} can be passed, with {@link SupportsDataServices} layered on
+ * top to verify the required data service capabilities are present. We cannot
+ * instead require a fixed structural shape whose `call` accepts an open-ended
+ * `${DataServiceName}:${string}` template literal: a concrete messenger's own
+ * generic `call` is bounded by its declared action union, so it cannot accept
+ * action types it does not declare, and such a shape would reject any messenger
+ * that declares actions from additional namespaces.
  */
 type GenericMessenger = Messenger<
   string,
@@ -65,7 +66,11 @@ type SupportsDataServices<
   : never;
 
 /**
- * The narrow view of the messenger that `createUIQueryClient` uses internally.
+ * A messenger adapter: the narrow, messenger-like shape that
+ * `createUIQueryClient` interacts with. This is what the function uses
+ * internally, and it may also be passed in directly by callers that do not have
+ * a full {@link Messenger} instance (e.g. a hand-rolled object that forwards to
+ * some other transport).
  */
 type MessengerAdapter<DataServiceName extends string> = {
   /**
@@ -101,16 +106,40 @@ type MessengerAdapter<DataServiceName extends string> = {
 };
 
 /**
- * Create a QueryClient that queries and subscribes to data services using the messenger.
+ * Create a QueryClient that queries and subscribes to data services using a
+ * messenger adapter.
+ *
+ * This overload accepts a messenger adapter (see {@link MessengerAdapter}) —
+ * any object that exposes the `call`, `subscribe`, and `unsubscribe` methods
+ * for the designated data services. Use this when you do not have a full
+ * {@link Messenger} instance on hand.
  *
  * @param dataServices - A list of data services.
- * @param messenger - A messenger, with some constraints:
+ * @param messenger - A messenger adapter.
+ * @param config - Optional query client configuration options.
+ * @returns The QueryClient.
+ */
+export function createUIQueryClient<DataServiceNames extends readonly string[]>(
+  dataServices: DataServiceNames,
+  messenger: MessengerAdapter<DataServiceNames[number]>,
+  config?: QueryClientConfig,
+): QueryClient;
+
+/**
+ * Create a QueryClient that queries and subscribes to data services using a
+ * messenger.
+ *
+ * This overload accepts a full {@link Messenger} instance, with some
+ * constraints:
  * 1. The messenger must minimally support the `call`, `subscribe` and
  *    `unsubscribe` methods.
  * 2. All action handler arguments and event payloads must be JSON-compatible.
  * 3. The messenger must minimally support capabilities that belong to the
  *    designated data services and must minimally support the
  *    `:cacheUpdated:${hash}` event of the the designated data services.
+ *
+ * @param dataServices - A list of data services.
+ * @param messenger - A messenger.
  * @param config - Optional query client configuration options.
  * @returns The QueryClient.
  */
@@ -120,14 +149,14 @@ export function createUIQueryClient<
 >(
   dataServices: DataServiceNames,
   messenger: SupportsDataServices<MessengerInstance, DataServiceNames[number]>,
+  config?: QueryClientConfig,
+): QueryClient;
+
+export function createUIQueryClient<DataServiceNames extends readonly string[]>(
+  dataServices: DataServiceNames,
+  messenger: MessengerAdapter<DataServiceNames[number]>,
   config: QueryClientConfig = {},
 ): QueryClient {
-  // Type assertion: We've already verified that the messenger supports the
-  // capabilities we expect.
-  const narrowlyTypedMessenger = messenger as unknown as MessengerAdapter<
-    DataServiceNames[number]
-  >;
-
   const subscriptions = new Map<
     string,
     DataServiceGranularCacheUpdatedHandler
@@ -194,11 +223,16 @@ export function createUIQueryClient<
             "Queries must call actions on the messenger provided to createUIQueryClient, e.g. `queryKey: ['ExampleDataService:getAssets', ...]`.",
           );
 
-          return await narrowlyTypedMessenger.call(
-            action,
-            ...options.queryKey.slice(1),
-            options.pageParam,
-          );
+          const params = options.queryKey.slice(1);
+
+          // `pageParam` is only present for infinite (paginated) queries. For
+          // regular queries it is `undefined`, so we omit it to avoid passing a
+          // trailing `undefined` argument to the action handler.
+          if (options.pageParam !== undefined) {
+            params.push(options.pageParam);
+          }
+
+          return await messenger.call(action, ...params);
         },
       },
       mutations: config.defaultOptions?.mutations,
@@ -236,10 +270,7 @@ export function createUIQueryClient<
       };
 
       subscriptions.set(hash, cacheListener);
-      narrowlyTypedMessenger.subscribe(
-        `${service}:cacheUpdated:${hash}`,
-        cacheListener,
-      );
+      messenger.subscribe(`${service}:cacheUpdated:${hash}`, cacheListener);
     } else if (
       event.type === 'observerRemoved' &&
       observerCount === 0 &&
@@ -248,7 +279,7 @@ export function createUIQueryClient<
       const subscriptionListener = subscriptions.get(hash);
 
       if (subscriptionListener) {
-        narrowlyTypedMessenger.unsubscribe(
+        messenger.unsubscribe(
           `${service}:cacheUpdated:${hash}`,
           subscriptionListener,
         );
@@ -280,11 +311,7 @@ export function createUIQueryClient<
           return null;
         }
 
-        return narrowlyTypedMessenger.call(
-          `${service}:invalidateQueries`,
-          filters,
-          options,
-        );
+        return messenger.call(`${service}:invalidateQueries`, filters, options);
       }),
     );
 

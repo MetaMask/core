@@ -76,3 +76,19 @@ createUIQueryClient(
   // @ts-expect-error The messenger does not support `UnsupportedDataService`.
   messenger,
 );
+
+// "Assert" that `createUIQueryClient` also supports a messenger adapter as
+// opposed to a messenger instance.
+createUIQueryClient(['FirstDataService', 'SecondDataService'] as const, {
+  call(actionType, ...params) {
+    console.log(actionType, params);
+    // We don't care what the return type is.
+    return 42 as never;
+  },
+  subscribe(eventType, handler) {
+    console.log(eventType, handler);
+  },
+  unsubscribe(eventType, handler) {
+    console.log(eventType, handler);
+  },
+}) satisfies QueryClient;
