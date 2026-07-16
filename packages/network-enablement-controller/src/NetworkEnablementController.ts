@@ -166,7 +166,6 @@ const getDefaultNetworkEnablementControllerState =
         [ChainId[BuiltInNetworkName.BscMainnet]]: true,
         [ChainId[BuiltInNetworkName.OptimismMainnet]]: true,
         [ChainId[BuiltInNetworkName.PolygonMainnet]]: true,
-        [ChainId[BuiltInNetworkName.SeiMainnet]]: true,
         [ChainId[BuiltInNetworkName.MonadMainnet]]: true,
       },
       [KnownCaipNamespace.Solana]: {
