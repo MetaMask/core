@@ -1,4 +1,5 @@
 import { publicToAddress } from '@ethereumjs/util';
+import { jest } from '@jest/globals';
 import { isBip44Account } from '@metamask/account-api';
 import { HdKeyring as LegacyHdKeyring } from '@metamask/eth-hd-keyring';
 import { AccountCreationType, EthScope } from '@metamask/keyring-api';
@@ -16,7 +17,7 @@ import type {
 } from '@metamask/network-controller';
 import { add0x, bytesToHex } from '@metamask/utils';
 
-import { TraceName } from '../analytics/traces';
+import { TraceName } from '../analytics/traces.js';
 import {
   asKeyringAccount,
   getMultichainAccountServiceMessenger,
@@ -28,14 +29,14 @@ import {
   MockAccountBuilder,
   mockAsInternalAccount,
   RootMessenger,
-} from '../tests';
+} from '../tests/index.js';
 import {
   EVM_ACCOUNT_PROVIDER_DEFAULT_CONFIG,
   EVM_ACCOUNT_PROVIDER_NAME,
   EvmAccountProvider,
   EvmAccountProviderConfig,
-} from './EvmAccountProvider';
-import { TimeoutError } from './utils';
+} from './EvmAccountProvider.js';
+import { TimeoutError } from './utils.js';
 
 // Real HD root rooted at a valid BIP-39 test mnemonic so the address peeked via
 // `keyring.root.deriveChild(groupIndex)` matches the address that the mock's

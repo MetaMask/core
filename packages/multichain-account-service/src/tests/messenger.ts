@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MessengerActions,
@@ -5,7 +6,7 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
-import type { MultichainAccountServiceMessenger } from '../types';
+import type { MultichainAccountServiceMessenger } from '../types.js';
 
 export type AllMultichainAccountServiceActions =
   MessengerActions<MultichainAccountServiceMessenger>;
