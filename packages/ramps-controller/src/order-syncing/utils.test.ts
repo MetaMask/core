@@ -9,6 +9,7 @@ import {
   mapRampsOrderToUserStorageEntry,
   mapUserStorageEntryToRampsOrder,
   stripDeletedAt,
+  stripPaymentDetailsForRemoteStorage,
   stripSyncMetadata,
 } from './utils';
 
@@ -78,6 +79,15 @@ describe('order-syncing/utils', () => {
 
     it('returns an empty key when providerOrderId is missing', () => {
       expect(createOrderStorageKey({})).toBe('');
+    });
+
+    it('falls back to providerOrderId when /orders/ segment is empty', () => {
+      expect(
+        createOrderStorageKey({
+          id: '/providers/transak/orders/',
+          providerOrderId: 'real-id',
+        }),
+      ).toBe('real-id');
     });
   });
 
@@ -162,6 +172,39 @@ describe('order-syncing/utils', () => {
       const mapped = mapUserStorageEntryToRampsOrder(entry);
       expect(mapped.deletedAt).toBe(1700000002000);
     });
+
+    it('strips paymentDetails from remote storage payloads', () => {
+      const entry = mapRampsOrderToUserStorageEntry({
+        ...createMockOrder(),
+        paymentDetails: [
+          {
+            fiatCurrency: 'EUR',
+            paymentMethod: 'sepa',
+            fields: [{ name: 'IBAN', id: 'iban', value: 'DE00' }],
+          },
+        ],
+      });
+
+      expect(entry.o.paymentDetails).toBeUndefined();
+    });
+  });
+
+  describe('stripPaymentDetailsForRemoteStorage', () => {
+    it('omits paymentDetails while keeping other fields', () => {
+      const stripped = stripPaymentDetailsForRemoteStorage({
+        ...createMockOrder(),
+        paymentDetails: [
+          {
+            fiatCurrency: 'EUR',
+            paymentMethod: 'sepa',
+            fields: [{ name: 'IBAN', id: 'iban', value: 'DE00' }],
+          },
+        ],
+      });
+
+      expect(stripped.paymentDetails).toBeUndefined();
+      expect(stripped.providerOrderId).toBe('abc-123');
+    });
   });
 
   describe('stripSyncMetadata', () => {
@@ -203,6 +246,12 @@ describe('order-syncing/utils', () => {
       const a = createMockOrder({ fiatAmount: 100 });
       const b = createMockOrder({ fiatAmount: 200 });
       expect(areOrdersEqual(a, b)).toBe(false);
+    });
+
+    it('ignores object key insertion order', () => {
+      const a = { fiatAmount: 100, providerOrderId: 'x' } as RampsOrder;
+      const b = { providerOrderId: 'x', fiatAmount: 100 } as RampsOrder;
+      expect(areOrdersEqual(a, b)).toBe(true);
     });
   });
 });

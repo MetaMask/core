@@ -7,6 +7,10 @@ import type { SyncRampsOrder, UserStorageRampsOrderEntry } from './types';
  * Mirrors {@link getInternalOrderCode} without importing the controller module
  * (avoids circular dependencies).
  *
+ * Prefers a non-empty `/orders/<code>` suffix; otherwise falls back to a trimmed
+ * `providerOrderId`. An empty `/orders/` segment does not win over a real
+ * provider order id.
+ *
  * @param order - Order fields used to derive the internal order code.
  * @returns Storage entry key under the rampsOrders feature.
  */
@@ -15,7 +19,10 @@ export function createOrderStorageKey(
 ): string {
   const { id, providerOrderId } = order;
   if (id?.includes('/orders/')) {
-    return id.split('/orders/')[1];
+    const code = id.split('/orders/')[1]?.trim();
+    if (code) {
+      return code;
+    }
   }
   return providerOrderId?.trim() ?? '';
 }
@@ -29,10 +36,21 @@ export function createOrderStorageKey(
 export function isSyncableOrder(
   order: Pick<RampsOrder, 'id' | 'providerOrderId'>,
 ): boolean {
-  return Boolean(
-    order.providerOrderId?.trim() ||
-    (order.id?.includes('/orders/') && order.id.split('/orders/')[1]),
-  );
+  return createOrderStorageKey(order).length > 0;
+}
+
+/**
+ * Strips bank-transfer / PII-heavy payment details before persisting to User
+ * Storage. Local controller state may still keep `paymentDetails`.
+ *
+ * @param order - Order that may include payment details.
+ * @returns Order body safe for remote sync payloads.
+ */
+export function stripPaymentDetailsForRemoteStorage(
+  order: RampsOrder,
+): RampsOrder {
+  const { paymentDetails: _paymentDetails, ...safeOrder } = order;
+  return safeOrder;
 }
 
 /**
@@ -49,7 +67,7 @@ export function mapRampsOrderToUserStorageEntry(
 
   return {
     [USER_STORAGE_VERSION_KEY]: USER_STORAGE_VERSION,
-    o: rampsOrder,
+    o: stripPaymentDetailsForRemoteStorage(rampsOrder),
     lu: lastUpdatedAt ?? now,
     ...(deletedAt ? { dt: deletedAt } : {}),
   };
@@ -99,8 +117,35 @@ export function stripDeletedAt(order: SyncRampsOrder): SyncRampsOrder {
 }
 
 /**
- * Deep-compares two ramps orders by JSON serialization of their order bodies
- * (sync metadata excluded).
+ * JSON-stringifies values with object keys sorted so equality is stable across
+ * key insertion order.
+ *
+ * @param value - Value to serialize.
+ * @returns Stable JSON string.
+ */
+function stableStringify(value: unknown): string {
+  return JSON.stringify(value, (_key, nested) => {
+    if (
+      nested &&
+      typeof nested === 'object' &&
+      !Array.isArray(nested) &&
+      !(nested instanceof Date)
+    ) {
+      const record = nested as Record<string, unknown>;
+      return Object.keys(record)
+        .sort()
+        .reduce<Record<string, unknown>>((acc, key) => {
+          acc[key] = record[key];
+          return acc;
+        }, {});
+    }
+    return nested;
+  });
+}
+
+/**
+ * Deep-compares two ramps orders by stable JSON serialization of their order
+ * bodies (sync metadata excluded).
  *
  * @param a - First order.
  * @param b - Second order.
@@ -111,7 +156,7 @@ export function areOrdersEqual(
   b: SyncRampsOrder | RampsOrder,
 ): boolean {
   return (
-    JSON.stringify(stripSyncMetadata(a as SyncRampsOrder)) ===
-    JSON.stringify(stripSyncMetadata(b as SyncRampsOrder))
+    stableStringify(stripSyncMetadata(a as SyncRampsOrder)) ===
+    stableStringify(stripSyncMetadata(b as SyncRampsOrder))
   );
 }

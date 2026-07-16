@@ -10936,6 +10936,19 @@ describe('getInternalOrderCode', () => {
       getInternalOrderCode({ id: 'plain-id', providerOrderId: '  abc  ' }),
     ).toBe('abc');
   });
+
+  it('falls back to providerOrderId when /orders/ segment is empty', () => {
+    expect(
+      getInternalOrderCode({
+        id: '/providers/transak/orders/',
+        providerOrderId: 'real-id',
+      }),
+    ).toBe('real-id');
+  });
+
+  it('returns empty string for a string id with an empty /orders/ segment', () => {
+    expect(getInternalOrderCode('/providers/transak/orders/')).toBe('');
+  });
 });
 
 /**

@@ -15,6 +15,7 @@ export {
   isSyncableOrder,
   mapRampsOrderToUserStorageEntry,
   mapUserStorageEntryToRampsOrder,
+  stripPaymentDetailsForRemoteStorage,
   stripSyncMetadata,
   stripDeletedAt,
   areOrdersEqual,

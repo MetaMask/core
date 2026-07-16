@@ -5,6 +5,7 @@ import type {
 } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { BrokenCircuitError } from '@metamask/controller-utils';
+import type { TraceCallback } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
 import type {
   AuthenticationController,
@@ -698,6 +699,18 @@ export type RampsControllerOptions = {
    * `undefined` when omitted.
    */
   getDefaultRedirectUrl?: () => string | undefined;
+  /**
+   * Optional callback for order-sync parse/fetch/merge failures (e.g. Sentry).
+   * Context never includes full order JSON.
+   */
+  onOrderSyncErroneousSituation?: (
+    errorMessage: string,
+    sentryContext?: Record<string, unknown>,
+  ) => void;
+  /**
+   * Optional performance tracing callback used by order sync operations.
+   */
+  trace?: TraceCallback;
 };
 
 // === HELPER FUNCTIONS ===
@@ -776,14 +789,18 @@ export function getInternalOrderCode(
   orderOrId: Pick<RampsOrder, 'id' | 'providerOrderId'> | string,
 ): string {
   if (typeof orderOrId === 'string') {
-    return orderOrId.includes('/orders/')
-      ? orderOrId.split('/orders/')[1]
-      : orderOrId;
+    if (orderOrId.includes('/orders/')) {
+      return orderOrId.split('/orders/')[1]?.trim() || '';
+    }
+    return orderOrId.trim();
   }
 
   const { id, providerOrderId } = orderOrId;
   if (id?.includes('/orders/')) {
-    return id.split('/orders/')[1];
+    const code = id.split('/orders/')[1]?.trim();
+    if (code) {
+      return code;
+    }
   }
 
   return providerOrderId?.trim() ?? '';
@@ -891,6 +908,13 @@ export class RampsController extends BaseController<
    */
   readonly #getDefaultRedirectUrl: () => string | undefined;
 
+  readonly #onOrderSyncErroneousSituation?: (
+    errorMessage: string,
+    sentryContext?: Record<string, unknown>,
+  ) => void;
+
+  readonly #trace?: TraceCallback;
+
   /**
    * Map of pending requests for deduplication.
    * Key is the cache key, value is the pending request with abort controller.
@@ -923,6 +947,19 @@ export class RampsController extends BaseController<
   #isOrderSyncingInProgress = false;
 
   /**
+   * Orders deleted locally while a full sync held the semaphore. Drained at sync
+   * end so remote tombstones are still written.
+   */
+  readonly #pendingRemoteDeletes: Map<string, RampsOrder> = new Map();
+
+  /**
+   * Coalesces overlapping `syncOrdersWithUserStorage` calls into a follow-up run.
+   */
+  #orderSyncQueued = false;
+
+  #orderSyncPromise: Promise<void> | null = null;
+
+  /**
    * Whether a full order sync is currently applying remote changes.
    *
    * @returns Whether order sync is in progress.
@@ -933,11 +970,26 @@ export class RampsController extends BaseController<
 
   /**
    * Sets the order-syncing-in-progress semaphore.
+   * Used by the order-syncing module; hosts should not call this.
    *
    * @param value - Whether sync is in progress.
+   * @internal
    */
   setIsOrderSyncingInProgress(value: boolean): void {
     this.#isOrderSyncingInProgress = value;
+  }
+
+  /**
+   * Returns and clears orders deleted while a full sync was in progress.
+   * Used by the order-syncing module.
+   *
+   * @returns Pending deletes for remote tombstone upload.
+   * @internal
+   */
+  drainPendingRemoteDeletes(): RampsOrder[] {
+    const pending = [...this.#pendingRemoteDeletes.values()];
+    this.#pendingRemoteDeletes.clear();
+    return pending;
   }
 
   /**
@@ -983,6 +1035,8 @@ export class RampsController extends BaseController<
    * @param args.getDefaultRedirectUrl - Optional callback returning the default
    * redirect URL used for the widened quote fetch when the caller omits
    * `redirectUrl`. Defaults to a callback returning `undefined`.
+   * @param args.onOrderSyncErroneousSituation - Optional order-sync error reporter.
+   * @param args.trace - Optional performance tracing callback for order sync.
    */
   constructor({
     messenger,
@@ -990,6 +1044,8 @@ export class RampsController extends BaseController<
     requestCacheTTL = DEFAULT_REQUEST_CACHE_TTL,
     requestCacheMaxSize = DEFAULT_REQUEST_CACHE_MAX_SIZE,
     getDefaultRedirectUrl,
+    onOrderSyncErroneousSituation,
+    trace,
   }: RampsControllerOptions) {
     super({
       messenger,
@@ -1007,6 +1063,8 @@ export class RampsController extends BaseController<
     this.#requestCacheMaxSize = requestCacheMaxSize;
     this.#getDefaultRedirectUrl =
       getDefaultRedirectUrl ?? ((): string | undefined => undefined);
+    this.#onOrderSyncErroneousSituation = onOrderSyncErroneousSituation;
+    this.#trace = trace;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -2365,18 +2423,26 @@ export class RampsController extends BaseController<
    */
   addOrder(order: RampsOrder): void {
     const internalOrderCode = getInternalOrderCode(order);
+    if (!internalOrderCode) {
+      return;
+    }
+
     const incomingLastUpdatedAt = (order as { lastUpdatedAt?: number })
       .lastUpdatedAt;
     // Local edits always bump lastUpdatedAt so full-sync LWW can prefer them
     // over stale remote copies when an incremental push was skipped/failed.
-    // During full sync, preserve the remote timestamp applied by the merge.
+    // During full sync, preserve remote `lu` / `createdAt` (never invent "now"
+    // for missing `lu`, or stale remotes win later LWW comparisons).
     const healedOrder = {
       ...order,
       providerOrderId: internalOrderCode,
       lastUpdatedAt: this.#isOrderSyncingInProgress
-        ? (incomingLastUpdatedAt ?? Date.now())
+        ? (incomingLastUpdatedAt ?? order.createdAt ?? 0)
         : Date.now(),
     };
+
+    // A mid-sync add cancels a pending delete for the same key.
+    this.#pendingRemoteDeletes.delete(internalOrderCode);
 
     this.update((state) => {
       const idx = state.orders.findIndex(
@@ -2433,28 +2499,64 @@ export class RampsController extends BaseController<
       this.#orderPollingMeta.delete(internalOrderCode);
     }
 
-    if (orderToRemove && !this.#isOrderSyncingInProgress) {
-      deleteOrderInRemoteStorage(orderToRemove, {
-        getRampsControllerInstance: () => this,
-        getMessenger: () => this.messenger,
-      }).catch((error) => {
-        console.error('Error deleting ramps order from remote storage:', error);
-      });
+    if (orderToRemove) {
+      const deleteKey = getInternalOrderCode(orderToRemove);
+      if (this.#isOrderSyncingInProgress) {
+        // Incremental remote deletes are gated off during full sync; queue a
+        // tombstone write for the end of the sync instead.
+        if (deleteKey) {
+          this.#pendingRemoteDeletes.set(deleteKey, orderToRemove);
+        }
+      } else {
+        deleteOrderInRemoteStorage(orderToRemove, {
+          getRampsControllerInstance: () => this,
+          getMessenger: () => this.messenger,
+        }).catch((error) => {
+          console.error(
+            'Error deleting ramps order from remote storage:',
+            error,
+          );
+        });
+      }
     }
   }
 
   /**
    * Bidirectionally syncs V2 ramps orders with User Storage.
    * Hosts should call this on unlock / when ramps syncing is enabled.
+   *
+   * Overlapping calls are coalesced: concurrent callers await the in-flight
+   * sync and a single follow-up run drains any queue flag set while it ran.
    */
   async syncOrdersWithUserStorage(): Promise<void> {
-    await syncOrdersWithUserStorageInternal(
-      {},
-      {
-        getRampsControllerInstance: () => this,
-        getMessenger: () => this.messenger,
-      },
-    );
+    this.#orderSyncQueued = true;
+
+    if (this.#orderSyncPromise) {
+      await this.#orderSyncPromise;
+      return;
+    }
+
+    this.#orderSyncPromise = (async (): Promise<void> => {
+      while (this.#orderSyncQueued) {
+        this.#orderSyncQueued = false;
+        await syncOrdersWithUserStorageInternal(
+          {
+            onOrderSyncErroneousSituation: this.#onOrderSyncErroneousSituation,
+          },
+          {
+            getRampsControllerInstance: () => this,
+            getMessenger: () => this.messenger,
+            trace: this.#trace,
+          },
+        );
+      }
+    })();
+
+    try {
+      await this.#orderSyncPromise;
+    } finally {
+      this.#orderSyncPromise = null;
+    }
   }
 
   /**

@@ -203,4 +203,111 @@ describe('RampsController order syncing', () => {
 
     expect(performBatchSetStorage).not.toHaveBeenCalled();
   });
+
+  it('queues mid-sync deletes and drains them after sync', async () => {
+    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_700);
+    const { controller, performBatchSetStorage, performGetStorageAllFeatureEntries } =
+      setupControllerWithOrderSyncingMocks();
+
+    const order = createMockOrder({
+      providerOrderId: 'mid-sync-delete',
+      id: '/providers/transak/orders/mid-sync-delete',
+    });
+    controller.addOrder(order);
+    performBatchSetStorage.mockClear();
+
+    performGetStorageAllFeatureEntries.mockImplementation(async () => {
+      controller.removeOrder('mid-sync-delete');
+      return [];
+    });
+
+    await controller.syncOrdersWithUserStorage();
+
+    expect(controller.state.orders).toHaveLength(0);
+    expect(performBatchSetStorage).toHaveBeenCalledWith(
+      'rampsOrders',
+      expect.arrayContaining([
+        expect.arrayContaining(['mid-sync-delete', expect.any(String)]),
+      ]),
+    );
+    const tombstone = JSON.parse(
+      (
+        performBatchSetStorage.mock.calls[0][1] as [string, string][]
+      ).find(([key]) => key === 'mid-sync-delete')?.[1] as string,
+    ) as { dt?: number };
+    expect(tombstone.dt).toBe(1_700_000_000_700);
+  });
+
+  it('coalesces overlapping syncOrdersWithUserStorage calls', async () => {
+    const { controller, performGetStorageAllFeatureEntries } =
+      setupControllerWithOrderSyncingMocks();
+
+    let releaseFirstFetch: (() => void) | undefined;
+    const firstFetchStarted = new Promise<void>((resolve) => {
+      releaseFirstFetch = resolve;
+    });
+
+    performGetStorageAllFeatureEntries
+      .mockImplementationOnce(async () => {
+        await firstFetchStarted;
+        return [];
+      })
+      .mockResolvedValue([]);
+
+    const firstSync = controller.syncOrdersWithUserStorage();
+    const secondSync = controller.syncOrdersWithUserStorage();
+
+    releaseFirstFetch?.();
+    await Promise.all([firstSync, secondSync]);
+
+    expect(performGetStorageAllFeatureEntries).toHaveBeenCalledTimes(2);
+  });
+
+  it('preserves createdAt as lastUpdatedAt when syncing remotes without lu', () => {
+    const { controller } = setupControllerWithOrderSyncingMocks();
+
+    controller.setIsOrderSyncingInProgress(true);
+    controller.addOrder({
+      ...createMockOrder({
+        providerOrderId: 'no-lu',
+        id: '/providers/transak/orders/no-lu',
+        createdAt: 1_111,
+      }),
+    });
+
+    expect(controller.state.orders[0]).toStrictEqual(
+      expect.objectContaining({
+        providerOrderId: 'no-lu',
+        lastUpdatedAt: 1_111,
+      }),
+    );
+  });
+
+  it('uses 0 lastUpdatedAt when syncing remotes without lu or createdAt', () => {
+    const { controller } = setupControllerWithOrderSyncingMocks();
+
+    controller.setIsOrderSyncingInProgress(true);
+    controller.addOrder({
+      providerOrderId: 'no-timestamps',
+      id: '/providers/transak/orders/no-timestamps',
+    } as never);
+
+    expect(controller.state.orders[0]).toStrictEqual(
+      expect.objectContaining({
+        providerOrderId: 'no-timestamps',
+        lastUpdatedAt: 0,
+      }),
+    );
+  });
+
+  it('ignores addOrder calls that cannot derive a storage key', () => {
+    const { controller } = setupControllerWithOrderSyncingMocks();
+
+    controller.addOrder({
+      id: '/providers/transak/orders/',
+      providerOrderId: '',
+    } as never);
+
+    expect(controller.state.orders).toHaveLength(0);
+  });
 });

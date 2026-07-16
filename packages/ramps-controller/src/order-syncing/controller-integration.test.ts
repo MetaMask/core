@@ -1,6 +1,10 @@
 import { RampsOrderStatus } from '../RampsService';
 import type { RampsOrder } from '../RampsService';
-import { USER_STORAGE_RAMPS_ORDERS_FEATURE } from './constants';
+import {
+  USER_STORAGE_RAMPS_ORDERS_FEATURE,
+  USER_STORAGE_VERSION,
+  USER_STORAGE_VERSION_KEY,
+} from './constants';
 import {
   deleteOrderInRemoteStorage,
   orderSyncingTestExports,
@@ -70,6 +74,7 @@ describe('order-syncing/controller-integration', () => {
       setIsOrderSyncingInProgress,
       addOrder: jest.fn(),
       removeOrder,
+      drainPendingRemoteDeletes: jest.fn().mockReturnValue([]),
     };
 
     const addOrder = jest.fn((order: RampsOrder) => {
@@ -323,6 +328,7 @@ describe('order-syncing/controller-integration', () => {
         }),
         addOrder: jest.fn(),
         removeOrder: jest.fn(),
+        drainPendingRemoteDeletes: jest.fn().mockReturnValue([]),
       };
 
       const messengerCall = jest
@@ -478,11 +484,120 @@ describe('order-syncing/controller-integration', () => {
 
       expect(onOrderSyncErroneousSituation).toHaveBeenCalledWith(
         'Failed to parse remote ramps order entry',
-        expect.objectContaining({ error: expect.any(SyntaxError) }),
+        expect.objectContaining({
+          error: expect.any(SyntaxError),
+          entryLength: expect.any(Number),
+        }),
+      );
+      expect(onOrderSyncErroneousSituation.mock.calls[0][1]).not.toHaveProperty(
+        'orderJson',
       );
       expect(addOrder).toHaveBeenCalledWith(
         expect.objectContaining({ providerOrderId: 'valid-remote' }),
       );
+    });
+
+    it('skips remote entries with unsupported version or missing payload', async () => {
+      const onOrderSyncErroneousSituation = jest.fn();
+      const remoteOrder = createMockOrder({
+        providerOrderId: 'valid-remote',
+        id: '/providers/transak/orders/valid-remote',
+      });
+      const { options, addOrder } = arrangeMocks({
+        localOrders: [],
+        remoteEntries: [
+          JSON.stringify({
+            [USER_STORAGE_VERSION_KEY]: '999',
+            o: remoteOrder,
+          }),
+          JSON.stringify({
+            [USER_STORAGE_VERSION_KEY]: USER_STORAGE_VERSION,
+          }),
+          JSON.stringify(
+            mapRampsOrderToUserStorageEntry({
+              ...remoteOrder,
+              lastUpdatedAt: Date.now(),
+            }),
+          ),
+        ],
+      });
+
+      await syncOrdersWithUserStorage(
+        { onOrderSyncErroneousSituation },
+        options,
+      );
+
+      expect(onOrderSyncErroneousSituation).toHaveBeenCalledWith(
+        'Unsupported ramps order storage version',
+        expect.objectContaining({ version: '999' }),
+      );
+      expect(onOrderSyncErroneousSituation).toHaveBeenCalledWith(
+        'Remote ramps order entry missing order payload',
+        {},
+      );
+      expect(addOrder).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports and skips empty storage keys when uploading', async () => {
+      const onOrderSyncErroneousSituation = jest.fn();
+      const { options, performBatchSetStorage } = arrangeMocks();
+
+      await orderSyncingTestExports.saveOrdersToUserStorage(
+        [
+          createMockOrder({
+            id: '/providers/transak/orders/',
+            providerOrderId: '',
+          }),
+        ],
+        options,
+        { onOrderSyncErroneousSituation },
+      );
+
+      expect(onOrderSyncErroneousSituation).toHaveBeenCalledWith(
+        'Skipping ramps order remote write with empty storage key',
+        expect.objectContaining({
+          hasId: true,
+          hasProviderOrderId: false,
+        }),
+      );
+      expect(performBatchSetStorage).not.toHaveBeenCalled();
+    });
+
+    it('uploads tombstones for orders deleted while sync is in progress', async () => {
+      jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_500);
+      const localOrder = createMockOrder();
+      const deletedDuringSync = createMockOrder({
+        providerOrderId: 'deleted-mid-sync',
+        id: '/providers/transak/orders/deleted-mid-sync',
+      });
+
+      const { options, performBatchSetStorage } = arrangeMocks({
+        localOrders: [localOrder],
+        remoteEntries: [],
+      });
+
+      const controller = options.getRampsControllerInstance();
+      (controller.drainPendingRemoteDeletes as jest.Mock).mockReturnValue([
+        deletedDuringSync,
+      ]);
+
+      await syncOrdersWithUserStorage({}, options);
+
+      expect(performBatchSetStorage).toHaveBeenCalledWith(
+        USER_STORAGE_RAMPS_ORDERS_FEATURE,
+        expect.arrayContaining([
+          expect.arrayContaining(['abc-123', expect.any(String)]),
+          expect.arrayContaining(['deleted-mid-sync', expect.any(String)]),
+        ]),
+      );
+
+      const tombstoneEntry = JSON.parse(
+        (
+          performBatchSetStorage.mock.calls[0][1] as [string, string][]
+        ).find(([key]) => key === 'deleted-mid-sync')?.[1] as string,
+      ) as { dt?: number; o: { paymentDetails?: unknown } };
+      expect(tombstoneEntry.dt).toBe(1_700_000_000_500);
+      expect(tombstoneEntry.o.paymentDetails).toBeUndefined();
     });
 
     it('reports sync failures via onOrderSyncErroneousSituation', async () => {
@@ -583,6 +698,7 @@ describe('order-syncing/controller-integration', () => {
         }),
         addOrder,
         removeOrder,
+        drainPendingRemoteDeletes: jest.fn().mockReturnValue([]),
       };
 
       const messengerCall = jest

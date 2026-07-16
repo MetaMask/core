@@ -50,6 +50,11 @@ export type OrderSyncingController = {
   setIsOrderSyncingInProgress: (value: boolean) => void;
   addOrder: (order: RampsOrder) => void;
   removeOrder: (providerOrderId: string) => void;
+  /**
+   * Returns and clears orders deleted locally while a full sync held the
+   * semaphore, so remote tombstones can still be written at sync end.
+   */
+  drainPendingRemoteDeletes: () => RampsOrder[];
 };
 
 /**

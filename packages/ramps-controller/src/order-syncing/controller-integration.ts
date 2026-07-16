@@ -1,5 +1,10 @@
 import type { RampsOrder } from '../RampsService';
-import { TraceName, USER_STORAGE_RAMPS_ORDERS_FEATURE } from './constants';
+import {
+  TraceName,
+  USER_STORAGE_RAMPS_ORDERS_FEATURE,
+  USER_STORAGE_VERSION,
+  USER_STORAGE_VERSION_KEY,
+} from './constants';
 import { canPerformOrderSyncing } from './sync-utils';
 import type {
   OrderSyncingOptions,
@@ -31,6 +36,9 @@ type MergePlan = {
 
 /**
  * Returns the timestamp used for ramps order conflict resolution.
+ *
+ * Content conflicts use `local >= remote` (local wins ties). Tombstones use
+ * `local > deletedAt` (tie deletes locally) so equal-time deletes still apply.
  *
  * @param order - A ramps order that may include sync metadata.
  * @returns The best available last-updated timestamp.
@@ -205,15 +213,40 @@ export async function syncOrdersWithUserStorage(
         getLocalOrders(),
       );
 
-      if (ordersToUpload.length > 0) {
-        const syncedUploads: SyncRampsOrder[] = ordersToUpload.map(
-          (localOrder) => ({
+      const localKeys = new Set(
+        getLocalOrders().map((order) => createOrderStorageKey(order)),
+      );
+      const pendingDeletes = controller
+        .drainPendingRemoteDeletes()
+        .filter((order) => {
+          const key = createOrderStorageKey(order);
+          return key.length > 0 && !localKeys.has(key);
+        });
+      const pendingDeleteKeys = new Set(
+        pendingDeletes.map((order) => createOrderStorageKey(order)),
+      );
+
+      const now = Date.now();
+      const syncedUploads: SyncRampsOrder[] = [
+        ...ordersToUpload
+          .filter(
+            (localOrder) =>
+              !pendingDeleteKeys.has(createOrderStorageKey(localOrder)),
+          )
+          .map((localOrder) => ({
             ...stripSyncMetadata(localOrder),
             lastUpdatedAt:
-              (localOrder as SyncRampsOrder).lastUpdatedAt ?? Date.now(),
-          }),
-        );
-        await saveOrdersToUserStorage(syncedUploads, options);
+              (localOrder as SyncRampsOrder).lastUpdatedAt ?? now,
+          })),
+        ...pendingDeletes.map((order) => ({
+          ...stripSyncMetadata(order),
+          deletedAt: now,
+          lastUpdatedAt: now,
+        })),
+      ];
+
+      if (syncedUploads.length > 0) {
+        await saveOrdersToUserStorage(syncedUploads, options, config);
       }
     };
 
@@ -277,11 +310,32 @@ async function getRemoteOrders(
     for (const orderJson of remoteOrdersJsonArray) {
       try {
         const entry = JSON.parse(orderJson) as UserStorageRampsOrderEntry;
+        if (entry[USER_STORAGE_VERSION_KEY] !== USER_STORAGE_VERSION) {
+          onOrderSyncErroneousSituation?.(
+            'Unsupported ramps order storage version',
+            {
+              version: entry[USER_STORAGE_VERSION_KEY],
+              expectedVersion: USER_STORAGE_VERSION,
+            },
+          );
+          continue;
+        }
+        if (!entry.o || typeof entry.o !== 'object') {
+          onOrderSyncErroneousSituation?.(
+            'Remote ramps order entry missing order payload',
+            {},
+          );
+          continue;
+        }
         orders.push(mapUserStorageEntryToRampsOrder(entry));
       } catch (error) {
+        // Do not attach raw order JSON — it can include wallet/PII fields.
         onOrderSyncErroneousSituation?.(
           'Failed to parse remote ramps order entry',
-          { error, orderJson },
+          {
+            error,
+            entryLength: orderJson.length,
+          },
         );
       }
     }
@@ -300,20 +354,39 @@ async function getRemoteOrders(
  *
  * @param orders - The orders to save.
  * @param options - Parameters used for saving orders.
+ * @param config - Optional sync callbacks for error reporting.
  * @returns Resolves when the batch write completes.
  */
 async function saveOrdersToUserStorage(
   orders: SyncRampsOrder[],
   options: OrderSyncingOptions,
+  config: SyncOrdersWithUserStorageConfig = {},
 ): Promise<void> {
   const { getMessenger, trace } = options;
+  const { onOrderSyncErroneousSituation } = config;
 
   const saveOrders = async (): Promise<void> => {
-    const storageEntries: [string, string][] = orders.map((order) => {
+    const storageEntries: [string, string][] = [];
+
+    for (const order of orders) {
       const key = createOrderStorageKey(order);
+      if (!key) {
+        onOrderSyncErroneousSituation?.(
+          'Skipping ramps order remote write with empty storage key',
+          {
+            hasId: Boolean(order.id),
+            hasProviderOrderId: Boolean(order.providerOrderId),
+          },
+        );
+        continue;
+      }
       const storageEntry = mapRampsOrderToUserStorageEntry(order);
-      return [key, JSON.stringify(storageEntry)];
-    });
+      storageEntries.push([key, JSON.stringify(storageEntry)]);
+    }
+
+    if (storageEntries.length === 0) {
+      return;
+    }
 
     await getMessenger().call(
       'UserStorageController:performBatchSetStorage',
@@ -415,4 +488,5 @@ export const orderSyncingTestExports = {
   computeMergePlan,
   reconcileOrdersForRemoteUpload,
   getOrderTimestamp,
+  saveOrdersToUserStorage,
 };
