@@ -359,6 +359,18 @@ export type TransactionControllerAbortTransactionSigningAction = {
 };
 
 /**
+ * Atomically updates all amount-dependent data in an atomic batch and starts
+ * revision-bound local preparation.
+ *
+ * @param request - Complete atomic batch update.
+ * @returns The synchronously published revision and its preparation handle.
+ */
+export type TransactionControllerBeginAtomicBatchUpdateAction = {
+  type: `TransactionController:beginAtomicBatchUpdate`;
+  handler: TransactionController['beginAtomicBatchUpdate'];
+};
+
+/**
  * Update the transaction data of a single nested transaction within an atomic batch transaction.
  *
  * @param options - The options bag.
@@ -457,6 +469,7 @@ export type TransactionControllerMethodActions =
   | TransactionControllerGetLayer1GasFeeAction
   | TransactionControllerClearUnapprovedTransactionsAction
   | TransactionControllerAbortTransactionSigningAction
+  | TransactionControllerBeginAtomicBatchUpdateAction
   | TransactionControllerUpdateAtomicBatchDataAction
   | TransactionControllerUpdateSelectedGasFeeTokenAction
   | TransactionControllerUpdateRequiredTransactionIdsAction
