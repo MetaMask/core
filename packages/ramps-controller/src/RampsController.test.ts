@@ -6,9 +6,11 @@ import type {
   MessengerActions,
   MessengerEvents,
 } from '@metamask/messenger';
+import type { RemoteFeatureFlagControllerState } from '@metamask/remote-feature-flag-controller';
 import * as fs from 'fs';
 import * as path from 'path';
 
+import { MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY } from './featureFlags';
 import type {
   RampsControllerMessenger,
   RampsControllerState,
@@ -390,7 +392,7 @@ describe('RampsController', () => {
     });
   });
 
-  describe('getQuotes provider-scope widening (in-app)', () => {
+  describe('getQuotes all-providers widening', () => {
     const SCOPE_ASSET_ID = 'eip155:1/slip44:60';
     const SCOPE_PAYMENT_METHOD = '/payments/debit-credit-card';
     const SCOPE_WALLET = '0x1234567890abcdef1234567890abcdef12345678';
@@ -432,7 +434,7 @@ describe('RampsController', () => {
       },
     });
 
-    const inAppScopeQuote = (provider: string, reliability: number): Quote => ({
+    const appBrowserQuote = (provider: string, reliability: number): Quote => ({
       provider,
       quote: {
         amountIn: 100,
@@ -446,7 +448,7 @@ describe('RampsController', () => {
       metadata: { reliability },
     });
 
-    const externalScopeQuote = (
+    const externalBrowserQuote = (
       provider: string,
       reliability: number,
     ): Quote => ({
@@ -470,6 +472,29 @@ describe('RampsController', () => {
       providers: createResourceState(providers, null),
     });
 
+    /**
+     * Registers a `RemoteFeatureFlagController:getState` handler on the root
+     * messenger. Defaults to serving the all-providers flag as `true`.
+     *
+     * @param rootMessenger - The root messenger to register the handler on.
+     * @param flagState - `RemoteFeatureFlagController` state overrides.
+     */
+    const registerFeatureFlagState = (
+      rootMessenger: RootMessenger,
+      flagState: Partial<RemoteFeatureFlagControllerState> = {
+        remoteFeatureFlags: { [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: true },
+      },
+    ): void => {
+      rootMessenger.registerActionHandler(
+        'RemoteFeatureFlagController:getState',
+        () => ({
+          remoteFeatureFlags: {},
+          cacheTimestamp: 0,
+          ...flagState,
+        }),
+      );
+    };
+
     const callScopedGetQuotes = async (
       messenger: RampsControllerMessenger,
       overrides: Record<string, unknown> = {},
@@ -487,16 +512,16 @@ describe('RampsController', () => {
         ...overrides,
       });
 
-    it('widens to all supporting providers and returns the reliability winner at success[0], excluding external quotes', async () => {
+    it('widens to all supporting providers and returns the reliability winner at success[0]', async () => {
       const response: QuotesResponse = {
         success: [
-          inAppScopeQuote(MOONPAY, 90),
-          inAppScopeQuote(REVOLUT, 80),
-          externalScopeQuote(COINBASE, 99),
-          inAppScopeQuote(NATIVE, 70),
+          appBrowserQuote(MOONPAY, 90),
+          appBrowserQuote(REVOLUT, 80),
+          externalBrowserQuote(COINBASE, 99),
+          appBrowserQuote(NATIVE, 70),
         ],
-        // Coinbase is the most reliable but external, so it is skipped and the
-        // next in-app provider (MoonPay) wins.
+        // Coinbase is the most reliable; external-browser quotes are eligible
+        // under the all-providers flag, so it wins.
         sorted: [
           { sortBy: 'reliability', ids: [COINBASE, MOONPAY, REVOLUT, NATIVE] },
         ],
@@ -507,7 +532,6 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            getProviderScope: () => 'in-app',
             state: scopeState([
               buildScopeProvider(NATIVE, 'native'),
               buildScopeProvider(MOONPAY, 'aggregator'),
@@ -517,6 +541,7 @@ describe('RampsController', () => {
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
           let quotedProviders: string[] | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
@@ -535,16 +560,106 @@ describe('RampsController', () => {
             REVOLUT,
             COINBASE,
           ]);
-          expect(quotes.success[0]?.provider).toBe(MOONPAY);
+          expect(quotes.success[0]?.provider).toBe(COINBASE);
         },
       );
     });
 
-    it('keeps the native provider as a valid in-app candidate and selects it when it ranks first', async () => {
+    it('selects the correct quote when provider IDs carry no /providers/ prefix', async () => {
+      // Provider-code normalization was removed (#9448): the provider list,
+      // quotes, and sort-order arrive with plain, unprefixed IDs and must
+      // match each other directly.
+      const PLAIN_MOONPAY = 'moonpay';
+      const PLAIN_REVOLUT = 'revolut';
+
       const response: QuotesResponse = {
-        success: [inAppScopeQuote(NATIVE, 90), inAppScopeQuote(MOONPAY, 80)],
-        // Transak Native is the most reliable in-app quote, so it wins: the
-        // in-app scope must not exclude native providers.
+        success: [
+          appBrowserQuote(PLAIN_MOONPAY, 90),
+          appBrowserQuote(PLAIN_REVOLUT, 80),
+        ],
+        sorted: [
+          { sortBy: 'reliability', ids: [PLAIN_MOONPAY, PLAIN_REVOLUT] },
+        ],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: scopeState([
+              buildScopeProvider(PLAIN_MOONPAY, 'aggregator'),
+              buildScopeProvider(PLAIN_REVOLUT, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
+          let quotedProviders: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { providers?: string[] }) => {
+              quotedProviders = params.providers;
+              return response;
+            },
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          // The plain IDs matched across the provider list, quotes, and
+          // sort-order without normalization.
+          expect(quotedProviders).toStrictEqual([PLAIN_MOONPAY, PLAIN_REVOLUT]);
+          expect(quotes.success[0]?.provider).toBe(PLAIN_MOONPAY);
+        },
+      );
+    });
+
+    it('keeps external-browser and custom-action quotes eligible', async () => {
+      const response: QuotesResponse = {
+        success: [
+          externalBrowserQuote(COINBASE, 99),
+          appBrowserQuote(MOONPAY, 80),
+        ],
+        sorted: [{ sortBy: 'reliability', ids: [COINBASE, MOONPAY] }],
+        error: [],
+        customActions: [
+          {
+            buy: { providerId: MOONPAY },
+            paymentMethodId: SCOPE_PAYMENT_METHOD,
+            supportedPaymentMethodIds: [SCOPE_PAYMENT_METHOD],
+          },
+        ],
+      };
+
+      await withController(
+        {
+          options: {
+            state: scopeState([
+              buildScopeProvider(COINBASE, 'aggregator'),
+              buildScopeProvider(MOONPAY, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async () => response,
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          // The external Coinbase quote (top reliability) stays eligible.
+          expect(quotes.success[0]?.provider).toBe(COINBASE);
+        },
+      );
+    });
+
+    it('keeps the native provider as a valid candidate and selects it when it ranks first', async () => {
+      const response: QuotesResponse = {
+        success: [appBrowserQuote(NATIVE, 90), appBrowserQuote(MOONPAY, 80)],
+        // Transak Native is the most reliable quote, so it wins: widening
+        // must not exclude native providers.
         sorted: [{ sortBy: 'reliability', ids: [NATIVE, MOONPAY] }],
         error: [],
         customActions: [],
@@ -553,7 +668,6 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            getProviderScope: () => 'in-app',
             state: scopeState([
               buildScopeProvider(NATIVE, 'native'),
               buildScopeProvider(MOONPAY, 'aggregator'),
@@ -561,6 +675,7 @@ describe('RampsController', () => {
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
             async () => response,
@@ -575,7 +690,7 @@ describe('RampsController', () => {
 
     it('falls back to the price order when there is no reliability order', async () => {
       const response: QuotesResponse = {
-        success: [inAppScopeQuote(MOONPAY, 90), inAppScopeQuote(REVOLUT, 80)],
+        success: [appBrowserQuote(MOONPAY, 90), appBrowserQuote(REVOLUT, 80)],
         sorted: [{ sortBy: 'price', ids: [REVOLUT, MOONPAY] }],
         error: [],
         customActions: [],
@@ -584,7 +699,6 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            getProviderScope: () => 'in-app',
             state: scopeState([
               buildScopeProvider(MOONPAY, 'aggregator'),
               buildScopeProvider(REVOLUT, 'aggregator'),
@@ -592,6 +706,7 @@ describe('RampsController', () => {
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
             async () => response,
@@ -606,7 +721,7 @@ describe('RampsController', () => {
 
     it('skips a provider whose fiat limits do not fit the amount and picks the next', async () => {
       const response: QuotesResponse = {
-        success: [inAppScopeQuote(MOONPAY, 90), inAppScopeQuote(REVOLUT, 80)],
+        success: [appBrowserQuote(MOONPAY, 90), appBrowserQuote(REVOLUT, 80)],
         sorted: [{ sortBy: 'reliability', ids: [MOONPAY, REVOLUT] }],
         error: [],
         customActions: [],
@@ -615,7 +730,6 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            getProviderScope: () => 'in-app',
             state: scopeState([
               // MoonPay's minimum is above the $100 amount, so it is skipped.
               buildScopeProvider(MOONPAY, 'aggregator', fiatLimit(200, 1000)),
@@ -625,6 +739,7 @@ describe('RampsController', () => {
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
             async () => response,
@@ -637,22 +752,26 @@ describe('RampsController', () => {
       );
     });
 
-    it('returns an empty success list when no in-app quote is usable', async () => {
+    it('returns an empty success list when no quote fits the published provider limits', async () => {
       const response: QuotesResponse = {
-        success: [externalScopeQuote(COINBASE, 99)],
-        sorted: [{ sortBy: 'reliability', ids: [COINBASE] }],
-        error: [{ provider: MOONPAY, error: 'unavailable' }],
+        success: [appBrowserQuote(MOONPAY, 90)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
+        error: [{ provider: REVOLUT, error: 'unavailable' }],
         customActions: [],
       };
 
       await withController(
         {
           options: {
-            getProviderScope: () => 'in-app',
-            state: scopeState([buildScopeProvider(COINBASE, 'aggregator')]),
+            state: scopeState([
+              // MoonPay's minimum is above the $100 amount and no other quote
+              // exists, so nothing is usable.
+              buildScopeProvider(MOONPAY, 'aggregator', fiatLimit(200, 1000)),
+            ]),
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
             async () => response,
@@ -678,11 +797,11 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            getProviderScope: () => 'in-app',
             state: scopeState([nonSupportingProvider]),
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
           const getQuotesMock = jest.fn();
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
@@ -691,7 +810,7 @@ describe('RampsController', () => {
 
           // `autoSelectProvider` alone triggers widening; without
           // `restrictToKnownOrNativeProviders` the empty guard is reached via the
-          // `|| widenToInAppProviders` branch.
+          // `|| widenToAllProviders` branch.
           const quotes = await callScopedGetQuotes(messenger, {
             autoSelectProvider: true,
             restrictToKnownOrNativeProviders: false,
@@ -708,98 +827,9 @@ describe('RampsController', () => {
       );
     });
 
-    it('excludes custom-action providers from selection', async () => {
+    it('does not widen and does not mutate providers.selected when the flag is false', async () => {
       const response: QuotesResponse = {
-        success: [inAppScopeQuote(MOONPAY, 90), inAppScopeQuote(REVOLUT, 80)],
-        sorted: [{ sortBy: 'reliability', ids: [MOONPAY, REVOLUT] }],
-        error: [],
-        customActions: [
-          {
-            buy: { providerId: MOONPAY },
-            paymentMethodId: SCOPE_PAYMENT_METHOD,
-            supportedPaymentMethodIds: [SCOPE_PAYMENT_METHOD],
-          },
-        ],
-      };
-
-      await withController(
-        {
-          options: {
-            getProviderScope: () => 'in-app',
-            state: scopeState([
-              buildScopeProvider(MOONPAY, 'aggregator'),
-              buildScopeProvider(REVOLUT, 'aggregator'),
-            ]),
-          },
-        },
-        async ({ messenger, rootMessenger }) => {
-          rootMessenger.registerActionHandler(
-            'RampsService:getQuotes',
-            async () => response,
-          );
-
-          const quotes = await callScopedGetQuotes(messenger);
-
-          // MoonPay is a custom action, so Revolut wins despite ranking higher.
-          expect(quotes.success[0]?.provider).toBe(REVOLUT);
-        },
-      );
-    });
-
-    it('selects the correct quote when provider IDs carry no /providers/ prefix', async () => {
-      // The PR removed provider-code normalization: the provider list, quotes,
-      // custom actions, and sort-order arrive with plain, unprefixed IDs and
-      // must match each other directly.
-      const PLAIN_MOONPAY = 'moonpay';
-      const PLAIN_REVOLUT = 'revolut';
-
-      const response: QuotesResponse = {
-        success: [
-          inAppScopeQuote(PLAIN_MOONPAY, 90),
-          inAppScopeQuote(PLAIN_REVOLUT, 80),
-        ],
-        sorted: [
-          { sortBy: 'reliability', ids: [PLAIN_MOONPAY, PLAIN_REVOLUT] },
-        ],
-        error: [],
-        customActions: [
-          {
-            buy: { providerId: PLAIN_MOONPAY },
-            paymentMethodId: SCOPE_PAYMENT_METHOD,
-            supportedPaymentMethodIds: [SCOPE_PAYMENT_METHOD],
-          },
-        ],
-      };
-
-      await withController(
-        {
-          options: {
-            getProviderScope: () => 'in-app',
-            state: scopeState([
-              buildScopeProvider(PLAIN_MOONPAY, 'aggregator'),
-              buildScopeProvider(PLAIN_REVOLUT, 'aggregator'),
-            ]),
-          },
-        },
-        async ({ messenger, rootMessenger }) => {
-          rootMessenger.registerActionHandler(
-            'RampsService:getQuotes',
-            async () => response,
-          );
-
-          const quotes = await callScopedGetQuotes(messenger);
-
-          // MoonPay is a custom action, so Revolut wins despite ranking higher,
-          // proving the plain IDs matched across the provider list, quote,
-          // custom action, and sort-order without normalization.
-          expect(quotes.success[0]?.provider).toBe(PLAIN_REVOLUT);
-        },
-      );
-    });
-
-    it('does not widen and does not mutate providers.selected when the scope is off', async () => {
-      const response: QuotesResponse = {
-        success: [inAppScopeQuote(NATIVE, 70)],
+        success: [appBrowserQuote(NATIVE, 70)],
         sorted: [{ sortBy: 'reliability', ids: [NATIVE] }],
         error: [],
         customActions: [],
@@ -808,7 +838,6 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            getProviderScope: () => 'off',
             state: scopeState([
               buildScopeProvider(NATIVE, 'native'),
               buildScopeProvider(MOONPAY, 'aggregator'),
@@ -816,6 +845,11 @@ describe('RampsController', () => {
           },
         },
         async ({ controller, messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger, {
+            remoteFeatureFlags: {
+              [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: false,
+            },
+          });
           let quotedProviders: string[] | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
@@ -836,9 +870,128 @@ describe('RampsController', () => {
       );
     });
 
-    it('does not widen when the caller passes an explicit providers list', async () => {
+    it('does not widen when the flag is missing from remote feature flags', async () => {
       const response: QuotesResponse = {
-        success: [inAppScopeQuote(MOONPAY, 90)],
+        success: [appBrowserQuote(NATIVE, 70)],
+        sorted: [{ sortBy: 'reliability', ids: [NATIVE] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: scopeState([
+              buildScopeProvider(NATIVE, 'native'),
+              buildScopeProvider(MOONPAY, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger, { remoteFeatureFlags: {} });
+          let quotedProviders: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { providers?: string[] }) => {
+              quotedProviders = params.providers;
+              return response;
+            },
+          );
+
+          await callScopedGetQuotes(messenger);
+
+          expect(quotedProviders).toStrictEqual([NATIVE]);
+        },
+      );
+    });
+
+    it.each([
+      ['the string "true"', 'true'],
+      ['a number', 1],
+      ['an object', { enabled: true }],
+      ['a scope string', 'all'],
+    ])(
+      'does not widen when the flag value is %s',
+      async (_description, flagValue) => {
+        const response: QuotesResponse = {
+          success: [appBrowserQuote(NATIVE, 70)],
+          sorted: [{ sortBy: 'reliability', ids: [NATIVE] }],
+          error: [],
+          customActions: [],
+        };
+
+        await withController(
+          {
+            options: {
+              state: scopeState([
+                buildScopeProvider(NATIVE, 'native'),
+                buildScopeProvider(MOONPAY, 'aggregator'),
+              ]),
+            },
+          },
+          async ({ messenger, rootMessenger }) => {
+            registerFeatureFlagState(rootMessenger, {
+              remoteFeatureFlags: {
+                [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: flagValue,
+              },
+            });
+            let quotedProviders: string[] | undefined;
+            rootMessenger.registerActionHandler(
+              'RampsService:getQuotes',
+              async (params: { providers?: string[] }) => {
+                quotedProviders = params.providers;
+                return response;
+              },
+            );
+
+            await callScopedGetQuotes(messenger);
+
+            expect(quotedProviders).toStrictEqual([NATIVE]);
+          },
+        );
+      },
+    );
+
+    it('does not widen when RemoteFeatureFlagController:getState is not wired up', async () => {
+      const response: QuotesResponse = {
+        success: [appBrowserQuote(NATIVE, 70)],
+        sorted: [{ sortBy: 'reliability', ids: [NATIVE] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: scopeState([
+              buildScopeProvider(NATIVE, 'native'),
+              buildScopeProvider(MOONPAY, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          // No RemoteFeatureFlagController:getState handler is registered, so
+          // the flag read throws internally and the controller fails closed.
+          let quotedProviders: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { providers?: string[] }) => {
+              quotedProviders = params.providers;
+              return response;
+            },
+          );
+
+          const quotes = await callScopedGetQuotes(messenger);
+
+          expect(quotedProviders).toStrictEqual([NATIVE]);
+          expect(quotes).toStrictEqual(response);
+        },
+      );
+    });
+
+    it('honors a localOverrides true value when the remote flag is off', async () => {
+      const response: QuotesResponse = {
+        success: [appBrowserQuote(MOONPAY, 90)],
         sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
         error: [],
         customActions: [],
@@ -847,7 +1000,137 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            getProviderScope: () => 'in-app',
+            state: scopeState([
+              buildScopeProvider(NATIVE, 'native'),
+              buildScopeProvider(MOONPAY, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger, {
+            remoteFeatureFlags: {
+              [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: false,
+            },
+            localOverrides: { [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: true },
+          });
+          let quotedProviders: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { providers?: string[] }) => {
+              quotedProviders = params.providers;
+              return response;
+            },
+          );
+
+          await callScopedGetQuotes(messenger);
+
+          // The dev override widens the path even though the remote flag is
+          // off.
+          expect(quotedProviders).toStrictEqual([NATIVE, MOONPAY]);
+        },
+      );
+    });
+
+    it('honors a localOverrides false value over a remote true value', async () => {
+      const response: QuotesResponse = {
+        success: [appBrowserQuote(NATIVE, 70)],
+        sorted: [{ sortBy: 'reliability', ids: [NATIVE] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: scopeState([
+              buildScopeProvider(NATIVE, 'native'),
+              buildScopeProvider(MOONPAY, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger, {
+            remoteFeatureFlags: {
+              [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: true,
+            },
+            localOverrides: { [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: false },
+          });
+          let quotedProviders: string[] | undefined;
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { providers?: string[] }) => {
+              quotedProviders = params.providers;
+              return response;
+            },
+          );
+
+          await callScopedGetQuotes(messenger);
+
+          expect(quotedProviders).toStrictEqual([NATIVE]);
+        },
+      );
+    });
+
+    it('reads the flag on every getQuotes call so a runtime change takes effect', async () => {
+      const response: QuotesResponse = {
+        success: [appBrowserQuote(MOONPAY, 90), appBrowserQuote(NATIVE, 70)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY, NATIVE] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
+            state: scopeState([
+              buildScopeProvider(NATIVE, 'native'),
+              buildScopeProvider(MOONPAY, 'aggregator'),
+            ]),
+          },
+        },
+        async ({ messenger, rootMessenger }) => {
+          let flagValue = false;
+          rootMessenger.registerActionHandler(
+            'RemoteFeatureFlagController:getState',
+            () => ({
+              remoteFeatureFlags: {
+                [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: flagValue,
+              },
+              cacheTimestamp: 0,
+            }),
+          );
+          const quotedProviderLists: (string[] | undefined)[] = [];
+          rootMessenger.registerActionHandler(
+            'RampsService:getQuotes',
+            async (params: { providers?: string[] }) => {
+              quotedProviderLists.push(params.providers);
+              return response;
+            },
+          );
+
+          await callScopedGetQuotes(messenger);
+          flagValue = true;
+          await callScopedGetQuotes(messenger, { forceRefresh: true });
+
+          expect(quotedProviderLists).toStrictEqual([
+            [NATIVE],
+            [NATIVE, MOONPAY],
+          ]);
+        },
+      );
+    });
+
+    it('does not widen when the caller passes an explicit providers list', async () => {
+      const response: QuotesResponse = {
+        success: [appBrowserQuote(MOONPAY, 90)],
+        sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
+        error: [],
+        customActions: [],
+      };
+
+      await withController(
+        {
+          options: {
             state: scopeState([
               buildScopeProvider(MOONPAY, 'aggregator'),
               buildScopeProvider(REVOLUT, 'aggregator'),
@@ -855,6 +1138,7 @@ describe('RampsController', () => {
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
           let quotedProviders: string[] | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
@@ -876,7 +1160,7 @@ describe('RampsController', () => {
 
     it('hydrates the provider catalog via getProviders when state is empty', async () => {
       const response: QuotesResponse = {
-        success: [inAppScopeQuote(MOONPAY, 90)],
+        success: [appBrowserQuote(MOONPAY, 90)],
         sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
         error: [],
         customActions: [],
@@ -885,11 +1169,11 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            getProviderScope: () => 'in-app',
             state: { userRegion: createMockUserRegion('us-ca') },
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
           rootMessenger.registerActionHandler(
             'RampsService:getProviders',
             async () => ({
@@ -913,44 +1197,9 @@ describe('RampsController', () => {
       );
     });
 
-    it('excludes a quote carrying an inline isCustomAction flag', async () => {
-      const inlineCustom = inAppScopeQuote(MOONPAY, 90);
-      (inlineCustom.quote as { isCustomAction?: boolean }).isCustomAction =
-        true;
-      const response: QuotesResponse = {
-        success: [inlineCustom, inAppScopeQuote(REVOLUT, 80)],
-        sorted: [{ sortBy: 'reliability', ids: [MOONPAY, REVOLUT] }],
-        error: [],
-        customActions: [],
-      };
-
-      await withController(
-        {
-          options: {
-            getProviderScope: () => 'in-app',
-            state: scopeState([
-              buildScopeProvider(MOONPAY, 'aggregator'),
-              buildScopeProvider(REVOLUT, 'aggregator'),
-            ]),
-          },
-        },
-        async ({ messenger, rootMessenger }) => {
-          rootMessenger.registerActionHandler(
-            'RampsService:getQuotes',
-            async () => response,
-          );
-
-          const quotes = await callScopedGetQuotes(messenger);
-
-          // The inline-flagged MoonPay quote is dropped, so Revolut wins.
-          expect(quotes.success[0]?.provider).toBe(REVOLUT);
-        },
-      );
-    });
-
     it('falls through to the first candidate when the sort orders reference no surviving provider', async () => {
       const response: QuotesResponse = {
-        success: [inAppScopeQuote(MOONPAY, 90)],
+        success: [appBrowserQuote(MOONPAY, 90)],
         // Neither order lists MoonPay, so both walks fall through to
         // the first surviving candidate.
         sorted: [
@@ -964,11 +1213,11 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            getProviderScope: () => 'in-app',
             state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
             async () => response,
@@ -981,50 +1230,9 @@ describe('RampsController', () => {
       );
     });
 
-    it('with scope all, does not exclude external or custom-action quotes', async () => {
-      const response: QuotesResponse = {
-        success: [
-          externalScopeQuote(COINBASE, 99),
-          inAppScopeQuote(MOONPAY, 80),
-        ],
-        sorted: [{ sortBy: 'reliability', ids: [COINBASE, MOONPAY] }],
-        error: [],
-        customActions: [
-          {
-            buy: { providerId: MOONPAY },
-            paymentMethodId: SCOPE_PAYMENT_METHOD,
-            supportedPaymentMethodIds: [SCOPE_PAYMENT_METHOD],
-          },
-        ],
-      };
-
-      await withController(
-        {
-          options: {
-            getProviderScope: () => 'all',
-            state: scopeState([
-              buildScopeProvider(COINBASE, 'aggregator'),
-              buildScopeProvider(MOONPAY, 'aggregator'),
-            ]),
-          },
-        },
-        async ({ messenger, rootMessenger }) => {
-          rootMessenger.registerActionHandler(
-            'RampsService:getQuotes',
-            async () => response,
-          );
-
-          const quotes = await callScopedGetQuotes(messenger);
-
-          // `all` keeps the external Coinbase quote (top reliability) eligible.
-          expect(quotes.success[0]?.provider).toBe(COINBASE);
-        },
-      );
-    });
-
     it('widens on restrictToKnownOrNativeProviders alone and selects a provider whose limits fit', async () => {
       const response: QuotesResponse = {
-        success: [inAppScopeQuote(MOONPAY, 90)],
+        success: [appBrowserQuote(MOONPAY, 90)],
         sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
         error: [],
         customActions: [],
@@ -1033,13 +1241,13 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            getProviderScope: () => 'in-app',
             state: scopeState([
               buildScopeProvider(MOONPAY, 'aggregator', fiatLimit(10, 1000)),
             ]),
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
             async () => response,
@@ -1058,7 +1266,7 @@ describe('RampsController', () => {
 
     it('skips a provider whose maximum limit is below the amount', async () => {
       const response: QuotesResponse = {
-        success: [inAppScopeQuote(MOONPAY, 90), inAppScopeQuote(REVOLUT, 80)],
+        success: [appBrowserQuote(MOONPAY, 90), appBrowserQuote(REVOLUT, 80)],
         sorted: [{ sortBy: 'reliability', ids: [MOONPAY, REVOLUT] }],
         error: [],
         customActions: [],
@@ -1067,7 +1275,6 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            getProviderScope: () => 'in-app',
             state: scopeState([
               buildScopeProvider(MOONPAY, 'aggregator', fiatLimit(10, 50)),
               buildScopeProvider(REVOLUT, 'aggregator'),
@@ -1075,6 +1282,7 @@ describe('RampsController', () => {
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
             async () => response,
@@ -1088,11 +1296,11 @@ describe('RampsController', () => {
       );
     });
 
-    it('does not widen for a non-off scope when neither autoSelect nor restrict is set', async () => {
+    it('does not widen when the flag is enabled but neither autoSelect nor restrict is set', async () => {
       const response: QuotesResponse = {
         success: [
-          inAppScopeQuote(MOONPAY, 90),
-          externalScopeQuote(COINBASE, 99),
+          appBrowserQuote(MOONPAY, 90),
+          externalBrowserQuote(COINBASE, 99),
         ],
         sorted: [{ sortBy: 'reliability', ids: [COINBASE, MOONPAY] }],
         error: [],
@@ -1102,7 +1310,6 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            getProviderScope: () => 'in-app',
             state: scopeState([
               buildScopeProvider(MOONPAY, 'aggregator'),
               buildScopeProvider(COINBASE, 'aggregator'),
@@ -1110,13 +1317,15 @@ describe('RampsController', () => {
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
             async () => response,
           );
 
           // Neither flag and no explicit providers: the plain all-provider path
-          // runs and the response is returned unfiltered even under `in-app`.
+          // runs and the response is returned unfiltered even when the feature
+          // flag is enabled.
           const quotes = await callScopedGetQuotes(messenger, {
             autoSelectProvider: undefined,
             restrictToKnownOrNativeProviders: undefined,
@@ -1129,7 +1338,7 @@ describe('RampsController', () => {
 
     it('forwards the injected default redirectUrl on the widened path when the caller omits one', async () => {
       const response: QuotesResponse = {
-        success: [inAppScopeQuote(MOONPAY, 90)],
+        success: [appBrowserQuote(MOONPAY, 90)],
         sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
         error: [],
         customActions: [],
@@ -1139,12 +1348,12 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            getProviderScope: () => 'in-app',
             getDefaultRedirectUrl: () => DEFAULT_REDIRECT,
             state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
           let forwardedRedirectUrl: string | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
@@ -1165,7 +1374,7 @@ describe('RampsController', () => {
 
     it('prefers an explicit caller redirectUrl over the injected default on the widened path', async () => {
       const response: QuotesResponse = {
-        success: [inAppScopeQuote(MOONPAY, 90)],
+        success: [appBrowserQuote(MOONPAY, 90)],
         sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
         error: [],
         customActions: [],
@@ -1176,12 +1385,12 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            getProviderScope: () => 'in-app',
             getDefaultRedirectUrl: () => DEFAULT_REDIRECT,
             state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
           let forwardedRedirectUrl: string | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
@@ -1202,9 +1411,9 @@ describe('RampsController', () => {
       );
     });
 
-    it('does not inject the default redirectUrl when the scope is off', async () => {
+    it('does not inject the default redirectUrl when the flag is disabled', async () => {
       const response: QuotesResponse = {
-        success: [inAppScopeQuote(NATIVE, 70)],
+        success: [appBrowserQuote(NATIVE, 70)],
         sorted: [{ sortBy: 'reliability', ids: [NATIVE] }],
         error: [],
         customActions: [],
@@ -1214,12 +1423,16 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            getProviderScope: () => 'off',
             getDefaultRedirectUrl: () => DEFAULT_REDIRECT,
             state: scopeState([buildScopeProvider(NATIVE, 'native')]),
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger, {
+            remoteFeatureFlags: {
+              [MONEY_HEADLESS_ALL_PROVIDERS_FLAG_KEY]: false,
+            },
+          });
           let forwardedRedirectUrl: string | undefined;
           rootMessenger.registerActionHandler(
             'RampsService:getQuotes',
@@ -1231,8 +1444,8 @@ describe('RampsController', () => {
 
           await callScopedGetQuotes(messenger);
 
-          // Scope `off` never widens, so the default is not injected even when a
-          // `getDefaultRedirectUrl` callback is present.
+          // The disabled flag never widens, so the default is not injected
+          // even when a `getDefaultRedirectUrl` callback is present.
           expect(forwardedRedirectUrl).toBeUndefined();
         },
       );
@@ -1240,7 +1453,7 @@ describe('RampsController', () => {
 
     it('forwards undefined on the widened path when no getDefaultRedirectUrl option is provided', async () => {
       const response: QuotesResponse = {
-        success: [inAppScopeQuote(MOONPAY, 90)],
+        success: [appBrowserQuote(MOONPAY, 90)],
         sorted: [{ sortBy: 'reliability', ids: [MOONPAY] }],
         error: [],
         customActions: [],
@@ -1249,11 +1462,11 @@ describe('RampsController', () => {
       await withController(
         {
           options: {
-            getProviderScope: () => 'in-app',
             state: scopeState([buildScopeProvider(MOONPAY, 'aggregator')]),
           },
         },
         async ({ messenger, rootMessenger }) => {
+          registerFeatureFlagState(rootMessenger);
           let forwardedRedirectUrl: string | undefined;
           let redirectUrlWasSeen = false;
           rootMessenger.registerActionHandler(
@@ -10960,7 +11173,10 @@ function getMessenger(rootMessenger: RootMessenger): RampsControllerMessenger {
   });
   rootMessenger.delegate({
     messenger,
-    actions: [...RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS],
+    actions: [
+      ...RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
+      'RemoteFeatureFlagController:getState',
+    ],
   });
   return messenger;
 }

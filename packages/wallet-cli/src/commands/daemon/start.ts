@@ -1,6 +1,7 @@
 import { Command, Flags } from '@oclif/core';
 
 import { ensureDaemon } from '../../daemon/daemon-spawn';
+import { Password, Srp } from '../../daemon/secrets';
 
 export default class DaemonStart extends Command {
   static override description = 'Start the wallet daemon';
@@ -8,6 +9,7 @@ export default class DaemonStart extends Command {
   static override examples = [
     '<%= config.bin %> daemon start --infura-project-id <key> --password <pw> --srp <phrase>',
     'INFURA_PROJECT_ID=<key> MM_WALLET_PASSWORD=<pw> MM_WALLET_SRP=<phrase> <%= config.bin %> daemon start',
+    '<%= config.bin %> daemon start --infura-project-id <key> --srp <phrase>   # then `mm wallet unlock` later',
   ];
 
   static override flags = {
@@ -18,9 +20,10 @@ export default class DaemonStart extends Command {
     }),
     password: Flags.string({
       description:
-        'Wallet password (testing only — use MM_WALLET_PASSWORD env var in production)',
+        'Wallet password (testing only — use MM_WALLET_PASSWORD env var in production). ' +
+        'Required on first run; on subsequent runs, omit (and leave MM_WALLET_PASSWORD unset) to start with a locked keyring and use `mm wallet unlock`.',
       env: 'MM_WALLET_PASSWORD',
-      required: true,
+      required: false,
     }),
     srp: Flags.string({
       description:
@@ -33,7 +36,8 @@ export default class DaemonStart extends Command {
   public async run(): Promise<void> {
     const { flags } = await this.parse(DaemonStart);
     const infuraProjectId = flags['infura-project-id'];
-    const { password, srp } = flags;
+    const password = flags.password ? Password.from(flags.password) : undefined;
+    const srp = Srp.from(flags.srp);
 
     const { state, socketPath } = await ensureDaemon({
       dataDir: this.config.dataDir,

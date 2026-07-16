@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `AccountsApiDataSource` now selects the Accounts API balances endpoint version from the `RemoteFeatureFlagController` (`assetsAccountsApiV6` flag, read per fetch off the shared messenger, default v5) so the v6 endpoint is gated consistently across clients (extension, mobile) without each client wiring a getter. The flag is read as a JSON variation shaped `{ value: boolean }` (same shape as `backendWebSocketConnection`). Adds a required `messenger` option and `RemoteFeatureFlagController:getState` to `AccountsApiDataSourceAllowedActions`. Only `category: 'token'` rows from the v6 response are consumed (DeFi positions are ignored) to preserve parity with v5 ([#9344](https://github.com/MetaMask/core/pull/9344))
+- Add `getAsset(accountId, assetId)` method and `AssetsController:getAsset` messenger action that returns the combined `Asset` (balance, metadata, price) for a single account/asset pair from controller state, or `undefined` when a complete renderable asset is not available ([#9521](https://github.com/MetaMask/core/pull/9521))
+
+### Changed
+
+- Bump `@metamask/network-enablement-controller` from `^5.5.0` to `^5.6.0` ([#9520](https://github.com/MetaMask/core/pull/9520))
+- Bump `@metamask/phishing-controller` from `^17.2.1` to `^17.3.0` ([#9532](https://github.com/MetaMask/core/pull/9532))
+
+## [11.0.0]
+
+### Fixed
+
+- **BREAKING:** Subscribe to exported `AccountTreeController:stateChange`, `ClientController:stateChange`, and `NetworkEnablementController:stateChange` messenger events instead of locally constructed `:stateChanged` aliases ([#9478](https://github.com/MetaMask/core/pull/9478))
+
 ## [10.2.1]
 
 ### Changed
@@ -723,7 +739,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Refactor `RpcDataSource` to delegate polling to `BalanceFetcher` and `TokenDetector` services ([#7709](https://github.com/MetaMask/core/pull/7709))
 - Refactor `BalanceFetcher` and `TokenDetector` to extend `StaticIntervalPollingControllerOnly` for independent polling management ([#7709](https://github.com/MetaMask/core/pull/7709))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@10.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@11.0.0...HEAD
+[11.0.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@10.2.1...@metamask/assets-controller@11.0.0
 [10.2.1]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@10.2.0...@metamask/assets-controller@10.2.1
 [10.2.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@10.1.0...@metamask/assets-controller@10.2.0
 [10.1.0]: https://github.com/MetaMask/core/compare/@metamask/assets-controller@10.0.1...@metamask/assets-controller@10.1.0

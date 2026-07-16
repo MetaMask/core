@@ -1,15 +1,11 @@
 import { createAsyncMiddleware } from '@metamask/json-rpc-engine';
 import type {
-  AsyncJsonRpcEngineNextCallback,
+  AsyncJsonrpcMiddleware,
   JsonRpcMiddleware,
 } from '@metamask/json-rpc-engine';
 import type { JsonRpcMiddleware as JsonRpcMiddlewareV2 } from '@metamask/json-rpc-engine/v2';
 import type { Messenger } from '@metamask/messenger';
-import type {
-  Json,
-  JsonRpcRequest,
-  PendingJsonRpcResponse,
-} from '@metamask/utils';
+import type { Json } from '@metamask/utils';
 
 import type { RestrictedMethodParameters } from './Permission';
 import type {
@@ -52,11 +48,10 @@ export function createPermissionMiddleware({
   RestrictedMethodParameters,
   Json
 > {
-  const permissionsMiddleware = async (
-    request: JsonRpcRequest<RestrictedMethodParameters>,
-    response: PendingJsonRpcResponse,
-    next: AsyncJsonRpcEngineNextCallback,
-  ): Promise<void> => {
+  const permissionsMiddleware: AsyncJsonrpcMiddleware<
+    RestrictedMethodParameters,
+    Json
+  > = async (request, response, next) => {
     const { method, params } = request;
 
     if (messenger.call('PermissionController:hasUnrestrictedMethod', method)) {
@@ -72,7 +67,9 @@ export function createPermissionMiddleware({
     return undefined;
   };
 
-  return createAsyncMiddleware(permissionsMiddleware);
+  return createAsyncMiddleware<RestrictedMethodParameters, Json>(
+    permissionsMiddleware,
+  );
 }
 
 /**

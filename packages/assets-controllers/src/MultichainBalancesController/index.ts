@@ -1,6 +1,5 @@
 export { MultichainBalancesController } from './MultichainBalancesController';
 export type {
-  MultichainAccountBalance,
   MultichainBalancesControllerState,
   MultichainBalancesControllerGetStateAction,
   MultichainBalancesControllerStateChange,

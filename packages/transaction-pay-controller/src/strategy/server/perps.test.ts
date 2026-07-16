@@ -141,5 +141,25 @@ describe('strategy/server/perps', () => {
 
       expect(result).toBe(baseRequest);
     });
+
+    it('rewrites source chain, token, and amount when isHyperliquidSource is true', () => {
+      const withdrawRequest: QuoteRequest = {
+        ...baseRequest,
+        isHyperliquidSource: true,
+        sourceChainId: '0xa4b1',
+        sourceTokenAmount: '100000000',
+      };
+
+      const result = normalizeServerPerpsRequest(
+        withdrawRequest,
+        innocuousTransaction,
+      );
+
+      expect(result.sourceChainId).toBe(CHAIN_ID_HYPERCORE);
+      expect(result.sourceTokenAddress).toBe(
+        SERVER_HYPERCORE_USDC_PERPS_ADDRESS,
+      );
+      expect(result.sourceTokenAmount).toBe('1000000');
+    });
   });
 });

@@ -12,11 +12,33 @@ import type { ChompApiService } from './chomp-api-service';
  *
  * @param params - The association params containing signature, timestamp,
  * and address.
- * @returns The profile association result. Returns on both 201 and 409.
+ * @returns The profile association result: `status: 'created'` for a new
+ * association, `status: 'active'` when the address was already associated
+ * with the authenticated profile. Throws on 409, which indicates the
+ * address is associated with a different profile.
  */
 export type ChompApiServiceAssociateAddressAction = {
   type: `ChompApiService:associateAddress`;
   handler: ChompApiService['associateAddress'];
+};
+
+/**
+ * Fetches the addresses associated with the authenticated profile.
+ *
+ * GET /v1/auth/address
+ *
+ * The result is scoped to the authenticated profile and consumers use it to
+ * decide whether an association already exists, so it is always fetched
+ * fresh (`staleTime: 0`, `cacheTime: 0`) and the query key is scoped to the
+ * profile via a digest of the bearer token — concurrent calls only share a
+ * request when they are for the same profile.
+ *
+ * @returns The active address associations; empty array if none exist.
+ * Addresses are lowercased.
+ */
+export type ChompApiServiceGetAssociatedAddressesAction = {
+  type: `ChompApiService:getAssociatedAddresses`;
+  handler: ChompApiService['getAssociatedAddresses'];
 };
 
 /**
@@ -120,6 +142,7 @@ export type ChompApiServiceGetServiceDetailsAction = {
  */
 export type ChompApiServiceMethodActions =
   | ChompApiServiceAssociateAddressAction
+  | ChompApiServiceGetAssociatedAddressesAction
   | ChompApiServiceCreateUpgradeAction
   | ChompApiServiceGetUpgradesAction
   | ChompApiServiceVerifyDelegationAction
