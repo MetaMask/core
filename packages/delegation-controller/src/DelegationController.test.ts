@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { SignTypedDataVersion } from '@metamask/keyring-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
@@ -8,8 +9,11 @@ import type {
 } from '@metamask/messenger';
 import { hexToNumber } from '@metamask/utils';
 
-import { ROOT_AUTHORITY } from './constants';
-import { controllerName, DelegationController } from './DelegationController';
+import { ROOT_AUTHORITY } from './constants.js';
+import {
+  controllerName,
+  DelegationController,
+} from './DelegationController.js';
 import type {
   Address,
   Delegation,
@@ -17,8 +21,8 @@ import type {
   DelegationControllerState,
   DeleGatorEnvironment,
   Hex,
-} from './types';
-import { toDelegationStruct } from './utils';
+} from './types.js';
+import { toDelegationStruct } from './utils.js';
 
 type AllDelegationControllerActions =
   MessengerActions<DelegationControllerMessenger>;
