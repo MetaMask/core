@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type {
   AccountTransactionsUpdatedEventPayload,
@@ -24,15 +25,15 @@ import type {
 import type { CaipChainId } from '@metamask/utils';
 import { v4 as uuidv4 } from 'uuid';
 
-import { MultichainNetwork } from './constants';
+import { MultichainNetwork } from './constants.js';
 import {
   MultichainTransactionsController,
   getDefaultMultichainTransactionsControllerState,
-} from './MultichainTransactionsController';
+} from './MultichainTransactionsController.js';
 import type {
   MultichainTransactionsControllerState,
   MultichainTransactionsControllerMessenger,
-} from './MultichainTransactionsController';
+} from './MultichainTransactionsController.js';
 
 const mockBtcAccount = {
   address: 'bc1qssdcp5kvwh6nghzg9tuk99xsflwkdv4hgvq58q',
