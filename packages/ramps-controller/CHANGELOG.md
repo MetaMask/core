@@ -11,9 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Subscribe pending Transak Native orders (`transak-native` / `transak-native-staging`) to Transak's public Pusher order-ID channels for real-time status wake-ups; each event triggers an immediate `#refreshOrder` through the MetaMask on-ramp API so status normalization stays server-side, with HTTP polling retained as fallback when disconnected ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
-- Add `pusher-js` dependency and export `isTransakNativeProvider`, `createPusherTransakOrderUpdatesClient`, and related Transak order-update types/constants
-- Add optional `transakOrderUpdatesClient` to `RampsControllerOptions` for injecting a mock client in tests
+- Subscribe pending Transak Native orders (`transak-native` / `transak-native-staging`) to Transak's public Pusher order-ID channels for real-time status wake-ups; each event triggers an immediate `#refreshOrder` through the MetaMask on-ramp API so status normalization stays server-side, with HTTP polling retained as fallback when disconnected ([#9541](https://github.com/MetaMask/core/pull/9541))
+- Add `pusher-js` dependency and export `isTransakNativeProvider`, `createPusherTransakOrderUpdatesClient`, and related Transak order-update types/constants ([#9541](https://github.com/MetaMask/core/pull/9541))
+- Add optional `transakOrderUpdatesClient` to `RampsControllerOptions` for injecting a mock client in tests ([#9541](https://github.com/MetaMask/core/pull/9541))
 
 ## [17.0.0]
 
