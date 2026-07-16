@@ -285,6 +285,7 @@ export class TokensApiClient {
    * empty so {@link #getOccurrenceFloor} falls back to the default.
    *
    * @param now - Current timestamp used to stamp the cache entry.
+   * @returns A promise that resolves once the cache has been refreshed.
    */
   async #refreshSuggestedOccurrenceFloors(now: number): Promise<void> {
     if (this.#suggestedOccurrenceFloorsRefreshPromise !== undefined) {
