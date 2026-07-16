@@ -31,9 +31,9 @@ export type InstanceSpecificOptions = {
   connectivityController: ConnectivityControllerInstanceOptions;
   keyringController?: KeyringControllerInstanceOptions;
   networkController: NetworkControllerInstanceOptions;
-  passkeyController: PasskeyControllerInstanceOptions;
+  passkeyController?: PasskeyControllerInstanceOptions;
   remoteFeatureFlagController: RemoteFeatureFlagControllerInstanceOptions;
-  seedlessOnboardingController: SeedlessOnboardingControllerInstanceOptions;
+  seedlessOnboardingController?: SeedlessOnboardingControllerInstanceOptions;
   storageService: StorageServiceInstanceOptions;
   transactionController?: TransactionControllerInstanceOptions;
 };
