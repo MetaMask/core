@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
   MessengerActions,
@@ -5,11 +6,11 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
+import { CONTROLLER_NAME, SERVICE_NAME } from '../../src/constants.js';
 import type {
   ClaimsServiceMessenger,
   ClaimsControllerMessenger,
-} from '../../src';
-import { CONTROLLER_NAME, SERVICE_NAME } from '../../src/constants';
+} from '../../src/index.js';
 
 type AllShieldControllerActions = MessengerActions<ClaimsControllerMessenger>;
 
