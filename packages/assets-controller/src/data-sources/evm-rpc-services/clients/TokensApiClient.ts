@@ -21,6 +21,19 @@ const TOKEN_END_POINT_API = 'https://token.api.cx.metamask.io';
 const SUPPORTED_NETWORKS_URL = `${TOKEN_END_POINT_API}/v2/supportedNetworks`;
 
 /**
+ * Per-chain suggested occurrence floors used as the `occurrenceFloor` query
+ * param when fetching token lists (and aligned with TokenDataSource spam
+ * filtering). Keys are decimal chain IDs.
+ */
+const SUGGESTED_OCCURRENCE_FLOORS_URL = `${TOKEN_END_POINT_API}/v1/suggestedOccurrenceFloors`;
+
+/**
+ * Fallback `occurrenceFloor` when `/v1/suggestedOccurrenceFloors` has no entry
+ * for the chain, or the floors request fails.
+ */
+const DEFAULT_OCCURRENCE_FLOOR = 3;
+
+/**
  * How long to keep the supported-networks response in the instance-level
  * cache before refreshing it. One hour is sufficient — the list rarely
  * changes and a stale cache just means we may do an unnecessary token-list
@@ -29,30 +42,10 @@ const SUPPORTED_NETWORKS_URL = `${TOKEN_END_POINT_API}/v2/supportedNetworks`;
 const SUPPORTED_NETWORKS_CACHE_TTL_MS = 60 * 60_000;
 
 /**
- * Tempo Mainnet — not yet present in `@metamask/controller-utils`'s `ChainId`
- * map at the time of writing, so it's spelled out as a literal here exactly as
- * `TokenListController` does (see `token-service.ts:getTokensURL`).
+ * How long to keep suggested occurrence floors cached. Same TTL as supported
+ * networks — floors change infrequently.
  */
-const TEMPO_MAINNET_CHAIN_ID = '0x1079' as const;
-
-/**
- * Per-chain occurrence floor, mirroring `TokenListController.getTokensURL`:
- * Linea mainnet, MegaETH mainnet, and Tempo mainnet have thinner aggregator
- * coverage so we lower the floor; everything else uses the default 3.
- *
- * @param hexChainId - Hex chain ID.
- * @returns The occurrence floor to send to the Tokens API.
- */
-function getOccurrenceFloor(hexChainId: ChainId): number {
-  if (
-    hexChainId === ControllerChainId['linea-mainnet'] ||
-    hexChainId === ControllerChainId['megaeth-mainnet'] ||
-    hexChainId === TEMPO_MAINNET_CHAIN_ID
-  ) {
-    return 1;
-  }
-  return 3;
-}
+const SUGGESTED_OCCURRENCE_FLOORS_CACHE_TTL_MS = 60 * 60_000;
 
 /**
  * TanStack-Query cache config for the cached `fetchTokenList` path.
@@ -121,9 +114,10 @@ export type TokensApiClientConfig = {
  *
  * Fetches the per-chain ERC-20 token list from the same endpoint that
  * `TokenListController` uses (`token.api.cx.metamask.io/tokens/{chainId}`),
- * with the same query parameters and the same per-chain occurrence floor /
- * Linea aggregator filter. This keeps RPC token detection in lockstep with
- * the wallet's primary token list.
+ * with the same query parameters. The `occurrenceFloor` query param comes from
+ * Token API `/v1/suggestedOccurrenceFloors` (fallback {@link DEFAULT_OCCURRENCE_FLOOR}),
+ * matching `TokenDataSource` spam filtering. Linea's post-response aggregator
+ * filter is still applied client-side.
  *
  * Before fetching a chain's token list, the client checks
  * `/v2/supportedNetworks` and returns `[]` immediately for chains that are
@@ -151,6 +145,15 @@ export class TokensApiClient {
    * calls arrive before the first one resolves.
    */
   #supportedChainIdsRefreshPromise: Promise<void> | undefined;
+
+  /** Decimal chain ID → suggested occurrence floor from Token API. */
+  #suggestedOccurrenceFloors: Record<string, number> | undefined;
+
+  /** Timestamp of the last successful floors fetch. */
+  #suggestedOccurrenceFloorsCachedAt = 0;
+
+  /** In-flight floors request shared across concurrent callers. */
+  #suggestedOccurrenceFloorsRefreshPromise: Promise<void> | undefined;
 
   constructor(config?: TokensApiClientConfig) {
     this.#fetch = config?.fetch ?? globalThis.fetch.bind(globalThis);
@@ -250,13 +253,75 @@ export class TokensApiClient {
     return this.#supportedChainIdsRefreshPromise;
   }
 
+  /**
+   * Resolve the `occurrenceFloor` query param for a chain from Token API
+   * `/v1/suggestedOccurrenceFloors`. Falls back to
+   * {@link DEFAULT_OCCURRENCE_FLOOR} when the chain is missing or the request
+   * fails.
+   *
+   * @param hexChainId - Hex chain ID.
+   * @returns Occurrence floor to send to `/tokens/{chainId}`.
+   */
+  async #getOccurrenceFloor(hexChainId: ChainId): Promise<number> {
+    const now = Date.now();
+    if (
+      this.#suggestedOccurrenceFloors === undefined ||
+      now - this.#suggestedOccurrenceFloorsCachedAt >=
+        SUGGESTED_OCCURRENCE_FLOORS_CACHE_TTL_MS
+    ) {
+      await this.#refreshSuggestedOccurrenceFloors(now);
+    }
+
+    const decimalChainId = String(convertHexToDecimal(hexChainId));
+    return (
+      this.#suggestedOccurrenceFloors?.[decimalChainId] ??
+      DEFAULT_OCCURRENCE_FLOOR
+    );
+  }
+
+  /**
+   * Fetch `/v1/suggestedOccurrenceFloors` and update the instance cache.
+   * Concurrent callers share the in-flight Promise. Failures leave the cache
+   * empty so {@link #getOccurrenceFloor} falls back to the default.
+   *
+   * @param now - Current timestamp used to stamp the cache entry.
+   */
+  async #refreshSuggestedOccurrenceFloors(now: number): Promise<void> {
+    if (this.#suggestedOccurrenceFloorsRefreshPromise !== undefined) {
+      return this.#suggestedOccurrenceFloorsRefreshPromise;
+    }
+
+    this.#suggestedOccurrenceFloorsRefreshPromise = (async (): Promise<void> => {
+      try {
+        const response = await this.#fetch(SUGGESTED_OCCURRENCE_FLOORS_URL);
+        if (response.ok) {
+          const data = (await response.json()) as Record<string, number>;
+          this.#suggestedOccurrenceFloors =
+            data && typeof data === 'object' && !Array.isArray(data) ? data : {};
+          this.#suggestedOccurrenceFloorsCachedAt = now;
+        } else {
+          this.#suggestedOccurrenceFloors = {};
+          this.#suggestedOccurrenceFloorsCachedAt = now;
+        }
+      } catch {
+        this.#suggestedOccurrenceFloors = {};
+        this.#suggestedOccurrenceFloorsCachedAt = now;
+      } finally {
+        this.#suggestedOccurrenceFloorsRefreshPromise = undefined;
+      }
+    })();
+
+    return this.#suggestedOccurrenceFloorsRefreshPromise;
+  }
+
   async #fetchTokenListUncached(
     hexChainId: ChainId,
   ): Promise<TokenListEntry[]> {
     const decimalChainId = convertHexToDecimal(hexChainId);
-    const occurrenceFloor = getOccurrenceFloor(hexChainId);
+    const occurrenceFloor = await this.#getOccurrenceFloor(hexChainId);
 
-    // Mirrors `TokenListController.getTokensURL` exactly (token-service.ts).
+    // Same query shape as `TokenListController.getTokensURL` (token-service.ts),
+    // but `occurrenceFloor` comes from `/v1/suggestedOccurrenceFloors`.
     // No `first=...` cap — the API returns the full per-chain list bounded
     // server-side by `occurrenceFloor`.
     const url =

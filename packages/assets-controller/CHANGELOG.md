@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- `TokenDataSource` EVM spam filtering now uses per-chain floors from Token API `GET /v1/suggestedOccurrenceFloors` (`queryApiClient.token.fetchV1SuggestedOccurrenceFloors`) instead of a hardcoded minimum of 3 occurrences. Chains missing from the response (or a failed floors fetch) still fall back to 3.
+- `TokensApiClient` (used by `RpcDataSource` / `TokenDetector`) now sets the token-list `occurrenceFloor` query param from the same Token API `GET /v1/suggestedOccurrenceFloors` endpoint (cached 1h), replacing the hardcoded Linea/MegaETH/Tempo special cases. Missing chains or failed fetches fall back to 3.
 - Bump `@metamask/network-enablement-controller` from `^5.5.0` to `^5.6.0` ([#9520](https://github.com/MetaMask/core/pull/9520))
 - Bump `@metamask/phishing-controller` from `^17.2.1` to `^17.3.0` ([#9532](https://github.com/MetaMask/core/pull/9532))
 
