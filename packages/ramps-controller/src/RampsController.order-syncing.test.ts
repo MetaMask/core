@@ -139,7 +139,7 @@ describe('RampsController order syncing', () => {
       createdAt: 1,
     } as never);
 
-    expect(controller.state.orders[0]).toEqual(
+    expect(controller.state.orders[0]).toStrictEqual(
       expect.objectContaining({
         providerOrderId: 'order-1',
         lastUpdatedAt: 1_700_000_000_000,

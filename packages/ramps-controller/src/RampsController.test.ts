@@ -20,6 +20,7 @@ import type {
 import {
   RampsController,
   getDefaultRampsControllerState,
+  getInternalOrderCode,
   RAMPS_CONTROLLER_REQUIRED_SERVICE_ACTIONS,
 } from './RampsController';
 import { RAMPS_ERROR_CODES } from './rampsErrorCodes';
@@ -8357,9 +8358,13 @@ describe('RampsController', () => {
 
     it('adds a new order to state', async () => {
       await withController(({ controller, rootMessenger }) => {
+        jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_100);
         rootMessenger.call('RampsController:addOrder', mockOrder);
         expect(controller.state.orders).toHaveLength(1);
-        expect(controller.state.orders[0]).toStrictEqual(mockOrder);
+        expect(controller.state.orders[0]).toStrictEqual({
+          ...mockOrder,
+          lastUpdatedAt: 1_700_000_000_100,
+        });
       });
     });
 
@@ -10918,6 +10923,18 @@ describe('RampsController', () => {
         });
       });
     });
+  });
+});
+
+describe('getInternalOrderCode', () => {
+  it('returns empty string when object has no /orders/ id and no providerOrderId', () => {
+    expect(getInternalOrderCode({ id: 'plain-id' })).toBe('');
+  });
+
+  it('trims providerOrderId when id has no /orders/ path', () => {
+    expect(
+      getInternalOrderCode({ id: 'plain-id', providerOrderId: '  abc  ' }),
+    ).toBe('abc');
   });
 });
 
