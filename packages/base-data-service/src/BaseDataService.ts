@@ -8,6 +8,7 @@ import type {
   StorageServiceRemoveItemAction,
   StorageServiceSetItemAction,
 } from '@metamask/storage-service';
+import { Struct, validate } from '@metamask/superstruct';
 import { Duration, inMilliseconds } from '@metamask/utils';
 import type { Json } from '@metamask/utils';
 import {
@@ -35,6 +36,7 @@ import {
   CreateServicePolicyOptions,
   ServicePolicy,
 } from './createServicePolicy.js';
+import { processQueryResponse } from './utils.js';
 
 // Data service queries use the following format: ['ServiceActionName', ...params]
 export type QueryKey = [string, ...Json[]];
@@ -98,6 +100,10 @@ export type DataServiceGranularCacheUpdatedEvent<ServiceName extends string> = {
 export type DataServiceEvents<ServiceName extends string> =
   | DataServiceCacheUpdatedEvent<ServiceName>
   | DataServiceGranularCacheUpdatedEvent<ServiceName>;
+
+type AdditionalQueryOptions = {
+  struct?: Struct;
+};
 
 // Defaults to apply to all data service queries if no default option specified
 const QUERY_CLIENT_DEFAULTS: DefaultOptions = {
@@ -257,19 +263,25 @@ export class BaseDataService<
     TError = DefaultError,
     TData = TQueryFnData,
     TQueryKey extends QueryKey = QueryKey,
-  >(
-    options: WithRequired<
-      OmitKeyof<
-        FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
-        'retry' | 'retryDelay' | 'queryFn'
-      >,
-      'queryKey'
-    > & { queryFn: QueryFunction<TQueryFnData, TQueryKey> },
-  ): Promise<TData> {
+  >({
+    struct,
+    ...options
+  }: WithRequired<
+    OmitKeyof<
+      FetchQueryOptions<TQueryFnData, TError, TData, TQueryKey>,
+      'retry' | 'retryDelay' | 'queryFn'
+    >,
+    'queryKey'
+  > & {
+    queryFn: QueryFunction<TQueryFnData, TQueryKey>;
+  } & AdditionalQueryOptions): Promise<TData> {
     return this.#queryClient.fetchQuery({
       ...options,
       queryFn: (context) =>
-        this.#policy.execute(() => options.queryFn(context)),
+        this.#policy.execute(async () => {
+          const result = await options.queryFn(context);
+          return processQueryResponse(options.queryKey, result, struct);
+        }),
     });
   }
 
@@ -288,7 +300,10 @@ export class BaseDataService<
     TQueryKey extends QueryKey = QueryKey,
     TPageParam extends Json = Json,
   >(
-    options: WithRequired<
+    {
+      struct,
+      ...options
+    }: WithRequired<
       OmitKeyof<
         FetchQueryOptions<
           TQueryFnData,
@@ -303,7 +318,7 @@ export class BaseDataService<
     > &
       InfiniteQueryPageParamsOptions<TQueryFnData, TPageParam> & {
         queryFn: QueryFunction<TQueryFnData, TQueryKey, TPageParam>;
-      },
+      } & AdditionalQueryOptions,
     pageParam?: TPageParam,
   ): Promise<TData> {
     const cache = this.#queryClient.getQueryCache();
@@ -321,12 +336,14 @@ export class BaseDataService<
         ...options,
         initialPageParam: pageParam ?? options.initialPageParam,
         queryFn: (context) =>
-          this.#policy.execute(() =>
-            options.queryFn({
+          this.#policy.execute(async () => {
+            const result = await options.queryFn({
               ...context,
               pageParam: context.meta?.pageParam ?? context.pageParam,
-            }),
-          ),
+            });
+
+            return processQueryResponse(options.queryKey, result, struct);
+          }),
       });
 
       return result.pages[0];
