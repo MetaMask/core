@@ -1,13 +1,16 @@
 export { EntropyController } from './entropy-controller';
 export type {
-  EntropyCategory,
   EntropyControllerActions,
   EntropyControllerEvents,
   EntropyControllerGetStateAction,
   EntropyControllerMessenger,
   EntropyControllerState,
   EntropyControllerStateChangeEvent,
+} from './entropy-controller';
+export type {
+  EntropyCategory,
   EntropyId,
   EntropyMetadata,
   EntropyType,
-} from './entropy-controller';
+} from './types';
+export { toEntropyFingerprint, toEntropyId } from './utils';
