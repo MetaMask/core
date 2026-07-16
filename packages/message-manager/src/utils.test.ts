@@ -1,4 +1,4 @@
-import * as util from './utils';
+import * as util from './utils.js';
 
 describe('utils', () => {
   it('normalizeMessageData', () => {

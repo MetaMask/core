@@ -1,5 +1,7 @@
-import { EncryptionPublicKeyManager } from './EncryptionPublicKeyManager';
-import type { EncryptionPublicKeyManagerMessenger } from './EncryptionPublicKeyManager';
+import { jest } from '@jest/globals';
+
+import { EncryptionPublicKeyManager } from './EncryptionPublicKeyManager.js';
+import type { EncryptionPublicKeyManagerMessenger } from './EncryptionPublicKeyManager.js';
 
 const mockMessenger = {
   registerActionHandler: jest.fn(),
