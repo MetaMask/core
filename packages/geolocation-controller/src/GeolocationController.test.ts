@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -6,12 +7,12 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
-import { UNKNOWN_LOCATION } from './geolocation-api-service/geolocation-api-service';
-import type { GeolocationControllerMessenger } from './GeolocationController';
+import { UNKNOWN_LOCATION } from './geolocation-api-service/geolocation-api-service.js';
+import type { GeolocationControllerMessenger } from './GeolocationController.js';
 import {
   GeolocationController,
   getDefaultGeolocationControllerState,
-} from './GeolocationController';
+} from './GeolocationController.js';
 
 describe('GeolocationController', () => {
   describe('constructor', () => {

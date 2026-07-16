@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { HttpError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -6,12 +7,12 @@ import type {
   MessengerEvents,
 } from '@metamask/messenger';
 
-import { Env } from '../types';
-import type { GeolocationApiServiceMessenger } from './geolocation-api-service';
+import { Env } from '../types.js';
+import type { GeolocationApiServiceMessenger } from './geolocation-api-service.js';
 import {
   GeolocationApiService,
   UNKNOWN_LOCATION,
-} from './geolocation-api-service';
+} from './geolocation-api-service.js';
 
 describe('GeolocationApiService', () => {
   beforeEach(() => {
