@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { ClientController } from './ClientController';
+import type { ClientController } from './ClientController.js';
 
 /**
  * Updates state with whether the MetaMask UI is open.
