@@ -3,7 +3,6 @@ import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import { Messenger } from '@metamask/messenger';
 import { InMemoryStorageAdapter } from '@metamask/storage-service';
 import { Json } from '@metamask/utils';
-import { webcrypto } from 'crypto';
 
 import MockEncryptor from '../../keyring-controller/tests/mocks/mockEncryptor';
 import * as initializationModule from './initialization/initialization';
@@ -45,19 +44,6 @@ async function setupWallet(): Promise<Wallet> {
 }
 
 describe('Wallet', () => {
-  beforeAll(() => {
-    // We can remove this once we drop Node 18
-    // eslint-disable-next-line n/no-unsupported-features/node-builtins
-    globalThis.crypto ??= webcrypto as typeof globalThis.crypto;
-
-    // eslint-disable-next-line no-restricted-syntax
-    if (!('CryptoKey' in globalThis)) {
-      Object.defineProperty(globalThis, 'CryptoKey', {
-        value: webcrypto.CryptoKey,
-      });
-    }
-  });
-
   it('exposes state', async () => {
     const wallet = await setupWallet();
     const { state } = wallet;

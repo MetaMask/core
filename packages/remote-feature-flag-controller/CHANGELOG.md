@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9168](https://github.com/MetaMask/core/pull/9168))
 - **BREAKING:** Threshold feature flags now return the selected `value` directly instead of a `{ name, value }` wrapper. The selected threshold group name is stored separately in `featureFlagThresholdGroups` on controller state when the selected threshold entry includes `name` ([#9289](https://github.com/MetaMask/core/pull/9289))
 - Merge `localOverrides` into `remoteFeatureFlags` at the controller level so consumers receive effective flag values directly ([#9259](https://github.com/MetaMask/core/pull/9259))
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))

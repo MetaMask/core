@@ -79,6 +79,6 @@
     "topicSeparator": " "
   },
   "engines": {
-    "node": ">=20"
+    "node": "^22.14.0 || ^24"
   }
 }

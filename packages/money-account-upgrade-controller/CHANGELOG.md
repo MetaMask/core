@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9168](https://github.com/MetaMask/core/pull/9168))
 - **BREAKING:** The `associate-address` upgrade step now checks the profile's existing address associations via `ChompApiService:getAssociatedAddresses` before signing, and reports `already-done` without signing or submitting anything when the address is already associated ([#9387](https://github.com/MetaMask/core/pull/9387))
   - `MoneyAccountUpgradeControllerMessenger` consumers must grant the `ChompApiService:getAssociatedAddresses` action alongside the previously required actions, and must provide a `@metamask/chomp-api-service` version that registers it (`>=4.0.0`).
   - The lookup is an optimization: if it fails, the step falls through to the previous sign-and-submit behavior.

@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Bump minimum Node.js version to 22 ([#9168](https://github.com/MetaMask/core/pull/9168))
 - **BREAKING:** `AccountActivityService` now determines which non-EVM chains to subscribe to from remote feature flags instead of a bundled list ([#9379](https://github.com/MetaMask/core/pull/9379))
   - The `AccountActivityServiceMessenger` now requires the following delegate actions and events:
     - `RemoteFeatureFlagController:getState` action and `RemoteFeatureFlagController:stateChange` event

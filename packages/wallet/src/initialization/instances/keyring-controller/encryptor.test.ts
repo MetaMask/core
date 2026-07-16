@@ -1,21 +1,6 @@
-import { webcrypto } from 'crypto';
-
 import { encryptorFactory } from './encryptor';
 
 describe('encryptorFactory', () => {
-  beforeAll(() => {
-    // We can remove this once we drop Node 18
-    // eslint-disable-next-line n/no-unsupported-features/node-builtins
-    globalThis.crypto ??= webcrypto as typeof globalThis.crypto;
-
-    // eslint-disable-next-line no-restricted-syntax
-    if (!('CryptoKey' in globalThis)) {
-      Object.defineProperty(globalThis, 'CryptoKey', {
-        value: webcrypto.CryptoKey,
-      });
-    }
-  });
-
   const encryptor = encryptorFactory(600_000);
 
   it('encrypts/decrypts using a password', async () => {
