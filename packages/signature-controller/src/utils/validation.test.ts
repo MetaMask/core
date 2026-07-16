@@ -8,12 +8,12 @@ import type {
   MessageParamsPersonal,
   MessageParamsTyped,
   OriginalRequest,
-} from '../types';
+} from '../types.js';
 import {
   PRIMARY_TYPE_DELEGATION,
   validatePersonalSignatureRequest,
   validateTypedSignatureRequest,
-} from './validation';
+} from './validation.js';
 
 const CHAIN_ID_MOCK = '0x1';
 const ORIGIN_MOCK = 'test.com';
