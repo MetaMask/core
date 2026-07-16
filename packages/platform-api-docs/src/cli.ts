@@ -68,7 +68,7 @@ type ParsedArguments = CommonArguments &
  * @returns Absolute path to the `docusaurus` executable.
  */
 function resolveDocusaurus(): string {
-  return npmWhich(__dirname).sync('docusaurus');
+  return npmWhich(import.meta.dirname).sync('docusaurus');
 }
 
 /**
@@ -103,7 +103,7 @@ async function runDocusaurus(
  * @param outDir - The output directory to set up.
  */
 async function setupSite(outDir: string): Promise<void> {
-  const packageDir = path.resolve(__dirname, '..');
+  const packageDir = path.resolve(import.meta.dirname, '..');
   const siteDir = path.join(packageDir, 'site');
   const packageNodeModules = path.join(packageDir, 'node_modules');
   const skip = new Set(['node_modules', 'docs', 'tsconfig.json']);
