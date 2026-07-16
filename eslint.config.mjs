@@ -2,6 +2,7 @@ import base, { createConfig } from '@metamask/eslint-config';
 import jest from '@metamask/eslint-config-jest';
 import nodejs from '@metamask/eslint-config-nodejs';
 import typescript from '@metamask/eslint-config-typescript';
+import node from 'eslint-plugin-n';
 
 const NODE_LTS_VERSION = 22;
 
@@ -371,6 +372,32 @@ const config = createConfig([
     files: ['packages/wallet-framework-docs/site/docusaurus.config.ts'],
     rules: {
       'n/no-process-env': 'off',
+    },
+  },
+
+  // ESM-specific configuration. We should port this to
+  // `@metamask/eslint-config` at some point.
+  {
+    plugins: { n: node },
+    rules: {
+      // `import-x/extensions` doesn't support using ".js" for TypeScript
+      // files(?), so we load the `n` plugin and use
+      // `n/file-extension-in-import` instead.
+      'n/file-extension-in-import': ['error', 'always'],
+      'import-x/extensions': [
+        'error',
+        {
+          js: 'ignorePackages',
+          ts: 'never',
+          tsx: 'never',
+        },
+      ],
+      'import-x/no-useless-path-segments': [
+        'error',
+        {
+          noUselessIndex: false,
+        },
+      ],
     },
   },
 ]);
