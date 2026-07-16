@@ -800,7 +800,7 @@ export function getInternalOrderCode(
     return id.split('/orders/')[1];
   }
 
-  return providerOrderId;
+  return providerOrderId?.trim() ?? '';
 }
 
 // === ORDER POLLING CONSTANTS ===
@@ -2405,9 +2405,17 @@ export class RampsController extends BaseController<
    */
   addOrder(order: RampsOrder): void {
     const internalOrderCode = getInternalOrderCode(order);
+    const incomingLastUpdatedAt = (order as { lastUpdatedAt?: number })
+      .lastUpdatedAt;
+    // Local edits always bump lastUpdatedAt so full-sync LWW can prefer them
+    // over stale remote copies when an incremental push was skipped/failed.
+    // During full sync, preserve the remote timestamp applied by the merge.
     const healedOrder = {
       ...order,
       providerOrderId: internalOrderCode,
+      lastUpdatedAt: this.#isOrderSyncingInProgress
+        ? (incomingLastUpdatedAt ?? Date.now())
+        : Date.now(),
     };
 
     this.update((state) => {

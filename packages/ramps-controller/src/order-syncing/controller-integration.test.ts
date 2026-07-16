@@ -388,6 +388,34 @@ describe('order-syncing/controller-integration', () => {
       expect(performBatchSetStorage).not.toHaveBeenCalled();
     });
 
+    it('prefers local edits with newer lastUpdatedAt over stale remote content', async () => {
+      const localOrder: SyncRampsOrder = {
+        ...createMockOrder({ fiatAmount: 500, createdAt: 1 }),
+        lastUpdatedAt: Date.now(),
+      };
+      const remoteOrder: SyncRampsOrder = {
+        ...createMockOrder({ fiatAmount: 100, createdAt: 1 }),
+        lastUpdatedAt: 10,
+      };
+      const remoteEntry = JSON.stringify(
+        mapRampsOrderToUserStorageEntry(remoteOrder),
+      );
+
+      const { options, addOrder, performBatchSetStorage } = arrangeMocks({
+        localOrders: [localOrder],
+        remoteEntries: [remoteEntry],
+      });
+
+      await syncOrdersWithUserStorage({}, options);
+
+      expect(addOrder).not.toHaveBeenCalled();
+      expect(performBatchSetStorage).toHaveBeenCalled();
+      const saved = JSON.parse(
+        performBatchSetStorage.mock.calls[0][1][0][1] as string,
+      ) as { o: { fiatAmount: number } };
+      expect(saved.o.fiatAmount).toBe(500);
+    });
+
     it('uploads local-only orders when remote fetch returns an empty array', async () => {
       const localOrder = createMockOrder();
       const { options, performBatchSetStorage } = arrangeMocks({
@@ -814,6 +842,22 @@ describe('order-syncing/controller-integration', () => {
 
       expect(plan.ordersToDeleteLocally).toHaveLength(1);
       expect(plan.ordersToUpdateRemotely).toHaveLength(0);
+    });
+
+    it('prefers local lastUpdatedAt over older remote content during merge', () => {
+      const localOrder: SyncRampsOrder = {
+        ...createMockOrder({ fiatAmount: 500, createdAt: 1 }),
+        lastUpdatedAt: 1000,
+      };
+      const remoteOrder: SyncRampsOrder = {
+        ...createMockOrder({ fiatAmount: 100, createdAt: 1 }),
+        lastUpdatedAt: 10,
+      };
+
+      const plan = computeMergePlan([localOrder], [remoteOrder]);
+
+      expect(plan.ordersToUpdateRemotely).toHaveLength(1);
+      expect(plan.ordersToAddOrUpdateLocally).toHaveLength(0);
     });
 
     it('ignores remote tombstones when no matching local order exists', () => {

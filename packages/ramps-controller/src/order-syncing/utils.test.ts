@@ -8,6 +8,7 @@ import {
   isSyncableOrder,
   mapRampsOrderToUserStorageEntry,
   mapUserStorageEntryToRampsOrder,
+  stripDeletedAt,
   stripSyncMetadata,
 } from './utils';
 
@@ -172,6 +173,20 @@ describe('order-syncing/utils', () => {
       });
 
       expect(stripped).not.toHaveProperty('lastUpdatedAt');
+      expect(stripped).not.toHaveProperty('deletedAt');
+      expect(stripped.providerOrderId).toBe('abc-123');
+    });
+  });
+
+  describe('stripDeletedAt', () => {
+    it('removes deletedAt while preserving lastUpdatedAt', () => {
+      const stripped = stripDeletedAt({
+        ...createMockOrder(),
+        lastUpdatedAt: 1,
+        deletedAt: 2,
+      });
+
+      expect(stripped.lastUpdatedAt).toBe(1);
       expect(stripped).not.toHaveProperty('deletedAt');
       expect(stripped.providerOrderId).toBe('abc-123');
     });

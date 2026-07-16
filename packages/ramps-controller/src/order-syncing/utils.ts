@@ -72,10 +72,10 @@ export function mapUserStorageEntryToRampsOrder(
 }
 
 /**
- * Strips sync metadata so the order can be written to RampsController state.
+ * Strips sync metadata for equality checks and remote payload shaping.
  *
  * @param order - Order that may include sync metadata.
- * @returns A plain {@link RampsOrder}.
+ * @returns A plain {@link RampsOrder} without sync fields.
  */
 export function stripSyncMetadata(order: SyncRampsOrder): RampsOrder {
   const {
@@ -83,6 +83,18 @@ export function stripSyncMetadata(order: SyncRampsOrder): RampsOrder {
     deletedAt: _deletedAt,
     ...rampsOrder
   } = order;
+  return rampsOrder;
+}
+
+/**
+ * Strips remote tombstone metadata while preserving `lastUpdatedAt` so local
+ * controller state can participate in last-write-wins conflict resolution.
+ *
+ * @param order - Order that may include sync metadata.
+ * @returns Order safe to persist locally (no `deletedAt`).
+ */
+export function stripDeletedAt(order: SyncRampsOrder): SyncRampsOrder {
+  const { deletedAt: _deletedAt, ...rampsOrder } = order;
   return rampsOrder;
 }
 

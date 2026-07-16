@@ -36,6 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Honor newer remote tombstones during full sync even when local order content differs ([#9474](https://github.com/MetaMask/core/pull/9474))
 - Trim `providerOrderId` when deriving User Storage keys so syncability checks and storage keys stay aligned ([#9474](https://github.com/MetaMask/core/pull/9474))
 - Clear order polling metadata for stored `providerOrderId` and internal order codes when `removeOrder` is called with either identifier ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Persist `lastUpdatedAt` on local orders and bump it on every non-sync `addOrder` so last-write-wins prefers fresher local edits over stale remote copies ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Set `isOrderSyncingInProgress` before the remote fetch so overlapping full syncs cannot race merge/upload ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Trim `providerOrderId` in `getInternalOrderCode` to match User Storage key derivation ([#9474](https://github.com/MetaMask/core/pull/9474))
 
 ## [15.1.0]
 

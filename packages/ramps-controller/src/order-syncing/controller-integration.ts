@@ -12,6 +12,7 @@ import {
   isSyncableOrder,
   mapRampsOrderToUserStorageEntry,
   mapUserStorageEntryToRampsOrder,
+  stripDeletedAt,
   stripSyncMetadata,
 } from './utils';
 
@@ -167,17 +168,19 @@ export async function syncOrdersWithUserStorage(
     return;
   }
 
-  const validRemoteOrders = (await getRemoteOrders(options, config)).filter(
-    isSyncableOrder,
-  );
+  const controller = getRampsControllerInstance();
+  // Set the semaphore before the remote fetch so overlapping sync calls and
+  // incremental addOrder/removeOrder pushes cannot race the merge.
+  controller.setIsOrderSyncingInProgress(true);
 
-  const performSync = async (): Promise<void> => {
-    const controller = getRampsControllerInstance();
-    const getLocalOrders = (): RampsOrder[] =>
-      controller.state.orders.filter(isSyncableOrder);
+  try {
+    const validRemoteOrders = (await getRemoteOrders(options, config)).filter(
+      isSyncableOrder,
+    );
 
-    try {
-      controller.setIsOrderSyncingInProgress(true);
+    const performSync = async (): Promise<void> => {
+      const getLocalOrders = (): RampsOrder[] =>
+        controller.state.orders.filter(isSyncableOrder);
 
       const {
         remoteOrdersMap,
@@ -192,7 +195,7 @@ export async function syncOrdersWithUserStorage(
 
       for (const order of ordersToAddOrUpdateLocally) {
         if (!order.deletedAt) {
-          controller.addOrder(stripSyncMetadata(order));
+          controller.addOrder(stripDeletedAt(order));
         }
       }
 
@@ -206,42 +209,43 @@ export async function syncOrdersWithUserStorage(
         const syncedUploads: SyncRampsOrder[] = ordersToUpload.map(
           (localOrder) => ({
             ...stripSyncMetadata(localOrder),
-            lastUpdatedAt: Date.now(),
+            lastUpdatedAt:
+              (localOrder as SyncRampsOrder).lastUpdatedAt ?? Date.now(),
           }),
         );
         await saveOrdersToUserStorage(syncedUploads, options);
       }
-    } catch (error) {
-      onOrderSyncErroneousSituation?.('Error synchronizing ramps orders', {
-        error,
-      });
-      throw error;
-    } finally {
-      controller.setIsOrderSyncingInProgress(false);
-    }
-  };
+    };
 
-  if (trace) {
-    const localOrderCount =
-      getRampsControllerInstance().state.orders.filter(isSyncableOrder).length;
+    if (trace) {
+      const localOrderCount =
+        controller.state.orders.filter(isSyncableOrder).length;
 
-    await trace(
-      {
-        name: TraceName.RampsOrderSyncFull,
-        data: {
-          localOrderCount,
-          remoteOrderCount: validRemoteOrders.length,
-          isFirstSync: validRemoteOrders.length === 0 && localOrderCount > 0,
-          isNewDeviceSync:
-            localOrderCount === 0 && validRemoteOrders.length > 0,
+      await trace(
+        {
+          name: TraceName.RampsOrderSyncFull,
+          data: {
+            localOrderCount,
+            remoteOrderCount: validRemoteOrders.length,
+            isFirstSync: validRemoteOrders.length === 0 && localOrderCount > 0,
+            isNewDeviceSync:
+              localOrderCount === 0 && validRemoteOrders.length > 0,
+          },
         },
-      },
-      performSync,
-    );
-    return;
-  }
+        performSync,
+      );
+      return;
+    }
 
-  await performSync();
+    await performSync();
+  } catch (error) {
+    onOrderSyncErroneousSituation?.('Error synchronizing ramps orders', {
+      error,
+    });
+    throw error;
+  } finally {
+    controller.setIsOrderSyncingInProgress(false);
+  }
 }
 
 /**

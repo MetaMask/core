@@ -16,6 +16,7 @@ export {
   mapRampsOrderToUserStorageEntry,
   mapUserStorageEntryToRampsOrder,
   stripSyncMetadata,
+  stripDeletedAt,
   areOrdersEqual,
 } from './utils';
 export { canPerformOrderSyncing } from './sync-utils';

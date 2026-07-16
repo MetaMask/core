@@ -158,6 +158,7 @@ export {
   mapRampsOrderToUserStorageEntry,
   mapUserStorageEntryToRampsOrder,
   stripSyncMetadata,
+  stripDeletedAt,
   areOrdersEqual,
   canPerformOrderSyncing,
   syncOrdersWithUserStorage,

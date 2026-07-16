@@ -129,6 +129,24 @@ describe('RampsController order syncing', () => {
     expect(performGetStorageAllFeatureEntries).toHaveBeenCalled();
   });
 
+  it('stamps lastUpdatedAt on local addOrder edits', () => {
+    jest.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+    const { controller } = setupControllerWithOrderSyncingMocks();
+
+    controller.addOrder({
+      providerOrderId: 'order-1',
+      status: 'PENDING',
+      createdAt: 1,
+    } as never);
+
+    expect(controller.state.orders[0]).toEqual(
+      expect.objectContaining({
+        providerOrderId: 'order-1',
+        lastUpdatedAt: 1_700_000_000_000,
+      }),
+    );
+  });
+
   it('logs incremental addOrder remote sync failures without throwing', async () => {
     const { controller, performBatchSetStorage } =
       setupControllerWithOrderSyncingMocks();

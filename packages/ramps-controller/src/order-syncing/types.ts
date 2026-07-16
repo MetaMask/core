@@ -30,8 +30,11 @@ export type UserStorageRampsOrderEntry = {
 };
 
 /**
- * {@link RampsOrder} extended with sync metadata used only during sync operations.
- * Sync metadata is not persisted in RampsController state.
+ * {@link RampsOrder} extended with sync metadata used for conflict resolution.
+ *
+ * `lastUpdatedAt` is persisted on local controller orders so last-write-wins can
+ * compare against remote `lu` after local edits. `deletedAt` is remote-only and
+ * must be stripped before writing into {@link RampsController} state.
  */
 export type SyncRampsOrder = RampsOrder & {
   lastUpdatedAt?: number;
