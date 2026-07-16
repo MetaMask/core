@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import type { AddressBookControllerState } from '@metamask/address-book-controller';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';

@@ -1,6 +1,7 @@
-import { ListKeys, ListNames } from './PhishingController';
-import type { PhishingListState } from './PhishingController';
-import type { TokenScanResultType } from './types';
+import { jest } from '@jest/globals';
+import { ListKeys, ListNames } from './PhishingController.js';
+import type { PhishingListState } from './PhishingController.js';
+import type { TokenScanResultType } from './types.js';
 import {
   applyDiffs,
   buildCacheKey,
@@ -22,7 +23,7 @@ import {
   sha256Hash,
   splitCacheHits,
   validateConfig,
-} from './utils';
+} from './utils.js';
 
 const exampleBlockedUrl = 'https://example-blocked-website.com';
 const exampleBlockedUrlOne = 'https://another-example-blocked-website.com';

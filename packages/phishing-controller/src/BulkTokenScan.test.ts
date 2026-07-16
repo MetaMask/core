@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { safelyExecuteWithTimeout } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {

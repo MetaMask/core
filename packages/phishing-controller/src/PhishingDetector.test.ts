@@ -1,8 +1,9 @@
-import { PhishingDetector } from './PhishingDetector';
-import type { PhishingDetectorOptions } from './PhishingDetector';
-import { formatHostnameToUrl } from './tests/utils';
-import { PhishingDetectorResultType } from './types';
-import { sha256Hash } from './utils';
+import { jest } from '@jest/globals';
+import { PhishingDetector } from './PhishingDetector.js';
+import type { PhishingDetectorOptions } from './PhishingDetector.js';
+import { formatHostnameToUrl } from './tests/utils.js';
+import { PhishingDetectorResultType } from './types.js';
+import { sha256Hash } from './utils.js';
 
 describe('PhishingDetector', () => {
   describe('constructor', () => {
