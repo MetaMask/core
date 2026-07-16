@@ -16,27 +16,27 @@ import {
   Env,
   MONEY_ACCOUNT_API_URL_MAP,
   RATE_HISTORY_STALE_TIME_MS,
-} from './constants';
-import { MoneyAccountApiResponseValidationError } from './errors';
-import { projectLogger, createModuleLogger } from './logger';
-import type { MoneyAccountApiDataServiceMethodActions } from './money-account-api-data-service-method-action-types';
+} from './constants.js';
+import { MoneyAccountApiResponseValidationError } from './errors.js';
+import { projectLogger, createModuleLogger } from './logger.js';
+import type { MoneyAccountApiDataServiceMethodActions } from './money-account-api-data-service-method-action-types.js';
 import type {
   HistoryResponse,
   InterestResponse,
   PositionResponse,
   RateHistoryResponse,
-} from './response.types';
+} from './response.types.js';
 import {
   HistoryResponseStruct,
   InterestResponseStruct,
   PositionResponseStruct,
   RateHistoryResponseStruct,
-} from './structs';
+} from './structs.js';
 import type {
   HistoryOptions,
   InterestOptions,
   RateHistoryOptions,
-} from './types';
+} from './types.js';
 
 // === GENERAL ===
 
@@ -200,7 +200,7 @@ export class MoneyAccountApiDataService extends BaseDataService<
           );
         }
 
-        return validated as unknown as PositionResponse;
+        return validated as PositionResponse;
       },
     });
   }
@@ -258,7 +258,7 @@ export class MoneyAccountApiDataService extends BaseDataService<
           );
         }
 
-        return validated as unknown as InterestResponse;
+        return validated as InterestResponse;
       },
     });
   }
@@ -331,7 +331,7 @@ export class MoneyAccountApiDataService extends BaseDataService<
             );
           }
 
-          return validated as unknown as HistoryResponse;
+          return validated as HistoryResponse;
         },
       },
       options?.cursor ?? undefined,
@@ -391,7 +391,7 @@ export class MoneyAccountApiDataService extends BaseDataService<
           );
         }
 
-        return validated as unknown as RateHistoryResponse;
+        return validated as RateHistoryResponse;
       },
     });
   }

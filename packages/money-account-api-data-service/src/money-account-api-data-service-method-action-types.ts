@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { MoneyAccountApiDataService } from './money-account-api-data-service';
+import type { MoneyAccountApiDataService } from './money-account-api-data-service.js';
 
 /**
  * Fetches the current vault positions for a given user address.
