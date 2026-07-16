@@ -283,6 +283,7 @@ linkStyle default opacity:0.5
   assets_controller --> phishing_controller;
   assets_controller --> polling_controller;
   assets_controller --> preferences_controller;
+  assets_controller --> remote_feature_flag_controller;
   assets_controller --> transaction_controller;
   assets_controllers --> account_tree_controller;
   assets_controllers --> accounts_controller;
@@ -364,11 +365,12 @@ linkStyle default opacity:0.5
   config_registry_controller --> remote_feature_flag_controller;
   connectivity_controller --> base_controller;
   connectivity_controller --> messenger;
-  core_backend --> accounts_controller;
+  core_backend --> account_tree_controller;
   core_backend --> controller_utils;
   core_backend --> keyring_controller;
   core_backend --> messenger;
   core_backend --> profile_sync_controller;
+  core_backend --> remote_feature_flag_controller;
   delegation_controller --> base_controller;
   delegation_controller --> keyring_controller;
   delegation_controller --> messenger;

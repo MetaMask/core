@@ -1,7 +1,7 @@
 import { toHex } from '@metamask/controller-utils';
 import type { CaipChainId } from '@metamask/utils';
 import type { CaipAssetType } from '@metamask/utils';
-import nock from 'nock';
+import nock, { cleanAll } from 'nock';
 
 import type { SortTrendingBy } from './token-service';
 import {
@@ -10,6 +10,7 @@ import {
   fetchTokenListByChainId,
   fetchTokenMetadata,
   getTrendingTokens,
+  resetSuggestedOccurrenceFloorsCacheForTesting,
   searchTokens,
   TOKEN_END_POINT_API,
   TOKEN_METADATA_NO_SUPPORT_ERROR,
@@ -17,6 +18,30 @@ import {
 
 const ONE_MILLISECOND = 1;
 const ONE_SECOND_IN_MILLISECONDS = 1_000;
+
+/**
+ * Default `/v1/suggestedOccurrenceFloors` payload for token-list tests.
+ * Mirrors production shape (decimal chain ID → floor).
+ */
+const DEFAULT_SUGGESTED_OCCURRENCE_FLOORS: Record<string, number> = {
+  '1': 3,
+  '59144': 1,
+};
+
+/**
+ * Persist a nock for suggested occurrence floors.
+ *
+ * @param floors - Override payload; defaults to {@link DEFAULT_SUGGESTED_OCCURRENCE_FLOORS}.
+ * @returns The nock scope for the floors endpoint.
+ */
+function nockSuggestedOccurrenceFloors(
+  floors: Record<string, number> = DEFAULT_SUGGESTED_OCCURRENCE_FLOORS,
+): nock.Scope {
+  return nock(TOKEN_END_POINT_API)
+    .get('/v1/suggestedOccurrenceFloors')
+    .reply(200, floors)
+    .persist();
+}
 
 const sampleTokenList = [
   {
@@ -292,6 +317,16 @@ const polygonCaipChainId: CaipChainId = 'eip155:137';
 
 describe('Token service', () => {
   describe('fetchTokenListByChainId', () => {
+    beforeEach(() => {
+      resetSuggestedOccurrenceFloorsCacheForTesting();
+      nockSuggestedOccurrenceFloors();
+    });
+
+    afterEach(() => {
+      cleanAll();
+      resetSuggestedOccurrenceFloorsCacheForTesting();
+    });
+
     it('should call the tokens api and return the list of tokens', async () => {
       const { signal } = new AbortController();
       nock(TOKEN_END_POINT_API)
@@ -321,6 +356,74 @@ describe('Token service', () => {
       const tokens = await fetchTokenListByChainId(lineaHexChain, signal);
 
       expect(tokens).toStrictEqual(sampleTokenListLinea);
+    });
+
+    it('should use occurrenceFloor from suggestedOccurrenceFloors for the chain', async () => {
+      const { signal } = new AbortController();
+      cleanAll();
+      resetSuggestedOccurrenceFloorsCacheForTesting();
+      nockSuggestedOccurrenceFloors({ '1': 5 });
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/${sampleDecimalChainId}?occurrenceFloor=5&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
+        )
+        .reply(200, sampleTokenList);
+
+      const tokens = await fetchTokenListByChainId(sampleChainId, signal);
+
+      expect(tokens).toStrictEqual(sampleTokenList);
+    });
+
+    it('should fall back to occurrenceFloor 3 when the chain is missing from suggestedOccurrenceFloors', async () => {
+      const { signal } = new AbortController();
+      cleanAll();
+      resetSuggestedOccurrenceFloorsCacheForTesting();
+      nockSuggestedOccurrenceFloors({ '59144': 1 });
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
+        )
+        .reply(200, sampleTokenList);
+
+      const tokens = await fetchTokenListByChainId(sampleChainId, signal);
+
+      expect(tokens).toStrictEqual(sampleTokenList);
+    });
+
+    it('should fall back to occurrenceFloor 3 when suggestedOccurrenceFloors fails', async () => {
+      const { signal } = new AbortController();
+      cleanAll();
+      resetSuggestedOccurrenceFloorsCacheForTesting();
+      nock(TOKEN_END_POINT_API).get('/v1/suggestedOccurrenceFloors').reply(500);
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
+        )
+        .reply(200, sampleTokenList);
+
+      const tokens = await fetchTokenListByChainId(sampleChainId, signal);
+
+      expect(tokens).toStrictEqual(sampleTokenList);
+    });
+
+    it('should cache suggestedOccurrenceFloors across token list fetches', async () => {
+      const { signal } = new AbortController();
+      cleanAll();
+      resetSuggestedOccurrenceFloorsCacheForTesting();
+      const floorsScope = nock(TOKEN_END_POINT_API)
+        .get('/v1/suggestedOccurrenceFloors')
+        .reply(200, DEFAULT_SUGGESTED_OCCURRENCE_FLOORS);
+      nock(TOKEN_END_POINT_API)
+        .get(
+          `/tokens/${sampleDecimalChainId}?occurrenceFloor=3&includeNativeAssets=false&includeTokenFees=false&includeAssetType=false&includeERC20Permit=false&includeStorage=false&includeRwaData=true`,
+        )
+        .times(2)
+        .reply(200, sampleTokenList);
+
+      await fetchTokenListByChainId(sampleChainId, signal);
+      await fetchTokenListByChainId(sampleChainId, signal);
+
+      expect(floorsScope.isDone()).toBe(true);
     });
 
     it('should correctly filter linea tokens: include if has lineaTeam OR >= 3 aggregators', async () => {

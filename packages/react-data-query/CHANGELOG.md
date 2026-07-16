@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2]
+
 ### Changed
 
 - **BREAKING:** Constrain `createUIQueryClient`'s messenger-like type to match the given data services ([#9475](https://github.com/MetaMask/core/pull/9475))
@@ -38,7 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#8039](https://github.com/MetaMask/core/pull/8039), [#8292](https://github.com/MetaMask/core/pull/8292))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@0.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@0.2.2...HEAD
+[0.2.2]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@0.2.1...@metamask/react-data-query@0.2.2
 [0.2.1]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@0.2.0...@metamask/react-data-query@0.2.1
 [0.2.0]: https://github.com/MetaMask/core/compare/@metamask/react-data-query@0.1.0...@metamask/react-data-query@0.2.0
 [0.1.0]: https://github.com/MetaMask/core/releases/tag/@metamask/react-data-query@0.1.0

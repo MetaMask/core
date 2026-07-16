@@ -12,10 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add Robinhood Chain (`4663`/`0x1237`) BalanceFetcher support for legacy single-call token detection ([#9473](https://github.com/MetaMask/core/pull/9473))
   - Add `Robinhood` in `SupportedTokenDetectionNetworks`
   - Add Robinhood BalanceFetcher address in `SINGLE_CALL_BALANCES_ADDRESS_BY_CHAINID`
+- Add exported `getAssetId` in `codefi-v2.ts` for CAIP-19 asset ID derivation - extracted from existing `fetchTokenPrices` ([#9386](https://github.com/MetaMask/core/pull/9386))
 
 ### Changed
 
+- `fetchTokenListByChainId` (`token-service`) now sets the token-list `occurrenceFloor` query param from Token API `GET /v1/suggestedOccurrenceFloors` (cached 1h), replacing hardcoded Linea/MegaETH/Tempo special cases. Missing chains or failed fetches fall back to 3. This affects `TokenDetectionController` and `TokenListController`, which both use this helper ([#9537](https://github.com/MetaMask/core/pull/9537))
 - Bump `@metamask/network-enablement-controller` from `^5.5.0` to `^5.6.0` ([#9520](https://github.com/MetaMask/core/pull/9520))
+- Bump `@metamask/phishing-controller` from `^17.2.1` to `^17.3.0` ([#9532](https://github.com/MetaMask/core/pull/9532))
+- Modified native asset addresses for Stable (`988`), Rootstock (`30`) and Gnosis (`100`) in `codefi-v2.ts` ([#9386](https://github.com/MetaMask/core/pull/9386))
 
 ### Removed
 
