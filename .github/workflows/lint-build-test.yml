@@ -173,7 +173,7 @@ jobs:
             echo "Working tree dirty at end of job"
             exit 1
           fi
-  
+
   test-24:
     name: Test (24.x)
     runs-on: ubuntu-latest
