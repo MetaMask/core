@@ -102,7 +102,6 @@ const config = {
       // so in that case use their published versions
       '<rootDir>/../../node_modules/@metamask/$1',
     ],
-    '^uuid$': fileURLToPath(import.meta.resolve('uuid')),
   },
 
   // An array of regexp pattern strings, matched against all module paths before considered 'visible' to the module loader
