@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import {
   NetworkType,
@@ -26,21 +27,25 @@ import type { Hex } from '@metamask/utils';
 import nock from 'nock';
 
 import packageJson from '../package.json';
-import { advanceTime, flushPromises, getFakeProvider } from '../tests/helpers';
+import {
+  advanceTime,
+  flushPromises,
+  getFakeProvider,
+} from '../tests/helpers.js';
 import {
   API_BASE_URL,
   SENTINEL_API_BASE_URL_MAP,
   SmartTransactionsTraceName,
-} from './constants';
+} from './constants.js';
 import {
   DEFAULT_INTERVAL,
   SmartTransactionsController,
   getDefaultSmartTransactionsControllerState,
-} from './SmartTransactionsController';
-import type { SmartTransactionsControllerMessenger } from './SmartTransactionsController';
-import type { SmartTransaction, UnsignedTransaction } from './types';
-import { SmartTransactionStatuses, ClientId } from './types';
-import * as utils from './utils';
+} from './SmartTransactionsController.js';
+import type { SmartTransactionsControllerMessenger } from './SmartTransactionsController.js';
+import type { SmartTransaction, UnsignedTransaction } from './types.js';
+import { SmartTransactionStatuses, ClientId } from './types.js';
+import * as utils from './utils.js';
 
 type AllActions = MessengerActions<SmartTransactionsControllerMessenger>;
 
@@ -430,8 +435,7 @@ describe('SmartTransactionsController', () => {
         }),
       );
 
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      controller.stop();
+      void controller.stop();
     });
 
     it('does not report error when feature flags are valid after state change', async () => {
@@ -530,8 +534,7 @@ describe('SmartTransactionsController', () => {
       // Should not be called after state change with valid flags
       expect(captureExceptionSpy).not.toHaveBeenCalled();
 
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      controller.stop();
+      void controller.stop();
     });
 
     it('reports error when smartTransactionsNetworks flag is missing after state change', async () => {
@@ -632,8 +635,7 @@ describe('SmartTransactionsController', () => {
         }),
       );
 
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      controller.stop();
+      void controller.stop();
     });
 
     it('reports error to ErrorReportingService when feature flags become invalid after state change', async () => {
@@ -743,8 +745,7 @@ describe('SmartTransactionsController', () => {
         }),
       );
 
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      controller.stop();
+      void controller.stop();
     });
 
     it('reports multiple errors to ErrorReportingService when multiple chains are invalid after state change', async () => {
@@ -849,8 +850,7 @@ describe('SmartTransactionsController', () => {
       // Should be called twice - once for each invalid chain
       expect(captureExceptionSpy).toHaveBeenCalledTimes(2);
 
-      // eslint-disable-next-line @typescript-eslint/no-floating-promises
-      controller.stop();
+      void controller.stop();
     });
   });
 
@@ -949,8 +949,7 @@ describe('SmartTransactionsController', () => {
 
         controller.timeoutHandle = setTimeout(() => ({}));
 
-        // eslint-disable-next-line @typescript-eslint/no-floating-promises
-        controller.poll(1000);
+        void controller.poll(1000);
 
         expect(updateSmartTransactionsSpy).toHaveBeenCalled();
       });
@@ -3377,8 +3376,7 @@ async function withController<ReturnValue>(
       triggerNetworkStateChange,
     });
   } finally {
-    // eslint-disable-next-line @typescript-eslint/no-floating-promises
-    controller.stop();
+    void controller.stop();
     controller.stopAllPolling();
   }
 }

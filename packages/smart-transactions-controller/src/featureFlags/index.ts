@@ -7,11 +7,11 @@ export {
   type SmartTransactionsNetworkConfigFromSchema as SmartTransactionsNetworkConfig,
   type SmartTransactionsFeatureFlagsConfigFromSchema,
   type FeatureFlagsProcessResult,
-} from './validators';
+} from './validators.js';
 
 export {
   getSmartTransactionsFeatureFlags,
   processSmartTransactionsFeatureFlags,
   getSmartTransactionsFeatureFlagsForChain,
   normalizeChainId,
-} from './feature-flags';
+} from './feature-flags.js';

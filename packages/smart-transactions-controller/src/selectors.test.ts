@@ -1,9 +1,11 @@
-import { DEFAULT_DISABLED_SMART_TRANSACTIONS_FEATURE_FLAGS } from './constants';
+import { jest } from '@jest/globals';
+
+import { DEFAULT_DISABLED_SMART_TRANSACTIONS_FEATURE_FLAGS } from './constants.js';
 import {
   selectSmartTransactionsFeatureFlags,
   selectSmartTransactionsFeatureFlagsForChain,
-} from './selectors';
-import type { SmartTransactionsFeatureFlagsState } from './selectors';
+} from './selectors.js';
+import type { SmartTransactionsFeatureFlagsState } from './selectors.js';
 
 describe('selectors', () => {
   beforeEach(() => {
