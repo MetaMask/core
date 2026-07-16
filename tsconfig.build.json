@@ -113,6 +113,9 @@
       "path": "./packages/ens-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/entropy-controller/tsconfig.build.json"
+    },
+    {
       "path": "./packages/eth-block-tracker/tsconfig.build.json"
     },
     {

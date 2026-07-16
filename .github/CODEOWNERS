@@ -14,6 +14,7 @@
 /packages/profile-sync-controller            @MetaMask/accounts-engineers
 /packages/money-account-controller           @MetaMask/accounts-engineers
 /packages/snap-account-service               @MetaMask/accounts-engineers
+/packages/entropy-controller                 @MetaMask/accounts-engineers
 
 ## Auth Team
 /packages/authenticated-user-storage         @MetaMask/auth-engineers
@@ -280,3 +281,5 @@
 /packages/money-account-upgrade-controller/CHANGELOG.md @MetaMask/earn @MetaMask/delegation @MetaMask/core-platform
 /packages/snap-account-service/package.json @MetaMask/accounts-engineers @MetaMask/core-platform
 /packages/snap-account-service/CHANGELOG.md @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/entropy-controller/package.json @MetaMask/accounts-engineers @MetaMask/core-platform
+/packages/entropy-controller/CHANGELOG.md @MetaMask/accounts-engineers @MetaMask/core-platform

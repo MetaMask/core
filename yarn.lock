@@ -6593,6 +6593,25 @@ __metadata:
   languageName: unknown
   linkType: soft
 
+"@metamask/entropy-controller@workspace:packages/entropy-controller":
+  version: 0.0.0-use.local
+  resolution: "@metamask/entropy-controller@workspace:packages/entropy-controller"
+  dependencies:
+    "@metamask/auto-changelog": "npm:^6.1.0"
+    "@metamask/base-controller": "npm:^9.1.0"
+    "@metamask/messenger": "npm:^2.0.0"
+    "@ts-bridge/cli": "npm:^0.6.4"
+    "@types/jest": "npm:^29.5.14"
+    deepmerge: "npm:^4.2.2"
+    jest: "npm:^29.7.0"
+    ts-jest: "npm:^29.2.5"
+    tsx: "npm:^4.20.5"
+    typedoc: "npm:^0.25.13"
+    typedoc-plugin-missing-exports: "npm:^2.0.0"
+    typescript: "npm:~5.3.3"
+  languageName: unknown
+  linkType: soft
+
 "@metamask/eslint-config-jest@npm:^15.0.0":
   version: 15.0.0
   resolution: "@metamask/eslint-config-jest@npm:15.0.0"
