@@ -1,4 +1,6 @@
-import { lintTransformedFile } from '..';
+import { jest } from '@jest/globals';
+
+import { lintTransformedFile } from '../index.js';
 
 describe('transform utils', () => {
   describe('lintTransformedFile', () => {
