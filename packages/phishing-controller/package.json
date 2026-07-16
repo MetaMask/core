@@ -1,6 +1,6 @@
 {
   "name": "@metamask/phishing-controller",
-  "version": "17.2.1",
+  "version": "17.3.0",
   "description": "Maintains a periodically updated list of approved and unapproved website origins",
   "keywords": [
     "Ethereum",

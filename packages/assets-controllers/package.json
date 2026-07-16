@@ -78,7 +78,7 @@
     "@metamask/network-controller": "^34.0.0",
     "@metamask/network-enablement-controller": "^5.6.0",
     "@metamask/permission-controller": "^13.1.1",
-    "@metamask/phishing-controller": "^17.2.1",
+    "@metamask/phishing-controller": "^17.3.0",
     "@metamask/polling-controller": "^16.0.8",
     "@metamask/preferences-controller": "^23.1.0",
     "@metamask/profile-sync-controller": "^28.3.0",

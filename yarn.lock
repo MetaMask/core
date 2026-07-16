@@ -5684,9 +5684,10 @@ __metadata:
     "@metamask/network-controller": "npm:^34.0.0"
     "@metamask/network-enablement-controller": "npm:^5.6.0"
     "@metamask/permission-controller": "npm:^13.1.1"
-    "@metamask/phishing-controller": "npm:^17.2.1"
+    "@metamask/phishing-controller": "npm:^17.3.0"
     "@metamask/polling-controller": "npm:^16.0.8"
     "@metamask/preferences-controller": "npm:^23.1.0"
+    "@metamask/remote-feature-flag-controller": "npm:^4.2.2"
     "@metamask/snaps-controllers": "npm:^19.0.0"
     "@metamask/snaps-utils": "npm:^12.1.2"
     "@metamask/transaction-controller": "npm:^69.0.0"
@@ -5741,7 +5742,7 @@ __metadata:
     "@metamask/network-controller": "npm:^34.0.0"
     "@metamask/network-enablement-controller": "npm:^5.6.0"
     "@metamask/permission-controller": "npm:^13.1.1"
-    "@metamask/phishing-controller": "npm:^17.2.1"
+    "@metamask/phishing-controller": "npm:^17.3.0"
     "@metamask/polling-controller": "npm:^16.0.8"
     "@metamask/preferences-controller": "npm:^23.1.0"
     "@metamask/profile-sync-controller": "npm:^28.3.0"
@@ -6318,12 +6319,13 @@ __metadata:
   version: 0.0.0-use.local
   resolution: "@metamask/core-backend@workspace:packages/core-backend"
   dependencies:
-    "@metamask/accounts-controller": "npm:^39.0.5"
+    "@metamask/account-tree-controller": "npm:^7.5.5"
     "@metamask/auto-changelog": "npm:^6.1.0"
     "@metamask/controller-utils": "npm:^12.3.0"
     "@metamask/keyring-controller": "npm:^27.1.0"
     "@metamask/messenger": "npm:^2.0.0"
     "@metamask/profile-sync-controller": "npm:^28.3.0"
+    "@metamask/remote-feature-flag-controller": "npm:^4.2.2"
     "@metamask/utils": "npm:^11.11.0"
     "@tanstack/query-core": "npm:^5.62.16"
     "@ts-bridge/cli": "npm:^0.6.4"
@@ -8066,7 +8068,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/phishing-controller@npm:^17.2.1, @metamask/phishing-controller@workspace:packages/phishing-controller":
+"@metamask/phishing-controller@npm:^17.3.0, @metamask/phishing-controller@workspace:packages/phishing-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/phishing-controller@workspace:packages/phishing-controller"
   dependencies:
@@ -9224,7 +9226,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@nktkas/hyperliquid@npm:^0.33.1":
+"@nktkas/hyperliquid@npm:0.33.1":
   version: 0.33.1
   resolution: "@nktkas/hyperliquid@npm:0.33.1"
   dependencies:
@@ -9233,6 +9235,18 @@ __metadata:
     decimal.js: "npm:^10.6.0"
     valibot: "npm:^1.4.1"
   checksum: 10/8f6672d664dc4b4094906f8e156cf5b64095e04ce4b3bf47b5e9175bff69c6bc4b4d0c3d7559e8f436630619e810d5e2895a74088867175ff4c6f4da97fc6016
+  languageName: node
+  linkType: hard
+
+"@nktkas/hyperliquid@patch:@nktkas/hyperliquid@npm%3A0.33.1#~/.yarn/patches/@nktkas-hyperliquid-npm-0.33.1-6a541fdd1d.patch":
+  version: 0.33.1
+  resolution: "@nktkas/hyperliquid@patch:@nktkas/hyperliquid@npm%3A0.33.1#~/.yarn/patches/@nktkas-hyperliquid-npm-0.33.1-6a541fdd1d.patch::version=0.33.1&hash=dc8891"
+  dependencies:
+    "@nktkas/rews": "npm:^4.0.1"
+    "@noble/hashes": "npm:^2.2.0"
+    decimal.js: "npm:^10.6.0"
+    valibot: "npm:^1.4.1"
+  checksum: 10/509fcd32b97d46358d3695283f55f6e54c5d0f09bab7351cb06937941d7587841fe695392f4387b4334e7c0b4af0d92a68c1a072d24a6af6f02e4604136a03a6
   languageName: node
   linkType: hard
 

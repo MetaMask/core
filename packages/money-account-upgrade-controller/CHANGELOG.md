@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** The `associate-address` upgrade step now checks the profile's existing address associations via `ChompApiService:getAssociatedAddresses` before signing, and reports `already-done` without signing or submitting anything when the address is already associated ([#9387](https://github.com/MetaMask/core/pull/9387))
+  - `MoneyAccountUpgradeControllerMessenger` consumers must grant the `ChompApiService:getAssociatedAddresses` action alongside the previously required actions, and must provide a `@metamask/chomp-api-service` version that registers it (`>=4.0.0`).
+  - The lookup is an optimization: if it fails, the step falls through to the previous sign-and-submit behavior.
+  - A 409 conflict from the association request is disambiguated by re-fetching the associations, so a same-profile create race reports `already-done` instead of failing the upgrade; a genuine conflict (address associated with a different profile) still fails the step.
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 - Bump `@metamask/authenticated-user-storage` from `^3.0.0` to `^3.0.1` ([#9458](https://github.com/MetaMask/core/pull/9458))
 

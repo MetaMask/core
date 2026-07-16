@@ -3286,6 +3286,14 @@ export class HyperLiquidProvider implements PerpsProvider {
         success: true,
         orderId: restingOrder?.oid?.toString() ?? filledOrder?.oid?.toString(),
         filledSize: filledOrder?.totalSz,
+        // The main order's `s` is the final normalized size sent to the exchange
+        // (post precision rounding, USD recalculation, and $10-minimum retry —
+        // the retry recurses through placeOrder so this reflects the last
+        // submission). TradingService uses it to classify partial fills. The SDK
+        // types `s` as `string | number`, so normalize to the string OrderResult
+        // shape while preserving `undefined` when no order was built.
+        submittedSize:
+          orders[0]?.s === undefined ? undefined : String(orders[0].s),
         averagePrice: filledOrder?.avgPx,
       };
     } catch (orderError) {

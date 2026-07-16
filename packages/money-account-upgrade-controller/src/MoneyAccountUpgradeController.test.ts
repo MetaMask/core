@@ -70,6 +70,7 @@ type Mocks = {
   getServiceDetails: jest.Mock;
   signPersonalMessage: jest.Mock;
   associateAddress: jest.Mock;
+  getAssociatedAddresses: jest.Mock;
   createUpgrade: jest.Mock;
   signEip7702Authorization: jest.Mock;
   findNetworkClientIdByChainId: jest.Mock;
@@ -115,6 +116,7 @@ function setup(): {
       address: MOCK_ACCOUNT_ADDRESS,
       status: 'created',
     }),
+    getAssociatedAddresses: jest.fn().mockResolvedValue([]),
     createUpgrade: jest.fn().mockResolvedValue({
       signerAddress: MOCK_ACCOUNT_ADDRESS,
       address: MAINNET_CONTRACTS.EIP7702StatelessDeleGatorImpl,
@@ -154,6 +156,10 @@ function setup(): {
   rootMessenger.registerActionHandler(
     'ChompApiService:associateAddress',
     mocks.associateAddress,
+  );
+  rootMessenger.registerActionHandler(
+    'ChompApiService:getAssociatedAddresses',
+    mocks.getAssociatedAddresses,
   );
   rootMessenger.registerActionHandler(
     'ChompApiService:createUpgrade',
@@ -206,6 +212,7 @@ function setup(): {
       'ChompApiService:getServiceDetails',
       'KeyringController:signPersonalMessage',
       'ChompApiService:associateAddress',
+      'ChompApiService:getAssociatedAddresses',
       'ChompApiService:createUpgrade',
       'KeyringController:signEip7702Authorization',
       'NetworkController:findNetworkClientIdByChainId',
