@@ -895,7 +895,7 @@ export class PerpsController extends BaseController<
   readonly #priceDeviationLimit?: number;
 
   /**
-   * Transient UTM / discovery attribution context (TAT-3133, TAT-3140).
+   * Transient UTM / discovery attribution context.
    * Held in-memory only (never persisted in PerpsControllerState) and merged
    * into analytics event properties via {@link mergeAttributionContext}.
    */
@@ -3884,7 +3884,7 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Set the transient UTM / discovery attribution context (TAT-3133, TAT-3140).
+   * Set the transient UTM / discovery attribution context.
    * Replaces any previously set context. Held in-memory only — not persisted.
    *
    * @param context - The attribution context (UTM fields) to store.
@@ -3894,7 +3894,7 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Get a copy of the current attribution context (TAT-3133, TAT-3140).
+   * Get a copy of the current attribution context.
    *
    * @returns A shallow copy of the stored attribution context.
    */
@@ -3903,7 +3903,7 @@ export class PerpsController extends BaseController<
   }
 
   /**
-   * Clear the stored attribution context (TAT-3133, TAT-3140).
+   * Clear the stored attribution context.
    */
   clearAttributionContext(): void {
     this.#attributionContext = {};
@@ -3911,7 +3911,7 @@ export class PerpsController extends BaseController<
 
   /**
    * Merge the stored UTM attribution context into a set of analytics event
-   * properties (TAT-3133, TAT-3140). Only defined UTM fields are added, mapped
+   * properties. Only defined UTM fields are added, mapped
    * to their canonical PERPS_EVENT_PROPERTY keys. Provided properties take
    * precedence and are never overwritten.
    *

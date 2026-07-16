@@ -168,13 +168,13 @@ export type TrackingData = {
   // Chart library active when the trade was initiated (e.g., lightweight, advanced)
   chartLibrary?: string;
 
-  // Entry point / discovery attribution (TAT-3080). Propagated onto trade/close/
+  // Entry point / discovery attribution. Propagated onto trade/close/
   // cancel/risk events as entry_point, discovery_source, perp_discovery_source.
   entryPoint?: string;
   discoverySource?: string;
   perpDiscoverySource?: string;
 
-  // HyperLiquid protocol fee rate (TAT-3149). Emitted as hl_fee_rate on trade +
+  // HyperLiquid protocol fee rate. Emitted as hl_fee_rate on trade +
   // close events when present; omitted entirely when unavailable.
   hlFeeRate?: number;
 
@@ -197,7 +197,7 @@ export type TPSLTrackingData = {
   /**
    * @deprecated Source of the TP/SL update (e.g., 'tp_sl_view', 'position_card').
    * Prefer `entryPoint` / `discoverySource` / `perpDiscoverySource` for risk-event
-   * attribution (TAT-3080); `source` is retained for backward compatibility.
+   * attribution; `source` is retained for backward compatibility.
    */
   source: string;
   positionSize: number; // Unsigned position size for metrics
@@ -206,7 +206,7 @@ export type TPSLTrackingData = {
   isEditingExistingPosition?: boolean; // true = editing existing position, false = creating for new order
   entryPrice?: number; // Entry price for percentage calculations
 
-  // Entry point / discovery attribution (TAT-3080), propagated onto risk events.
+  // Entry point / discovery attribution, propagated onto risk events.
   entryPoint?: string;
   discoverySource?: string;
   perpDiscoverySource?: string;
@@ -1423,7 +1423,7 @@ export enum PerpsAnalyticsEvent {
   RiskManagement = 'Perp Risk Management',
   PerpsError = 'Perp Error',
   AccountSetup = 'Perp Account Setup',
-  // New funnel + search events (TAT-3084, TAT-3202).
+  // New funnel + search events.
   // Names must match MetaMetrics/Mixpanel exactly; no other event names may be added.
   TransactionConsidered = 'Perp Transaction Considered',
   TradeQuoteReceived = 'Perp Trade Quote Received',
@@ -1433,7 +1433,7 @@ export enum PerpsAnalyticsEvent {
 }
 
 /**
- * UTM / discovery attribution context for Perps analytics (TAT-3133, TAT-3140).
+ * UTM / discovery attribution context for Perps analytics.
  *
  * Held transiently in-memory by PerpsController (never persisted in state) and
  * merged into analytics event properties so client-originated UTM attribution
