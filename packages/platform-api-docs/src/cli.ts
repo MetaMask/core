@@ -57,10 +57,6 @@ async function setupSite(outDir: string): Promise<void> {
   const skip = new Set(['node_modules', 'docs', 'tsconfig.json']);
 
   console.log(`\nSetting up Docusaurus site in ${outDir}...`);
-
-  // `fs.cp` has been available since Node 16.7 and only got the "stable"
-  // marker in 22.3 — it's functional throughout our supported Node range
-  // (`^18.18 || >=20`), even though the linter flags the older versions.
    
   await fs.cp(siteDir, outDir, {
     recursive: true,
