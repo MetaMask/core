@@ -21,6 +21,7 @@
     "user-storage/",
     "sdk/"
   ],
+  "type": "module",
   "sideEffects": false,
   "exports": {
     ".": {

@@ -19,6 +19,7 @@
   "files": [
     "dist/"
   ],
+  "type": "module",
   "sideEffects": false,
   "scripts": {
     "build": "docusaurus build site",

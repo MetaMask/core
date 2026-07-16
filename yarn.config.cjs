@@ -83,6 +83,9 @@ module.exports = defineConfig({
       // All packages must have a name.
       expectWorkspaceField(workspace, 'name');
 
+      // All workspaces must specify "type: module".
+      expectWorkspaceField(workspace, 'type', 'module');
+
       if (isChildWorkspace) {
         // All non-root packages must have a name that matches its directory
         // (e.g., a package in a workspace directory called `foo` must be called

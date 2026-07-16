@@ -21,6 +21,7 @@
     "!dist/services/MYXClientService*",
     "!dist/services/MYXWalletService*"
   ],
+  "type": "module",
   "sideEffects": false,
   "exports": {
     ".": {

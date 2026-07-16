@@ -19,6 +19,7 @@
     "dist",
     "dist/"
   ],
+  "type": "module",
   "sideEffects": false,
   "module": "./dist/index.mjs",
   "exports": {
