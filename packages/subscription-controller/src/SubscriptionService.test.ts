@@ -1,16 +1,18 @@
+import { jest } from '@jest/globals';
+
 import {
   Env,
   getEnvUrls,
   SubscriptionControllerErrorMessage,
   SubscriptionServiceErrorMessage,
-} from './constants';
-import * as constants from './constants';
-import { SubscriptionServiceError } from './errors';
+} from './constants.js';
+import * as constants from './constants.js';
+import { SubscriptionServiceError } from './errors.js';
 import {
   SUBSCRIPTION_URL,
   SubscriptionService,
   SubscriptionServiceConfig,
-} from './SubscriptionService';
+} from './SubscriptionService.js';
 import type {
   StartSubscriptionRequest,
   StartCryptoSubscriptionRequest,
@@ -19,7 +21,7 @@ import type {
   UpdatePaymentMethodCardRequest,
   UpdatePaymentMethodCryptoRequest,
   SubscriptionEligibility,
-} from './types';
+} from './types.js';
 import {
   CANCEL_TYPES,
   PAYMENT_TYPES,
@@ -27,7 +29,7 @@ import {
   RECURRING_INTERVALS,
   SUBSCRIPTION_STATUSES,
   SubscriptionUserEvent,
-} from './types';
+} from './types.js';
 
 // Mock data
 const MOCK_SUBSCRIPTION: Subscription = {

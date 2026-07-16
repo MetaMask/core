@@ -16,9 +16,13 @@ import {
   controllerName,
   DEFAULT_POLLING_INTERVAL,
   SubscriptionControllerErrorMessage,
-} from './constants';
-import type { SubscriptionControllerMethodActions } from './SubscriptionController-method-action-types';
-import { PAYMENT_TYPES, PRODUCT_TYPES, SUBSCRIPTION_STATUSES } from './types';
+} from './constants.js';
+import type { SubscriptionControllerMethodActions } from './SubscriptionController-method-action-types.js';
+import {
+  PAYMENT_TYPES,
+  PRODUCT_TYPES,
+  SUBSCRIPTION_STATUSES,
+} from './types.js';
 import type {
   AssignCohortRequest,
   BillingPortalResponse,
@@ -40,14 +44,14 @@ import type {
   StartCryptoSubscriptionResponse,
   StartSubscriptionResponse,
   CancelSubscriptionRequest,
-} from './types';
+} from './types.js';
 import type {
   ISubscriptionService,
   PricingResponse,
   ProductType,
   StartSubscriptionRequest,
   Subscription,
-} from './types';
+} from './types.js';
 
 export type SubscriptionControllerState = {
   customerId?: string;
@@ -623,9 +627,12 @@ export class SubscriptionController extends StaticIntervalPollingController()<
   clearLastSelectedPaymentMethod(product: ProductType): void {
     this.update((state) => {
       if (state.lastSelectedPaymentMethod) {
-        const { [product]: _, ...rest } = state.lastSelectedPaymentMethod;
-        state.lastSelectedPaymentMethod =
-          rest as typeof state.lastSelectedPaymentMethod;
+        const { [product]: _removed, ...rest } =
+          state.lastSelectedPaymentMethod;
+        state.lastSelectedPaymentMethod = rest as Record<
+          ProductType,
+          CachedLastSelectedPaymentMethod
+        >;
       }
     });
   }
