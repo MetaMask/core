@@ -1,4 +1,4 @@
-export * from './ApprovalController';
+export * from './ApprovalController.js';
 export type {
   ApprovalControllerAddRequestAction,
   ApprovalControllerAddAndShowApprovalRequestAction,
@@ -16,5 +16,5 @@ export type {
   ApprovalControllerSetFlowLoadingTextAction,
   ApprovalControllerShowSuccessAction,
   ApprovalControllerShowErrorAction,
-} from './ApprovalController-method-action-types';
-export * from './errors';
+} from './ApprovalController-method-action-types.js';
+export * from './errors.js';
