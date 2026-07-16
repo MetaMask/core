@@ -1,6 +1,8 @@
-import { apiTransactionFixtures } from '../../test/fixtures/api-transactions';
-import { mapApiTransaction } from './api-transaction-mapper';
-import { formatAddressToAssetId } from './helpers/caip';
+import { jest } from '@jest/globals';
+
+import { apiTransactionFixtures } from '../../test/fixtures/api-transactions.js';
+import { mapApiTransaction } from './api-transaction-mapper.js';
+import { formatAddressToAssetId } from './helpers/caip.js';
 
 // Mock known-token lookup with the deterministic test table in `test/`.
 jest.mock('./helpers/token-metadata', () => ({

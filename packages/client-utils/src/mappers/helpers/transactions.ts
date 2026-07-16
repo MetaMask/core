@@ -11,10 +11,10 @@ import {
 } from '@metamask/transaction-controller';
 import type { CaipChainId, Hex } from '@metamask/utils';
 
-import type { Fee, Status, TokenAmount, ValueTransfer } from '../../types';
-import { nativeTokenAddress } from '../constants';
-import { formatAddressToAssetId, getNativeAsset } from './caip';
-import { getKnownTokenMetadata } from './token-metadata';
+import type { Fee, Status, TokenAmount, ValueTransfer } from '../../types.js';
+import { nativeTokenAddress } from '../constants.js';
+import { formatAddressToAssetId, getNativeAsset } from './caip.js';
+import { getKnownTokenMetadata } from './token-metadata.js';
 
 // Adds optional `isSmartTransaction` to `TransactionMeta`.
 export type TransactionGroup = {
@@ -326,7 +326,7 @@ export function getTokenAmountFromTransfer(
   const { transferType, amount } = transfer;
   const isNftTransfer = isNftStandard(transferType);
   const symbol = isNftTransfer
-    ? transfer.name || transfer.symbol
+    ? (transfer.name ?? transfer.symbol)
     : transfer.symbol;
 
   if (!symbol && amount === undefined) {

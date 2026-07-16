@@ -1,4 +1,6 @@
-import * as tokenMetadata from './token-metadata';
+import { jest } from '@jest/globals';
+
+import * as tokenMetadata from './token-metadata.js';
 import {
   getFees,
   getLocalTransactionFees,
@@ -9,7 +11,7 @@ import {
   isNftStandard,
   parseValueTransfers,
   withFallbackTokenAssetId,
-} from './transactions';
+} from './transactions.js';
 
 describe('transaction helpers', () => {
   afterEach(() => {

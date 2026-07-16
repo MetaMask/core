@@ -2,7 +2,7 @@ import { isEqualCaseInsensitive as equalsIgnoreCase } from '@metamask/controller
 import { TransactionType } from '@metamask/transaction-controller';
 import { KnownCaipNamespace, toCaipChainId } from '@metamask/utils';
 
-import type { Fee, ActivityItem, TokenAmount } from '../types';
+import type { Fee, ActivityItem, TokenAmount } from '../types.js';
 import {
   permit2ApproveMethodId,
   swapsWrappedTokensAddresses,
@@ -11,15 +11,15 @@ import {
   unwrapMethodIds,
   withdrawMethodIds,
   wrapMethodIds,
-} from './constants';
-import { formatAddressToAssetId, getNativeAsset } from './helpers/caip';
-import { getKnownTokenMetadata } from './helpers/token-metadata';
+} from './constants.js';
+import { formatAddressToAssetId, getNativeAsset } from './helpers/caip.js';
+import { getKnownTokenMetadata } from './helpers/token-metadata.js';
 import {
   getLocalTransactionFees,
   getLocalTransactionStatus,
   isNftStandard,
-} from './helpers/transactions';
-import type { TransactionGroup } from './helpers/transactions';
+} from './helpers/transactions.js';
+import type { TransactionGroup } from './helpers/transactions.js';
 
 const evmNativeDecimals = 18;
 
@@ -63,7 +63,7 @@ export function mapLocalTransaction(
   const isPermit2Approve = methodId === permit2ApproveMethodId;
   const tokenContractAddress = isPermit2Approve
     ? undefined
-    : (transferInformation?.contractAddress ?? (to || undefined));
+    : (transferInformation?.contractAddress ?? to ?? undefined);
   const chainId = toCaipChainId(
     KnownCaipNamespace.Eip155,
     Number.parseInt(initialTransaction.chainId, 16).toString(),
