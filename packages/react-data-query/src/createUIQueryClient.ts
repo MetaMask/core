@@ -75,12 +75,27 @@ type MessengerAdapter<DataServiceName extends string> = {
  *
  * Notes on the implementation:
  *
- * - The messenger type is not constrained (e.g. to `Messenger`). A concrete
- *   messenger declares a narrow action/event union, which is *not* assignable to
- *   the wide `ActionConstraint`/`EventConstraint` used by the base `Messenger`
- *   type (the handler parameters are effectively invariant), so constraining the
- *   type variable would reject real messengers such as subclasses with large
- *   action unions. Instead we `infer` the action and event unions directly.
+ * - The messenger type parameter is deliberately *not* constrained (e.g. to
+ *   `Messenger<string, ActionConstraint, EventConstraint, any>`); instead we
+ *   `infer` the action and event unions directly. This differs from
+ *   `BaseController`, which does constrain its `ControllerMessenger` type
+ *   parameter to `Messenger<...>`. The reason for the difference is what each
+ *   receives:
+ *   - `BaseController` is always given a plain, per-controller `Messenger` (e.g.
+ *     `Messenger<'AddressBook', AddressBookControllerActions, ...>`). A direct
+ *     `Messenger` instantiation is compared against the base `Messenger`
+ *     constraint by the class's own declared variance, which succeeds.
+ *   - `createUIQueryClient` is given the application's *root* messenger, which
+ *     in real consumers is a **subclass** of `Messenger` (e.g. mobile's
+ *     `ExtendedMessenger`). A subclass is a different class, so TypeScript falls
+ *     back to a structural comparison that includes `Messenger`'s private fields
+ *     — notably `#subscriptionDelegationTargets`, a `Map` whose event-handler
+ *     values are typed from the messenger's narrow `Event` union
+ *     (`(payload: number) => void`) and are not assignable to the constraint's
+ *     wide `(...payload: unknown[]) => void` (contravariance: `unknown` is not
+ *     assignable to `number`). This makes even an otherwise-empty subclass fail
+ *     the `extends Messenger<...>` constraint. Inferring the unions instead of
+ *     constraining the type sidesteps this private-field check.
  * - The supported branch resolves to the messenger type itself. Resolving it to
  *   `MessengerAdapter` instead would reject a real messenger, because a concrete
  *   messenger's generic `call` cannot satisfy the adapter's open-ended
