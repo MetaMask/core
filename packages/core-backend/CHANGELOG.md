@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
 - Bump `@metamask/profile-sync-controller` from `^28.2.0` to `^28.3.0` ([#9463](https://github.com/MetaMask/core/pull/9463))
 
+### Removed
+
+- **BREAKING:** `AccountActivityService.subscribe` and `AccountActivityService.unsubscribe` methods have been removed ([#9531](https://github.com/MetaMask/core/pull/9531))
+
 ### Fixed
 
 - `AccountActivityService` subscribes to all supported scopes for a given account ([#9379](https://github.com/MetaMask/core/pull/9379))

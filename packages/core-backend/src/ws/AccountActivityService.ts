@@ -25,7 +25,6 @@ import type {
   AccountActivityMessage,
   BalanceUpdate,
 } from '../types';
-import type { AccountActivityServiceMethodActions } from './AccountActivityService-method-action-types';
 import type {
   WebSocketConnectionInfo,
   BackendWebSocketServiceConnectionStateChangedEvent,
@@ -54,7 +53,7 @@ const SERVICE_NAME = 'AccountActivityService';
 
 const log = createModuleLogger(projectLogger, SERVICE_NAME);
 
-const MESSENGER_EXPOSED_METHODS = ['subscribe', 'unsubscribe'] as const;
+const MESSENGER_EXPOSED_METHODS = [] as const;
 
 const SUBSCRIPTION_NAMESPACE = 'account-activity.v1';
 
@@ -74,7 +73,10 @@ const CHAIN_PREFIX_FEATURE_FLAGS = {
  * Account subscription options
  */
 export type SubscriptionOptions = {
-  address: string; // Should be in CAIP-10 format, e.g., "eip155:0:0x1234..." or "solana:0:ABC123..."
+  /**
+   * Array of addresses to subscribe to, each in CAIP-10 format (e.g., "eip155:0:0x1234..." or "solana:0:ABC123...")
+   */
+  addresses: string[];
 };
 
 /**
@@ -91,8 +93,8 @@ export type AccountActivityServiceOptions = {
 // Action and Event Types
 // =============================================================================
 
-// Action types for the messaging system - using generated method actions
-export type AccountActivityServiceActions = AccountActivityServiceMethodActions;
+// Action types for the messaging system
+export type AccountActivityServiceActions = never;
 
 // Allowed actions that AccountActivityService can call on other controllers
 export const ACCOUNT_ACTIVITY_SERVICE_ALLOWED_ACTIONS = [
@@ -283,36 +285,37 @@ export class AccountActivityService {
     });
   }
 
-  // =============================================================================
-  // Account Subscription Methods
-  // =============================================================================
-
   /**
    * Subscribe to account activity (transactions and balance updates)
-   * Address should be in CAIP-10 format (e.g., "eip155:0:0x1234..." or "solana:0:ABC123...")
+   * Addresses should be in CAIP-10 format (e.g., "eip155:0:0x1234..." or "solana:0:ABC123...")
    *
-   * @param subscription - Account subscription configuration with address
+   * @param subscription - The subscription configuration
+   * @param subscription.addresses - Array of addresses to subscribe to, each in CAIP-10 format
+   * or an `addresses` array for batch subscription
    */
-  async subscribe(subscription: SubscriptionOptions): Promise<void> {
+  async #subscribe({ addresses }: SubscriptionOptions): Promise<void> {
     try {
       await this.#messenger.call('BackendWebSocketService:connect');
 
-      // Create channel name from address
-      const channel = `${this.#options.subscriptionNamespace}.${subscription.address}`;
+      // Derive new subscriptions to be created from the provided addresses,
+      // filtering out any channels that already have an active subscription
+      const channels = addresses
+        .map((address) => `${this.#options.subscriptionNamespace}.${address}`)
+        .filter(
+          (channel) =>
+            !this.#messenger.call(
+              'BackendWebSocketService:channelHasSubscription',
+              channel,
+            ),
+        );
 
-      // Check if already subscribed
-      if (
-        this.#messenger.call(
-          'BackendWebSocketService:channelHasSubscription',
-          channel,
-        )
-      ) {
+      if (channels.length === 0) {
         return;
       }
 
       // Create subscription using the proper subscribe method (this will be stored in WebSocketService's internal tracking)
       await this.#messenger.call('BackendWebSocketService:subscribe', {
-        channels: [channel],
+        channels,
         channelType: this.#options.subscriptionNamespace, // e.g., 'account-activity.v1'
         callback: (notification: ServerNotificationMessage) => {
           this.#handleAccountActivityUpdate(
@@ -325,41 +328,6 @@ export class AccountActivityService {
       await this.#forceReconnection();
     }
   }
-
-  /**
-   * Unsubscribe from account activity for specified address
-   * Address should be in CAIP-10 format (e.g., "eip155:0:0x1234..." or "solana:0:ABC123...")
-   *
-   * @param subscription - Account subscription configuration with address to unsubscribe
-   */
-  async unsubscribe(subscription: SubscriptionOptions): Promise<void> {
-    const { address } = subscription;
-    try {
-      // Find channel for the specified address
-      const channel = `${this.#options.subscriptionNamespace}.${address}`;
-      const subscriptions = this.#messenger.call(
-        'BackendWebSocketService:getSubscriptionsByChannel',
-        channel,
-      );
-
-      if (subscriptions.length === 0) {
-        return;
-      }
-
-      // Fast path: Direct unsubscribe using stored unsubscribe function
-      // Unsubscribe from all matching subscriptions
-      for (const subscriptionInfo of subscriptions) {
-        await subscriptionInfo.unsubscribe();
-      }
-    } catch (error) {
-      log('Unsubscription failed, forcing reconnection', { error });
-      await this.#forceReconnection();
-    }
-  }
-
-  // =============================================================================
-  // Private Methods - Event Handlers
-  // =============================================================================
 
   /**
    * Handle account activity updates (transactions + balance changes)
@@ -436,10 +404,10 @@ export class AccountActivityService {
       // First, unsubscribe from all current account activity subscriptions to avoid multiple subscriptions
       await this.#unsubscribeFromAllAccountActivity();
 
-      for (const address of this.#convertToCaip10Addresses(selectedAccounts)) {
-        // Subscribe to the new selected account in CAIP-10 format
-        await this.subscribe({ address });
-      }
+      // Subscribe to the new selected accounts in CAIP-10 format
+      await this.#subscribe({
+        addresses: this.#convertToCaip10Addresses(selectedAccounts),
+      });
     } catch (error) {
       log('Account change failed', { error });
     }
@@ -538,9 +506,9 @@ export class AccountActivityService {
       'AccountTreeController:getAccountsFromSelectedAccountGroup',
     );
 
-    for (const address of this.#convertToCaip10Addresses(selectedAccounts)) {
-      await this.subscribe({ address });
-    }
+    await this.#subscribe({
+      addresses: this.#convertToCaip10Addresses(selectedAccounts),
+    });
   }
 
   /**
