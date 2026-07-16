@@ -39,8 +39,8 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
-    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
+    "build": "tsc --project tsconfig.build.json",
+    "build:all": "tsc --build tsconfig.build.json --verbose",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/transaction-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/transaction-controller",
@@ -90,7 +90,6 @@
     "@metamask/eth-block-tracker": "^15.0.0",
     "@metamask/eth-json-rpc-provider": "^6.0.1",
     "@metamask/ethjs-provider-http": "^0.3.0",
-    "@ts-bridge/cli": "^0.6.4",
     "@types/bn.js": "^5.1.5",
     "@types/jest": "^29.5.14",
     "@types/node": "^16.18.54",

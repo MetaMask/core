@@ -39,8 +39,8 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
-    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
+    "build": "tsc --project tsconfig.build.json",
+    "build:all": "tsc --build tsconfig.build.json --verbose",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/assets-controllers",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/assets-controllers",
@@ -110,7 +110,6 @@
     "@metamask/keyring-internal-api": "^11.0.1",
     "@metamask/keyring-snap-client": "^9.2.0",
     "@metamask/providers": "^22.1.0",
-    "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
     "@types/lodash": "^4.14.191",
     "@types/node": "^16.18.54",

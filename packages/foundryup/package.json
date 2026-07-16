@@ -33,8 +33,8 @@
   },
   "scripts": {
     "anvil": "node_modules/.bin/anvil",
-    "build": "ts-bridge --project tsconfig.build.json --verbose --clean --no-references",
-    "build:all": "ts-bridge --project tsconfig.build.json --verbose --clean",
+    "build": "tsc --project tsconfig.build.json",
+    "build:all": "tsc --build tsconfig.build.json --verbose",
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/foundryup",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/foundryup",
@@ -55,7 +55,6 @@
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",
-    "@ts-bridge/cli": "^0.6.4",
     "@types/jest": "^29.5.14",
     "@types/unzipper": "^0.10.10",
     "@types/yargs": "^17.0.32",
