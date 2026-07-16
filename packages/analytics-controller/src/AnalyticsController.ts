@@ -6,12 +6,12 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import type { Messenger } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
-import { cloneDeep } from 'lodash';
+import { cloneDeep } from 'lodash-es';
 import { v4 as uuid } from 'uuid';
 
-import type { AnalyticsControllerMethodActions } from './AnalyticsController-method-action-types';
-import { validateAnalyticsControllerState } from './analyticsControllerStateValidator';
-import { projectLogger as log } from './AnalyticsLogger';
+import type { AnalyticsControllerMethodActions } from './AnalyticsController-method-action-types.js';
+import { validateAnalyticsControllerState } from './analyticsControllerStateValidator.js';
+import { projectLogger as log } from './AnalyticsLogger.js';
 import type {
   AnalyticsPlatformAdapter,
   AnalyticsDeliveryOptions,
@@ -19,8 +19,8 @@ import type {
   AnalyticsEventProperties,
   AnalyticsUserTraits,
   AnalyticsTrackingEvent,
-} from './AnalyticsPlatformAdapter.types';
-import { analyticsControllerSelectors } from './selectors';
+} from './AnalyticsPlatformAdapter.types.js';
+import { analyticsControllerSelectors } from './selectors.js';
 
 // === GENERAL ===
 

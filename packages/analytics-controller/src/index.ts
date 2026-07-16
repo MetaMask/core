@@ -2,11 +2,11 @@
 export {
   AnalyticsController,
   getDefaultAnalyticsControllerState,
-} from './AnalyticsController';
-export type { AnalyticsControllerOptions } from './AnalyticsController';
+} from './AnalyticsController.js';
+export type { AnalyticsControllerOptions } from './AnalyticsController.js';
 
 // Export errors
-export { AnalyticsPlatformAdapterSetupError } from './AnalyticsPlatformAdapterSetupError';
+export { AnalyticsPlatformAdapterSetupError } from './AnalyticsPlatformAdapterSetupError.js';
 
 // Export types
 export type {
@@ -17,7 +17,7 @@ export type {
   AnalyticsUserTraits,
   AnalyticsPlatformAdapter,
   AnalyticsTrackingEvent,
-} from './AnalyticsPlatformAdapter.types';
+} from './AnalyticsPlatformAdapter.types.js';
 
 // Export state types
 export type {
@@ -28,13 +28,13 @@ export type {
   AnalyticsQueuedTrackEvent,
   AnalyticsQueuedIdentifyEvent,
   AnalyticsQueuedViewEvent,
-} from './AnalyticsController';
+} from './AnalyticsController.js';
 
 // Export selectors
-export { analyticsControllerSelectors } from './selectors';
+export { analyticsControllerSelectors } from './selectors.js';
 
 // Export messenger types
-export type { AnalyticsControllerMessenger } from './AnalyticsController';
+export type { AnalyticsControllerMessenger } from './AnalyticsController.js';
 
 // Export action and event types
 export type {
@@ -42,7 +42,7 @@ export type {
   AnalyticsControllerEvents,
   AnalyticsControllerGetStateAction,
   AnalyticsControllerStateChangeEvent,
-} from './AnalyticsController';
+} from './AnalyticsController.js';
 export type {
   AnalyticsControllerTrackEventAction,
   AnalyticsControllerIdentifyAction,
@@ -51,4 +51,4 @@ export type {
   AnalyticsControllerOptOutAction,
   AnalyticsControllerResetConsentDecisionAction,
   AnalyticsControllerMethodActions,
-} from './AnalyticsController-method-action-types';
+} from './AnalyticsController-method-action-types.js';

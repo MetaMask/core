@@ -1,14 +1,16 @@
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type { MockAnyNamespace } from '@metamask/messenger';
 import type { Json } from '@metamask/utils';
 
+import { isValidUUIDv4 } from './analyticsControllerStateValidator.js';
 import {
   AnalyticsController,
   AnalyticsPlatformAdapterSetupError,
   getDefaultAnalyticsControllerState,
   analyticsControllerSelectors,
-} from '.';
+} from './index.js';
 import type {
   AnalyticsControllerMessenger,
   AnalyticsControllerActions,
@@ -18,8 +20,7 @@ import type {
   AnalyticsTrackingEvent,
   AnalyticsControllerState,
   AnalyticsContext,
-} from '.';
-import { isValidUUIDv4 } from './analyticsControllerStateValidator';
+} from './index.js';
 
 type SetupControllerOptions = {
   state: AnalyticsControllerState;
