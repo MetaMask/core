@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { HttpError } from '@metamask/controller-utils';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -7,8 +8,8 @@ import type {
 } from '@metamask/messenger';
 import nock from 'nock';
 
-import type { ComplianceServiceMessenger } from './ComplianceService';
-import { ComplianceService } from './ComplianceService';
+import type { ComplianceServiceMessenger } from './ComplianceService.js';
+import { ComplianceService } from './ComplianceService.js';
 
 const MOCK_API_URL = 'https://compliance.dev-api.cx.metamask.io';
 const MOCK_PRODUCTION_API_URL = 'https://compliance.api.cx.metamask.io';
