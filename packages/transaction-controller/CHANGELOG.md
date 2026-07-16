@@ -31,7 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `Web3Provider` schedules its JSON-RPC dispatch with `setTimeout`, which never fires on React Native iOS when the timer pump is starved, blocking `addTransaction` indefinitely and preventing dapp confirmations from appearing ([MetaMask/metamask-mobile#32863](https://github.com/MetaMask/metamask-mobile/issues/32863))
 ### Added
 
-- Add `beginAtomicBatchUpdate` for coherent multi-call updates with monotonic revisions and revision-bound gas preparation
+- Add `beginAtomicBatchUpdate` for coherent multi-call updates with monotonic revisions and revision-bound gas preparation ([#9543](https://github.com/MetaMask/core/pull/9543))
 
 ## [69.0.0]
 

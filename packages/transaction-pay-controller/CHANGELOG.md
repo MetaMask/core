@@ -51,7 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/assets-controller` from `^11.0.0` to `^11.1.0` ([#9579](https://github.com/MetaMask/core/pull/9579))
 ### Added
 
-- Add explicit `updateAmount` orchestration with complete-patch validation, in-flight intent deduplication, and revision-bound Relay quote publication
+- Add explicit `updateAmount` orchestration with complete-patch validation, in-flight intent deduplication, and revision-bound Relay quote publication ([#9543](https://github.com/MetaMask/core/pull/9543))
 
 ## [25.0.0]
 
