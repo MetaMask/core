@@ -31,10 +31,7 @@ import type {
   BackendWebSocketServiceConnectionStateChangedEvent,
   ServerNotificationMessage,
 } from './BackendWebSocketService';
-import {
-  WebSocketState,
-  WebSocketSubscription,
-} from './BackendWebSocketService';
+import { WebSocketState } from './BackendWebSocketService';
 import type { BackendWebSocketServiceMethodActions } from './BackendWebSocketService-method-action-types';
 
 // =============================================================================
@@ -57,7 +54,7 @@ const SERVICE_NAME = 'AccountActivityService';
 
 const log = createModuleLogger(projectLogger, SERVICE_NAME);
 
-const MESSENGER_EXPOSED_METHODS = ['subscribe', 'unsubscribe'] as const;
+const MESSENGER_EXPOSED_METHODS = [] as const;
 
 const SUBSCRIPTION_NAMESPACE = 'account-activity.v1';
 
@@ -289,10 +286,6 @@ export class AccountActivityService {
     });
   }
 
-  // =============================================================================
-  // Account Subscription Methods
-  // =============================================================================
-
   /**
    * Subscribe to account activity (transactions and balance updates)
    * Addresses should be in CAIP-10 format (e.g., "eip155:0:0x1234..." or "solana:0:ABC123...")
@@ -301,7 +294,7 @@ export class AccountActivityService {
    * @param subscription.addresses - Array of addresses to subscribe to, each in CAIP-10 format
    * or an `addresses` array for batch subscription
    */
-  async subscribe({ addresses }: SubscriptionOptions): Promise<void> {
+  async #subscribe({ addresses }: SubscriptionOptions): Promise<void> {
     try {
       await this.#messenger.call('BackendWebSocketService:connect');
 
@@ -336,45 +329,6 @@ export class AccountActivityService {
       await this.#forceReconnection();
     }
   }
-
-  /**
-   * Unsubscribe from account activity for specified addresses
-   * Addresses should be in CAIP-10 format (e.g., "eip155:0:0x1234..." or "solana:0:ABC123...")
-   *
-   * @param subscription - The subscription configuration
-   * @param subscription.addresses - Array of addresses to unsubscribe from, each in CAIP-10 format
-   */
-  async unsubscribe({ addresses }: SubscriptionOptions): Promise<void> {
-    try {
-      // Find all subscriptions for the specified addresses
-      const subscriptions = new Set<WebSocketSubscription>(
-        addresses
-          .map((address) =>
-            this.#messenger.call(
-              'BackendWebSocketService:getSubscriptionsByChannel',
-              `${this.#options.subscriptionNamespace}.${address}`,
-            ),
-          )
-          .flat(),
-      );
-
-      if (subscriptions.size === 0) {
-        return;
-      }
-
-      // Unsubscribe from all matching subscriptions
-      for (const subscriptionInfo of subscriptions) {
-        await subscriptionInfo.unsubscribe();
-      }
-    } catch (error) {
-      log('Unsubscription failed, forcing reconnection', { error });
-      await this.#forceReconnection();
-    }
-  }
-
-  // =============================================================================
-  // Private Methods - Event Handlers
-  // =============================================================================
 
   /**
    * Handle account activity updates (transactions + balance changes)
@@ -452,7 +406,7 @@ export class AccountActivityService {
       await this.#unsubscribeFromAllAccountActivity();
 
       // Subscribe to the new selected accounts in CAIP-10 format
-      await this.subscribe({
+      await this.#subscribe({
         addresses: this.#convertToCaip10Addresses(selectedAccounts),
       });
     } catch (error) {
@@ -553,7 +507,7 @@ export class AccountActivityService {
       'AccountTreeController:getAccountsFromSelectedAccountGroup',
     );
 
-    await this.subscribe({
+    await this.#subscribe({
       addresses: this.#convertToCaip10Addresses(selectedAccounts),
     });
   }
