@@ -14,6 +14,18 @@ export {
 } from './defaults';
 export type { PendingTokenMetadata } from './AssetsController';
 
+// Snaps → AssetsController assets migration
+export {
+  SNAPS_ASSETS_MIGRATION_FLAG_KEYS,
+  SNAPS_ASSETS_MIGRATION_NAMESPACES,
+  SnapsAssetsMigrationStage,
+  getSnapsAssetsMigrationNamespace,
+  isMigrationStageActive,
+  isSnapsAssetsMigrationNamespace,
+  parseSnapsAssetsMigrationStage,
+} from './utils/snaps-assets-migration';
+export type { SnapsAssetsMigrationNamespace } from './utils/snaps-assets-migration';
+
 // State and messenger types
 export type {
   AssetsControllerState,

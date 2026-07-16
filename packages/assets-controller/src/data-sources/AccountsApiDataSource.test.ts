@@ -15,9 +15,14 @@ import type {
   Context,
   AssetsControllerStateInternal,
 } from '../types';
+import {
+  SNAPS_ASSETS_MIGRATION_FLAG_KEYS,
+  SnapsAssetsMigrationStage,
+} from '../utils/snaps-assets-migration';
 import type {
   AccountsApiDataSourceOptions,
   AccountsApiDataSourceAllowedActions,
+  AccountsApiDataSourceAllowedEvents,
 } from './AccountsApiDataSource';
 import {
   AccountsApiDataSource,
@@ -25,7 +30,7 @@ import {
 } from './AccountsApiDataSource';
 
 type AllActions = AccountsApiDataSourceAllowedActions;
-type AllEvents = never;
+type AllEvents = AccountsApiDataSourceAllowedEvents;
 type RootMessenger = Messenger<MockAnyNamespace, AllActions, AllEvents>;
 
 const CHAIN_MAINNET = 'eip155:1' as ChainId;
@@ -186,7 +191,8 @@ async function setupController(
       remoteFeatureFlags === undefined
         ? []
         : ['RemoteFeatureFlagController:getState'],
-    events: [],
+    // eslint-disable-next-line no-restricted-syntax
+    events: ['RemoteFeatureFlagController:stateChange'],
   });
 
   const assetsUpdateHandler = jest.fn().mockResolvedValue(undefined);
@@ -302,6 +308,67 @@ describe('AccountsApiDataSource', () => {
     controller.destroy();
   });
 
+  describe('RemoteFeatureFlagController:stateChange subscription', () => {
+    it('refreshes active chains when a migration stage changes', async () => {
+      const { controller, apiClient, messenger } = await setupController({
+        remoteFeatureFlags: {},
+      });
+
+      apiClient.accounts.fetchV2SupportedNetworks.mockClear();
+
+      messenger.publish(
+        'RemoteFeatureFlagController:stateChange',
+        {
+          remoteFeatureFlags: {
+            [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.solana]: {
+              stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
+            },
+          },
+          cacheTimestamp: 0,
+        },
+        [],
+      );
+
+      await new Promise(process.nextTick);
+
+      expect(apiClient.accounts.fetchV2SupportedNetworks).toHaveBeenCalledTimes(
+        1,
+      );
+
+      controller.destroy();
+    });
+
+    it('does not refresh active chains when an unrelated flag changes', async () => {
+      const { controller, apiClient, messenger } = await setupController({
+        remoteFeatureFlags: {},
+      });
+
+      // Establish the baseline migration-stage signature.
+      messenger.publish(
+        'RemoteFeatureFlagController:stateChange',
+        { remoteFeatureFlags: {}, cacheTimestamp: 0 },
+        [],
+      );
+      await new Promise(process.nextTick);
+      apiClient.accounts.fetchV2SupportedNetworks.mockClear();
+
+      // An unrelated flag change keeps the migration-stage signature identical,
+      // so the selector-gated handler must not fire.
+      messenger.publish(
+        'RemoteFeatureFlagController:stateChange',
+        { remoteFeatureFlags: { someUnrelatedFlag: true }, cacheTimestamp: 0 },
+        [],
+      );
+      await new Promise(process.nextTick);
+
+      expect(
+        apiClient.accounts.fetchV2SupportedNetworks,
+      ).not.toHaveBeenCalled();
+
+      controller.destroy();
+    });
+  });
+
   it('exposes assetsMiddleware and getActiveChains on instance', async () => {
     const { controller } = await setupController();
 
@@ -314,7 +381,7 @@ describe('AccountsApiDataSource', () => {
     controller.destroy();
   });
 
-  it('filters out non-EVM chains from active chains', async () => {
+  it('filters out migration networks from active chains when the migration FF is unset', async () => {
     const SOLANA_CHAIN_ID = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
     const { controller, activeChainsUpdateHandler } = await setupController({
       supportedChains: [1, SOLANA_CHAIN_ID as unknown as number],
@@ -328,6 +395,92 @@ describe('AccountsApiDataSource', () => {
 
     const chains = await controller.getActiveChains();
     expect(chains).toStrictEqual([CHAIN_MAINNET]);
+
+    controller.destroy();
+  });
+
+  it('filters out migration networks whose migration stage is Off', async () => {
+    const SOLANA_CHAIN_ID = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+    const { controller, activeChainsUpdateHandler } = await setupController({
+      supportedChains: [1, SOLANA_CHAIN_ID as unknown as number],
+      remoteFeatureFlags: {
+        [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.solana]: {
+          stage: SnapsAssetsMigrationStage.Off,
+        },
+      },
+    });
+
+    expect(activeChainsUpdateHandler).toHaveBeenCalledWith(
+      'AccountsApiDataSource',
+      [CHAIN_MAINNET],
+      [],
+    );
+
+    const chains = await controller.getActiveChains();
+    expect(chains).toStrictEqual([CHAIN_MAINNET]);
+
+    controller.destroy();
+  });
+
+  it.each([
+    {
+      stageName: 'ReadAssetsControllerWithFallback',
+      stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
+    },
+    {
+      stageName: 'ReadAssetsControllerWithoutFallback',
+      stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithoutFallback,
+    },
+    {
+      stageName: 'ReadAssetsControllerOnly',
+      stage: SnapsAssetsMigrationStage.ReadAssetsControllerOnly,
+    },
+  ])(
+    'surfaces a migration network as an active chain when its migration stage is $stageName',
+    async ({ stage }) => {
+      const SOLANA_CHAIN_ID = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+      const { controller, activeChainsUpdateHandler } = await setupController({
+        supportedChains: [1, SOLANA_CHAIN_ID as unknown as number],
+        remoteFeatureFlags: {
+          [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.solana]: { stage },
+        },
+      });
+
+      expect(activeChainsUpdateHandler).toHaveBeenCalledWith(
+        'AccountsApiDataSource',
+        [CHAIN_MAINNET, SOLANA_CHAIN_ID],
+        [],
+      );
+
+      const chains = await controller.getActiveChains();
+      expect(chains).toStrictEqual([CHAIN_MAINNET, SOLANA_CHAIN_ID]);
+
+      controller.destroy();
+    },
+  );
+
+  it('gates migration networks independently per namespace', async () => {
+    const SOLANA_CHAIN_ID = 'solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp';
+    const STELLAR_CHAIN_ID = 'stellar:pubnet';
+    const { controller } = await setupController({
+      supportedChains: [
+        1,
+        SOLANA_CHAIN_ID as unknown as number,
+        STELLAR_CHAIN_ID as unknown as number,
+      ],
+      remoteFeatureFlags: {
+        [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.solana]: {
+          stage: SnapsAssetsMigrationStage.ReadAssetsControllerWithFallback,
+        },
+        [SNAPS_ASSETS_MIGRATION_FLAG_KEYS.stellar]: {
+          stage: SnapsAssetsMigrationStage.Off,
+        },
+      },
+    });
+
+    // Solana is staged on, Stellar is Off — only Solana joins EVM chains.
+    const chains = await controller.getActiveChains();
+    expect(chains).toStrictEqual([CHAIN_MAINNET, SOLANA_CHAIN_ID]);
 
     controller.destroy();
   });
