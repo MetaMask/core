@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## Added
+### Added
 
 - Add `EntropyController` ([#9538](https://github.com/MetaMask/core/pull/9538))
 
