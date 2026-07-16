@@ -6,19 +6,19 @@ import type {
   MessengerEvents,
   MockAnyNamespace,
 } from '@metamask/messenger';
-import nock, { cleanAll } from 'nock';
+import nock from 'nock';
 
 import {
   PhishingController,
   SECURITY_ALERTS_BASE_URL,
   TOKEN_BULK_SCANNING_ENDPOINT,
-} from './PhishingController';
+} from './PhishingController.js';
 import type {
   PhishingControllerMessenger,
   PhishingControllerOptions,
-} from './PhishingController';
-import { TokenScanResultType } from './types';
-import type { BulkTokenScanRequest, TokenScanApiResponse } from './types';
+} from './PhishingController.js';
+import { TokenScanResultType } from './types.js';
+import type { BulkTokenScanRequest, TokenScanApiResponse } from './types.js';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
@@ -118,7 +118,7 @@ describe('PhishingController - Bulk Token Scanning', () => {
   });
 
   afterEach(() => {
-    cleanAll();
+    nock.cleanAll();
     consoleErrorSpy.mockRestore();
     consoleWarnSpy.mockRestore();
   });
@@ -197,7 +197,7 @@ describe('PhishingController - Bulk Token Scanning', () => {
         expect(consoleWarnSpy).toHaveBeenCalledWith(
           'Unsupported chain ID: 0x64',
         );
-        cleanAll();
+        nock.cleanAll();
       });
 
       it('should handle case insensitive chainId', async () => {

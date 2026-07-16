@@ -1,4 +1,3 @@
-import { jest } from '@jest/globals';
 import { ListKeys, ListNames } from './PhishingController.js';
 import type { PhishingListState } from './PhishingController.js';
 import type { TokenScanResultType } from './types.js';

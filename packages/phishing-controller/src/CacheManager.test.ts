@@ -1,4 +1,3 @@
-import { jest } from '@jest/globals';
 import { CacheManager } from './CacheManager.js';
 import * as utils from './utils.js';
 

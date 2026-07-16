@@ -1,4 +1,3 @@
-import { jest } from '@jest/globals';
 import { PhishingDetector } from './PhishingDetector.js';
 import type { PhishingDetectorOptions } from './PhishingDetector.js';
 import { formatHostnameToUrl } from './tests/utils.js';
