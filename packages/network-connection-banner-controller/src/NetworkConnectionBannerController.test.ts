@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
 import type { ConnectivityControllerState } from '@metamask/connectivity-controller';
@@ -18,8 +19,8 @@ import type { NetworkEnablementControllerState } from '@metamask/network-enablem
 import { KnownCaipNamespace } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import type { NetworkConnectionBannerControllerMessenger } from './NetworkConnectionBannerController';
-import { NetworkConnectionBannerController } from './NetworkConnectionBannerController';
+import type { NetworkConnectionBannerControllerMessenger } from './NetworkConnectionBannerController.js';
+import { NetworkConnectionBannerController } from './NetworkConnectionBannerController.js';
 
 const TEST_INFURA_PROJECT_ID = 'test-infura-project-id';
 const MAINNET_CLIENT_ID = 'mainnet' satisfies BuiltInNetworkClientId;
@@ -1783,7 +1784,7 @@ async function withController<ReturnValue>(
 
   rootMessenger.registerActionHandler(
     'NetworkController:getState',
-    () => currentState.NetworkController as NetworkState,
+    () => currentState.NetworkController,
   );
   rootMessenger.registerActionHandler(
     'NetworkController:getNetworkConfigurationByChainId',
@@ -1879,7 +1880,7 @@ async function withController<ReturnValue>(
     };
     rootMessenger.publish(
       'NetworkController:stateChange',
-      currentState.NetworkController as NetworkState,
+      currentState.NetworkController,
       [],
     );
   };
@@ -1911,7 +1912,7 @@ async function withController<ReturnValue>(
     };
     rootMessenger.publish(
       'NetworkController:stateChange',
-      currentState.NetworkController as NetworkState,
+      currentState.NetworkController,
       [],
     );
     rootMessenger.publish(

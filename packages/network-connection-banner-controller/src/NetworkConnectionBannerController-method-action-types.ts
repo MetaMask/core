@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { NetworkConnectionBannerController } from './NetworkConnectionBannerController';
+import type { NetworkConnectionBannerController } from './NetworkConnectionBannerController.js';
 
 /**
  * Clears the banner state such that the banner will be hidden.

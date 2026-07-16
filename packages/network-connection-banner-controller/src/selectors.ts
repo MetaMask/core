@@ -4,7 +4,7 @@ import type {
   NetworkConnectionBannerControllerState,
   FailedNetwork,
   NetworkConnectionBannerStatus,
-} from './NetworkConnectionBannerController';
+} from './NetworkConnectionBannerController.js';
 
 /**
  * Selects the banner status from the controller state.
