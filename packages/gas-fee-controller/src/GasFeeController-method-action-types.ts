@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { GasFeeController } from './GasFeeController';
+import type { GasFeeController } from './GasFeeController.js';
 
 /**
  * Resets the polling interval by stopping and restarting polling
