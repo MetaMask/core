@@ -1,3 +1,4 @@
+import { jest } from '@jest/globals';
 import type { JSONRPCResponse } from '@json-rpc-specification/meta-schema';
 import type { InfuraNetworkType } from '@metamask/controller-utils';
 import { BUILT_IN_NETWORKS } from '@metamask/controller-utils';
@@ -7,23 +8,23 @@ import type {
 } from '@metamask/eth-block-tracker';
 import EthQuery from '@metamask/eth-query';
 import type { Hex, Json, JsonRpcRequest } from '@metamask/utils';
-import nock, { isDone as nockIsDone } from 'nock';
+import nock from 'nock';
 import type { Scope as NockScope } from 'nock';
 
-import { createNetworkClient } from '../../src/create-network-client';
+import { createNetworkClient } from '../../src/create-network-client.js';
 import type {
   NetworkClientId,
   NetworkControllerOptions,
-} from '../../src/NetworkController';
-import type { RpcServiceOptions } from '../../src/rpc-service/rpc-service';
-import type { RpcFailoverMode } from '../../src/selectors';
-import type { NetworkClientConfiguration, Provider } from '../../src/types';
-import { NetworkClientType } from '../../src/types';
-import type { RootMessenger } from '../helpers';
+} from '../../src/NetworkController.js';
+import type { RpcServiceOptions } from '../../src/rpc-service/rpc-service.js';
+import type { RpcFailoverMode } from '../../src/selectors.js';
+import type { NetworkClientConfiguration, Provider } from '../../src/types.js';
+import { NetworkClientType } from '../../src/types.js';
+import type { RootMessenger } from '../helpers.js';
 import {
   buildNetworkControllerMessenger,
   buildRootMessenger,
-} from '../helpers';
+} from '../helpers.js';
 
 /**
  * A dummy value for the `infuraProjectId` option that `createInfuraClient`
@@ -399,7 +400,7 @@ export async function withMockedCommunications(
   try {
     return await fn(comms);
   } finally {
-    nockIsDone();
+    nock.isDone();
   }
 }
 

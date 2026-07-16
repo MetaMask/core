@@ -1,17 +1,18 @@
+import { jest } from '@jest/globals';
 import { errorCodes, rpcErrors } from '@metamask/rpc-errors';
 import type { Hex } from '@metamask/utils';
 
-import { CUSTOM_RPC_ERRORS } from '../../src/rpc-service/rpc-service';
-import { NetworkClientType } from '../../src/types';
-import type { MockRequest, ProviderType } from './helpers';
+import { CUSTOM_RPC_ERRORS } from '../../src/rpc-service/rpc-service.js';
+import { NetworkClientType } from '../../src/types.js';
+import type { MockRequest, ProviderType } from './helpers.js';
 import {
   buildMockParams,
   buildRequestWithReplacedBlockParam,
   waitForPromiseToBeFulfilledAfterRunningAllTimers,
   withMockedCommunications,
   withNetworkClient,
-} from './helpers';
-import { testsForRpcFailoverBehavior } from './rpc-failover';
+} from './helpers.js';
+import { testsForRpcFailoverBehavior } from './rpc-failover.js';
 
 type TestsForRpcMethodSupportingBlockParam = {
   providerType: ProviderType;
