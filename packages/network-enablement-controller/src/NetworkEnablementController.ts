@@ -158,6 +158,9 @@ export type NetworkConfig = {
 const getDefaultNetworkEnablementControllerState =
   (): NetworkEnablementControllerState => ({
     enabledNetworkMap: {
+      // Each chain ID here must have a built-in client in NetworkController
+      // (see DEFAULT_INFURA_NETWORKS). A missing client causes
+      // findNetworkClientIdByChainId to throw silently in consumers.
       [KnownCaipNamespace.Eip155]: {
         [ChainId[BuiltInNetworkName.Mainnet]]: true,
         [ChainId[BuiltInNetworkName.LineaMainnet]]: true,
