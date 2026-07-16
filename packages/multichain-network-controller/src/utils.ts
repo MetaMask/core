@@ -8,11 +8,11 @@ import {
 } from '@metamask/utils';
 import type { Hex, CaipChainId } from '@metamask/utils';
 
-import { AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS } from './constants';
+import { AVAILABLE_MULTICHAIN_NETWORK_CONFIGURATIONS } from './constants.js';
 import type {
   SupportedCaipChainId,
   MultichainNetworkConfiguration,
-} from './types';
+} from './types.js';
 
 /**
  * Checks if the chain ID is EVM.
@@ -105,7 +105,7 @@ export const toMultichainNetworkConfiguration = (
   return {
     chainId: toEvmCaipChainId(chainId),
     isEvm: true,
-    name: name || rpcEndpoints[defaultRpcEndpointIndex].url,
+    name: name ?? rpcEndpoints[defaultRpcEndpointIndex].url,
     nativeCurrency,
     blockExplorerUrls,
     defaultBlockExplorerUrlIndex,
