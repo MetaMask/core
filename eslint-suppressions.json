@@ -302,9 +302,6 @@
     "@typescript-eslint/naming-convention": {
       "count": 5
     },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 6
-    },
     "@typescript-eslint/prefer-optional-chain": {
       "count": 1
     },
@@ -585,9 +582,6 @@
   "packages/assets-controllers/src/selectors/token-selectors.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 25
-    },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 1
     },
     "no-negated-condition": {
       "count": 1
@@ -1273,9 +1267,6 @@
     "@typescript-eslint/explicit-function-return-type": {
       "count": 1
     },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 2
-    },
     "id-denylist": {
       "count": 1
     }
@@ -1721,9 +1712,6 @@
     "@typescript-eslint/explicit-function-return-type": {
       "count": 4
     },
-    "@typescript-eslint/prefer-nullish-coalescing": {
-      "count": 4
-    },
     "id-length": {
       "count": 2
     },
@@ -2086,9 +2074,6 @@
   "packages/signature-controller/src/utils/validation.ts": {
     "@typescript-eslint/explicit-function-return-type": {
       "count": 7
-    },
-    "@typescript-eslint/no-base-to-string": {
-      "count": 1
     },
     "@typescript-eslint/no-unused-vars": {
       "count": 2
