@@ -14,6 +14,7 @@ import type { StorageServiceInstanceOptions } from './initialization/instances/s
 import type { TransactionControllerInstanceOptions } from './initialization/instances/transaction-controller/types';
 import type { InitializationConfiguration } from './initialization/types';
 import { PasskeyControllerInstanceOptions } from './initialization/instances/passkey-controller/types';
+import { SeedlessOnboardingControllerInstanceOptions } from './initialization/instances/seedless-onboarding-controller/types';
 
 export type WalletOptions = {
   messenger?: RootMessenger<DefaultActions, DefaultEvents>;
@@ -32,6 +33,7 @@ export type InstanceSpecificOptions = {
   networkController: NetworkControllerInstanceOptions;
   passkeyController: PasskeyControllerInstanceOptions;
   remoteFeatureFlagController: RemoteFeatureFlagControllerInstanceOptions;
+  seedlessOnboardingController: SeedlessOnboardingControllerInstanceOptions;
   storageService: StorageServiceInstanceOptions;
   transactionController?: TransactionControllerInstanceOptions;
 };

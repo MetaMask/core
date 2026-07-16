@@ -38,6 +38,9 @@
       "path": "../remote-feature-flag-controller"
     },
     {
+      "path": "../seedless-onboarding-controller"
+    },
+    {
       "path": "../storage-service"
     },
     {

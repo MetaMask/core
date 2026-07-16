@@ -6,5 +6,6 @@ export { keyringController } from './keyring-controller/keyring-controller';
 export { networkController } from './network-controller/network-controller';
 export { passkeyController } from './passkey-controller/passkey-controller';
 export { remoteFeatureFlagController } from './remote-feature-flag-controller/remote-feature-flag-controller';
+export { seedlessOnboardingController } from './seedless-onboarding-controller/seedless-onboarding-controller';
 export { storageService } from './storage-service/storage-service';
 export { transactionController } from './transaction-controller/transaction-controller';
