@@ -49,9 +49,54 @@ export type TransactionPayLegacyFormat = {
   currentCurrency: string;
 };
 
+/** Parameters accepted by {@link formatStateForTransactionPay}. */
+export type FormatStateForTransactionPayParams = {
+  assetsBalance: Record<string, Record<string, AssetBalance>>;
+  assetsInfo: Record<string, AssetMetadata>;
+  assetsPrice: Record<string, AssetPrice>;
+  selectedCurrency: string;
+  accounts: AccountForLegacyFormat[];
+  nativeAssetIdentifiers: Record<string, string>;
+  networkConfigurationsByChainId?: Record<string, { nativeCurrency?: string }>;
+};
+
 function amountToHex(amount: string): `0x${string}` {
   const hexString = BigInt(amount).toString(16);
   return `0x${hexString}`;
+}
+
+function areAccountsEqual(
+  a: AccountForLegacyFormat[],
+  b: AccountForLegacyFormat[],
+): boolean {
+  if (a === b) {
+    return true;
+  }
+  if (a.length !== b.length) {
+    return false;
+  }
+  return a.every(
+    (account, index) =>
+      account.id === b[index].id && account.address === b[index].address,
+  );
+}
+
+function areRecordsShallowEqual(
+  a: Record<string, unknown> | undefined,
+  b: Record<string, unknown> | undefined,
+): boolean {
+  if (a === b) {
+    return true;
+  }
+  if (!a || !b) {
+    return false;
+  }
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+  if (aKeys.length !== bKeys.length) {
+    return false;
+  }
+  return aKeys.every((key) => a[key] === b[key]);
 }
 
 function getAmountFromBalance(balance: AssetBalance): string {
@@ -60,10 +105,22 @@ function getAmountFromBalance(balance: AssetBalance): string {
     : '0';
 }
 
+let lastCall: {
+  params: FormatStateForTransactionPayParams;
+  result: TransactionPayLegacyFormat;
+} | null = null;
+
 /**
  * Converts AssetsController state into the legacy format consumed by
  * transaction-pay-controller (TokenBalancesController, AccountTrackerController,
  * TokensController, TokenRatesController, CurrencyRateController shapes).
+ *
+ * The last result is memoized on input identity: this function is invoked (via
+ * `AssetsController:getStateForTransactionPay`) on every
+ * `TransactionController:stateChange`, but its inputs only change when the
+ * assets pipeline updates. Recomputing runs keccak256 (`toChecksumAddress`)
+ * per asset per call, which dominates CPU profiles during transaction
+ * approval.
  *
  * @param params - Conversion parameters.
  * @param params.assetsBalance - Per-account balances by asset ID.
@@ -75,15 +132,40 @@ function getAmountFromBalance(balance: AssetBalance): string {
  * @param params.networkConfigurationsByChainId - Optional chain ID to network config (for native symbol).
  * @returns Legacy-compatible state for transaction-pay-controller.
  */
-export function formatStateForTransactionPay(params: {
-  assetsBalance: Record<string, Record<string, AssetBalance>>;
-  assetsInfo: Record<string, AssetMetadata>;
-  assetsPrice: Record<string, AssetPrice>;
-  selectedCurrency: string;
-  accounts: AccountForLegacyFormat[];
-  nativeAssetIdentifiers: Record<string, string>;
-  networkConfigurationsByChainId?: Record<string, { nativeCurrency?: string }>;
-}): TransactionPayLegacyFormat {
+export function formatStateForTransactionPay(
+  params: FormatStateForTransactionPayParams,
+): TransactionPayLegacyFormat {
+  if (
+    lastCall?.params.assetsBalance === params.assetsBalance &&
+    lastCall.params.assetsInfo === params.assetsInfo &&
+    lastCall.params.assetsPrice === params.assetsPrice &&
+    lastCall.params.selectedCurrency === params.selectedCurrency &&
+    lastCall.params.networkConfigurationsByChainId ===
+      params.networkConfigurationsByChainId &&
+    areAccountsEqual(lastCall.params.accounts, params.accounts) &&
+    areRecordsShallowEqual(
+      lastCall.params.nativeAssetIdentifiers,
+      params.nativeAssetIdentifiers,
+    )
+  ) {
+    return lastCall.result;
+  }
+
+  const result = computeStateForTransactionPay(params);
+  lastCall = { params, result };
+  return result;
+}
+
+/**
+ * Performs the actual state conversion for
+ * {@link formatStateForTransactionPay}.
+ *
+ * @param params - Conversion parameters.
+ * @returns Legacy-compatible state for transaction-pay-controller.
+ */
+function computeStateForTransactionPay(
+  params: FormatStateForTransactionPayParams,
+): TransactionPayLegacyFormat {
   const {
     assetsBalance,
     assetsInfo,
