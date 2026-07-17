@@ -199,6 +199,20 @@ export {
   isTransakPhoneRegisteredError,
 } from './transakApiErrorUtils';
 export type {
+  TransakOrderUpdateEvent,
+  TransakOrderUpdateListener,
+  TransakOrderUpdatesClient,
+  CreatePusherTransakOrderUpdatesClientOptions,
+} from './transakOrderUpdates';
+export {
+  TRANSAK_PUSHER_KEY,
+  TRANSAK_PUSHER_CLUSTER,
+  TRANSAK_NATIVE_PROVIDER_IDS,
+  isTransakNativeProvider,
+  createDefaultPusher,
+  createPusherTransakOrderUpdatesClient,
+} from './transakOrderUpdates';
+export type {
   TransakServiceMethodActions,
   TransakServiceSendUserOtpAction,
   TransakServiceVerifyUserOtpAction,
