@@ -19,7 +19,7 @@ export const passkeyController: InitializationConfiguration<
     new PasskeyController({
       messenger,
       state,
-      rpId: options.rpId ?? undefined,
+      rpId: options.rpId,
       rpName: options.rpName ?? DEFAULT_PASSKEY_RP_NAME,
       expectedRPID: options.expectedRPID,
       expectedOrigin: options.expectedOrigin,

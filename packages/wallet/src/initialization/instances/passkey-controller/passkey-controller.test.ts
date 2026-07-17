@@ -25,6 +25,7 @@ jest.mock('@metamask/passkey-controller', () => ({
 const REQUIRED_OPTIONS = {
   expectedRPID: 'extension-id',
   expectedOrigin: 'https://extension.origin',
+  rpName: 'MetaMask',
 };
 
 /**
