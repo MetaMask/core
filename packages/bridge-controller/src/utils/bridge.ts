@@ -24,6 +24,7 @@ import type {
   GenericQuoteRequest,
 } from '../types';
 import { ChainId } from '../types';
+import type { BridgeAsset } from '../validators/bridge-asset';
 import type { QuoteResponseV1 } from '../validators/quote-response-v1';
 import type { TxData } from '../validators/trade';
 import {

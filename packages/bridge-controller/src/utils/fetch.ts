@@ -6,7 +6,6 @@ import type {
   FetchFunction,
   GenericQuoteRequest,
   QuoteRequest,
-  BridgeAsset,
   TokenFeature,
   QuoteStreamCompleteData,
   BatchSellTradesRequest,
@@ -14,6 +13,7 @@ import type {
 } from '../types';
 import { validateBatchSellTradesResponse } from '../validators/batch-sell';
 import { validateBridgeAsset } from '../validators/bridge-asset';
+import type { BridgeAsset } from '../validators/bridge-asset';
 import type { FeatureId } from '../validators/feature-flags';
 import type { QuoteResponseV1 } from '../validators/quote-response-v1';
 import { validateQuoteResponseV1 } from '../validators/quote-response-v1';

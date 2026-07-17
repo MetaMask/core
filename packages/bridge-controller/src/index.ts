@@ -43,7 +43,6 @@ export type {
   NonEvmFees,
   GasMultiplierByChainId,
   FeatureFlagResponse,
-  BridgeAsset,
   GenericQuoteRequest,
   BatchSellTradesResponse,
   GaslessProperties,
