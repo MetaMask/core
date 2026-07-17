@@ -12,7 +12,6 @@ import {
   formatAddressToAssetId,
   formatChainIdToCaip,
 } from '../caip-formatters';
-import type { QuoteMetadata } from '../quote-metadata';
 import { MetricsSwapType } from './constants';
 import type {
   AccountHardwareType,
@@ -21,6 +20,7 @@ import type {
   QuoteWarning,
   RequestParams,
 } from './types';
+import { QuoteMetadata } from '../quote-metadata/types';
 
 export const toInputChangedPropertyKey: Partial<
   Record<keyof QuoteRequest, InputKeys>

@@ -31,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **BREAKING:** Make `QuoteMetadata` fields optional, remove `0` and `null` amount fallbacks ([#9507](https://github.com/MetaMask/core/pull/9507))
+- Return priceImpact and relayerFee
+- Remove gasFee max and effective, totalMaxNetworkFee
 - Refactor quoteMetadata calculation and data access to prepare for metadata migration ([#9507](https://github.com/MetaMask/core/pull/9507))
   - Extract `QuoteMetadata` type and calculation to a new file
   - Implement `mergeQuoteMetadata` util which appends QuoteMetadata to QuoteResponse
@@ -57,6 +59,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add Robinhood Chain mainnet as a supported bridge network. ([#9459](https://github.com/MetaMask/core/pull/9459))
 
 ### Changed
+
+- Phase 1 of migration, in which `QuoteResponseV2 & QuoteMetadata` are returned, but still uses v1 metadata
+- Migration utilities
+
+  - toQuoteResponseV1, toQuoteResponseV2
+  - migrationMerge
+  - mergeQuoteMetadata, extractQuoteMetadata (test util)
 
 - Split up validators into smaller files to prepare for QuoteResponse V2 migration ([#9413](https://github.com/MetaMask/core/pull/9413))
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))

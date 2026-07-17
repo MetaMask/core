@@ -218,16 +218,20 @@ export type TxFeeGasLimits = Infer<typeof TxFeeGasLimitsSchema>;
 
 export type GaslessProperties = Infer<typeof GaslessPropertiesSchema>;
 
+type DeepPartialValue<Type> =
+  NonNullable<Type> extends (infer U)[]
+    ? DeepPartial<U>[]
+    : NonNullable<Type> extends readonly (infer U)[]
+      ? readonly DeepPartial<U>[]
+      : NonNullable<Type> extends object
+        ? DeepPartial<NonNullable<Type>>
+        : Type;
 export type DeepPartial<Type> = Type extends string
   ? Type
   : {
-      [K in keyof Type]?: Type[K] extends (infer U)[]
-        ? DeepPartial<U>[]
-        : Type[K] extends readonly (infer U)[]
-          ? readonly DeepPartial<U>[]
-          : Type[K] extends object
-            ? DeepPartial<Type[K]>
-            : Type[K];
+      [K in keyof Type]?: null extends Type[K]
+        ? DeepPartialValue<Type[K]> | null
+        : DeepPartialValue<Type[K]>;
     };
 
 export enum ChainId {

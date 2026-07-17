@@ -213,6 +213,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
     });
 
     it('should trigger quote polling if request is valid', async function () {
+      const consoleWarnSpy = jest.spyOn(console, 'warn');
       await withController(
         async ({
           controller: bridgeController,
@@ -227,7 +228,10 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           mockFetchFn.mockImplementationOnce(async () => {
             return mockSseBatchSellEventSource([
               mockBridgeQuotesNativeErc20V1,
-              mockBridgeQuotesErc20Erc20V1,
+              mockBridgeQuotesErc20Erc20V1.map((quote) => ({
+                ...quote,
+                quoteRequestIndex: 1,
+              })),
             ]);
           });
           hasSufficientBalanceSpy.mockResolvedValue(true);
@@ -399,6 +403,7 @@ describe('BridgeController BatchSell (multiple quote requests) SSE', function ()
           // After first fetch
           jest.advanceTimersByTime(5000);
           await flushPromises();
+          expect(consoleWarnSpy.mock.calls).toMatchInlineSnapshot(`[]`);
           expect(fetchAssetPricesSpy).toHaveBeenCalledTimes(1);
           expect(bridgeController.state).toStrictEqual({
             ...expectedState,

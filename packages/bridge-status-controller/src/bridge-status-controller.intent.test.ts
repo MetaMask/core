@@ -7,6 +7,8 @@ import {
   mergeQuoteMetadata,
   StatusTypes,
   QuoteResponse as QuoteResponseV1,
+  getNativeAssetForChainId,
+  validateQuoteResponseV1,
 } from '@metamask/bridge-controller';
 import type {
   GasFeeEstimates,
@@ -60,11 +62,30 @@ const minimalIntentQuoteResponse = (
         decimals: 18,
       },
       feeData: {
-        txFee: { maxFeePerGas: '1', maxPriorityFeePerGas: '1' },
-      } as never,
+        txFee: {
+          amount: '1',
+          asset: getNativeAssetForChainId(1),
+          maxFeePerGas: '1',
+          maxPriorityFeePerGas: '1',
+        },
+        metabridge: {
+          amount: '0',
+          asset: getNativeAssetForChainId(1),
+        },
+      },
       intent: {
         protocol: 'cowswap',
-        order: { some: 'order' },
+        order: {
+          sellToken: '0x0000000000000000000000000000000000000001',
+          buyToken: '0x0000000000000000000000000000000000000002',
+          validTo: 1717027200,
+          appData: 'some-app-data',
+          appDataHash: '0xabcd',
+          feeAmount: '100',
+          kind: 'sell' as const,
+          partiallyFillable: false,
+          sellAmount: '1000',
+        },
         settlementContract: '0x9008D19f58AAbd9eD0D60971565AA8510560ab41',
         typedData: {
           types: {},
@@ -73,6 +94,7 @@ const minimalIntentQuoteResponse = (
           message: {},
         },
       },
+      steps: [],
     },
     estimatedProcessingTimeInSeconds: 15,
     featureId: undefined,
@@ -94,6 +116,7 @@ const minimalIntentQuoteResponse = (
     toTokenAmount: { usd: '1' },
   });
 };
+validateQuoteResponseV1(minimalIntentQuoteResponse());
 
 const minimalBridgeQuoteResponse = (
   accountAddress: string,
@@ -123,9 +146,18 @@ const minimalBridgeQuoteResponse = (
         name: 'ETH',
         decimals: 18,
       },
-      feeData: { txFee: { maxFeePerGas: '1', maxPriorityFeePerGas: '1' } },
+      feeData: {
+        metabridge: { amount: '1', asset: getNativeAssetForChainId(1) },
+        txFee: {
+          amount: '1',
+          asset: getNativeAssetForChainId(1),
+          maxFeePerGas: '1',
+          maxPriorityFeePerGas: '1',
+        },
+      },
       bridges: ['across'],
       bridgeId: 'socket',
+      steps: [],
     },
 
     estimatedProcessingTimeInSeconds: 15,
@@ -148,6 +180,7 @@ const minimalBridgeQuoteResponse = (
     toTokenAmount: { usd: '1' },
   });
 };
+validateQuoteResponseV1(minimalBridgeQuoteResponse('0xAccount1'));
 
 const createMessengerHarness = (
   accountAddress: string,
@@ -256,7 +289,7 @@ const setup = (options?: {
   keyringType?: string;
   mockTxHistory?: any;
 }) => {
-  const accountAddress = '0xAccount1';
+  const accountAddress = '0xAccount1' as const;
   const { messenger, transactions } = createMessengerHarness(
     accountAddress,
     options?.selectedChainId ?? '0x1',
@@ -545,7 +578,15 @@ describe('BridgeStatusController (intent swaps)', () => {
         "params": {
           "aggregatorId": "cowswap",
           "order": {
-            "some": "order",
+            "appData": "some-app-data",
+            "appDataHash": "0xabcd",
+            "buyToken": "0x0000000000000000000000000000000000000002",
+            "feeAmount": "100",
+            "kind": "sell",
+            "partiallyFillable": false,
+            "sellAmount": "1000",
+            "sellToken": "0x0000000000000000000000000000000000000001",
+            "validTo": 1717027200,
           },
           "quoteId": "req-1",
           "signature": "0xautosigned",
@@ -931,9 +972,13 @@ describe('BridgeStatusController (target uncovered branches)', () => {
     // make startPolling return different tokens for the same tx
     startPollingSpy.mockReturnValueOnce('tok1').mockReturnValueOnce('tok2');
 
-    const quoteResponse: any = mergeQuoteMetadata(
+    const quoteResponse = mergeQuoteMetadata(
       {
-        quote: { srcChainId: 1, destChainId: 10, destAsset: { assetId: 'x' } },
+        quote: {
+          srcChainId: 1,
+          destChainId: 10,
+          destAsset: { assetId: 'eip155:10/slip44:60' },
+        },
         estimatedProcessingTimeInSeconds: 1,
       },
       {
@@ -952,7 +997,7 @@ describe('BridgeStatusController (target uncovered branches)', () => {
       slippagePercentage: 0,
       startTime: Date.now(),
       isStxEnabled: false,
-    } as any);
+    });
 
     // second time => should stop tok1 and start tok2
     controller.startPollingForBridgeTxStatus({
@@ -963,7 +1008,7 @@ describe('BridgeStatusController (target uncovered branches)', () => {
       slippagePercentage: 0,
       startTime: Date.now(),
       isStxEnabled: false,
-    } as any);
+    });
 
     expect(stopPollingSpy).toHaveBeenCalledWith('tok1');
   });
@@ -994,12 +1039,12 @@ describe('BridgeStatusController (target uncovered branches)', () => {
       mockTxHistory,
     });
 
-    const quoteResponse: any = mergeQuoteMetadata(
+    const quoteResponse = mergeQuoteMetadata(
       {
         quote: {
           srcChainId: 1,
           destChainId: 10,
-          destAsset: { assetId: 'x' },
+          destAsset: { assetId: 'eip155:10/slip44:60' },
           bridges: ['across'],
         },
         estimatedProcessingTimeInSeconds: 1,

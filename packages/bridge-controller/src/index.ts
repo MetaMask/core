@@ -37,9 +37,6 @@ export {
   getQuotesReceivedProperties,
 } from './utils/metrics/properties';
 
-export type { QuoteMetadata, TokenAmountValues } from './utils/quote-metadata';
-export { mergeQuoteMetadata } from './utils/quote-metadata';
-
 export type {
   ChainConfiguration,
   L1GasFees,
@@ -68,6 +65,7 @@ export type {
   QuoteStreamCompleteData,
   BridgeControllerGetStateAction,
   BridgeControllerStateChangeEvent,
+  DeepPartial,
 } from './types';
 
 export {
@@ -111,12 +109,29 @@ export type { Quote } from './validators/quote';
 export { FeeType, DiscountType } from './validators/quote';
 export { ActionTypes } from './validators/step';
 export {
+  type QuoteResponseV1,
+  validateQuoteResponseV1,
+  QuoteResponseSchemaV1,
+} from './validators/quote-response-v1';
+
+export {
+  type QuoteMetadata,
+  type TokenAmountValues,
+} from './utils/quote-metadata/types';
+
+export { calcQuoteMetadata } from './utils/quote-metadata/quote-metadata';
+export { mergeQuoteMetadata } from './utils/quote-metadata/merge';
+
+export {
   validateQuoteStreamComplete,
   QuoteStreamCompleteReason,
 } from './validators/quote-stream-complete';
 export { BatchSellTransactionType } from './validators/batch-sell';
 export { TokenFeatureType } from './validators/token-feature';
-export { BridgeAssetSchema } from './validators/bridge-asset';
+export {
+  BridgeAssetSchema,
+  validateBridgeAsset,
+} from './validators/bridge-asset';
 export { FeatureId } from './validators/feature-flags';
 
 export {
@@ -173,9 +188,9 @@ export {
 export {
   isValidQuoteRequest,
   isValidBatchSellQuoteRequest,
-  formatEtaInMinutes,
-  calcSlippagePercentage,
-} from './utils/quote';
+} from './validators/quote-request';
+
+export { calcSlippagePercentage } from './utils/quote-metadata/calculators';
 
 export { calcLatestSrcBalance } from './utils/balance';
 

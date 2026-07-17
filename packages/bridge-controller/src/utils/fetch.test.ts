@@ -29,7 +29,7 @@ describe('fetch', () => {
           coingeckoId: 'ethereum',
           aggregators: [],
           iconUrl:
-            'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/10/native/614.png',
+            'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/10/native/60.png',
           metadata: {
             honeypotStatus: {},
             isContractVerified: false,
@@ -108,7 +108,7 @@ describe('fetch', () => {
           coingeckoId: 'ethereum',
           decimals: 18,
           iconUrl:
-            'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/10/native/614.png',
+            'https://static.cx.metamask.io/api/v2/tokenIcons/assets/eip155/10/native/60.png',
           metadata: {
             createdAt: '2023-10-31T22:16:37.494Z',
             description: {},

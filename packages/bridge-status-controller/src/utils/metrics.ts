@@ -158,7 +158,7 @@ export const getTradeDataFromQuote = (
   batchSellTrades?: BatchSellTradesResponse | null,
 ): TradeData => {
   return {
-    usd_quoted_gas: Number(quoteResponse?.gasFee?.effective?.usd ?? 0),
+    usd_quoted_gas: Number(quoteResponse.gasFee?.total?.usd ?? 0),
     gas_included:
       quoteResponse.quote.gasIncluded ?? batchSellTrades?.gasIncluded ?? false,
     gas_included_7702:

@@ -142,7 +142,10 @@ export const sumHexes = (...hexStrings: string[]): Hex => {
     return '0x0';
   }
 
-  const sum = hexStrings.reduce((acc, hex) => acc + BigInt(hex), BigInt(0));
+  const sum = hexStrings.reduce(
+    (acc, hexString) => acc + BigInt(hexString),
+    BigInt(0),
+  );
   return `0x${sum.toString(16)}`;
 };
 

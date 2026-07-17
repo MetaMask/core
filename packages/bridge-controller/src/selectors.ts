@@ -33,10 +33,13 @@ import {
   formatChainIdToHex,
 } from './utils/caip-formatters';
 import { processFeatureFlags } from './utils/feature-flags';
-import { calcBatchFees } from './utils/quote';
-import type { TokenAmountValues } from './utils/quote-metadata';
-import { calcQuoteMetadata, mergeQuoteMetadata } from './utils/quote-metadata';
-import type { QuoteMetadata } from './utils/quote-metadata';
+import { calcBatchFees } from './utils/quote-metadata/calculators';
+import { mergeQuoteMetadata } from './utils/quote-metadata/merge';
+import { calcQuoteMetadata } from './utils/quote-metadata/quote-metadata';
+import type {
+  QuoteMetadata,
+  TokenAmountValues,
+} from './utils/quote-metadata/types';
 import { getDefaultSlippagePercentage } from './utils/slippage';
 import type { QuoteResponseV1 } from './validators/quote-response-v1';
 
@@ -350,14 +353,7 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
   ) => {
     return quotes.map((quote) => {
       // This is a fallback for client unit tests
-      const fallbackSourceAssetId = formatAddressToAssetId(
-        quote.quote.srcAsset.address,
-        quote.quote.srcChainId,
-      );
-      const sourceAssetId =
-        quote.quote.srcAsset.assetId ??
-        /* c8 ignore next */
-        fallbackSourceAssetId;
+      const sourceAssetId = quote.quote.srcAsset.assetId;
       const srcTokenExchangeRate = selectExchangeRateByAssetId(
         exchangeRateSources,
         sourceAssetId,
@@ -463,8 +459,8 @@ export const selectIsQuoteExpired = createBridgeSelector(
   (isQuoteGoingToRefresh, quotesLastFetched, refreshRate, currentTimeInMs) =>
     Boolean(
       !isQuoteGoingToRefresh &&
-      quotesLastFetched &&
-      currentTimeInMs - quotesLastFetched > refreshRate,
+        quotesLastFetched &&
+        currentTimeInMs - quotesLastFetched > refreshRate,
     ),
 );
 
@@ -536,7 +532,7 @@ const selectMetadataSum = createBridgeSelector(
           .toString();
         return acc;
       },
-      { usd: null, valueInCurrency: null, amount: '0' },
+      { usd: '0', valueInCurrency: '0', amount: '0' },
     ),
 );
 

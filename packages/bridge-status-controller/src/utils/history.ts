@@ -227,9 +227,9 @@ export const getInitialHistoryItem = (
     pricingData: {
       amountSent: quoteResponse?.sentAmount?.amount ?? '0',
       amountSentInUsd: quoteResponse?.sentAmount?.usd ?? undefined,
-      quotedGasInUsd: quoteResponse?.gasFee?.effective?.usd ?? undefined,
+      quotedGasInUsd: quoteResponse?.gasFee?.total?.usd ?? undefined,
       quotedReturnInUsd: quoteResponse?.toTokenAmount?.usd ?? undefined,
-      quotedGasAmount: quoteResponse?.gasFee?.effective?.amount ?? undefined,
+      quotedGasAmount: quoteResponse?.gasFee?.total?.amount ?? undefined,
     },
     initialDestAssetBalance,
     targetContractAddress,
