@@ -9,11 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `BACKUPANDSYNC_FEATURES.rampsSyncing` and `UserStorageController` state field `isRampsSyncingEnabled` (defaults to `true`) so clients can toggle ramps order syncing independently of account and contact syncing ([#9474](https://github.com/MetaMask/core/pull/9474))
+- Add `BACKUPANDSYNC_FEATURES.rampsSyncing` and `UserStorageController.isRampsSyncingEnabled` ([#9474](https://github.com/MetaMask/core/pull/9474))
 
 ### Changed
 
-- **BREAKING:** `UserStorageControllerState` now includes `isRampsSyncingEnabled`. Consumers that construct full state objects (rather than partial state) must include this field. ([#9474](https://github.com/MetaMask/core/pull/9474))
+- **BREAKING:** `UserStorageControllerState` now includes `isRampsSyncingEnabled`. Consumers that construct full state objects must include this field. ([#9474](https://github.com/MetaMask/core/pull/9474))
 
 ## [28.3.0]
 
