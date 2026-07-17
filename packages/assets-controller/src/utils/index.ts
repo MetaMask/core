@@ -6,6 +6,7 @@ export { formatStateForTransactionPay } from './formatStateForTransactionPay';
 export type { BridgeExchangeRatesFormat } from './formatExchangeRatesForBridge';
 export type {
   AccountForLegacyFormat,
+  FormatStateForTransactionPayParams,
   LegacyToken,
   TransactionPayLegacyFormat,
 } from './formatStateForTransactionPay';
