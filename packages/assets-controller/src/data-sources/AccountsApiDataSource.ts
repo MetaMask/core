@@ -21,11 +21,7 @@ import type {
   Middleware,
   AssetsControllerStateInternal,
 } from '../types';
-import {
-  computeSubscriptionScopeKey,
-  fetchWithTimeout,
-  normalizeAssetId,
-} from '../utils';
+import { fetchWithTimeout, normalizeAssetId } from '../utils';
 import type {
   DataSourceState,
   SubscriptionRequest,
@@ -219,15 +215,6 @@ export class AccountsApiDataSource extends AbstractDataSource<
 
   /** State accessor from subscriptions (for filtering when tokenDetectionEnabled is false) */
   #getAssetsState?: () => AssetsControllerStateInternal;
-
-  /**
-   * Scope key + timestamp of the last fetch, preserved across teardown. Used to
-   * skip the redundant immediate fetch when the subscription is re-created for
-   * the same scope while its last fetch is still fresh (e.g. a chain flapping
-   * between the WebSocket and this source). This source only ever has a single
-   * subscription, so a single record suffices.
-   */
-  #lastFetch: { scopeKey: string; at: number } | null = null;
 
   constructor(options: AccountsApiDataSourceOptions) {
     super(CONTROLLER_NAME, {
@@ -765,11 +752,6 @@ export class AccountsApiDataSource extends AbstractDataSource<
     await this.unsubscribe(subscriptionId);
 
     const pollInterval = request.updateInterval ?? this.#pollInterval;
-    const scopeKey = computeSubscriptionScopeKey(
-      request,
-      chainsToSubscribe,
-      pollInterval,
-    );
 
     // Create poll function for this subscription
     const pollFn = async (): Promise<void> => {
@@ -778,8 +760,6 @@ export class AccountsApiDataSource extends AbstractDataSource<
         if (!subscription?.request) {
           return;
         }
-
-        this.#lastFetch = { scopeKey, at: Date.now() };
 
         // Use stored request (which gets updated on account changes)
         const fetchResponse = await this.fetch({
@@ -809,24 +789,6 @@ export class AccountsApiDataSource extends AbstractDataSource<
       onAssetsUpdate: subscriptionRequest.onAssetsUpdate,
     });
 
-    // Skip the immediate fetch when this subscription was just re-created for
-    // the same scope and its last fetch is still fresh (within one poll
-    // interval). This avoids redundant identical requests when a chain flaps
-    // between the WebSocket source and this polling source. `forceUpdate`
-    // always fetches (it is excluded from the scope key). The scheduled poll
-    // above still refreshes on the next interval tick.
-    const isRedundantImmediateFetch =
-      !request.forceUpdate &&
-      this.#lastFetch?.scopeKey === scopeKey &&
-      Date.now() - this.#lastFetch.at < pollInterval;
-
-    if (isRedundantImmediateFetch) {
-      log('Skipping redundant immediate fetch on re-subscribe', {
-        subscriptionId,
-      });
-      return;
-    }
-
     // Initial fetch
     await pollFn();
   }
@@ -840,8 +802,6 @@ export class AccountsApiDataSource extends AbstractDataSource<
     if (this.#chainsRefreshTimer) {
       clearInterval(this.#chainsRefreshTimer);
     }
-
-    this.#lastFetch = null;
 
     // Clean up subscriptions
     super.destroy();

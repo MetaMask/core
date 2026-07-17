@@ -13,15 +13,6 @@ export {
 } from './AccountsApiDataSource';
 
 export {
-  BackendWebsocketDataSource,
-  createBackendWebsocketDataSource,
-  type BackendWebsocketDataSourceOptions,
-  type BackendWebsocketDataSourceState,
-  type BackendWebsocketDataSourceAllowedActions,
-  type BackendWebsocketDataSourceAllowedEvents,
-} from './BackendWebsocketDataSource';
-
-export {
   AccountActivityDataSource,
   createAccountActivityDataSource,
   type AccountActivityDataSourceOptions,

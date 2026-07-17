@@ -31,7 +31,7 @@ The `AssetsController` is a unified asset management system that provides real-t
 │  On-demand data fetch                Process incoming updates                │
 │  (forceUpdate: true)                 (enrichment only)                       │
 │                                                                              │
-│  Subscription Sources: BackendWebsocket, AccountsApi, Snap, RPC              │
+│  Subscription Sources: AccountActivity, AccountsApi, Snap, RPC              │
 │  Push updates via: AssetsController:assetsUpdate action                      │
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -90,7 +90,7 @@ registerActionHandlers()
 
 #### 1.5 Balance data source priority
 
-Built-in balance data sources are fixed and processed in priority order: BackendWebsocketDataSource, AccountsApiDataSource, SnapDataSource, RpcDataSource. Earlier sources get first pick for chain assignment; later sources act as fallbacks. Data sources report active chains via the `onActiveChainsUpdated` callback passed at construction.
+Built-in balance data sources are fixed and processed in priority order: AccountActivityDataSource, AccountsApiDataSource, SnapDataSource, RpcDataSource. Earlier sources get first pick for chain assignment; later sources act as fallbacks. Data sources report active chains via the `onActiveChainsUpdated` callback passed at construction.
 
 #### 1.6 Middleware Chains
 
@@ -506,7 +506,7 @@ messenger.call(
 // Data source reports its active chains
 messenger.call(
   'AssetsController:activeChainsUpdate',
-  'BackendWebsocketDataSource',
+  'AccountActivityDataSource',
   ['eip155:1', 'eip155:137', 'eip155:42161'],
 );
 ```
@@ -538,7 +538,7 @@ await messenger.call(
       },
     },
   },
-  'BackendWebsocketDataSource',
+  'AccountActivityDataSource',
 );
 ```
 
@@ -797,7 +797,7 @@ const multiChainAssets = await messenger.call(
 
 | Order | Data Source                | Update Mechanism         | Chains                |
 | ----- | -------------------------- | ------------------------ | --------------------- |
-| 1     | BackendWebsocketDataSource | Real-time WebSocket push | API-supported EVM     |
+| 1     | AccountActivityDataSource  | Real-time WebSocket push | API-supported EVM     |
 | 2     | AccountsApiDataSource      | HTTP polling             | API-supported chains  |
 | 3     | SnapDataSource             | Snap keyring events      | Solana, Bitcoin, Tron |
 | 4     | RpcDataSource              | Direct RPC polling       | Any EVM chain         |
@@ -831,11 +831,11 @@ flowchart TB
 
     subgraph AssetsControllerInit["AssetsController (with queryApiClient)"]
         AC[AssetsController]
-        AC --> WS & API & SNAP & RPC & TOK & PRICE & DET
+        AC --> AA & API & SNAP & RPC & TOK & PRICE & DET
     end
 
     subgraph DataSources["Data Source Instances - Order 1-4"]
-        WS[BackendWebsocketDS - Order 1]
+        AA[AccountActivityDS - Order 1]
         API[AccountsApiDS - Order 2]
         SNAP[SnapDataSource - Order 3]
         RPC[RpcDataSource - Order 4]
@@ -849,7 +849,7 @@ flowchart TB
         ATC[AccountTreeController]
         NEC[NetworkEnablementController]
         KC[KeyringController]
-        BWSS[BackendWebSocketService]
+        AAS[AccountActivityService]
         BAC[BackendApiClient / ApiPlatformClient]
         SC[SnapController]
     end
@@ -858,7 +858,7 @@ flowchart TB
     ACI --> AC
 
     RPC -.-> NC
-    WS -.-> BWSS
+    AA -.-> AAS
     API -.-> BAC
     SNAP -.-> SC
     TOK -.-> BAC

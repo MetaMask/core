@@ -17,8 +17,6 @@ import type {
   ApiPlatformClient,
   AccountActivityServiceBalanceUpdatedEvent,
   AccountActivityServiceStatusChangedEvent,
-  BackendWebSocketServiceActions,
-  BackendWebSocketServiceEvents,
   SupportedCurrency,
 } from '@metamask/core-backend';
 import type {
@@ -79,7 +77,6 @@ import type {
 import type { AccountsApiDataSourceConfig } from './data-sources/AccountsApiDataSource';
 import { AccountsApiDataSource } from './data-sources/AccountsApiDataSource';
 import { AccountActivityDataSource } from './data-sources/AccountActivityDataSource';
-import { BackendWebsocketDataSource } from './data-sources/BackendWebsocketDataSource';
 import { shouldSkipNativeForCaipChainId } from './data-sources/evm-rpc-services/utils/assets';
 import type { PriceDataSourceConfig } from './data-sources/PriceDataSource';
 import { PriceDataSource } from './data-sources/PriceDataSource';
@@ -342,8 +339,6 @@ type AllowedActions =
   | SnapControllerGetRunnableSnapsAction
   | SnapControllerHandleRequestAction
   | GetPermissions
-  // BackendWebsocketDataSource
-  | BackendWebSocketServiceActions
   // PhishingController
   | PhishingControllerBulkScanTokensAction
   // AccountsApiDataSource (Accounts API v6 balances feature flag)
@@ -373,8 +368,6 @@ type AllowedEvents =
   | AccountsControllerAccountBalancesUpdatedEvent
   | PermissionControllerStateChange
   | SnapControllerSnapInstalledEvent
-  // BackendWebsocketDataSource
-  | BackendWebSocketServiceEvents
   // AccountActivityService (real-time balance updates + chain status for unified assets)
   | AccountActivityServiceBalanceUpdatedEvent
   | AccountActivityServiceStatusChangedEvent;
@@ -816,8 +809,6 @@ export class AssetsController extends BaseController<
     return [];
   }
 
-  readonly #backendWebsocketDataSource: BackendWebsocketDataSource;
-
   readonly #accountActivityDataSource: AccountActivityDataSource;
 
   readonly #accountsApiDataSource: AccountsApiDataSource;
@@ -830,19 +821,25 @@ export class AssetsController extends BaseController<
 
   /**
    * All balance data sources in priority order for chain-claiming and cleanup.
-   * Note: StakedBalanceDataSource is excluded because it provides supplementary
-   * data and should not participate in chain-claiming.
+   * AccountActivityDataSource is highest priority: chains it reports as "up"
+   * (real-time WebSocket data via AccountActivityService) are reserved first so
+   * the polling sources (AccountsApi/RPC) do not also poll them. It only
+   * reserves chains here — its actual subscription (used to route
+   * `balanceUpdated` events) is created separately in `#subscribeAssetsBalance`
+   * with all selected accounts and enabled chains. Note: StakedBalanceDataSource
+   * is excluded because it provides supplementary data and should not
+   * participate in chain-claiming.
    *
    * @returns The four balance data source instances in priority order.
    */
   get #allBalanceDataSources(): [
-    BackendWebsocketDataSource,
+    AccountActivityDataSource,
     AccountsApiDataSource,
     SnapDataSource,
     RpcDataSource,
   ] {
     return [
-      this.#backendWebsocketDataSource,
+      this.#accountActivityDataSource,
       this.#accountsApiDataSource,
       this.#snapDataSource,
       this.#rpcDataSource,
@@ -933,18 +930,17 @@ export class AssetsController extends BaseController<
       }
     };
 
-    this.#backendWebsocketDataSource = new BackendWebsocketDataSource({
-      messenger: this.messenger,
-      queryApiClient,
-      onActiveChainsUpdated: this.#onActiveChainsUpdated,
-      getAssetType: (assetId: Caip19AssetId): 'native' | 'erc20' | 'spl' =>
-        this.#getAssetType(assetId),
-    });
     this.#accountActivityDataSource = new AccountActivityDataSource({
       messenger: this.messenger,
       onActiveChainsUpdated: this.#onActiveChainsUpdated,
       getAssetType: (assetId: Caip19AssetId): 'native' | 'erc20' | 'spl' =>
         this.#getAssetType(assetId),
+      onAssetsUpdate: (response, request) =>
+        this.handleAssetsUpdate(
+          response,
+          this.#accountActivityDataSource.getName(),
+          request,
+        ),
     });
     this.#accountsApiDataSource = new AccountsApiDataSource({
       messenger: this.messenger,
@@ -1223,8 +1219,6 @@ export class AssetsController extends BaseController<
       },
     );
 
-    // Real-time post-tx balances and chain status from AccountActivityService are
-    // consumed by AccountActivityDataSource (subscribed in #subscribeAssets).
   }
 
   #onUnapprovedTransactionAdded(transactionMeta: TransactionMeta): void {
@@ -1450,16 +1444,14 @@ export class AssetsController extends BaseController<
     // Coalesce bursts of chain updates into a single re-subscribe so polling
     // data sources are not torn down/re-created (with a redundant immediate
     // fetch) once per event.
-    if (removedChains.length > 0) {
-      // Urgent: a data source dropped chains (e.g. WebSocket went down). Until
-      // re-subscribe hands those chains to a polling source there is a data gap,
-      // so run promptly without jitter.
-      this.#scheduleSubscribeAssets();
-    } else if (addedChains.length > 0) {
-      // Non-urgent: a data source claimed new chains (polling still covers them
-      // until re-subscribe). Add jitter to stagger the resulting WS-subscribe
-      // fan-out across clients receiving the same backend broadcast.
-      this.#scheduleSubscribeAssets({ jitter: true });
+    // A removal is urgent: a data source dropped chains (e.g. WebSocket went
+    // down) and there is a data gap until re-subscribe hands those chains to a
+    // polling source, so run promptly without jitter. A pure addition is
+    // non-urgent (polling still covers the new chains until re-subscribe), so
+    // add jitter to stagger the resulting WS-subscribe fan-out across clients
+    // receiving the same backend broadcast.
+    if (addedChains.length > 0 || removedChains.length > 0) {
+      this.#scheduleSubscribeAssets({ jitter: removedChains.length === 0 });
     }
   }
 
@@ -2967,7 +2959,6 @@ export class AssetsController extends BaseController<
     // every source that may have been subscribed.
     const allSources = [
       ...this.#allBalanceDataSources,
-      this.#accountActivityDataSource,
       this.#stakedBalanceDataSource,
     ];
     const subscriptionKeys = [...this.#activeSubscriptions.keys()];
@@ -3095,9 +3086,26 @@ export class AssetsController extends BaseController<
     );
     const remainingChains = new Set(chainToAccounts.keys());
     // When basic functionality is on, use all balance data sources; when off, RPC only.
-    const balanceDataSources = this.#isBasicFunctionality()
+    // When basic functionality is on, use all balance data sources; when off,
+    // RPC only.
+    const isBasicFunctionality = this.#isBasicFunctionality();
+    const balanceDataSources = isBasicFunctionality
       ? this.#allBalanceDataSources
       : [this.#rpcDataSource];
+
+    // AccountActivityDataSource is event-driven and routes `balanceUpdated`
+    // events by resolving the address against the wallet, so it is never
+    // subscribed through the handoff below. Its only role here is to *reserve*
+    // the chains it reports "up" so the polling sources (AccountsApi/RPC) skip
+    // them. It only reserves when basic functionality is on; when off,
+    // `balanceDataSources` is RPC-only. Because these chains are removed from
+    // `remainingChains` upfront, AADS's own iteration in the loop always claims
+    // nothing and no-ops.
+    if (isBasicFunctionality) {
+      for (const chainId of this.#accountActivityDataSource.getActiveChainsSync()) {
+        remainingChains.delete(chainId);
+      }
+    }
 
     let rpcAssignedChains: Set<ChainId> = new Set();
 
@@ -3147,22 +3155,11 @@ export class AssetsController extends BaseController<
       chainToAccounts,
       rpcAssignedChains,
     );
-
-    // AccountActivityDataSource consumes real-time AccountActivityService events.
-    // It does not participate in chain-claiming; it is subscribed with all
-    // selected accounts and enabled chains so it can route `balanceUpdated`
-    // events to the matching account. Chain up/down is managed internally from
-    // `statusChanged` (see AccountActivityDataSource).
-    this.#subscribeDataSource(
-      this.#accountActivityDataSource,
-      accounts,
-      chainIds,
-    );
   }
 
   /**
    * Guarantee that customAssets are **always** polled by RPC, even when
-   * AccountsApi or the websocket data source has claimed the chain in the
+   * AccountsApi or another data source has claimed the chain in the
    * regular handoff. RPC is the sole balance fetcher for user-imported
    * tokens (see `pickRpcCustomAssetsSupplement` for the full rationale),
    * so we run a dedicated subscription in `customAssetsOnly` mode under a
@@ -3585,14 +3582,11 @@ export class AssetsController extends BaseController<
   }
 
   /**
-   * Refresh data-source `activeChains` after an EVM network switch so API/WS/Rpc
+   * Refresh data-source `activeChains` after an EVM network switch so API/Rpc
    * chain claiming is not stuck on an empty or stale init-time list.
    */
   async #refreshActiveChainsOnNetworkSwitch(): Promise<void> {
-    await Promise.all([
-      this.#accountsApiDataSource.refreshActiveChains(),
-      this.#backendWebsocketDataSource.refreshActiveChains(),
-    ]);
+    await this.#accountsApiDataSource.refreshActiveChains();
     this.#rpcDataSource.refreshActiveChainsFromNetworkState();
   }
 
@@ -3750,12 +3744,12 @@ export class AssetsController extends BaseController<
           ),
         };
 
-    // Graduate custom assets only when AccountsAPI / Websocket reports them.
-    // RPC already fetches custom assets on purpose, and Snap handles non-EVM
-    // chains the rule does not apply to, so skip the middleware for those.
+    // Graduate custom assets only when AccountsAPI / AccountActivity reports
+    // them. RPC already fetches custom assets on purpose, and Snap handles
+    // non-EVM chains the rule does not apply to, so skip the middleware for
+    // those.
     const shouldGraduateCustomAssets =
       sourceId === 'AccountsApiDataSource' ||
-      sourceId === 'BackendWebsocketDataSource' ||
       sourceId === 'AccountActivityDataSource';
 
     const enrichmentSources: AssetsDataSource[] = [
@@ -3807,7 +3801,6 @@ export class AssetsController extends BaseController<
     });
 
     // Destroy instantiated data sources
-    this.#backendWebsocketDataSource?.destroy?.();
     this.#accountActivityDataSource?.destroy?.();
     this.#accountsApiDataSource?.destroy?.();
     this.#snapDataSource?.destroy?.();

@@ -111,17 +111,6 @@ export type {
   AccountsApiDataSourceState,
 } from './data-sources';
 
-// Data sources - BackendWebsocket
-export {
-  BackendWebsocketDataSource,
-  createBackendWebsocketDataSource,
-} from './data-sources';
-
-export type {
-  BackendWebsocketDataSourceOptions,
-  BackendWebsocketDataSourceState,
-} from './data-sources';
-
 // Data sources - RPC
 export { RpcDataSource, createRpcDataSource } from './data-sources';
 

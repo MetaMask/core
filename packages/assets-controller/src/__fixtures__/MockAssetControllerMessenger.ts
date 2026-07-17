@@ -61,20 +61,6 @@ export function createMockAssetControllerMessenger(): {
       'SnapController:getRunnableSnaps',
       'SnapController:handleRequest',
       'PermissionController:getPermissions',
-      // BackendWebsocketDataSource
-      'BackendWebSocketService:connect',
-      'BackendWebSocketService:disconnect',
-      'BackendWebSocketService:forceReconnection',
-      'BackendWebSocketService:sendMessage',
-      'BackendWebSocketService:sendRequest',
-      'BackendWebSocketService:getConnectionInfo',
-      'BackendWebSocketService:getSubscriptionsByChannel',
-      'BackendWebSocketService:channelHasSubscription',
-      'BackendWebSocketService:findSubscriptionsByChannelPrefix',
-      'BackendWebSocketService:addChannelCallback',
-      'BackendWebSocketService:removeChannelCallback',
-      'BackendWebSocketService:getChannelCallbacks',
-      'BackendWebSocketService:subscribe',
     ],
     events: [
       // AssetsController
@@ -92,10 +78,9 @@ export function createMockAssetControllerMessenger(): {
       // SnapDataSource
       'AccountsController:accountBalancesUpdated',
       'PermissionController:stateChange',
-      // BackendWebsocketDataSource
-      'BackendWebSocketService:connectionStateChanged',
-      // AccountActivityService
+      // AccountActivityService (real-time balances + chain status)
       'AccountActivityService:balanceUpdated',
+      'AccountActivityService:statusChanged',
     ],
   });
 
