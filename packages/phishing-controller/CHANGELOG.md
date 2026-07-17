@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [17.3.0]
+
 ### Added
 
 - Extend `DEFAULT_CHAIN_ID_TO_NAME` with 19 additional chains: `xlayer`, `megaeth`, `tempo`, `tempo-testnet`, `kaia`, `robinhood`, `arc`, `plasma`, `mantle`, `katana`, `plume`, `kite-ai`, `monad-testnet`, `starknet`, `starknet-sepolia`, `stellar`, `bitcoin`, `sui`, `tron` ([#9506](https://github.com/MetaMask/core/pull/9506))
@@ -620,7 +622,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
     All changes listed after this point were applied to this package following the monorepo conversion.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.2.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.3.0...HEAD
+[17.3.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.2.1...@metamask/phishing-controller@17.3.0
 [17.2.1]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.2.0...@metamask/phishing-controller@17.2.1
 [17.2.0]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.1.2...@metamask/phishing-controller@17.2.0
 [17.1.2]: https://github.com/MetaMask/core/compare/@metamask/phishing-controller@17.1.1...@metamask/phishing-controller@17.1.2

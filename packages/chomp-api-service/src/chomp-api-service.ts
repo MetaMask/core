@@ -10,6 +10,7 @@ import type { Messenger } from '@metamask/messenger';
 import {
   array,
   boolean,
+  coerce,
   create,
   enums,
   literal,
@@ -20,13 +21,19 @@ import {
   type,
 } from '@metamask/superstruct';
 import type { Hex } from '@metamask/utils';
-import { StrictHexStruct } from '@metamask/utils';
+import {
+  bytesToHex,
+  sha256,
+  stringToBytes,
+  StrictHexStruct,
+} from '@metamask/utils';
 import type { QueryClientConfig } from '@tanstack/query-core';
 
 import type { ChompApiServiceMethodActions } from './chomp-api-service-method-action-types';
 import type {
   AssociateAddressParams,
   AssociateAddressResponse,
+  ProfileAddressEntry,
   CreateUpgradeParams,
   CreateUpgradeResponse,
   UpgradeEntry,
@@ -56,6 +63,7 @@ export const serviceName = 'ChompApiService';
  */
 const MESSENGER_EXPOSED_METHODS = [
   'associateAddress',
+  'getAssociatedAddresses',
   'createUpgrade',
   'getUpgrades',
   'verifyDelegation',
@@ -128,6 +136,24 @@ const AssociateAddressResponseStruct = type({
   address: StrictHexStruct,
   status: enums(['active', 'created']),
 });
+
+/**
+ * Parses addresses into canonical lowercase form. CHOMP stores and returns
+ * addresses lowercased, but `StrictHexStruct` alone accepts any casing, so
+ * this makes the canonical form a guarantee of the parsed data rather than a
+ * convention consumers must each remember.
+ */
+const LowercaseHexAddressStruct = coerce(StrictHexStruct, string(), (value) =>
+  value.toLowerCase(),
+);
+
+const ProfileAddressEntryArrayStruct = array(
+  type({
+    profileId: string(),
+    address: LowercaseHexAddressStruct,
+    status: enums(['active']),
+  }),
+);
 
 const AccountUpgradeStatusStruct = enums(['pending', 'upgraded']);
 
@@ -302,6 +328,20 @@ export class ChompApiService extends BaseDataService<
   }
 
   /**
+   * Builds the standard headers for a CHOMP API request authenticated with
+   * the given bearer token.
+   *
+   * @param token - The bearer token to authenticate with.
+   * @returns Headers including Authorization and Content-Type.
+   */
+  #headersForToken(token: string): Record<string, string> {
+    return {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    };
+  }
+
+  /**
    * Builds the standard headers for an authenticated CHOMP API request.
    *
    * @returns Headers including Authorization and Content-Type.
@@ -310,10 +350,7 @@ export class ChompApiService extends BaseDataService<
     const token = await this.messenger.call(
       'AuthenticationController:getBearerToken',
     );
-    return {
-      Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    };
+    return this.#headersForToken(token);
   }
 
   /**
@@ -323,7 +360,10 @@ export class ChompApiService extends BaseDataService<
    *
    * @param params - The association params containing signature, timestamp,
    * and address.
-   * @returns The profile association result. Returns on both 201 and 409.
+   * @returns The profile association result: `status: 'created'` for a new
+   * association, `status: 'active'` when the address was already associated
+   * with the authenticated profile. Throws on 409, which indicates the
+   * address is associated with a different profile.
    */
   async associateAddress(
     params: AssociateAddressParams,
@@ -342,7 +382,7 @@ export class ChompApiService extends BaseDataService<
           },
         );
 
-        if (!response.ok && response.status !== 409) {
+        if (!response.ok) {
           throw new HttpError(
             response.status,
             `POST /v1/auth/address failed with status '${response.status}'`,
@@ -354,6 +394,53 @@ export class ChompApiService extends BaseDataService<
     });
 
     return create(jsonResponse, AssociateAddressResponseStruct);
+  }
+
+  /**
+   * Fetches the addresses associated with the authenticated profile.
+   *
+   * GET /v1/auth/address
+   *
+   * The result is scoped to the authenticated profile and consumers use it
+   * to decide whether an association already exists, so it is always fetched
+   * fresh (`staleTime: 0`) and evicted as soon as the call settles
+   * (`cacheTime: 0`). The query key carries a SHA-256 digest of the bearer
+   * token — the same token the request is made with — so concurrent calls
+   * only share an in-flight request when they are for the same profile. The
+   * digest, not the token, is used because query keys leave the service via
+   * the `cacheUpdated` messenger events.
+   *
+   * @returns The active address associations; empty array if none exist.
+   * Addresses are lowercased.
+   */
+  async getAssociatedAddresses(): Promise<ProfileAddressEntry[]> {
+    const token = await this.messenger.call(
+      'AuthenticationController:getBearerToken',
+    );
+    const profileKey = bytesToHex(await sha256(stringToBytes(token)));
+
+    const jsonResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:getAssociatedAddresses`, profileKey],
+      staleTime: 0,
+      cacheTime: 0,
+      queryFn: async () => {
+        const response = await fetch(
+          new URL('/v1/auth/address', this.#baseUrl),
+          { headers: this.#headersForToken(token) },
+        );
+
+        if (!response.ok) {
+          throw new HttpError(
+            response.status,
+            `GET /v1/auth/address failed with status '${response.status}'`,
+          );
+        }
+
+        return response.json();
+      },
+    });
+
+    return create(jsonResponse, ProfileAddressEntryArrayStruct);
   }
 
   /**

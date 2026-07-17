@@ -31,6 +31,7 @@ export type {
   AssetsControllerGetAssetsAction,
   AssetsControllerGetAssetsBalanceAction,
   AssetsControllerGetAssetMetadataAction,
+  AssetsControllerGetAssetAction,
   AssetsControllerGetAssetsPriceAction,
   AssetsControllerAddCustomAssetAction,
   AssetsControllerRemoveCustomAssetAction,
