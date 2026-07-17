@@ -53,6 +53,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [109.3.1]
 
+### Added
+
+- Add DeFi Oracle Meta Mainnet (`138`/`0x8a`) to token autodetection allowlists for `SupportedTokenDetectionNetworks` and `SUPPORTED_NETWORKS_ACCOUNTS_API_V4` ([#9297](https://github.com/MetaMask/core/pull/9297))
+
 ### Changed
 
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
