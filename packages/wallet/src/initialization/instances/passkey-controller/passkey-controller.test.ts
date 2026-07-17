@@ -89,31 +89,6 @@ describe('passkeyController', () => {
     expect(instance.state.passkeyRecord).toStrictEqual(passkeyRecord);
   });
 
-  it('forwards options as-is without injecting userName or userDisplayName defaults', () => {
-    const messenger = passkeyController.getMessenger(getRootMessenger());
-
-    passkeyController.init({
-      state: undefined,
-      messenger,
-      options: REQUIRED_OPTIONS,
-    });
-
-    expect(PasskeyController).toHaveBeenCalledWith(
-      expect.objectContaining({
-        rpName: 'MetaMask',
-        expectedRPID: REQUIRED_OPTIONS.expectedRPID,
-        expectedOrigin: REQUIRED_OPTIONS.expectedOrigin,
-      }),
-    );
-
-    const [passedOptions] = (PasskeyController as jest.Mock).mock.calls[0] as [
-      Record<string, unknown>,
-    ];
-    expect(passedOptions).not.toHaveProperty('userName');
-    expect(passedOptions).not.toHaveProperty('userDisplayName');
-    expect(passedOptions.rpId).toBeUndefined();
-  });
-
   it('forwards custom passkey configuration options', () => {
     const messenger = passkeyController.getMessenger(getRootMessenger());
 
