@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Fetch token metadata for assets in `assetsBalance` that are missing `assetsInfo`
+- `TokenDataSource` now also fetches token metadata for assets present in `assetsBalance` that are missing `assetsInfo` (previously only detected assets without metadata were enriched) ([#9547](https://github.com/MetaMask/core/pull/9547))
 
 ## [11.0.0]
 
