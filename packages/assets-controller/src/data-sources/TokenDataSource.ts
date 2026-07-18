@@ -414,7 +414,9 @@ export class TokenDataSource {
       // Also fetch metadata for balances that are missing it
       if (response.assetsBalance) {
         for (const accountBalances of Object.values(response.assetsBalance)) {
-          for (const assetId of Object.keys(accountBalances)) {
+          for (const assetId of Object.keys(
+            accountBalances,
+          ) as Caip19AssetId[]) {
             if (response.assetsInfo?.[assetId]?.image) {
               continue;
             }
