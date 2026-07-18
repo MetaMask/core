@@ -21,6 +21,7 @@ import type {
   PasskeyRegistrationResponse,
   PasskeyAuthenticationResponse,
 } from './webauthn/types';
+import { createMockPasskeyControllerMessenger } from '../tests/mocks/passkey-controller-messenger';
 
 type ExtOutputsWithPrf = Record<string, unknown> & PrfClientExtensionResults;
 
@@ -85,6 +86,7 @@ function createController(
     rpId: TEST_RP_ID,
     rpName: TEST_RP_NAME,
     expectedOrigin: TEST_ORIGIN,
+    getIsOnboardingCompleted: jest.fn().mockReturnValue(false),
     ...overrides,
   });
 }
@@ -232,6 +234,7 @@ describe('PasskeyController', () => {
             expectedRPID: [],
             rpName: TEST_RP_NAME,
             expectedOrigin: TEST_ORIGIN,
+            getIsOnboardingCompleted: jest.fn().mockReturnValue(false),
           }),
       ).not.toThrow();
     });
@@ -255,6 +258,61 @@ describe('PasskeyController', () => {
         state: { passkeyRecord: record },
       });
       expect(controller.state.passkeyRecord).toStrictEqual(record);
+    });
+  });
+
+  describe('messenger', () => {
+    it('delegates allowed KeyringController actions from the restricted messenger', async () => {
+      const { messenger, mocks } = createMockPasskeyControllerMessenger({
+        verifyPassword: jest.fn().mockResolvedValue(undefined),
+        exportEncryptionKey: jest.fn().mockResolvedValue('test-vault-key'),
+        submitEncryptionKey: jest.fn().mockResolvedValue(undefined),
+        changePassword: jest.fn().mockResolvedValue(undefined),
+        exportSeedPhrase: jest.fn().mockResolvedValue(new Uint8Array([1, 2])),
+        exportAccount: jest.fn().mockResolvedValue('0xdeadbeef'),
+      });
+
+      createController({ messenger });
+
+      expect(
+        await messenger.call('KeyringController:verifyPassword', 'password'),
+      ).toBeUndefined();
+      expect(await messenger.call('KeyringController:exportEncryptionKey')).toBe(
+        'test-vault-key',
+      );
+      expect(
+        await messenger.call('KeyringController:submitEncryptionKey', 'vault-key'),
+      ).toBeUndefined();
+      expect(
+        await messenger.call('KeyringController:changePassword', 'new-password'),
+      ).toBeUndefined();
+      expect(
+        await messenger.call(
+          'KeyringController:exportSeedPhrase',
+          { encryptionKey: 'vault-key' },
+          'keyring-id',
+        ),
+      ).toStrictEqual(new Uint8Array([1, 2]));
+      expect(
+        await messenger.call(
+          'KeyringController:exportAccount',
+          { encryptionKey: 'vault-key' },
+          '0xabc',
+        ),
+      ).toBe('0xdeadbeef');
+
+      expect(mocks.verifyPassword).toHaveBeenCalledWith('password');
+      expect(mocks.exportEncryptionKey).toHaveBeenCalledTimes(1);
+      expect(mocks.submitEncryptionKey).toHaveBeenCalledWith('vault-key');
+      expect(mocks.changePassword).toHaveBeenCalledWith('new-password');
+      expect(mocks.exportSeedPhrase).toHaveBeenCalledWith(
+        { encryptionKey: 'vault-key' },
+        'keyring-id',
+      );
+      expect(mocks.exportAccount).toHaveBeenCalledWith(
+        { encryptionKey: 'vault-key' },
+        '0xabc',
+      );
     });
   });
 
@@ -490,6 +548,20 @@ describe('PasskeyController', () => {
   });
 
   describe('protectVaultKeyWithPasskey', () => {
+    it('throws when onboarding is complete and password is omitted', async () => {
+      const controller = createController({
+        getIsOnboardingCompleted: () => true,
+      });
+
+      await expect(
+        controller.protectVaultKeyWithPasskey({
+          registrationResponse: minimalRegistrationResponse(),
+          authenticationResponse: minimalAuthenticationResponse(),
+          vaultKey: 'k',
+        }),
+      ).rejects.toThrow('Password required to register passkey');
+    });
+
     it('throws when there is no active registration ceremony', async () => {
       const controller = createController();
       await expect(

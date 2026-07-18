@@ -11,12 +11,11 @@ export {
 export type {
   PasskeyControllerState,
   PasskeyControllerMessenger,
+  PasskeyControllerOptions,
   PasskeyControllerGetStateAction,
   PasskeyControllerActions,
   PasskeyControllerStateChangedEvent,
   PasskeyControllerEvents,
-} from './PasskeyController';
-export type {
   PasskeyCredentialInfo,
   PasskeyDerivationMethod,
   PasskeyKeyDerivation,

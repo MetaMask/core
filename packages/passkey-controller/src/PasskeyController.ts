@@ -1,10 +1,5 @@
-import type {
-  ControllerGetStateAction,
-  ControllerStateChangedEvent,
-  StateMetadata,
-} from '@metamask/base-controller';
+import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
-import type { Messenger } from '@metamask/messenger';
 import { areUint8ArraysEqual, stringToBytes } from '@metamask/utils';
 
 import { WEBAUTHN_TIMEOUT_MS, CeremonyManager } from './ceremony-manager';
@@ -16,9 +11,11 @@ import {
 import { PasskeyControllerError } from './errors';
 import { deriveKeyFromAuthenticationResponse } from './key-derivation';
 import { createModuleLogger, projectLogger } from './logger';
-import { PasskeyControllerMethodActions } from './PasskeyController-method-action-types';
 import type {
   AuthenticatorTransportFuture,
+  PasskeyControllerMessenger,
+  PasskeyControllerOptions,
+  PasskeyControllerState,
   PasskeyCredentialInfo,
   PasskeyKeyDerivation,
   PasskeyRecord,
@@ -41,41 +38,16 @@ import type {
 import { verifyAuthenticationResponse } from './webauthn/verify-authentication-response';
 import { verifyRegistrationResponse } from './webauthn/verify-registration-response';
 
-export type PasskeyControllerState = {
-  passkeyRecord: PasskeyRecord | null;
-};
-
-export type PasskeyControllerGetStateAction = ControllerGetStateAction<
-  typeof controllerName,
-  PasskeyControllerState
->;
-
-/**
- * Actions exposed by {@link PasskeyController} on its messenger.
- *
- * Only `:getState` is exposed. Derived enrollment status is available via
- * {@link passkeyControllerSelectors.selectIsPasskeyEnrolled}, and lifecycle
- * methods ({@link PasskeyController.generateRegistrationOptions},
- * {@link PasskeyController.protectVaultKeyWithPasskey}, etc.) accept or
- * return non-`Json` runtime values (WebAuthn `PublicKeyCredential` objects
- * and the vault key string), so they require a direct controller reference.
- */
-export type PasskeyControllerActions =
-  | PasskeyControllerGetStateAction
-  | PasskeyControllerMethodActions;
-
-export type PasskeyControllerStateChangedEvent = ControllerStateChangedEvent<
-  typeof controllerName,
-  PasskeyControllerState
->;
-
-export type PasskeyControllerEvents = PasskeyControllerStateChangedEvent;
-
-export type PasskeyControllerMessenger = Messenger<
-  typeof controllerName,
+export type {
   PasskeyControllerActions,
-  PasskeyControllerEvents
->;
+  PasskeyControllerAllowedActions,
+  PasskeyControllerEvents,
+  PasskeyControllerGetStateAction,
+  PasskeyControllerMessenger,
+  PasskeyControllerOptions,
+  PasskeyControllerState,
+  PasskeyControllerStateChangedEvent,
+} from './types';
 
 /**
  * Returns the default (empty) state for {@link PasskeyController}.
@@ -146,21 +118,21 @@ export class PasskeyController extends BaseController<
 
   readonly #userDisplayName: string;
 
+  readonly #getIsOnboardingCompleted: () => boolean;
+
   /**
    * Creates a passkey controller with WebAuthn relying-party settings.
    *
-   * @param args - Constructor options.
-   * @param args.messenger - Controller messenger.
-   * @param args.state - Partial initial state; merged with {@link getDefaultPasskeyControllerState}.
-   * @param args.expectedRPID - Relying party ID(s) for verification (SHA-256 hash match in
-   *   authenticator data). Pass a string or array of strings; an empty array skips RP ID
-   *   allowlist checks in {@link verifyRegistrationResponse} / {@link verifyAuthenticationResponse}.
-   * @param args.rpId - When set, included as `rp.id` on registration options and `rpId` on
-   *   authentication options. When omitted, those fields are left unset (client default RP ID).
-   * @param args.rpName - Relying party name shown in the platform passkey UI.
-   * @param args.expectedOrigin - Allowed value(s) for the WebAuthn client origin.
-   * @param args.userName - Optional passkey user name; defaults to `rpName`.
-   * @param args.userDisplayName - Optional display name; defaults to `rpName`.
+   * @param options - Constructor options.
+   * @param options.messenger - The messenger to use for communication.
+   * @param options.state - The initial state of the controller.
+   * @param options.rpId - The relying party ID to use for the passkey.
+   * @param options.expectedRPID - The expected relying party ID to use for the passkey.
+   * @param options.rpName - The relying party name to use for the passkey.
+   * @param options.expectedOrigin - The expected origin to use for the passkey.
+   * @param options.userName - The user name to use for the passkey.
+   * @param options.userDisplayName - The user display name to use for the passkey.
+   * @param options.getIsOnboardingCompleted - The callback to use to check if onboarding is complete.
    */
   constructor({
     messenger,
@@ -171,16 +143,8 @@ export class PasskeyController extends BaseController<
     expectedOrigin,
     userName,
     userDisplayName,
-  }: {
-    messenger: PasskeyControllerMessenger;
-    state?: Partial<PasskeyControllerState>;
-    rpId?: string;
-    expectedRPID: string | string[];
-    rpName: string;
-    expectedOrigin: string | string[];
-    userName?: string;
-    userDisplayName?: string;
-  }) {
+    getIsOnboardingCompleted,
+  }: PasskeyControllerOptions) {
     super({
       messenger,
       metadata: passkeyControllerMetadata,
@@ -197,28 +161,12 @@ export class PasskeyController extends BaseController<
     this.#expectedOrigin = expectedOrigin;
     this.#userName = userName ?? rpName;
     this.#userDisplayName = userDisplayName ?? rpName;
+    this.#getIsOnboardingCompleted = getIsOnboardingCompleted;
 
     this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
-  }
-
-  #requireEnrolled(): PasskeyRecord {
-    const record = this.state.passkeyRecord;
-    if (!record) {
-      throw new PasskeyControllerError(
-        PasskeyControllerErrorMessage.NotEnrolled,
-        {
-          code: PasskeyControllerErrorCode.NotEnrolled,
-        },
-      );
-    }
-    return record;
-  }
-
-  #getChallengeFromClientData(clientDataJSON: string): string {
-    return decodeClientDataJSON(clientDataJSON).challenge;
   }
 
   /**
@@ -400,11 +348,13 @@ export class PasskeyController extends BaseController<
    * @param params.registrationResponse - Result of `navigator.credentials.create()`.
    * @param params.authenticationResponse - Result of `navigator.credentials.get()` after {@link generatePostRegistrationAuthenticationOptions}.
    * @param params.vaultKey - Vault encryption key to encrypt and persist.
+   * @param params.password - Wallet password when onboarding is complete (step-up).
    */
   async protectVaultKeyWithPasskey(params: {
     registrationResponse: PasskeyRegistrationResponse;
     authenticationResponse: PasskeyAuthenticationResponse;
     vaultKey: string;
+    password?: string;
   }): Promise<void> {
     if (this.isPasskeyEnrolled()) {
       throw new PasskeyControllerError(
@@ -412,6 +362,7 @@ export class PasskeyController extends BaseController<
         { code: PasskeyControllerErrorCode.AlreadyEnrolled },
       );
     }
+    this.#requirePasswordWhenOnboardingComplete(params.password);
     const { registrationResponse, authenticationResponse, vaultKey } = params;
 
     // get registration ceremony
@@ -775,5 +726,31 @@ export class PasskeyController extends BaseController<
       // delete authentication ceremony
       this.#ceremonyManager.deleteAuthenticationCeremony(challenge);
     }
+  }
+
+  #requirePasswordWhenOnboardingComplete(password?: string): void {
+    if (!this.#getIsOnboardingCompleted()) {
+      return;
+    }
+    if (!password) {
+      throw new Error('Password required to register passkey');
+    }
+  }
+
+  #requireEnrolled(): PasskeyRecord {
+    const record = this.state.passkeyRecord;
+    if (!record) {
+      throw new PasskeyControllerError(
+        PasskeyControllerErrorMessage.NotEnrolled,
+        {
+          code: PasskeyControllerErrorCode.NotEnrolled,
+        },
+      );
+    }
+    return record;
+  }
+
+  #getChallengeFromClientData(clientDataJSON: string): string {
+    return decodeClientDataJSON(clientDataJSON).challenge;
   }
 }

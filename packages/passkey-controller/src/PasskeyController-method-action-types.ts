@@ -59,6 +59,7 @@ export type PasskeyControllerGenerateAuthenticationOptionsAction = {
  * @param params.registrationResponse - Result of `navigator.credentials.create()`.
  * @param params.authenticationResponse - Result of `navigator.credentials.get()` after {@link generatePostRegistrationAuthenticationOptions}.
  * @param params.vaultKey - Vault encryption key to encrypt and persist.
+ * @param params.password - Wallet password when onboarding is complete (step-up).
  */
 export type PasskeyControllerProtectVaultKeyWithPasskeyAction = {
   type: `PasskeyController:protectVaultKeyWithPasskey`;
