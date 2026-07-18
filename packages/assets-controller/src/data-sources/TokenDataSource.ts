@@ -154,6 +154,7 @@ function getOccurrenceFloorForAsset(
  *
  * This middleware-based data source:
  * - Checks detected assets for missing metadata/images
+ * - Also checks `assetsBalance` entries missing metadata/images
  * - Fetches metadata from Tokens API v3 for assets needing enrichment
  * - Filters EVM ERC-20 spam using per-chain floors from Token API
  *   `/v1/suggestedOccurrenceFloors` (default floor 3)
@@ -351,7 +352,7 @@ export class TokenDataSource {
    *
    * This middleware:
    * 1. Extracts the response from context
-   * 2. Fetches metadata for detected assets (assets without metadata)
+   * 2. Fetches metadata for detected assets and balances missing metadata
    * 3. Enriches the response with fetched metadata
    * 4. Calls next() at the end to continue the middleware chain
    *
@@ -405,6 +406,24 @@ export class TokenDataSource {
               continue;
             }
 
+            assetIdsNeedingMetadata.add(assetId);
+          }
+        }
+      }
+
+      // Also fetch metadata for balances that are missing it
+      if (response.assetsBalance) {
+        for (const accountBalances of Object.values(response.assetsBalance)) {
+          for (const assetId of Object.keys(accountBalances)) {
+            if (response.assetsInfo?.[assetId]?.image) {
+              continue;
+            }
+            if (stateMetadata[assetId]?.image) {
+              continue;
+            }
+            if (isStakingContractAssetId(assetId)) {
+              continue;
+            }
             assetIdsNeedingMetadata.add(assetId);
           }
         }
