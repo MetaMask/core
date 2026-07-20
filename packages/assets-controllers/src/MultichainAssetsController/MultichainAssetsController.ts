@@ -214,22 +214,6 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
 
   readonly #isDeprecated: () => boolean;
 
-  /**
-   * Creates an instance of MultichainAssetsController.
-   *
-   * @param options - Constructor options.
-   * @param options.messenger - A reference to the messenger.
-   * @param options.state - Initial state to set on this controller.
-   * @param options.blockaidTokenRescanInterval - Blockaid re-scan interval (ms);
-   * default daily. `0` disables.
-   * @param options.isDeprecated - Optional function that returns true to completely
-   * disable this controller (no Snap requests, no state updates). When it returns
-   * `true`, `accountsAssets`, `assetsMetadata`, and `allIgnoredAssets` are reset to
-   * `{}` at construction and at every entry point, so no stale asset data remains
-   * in state. The function is evaluated dynamically on each entry point so it can
-   * be toggled at runtime. Intended for use when a higher-level controller
-   * (e.g. AssetsController) supersedes this one.
-   */
   constructor({
     messenger,
     state = {},
