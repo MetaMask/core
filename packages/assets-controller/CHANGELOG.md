@@ -14,10 +14,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Memoize hot-path asset ID / legacy-format conversions to cut repeated keccak256 (`toChecksumAddress`) and CAIP parsing ([#9555](https://github.com/MetaMask/core/pull/9555))
+  - `normalizeAssetId` uses lodash `memoize` so already-normalized IDs skip re-checksumming across the pipeline
+  - `formatExchangeRatesForBridge` caches the last result on input identity (`===` for BaseController slices, lodash `isEqual` for rebuilt native maps); exports `FormatExchangeRatesForBridgeParams`
+  - `formatStateForTransactionPay` caches the last result the same way (`isEqual` for rebuilt `accounts` / `nativeAssetIdentifiers`); exports `FormatStateForTransactionPayParams`
+  - `#getNativeAssetMap` returns a stable empty object when uncached so memoized formatters are not busted by `?? {}` identity churn
 - `TokenDataSource` EVM spam filtering now uses per-chain floors from Token API `GET /v1/suggestedOccurrenceFloors` (`queryApiClient.token.fetchV1SuggestedOccurrenceFloors`) instead of a hardcoded minimum of 3 occurrences. Chains missing from the response (or a failed floors fetch) still fall back to 3 ([#9537](https://github.com/MetaMask/core/pull/9537))
 - `TokensApiClient` (used by `RpcDataSource` / `TokenDetector`) now sets the token-list `occurrenceFloor` query param from the same Token API `GET /v1/suggestedOccurrenceFloors` endpoint (cached 1h), replacing the hardcoded Linea/MegaETH/Tempo special cases. Missing chains or failed fetches fall back to 3 ([#9537](https://github.com/MetaMask/core/pull/9537))
 - Bump `@metamask/network-enablement-controller` from `^5.5.0` to `^5.6.0` ([#9520](https://github.com/MetaMask/core/pull/9520))
 - Bump `@metamask/phishing-controller` from `^17.2.1` to `^17.3.0` ([#9532](https://github.com/MetaMask/core/pull/9532))
+
+### Fixed
+
+- `TokenDataSource` now also fetches token metadata for assets present in `assetsBalance` that are missing `assetsInfo` (previously only detected assets without metadata were enriched) ([#9547](https://github.com/MetaMask/core/pull/9547))
 
 ## [11.0.0]
 
