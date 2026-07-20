@@ -305,7 +305,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
   }
 
   #enforceDisabledState(): void {
-    this.#stopPolling();
     if (Object.keys(this.state).length === 0) {
       return;
     }

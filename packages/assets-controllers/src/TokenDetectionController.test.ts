@@ -4302,14 +4302,16 @@ describe('TokenDetectionController', () => {
       );
     });
 
-    it('stops polling when isDeprecated toggles to true at runtime while polling is active', async () => {
+    it('keeps polling but bails early when isDeprecated toggles to true at runtime', async () => {
       jest.useFakeTimers();
       let deprecated = false;
+      const mockGetBalancesInSingleCall = jest.fn().mockResolvedValue({});
       await withController(
         {
           options: {
             isDeprecated: () => deprecated,
             disabled: false,
+            getBalancesInSingleCall: mockGetBalancesInSingleCall,
           },
           mocks: {
             getSelectedAccount: defaultSelectedAccount,
@@ -4324,10 +4326,12 @@ describe('TokenDetectionController', () => {
 
           deprecated = true;
           await controller.detectTokens();
+          mockGetBalancesInSingleCall.mockClear();
 
           detectTokensSpy.mockClear();
           await jestAdvanceTime({ duration: 15 });
-          expect(detectTokensSpy).not.toHaveBeenCalled();
+          expect(detectTokensSpy).toHaveBeenCalled();
+          expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
         },
       );
       jest.useRealTimers();
