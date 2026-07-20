@@ -424,6 +424,51 @@ export type SortOptionId =
   (typeof MARKET_SORTING_CONFIG.SortOptions)[number]['id'];
 
 /**
+ * Perps interface mode.
+ *
+ * `Lite` is the simplified default experience; `Pro` exposes the advanced
+ * trading layout (chart, order book, inline order form).
+ */
+export enum PerpsMode {
+  Lite = 'lite',
+  Pro = 'pro',
+}
+
+/**
+ * Pro-mode layout preferences (network-independent).
+ *
+ * Flat object that persists across markets (unlike the per-market
+ * `tradeConfigurations`). `chartExpanded` and the `*Position` fields are
+ * reserved for future container-position UI and are kept here now so no
+ * state-shape migration is needed when that UI ships.
+ */
+export type ProLayoutPreferences = {
+  orderBookExpanded: boolean;
+  chartExpanded: boolean;
+  orderBookPosition: 'left' | 'right';
+  orderFormPosition: 'left' | 'right';
+};
+
+/**
+ * Default pro-mode layout preferences.
+ *
+ * Shared by `getDefaultPerpsControllerState()`, the controller getter, and the
+ * selector so callers always receive a fully-populated object even when the
+ * persisted state predates this field.
+ */
+export const DEFAULT_PRO_LAYOUT_PREFERENCES: ProLayoutPreferences = {
+  orderBookExpanded: false,
+  chartExpanded: false,
+  orderBookPosition: 'left',
+  orderFormPosition: 'right',
+};
+
+/**
+ * Default Perps interface mode.
+ */
+export const DEFAULT_PERPS_MODE: PerpsMode = PerpsMode.Lite;
+
+/**
  * Funding rate display configuration
  * Controls how funding rates are formatted and displayed
  */
