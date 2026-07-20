@@ -151,6 +151,9 @@ import { processAccountActivityBalanceUpdates } from './utils/processAccountActi
 
 const NATIVE_ASSETS_QUERY_KEY = ['nativeAssets'];
 
+/** Stable empty map so memoized formatters are not busted by `?? {}` identity churn. */
+const EMPTY_NATIVE_ASSET_MAP: Record<ChainId, Caip19AssetId> = {};
+
 // ============================================================================
 // PENDING TOKEN METADATA (UI input format for addCustomAsset)
 // ============================================================================
@@ -2246,13 +2249,14 @@ export class AssetsController extends BaseController<
    * Reads the native asset map (CAIP-2 chain ID -> CAIP-19 native asset ID)
    * from the QueryClient cache. Populated at construction via fetchQuery.
    *
-   * @returns Cached map, or empty object if not yet populated.
+   * @returns Cached map, or a stable empty object if not yet populated
+   * (stable identity so downstream memoized formatters can cache-hit).
    */
   #getNativeAssetMap(): Record<ChainId, Caip19AssetId> {
     return (
       this.#queryApiClient.getCachedData<Record<ChainId, Caip19AssetId>>(
         NATIVE_ASSETS_QUERY_KEY,
-      ) ?? {}
+      ) ?? EMPTY_NATIVE_ASSET_MAP
     );
   }
 
