@@ -32,4 +32,5 @@ export enum PasskeyControllerErrorMessage {
   MissingKeyMaterial = `${controllerName} - Passkey assertion missing required key material`,
   VaultKeyDecryptionFailed = `${controllerName} - Passkey vault key decryption failed`,
   VaultKeyMismatch = `${controllerName} - Passkey authentication does not match the current vault key`,
+  EnrollmentPasswordRequired = `${controllerName} - Password required to register passkey`,
 }

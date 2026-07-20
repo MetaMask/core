@@ -55,10 +55,12 @@ export type PasskeyControllerGenerateAuthenticationOptionsAction = {
  * Verifies registration and post-registration authentication, then stores the
  * vault key encrypted under the new passkey.
  *
+ * Fetches the current vault encryption key from KeyringController before wrapping.
+ * When onboarding is complete, requires `password` for step-up verification first.
+ *
  * @param params - Enrollment completion inputs.
  * @param params.registrationResponse - Result of `navigator.credentials.create()`.
  * @param params.authenticationResponse - Result of `navigator.credentials.get()` after {@link generatePostRegistrationAuthenticationOptions}.
- * @param params.vaultKey - Vault encryption key to encrypt and persist.
  * @param params.password - Wallet password when onboarding is complete (step-up).
  */
 export type PasskeyControllerProtectVaultKeyWithPasskeyAction = {
@@ -75,6 +77,16 @@ export type PasskeyControllerProtectVaultKeyWithPasskeyAction = {
 export type PasskeyControllerRetrieveVaultKeyWithPasskeyAction = {
   type: `PasskeyController:retrieveVaultKeyWithPasskey`;
   handler: PasskeyController['retrieveVaultKeyWithPasskey'];
+};
+
+/**
+ * Unlocks the keyring using a passkey authentication assertion.
+ *
+ * @param authenticationResponse - Result of `navigator.credentials.get()`.
+ */
+export type PasskeyControllerUnlockWithPasskeyAction = {
+  type: `PasskeyController:unlockWithPasskey`;
+  handler: PasskeyController['unlockWithPasskey'];
 };
 
 /**
@@ -107,6 +119,26 @@ export type PasskeyControllerVerifyPasskeyAuthenticationAction = {
 export type PasskeyControllerRenewVaultKeyProtectionAction = {
   type: `PasskeyController:renewVaultKeyProtection`;
   handler: PasskeyController['renewVaultKeyProtection'];
+};
+
+/**
+ * Removes the enrolled passkey after verifying a passkey authentication assertion.
+ *
+ * @param authenticationResponse - Result of `navigator.credentials.get()`.
+ */
+export type PasskeyControllerRemovePasskeyWithPasskeyVerificationAction = {
+  type: `PasskeyController:removePasskeyWithPasskeyVerification`;
+  handler: PasskeyController['removePasskeyWithPasskeyVerification'];
+};
+
+/**
+ * Removes the enrolled passkey after verifying the wallet password.
+ *
+ * @param password - Wallet password for step-up verification.
+ */
+export type PasskeyControllerRemovePasskeyWithPasswordVerificationAction = {
+  type: `PasskeyController:removePasskeyWithPasswordVerification`;
+  handler: PasskeyController['removePasskeyWithPasswordVerification'];
 };
 
 /**
@@ -144,8 +176,11 @@ export type PasskeyControllerMethodActions =
   | PasskeyControllerGenerateAuthenticationOptionsAction
   | PasskeyControllerProtectVaultKeyWithPasskeyAction
   | PasskeyControllerRetrieveVaultKeyWithPasskeyAction
+  | PasskeyControllerUnlockWithPasskeyAction
   | PasskeyControllerVerifyPasskeyAuthenticationAction
   | PasskeyControllerRenewVaultKeyProtectionAction
+  | PasskeyControllerRemovePasskeyWithPasskeyVerificationAction
+  | PasskeyControllerRemovePasskeyWithPasswordVerificationAction
   | PasskeyControllerRemovePasskeyAction
   | PasskeyControllerClearStateAction
   | PasskeyControllerDestroyAction;

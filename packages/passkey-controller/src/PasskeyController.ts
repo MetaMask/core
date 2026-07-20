@@ -88,8 +88,11 @@ const MESSENGER_EXPOSED_METHODS = [
   'generateAuthenticationOptions',
   'protectVaultKeyWithPasskey',
   'retrieveVaultKeyWithPasskey',
+  'unlockWithPasskey',
   'verifyPasskeyAuthentication',
   'renewVaultKeyProtection',
+  'removePasskeyWithPasskeyVerification',
+  'removePasskeyWithPasswordVerification',
   'removePasskey',
   'clearState',
   'destroy',
@@ -344,16 +347,17 @@ export class PasskeyController extends BaseController<
    * Verifies registration and post-registration authentication, then stores the
    * vault key encrypted under the new passkey.
    *
+   * Fetches the current vault encryption key from KeyringController before wrapping.
+   * When onboarding is complete, requires `password` for step-up verification first.
+   *
    * @param params - Enrollment completion inputs.
    * @param params.registrationResponse - Result of `navigator.credentials.create()`.
    * @param params.authenticationResponse - Result of `navigator.credentials.get()` after {@link generatePostRegistrationAuthenticationOptions}.
-   * @param params.vaultKey - Vault encryption key to encrypt and persist.
    * @param params.password - Wallet password when onboarding is complete (step-up).
    */
   async protectVaultKeyWithPasskey(params: {
     registrationResponse: PasskeyRegistrationResponse;
     authenticationResponse: PasskeyAuthenticationResponse;
-    vaultKey: string;
     password?: string;
   }): Promise<void> {
     if (this.isPasskeyEnrolled()) {
@@ -362,8 +366,11 @@ export class PasskeyController extends BaseController<
         { code: PasskeyControllerErrorCode.AlreadyEnrolled },
       );
     }
-    this.#requirePasswordWhenOnboardingComplete(params.password);
-    const { registrationResponse, authenticationResponse, vaultKey } = params;
+
+    await this.#assertEnrollmentAllowed(params.password);
+    const vaultKey = await this.messenger.call('KeyringController:exportEncryptionKey');
+
+    const { registrationResponse, authenticationResponse } = params;
 
     // get registration ceremony
     const challenge = this.#getChallengeFromClientData(
@@ -528,6 +535,22 @@ export class PasskeyController extends BaseController<
   }
 
   /**
+   * Unlocks the keyring using a passkey authentication assertion.
+   *
+   * @param authenticationResponse - Result of `navigator.credentials.get()`.
+   */
+  async unlockWithPasskey(
+    authenticationResponse: PasskeyAuthenticationResponse,
+  ): Promise<void> {
+    const vaultKey =
+      await this.retrieveVaultKeyWithPasskey(authenticationResponse);
+    await this.messenger.call(
+      'KeyringController:submitEncryptionKey',
+      vaultKey,
+    );
+  }
+
+  /**
    * Checks whether the given authentication assertion is valid for the enrolled passkey.
    *
    * On failure, returns `false` for {@link PasskeyControllerError} with a `code`;
@@ -634,6 +657,41 @@ export class PasskeyController extends BaseController<
   }
 
   /**
+   * Removes the enrolled passkey after verifying a passkey authentication assertion.
+   *
+   * @param authenticationResponse - Result of `navigator.credentials.get()`.
+   */
+  async removePasskeyWithPasskeyVerification(
+    authenticationResponse: PasskeyAuthenticationResponse,
+  ): Promise<void> {
+    this.#requireEnrolled();
+
+    const verified =
+      await this.verifyPasskeyAuthentication(authenticationResponse);
+    if (!verified) {
+      throw new PasskeyControllerError(
+        PasskeyControllerErrorMessage.AuthenticationVerificationFailed,
+        { code: PasskeyControllerErrorCode.AuthenticationVerificationFailed },
+      );
+    }
+
+    this.removePasskey();
+  }
+
+  /**
+   * Removes the enrolled passkey after verifying the wallet password.
+   *
+   * @param password - Wallet password for step-up verification.
+   */
+  async removePasskeyWithPasswordVerification(
+    password: string,
+  ): Promise<void> {
+    this.#requireEnrolled();
+    await this.messenger.call('KeyringController:verifyPassword', password);
+    this.removePasskey();
+  }
+
+  /**
    * Clears enrolled passkey state and in-flight ceremonies. Call only after the same
    * auth gate as renewal (verified passkey assertion or password).
    */
@@ -728,13 +786,16 @@ export class PasskeyController extends BaseController<
     }
   }
 
-  #requirePasswordWhenOnboardingComplete(password?: string): void {
+  async #assertEnrollmentAllowed(password?: string): Promise<void> {
     if (!this.#getIsOnboardingCompleted()) {
       return;
     }
+
     if (!password) {
-      throw new Error('Password required to register passkey');
+      throw new Error(PasskeyControllerErrorMessage.EnrollmentPasswordRequired);
     }
+
+    await this.messenger.call('KeyringController:verifyPassword', password);
   }
 
   #requireEnrolled(): PasskeyRecord {
