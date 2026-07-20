@@ -1,9 +1,9 @@
 import type { Hex } from '@metamask/utils';
 import { hasProperty } from '@metamask/utils';
 
+import { TerminalUpgradeError } from '../errors';
 import { equalsIgnoreCase } from './delegation-matchers';
 import type { Step } from './step';
-import { TerminalUpgradeError } from '../errors';
 
 /**
  * Determines whether an error is a CHOMP conflict (HTTP 409) response.

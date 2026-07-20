@@ -344,7 +344,9 @@ export class MoneyAccountUpgradeController extends BaseController<
     }: { signal?: AbortSignal; maxAttempts?: number } = {},
   ): Promise<void> {
     if (!Number.isInteger(maxAttempts) || maxAttempts < 1) {
-      throw new Error(`maxAttempts must be an integer >= 1, got ${maxAttempts}`);
+      throw new Error(
+        `maxAttempts must be an integer >= 1, got ${maxAttempts}`,
+      );
     }
     for (let attempt = 1; ; attempt++) {
       if (signal?.aborted) {
