@@ -40,6 +40,7 @@ import {
   PerpsController,
   getDefaultPerpsControllerState,
   InitializationState,
+  PerpsMode,
   firstNonEmpty,
   resolveMyxAuthConfig,
 } from '../../src/PerpsController';
@@ -751,6 +752,82 @@ describe('PerpsController', () => {
         optionId: 'priceChange',
         direction: 'asc',
       });
+    });
+  });
+
+  describe('pro layout preferences', () => {
+    it('defaults to collapsed order book, collapsed chart, and reserved positions', () => {
+      expect(controller.getProLayoutPreferences()).toEqual({
+        orderBookExpanded: false,
+        chartExpanded: false,
+        orderBookPosition: 'left',
+        orderFormPosition: 'right',
+      });
+    });
+
+    it('updates a single field without clobbering the others', () => {
+      controller.setProLayoutPreferences({ orderBookExpanded: true });
+
+      expect(controller.getProLayoutPreferences()).toEqual({
+        orderBookExpanded: true,
+        chartExpanded: false,
+        orderBookPosition: 'left',
+        orderFormPosition: 'right',
+      });
+    });
+
+    it('merges successive partial patches', () => {
+      controller.setProLayoutPreferences({ orderBookExpanded: true });
+      controller.setProLayoutPreferences({ orderBookPosition: 'right' });
+      controller.setProLayoutPreferences({ orderFormPosition: 'left' });
+
+      expect(controller.getProLayoutPreferences()).toEqual({
+        orderBookExpanded: true,
+        chartExpanded: false,
+        orderBookPosition: 'right',
+        orderFormPosition: 'left',
+      });
+    });
+
+    it('persists the update to controller state', () => {
+      controller.setProLayoutPreferences({ chartExpanded: true });
+
+      expect(controller.state.proLayoutPreferences.chartExpanded).toBe(true);
+    });
+
+    it('fills in defaults for fields missing from persisted state', () => {
+      controller.testUpdate((state) => {
+        // Simulate persisted state that predates some fields.
+        state.proLayoutPreferences = {
+          orderBookExpanded: true,
+        } as PerpsControllerState['proLayoutPreferences'];
+      });
+
+      expect(controller.getProLayoutPreferences()).toEqual({
+        orderBookExpanded: true,
+        chartExpanded: false,
+        orderBookPosition: 'left',
+        orderFormPosition: 'right',
+      });
+    });
+  });
+
+  describe('perps mode', () => {
+    it('defaults to lite mode', () => {
+      expect(controller.state.mode).toBe(PerpsMode.Lite);
+    });
+
+    it('sets the mode to pro', () => {
+      controller.setPerpsMode(PerpsMode.Pro);
+
+      expect(controller.state.mode).toBe(PerpsMode.Pro);
+    });
+
+    it('sets the mode back to lite', () => {
+      controller.setPerpsMode(PerpsMode.Pro);
+      controller.setPerpsMode(PerpsMode.Lite);
+
+      expect(controller.state.mode).toBe(PerpsMode.Lite);
     });
   });
 
