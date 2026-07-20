@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.2.2]
+### Added
+
+- Export `MessengerAdapter` type ([#9475](https://github.com/MetaMask/core/pull/9475))
 
 ### Changed
 
@@ -18,6 +20,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - If you're passing a messenger adapter directly (it is not defined in its own variable), then it should also "just work".
 - The types for `createUIQueryClient` no longer check that the provided messenger's actions are JSON-compatible ([#9475](https://github.com/MetaMask/core/pull/9475))
   - If you are experiencing any errors calling actions through the query client, check to make sure their parameters are JSON-compatible.
+
+## [0.2.2]
+
+### Changed
+
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Make `react-dom` and `react-native` peer dependencies optional ([#9295](https://github.com/MetaMask/core/pull/9295))
 

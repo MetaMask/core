@@ -31,7 +31,7 @@ type DataServiceGranularCacheUpdatedHandler = (
  * A narrower subset of the `Messenger` type, tailored to the messenger
  * that `createUIQueryClient` interacts with.
  */
-type MessengerAdapter<DataServiceName extends string> = {
+export type MessengerAdapter<DataServiceName extends string> = {
   /**
    * Call an action on one of the configured data services.
    *
