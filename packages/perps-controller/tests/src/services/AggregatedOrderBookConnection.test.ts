@@ -284,11 +284,17 @@ describe('AggregatedOrderBookConnection', () => {
     const connection = new AggregatedOrderBookConnection({
       isTestnet: (): boolean => testnet,
     });
-    const unsubOld = connection.subscribe({ symbol: 'BTC', callback: jest.fn() });
+    const unsubOld = connection.subscribe({
+      symbol: 'BTC',
+      callback: jest.fn(),
+    });
 
     // Network flips, so the next subscribe recreates the transport.
     testnet = true;
-    const unsubNew = connection.subscribe({ symbol: 'BTC', callback: jest.fn() });
+    const unsubNew = connection.subscribe({
+      symbol: 'BTC',
+      callback: jest.fn(),
+    });
     expect(mockState.transports).toHaveLength(2);
     const [, newTransport] = mockState.transports;
 
@@ -438,7 +444,10 @@ describe('AggregatedOrderBookConnection', () => {
       const connection = new AggregatedOrderBookConnection({
         isTestnet: (): boolean => false,
       });
-      const unsub = connection.subscribe({ symbol: 'BTC', callback: jest.fn() });
+      const unsub = connection.subscribe({
+        symbol: 'BTC',
+        callback: jest.fn(),
+      });
       mockState.transports[0].socket.dispatchEvent(new Event('terminate'));
 
       // Reconnect flow: tear the dead subscription down, then resubscribe.
