@@ -284,14 +284,16 @@ export const MAX_TRANSACTION_PARAMS_SIZE_BYTES = 200 * 1024;
  * exceeds `MAX_TRANSACTION_PARAMS_SIZE_BYTES`.
  *
  * Guards against two attack shapes:
+ * - Size: valid-shaped but oversized payloads (e.g. `data` padded with
+ *   millions of hex zeros) that exhaust memory in downstream code. Checked
+ *   first via `JSON.stringify` so oversized input is rejected before schema
+ *   work.
  * - Structural: extraneous top-level keys or ill-typed fields (e.g.
  *   `{ from, to, test: { b: { b: ... × 1200 } } }`) that would crash
  *   downstream normalization / PPOM WASM with `RangeError: Maximum call
  *   stack size exceeded`, silently bypassing security checks. Superstruct's
  *   `object()` rejects unknown keys by name without accessing their values,
- *   so hostile nested subtrees are never traversed.
- * - Size: valid-shaped but oversized payloads (e.g. `data` padded with
- *   millions of hex zeros) that exhaust memory in downstream code.
+ *   so hostile nested subtrees are never traversed by schema validation.
  *
  * @param params - The transaction params object supplied by the dapp.
  * @throws rpcErrors.invalidParams() if params is an array or exceeds the
@@ -300,12 +302,12 @@ export const MAX_TRANSACTION_PARAMS_SIZE_BYTES = 200 * 1024;
  * (wrong type, extraneous top-level key, or malformed nested field).
  */
 export function validateTransactionParams(params: unknown): void {
-  validateParams(params, TransactionParamsStruct);
-
   if (
     new TextEncoder().encode(JSON.stringify(params)).byteLength >
     MAX_TRANSACTION_PARAMS_SIZE_BYTES
   ) {
     throw rpcErrors.invalidInput();
   }
+
+  validateParams(params, TransactionParamsStruct);
 }
