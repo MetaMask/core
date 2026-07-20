@@ -279,6 +279,28 @@ describe('AggregatedOrderBookConnection', () => {
     expect(mockState.transports[1].options).toStrictEqual({ isTestnet: true });
   });
 
+  it('does not tear down the new transport when an old subscription unsubscribes after a network change', () => {
+    let testnet = false;
+    const connection = new AggregatedOrderBookConnection({
+      isTestnet: (): boolean => testnet,
+    });
+    const unsubOld = connection.subscribe({ symbol: 'BTC', callback: jest.fn() });
+
+    // Network flips, so the next subscribe recreates the transport.
+    testnet = true;
+    const unsubNew = connection.subscribe({ symbol: 'BTC', callback: jest.fn() });
+    expect(mockState.transports).toHaveLength(2);
+    const [, newTransport] = mockState.transports;
+
+    // The stale subscription's unsubscribe must not touch the live socket.
+    unsubOld();
+    expect(newTransport.close).not.toHaveBeenCalled();
+
+    // The remaining live subscription still owns the socket and closes it.
+    unsubNew();
+    expect(newTransport.close).toHaveBeenCalledTimes(1);
+  });
+
   it('cancels a subscription that resolves after unsubscribe', () => {
     const connection = new AggregatedOrderBookConnection({
       isTestnet: (): boolean => false,
@@ -372,6 +394,26 @@ describe('AggregatedOrderBookConnection', () => {
 
       await flush();
       expect(onStatusChange).toHaveBeenLastCalledWith('error');
+    });
+
+    it('releases the refcount and closes the transport when the subscription request rejects', async () => {
+      mockState.rejectSubscribe = true;
+      const connection = new AggregatedOrderBookConnection({
+        isTestnet: (): boolean => false,
+      });
+      const unsub = connection.subscribe({
+        symbol: 'BTC',
+        callback: jest.fn(),
+      });
+
+      await flush();
+
+      // The failed subscribe must not leave the dedicated socket open.
+      expect(mockState.transports[0].close).toHaveBeenCalledTimes(1);
+
+      // A subsequent unsubscribe is a no-op and must not double-close.
+      unsub();
+      expect(mockState.transports[0].close).toHaveBeenCalledTimes(1);
     });
 
     it('stops reporting status after unsubscribe', () => {

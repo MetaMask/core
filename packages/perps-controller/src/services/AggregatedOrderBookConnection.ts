@@ -211,6 +211,32 @@ export class AggregatedOrderBookConnection {
       socket.removeEventListener('terminate', handleTerminate);
     };
 
+    // Releases this subscription's refcount and tears down the socket once no
+    // subscriptions remain. Idempotent via `cancelled`, so it's safe whether it
+    // runs from the returned unsubscribe or from a failed subscribe.
+    const teardown = (): void => {
+      if (cancelled) {
+        return;
+      }
+      cancelled = true;
+      removeSocketListeners();
+      if (subscription) {
+        subscription.unsubscribe().catch(() => undefined);
+        subscription = null;
+      }
+      // Only touch the refcount/current socket if this subscription still
+      // belongs to the active transport. If the transport was recreated (network
+      // change or terminate), this subscription's socket is already dead and
+      // `#activeCount` now tracks only the new transport's subscriptions — so an
+      // older unsubscribe must not decrement it and tear down the live socket.
+      if (transport === this.#transport) {
+        this.#activeCount = Math.max(0, this.#activeCount - 1);
+        if (this.#activeCount === 0) {
+          this.#closeTransport();
+        }
+      }
+    };
+
     reportStatus('connecting');
 
     // The SDK's typed `l2Book` subscription drops unknown fields, so it can't
@@ -250,24 +276,14 @@ export class AggregatedOrderBookConnection {
         return undefined;
       })
       .catch(() => {
+        // Report before teardown flips `cancelled` (which gates status updates),
+        // then release the refcount this subscription reserved so a failed
+        // subscribe doesn't keep the dedicated socket open.
         reportStatus('error');
+        teardown();
       });
 
-    return () => {
-      if (cancelled) {
-        return;
-      }
-      cancelled = true;
-      removeSocketListeners();
-      if (subscription) {
-        subscription.unsubscribe().catch(() => undefined);
-        subscription = null;
-      }
-      this.#activeCount = Math.max(0, this.#activeCount - 1);
-      if (this.#activeCount === 0) {
-        this.#closeTransport();
-      }
-    };
+    return teardown;
   }
 
   /** Closes the dedicated socket and drops all subscriptions. */
