@@ -19,7 +19,6 @@ import {
   MOCK_DELEGATION_RESPONSE,
   MOCK_DELEGATION_SUBMISSION,
   MOCK_INVALID_ASSETS_WATCHLIST_BLOB,
-  MOCK_LEGACY_NOTIFICATION_PREFERENCES,
   MOCK_NOTIFICATION_PREFERENCES,
   MOCK_ASSETS_WATCHLIST_BLOB,
   MOCK_ASSETS_WATCHLIST_URL,
@@ -31,10 +30,7 @@ import {
 } from './authenticated-user-storage';
 import type { Environment } from './env';
 import { getUserStorageApiUrl } from './env';
-import {
-  ASSETS_WATCHLIST_MAX_ASSETS,
-  DEFAULT_AGENTIC_CLI_PREFERENCES,
-} from './validators';
+import { ASSETS_WATCHLIST_MAX_ASSETS } from './validators';
 
 const MOCK_ACCESS_TOKEN = 'mock-access-token';
 
@@ -201,40 +197,6 @@ describe('AuthenticatedUserStorageService', () => {
 
       await expect(service.getNotificationPreferences()).rejects.toThrow(
         'Failed to get notification preferences: 500',
-      );
-    });
-
-    it('coerces legacy payloads that omit agenticCli', async () => {
-      handleMockGetNotificationPreferences({
-        status: 200,
-        body: MOCK_LEGACY_NOTIFICATION_PREFERENCES,
-      });
-      const { service } = createService();
-
-      const result = await service.getNotificationPreferences();
-
-      expect(result).toStrictEqual({
-        ...MOCK_LEGACY_NOTIFICATION_PREFERENCES,
-        agenticCli: DEFAULT_AGENTIC_CLI_PREFERENCES,
-      });
-    });
-
-    it('does not mutate DEFAULT_AGENTIC_CLI_PREFERENCES when coercing legacy payloads', async () => {
-      handleMockGetNotificationPreferences({
-        status: 200,
-        body: MOCK_LEGACY_NOTIFICATION_PREFERENCES,
-      });
-      const { service } = createService();
-
-      const result = await service.getNotificationPreferences();
-
-      expect(result).not.toBeNull();
-      if (!result?.agenticCli) {
-        throw new Error('Result is null');
-      }
-      result.agenticCli.inAppNotificationsEnabled = false;
-      expect(DEFAULT_AGENTIC_CLI_PREFERENCES.inAppNotificationsEnabled).toBe(
-        true,
       );
     });
   });

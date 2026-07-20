@@ -1,6 +1,6 @@
 {
   "name": "@metamask/ens-controller",
-  "version": "19.1.4",
+  "version": "19.1.5",
   "description": "Maps ENS names to their resolved addresses by chain id",
   "keywords": [
     "Ethereum",
@@ -44,6 +44,8 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/ens-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/ens-controller",
+    "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
+    "lint:tsconfigs:fix": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
     "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --check",
     "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",
@@ -56,8 +58,8 @@
     "@ethersproject/providers": "^5.7.0",
     "@metamask/base-controller": "^9.1.0",
     "@metamask/controller-utils": "^12.3.0",
-    "@metamask/messenger": "^1.2.0",
-    "@metamask/network-controller": "^33.0.0",
+    "@metamask/messenger": "^2.0.0",
+    "@metamask/network-controller": "^34.0.0",
     "@metamask/utils": "^11.11.0",
     "punycode": "^2.1.1"
   },

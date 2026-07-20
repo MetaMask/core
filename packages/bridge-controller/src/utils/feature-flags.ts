@@ -5,8 +5,8 @@ import {
   DEFAULT_FEATURE_FLAG_CONFIG,
 } from '../constants/bridge';
 import type { FeatureFlagsPlatformConfig, ChainConfiguration } from '../types';
+import { validateFeatureFlagsResponse } from '../validators/feature-flags';
 import { formatChainIdToCaip } from './caip-formatters';
-import { validateFeatureFlagsResponse } from './validators';
 
 export const formatFeatureFlags = (
   bridgeFeatureFlags: FeatureFlagsPlatformConfig,

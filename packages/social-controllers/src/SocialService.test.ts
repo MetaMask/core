@@ -863,6 +863,129 @@ describe('SocialService', () => {
     });
   });
 
+  describe('fetchFeed', () => {
+    const mockFeedItem = {
+      ...mockPosition,
+      actor: mockProfileSummary,
+      timestamp: 1700000000,
+    };
+
+    const mockFeedResponse = {
+      items: [mockFeedItem],
+      pagination: { olderCursor: 'older-cursor', newerCursor: 'newer-cursor' },
+    };
+
+    it('fetches the feed from the correct endpoint', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFeedResponse),
+      });
+
+      const service = createService();
+      const result = await service.fetchFeed();
+
+      expect(result).toStrictEqual(mockFeedResponse);
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/feed`, {
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
+    });
+
+    it('appends scope, chains, limit, and pagination cursors', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve(mockFeedResponse),
+      });
+
+      const service = createService();
+      await service.fetchFeed({
+        scope: 'leaderboard',
+        chains: ['base', 'solana'],
+        limit: 25,
+        olderThan: 'older-cursor',
+        newerThan: 'newer-cursor',
+      });
+
+      const calledUrl = mockFetch.mock.calls[0][0] as string;
+      expect(calledUrl).toContain('scope=leaderboard');
+      expect(calledUrl).toContain('chains=base');
+      expect(calledUrl).toContain('chains=solana');
+      expect(calledUrl).toContain('limit=25');
+      expect(calledUrl).toContain('olderThan=older-cursor');
+      expect(calledUrl).toContain('newerThan=newer-cursor');
+    });
+
+    it('validates a perp feed item', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            items: [
+              { ...mockPerpPosition, actor: mockProfileSummary, timestamp: 1 },
+            ],
+            pagination: { olderCursor: null, newerCursor: null },
+          }),
+      });
+
+      const service = createService();
+      const result = await service.fetchFeed();
+
+      expect(result.items).toHaveLength(1);
+      expect(result.pagination).toStrictEqual({
+        olderCursor: null,
+        newerCursor: null,
+      });
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 500 });
+
+      const service = createService();
+
+      await expect(service.fetchFeed()).rejects.toThrow(
+        `${SocialServiceErrorMessage.FETCH_FEED_FAILED}: 500`,
+      );
+    });
+
+    it('throws when the feed item is missing its actor', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            items: [{ ...mockPosition, timestamp: 1700000000 }],
+            pagination: { olderCursor: null, newerCursor: null },
+          }),
+      });
+
+      const service = createService();
+
+      await expect(service.fetchFeed()).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_FEED_INVALID_RESPONSE,
+      );
+    });
+
+    it('throws when the pagination shape is invalid', async () => {
+      mockFetch.mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({
+            items: [mockFeedItem],
+            pagination: { olderCursor: 123, newerCursor: null },
+          }),
+      });
+
+      const service = createService();
+
+      await expect(service.fetchFeed()).rejects.toThrow(
+        SocialServiceErrorMessage.FETCH_FEED_INVALID_RESPONSE,
+      );
+    });
+  });
+
   describe('fetchFollowing', () => {
     const mockFollowingResponse = {
       following: [mockProfileSummary],
@@ -1026,6 +1149,56 @@ describe('SocialService', () => {
 
       await expect(service.unfollow({ targets: ['0xaaaa'] })).rejects.toThrow(
         SocialServiceErrorMessage.UNFOLLOW_INVALID_RESPONSE,
+      );
+    });
+  });
+
+  describe('optOutOfLeaderboard', () => {
+    it('sends POST to /leaderboard/opt-out with the bearer token and resolves to void', async () => {
+      mockFetch.mockResolvedValue({ ok: true, status: 204 });
+
+      const service = createService();
+      const result = await service.optOutOfLeaderboard();
+
+      expect(result).toBeUndefined();
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/leaderboard/opt-out`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 401 });
+
+      const service = createService();
+
+      await expect(service.optOutOfLeaderboard()).rejects.toThrow(
+        `${SocialServiceErrorMessage.LEADERBOARD_OPT_OUT_FAILED}: 401`,
+      );
+    });
+  });
+
+  describe('optInToLeaderboard', () => {
+    it('sends POST to /leaderboard/opt-in with the bearer token and resolves to void', async () => {
+      mockFetch.mockResolvedValue({ ok: true, status: 204 });
+
+      const service = createService();
+      const result = await service.optInToLeaderboard();
+
+      expect(result).toBeUndefined();
+      expect(mockFetch).toHaveBeenCalledWith(`${V1_URL}/leaderboard/opt-in`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${MOCK_TOKEN}` },
+      });
+    });
+
+    it('throws HttpError on non-ok response', async () => {
+      mockFetch.mockResolvedValue({ ok: false, status: 500 });
+
+      const service = createService();
+
+      await expect(service.optInToLeaderboard()).rejects.toThrow(
+        `${SocialServiceErrorMessage.LEADERBOARD_OPT_IN_FAILED}: 500`,
       );
     });
   });

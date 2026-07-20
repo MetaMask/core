@@ -12,6 +12,13 @@ import type {
   AccountAssetListUpdatedEventPayload,
   AccountBalancesUpdatedEventPayload,
   AccountTransactionsUpdatedEventPayload,
+  Balance,
+  CaipAssetType,
+  CaipAssetTypeOrId,
+  CaipChainId,
+  Pagination,
+  ResolvedAccountAddress,
+  TransactionsPage,
 } from '@metamask/keyring-api';
 import {
   AccountAssetListUpdatedEventStruct,
@@ -20,6 +27,7 @@ import {
   KeyringEvent,
 } from '@metamask/keyring-api';
 import { KeyringType } from '@metamask/keyring-api/v2';
+import type { KeyringCapabilities } from '@metamask/keyring-api/v2';
 import type {
   KeyringControllerGetStateAction,
   KeyringControllerStateChangeEvent,
@@ -32,13 +40,19 @@ import {
   isKeyringNotFoundError,
   KeyringTypes,
 } from '@metamask/keyring-controller';
+import { KeyringInternalSnapClient } from '@metamask/keyring-internal-snap-client/v2';
 import { SnapManageAccountsMethod } from '@metamask/keyring-snap-sdk';
-import type { AccountId, BaseKeyring } from '@metamask/keyring-utils';
+import type {
+  AccountId,
+  BaseKeyring,
+  JsonRpcRequest,
+} from '@metamask/keyring-utils';
 import type { Messenger } from '@metamask/messenger';
 import type {
   SnapControllerGetRunnableSnapsAction,
   SnapControllerGetSnapAction,
   SnapControllerGetStateAction,
+  SnapControllerHandleRequestAction,
   SnapControllerSnapBlockedEvent,
   SnapControllerSnapDisabledEvent,
   SnapControllerSnapEnabledEvent,
@@ -55,8 +69,14 @@ import { projectLogger as log } from './logger';
 import type {
   SnapAccountServiceEnsureReadyAction,
   SnapAccountServiceEnsureMigratedAction,
+  SnapAccountServiceGetCapabilitiesAction,
+  SnapAccountServiceGetAccountAssetsAction,
+  SnapAccountServiceGetAccountBalancesAction,
+  SnapAccountServiceGetAccountTransactionsAction,
   SnapAccountServiceGetSnapsAction,
   SnapAccountServiceHandleKeyringSnapMessageAction,
+  SnapAccountServiceResolveAccountAddressAction,
+  SnapAccountServiceSetSelectedAccountsAction,
 } from './SnapAccountService-method-action-types';
 import { SnapPlatformWatcher } from './SnapPlatformWatcher';
 import type { SnapPlatformWatcherConfig } from './SnapPlatformWatcher';
@@ -84,8 +104,14 @@ export const serviceName = 'SnapAccountService';
 const MESSENGER_EXPOSED_METHODS = [
   'ensureMigrated',
   'ensureReady',
+  'getCapabilities',
+  'getAccountAssets',
+  'getAccountBalances',
+  'getAccountTransactions',
   'getSnaps',
   'handleKeyringSnapMessage',
+  'resolveAccountAddress',
+  'setSelectedAccounts',
 ] as const;
 
 /**
@@ -94,8 +120,14 @@ const MESSENGER_EXPOSED_METHODS = [
 export type SnapAccountServiceActions =
   | SnapAccountServiceEnsureMigratedAction
   | SnapAccountServiceEnsureReadyAction
+  | SnapAccountServiceGetCapabilitiesAction
+  | SnapAccountServiceGetAccountAssetsAction
+  | SnapAccountServiceGetAccountBalancesAction
+  | SnapAccountServiceGetAccountTransactionsAction
   | SnapAccountServiceGetSnapsAction
-  | SnapAccountServiceHandleKeyringSnapMessageAction;
+  | SnapAccountServiceHandleKeyringSnapMessageAction
+  | SnapAccountServiceResolveAccountAddressAction
+  | SnapAccountServiceSetSelectedAccountsAction;
 
 /**
  * Actions from other messengers that {@link SnapAccountService} calls.
@@ -104,6 +136,7 @@ type AllowedActions =
   | SnapControllerGetStateAction
   | SnapControllerGetSnapAction
   | SnapControllerGetRunnableSnapsAction
+  | SnapControllerHandleRequestAction
   | KeyringControllerGetStateAction
   | KeyringControllerWithControllerAction
   | KeyringControllerWithKeyringV2Action
@@ -231,6 +264,8 @@ export class SnapAccountService {
 
   readonly #tracker: SnapTracker;
 
+  readonly #client: KeyringInternalSnapClient;
+
   #migrated = false;
 
   #migratePromise: Promise<void> | null = null;
@@ -250,6 +285,12 @@ export class SnapAccountService {
       config?.snapPlatformWatcher,
     );
     this.#tracker = new SnapTracker(messenger);
+    this.#client = new KeyringInternalSnapClient({
+      messenger: messenger.buildChild({
+        namespace: 'KeyringInternalSnapClient',
+        actions: ['SnapController:handleRequest'],
+      }),
+    });
 
     this.#messenger.registerMethodActionHandlers(
       this,
@@ -563,6 +604,142 @@ export class SnapAccountService {
   }
 
   /**
+   * Returns the keyring capabilities declared by the given Snap. These are
+   * populated by the bridge keyring from the Snap's manifest, and describe
+   * which keyring features the Snap supports (scopes, BIP-44 options, etc.).
+   *
+   * Consumers use this to decide whether to drive the Snap through the v1 or
+   * v2 keyring path. Reading capabilities does not mutate state, so the
+   * lock-free keyring access is used.
+   *
+   * @param snapId - ID of the Snap.
+   * @returns The Snap's keyring capabilities.
+   */
+  async getCapabilities(snapId: SnapId): Promise<KeyringCapabilities> {
+    return this.#withKeyringV2Unsafe(
+      snapId,
+      async (keyring) => keyring.capabilities,
+    );
+  }
+
+  /**
+   * Returns the CAIP-19 asset type/ID list supported by an account.
+   *
+   * @param snapId - ID of the Snap.
+   * @param id - ID of the account.
+   * @returns A promise resolving to the list of supported CAIP-19 asset type/IDs.
+   */
+  async getAccountAssets(
+    snapId: SnapId,
+    id: AccountId,
+  ): Promise<CaipAssetTypeOrId[]> {
+    await this.ensureReady(snapId);
+    return this.#client.withSnapId(snapId).getAccountAssets(id);
+  }
+
+  /**
+   * Returns the balances for an account for the requested asset types.
+   *
+   * @param snapId - ID of the Snap.
+   * @param id - ID of the account.
+   * @param assets - List of CAIP-19 fungible asset types to fetch balances for.
+   * @returns A promise resolving to a map of asset type to balance.
+   */
+  async getAccountBalances(
+    snapId: SnapId,
+    id: AccountId,
+    assets: CaipAssetType[],
+  ): Promise<Record<CaipAssetType, Balance>> {
+    await this.ensureReady(snapId);
+    return this.#client.withSnapId(snapId).getAccountBalances(id, assets);
+  }
+
+  /**
+   * Returns a page of transactions for an account.
+   *
+   * @param snapId - ID of the Snap.
+   * @param id - ID of the account.
+   * @param pagination - Pagination options.
+   * @returns A promise resolving to a page of transactions.
+   */
+  async getAccountTransactions(
+    snapId: SnapId,
+    id: AccountId,
+    pagination: Pagination,
+  ): Promise<TransactionsPage> {
+    await this.ensureReady(snapId);
+    return this.#client
+      .withSnapId(snapId)
+      .getAccountTransactions(id, pagination);
+  }
+
+  /**
+   * Resolves the account address to use for routing a signing request.
+   *
+   * @param snapId - ID of the Snap.
+   * @param scope - CAIP-2 chain ID of the signing request.
+   * @param request - The signing JSON-RPC request.
+   * @returns A promise resolving to the resolved address, or `null` if the
+   * Snap cannot determine an address for this request.
+   */
+  async resolveAccountAddress(
+    snapId: SnapId,
+    scope: CaipChainId,
+    request: JsonRpcRequest,
+  ): Promise<ResolvedAccountAddress | null> {
+    await this.ensureReady(snapId);
+    return this.#client
+      .withSnapId(snapId)
+      .resolveAccountAddress(scope, request);
+  }
+
+  /**
+   * Notifies a Snap of the currently selected accounts.
+   *
+   * For v1 Snaps the call goes through the keyring (signing interface); for
+   * v2 Snaps it is routed via the RPC client because the keyring only covers
+   * keyring-only operations (signing, account lifecycle).
+   *
+   * @param snapId - ID of the Snap.
+   * @param accounts - IDs of the accounts to mark as selected.
+   */
+  async setSelectedAccounts(
+    snapId: SnapId,
+    accounts: AccountId[],
+  ): Promise<void> {
+    await this.ensureReady(snapId);
+    await this.#withKeyringV2Unsafe(snapId, async (keyring) => {
+      await this.#setSelectedAccountsForKeyring(snapId, keyring, accounts);
+    });
+  }
+
+  /**
+   * Dispatches a `setSelectedAccounts` call to the correct layer based on
+   * whether the keyring has a v1 interface or not.
+   *
+   * The keyring is a pure interface for keyring-only operations (signing,
+   * account lifecycle). Extra Snap-level methods like `setSelectedAccounts`
+   * are invoked via the client for v2 Snaps, which communicates with the Snap
+   * over RPC.
+   *
+   * @param snapId - ID of the Snap.
+   * @param keyring - The Snap keyring (v2) instance.
+   * @param accounts - IDs of the accounts to mark as selected.
+   */
+  async #setSelectedAccountsForKeyring(
+    snapId: SnapId,
+    keyring: SnapKeyring,
+    accounts: AccountId[],
+  ): Promise<void> {
+    if (keyring.v1) {
+      // We used to keep track of selected accounts in the v1 keyring, so we need to forward the call there for v1 Snaps.
+      await keyring.v1.setSelectedAccounts(accounts);
+    } else {
+      await this.#client.withSnapId(snapId).setSelectedAccounts(accounts);
+    }
+  }
+
+  /**
    * Handle a message from a Snap.
    *
    * @param snapId - ID of the Snap.
@@ -623,9 +800,19 @@ export class SnapAccountService {
       // 1: withKeyring(..., ({ keyring }) => { keyring.removeAccount(...) })
       // 2. removeAccount(...) -> handleKeyringSnapMessage(..., { method: 'accountRemoved', ... })
       // 3. handleKeyringSnapMessage tries to acquire the same lock again via withKeyringV2 -> deadlock.
-      return await this.#withKeyringV2Unsafe(snapId, async (keyring) =>
-        keyring.handleKeyringSnapMessage(message),
-      );
+      return await this.#withKeyringV2Unsafe(snapId, async (keyring) => {
+        if (!keyring.v1) {
+          log(
+            `Received message "${event}" for Snap "${snapId}", but that's a v2 keyring... Rejecting.`,
+          );
+
+          throw new Error(
+            `Cannot delegate keyring Snap message, keyring for Snap "${snapId}" is v2, not v1.`,
+          );
+        }
+
+        return await keyring.v1.handleKeyringSnapMessage(message);
+      });
     } catch (error) {
       if (isKeyringNotFoundError(error)) {
         log(
@@ -729,8 +916,13 @@ export class SnapAccountService {
               // forward the subset this Snap actually owns. An empty
               // subset still gets forwarded to explicitly clear the
               // Snap selected accounts.
-              await keyring.setSelectedAccounts(
-                accounts.filter((id) => keyring.hasAccount(id)),
+              const snapAccounts = accounts.filter((id) =>
+                keyring.hasAccount(id),
+              );
+              await this.#setSelectedAccountsForKeyring(
+                snapId,
+                keyring,
+                snapAccounts,
               );
             });
           } catch (error) {

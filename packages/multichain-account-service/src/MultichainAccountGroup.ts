@@ -263,13 +263,27 @@ export class MultichainAccountGroup<
    */
   isAligned(): boolean {
     return this.#providers.every((provider) =>
-      provider.isAligned(
-        {
-          entropySource: this.#wallet.entropySource,
-          groupIndex: this.#groupIndex,
-        },
-        this.#providerToAccounts.get(provider) ?? [],
-      ),
+      this.isProviderAligned(provider),
+    );
+  }
+
+  /**
+   * Check whether a single provider has an aligned account in this group.
+   *
+   * A provider is aligned when the account IDs it contributed to this group are
+   * non-empty and owned by it. Disabled {@link AccountProviderWrapper} instances
+   * always report `true`.
+   *
+   * @param provider - The provider to check.
+   * @returns `true` when the provider is aligned for this group.
+   */
+  isProviderAligned(provider: Bip44AccountProvider<Account>): boolean {
+    return provider.isAligned(
+      {
+        entropySource: this.#wallet.entropySource,
+        groupIndex: this.#groupIndex,
+      },
+      this.#providerToAccounts.get(provider) ?? [],
     );
   }
 }

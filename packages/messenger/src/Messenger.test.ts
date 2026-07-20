@@ -409,6 +409,42 @@ describe('Messenger', () => {
     });
   });
 
+  describe('buildChild', () => {
+    it('delegates actions to children', () => {
+      type PingAction = { type: 'Fixture:ping'; handler: () => string };
+      const messenger = new Messenger<MockAnyNamespace, PingAction, never>({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      messenger.registerActionHandler('Fixture:ping', () => 'pong');
+
+      const childMessenger = messenger.buildChild({
+        namespace: 'ChildMessenger',
+        actions: ['Fixture:ping'],
+      });
+
+      expect(childMessenger.call('Fixture:ping')).toBe('pong');
+    });
+
+    it('delegates events to children', () => {
+      type MessageEvent = { type: 'Fixture:message'; payload: [string] };
+      const messenger = new Messenger<MockAnyNamespace, never, MessageEvent>({
+        namespace: MOCK_ANY_NAMESPACE,
+      });
+
+      const childMessenger = messenger.buildChild({
+        namespace: 'ChildMessenger',
+        events: ['Fixture:message'],
+      });
+
+      const handler = jest.fn();
+      childMessenger.subscribe('Fixture:message', handler);
+      messenger.publish('Fixture:message', 'hello');
+
+      expect(handler).toHaveBeenCalledWith('hello');
+    });
+  });
+
   describe('publish and subscribe', () => {
     it('publishes event to subscriber', () => {
       type MessageEvent = { type: 'Fixture:message'; payload: [string] };

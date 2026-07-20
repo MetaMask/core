@@ -22,6 +22,8 @@ import type {
   SocialServiceFetchFollowingAction,
   SocialServiceFetchLeaderboardAction,
   SocialServiceFollowAction,
+  SocialServiceOptInToLeaderboardAction,
+  SocialServiceOptOutOfLeaderboardAction,
   SocialServiceUnfollowAction,
 } from './SocialService-method-action-types';
 
@@ -32,6 +34,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'followTrader',
   'unfollowTrader',
   'updateFollowing',
+  'optOutOfLeaderboard',
+  'optInToLeaderboard',
 ] as const;
 
 // === ACTION TYPES ===
@@ -60,7 +64,9 @@ type AllowedActions =
   | SocialServiceFetchLeaderboardAction
   | SocialServiceFollowAction
   | SocialServiceUnfollowAction
-  | SocialServiceFetchFollowingAction;
+  | SocialServiceFetchFollowingAction
+  | SocialServiceOptOutOfLeaderboardAction
+  | SocialServiceOptInToLeaderboardAction;
 
 type AllowedEvents = never;
 
@@ -263,5 +269,19 @@ export class SocialController extends BaseController<
     });
 
     return followingResponse;
+  }
+
+  /**
+   * Opts the current user out of the PnL leaderboard.
+   */
+  async optOutOfLeaderboard(): Promise<void> {
+    await this.messenger.call('SocialService:optOutOfLeaderboard');
+  }
+
+  /**
+   * Opts the current user back into the PnL leaderboard.
+   */
+  async optInToLeaderboard(): Promise<void> {
+    await this.messenger.call('SocialService:optInToLeaderboard');
   }
 }

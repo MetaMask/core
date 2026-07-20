@@ -16,6 +16,7 @@ import {
 import { QuoteStatusUpdateError } from './errors';
 import { QuoteStatusApiService } from './quote-status-api-service';
 import { QuoteStatusEntryStore } from './quote-status-entry-store';
+import { QuoteStatusGetWithRetryOutcome } from './quote-status-get-with-retry-outcome';
 import { QuoteStatusStateFsm } from './quote-status-state-fsm';
 import { QuoteStatusUpdateWithRetryOutcome } from './quote-status-update-with-retry-outcome';
 import { QuoteStatusPersistEntry, QuoteStatusRuntimeEntry } from './types';
@@ -142,7 +143,10 @@ export class QuoteStatusManager {
    * manager is disabled, and surfaces an error when the entry is missing or
    * cannot transition to the finalized state.
    *
-   * @param txMetaId - Transaction metadata id of the finalized quote.
+   * A single 7702/nested batch transaction submits multiple quotes under one
+   * `txMetaId`, so every entry sharing that id is finalized together.
+   *
+   * @param txMetaId - Transaction metadata id of the finalized quote(s).
    * @param success - Whether the transaction finalized successfully.
    */
   reportFinalised(txMetaId: string, success: boolean): void {
@@ -150,9 +154,9 @@ export class QuoteStatusManager {
       return;
     }
 
-    const entry = this.#quoteStatusEntryStore.getByTxMetaId(txMetaId);
+    const entries = this.#quoteStatusEntryStore.getAllByTxMetaId(txMetaId);
 
-    if (!entry) {
+    if (entries.length === 0) {
       this.#onError?.(
         new QuoteStatusUpdateError(
           'reporting finalization status but entry was not found',
@@ -166,19 +170,34 @@ export class QuoteStatusManager {
       ? QuoteStatusState.FinalizedSuccess
       : QuoteStatusState.FinalizedFailed;
 
-    if (!entry.status.canTransitionTo(nextState)) {
-      // This is expected, there are race conditions where
-      // reportFinalized can be called twice. If the second
-      // call fails due to the first completed sucesfully
-      // backend will report that we cannot transition outside
-      // a final state, which is correct and we can safely abort
-      // the flow.
+    let hasEntryToProcess = false;
+
+    for (const entry of entries) {
+      if (!entry.status.canTransitionTo(nextState)) {
+        // This is expected, there are race conditions where
+        // reportFinalized can be called twice. If the second
+        // call fails due to the first completed sucesfully
+        // backend will report that we cannot transition outside
+        // a final state, which is correct and we can safely skip
+        // this entry.
+        continue;
+      }
+
+      entry.status.transitionTo(nextState);
+      hasEntryToProcess = true;
+    }
+
+    if (!hasEntryToProcess) {
       return;
     }
 
-    entry.status.transitionTo(nextState);
     this.#ensureRetryTimerRunning();
-    this.#processEntry(entry);
+
+    for (const entry of entries) {
+      if (entry.status.state === nextState) {
+        this.#processEntry(entry);
+      }
+    }
   }
 
   /**
@@ -299,8 +318,9 @@ export class QuoteStatusManager {
    * @param options - Retry configuration.
    * @param options.maxRetries - Maximum number of retries after the initial attempt.
    * @param options.delayMsBetweenRetries - Delay in milliseconds between attempts.
+   * @returns The quote status outcome, or `undefined` when the manager is disabled.
    */
-  getStatus(
+  async getStatus(
     quoteId: string,
     options: {
       maxRetries?: number;
@@ -309,12 +329,12 @@ export class QuoteStatusManager {
       maxRetries: 0,
       delayMsBetweenRetries: 1000,
     },
-  ): void {
+  ): Promise<QuoteStatusGetWithRetryOutcome | undefined> {
     if (!this.#isEnabled?.()) {
-      return;
+      return undefined;
     }
 
-    this.#quoteStatusApiService
+    const response = this.#quoteStatusApiService
       .getQuoteStatusWithRetry(
         {
           quoteId,
@@ -323,9 +343,11 @@ export class QuoteStatusManager {
           maxRetries: options.maxRetries ?? 0,
           delayMsBetweenRetries: options.delayMsBetweenRetries ?? 1000,
         },
-        // Errors already reported by #onError handlers of `getQuoteStatusWithRetry()`
       )
+      // Errors already reported by #onError handlers of `getQuoteStatusWithRetry()`
       .catch(() => undefined);
+
+    return response;
   }
 
   /**
@@ -520,10 +542,7 @@ export class QuoteStatusManager {
               // `Completed` state and keep the entry so any later duplicate
               // `reportSubmitted` for this quote is rejected instead of looping.
               this.#markCompleted(current);
-              // Call getStatus to complete the flow on the backend.
-              // We discard any value for now, this is used purely
-              // to notify backend that the flow is complete.
-              this.getStatus(entry.quoteId, { maxRetries: 1 });
+
               return undefined;
             }
             // A non-final status (e.g. `Submitted`) was accepted. The quote is

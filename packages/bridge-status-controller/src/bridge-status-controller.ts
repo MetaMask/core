@@ -41,6 +41,7 @@ import {
   REFRESH_INTERVAL_MS,
 } from './constants';
 import {
+  QUOTE_STATUS_BACKFILL_WINDOW_MS,
   QUOTE_STATUS_UPDATE_ENTRY_TTL,
   QUOTE_STATUS_UPDATE_RETRY_INTERVAL_MS,
 } from './quote-status-manager/constants';
@@ -69,6 +70,7 @@ import {
 } from './utils/bridge';
 import {
   fetchBridgeTxStatus,
+  fetchBridgeQuoteStatus,
   getStatusRequestWithSrcTxHash,
   shouldSkipFetchDueToFetchFailures,
   shouldWaitForFinalBridgeStatus,
@@ -315,6 +317,12 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       },
     );
 
+    // Seed any missing quote-status entries from persisted history before
+    // init(), so init()'s reconciliation loop can finalize quotes whose
+    // deferred entry was never created (e.g. the client closed before
+    // reportSubmitted ran).
+    this.#seedQuoteStatusEntriesFromHistory();
+
     // Replay swap/bridge finalizations that resolved while the client was
     // closed, before resuming polling (which recovers in-flight bridges).
     this.#quoteStatusManager.init();
@@ -468,6 +476,11 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
    * poll where the hash is known, and the final-status branch) and the poll
    * path runs on every interval.
    *
+   * For 7702/nested batch sells a single source transaction carries multiple
+   * quotes: the parent history item lists all of them in `quoteIds` (each a key
+   * into `txHistory`). In that case every quote is reported under the shared
+   * source tx hash and `txMetaId`.
+   *
    * @param historyKey - The key of the history item in `txHistory`
    * @param srcTxHash - The source chain transaction hash
    * @param txMetaId - The transaction meta id, used for finalization matching
@@ -478,17 +491,39 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     txMetaId: string,
   ): void => {
     const historyItem = this.state.txHistory[historyKey];
-    if (!historyItem?.quoteId) {
+    if (!historyItem) {
       return;
     }
+
+    // For a 7702/nested batch the parent item lists every quote in `quoteIds`
+    // (keys into `txHistory`); resolve each to its real quote id. Otherwise fall
+    // back to the item's own single quote id.
+    let quoteIds: string[];
+    if (historyItem.quoteIds?.length) {
+      quoteIds = historyItem.quoteIds
+        .map((quoteKey) => this.state.txHistory[quoteKey]?.quoteId)
+        .filter((quoteId): quoteId is string => Boolean(quoteId));
+    } else if (historyItem.quoteId) {
+      quoteIds = [historyItem.quoteId];
+    } else {
+      quoteIds = [];
+    }
+
+    if (quoteIds.length === 0) {
+      return;
+    }
+
+    // `reportedSubmittedTxHash` is set once `reportSubmitted` is called.
+    // This avoids processing multiple `eportSubmitted` for the
+    // same swap/bridge.
     if (historyItem.reportedSubmittedTxHash === srcTxHash) {
       return;
     }
-    this.#quoteStatusManager.reportSubmitted(
-      historyItem.quoteId,
-      srcTxHash,
-      txMetaId,
-    );
+
+    for (const quoteId of quoteIds) {
+      this.#quoteStatusManager.reportSubmitted(quoteId, srcTxHash, txMetaId);
+    }
+
     this.update((state) => {
       const item = state.txHistory[historyKey];
       if (item) {
@@ -611,6 +646,62 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
     txMetaId: string,
   ): BridgeHistoryItem | undefined => {
     return this.state.txHistory[txMetaId];
+  };
+
+  /**
+   * Seeds missing quote-status entries from persisted history on startup.
+   *
+   * The deferred quote-status entry (keyed by `${quoteId}:${srcTxHash}`) is only
+   * created when `reportSubmitted` runs. If the client closes after a swap/bridge
+   * is submitted but before that happens, the entry is never created and
+   * `QuoteStatusManager.init()` has nothing to reconcile. The persisted history
+   * item carries the `quoteId`, source tx hash, and `txMetaId` needed to rebuild
+   * the entry, so we replay `reportSubmitted` here (idempotent via
+   * `#reportSubmittedOnce`) before `init()` runs.
+   */
+  readonly #seedQuoteStatusEntriesFromHistory = (): void => {
+    if (!this.#quoteStatusManager.enabled) {
+      // Skip seeding to prevent `#reportSubmittedOnce` from persisting
+      // `reportedSubmittedTxHash` so recent bridge history cannot be marked as
+      //  already reported with no store entry or backend update.
+      return;
+    }
+
+    for (const [historyKey, historyItem] of Object.entries(
+      this.state.txHistory,
+    )) {
+      const { quoteId, quoteIds, txMetaId } = historyItem;
+      // A 7702/nested batch parent reports its quotes via `quoteIds` rather than
+      // its own single `quoteId`, so accept either. `#reportSubmittedOnce`
+      // resolves the actual set of quotes to report.
+      if ((!quoteId && !quoteIds?.length) || !txMetaId) {
+        continue;
+      }
+
+      // Skip items older than the backfill window: the backend would reject
+      // a status report for a quote that old, so there is no point creating
+      // an entry or making a request.
+      if (
+        Date.now() - historyItem.startTime >
+        QUOTE_STATUS_BACKFILL_WINDOW_MS
+      ) {
+        continue;
+      }
+
+      // Prefer the history hash; fall back to the tx hash (covers STX swaps
+      // confirmed while closed, where the history hash was never written).
+      const srcTxHash =
+        historyItem.status.srcChain.txHash ??
+        getTransactionMetaById(this.messenger, txMetaId)?.hash;
+      if (!srcTxHash) {
+        continue;
+      }
+
+      // Call `reportSubmittedOnce` for each history item that satisfies
+      // the above criteria. The method will then take care the rest
+      // (ie. if it actually needs to be reported or not because it already has been).
+      this.#reportSubmittedOnce(historyKey, srcTxHash, txMetaId);
+    }
   };
 
   /**
@@ -893,13 +984,20 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
           historyItem.quote,
           srcTxHash,
         );
-        const response = await fetchBridgeTxStatus(
-          statusRequest,
-          this.#clientId,
-          await getJwt(this.messenger),
-          this.#fetchFn,
-          this.#config.customBridgeApiBaseUrl,
-        );
+        const response =
+          (historyItem.quoteId
+            ? await fetchBridgeQuoteStatus(
+                this.#quoteStatusManager,
+                historyItem.quoteId,
+              )
+            : null) ??
+          (await fetchBridgeTxStatus(
+            statusRequest,
+            this.#clientId,
+            await getJwt(this.messenger),
+            this.#fetchFn,
+            this.#config.customBridgeApiBaseUrl,
+          ));
         status = response.status;
         validationFailures = response.validationFailures;
       }
@@ -1605,10 +1703,15 @@ export class BridgeStatusController extends StaticIntervalPollingController<Brid
       ...getTxStatusesFromHistory(historyItem),
       ...getFinalizedTxProperties(historyItem, txMeta, approvalTxMeta),
       ...getPriceImpactFromQuote(quote),
-      ...(eventName === UnifiedSwapBridgeEventName.Completed &&
-        historyItem.inputPrimaryDenomination && {
+      ...(eventName === UnifiedSwapBridgeEventName.Completed && {
+        ...(!isNonEvmChainId(historyItem.quote.srcChainId) &&
+          historyItem.txMetaId && {
+            transaction_internal_id: historyItem.txMetaId,
+          }),
+        ...(historyItem.inputPrimaryDenomination && {
           input_primary_denomination: historyItem.inputPrimaryDenomination,
         }),
+      }),
     };
 
     trackMetricsEvent({

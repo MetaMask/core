@@ -6060,6 +6060,77 @@ describe('TransactionController', () => {
     });
   });
 
+  describe('failTransaction', () => {
+    const submittedTransactionMock = {
+      ...TRANSACTION_META_MOCK,
+      status: TransactionStatus.submitted as const,
+    } as unknown as TransactionMeta;
+
+    it('marks the transaction as failed with the provided error', () => {
+      const { controller } = setupController({
+        options: {
+          state: {
+            transactions: [submittedTransactionMock],
+          },
+        },
+      });
+
+      controller.failTransaction(
+        submittedTransactionMock.id,
+        new Error('Test failure'),
+      );
+
+      expect(controller.state.transactions[0].status).toBe(
+        TransactionStatus.failed,
+      );
+      expect(controller.state.transactions[0].error?.message).toBe(
+        'Test failure',
+      );
+    });
+
+    it('publishes the failure lifecycle events', () => {
+      const failedListener = jest.fn();
+      const statusUpdatedListener = jest.fn();
+      const finishedListener = jest.fn();
+      const { controller, messenger } = setupController({
+        options: {
+          state: {
+            transactions: [submittedTransactionMock],
+          },
+        },
+      });
+      messenger.subscribe(
+        'TransactionController:transactionFailed',
+        failedListener,
+      );
+      messenger.subscribe(
+        'TransactionController:transactionStatusUpdated',
+        statusUpdatedListener,
+      );
+      messenger.subscribe(
+        'TransactionController:transactionFinished',
+        finishedListener,
+      );
+
+      controller.failTransaction(
+        submittedTransactionMock.id,
+        new Error('Test failure'),
+      );
+
+      expect(failedListener).toHaveBeenCalledTimes(1);
+      expect(statusUpdatedListener).toHaveBeenCalledTimes(1);
+      expect(finishedListener).toHaveBeenCalledTimes(1);
+    });
+
+    it('throws if the transaction does not exist', () => {
+      const { controller } = setupController();
+
+      expect(() =>
+        controller.failTransaction('missing-id', new Error('Test failure')),
+      ).toThrow('No transaction found with id missing-id');
+    });
+  });
+
   describe('updateSecurityAlertResponse', () => {
     it('add securityAlertResponse to transaction meta', async () => {
       const transactionMeta = TRANSACTION_META_MOCK;
@@ -8117,6 +8188,28 @@ describe('TransactionController', () => {
           "transactions": [],
         }
       `);
+    });
+
+    it('accepts ignored incoming transaction compatibility options', () => {
+      expect(() =>
+        setupController({
+          options: {
+            incomingTransactions: {
+              client: 'extension-test',
+              includeTokenTransfers: false,
+              isEnabled: () => false,
+              updateTransactions: true,
+            },
+          },
+        }),
+      ).not.toThrow();
+    });
+
+    it('keeps incoming transaction polling compatibility methods as no-ops', () => {
+      const { controller } = setupController();
+
+      expect(() => controller.startIncomingTransactionPolling()).not.toThrow();
+      expect(() => controller.stopIncomingTransactionPolling()).not.toThrow();
     });
   });
 

@@ -1,26 +1,40 @@
 import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import type { ChildProcess } from 'node:child_process';
+import { closeSync, existsSync, openSync } from 'node:fs';
 
 import { pingDaemon } from './daemon-client';
 import { ensureDaemon } from './daemon-spawn';
+import { ensureOwnerOnlyDirectory } from './data-dir';
 import { getDaemonPaths } from './paths';
+import { Password, Srp } from './secrets';
 import type { DaemonSpawnConfig } from './types';
 
 jest.mock('node:child_process');
 jest.mock('node:fs');
 jest.mock('./daemon-client');
+jest.mock('./data-dir');
 jest.mock('./paths');
 
 const mockSpawn = jest.mocked(spawn);
 const mockExistsSync = jest.mocked(existsSync);
+const mockOpenSync = jest.mocked(openSync);
+const mockCloseSync = jest.mocked(closeSync);
+const mockEnsureOwnerOnlyDirectory = jest.mocked(ensureOwnerOnlyDirectory);
 const mockPingDaemon = jest.mocked(pingDaemon);
 const mockGetDaemonPaths = jest.mocked(getDaemonPaths);
+
+// Arbitrary file descriptor handed back by the mocked `openSync` so tests can
+// assert it is wired into the child's stdio and later closed in the parent.
+const LOG_FILE_DESCRIPTOR = 7;
+
+const SRP =
+  'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 
 const CONFIG: DaemonSpawnConfig = {
   dataDir: '/tmp/data',
   infuraProjectId: 'test-key',
-  password: 'test-pass',
-  srp: 'test test test test test test test test test test test ball',
+  password: Password.from('test-pass'),
+  srp: Srp.from(SRP),
   packageRoot: '/pkg',
 };
 
@@ -65,7 +79,7 @@ function setupSpawnMock(): SpawnMock {
       listeners.get('exit')?.(code, signal);
     },
   };
-  mockSpawn.mockReturnValue(result as never);
+  mockSpawn.mockReturnValue(result as unknown as ChildProcess);
   return result;
 }
 
@@ -79,6 +93,8 @@ describe('ensureDaemon', () => {
       logPath: '/tmp/test.log',
       dbPath: '/tmp/wallet.db',
     });
+    mockOpenSync.mockReturnValue(LOG_FILE_DESCRIPTOR);
+    mockEnsureOwnerOnlyDirectory.mockResolvedValue(undefined);
     setupSpawnMock();
   });
 
@@ -128,17 +144,67 @@ describe('ensureDaemon', () => {
       ['/pkg/dist/daemon/daemon-entry.mjs'],
       expect.objectContaining({
         detached: true,
-        stdio: 'ignore',
+        stdio: ['ignore', 'ignore', LOG_FILE_DESCRIPTOR],
         env: expect.objectContaining({
           MM_DAEMON_DATA_DIR: '/tmp/data',
           MM_DAEMON_SOCKET_PATH: '/tmp/test.sock',
           INFURA_PROJECT_ID: 'test-key',
           MM_WALLET_PASSWORD: 'test-pass',
-          MM_WALLET_SRP:
-            'test test test test test test test test test test test ball',
+          MM_WALLET_SRP: SRP,
         }),
       }),
     );
+  });
+
+  it('redirects the daemon stderr to its log file and closes the parent file descriptor', async () => {
+    mockPingDaemon
+      .mockResolvedValueOnce(ABSENT)
+      .mockResolvedValueOnce(RESPONSIVE);
+    mockExistsSync.mockReturnValue(true);
+
+    await ensureDaemon(CONFIG);
+
+    expect(mockOpenSync).toHaveBeenCalledWith('/tmp/test.log', 'a');
+    const spawnOptions = mockSpawn.mock.calls[0][2] as { stdio: unknown };
+    expect(spawnOptions.stdio).toStrictEqual([
+      'ignore',
+      'ignore',
+      LOG_FILE_DESCRIPTOR,
+    ]);
+    expect(mockCloseSync).toHaveBeenCalledWith(LOG_FILE_DESCRIPTOR);
+  });
+
+  it('propagates a log-file open failure without spawning', async () => {
+    mockPingDaemon.mockResolvedValue(ABSENT);
+    mockExistsSync.mockReturnValue(true);
+    mockOpenSync.mockImplementation(() => {
+      throw Object.assign(new Error('EACCES'), { code: 'EACCES' });
+    });
+
+    await expect(ensureDaemon(CONFIG)).rejects.toThrow('EACCES');
+    expect(mockSpawn).not.toHaveBeenCalled();
+  });
+
+  it('creates the data directory before opening the log file', async () => {
+    mockPingDaemon
+      .mockResolvedValueOnce(ABSENT)
+      .mockResolvedValueOnce(RESPONSIVE);
+    mockExistsSync.mockReturnValue(true);
+    // The log lives inside the data dir, so the dir must be created first (else
+    // openSync ENOENTs on a fresh dir).
+    const order: string[] = [];
+    mockEnsureOwnerOnlyDirectory.mockImplementation(async () => {
+      order.push('ensureDir');
+    });
+    mockOpenSync.mockImplementation(() => {
+      order.push('openLog');
+      return LOG_FILE_DESCRIPTOR;
+    });
+
+    await ensureDaemon(CONFIG);
+
+    expect(mockEnsureOwnerOnlyDirectory).toHaveBeenCalledWith('/tmp/data');
+    expect(order).toStrictEqual(['ensureDir', 'openLog']);
   });
 
   it('returns started when the spawned daemon becomes responsive', async () => {
@@ -226,7 +292,10 @@ describe('ensureDaemon', () => {
         }
       },
     );
-    mockSpawn.mockReturnValue({ unref: jest.fn(), on } as never);
+    mockSpawn.mockReturnValue({
+      unref: jest.fn(),
+      on,
+    } as unknown as ChildProcess);
 
     jest.useFakeTimers();
     const promise = ensureDaemon(CONFIG);
@@ -267,7 +336,10 @@ describe('ensureDaemon', () => {
         }
       },
     );
-    mockSpawn.mockReturnValue({ unref: jest.fn(), on } as never);
+    mockSpawn.mockReturnValue({
+      unref: jest.fn(),
+      on,
+    } as unknown as ChildProcess);
 
     jest.useFakeTimers();
     const promise = ensureDaemon(CONFIG);
@@ -281,6 +353,72 @@ describe('ensureDaemon', () => {
     );
     expect((thrownError as Error).message).toContain('spawn ENOENT');
     expect((thrownError as Error).message).toContain('/tmp/test.log');
+  });
+
+  it('reports the spawn error when the child both errors and exits', async () => {
+    mockPingDaemon.mockResolvedValue(ABSENT);
+    mockExistsSync.mockReturnValue(true);
+    const on = jest.fn(
+      (event: string, handler: (...args: unknown[]) => void) => {
+        if (event === 'error') {
+          handler(new Error('spawn ENOENT'));
+        }
+        if (event === 'exit') {
+          handler(1, null);
+        }
+      },
+    );
+    mockSpawn.mockReturnValue({
+      unref: jest.fn(),
+      on,
+    } as unknown as ChildProcess);
+
+    jest.useFakeTimers();
+    const promise = ensureDaemon(CONFIG);
+    const rejection = promise.catch((thrown: unknown) => thrown);
+    await jest.advanceTimersByTimeAsync(200);
+
+    const thrownError = await rejection;
+    expect((thrownError as Error).message).toContain(
+      'Failed to spawn daemon process',
+    );
+  });
+
+  it('omits MM_WALLET_PASSWORD from the child env when no password is supplied', async () => {
+    mockPingDaemon
+      .mockResolvedValueOnce(ABSENT)
+      .mockResolvedValueOnce(RESPONSIVE);
+    mockExistsSync.mockReturnValue(true);
+
+    // Snapshot+restore the whole env via assignment so the await between
+    // mutation and restore does not trip `require-atomic-updates`.
+    const savedEnv = process.env;
+    process.env = { ...savedEnv, MM_WALLET_PASSWORD: 'leaked-from-parent' };
+    let spawnedEnv: NodeJS.ProcessEnv | undefined;
+    try {
+      const { password: _password, ...configWithoutPassword } = CONFIG;
+      await ensureDaemon(configWithoutPassword);
+      spawnedEnv = (mockSpawn.mock.calls[0][2] as { env: NodeJS.ProcessEnv })
+        .env;
+    } finally {
+      // Restoring after await is intentional; jest runs each test serially.
+      // eslint-disable-next-line require-atomic-updates
+      process.env = savedEnv;
+    }
+
+    expect(spawnedEnv).not.toHaveProperty('MM_WALLET_PASSWORD');
+  });
+
+  it('forwards an explicitly-supplied password to the child env', async () => {
+    mockPingDaemon
+      .mockResolvedValueOnce(ABSENT)
+      .mockResolvedValueOnce(RESPONSIVE);
+    mockExistsSync.mockReturnValue(true);
+
+    await ensureDaemon({ ...CONFIG, password: Password.from('explicit-pass') });
+
+    const spawnOpts = mockSpawn.mock.calls[0][2] as { env: NodeJS.ProcessEnv };
+    expect(spawnOpts.env.MM_WALLET_PASSWORD).toBe('explicit-pass');
   });
 
   it('writes spawn errors to stderr', async () => {
@@ -297,7 +435,10 @@ describe('ensureDaemon', () => {
         }
       },
     );
-    mockSpawn.mockReturnValue({ unref: jest.fn(), on } as never);
+    mockSpawn.mockReturnValue({
+      unref: jest.fn(),
+      on,
+    } as unknown as ChildProcess);
 
     await ensureDaemon(CONFIG);
     errorHandler?.(new Error('spawn ENOENT'));

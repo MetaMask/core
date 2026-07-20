@@ -24,6 +24,11 @@ module.exports = merge(baseConfig, {
   // production code's test infrastructure, not production code itself.
   coveragePathIgnorePatterns: ['.*/src/test/.*'],
 
+  // The subprocess e2e suite lives in `tests/` and has its own config
+  // (`jest.config.e2e.js`, run via `yarn test:e2e`); it spawns the built CLI
+  // and must not run in the fast unit suite.
+  testPathIgnorePatterns: ['/node_modules/', '<rootDir>/tests/'],
+
   // An object that configures minimum threshold enforcement for coverage results
   coverageThreshold: {
     global: {

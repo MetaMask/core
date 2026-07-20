@@ -1,5 +1,8 @@
 import type { AssetMetadata, FungibleAssetPrice } from '../types';
-import { formatExchangeRatesForBridge } from './formatExchangeRatesForBridge';
+import {
+  clearFormatExchangeRatesForBridgeCacheForTesting,
+  formatExchangeRatesForBridge,
+} from './formatExchangeRatesForBridge';
 
 /**
  * Builds minimal AssetPrice for tests. Defaults usdPrice to the same
@@ -389,5 +392,67 @@ describe('formatExchangeRatesForBridge', () => {
     expect(result.conversionRates[bitcoinAssetId].currency).toBe(
       'swift:0/iso4217:EUR',
     );
+  });
+
+  describe('memoization', () => {
+    afterEach(() => {
+      clearFormatExchangeRatesForBridgeCacheForTesting();
+    });
+
+    it('returns the same object when inputs are unchanged by identity / value', () => {
+      const assetsInfo = {};
+      const assetsPrice = {
+        'bip122:000000000019d6689c085ae165831e93/slip44:0': price({
+          price: 50000,
+        }),
+      };
+      const params = {
+        assetsInfo,
+        assetsPrice,
+        selectedCurrency: 'usd',
+        nativeAssetIdentifiers: {},
+        networkConfigurationsByChainId: EVM_NETWORK_CONFIGS,
+      };
+
+      const first = formatExchangeRatesForBridge(params);
+      const second = formatExchangeRatesForBridge({
+        ...params,
+        // Rebuilt but deeply equal native map should still hit cache
+        nativeAssetIdentifiers: {},
+      });
+
+      expect(second).toBe(first);
+    });
+
+    it('recomputes when assetsPrice identity changes', () => {
+      const assetsInfo = {};
+      const first = formatExchangeRatesForBridge({
+        assetsInfo,
+        assetsPrice: {
+          'bip122:000000000019d6689c085ae165831e93/slip44:0': price({
+            price: 50000,
+          }),
+        },
+        selectedCurrency: 'usd',
+        nativeAssetIdentifiers: {},
+      });
+      const second = formatExchangeRatesForBridge({
+        assetsInfo,
+        assetsPrice: {
+          'bip122:000000000019d6689c085ae165831e93/slip44:0': price({
+            price: 51000,
+          }),
+        },
+        selectedCurrency: 'usd',
+        nativeAssetIdentifiers: {},
+      });
+
+      expect(second).not.toBe(first);
+      expect(
+        second.conversionRates[
+          'bip122:000000000019d6689c085ae165831e93/slip44:0'
+        ].rate,
+      ).toBe('51000');
+    });
   });
 });

@@ -1,8 +1,9 @@
 import { spawn } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { closeSync, existsSync, openSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { pingDaemon } from './daemon-client';
+import { ensureOwnerOnlyDirectory } from './data-dir';
 import { getDaemonPaths } from './paths';
 import type { DaemonSpawnConfig } from './types';
 
@@ -38,73 +39,112 @@ export type EnsureDaemonResult = {
 export async function ensureDaemon(
   config: DaemonSpawnConfig,
 ): Promise<EnsureDaemonResult> {
-  const { socketPath } = getDaemonPaths(config.dataDir);
+  const { socketPath, logPath } = getDaemonPaths(config.dataDir);
 
   const initialPing = await pingDaemon(socketPath);
-  if (initialPing.status === 'responsive') {
-    return { state: 'already-running', socketPath };
-  }
-  if (initialPing.status === 'unreachable') {
-    if (initialPing.reason === 'permission') {
+  switch (initialPing.status) {
+    case 'responsive':
+      return { state: 'already-running', socketPath };
+    case 'unreachable':
+      if (initialPing.reason === 'permission') {
+        throw new Error(
+          `Refusing to start: the socket at ${socketPath} is owned by another user. ` +
+            `Choose a different data directory (MM_DAEMON_DATA_DIR) or remove the socket manually. ` +
+            `(${initialPing.error.message})`,
+        );
+      }
       throw new Error(
-        `Refusing to start: the socket at ${socketPath} is owned by another user. ` +
-          `Choose a different data directory (MM_DAEMON_DATA_DIR) or remove the socket manually. ` +
+        `Refusing to start: a daemon socket already exists at ${socketPath} but is unresponsive. ` +
+          `Run \`mm daemon stop\` (or \`mm daemon purge\`) before starting a new daemon. ` +
           `(${initialPing.error.message})`,
       );
+    case 'absent':
+      break;
+    /* istanbul ignore next -- exhaustiveness guard; unreachable for the current PingResult union */
+    default: {
+      const exhaustiveCheck: never = initialPing;
+      throw new Error(
+        `Unexpected daemon ping status: ${String(exhaustiveCheck)}`,
+      );
     }
-    throw new Error(
-      `Refusing to start: a daemon socket already exists at ${socketPath} but is unresponsive. ` +
-        `Run \`mm daemon stop\` (or \`mm daemon purge\`) before starting a new daemon. ` +
-        `(${initialPing.error.message})`,
-    );
   }
 
   process.stderr.write('Starting daemon...\n');
 
   const { entryPath, args } = resolveEntryPoint(config.packageRoot);
 
+  // Create the data directory before opening the log file inside it. The daemon
+  // entry also does this, but only after spawn — opening the log first would
+  // ENOENT on a fresh data directory.
+  await ensureOwnerOnlyDirectory(config.dataDir);
+
+  // Redirect the detached daemon's stderr to its log file rather than
+  // discarding it, so a crash after startup stays diagnosable. stdout stays
+  // ignored — structured status goes through the file logger.
+  const logFileDescriptor = openSync(logPath, 'a');
+
+  const childEnv: NodeJS.ProcessEnv = {
+    ...process.env,
+    MM_DAEMON_DATA_DIR: config.dataDir,
+    MM_DAEMON_SOCKET_PATH: socketPath,
+    INFURA_PROJECT_ID: config.infuraProjectId,
+    MM_WALLET_SRP: config.srp.unwrap(),
+  };
+  // `childEnv` spreads `process.env`, so an inherited `MM_WALLET_PASSWORD`
+  // would otherwise leak into the child and unlock a daemon the caller meant
+  // to start locked. When no password was supplied, delete the inherited key
+  // so the daemon comes up locked; otherwise overwrite it with the supplied
+  // value.
+  if (config.password === undefined) {
+    delete childEnv.MM_WALLET_PASSWORD;
+  } else {
+    childEnv.MM_WALLET_PASSWORD = config.password.unwrap();
+  }
+
   const child = spawn(process.execPath, [...args, entryPath], {
     detached: true,
-    stdio: 'ignore',
-    env: {
-      ...process.env,
-      MM_DAEMON_DATA_DIR: config.dataDir,
-      MM_DAEMON_SOCKET_PATH: socketPath,
-      INFURA_PROJECT_ID: config.infuraProjectId,
-      MM_WALLET_PASSWORD: config.password,
-      MM_WALLET_SRP: config.srp,
-    },
+    stdio: ['ignore', 'ignore', logFileDescriptor],
+    env: childEnv,
   });
+  // The child dup'd the file descriptor into its stderr, so drop the parent's
+  // copy. Safe on the success path: `spawn` reports failures via the 'error'
+  // event, not a synchronous throw.
+  closeSync(logFileDescriptor);
 
-  type ExitInfo = { code: number | null; signal: NodeJS.Signals | null };
-  const exitInfo: { value: ExitInfo | null } = { value: null };
+  type StartupOutcome =
+    | { kind: 'pending' }
+    | { kind: 'error'; error: Error }
+    | { kind: 'exited'; code: number | null; signal: NodeJS.Signals | null };
+
   // A failed spawn (bad interpreter, EACCES, ENOENT) emits 'error' and may
-  // never emit 'exit'. Capture it so the readiness loop can surface the real
-  // cause immediately instead of hanging for the full timeout.
-  const spawnError: { value: Error | null } = { value: null };
+  // never emit 'exit', so 'error' is recorded first and not overwritten by a
+  // later 'exit' — the loop surfaces the real cause instead of hanging.
+  const outcome: { current: StartupOutcome } = { current: { kind: 'pending' } };
 
   child.on('error', (error: Error) => {
     process.stderr.write(`Failed to spawn daemon process: ${String(error)}\n`);
-    spawnError.value = error;
+    outcome.current = { kind: 'error', error };
   });
   child.on('exit', (code, signal) => {
-    exitInfo.value = { code, signal };
+    if (outcome.current.kind === 'pending') {
+      outcome.current = { kind: 'exited', code, signal };
+    }
   });
   child.unref();
 
   for (let i = 0; i < MAX_POLLS; i++) {
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
-    if (spawnError.value !== null) {
+    const settled = outcome.current;
+    if (settled.kind === 'error') {
       throw new Error(
-        `Failed to spawn daemon process: ${spawnError.value.message}. ` +
-          `Check the daemon log at ${getDaemonPaths(config.dataDir).logPath}.`,
+        `Failed to spawn daemon process: ${settled.error.message}. ` +
+          `Check the daemon log at ${logPath}.`,
       );
     }
-    if (exitInfo.value !== null) {
-      const { code, signal } = exitInfo.value;
+    if (settled.kind === 'exited') {
       throw new Error(
-        `Daemon process exited during startup (code=${String(code)}, signal=${String(signal)}). ` +
-          `Check the daemon log at ${getDaemonPaths(config.dataDir).logPath}.`,
+        `Daemon process exited during startup (code=${String(settled.code)}, signal=${String(settled.signal)}). ` +
+          `Check the daemon log at ${logPath}.`,
       );
     }
     const ping = await pingDaemon(socketPath);

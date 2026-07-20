@@ -1,6 +1,6 @@
 {
   "name": "@metamask/account-tree-controller",
-  "version": "7.5.3",
+  "version": "7.5.5",
   "description": "Controller to group account together based on some pre-defined rules",
   "keywords": [
     "Ethereum",
@@ -44,6 +44,8 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/account-tree-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/account-tree-controller",
+    "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
+    "lint:tsconfigs:fix": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
     "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --check",
     "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",
@@ -53,13 +55,13 @@
     "test:watch": "NODE_OPTIONS=--experimental-vm-modules jest --watch"
   },
   "dependencies": {
-    "@metamask/accounts-controller": "^39.0.3",
+    "@metamask/accounts-controller": "^39.0.5",
     "@metamask/base-controller": "^9.1.0",
-    "@metamask/keyring-api": "^23.3.0",
+    "@metamask/keyring-api": "^23.5.0",
     "@metamask/keyring-controller": "^27.1.0",
-    "@metamask/messenger": "^1.2.0",
-    "@metamask/multichain-account-service": "^11.1.0",
-    "@metamask/profile-sync-controller": "^28.2.0",
+    "@metamask/messenger": "^2.0.0",
+    "@metamask/multichain-account-service": "^13.0.0",
+    "@metamask/profile-sync-controller": "^28.3.0",
     "@metamask/snaps-controllers": "^19.0.0",
     "@metamask/snaps-sdk": "^11.0.0",
     "@metamask/snaps-utils": "^12.1.2",

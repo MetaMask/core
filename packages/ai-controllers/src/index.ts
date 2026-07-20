@@ -13,6 +13,7 @@ export {
 export type {
   AiDigestControllerFetchMarketInsightsAction,
   AiDigestControllerFetchMarketOverviewAction,
+  AiDigestControllerFetchFrontPageItemAction,
 } from './AiDigestController-method-action-types';
 
 export type { AiDigestServiceConfig } from './AiDigestService';
@@ -31,6 +32,8 @@ export type {
   MarketInsightsTweet,
   MarketOverview,
   MarketOverviewEntry,
+  MarketOverviewFrontPage,
+  MarketOverviewItem,
   MarketOverviewTrend,
   RelatedAsset,
   Source,

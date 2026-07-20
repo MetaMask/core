@@ -5,10 +5,11 @@ import type {
   DelegationSubmission,
   NotificationPreferences,
 } from '../../src/types';
+import { DEFAULT_PRICE_ALERT_PREFERENCES } from '../../src/validators';
 
 export const MOCK_DELEGATIONS_URL = `${getAuthenticatedStorageUrl('prod')}/delegations`;
 export const MOCK_NOTIFICATION_PREFERENCES_URL = `${getAuthenticatedStorageUrl('prod')}/preferences/notifications`;
-export const MOCK_ASSETS_WATCHLIST_URL = `${getAuthenticatedStorageUrl('prod')}/assets-watchlist`;
+export const MOCK_ASSETS_WATCHLIST_URL = `${getAuthenticatedStorageUrl('prod')}/preferences/assets-watchlist`;
 
 export const MOCK_DELEGATION_SUBMISSION: DelegationSubmission = {
   signedDelegation: {
@@ -72,14 +73,7 @@ export const MOCK_NOTIFICATION_PREFERENCES: NotificationPreferences = {
     inAppNotificationsEnabled: true,
     pushNotificationsEnabled: false,
   },
-};
-
-/** Legacy notification preferences blob without `agenticCli`. */
-export const MOCK_LEGACY_NOTIFICATION_PREFERENCES: NotificationPreferences = {
-  walletActivity: MOCK_NOTIFICATION_PREFERENCES.walletActivity,
-  marketing: MOCK_NOTIFICATION_PREFERENCES.marketing,
-  perps: MOCK_NOTIFICATION_PREFERENCES.perps,
-  socialAI: MOCK_NOTIFICATION_PREFERENCES.socialAI,
+  priceAlerts: { ...DEFAULT_PRICE_ALERT_PREFERENCES },
 };
 
 export const MOCK_ASSETS_WATCHLIST_BLOB: AssetsWatchlistBlob = {

@@ -9,6 +9,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** `AccountActivityService` now determines which non-EVM chains to subscribe to from remote feature flags instead of a bundled list ([#9379](https://github.com/MetaMask/core/pull/9379))
+  - The `AccountActivityServiceMessenger` now requires the following delegate actions and events:
+    - `RemoteFeatureFlagController:getState` action and `RemoteFeatureFlagController:stateChange` event
+    - `AccountTreeController:getAccountsFromSelectedAccountGroup` action and `AccountTreeController:selectedAccountGroupChange` event
+  - EVM (`eip155`) subscriptions are always enabled. Solana, Tron, and Stellar subscriptions are enabled when the corresponding `networkAssetsSnapsMigrationSolana` / `networkAssetsSnapsMigrationTron` / `networkAssetsSnapsMigrationStellar` feature flag has `stage >= 1`, and disabled otherwise.
+  - Accounts whose scopes do not match an enabled chain are no longer subscribed at all.
+  - When the enabled chains change via a feature flag update while the websocket is connected, the service automatically resubscribes the selected account.
+- Add `@metamask/remote-feature-flag-controller` `^4.2.2` as a dependency ([#9379](https://github.com/MetaMask/core/pull/9379))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Bump `@metamask/profile-sync-controller` from `^28.2.0` to `^28.3.0` ([#9463](https://github.com/MetaMask/core/pull/9463))
+
+### Removed
+
+- **BREAKING:** `AccountActivityService.subscribe` and `AccountActivityService.unsubscribe` methods have been removed ([#9531](https://github.com/MetaMask/core/pull/9531))
+
+### Fixed
+
+- `AccountActivityService` subscribes to all supported scopes for a given account ([#9379](https://github.com/MetaMask/core/pull/9379))
+
+## [6.5.0]
+
+### Added
+
+- Add `AccountsApiClient` support for the Accounts API `/v6/multiaccount/balances` endpoint via `fetchV6MultiAccountBalances` / `getV6MultiAccountBalancesQueryOptions`, returning token balances plus optional DeFi positions and spot prices (new types `V6BalancesResponse`, `V6AccountBalancesEntry`, `V6BalanceItem`, `V6BalanceMetadata`, `V6TokenMetadata`, `V6VsCurrency`) ([#9302](https://github.com/MetaMask/core/pull/9302))
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.3` to `^39.0.4` ([#9349](https://github.com/MetaMask/core/pull/9349))
+
+## [6.4.0]
+
+### Changed
+
 - Bump `@metamask/utils` from `^11.9.0` to `^11.11.0` ([#9074](https://github.com/MetaMask/core/pull/9074))
 - Bump `@metamask/controller-utils` from `^12.1.1` to `^12.3.0` ([#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
 - Bump `@metamask/profile-sync-controller` from `^28.1.1` to `^28.2.0` ([#9119](https://github.com/MetaMask/core/pull/9119))
@@ -318,7 +351,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Type definitions** - Comprehensive TypeScript types for transactions, balances, WebSocket messages, and service configurations
 - **Logging infrastructure** - Structured logging with module-specific loggers for debugging and monitoring
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.3...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.5.0...HEAD
+[6.5.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.4.0...@metamask/core-backend@6.5.0
+[6.4.0]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.3...@metamask/core-backend@6.4.0
 [6.3.3]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.2...@metamask/core-backend@6.3.3
 [6.3.2]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.1...@metamask/core-backend@6.3.2
 [6.3.1]: https://github.com/MetaMask/core/compare/@metamask/core-backend@6.3.0...@metamask/core-backend@6.3.1

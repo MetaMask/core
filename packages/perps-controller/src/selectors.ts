@@ -1,6 +1,13 @@
 import { createSelector } from 'reselect';
 
-import { MARKET_SORTING_CONFIG, SortOptionId } from './constants/perpsConfig';
+import {
+  MARKET_SORTING_CONFIG,
+  PERPS_CONSTANTS,
+  SortOptionId,
+  DEFAULT_PRO_LAYOUT_PREFERENCES,
+  DEFAULT_PERPS_MODE,
+} from './constants/perpsConfig';
+import type { PerpsMode, ProLayoutPreferences } from './constants/perpsConfig';
 import type { PerpsControllerState } from './PerpsController';
 import type { PerpsSelectedPaymentToken, SortDirection } from './types';
 
@@ -62,6 +69,29 @@ export const selectIsWatchlistMarket = (
 ): boolean => {
   const watchlist = selectWatchlistMarkets(state);
   return watchlist.includes(symbol);
+};
+
+/**
+ * Select recently viewed markets for the current network.
+ *
+ * Returns up to PERPS_CONSTANTS.RecentlyViewedMarketsLimit symbols, ordered
+ * newest-first, filtered to entries within PERPS_CONSTANTS.RecentlyViewedMarketsTtlMs
+ * (24 hours). Returns an empty array when no qualifying entries exist.
+ *
+ * @param state - PerpsController state
+ * @returns Ordered array of recently viewed market symbols
+ */
+export const selectRecentlyViewedMarkets = (
+  state: PerpsControllerState,
+): string[] => {
+  const network = state?.isTestnet ? 'testnet' : 'mainnet';
+  const entries = state?.recentlyViewedMarkets?.[network] ?? [];
+  const cutoff = Date.now() - PERPS_CONSTANTS.RecentlyViewedMarketsTtlMs;
+
+  return entries
+    .filter((entry) => entry.viewedAt > cutoff)
+    .map((entry) => entry.symbol)
+    .slice(0, PERPS_CONSTANTS.RecentlyViewedMarketsLimit);
 };
 
 /**
@@ -200,6 +230,33 @@ export const selectMarketFilterPreferences = (
     }
   );
 };
+
+/**
+ * Select pro-mode layout preferences (network-independent).
+ *
+ * Merges over defaults so callers always receive a fully-populated object,
+ * even when the state slice (or a nested field) is missing.
+ *
+ * @param state - PerpsController state
+ * @returns The pro-mode layout preferences object
+ */
+export const selectProLayoutPreferences = (
+  state: PerpsControllerState,
+): ProLayoutPreferences => ({
+  ...DEFAULT_PRO_LAYOUT_PREFERENCES,
+  ...state?.proLayoutPreferences,
+});
+
+/**
+ * Select the current Perps interface mode (lite/pro).
+ *
+ * Falls back to the default mode when the state slice is missing.
+ *
+ * @param state - PerpsController state
+ * @returns The current Perps mode
+ */
+export const selectPerpsMode = (state: PerpsControllerState): PerpsMode =>
+  state?.mode ?? DEFAULT_PERPS_MODE;
 
 /**
  * Select order book grouping for a specific market on the current network.

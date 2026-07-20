@@ -574,6 +574,68 @@ describe('PerpsController', () => {
     mockInfrastructure.logger.error.mockClear();
     mockInfrastructure.debugLogger.log.mockClear();
   });
+  describe('attribution context (TAT-3463)', () => {
+    it('returns an empty context by default', () => {
+      expect(controller.getAttributionContext()).toStrictEqual({});
+    });
+
+    it('stores and returns the UTM attribution context', () => {
+      controller.setAttributionContext({
+        utmSource: 'newsletter',
+        utmMedium: 'email',
+        utmCampaign: 'launch',
+      });
+
+      expect(controller.getAttributionContext()).toStrictEqual({
+        utmSource: 'newsletter',
+        utmMedium: 'email',
+        utmCampaign: 'launch',
+      });
+    });
+
+    it('clears the stored attribution context', () => {
+      controller.setAttributionContext({ utmSource: 'newsletter' });
+      controller.clearAttributionContext();
+
+      expect(controller.getAttributionContext()).toStrictEqual({});
+    });
+
+    it('merges defined UTM keys into event properties using canonical keys', () => {
+      controller.setAttributionContext({
+        utmSource: 'newsletter',
+        utmMedium: 'email',
+        utmCampaign: 'launch',
+        utmContent: 'cta',
+        utmTerm: 'perps',
+      });
+
+      expect(
+        controller.mergeAttributionContext({ asset: 'BTC' }),
+      ).toStrictEqual({
+        [PERPS_EVENT_PROPERTY.UTM_SOURCE]: 'newsletter',
+        [PERPS_EVENT_PROPERTY.UTM_MEDIUM]: 'email',
+        [PERPS_EVENT_PROPERTY.UTM_CAMPAIGN]: 'launch',
+        [PERPS_EVENT_PROPERTY.UTM_CONTENT]: 'cta',
+        [PERPS_EVENT_PROPERTY.UTM_TERM]: 'perps',
+        asset: 'BTC',
+      });
+    });
+
+    it('lets provided properties win over attribution context and omits undefined UTM keys', () => {
+      controller.setAttributionContext({ utmSource: 'newsletter' });
+
+      expect(
+        controller.mergeAttributionContext({
+          [PERPS_EVENT_PROPERTY.UTM_SOURCE]: 'override',
+        }),
+      ).toStrictEqual({ [PERPS_EVENT_PROPERTY.UTM_SOURCE]: 'override' });
+    });
+
+    it('returns only base properties when no context is set', () => {
+      expect(controller.mergeAttributionContext()).toStrictEqual({});
+    });
+  });
+
   describe('state management', () => {
     it('returns positions without updating state', async () => {
       const mockPositions = [
@@ -981,6 +1043,97 @@ describe('PerpsController', () => {
     });
   });
 
+  describe('recently viewed markets', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('returns empty array by default', () => {
+      expect(controller.getRecentlyViewedMarkets()).toStrictEqual([]);
+    });
+
+    it('records a viewed market and returns it', () => {
+      controller.recordMarketViewed('BTC');
+
+      expect(controller.getRecentlyViewedMarkets()).toStrictEqual(['BTC']);
+    });
+
+    it('prepends new entries (newest first)', () => {
+      controller.recordMarketViewed('BTC');
+      jest.advanceTimersByTime(1000);
+      controller.recordMarketViewed('ETH');
+
+      expect(controller.getRecentlyViewedMarkets()).toStrictEqual([
+        'ETH',
+        'BTC',
+      ]);
+    });
+
+    it('deduplicates: moves existing symbol to front', () => {
+      controller.recordMarketViewed('BTC');
+      jest.advanceTimersByTime(1000);
+      controller.recordMarketViewed('ETH');
+      jest.advanceTimersByTime(1000);
+      controller.recordMarketViewed('BTC');
+
+      const result = controller.getRecentlyViewedMarkets();
+      expect(result[0]).toBe('BTC');
+      expect(result.filter((s) => s === 'BTC')).toHaveLength(1);
+    });
+
+    it('caps at 10 entries', () => {
+      for (let i = 0; i < 15; i++) {
+        controller.recordMarketViewed(`COIN${i}`);
+        jest.advanceTimersByTime(100);
+      }
+
+      expect(controller.getRecentlyViewedMarkets()).toHaveLength(10);
+    });
+
+    it('filters out entries older than 24 hours', () => {
+      controller.recordMarketViewed('BTC');
+      // Advance past the 24h TTL
+      jest.advanceTimersByTime(25 * 60 * 60 * 1000);
+      controller.recordMarketViewed('ETH');
+
+      const result = controller.getRecentlyViewedMarkets();
+      expect(result).toContain('ETH');
+      expect(result).not.toContain('BTC');
+    });
+
+    it('returns empty array when all entries are expired', () => {
+      controller.recordMarketViewed('BTC');
+      jest.advanceTimersByTime(25 * 60 * 60 * 1000);
+
+      expect(controller.getRecentlyViewedMarkets()).toStrictEqual([]);
+    });
+
+    it('tracks per network — mainnet and testnet are independent', () => {
+      controller.testUpdate((state) => {
+        state.isTestnet = false;
+      });
+      controller.recordMarketViewed('BTC');
+
+      controller.testUpdate((state) => {
+        state.isTestnet = true;
+      });
+      expect(controller.getRecentlyViewedMarkets()).toStrictEqual([]);
+
+      controller.recordMarketViewed('SOL');
+      expect(controller.getRecentlyViewedMarkets()).toContain('SOL');
+
+      controller.testUpdate((state) => {
+        state.isTestnet = false;
+      });
+      expect(controller.getRecentlyViewedMarkets()).toContain('BTC');
+      expect(controller.getRecentlyViewedMarkets()).not.toContain('SOL');
+    });
+  });
+
   describe('AUS watchlist sync', () => {
     /**
      * Minimal valid NotificationPreferences blob used across these tests.
@@ -1005,6 +1158,14 @@ describe('PerpsController', () => {
         inAppNotificationsEnabled: false,
         pushNotificationsEnabled: false,
         mutedTraderProfileIds: [],
+      },
+      agenticCli: {
+        inAppNotificationsEnabled: true,
+        pushNotificationsEnabled: true,
+      },
+      priceAlerts: {
+        inAppNotificationsEnabled: true,
+        pushNotificationsEnabled: true,
       },
     };
 

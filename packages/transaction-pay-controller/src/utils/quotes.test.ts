@@ -70,7 +70,7 @@ const QUOTE_MOCK = {
     usd: '1.23',
     fiat: '2.34',
   },
-  strategy: TransactionPayStrategy.Test,
+  strategy: TransactionPayStrategy.Across,
 } as TransactionPayQuote<Json>;
 
 const TOTALS_MOCK = {
@@ -149,7 +149,7 @@ describe('Quotes Utils', () => {
       ],
     });
 
-    getStrategiesMock.mockReturnValue([TransactionPayStrategy.Test]);
+    getStrategiesMock.mockReturnValue([TransactionPayStrategy.Across]);
 
     getStrategyByNameMock.mockReturnValue({
       execute: jest.fn(),
@@ -212,10 +212,73 @@ describe('Quotes Utils', () => {
       });
     });
 
-    it('clears quotes in state if no source amounts', async () => {
+    it('stores no-op quote in state if no source amounts and payment token selected', async () => {
       await run({
         transactionData: {
           ...TRANSACTION_DATA_MOCK,
+          sourceAmounts: undefined,
+        },
+      });
+
+      const transactionDataMock = {
+        quotes: [QUOTE_MOCK],
+      };
+
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
+
+      expect(transactionDataMock).toMatchObject({
+        quotes: [
+          expect.objectContaining({
+            strategy: TransactionPayStrategy.None,
+          }),
+        ],
+      });
+    });
+
+    it('excludes no-op quote from totals', async () => {
+      await run({
+        transactionData: {
+          ...TRANSACTION_DATA_MOCK,
+          sourceAmounts: undefined,
+        },
+      });
+
+      expect(calculateTotalsMock).toHaveBeenCalledWith(
+        expect.objectContaining({ quotes: [] }),
+      );
+    });
+
+    it('does not store no-op quote if quote always required', async () => {
+      await run({
+        transactionData: {
+          ...TRANSACTION_DATA_MOCK,
+          isQuoteRequired: true,
+          sourceAmounts: undefined,
+        },
+      });
+
+      const transactionDataMock = {
+        quotes: [QUOTE_MOCK],
+      };
+
+      updateTransactionDataMock.mock.calls.map((call) =>
+        call[1](transactionDataMock),
+      );
+
+      expect(transactionDataMock).toMatchObject({
+        quotes: [],
+      });
+    });
+
+    it('clears quotes in state if no source amounts and fiat payment selected without quotes', async () => {
+      getQuotesMock.mockResolvedValue([]);
+
+      await run({
+        transactionData: {
+          ...TRANSACTION_DATA_MOCK,
+          fiatPayment: { selectedPaymentMethodId: 'card-123' },
           sourceAmounts: undefined,
         },
       });
@@ -272,11 +335,11 @@ describe('Quotes Utils', () => {
       };
 
       getStrategiesMock.mockReturnValue([
-        TransactionPayStrategy.Bridge,
+        TransactionPayStrategy.Across,
         TransactionPayStrategy.Relay,
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
-        if (name === TransactionPayStrategy.Bridge) {
+        if (name === TransactionPayStrategy.Across) {
           return firstStrategy as never;
         }
 
@@ -311,11 +374,11 @@ describe('Quotes Utils', () => {
       };
 
       getStrategiesMock.mockReturnValue([
-        TransactionPayStrategy.Bridge,
+        TransactionPayStrategy.Across,
         TransactionPayStrategy.Relay,
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
-        if (name === TransactionPayStrategy.Bridge) {
+        if (name === TransactionPayStrategy.Across) {
           return firstStrategy as never;
         }
 
@@ -348,11 +411,11 @@ describe('Quotes Utils', () => {
       };
 
       getStrategiesMock.mockReturnValue([
-        TransactionPayStrategy.Bridge,
+        TransactionPayStrategy.Across,
         TransactionPayStrategy.Relay,
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
-        if (name === TransactionPayStrategy.Bridge) {
+        if (name === TransactionPayStrategy.Across) {
           return unsupportedStrategy as never;
         }
 
@@ -384,11 +447,11 @@ describe('Quotes Utils', () => {
       };
 
       getStrategiesMock.mockReturnValue([
-        TransactionPayStrategy.Bridge,
+        TransactionPayStrategy.Across,
         TransactionPayStrategy.Relay,
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
-        if (name === TransactionPayStrategy.Bridge) {
+        if (name === TransactionPayStrategy.Across) {
           return unsupportedStrategy as never;
         }
 
@@ -423,11 +486,11 @@ describe('Quotes Utils', () => {
       };
 
       getStrategiesMock.mockReturnValue([
-        TransactionPayStrategy.Bridge,
+        TransactionPayStrategy.Across,
         TransactionPayStrategy.Relay,
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
-        if (name === TransactionPayStrategy.Bridge) {
+        if (name === TransactionPayStrategy.Across) {
           return unsupportedStrategy as never;
         }
 
@@ -468,11 +531,11 @@ describe('Quotes Utils', () => {
       };
 
       getStrategiesMock.mockReturnValue([
-        TransactionPayStrategy.Bridge,
+        TransactionPayStrategy.Across,
         TransactionPayStrategy.Relay,
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
-        if (name === TransactionPayStrategy.Bridge) {
+        if (name === TransactionPayStrategy.Across) {
           return brokenStrategy as never;
         }
 
@@ -504,11 +567,11 @@ describe('Quotes Utils', () => {
       };
 
       getStrategiesMock.mockReturnValue([
-        TransactionPayStrategy.Bridge,
+        TransactionPayStrategy.Across,
         TransactionPayStrategy.Relay,
       ]);
       getStrategyByNameMock.mockImplementation((name) => {
-        if (name === TransactionPayStrategy.Bridge) {
+        if (name === TransactionPayStrategy.Across) {
           return emptyStrategy as never;
         }
 
@@ -558,7 +621,7 @@ describe('Quotes Utils', () => {
         execute: jest.fn(),
       };
 
-      getStrategiesMock.mockReturnValue([TransactionPayStrategy.Bridge]);
+      getStrategiesMock.mockReturnValue([TransactionPayStrategy.Across]);
       getStrategyByNameMock.mockReturnValue(strategy as never);
 
       await run();
@@ -655,7 +718,7 @@ describe('Quotes Utils', () => {
       await run();
 
       expect(getStrategiesByNameMock).toHaveBeenCalledWith(
-        [TransactionPayStrategy.Test],
+        [TransactionPayStrategy.Across],
         expect.any(Function),
       );
     });
@@ -1219,7 +1282,11 @@ describe('Quotes Utils', () => {
       );
 
       expect(transactionDataMock).toMatchObject({
-        quotes: [],
+        quotes: [
+          expect.objectContaining({
+            strategy: TransactionPayStrategy.None,
+          }),
+        ],
       });
     });
 
@@ -1248,8 +1315,33 @@ describe('Quotes Utils', () => {
       );
 
       expect(transactionDataMock).toMatchObject({
-        quotes: [],
+        quotes: [
+          expect.objectContaining({
+            strategy: TransactionPayStrategy.None,
+          }),
+        ],
       });
+    });
+
+    it('does nothing if transaction only has a no-op quote', async () => {
+      getControllerStateMock.mockReturnValue({
+        transactionData: {
+          [TRANSACTION_ID_MOCK]: {
+            isLoading: false,
+            paymentToken: TRANSACTION_DATA_MOCK.paymentToken,
+            quotes: [{ ...QUOTE_MOCK, strategy: TransactionPayStrategy.None }],
+            quotesLastUpdated: 1,
+          } as TransactionData,
+        },
+      });
+
+      await refreshQuotes(
+        messenger,
+        updateTransactionDataMock,
+        getStrategiesMock,
+      );
+
+      expect(updateTransactionDataMock).toHaveBeenCalledTimes(0);
     });
 
     it('does nothing if transaction loading', async () => {
