@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `AggregatedOrderBookConnection` service (with the `processAggregatedOrderBook` helper and the `OrderBookConnectionStatus`, `SubscribeAggregatedOrderBookParams`, and `AggregatedOrderBookConnectionOptions` types) for managing a dedicated, reference-counted aggregated order book subscription ([#9549](https://github.com/MetaMask/core/pull/9549))
+
 ### Changed
 
 - Bump `@metamask/account-tree-controller` from `^7.5.3` to `7.5.4` ([#9429](https://github.com/MetaMask/core/pull/9429))
