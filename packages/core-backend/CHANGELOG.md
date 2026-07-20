@@ -9,12 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Export `V6_DEFI_POSITION_TYPES` and inferred `V6DeFiPositionType`, and type `V6BalanceMetadata.positionType` with the Accounts API v6 DeFi position module values (`deposit`, `lending`, `yield`, `liquidity_pool`, `staked`, `leveraged_farming`, `nft_staked`, `farming`, `locked`, `vesting`, `rewards`, `investment`) ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
-- Add `groupId` to `V6BalanceMetadata` to match Accounts API v6 DeFi metadata ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- Export `V6_DEFI_POSITION_TYPES` and inferred `V6DeFiPositionType`, and type `V6BalanceMetadata.positionType` with the Accounts API v6 DeFi position module values (`deposit`, `lending`, `yield`, `liquidity_pool`, `staked`, `leveraged_farming`, `nft_staked`, `farming`, `locked`, `vesting`, `rewards`, `investment`) ([#9557](https://github.com/MetaMask/core/pull/9557))
+- Add `groupId` to `V6BalanceMetadata` to match Accounts API v6 DeFi metadata ([#9557](https://github.com/MetaMask/core/pull/9557))
 
 ### Changed
 
-- **BREAKING:** Rename `V6BalanceMetadata.protocolName` to `productName` to match the Accounts API v6 DeFi metadata field ([#XXXX](https://github.com/MetaMask/core/pull/XXXX))
+- **BREAKING:** Rename `V6BalanceMetadata.protocolName` to `productName` to match the Accounts API v6 DeFi metadata field ([#9557](https://github.com/MetaMask/core/pull/9557))
 - **BREAKING:** `AccountActivityService` now determines which non-EVM chains to subscribe to from remote feature flags instead of a bundled list ([#9379](https://github.com/MetaMask/core/pull/9379))
   - The `AccountActivityServiceMessenger` now requires the following delegate actions and events:
     - `RemoteFeatureFlagController:getState` action and `RemoteFeatureFlagController:stateChange` event
