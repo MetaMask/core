@@ -27,29 +27,7 @@ export type MoneyAccountUpgradeControllerUpgradeAccountAction = {
 };
 
 /**
- * Runs the upgrade sequence via
- * {@link MoneyAccountUpgradeController.upgradeAccount}, retrying failed
- * attempts with capped exponential backoff (10s, 20s, 40s, then 60s
- * between attempts). Rethrows the last error without further attempts when
- * the failure is terminal (see `isTerminalMoneyAccountUpgradeError`), when
- * it is not a step failure at all, or when `maxAttempts` is exhausted.
- *
- * @param address - The Money Account address to upgrade.
- * @param options - Retry options.
- * @param options.signal - Aborts waiting between attempts and prevents
- * further attempts. An aborted run rejects with an error stating the retry
- * was aborted.
- * @param options.maxAttempts - Maximum number of attempts, including the
- * first. Must be an integer of at least 1. Defaults to 5.
- */
-export type MoneyAccountUpgradeControllerUpgradeAccountWithRetryAction = {
-  type: `MoneyAccountUpgradeController:upgradeAccountWithRetry`;
-  handler: MoneyAccountUpgradeController['upgradeAccountWithRetry'];
-};
-
-/**
  * Union of all MoneyAccountUpgradeController action types.
  */
 export type MoneyAccountUpgradeControllerMethodActions =
-  | MoneyAccountUpgradeControllerUpgradeAccountAction
-  | MoneyAccountUpgradeControllerUpgradeAccountWithRetryAction;
+  MoneyAccountUpgradeControllerUpgradeAccountAction;

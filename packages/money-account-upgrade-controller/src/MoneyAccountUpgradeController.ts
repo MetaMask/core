@@ -31,11 +31,7 @@ import type {
 import { hexToNumber } from '@metamask/utils';
 import type { Hex } from '@metamask/utils';
 
-import {
-  MoneyAccountUpgradeStepError,
-  isMoneyAccountUpgradeStepError,
-  isTerminalMoneyAccountUpgradeError,
-} from './errors';
+import { MoneyAccountUpgradeStepError } from './errors';
 import type { MoneyAccountUpgradeControllerMethodActions } from './MoneyAccountUpgradeController-method-action-types';
 import { associateAddressStep } from './steps/associate-address';
 import { buildDelegationStep } from './steps/build-delegations';
@@ -51,17 +47,6 @@ import type { UpgradeConfig } from './types';
 const DELEGATION_FRAMEWORK_VERSION = '1.3.0';
 
 export const controllerName = 'MoneyAccountUpgradeController';
-
-/**
- * Delays between retry attempts in
- * {@link MoneyAccountUpgradeController.upgradeAccountWithRetry}. Once the
- * schedule is exhausted the last delay repeats.
- */
-const RETRY_DELAYS_MS = [10_000, 20_000, 40_000, 60_000];
-
-const DEFAULT_MAX_RETRY_ATTEMPTS = 5;
-
-const RETRY_ABORTED_MESSAGE = 'Money Account upgrade retry aborted';
 
 /**
  * Record of a Money Account upgrade sequence that ran to completion.
@@ -109,10 +94,7 @@ export function getDefaultMoneyAccountUpgradeControllerState(): MoneyAccountUpgr
   };
 }
 
-const MESSENGER_EXPOSED_METHODS = [
-  'upgradeAccount',
-  'upgradeAccountWithRetry',
-] as const;
+const MESSENGER_EXPOSED_METHODS = ['upgradeAccount'] as const;
 
 export type MoneyAccountUpgradeControllerGetStateAction =
   ControllerGetStateAction<
@@ -319,54 +301,6 @@ export class MoneyAccountUpgradeController extends BaseController<
       };
     });
   }
-
-  /**
-   * Runs the upgrade sequence via
-   * {@link MoneyAccountUpgradeController.upgradeAccount}, retrying failed
-   * attempts with capped exponential backoff (10s, 20s, 40s, then 60s
-   * between attempts). Rethrows the last error without further attempts when
-   * the failure is terminal (see `isTerminalMoneyAccountUpgradeError`), when
-   * it is not a step failure at all, or when `maxAttempts` is exhausted.
-   *
-   * @param address - The Money Account address to upgrade.
-   * @param options - Retry options.
-   * @param options.signal - Aborts waiting between attempts and prevents
-   * further attempts. An aborted run rejects with an error stating the retry
-   * was aborted.
-   * @param options.maxAttempts - Maximum number of attempts, including the
-   * first. Must be an integer of at least 1. Defaults to 5.
-   */
-  async upgradeAccountWithRetry(
-    address: Hex,
-    {
-      signal,
-      maxAttempts = DEFAULT_MAX_RETRY_ATTEMPTS,
-    }: { signal?: AbortSignal; maxAttempts?: number } = {},
-  ): Promise<void> {
-    if (!Number.isInteger(maxAttempts) || maxAttempts < 1) {
-      throw new Error(
-        `maxAttempts must be an integer >= 1, got ${maxAttempts}`,
-      );
-    }
-    for (let attempt = 1; ; attempt++) {
-      if (signal?.aborted) {
-        throw new Error(RETRY_ABORTED_MESSAGE);
-      }
-      try {
-        await this.upgradeAccount(address);
-        return;
-      } catch (error) {
-        if (
-          attempt >= maxAttempts ||
-          !isMoneyAccountUpgradeStepError(error) ||
-          isTerminalMoneyAccountUpgradeError(error)
-        ) {
-          throw error;
-        }
-        await waitUnlessAborted(retryDelayMs(attempt), signal);
-      }
-    }
-  }
 }
 
 /**
@@ -394,47 +328,4 @@ function computeConfigFingerprint(
   ]
     .map((value) => value.toLowerCase())
     .join('|');
-}
-
-/**
- * The backoff delay to wait after the given (1-indexed) failed attempt. Once
- * the schedule is exhausted, the last delay repeats.
- *
- * @param attempt - The attempt that just failed.
- * @returns The delay in milliseconds.
- */
-function retryDelayMs(attempt: number): number {
-  return RETRY_DELAYS_MS[Math.min(attempt, RETRY_DELAYS_MS.length) - 1];
-}
-
-/**
- * Waits for the given duration, rejecting early if `signal` aborts. Rejects
- * immediately when the signal is already aborted on entry (e.g. the abort
- * landed while an upgrade attempt was in flight).
- *
- * @param durationMs - How long to wait.
- * @param signal - Abort signal that cancels the wait.
- * @returns A promise that resolves after the wait, or rejects on abort.
- */
-async function waitUnlessAborted(
-  durationMs: number,
-  signal?: AbortSignal,
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    if (signal?.aborted) {
-      reject(new Error(RETRY_ABORTED_MESSAGE));
-      return;
-    }
-
-    const timer = setTimeout(() => {
-      signal?.removeEventListener('abort', onAbort);
-      resolve();
-    }, durationMs);
-
-    function onAbort(): void {
-      clearTimeout(timer);
-      reject(new Error(RETRY_ABORTED_MESSAGE));
-    }
-    signal?.addEventListener('abort', onAbort, { once: true });
-  });
 }

@@ -18,7 +18,4 @@ export type {
   MoneyAccountUpgradeControllerMessenger,
   MoneyAccountUpgradeStatus,
 } from './MoneyAccountUpgradeController';
-export type {
-  MoneyAccountUpgradeControllerUpgradeAccountAction,
-  MoneyAccountUpgradeControllerUpgradeAccountWithRetryAction,
-} from './MoneyAccountUpgradeController-method-action-types';
+export type { MoneyAccountUpgradeControllerUpgradeAccountAction } from './MoneyAccountUpgradeController-method-action-types';

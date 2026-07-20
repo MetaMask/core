@@ -12,9 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** Add persisted state tracking fully upgraded accounts ([#9500](https://github.com/MetaMask/core/pull/9500))
   - `MoneyAccountUpgradeControllerState` changes from `Record<string, never>` to `{ upgradedAccounts }`, keyed by lowercased account address. Each entry records when the upgrade sequence completed and a fingerprint of the config it completed under (see new `MoneyAccountUpgradeStatus` type). Code constructing the state type (e.g. `{}` in tests or default-state maps) must include `upgradedAccounts`.
   - The constructor now accepts an optional `state` option, merged with the defaults; add `getDefaultMoneyAccountUpgradeControllerState` to construct those defaults.
-- Add `upgradeAccountWithRetry` method and matching `MoneyAccountUpgradeController:upgradeAccountWithRetry` messenger action ([#9500](https://github.com/MetaMask/core/pull/9500))
-  - Retries failed `upgradeAccount` attempts with capped exponential backoff (10s, 20s, 40s, then 60s between attempts; 5 attempts by default). Terminal failures and non-step errors are rethrown without retrying. Accepts an `AbortSignal` that stops the retry loop: an abort during the backoff wait cancels it immediately, and an abort while an attempt is in flight prevents any wait or further attempts once that attempt settles. Throws if `maxAttempts` is not an integer of at least 1.
 - Add `TerminalUpgradeError` and `isTerminalMoneyAccountUpgradeError`, and a `terminal` property on `MoneyAccountUpgradeStepError`, marking failures that cannot resolve by retrying — currently an account delegated to a third-party EIP-7702 implementation, an account with unexpected on-chain code, or an address confirmed to be associated with a different CHOMP profile ([#9500](https://github.com/MetaMask/core/pull/9500))
+  - The controller does not retry on its own; clients implementing their own retry logic around `upgradeAccount` can use `isTerminalMoneyAccountUpgradeError` to stop retrying failures that cannot succeed.
 
 ### Changed
 
