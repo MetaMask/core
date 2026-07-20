@@ -232,11 +232,7 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
    * @param options.trackMetaMetricsEvent - Sets options for MetaMetrics event tracking.
    * @param options.useTokenDetection - Feature Switch for using token detection (default: true)
    * @param options.useExternalServices - Feature Switch for using external services (default: false)
-   * @param options.isDeprecated - Optional function that returns true to completely
-   * disable this controller (no requests, no token detection). The function is
-   * evaluated dynamically on each entry point so it can be toggled at runtime.
-   * Intended for use when a higher-level controller (e.g. AssetsController)
-   * supersedes this one.
+   * @param options.isDeprecated - Optional callback that disables token detection when it returns true.
    */
   constructor({
     interval = DEFAULT_INTERVAL,
@@ -308,13 +304,6 @@ export class TokenDetectionController extends StaticIntervalPollingController<To
     this.#registerEventListeners();
   }
 
-  /**
-   * Stops polling and blocks network activity so no token detection runs.
-   *
-   * Called from every entry point when `isDeprecated()` is true so that a
-   * runtime toggle propagates immediately, even if the controller was
-   * originally constructed while it was enabled.
-   */
   #enforceDisabledState(): void {
     this.#stopPolling();
     this.#disabled = true;
