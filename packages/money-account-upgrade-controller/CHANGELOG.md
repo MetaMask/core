@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- Ensure refs in tsconfig files are synced with internal deps ([#8384](https://github.com/MetaMask/core/pull/8384))
-
 ### Changed
 
 - **BREAKING:** The `associate-address` upgrade step now checks the profile's existing address associations via `ChompApiService:getAssociatedAddresses` before signing, and reports `already-done` without signing or submitting anything when the address is already associated ([#9387](https://github.com/MetaMask/core/pull/9387))
