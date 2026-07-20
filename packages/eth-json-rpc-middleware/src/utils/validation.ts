@@ -249,11 +249,11 @@ export const TransactionParamsStruct = object({
     array(
       object({
         address: string(),
-        chainId: string(),
-        nonce: string(),
-        r: string(),
-        s: string(),
-        yParity: string(),
+        chainId: optional(string()),
+        nonce: optional(string()),
+        r: optional(string()),
+        s: optional(string()),
+        yParity: optional(string()),
       }),
     ),
   ),
