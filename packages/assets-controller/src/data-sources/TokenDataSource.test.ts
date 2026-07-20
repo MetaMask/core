@@ -284,6 +284,34 @@ describe('TokenDataSource', () => {
     expect(next).toHaveBeenCalledWith(context);
   });
 
+  it('middleware heals metadata for balances missing assetsInfo even when not detected', async () => {
+    const { controller, apiClient } = setupController({
+      messenger: createTestMessenger(),
+      supportedNetworks: ['eip155:1'],
+      assetsResponse: [createMockAssetResponse(MOCK_TOKEN_ASSET)],
+    });
+
+    const next = jest.fn().mockResolvedValue(undefined);
+    const context = createMiddlewareContext({
+      response: {
+        assetsBalance: {
+          'mock-account-id': {
+            [MOCK_TOKEN_ASSET]: { amount: '1.5' },
+          },
+        },
+      },
+    });
+
+    await controller.assetsMiddleware(context, next);
+
+    expect(apiClient.tokens.fetchV3Assets).toHaveBeenCalledWith(
+      [MOCK_TOKEN_ASSET],
+      expect.objectContaining({ includeIconUrl: true }),
+    );
+    expect(context.response.assetsInfo?.[MOCK_TOKEN_ASSET]).toBeDefined();
+    expect(next).toHaveBeenCalledWith(context);
+  });
+
   it('middleware skips assets with existing metadata containing image in response', async () => {
     const { controller, apiClient } = setupController({
       messenger: createTestMessenger(),
