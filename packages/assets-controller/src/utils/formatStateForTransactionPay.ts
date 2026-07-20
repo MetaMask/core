@@ -2,6 +2,7 @@ import { toChecksumAddress } from '@ethereumjs/util';
 import { getNativeTokenAddress } from '@metamask/assets-controllers';
 import { numberToHex } from '@metamask/utils';
 import { parseCaipAssetType, parseCaipChainId } from '@metamask/utils';
+import { isEqual } from 'lodash';
 
 import type {
   AssetBalance,
@@ -65,38 +66,33 @@ function amountToHex(amount: string): `0x${string}` {
   return `0x${hexString}`;
 }
 
-function areAccountsEqual(
-  a: AccountForLegacyFormat[],
-  b: AccountForLegacyFormat[],
+/**
+ * Determines whether two sets of {@link formatStateForTransactionPay}
+ * parameters are identical for memoization purposes.
+ *
+ * State slices (`assetsBalance`, `assetsInfo`, `assetsPrice`,
+ * `networkConfigurationsByChainId`) are compared by reference since
+ * BaseController state updates are immutable. The `accounts` and
+ * `nativeAssetIdentifiers` inputs are rebuilt on every call, so they are
+ * compared by value instead.
+ *
+ * @param a - Previous parameters.
+ * @param b - Next parameters.
+ * @returns True if the parameters are identical.
+ */
+function isTransactionPayParamsIdentical(
+  a: FormatStateForTransactionPayParams,
+  b: FormatStateForTransactionPayParams,
 ): boolean {
-  if (a === b) {
-    return true;
-  }
-  if (a.length !== b.length) {
-    return false;
-  }
-  return a.every(
-    (account, index) =>
-      account.id === b[index].id && account.address === b[index].address,
+  return (
+    a.assetsBalance === b.assetsBalance &&
+    a.assetsInfo === b.assetsInfo &&
+    a.assetsPrice === b.assetsPrice &&
+    a.selectedCurrency === b.selectedCurrency &&
+    a.networkConfigurationsByChainId === b.networkConfigurationsByChainId &&
+    isEqual(a.accounts, b.accounts) &&
+    isEqual(a.nativeAssetIdentifiers, b.nativeAssetIdentifiers)
   );
-}
-
-function areRecordsShallowEqual(
-  a: Record<string, unknown> | undefined,
-  b: Record<string, unknown> | undefined,
-): boolean {
-  if (a === b) {
-    return true;
-  }
-  if (!a || !b) {
-    return false;
-  }
-  const aKeys = Object.keys(a);
-  const bKeys = Object.keys(b);
-  if (aKeys.length !== bKeys.length) {
-    return false;
-  }
-  return aKeys.every((key) => a[key] === b[key]);
 }
 
 function getAmountFromBalance(balance: AssetBalance): string {
@@ -135,24 +131,12 @@ let lastCall: {
 export function formatStateForTransactionPay(
   params: FormatStateForTransactionPayParams,
 ): TransactionPayLegacyFormat {
-  if (
-    lastCall?.params.assetsBalance === params.assetsBalance &&
-    lastCall.params.assetsInfo === params.assetsInfo &&
-    lastCall.params.assetsPrice === params.assetsPrice &&
-    lastCall.params.selectedCurrency === params.selectedCurrency &&
-    lastCall.params.networkConfigurationsByChainId ===
-      params.networkConfigurationsByChainId &&
-    areAccountsEqual(lastCall.params.accounts, params.accounts) &&
-    areRecordsShallowEqual(
-      lastCall.params.nativeAssetIdentifiers,
-      params.nativeAssetIdentifiers,
-    )
-  ) {
+  if (lastCall && isTransactionPayParamsIdentical(lastCall.params, params)) {
     return lastCall.result;
   }
 
   const result = computeStateForTransactionPay(params);
-  lastCall = { params, result };
+  lastCall = { params, result: Object.freeze(result) };
   return result;
 }
 

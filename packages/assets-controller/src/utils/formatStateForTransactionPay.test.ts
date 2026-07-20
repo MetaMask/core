@@ -462,6 +462,12 @@ describe('formatStateForTransactionPay', () => {
       expect(second.currentCurrency).toBe('eur');
     });
 
+    it('freezes the result so consumers cannot poison the cache', () => {
+      const result = formatStateForTransactionPay(makeParams());
+
+      expect(Object.isFrozen(result)).toBe(true);
+    });
+
     it('produces the same output whether served from cache or recomputed', () => {
       const params = makeParams();
 
