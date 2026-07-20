@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add optional nullable `balance` field to the positions response (`musd_balance`, `vmusd_value_in_musd`, `total_balance`), matching the Money Account API contract. Export `PositionBalance` type.
+
 ## [0.1.0]
 
 ### Added

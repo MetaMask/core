@@ -24,6 +24,16 @@ export type MoneyAccountBalanceResponse = {
 };
 
 /**
+ * Canonical balance result from
+ * {@link MoneyAccountBalanceService.fetchBalanceWithFallback}.
+ */
+export type CanonicalMoneyAccountBalanceResponse =
+  MoneyAccountBalanceResponse & {
+    source: 'api' | 'rpc';
+    usedFallback: boolean;
+  };
+
+/**
  * Response from {@link MoneyAccountBalanceService.getVaultApy}.
  * All APY / fee values are decimals (multiply by 100 for percentage).
  *
