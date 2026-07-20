@@ -1,5 +1,6 @@
 import type { AssetBalance, AssetMetadata, FungibleAssetPrice } from '../types';
 import {
+  clearFormatStateForTransactionPayCacheForTesting,
   formatStateForTransactionPay,
   AccountForLegacyFormat,
 } from './formatStateForTransactionPay';
@@ -381,5 +382,75 @@ describe('formatStateForTransactionPay', () => {
     expect(
       result.allTokens['0x1'][''].find((token) => token.symbol === 'X'),
     ).toBeUndefined();
+  });
+
+  describe('memoization', () => {
+    afterEach(() => {
+      clearFormatStateForTransactionPayCacheForTesting();
+    });
+
+    it('returns the same object when inputs are unchanged by identity / value', () => {
+      const assetsBalance = {
+        [ACCOUNT_1.id]: {
+          [ETH_NATIVE_ID]: { amount: '100' } as AssetBalance,
+        },
+      };
+      const assetsInfo = {
+        [ETH_NATIVE_ID]: ETH_NATIVE_METADATA,
+      };
+      const assetsPrice = {};
+      const params = {
+        accounts: [ACCOUNT_1],
+        assetsBalance,
+        assetsInfo,
+        assetsPrice,
+        selectedCurrency: 'usd',
+        nativeAssetIdentifiers: EVM_NATIVE_IDS,
+        networkConfigurationsByChainId: EVM_NETWORK_CONFIGS,
+      };
+
+      const first = formatStateForTransactionPay(params);
+      const second = formatStateForTransactionPay({
+        ...params,
+        accounts: [{ ...ACCOUNT_1 }],
+        nativeAssetIdentifiers: { ...EVM_NATIVE_IDS },
+      });
+
+      expect(second).toBe(first);
+    });
+
+    it('recomputes when assetsBalance identity changes', () => {
+      const assetsInfo = {
+        [ETH_NATIVE_ID]: ETH_NATIVE_METADATA,
+      };
+      const first = formatStateForTransactionPay({
+        accounts: [ACCOUNT_1],
+        assetsBalance: {
+          [ACCOUNT_1.id]: {
+            [ETH_NATIVE_ID]: { amount: '100' } as AssetBalance,
+          },
+        },
+        assetsInfo,
+        assetsPrice: {},
+        selectedCurrency: 'usd',
+        nativeAssetIdentifiers: EVM_NATIVE_IDS,
+        networkConfigurationsByChainId: EVM_NETWORK_CONFIGS,
+      });
+      const second = formatStateForTransactionPay({
+        accounts: [ACCOUNT_1],
+        assetsBalance: {
+          [ACCOUNT_1.id]: {
+            [ETH_NATIVE_ID]: { amount: '200' } as AssetBalance,
+          },
+        },
+        assetsInfo,
+        assetsPrice: {},
+        selectedCurrency: 'usd',
+        nativeAssetIdentifiers: EVM_NATIVE_IDS,
+        networkConfigurationsByChainId: EVM_NETWORK_CONFIGS,
+      });
+
+      expect(second).not.toBe(first);
+    });
   });
 });
