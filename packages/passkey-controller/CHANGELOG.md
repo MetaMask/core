@@ -27,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **BREAKING:** `PasskeyController` constructor requires `getIsOnboardingCompleted`
 - **BREAKING:** `removePasskey` and `PasskeyController:removePasskey` are no longer public; use `removePasskeyWithPasskeyVerification`, `removePasskeyWithPasswordVerification`, or `clearState`
 - `PasskeyControllerMessenger` may call a fixed set of KeyringController actions during orchestrated flows (see package README)
+- Orchestrated async passkey operations are serialized with an internal mutex to prevent concurrent vault/keyring races
 
 ## [2.1.0]
 

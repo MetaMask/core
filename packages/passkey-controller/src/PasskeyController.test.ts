@@ -1,4 +1,5 @@
 import { Messenger } from '@metamask/messenger';
+import { Mutex } from 'async-mutex';
 
 import { createMockPasskeyControllerMessenger } from '../tests/mocks/passkey-controller-messenger';
 import { CEREMONY_MAX_AGE_MS, WEBAUTHN_TIMEOUT_MS } from './ceremony-manager';
@@ -2015,7 +2016,7 @@ describe('PasskeyController', () => {
       const exportEncryptionKey = jest
         .fn()
         .mockResolvedValueOnce(beforeKey)
-        .mockResolvedValueOnce(beforeKey)
+        .mockResolvedValueOnce('wrong-before-key')
         .mockResolvedValueOnce('vault-after-password');
       const { messenger } = createMockPasskeyControllerMessenger({
         changePassword,
@@ -2031,10 +2032,6 @@ describe('PasskeyController', () => {
         userHandle: regOpts.user.id,
       });
 
-      const renewSpy = jest
-        .spyOn(controller, 'renewVaultKeyProtection')
-        .mockRejectedValue('renew-failed');
-
       const authOpts = controller.generateAuthenticationOptions();
       await expect(
         controller.changePasswordWithPasskeyVerification({
@@ -2047,11 +2044,12 @@ describe('PasskeyController', () => {
         }),
       ).rejects.toMatchObject({
         code: PasskeyControllerErrorCode.VaultKeyRenewalFailed,
-        cause: expect.objectContaining({ message: 'renew-failed' }),
+        cause: expect.objectContaining({
+          code: PasskeyControllerErrorCode.VaultKeyMismatch,
+        }),
       });
 
       expect(controller.isPasskeyEnrolled()).toBe(false);
-      renewSpy.mockRestore();
     });
 
     it('wraps Error renewal failures in VaultKeyRenewalFailed', async () => {
@@ -2078,9 +2076,11 @@ describe('PasskeyController', () => {
         userHandle: regOpts.user.id,
       });
 
-      const renewSpy = jest
-        .spyOn(controller, 'renewVaultKeyProtection')
-        .mockRejectedValue(new Error('renew-error'));
+      const encryptSpy = jest
+        .spyOn(passkeyCrypto, 'encryptWithKey')
+        .mockImplementationOnce(() => {
+          throw new Error('renew-error');
+        });
 
       const authOpts = controller.generateAuthenticationOptions();
       await expect(
@@ -2097,7 +2097,50 @@ describe('PasskeyController', () => {
         cause: expect.objectContaining({ message: 'renew-error' }),
       });
 
-      renewSpy.mockRestore();
+      expect(controller.isPasskeyEnrolled()).toBe(false);
+      encryptSpy.mockRestore();
+    });
+
+    it('wraps non-Error renewal failures in VaultKeyRenewalFailed', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+      const beforeKey = 'vault-before-password';
+      const changePassword = jest.fn().mockResolvedValue(undefined);
+      const exportEncryptionKey = jest
+        .fn()
+        .mockResolvedValueOnce(beforeKey)
+        .mockResolvedValueOnce(beforeKey)
+        .mockRejectedValueOnce('string-fail');
+      const { messenger } = createMockPasskeyControllerMessenger({
+        changePassword,
+        exportEncryptionKey,
+      });
+      const controller = createController({ messenger, vaultKey: beforeKey });
+      const regOpts = controller.generateRegistrationOptions();
+      await enrollWithPostRegistrationAuth(controller, {
+        registrationResponse: minimalRegistrationResponse(
+          undefined,
+          regOpts.challenge,
+        ),
+        userHandle: regOpts.user.id,
+      });
+
+      const authOpts = controller.generateAuthenticationOptions();
+      await expect(
+        controller.changePasswordWithPasskeyVerification({
+          newPassword: 'new-password',
+          authenticationResponse: minimalAuthenticationResponse(
+            regOpts.user.id,
+            undefined,
+            authOpts.challenge,
+          ),
+        }),
+      ).rejects.toMatchObject({
+        code: PasskeyControllerErrorCode.VaultKeyRenewalFailed,
+        cause: expect.objectContaining({ message: 'string-fail' }),
+      });
+
+      expect(controller.isPasskeyEnrolled()).toBe(false);
     });
   });
 
@@ -2443,6 +2486,121 @@ describe('PasskeyController', () => {
         }),
       );
       expect(controller.state.passkeyRecord?.credential.counter).toBe(10);
+    });
+  });
+
+  describe('operation mutex', () => {
+    it('serializes concurrent orchestrated operations', async () => {
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+
+      const beforeKey = 'vault-before-password';
+      const afterKey = 'vault-after-password';
+      const callOrder: string[] = [];
+      let releaseExportBefore!: () => void;
+      const exportBeforeHold = new Promise<void>((resolve) => {
+        releaseExportBefore = resolve;
+      });
+      const changePassword = jest.fn().mockImplementation(async () => {
+        callOrder.push('changePassword');
+      });
+      const submitEncryptionKey = jest.fn().mockImplementation(async () => {
+        callOrder.push('submitEncryptionKey');
+      });
+      const exportEncryptionKey = jest.fn().mockImplementation(async () => {
+        const callCount = exportEncryptionKey.mock.calls.length;
+        if (callCount === 2) {
+          callOrder.push('export:before-await');
+          await exportBeforeHold;
+          callOrder.push('export:before-done');
+        }
+        return callCount >= 3 ? afterKey : beforeKey;
+      });
+      const { messenger } = createMockPasskeyControllerMessenger({
+        changePassword,
+        exportEncryptionKey,
+        submitEncryptionKey,
+      });
+      const controller = createController({ messenger, vaultKey: beforeKey });
+      const regOpts = controller.generateRegistrationOptions();
+      await enrollWithPostRegistrationAuth(controller, {
+        registrationResponse: minimalRegistrationResponse(
+          undefined,
+          regOpts.challenge,
+        ),
+        userHandle: regOpts.user.id,
+      });
+
+      const changeAuthOpts = controller.generateAuthenticationOptions();
+      const changePromise = controller.changePasswordWithPasskeyVerification({
+        newPassword: 'new-password',
+        authenticationResponse: minimalAuthenticationResponse(
+          regOpts.user.id,
+          undefined,
+          changeAuthOpts.challenge,
+        ),
+      });
+
+      await Promise.resolve();
+
+      const unlockAuthOpts = controller.generateAuthenticationOptions();
+      const unlockPromise = controller.unlockWithPasskey(
+        minimalAuthenticationResponse(
+          regOpts.user.id,
+          undefined,
+          unlockAuthOpts.challenge,
+        ),
+      );
+
+      await new Promise<void>((resolve) => {
+        const waitForExportBlock = (): void => {
+          if (callOrder.includes('export:before-await')) {
+            resolve();
+            return;
+          }
+          setImmediate(waitForExportBlock);
+        };
+        waitForExportBlock();
+      });
+      expect(submitEncryptionKey).not.toHaveBeenCalled();
+      expect(callOrder).toStrictEqual(['export:before-await']);
+
+      releaseExportBefore();
+      await Promise.all([changePromise, unlockPromise]);
+
+      expect(callOrder).toStrictEqual([
+        'export:before-await',
+        'export:before-done',
+        'changePassword',
+        'submitEncryptionKey',
+      ]);
+    });
+
+    it('acquires the operation mutex for orchestrated methods', async () => {
+      const runExclusiveSpy = jest.spyOn(Mutex.prototype, 'runExclusive');
+      setupRegistrationMocks();
+      setupAuthenticationMocks();
+      const controller = createController();
+      const regOpts = controller.generateRegistrationOptions();
+      await enrollWithPostRegistrationAuth(controller, {
+        registrationResponse: minimalRegistrationResponse(
+          undefined,
+          regOpts.challenge,
+        ),
+        userHandle: regOpts.user.id,
+      });
+
+      const authOpts = controller.generateAuthenticationOptions();
+      await controller.unlockWithPasskey(
+        minimalAuthenticationResponse(
+          regOpts.user.id,
+          undefined,
+          authOpts.challenge,
+        ),
+      );
+
+      expect(runExclusiveSpy).toHaveBeenCalled();
+      runExclusiveSpy.mockRestore();
     });
   });
 

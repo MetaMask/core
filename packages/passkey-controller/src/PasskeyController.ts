@@ -1,6 +1,7 @@
 import type { StateMetadata } from '@metamask/base-controller';
 import { BaseController } from '@metamask/base-controller';
 import { areUint8ArraysEqual, stringToBytes } from '@metamask/utils';
+import { Mutex } from 'async-mutex';
 
 import { WEBAUTHN_TIMEOUT_MS, CeremonyManager } from './ceremony-manager';
 import {
@@ -124,6 +125,8 @@ export class PasskeyController extends BaseController<
   readonly #userDisplayName: string;
 
   readonly #getIsOnboardingCompleted: () => boolean;
+
+  readonly #operationMutex = new Mutex();
 
   /**
    * Creates a passkey controller with WebAuthn relying-party settings.
@@ -356,8 +359,19 @@ export class PasskeyController extends BaseController<
    * @param params.registrationResponse - Result of `navigator.credentials.create()`.
    * @param params.authenticationResponse - Result of `navigator.credentials.get()` after {@link generatePostRegistrationAuthenticationOptions}.
    * @param params.password - Wallet password when onboarding is complete (step-up).
+   * @returns Resolves when enrollment completes.
    */
   async protectVaultKeyWithPasskey(params: {
+    registrationResponse: PasskeyRegistrationResponse;
+    authenticationResponse: PasskeyAuthenticationResponse;
+    password?: string;
+  }): Promise<void> {
+    return this.#withOperationLock(() =>
+      this.#protectVaultKeyWithPasskey(params),
+    );
+  }
+
+  async #protectVaultKeyWithPasskey(params: {
     registrationResponse: PasskeyRegistrationResponse;
     authenticationResponse: PasskeyAuthenticationResponse;
     password?: string;
@@ -493,6 +507,14 @@ export class PasskeyController extends BaseController<
   async retrieveVaultKeyWithPasskey(
     authenticationResponse: PasskeyAuthenticationResponse,
   ): Promise<string> {
+    return this.#withOperationLock(() =>
+      this.#retrieveVaultKeyWithPasskey(authenticationResponse),
+    );
+  }
+
+  async #retrieveVaultKeyWithPasskey(
+    authenticationResponse: PasskeyAuthenticationResponse,
+  ): Promise<string> {
     const passkeyRecord = this.#requireEnrolled();
 
     // verify authentication response and update counter
@@ -546,17 +568,20 @@ export class PasskeyController extends BaseController<
    * Unlocks the keyring using a passkey authentication assertion.
    *
    * @param authenticationResponse - Result of `navigator.credentials.get()`.
+   * @returns Resolves when the keyring is unlocked.
    */
   async unlockWithPasskey(
     authenticationResponse: PasskeyAuthenticationResponse,
   ): Promise<void> {
-    const vaultKey = await this.retrieveVaultKeyWithPasskey(
-      authenticationResponse,
-    );
-    await this.messenger.call(
-      'KeyringController:submitEncryptionKey',
-      vaultKey,
-    );
+    return this.#withOperationLock(async () => {
+      const vaultKey = await this.#retrieveVaultKeyWithPasskey(
+        authenticationResponse,
+      );
+      await this.messenger.call(
+        'KeyringController:submitEncryptionKey',
+        vaultKey,
+      );
+    });
   }
 
   /**
@@ -570,14 +595,16 @@ export class PasskeyController extends BaseController<
     authenticationResponse: PasskeyAuthenticationResponse,
     keyringId?: string,
   ): Promise<Uint8Array> {
-    const vaultKey = await this.retrieveVaultKeyWithPasskey(
-      authenticationResponse,
-    );
-    return await this.messenger.call(
-      'KeyringController:exportSeedPhrase',
-      { encryptionKey: vaultKey },
-      keyringId,
-    );
+    return this.#withOperationLock(async () => {
+      const vaultKey = await this.#retrieveVaultKeyWithPasskey(
+        authenticationResponse,
+      );
+      return await this.messenger.call(
+        'KeyringController:exportSeedPhrase',
+        { encryptionKey: vaultKey },
+        keyringId,
+      );
+    });
   }
 
   /**
@@ -591,21 +618,23 @@ export class PasskeyController extends BaseController<
     authenticationResponse: PasskeyAuthenticationResponse,
     addresses: string[],
   ): Promise<string[]> {
-    const vaultKey = await this.retrieveVaultKeyWithPasskey(
-      authenticationResponse,
-    );
-
-    const privateKeys: string[] = [];
-    for (const address of addresses) {
-      privateKeys.push(
-        await this.messenger.call(
-          'KeyringController:exportAccount',
-          { encryptionKey: vaultKey },
-          address,
-        ),
+    return this.#withOperationLock(async () => {
+      const vaultKey = await this.#retrieveVaultKeyWithPasskey(
+        authenticationResponse,
       );
-    }
-    return privateKeys;
+
+      const privateKeys: string[] = [];
+      for (const address of addresses) {
+        privateKeys.push(
+          await this.messenger.call(
+            'KeyringController:exportAccount',
+            { encryptionKey: vaultKey },
+            address,
+          ),
+        );
+      }
+      return privateKeys;
+    });
   }
 
   /**
@@ -620,8 +649,16 @@ export class PasskeyController extends BaseController<
   async verifyPasskeyAuthentication(
     authenticationResponse: PasskeyAuthenticationResponse,
   ): Promise<boolean> {
+    return this.#withOperationLock(() =>
+      this.#verifyPasskeyAuthentication(authenticationResponse),
+    );
+  }
+
+  async #verifyPasskeyAuthentication(
+    authenticationResponse: PasskeyAuthenticationResponse,
+  ): Promise<boolean> {
     try {
-      await this.retrieveVaultKeyWithPasskey(authenticationResponse);
+      await this.#retrieveVaultKeyWithPasskey(authenticationResponse);
       return true;
     } catch (error: unknown) {
       if (error instanceof PasskeyControllerError && error.code !== undefined) {
@@ -647,8 +684,19 @@ export class PasskeyController extends BaseController<
    * @param params.authenticationResponse - Used to derive the wrapping key.
    * @param params.oldVaultKey - Expected current vault key.
    * @param params.newVaultKey - New vault key to encrypt under the passkey.
+   * @returns Resolves when the passkey record is updated.
    */
   async renewVaultKeyProtection(params: {
+    authenticationResponse: PasskeyAuthenticationResponse;
+    oldVaultKey: string;
+    newVaultKey: string;
+  }): Promise<void> {
+    return this.#withOperationLock(() =>
+      this.#renewVaultKeyProtection(params),
+    );
+  }
+
+  async #renewVaultKeyProtection(params: {
     authenticationResponse: PasskeyAuthenticationResponse;
     oldVaultKey: string;
     newVaultKey: string;
@@ -729,15 +777,26 @@ export class PasskeyController extends BaseController<
    * @param params.authenticationResponse - Result of `navigator.credentials.get()`.
    * @param params.options - Optional flow controls.
    * @param params.options.renewVaultKeyProtection - Re-wrap vault key after password change.
+   * @returns Resolves when the password change completes.
    */
   async changePasswordWithPasskeyVerification(params: {
     newPassword: string;
     authenticationResponse: PasskeyAuthenticationResponse;
     options?: { renewVaultKeyProtection?: boolean };
   }): Promise<void> {
+    return this.#withOperationLock(() =>
+      this.#changePasswordWithPasskeyVerification(params),
+    );
+  }
+
+  async #changePasswordWithPasskeyVerification(params: {
+    newPassword: string;
+    authenticationResponse: PasskeyAuthenticationResponse;
+    options?: { renewVaultKeyProtection?: boolean };
+  }): Promise<void> {
     this.#requireEnrolled();
 
-    const verified = await this.verifyPasskeyAuthentication(
+    const verified = await this.#verifyPasskeyAuthentication(
       params.authenticationResponse,
     );
     if (!verified) {
@@ -771,7 +830,7 @@ export class PasskeyController extends BaseController<
       const vaultKeyAfter = await this.messenger.call(
         'KeyringController:exportEncryptionKey',
       );
-      await this.renewVaultKeyProtection({
+      await this.#renewVaultKeyProtection({
         authenticationResponse: params.authenticationResponse,
         oldVaultKey: vaultKeyBefore,
         newVaultKey: vaultKeyAfter,
@@ -792,13 +851,22 @@ export class PasskeyController extends BaseController<
    * Removes the enrolled passkey after verifying a passkey authentication assertion.
    *
    * @param authenticationResponse - Result of `navigator.credentials.get()`.
+   * @returns Resolves when the passkey is removed.
    */
   async removePasskeyWithPasskeyVerification(
     authenticationResponse: PasskeyAuthenticationResponse,
   ): Promise<void> {
+    return this.#withOperationLock(() =>
+      this.#removePasskeyWithPasskeyVerification(authenticationResponse),
+    );
+  }
+
+  async #removePasskeyWithPasskeyVerification(
+    authenticationResponse: PasskeyAuthenticationResponse,
+  ): Promise<void> {
     this.#requireEnrolled();
 
-    const verified = await this.verifyPasskeyAuthentication(
+    const verified = await this.#verifyPasskeyAuthentication(
       authenticationResponse,
     );
     if (!verified) {
@@ -815,8 +883,15 @@ export class PasskeyController extends BaseController<
    * Removes the enrolled passkey after verifying the wallet password.
    *
    * @param password - Wallet password for step-up verification.
+   * @returns Resolves when the passkey is removed.
    */
   async removePasskeyWithPasswordVerification(password: string): Promise<void> {
+    return this.#withOperationLock(() =>
+      this.#removePasskeyWithPasswordVerification(password),
+    );
+  }
+
+  async #removePasskeyWithPasswordVerification(password: string): Promise<void> {
     this.#requireEnrolled();
     await this.messenger.call('KeyringController:verifyPassword', password);
     this.#removePasskey();
@@ -910,6 +985,18 @@ export class PasskeyController extends BaseController<
       // delete authentication ceremony
       this.#ceremonyManager.deleteAuthenticationCeremony(challenge);
     }
+  }
+
+  /**
+   * Serializes orchestrated passkey operations that mutate state or call KeyringController.
+   *
+   * @param callback - Operation to run while the mutex is held.
+   * @returns The result of the callback.
+   */
+  async #withOperationLock<Result>(
+    callback: () => Promise<Result>,
+  ): Promise<Result> {
+    return this.#operationMutex.runExclusive(callback);
   }
 
   async #assertEnrollmentAllowed(password?: string): Promise<void> {

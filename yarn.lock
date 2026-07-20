@@ -7946,6 +7946,7 @@ __metadata:
     "@noble/hashes": "npm:^1.8.0"
     "@ts-bridge/cli": "npm:^0.6.4"
     "@types/jest": "npm:^29.5.14"
+    async-mutex: "npm:^0.5.0"
     deepmerge: "npm:^4.2.2"
     jest: "npm:^29.7.0"
     jest-environment-node: "npm:^29.7.0"
