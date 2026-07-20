@@ -32,6 +32,7 @@ export {
   PerpsController,
   getDefaultPerpsControllerState,
   InitializationState,
+  PerpsMode,
 } from './PerpsController';
 export type {
   PerpsControllerState,
@@ -102,6 +103,9 @@ export type {
   PerpsControllerResetFirstTimeUserStateAction,
   PerpsControllerResetSelectedPaymentTokenAction,
   PerpsControllerSaveMarketFilterPreferencesAction,
+  PerpsControllerGetProLayoutPreferencesAction,
+  PerpsControllerSetProLayoutPreferencesAction,
+  PerpsControllerSetPerpsModeAction,
   PerpsControllerSaveOrderBookGroupingAction,
   PerpsControllerSavePendingTradeConfigurationAction,
   PerpsControllerSaveTradeConfigurationAction,
@@ -589,6 +593,8 @@ export {
   selectPendingTradeConfiguration,
   selectMarketFilterPreferences,
   selectOrderBookGrouping,
+  selectProLayoutPreferences,
+  selectPerpsMode,
 } from './selectors';
 
 // Services (only externally consumed items)

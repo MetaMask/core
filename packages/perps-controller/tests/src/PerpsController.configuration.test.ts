@@ -40,6 +40,7 @@ import {
   PerpsController,
   getDefaultPerpsControllerState,
   InitializationState,
+  PerpsMode,
   firstNonEmpty,
   resolveMyxAuthConfig,
 } from '../../src/PerpsController';
@@ -751,6 +752,66 @@ describe('PerpsController', () => {
         optionId: 'priceChange',
         direction: 'asc',
       });
+    });
+  });
+
+  describe('pro layout preferences', () => {
+    it('defaults to collapsed order book, expanded chart, and reserved positions', () => {
+      expect(controller.getProLayoutPreferences()).toEqual({
+        orderBookExpanded: false,
+        chartExpanded: true,
+        orderBookPosition: 'left',
+        orderFormPosition: 'right',
+      });
+    });
+
+    it('updates a single field without clobbering the others', () => {
+      controller.setProLayoutPreferences({ orderBookExpanded: true });
+
+      expect(controller.getProLayoutPreferences()).toEqual({
+        orderBookExpanded: true,
+        chartExpanded: true,
+        orderBookPosition: 'left',
+        orderFormPosition: 'right',
+      });
+    });
+
+    it('merges successive partial patches', () => {
+      controller.setProLayoutPreferences({ orderBookExpanded: true });
+      controller.setProLayoutPreferences({ orderBookPosition: 'right' });
+      controller.setProLayoutPreferences({ orderFormPosition: 'left' });
+
+      expect(controller.getProLayoutPreferences()).toEqual({
+        orderBookExpanded: true,
+        chartExpanded: true,
+        orderBookPosition: 'right',
+        orderFormPosition: 'left',
+      });
+    });
+
+    it('persists the update to controller state', () => {
+      controller.setProLayoutPreferences({ chartExpanded: false });
+
+      expect(controller.state.proLayoutPreferences.chartExpanded).toBe(false);
+    });
+  });
+
+  describe('perps mode', () => {
+    it('defaults to lite mode', () => {
+      expect(controller.state.mode).toBe(PerpsMode.Lite);
+    });
+
+    it('sets the mode to pro', () => {
+      controller.setPerpsMode(PerpsMode.Pro);
+
+      expect(controller.state.mode).toBe(PerpsMode.Pro);
+    });
+
+    it('sets the mode back to lite', () => {
+      controller.setPerpsMode(PerpsMode.Pro);
+      controller.setPerpsMode(PerpsMode.Lite);
+
+      expect(controller.state.mode).toBe(PerpsMode.Lite);
     });
   });
 

@@ -11,6 +11,8 @@ import {
   selectMarketFilterPreferences,
   selectOrderBookGrouping,
   selectRecentlyViewedMarkets,
+  selectProLayoutPreferences,
+  selectPerpsMode,
 } from '../../src/selectors';
 
 describe('PerpsController selectors', () => {
@@ -625,6 +627,44 @@ describe('PerpsController selectors', () => {
 
       const result = selectRecentlyViewedMarkets(state);
       expect(result).toHaveLength(10);
+    });
+  });
+
+  describe('selectProLayoutPreferences', () => {
+    it('returns the pro-mode layout preferences', () => {
+      const proLayoutPreferences = {
+        orderBookExpanded: true,
+        chartExpanded: true,
+        orderBookPosition: 'right' as const,
+        orderFormPosition: 'left' as const,
+      };
+      const state = {
+        proLayoutPreferences,
+      } as unknown as PerpsControllerState;
+
+      expect(selectProLayoutPreferences(state)).toStrictEqual(
+        proLayoutPreferences,
+      );
+    });
+
+    it('returns undefined when state is undefined', () => {
+      expect(
+        selectProLayoutPreferences(undefined as unknown as PerpsControllerState),
+      ).toBeUndefined();
+    });
+  });
+
+  describe('selectPerpsMode', () => {
+    it('returns the current mode', () => {
+      const state = { mode: 'pro' } as unknown as PerpsControllerState;
+
+      expect(selectPerpsMode(state)).toBe('pro');
+    });
+
+    it('returns undefined when state is undefined', () => {
+      expect(
+        selectPerpsMode(undefined as unknown as PerpsControllerState),
+      ).toBeUndefined();
     });
   });
 });

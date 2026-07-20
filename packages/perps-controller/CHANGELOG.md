@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `proLayoutPreferences` state field (`orderBookExpanded`, `chartExpanded`, `orderBookPosition`, `orderFormPosition`) to `PerpsControllerState` for persisting Pro-mode layout across markets, along with `getProLayoutPreferences()` / `setProLayoutPreferences(patch)` controller methods (exposed as messenger actions) and a `selectProLayoutPreferences` selector ([#9481](https://github.com/MetaMask/core/pull/9481))
+- Add a `PerpsMode` enum (`Lite`/`Pro`) and a persisted `mode` state field (defaulting to `PerpsMode.Lite`) to `PerpsControllerState`, along with a `setPerpsMode(mode)` controller method (exposed as a messenger action) and a `selectPerpsMode` selector ([#9481](https://github.com/MetaMask/core/pull/9481))
+
 ### Changed
 
 - Bump `@metamask/account-tree-controller` from `^7.5.3` to `7.5.4` ([#9429](https://github.com/MetaMask/core/pull/9429))

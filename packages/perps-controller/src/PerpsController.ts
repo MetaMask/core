@@ -235,6 +235,17 @@ export enum InitializationState {
 }
 
 /**
+ * Perps interface mode.
+ *
+ * `Lite` is the simplified default experience; `Pro` exposes the advanced
+ * trading layout (chart, order book, inline order form).
+ */
+export enum PerpsMode {
+  Lite = 'lite',
+  Pro = 'pro',
+}
+
+/**
  * State shape for PerpsController
  */
 export type PerpsControllerState = {
@@ -397,6 +408,22 @@ export type PerpsControllerState = {
     direction: SortDirection;
   };
 
+  // Pro-mode layout preferences (network-independent). Flat object that
+  // persists across markets (unlike the per-market tradeConfigurations).
+  proLayoutPreferences: {
+    orderBookExpanded: boolean;
+    // Reserved: current chart design is always expanded, no collapse UI yet.
+    // Kept for parity/future use.
+    chartExpanded: boolean;
+    // Reserved for a future container-position feature.
+    orderBookPosition: 'left' | 'right';
+    // Reserved for a future container-position feature.
+    orderFormPosition: 'left' | 'right';
+  };
+
+  // Perps interface mode (lite/pro), network-independent global preference.
+  mode: PerpsMode;
+
   // Error handling
   lastError: string | null;
   lastUpdateTimestamp: number;
@@ -488,6 +515,13 @@ export const getDefaultPerpsControllerState = (): PerpsControllerState => ({
     optionId: MARKET_SORTING_CONFIG.DefaultSortOptionId,
     direction: MARKET_SORTING_CONFIG.DefaultDirection,
   },
+  proLayoutPreferences: {
+    orderBookExpanded: false,
+    chartExpanded: true,
+    orderBookPosition: 'left',
+    orderFormPosition: 'right',
+  },
+  mode: PerpsMode.Lite,
   hip3ConfigVersion: 0,
   selectedPaymentToken: null,
   cachedMarketDataByProvider: {},
@@ -660,6 +694,18 @@ const metadata: StateMetadata<PerpsControllerState> = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
+  proLayoutPreferences: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
+  mode: {
+    includeInStateLogs: true,
+    persist: true,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+  },
   hip3ConfigVersion: {
     includeInStateLogs: true,
     persist: true,
@@ -810,6 +856,9 @@ const MESSENGER_EXPOSED_METHODS = [
   'resetSelectedPaymentToken',
   'getMaxSlippage',
   'setMaxSlippage',
+  'getProLayoutPreferences',
+  'setProLayoutPreferences',
+  'setPerpsMode',
   'saveMarketFilterPreferences',
   'saveOrderBookGrouping',
   'savePendingTradeConfiguration',
@@ -5088,6 +5137,45 @@ export class PerpsController extends BaseController<
       MAX_SLIPPAGE_BOUNDS.StepBps;
     this.update((state) => {
       state.maxSlippageBps = snapped;
+    });
+  }
+
+  /**
+   * Get the user's pro-mode layout preferences (network-independent).
+   *
+   * @returns The current pro-mode layout preferences.
+   */
+  getProLayoutPreferences(): PerpsControllerState['proLayoutPreferences'] {
+    return this.state.proLayoutPreferences;
+  }
+
+  /**
+   * Update the user's pro-mode layout preferences.
+   *
+   * Patch-style setter: only the provided fields are updated, the rest are
+   * preserved. This keeps the signature stable as new layout fields are added.
+   *
+   * @param patch - Partial set of pro-mode layout preferences to update.
+   */
+  setProLayoutPreferences(
+    patch: Partial<PerpsControllerState['proLayoutPreferences']>,
+  ): void {
+    this.update((state) => {
+      state.proLayoutPreferences = {
+        ...state.proLayoutPreferences,
+        ...patch,
+      };
+    });
+  }
+
+  /**
+   * Set the Perps interface mode (lite/pro).
+   *
+   * @param mode - The mode to switch to.
+   */
+  setPerpsMode(mode: PerpsMode): void {
+    this.update((state) => {
+      state.mode = mode;
     });
   }
 

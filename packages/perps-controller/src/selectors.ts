@@ -5,7 +5,7 @@ import {
   PERPS_CONSTANTS,
   SortOptionId,
 } from './constants/perpsConfig';
-import type { PerpsControllerState } from './PerpsController';
+import type { PerpsControllerState, PerpsMode } from './PerpsController';
 import type { PerpsSelectedPaymentToken, SortDirection } from './types';
 
 /**
@@ -227,6 +227,26 @@ export const selectMarketFilterPreferences = (
     }
   );
 };
+
+/**
+ * Select pro-mode layout preferences (network-independent)
+ *
+ * @param state - PerpsController state
+ * @returns The pro-mode layout preferences object
+ */
+export const selectProLayoutPreferences = (
+  state: PerpsControllerState,
+): PerpsControllerState['proLayoutPreferences'] =>
+  state?.proLayoutPreferences;
+
+/**
+ * Select the current Perps interface mode (lite/pro)
+ *
+ * @param state - PerpsController state
+ * @returns The current Perps mode
+ */
+export const selectPerpsMode = (state: PerpsControllerState): PerpsMode =>
+  state?.mode;
 
 /**
  * Select order book grouping for a specific market on the current network.
