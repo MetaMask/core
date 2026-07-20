@@ -30,6 +30,7 @@ import type { KeyringObject } from '@metamask/keyring-controller';
 import { KeyringTypes } from '@metamask/keyring-controller';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import type { GetSnap as SnapControllerGetSnap } from '@metamask/snaps-controllers';
+import type { CaipChainId } from '@metamask/utils';
 
 import {
   getAccountTreeControllerMessenger,
@@ -1227,6 +1228,212 @@ describe('AccountTreeController', () => {
       expect(controller.getAccountsFromSelectedAccountGroup()).toStrictEqual([
         MOCK_HD_ACCOUNT_1,
       ]);
+    });
+  });
+
+  describe('getAccountFromSelectedAccountGroup', () => {
+    const evmAndNonEvmGroupSetup = (): {
+      controller: AccountTreeController;
+      mockSolAccount1: Bip44Account<InternalAccount>;
+    } => {
+      const mockSolAccount1: Bip44Account<InternalAccount> = {
+        ...MOCK_SNAP_ACCOUNT_1,
+        options: {
+          entropy: {
+            ...MOCK_SNAP_ACCOUNT_1.options.entropy,
+            groupIndex: 0,
+          },
+        },
+      };
+
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_2, mockSolAccount1],
+        keyrings: [MOCK_HD_KEYRING_2],
+      });
+
+      controller.init();
+
+      return { controller, mockSolAccount1 };
+    };
+
+    it('returns the EVM account when the selected group has both EVM and non-EVM accounts', () => {
+      const { controller } = evmAndNonEvmGroupSetup();
+
+      expect(
+        controller.getAccountFromSelectedAccountGroup(),
+      ).toStrictEqual(MOCK_HD_ACCOUNT_2);
+    });
+
+    it('returns the first account when the selected group has no EVM account', () => {
+      const nonEvmGroupId = toAccountGroupId(
+        MOCK_PREPOPULATED_WALLET_ID,
+        'tron-group',
+      );
+      const nonEvmGroupState: Partial<AccountTreeControllerState> = {
+        selectedAccountGroup: nonEvmGroupId,
+        accountTree: {
+          wallets: {
+            [MOCK_PREPOPULATED_WALLET_ID]: {
+              id: MOCK_PREPOPULATED_WALLET_ID,
+              type: AccountWalletType.Entropy,
+              status: 'ready',
+              groups: {
+                [nonEvmGroupId]: {
+                  id: nonEvmGroupId,
+                  type: AccountGroupType.MultichainAccount,
+                  accounts: [MOCK_TRX_ACCOUNT_1.id],
+                  metadata: {
+                    name: 'Tron Group',
+                    entropy: { groupIndex: 0 },
+                    pinned: false,
+                    hidden: false,
+                    lastSelected: 0,
+                  },
+                },
+              },
+              metadata: {
+                name: 'Wallet 1',
+                entropy: { id: MOCK_HD_KEYRING_1.metadata.id },
+              },
+            },
+          },
+        },
+      };
+
+      const { controller } = setup({
+        accounts: [MOCK_TRX_ACCOUNT_1],
+        keyrings: [],
+        state: nonEvmGroupState,
+      });
+
+      expect(
+        controller.getAccountFromSelectedAccountGroup(),
+      ).toStrictEqual(MOCK_TRX_ACCOUNT_1);
+    });
+
+    it('returns undefined when no group is selected', () => {
+      const { controller } = setup({
+        accounts: [],
+        keyrings: [],
+      });
+
+      controller.init();
+
+      expect(
+        controller.getAccountFromSelectedAccountGroup(),
+      ).toBeUndefined();
+    });
+
+    it('returns undefined when the selected group is empty', () => {
+      const emptyGroupId = toAccountGroupId(
+        MOCK_PREPOPULATED_WALLET_ID,
+        'empty-group',
+      );
+      const emptyGroupState: Partial<AccountTreeControllerState> = {
+        selectedAccountGroup: emptyGroupId,
+        accountTree: {
+          wallets: {
+            [MOCK_PREPOPULATED_WALLET_ID]: {
+              id: MOCK_PREPOPULATED_WALLET_ID,
+              type: AccountWalletType.Entropy,
+              status: 'ready',
+              groups: {
+                [emptyGroupId]: {
+                  id: emptyGroupId,
+                  type: AccountGroupType.MultichainAccount,
+                  accounts: [],
+                  metadata: {
+                    name: 'Empty Group',
+                    entropy: { groupIndex: 0 },
+                    pinned: false,
+                    hidden: false,
+                    lastSelected: 0,
+                  },
+                },
+              },
+              metadata: {
+                name: 'Wallet 1',
+                entropy: { id: MOCK_HD_KEYRING_1.metadata.id },
+              },
+            },
+          },
+        },
+      };
+
+      const { controller } = setup({
+        accounts: [],
+        keyrings: [],
+        state: emptyGroupState,
+      });
+
+      expect(
+        controller.getAccountFromSelectedAccountGroup(),
+      ).toBeUndefined();
+    });
+
+    it('returns the account from persisted state without calling init()', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+        state: MOCK_PREPOPULATED_STATE,
+      });
+
+      // init() is NOT called — the account must be resolved from persisted state.
+      expect(
+        controller.getAccountFromSelectedAccountGroup(),
+      ).toStrictEqual(MOCK_HD_ACCOUNT_1);
+    });
+
+    it('returns the account matching the given CAIP-2 chain ID (non-EVM)', () => {
+      const { controller, mockSolAccount1 } = evmAndNonEvmGroupSetup();
+
+      expect(
+        controller.getAccountFromSelectedAccountGroup(SolScope.Mainnet),
+      ).toStrictEqual(mockSolAccount1);
+    });
+
+    it('returns the account matching the given CAIP-2 chain ID (EVM)', () => {
+      const { controller } = evmAndNonEvmGroupSetup();
+
+      expect(
+        controller.getAccountFromSelectedAccountGroup(EthScope.Mainnet),
+      ).toStrictEqual(MOCK_HD_ACCOUNT_2);
+    });
+
+    it('returns undefined when no group is selected and a chain ID is provided', () => {
+      const { controller } = setup({
+        accounts: [],
+        keyrings: [],
+      });
+
+      controller.init();
+
+      expect(
+        controller.getAccountFromSelectedAccountGroup(SolScope.Mainnet),
+      ).toBeUndefined();
+    });
+
+    it('returns undefined when no account in the selected group matches the scope', () => {
+      const { controller } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+        state: MOCK_PREPOPULATED_STATE,
+      });
+
+      // The selected group only contains an EVM account, so a Sol scope matches nothing.
+      expect(
+        controller.getAccountFromSelectedAccountGroup(SolScope.Mainnet),
+      ).toBeUndefined();
+    });
+
+    it('throws when the chain ID is not a valid CAIP-2 chain ID', () => {
+      const { controller } = evmAndNonEvmGroupSetup();
+
+      expect(() =>
+        controller.getAccountFromSelectedAccountGroup(
+          'not-a-caip-chain-id' as CaipChainId,
+        ),
+      ).toThrow('Invalid CAIP-2 chain ID: not-a-caip-chain-id');
     });
   });
 
@@ -4283,6 +4490,45 @@ describe('AccountTreeController', () => {
         'AccountTreeController:getAccountsFromSelectedAccountGroup',
       );
       expect(spy).toHaveBeenCalled();
+    });
+
+    it('calls getAccountFromSelectedAccountGroup via AccountTreeController:getAccountFromSelectedAccountGroup', () => {
+      const spy = jest.spyOn(
+        AccountTreeController.prototype,
+        'getAccountFromSelectedAccountGroup',
+      );
+
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      messenger.call(
+        'AccountTreeController:getAccountFromSelectedAccountGroup',
+      );
+      expect(spy).toHaveBeenCalled();
+    });
+
+    it('calls getAccountFromSelectedAccountGroup with a chain ID via the messenger action', () => {
+      const spy = jest.spyOn(
+        AccountTreeController.prototype,
+        'getAccountFromSelectedAccountGroup',
+      );
+
+      const { controller, messenger } = setup({
+        accounts: [MOCK_HD_ACCOUNT_1],
+        keyrings: [MOCK_HD_KEYRING_1],
+      });
+
+      controller.init();
+
+      messenger.call(
+        'AccountTreeController:getAccountFromSelectedAccountGroup',
+        EthScope.Mainnet as CaipChainId,
+      );
+      expect(spy).toHaveBeenCalledWith(EthScope.Mainnet as CaipChainId);
     });
 
     it('gets account context with AccountTreeController:getAccountContext', () => {

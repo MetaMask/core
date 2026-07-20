@@ -25,6 +25,7 @@ export type {
   AccountTreeControllerGetAccountWalletObjectAction,
   AccountTreeControllerGetAccountWalletObjectsAction,
   AccountTreeControllerGetAccountsFromSelectedAccountGroupAction,
+  AccountTreeControllerGetAccountFromSelectedAccountGroupAction,
   AccountTreeControllerGetAccountGroupObjectAction,
   AccountTreeControllerGetAccountContextAction,
   AccountTreeControllerGetSelectedAccountGroupAction,

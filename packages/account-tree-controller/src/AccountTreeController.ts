@@ -13,7 +13,8 @@ import { BaseController } from '@metamask/base-controller';
 import type { TraceCallback } from '@metamask/controller-utils';
 import { isEvmAccountType } from '@metamask/keyring-api';
 import type { InternalAccount } from '@metamask/keyring-internal-api';
-import { assert } from '@metamask/utils';
+import { assert, isCaipChainId } from '@metamask/utils';
+import type { CaipChainId } from '@metamask/utils';
 
 import type { BackupAndSyncEmitAnalyticsEventParams } from './backup-and-sync/analytics';
 import {
@@ -49,6 +50,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'getSelectedAccountGroup',
   'setSelectedAccountGroup',
   'getAccountsFromSelectedAccountGroup',
+  'getAccountFromSelectedAccountGroup',
   'getAccountContext',
   'setAccountWalletName',
   'setAccountGroupName',
@@ -859,6 +861,48 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
+   * Gets an account from the currently selected account group, optionally
+   * filtered by a CAIP-2 chain ID.
+   *
+   * This is the group-based replacement for both
+   * `AccountsController:getSelectedAccount` and
+   * `AccountsController:getSelectedMultichainAccount`.
+   *
+   * When no chain ID is provided, an account of the selected group is returned
+   * using an EVM-priority rule: the first EVM account found in the group, or the
+   * first account in the group if no EVM account is found. When a chain ID is
+   * provided, the first account in the selected group whose scopes match the
+   * given chain is returned.
+   *
+   * @param chainId - Optional CAIP-2 chain ID used to filter accounts by scope.
+   * @returns The matching internal account from the selected group, or
+   * undefined if no group is selected or no account matches.
+   * @throws If `chainId` is provided but is not a valid CAIP-2 chain ID.
+   */
+  getAccountFromSelectedAccountGroup(
+    chainId?: CaipChainId,
+  ): InternalAccount | undefined {
+    const groupId = this.getSelectedAccountGroup();
+    if (!groupId) {
+      return undefined;
+    }
+
+    if (!chainId) {
+      return this.#getAccountFromAccountGroupId(groupId);
+    }
+
+    if (!isCaipChainId(chainId)) {
+      throw new Error(`Invalid CAIP-2 chain ID: ${String(chainId)}`);
+    }
+
+    const accounts = this.getAccountsFromSelectedAccountGroup({
+      scopes: [chainId],
+    });
+
+    return accounts[0];
+  }
+
+  /**
    * Gets the account group object from its ID.
    *
    * @param groupId - Account group ID.
@@ -1303,7 +1347,7 @@ export class AccountTreeController extends BaseController<
     }
 
     // Find the first account in this group to select
-    const accountToSelect = this.#getDefaultAccountFromAccountGroupId(groupId);
+    const accountToSelect = this.#getAccountFromAccountGroupId(groupId);
     if (!accountToSelect) {
       throw new Error('No accounts found in group');
     }
@@ -1343,10 +1387,10 @@ export class AccountTreeController extends BaseController<
       // but our handler is idempotent so it won't cause infinite loop
       this.messenger.call(
         'AccountsController:setSelectedAccount',
-        accountToSelect,
+        accountToSelect.id,
       );
 
-      log(`Selected account is now: ${accountToSelect}`);
+      log(`Selected account is now: ${accountToSelect.id}`);
     }
   }
 
@@ -1439,35 +1483,41 @@ export class AccountTreeController extends BaseController<
   }
 
   /**
-   * Gets the default account for specified group.
+   * Gets an account for the specified group using the EVM-priority rule.
+   *
+   * The account is the first EVM account found in the group, or the first
+   * account in the group if no EVM account is found.
    *
    * @param groupId - The account group ID.
-   * @returns The first account ID in the group, or undefined if no accounts found.
+   * @returns The internal account in the group, or undefined if the group does
+   * not exist or is empty.
    */
-  #getDefaultAccountFromAccountGroupId(
+  #getAccountFromAccountGroupId(
     groupId: AccountGroupId,
-  ): AccountId | undefined {
+  ): InternalAccount | undefined {
     const group = this.#getAccountGroup(groupId);
 
     if (group) {
-      let candidate;
+      let candidateId: AccountId | undefined;
       for (const id of group.accounts) {
         const account = this.messenger.call(
           'AccountsController:getAccount',
           id,
         );
 
-        if (!candidate) {
-          candidate = id;
+        if (!candidateId) {
+          candidateId = id;
         }
         if (account && isEvmAccountType(account.type)) {
           // EVM accounts have a higher priority, so if we find any, we just
           // use that account!
-          return account.id;
+          return account;
         }
       }
 
-      return candidate;
+      return candidateId
+        ? this.messenger.call('AccountsController:getAccount', candidateId)
+        : undefined;
     }
 
     return undefined;
