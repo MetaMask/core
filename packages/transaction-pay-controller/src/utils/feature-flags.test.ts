@@ -31,6 +31,7 @@ import {
   getRelayOriginGasOverhead,
   getRelayPollingInterval,
   getRelayPollingTimeout,
+  getStablecoins,
   isChainExcludedFromInfura,
   isEIP7702Chain,
   isRelayExecuteEnabled,
@@ -1941,6 +1942,87 @@ describe('Feature Flags Utils', () => {
         getHyperliquidActivationFeeConfig(messenger, TRANSACTION_TYPE)
           .amountUsd,
       ).toBe(DEFAULT_HYPERLIQUID_ACTIVATION_FEE_USD);
+    });
+  });
+
+  describe('getStablecoins', () => {
+    it('returns hardcoded fallback when flag is absent', () => {
+      const result = getStablecoins(messenger);
+      expect(result).toHaveProperty('0x1');
+      expect(result['0x1' as Hex]).toContain(
+        '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48',
+      );
+    });
+
+    it('returns flag value when stable-tokens is a valid object', () => {
+      const flagValue = {
+        '0x1': ['0xaaa', '0xbbb'],
+        '0xa4b1': ['0xccc'],
+      };
+
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          'stable-tokens': flagValue,
+        },
+      });
+
+      expect(getStablecoins(messenger)).toStrictEqual(flagValue);
+    });
+
+    it('normalizes addresses and chain IDs to lowercase', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          'stable-tokens': {
+            '0xA4B1': ['0xAf88d065e77c8cC2239327C5EDb3A432268e5831'],
+          },
+        },
+      });
+
+      const result = getStablecoins(messenger);
+      expect(result).toStrictEqual({
+        '0xa4b1': ['0xaf88d065e77c8cc2239327c5edb3a432268e5831'],
+      });
+    });
+
+    it('skips non-array entries in flag value', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          'stable-tokens': {
+            '0x1': ['0xaaa'],
+            '0xa4b1': 'not-an-array',
+          },
+        },
+      });
+
+      const result = getStablecoins(messenger);
+      expect(result).toStrictEqual({ '0x1': ['0xaaa'] });
+    });
+
+    it('returns fallback when flag is an array', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          'stable-tokens': ['not', 'an', 'object'],
+        },
+      });
+
+      const result = getStablecoins(messenger);
+      expect(result).toHaveProperty('0x1');
+    });
+
+    it('returns fallback when flag is a primitive', () => {
+      getRemoteFeatureFlagControllerStateMock.mockReturnValue({
+        ...getDefaultRemoteFeatureFlagControllerState(),
+        remoteFeatureFlags: {
+          'stable-tokens': true,
+        },
+      });
+
+      const result = getStablecoins(messenger);
+      expect(result).toHaveProperty('0x1');
     });
   });
 });

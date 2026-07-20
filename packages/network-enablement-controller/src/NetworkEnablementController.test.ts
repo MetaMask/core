@@ -2032,6 +2032,82 @@ describe('NetworkEnablementController', () => {
     });
   });
 
+  describe('restoreEnabledNetworkMap', () => {
+    it('restores the enabled network map to a previously snapshotted state', () => {
+      const { controller } = setupController();
+      const previousEnabledNetworkMap = Object.fromEntries(
+        Object.entries(controller.state.enabledNetworkMap).map(
+          ([namespace, networks]) => [namespace, { ...networks }],
+        ),
+      ) as typeof controller.state.enabledNetworkMap;
+
+      controller.enableNetwork('0xa4b1');
+
+      expect(controller.isNetworkEnabled('0xa4b1')).toBe(true);
+      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+
+      controller.restoreEnabledNetworkMap(previousEnabledNetworkMap);
+
+      expect(controller.state.enabledNetworkMap).toStrictEqual(
+        previousEnabledNetworkMap,
+      );
+    });
+
+    it('disables networks missing from the restored snapshot', () => {
+      const { controller } = setupController();
+
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+
+      controller.restoreEnabledNetworkMap({});
+
+      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(false);
+      expect(
+        controller.isNetworkEnabled('solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp'),
+      ).toBe(false);
+    });
+
+    it('undoes the filter switch after networkAdded when adding without setActive', async () => {
+      const { controller, rootMessenger } = setupController();
+
+      controller.disableNetwork('0xe708');
+      controller.disableNetwork('0x2105');
+
+      const snapshot = Object.fromEntries(
+        Object.entries(controller.state.enabledNetworkMap).map(
+          ([namespace, networks]) => [namespace, { ...networks }],
+        ),
+      ) as typeof controller.state.enabledNetworkMap;
+
+      rootMessenger.publish('NetworkController:networkAdded', {
+        chainId: '0x999',
+        blockExplorerUrls: [],
+        defaultRpcEndpointIndex: 0,
+        name: 'Custom Network',
+        nativeCurrency: 'CUSTOM',
+        rpcEndpoints: [
+          {
+            url: 'https://custom.network/rpc',
+            networkClientId: 'id',
+            type: RpcEndpointType.Custom,
+          },
+        ],
+      });
+
+      await jestAdvanceTime({ duration: 1 });
+
+      expect(controller.isNetworkEnabled('0x999')).toBe(true);
+      expect(controller.isNetworkEnabled('0x1')).toBe(false);
+
+      controller.restoreEnabledNetworkMap(snapshot);
+
+      expect(controller.isNetworkEnabled('0x1')).toBe(true);
+      expect(controller.isNetworkEnabled('0xe708')).toBe(false);
+      expect(controller.isNetworkEnabled('0x2105')).toBe(false);
+      expect(controller.isNetworkEnabled('0x999')).toBe(false);
+    });
+  });
+
   describe('isNetworkEnabled', () => {
     it('returns true for enabled networks using hex chain ID', () => {
       const { controller } = setupController();

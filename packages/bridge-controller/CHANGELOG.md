@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [77.6.0]
+
+### Uncategorized
+
+- Ensure refs in tsconfig files are synced with internal deps ([#8384](https://github.com/MetaMask/core/pull/8384))
+
+### Added
+
+- Added `FollowTradingTokenScreen` and `FollowTradingFeedScreen` values to `MetaMetricsSwapsEventSource` enum for attributing swap and bridge flows to follow trading entry points ([#9553](https://github.com/MetaMask/core/pull/9553))
+- Added `FollowTrader` value to `MetaMetricsSwapsEventSource` enum for attributing swap and bridge flows to the follow trader entry point ([#9552](https://github.com/MetaMask/core/pull/9552))
+
+## [77.5.0]
+
+### Added
+
+- Add the optional `transaction_internal_id` property to `Unified SwapBridge Completed` events. ([#9494](https://github.com/MetaMask/core/pull/9494))
+
+### Changed
+
+- Bump `@metamask/assets-controller` from `^10.2.1` to `^11.0.0` ([#9485](https://github.com/MetaMask/core/pull/9485))
+
+### Fixed
+
+- chore: MIT license text update ([#9472](https://github.com/MetaMask/core/pull/9472))
+
 ## [77.4.1]
 
 ### Changed
@@ -1746,7 +1771,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial release ([#5317](https://github.com/MetaMask/core/pull/5317))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.4.1...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.6.0...HEAD
+[77.6.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.5.0...@metamask/bridge-controller@77.6.0
+[77.5.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.4.1...@metamask/bridge-controller@77.5.0
 [77.4.1]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.4.0...@metamask/bridge-controller@77.4.1
 [77.4.0]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.3.2...@metamask/bridge-controller@77.4.0
 [77.3.2]: https://github.com/MetaMask/core/compare/@metamask/bridge-controller@77.3.1...@metamask/bridge-controller@77.3.2

@@ -7,9 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `proLayoutPreferences` state field (`orderBookExpanded`, `chartExpanded`, `orderBookPosition`, `orderFormPosition`) to `PerpsControllerState` for persisting Pro-mode layout across markets, along with the exported `ProLayoutPreferences` type and `DEFAULT_PRO_LAYOUT_PREFERENCES` constant, `getProLayoutPreferences()` / `setProLayoutPreferences(patch)` controller methods (exposed as messenger actions with exported `PerpsControllerGetProLayoutPreferencesAction` / `PerpsControllerSetProLayoutPreferencesAction` types), and a `selectProLayoutPreferences` selector; the getter and selector merge over defaults so callers always receive a fully-populated object ([#9550](https://github.com/MetaMask/core/pull/9550))
+- Add a `PerpsMode` enum (`Lite`/`Pro`) and a persisted `mode` state field (defaulting to `PerpsMode.Lite`) to `PerpsControllerState`, along with an exported `DEFAULT_PERPS_MODE` constant, a `setPerpsMode(mode)` controller method (exposed as a messenger action with an exported `PerpsControllerSetPerpsModeAction` type), and a `selectPerpsMode` selector that falls back to the default mode ([#9550](https://github.com/MetaMask/core/pull/9550))
+
 ### Changed
 
 - Bump `@metamask/account-tree-controller` from `^7.5.3` to `7.5.4` ([#9429](https://github.com/MetaMask/core/pull/9429))
+- Report the effective leverage (`positionUSD / marginUSD`, rounded to 1 decimal place) on `PERPS_POSITION_CLOSE_TRANSACTION` analytics instead of the configured `leverage.value`, and populate it for every close including TP/SL triggers ([#9471](https://github.com/MetaMask/core/pull/9471))
+- Emit an additional `partially_filled` `PERPS_TRADE_TRANSACTION` event with `order_size` (the final submitted size), `amount_filled`, and `remaining_amount` when an open trade fills for less than the size actually submitted to the exchange, mirroring the close path so partial fills are visible in analytics; classification uses the provider's post-normalization submitted size (returned as `OrderResult.submittedSize`) rather than the caller's pre-normalization `size`, so a complete fill of the normalized size is not misreported as partial; full fills are unchanged ([#9471](https://github.com/MetaMask/core/pull/9471))
+- Widen the `TradeAction` type to include `flip_long_to_short` and `flip_short_to_long` (already forwarded verbatim at runtime), so clients no longer need casts when deriving flip actions ([#9471](https://github.com/MetaMask/core/pull/9471))
+- Add `number_positions_closed` (the successful-close count) to the batch `PERPS_POSITION_CLOSE_TRANSACTION` summary event emitted by `closePositions`, which previously carried only status/completion_duration/bulk_action_id ([#9471](https://github.com/MetaMask/core/pull/9471))
+
+### Fixed
+
+- Emit the failed Perp Risk Management analytics event when `updateMargin` receives a non-throwing `{ success: false }` provider result, which previously lost the terminal event (only the thrown-error path emitted it); the event fires exactly once per operation ([#9471](https://github.com/MetaMask/core/pull/9471))
+- Fix the CommonJS build inlining an absolute `file:` path in place of the `@nktkas/hyperliquid` specifier ([#9471](https://github.com/MetaMask/core/pull/9471))
+  - `dist/services/HyperLiquidClientService.cjs` and `dist/utils/standaloneInfoClient.cjs` in `9.2.1` emitted `require("file:///home/runner/work/hyperliquid/hyperliquid/src/mod.ts")` instead of `require("@nktkas/hyperliquid")`, breaking any CommonJS/Jest/bundler consumer with "Cannot find module".
+  - Root cause: `@nktkas/hyperliquid@0.33.0`+ ships `.d.ts` files carrying `/// <amd-module name="file:///home/runner/work/hyperliquid/hyperliquid/src/mod.ts" />` triple-slash directives (an artifact of its Deno/`dnt` build). `ts-bridge` uses that `amd-module` name as the CommonJS `require()` target, so the absolute path leaks into the emitted `.cjs`. A yarn patch (applied via monorepo `resolutions`) strips those directives so the build emits the bare `@nktkas/hyperliquid` specifier; the published dependency range stays `^0.33.1`.
 
 ## [9.2.1]
 

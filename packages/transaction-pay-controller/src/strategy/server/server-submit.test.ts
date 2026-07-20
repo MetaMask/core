@@ -1,8 +1,10 @@
+import { successfulFetch } from '@metamask/controller-utils';
 import { TransactionStatus } from '@metamask/transaction-controller';
 import type { TransactionMeta } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
+import { PaymentOverride } from '../../constants';
 import { getMessengerMock } from '../../tests/messenger-mock';
 import type {
   PayStrategyExecuteRequest,
@@ -12,6 +14,7 @@ import {
   getServerPollingInterval,
   getServerPollingTimeout,
 } from '../../utils/feature-flags';
+import { getLiveTokenBalance } from '../../utils/token';
 import {
   collectTransactionIds,
   getTransaction,
@@ -20,9 +23,17 @@ import {
 import { getServerStatus, submitServerIntent } from './server-api';
 import { submitServerQuotes } from './server-submit';
 import { ServerProviderName, ServerStatus } from './types';
-import type { ServerQuote } from './types';
+import type { ServerQuote, ServerSignatureStep } from './types';
 
+jest.mock('@metamask/controller-utils', () => ({
+  ...jest.requireActual('@metamask/controller-utils'),
+  successfulFetch: jest.fn(),
+}));
 jest.mock('../../utils/feature-flags');
+jest.mock('../../utils/token', () => ({
+  ...jest.requireActual('../../utils/token'),
+  getLiveTokenBalance: jest.fn(),
+}));
 jest.mock('../../utils/transaction', () => ({
   ...jest.requireActual('../../utils/transaction'),
   collectTransactionIds: jest.fn(),
@@ -61,14 +72,27 @@ const ORIGINAL_QUOTE_MOCK: ServerQuote = {
     maxPriorityFeePerGas: '500000000',
   },
   duration: 30,
+  fees: { metamask: '0', provider: '0', subsidized: false },
   gasless: true,
   id: 'server-intent-id',
-  input: { formatted: '1.23', raw: '1230000' },
-  output: { formatted: '1', raw: '1000000' },
+  input: {
+    chainId: 137,
+    decimals: 6,
+    formatted: '1.23',
+    raw: '1230000',
+    token: '0x5555555555555555555555555555555555555555' as Hex,
+  },
+  output: {
+    chainId: 1,
+    decimals: 6,
+    formatted: '1',
+    raw: '1000000',
+    token: '0x6666666666666666666666666666666666666666' as Hex,
+  },
   provider: ServerProviderName.Relay,
-  providerFeeUsd: '0.01',
   steps: [
     {
+      type: 'transaction' as const,
       chainId: 137,
       data: '0xstepdata' as Hex,
       to: '0x4444444444444444444444444444444444444444' as Hex,
@@ -122,6 +146,7 @@ const DELEGATION_MOCK = {
 };
 
 describe('submitServerQuotes', () => {
+  const getLiveTokenBalanceMock = jest.mocked(getLiveTokenBalance);
   const getServerPollingIntervalMock = jest.mocked(getServerPollingInterval);
   const getServerPollingTimeoutMock = jest.mocked(getServerPollingTimeout);
   const getServerStatusMock = jest.mocked(getServerStatus);
@@ -131,7 +156,9 @@ describe('submitServerQuotes', () => {
     addTransactionMock: addTxMock,
     addTransactionBatchMock: addTxBatchMock,
     findNetworkClientIdByChainIdMock,
+    getControllerStateMock,
     getDelegationTransactionMock,
+    getPaymentOverrideDataMock,
     getTransactionControllerStateMock,
     messenger,
     updateTransactionMock,
@@ -154,6 +181,7 @@ describe('submitServerQuotes', () => {
 
     findNetworkClientIdByChainIdMock.mockReturnValue(NETWORK_CLIENT_ID_MOCK);
     getDelegationTransactionMock.mockResolvedValue(DELEGATION_MOCK);
+    getLiveTokenBalanceMock.mockResolvedValue('999999999999999999');
     getServerPollingIntervalMock.mockReturnValue(0);
     getServerPollingTimeoutMock.mockReturnValue(undefined);
     getServerStatusMock.mockResolvedValue({
@@ -365,6 +393,38 @@ describe('submitServerQuotes', () => {
     expect(addTxBatchMock).not.toHaveBeenCalled();
   });
 
+  it('falls back to 0x / 0x0 for undefined data and value in override calls', async () => {
+    getControllerStateMock.mockReturnValue({
+      transactionData: {},
+      transactions: [],
+    } as never);
+    getPaymentOverrideDataMock.mockResolvedValue({
+      calls: [{ to: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex }],
+      recipient: undefined,
+      authorizationList: undefined,
+    } as never);
+
+    const req = {
+      ...request,
+      quotes: [
+        {
+          ...cloneDeep(QUOTE_MOCK),
+          request: {
+            ...QUOTE_MOCK.request,
+            paymentOverride: PaymentOverride.MoneyAccount,
+          },
+        },
+      ],
+    };
+
+    await submitServerQuotes(req);
+
+    expect(submitServerIntentMock).toHaveBeenCalledWith(
+      messenger,
+      expect.objectContaining({ data: DELEGATION_MOCK.data }),
+    );
+  });
+
   it('continues polling when getServerStatus throws a network error', async () => {
     getServerStatusMock
       .mockRejectedValueOnce(new Error('network error'))
@@ -435,6 +495,7 @@ describe('submitServerQuotes', () => {
           steps: [
             ORIGINAL_QUOTE_MOCK.steps[0],
             {
+              type: 'transaction' as const,
               chainId: 137,
               data: '0xseconddata' as Hex,
               to: '0x9999999999999999999999999999999999999999' as Hex,
@@ -591,6 +652,7 @@ describe('submitServerQuotes', () => {
         steps: [
           ORIGINAL_QUOTE_MOCK.steps[0],
           {
+            type: 'transaction' as const,
             chainId: 137,
             data: '0xseconddata' as Hex,
             to: '0x9999999999999999999999999999999999999999' as Hex,
@@ -607,6 +669,410 @@ describe('submitServerQuotes', () => {
           gasLimit7702: expect.any(String),
         }),
       );
+    });
+  });
+
+  describe('signature steps', () => {
+    const SIGNATURE_MOCK = `0x${'a'.repeat(64)}${'b'.repeat(64)}1c`;
+    const SIGNATURE_STEP_MOCK: ServerSignatureStep = {
+      type: 'signature' as const,
+      sign: {
+        domain: { name: 'Test', chainId: 137 },
+        types: { Order: [{ name: 'amount', type: 'uint256' }] },
+        primaryType: 'Order',
+        value: { amount: '1000' },
+      },
+      post: {
+        endpoint: 'https://api.example.com/sign',
+        method: 'POST',
+        body: { orderId: 'abc' },
+        signatureFormat: 'queryParam' as const,
+      },
+    };
+
+    const signTypedMessageMock = jest.fn();
+    const successfulFetchMock = jest.mocked(successfulFetch);
+
+    // Register the handler once — can't re-register after the first test.
+    // The outer beforeEach resets mock implementations so we re-apply in
+    // our own beforeEach which runs after the outer one.
+    beforeAll(() => {
+      messenger.registerActionHandler(
+        'KeyringController:signTypedMessage' as never,
+        signTypedMessageMock as never,
+      );
+    });
+
+    beforeEach(() => {
+      signTypedMessageMock.mockResolvedValue(SIGNATURE_MOCK);
+      successfulFetchMock.mockResolvedValue({
+        json: jest.fn().mockResolvedValue({ success: true }),
+      } as never);
+    });
+
+    const buildSignatureRequest = (
+      overrides: Partial<ServerQuote> = {},
+    ): PayStrategyExecuteRequest<ServerQuote> => {
+      const quote = cloneDeep(QUOTE_MOCK);
+      quote.original = {
+        ...quote.original,
+        steps: [SIGNATURE_STEP_MOCK],
+        gasless: true,
+        ...overrides,
+      };
+      return {
+        accountSupports7702: true,
+        isSmartTransaction: (): boolean => false,
+        messenger,
+        quotes: [quote],
+        transaction: cloneDeep(TRANSACTION_META_MOCK),
+      };
+    };
+
+    it('signs and POSTs signature step with queryParam format', async () => {
+      await submitServerQuotes(buildSignatureRequest());
+
+      expect(successfulFetchMock).toHaveBeenCalledWith(
+        `${SIGNATURE_STEP_MOCK.post.endpoint}?signature=${SIGNATURE_MOCK}`,
+        expect.objectContaining({ method: 'POST' }),
+      );
+    });
+
+    it('signs and POSTs signature step with rsv format', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: jest.fn().mockResolvedValue({ status: 'ok' }),
+      } as never);
+
+      const rsvStep: ServerSignatureStep = {
+        ...SIGNATURE_STEP_MOCK,
+        post: { ...SIGNATURE_STEP_MOCK.post, signatureFormat: 'rsv' as const },
+      };
+
+      await submitServerQuotes(buildSignatureRequest({ steps: [rsvStep] }));
+
+      expect(successfulFetchMock).toHaveBeenCalledWith(
+        SIGNATURE_STEP_MOCK.post.endpoint,
+        expect.objectContaining({
+          body: expect.stringContaining('"signature"'),
+        }),
+      );
+    });
+
+    it('throws when rsv POST response status is not ok', async () => {
+      successfulFetchMock.mockResolvedValue({
+        json: jest
+          .fn()
+          .mockResolvedValue({ status: 'error', message: 'rejected' }),
+      } as never);
+
+      const rsvStep: ServerSignatureStep = {
+        ...SIGNATURE_STEP_MOCK,
+        post: { ...SIGNATURE_STEP_MOCK.post, signatureFormat: 'rsv' as const },
+      };
+
+      await expect(
+        submitServerQuotes(buildSignatureRequest({ steps: [rsvStep] })),
+      ).rejects.toThrow('Signature step rejected by server');
+    });
+
+    it('throws when signature POST fails', async () => {
+      successfulFetchMock.mockRejectedValue(new Error('network error'));
+
+      await expect(submitServerQuotes(buildSignatureRequest())).rejects.toThrow(
+        'Signature step POST failed: network error',
+      );
+    });
+
+    it('no-ops transaction phase when gasless quote has only signature steps', async () => {
+      await submitServerQuotes(buildSignatureRequest());
+
+      expect(addTxMock).not.toHaveBeenCalled();
+      expect(addTxBatchMock).not.toHaveBeenCalled();
+      expect(submitServerIntentMock).not.toHaveBeenCalled();
+      expect(getServerStatusMock).toHaveBeenCalled();
+    });
+
+    it('does not throw for a signature-only non-gasless quote (no transaction steps)', async () => {
+      const quote = cloneDeep(QUOTE_MOCK);
+      quote.original.steps = [SIGNATURE_STEP_MOCK];
+      quote.original.gasless = false;
+
+      successfulFetchMock.mockResolvedValue({
+        json: async () => ({}),
+        ok: true,
+      } as Response);
+
+      const req: PayStrategyExecuteRequest<ServerQuote> = {
+        accountSupports7702: true,
+        isSmartTransaction: (): boolean => false,
+        messenger,
+        quotes: [quote],
+        transaction: cloneDeep(TRANSACTION_META_MOCK),
+      };
+
+      await submitServerQuotes(req);
+
+      expect(successfulFetchMock).toHaveBeenCalled();
+    });
+  });
+
+  describe('validateSourceBalance', () => {
+    it('throws when source balance is insufficient', async () => {
+      jest.mocked(getLiveTokenBalance).mockResolvedValue('0');
+
+      const quote = cloneDeep(QUOTE_MOCK);
+      quote.original.gasless = false;
+      const req: PayStrategyExecuteRequest<ServerQuote> = {
+        accountSupports7702: true,
+        isSmartTransaction: (): boolean => false,
+        messenger,
+        quotes: [quote],
+        transaction: cloneDeep(TRANSACTION_META_MOCK),
+      };
+
+      await expect(submitServerQuotes(req)).rejects.toThrow(
+        'Insufficient source token balance',
+      );
+    });
+
+    it('wraps getLiveTokenBalance errors with context message', async () => {
+      jest
+        .mocked(getLiveTokenBalance)
+        .mockRejectedValue(new Error('RPC timeout'));
+
+      const quote = cloneDeep(QUOTE_MOCK);
+      quote.original.gasless = false;
+      const req: PayStrategyExecuteRequest<ServerQuote> = {
+        accountSupports7702: true,
+        isSmartTransaction: (): boolean => false,
+        messenger,
+        quotes: [quote],
+        transaction: cloneDeep(TRANSACTION_META_MOCK),
+      };
+
+      await expect(submitServerQuotes(req)).rejects.toThrow(
+        'Cannot validate payment token balance - RPC timeout',
+      );
+    });
+  });
+
+  describe('buildTransactionParams', () => {
+    const buildRequest = (
+      overrides: Partial<TransactionPayQuote<ServerQuote>> = {},
+    ): PayStrategyExecuteRequest<ServerQuote> => {
+      const quote = { ...cloneDeep(QUOTE_MOCK), ...overrides };
+      quote.original.gasless = false;
+      return {
+        accountSupports7702: true,
+        isSmartTransaction: (): boolean => false,
+        messenger,
+        quotes: [quote],
+        transaction: cloneDeep(TRANSACTION_META_MOCK),
+      };
+    };
+
+    beforeEach(() => {
+      jest
+        .mocked(collectTransactionIds)
+        .mockImplementation((_chainId, _from, _messenger, onTransactionId) => {
+          onTransactionId('submitted-tx-id');
+          return { end: jest.fn() };
+        });
+      jest.mocked(getTransaction).mockReturnValue({
+        hash: '0xsubmitted' as Hex,
+      } as TransactionMeta);
+      jest.mocked(waitForTransactionConfirmed).mockResolvedValue(undefined);
+      addTxMock.mockResolvedValue({
+        result: Promise.resolve('0xsubmitted' as Hex),
+      } as never);
+      getControllerStateMock.mockReturnValue({
+        transactionData: {},
+        transactions: [],
+      } as never);
+    });
+
+    it('skips prepend when paymentOverride returns empty calls', async () => {
+      getPaymentOverrideDataMock.mockResolvedValue({
+        calls: [],
+        recipient: undefined,
+        authorizationList: undefined,
+      } as never);
+
+      await submitServerQuotes(
+        buildRequest({
+          request: {
+            ...QUOTE_MOCK.request,
+            paymentOverride: PaymentOverride.MoneyAccount,
+          },
+        }),
+      );
+
+      // No calls prepended — relay step submitted directly via TransactionController
+      expect(addTxMock).toHaveBeenCalled();
+    });
+
+    it('prepends payment override calls before relay steps', async () => {
+      const overrideCall = {
+        data: '0xoverridedata' as Hex,
+        to: '0xaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' as Hex,
+        value: '0x0' as Hex,
+      };
+
+      getPaymentOverrideDataMock.mockResolvedValue({
+        calls: [overrideCall],
+        recipient: undefined,
+        authorizationList: undefined,
+      } as never);
+
+      await submitServerQuotes(
+        buildRequest({
+          request: {
+            ...QUOTE_MOCK.request,
+            paymentOverride: PaymentOverride.MoneyAccount,
+          },
+        }),
+      );
+
+      expect(addTxBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactions: expect.arrayContaining([
+            expect.objectContaining({
+              params: expect.objectContaining({ to: overrideCall.to }),
+            }),
+          ]),
+        }),
+      );
+    });
+
+    it('prepends original tx before relay steps in post-quote flow (no account override)', async () => {
+      const transaction = cloneDeep(TRANSACTION_META_MOCK);
+
+      await submitServerQuotes(
+        buildRequest({
+          request: {
+            ...QUOTE_MOCK.request,
+            from: ORIGINAL_FROM_MOCK,
+            isPostQuote: true,
+          },
+          original: {
+            ...ORIGINAL_QUOTE_MOCK,
+            gasless: false,
+          },
+        }),
+      );
+
+      expect(addTxBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactions: expect.arrayContaining([
+            expect.objectContaining({
+              params: expect.objectContaining({
+                to: transaction.txParams.to,
+                maxFeePerGas: expect.any(String),
+                maxPriorityFeePerGas: expect.any(String),
+              }),
+            }),
+          ]),
+        }),
+      );
+    });
+
+    it('prepends original tx with undefined fee caps when client has no fee estimates', async () => {
+      const transaction = cloneDeep(TRANSACTION_META_MOCK);
+
+      await submitServerQuotes(
+        buildRequest({
+          request: {
+            ...QUOTE_MOCK.request,
+            from: ORIGINAL_FROM_MOCK,
+            isPostQuote: true,
+          },
+          original: {
+            ...ORIGINAL_QUOTE_MOCK,
+            client: {
+              ...ORIGINAL_QUOTE_MOCK.client,
+              maxFeePerGas: undefined,
+              maxPriorityFeePerGas: undefined,
+            },
+            gasless: false,
+          },
+        }),
+      );
+
+      expect(addTxBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactions: expect.arrayContaining([
+            expect.objectContaining({
+              params: expect.objectContaining({
+                to: transaction.txParams.to,
+                maxFeePerGas: undefined,
+                maxPriorityFeePerGas: undefined,
+              }),
+            }),
+          ]),
+        }),
+      );
+    });
+
+    it('prepends delegation tx before relay steps in post-quote flow with account override', async () => {
+      await submitServerQuotes(
+        buildRequest({
+          request: {
+            ...QUOTE_MOCK.request,
+            from: QUOTE_FROM_MOCK,
+            isPostQuote: true,
+          },
+          original: {
+            ...ORIGINAL_QUOTE_MOCK,
+            gasless: false,
+          },
+        }),
+      );
+
+      expect(getDelegationTransactionMock).toHaveBeenCalled();
+      expect(addTxBatchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          transactions: expect.arrayContaining([
+            expect.objectContaining({
+              params: expect.objectContaining({
+                to: DELEGATION_MOCK.to,
+                maxFeePerGas: expect.any(String),
+                maxPriorityFeePerGas: expect.any(String),
+              }),
+            }),
+          ]),
+        }),
+      );
+    });
+
+    it('resolves effective type through batch transaction to nested perps type', async () => {
+      const batchTransaction: TransactionMeta = {
+        ...TRANSACTION_META_MOCK,
+        type: 'batch' as never,
+        nestedTransactions: [
+          {
+            type: 'relayPerpsDeposit' as never,
+            to: '0x1111111111111111111111111111111111111111' as Hex,
+            data: '0x',
+          },
+        ],
+      };
+
+      const req: PayStrategyExecuteRequest<ServerQuote> = {
+        accountSupports7702: true,
+        isSmartTransaction: (): boolean => false,
+        messenger,
+        quotes: [
+          {
+            ...cloneDeep(QUOTE_MOCK),
+            original: { ...ORIGINAL_QUOTE_MOCK, gasless: false },
+          },
+        ],
+        transaction: batchTransaction,
+      };
+
+      await submitServerQuotes(req);
+
+      expect(addTxMock).toHaveBeenCalled();
     });
   });
 });

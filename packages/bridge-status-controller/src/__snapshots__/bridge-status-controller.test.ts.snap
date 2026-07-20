@@ -435,6 +435,7 @@ exports[`BridgeStatusController startPollingForBridgeTxStatus stops polling when
       "token_security_type_destination": null,
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
+      "transaction_internal_id": "bridgeTxMetaId1",
       "usd_actual_gas": 0,
       "usd_actual_return": 0,
       "usd_amount_source": 0,
@@ -5137,7 +5138,6 @@ exports[`BridgeStatusController submitTx: Solana bridge should successfully subm
     "steps": [
       {
         "action": "bridge",
-        "destAmount": "0.5",
         "destAsset": {
           "address": "0x...",
           "assetId": "eip155:1/slip44:60",
@@ -5147,12 +5147,6 @@ exports[`BridgeStatusController submitTx: Solana bridge should successfully subm
           "symbol": "ETH",
         },
         "destChainId": 1,
-        "protocol": {
-          "displayName": "Test Protocol",
-          "icon": "test-icon",
-          "name": "test-protocol",
-        },
-        "srcAmount": "1000000000",
         "srcAsset": {
           "address": "native",
           "assetId": "eip155:1399811149/slip44:501",
@@ -5543,7 +5537,6 @@ exports[`BridgeStatusController submitTx: Solana swap should successfully submit
     "steps": [
       {
         "action": "bridge",
-        "destAmount": "0.5",
         "destAsset": {
           "address": "0x...",
           "assetId": "eip155:1/slip44:60",
@@ -5553,12 +5546,6 @@ exports[`BridgeStatusController submitTx: Solana swap should successfully submit
           "symbol": "ETH",
         },
         "destChainId": 1,
-        "protocol": {
-          "displayName": "Test Protocol",
-          "icon": "test-icon",
-          "name": "test-protocol",
-        },
-        "srcAmount": "1000000000",
         "srcAsset": {
           "address": "native",
           "assetId": "eip155:1399811149/slip44:501",
@@ -5952,7 +5939,6 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
     "steps": [
       {
         "action": "swap",
-        "destAmount": "500000000",
         "destAsset": {
           "address": "native",
           "assetId": "tron:728126428/slip44:195",
@@ -5962,12 +5948,6 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
           "symbol": "TRX",
         },
         "destChainId": 728126428,
-        "protocol": {
-          "displayName": "Test Protocol",
-          "icon": "test-icon",
-          "name": "test-protocol",
-        },
-        "srcAmount": "1000000",
         "srcAsset": {
           "address": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
           "assetId": "tron:728126428/slip44:195",
@@ -6173,7 +6153,6 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
     "steps": [
       {
         "action": "swap",
-        "destAmount": "500000000",
         "destAsset": {
           "address": "native",
           "assetId": "tron:728126428/slip44:195",
@@ -6183,12 +6162,6 @@ exports[`BridgeStatusController submitTx: Tron swap with approval should success
           "symbol": "TRX",
         },
         "destChainId": 728126428,
-        "protocol": {
-          "displayName": "Test Protocol",
-          "icon": "test-icon",
-          "name": "test-protocol",
-        },
-        "srcAmount": "1000000",
         "srcAsset": {
           "address": "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t",
           "assetId": "tron:728126428/slip44:195",
@@ -6393,6 +6366,7 @@ exports[`BridgeStatusController subscription handlers TransactionController:tran
       "token_security_type_destination": null,
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
+      "transaction_internal_id": "swapTxMetaId1",
       "usd_actual_gas": 0,
       "usd_actual_return": 0,
       "usd_amount_source": 0,

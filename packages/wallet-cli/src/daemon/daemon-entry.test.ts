@@ -1,3 +1,4 @@
+import { validate } from '@metamask/superstruct';
 import { appendFile, readFile, rm, writeFile } from 'node:fs/promises';
 
 import { pingDaemon } from './daemon-client';
@@ -90,7 +91,7 @@ describe('daemon-entry', () => {
     process.env.INFURA_PROJECT_ID = 'key';
     process.env.MM_WALLET_PASSWORD = 'pass';
     process.env.MM_WALLET_SRP =
-      'test test test test test test test test test test test ball';
+      'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
     process.exitCode = undefined;
     stderrSpy = jest
       .spyOn(process.stderr, 'write')
@@ -154,15 +155,33 @@ describe('daemon-entry', () => {
     expect(process.exitCode).toBe(1);
   });
 
-  it('writes to stderr and sets exitCode when MM_WALLET_PASSWORD is missing', async () => {
+  it('passes password: undefined to createWallet when MM_WALLET_PASSWORD is absent', async () => {
     delete process.env.MM_WALLET_PASSWORD;
+    mockCreateWallet.mockResolvedValue(createMockWallet());
+    mockStartRpcSocketServer.mockResolvedValue(createMockHandle());
 
     await importDaemonEntry();
 
-    expect(stderrSpy).toHaveBeenCalledWith(
-      expect.stringContaining('MM_WALLET_PASSWORD'),
+    expect(mockCreateWallet).toHaveBeenCalledWith(
+      expect.objectContaining({ password: undefined }),
     );
-    expect(process.exitCode).toBe(1);
+    expect(process.exitCode).toBeUndefined();
+  });
+
+  it('passes password: undefined to createWallet when MM_WALLET_PASSWORD is an empty string', async () => {
+    process.env.MM_WALLET_PASSWORD = '';
+    mockCreateWallet.mockResolvedValue(createMockWallet());
+    mockStartRpcSocketServer.mockResolvedValue(createMockHandle());
+
+    await importDaemonEntry();
+
+    // An empty env var means "no password": daemon-entry treats it the same as
+    // an absent one and starts the daemon locked, so createWallet receives
+    // `undefined` rather than an (invalid) empty Password.
+    expect(mockCreateWallet).toHaveBeenCalledWith(
+      expect.objectContaining({ password: undefined }),
+    );
+    expect(process.exitCode).toBeUndefined();
   });
 
   it('writes to stderr and sets exitCode when MM_WALLET_SRP is missing', async () => {
@@ -183,13 +202,21 @@ describe('daemon-entry', () => {
     await importDaemonEntry();
 
     expect(mockEnsureOwnerOnlyDirectory).toHaveBeenCalledWith('/tmp/data');
-    expect(mockCreateWallet).toHaveBeenCalledWith({
-      databasePath: '/tmp/wallet.db',
-      password: 'pass',
-      srp: 'test test test test test test test test test test test ball',
-      infuraProjectId: 'key',
-      log: expect.any(Function),
-    });
+    expect(mockCreateWallet).toHaveBeenCalledWith(
+      expect.objectContaining({
+        databasePath: '/tmp/wallet.db',
+        infuraProjectId: 'key',
+        log: expect.any(Function),
+      }),
+    );
+    // The Password/Srp instances are constructed in an isolated module scope
+    // (jest.isolateModulesAsync), so their class identity differs from any
+    // import in this test file. Verify structurally via `.unwrap()`.
+    const passedConfig = mockCreateWallet.mock.calls[0][0];
+    expect(passedConfig.password?.unwrap()).toBe('pass');
+    expect(passedConfig.srp.unwrap()).toBe(
+      'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
+    );
     expect(mockWriteFile).toHaveBeenCalledWith(
       '/tmp/daemon.pid',
       expect.stringMatching(new RegExp(`^${process.pid}\\n\\d+\\n$`, 'u')),
@@ -209,14 +236,24 @@ describe('daemon-entry', () => {
 
     await importDaemonEntry();
 
-    // The captured values still reach createWallet...
-    expect(mockCreateWallet).toHaveBeenCalledWith(
-      expect.objectContaining({
-        password: 'pass',
-        srp: 'test test test test test test test test test test test ball',
-      }),
+    // The captured values still reach createWallet (as opaque Password/Srp
+    // instances, verified structurally via `.unwrap()`)...
+    const passedConfig = mockCreateWallet.mock.calls[0][0];
+    expect(passedConfig.password?.unwrap()).toBe('pass');
+    expect(passedConfig.srp.unwrap()).toBe(
+      'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about',
     );
     // ...but no longer linger in the long-lived daemon's environment.
+    expect(process.env.MM_WALLET_PASSWORD).toBeUndefined();
+    expect(process.env.MM_WALLET_SRP).toBeUndefined();
+  });
+
+  it('scrubs wallet secrets even when Srp.from throws on an invalid mnemonic', async () => {
+    process.env.MM_WALLET_SRP = 'not a valid mnemonic at all';
+
+    await importDaemonEntry();
+
+    expect(process.exitCode).toBe(1);
     expect(process.env.MM_WALLET_PASSWORD).toBeUndefined();
     expect(process.env.MM_WALLET_SRP).toBeUndefined();
   });
@@ -489,7 +526,7 @@ describe('daemon-entry', () => {
 
     const callArgs = mockStartRpcSocketServer.mock.calls[0][0];
     const { handlers } = callArgs;
-    const status = (await handlers.getStatus(null)) as {
+    const status = (await handlers.getStatus.run(null)) as {
       pid: number;
       uptime: number;
     };
@@ -512,12 +549,34 @@ describe('daemon-entry', () => {
     await importDaemonEntry();
 
     const { handlers } = mockStartRpcSocketServer.mock.calls[0][0];
-    const actions = await handlers.listActions(null);
+    const actions = await handlers.listActions.run(null);
 
     expect(actions).toStrictEqual([
       'NetworkController:getState',
       'KeyringController:getState',
     ]);
+  });
+
+  it('getStatus paramsStruct rejects non-null params', async () => {
+    mockCreateWallet.mockResolvedValue(createMockWallet());
+    mockStartRpcSocketServer.mockResolvedValue(createMockHandle());
+
+    await importDaemonEntry();
+
+    const { handlers } = mockStartRpcSocketServer.mock.calls[0][0];
+    const [error] = validate(['unexpected'], handlers.getStatus.paramsStruct);
+    expect(error).toBeDefined();
+  });
+
+  it('listActions paramsStruct rejects non-null params', async () => {
+    mockCreateWallet.mockResolvedValue(createMockWallet());
+    mockStartRpcSocketServer.mockResolvedValue(createMockHandle());
+
+    await importDaemonEntry();
+
+    const { handlers } = mockStartRpcSocketServer.mock.calls[0][0];
+    const [error] = validate(['unexpected'], handlers.listActions.paramsStruct);
+    expect(error).toBeDefined();
   });
 
   it('logs to file via makeLogger', async () => {
@@ -625,6 +684,28 @@ describe('daemon-entry', () => {
     );
   });
 
+  it('logs dispose error during shutdown without aborting cleanup', async () => {
+    const result = createMockWallet();
+    (result.dispose as jest.Mock).mockRejectedValue(
+      new Error('dispose failed'),
+    );
+    mockCreateWallet.mockResolvedValue(result);
+    const handle = createMockHandle();
+    mockStartRpcSocketServer.mockResolvedValue(handle);
+
+    await importDaemonEntry();
+
+    const callArgs = mockStartRpcSocketServer.mock.calls[0][0];
+    const onShutdown = callArgs.onShutdown as () => Promise<void>;
+    await onShutdown();
+
+    expect(handle.close).toHaveBeenCalled();
+    expect(mockAppendFile).toHaveBeenCalledWith(
+      '/tmp/daemon.log',
+      expect.stringContaining('dispose() failed during shutdown'),
+    );
+  });
+
   it('handles rm rejection during shutdown cleanup gracefully', async () => {
     const result = createMockWallet();
     mockCreateWallet.mockResolvedValue(result);
@@ -714,13 +795,18 @@ describe('daemon-entry', () => {
 
   describe('call handler', () => {
     /**
-     * Import the daemon entry and extract the `call` handler from the
-     * handlers map, along with the mock wallet for assertions.
+     * Import the daemon entry and extract the `call` handler definition from
+     * the handlers map, along with the mock wallet for assertions.
      *
-     * @returns The call handler function and mock wallet result.
+     * @returns The call handler definition and mock wallet result.
      */
     async function setupCallHandler(): Promise<{
-      callHandler: (params: unknown) => Promise<unknown>;
+      callHandler: {
+        paramsStruct: import('@metamask/superstruct').Struct<
+          [string, ...unknown[]]
+        >;
+        run: (params: [string, ...unknown[]]) => Promise<unknown>;
+      };
       result: MockCreateWalletResult;
     }> {
       const result = createMockWallet();
@@ -730,20 +816,25 @@ describe('daemon-entry', () => {
       await importDaemonEntry();
 
       const callArgs = mockStartRpcSocketServer.mock.calls[0][0];
-      const callHandler = callArgs.handlers.call as (
-        params: unknown,
-      ) => Promise<unknown>;
+      const callHandler = callArgs.handlers.call as unknown as {
+        paramsStruct: import('@metamask/superstruct').Struct<
+          [string, ...unknown[]]
+        >;
+        run: (params: [string, ...unknown[]]) => Promise<unknown>;
+      };
       return { callHandler, result };
     }
 
-    it('registers a call handler', async () => {
+    it('registers a call handler definition', async () => {
       mockCreateWallet.mockResolvedValue(createMockWallet());
       mockStartRpcSocketServer.mockResolvedValue(createMockHandle());
 
       await importDaemonEntry();
 
       const callArgs = mockStartRpcSocketServer.mock.calls[0][0];
-      expect(typeof callArgs.handlers.call).toBe('function');
+      const callDefinition = callArgs.handlers.call;
+      expect(callDefinition).toHaveProperty('paramsStruct');
+      expect(typeof callDefinition.run).toBe('function');
     });
 
     it('forwards action and args to messenger.call', async () => {
@@ -751,7 +842,7 @@ describe('daemon-entry', () => {
       const mockCall = result.wallet.messenger.call as jest.Mock;
       mockCall.mockReturnValue({ accounts: [] });
 
-      const callResult = await callHandler([
+      const callResult = await callHandler.run([
         'Controller:action',
         'arg1',
         'arg2',
@@ -770,7 +861,7 @@ describe('daemon-entry', () => {
       const mockCall = result.wallet.messenger.call as jest.Mock;
       mockCall.mockReturnValue('ok');
 
-      await callHandler(['Controller:action']);
+      await callHandler.run(['Controller:action']);
 
       expect(mockCall).toHaveBeenCalledWith('Controller:action');
     });
@@ -780,7 +871,7 @@ describe('daemon-entry', () => {
       const mockCall = result.wallet.messenger.call as jest.Mock;
       mockCall.mockResolvedValue({ async: true });
 
-      const callResult = await callHandler(['Controller:asyncAction']);
+      const callResult = await callHandler.run(['Controller:asyncAction']);
 
       expect(callResult).toStrictEqual({ async: true });
     });
@@ -792,33 +883,29 @@ describe('daemon-entry', () => {
         throw new Error('A handler for Unknown:action has not been registered');
       });
 
-      await expect(callHandler(['Unknown:action'])).rejects.toThrow(
+      await expect(callHandler.run(['Unknown:action'])).rejects.toThrow(
         'A handler for Unknown:action has not been registered',
       );
     });
 
-    it('throws when params is null', async () => {
+    it.each([
+      ['null', null],
+      ['empty array', []],
+      ['non-string first element', [42]],
+      ['non-array', { foo: 'bar' }],
+    ])('paramsStruct rejects invalid params (%s)', async (_label, value) => {
       const { callHandler } = await setupCallHandler();
-
-      await expect(callHandler(null)).rejects.toThrow(
-        'Expected params to be an array with an action name',
-      );
+      const [error] = validate(value, callHandler.paramsStruct);
+      expect(error).toBeDefined();
     });
 
-    it('throws when params is an empty array', async () => {
+    it('paramsStruct accepts a non-empty array starting with a string', async () => {
       const { callHandler } = await setupCallHandler();
-
-      await expect(callHandler([])).rejects.toThrow(
-        'Expected params to be an array with an action name',
+      const [error] = validate(
+        ['Controller:action', 1, 'two'],
+        callHandler.paramsStruct,
       );
-    });
-
-    it('throws when action name is not a string', async () => {
-      const { callHandler } = await setupCallHandler();
-
-      await expect(callHandler([42])).rejects.toThrow(
-        'Expected params to be an array with an action name',
-      );
+      expect(error).toBeUndefined();
     });
   });
 });

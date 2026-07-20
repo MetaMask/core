@@ -20,6 +20,7 @@ export type {
   DataServiceCacheUpdatedEvent,
   DataServiceGranularCacheUpdatedEvent,
   QueryKey,
+  PersistenceConfiguration,
 } from './BaseDataService';
 export { BaseDataService } from './BaseDataService';
 

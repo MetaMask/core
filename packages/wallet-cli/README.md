@@ -12,12 +12,24 @@ or
 
 ## Usage
 
-The CLI drives a long-lived background **daemon** that holds an unlocked `@metamask/wallet` in memory and exposes its messenger over a per-user Unix socket. All commands live under the `mm daemon` topic; run `mm --help` (or `mm daemon <command> --help`) for the full reference.
+The CLI drives a long-lived background daemon that holds a `@metamask/wallet` in memory and exposes its messenger over a per-user Unix socket. All commands live under the `mm daemon` and `mm wallet` topics; run `mm --help` (or `mm <topic> <command> --help`) for the full reference.
 
 Start the daemon (flags may also be supplied as the `INFURA_PROJECT_ID`, `MM_WALLET_PASSWORD`, and `MM_WALLET_SRP` environment variables — preferred for secrets):
 
 ```sh
+# First run — password required to import the secret recovery phrase:
 mm daemon start --infura-project-id <key> --password <pw> --srp "<phrase>"
+
+# Subsequent runs — password optional. Omit to start with a locked keyring
+# and unlock later with `mm wallet unlock`:
+mm daemon start --infura-project-id <key> --srp "<phrase>"
+```
+
+Unlock the keyring after a password-less start (or after `KeyringController:setLocked`):
+
+```sh
+mm wallet unlock --password <pw>   # or: MM_WALLET_PASSWORD=<pw> mm wallet unlock
+mm wallet unlock                   # prompts interactively (input masked)
 ```
 
 Discover what the running wallet can do — `list` prints every messenger action currently dispatchable via `call`. This surface grows as more controllers are wired, so treat it as evolving rather than a stability contract:

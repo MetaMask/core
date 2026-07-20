@@ -12,6 +12,7 @@ import { join } from 'node:path';
 
 import { KeyValueStore } from '../persistence/KeyValueStore';
 import * as persistenceModule from '../persistence/persistence';
+import { Password, Srp } from './secrets';
 import { createWallet } from './wallet-factory';
 
 jest.mock('@metamask/wallet');
@@ -24,12 +25,13 @@ const mockRm = jest.mocked(rm);
 
 const createdTempDbPaths: string[] = [];
 
-const SRP = 'test test test test test test test test test test test ball';
+const SRP =
+  'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 
 const CONFIG = {
   databasePath: ':memory:',
-  password: 'test-pass',
-  srp: SRP,
+  password: Password.from('test-pass'),
+  srp: Srp.from(SRP),
   infuraProjectId: 'test-infura-id',
 };
 
@@ -63,7 +65,7 @@ function makeMockWallet(): Wallet {
  * @param label - A short label that makes the resulting filename traceable.
  * @returns An absolute file path inside `os.tmpdir()`.
  */
-function tempDbPath(label: string): string {
+function createTempDbPath(label: string): string {
   const path = join(
     tmpdir(),
     `wallet-cli-${label}-${Date.now()}-${Math.random()}.db`,
@@ -116,6 +118,8 @@ describe('createWallet', () => {
     expect(instanceOptions.storageService.storage).toBeInstanceOf(
       InMemoryStorageAdapter,
     );
+    expect(instanceOptions.transactionController?.disableSwaps).toBe(true);
+    expect(instanceOptions.transactionController?.hooks).toStrictEqual({});
     expect(ClientConfigApiService).toHaveBeenCalled();
 
     await dispose();
@@ -265,6 +269,123 @@ describe('createWallet', () => {
     );
 
     await dispose();
+  });
+
+  it('skips importing the SRP and unlocks the persisted vault on subsequent runs', async () => {
+    jest.spyOn(persistenceModule, 'loadState').mockReturnValue({
+      KeyringController: { vault: 'encrypted-vault-blob' },
+    });
+
+    const { wallet, dispose } = await createWallet(CONFIG);
+
+    expect(mockImportSrp).not.toHaveBeenCalled();
+    expect(wallet.messenger.call).toHaveBeenCalledWith(
+      'KeyringController:submitPassword',
+      'test-pass',
+    );
+
+    await dispose();
+  });
+
+  it('does not call submitPassword on first run', async () => {
+    const { wallet, dispose } = await createWallet(CONFIG);
+
+    expect(wallet.messenger.call).not.toHaveBeenCalledWith(
+      'KeyringController:submitPassword',
+      expect.anything(),
+    );
+
+    await dispose();
+  });
+
+  it('throws a clear error when first-run startup has no password', async () => {
+    const { password: _password, ...configWithoutPassword } = CONFIG;
+
+    await expect(createWallet(configWithoutPassword)).rejects.toThrow(
+      /password is required on first run/iu,
+    );
+
+    expect(mockImportSrp).not.toHaveBeenCalled();
+  });
+
+  it('starts subsequent runs with a locked keyring when no password is supplied', async () => {
+    jest.spyOn(persistenceModule, 'loadState').mockReturnValue({
+      KeyringController: { vault: 'encrypted-vault-blob' },
+    });
+    const { password: _password, ...configWithoutPassword } = CONFIG;
+
+    const { wallet, dispose } = await createWallet(configWithoutPassword);
+
+    expect(mockImportSrp).not.toHaveBeenCalled();
+    expect(wallet.messenger.call).not.toHaveBeenCalledWith(
+      'KeyringController:submitPassword',
+      expect.anything(),
+    );
+
+    await dispose();
+  });
+
+  it('destroys the wallet and rethrows when submitPassword rejects on a subsequent run', async () => {
+    jest.spyOn(persistenceModule, 'loadState').mockReturnValue({
+      KeyringController: { vault: 'encrypted-vault-blob' },
+    });
+    const failure = new Error('wrong password');
+    MockWallet.mockImplementationOnce(makeMockWallet).mockImplementationOnce(
+      () =>
+        ({
+          ...makeMockWallet(),
+          messenger: {
+            call: jest.fn().mockImplementation((action: string) => {
+              if (action === 'KeyringController:submitPassword') {
+                return Promise.reject(failure);
+              }
+              return undefined;
+            }),
+            subscribe: jest.fn(),
+            unsubscribe: jest.fn(),
+          },
+        }) as unknown as Wallet,
+    );
+    const closeSpy = jest.spyOn(KeyValueStore.prototype, 'close');
+
+    await expect(createWallet(CONFIG)).rejects.toThrow(
+      'Failed to unlock the persisted vault',
+    );
+
+    const realWallet = MockWallet.mock.results[1]?.value as Wallet;
+    expect(realWallet.destroy).toHaveBeenCalledTimes(1);
+    expect(closeSpy).toHaveBeenCalled();
+  });
+
+  it('does not remove the database when submitPassword rejects on a subsequent run', async () => {
+    jest.spyOn(persistenceModule, 'loadState').mockReturnValue({
+      KeyringController: { vault: 'encrypted-vault-blob' },
+    });
+    MockWallet.mockImplementationOnce(makeMockWallet).mockImplementationOnce(
+      () =>
+        ({
+          ...makeMockWallet(),
+          messenger: {
+            call: jest.fn().mockImplementation((action: string) => {
+              if (action === 'KeyringController:submitPassword') {
+                return Promise.reject(new Error('wrong password'));
+              }
+              return undefined;
+            }),
+            subscribe: jest.fn(),
+            unsubscribe: jest.fn(),
+          },
+        }) as unknown as Wallet,
+    );
+
+    await expect(
+      createWallet({
+        ...CONFIG,
+        databasePath: createTempDbPath('subsequent-unlock-failure'),
+      }),
+    ).rejects.toThrow('wrong password');
+
+    expect(mockRm).not.toHaveBeenCalled();
   });
 
   it('logs each failed init step, then aborts startup and tears down', async () => {
@@ -506,7 +627,7 @@ describe('createWallet', () => {
 
     it('removes the on-disk database files when first-run SRP import rejects, after closing the store', async () => {
       mockImportSrp.mockRejectedValue(new Error('bad SRP'));
-      const databasePath = tempDbPath('rm-on-failure');
+      const databasePath = createTempDbPath('rm-on-failure');
       const closeSpy = jest.spyOn(KeyValueStore.prototype, 'close');
 
       await expect(createWallet({ ...CONFIG, databasePath })).rejects.toThrow(
@@ -535,7 +656,7 @@ describe('createWallet', () => {
     });
 
     it('does not remove the database when SRP import succeeds on first run', async () => {
-      const databasePath = tempDbPath('success');
+      const databasePath = createTempDbPath('success');
 
       const { dispose } = await createWallet({ ...CONFIG, databasePath });
 
@@ -554,7 +675,10 @@ describe('createWallet', () => {
         });
 
       await expect(
-        createWallet({ ...CONFIG, databasePath: tempDbPath('subsequent-run') }),
+        createWallet({
+          ...CONFIG,
+          databasePath: createTempDbPath('subsequent-run'),
+        }),
       ).rejects.toThrow('subscribe failed');
 
       expect(mockRm).not.toHaveBeenCalled();
@@ -569,7 +693,7 @@ describe('createWallet', () => {
       await expect(
         createWallet({
           ...CONFIG,
-          databasePath: tempDbPath('rm-rejection'),
+          databasePath: createTempDbPath('rm-rejection'),
           log,
         }),
       ).rejects.toThrow(original);

@@ -5,16 +5,19 @@
   },
   "references": [
     {
-      "path": "../base-controller/tsconfig.json"
+      "path": "../base-controller"
     },
     {
-      "path": "../messenger/tsconfig.json"
+      "path": "../messenger"
     },
     {
-      "path": "../profile-sync-controller/tsconfig.json"
+      "path": "../profile-sync-controller"
     },
     {
-      "path": "../keyring-controller/tsconfig.json"
+      "path": "../keyring-controller"
+    },
+    {
+      "path": "../controller-utils"
     }
   ],
   "include": ["../../types", "./src", "./tests"]

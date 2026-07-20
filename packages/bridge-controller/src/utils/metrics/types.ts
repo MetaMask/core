@@ -268,6 +268,7 @@ type RequiredEventContextFromClientBase = {
       quoted_vs_used_gas_ratio: number;
       action_type: MetricsActionType;
       batch_id?: string;
+      transaction_internal_id?: string;
     } & InputPrimaryDenominationData;
   [UnifiedSwapBridgeEventName.Failed]: (
     | // Tx failed before confirmation
