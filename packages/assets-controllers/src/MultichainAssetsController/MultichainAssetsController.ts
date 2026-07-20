@@ -268,11 +268,6 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
   /**
    * Clears all persisted `accountsAssets`, `assetsMetadata`, and
    * `allIgnoredAssets` so that no stale asset data remains in state.
-   *
-   * Called from every entry point when `isDeprecated()` is true so that a
-   * runtime toggle propagates to state immediately, even if the controller was
-   * originally constructed while it was enabled. The update is skipped when all
-   * three maps are already empty to avoid emitting redundant state changes.
    */
   #enforceDisabledState(): void {
     if (
