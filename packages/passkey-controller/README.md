@@ -2,6 +2,8 @@
 
 Manages passkey-based vault key protection using [WebAuthn](https://www.w3.org/TR/webauthn-3/). Orchestrates the full passkey lifecycle: generating WebAuthn ceremony options, verifying authenticator responses, and protecting/retrieving the vault encryption key via AES-256-GCM wrapping with HKDF-derived keys.
 
+For the messenger migration design and extension wiring checklist, see [docs/messenger-migration.md](./docs/messenger-migration.md).
+
 ## Installation
 
 `yarn add @metamask/passkey-controller`
@@ -34,6 +36,8 @@ Both strategies feed the input key material through **HKDF-SHA256** with the cre
 
 ### Setting up the controller
 
+The restricted messenger must allow the KeyringController actions listed in [Keyring integration](#keyring-integration). Onboarding completion is supplied via constructor callback (not via messenger).
+
 ```typescript
 import { PasskeyController } from '@metamask/passkey-controller';
 import type { PasskeyControllerMessenger } from '@metamask/passkey-controller';
@@ -50,12 +54,15 @@ const controller = new PasskeyController({
   // Optional — both default to `rpName` when omitted.
   userName: 'My Wallet',
   userDisplayName: 'My Wallet',
+  getIsOnboardingCompleted: () => onboardingController.state.completedOnboarding,
 });
 ```
 
 `expectedRPID` is a string or string array used to verify the authenticator `rpIdHash`. Optional `rpId`, when set, is sent as `rp.id` / `rpId` in generated WebAuthn options; when omitted, those fields are omitted so the client uses its default RP ID behavior.
 
 ### Passkey enrollment (registration)
+
+`protectVaultKeyWithPasskey` fetches the current vault encryption key from KeyringController. When onboarding is complete, pass the wallet `password` for step-up verification first.
 
 ```typescript
 // 1. Generate registration options (synchronous)
@@ -74,48 +81,72 @@ const authResponse = await navigator.credentials.get({
   publicKey: authOptions,
 });
 
-// 4. Verify registration + post-registration auth once, then persist
+// 4. Verify registration + post-registration auth, then persist
 await controller.protectVaultKeyWithPasskey({
   registrationResponse: regResponse,
   authenticationResponse: authResponse,
-  vaultKey: myVaultEncryptionKey,
+  password: settingsEnroll ? walletPassword : undefined,
 });
 ```
 
 ### Passkey unlock (authentication)
 
-```typescript
-// 1. Generate authentication options (synchronous)
-const options = controller.generateAuthenticationOptions();
+Prefer `unlockWithPasskey`, which verifies the assertion and submits the vault key to KeyringController.
 
-// 2. Pass options to the browser WebAuthn API
+```typescript
+const options = controller.generateAuthenticationOptions();
 const response = await navigator.credentials.get({ publicKey: options });
 
-// 3. Verify and retrieve the vault key
-const vaultKey = await controller.retrieveVaultKeyWithPasskey(response);
+await controller.unlockWithPasskey(response);
 ```
 
-### Password change (vault key renewal)
+### Orchestrated product flows
+
+These methods combine passkey verification with KeyringController calls. Use them from UI layers that already performed `navigator.credentials.get()`.
+
+| Method                                  | Purpose                                                   |
+| --------------------------------------- | --------------------------------------------------------- |
+| `unlockWithPasskey`                     | Unlock keyring after passkey assertion                    |
+| `removePasskeyWithPasskeyVerification`  | Remove passkey after assertion step-up                    |
+| `removePasskeyWithPasswordVerification` | Remove passkey after password step-up                     |
+| `changePasswordWithPasskeyVerification` | Change password; re-wrap vault key by default             |
+| `exportSeedPhraseWithPasskey`           | Export SRP bytes after assertion step-up                  |
+| `exportAccountsWithPasskey`             | Export private keys for addresses after assertion step-up |
 
 ```typescript
-const options = controller.generateAuthenticationOptions();
-const response = await navigator.credentials.get({ publicKey: options });
-
-await controller.renewVaultKeyProtection({
+// Change password (re-wraps passkey protection by default)
+await controller.changePasswordWithPasskeyVerification({
+  newPassword: 'new-secret',
   authenticationResponse: response,
-  oldVaultKey: currentVaultKey,
-  newVaultKey: newVaultKey,
+  options: { renewVaultKeyProtection: true },
 });
+
+// Export seed phrase (raw Uint8Array; format in your app layer)
+const seedPhrase = await controller.exportSeedPhraseWithPasskey(
+  response,
+  keyringId,
+);
+
+// Export private keys for multiple addresses (one assertion)
+const privateKeys = await controller.exportAccountsWithPasskey(response, [
+  '0xabc…',
+  '0xdef…',
+]);
 ```
+
+### Low-level methods
+
+`retrieveVaultKeyWithPasskey` and `renewVaultKeyProtection` remain available for advanced composition. Prefer the orchestrated methods above for standard product flows. Use `clearState` for wallet reset lifecycle.
 
 ### Checking enrollment and removing a passkey
 
 ```typescript
 controller.isPasskeyEnrolled(); // boolean
 
-controller.removePasskey(); // user-facing unenroll; clears persisted passkey and in-flight ceremonies
+await controller.removePasskeyWithPasskeyVerification(response);
+await controller.removePasskeyWithPasswordVerification(password);
 
-controller.clearState(); // same persisted reset + clears in-flight ceremony state; use for app lifecycle (e.g. wallet reset)
+controller.clearState(); // persisted reset + clears in-flight ceremony state; use for app lifecycle (e.g. wallet reset)
 ```
 
 ### Selectors
@@ -134,7 +165,8 @@ passkeyControllerSelectors.selectIsPasskeyEnrolled(state); // boolean
 `PasskeyControllerError` is thrown for controller failures. Expected operational
 cases use a stable `code` from `PasskeyControllerErrorCode` (for example:
 `not_enrolled`, `already_enrolled`, `no_registration_ceremony`,
-`authentication_verification_failed`, `missing_key_material`, `vault_key_decryption_failed`). Human-readable strings
+`authentication_verification_failed`, `missing_key_material`, `vault_key_decryption_failed`,
+`vault_key_mismatch`, `vault_key_renewal_failed`). Human-readable strings
 live on `PasskeyControllerErrorMessage`. Use `instanceof PasskeyControllerError`
 and a defined `error.code` to tell these apart from malformed WebAuthn payloads
 and other `Error` values. Thrown errors from the internal WebAuthn verify helpers
@@ -153,9 +185,27 @@ those controller errors (with `code`) and rethrows everything else.
 
 ### Messenger actions
 
-| Action                       | Handler                              |
-| ---------------------------- | ------------------------------------ |
-| `PasskeyController:getState` | Returns the current controller state |
+| Action                                                            | Purpose                                    |
+| ----------------------------------------------------------------- | ------------------------------------------ |
+| `PasskeyController:getState`                                      | Persisted `passkeyRecord`                  |
+| `PasskeyController:isPasskeyEnrolled`                             | Enrollment boolean                         |
+| `PasskeyController:generateRegistrationOptions`                   | WebAuthn `create()` options                |
+| `PasskeyController:generatePostRegistrationAuthenticationOptions` | WebAuthn `get()` after `create()`          |
+| `PasskeyController:generateAuthenticationOptions`                 | WebAuthn `get()` for unlock / step-up      |
+| `PasskeyController:protectVaultKeyWithPasskey`                    | Enroll: verify ceremonies + wrap vault key |
+| `PasskeyController:retrieveVaultKeyWithPasskey`                   | Verify assertion + return vault key        |
+| `PasskeyController:unlockWithPasskey`                             | Unlock keyring via passkey                 |
+| `PasskeyController:exportSeedPhraseWithPasskey`                   | Export SRP after passkey step-up           |
+| `PasskeyController:exportAccountsWithPasskey`                     | Export private keys after passkey step-up  |
+| `PasskeyController:verifyPasskeyAuthentication`                   | Boolean assertion verification             |
+| `PasskeyController:renewVaultKeyProtection`                       | Re-wrap vault key after rotation           |
+| `PasskeyController:changePasswordWithPasskeyVerification`         | Change password with passkey step-up       |
+| `PasskeyController:removePasskeyWithPasskeyVerification`          | Remove passkey after assertion step-up     |
+| `PasskeyController:removePasskeyWithPasswordVerification`         | Remove passkey after password step-up      |
+| `PasskeyController:clearState`                                    | Reset state                                |
+| `PasskeyController:destroy`                                       | Tear down messenger + ceremony state       |
+
+Corresponding `PasskeyController*Action` types are exported from the package entry point.
 
 For derived enrollment status outside of components that hold a controller
 reference, use `passkeyControllerSelectors.selectIsPasskeyEnrolled` (see
@@ -166,6 +216,21 @@ reference, use `passkeyControllerSelectors.selectIsPasskeyEnrolled` (see
 | Event                            | Payload                                                      |
 | -------------------------------- | ------------------------------------------------------------ |
 | `PasskeyController:stateChanged` | Emitted when state changes (standard `BaseController` event) |
+
+### Keyring integration
+
+`PasskeyController` calls these KeyringController actions during orchestrated flows. Allow them on the restricted messenger at init:
+
+| Messenger action                        |
+| --------------------------------------- |
+| `KeyringController:verifyPassword`      |
+| `KeyringController:exportEncryptionKey` |
+| `KeyringController:submitEncryptionKey` |
+| `KeyringController:changePassword`      |
+| `KeyringController:exportSeedPhrase`    |
+| `KeyringController:exportAccount`       |
+
+Onboarding completion is **not** read via messenger. Pass `getIsOnboardingCompleted` in the constructor (see [Setting up the controller](#setting-up-the-controller)).
 
 ## Contributing
 

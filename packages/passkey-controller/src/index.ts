@@ -44,7 +44,6 @@ export type {
   PasskeyControllerChangePasswordWithPasskeyVerificationAction,
   PasskeyControllerRemovePasskeyWithPasskeyVerificationAction,
   PasskeyControllerRemovePasskeyWithPasswordVerificationAction,
-  PasskeyControllerRemovePasskeyAction,
   PasskeyControllerClearStateAction,
   PasskeyControllerDestroyAction,
 } from './PasskeyController-method-action-types';

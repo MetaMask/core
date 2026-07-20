@@ -1,5 +1,6 @@
 import { Messenger } from '@metamask/messenger';
 
+import { createMockPasskeyControllerMessenger } from '../tests/mocks/passkey-controller-messenger';
 import { CEREMONY_MAX_AGE_MS, WEBAUTHN_TIMEOUT_MS } from './ceremony-manager';
 import {
   PasskeyControllerErrorCode,
@@ -22,7 +23,6 @@ import type {
   PasskeyRegistrationResponse,
   PasskeyAuthenticationResponse,
 } from './webauthn/types';
-import { createMockPasskeyControllerMessenger } from '../tests/mocks/passkey-controller-messenger';
 
 type ExtOutputsWithPrf = Record<string, unknown> & PrfClientExtensionResults;
 
@@ -298,14 +298,20 @@ describe('PasskeyController', () => {
       expect(
         await messenger.call('KeyringController:verifyPassword', 'password'),
       ).toBeUndefined();
-      expect(await messenger.call('KeyringController:exportEncryptionKey')).toBe(
-        'test-vault-key',
-      );
       expect(
-        await messenger.call('KeyringController:submitEncryptionKey', 'vault-key'),
+        await messenger.call('KeyringController:exportEncryptionKey'),
+      ).toBe('test-vault-key');
+      expect(
+        await messenger.call(
+          'KeyringController:submitEncryptionKey',
+          'vault-key',
+        ),
       ).toBeUndefined();
       expect(
-        await messenger.call('KeyringController:changePassword', 'new-password'),
+        await messenger.call(
+          'KeyringController:changePassword',
+          'new-password',
+        ),
       ).toBeUndefined();
       expect(
         await messenger.call(
@@ -575,7 +581,9 @@ describe('PasskeyController', () => {
           registrationResponse: minimalRegistrationResponse(),
           authenticationResponse: minimalAuthenticationResponse(),
         }),
-      ).rejects.toThrow(PasskeyControllerErrorMessage.EnrollmentPasswordRequired);
+      ).rejects.toThrow(
+        PasskeyControllerErrorMessage.EnrollmentPasswordRequired,
+      );
     });
 
     it('verifies password when onboarding is complete', async () => {
@@ -1303,9 +1311,10 @@ describe('PasskeyController', () => {
       setupAuthenticationMocks();
       const controller = createController();
       await expect(
-        controller.exportAccountsWithPasskey(minimalAuthenticationResponse('uh'), [
-          '0xabc',
-        ]),
+        controller.exportAccountsWithPasskey(
+          minimalAuthenticationResponse('uh'),
+          ['0xabc'],
+        ),
       ).rejects.toThrow(PasskeyControllerErrorMessage.NotEnrolled);
     });
 
@@ -2191,12 +2200,12 @@ describe('PasskeyController', () => {
     });
   });
 
-  describe('removePasskey', () => {
+  describe('clearState', () => {
     it('clears in-flight registration ceremonies', async () => {
       setupRegistrationMocks();
       const controller = createController();
       const regOpts = controller.generateRegistrationOptions();
-      controller.removePasskey();
+      controller.clearState();
 
       await expect(
         controller.protectVaultKeyWithPasskey({
@@ -2211,27 +2220,6 @@ describe('PasskeyController', () => {
       ).rejects.toThrow(PasskeyControllerErrorMessage.NoRegistrationCeremony);
     });
 
-    it('clears stored record and resets enrollment', async () => {
-      setupRegistrationMocks();
-      setupAuthenticationMocks();
-      const controller = createController();
-      const regOpts = controller.generateRegistrationOptions();
-      await enrollWithPostRegistrationAuth(controller, {
-        registrationResponse: minimalRegistrationResponse(
-          undefined,
-          regOpts.challenge,
-        ),
-        userHandle: regOpts.user.id,
-      });
-      expect(controller.isPasskeyEnrolled()).toBe(true);
-
-      controller.removePasskey();
-      expect(controller.isPasskeyEnrolled()).toBe(false);
-      expect(controller.state.passkeyRecord).toBeNull();
-    });
-  });
-
-  describe('clearState', () => {
     it('clears stored record and resets enrollment', async () => {
       setupRegistrationMocks();
       setupAuthenticationMocks();

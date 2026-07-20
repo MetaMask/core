@@ -5,8 +5,8 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 
-import type { PasskeyControllerMessenger } from '../../src/types';
 import { controllerName } from '../../src/constants';
+import type { PasskeyControllerMessenger } from '../../src/types';
 
 type AllPasskeyControllerActions = MessengerActions<PasskeyControllerMessenger>;
 
@@ -58,8 +58,7 @@ export function createMockPasskeyControllerMessenger(
     changePassword: mocks.changePassword ?? jest.fn(),
     exportSeedPhrase:
       mocks.exportSeedPhrase ?? jest.fn().mockResolvedValue(new Uint8Array()),
-    exportAccount:
-      mocks.exportAccount ?? jest.fn().mockResolvedValue('0xabc'),
+    exportAccount: mocks.exportAccount ?? jest.fn().mockResolvedValue('0xabc'),
   };
 
   const rootMessenger = new Messenger<

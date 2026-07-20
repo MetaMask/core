@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Orchestrated passkey product flows on `PasskeyController` and their messenger actions:
+  - `unlockWithPasskey`
+  - `removePasskeyWithPasskeyVerification`
+  - `removePasskeyWithPasswordVerification`
+  - `changePasswordWithPasskeyVerification`
+  - `exportSeedPhraseWithPasskey`
+  - `exportAccountsWithPasskey`
+- `PasskeyControllerOptions` with required `getIsOnboardingCompleted` constructor callback for enrollment step-up gating
+- `PasskeyControllerErrorCode.VaultKeyRenewalFailed` and `PasskeyControllerErrorMessage.VaultKeyRenewalFailed`
+- `PasskeyControllerErrorMessage.EnrollmentPasswordRequired`
+- `@metamask/keyring-controller` dependency for KeyringController messenger action types used during orchestration
+
+### Changed
+
+- **BREAKING:** `protectVaultKeyWithPasskey` no longer accepts `vaultKey`; the controller fetches the current encryption key via `KeyringController:exportEncryptionKey` and optionally verifies the wallet password when onboarding is complete
+- **BREAKING:** `PasskeyController` constructor requires `getIsOnboardingCompleted`
+- **BREAKING:** `removePasskey` and `PasskeyController:removePasskey` are no longer public; use `removePasskeyWithPasskeyVerification`, `removePasskeyWithPasswordVerification`, or `clearState`
+- `PasskeyControllerMessenger` may call a fixed set of KeyringController actions during orchestrated flows (see package README)
+
 ## [2.1.0]
 
 ### Added

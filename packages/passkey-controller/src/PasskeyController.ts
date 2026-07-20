@@ -96,7 +96,6 @@ const MESSENGER_EXPOSED_METHODS = [
   'exportAccountsWithPasskey',
   'removePasskeyWithPasskeyVerification',
   'removePasskeyWithPasswordVerification',
-  'removePasskey',
   'clearState',
   'destroy',
 ] as const;
@@ -371,7 +370,9 @@ export class PasskeyController extends BaseController<
     }
 
     await this.#assertEnrollmentAllowed(params.password);
-    const vaultKey = await this.messenger.call('KeyringController:exportEncryptionKey');
+    const vaultKey = await this.messenger.call(
+      'KeyringController:exportEncryptionKey',
+    );
 
     const { registrationResponse, authenticationResponse } = params;
 
@@ -482,6 +483,10 @@ export class PasskeyController extends BaseController<
   /**
    * Verifies an authentication assertion and returns the decrypted vault key.
    *
+   * Prefer orchestrated methods ({@link unlockWithPasskey},
+   * {@link exportSeedPhraseWithPasskey}, {@link exportAccountsWithPasskey}) for product
+   * flows instead of calling KeyringController with the returned key manually.
+   *
    * @param authenticationResponse - Result of `navigator.credentials.get()`.
    * @returns The plaintext vault encryption key.
    */
@@ -545,8 +550,9 @@ export class PasskeyController extends BaseController<
   async unlockWithPasskey(
     authenticationResponse: PasskeyAuthenticationResponse,
   ): Promise<void> {
-    const vaultKey =
-      await this.retrieveVaultKeyWithPasskey(authenticationResponse);
+    const vaultKey = await this.retrieveVaultKeyWithPasskey(
+      authenticationResponse,
+    );
     await this.messenger.call(
       'KeyringController:submitEncryptionKey',
       vaultKey,
@@ -564,8 +570,9 @@ export class PasskeyController extends BaseController<
     authenticationResponse: PasskeyAuthenticationResponse,
     keyringId?: string,
   ): Promise<Uint8Array> {
-    const vaultKey =
-      await this.retrieveVaultKeyWithPasskey(authenticationResponse);
+    const vaultKey = await this.retrieveVaultKeyWithPasskey(
+      authenticationResponse,
+    );
     return await this.messenger.call(
       'KeyringController:exportSeedPhrase',
       { encryptionKey: vaultKey },
@@ -584,8 +591,9 @@ export class PasskeyController extends BaseController<
     authenticationResponse: PasskeyAuthenticationResponse,
     addresses: string[],
   ): Promise<string[]> {
-    const vaultKey =
-      await this.retrieveVaultKeyWithPasskey(authenticationResponse);
+    const vaultKey = await this.retrieveVaultKeyWithPasskey(
+      authenticationResponse,
+    );
 
     const privateKeys: string[] = [];
     for (const address of addresses) {
@@ -630,6 +638,10 @@ export class PasskeyController extends BaseController<
    * the user (passkey `get()` + verified assertion, or verified password). On passkey paths,
    * pass the same `authenticationResponse` you just verified (e.g. from
    * {@link retrieveVaultKeyWithPasskey} / {@link verifyPasskeyAuthentication}).
+   *
+   * For password change with passkey step-up, prefer
+   * {@link changePasswordWithPasskeyVerification}, which orchestrates keyring export,
+   * `changePassword`, and re-wrap in one call.
    *
    * @param params - Re-wrap inputs.
    * @param params.authenticationResponse - Used to derive the wrapping key.
@@ -743,7 +755,7 @@ export class PasskeyController extends BaseController<
         'KeyringController:changePassword',
         params.newPassword,
       );
-      this.removePasskey();
+      this.#removePasskey();
       return;
     }
 
@@ -765,7 +777,7 @@ export class PasskeyController extends BaseController<
         newVaultKey: vaultKeyAfter,
       });
     } catch (error) {
-      this.removePasskey();
+      this.#removePasskey();
       throw new PasskeyControllerError(
         PasskeyControllerErrorMessage.VaultKeyRenewalFailed,
         {
@@ -786,8 +798,9 @@ export class PasskeyController extends BaseController<
   ): Promise<void> {
     this.#requireEnrolled();
 
-    const verified =
-      await this.verifyPasskeyAuthentication(authenticationResponse);
+    const verified = await this.verifyPasskeyAuthentication(
+      authenticationResponse,
+    );
     if (!verified) {
       throw new PasskeyControllerError(
         PasskeyControllerErrorMessage.AuthenticationVerificationFailed,
@@ -795,7 +808,7 @@ export class PasskeyController extends BaseController<
       );
     }
 
-    this.removePasskey();
+    this.#removePasskey();
   }
 
   /**
@@ -803,28 +816,21 @@ export class PasskeyController extends BaseController<
    *
    * @param password - Wallet password for step-up verification.
    */
-  async removePasskeyWithPasswordVerification(
-    password: string,
-  ): Promise<void> {
+  async removePasskeyWithPasswordVerification(password: string): Promise<void> {
     this.#requireEnrolled();
     await this.messenger.call('KeyringController:verifyPassword', password);
-    this.removePasskey();
-  }
-
-  /**
-   * Clears enrolled passkey state and in-flight ceremonies. Call only after the same
-   * auth gate as renewal (verified passkey assertion or password).
-   */
-  removePasskey(): void {
-    this.update(() => getDefaultPasskeyControllerState());
-    this.#ceremonyManager.clear();
+    this.#removePasskey();
   }
 
   /**
    * Resets state and clears in-flight registration/authentication ceremonies.
+   *
+   * For user-facing passkey removal with step-up, use
+   * {@link removePasskeyWithPasskeyVerification} or
+   * {@link removePasskeyWithPasswordVerification}.
    */
   clearState(): void {
-    this.removePasskey();
+    this.#removePasskey();
   }
 
   /**
@@ -933,5 +939,13 @@ export class PasskeyController extends BaseController<
 
   #getChallengeFromClientData(clientDataJSON: string): string {
     return decodeClientDataJSON(clientDataJSON).challenge;
+  }
+
+  /**
+   * Clears enrolled passkey state and in-flight ceremonies.
+   */
+  #removePasskey(): void {
+    this.update(() => getDefaultPasskeyControllerState());
+    this.#ceremonyManager.clear();
   }
 }

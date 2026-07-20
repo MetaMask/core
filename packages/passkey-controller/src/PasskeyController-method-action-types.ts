@@ -71,6 +71,10 @@ export type PasskeyControllerProtectVaultKeyWithPasskeyAction = {
 /**
  * Verifies an authentication assertion and returns the decrypted vault key.
  *
+ * Prefer orchestrated methods ({@link unlockWithPasskey},
+ * {@link exportSeedPhraseWithPasskey}, {@link exportAccountsWithPasskey}) for product
+ * flows instead of calling KeyringController with the returned key manually.
+ *
  * @param authenticationResponse - Result of `navigator.credentials.get()`.
  * @returns The plaintext vault encryption key.
  */
@@ -135,6 +139,10 @@ export type PasskeyControllerVerifyPasskeyAuthenticationAction = {
  * pass the same `authenticationResponse` you just verified (e.g. from
  * {@link retrieveVaultKeyWithPasskey} / {@link verifyPasskeyAuthentication}).
  *
+ * For password change with passkey step-up, prefer
+ * {@link changePasswordWithPasskeyVerification}, which orchestrates keyring export,
+ * `changePassword`, and re-wrap in one call.
+ *
  * @param params - Re-wrap inputs.
  * @param params.authenticationResponse - Used to derive the wrapping key.
  * @param params.oldVaultKey - Expected current vault key.
@@ -183,15 +191,6 @@ export type PasskeyControllerRemovePasskeyWithPasswordVerificationAction = {
 };
 
 /**
- * Clears enrolled passkey state and in-flight ceremonies. Call only after the same
- * auth gate as renewal (verified passkey assertion or password).
- */
-export type PasskeyControllerRemovePasskeyAction = {
-  type: `PasskeyController:removePasskey`;
-  handler: PasskeyController['removePasskey'];
-};
-
-/**
  * Resets state and clears in-flight registration/authentication ceremonies.
  */
 export type PasskeyControllerClearStateAction = {
@@ -225,6 +224,5 @@ export type PasskeyControllerMethodActions =
   | PasskeyControllerChangePasswordWithPasskeyVerificationAction
   | PasskeyControllerRemovePasskeyWithPasskeyVerificationAction
   | PasskeyControllerRemovePasskeyWithPasswordVerificationAction
-  | PasskeyControllerRemovePasskeyAction
   | PasskeyControllerClearStateAction
   | PasskeyControllerDestroyAction;
