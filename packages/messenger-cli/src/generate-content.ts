@@ -104,7 +104,7 @@ export async function generateActionTypesContent(
   formatter: Formatter,
 ): Promise<string> {
   const baseFileName = path.basename(source.filePath, '.ts');
-  const sourceImportPath = `./${baseFileName}`;
+  const sourceImportPath = `./${baseFileName}.js`;
 
   let content = `/**
  * This file is auto generated.
