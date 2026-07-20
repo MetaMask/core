@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax */
 import type { GenericQuoteRequest } from '../types';
 import { isNonEvmChainId } from '../utils/bridge';
 
