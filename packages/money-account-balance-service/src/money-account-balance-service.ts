@@ -285,7 +285,12 @@ export type MoneyAccountBalanceServiceMessenger = Messenger<
  *   messenger: moneyAccountBalanceServiceMessenger,
  * });
  *
- * const balance = await service.fetchBalanceWithFallback('0xYourMoneyAccount...');
+ * const result = await service.fetchBalanceWithFallback('0xYourMoneyAccount...');
+ * // {
+ * //   musdBalance, vmusdValueInMusd, totalBalance,
+ * //   source: 'api' | 'rpc',
+ * //   usedFallback: boolean,
+ * // }
  * ```
  */
 
