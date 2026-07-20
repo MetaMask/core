@@ -21,14 +21,26 @@ import type { Messenger } from '@metamask/messenger';
 import type { SnapControllerHandleRequestAction } from '@metamask/snaps-controllers';
 import type { SnapId } from '@metamask/snaps-sdk';
 import { HandlerType } from '@metamask/snaps-utils';
-import type { CaipChainId, Json, JsonRpcRequest } from '@metamask/utils';
+import type {
+  CaipAssetType,
+  CaipChainId,
+  Json,
+  JsonRpcRequest,
+} from '@metamask/utils';
 import type { Draft } from 'immer';
 
 import type { MultichainTransactionsControllerMethodActions } from './MultichainTransactionsController-method-action-types';
 
 const controllerName = 'MultichainTransactionsController';
 
-const MESSENGER_EXPOSED_METHODS = ['updateTransactionsForAccount'] as const;
+const MESSENGER_EXPOSED_METHODS = [
+  'addPendingTransaction',
+  'removePendingTransaction',
+  'updatePendingTransaction',
+  'updateTransactionsForAccount',
+] as const;
+const MISSING_PENDING_TRANSACTION_MESSAGE =
+  'Pending multichain transaction not found for approvalId';
 
 /**
  * PaginationOptions
@@ -42,6 +54,24 @@ export type PaginationOptions = {
   next?: string | null;
 };
 
+export type PendingMultichainTransaction<
+  CustomData extends Record<string, Json> = Record<string, Json>,
+> = {
+  approvalId: string;
+  chainId: CaipChainId;
+  accountId: string;
+  to: string;
+  amount: string;
+  assetId?: CaipAssetType;
+  fee?: {
+    amount: string;
+    assetId?: CaipAssetType;
+  };
+  custom?: CustomData;
+  origin?: string;
+  createdAt: number;
+};
+
 /**
  * State used by the {@link MultichainTransactionsController} to cache account transactions.
  */
@@ -51,6 +81,7 @@ export type MultichainTransactionsControllerState = {
       [chain: CaipChainId]: TransactionStateEntry;
     };
   };
+  pendingTransactions: Record<string, PendingMultichainTransaction>;
 };
 
 /**
@@ -61,6 +92,7 @@ export type MultichainTransactionsControllerState = {
 export function getDefaultMultichainTransactionsControllerState(): MultichainTransactionsControllerState {
   return {
     nonEvmTransactions: {},
+    pendingTransactions: {},
   };
 }
 
@@ -152,6 +184,13 @@ const multichainTransactionsControllerMetadata = {
     includeInDebugSnapshot: false,
     usedInUi: true,
   },
+  pendingTransactions: {
+    includeInStateLogs: true,
+    persist: false,
+    includeInDebugSnapshot: false,
+    usedInUi: true,
+    anonymous: false,
+  },
 };
 
 /**
@@ -217,6 +256,55 @@ export class MultichainTransactionsController extends BaseController<
       (transactionsUpdate: AccountTransactionsUpdatedEventPayload) =>
         this.#handleOnAccountTransactionsUpdated(transactionsUpdate),
     );
+  }
+
+  /**
+   * Adds or replaces a pending multichain transaction by approval ID.
+   *
+   * @param entry - Pending transaction entry to add.
+   */
+  addPendingTransaction(entry: PendingMultichainTransaction): void {
+    this.update((state: Draft<MultichainTransactionsControllerState>) => {
+      state.pendingTransactions[entry.approvalId] = entry;
+    });
+  }
+
+  /**
+   * Updates a pending multichain transaction by approval ID.
+   *
+   * @param approvalId - Approval ID for the pending transaction.
+   * @param patch - Shallow patch to apply to the pending transaction.
+   */
+  updatePendingTransaction(
+    approvalId: string,
+    patch: Partial<PendingMultichainTransaction>,
+  ): void {
+    this.update((state: Draft<MultichainTransactionsControllerState>) => {
+      const pendingTransaction = state.pendingTransactions[approvalId];
+
+      if (!pendingTransaction) {
+        console.warn(MISSING_PENDING_TRANSACTION_MESSAGE, approvalId);
+        return;
+      }
+
+      Object.assign(pendingTransaction, patch);
+    });
+  }
+
+  /**
+   * Removes a pending multichain transaction by approval ID.
+   *
+   * @param approvalId - Approval ID for the pending transaction.
+   */
+  removePendingTransaction(approvalId: string): void {
+    this.update((state: Draft<MultichainTransactionsControllerState>) => {
+      if (!state.pendingTransactions[approvalId]) {
+        console.warn(MISSING_PENDING_TRANSACTION_MESSAGE, approvalId);
+        return;
+      }
+
+      delete state.pendingTransactions[approvalId];
+    });
   }
 
   /**

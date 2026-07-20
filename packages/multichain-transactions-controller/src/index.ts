@@ -2,6 +2,7 @@ export { MultichainTransactionsController } from './MultichainTransactionsContro
 export type {
   MultichainTransactionsControllerState,
   PaginationOptions,
+  PendingMultichainTransaction,
   TransactionStateEntry,
   MultichainTransactionsControllerStateChange,
   MultichainTransactionsControllerGetStateAction,
