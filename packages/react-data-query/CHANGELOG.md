@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Export `MessengerAdapter` type ([#9475](https://github.com/MetaMask/core/pull/9475))
-
 ### Changed
 
 - **BREAKING:** Constrain `createUIQueryClient`'s messenger-like type to match the given data services ([#9475](https://github.com/MetaMask/core/pull/9475))
