@@ -1917,11 +1917,12 @@ export class HyperLiquidProvider implements PerpsProvider {
    * (e.g. the now-sunset USDH) out of market discovery and blocks order
    * placement, replacing the previous USDH-specific auto-swap path.
    *
-   * Fails open (treated as USDC) when the collateral token index can't be
-   * resolved against spot metadata, so an unexpected/incomplete metadata
-   * shape doesn't spuriously block an otherwise-valid market — only a DEX
-   * whose collateral token positively resolves to something other than
-   * USDC is gated.
+   * Fails closed: only returns true when the collateral token index
+   * positively resolves to USDC against spot metadata. If the token can't
+   * be resolved (e.g. missing/stale spot metadata), the DEX is treated as
+   * non-USDC and gated out, since we can't otherwise verify the USDC-only
+   * requirement. This only affects HIP-3 DEXs — main-DEX trading (dex ===
+   * null) never calls this gate.
    *
    * @param dexName - The DEX identifier (empty string for main DEX).
    * @returns A promise that resolves to the boolean result.
@@ -1934,7 +1935,7 @@ export class HyperLiquidProvider implements PerpsProvider {
       (tok: { index: number }) => tok.index === meta.collateralToken,
     );
 
-    const isUsdc = !collateralToken || collateralToken.name === USDC_SYMBOL;
+    const isUsdc = collateralToken?.name === USDC_SYMBOL;
 
     this.#deps.debugLogger.log(
       'HyperLiquidProvider: Checked DEX collateral type',

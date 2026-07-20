@@ -145,11 +145,16 @@ export class HyperLiquidSubscriptionService {
 
   #globalFastAssetCtxsPromise?: Promise<void>; // Track in-progress subscription
 
-  // Coins seen in any fastAssetCtxs event (snapshot or diff). Once a coin
-  // appears here, the per-DEX assetCtxs handler stops writing its price into
-  // #cachedPriceData, since fastAssetCtxs is the fresher/authoritative source
-  // for that coin going forward. Cleared on clearAll() and when the
-  // fastAssetCtxs subscription is re-established after a reconnect, so
+  // Coins with a usable price (midPx/markPx) from any fastAssetCtxs event
+  // (snapshot or diff). Once a coin appears here, the per-DEX assetCtxs
+  // handler stops writing its price into #cachedPriceData, since
+  // fastAssetCtxs is the fresher/authoritative source for that coin going
+  // forward. A coin is only added once fastAssetCtxs has actually supplied a
+  // usable price for it (not merely appeared in a message with a null/absent
+  // price), so ownership is never claimed without a fast price backing it —
+  // otherwise assetCtxs, the coin's only remaining price source, would be
+  // suppressed with nothing to fall back on. Cleared on clearAll() and when
+  // the fastAssetCtxs subscription is re-established after a reconnect, so
   // assetCtxs can serve prices again until a fresh snapshot arrives.
   readonly #fastAssetCtxsCoins = new Set<string>();
 
@@ -3116,8 +3121,12 @@ export class HyperLiquidSubscriptionService {
    * The SDK exposes fastAssetCtxs as a single global feed with no `dex`
    * parameter (unlike assetCtxs, which is per-DEX). The first message after
    * subscribing is a full snapshot keyed by coin; later messages contain
-   * diffs for only the coins that changed. Coins without an active price
-   * subscriber are ignored, matching the allMids handler's filtering.
+   * diffs for only the coins that changed. Every coin with a usable price is
+   * cached in #cachedPriceData regardless of whether it currently has a
+   * subscriber, so a later subscriber gets an immediate baseline instead of
+   * waiting for the next snapshot/diff that happens to include the coin.
+   * Notification via #notifyAllPriceSubscribers is still scoped to coins
+   * with an active subscriber, matching the allMids handler's filtering.
    */
   #ensureGlobalFastAssetCtxsSubscription(): void {
     // Check both the subscription AND the promise to prevent race conditions
@@ -3145,23 +3154,22 @@ export class HyperLiquidSubscriptionService {
           continue;
         }
 
-        // Mark this coin as covered by fastAssetCtxs regardless of whether
-        // there's currently a subscriber, so the slower per-DEX assetCtxs
-        // handler knows to defer to this feed for the coin's price once
-        // there is one.
-        this.#fastAssetCtxsCoins.add(coin);
-
-        // Skip coins nobody is subscribed to (snapshot messages include
-        // every asset on the exchange, most of which have no subscriber)
-        if (!this.#priceSubscribers.get(coin)?.size) {
-          continue;
-        }
-
         const ctx = data[coin];
         const priceRaw = ctx.midPx ?? ctx.markPx;
         if (priceRaw === undefined || priceRaw === null) {
+          // No usable price for this coin in this message — don't claim
+          // ownership. Otherwise a coin with no usable price here would be
+          // marked as fastAssetCtxs-owned while never having a fast price
+          // cached, suppressing assetCtxs (its only remaining price source)
+          // for that coin indefinitely.
           continue;
         }
+
+        // Mark this coin as covered by fastAssetCtxs now that a usable
+        // price backs that ownership (regardless of whether there's
+        // currently a subscriber), so the slower per-DEX assetCtxs handler
+        // knows to defer to this feed for the coin's price.
+        this.#fastAssetCtxsCoins.add(coin);
 
         const price = priceRaw.toString();
         const cachedPrice = this.#cachedPriceData.get(coin);
@@ -3172,8 +3180,19 @@ export class HyperLiquidSubscriptionService {
         }
 
         const priceUpdate = this.#createPriceUpdate(coin, price);
+        // Cache every valid price, even for coins nobody is subscribed to
+        // yet (snapshot messages include every asset on the exchange), so
+        // a later subscriber gets an immediate baseline via the
+        // subscribe-time cached-price replay instead of an assetCtxs feed
+        // that's been suppressed with no fastAssetCtxs price to fall back
+        // on.
         this.#cachedPriceData.set(coin, priceUpdate);
-        changedSymbols.add(coin);
+
+        // Scope notification to coins with an active subscriber; snapshot
+        // messages cover the full exchange and most coins have none.
+        if (this.#priceSubscribers.get(coin)?.size) {
+          changedSymbols.add(coin);
+        }
       }
 
       // Only notify subscribers of symbols whose price actually changed

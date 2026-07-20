@@ -788,6 +788,56 @@ describe('HyperLiquidProvider', () => {
       expect(markets[0].name).toBe('xyz:STOCK1');
     });
 
+    it('filters out a HIP-3 DEX from market discovery when its collateral token index cannot be resolved against spot metadata', async () => {
+      const hip3Provider = createTestProvider({
+        hip3Enabled: true,
+        allowlistMarkets: ['xyz:*'],
+      });
+      // collateralToken index 7 has no corresponding entry in spotMeta.tokens
+      // below (missing/stale spot metadata) — the DEX must be gated out
+      // rather than treated as USDC.
+      const xyzMeta = {
+        universe: [{ name: 'xyz:STOCK1', szDecimals: 2, maxLeverage: 20 }],
+        collateralToken: 7,
+      };
+      const mockInfoClient = createMockInfoClient({
+        perpDexs: jest
+          .fn()
+          .mockResolvedValue([null, { name: 'xyz', url: 'https://xyz.com' }]),
+        meta: jest.fn().mockImplementation((params?: { dex?: string }) =>
+          params?.dex === 'xyz'
+            ? Promise.resolve(xyzMeta)
+            : Promise.resolve({
+                universe: [{ name: 'BTC', szDecimals: 3, maxLeverage: 50 }],
+              }),
+        ),
+        metaAndAssetCtxs: jest
+          .fn()
+          .mockImplementation((params?: { dex?: string }) =>
+            params?.dex === 'xyz'
+              ? Promise.resolve([xyzMeta, []])
+              : Promise.resolve([
+                  {
+                    universe: [{ name: 'BTC', szDecimals: 3, maxLeverage: 50 }],
+                  },
+                  [],
+                ]),
+          ),
+        spotMeta: jest.fn().mockResolvedValue({
+          tokens: [{ name: 'USDC', tokenId: '0xdef456', index: 0 }],
+          universe: [],
+        }),
+      });
+
+      mockClientService.getInfoClient = jest
+        .fn()
+        .mockReturnValue(mockInfoClient);
+
+      const markets = await hip3Provider.getMarkets({ dex: 'xyz' });
+
+      expect(markets).toEqual([]);
+    });
+
     it('handles data retrieval errors gracefully', async () => {
       (
         mockClientService.getInfoClient().clearinghouseState as jest.Mock

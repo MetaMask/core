@@ -3165,6 +3165,69 @@ describe('HyperLiquidSubscriptionService', () => {
       unsubscribe();
     });
 
+    it('lets assetCtxs set the price for a coin whose only fastAssetCtxs message had no usable price', async () => {
+      let fastAssetCtxsCallback: ((data: any) => void) | undefined;
+      let assetCtxsCallback: ((data: any) => void) | undefined;
+
+      service.setDexMetaCache('', { universe: [{ name: 'BTC' }] } as any);
+
+      mockSubscriptionClient.fastAssetCtxs.mockImplementation(
+        (callback: any) => {
+          fastAssetCtxsCallback = callback;
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      mockSubscriptionClient.assetCtxs.mockImplementation(
+        (_params: any, callback: any) => {
+          assetCtxsCallback = callback;
+          return Promise.resolve({
+            unsubscribe: jest.fn().mockResolvedValue(undefined),
+          });
+        },
+      );
+
+      const listCallback = jest.fn();
+      const unsubscribe = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: listCallback,
+      });
+
+      await jest.runAllTimersAsync();
+
+      // fastAssetCtxs reports BTC with no usable price (both midPx and markPx
+      // absent). This must not claim fastAssetCtxs ownership of BTC, since
+      // there is no fast price to back it — otherwise assetCtxs, the only
+      // remaining price source for BTC, would be suppressed with nothing to
+      // fall back on.
+      fastAssetCtxsCallback?.({ BTC: {} });
+      await jest.runAllTimersAsync();
+
+      listCallback.mockClear();
+
+      assetCtxsCallback?.({
+        ctxs: [
+          {
+            prevDayPx: '49000',
+            funding: '0.01',
+            openInterest: '1000000',
+            dayNtlVlm: '50000000',
+            oraclePx: '50100',
+            midPx: '50200',
+          },
+        ],
+      });
+      await jest.runAllTimersAsync();
+
+      expect(listCallback).toHaveBeenCalledWith([
+        expect.objectContaining({ symbol: 'BTC', price: '50200' }),
+      ]);
+
+      unsubscribe();
+    });
+
     it('lets assetCtxs update the price for a symbol not covered by fastAssetCtxs (e.g. a HIP-3 dex:symbol asset)', async () => {
       let assetCtxsCallback: ((data: any) => void) | undefined;
 

@@ -831,6 +831,72 @@ describe('HyperLiquidSubscriptionService', () => {
       unsubscribeBtc();
       unsubscribeEth();
     });
+
+    it('does not notify for a coin with no subscriber in a fastAssetCtxs snapshot', async () => {
+      const btcCallback = jest.fn();
+
+      const unsubscribe = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: btcCallback,
+      });
+
+      await jest.runAllTimersAsync();
+      btcCallback.mockClear();
+
+      const fastAssetCtxsCallback =
+        mockSubscriptionClient.fastAssetCtxs.mock.calls[0][0];
+
+      // SOL has a valid price but no subscriber; only BTC (subscribed)
+      // should trigger a notification.
+      fastAssetCtxsCallback({
+        BTC: { midPx: '52000' },
+        SOL: { midPx: '150' },
+      });
+
+      expect(btcCallback).toHaveBeenCalledTimes(1);
+      expect(btcCallback).toHaveBeenCalledWith([
+        expect.objectContaining({ symbol: 'BTC', price: '52000' }),
+      ]);
+
+      unsubscribe();
+    });
+
+    it('caches a fastAssetCtxs price for a coin with no subscriber so a later subscriber gets it immediately', async () => {
+      const btcCallback = jest.fn();
+
+      const unsubscribeBtc = await service.subscribeToPrices({
+        symbols: ['BTC'],
+        callback: btcCallback,
+      });
+
+      await jest.runAllTimersAsync();
+
+      const fastAssetCtxsCallback =
+        mockSubscriptionClient.fastAssetCtxs.mock.calls[0][0];
+
+      // SOL has no subscriber yet, but its valid price must still be cached
+      // so a later subscriber gets an immediate baseline instead of waiting
+      // for the next snapshot/diff that happens to include SOL.
+      fastAssetCtxsCallback({
+        BTC: { midPx: '52000' },
+        SOL: { midPx: '150' },
+      });
+
+      const solCallback = jest.fn();
+      const unsubscribeSol = await service.subscribeToPrices({
+        symbols: ['SOL'],
+        callback: solCallback,
+      });
+
+      await jest.runAllTimersAsync();
+
+      expect(solCallback).toHaveBeenCalledWith([
+        expect.objectContaining({ symbol: 'SOL', price: '150' }),
+      ]);
+
+      unsubscribeBtc();
+      unsubscribeSol();
+    });
   });
 
   describe('Position Subscriptions', () => {
