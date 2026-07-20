@@ -631,6 +631,13 @@ describe('PerpsController selectors', () => {
   });
 
   describe('selectProLayoutPreferences', () => {
+    const defaults = {
+      orderBookExpanded: false,
+      chartExpanded: true,
+      orderBookPosition: 'left',
+      orderFormPosition: 'right',
+    };
+
     it('returns the pro-mode layout preferences', () => {
       const proLayoutPreferences = {
         orderBookExpanded: true,
@@ -647,10 +654,27 @@ describe('PerpsController selectors', () => {
       );
     });
 
-    it('returns undefined when state is undefined', () => {
+    it('merges persisted fields over defaults so missing fields fall back', () => {
+      const state = {
+        proLayoutPreferences: { orderBookExpanded: true },
+      } as unknown as PerpsControllerState;
+
+      expect(selectProLayoutPreferences(state)).toStrictEqual({
+        ...defaults,
+        orderBookExpanded: true,
+      });
+    });
+
+    it('returns defaults when the state slice is missing', () => {
+      const state = {} as unknown as PerpsControllerState;
+
+      expect(selectProLayoutPreferences(state)).toStrictEqual(defaults);
+    });
+
+    it('returns defaults when state is undefined', () => {
       expect(
         selectProLayoutPreferences(undefined as unknown as PerpsControllerState),
-      ).toBeUndefined();
+      ).toStrictEqual(defaults);
     });
   });
 
@@ -661,10 +685,16 @@ describe('PerpsController selectors', () => {
       expect(selectPerpsMode(state)).toBe('pro');
     });
 
-    it('returns undefined when state is undefined', () => {
+    it('returns the default mode when the state slice is missing', () => {
+      const state = {} as unknown as PerpsControllerState;
+
+      expect(selectPerpsMode(state)).toBe('lite');
+    });
+
+    it('returns the default mode when state is undefined', () => {
       expect(
         selectPerpsMode(undefined as unknown as PerpsControllerState),
-      ).toBeUndefined();
+      ).toBe('lite');
     });
   });
 });

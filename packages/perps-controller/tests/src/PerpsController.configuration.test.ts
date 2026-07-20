@@ -794,6 +794,22 @@ describe('PerpsController', () => {
 
       expect(controller.state.proLayoutPreferences.chartExpanded).toBe(false);
     });
+
+    it('fills in defaults for fields missing from persisted state', () => {
+      controller.testUpdate((state) => {
+        // Simulate persisted state that predates some fields.
+        state.proLayoutPreferences = {
+          orderBookExpanded: true,
+        } as PerpsControllerState['proLayoutPreferences'];
+      });
+
+      expect(controller.getProLayoutPreferences()).toEqual({
+        orderBookExpanded: true,
+        chartExpanded: true,
+        orderBookPosition: 'left',
+        orderFormPosition: 'right',
+      });
+    });
   });
 
   describe('perps mode', () => {

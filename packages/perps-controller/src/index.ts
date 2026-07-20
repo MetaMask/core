@@ -33,6 +33,8 @@ export {
   getDefaultPerpsControllerState,
   InitializationState,
   PerpsMode,
+  DEFAULT_PERPS_MODE,
+  DEFAULT_PRO_LAYOUT_PREFERENCES,
 } from './PerpsController';
 export type {
   PerpsControllerState,
@@ -41,6 +43,7 @@ export type {
   PerpsControllerGetStateAction,
   PerpsControllerActions,
   PerpsControllerEvents,
+  ProLayoutPreferences,
 } from './PerpsController';
 export type {
   PerpsControllerCalculateFeesAction,

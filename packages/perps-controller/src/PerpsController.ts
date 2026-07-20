@@ -21,7 +21,11 @@ import {
 } from './constants/eventNames';
 import { USDC_SYMBOL } from './constants/hyperLiquidConfig';
 import { PerpsMeasurementName } from './constants/performanceMetrics';
-import type { SortOptionId } from './constants/perpsConfig';
+import type {
+  SortOptionId,
+  ProLayoutPreferences,
+  PerpsMode,
+} from './constants/perpsConfig';
 import {
   PERPS_CONSTANTS,
   MARKET_SORTING_CONFIG,
@@ -29,6 +33,8 @@ import {
   PERPS_DISK_CACHE_USER_DATA,
   buildProviderCacheKey,
   MAX_SLIPPAGE_BOUNDS,
+  DEFAULT_PERPS_MODE,
+  DEFAULT_PRO_LAYOUT_PREFERENCES,
 } from './constants/perpsConfig';
 import type { PerpsControllerMethodActions } from './PerpsController-method-action-types';
 import { PERPS_ERROR_CODES } from './perpsErrorCodes';
@@ -234,16 +240,14 @@ export enum InitializationState {
   Failed = 'failed',
 }
 
-/**
- * Perps interface mode.
- *
- * `Lite` is the simplified default experience; `Pro` exposes the advanced
- * trading layout (chart, order book, inline order form).
- */
-export enum PerpsMode {
-  Lite = 'lite',
-  Pro = 'pro',
-}
+// Re-exported so consumers can keep importing these from the controller entry
+// point; the canonical definitions live in the dependency-free constants module.
+export {
+  PerpsMode,
+  DEFAULT_PERPS_MODE,
+  DEFAULT_PRO_LAYOUT_PREFERENCES,
+} from './constants/perpsConfig';
+export type { ProLayoutPreferences } from './constants/perpsConfig';
 
 /**
  * State shape for PerpsController
@@ -410,16 +414,7 @@ export type PerpsControllerState = {
 
   // Pro-mode layout preferences (network-independent). Flat object that
   // persists across markets (unlike the per-market tradeConfigurations).
-  proLayoutPreferences: {
-    orderBookExpanded: boolean;
-    // Reserved: current chart design is always expanded, no collapse UI yet.
-    // Kept for parity/future use.
-    chartExpanded: boolean;
-    // Reserved for a future container-position feature.
-    orderBookPosition: 'left' | 'right';
-    // Reserved for a future container-position feature.
-    orderFormPosition: 'left' | 'right';
-  };
+  proLayoutPreferences: ProLayoutPreferences;
 
   // Perps interface mode (lite/pro), network-independent global preference.
   mode: PerpsMode;
@@ -515,13 +510,8 @@ export const getDefaultPerpsControllerState = (): PerpsControllerState => ({
     optionId: MARKET_SORTING_CONFIG.DefaultSortOptionId,
     direction: MARKET_SORTING_CONFIG.DefaultDirection,
   },
-  proLayoutPreferences: {
-    orderBookExpanded: false,
-    chartExpanded: true,
-    orderBookPosition: 'left',
-    orderFormPosition: 'right',
-  },
-  mode: PerpsMode.Lite,
+  proLayoutPreferences: { ...DEFAULT_PRO_LAYOUT_PREFERENCES },
+  mode: DEFAULT_PERPS_MODE,
   hip3ConfigVersion: 0,
   selectedPaymentToken: null,
   cachedMarketDataByProvider: {},
@@ -5145,8 +5135,13 @@ export class PerpsController extends BaseController<
    *
    * @returns The current pro-mode layout preferences.
    */
-  getProLayoutPreferences(): PerpsControllerState['proLayoutPreferences'] {
-    return this.state.proLayoutPreferences;
+  getProLayoutPreferences(): ProLayoutPreferences {
+    // Merge over defaults so callers always receive a fully-populated object,
+    // even if the persisted state predates one of the fields.
+    return {
+      ...DEFAULT_PRO_LAYOUT_PREFERENCES,
+      ...this.state.proLayoutPreferences,
+    };
   }
 
   /**
@@ -5157,9 +5152,7 @@ export class PerpsController extends BaseController<
    *
    * @param patch - Partial set of pro-mode layout preferences to update.
    */
-  setProLayoutPreferences(
-    patch: Partial<PerpsControllerState['proLayoutPreferences']>,
-  ): void {
+  setProLayoutPreferences(patch: Partial<ProLayoutPreferences>): void {
     this.update((state) => {
       state.proLayoutPreferences = {
         ...state.proLayoutPreferences,
