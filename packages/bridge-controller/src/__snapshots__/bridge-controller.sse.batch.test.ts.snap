@@ -61,7 +61,7 @@ exports[`BridgeController BatchSell (multiple quote requests) SSE fetch quotes s
 }
 `;
 
-exports[`BridgeController BatchSell (multiple quote requests) SSE fetch quotes should trigger quote polling if request is valid 2`] = `
+exports[`BridgeController BatchSell (multiple quote requests) SSE fetch quotes should trigger quote polling if request is valid 3`] = `
 [
   [
     "Unified SwapBridge Input Changed",

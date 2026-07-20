@@ -8,6 +8,7 @@ import type {
   MockAnyNamespace,
 } from '@metamask/messenger';
 import { abiERC20 } from '@metamask/metamask-eth-abis';
+import { merge } from 'lodash';
 
 import { flushPromises } from '../../../tests/helpers';
 import { mockBridgeQuotesErc20Erc20V1 } from '../tests/mock-quotes-erc20-erc20';
@@ -32,15 +33,17 @@ import {
 import { ChainId, RequestStatus } from './types';
 import type { BridgeControllerMessenger } from './types';
 import * as balanceUtils from './utils/balance';
-import { formatChainIdToDec } from './utils/caip-formatters';
+import {
+  formatChainIdToCaip,
+  formatChainIdToDec,
+} from './utils/caip-formatters';
 import * as featureFlagUtils from './utils/feature-flags';
 import * as fetchUtils from './utils/fetch';
 import { FeatureId } from './validators/feature-flags';
+import { validateQuoteResponseV1 } from './validators/quote-response-v1';
 import { QuoteStreamCompleteReason } from './validators/quote-stream-complete';
 import { TokenFeatureType } from './validators/token-feature';
 import type { TxData } from './validators/trade';
-import { merge } from 'lodash';
-import { validateQuoteResponseV1 } from './validators/quote-response-v1';
 
 type RootMessenger = Messenger<
   MockAnyNamespace,
@@ -381,7 +384,8 @@ describe('BridgeController SSE', function () {
                 ...quote.quote,
                 srcAsset: {
                   address: ETH_USDT_ADDRESS,
-                  assetId: `eip155:1/erc20:${ETH_USDT_ADDRESS}` as const,
+                  assetId:
+                    `${formatChainIdToCaip(1)}/erc20:${srcTokenAddress}` as const,
                   symbol: 'USDT',
                   name: 'Tether USD',
                   decimals: 6,
@@ -390,6 +394,11 @@ describe('BridgeController SSE', function () {
                 },
                 srcChainId: 1,
                 destChainId: formatChainIdToDec(destChainId),
+                destAsset: {
+                  ...quote.quote.destAsset,
+                  assetId:
+                    `${formatChainIdToCaip(destChainId)}/erc20:${quote.quote.destAsset.address}` as const,
+                },
               },
             }),
           );
@@ -512,6 +521,12 @@ describe('BridgeController SSE', function () {
                       iconUrl: 'https://media.socket.tech/tokens/all/USDT',
                     },
                     srcChainId: 1,
+                    destAsset: {
+                      ...quote.quote.destAsset,
+                      assetId:
+                        `${formatChainIdToCaip(destChainId)}/erc20:${quote.quote.destAsset.address}` as const,
+                    },
+                    destChainId: formatChainIdToDec(destChainId),
                   },
                 }),
               )

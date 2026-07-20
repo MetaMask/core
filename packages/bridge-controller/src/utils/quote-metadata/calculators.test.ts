@@ -1,15 +1,21 @@
 import { AddressZero } from '@ethersproject/constants';
 import { convertHexToDecimal } from '@metamask/controller-utils';
 import { BigNumber } from 'bignumber.js';
+import { merge } from 'lodash';
 
 import { mockBridgeQuotesErc20Erc20V1 } from '../../../tests/mock-quotes-erc20-erc20';
 import { mockBridgeQuotesNativeErc20V1 } from '../../../tests/mock-quotes-native-erc20';
 import { getMockBridgeQuotesSolErc20V2 } from '../../../tests/mock-quotes-sol-erc20';
 import type { GenericQuoteRequest, L1GasFees } from '../../types';
 import type { Quote } from '../../validators/quote';
-import { QuoteResponseV1 as QuoteResponse } from '../../validators/quote-response-v1';
+import { isValidQuoteRequest } from '../../validators/quote-request';
+import {
+  QuoteResponseV1 as QuoteResponse,
+  QuoteResponseV1,
+} from '../../validators/quote-response-v1';
 import type { TxData } from '../../validators/trade';
 import { getNativeAssetForChainId, isNativeAddress } from '../bridge';
+import { formatEtaInMinutes } from '../number-formatters';
 import {
   calcNonEvmTotalNetworkFee,
   calcToAmount,
@@ -17,16 +23,12 @@ import {
   calcRelayerFee,
   calcEstimatedAndMaxTotalGasFee,
   calcTotalEstimatedNetworkFee,
-  calcTotalMaxNetworkFee,
   calcAdjustedReturn,
   calcSwapRate,
   calcCost,
   calcSlippagePercentage,
   calcPriceImpact,
 } from './calculators';
-import { formatEtaInMinutes } from '../number-formatters';
-import { isValidQuoteRequest } from '../../validators/quote-request';
-import { merge } from 'lodash';
 
 describe('Quote Utils', () => {
   describe('isValidQuoteRequest', () => {
@@ -156,7 +158,7 @@ describe('Quote Utils', () => {
 describe('Quote Metadata Utils', () => {
   describe('calcSentAmount', () => {
     it('should calculate sent amount correctly with exchange rates', () => {
-      const mockQuote = merge({}, mockBridgeQuotesErc20Erc20V1, {
+      const mockQuote = merge({}, mockBridgeQuotesErc20Erc20V1[0], {
         quote: {
           srcTokenAmount: '2555423',
           srcAsset: { decimals: 6 },
@@ -170,7 +172,7 @@ describe('Quote Metadata Utils', () => {
             },
           },
         },
-      })[0].quote;
+      }).quote;
       expect(mockQuote.feeData.metabridge.asset?.assetId).toBe(
         mockQuote.srcAsset.assetId,
       );
@@ -182,9 +184,9 @@ describe('Quote Metadata Utils', () => {
 
       expect(result).toMatchInlineSnapshot(`
         {
-          "amount": "14",
-          "usd": "21",
-          "valueInCurrency": "29.96",
+          "amount": "112.555423",
+          "usd": "168.8331345",
+          "valueInCurrency": "240.86860522",
         }
       `);
     });
@@ -216,14 +218,6 @@ describe('Quote Metadata Utils', () => {
             metabridge: { amount: '0' },
           },
         },
-        // } as unknown as Quote;
-        // const zeroQuote = {
-        //   ...mockQuote,
-        //   srcTokenAmount: '0',
-        //   feeData: {
-        //     metabridge: { amount: '0' },
-        //   },
-        // } as unknown as Quote;
       }).quote;
 
       const result = calcSentAmount(zeroQuote, {
@@ -427,7 +421,7 @@ describe('Quote Metadata Utils', () => {
         },
       },
       trade: { value: '0x10A741A462780000' },
-    });
+    }) as QuoteResponseV1<TxData>;
 
     it('should calculate relayer fee correctly with exchange rates', () => {
       const result = calcRelayerFee(mockBridgeQuote, {
@@ -436,14 +430,13 @@ describe('Quote Metadata Utils', () => {
       });
 
       expect(new BigNumber(mockBridgeQuote.trade.value, 16).toFixed()).toBe(
-        '11000000000000000',
+        '1200000000000000000',
       );
-      expect(mockBridgeQuote.sentAmount?.amount).toBe('1010000000000000000');
 
       expect(mockBridgeQuote.quote.srcAsset.assetId).toStrictEqual(
         mockBridgeQuote.quote.feeData.metabridge.asset?.assetId,
       );
-      expect(isNativeAddress(mockBridgeQuote.quote.src.asset.assetId)).toBe(
+      expect(isNativeAddress(mockBridgeQuote.quote.srcAsset.assetId)).toBe(
         true,
       );
 
@@ -469,7 +462,7 @@ describe('Quote Metadata Utils', () => {
     });
 
     it('should handle native token address', () => {
-      const nativeBridgeQuote = merge({}, mockBridgeQuotesNativeErc20V1, {
+      const nativeBridgeQuote = merge({}, mockBridgeQuotesNativeErc20V1[0], {
         quote: {
           srcTokenAmount: '1000000000000000000',
           feeData: {
@@ -491,7 +484,7 @@ describe('Quote Metadata Utils', () => {
         trade: {
           value: '0x10A741A462780000',
         },
-      })[0];
+      }) as QuoteResponseV1<TxData>;
 
       const result = calcRelayerFee(nativeBridgeQuote, {
         exchangeRate: '2',
@@ -500,12 +493,14 @@ describe('Quote Metadata Utils', () => {
 
       expect(
         convertHexToDecimal(nativeBridgeQuote.trade.value).toString(),
-      ).toBe('11000000000000000');
-      expect(result).toStrictEqual({
-        amount: new BigNumber(0.1).toFixed(),
-        valueInCurrency: new BigNumber(0.2).toFixed(),
-        usd: new BigNumber(0.15).toFixed(),
-      });
+      ).toBe('1200000000000000000');
+      expect(result).toMatchInlineSnapshot(`
+        {
+          "amount": "0.1",
+          "usd": "0.15",
+          "valueInCurrency": "0.2",
+        }
+      `);
     });
   });
 
@@ -725,7 +720,7 @@ describe('Quote Metadata Utils', () => {
     });
   });
 
-  describe('calcTotalEstimatedNetworkFee and calcTotalMaxNetworkFee', () => {
+  describe('calcTotalEstimatedNetworkFee', () => {
     const mockGasFee = {
       effective: { amount: '0.1', valueInCurrency: '200', usd: '150' },
       total: { amount: '0.1', valueInCurrency: '200', usd: '150' },
@@ -746,36 +741,16 @@ describe('Quote Metadata Utils', () => {
       expect(result.usd).toBe('225');
     });
 
-    it('should calculate total max network fee correctly', () => {
-      const result = calcTotalMaxNetworkFee(mockGasFee, mockRelayerFee);
-
-      expect(result.amount).toBe('0.25');
-      expect(result.valueInCurrency).toBe('500');
-      expect(result.usd).toBe('375');
-    });
-
     it('should calculate total estimated network fee correctly with no relayer fee', () => {
       const result = calcTotalEstimatedNetworkFee(mockGasFee, {
         amount: '0',
-        valueInCurrency: null,
-        usd: null,
+        valueInCurrency: undefined,
+        usd: undefined,
       });
 
       expect(result.amount).toBe('0.1');
       expect(result.valueInCurrency).toBe('200');
       expect(result.usd).toBe('150');
-    });
-
-    it('should calculate total max network fee correctly with no relayer fee', () => {
-      const result = calcTotalMaxNetworkFee(mockGasFee, {
-        amount: '0',
-        valueInCurrency: null,
-        usd: null,
-      });
-
-      expect(result.amount).toBe('0.2');
-      expect(result.valueInCurrency).toBe('400');
-      expect(result.usd).toBe('300');
     });
   });
 

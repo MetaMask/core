@@ -5,7 +5,6 @@ import {
   weiHexToGweiDec,
 } from '@metamask/controller-utils';
 import { is } from '@metamask/superstruct';
-import { KnownCaipNamespace } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import type {
@@ -17,10 +16,10 @@ import type {
 } from '../../types';
 import { FloatStringSchema } from '../../validators/number';
 import type { QuoteResponseV1 as QuoteResponse } from '../../validators/quote-response-v1';
-import { isNativeAddress } from '../bridge';
-import type { QuoteMetadata, TokenAmountValues } from './types';
-import { calcTokenAmount } from '../number-formatters';
 import { TxData } from '../../validators/trade';
+import { isEvmQuoteResponse, isNativeAddress } from '../bridge';
+import { calcTokenAmount } from '../number-formatters';
+import type { QuoteMetadata, TokenAmountValues } from './types';
 
 export const calcNonEvmTotalNetworkFee = (
   bridgeQuote: QuoteResponse & NonEvmFees,
@@ -69,7 +68,12 @@ export const calcSentAmount = (
   const sentAmount = intent
     ? new BigNumber(srcTokenAmount)
     : Object.values(feeData)
-        .filter((fee) => fee?.amount && fee.asset?.assetId === srcAsset.assetId)
+        .filter(
+          (fee) =>
+            fee?.amount &&
+            fee.asset?.assetId?.toLowerCase() ===
+              srcAsset.assetId?.toLowerCase(),
+        )
         .reduce(
           (acc, { amount }) => acc.plus(amount),
           new BigNumber(srcTokenAmount),
@@ -242,27 +246,6 @@ export const calcTotalEstimatedNetworkFee = (
   };
 };
 
-export const calcTotalMaxNetworkFee = (
-  gasFee: { max?: Partial<TokenAmountValues> } | undefined,
-  relayerFee: ReturnType<typeof calcRelayerFee>,
-) => {
-  return {
-    amount:
-      gasFee?.max?.amount &&
-      new BigNumber(gasFee.max.amount)
-        .plus(relayerFee?.amount ?? '0')
-        .toFixed(),
-    valueInCurrency:
-      gasFee?.max?.valueInCurrency &&
-      new BigNumber(gasFee.max.valueInCurrency)
-        .plus(relayerFee?.valueInCurrency ?? '0')
-        .toString(),
-    usd:
-      gasFee?.max?.usd &&
-      new BigNumber(gasFee.max.usd).plus(relayerFee?.usd ?? '0').toString(),
-  };
-};
-
 // Gas is included for some swap quotes and this is the value displayed in the client
 export const calcIncludedTxFees = (
   {
@@ -414,5 +397,114 @@ export const calcPriceImpact = (
       isSourceFiatValid(sourceUsd) && isSourceFiatValid(destUsd)
         ? new BigNumber(sourceUsd).minus(destUsd).abs().toFixed()
         : undefined,
+  };
+};
+
+/**
+ * Calculates quote metadata, such as converted fiat amounts and fees,
+ * based on the controller state and the quote response
+ *
+ * @param quote - The quote response to calculate the metadata for
+ * @param options - The options for the calculation
+ * @param options.bridgeFeesPerGas - The bridge fees per gas
+ * @param options.srcTokenExchangeRate - The exchange rate for the source token
+ * @param options.destTokenExchangeRate - The exchange rate for the destination token
+ * @param options.nativeExchangeRate - The exchange rate for the native token
+ * @returns The calculated metadata
+ */
+export const calcQuoteMetadata = (
+  quote: QuoteResponse,
+  options?: {
+    bridgeFeesPerGas: null | {
+      estimatedBaseFeeInDecGwei: string | null;
+      feePerGasInDecGwei?: string;
+      maxFeePerGasInDecGwei?: string;
+    };
+    srcTokenExchangeRate: ExchangeRate;
+    destTokenExchangeRate: ExchangeRate;
+    nativeExchangeRate: ExchangeRate;
+  },
+): QuoteMetadata => {
+  const {
+    bridgeFeesPerGas = {},
+    srcTokenExchangeRate = {},
+    destTokenExchangeRate = {},
+    nativeExchangeRate = {},
+  } = options ?? {};
+
+  const sentAmount = calcSentAmount(quote.quote, srcTokenExchangeRate);
+  const toTokenAmount = calcToAmount(
+    quote.quote.destTokenAmount,
+    quote.quote.destAsset,
+    destTokenExchangeRate,
+  );
+  const minToTokenAmount = calcToAmount(
+    quote.quote.minDestTokenAmount,
+    quote.quote.destAsset,
+    destTokenExchangeRate,
+  );
+
+  const includedTxFees = calcIncludedTxFees(
+    quote.quote,
+    srcTokenExchangeRate,
+    destTokenExchangeRate,
+  );
+
+  let totalEstimatedNetworkFee, relayerFee, gasFee;
+
+  if (isEvmQuoteResponse(quote)) {
+    relayerFee = calcRelayerFee(quote, nativeExchangeRate);
+    gasFee = calcEstimatedAndMaxTotalGasFee({
+      bridgeQuote: quote,
+      ...bridgeFeesPerGas,
+      ...nativeExchangeRate,
+    });
+    // Uses effectiveGasFee to calculate the total estimated network fee
+    totalEstimatedNetworkFee = calcTotalEstimatedNetworkFee(gasFee, relayerFee);
+  } else {
+    // Use the new generic function for all non-EVM chains
+    totalEstimatedNetworkFee = calcNonEvmTotalNetworkFee(
+      quote,
+      nativeExchangeRate,
+    );
+    gasFee = {
+      total: totalEstimatedNetworkFee,
+    };
+  }
+
+  const adjustedReturn = calcAdjustedReturn(
+    toTokenAmount,
+    totalEstimatedNetworkFee,
+    quote.quote,
+  );
+  const cost = calcCost(adjustedReturn, sentAmount);
+
+  // The quote has not been updated at this point, so we need to calculate the price impact using sentAmount and toTokenAmount
+  const priceImpact = calcPriceImpact({ sentAmount, toTokenAmount });
+
+  return {
+    sentAmount,
+    toTokenAmount,
+    minToTokenAmount,
+    swapRate: calcSwapRate(sentAmount.amount, toTokenAmount.amount),
+    /**
+        This is the amount required to submit all the transactions.
+        Includes the relayer fee or other native fees.
+        Should be used for balance checks and tx submission.
+     */
+    totalNetworkFee: totalEstimatedNetworkFee,
+    /**
+        This contains gas fee estimates for the bridge transaction
+        Does not include the relayer fee (if needed), just the gasLimit and effectiveGas returned by the bridge API.
+        Should only be used for display purposes.
+     */
+    gasFee,
+    ...(adjustedReturn && { adjustedReturn }),
+    ...(cost && { cost }),
+    ...(includedTxFees && { includedTxFees }),
+    ...(relayerFee && { relayerFee }),
+    ...((priceImpact?.valueInCurrency ?? priceImpact?.usd) && {
+      priceImpact,
+    }),
   };
 };

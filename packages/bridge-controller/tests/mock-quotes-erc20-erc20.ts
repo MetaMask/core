@@ -26,7 +26,6 @@ export const mockBridgeQuotesErc20Erc20V1: QuoteResponseV1[] = [
         iconUrl: 'https://media.socket.tech/tokens/all/USDC',
       },
       srcTokenAmount: '14000000',
-      destWalletAddress: undefined,
       destChainId: 137,
       destAsset: {
         chainId: 137,

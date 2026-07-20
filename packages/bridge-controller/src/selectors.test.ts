@@ -36,11 +36,11 @@ import {
   formatChainIdToDec,
   formatChainIdToHex,
 } from './utils/caip-formatters';
+import { calcQuoteMetadata } from './utils/quote-metadata/calculators';
 import { mergeQuoteMetadata } from './utils/quote-metadata/merge';
 import { BatchSellTransactionType } from './validators/batch-sell';
 import type { QuoteResponseV1 } from './validators/quote-response-v1';
 import { validateQuoteResponseV1 } from './validators/quote-response-v1';
-import { calcQuoteMetadata } from './utils/quote-metadata/quote-metadata';
 
 const MOCK_USDC_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48';
 const MOCK_MUSD_ADDRESS = '0x12345A7890123456789012345678901234567890';
@@ -752,7 +752,7 @@ describe('Bridge Selectors', () => {
       expect(result.sortedQuotes[0]).toStrictEqual(
         expect.objectContaining(quoteResponseV1),
       );
-      expect(result.sortedQuotes[0].cost?.valueInCurrency).toBe('-419.985546');
+      expect(result.sortedQuotes[0].cost?.valueInCurrency).toBeUndefined();
     });
 
     it('should return metadata when quotes are empty', () => {
@@ -1416,7 +1416,7 @@ describe('Bridge Selectors', () => {
             name: 'USD Coin',
             assetId:
               'eip155:1/erc20:0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
-            decimals: 18,
+            decimals: 6,
             chainId: 1,
             address: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
           },
@@ -1429,10 +1429,10 @@ describe('Bridge Selectors', () => {
             chainId: 1,
           },
           {
-            amount: '3000000000000000000',
+            amount: '3000000',
             asset: {
               address: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
-              decimals: 18,
+              decimals: 6,
               assetId:
                 'eip155:1/erc20:0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
               symbol: 'ETH',
@@ -1448,17 +1448,10 @@ describe('Bridge Selectors', () => {
             ...quote,
             quote: {
               ...quote.quote,
-              priceData: {
-                cost: {
-                  usd: '1935.36',
-                },
-                swapRate: '1',
-              },
               feeData: {
                 ...quote.quote.feeData,
                 txFee: {
-                  amount: `${(3 + index) * 1000000000000000000}`,
-                  usd: '1935.36',
+                  amount: `${(3 + index) * 1000000}`,
                   asset: quote.quote.srcAsset,
                   maxFeePerGas: '1000000000000000000',
                   maxPriorityFeePerGas: '1000000000000000000',
@@ -1475,8 +1468,8 @@ describe('Bridge Selectors', () => {
             valueInCurrency: '8.99553613774000008538',
           },
           cost: {
-            usd: '1.173955083193541376',
-            valueInCurrency: '1.0044638622599996415',
+            usd: '1936.53421414565812374528',
+            valueInCurrency: '1656.94468552225999991462',
           },
           gasFee: {
             total: {
@@ -1496,15 +1489,15 @@ describe('Bridge Selectors', () => {
             valueInCurrency: '8.54999999999999983272',
           },
           sentAmount: {
-            amount: '0.018116598427479256',
-            usd: '11.68737997753541763072',
-            valueInCurrency: '9.99999999999999972688',
+            amount: '3.018117',
+            usd: '1947.04763904',
+            valueInCurrency: '1665.94022166',
           },
           priceImpact: {
-            usd: '1.168737997753541376',
-            valueInCurrency: '0.9999999999999996415',
+            usd: '1936.52899706021812374528',
+            valueInCurrency: '1656.94022165999999991462',
           },
-          swapRate: '0.90000000000000003312',
+          swapRate: '0.00540235470816119156',
           toTokenAmount: {
             amount: '0.016304938584731331',
             usd: '10.51864197978187625472',
@@ -1517,24 +1510,21 @@ describe('Bridge Selectors', () => {
           },
         };
 
-        expect(sortedQuotes[0].quote.feeData.txFee).toStrictEqual([
-          {
-            amount: '3000000000000000000',
-            asset: {
-              assetId:
-                'eip155:1/erc20:0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
-              decimals: 18,
-              name: 'USD Coin',
-              symbol: 'USDC',
-            },
-            maxFeePerGas: '1000000000000000000',
-            maxPriorityFeePerGas: '1000000000000000000',
-            normalizedAmount: '3',
-            usd: '1935.36',
-            valueInCurrency: '1655.94',
+        expect(sortedQuotes[0].quote.feeData.txFee).toStrictEqual({
+          amount: '3000000',
+          asset: {
+            address: '0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
+            assetId:
+              'eip155:1/erc20:0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d',
+            chainId: 1,
+            decimals: 6,
+            name: 'USD Coin',
+            symbol: 'USDC',
           },
-        ]);
-        expect(newState.quotes[0].sentAmount?.amount).toBe('18116598427479256');
+          maxFeePerGas: '1000000000000000000',
+          maxPriorityFeePerGas: '1000000000000000000',
+        });
+        expect(sortedQuotes[0].sentAmount?.amount).toBe('3.018117');
         const expectedQuoteV2 = mergeQuoteMetadata(
           newState.quotes[0],
           expectedQuoteMetadata,

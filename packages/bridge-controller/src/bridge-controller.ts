@@ -86,14 +86,14 @@ import type {
   RequiredEventContextFromClient,
 } from './utils/metrics/types';
 import type { CrossChainSwapsEventProperties } from './utils/metrics/types';
+import { appendFeesToQuotes } from './utils/quote-fees';
+import { getMinimumBalanceForRentExemptionInLamports } from './utils/snaps';
 import { sortQuotes } from './utils/sort-quotes';
+import type { FeatureId } from './validators/feature-flags';
 import {
   isValidQuoteRequest,
   isValidBatchSellQuoteRequest,
 } from './validators/quote-request';
-import { appendFeesToQuotes } from './utils/quote-fees';
-import { getMinimumBalanceForRentExemptionInLamports } from './utils/snaps';
-import type { FeatureId } from './validators/feature-flags';
 import type { QuoteResponseV1 } from './validators/quote-response-v1';
 
 const metadata: StateMetadata<BridgeControllerState> = {

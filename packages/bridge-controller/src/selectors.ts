@@ -34,8 +34,8 @@ import {
 } from './utils/caip-formatters';
 import { processFeatureFlags } from './utils/feature-flags';
 import { calcBatchFees } from './utils/quote-metadata/calculators';
+import { calcQuoteMetadata } from './utils/quote-metadata/calculators';
 import { mergeQuoteMetadata } from './utils/quote-metadata/merge';
-import { calcQuoteMetadata } from './utils/quote-metadata/quote-metadata';
 import type {
   QuoteMetadata,
   TokenAmountValues,
@@ -459,8 +459,8 @@ export const selectIsQuoteExpired = createBridgeSelector(
   (isQuoteGoingToRefresh, quotesLastFetched, refreshRate, currentTimeInMs) =>
     Boolean(
       !isQuoteGoingToRefresh &&
-        quotesLastFetched &&
-        currentTimeInMs - quotesLastFetched > refreshRate,
+      quotesLastFetched &&
+      currentTimeInMs - quotesLastFetched > refreshRate,
     ),
 );
 

@@ -119,7 +119,6 @@ export {
   type TokenAmountValues,
 } from './utils/quote-metadata/types';
 
-export { calcQuoteMetadata } from './utils/quote-metadata/quote-metadata';
 export { mergeQuoteMetadata } from './utils/quote-metadata/merge';
 
 export {
@@ -190,7 +189,10 @@ export {
   isValidBatchSellQuoteRequest,
 } from './validators/quote-request';
 
-export { calcSlippagePercentage } from './utils/quote-metadata/calculators';
+export {
+  calcSlippagePercentage,
+  calcQuoteMetadata,
+} from './utils/quote-metadata/calculators';
 
 export { calcLatestSrcBalance } from './utils/balance';
 

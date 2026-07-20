@@ -62,7 +62,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Phase 1 of migration, in which `QuoteResponseV2 & QuoteMetadata` are returned, but still uses v1 metadata
 - Migration utilities
-
   - toQuoteResponseV1, toQuoteResponseV2
   - migrationMerge
   - mergeQuoteMetadata, extractQuoteMetadata (test util)
