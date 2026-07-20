@@ -63,6 +63,7 @@ export enum MetaMetricsSwapsEventSource {
   TokenView = 'Token View',
   TrendingExplore = 'Trending Explore',
   Rewards = 'Rewards',
+  FollowTrader = 'Follow Trader',
   ActivityTabEmptyState = 'Activity Tab Empty State',
   TransactionShield = 'Transaction Shield',
   TransactionDetails = 'Transaction Details',
