@@ -164,7 +164,7 @@ passkeyControllerSelectors.selectIsPasskeyEnrolled(state); // boolean
 cases use a stable `code` from `PasskeyControllerErrorCode` (for example:
 `not_enrolled`, `already_enrolled`, `no_registration_ceremony`,
 `authentication_verification_failed`, `missing_key_material`, `vault_key_decryption_failed`,
-`vault_key_mismatch`, `vault_key_renewal_failed`). Human-readable strings
+`vault_key_mismatch`, `vault_key_renewal_failed`, `enrollment_password_required`). Human-readable strings
 live on `PasskeyControllerErrorMessage`. Use `instanceof PasskeyControllerError`
 and a defined `error.code` to tell these apart from malformed WebAuthn payloads
 and other `Error` values. Thrown errors from the internal WebAuthn verify helpers

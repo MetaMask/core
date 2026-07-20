@@ -582,9 +582,10 @@ describe('PasskeyController', () => {
           registrationResponse: minimalRegistrationResponse(),
           authenticationResponse: minimalAuthenticationResponse(),
         }),
-      ).rejects.toThrow(
-        PasskeyControllerErrorMessage.EnrollmentPasswordRequired,
-      );
+      ).rejects.toMatchObject({
+        code: PasskeyControllerErrorCode.EnrollmentPasswordRequired,
+        message: PasskeyControllerErrorMessage.EnrollmentPasswordRequired,
+      });
     });
 
     it('verifies password when onboarding is complete', async () => {

@@ -15,6 +15,7 @@ export const PasskeyControllerErrorCode = {
   VaultKeyDecryptionFailed: 'vault_key_decryption_failed',
   VaultKeyMismatch: 'vault_key_mismatch',
   VaultKeyRenewalFailed: 'vault_key_renewal_failed',
+  EnrollmentPasswordRequired: 'enrollment_password_required',
 } as const;
 
 export type PasskeyControllerErrorCode =

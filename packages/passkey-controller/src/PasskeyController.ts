@@ -1005,7 +1005,12 @@ export class PasskeyController extends BaseController<
     }
 
     if (!password) {
-      throw new Error(PasskeyControllerErrorMessage.EnrollmentPasswordRequired);
+      throw new PasskeyControllerError(
+        PasskeyControllerErrorMessage.EnrollmentPasswordRequired,
+        {
+          code: PasskeyControllerErrorCode.EnrollmentPasswordRequired,
+        },
+      );
     }
 
     await this.messenger.call('KeyringController:verifyPassword', password);
