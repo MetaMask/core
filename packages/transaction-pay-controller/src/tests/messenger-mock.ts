@@ -16,6 +16,7 @@ import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote
 import type {
   TransactionControllerAddTransactionAction,
   TransactionControllerAddTransactionBatchAction,
+  TransactionControllerBeginAtomicBatchUpdateAction,
   TransactionControllerEstimateGasAction,
   TransactionControllerEstimateGasBatchAction,
   TransactionControllerGetGasFeeTokensAction,
@@ -67,6 +68,10 @@ export function getMessengerMock({
 
   const addTransactionBatchMock: jest.MockedFn<
     TransactionControllerAddTransactionBatchAction['handler']
+  > = jest.fn();
+
+  const beginAtomicBatchUpdateMock: jest.MockedFn<
+    TransactionControllerBeginAtomicBatchUpdateAction['handler']
   > = jest.fn();
 
   const findNetworkClientIdByChainIdMock: jest.MockedFn<
@@ -288,6 +293,11 @@ export function getMessengerMock({
   }
 
   messenger.registerActionHandler(
+    'TransactionController:beginAtomicBatchUpdate',
+    beginAtomicBatchUpdateMock,
+  );
+
+  messenger.registerActionHandler(
     'KeyringController:getState',
     getKeyringControllerStateMock,
   );
@@ -296,6 +306,7 @@ export function getMessengerMock({
 
   return {
     addTransactionMock,
+    beginAtomicBatchUpdateMock,
     getAssetsControllerStateMock,
     addTransactionBatchMock,
     estimateGasMock,

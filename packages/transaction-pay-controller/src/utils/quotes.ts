@@ -1,6 +1,9 @@
 import { TransactionStatus } from '@metamask/transaction-controller';
-import type { BatchTransaction } from '@metamask/transaction-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  AtomicBatchPreparationResult,
+  BatchTransaction,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
 import { createModuleLogger } from '@metamask/utils';
 
@@ -42,8 +45,11 @@ const inFlightQuoteRequests = new Map<string, AbortController>();
 export type UpdateQuotesRequest = {
   getStrategies: (transaction: TransactionMeta) => TransactionPayStrategy[];
   messenger: TransactionPayControllerMessenger;
+  signal?: AbortSignal;
   transactionData: TransactionData | undefined;
   transactionId: string;
+  transactionPreparation?: Promise<AtomicBatchPreparationResult>;
+  transactionRevision?: number;
   updateTransactionData: UpdateTransactionDataCallback;
 };
 
@@ -64,8 +70,11 @@ export async function updateQuotes(
   const {
     getStrategies,
     messenger,
+    signal: externalSignal,
     transactionData,
     transactionId,
+    transactionPreparation,
+    transactionRevision,
     updateTransactionData,
   } = request;
 
@@ -100,6 +109,16 @@ export async function updateQuotes(
 
   const controller = abortPreviousAndCreateController(transactionId);
   const { signal } = controller;
+  const abortFromExternalSignal = (): void =>
+    controller.abort(externalSignal?.reason);
+
+  if (externalSignal?.aborted) {
+    abortFromExternalSignal();
+  } else {
+    externalSignal?.addEventListener('abort', abortFromExternalSignal, {
+      once: true,
+    });
+  }
 
   updateTransactionData(transactionId, (data) => {
     data.isLoading = true;
@@ -147,10 +166,36 @@ export async function updateQuotes(
       messenger,
       fiatPayment?.selectedPaymentMethodId,
       signal,
+      transactionPreparation,
     );
 
     if (signal.aborted) {
       log('Quote request aborted before persisting results', { transactionId });
+      return false;
+    }
+
+    let preparedTransaction = transaction;
+
+    if (transactionPreparation) {
+      const preparationResult = await transactionPreparation;
+      const latestTransaction = getTransaction(transactionId, messenger);
+
+      if (
+        preparationResult.status !== 'prepared' ||
+        preparationResult.revision !== transactionRevision ||
+        latestTransaction?.transactionRevision !== transactionRevision
+      ) {
+        log('Discarding quotes for stale transaction revision', {
+          transactionId,
+          transactionRevision,
+        });
+        return false;
+      }
+
+      preparedTransaction = preparationResult.transaction;
+    }
+
+    if (signal.aborted) {
       return false;
     }
 
@@ -167,7 +212,7 @@ export async function updateQuotes(
       messenger,
       quotes: executableQuotes as TransactionPayQuote<unknown>[],
       tokens,
-      transaction,
+      transaction: preparedTransaction,
     });
 
     log('Calculated totals', { transactionId, totals });
@@ -200,6 +245,7 @@ export async function updateQuotes(
         data.isLoading = false;
       });
     }
+    externalSignal?.removeEventListener('abort', abortFromExternalSignal);
     clearControllerIfCurrent(transactionId, controller);
   }
 
@@ -615,6 +661,7 @@ async function refreshPaymentTokenBalance({
  * @param messenger - Controller messenger.
  * @param fiatPaymentMethod - Selected fiat payment method ID, if applicable.
  * @param signal - Signal that aborts when the quote request is superseded.
+ * @param transactionPreparation - Revision-bound local preparation.
  * @returns An object containing batch transactions and quotes.
  */
 async function getQuotes(
@@ -628,6 +675,7 @@ async function getQuotes(
   messenger: TransactionPayControllerMessenger,
   fiatPaymentMethod?: string,
   signal?: AbortSignal,
+  transactionPreparation?: Promise<AtomicBatchPreparationResult>,
 ): Promise<{
   batchTransactions: BatchTransaction[];
   quotes: TransactionPayQuote<Json>[];
@@ -672,6 +720,7 @@ async function getQuotes(
     requests,
     signal,
     transaction,
+    transactionPreparation,
   };
 
   for (const { name, strategy } of strategies) {

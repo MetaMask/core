@@ -1,7 +1,11 @@
 import { TransactionStatus } from '@metamask/transaction-controller';
-import type { TransactionMeta } from '@metamask/transaction-controller';
+import type {
+  AtomicBatchPreparationResult,
+  TransactionMeta,
+} from '@metamask/transaction-controller';
 import type { BatchTransaction } from '@metamask/transaction-controller';
 import type { Hex, Json } from '@metamask/utils';
+import { createDeferredPromise } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
 import { TransactionPayStrategy } from '../constants';
@@ -198,6 +202,153 @@ describe('Quotes Utils', () => {
   });
 
   describe('updateQuotes', () => {
+    it('does not publish an executable quote until matching preparation completes', async () => {
+      const transactionPreparation =
+        createDeferredPromise<AtomicBatchPreparationResult>();
+      const preparedTransaction = {
+        ...TRANSACTION_META_MOCK,
+        transactionRevision: 1,
+      };
+      getTransactionMock.mockReturnValue(preparedTransaction);
+
+      const resultPromise = run({
+        transactionPreparation: transactionPreparation.promise,
+        transactionRevision: 1,
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(getQuotesMock).toHaveBeenCalled();
+      expect(calculateTotalsMock).not.toHaveBeenCalled();
+
+      transactionPreparation.resolve({
+        revision: 1,
+        status: 'prepared',
+        transaction: preparedTransaction,
+      });
+
+      expect(await resultPromise).toBe(true);
+      expect(calculateTotalsMock).toHaveBeenCalledWith(
+        expect.objectContaining({ transaction: preparedTransaction }),
+      );
+    });
+
+    it('discards quotes when preparation was superseded', async () => {
+      getTransactionMock.mockReturnValue({
+        ...TRANSACTION_META_MOCK,
+        transactionRevision: 1,
+      });
+
+      const result = await run({
+        transactionPreparation: Promise.resolve({
+          revision: 1,
+          status: 'superseded',
+          transaction: TRANSACTION_META_MOCK,
+        }),
+        transactionRevision: 1,
+      });
+
+      expect(result).toBe(false);
+      expect(calculateTotalsMock).not.toHaveBeenCalled();
+    });
+
+    it('discards quotes when preparation has a different revision', async () => {
+      getTransactionMock.mockReturnValue({
+        ...TRANSACTION_META_MOCK,
+        transactionRevision: 1,
+      });
+
+      const result = await run({
+        transactionPreparation: Promise.resolve({
+          revision: 2,
+          status: 'prepared',
+          transaction: TRANSACTION_META_MOCK,
+        }),
+        transactionRevision: 1,
+      });
+
+      expect(result).toBe(false);
+      expect(calculateTotalsMock).not.toHaveBeenCalled();
+    });
+
+    it('discards quotes when the latest transaction has a different revision', async () => {
+      getTransactionMock.mockReturnValue({
+        ...TRANSACTION_META_MOCK,
+        transactionRevision: 2,
+      });
+
+      const result = await run({
+        transactionPreparation: Promise.resolve({
+          revision: 1,
+          status: 'prepared',
+          transaction: TRANSACTION_META_MOCK,
+        }),
+        transactionRevision: 1,
+      });
+
+      expect(result).toBe(false);
+      expect(calculateTotalsMock).not.toHaveBeenCalled();
+    });
+
+    it('aborts immediately when the external signal is already aborted', async () => {
+      const externalController = new AbortController();
+      externalController.abort();
+
+      const result = await run({
+        signal: externalController.signal,
+      });
+
+      expect(result).toBe(false);
+      expect(calculateTotalsMock).not.toHaveBeenCalled();
+    });
+
+    it('discards prepared quotes if the external signal aborts while preparation is pending', async () => {
+      const externalController = new AbortController();
+      const transactionPreparation =
+        createDeferredPromise<AtomicBatchPreparationResult>();
+      const preparedTransaction = {
+        ...TRANSACTION_META_MOCK,
+        transactionRevision: 1,
+      };
+      getTransactionMock.mockReturnValue(preparedTransaction);
+
+      const resultPromise = run({
+        signal: externalController.signal,
+        transactionPreparation: transactionPreparation.promise,
+        transactionRevision: 1,
+      });
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      expect(getQuotesMock).toHaveBeenCalled();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+
+      externalController.abort();
+      transactionPreparation.resolve({
+        revision: 1,
+        status: 'prepared',
+        transaction: preparedTransaction,
+      });
+
+      expect(await resultPromise).toBe(false);
+      expect(calculateTotalsMock).not.toHaveBeenCalled();
+    });
+
     it('updates quotes in state', async () => {
       await run();
 

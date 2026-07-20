@@ -1,10 +1,12 @@
 import { toHex } from '@metamask/controller-utils';
 import { TransactionType } from '@metamask/transaction-controller';
 import type {
+  AtomicBatchPreparationResult,
   GasFeeToken,
   TransactionMeta,
 } from '@metamask/transaction-controller';
 import type { Hex } from '@metamask/utils';
+import { createDeferredPromise } from '@metamask/utils';
 import { cloneDeep } from 'lodash';
 
 import { getDefaultRemoteFeatureFlagControllerState } from '../../../../remote-feature-flag-controller/src/remote-feature-flag-controller';
@@ -244,6 +246,64 @@ describe('Relay Quotes Utils', () => {
   });
 
   describe('getRelayQuotes', () => {
+    it('fetches the raw standard quote before preparation and normalizes afterward', async () => {
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      } as never);
+      const transactionPreparation =
+        createDeferredPromise<AtomicBatchPreparationResult>();
+
+      const resultPromise = getRelayQuotes({
+        accountSupports7702: true,
+        messenger,
+        requests: [QUOTE_REQUEST_MOCK],
+        transaction: TRANSACTION_META_MOCK,
+        transactionPreparation: transactionPreparation.promise,
+      });
+
+      await new Promise<void>((resolve) => process.nextTick(resolve));
+
+      expect(successfulFetchMock).toHaveBeenCalledTimes(1);
+      expect(calculateGasCostMock).not.toHaveBeenCalled();
+
+      transactionPreparation.resolve({
+        revision: 1,
+        status: 'prepared',
+        transaction: {
+          ...TRANSACTION_META_MOCK,
+          transactionRevision: 1,
+        },
+      });
+
+      expect(await resultPromise).toHaveLength(1);
+      expect(calculateGasCostMock).toHaveBeenCalled();
+    });
+
+    it('rejects a raw standard quote when transaction preparation was superseded', async () => {
+      successfulFetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => QUOTE_MOCK,
+      } as never);
+
+      await expect(
+        getRelayQuotes({
+          accountSupports7702: true,
+          messenger,
+          requests: [QUOTE_REQUEST_MOCK],
+          transaction: TRANSACTION_META_MOCK,
+          transactionPreparation: Promise.resolve({
+            revision: 1,
+            status: 'superseded',
+            transaction: TRANSACTION_META_MOCK,
+          }),
+        }),
+      ).rejects.toThrow('Transaction preparation was superseded');
+
+      expect(successfulFetchMock).toHaveBeenCalledTimes(1);
+      expect(calculateGasCostMock).not.toHaveBeenCalled();
+    });
+
     it('returns quotes from Relay', async () => {
       successfulFetchMock.mockResolvedValue({
         ok: true,

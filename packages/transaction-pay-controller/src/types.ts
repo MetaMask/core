@@ -34,8 +34,12 @@ import type {
 } from '@metamask/ramps-controller';
 import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type {
+  AtomicBatchPreparationResult,
   AuthorizationList,
+  NestedTransactionUpdate,
+  RequiredAsset,
   TransactionControllerAddTransactionBatchAction,
+  TransactionControllerBeginAtomicBatchUpdateAction,
   TransactionControllerEstimateGasAction,
   TransactionControllerEstimateGasBatchAction,
   TransactionControllerUnapprovedTransactionAddedEvent,
@@ -78,6 +82,7 @@ export type AllowedActions =
   | TokensControllerGetStateAction
   | TransactionControllerAddTransactionAction
   | TransactionControllerAddTransactionBatchAction
+  | TransactionControllerBeginAtomicBatchUpdateAction
   | TransactionControllerEstimateGasAction
   | TransactionControllerEstimateGasBatchAction
   | TransactionControllerGetGasFeeTokensAction
@@ -201,6 +206,55 @@ export type GetAmountDataCallback = (
   request: GetAmountDataRequest,
 ) => Promise<GetAmountDataResponse>;
 
+/** Request passed to the explicit amount preparation callback. */
+export type PrepareTransactionAmountRequest = {
+  /** Exact human-readable decimal amount selected by the caller. */
+  amountHuman: string;
+
+  /** Signal aborted when a different amount intent supersedes this request. */
+  signal: AbortSignal;
+
+  /** Coherent transaction snapshot to prepare. */
+  transaction: TransactionMeta;
+};
+
+/** Result returned by the explicit amount preparation callback. */
+export type PrepareTransactionAmountResult =
+  | {
+      /** Indicates that this transaction adopts explicit amount preparation. */
+      kind: 'prepared';
+
+      /** Raw atomic-unit amount corresponding to `amountHuman`. */
+      amountRaw: string;
+
+      /** Complete assets required by the prepared transaction. */
+      requiredAssets: RequiredAsset[];
+
+      /** Complete nested calldata patch. */
+      nestedTransactionUpdates: NestedTransactionUpdate[];
+
+      /** Exact indexes that must be present in the nested calldata patch. */
+      requiredNestedTransactionIndexes: number[];
+    }
+  | {
+      /** Indicates that explicit amount preparation does not apply. */
+      kind: 'not-applicable';
+    };
+
+/** Callback that prepares a complete transaction patch for an exact amount. */
+export type PrepareTransactionAmountCallback = (
+  request: PrepareTransactionAmountRequest,
+) => Promise<PrepareTransactionAmountResult>;
+
+/** Request to explicitly update a transaction amount. */
+export type UpdateAmountRequest = {
+  /** Exact human-readable decimal amount selected by the caller. */
+  amountHuman: string;
+
+  /** ID of the transaction to update. */
+  transactionId: string;
+};
+
 /** Callback to update fiat payment state. */
 export type TransactionFiatPaymentCallback = (
   fiatPayment: TransactionFiatPayment,
@@ -239,6 +293,9 @@ export const KEYRING_TYPES_SUPPORTING_7702: `${KeyringTypes}`[] = [
 export type TransactionPayControllerOptions = {
   /** Optional callback to re-encode nested transaction calldata for a given amount. */
   getAmountData?: GetAmountDataCallback;
+
+  /** Optional callback used by the explicit amount update proof of concept. */
+  prepareTransactionAmount?: PrepareTransactionAmountCallback;
 
   /** Callback to convert a transaction into a redeem delegation. */
   getDelegationTransaction: GetDelegationTransactionCallback;
@@ -630,6 +687,9 @@ export type PayStrategyGetQuotesRequest = {
 
   /** Metadata of the original target transaction. */
   transaction: TransactionMeta;
+
+  /** Revision-bound local preparation for an explicit amount update. */
+  transactionPreparation?: Promise<AtomicBatchPreparationResult>;
 };
 
 /** Request to submit quotes for a transaction. */

@@ -266,6 +266,11 @@ export type TransactionMeta = {
   id: string;
 
   /**
+   * Monotonic revision assigned whenever the atomic batch calldata is updated.
+   */
+  transactionRevision?: number;
+
+  /**
    * Whether the transaction is signed externally.
    * No signing will be performed in the client and the `nonce` will be `undefined`.
    */
@@ -2329,6 +2334,51 @@ export type RequiredAsset = {
 
   /** Token standard of the asset (e.g., 'erc20'). */
   standard: string;
+};
+
+/** A nested transaction calldata update in an atomic batch. */
+export type NestedTransactionUpdate = {
+  /** Index of the nested transaction to update. */
+  transactionIndex: number;
+
+  /** New calldata for the nested transaction. */
+  transactionData: Hex;
+};
+
+/** Request to atomically update all amount-dependent batch data. */
+export type BeginAtomicBatchUpdateRequest = {
+  /** ID of the atomic batch transaction. */
+  transactionId: string;
+
+  /** Complete assets required by the updated transaction. */
+  requiredAssets: RequiredAsset[];
+
+  /** Complete set of nested transaction calldata updates. */
+  nestedTransactionUpdates: NestedTransactionUpdate[];
+};
+
+/** Result of revision-bound local preparation. */
+export type AtomicBatchPreparationResult = {
+  /** Revision for which preparation ran. */
+  revision: number;
+
+  /** Whether the prepared metadata was committed or superseded. */
+  status: 'prepared' | 'superseded';
+
+  /** Prepared transaction, or the current transaction if superseded. */
+  transaction: TransactionMeta;
+};
+
+/** Synchronous result returned when an atomic update begins. */
+export type BeginAtomicBatchUpdateResult = {
+  /** Monotonic transaction revision assigned to the update. */
+  revision: number;
+
+  /** Coherent transaction snapshot published for this revision. */
+  transaction: TransactionMeta;
+
+  /** Revision-bound local gas preparation. */
+  preparation: Promise<AtomicBatchPreparationResult>;
 };
 
 /**
