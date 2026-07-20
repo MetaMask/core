@@ -43,7 +43,7 @@ type MessengerAdapter<DataServiceName extends string> = {
   call(
     actionType: `${DataServiceName}:${string}`,
     ...params: unknown[]
-  ): Promise<unknown>;
+  ): unknown;
 
   /**
    * Subscribe to a granular cache update event on one of the configured data
