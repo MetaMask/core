@@ -6593,7 +6593,7 @@ __metadata:
   languageName: unknown
   linkType: soft
 
-"@metamask/entropy-controller@workspace:packages/entropy-controller":
+"@metamask/entropy-controller@npm:^0.0.0, @metamask/entropy-controller@workspace:packages/entropy-controller":
   version: 0.0.0-use.local
   resolution: "@metamask/entropy-controller@workspace:packages/entropy-controller"
   dependencies:
@@ -9185,6 +9185,7 @@ __metadata:
     "@metamask/browser-passworder": "npm:^6.0.0"
     "@metamask/connectivity-controller": "npm:^0.3.0"
     "@metamask/controller-utils": "npm:^12.3.0"
+    "@metamask/entropy-controller": "npm:^0.0.0"
     "@metamask/keyring-controller": "npm:^27.1.0"
     "@metamask/messenger": "npm:^2.0.0"
     "@metamask/network-controller": "npm:^34.0.0"

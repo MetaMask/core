@@ -1,4 +1,5 @@
 export { accountsController } from './accounts-controller/accounts-controller';
+export { entropyController } from './entropy-controller/entropy-controller';
 export { addressBookController } from './address-book-controller/address-book-controller';
 export { approvalController } from './approval-controller/approval-controller';
 export { connectivityController } from './connectivity-controller/connectivity-controller';
