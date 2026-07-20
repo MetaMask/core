@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** Make `QuoteMetadata` fields optional and remove `0` and `null` amount fallbacks. Missing values are now `undefined`. ([#9507](https://github.com/MetaMask/core/pull/9507))
+- **BREAKING:** Remove `gasFee.effective`, `gasFee.max`, and `totalMaxNetworkFee` from `QuoteMetadata`. Prefer `gasFee.total` and `totalNetworkFee`. ([#9507](https://github.com/MetaMask/core/pull/9507))
+- Add `priceImpact` and `relayerFee` to `QuoteMetadata`. ([#9507](https://github.com/MetaMask/core/pull/9507))
+- Move quote-metadata calculation into `utils/quote-metadata/` and export `calcQuoteMetadata` and `mergeQuoteMetadata`. ([#9507](https://github.com/MetaMask/core/pull/9507))
+- Refactor quoteMetadata calculation and data access to prepare for metadata migration ([#9507](https://github.com/MetaMask/core/pull/9507))
+  - Extract `QuoteMetadata` type and calculation to a new file
+  - Implement `mergeQuoteMetadata` util which appends QuoteMetadata to QuoteResponse
+  - Return priceImpact and relayerFee as part of `QuoteMetadata`
+
 ### Fixed
 
 - Fix `selectExchangeRateByAssetId` returning a `"0"` exchange rate for EVM tokens whose market data entry has a missing or zero price. It now returns `{}` in that case, so `selectIsAssetExchangeRateInState` no longer treats such tokens as already priced (a non-empty `"0"` string is truthy) and the controller fetches the token's real rate. This fixes quotes into these tokens (e.g. mUSD) displaying a `$0.00` fiat value. ([#9556](https://github.com/MetaMask/core/pull/9556))
@@ -30,12 +41,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING:** Make `QuoteMetadata` fields optional, remove `0` and `null` amount fallbacks ([#9507](https://github.com/MetaMask/core/pull/9507))
-- Return priceImpact and relayerFee
-- Remove gasFee max and effective, totalMaxNetworkFee
-- Refactor quoteMetadata calculation and data access to prepare for metadata migration ([#9507](https://github.com/MetaMask/core/pull/9507))
-  - Extract `QuoteMetadata` type and calculation to a new file
-  - Implement `mergeQuoteMetadata` util which appends QuoteMetadata to QuoteResponse
 - Bump `@metamask/assets-controller` from `^10.2.1` to `^11.0.0` ([#9485](https://github.com/MetaMask/core/pull/9485))
 
 ### Fixed
@@ -59,12 +64,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add Robinhood Chain mainnet as a supported bridge network. ([#9459](https://github.com/MetaMask/core/pull/9459))
 
 ### Changed
-
-- Phase 1 of migration, in which `QuoteResponseV2 & QuoteMetadata` are returned, but still uses v1 metadata
-- Migration utilities
-  - toQuoteResponseV1, toQuoteResponseV2
-  - migrationMerge
-  - mergeQuoteMetadata, extractQuoteMetadata (test util)
 
 - Split up validators into smaller files to prepare for QuoteResponse V2 migration ([#9413](https://github.com/MetaMask/core/pull/9413))
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))

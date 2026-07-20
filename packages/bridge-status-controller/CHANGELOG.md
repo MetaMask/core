@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/bridge-controller` from `^77.5.0` to `^77.6.0` ([#9558](https://github.com/MetaMask/core/pull/9558))
 - Use `totalNetworkFee` instead of `gasFee.effective` to calculate gas metrics properties
 - Update utils to use `mergeQuoteMetadata` and optional QuoteMetadata access patterns. ([#9507](https://github.com/MetaMask/core/pull/9507))
+- Update QuoteMetadata usages to handle optional values ([#9507](https://github.com/MetaMask/core/pull/9507))
+- Use `gasFee.total` instead of `gasFee.effective` for gas metrics properties. ([#9507](https://github.com/MetaMask/core/pull/9507))
 
 ## [74.3.0]
 
