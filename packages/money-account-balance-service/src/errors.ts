@@ -8,6 +8,8 @@ export class VedaResponseValidationError extends Error {
 /**
  * Thrown when a balance source returns data that fails semantic validation
  * (e.g. non-integer amounts, or `totalBalance !== musdBalance + vmusdValueInMusd`).
+ * Reported via the messenger's `captureException` when encountered by
+ * {@link MoneyAccountBalanceService.fetchBalanceWithFallback}.
  */
 export class MoneyAccountBalanceValidationError extends Error {
   constructor(message: string) {
@@ -18,7 +20,9 @@ export class MoneyAccountBalanceValidationError extends Error {
 
 /**
  * Thrown when a balance source is transport-successful but has no usable
- * balance (e.g. Money API `balance: null`).
+ * balance (e.g. Money API `balance: null`). Reported via the messenger's
+ * `captureException` when encountered by
+ * {@link MoneyAccountBalanceService.fetchBalanceWithFallback}.
  */
 export class MoneyAccountBalanceUnavailableError extends Error {
   constructor(message: string) {

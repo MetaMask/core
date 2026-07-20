@@ -49,10 +49,11 @@ export const BALANCE_SOURCE_POLICIES = [
 export type BalanceSourcePolicy = (typeof BALANCE_SOURCE_POLICIES)[number];
 
 /**
- * Hard default when the routing flag is absent or malformed: Money API
- * primary with RPC fallback.
+ * Hard default when the routing flag is absent or malformed: RPC primary
+ * with Money API fallback. API-primary remains opt-in via the feature flag
+ * until source equivalence is proven.
  */
-export const DEFAULT_BALANCE_SOURCE_POLICY: BalanceSourcePolicy = 'api';
+export const DEFAULT_BALANCE_SOURCE_POLICY: BalanceSourcePolicy = 'rpc';
 
 /**
  * Balance source used in the canonical facade result.

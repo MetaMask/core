@@ -1640,11 +1640,46 @@ describe('MoneyAccountBalanceService', () => {
       positions: [],
     };
 
-    it('returns API balance by default (API primary) without using fallback', async () => {
+    const apiPrimaryFlags = {
+      [VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+      [MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY]: 'api',
+    };
+
+    it('returns RPC balance by default (RPC primary) without using fallback', async () => {
+      mockMoneyAccountBalanceMulticall({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+      });
+      const mockFetchPositions = jest.fn();
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+        mockFetchPositions,
+      });
+
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+        totalBalance: '7200000',
+        source: 'rpc',
+        usedFallback: false,
+      });
+      expect(mockFetchPositions).not.toHaveBeenCalled();
+    });
+
+    it('returns API balance when the flag is set to api', async () => {
       const mockFetchPositions = jest
         .fn()
         .mockResolvedValue(MOCK_API_POSITIONS);
-      const { service } = createService({ mockFetchPositions });
+      const { service } = createService({
+        rffcFlags: apiPrimaryFlags,
+        mockFetchPositions,
+      });
 
       const result =
         await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
@@ -1668,12 +1703,11 @@ describe('MoneyAccountBalanceService', () => {
         ...MOCK_API_POSITIONS,
         balance: null,
       });
+      const captureException = jest.fn();
       const { service } = createService({
-        rffcFlags: {
-          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
-            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
-        },
+        rffcFlags: apiPrimaryFlags,
         mockFetchPositions,
+        captureException,
       });
 
       const result =
@@ -1686,6 +1720,9 @@ describe('MoneyAccountBalanceService', () => {
         source: 'rpc',
         usedFallback: true,
       });
+      expect(captureException).toHaveBeenCalledWith(
+        expect.any(MoneyAccountBalanceUnavailableError),
+      );
     });
 
     it('falls back to RPC when API balance is omitted', async () => {
@@ -1698,12 +1735,11 @@ describe('MoneyAccountBalanceService', () => {
       const mockFetchPositions = jest
         .fn()
         .mockResolvedValue(positionsWithoutBalance);
+      const captureException = jest.fn();
       const { service } = createService({
-        rffcFlags: {
-          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
-            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
-        },
+        rffcFlags: apiPrimaryFlags,
         mockFetchPositions,
+        captureException,
       });
 
       const result =
@@ -1716,6 +1752,9 @@ describe('MoneyAccountBalanceService', () => {
         source: 'rpc',
         usedFallback: true,
       });
+      expect(captureException).toHaveBeenCalledWith(
+        expect.any(MoneyAccountBalanceUnavailableError),
+      );
     });
 
     it('falls back to RPC when the API call fails', async () => {
@@ -1726,12 +1765,11 @@ describe('MoneyAccountBalanceService', () => {
       const mockFetchPositions = jest
         .fn()
         .mockRejectedValue(new Error('network down'));
+      const captureException = jest.fn();
       const { service } = createService({
-        rffcFlags: {
-          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
-            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
-        },
+        rffcFlags: apiPrimaryFlags,
         mockFetchPositions,
+        captureException,
       });
 
       const result =
@@ -1744,6 +1782,7 @@ describe('MoneyAccountBalanceService', () => {
         source: 'rpc',
         usedFallback: true,
       });
+      expect(captureException).not.toHaveBeenCalled();
     });
 
     it('falls back to RPC when API balance fails semantic validation', async () => {
@@ -1759,12 +1798,11 @@ describe('MoneyAccountBalanceService', () => {
           total_balance: '999',
         },
       });
+      const captureException = jest.fn();
       const { service } = createService({
-        rffcFlags: {
-          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
-            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
-        },
+        rffcFlags: apiPrimaryFlags,
         mockFetchPositions,
+        captureException,
       });
 
       const result =
@@ -1777,6 +1815,9 @@ describe('MoneyAccountBalanceService', () => {
         source: 'rpc',
         usedFallback: true,
       });
+      expect(captureException).toHaveBeenCalledWith(
+        expect.any(MoneyAccountBalanceValidationError),
+      );
     });
 
     it('falls back to RPC when API balance contains a non-integer amount', async () => {
@@ -1792,12 +1833,11 @@ describe('MoneyAccountBalanceService', () => {
           total_balance: '3.5',
         },
       });
+      const captureException = jest.fn();
       const { service } = createService({
-        rffcFlags: {
-          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
-            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
-        },
+        rffcFlags: apiPrimaryFlags,
         mockFetchPositions,
+        captureException,
       });
 
       const result =
@@ -1810,37 +1850,12 @@ describe('MoneyAccountBalanceService', () => {
         source: 'rpc',
         usedFallback: true,
       });
+      expect(captureException).toHaveBeenCalledWith(
+        expect.any(MoneyAccountBalanceValidationError),
+      );
     });
 
-    it('uses RPC as primary when the flag is set to rpc', async () => {
-      mockMoneyAccountBalanceMulticall({
-        musdBalance: '5000000',
-        vmusdValueInMusd: '2200000',
-      });
-      const mockFetchPositions = jest.fn();
-      const { service } = createService({
-        rffcFlags: {
-          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
-            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
-          [MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY]: 'rpc',
-        },
-        mockFetchPositions,
-      });
-
-      const result =
-        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
-
-      expect(result).toStrictEqual({
-        musdBalance: '5000000',
-        vmusdValueInMusd: '2200000',
-        totalBalance: '7200000',
-        source: 'rpc',
-        usedFallback: false,
-      });
-      expect(mockFetchPositions).not.toHaveBeenCalled();
-    });
-
-    it('falls back to API when RPC primary fails and the flag is rpc', async () => {
+    it('falls back to API when RPC primary fails', async () => {
       const mockFetchPositions = jest
         .fn()
         .mockResolvedValue(MOCK_API_POSITIONS);
@@ -1848,7 +1863,6 @@ describe('MoneyAccountBalanceService', () => {
         rffcFlags: {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]:
             MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
-          [MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY]: 'rpc',
         },
         mockFetchPositions,
       });
@@ -1885,17 +1899,31 @@ describe('MoneyAccountBalanceService', () => {
         ...MOCK_API_POSITIONS,
         balance: null,
       });
+      const captureException = jest.fn();
       const { service } = createService({
         rffcFlags: {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_VAULT_CONFIG,
           [MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY]: 'api-only',
         },
         mockFetchPositions,
+        captureException,
       });
 
-      await expect(
-        service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS),
-      ).rejects.toThrow(MoneyAccountBalanceFetchError);
+      let thrown: unknown;
+      try {
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
+      } catch (error) {
+        thrown = error;
+      }
+
+      expect(thrown).toBeInstanceOf(MoneyAccountBalanceFetchError);
+      expect((thrown as MoneyAccountBalanceFetchError).causes).toHaveLength(1);
+      expect(
+        (thrown as MoneyAccountBalanceFetchError).causes[0],
+      ).toBeInstanceOf(MoneyAccountBalanceUnavailableError);
+      expect(captureException).toHaveBeenCalledWith(
+        expect.any(MoneyAccountBalanceUnavailableError),
+      );
     });
 
     it('does not fall back when the flag is rpc-only', async () => {
@@ -1946,15 +1974,18 @@ describe('MoneyAccountBalanceService', () => {
             },
           }) as unknown as Contract,
       );
-      const mockFetchPositions = jest
-        .fn()
-        .mockRejectedValue(new Error('api down'));
+      const mockFetchPositions = jest.fn().mockResolvedValue({
+        ...MOCK_API_POSITIONS,
+        balance: null,
+      });
+      const captureException = jest.fn();
       const { service } = createService({
         rffcFlags: {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]:
             MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
         },
         mockFetchPositions,
+        captureException,
       });
 
       let thrown: unknown;
@@ -1965,16 +1996,26 @@ describe('MoneyAccountBalanceService', () => {
       }
 
       expect(thrown).toBeInstanceOf(MoneyAccountBalanceFetchError);
-      expect((thrown as MoneyAccountBalanceFetchError).causes).toHaveLength(2);
+      const { causes } = thrown as MoneyAccountBalanceFetchError;
+      expect(causes).toHaveLength(2);
+      expect(causes[0]).toBeInstanceOf(Error);
+      expect((causes[0] as Error).message).toBe('execution reverted');
+      expect(causes[1]).toBeInstanceOf(MoneyAccountBalanceUnavailableError);
+      expect(captureException).toHaveBeenCalledWith(
+        expect.any(MoneyAccountBalanceUnavailableError),
+      );
     });
 
-    it('defaults to api policy when the source flag is malformed', async () => {
-      const mockFetchPositions = jest
-        .fn()
-        .mockResolvedValue(MOCK_API_POSITIONS);
+    it('defaults to rpc policy when the source flag is malformed', async () => {
+      mockMoneyAccountBalanceMulticall({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+      });
+      const mockFetchPositions = jest.fn();
       const { service } = createService({
         rffcFlags: {
-          [VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_VAULT_CONFIG,
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
           [MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY]: 'not-a-policy',
         },
         mockFetchPositions,
@@ -1983,8 +2024,9 @@ describe('MoneyAccountBalanceService', () => {
       const result =
         await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
 
-      expect(result.source).toBe('api');
+      expect(result.source).toBe('rpc');
       expect(result.usedFallback).toBe(false);
+      expect(mockFetchPositions).not.toHaveBeenCalled();
     });
 
     it('updates the source policy on RemoteFeatureFlagController:stateChange', async () => {
@@ -1999,6 +2041,7 @@ describe('MoneyAccountBalanceService', () => {
         rffcFlags: {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]:
             MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+          [MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY]: 'api',
         },
         mockFetchPositions,
       });
@@ -2017,17 +2060,25 @@ describe('MoneyAccountBalanceService', () => {
     });
 
     it('is callable via messenger action', async () => {
-      const mockFetchPositions = jest
-        .fn()
-        .mockResolvedValue(MOCK_API_POSITIONS);
-      const { rootMessenger, service } = createService({ mockFetchPositions });
+      mockMoneyAccountBalanceMulticall({
+        musdBalance: '5000000',
+        vmusdValueInMusd: '2200000',
+      });
+      const mockFetchPositions = jest.fn();
+      const { rootMessenger, service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+        mockFetchPositions,
+      });
 
       const result = await rootMessenger.call(
         'MoneyAccountBalanceService:fetchBalanceWithFallback',
         MOCK_ACCOUNT_ADDRESS,
       );
 
-      expect(result.source).toBe('api');
+      expect(result.source).toBe('rpc');
       service.destroy();
     });
   });

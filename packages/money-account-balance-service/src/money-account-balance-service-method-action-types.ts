@@ -8,10 +8,11 @@ import type { MoneyAccountBalanceService } from './money-account-balance-service
 /**
  * Fetches the canonical Money account balance, selecting the Money API or
  * RPC source according to the `moneyAccountBalanceSource` remote feature
- * flag (default: API primary with RPC fallback).
+ * flag (default: RPC primary with Money API fallback).
  *
  * Callers must not select a source. Provenance is returned on the result so
- * fallback is never silent.
+ * fallback is never silent. Malformed or unavailable source balances are
+ * reported via the messenger's `captureException` before fallback.
  *
  * @param accountAddress - The Money account's Ethereum address.
  * @returns Canonical balance amounts with source provenance.

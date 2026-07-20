@@ -255,7 +255,8 @@ export type MoneyAccountBalanceServiceMessenger = Messenger<
  * Data service responsible for fetching Money account balances (mUSD and
  * vmUSD). Prefer {@link MoneyAccountBalanceService.fetchBalanceWithFallback}
  * for presentation — it selects between the Money API and Multicall3 RPC
- * sources via the `moneyAccountBalanceSource` remote feature flag.
+ * sources via the `moneyAccountBalanceSource` remote feature flag (default:
+ * RPC primary with Money API fallback).
  *
  * Lower-level methods remain available for diagnostics and source-specific
  * use cases: on-chain RPC reads (`getMoneyAccountBalance`, etc.), the Veda
@@ -265,6 +266,12 @@ export type MoneyAccountBalanceServiceMessenger = Messenger<
  * All queries are cached via TanStack Query (inherited from
  * {@link BaseDataService}) and protected by a service policy that provides
  * automatic retries and circuit-breaking.
+ *
+ * **POC resilience note:** balance RPC and third-party vault APY currently
+ * share the same `BaseDataService` retry / circuit-breaker policy. A Veda APY
+ * outage can therefore affect RPC balance availability (including facade
+ * fallback). Splitting those failure domains is planned follow-up work before
+ * production reliance on the facade.
  *
  * Vault configuration (addresses, chain ID, decimals) is read from the
  * remote feature flag via {@link RemoteFeatureFlagControllerGetStateAction}.
@@ -299,7 +306,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
 
   /**
    * Preferred balance source routing policy. Overridable via remote feature
-   * flag; defaults to Money API primary with RPC fallback.
+   * flag; defaults to RPC primary with Money API fallback.
    */
   #balanceSourcePolicy: BalanceSourcePolicy = DEFAULT_BALANCE_SOURCE_POLICY;
 
@@ -737,10 +744,11 @@ export class MoneyAccountBalanceService extends BaseDataService<
   /**
    * Fetches the canonical Money account balance, selecting the Money API or
    * RPC source according to the `moneyAccountBalanceSource` remote feature
-   * flag (default: API primary with RPC fallback).
+   * flag (default: RPC primary with Money API fallback).
    *
    * Callers must not select a source. Provenance is returned on the result so
-   * fallback is never silent.
+   * fallback is never silent. Malformed or unavailable source balances are
+   * reported via the messenger's `captureException` before fallback.
    *
    * @param accountAddress - The Money account's Ethereum address.
    * @returns Canonical balance amounts with source provenance.
@@ -759,6 +767,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
       return await this.#fetchBalanceFromSource(accountAddress, primary, false);
     } catch (primaryError) {
       errors.push(primaryError);
+      this.#reportBalanceSourceDefect(primaryError);
       balanceLogger('Primary balance source failed', {
         primary,
         fallback,
@@ -773,12 +782,28 @@ export class MoneyAccountBalanceService extends BaseDataService<
       return await this.#fetchBalanceFromSource(accountAddress, fallback, true);
     } catch (fallbackError) {
       errors.push(fallbackError);
+      this.#reportBalanceSourceDefect(fallbackError);
       balanceLogger('Fallback balance source failed', {
         primary,
         fallback,
         fallbackError,
       });
       throw new MoneyAccountBalanceFetchError(errors);
+    }
+  }
+
+  /**
+   * Reports high-severity balance source defects (malformed or unavailable
+   * balances) to error monitoring without interrupting fallback.
+   *
+   * @param error - Error thrown by a balance source attempt.
+   */
+  #reportBalanceSourceDefect(error: unknown): void {
+    if (
+      error instanceof MoneyAccountBalanceValidationError ||
+      error instanceof MoneyAccountBalanceUnavailableError
+    ) {
+      this.messenger.captureException?.(error);
     }
   }
 
