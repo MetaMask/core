@@ -337,9 +337,9 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
   ) {
     if (this.#isDeprecated()) {
       this.#enforceDisabledState();
-      return undefined;
+      return;
     }
-    return this.#withControllerLock(async () =>
+    await this.#withControllerLock(async () =>
       this.#handleAccountAssetListUpdated(event),
     );
   }
@@ -348,9 +348,9 @@ export class MultichainAssetsController extends StaticIntervalPollingController<
   async #handleOnAccountAddedEvent(account: InternalAccount) {
     if (this.#isDeprecated()) {
       this.#enforceDisabledState();
-      return undefined;
+      return;
     }
-    return this.#withControllerLock(async () =>
+    await this.#withControllerLock(async () =>
       this.#handleOnAccountAdded(account),
     );
   }
