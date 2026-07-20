@@ -7,10 +7,7 @@ import {
   DEFAULT_PRO_LAYOUT_PREFERENCES,
   DEFAULT_PERPS_MODE,
 } from './constants/perpsConfig';
-import type {
-  PerpsMode,
-  ProLayoutPreferences,
-} from './constants/perpsConfig';
+import type { PerpsMode, ProLayoutPreferences } from './constants/perpsConfig';
 import type { PerpsControllerState } from './PerpsController';
 import type { PerpsSelectedPaymentToken, SortDirection } from './types';
 

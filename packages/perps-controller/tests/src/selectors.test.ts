@@ -673,7 +673,9 @@ describe('PerpsController selectors', () => {
 
     it('returns defaults when state is undefined', () => {
       expect(
-        selectProLayoutPreferences(undefined as unknown as PerpsControllerState),
+        selectProLayoutPreferences(
+          undefined as unknown as PerpsControllerState,
+        ),
       ).toStrictEqual(defaults);
     });
   });
