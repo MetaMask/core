@@ -30,3 +30,16 @@ export type {
   PasskeyAuthenticationOptions,
   PasskeyAuthenticationResponse,
 } from './webauthn/types';
+export type {
+  PasskeyControllerIsPasskeyEnrolledAction,
+  PasskeyControllerGenerateRegistrationOptionsAction,
+  PasskeyControllerGeneratePostRegistrationAuthenticationOptionsAction,
+  PasskeyControllerGenerateAuthenticationOptionsAction,
+  PasskeyControllerProtectVaultKeyWithPasskeyAction,
+  PasskeyControllerRetrieveVaultKeyWithPasskeyAction,
+  PasskeyControllerVerifyPasskeyAuthenticationAction,
+  PasskeyControllerRenewVaultKeyProtectionAction,
+  PasskeyControllerRemovePasskeyAction,
+  PasskeyControllerClearStateAction,
+  PasskeyControllerDestroyAction,
+} from './PasskeyController-method-action-types';

@@ -8,11 +8,18 @@ import type {
   PhishingDetectorList,
   PhishingDetectorConfiguration,
 } from './PhishingDetector';
-import { APPROVAL_SUPPORTED_CHAINS, DEFAULT_CHAIN_ID_TO_NAME } from './types';
+import {
+  ADDRESS_SCAN_SUPPORTED_CHAINS,
+  APPROVAL_SUPPORTED_CHAINS,
+  DEFAULT_CHAIN_ID_TO_NAME,
+  TOKEN_SCAN_SUPPORTED_CHAINS,
+} from './types';
 import type {
+  AddressScanSupportedChain,
   ApprovalSupportedChain,
   TokenScanCacheData,
   TokenScanResult,
+  TokenScanSupportedChain,
 } from './types';
 
 const DEFAULT_TOLERANCE = 3;
@@ -505,6 +512,28 @@ export const isApprovalSupportedChain = (
   chain: string,
 ): chain is ApprovalSupportedChain =>
   (APPROVAL_SUPPORTED_CHAINS as readonly string[]).includes(chain);
+
+/**
+ * Determines whether a chain name is supported for bulk token scanning.
+ *
+ * @param chain - The chain name to check.
+ * @returns `true` if the chain is supported, `false` otherwise.
+ */
+export const isTokenScanSupportedChain = (
+  chain: string,
+): chain is TokenScanSupportedChain =>
+  (TOKEN_SCAN_SUPPORTED_CHAINS as readonly string[]).includes(chain);
+
+/**
+ * Determines whether a chain name is supported for address scanning.
+ *
+ * @param chain - The chain name to check.
+ * @returns `true` if the chain is supported, `false` otherwise.
+ */
+export const isAddressScanSupportedChain = (
+  chain: string,
+): chain is AddressScanSupportedChain =>
+  (ADDRESS_SCAN_SUPPORTED_CHAINS as readonly string[]).includes(chain);
 
 /**
  * Resolves the chain name from a chain ID.

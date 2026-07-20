@@ -39,10 +39,11 @@ const TOKENS_API_BATCH_SIZE = 50;
 const BULK_SCAN_BATCH_SIZE = 100;
 
 /**
- * Minimum number of aggregator occurrences required for an EVM ERC-20 token to
- * pass the spam filter. Non-EVM tokens are filtered via Blockaid bulk scan instead.
+ * Fallback minimum aggregator occurrences for EVM ERC-20 spam filtering when
+ * Token API `/v1/suggestedOccurrenceFloors` has no entry for the chain (or
+ * the floors request fails). Non-EVM tokens are filtered via Blockaid instead.
  */
-const MIN_TOKEN_OCCURRENCES = 3;
+const DEFAULT_OCCURRENCE_FLOOR = 3;
 
 /** CAIP-19 `assetNamespace` segments used across filtering logic. */
 export enum CaipAssetNamespace {
@@ -124,6 +125,26 @@ function transformV3AssetResponseToMetadata(
   return metadata;
 }
 
+/**
+ * Resolve the occurrence floor for an EVM asset from suggested floors keyed by
+ * decimal chain ID (e.g. `{ "1": 3, "143": 1 }`).
+ *
+ * @param assetId - CAIP-19 asset ID.
+ * @param floors - Map of decimal chain ID → suggested floor.
+ * @returns Floor to apply, or {@link DEFAULT_OCCURRENCE_FLOOR} when missing.
+ */
+function getOccurrenceFloorForAsset(
+  assetId: string,
+  floors: Record<string, number>,
+): number {
+  try {
+    const { chain } = parseCaipAssetType(assetId as CaipAssetType);
+    return floors[chain.reference] ?? DEFAULT_OCCURRENCE_FLOOR;
+  } catch {
+    return DEFAULT_OCCURRENCE_FLOOR;
+  }
+}
+
 // ============================================================================
 // TOKEN DATA SOURCE
 // ============================================================================
@@ -134,6 +155,8 @@ function transformV3AssetResponseToMetadata(
  * This middleware-based data source:
  * - Checks detected assets for missing metadata/images
  * - Fetches metadata from Tokens API v3 for assets needing enrichment
+ * - Filters EVM ERC-20 spam using per-chain floors from Token API
+ *   `/v1/suggestedOccurrenceFloors` (default floor 3)
  * - Merges fetched metadata into the response
  *
  * Pass the same {@link AssetsControllerMessenger} as other data sources for Blockaid
@@ -195,6 +218,26 @@ export class TokenDataSource {
     } catch (error) {
       log('Failed to fetch supported networks', { error });
       return new Set();
+    }
+  }
+
+  /**
+   * Fetches per-chain suggested occurrence floors from Token API
+   * (`GET /v1/suggestedOccurrenceFloors`). Caching is handled by
+   * ApiPlatformClient. Fails open to an empty map so callers fall back to
+   * {@link DEFAULT_OCCURRENCE_FLOOR}.
+   *
+   * @returns Map of decimal chain ID → suggested occurrence floor.
+   */
+  async #getSuggestedOccurrenceFloors(): Promise<Record<string, number>> {
+    try {
+      return await fetchWithTimeout(
+        () => this.#apiClient.token.fetchV1SuggestedOccurrenceFloors(),
+        this.#fetchTimeoutMs,
+      );
+    } catch (error) {
+      log('Failed to fetch suggested occurrence floors', { error });
+      return {};
     }
   }
 
@@ -371,8 +414,12 @@ export class TokenDataSource {
         return next(ctx);
       }
 
-      // Filter asset IDs to only include supported networks
-      const supportedNetworks = await this.#getSupportedNetworks();
+      // Filter asset IDs to only include supported networks; load per-chain
+      // occurrence floors in parallel (Token API suggested floors).
+      const [supportedNetworks, suggestedOccurrenceFloors] = await Promise.all([
+        this.#getSupportedNetworks(),
+        this.#getSuggestedOccurrenceFloors(),
+      ]);
       const supportedAssetIds = this.#filterAssetsByNetwork(
         [...assetIdsNeedingMetadata],
         supportedNetworks,
@@ -433,17 +480,19 @@ export class TokenDataSource {
           }
         }
 
-        // EVM: require minimum occurrence count to suppress low-signal tokens.
-        // Tokens with no occurrence data (undefined) are treated the same as
-        // zero occurrences and filtered out.
+        // EVM: require per-chain suggested occurrence floor (from Token API
+        // `/v1/suggestedOccurrenceFloors`, default {@link DEFAULT_OCCURRENCE_FLOOR})
+        // to suppress low-signal tokens. Tokens with no occurrence data
+        // (undefined) are treated the same as zero occurrences and filtered out.
         // Custom assets (user-imported) bypass the occurrence filter — users
         // can import whatever they want and we must keep their metadata even
-        // if the API has fewer than `MIN_TOKEN_OCCURRENCES` aggregator hits.
+        // if the API has fewer aggregator hits than the floor.
         const allowedEvmIds = new Set(
           evmErc20Ids.filter(
             (id) =>
               customAssetIds.has(id.toLowerCase()) ||
-              (occurrencesByAssetId.get(id) ?? 0) >= MIN_TOKEN_OCCURRENCES ||
+              (occurrencesByAssetId.get(id) ?? 0) >=
+                getOccurrenceFloorForAsset(id, suggestedOccurrenceFloors) ||
               id.includes(`/erc20:${MUSD_ADDRESS_LOWERCASE}`),
           ),
         );

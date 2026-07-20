@@ -1,10 +1,6 @@
 import { CONNECTIVITY_STATUSES } from '@metamask/connectivity-controller';
-import type {
-  CockatielFailureReason,
-  InfuraNetworkType,
-} from '@metamask/controller-utils';
+import type { CockatielFailureReason } from '@metamask/controller-utils';
 import {
-  ChainId,
   DEFAULT_MAX_CONSECUTIVE_FAILURES,
   DEFAULT_MAX_RETRIES,
 } from '@metamask/controller-utils';
@@ -200,7 +196,7 @@ export function createNetworkClient({
     configuration.type === NetworkClientType.Infura
       ? createInfuraNetworkMiddleware({
           blockTracker,
-          network: configuration.network,
+          chainId: configuration.chainId,
           rpcProvider,
           rpcApiMiddleware,
         })
@@ -556,19 +552,19 @@ function createBlockTracker({
  *
  * @param args - The arguments.
  * @param args.blockTracker - The block tracker to use.
- * @param args.network - The Infura network to use.
+ * @param args.chainId - The chain id to use.
  * @param args.rpcProvider - The RPC provider to use.
  * @param args.rpcApiMiddleware - Additional middleware.
  * @returns The collection of middleware that makes up the Infura client.
  */
 function createInfuraNetworkMiddleware({
   blockTracker,
-  network,
+  chainId,
   rpcProvider,
   rpcApiMiddleware,
 }: {
   blockTracker: PollingBlockTracker;
-  network: InfuraNetworkType;
+  chainId: string;
   rpcProvider: InternalProvider;
   rpcApiMiddleware: RpcApiMiddleware;
 }): JsonRpcMiddleware<
@@ -578,7 +574,7 @@ function createInfuraNetworkMiddleware({
 > {
   return JsonRpcEngineV2.create({
     middleware: [
-      createNetworkAndChainIdMiddleware({ network }),
+      createNetworkAndChainIdMiddleware({ chainId }),
       createBlockCacheMiddleware({ blockTracker }),
       createInflightCacheMiddleware(),
       createBlockRefMiddleware({ blockTracker, provider: rpcProvider }),
@@ -593,16 +589,16 @@ function createInfuraNetworkMiddleware({
  * Creates static method middleware.
  *
  * @param args - The Arguments.
- * @param args.network - The Infura network to use.
+ * @param args.chainId - The chain id to use.
  * @returns The middleware that implements the eth_chainId method.
  */
 function createNetworkAndChainIdMiddleware({
-  network,
+  chainId,
 }: {
-  network: InfuraNetworkType;
+  chainId: string;
 }): JsonRpcMiddleware<JsonRpcRequest> {
   return createScaffoldMiddleware({
-    eth_chainId: ChainId[network],
+    eth_chainId: chainId,
   });
 }
 

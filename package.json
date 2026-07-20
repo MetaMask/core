@@ -1,6 +1,6 @@
 {
   "name": "@metamask/core-monorepo",
-  "version": "1115.0.0",
+  "version": "1128.0.0",
   "private": true,
   "description": "Monorepo for packages shared between MetaMask clients",
   "repository": {
@@ -20,12 +20,12 @@
     "build:types": "tsc --build tsconfig.build.json --verbose",
     "changelog:update": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run changelog:update",
     "changelog:validate": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run changelog:validate",
-    "create-release-branch": "create-release-branch --formatter oxfmt",
     "create-package": "tsx scripts/create-package",
+    "create-release-branch": "create-release-branch --formatter oxfmt",
     "docs:platform-api:build": "yarn workspace @metamask/platform-api-docs cli ../.. --build --project-label Core",
     "docs:platform-api:dev": "yarn workspace @metamask/platform-api-docs cli ../.. --dev --project-label Core",
     "docs:platform-api:serve": "yarn workspace @metamask/platform-api-docs cli ../.. --serve --project-label Core",
-    "lint": "yarn lint:eslint && echo && yarn lint:misc --check && yarn constraints && yarn lint:dependencies && yarn lint:teams && yarn messenger-action-types:check && yarn readme-content:check",
+    "lint": "yarn lint:eslint && echo && yarn lint:misc --check && yarn constraints && yarn lint:dependencies && yarn lint:teams && yarn messenger-action-types:check && yarn readme-content:check && yarn lint:tsconfigs:all",
     "lint:dependencies": "knip --dependencies && yarn dedupe --check",
     "lint:dependencies:fix": "knip --dependencies && yarn dedupe",
     "lint:eslint": "yarn build:only-clean && NODE_OPTIONS='--max-old-space-size=8192' yarn eslint",
@@ -33,22 +33,26 @@
     "lint:misc": "oxfmt --ignore-path .gitignore",
     "lint:misc:check": "yarn lint:misc --check",
     "lint:teams": "tsx scripts/lint-teams-json.ts",
+    "lint:tsconfigs": "tsx scripts/lint-tsconfigs/lint-tsconfigs.mts",
+    "lint:tsconfigs:all": "yarn workspaces foreach --all --parallel --interlaced --verbose run lint:tsconfigs",
+    "lint:tsconfigs:fix": "tsx scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
+    "lint:tsconfigs:fix:all": "yarn workspaces foreach --all --parallel --interlaced --verbose run lint:tsconfigs:fix",
     "messenger-action-types:check": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run messenger-action-types:check",
     "messenger-action-types:generate": "yarn workspaces foreach --all --no-private --parallel --interlaced --verbose run messenger-action-types:generate",
+    "postinstall": "yarn skills:postinstall",
     "prepack": "./scripts/prepack.sh",
     "prepare-preview-builds": "./scripts/prepare-preview-builds.sh",
     "readme-content:check": "tsx scripts/update-readme-content.ts --check",
     "readme-content:update": "tsx scripts/update-readme-content.ts",
     "setup": "yarn install",
+    "skills": "metamask-skills sync",
+    "skills:postinstall": "metamask-skills postinstall",
     "test": "yarn test:scripts --silent --collectCoverage=false --reporters=jest-silent-reporter && yarn test:packages",
     "test:clean": "yarn workspaces foreach --all --parallel --verbose run test:clean && yarn test",
     "test:packages": "yarn test:verbose --silent --collectCoverage=false --reporters=jest-silent-reporter",
     "test:scripts": "NODE_OPTIONS=--experimental-vm-modules yarn jest --config ./jest.config.scripts.js --silent",
     "test:verbose": "yarn workspaces foreach --all --parallel --verbose run test:verbose",
-    "workspaces:list-versions": "./scripts/list-workspace-versions.sh",
-    "skills": "metamask-skills sync",
-    "skills:postinstall": "metamask-skills postinstall",
-    "postinstall": "yarn skills:postinstall"
+    "workspaces:list-versions": "./scripts/list-workspace-versions.sh"
   },
   "devDependencies": {
     "@lavamoat/allow-scripts": "^3.0.4",
@@ -102,6 +106,7 @@
     "yargs": "^17.7.2"
   },
   "resolutions": {
+    "@nktkas/hyperliquid@npm:^0.33.1": "patch:@nktkas/hyperliquid@npm%3A0.33.1#~/.yarn/patches/@nktkas-hyperliquid-npm-0.33.1-6a541fdd1d.patch",
     "elliptic@6.5.4": "^6.5.7",
     "fast-xml-parser@^4.3.4": "^4.4.1",
     "ws@7.4.6": "^7.5.10"

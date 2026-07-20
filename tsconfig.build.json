@@ -254,6 +254,9 @@
       "path": "./packages/selected-network-controller/tsconfig.build.json"
     },
     {
+      "path": "./packages/sentinel-api-service/tsconfig.build.json"
+    },
+    {
       "path": "./packages/shield-controller/tsconfig.build.json"
     },
     {
