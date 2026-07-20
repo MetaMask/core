@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Uncategorized
+
+- Ensure refs in tsconfig files are synced with internal deps ([#8384](https://github.com/MetaMask/core/pull/8384))
+- chore: MIT license text update ([#9472](https://github.com/MetaMask/core/pull/9472))
+- Release/1115.0.0 ([#9470](https://github.com/MetaMask/core/pull/9470))
+- Revert "Release/1115.0.0 ([#9464](https://github.com/MetaMask/core/pull/9464))
+- Release/1115.0.0 ([#9464](https://github.com/MetaMask/core/pull/9464))
+
 ### Changed
 
 - **BREAKING:** `AccountActivityService` now determines which non-EVM chains to subscribe to from remote feature flags instead of a bundled list ([#9379](https://github.com/MetaMask/core/pull/9379))
