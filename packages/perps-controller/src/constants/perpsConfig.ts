@@ -458,7 +458,7 @@ export type ProLayoutPreferences = {
  */
 export const DEFAULT_PRO_LAYOUT_PREFERENCES: ProLayoutPreferences = {
   orderBookExpanded: false,
-  chartExpanded: true,
+  chartExpanded: false,
   orderBookPosition: 'left',
   orderFormPosition: 'right',
 };

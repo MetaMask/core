@@ -633,7 +633,7 @@ describe('PerpsController selectors', () => {
   describe('selectProLayoutPreferences', () => {
     const defaults = {
       orderBookExpanded: false,
-      chartExpanded: true,
+      chartExpanded: false,
       orderBookPosition: 'left',
       orderFormPosition: 'right',
     };
