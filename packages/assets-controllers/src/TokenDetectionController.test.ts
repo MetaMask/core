@@ -4069,20 +4069,11 @@ describe('TokenDetectionController', () => {
   });
 
   describe('isDeprecated', () => {
-    it('disables the controller at construction when isDeprecated() returns true', async () => {
-      await withController(
-        { options: { isDeprecated: () => true, disabled: false } },
-        ({ controller }) => {
-          expect(controller.isActive).toBe(false);
-        },
-      );
-    });
-
     it('does not throw at construction when isDeprecated() is true', async () => {
       await withController(
         { options: { isDeprecated: () => true } },
         ({ controller }) => {
-          expect(controller.isActive).toBe(false);
+          expect(controller.state).toStrictEqual({});
         },
       );
     });
@@ -4134,6 +4125,7 @@ describe('TokenDetectionController', () => {
           await controller.detectTokens();
 
           expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
+          expect(controller.state).toStrictEqual({});
         },
       );
     });
@@ -4158,7 +4150,7 @@ describe('TokenDetectionController', () => {
           await controller.detectTokens();
 
           expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
-          expect(controller.isActive).toBe(false);
+          expect(controller.state).toStrictEqual({});
         },
       );
     });
@@ -4187,7 +4179,6 @@ describe('TokenDetectionController', () => {
           await controller.start();
 
           expect(mockDetectTokens).not.toHaveBeenCalled();
-          expect(controller.isActive).toBe(false);
         },
       );
     });
@@ -4212,7 +4203,7 @@ describe('TokenDetectionController', () => {
           });
 
           expect(mockGetBalancesInSingleCall).not.toHaveBeenCalled();
-          expect(controller.isActive).toBe(false);
+          expect(controller.state).toStrictEqual({});
         },
       );
     });
@@ -4260,7 +4251,6 @@ describe('TokenDetectionController', () => {
             expect.anything(),
             expect.anything(),
           );
-          expect(controller.isActive).toBe(false);
         },
       );
     });
@@ -4308,7 +4298,6 @@ describe('TokenDetectionController', () => {
             expect.anything(),
             expect.anything(),
           );
-          expect(controller.isActive).toBe(false);
         },
       );
     });
@@ -4335,7 +4324,6 @@ describe('TokenDetectionController', () => {
 
           deprecated = true;
           await controller.detectTokens();
-          expect(controller.isActive).toBe(false);
 
           detectTokensSpy.mockClear();
           await jestAdvanceTime({ duration: 15 });
