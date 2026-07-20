@@ -1,20 +1,13 @@
-import type { Provider } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 
 import type { TransactionControllerMessenger } from '../TransactionController';
 import { TransactionStatus } from '../types';
 import type { Layer1GasFeeFlow, TransactionMeta } from '../types';
 import { updateTransactionLayer1GasFee } from './layer1-gas-fee-flow';
-import { getProvider } from './provider';
 
 jest.mock('@metamask/controller-utils', () => ({
   ...jest.requireActual('@metamask/controller-utils'),
   query: jest.fn(),
-}));
-
-jest.mock('./provider', () => ({
-  ...jest.requireActual('./provider'),
-  getProvider: jest.fn(),
 }));
 
 const LAYER1_GAS_FEE_VALUE_MATCH_MOCK: Hex = '0x1';
@@ -42,9 +35,7 @@ function createLayer1GasFeeFlowMock({
 }
 
 describe('updateTransactionLayer1GasFee', () => {
-  const getProviderMock = jest.mocked(getProvider);
   let layer1GasFeeFlowsMock: jest.Mocked<Layer1GasFeeFlow[]>;
-  let providerMock: Provider;
   let transactionMetaMock: TransactionMeta;
   let messengerMock: TransactionControllerMessenger;
 
@@ -62,8 +53,6 @@ describe('updateTransactionLayer1GasFee', () => {
       }),
     ];
 
-    providerMock = {} as Provider;
-
     transactionMetaMock = {
       id: '1',
       chainId: '0x123',
@@ -76,8 +65,6 @@ describe('updateTransactionLayer1GasFee', () => {
     };
 
     messengerMock = {} as TransactionControllerMessenger;
-
-    getProviderMock.mockReturnValue(providerMock);
   });
 
   it('updates given transaction layer1GasFee property', async () => {
@@ -92,13 +79,8 @@ describe('updateTransactionLayer1GasFee', () => {
 
     expect(unmatchingLayer1GasFeeFlow.getLayer1Fee).not.toHaveBeenCalled();
 
-    expect(getProviderMock).toHaveBeenCalledWith({
-      messenger: messengerMock,
-      networkClientId: transactionMetaMock.networkClientId,
-    });
-
     expect(matchingLayer1GasFeeFlow.getLayer1Fee).toHaveBeenCalledWith({
-      provider: providerMock,
+      messenger: messengerMock,
       transactionMeta: transactionMetaMock,
     });
 
@@ -123,7 +105,7 @@ describe('updateTransactionLayer1GasFee', () => {
       });
 
       expect(matchingLayer1GasFeeFlow.getLayer1Fee).toHaveBeenCalledWith({
-        provider: providerMock,
+        messenger: messengerMock,
         transactionMeta: transactionMetaMock,
       });
       expect(transactionMetaMock.layer1GasFee).toBeUndefined();
@@ -142,7 +124,6 @@ describe('updateTransactionLayer1GasFee', () => {
         transactionMeta: transactionMetaMock,
       });
 
-      expect(getProviderMock).not.toHaveBeenCalled();
       expect(unmatchingLayer1GasFeeFlow.getLayer1Fee).not.toHaveBeenCalled();
     });
   });

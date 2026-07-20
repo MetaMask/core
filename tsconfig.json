@@ -304,5 +304,11 @@
     }
   ],
   "files": [],
-  "include": ["./docs", "./types", "./scripts", "./knip.config.ts"]
+  "include": [
+    "./docs",
+    "./types",
+    "./scripts",
+    "./codeowners.ts",
+    "./knip.config.ts"
+  ]
 }
