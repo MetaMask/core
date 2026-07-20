@@ -691,9 +691,7 @@ export class PasskeyController extends BaseController<
     oldVaultKey: string;
     newVaultKey: string;
   }): Promise<void> {
-    return this.#withOperationLock(() =>
-      this.#renewVaultKeyProtection(params),
-    );
+    return this.#withOperationLock(() => this.#renewVaultKeyProtection(params));
   }
 
   async #renewVaultKeyProtection(params: {
@@ -891,7 +889,9 @@ export class PasskeyController extends BaseController<
     );
   }
 
-  async #removePasskeyWithPasswordVerification(password: string): Promise<void> {
+  async #removePasskeyWithPasswordVerification(
+    password: string,
+  ): Promise<void> {
     this.#requireEnrolled();
     await this.messenger.call('KeyringController:verifyPassword', password);
     this.#removePasskey();

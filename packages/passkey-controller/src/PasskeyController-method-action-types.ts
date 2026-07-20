@@ -62,6 +62,7 @@ export type PasskeyControllerGenerateAuthenticationOptionsAction = {
  * @param params.registrationResponse - Result of `navigator.credentials.create()`.
  * @param params.authenticationResponse - Result of `navigator.credentials.get()` after {@link generatePostRegistrationAuthenticationOptions}.
  * @param params.password - Wallet password when onboarding is complete (step-up).
+ * @returns Resolves when enrollment completes.
  */
 export type PasskeyControllerProtectVaultKeyWithPasskeyAction = {
   type: `PasskeyController:protectVaultKeyWithPasskey`;
@@ -87,6 +88,7 @@ export type PasskeyControllerRetrieveVaultKeyWithPasskeyAction = {
  * Unlocks the keyring using a passkey authentication assertion.
  *
  * @param authenticationResponse - Result of `navigator.credentials.get()`.
+ * @returns Resolves when the keyring is unlocked.
  */
 export type PasskeyControllerUnlockWithPasskeyAction = {
   type: `PasskeyController:unlockWithPasskey`;
@@ -147,6 +149,7 @@ export type PasskeyControllerVerifyPasskeyAuthenticationAction = {
  * @param params.authenticationResponse - Used to derive the wrapping key.
  * @param params.oldVaultKey - Expected current vault key.
  * @param params.newVaultKey - New vault key to encrypt under the passkey.
+ * @returns Resolves when the passkey record is updated.
  */
 export type PasskeyControllerRenewVaultKeyProtectionAction = {
   type: `PasskeyController:renewVaultKeyProtection`;
@@ -164,6 +167,7 @@ export type PasskeyControllerRenewVaultKeyProtectionAction = {
  * @param params.authenticationResponse - Result of `navigator.credentials.get()`.
  * @param params.options - Optional flow controls.
  * @param params.options.renewVaultKeyProtection - Re-wrap vault key after password change.
+ * @returns Resolves when the password change completes.
  */
 export type PasskeyControllerChangePasswordWithPasskeyVerificationAction = {
   type: `PasskeyController:changePasswordWithPasskeyVerification`;
@@ -174,6 +178,7 @@ export type PasskeyControllerChangePasswordWithPasskeyVerificationAction = {
  * Removes the enrolled passkey after verifying a passkey authentication assertion.
  *
  * @param authenticationResponse - Result of `navigator.credentials.get()`.
+ * @returns Resolves when the passkey is removed.
  */
 export type PasskeyControllerRemovePasskeyWithPasskeyVerificationAction = {
   type: `PasskeyController:removePasskeyWithPasskeyVerification`;
@@ -184,6 +189,7 @@ export type PasskeyControllerRemovePasskeyWithPasskeyVerificationAction = {
  * Removes the enrolled passkey after verifying the wallet password.
  *
  * @param password - Wallet password for step-up verification.
+ * @returns Resolves when the passkey is removed.
  */
 export type PasskeyControllerRemovePasskeyWithPasswordVerificationAction = {
   type: `PasskeyController:removePasskeyWithPasswordVerification`;
@@ -192,6 +198,10 @@ export type PasskeyControllerRemovePasskeyWithPasswordVerificationAction = {
 
 /**
  * Resets state and clears in-flight registration/authentication ceremonies.
+ *
+ * For user-facing passkey removal with step-up, use
+ * {@link removePasskeyWithPasskeyVerification} or
+ * {@link removePasskeyWithPasswordVerification}.
  */
 export type PasskeyControllerClearStateAction = {
   type: `PasskeyController:clearState`;
