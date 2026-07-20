@@ -1,6 +1,6 @@
 {
   "name": "@metamask/accounts-controller",
-  "version": "39.0.4",
+  "version": "39.0.5",
   "description": "Manages internal accounts",
   "keywords": [
     "Ethereum",
@@ -44,6 +44,8 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/accounts-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/accounts-controller",
+    "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
+    "lint:tsconfigs:fix": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
     "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --check",
     "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",
@@ -55,13 +57,13 @@
   "dependencies": {
     "@ethereumjs/util": "^9.1.0",
     "@metamask/base-controller": "^9.1.0",
-    "@metamask/eth-snap-keyring": "^22.3.0",
-    "@metamask/keyring-api": "^23.3.0",
+    "@metamask/eth-snap-keyring": "^23.0.0",
+    "@metamask/keyring-api": "^23.5.0",
     "@metamask/keyring-controller": "^27.1.0",
     "@metamask/keyring-internal-api": "^11.0.1",
     "@metamask/keyring-sdk": "^2.2.0",
     "@metamask/keyring-utils": "^3.3.1",
-    "@metamask/messenger": "^1.2.0",
+    "@metamask/messenger": "^2.0.0",
     "@metamask/network-controller": "^34.0.0",
     "@metamask/superstruct": "^3.1.0",
     "@metamask/utils": "^11.11.0",

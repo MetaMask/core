@@ -12,6 +12,7 @@ import type {
   DigestService,
   MarketInsightsReport,
   MarketOverview,
+  MarketOverviewFrontPage,
 } from '.';
 
 const mockReport: MarketInsightsReport = {
@@ -30,6 +31,21 @@ const mockOverview: MarketOverview = {
   trends: [],
 };
 
+const mockFrontPage: MarketOverviewFrontPage = {
+  id: 'a3f1c2d4-5e6f-4a7b-8c9d-0e1f2a3b4c5d',
+  item: {
+    title: 'Institutional adoption',
+    description: 'Institutional players continue accumulating.',
+    category: 'macro',
+    impact: 'positive',
+    articles: [],
+    relatedAssets: [],
+  },
+  ctaTitle: 'Majors steady as volatility cools',
+  ctaDescription: 'Bitcoin and Ethereum held firm as funding rates normalized.',
+  createdAt: '2026-02-11T10:32:52.403Z',
+};
+
 const createMessenger = (): AiDigestControllerMessenger =>
   new Messenger({
     namespace: 'AiDigestController',
@@ -38,6 +54,7 @@ const createMessenger = (): AiDigestControllerMessenger =>
 const createService = (overrides?: Partial<DigestService>): DigestService => ({
   searchDigest: jest.fn().mockResolvedValue(mockReport),
   fetchMarketOverview: jest.fn().mockResolvedValue(mockOverview),
+  fetchFrontPageItem: jest.fn().mockResolvedValue(mockFrontPage),
   ...overrides,
 });
 
@@ -260,5 +277,67 @@ describe('AiDigestController (market overview)', () => {
 
     expect(result).toBeNull();
     expect(controller.state.marketOverview).toBeNull();
+  });
+});
+
+describe('AiDigestController (front page)', () => {
+  it('registers fetchFrontPageItem action on messenger', async () => {
+    const digestService = createService();
+    const messenger = createMessenger();
+    const controller = new AiDigestController({ messenger, digestService });
+
+    const result = await messenger.call(
+      'AiDigestController:fetchFrontPageItem',
+      mockFrontPage.id,
+    );
+
+    expect(result).toStrictEqual(mockFrontPage);
+    expect(digestService.fetchFrontPageItem).toHaveBeenCalledWith(
+      mockFrontPage.id,
+    );
+    // The front page is not cached, so controller state is left untouched.
+    expect(controller.state).toStrictEqual({
+      marketInsights: {},
+      marketOverview: null,
+    });
+  });
+
+  it('delegates to the service and returns the front page', async () => {
+    const digestService = createService();
+    const controller = new AiDigestController({
+      messenger: createMessenger(),
+      digestService,
+    });
+
+    const result = await controller.fetchFrontPageItem(mockFrontPage.id);
+
+    expect(result).toStrictEqual(mockFrontPage);
+  });
+
+  it('returns null when the service returns null', async () => {
+    const digestService = createService({
+      fetchFrontPageItem: jest.fn().mockResolvedValue(null),
+    });
+    const controller = new AiDigestController({
+      messenger: createMessenger(),
+      digestService,
+    });
+
+    const result = await controller.fetchFrontPageItem(mockFrontPage.id);
+
+    expect(result).toBeNull();
+  });
+
+  it('throws for an empty id without calling the service', async () => {
+    const digestService = createService();
+    const controller = new AiDigestController({
+      messenger: createMessenger(),
+      digestService,
+    });
+
+    await expect(controller.fetchFrontPageItem('')).rejects.toThrow(
+      AiDigestControllerErrorMessage.INVALID_FRONT_PAGE_ID,
+    );
+    expect(digestService.fetchFrontPageItem).not.toHaveBeenCalled();
   });
 });

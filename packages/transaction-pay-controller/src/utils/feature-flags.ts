@@ -4,7 +4,11 @@ import { createModuleLogger } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 import { uniq } from 'lodash';
 
-import { isTransactionPayStrategy, TransactionPayStrategy } from '../constants';
+import {
+  isTransactionPayStrategy,
+  STABLECOINS,
+  TransactionPayStrategy,
+} from '../constants';
 import { projectLogger } from '../logger';
 import type { TransactionPayFiatAsset } from '../strategy/fiat/constants';
 import {
@@ -522,6 +526,38 @@ export function getFeatureFlags(
   log('Feature flags:', { raw: featureFlags, result });
 
   return result;
+}
+
+/**
+ * Get the stablecoins map from the `stable-tokens` feature flag.
+ * Falls back to the hardcoded {@link STABLECOINS} constant when the flag is
+ * absent or not a valid object.
+ *
+ * @param messenger - Controller messenger.
+ * @returns Stablecoins keyed by chain ID.
+ */
+export function getStablecoins(
+  messenger: TransactionPayControllerMessenger,
+): Record<Hex, Hex[]> {
+  const state = messenger.call('RemoteFeatureFlagController:getState');
+  const flag = state.remoteFeatureFlags?.['stable-tokens'];
+
+  if (flag && typeof flag === 'object' && !Array.isArray(flag)) {
+    const raw = flag as Record<string, string[]>;
+    return Object.entries(raw).reduce<Record<Hex, Hex[]>>(
+      (acc, [chainId, addresses]) => {
+        if (Array.isArray(addresses)) {
+          acc[chainId.toLowerCase() as Hex] = addresses.map(
+            (a) => a.toLowerCase() as Hex,
+          );
+        }
+        return acc;
+      },
+      {},
+    );
+  }
+
+  return STABLECOINS;
 }
 
 /**

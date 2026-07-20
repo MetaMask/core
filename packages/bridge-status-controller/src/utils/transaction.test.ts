@@ -1671,7 +1671,7 @@ describe('Bridge Status Controller Transaction Utils', () => {
       createClientRequestSpy.mockRestore();
     });
 
-    it('should include Stellar source and destination asset IDs as options when trade is not Tron', () => {
+    it('should include Stellar source and destination asset IDs as options when trade is Stellar', () => {
       const stellarTrade = {
         xdrBase64: 'AAAABg==',
       } as never;
@@ -1750,6 +1750,58 @@ describe('Bridge Status Controller Transaction Utils', () => {
       expect(
         (result.request.params as { options: Record<string, unknown> }).options,
       ).not.toHaveProperty('destAssetId');
+    });
+
+    it('should not include asset ID options for Bitcoin trades even when asset IDs are provided', () => {
+      const bitcoinTrade = {
+        unsignedPsbtBase64: 'AAAABg==',
+      } as never;
+
+      const mockAccount = {
+        id: 'test-account-id',
+        metadata: {
+          snap: { id: 'test-snap-id' },
+        },
+      };
+
+      const sourceAssetId = getNativeAssetForChainId(ChainId.BTC).assetId;
+      const destAssetId = getNativeAssetForChainId(ChainId.ETH).assetId;
+
+      const result = snaps.getClientRequest(
+        bitcoinTrade,
+        ChainId.BTC,
+        mockAccount.id,
+        mockAccount.metadata.snap.id,
+        sourceAssetId,
+        destAssetId,
+      );
+
+      expect(result.request.params).not.toHaveProperty('options');
+    });
+
+    it('should not include asset ID options for Solana trades even when asset IDs are provided', () => {
+      const solanaTrade = 'ABCD' as never;
+
+      const mockAccount = {
+        id: 'test-account-id',
+        metadata: {
+          snap: { id: 'test-snap-id' },
+        },
+      };
+
+      const sourceAssetId = getNativeAssetForChainId(ChainId.SOLANA).assetId;
+      const destAssetId = getNativeAssetForChainId(ChainId.ETH).assetId;
+
+      const result = snaps.getClientRequest(
+        solanaTrade,
+        ChainId.SOLANA,
+        mockAccount.id,
+        mockAccount.metadata.snap.id,
+        sourceAssetId,
+        destAssetId,
+      );
+
+      expect(result.request.params).not.toHaveProperty('options');
     });
   });
 

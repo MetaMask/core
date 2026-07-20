@@ -116,10 +116,10 @@ const config = createConfig([
       '**/docusaurus.config.ts',
       '**/test/**/*.{js,ts}',
       '**/tests/**/*.{js,ts}',
-      'scripts/*.ts',
-      'scripts/create-package/**/*.ts',
+      'scripts/**/*.{ts,mts}',
       'packages/platform-api-docs/**/*.ts',
     ],
+    ignores: ['scripts/create-package/package-template/**/*.ts'],
     extends: [nodejs],
   },
   {
@@ -130,7 +130,7 @@ const config = createConfig([
     },
   },
   {
-    files: ['**/*.ts'],
+    files: ['**/*.ts', '**/*.mts'],
     extends: [typescript],
     languageOptions: {
       parserOptions: {
@@ -297,12 +297,6 @@ const config = createConfig([
       'n/no-missing-import': 'off',
       'n/no-restricted-import': 'off',
       'n/no-deprecated-api': 'off',
-    },
-  },
-  {
-    files: ['packages/messenger/src/generate-action-types/**/*.{js,ts}'],
-    rules: {
-      'import-x/no-nodejs-modules': 'off',
     },
   },
   {

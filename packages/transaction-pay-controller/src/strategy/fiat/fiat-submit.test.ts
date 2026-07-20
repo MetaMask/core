@@ -1195,7 +1195,7 @@ describe('submitFiatQuotes', () => {
       );
       expect(updateTransactionMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          note: 'Direct mUSD fiat: update vault amount',
+          note: 'Money Account vault deposit: update vault amount',
           transactionId: TRANSACTION_ID_MOCK,
         }),
         expect.any(Function),
@@ -1223,7 +1223,7 @@ describe('submitFiatQuotes', () => {
       );
       expect(updateTransactionMock).toHaveBeenCalledWith(
         expect.objectContaining({
-          note: 'Add required transaction ID from direct mUSD vault submission',
+          note: 'Add required transaction ID from Money Account vault submission',
           transactionId: TRANSACTION_ID_MOCK,
         }),
         expect.any(Function),
@@ -1386,7 +1386,7 @@ describe('submitFiatQuotes', () => {
       );
       expect(updateTransactionMock).not.toHaveBeenCalledWith(
         expect.objectContaining({
-          note: 'Add required transaction ID from direct mUSD vault submission',
+          note: 'Add required transaction ID from Money Account vault submission',
         }),
         expect.any(Function),
       );

@@ -21,7 +21,6 @@ import {
   NATIVE_TOKEN_ADDRESS,
   PERPS_DEPOSIT_TYPES,
   USDC_DECIMALS,
-  STABLECOINS,
   PaymentOverride,
 } from '../../constants';
 import { projectLogger } from '../../logger';
@@ -38,6 +37,7 @@ import {
   getFeatureFlags,
   getRelayOriginGasOverhead,
   getSlippage,
+  getStablecoins,
   isEIP7702Chain,
   isRelayExecuteEnabled,
 } from '../../utils/feature-flags';
@@ -308,7 +308,10 @@ async function getSingleQuote(
       originChainId: Number(sourceChainId),
       originCurrency: sourceTokenAddress,
       ...(useExecute
-        ? { originGasOverhead: getRelayOriginGasOverhead(messenger) }
+        ? {
+            originGasOverhead: getRelayOriginGasOverhead(messenger),
+            metamask: { executeVersion: 2 },
+          }
         : {}),
       recipient: request.recipient ?? from,
       slippageTolerance,
@@ -595,7 +598,7 @@ async function normalizeQuote(
     usdToFiatRate,
   );
 
-  const subsidizedFeeUsd = getSubsidizedFeeAmountUsd(quote);
+  const subsidizedFeeUsd = getSubsidizedFeeAmountUsd(messenger, quote);
 
   const appFeeUsd = new BigNumber(quote.fees?.app?.amountUsd ?? '0');
   const metaMaskFee = getFiatValueFromUsd(appFeeUsd, usdToFiatRate);
@@ -636,6 +639,7 @@ async function normalizeQuote(
   };
 
   const isTargetStablecoin = isStablecoin(
+    messenger,
     request.targetChainId,
     request.targetTokenAddress,
   );
@@ -1212,7 +1216,10 @@ function getTransferRecipient(data: Hex): Hex {
     .decodeFunctionData('transfer', data)
     .to.toLowerCase();
 }
-function getSubsidizedFeeAmountUsd(quote: RelayQuote): BigNumber {
+function getSubsidizedFeeAmountUsd(
+  messenger: TransactionPayControllerMessenger,
+  quote: RelayQuote,
+): BigNumber {
   const subsidizedFee = quote.fees?.subsidized;
   const amountUsd = new BigNumber(subsidizedFee?.amountUsd ?? '0');
   const amountFormatted = new BigNumber(subsidizedFee?.amountFormatted ?? '0');
@@ -1222,6 +1229,7 @@ function getSubsidizedFeeAmountUsd(quote: RelayQuote): BigNumber {
   }
 
   const isSubsidizedStablecoin = isStablecoin(
+    messenger,
     toHex(subsidizedFee.currency.chainId),
     subsidizedFee.currency.address,
   );
@@ -1229,8 +1237,14 @@ function getSubsidizedFeeAmountUsd(quote: RelayQuote): BigNumber {
   return isSubsidizedStablecoin ? amountFormatted : amountUsd;
 }
 
-function isStablecoin(chainId: string, tokenAddress: string): boolean {
+function isStablecoin(
+  messenger: TransactionPayControllerMessenger,
+  chainId: string,
+  tokenAddress: string,
+): boolean {
   return Boolean(
-    STABLECOINS[chainId as Hex]?.includes(tokenAddress.toLowerCase() as Hex),
+    getStablecoins(messenger)[chainId as Hex]?.includes(
+      tokenAddress.toLowerCase() as Hex,
+    ),
   );
 }

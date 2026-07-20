@@ -21,8 +21,8 @@ export type ServerQuoteAmount = {
   formatted: string;
 };
 
-/** A single on-chain step returned by the server quote endpoint. */
-export type ServerQuoteStep = {
+export type ServerTransactionStep = {
+  type: 'transaction';
   chainId: number;
   to: Hex;
   data: Hex;
@@ -31,6 +31,24 @@ export type ServerQuoteStep = {
   maxFeePerGas?: string;
   maxPriorityFeePerGas?: string;
 };
+
+export type ServerSignatureStep = {
+  type: 'signature';
+  sign: {
+    domain: Record<string, unknown>;
+    types: Record<string, unknown>;
+    primaryType: string;
+    value: Record<string, unknown>;
+  };
+  post: {
+    endpoint: string;
+    method: string;
+    body: Record<string, unknown>;
+    signatureFormat: 'queryParam' | 'rsv';
+  };
+};
+
+export type ServerStep = ServerTransactionStep | ServerSignatureStep;
 
 /** A call to include in the quote request (for delegation flows). */
 export type ServerCall = {
@@ -78,7 +96,7 @@ export type ServerQuotePayload = {
   output: ServerQuoteAmount;
   fees: ServerQuoteFees;
   duration: number;
-  steps: ServerQuoteStep[];
+  steps: ServerStep[];
   gasless: boolean;
 };
 
@@ -117,7 +135,7 @@ export type ServerQuote = {
   fees: ServerQuoteFees;
   duration: number;
   client: ServerQuoteClient;
-  steps: ServerQuoteStep[];
+  steps: ServerStep[];
   gasless: boolean;
 };
 

@@ -1,7 +1,10 @@
 import { TransactionType } from '@metamask/transaction-controller';
+import type { Hex } from '@metamask/utils';
 
 import { PERPS_DEPOSIT_TYPES } from '../../constants';
 import type { RelayStatus } from './types';
+
+export const FALLBACK_HASH = '0x0' as Hex;
 
 export const RELAY_URL_BASE = 'https://api.relay.link';
 export const RELAY_AUTHORIZE_URL = `${RELAY_URL_BASE}/authorize`;

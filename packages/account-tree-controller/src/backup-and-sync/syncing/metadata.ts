@@ -62,6 +62,7 @@ export async function compareAndSyncMetadata<T>({
   if ((isUserStorageMoreRecent || !localMetadata) && isUserStorageValueValid) {
     // User storage is more recent and valid, apply it locally
     await applyLocalUpdate(userStorageValue as T);
+    context.mutationTracker?.setLocalWrite(true);
 
     // Emit analytics event if provided
     if (analytics) {

@@ -6,9 +6,12 @@ import type {
 import { BaseController } from '@metamask/base-controller';
 import { BrokenCircuitError } from '@metamask/controller-utils';
 import type { Messenger } from '@metamask/messenger';
+import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote-feature-flag-controller';
 import type { Json } from '@metamask/utils';
 import type { Draft } from 'immer';
 
+import { isHeadlessAllProvidersEnabled } from './featureFlags';
+import { getProvidersServingAsset } from './providerAvailability';
 import type { RampsControllerMethodActions } from './RampsController-method-action-types';
 import type { RampsErrorCode } from './rampsErrorCodes';
 import { RAMPS_ERROR_CODES } from './rampsErrorCodes';
@@ -23,6 +26,7 @@ import type {
   PaymentMethodsResponse,
   QuotesResponse,
   Quote,
+  QuoteSortBy,
   RampsToken,
   RampsServiceActions,
   RampsOrder,
@@ -388,7 +392,7 @@ const rampsControllerMetadata = {
     usedInUi: true,
   },
   countries: {
-    persist: true,
+    persist: false,
     includeInDebugSnapshot: true,
     includeInStateLogs: true,
     usedInUi: true,
@@ -584,6 +588,7 @@ export type RampsControllerActions =
  * Actions from other messengers that {@link RampsController} calls.
  */
 type AllowedActions =
+  | RemoteFeatureFlagControllerGetStateAction
   | RampsServiceGetGeolocationAction
   | RampsServiceGetCountriesAction
   | RampsServiceGetTokensAction
@@ -669,6 +674,17 @@ export type RampsControllerOptions = {
   requestCacheTTL?: number;
   /** Maximum number of entries in the request cache. Defaults to 250. */
   requestCacheMaxSize?: number;
+  /**
+   * Optional callback returning the default redirect URL to use for the widened
+   * quote fetch when the caller omits `redirectUrl`. The quotes API only
+   * embeds a `buyURL`/`buyWidget` (the WebView page a non-native provider needs)
+   * when a `redirectUrl` is present, so supplying this default lets widened
+   * aggregator quotes carry a usable widget URL. Only applied on the
+   * widened path; an explicit caller `redirectUrl` always wins and the
+   * native-only default never injects. Defaults to a callback returning
+   * `undefined` when omitted.
+   */
+  getDefaultRedirectUrl?: () => string | undefined;
 };
 
 // === HELPER FUNCTIONS ===
@@ -733,10 +749,6 @@ function findRegionFromCode(
     state,
     regionCode: normalizedCode,
   };
-}
-
-export function normalizeProviderCode(providerCode: string): string {
-  return providerCode.replace(/^\/providers\//u, '');
 }
 
 /**
@@ -859,6 +871,13 @@ export class RampsController extends BaseController<
   readonly #requestCacheMaxSize: number;
 
   /**
+   * Resolves the default redirect URL for the widened quote fetch when
+   * the caller omits `redirectUrl`. Defaults to `() => undefined` when no
+   * callback is injected.
+   */
+  readonly #getDefaultRedirectUrl: () => string | undefined;
+
+  /**
    * Map of pending requests for deduplication.
    * Key is the cache key, value is the pending request with abort controller.
    */
@@ -924,12 +943,16 @@ export class RampsController extends BaseController<
    * controller. Missing properties will be filled in with defaults.
    * @param args.requestCacheTTL - Time to live for cached requests in milliseconds.
    * @param args.requestCacheMaxSize - Maximum number of entries in the request cache.
+   * @param args.getDefaultRedirectUrl - Optional callback returning the default
+   * redirect URL used for the widened quote fetch when the caller omits
+   * `redirectUrl`. Defaults to a callback returning `undefined`.
    */
   constructor({
     messenger,
     state = {},
     requestCacheTTL = DEFAULT_REQUEST_CACHE_TTL,
     requestCacheMaxSize = DEFAULT_REQUEST_CACHE_MAX_SIZE,
+    getDefaultRedirectUrl,
   }: RampsControllerOptions) {
     super({
       messenger,
@@ -945,11 +968,37 @@ export class RampsController extends BaseController<
 
     this.#requestCacheTTL = requestCacheTTL;
     this.#requestCacheMaxSize = requestCacheMaxSize;
+    this.#getDefaultRedirectUrl =
+      getDefaultRedirectUrl ?? ((): string | undefined => undefined);
 
     this.messenger.registerMethodActionHandlers(
       this,
       MESSENGER_EXPOSED_METHODS,
     );
+  }
+
+  /**
+   * Whether the Headless Buy all-providers feature flag is enabled.
+   *
+   * Reads `RemoteFeatureFlagController` state through the messenger on every
+   * call, so a remote flag fetch or a local dev override takes effect at
+   * runtime without reconstructing the controller. Key lookup, local-override
+   * merging, and boolean coercion live in the shared
+   * `isHeadlessAllProvidersEnabled` helper so UI consumers resolve the flag
+   * identically. Fails closed: when `RemoteFeatureFlagController:getState` is
+   * not wired up, quoting stays native-only.
+   *
+   * @returns Whether all provider classes are enabled for fiat quote widening.
+   */
+  #isAllProvidersEnabled(): boolean {
+    try {
+      const remoteFeatureFlagState = this.messenger.call(
+        'RemoteFeatureFlagController:getState',
+      );
+      return isHeadlessAllProvidersEnabled(remoteFeatureFlagState);
+    } catch {
+      return false;
+    }
   }
 
   /**
@@ -1383,8 +1432,10 @@ export class RampsController extends BaseController<
    * This should be called once at app startup to set up the initial region.
    *
    * Idempotent: subsequent calls return the same promise unless forceRefresh is set.
-   * Skips getCountries when countries are already loaded; skips geolocation when
-   * userRegion already exists.
+   * Force-refetches the countries catalog on startup (bypassing the in-session
+   * request cache) so region preset amounts stay current. The catalog is not
+   * persisted, so a cold start always re-fetches it regardless. Skips
+   * geolocation when userRegion already exists.
    *
    * @param options - Options for cache behavior. forceRefresh bypasses idempotency and re-runs the full flow.
    * @returns Promise that resolves when initialization is complete.
@@ -1412,18 +1463,18 @@ export class RampsController extends BaseController<
   }
 
   async #runInit(options?: ExecuteRequestOptions): Promise<void> {
-    const forceRefresh = options?.forceRefresh === true;
-    const hasCountries = this.state.countries.data.length > 0;
-
-    if (forceRefresh || !hasCountries) {
-      await this.getCountries(options);
-    }
+    // Force-refetch the catalog on startup so region preset amounts stay
+    // current, bypassing the in-session request cache. The catalog is not
+    // persisted, so a cold start always re-fetches it regardless.
+    await this.getCountries({ ...options, forceRefresh: true });
 
     // Always prefer the user's persisted region. Geolocation is only used to
     // seed the initial value; once the user (or a prior init) has set a region
     // we must respect that choice — even on forceRefresh.
-    let regionCode: string | undefined = this.state.userRegion?.regionCode;
-    regionCode ??= await this.messenger.call('RampsService:getGeolocation');
+    const persistedRegionCode = this.state.userRegion?.regionCode;
+    const regionCode =
+      persistedRegionCode ??
+      (await this.messenger.call('RampsService:getGeolocation'));
 
     if (!regionCode) {
       throw new Error(
@@ -1431,7 +1482,43 @@ export class RampsController extends BaseController<
       );
     }
 
+    // For an already-persisted region, getCountries() has already re-synced it
+    // from the fresh catalog (see #syncUserRegionFromCountriesCatalog). Calling
+    // setUserRegion here would re-validate against that catalog and, if it is
+    // momentarily empty or no longer lists the region (e.g. a transient/partial
+    // catalog response or a region with no current provider coverage), throw and
+    // wipe the persisted region via #cleanupState. Preserve the existing region
+    // instead; only resolve a brand-new region (from geolocation) strictly.
+    if (persistedRegionCode) {
+      return;
+    }
+
     await this.setUserRegion(regionCode, options);
+  }
+
+  /**
+   * Re-applies `userRegion` from the current countries catalog so preset
+   * amounts and support flags stay in sync after a catalog refresh.
+   */
+  #syncUserRegionFromCountriesCatalog(): void {
+    const regionCode = this.state.userRegion?.regionCode;
+    if (!regionCode) {
+      return;
+    }
+
+    const countriesData = this.state.countries.data;
+    if (!countriesData.length) {
+      return;
+    }
+
+    const userRegion = findRegionFromCode(regionCode, countriesData);
+    if (!userRegion) {
+      return;
+    }
+
+    this.update((state) => {
+      state.userRegion = userRegion;
+    });
   }
 
   /**
@@ -1456,6 +1543,8 @@ export class RampsController extends BaseController<
     this.update((state) => {
       state.countries.data = Array.isArray(countries) ? [...countries] : [];
     });
+
+    this.#syncUserRegionFromCountriesCatalog();
 
     return countries;
   }
@@ -1797,7 +1886,20 @@ export class RampsController extends BaseController<
       throw new Error('assetId is required.');
     }
 
+    // When the all-providers feature flag is enabled, widen the native-only
+    // auto-selection path to every supporting provider and pick the best
+    // quote from the results. Only the auto-select/restrict path that MM Pay's
+    // `getRampsQuote` uses is affected; explicit-`providers` callers and the
+    // plain all-provider path are untouched (and never read the flag).
+    const wantsAutoSelection =
+      !options.providers &&
+      (options.autoSelectProvider === true ||
+        options.restrictToKnownOrNativeProviders === true);
+    const widenToAllProviders =
+      wantsAutoSelection && this.#isAllProvidersEnabled();
+
     let providersToUse: string[];
+    let widenedProviderCatalog: Provider[] = this.state.providers.data;
     if (options.providers) {
       providersToUse = options.restrictToKnownOrNativeProviders
         ? await this.#filterProviderIdsBySupport({
@@ -1806,6 +1908,16 @@ export class RampsController extends BaseController<
             region: regionToUse,
           })
         : options.providers;
+    } else if (widenToAllProviders) {
+      // `#getSupportingProvidersForRegion` also hydrates the provider catalog
+      // when controller state is empty, so all-provider quoting cannot silently
+      // return zero providers here.
+      const { supporting } = await this.#getSupportingProvidersForRegion({
+        assetId: normalizedAssetIdForValidation,
+        region: regionToUse,
+      });
+      widenedProviderCatalog = supporting;
+      providersToUse = supporting.map((provider) => provider.id);
     } else if (
       options.autoSelectProvider ||
       options.restrictToKnownOrNativeProviders
@@ -1846,9 +1958,13 @@ export class RampsController extends BaseController<
     // Under headless-buy gating, an empty resolved provider list means no
     // eligible (native/supporting) provider exists. Return an empty response
     // rather than passing `[]` to the service, which omits the provider filter
-    // and would quote every provider.
+    // and would quote every provider. This also guards the widened path:
+    // a caller may trigger widening with `autoSelectProvider` alone (no
+    // `restrictToKnownOrNativeProviders`), and an empty supporting set must not
+    // fall through to unfiltered quotes from providers that do not support the
+    // asset.
     if (
-      options.restrictToKnownOrNativeProviders &&
+      (options.restrictToKnownOrNativeProviders || widenToAllProviders) &&
       providersToUse.length === 0
     ) {
       return { success: [], sorted: [], error: [], customActions: [] };
@@ -1859,6 +1975,15 @@ export class RampsController extends BaseController<
     const normalizedAssetId = normalizedAssetIdForValidation;
     const normalizedWalletAddress = options.walletAddress.trim();
 
+    // The quotes API only embeds a `buyURL`/`buyWidget` when a `redirectUrl` is
+    // present, so on the widened path (where MM Pay omits one) supply the
+    // injected default so aggregator quotes carry a usable widget URL. An
+    // explicit caller `redirectUrl` always wins, and the native-only path
+    // (flag off) never injects.
+    const effectiveRedirectUrl =
+      options.redirectUrl ??
+      (widenToAllProviders ? this.#getDefaultRedirectUrl() : undefined);
+
     const cacheKey = createCacheKey('getQuotes', [
       normalizedRegion,
       normalizedFiat,
@@ -1867,7 +1992,7 @@ export class RampsController extends BaseController<
       normalizedWalletAddress,
       [...paymentMethodsToUse].sort().join(','),
       [...providersToUse].sort().join(','),
-      options.redirectUrl,
+      effectiveRedirectUrl,
       action,
     ]);
 
@@ -1879,11 +2004,11 @@ export class RampsController extends BaseController<
       walletAddress: normalizedWalletAddress,
       paymentMethods: paymentMethodsToUse,
       providers: providersToUse,
-      redirectUrl: options.redirectUrl,
+      redirectUrl: effectiveRedirectUrl,
       action,
     };
 
-    return this.executeRequest(
+    const response = await this.executeRequest(
       cacheKey,
       async () => {
         return this.messenger.call('RampsService:getQuotes', params);
@@ -1892,6 +2017,115 @@ export class RampsController extends BaseController<
         forceRefresh: options.forceRefresh,
         ttl: options.ttl ?? DEFAULT_QUOTES_TTL,
       },
+    );
+
+    if (!widenToAllProviders) {
+      return response;
+    }
+
+    // Reduce the widened multi-provider result to the single best quote
+    // and place it at `success[0]`, since single-pick consumers
+    // (`getRampsQuote` -> `success?.[0]`) rely on index 0 while `success[]`
+    // order is server-defined rather than ranked.
+    const selectedQuote = this.#pickWidenedQuote(response, {
+      amount: options.amount,
+      fiat: normalizedFiat,
+      providers: widenedProviderCatalog,
+    });
+
+    if (!selectedQuote) {
+      // No quote fits the published provider limits: surface "no quote"
+      // rather than handing the single-pick consumer an out-of-limits quote.
+      return {
+        success: [],
+        sorted: response.sorted,
+        error: response.error,
+        customActions: response.customActions,
+      };
+    }
+
+    return {
+      ...response,
+      success: [
+        selectedQuote,
+        ...response.success.filter((quote) => quote !== selectedQuote),
+      ],
+    };
+  }
+
+  /**
+   * Selects the best quote from a widened multi-provider response.
+   *
+   * Every provider class is eligible (native, in-app WebView aggregator, and
+   * external-browser / custom-action). Enforces per-provider fiat limits up
+   * front, then orders by reliability and falls back to price using the
+   * server-provided `sorted` order. Returns `undefined` when no quote fits
+   * the published limits.
+   *
+   * @param response - The multi-provider quotes response.
+   * @param options - Selection inputs.
+   * @param options.amount - Fiat amount, for the limit-fit check.
+   * @param options.fiat - Lowercased fiat short code, for the limit lookup.
+   * @param options.providers - Provider catalog for the limit lookup.
+   * @returns The selected quote, or `undefined` when none is usable.
+   */
+  #pickWidenedQuote(
+    response: QuotesResponse,
+    {
+      amount,
+      fiat,
+      providers,
+    }: {
+      amount: number;
+      fiat: string;
+      providers: Provider[];
+    },
+  ): Quote | undefined {
+    const providerByCode = new Map(
+      providers.map((provider) => [provider.id, provider]),
+    );
+
+    const fitsProviderLimits = (quote: Quote): boolean => {
+      const provider = providerByCode.get(quote.provider);
+      const limit = provider?.limits?.fiat?.[fiat]?.[quote.quote.paymentMethod];
+      if (!limit) {
+        // No published limits for this provider/payment method: treat as
+        // eligible and let the provider enforce limits at checkout.
+        return true;
+      }
+      return amount >= limit.minAmount && amount <= limit.maxAmount;
+    };
+
+    const candidates = response.success.filter(fitsProviderLimits);
+    if (candidates.length === 0) {
+      return undefined;
+    }
+
+    const candidateByCode = new Map(
+      candidates.map((quote) => [quote.provider, quote]),
+    );
+
+    const pickBySortOrder = (sortBy: QuoteSortBy): Quote | undefined => {
+      const order = response.sorted.find(
+        (entry) => entry.sortBy === sortBy,
+      )?.ids;
+      if (!order) {
+        return undefined;
+      }
+      for (const providerId of order) {
+        const match = candidateByCode.get(providerId);
+        if (match) {
+          return match;
+        }
+      }
+      return undefined;
+    };
+
+    // Reliability first, then price, then the first surviving candidate.
+    return (
+      pickBySortOrder('reliability') ??
+      pickBySortOrder('price') ??
+      candidates[0]
     );
   }
 
@@ -1926,20 +2160,10 @@ export class RampsController extends BaseController<
       ({ providers } = await this.getProviders(normalizedRegion));
     }
 
-    // EVM CAIP-19 asset IDs may arrive checksummed or lowercased, and the
-    // providers API returns both forms, so match case-insensitively on both
-    // sides. Only the lowercased forms are compared (the original IDs are never
-    // returned), so case-sensitive non-EVM asset IDs are not corrupted.
-    const normalizedAssetId = assetId.toLowerCase();
-    const supporting = providers.filter((provider) => {
-      const map = provider?.supportedCryptoCurrencies;
-      if (!map) {
-        return false;
-      }
-      return Object.keys(map).some(
-        (key) => key.toLowerCase() === normalizedAssetId,
-      );
-    });
+    // Case-insensitive CAIP-19 matching is shared with headless-buy consumers
+    // via `getProvidersServingAsset`, so the controller and the UI region gate
+    // cannot disagree about which providers serve the asset.
+    const supporting = getProvidersServingAsset(providers, assetId);
 
     return { supporting, all: providers };
   }
@@ -2308,7 +2532,7 @@ export class RampsController extends BaseController<
    *
    * @param params - Object containing order identifiers and wallet info.
    * @param params.orderId - Full order ID (e.g. "/providers/paypal/orders/abc123") or order code.
-   * @param params.providerCode - Provider code (e.g. "paypal", "transak"), with or without /providers/ prefix.
+   * @param params.providerCode - Canonical provider code (e.g. "paypal", "transak").
    * @param params.walletAddress - Wallet address for the order.
    * @param params.chainId - Optional chain ID for the order.
    */
@@ -2324,12 +2548,10 @@ export class RampsController extends BaseController<
     if (!orderCode?.trim()) {
       return;
     }
-    const normalizedProviderCode = normalizeProviderCode(providerCode);
-
     const stubOrder: RampsOrder = {
       providerOrderId: orderCode,
       provider: {
-        id: `/providers/${normalizedProviderCode}`,
+        id: providerCode,
         name: '',
         environmentType: '',
         description: '',

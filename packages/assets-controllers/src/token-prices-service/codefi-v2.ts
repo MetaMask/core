@@ -228,9 +228,6 @@ export const ZERO_ADDRESS: Hex =
  */
 const chainIdToNativeTokenAddress: Record<Hex, Hex> = {
   '0x89': '0x0000000000000000000000000000000000001010', // Polygon
-  '0x1e': '0x542fda317318ebf1d3deaf76e0b632741a7e677d', // Rootstock Mainnet - Native symbol: RBTC
-  '0x64': '0xe91d153e0b41518a2ce8dd3d7944fa863463a97d', // Gnosis
-  '0x3dc': '0x779ded0c9e1022225f8e0630b35a9b54be713736', // Stable - Native symbol: USDT0
   '0x440': '0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Metis Andromeda
   '0x1388': '0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Mantle
 };
@@ -262,7 +259,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x39': 'eip155:57/slip44:57', // Syscoin Mainnet - Native symbol: SYS
   '0x52': 'eip155:82/slip44:18000', // Meter Mainnet - Native symbol: MTR
   '0x58': 'eip155:88/slip44:889', // TomoChain - Native symbol: TOMO
-  '0x64': 'eip155:100/slip44:700', // Gnosis (formerly xDAI Chain) - Native symbol: xDAI
+  '0x64': 'eip155:100/erc20:0x0000000000000000000000000000000000000000', // Gnosis (formerly xDAI Chain) - Native symbol: xDAI
   '0x6a': 'eip155:106/slip44:5655640', // Velas EVM Mainnet - Native symbol: VLX
   '0x7a': 'eip155:122/erc20:0x0000000000000000000000000000000000000000', // Fuse Mainnet - Native symbol: FUSE
   '0x80': 'eip155:128/slip44:1010', // Huobi ECO Chain Mainnet - Native symbol: HT
@@ -279,7 +276,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x150': 'eip155:336/slip44:809', // Shiden - Native symbol: SDN
   '0x169': 'eip155:361/slip44:589', // Theta Mainnet - Native symbol: TFUEL
   '0x2eb': 'eip155:747/slip44:539', // Flow evm - Native symbol: Flow
-  '0x3dc': 'eip155:988/erc20:0x779ded0c9e1022225f8e0630b35a9b54be713736', // Stable - Native symbol: USDT0
+  '0x3dc': 'eip155:988/erc20:0x0000000000000000000000000000000000000000', // Stable - Native symbol: USDT0
   '0x3e7': 'eip155:999/slip44:2457', // HyperEVM - Native symbol: HYPE
   '0x440': 'eip155:1088/erc20:0xdeaddeaddeaddeaddeaddeaddeaddeaddead0000', // Metis Andromeda Mainnet (Ethereum L2) - Native symbol: METIS
   '0x44d': 'eip155:1101/slip44:60', // Polygon zkEVM mainnet - Native symbol: ETH
@@ -296,6 +293,7 @@ export const SPOT_PRICES_SUPPORT_INFO = {
   '0x13b2': 'eip155:5042/erc20:0x0000000000000000000000000000000000000000', // Arc - Native symbol: USDC
   '0x1b58': 'eip155:7000/slip44:7000', // ZetaChain - Native symbol: ZETA
   '0x2105': 'eip155:8453/slip44:60', // Base - Native symbol: ETH
+  '0x1237': 'eip155:4663/slip44:60', // Robinhood Chain - Native symbol: ETH
   '0x2611': 'eip155:9745/erc20:0x0000000000000000000000000000000000000000', // Plasma mainnet - native symbol: XPL
   '0x2710': 'eip155:10000/slip44:145', // Smart Bitcoin Cash - Native symbol: BCH
   '0x8173': 'eip155:33139/erc20:0x0000000000000000000000000000000000000000', // Apechain Mainnet - Native symbol: APE
@@ -572,6 +570,57 @@ export function resetSupportedCurrenciesCache(): void {
 }
 
 /**
+ * Derives the CAIP-19 asset ID used to query the Price API for a token on a
+ * given chain.
+ *
+ * For native tokens, uses the hardcoded {@link SPOT_PRICES_SUPPORT_INFO} entry
+ * when defined, otherwise falls back to the provided native asset identifiers
+ * (sourced from NetworkEnablementController). For ERC20 tokens, constructs the
+ * CAIP-19 ID dynamically.
+ *
+ * @param args - The arguments to this function.
+ * @param args.chainId - The hexadecimal chain ID the token lives on.
+ * @param args.tokenAddress - The token's address.
+ * @param args.nativeAssetIdentifiers - Map of CAIP-2 chain IDs to native asset
+ * identifiers, used as a fallback for native tokens.
+ * @returns The CAIP-19 asset ID, or undefined if it cannot be determined.
+ */
+export function getAssetId({
+  chainId,
+  tokenAddress,
+  nativeAssetIdentifiers = {},
+}: {
+  chainId: Hex;
+  tokenAddress: string;
+  nativeAssetIdentifiers?: NativeAssetIdentifiersMap;
+}): CaipAssetType | undefined {
+  try {
+    const caipChainId = toCaipChainId(
+      KnownCaipNamespace.Eip155,
+      hexToNumber(chainId).toString(),
+    );
+
+    const nativeAddress = getNativeTokenAddress(chainId);
+    const isNativeToken =
+      nativeAddress.toLowerCase() === tokenAddress.toLowerCase();
+
+    if (isNativeToken) {
+      const hardcodedId = (
+        SPOT_PRICES_SUPPORT_INFO as Partial<Record<Hex, string>>
+      )[chainId];
+      return (hardcodedId ?? nativeAssetIdentifiers[caipChainId]) as
+        | CaipAssetType
+        | undefined;
+    }
+
+    return `${caipChainId}/erc20:${tokenAddress.toLowerCase()}` as CaipAssetType;
+  } catch {
+    // This block should never be reached as long as using Typescript, but added for safety.
+    return undefined;
+  }
+}
+
+/**
  * This version of the token prices service uses V2 of the Codefi Price API to
  * fetch token prices.
  */
@@ -744,26 +793,11 @@ export class CodefiTokenPricesServiceV2 implements AbstractTokenPricesService<
       // Filter out assets that are not supported by V3 of the Price API.
       .filter((asset) => supportedChainIdsV3.includes(asset.chainId))
       .map((asset) => {
-        const caipChainId = toCaipChainId(
-          KnownCaipNamespace.Eip155,
-          hexToNumber(asset.chainId).toString(),
-        );
-
-        const nativeAddress = getNativeTokenAddress(asset.chainId);
-        const isNativeToken =
-          nativeAddress.toLowerCase() === asset.tokenAddress.toLowerCase();
-
-        let assetId: string | undefined;
-        if (isNativeToken) {
-          // For native tokens, use hardcoded SPOT_PRICES_SUPPORT_INFO when defined,
-          // otherwise use nativeAssetIdentifiers from NetworkEnablementController by default.
-          assetId =
-            SPOT_PRICES_SUPPORT_INFO[asset.chainId] ??
-            this.#nativeAssetIdentifiers[caipChainId];
-        } else {
-          // For ERC20 tokens, construct the CAIP-19 ID dynamically
-          assetId = `${caipChainId}/erc20:${asset.tokenAddress.toLowerCase()}`;
-        }
+        const assetId = getAssetId({
+          chainId: asset.chainId,
+          tokenAddress: asset.tokenAddress,
+          nativeAssetIdentifiers: this.#nativeAssetIdentifiers,
+        });
 
         if (!assetId) {
           return undefined;
@@ -771,7 +805,7 @@ export class CodefiTokenPricesServiceV2 implements AbstractTokenPricesService<
 
         return {
           ...asset,
-          assetId: assetId as CaipAssetType,
+          assetId,
         };
       })
       .filter(

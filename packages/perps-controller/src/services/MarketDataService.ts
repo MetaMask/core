@@ -1356,8 +1356,9 @@ export class MarketDataService {
   /**
    * Merge Terminal API metadata into provider-sourced PerpsMarketData.
    * For each market, if the terminal metadata map contains an entry for its
-   * symbol, override name/marketType and attach keywords/tags/categories.
-   * Unmatched markets keep their provider-sourced values.
+   * symbol, override name/description/marketType and attach
+   * keywords/tags/categories. Unmatched markets keep their provider-sourced
+   * values.
    *
    * @param markets - Markets from the provider.
    * @param metadata - Per-symbol metadata from the Terminal API.
@@ -1376,6 +1377,9 @@ export class MarketDataService {
       return {
         ...market,
         ...(meta.name !== undefined && { name: meta.name }),
+        ...(meta.description !== undefined && {
+          description: meta.description,
+        }),
         ...(meta.marketType !== undefined && { marketType: meta.marketType }),
         ...(meta.keywords !== undefined && { keywords: meta.keywords }),
         ...(meta.tags !== undefined && { tags: meta.tags }),

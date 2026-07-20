@@ -32,18 +32,8 @@ import {
 } from './constants/bridge';
 import { SWAPS_API_V2_BASE_URL } from './constants/swaps';
 import * as selectors from './selectors';
-import {
-  ChainId,
-  RequestStatus,
-  SortOrder,
-  StatusTypes,
-  FeatureId,
-} from './types';
-import type {
-  BridgeControllerMessenger,
-  QuoteResponseV1,
-  GenericQuoteRequest,
-} from './types';
+import { ChainId, RequestStatus, SortOrder, StatusTypes } from './types';
+import type { BridgeControllerMessenger, GenericQuoteRequest } from './types';
 import * as balanceUtils from './utils/balance';
 import { getNativeAssetForChainId, isSolanaChainId } from './utils/bridge';
 import {
@@ -61,6 +51,8 @@ import {
   MetricsSwapType,
   UnifiedSwapBridgeEventName,
 } from './utils/metrics/constants';
+import { FeatureId } from './validators/feature-flags';
+import type { QuoteResponseV1 } from './validators/quote-response-v1';
 
 const EMPTY_INIT_STATE = DEFAULT_BRIDGE_CONTROLLER_STATE;
 
@@ -3711,6 +3703,7 @@ describe('BridgeController', function () {
             usd_actual_gas: 10,
             quote_vs_execution_ratio: 1,
             quoted_vs_used_gas_ratio: 1,
+            transaction_internal_id: 'transaction-id',
             chain_id_source: formatChainIdToCaip(1),
             token_symbol_source: 'ETH',
             token_address_source: getNativeAssetForChainId(1).assetId,

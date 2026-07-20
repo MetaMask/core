@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING:** `BuiltInNetworkClientId` is now `string` instead of `InfuraNetworkType` ([#9432](https://github.com/MetaMask/core/pull/9432))
+  - This type was previously constrained to known Infura network names (e.g. `"mainnet"`, `"sepolia"`). It is now `string` to allow dynamically configured Infura networks whose names are not bundled into the package.
+  - If you have code that narrows on `BuiltInNetworkClientId`, you will need to remove the narrowing or check the network client type via `NetworkClientType` instead.
+- **BREAKING:** `getNetworkClientById` no longer uses the given network client ID to determine RPC endpoint type, prioritizing Infura RPC endpoints over custom RPC endpoints ([#9432](https://github.com/MetaMask/core/pull/9432))
+  - If you have an RPC endpoint with a `type` of `custom` but with a `networkClientId` that previously matched a known Infura network name (e.g. `mainnet`), this will now be treated as an Infura network rather than a custom network.
+  - This method is not only public but is also used internally to resolve network client IDs, so this is a change in behavior across the whole controller.
+- `InfuraNetworkClientConfiguration.network` is now `string` instead of `InfuraNetworkType` ([#9432](https://github.com/MetaMask/core/pull/9432))
+  - Previously only known Infura network names were accepted. Any valid Infura subdomain string is now accepted.
+- Remove validation that prevented a custom RPC endpoint from having a `networkClientId` that matches a known Infura network name ([#9432](https://github.com/MetaMask/core/pull/9432))
+- Remove validation that required an Infura RPC endpoint URL's implied chain ID to match the chain ID of the network configuration it belongs to ([#9432](https://github.com/MetaMask/core/pull/9432))
+  - This allows Infura-backed networks to be added and updated dynamically without being constrained to the known Infura network list bundled in `@metamask/controller-utils`.
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Bump `@metamask/connectivity-controller` from `^0.2.0` to `^0.3.0` ([#9435](https://github.com/MetaMask/core/pull/9435))
+
 ## [34.0.0]
 
 ### Changed

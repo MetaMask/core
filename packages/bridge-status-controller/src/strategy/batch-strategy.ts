@@ -1,6 +1,4 @@
-import { FeeType, isNativeAddress } from '@metamask/bridge-controller';
 import type { TxData } from '@metamask/bridge-controller';
-import type { Hex } from '@metamask/utils';
 
 import {
   findAllTransactionsInBatch,
@@ -36,12 +34,6 @@ export async function* submitBatchHandler(
     isBridgeTx,
   });
 
-  const gasFeeToken =
-    quoteResponse.quote.feeData[FeeType.TX_FEE]?.asset?.address &&
-    isNativeAddress(quoteResponse.quote.feeData[FeeType.TX_FEE].asset.address)
-      ? undefined
-      : (quoteResponse.quote.feeData[FeeType.TX_FEE]?.asset?.address as Hex);
-
   const transactionParams = await getAddTransactionBatchParams({
     tradeData,
     requireApproval,
@@ -55,11 +47,6 @@ export async function* submitBatchHandler(
     ),
     isGasFeeSponsored: Boolean(quoteResponse.quote.gasSponsored),
     isGasFeeIncluded: Boolean(quoteResponse.quote.gasIncluded7702),
-    gasFeeToken,
-    skipInitialGasEstimate: quoteResponse.quote.gasIncluded7702
-      ? isDelegatedAccount
-      : Boolean(gasFeeToken),
-    excludeNativeTokenForFee: !gasFeeToken,
   });
 
   const { batchId } = await addTransactionBatchFn(transactionParams);

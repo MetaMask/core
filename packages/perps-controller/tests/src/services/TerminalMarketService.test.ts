@@ -11,6 +11,7 @@ describe('TerminalMarketService', () => {
     {
       symbol: 'BTC',
       name: 'Bitcoin',
+      description: 'The original cryptocurrency and largest by market cap.',
       szDecimals: 5,
       maxLeverage: 50,
       marginTableId: 0,
@@ -87,6 +88,7 @@ describe('TerminalMarketService', () => {
       expect(metadata.size).toBe(3);
       expect(metadata.get('BTC')).toStrictEqual({
         name: 'Bitcoin',
+        description: 'The original cryptocurrency and largest by market cap.',
         keywords: ['crypto', 'layer-1'],
         tags: ['top-10'],
         categories: ['crypto'],
@@ -337,6 +339,48 @@ describe('TerminalMarketService', () => {
       const { metadata } = await service.fetchMarkets();
 
       expect(metadata.get('UNKNOWN')?.name).toBeUndefined();
+    });
+
+    it('captures description when Terminal supplies one', async () => {
+      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: () =>
+          Promise.resolve([
+            {
+              symbol: 'ETH',
+              name: 'Ethereum',
+              description: 'The leading smart contract platform.',
+            },
+          ]),
+      } as Response);
+
+      const { metadata } = await service.fetchMarkets();
+
+      expect(metadata.get('ETH')?.description).toBe(
+        'The leading smart contract platform.',
+      );
+    });
+
+    it('omits description when Terminal supplies null or empty', async () => {
+      jest.spyOn(globalThis, 'fetch').mockResolvedValue({
+        ok: true,
+        status: 200,
+        statusText: 'OK',
+        json: () =>
+          Promise.resolve([
+            { symbol: 'ORBS', name: 'Orbs', description: null },
+            { symbol: 'FOO', name: 'Foo', description: '' },
+            { symbol: 'BAR', name: 'Bar' },
+          ]),
+      } as Response);
+
+      const { metadata } = await service.fetchMarkets();
+
+      expect(metadata.get('ORBS')?.description).toBeUndefined();
+      expect(metadata.get('FOO')?.description).toBeUndefined();
+      expect(metadata.get('BAR')?.description).toBeUndefined();
     });
 
     describe('listedAt handling', () => {

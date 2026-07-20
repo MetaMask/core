@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **BREAKING:** Add persisted state tracking fully upgraded accounts ([#9500](https://github.com/MetaMask/core/pull/9500))
+  - `MoneyAccountUpgradeControllerState` changes from `Record<string, never>` to `{ upgradedAccounts }`, keyed by lowercased account address. Each entry records when the upgrade sequence completed and a fingerprint of the config it completed under (see new `MoneyAccountUpgradeStatus` type). Code constructing the state type (e.g. `{}` in tests or default-state maps) must include `upgradedAccounts`.
+  - The constructor now accepts an optional `state` option, merged with the defaults; add `getDefaultMoneyAccountUpgradeControllerState` to construct those defaults.
+- Add `TerminalUpgradeError` and `isTerminalMoneyAccountUpgradeError`, and a `terminal` property on `MoneyAccountUpgradeStepError`, marking failures that cannot resolve by retrying — currently an account delegated to a third-party EIP-7702 implementation, an account with unexpected on-chain code, or an address confirmed to be associated with a different CHOMP profile ([#9500](https://github.com/MetaMask/core/pull/9500))
+  - The controller does not retry on its own; clients implementing their own retry logic around `upgradeAccount` can use `isTerminalMoneyAccountUpgradeError` to stop retrying failures that cannot succeed.
+
+### Changed
+
+- **BREAKING:** The `associate-address` upgrade step now checks the profile's existing address associations via `ChompApiService:getAssociatedAddresses` before signing, and reports `already-done` without signing or submitting anything when the address is already associated ([#9387](https://github.com/MetaMask/core/pull/9387))
+  - `MoneyAccountUpgradeControllerMessenger` consumers must grant the `ChompApiService:getAssociatedAddresses` action alongside the previously required actions, and must provide a `@metamask/chomp-api-service` version that registers it (`>=4.0.0`).
+  - The lookup is an optimization: if it fails, the step falls through to the previous sign-and-submit behavior.
+  - A 409 conflict from the association request is disambiguated by re-fetching the associations, so a same-profile create race reports `already-done` instead of failing the upgrade; a genuine conflict (address associated with a different profile) still fails the step.
+- `upgradeAccount` now skips the step sequence entirely when the account is recorded in state as upgraded under the active config fingerprint, and records the account after a successful run. If the chain, CHOMP contract addresses, or Delegation Framework version change, the fingerprint no longer matches and the sequence re-runs ([#9500](https://github.com/MetaMask/core/pull/9500))
+- Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Bump `@metamask/authenticated-user-storage` from `^3.0.0` to `^3.0.1` ([#9458](https://github.com/MetaMask/core/pull/9458))
+
 ## [2.2.1]
 
 ### Changed

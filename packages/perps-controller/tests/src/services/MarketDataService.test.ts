@@ -1143,6 +1143,7 @@ describe('MarketDataService', () => {
         'BTC',
         {
           name: 'Bitcoin',
+          description: 'The original cryptocurrency and largest by market cap.',
           keywords: ['crypto', 'layer-1'],
           tags: ['top-10'],
           categories: ['crypto'],
@@ -1348,12 +1349,16 @@ describe('MarketDataService', () => {
         });
 
         expect(result[0]?.name).toBe('Bitcoin');
+        expect(result[0]?.description).toBe(
+          'The original cryptocurrency and largest by market cap.',
+        );
         expect(result[0]?.keywords).toEqual(['crypto', 'layer-1']);
         expect(result[0]?.tags).toEqual(['top-10']);
         expect(result[0]?.categories).toEqual(['crypto']);
         expect(result[0]?.marketType).toBe('crypto');
         expect(result[1]?.name).toBe('Ethereum');
         expect(result[1]?.keywords).toEqual(['defi']);
+        expect(result[1]?.description).toBeUndefined();
       });
 
       it('preserves provider name when terminal metadata omits name', async () => {
