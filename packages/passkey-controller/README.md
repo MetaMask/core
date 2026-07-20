@@ -2,8 +2,6 @@
 
 Manages passkey-based vault key protection using [WebAuthn](https://www.w3.org/TR/webauthn-3/). Orchestrates the full passkey lifecycle: generating WebAuthn ceremony options, verifying authenticator responses, and protecting/retrieving the vault encryption key via AES-256-GCM wrapping with HKDF-derived keys.
 
-For the messenger migration design and extension wiring checklist, see [docs/messenger-migration.md](./docs/messenger-migration.md).
-
 ## Installation
 
 `yarn add @metamask/passkey-controller`

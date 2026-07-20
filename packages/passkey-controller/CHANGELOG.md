@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `exportAccountsWithPasskey`
 - `PasskeyControllerOptions` with required `getIsOnboardingCompleted` constructor callback for enrollment step-up gating. ([#9548](https://github.com/MetaMask/core/pull/9548))
 - Added new error constants, `PasskeyControllerErrorCode.VaultKeyRenewalFailed`, `PasskeyControllerErrorMessage.VaultKeyRenewalFailed` and `PasskeyControllerErrorMessage.EnrollmentPasswordRequired`. ([#9548](https://github.com/MetaMask/core/pull/9548))
-- `@metamask/keyring-controller` dependency for KeyringController messenger action types used during orchestration
+- `@metamask/keyring-controller` dependency for KeyringController messenger action types used during orchestration. ([#9548](https://github.com/MetaMask/core/pull/9548))
 
 ### Changed
 
