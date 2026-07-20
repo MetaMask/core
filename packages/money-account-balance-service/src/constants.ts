@@ -23,6 +23,31 @@ export const MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY =
  */
 export const DEFAULT_BALANCE_STALE_TIME = inMilliseconds(1, Duration.Minute);
 
+/**
+ * The key under which the balance-source orchestration config is stored in
+ * `RemoteFeatureFlagController` state's `remoteFeatureFlags` map.
+ *
+ * The value is validated against `BalanceSourceConfigStruct`; anything absent
+ * or malformed falls back to {@link DEFAULT_BALANCE_SOURCE_CONFIG}.
+ *
+ * @see BalanceSourceConfig
+ */
+export const MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY =
+  'moneyAccountBalanceSource';
+
+/**
+ * Default balance-source orchestration config, used when
+ * {@link MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY} is absent or malformed.
+ *
+ * Defaults to RPC only so the on-chain path stays the source of truth until the
+ * Money API path is explicitly enabled via remote config.
+ */
+export const DEFAULT_BALANCE_SOURCE_CONFIG = {
+  enabledSources: ['rpc'],
+  preferredSource: 'rpc',
+  maxAttempts: 1,
+} as const;
+
 export const VEDA_API_NETWORK_NAMES: Record<Hex, string> = {
   '0xa4b1': 'arbitrum',
   '0x8f': 'monad',

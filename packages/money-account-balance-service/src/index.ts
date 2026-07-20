@@ -8,6 +8,7 @@ export type {
   MoneyAccountBalanceServiceTraceRequest,
 } from './money-account-balance-service';
 export type {
+  MoneyAccountBalanceServiceGetBalanceAction,
   MoneyAccountBalanceServiceGetMoneyAccountBalanceAction,
   MoneyAccountBalanceServiceGetMusdBalanceAction,
   MoneyAccountBalanceServiceGetVmusdBalanceAction,
@@ -22,7 +23,12 @@ export type {
   NormalizedVaultApyResponse,
 } from './response.types';
 export {
+  MoneyApiBalanceUnavailableError,
   VaultConfigNotAvailableError,
   VaultConfigValidationError,
 } from './errors';
-export type { VaultConfig } from './types';
+export type {
+  BalanceSource,
+  BalanceSourceConfig,
+  VaultConfig,
+} from './types';

@@ -26,10 +26,17 @@ import { assert, is } from '@metamask/superstruct';
 import type { Hex, Json } from '@metamask/utils';
 import { Duration, inMilliseconds } from '@metamask/utils';
 
+import type {
+  PositionResponse,
+  MoneyAccountApiDataServiceFetchPositionsAction,
+} from '@metamask/money-account-api-data-service';
+
 import {
   ACCOUNTANT_ABI,
+  DEFAULT_BALANCE_SOURCE_CONFIG,
   DEFAULT_BALANCE_STALE_TIME,
   LENS_ABI,
+  MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY,
   MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY,
   MULTICALL3_ABI,
   MULTICALL3_ADDRESS_BY_CHAIN_ID,
@@ -38,6 +45,7 @@ import {
   VEDA_PERFORMANCE_API_BASE_URL,
 } from './constants';
 import {
+  MoneyApiBalanceUnavailableError,
   VaultConfigNotAvailableError,
   VaultConfigValidationError,
   VedaResponseValidationError,
@@ -51,8 +59,29 @@ import type {
   MusdEquivalentValueResponse,
   NormalizedVaultApyResponse,
 } from './response.types';
-import { VaultApyRawResponseStruct, VaultConfigStruct } from './structs';
-import type { VaultConfig } from './types';
+import {
+  BalanceSourceConfigStruct,
+  MoneyApiBalanceStruct,
+  VaultApyRawResponseStruct,
+  VaultConfigStruct,
+} from './structs';
+import type { BalanceSource, BalanceSourceConfig, VaultConfig } from './types';
+
+/**
+ * The Money Account API positions response, extended with the optional
+ * top-level `balance` object the API returns alongside positions. Kept local
+ * until the field lands in the published `PositionResponse` type.
+ */
+type PositionResponseWithBalance = PositionResponse & {
+  balance?: {
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    musd_balance: string;
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    total_balance: string;
+    // eslint-disable-next-line @typescript-eslint/naming-convention
+    vmusd_value_in_musd: string;
+  };
+};
 
 // === GENERAL ===
 
@@ -82,6 +111,7 @@ export const TRACES = {
   ERC20_BALANCE_RPC: 'Get Money Account ERC20 Balance RPC',
   UNDERLYING_TOKEN_RPC: 'Get Money Account Underlying Token RPC',
   MONEY_ACCOUNT_BALANCE_RPC: 'Get Money Account Balance RPC',
+  MONEY_ACCOUNT_BALANCE_API: 'Get Money Account Balance API',
   EXCHANGE_RATE_RPC: 'Get Money Account Exchange Rate RPC',
   MUSD_EQUIVALENT_VALUE_RPC: 'Get Money Account mUSD Equivalent Value RPC',
   VAULT_APY_API: 'Get Money Account Vault APY API',
@@ -109,6 +139,7 @@ const traceLogger = createModuleLogger(projectLogger, 'trace');
 // === MESSENGER ===
 
 const MESSENGER_EXPOSED_METHODS = [
+  'getBalance',
   'getMoneyAccountBalance',
   'getMusdBalance',
   'getVmusdBalance',
@@ -116,6 +147,8 @@ const MESSENGER_EXPOSED_METHODS = [
   'getMusdEquivalentValue',
   'getVaultApy',
 ] as const;
+
+const balanceSourceLogger = createModuleLogger(projectLogger, 'balance-source');
 
 /**
  * Invalidates cached queries for {@link MoneyAccountBalanceService}.
@@ -136,7 +169,8 @@ export type MoneyAccountBalanceServiceActions =
 type AllowedActions =
   | NetworkControllerGetNetworkConfigurationByChainIdAction
   | NetworkControllerGetNetworkClientByIdAction
-  | RemoteFeatureFlagControllerGetStateAction;
+  | RemoteFeatureFlagControllerGetStateAction
+  | MoneyAccountApiDataServiceFetchPositionsAction;
 
 /**
  * Published when {@link MoneyAccountBalanceService}'s cache is updated.
@@ -215,6 +249,17 @@ export class MoneyAccountBalanceService extends BaseDataService<
 
   /** Cache stale time (ms) for on-chain balance reads. Overridable via remote feature flag. */
   #balanceStaleTime: number = DEFAULT_BALANCE_STALE_TIME;
+
+  /**
+   * Balance-source orchestration config. Controls which source
+   * {@link getBalance} uses and its fallback order. Overridable via remote
+   * feature flag; defaults to {@link DEFAULT_BALANCE_SOURCE_CONFIG}.
+   */
+  #balanceSourceConfig: BalanceSourceConfig = {
+    enabledSources: [...DEFAULT_BALANCE_SOURCE_CONFIG.enabledSources],
+    preferredSource: DEFAULT_BALANCE_SOURCE_CONFIG.preferredSource,
+    maxAttempts: DEFAULT_BALANCE_SOURCE_CONFIG.maxAttempts,
+  };
 
   readonly #trace: MoneyAccountBalanceServiceTraceCallback;
 
@@ -400,7 +445,62 @@ export class MoneyAccountBalanceService extends BaseDataService<
     this.#applyBalanceStaleTimeFlag(
       remoteFeatureFlags[MONEY_ACCOUNT_BALANCE_STALETIME_FEATURE_FLAG_KEY],
     );
+    this.#applyBalanceSourceConfig(
+      remoteFeatureFlags[MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY],
+    );
     this.#applyVaultConfig(remoteFeatureFlags[VAULT_CONFIG_FEATURE_FLAG_KEY]);
+  }
+
+  /**
+   * Applies the balance-source orchestration config feature flag, merging any
+   * provided fields over {@link DEFAULT_BALANCE_SOURCE_CONFIG}. Malformed values
+   * are ignored (config falls back to the default / previous value), mirroring
+   * the tolerant handling of the `staleTime` flag.
+   *
+   * @param flagValue - Raw flag value from `remoteFeatureFlags`.
+   */
+  #applyBalanceSourceConfig(flagValue: Json | undefined): void {
+    if (flagValue === undefined) {
+      return;
+    }
+
+    if (!is(flagValue, BalanceSourceConfigStruct)) {
+      balanceSourceLogger(
+        'Invalid balance-source config flag value; keeping previous config',
+        { flagValue, current: this.#balanceSourceConfig },
+      );
+      return;
+    }
+
+    const enabledSources =
+      flagValue.enabledSources && flagValue.enabledSources.length > 0
+        ? flagValue.enabledSources
+        : [...DEFAULT_BALANCE_SOURCE_CONFIG.enabledSources];
+
+    const preferredSource =
+      flagValue.preferredSource ??
+      DEFAULT_BALANCE_SOURCE_CONFIG.preferredSource;
+
+    const maxAttempts =
+      typeof flagValue.maxAttempts === 'number' && flagValue.maxAttempts >= 1
+        ? flagValue.maxAttempts
+        : DEFAULT_BALANCE_SOURCE_CONFIG.maxAttempts;
+
+    const next: BalanceSourceConfig = {
+      enabledSources,
+      preferredSource,
+      maxAttempts,
+    };
+
+    if (JSON.stringify(next) === JSON.stringify(this.#balanceSourceConfig)) {
+      return;
+    }
+
+    balanceSourceLogger('Balance-source config updated', {
+      previous: this.#balanceSourceConfig,
+      next,
+    });
+    this.#balanceSourceConfig = next;
   }
 
   /**
@@ -637,8 +737,203 @@ export class MoneyAccountBalanceService extends BaseDataService<
   }
 
   /**
+   * Fetches the account's total Money balance, orchestrating across the
+   * configured balance sources.
+   *
+   * This is the single entry point for balances: source selection and fallback
+   * are handled here (driven by the remote {@link BalanceSourceConfig}) so
+   * clients never choose a source. The `preferredSource` is tried first, then
+   * the remaining `enabledSources` in order, stopping at the first success
+   * (bounded by `maxAttempts`). Both sources return the identical
+   * {@link MoneyAccountBalanceResponse} shape.
+   *
+   * Scoped to balance values only — APY lives in {@link getVaultApy} so that a
+   * Veda outage cannot block balances.
+   *
+   * @param accountAddress - The Money account's Ethereum address.
+   * @returns The mUSD balance, mUSD-equivalent vault-share value, and total, as
+   * raw uint256 strings.
+   * @throws {@link VaultConfigNotAvailableError} if the RPC source is used
+   * before vault config has loaded, or the last source error if all fail.
+   */
+  async getBalance(
+    accountAddress: Hex,
+  ): Promise<MoneyAccountBalanceResponse> {
+    return this.fetchQuery({
+      queryKey: [`${this.name}:getBalance`, accountAddress],
+      queryFn: async () => this.#orchestrateBalance(accountAddress),
+      staleTime: this.#balanceStaleTime,
+    });
+  }
+
+  /**
+   * Builds the ordered list of balance sources to attempt: the preferred
+   * source first (when enabled), then the remaining enabled sources, capped at
+   * `maxAttempts`.
+   *
+   * @returns The ordered, de-duplicated list of sources to try.
+   */
+  #resolveBalanceSources(): BalanceSource[] {
+    const { enabledSources, preferredSource, maxAttempts } =
+      this.#balanceSourceConfig;
+
+    const ordered: BalanceSource[] = [
+      ...(enabledSources.includes(preferredSource) ? [preferredSource] : []),
+      ...enabledSources.filter((source) => source !== preferredSource),
+    ];
+
+    return ordered.slice(0, Math.max(1, maxAttempts));
+  }
+
+  /**
+   * Tries each configured balance source in order, returning the first
+   * success. Non-fatal source failures are logged and the next source is
+   * attempted; if every source fails the last error is rethrown.
+   *
+   * @param accountAddress - The Money account's Ethereum address.
+   * @returns The balance from the first successful source.
+   */
+  async #orchestrateBalance(
+    accountAddress: Hex,
+  ): Promise<MoneyAccountBalanceResponse> {
+    const sources = this.#resolveBalanceSources();
+    let lastError: unknown;
+
+    for (const source of sources) {
+      try {
+        return source === 'api'
+          ? await this.#fetchBalanceViaApi(accountAddress)
+          : await this.#fetchBalanceViaRpc(accountAddress);
+      } catch (error) {
+        lastError = error;
+        balanceSourceLogger('Balance source failed; trying next source', {
+          source,
+          error,
+        });
+      }
+    }
+
+    throw (
+      lastError ??
+      new Error('MoneyAccountBalanceService: no balance sources configured')
+    );
+  }
+
+  /**
+   * `'api'` balance strategy: fetches positions from the Money Account API via
+   * `MoneyAccountApiDataService:fetchPositions` and maps the response's
+   * `balance` object to {@link MoneyAccountBalanceResponse}.
+   *
+   * @param accountAddress - The Money account's Ethereum address.
+   * @returns The balance derived from the API response.
+   * @throws {@link MoneyApiBalanceUnavailableError} if the response has no
+   * usable `balance` object, so the orchestrator can fall back to another source.
+   */
+  async #fetchBalanceViaApi(
+    accountAddress: Hex,
+  ): Promise<MoneyAccountBalanceResponse> {
+    const positions = (await this.#traceNetworkRequest(
+      {
+        name: TRACES.MONEY_ACCOUNT_BALANCE_API,
+        data: { operation: 'fetchPositions' },
+      },
+      async () =>
+        this.messenger.call(
+          'MoneyAccountApiDataService:fetchPositions',
+          accountAddress,
+        ),
+    )) as PositionResponseWithBalance;
+
+    const { balance } = positions;
+
+    if (!is(balance, MoneyApiBalanceStruct)) {
+      throw new MoneyApiBalanceUnavailableError();
+    }
+
+    return {
+      musdBalance: balance.musd_balance,
+      vmusdValueInMusd: balance.vmusd_value_in_musd,
+      totalBalance: balance.total_balance,
+    };
+  }
+
+  /**
+   * `'rpc'` balance strategy: reads the account's total Money balance inputs in
+   * a single batched Multicall3 `aggregate3` request.
+   *
+   * @param accountAddress - The Money account's Ethereum address.
+   * @returns The mUSD balance and the mUSD-equivalent value of vault shares as
+   * raw uint256 strings. The total balance is their sum.
+   * @throws {@link VaultConfigNotAvailableError} if vault config has not been loaded.
+   */
+  async #fetchBalanceViaRpc(
+    accountAddress: Hex,
+  ): Promise<MoneyAccountBalanceResponse> {
+    const { chainId, boringVault, accountantAddress, lensAddress } =
+      this.#requireConfig();
+    const provider = this.#getProvider(chainId);
+
+    const underlyingTokenAddress =
+      await this.#resolveUnderlyingTokenAddress(chainId);
+
+    const erc20 = new Contract(underlyingTokenAddress, abiERC20, provider);
+    const lens = new Contract(lensAddress, LENS_ABI, provider);
+
+    const calls = [
+      {
+        target: underlyingTokenAddress,
+        allowFailure: false,
+        callData: erc20.interface.encodeFunctionData('balanceOf', [
+          accountAddress,
+        ]),
+      },
+      {
+        target: lensAddress,
+        allowFailure: false,
+        callData: lens.interface.encodeFunctionData('balanceOfInAssets', [
+          accountAddress,
+          boringVault,
+          accountantAddress,
+        ]),
+      },
+    ];
+
+    const multicall3 = new Contract(
+      this.#getMulticall3Address(chainId),
+      MULTICALL3_ABI,
+      provider,
+    );
+    const [musdResult, vmusdResult] = (await this.#traceNetworkRequest(
+      {
+        name: TRACES.MONEY_ACCOUNT_BALANCE_RPC,
+        data: { chainId, operation: 'aggregate3' },
+      },
+      async () =>
+        await multicall3.callStatic.aggregate3(calls, PENDING_READ_OVERRIDES),
+    )) as [Multicall3Result, Multicall3Result];
+
+    const musdBalanceBN = erc20.interface.decodeFunctionResult(
+      'balanceOf',
+      musdResult.returnData,
+    )[0];
+    const vmusdBN = lens.interface.decodeFunctionResult(
+      'balanceOfInAssets',
+      vmusdResult.returnData,
+    )[0];
+
+    return {
+      musdBalance: musdBalanceBN.toString(),
+      vmusdValueInMusd: vmusdBN.toString(),
+      totalBalance: musdBalanceBN.add(vmusdBN).toString(),
+    };
+  }
+
+  /**
    * Fetches the account's total Money balance inputs in a single batched RPC
-   * request via Multicall3's `aggregate3`
+   * request via Multicall3's `aggregate3`.
+   *
+   * Kept for backwards compatibility with existing consumers; new callers
+   * should prefer {@link getBalance}, which orchestrates across sources.
    *
    * @param accountAddress - The Money account's Ethereum address.
    * @returns The mUSD balance and the mUSD-equivalent value of vault shares as
@@ -650,68 +945,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
   ): Promise<MoneyAccountBalanceResponse> {
     return this.fetchQuery({
       queryKey: [`${this.name}:getMoneyAccountBalance`, accountAddress],
-      queryFn: async () => {
-        const { chainId, boringVault, accountantAddress, lensAddress } =
-          this.#requireConfig();
-        const provider = this.#getProvider(chainId);
-
-        const underlyingTokenAddress =
-          await this.#resolveUnderlyingTokenAddress(chainId);
-
-        const erc20 = new Contract(underlyingTokenAddress, abiERC20, provider);
-        const lens = new Contract(lensAddress, LENS_ABI, provider);
-
-        const calls = [
-          {
-            target: underlyingTokenAddress,
-            allowFailure: false,
-            callData: erc20.interface.encodeFunctionData('balanceOf', [
-              accountAddress,
-            ]),
-          },
-          {
-            target: lensAddress,
-            allowFailure: false,
-            callData: lens.interface.encodeFunctionData('balanceOfInAssets', [
-              accountAddress,
-              boringVault,
-              accountantAddress,
-            ]),
-          },
-        ];
-
-        const multicall3 = new Contract(
-          this.#getMulticall3Address(chainId),
-          MULTICALL3_ABI,
-          provider,
-        );
-        const [musdResult, vmusdResult] = (await this.#traceNetworkRequest(
-          {
-            name: TRACES.MONEY_ACCOUNT_BALANCE_RPC,
-            data: { chainId, operation: 'aggregate3' },
-          },
-          async () =>
-            await multicall3.callStatic.aggregate3(
-              calls,
-              PENDING_READ_OVERRIDES,
-            ),
-        )) as [Multicall3Result, Multicall3Result];
-
-        const musdBalanceBN = erc20.interface.decodeFunctionResult(
-          'balanceOf',
-          musdResult.returnData,
-        )[0];
-        const vmusdBN = lens.interface.decodeFunctionResult(
-          'balanceOfInAssets',
-          vmusdResult.returnData,
-        )[0];
-
-        return {
-          musdBalance: musdBalanceBN.toString(),
-          vmusdValueInMusd: vmusdBN.toString(),
-          totalBalance: musdBalanceBN.add(vmusdBN).toString(),
-        };
-      },
+      queryFn: async () => this.#fetchBalanceViaRpc(accountAddress),
       staleTime: this.#balanceStaleTime,
     });
   }
