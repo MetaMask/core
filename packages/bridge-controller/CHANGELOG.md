@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `TopTraders` value to `MetaMetricsSwapsEventSource` enum for attributing swap and bridge flows to the top traders entry point ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Added `FollowTrader` value to `MetaMetricsSwapsEventSource` enum for attributing swap and bridge flows to the follow trader entry point ([#TBD](https://github.com/MetaMask/core/pull/TBD))
 
 ## [77.5.0]
 
