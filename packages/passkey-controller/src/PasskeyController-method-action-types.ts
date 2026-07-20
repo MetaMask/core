@@ -90,6 +90,30 @@ export type PasskeyControllerUnlockWithPasskeyAction = {
 };
 
 /**
+ * Exports the seed phrase after passkey step-up authentication.
+ *
+ * @param authenticationResponse - Result of `navigator.credentials.get()`.
+ * @param keyringId - Optional keyring id; defaults to the primary HD keyring.
+ * @returns Raw seed phrase bytes from KeyringController.
+ */
+export type PasskeyControllerExportSeedPhraseWithPasskeyAction = {
+  type: `PasskeyController:exportSeedPhraseWithPasskey`;
+  handler: PasskeyController['exportSeedPhraseWithPasskey'];
+};
+
+/**
+ * Exports private keys for the given addresses after passkey step-up authentication.
+ *
+ * @param authenticationResponse - Result of `navigator.credentials.get()`.
+ * @param addresses - Account addresses to export.
+ * @returns Private keys in the same order as `addresses`.
+ */
+export type PasskeyControllerExportAccountsWithPasskeyAction = {
+  type: `PasskeyController:exportAccountsWithPasskey`;
+  handler: PasskeyController['exportAccountsWithPasskey'];
+};
+
+/**
  * Checks whether the given authentication assertion is valid for the enrolled passkey.
  *
  * On failure, returns `false` for {@link PasskeyControllerError} with a `code`;
@@ -119,6 +143,23 @@ export type PasskeyControllerVerifyPasskeyAuthenticationAction = {
 export type PasskeyControllerRenewVaultKeyProtectionAction = {
   type: `PasskeyController:renewVaultKeyProtection`;
   handler: PasskeyController['renewVaultKeyProtection'];
+};
+
+/**
+ * Changes the wallet password after passkey step-up authentication.
+ *
+ * When `renewVaultKeyProtection` is `true` (default), re-wraps the vault key under the
+ * passkey after rotation. When `false`, removes the passkey instead.
+ *
+ * @param params - Change-password inputs.
+ * @param params.newPassword - New wallet password.
+ * @param params.authenticationResponse - Result of `navigator.credentials.get()`.
+ * @param params.options - Optional flow controls.
+ * @param params.options.renewVaultKeyProtection - Re-wrap vault key after password change.
+ */
+export type PasskeyControllerChangePasswordWithPasskeyVerificationAction = {
+  type: `PasskeyController:changePasswordWithPasskeyVerification`;
+  handler: PasskeyController['changePasswordWithPasskeyVerification'];
 };
 
 /**
@@ -177,8 +218,11 @@ export type PasskeyControllerMethodActions =
   | PasskeyControllerProtectVaultKeyWithPasskeyAction
   | PasskeyControllerRetrieveVaultKeyWithPasskeyAction
   | PasskeyControllerUnlockWithPasskeyAction
+  | PasskeyControllerExportSeedPhraseWithPasskeyAction
+  | PasskeyControllerExportAccountsWithPasskeyAction
   | PasskeyControllerVerifyPasskeyAuthenticationAction
   | PasskeyControllerRenewVaultKeyProtectionAction
+  | PasskeyControllerChangePasswordWithPasskeyVerificationAction
   | PasskeyControllerRemovePasskeyWithPasskeyVerificationAction
   | PasskeyControllerRemovePasskeyWithPasswordVerificationAction
   | PasskeyControllerRemovePasskeyAction

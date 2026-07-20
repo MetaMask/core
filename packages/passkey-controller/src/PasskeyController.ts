@@ -91,6 +91,9 @@ const MESSENGER_EXPOSED_METHODS = [
   'unlockWithPasskey',
   'verifyPasskeyAuthentication',
   'renewVaultKeyProtection',
+  'changePasswordWithPasskeyVerification',
+  'exportSeedPhraseWithPasskey',
+  'exportAccountsWithPasskey',
   'removePasskeyWithPasskeyVerification',
   'removePasskeyWithPasswordVerification',
   'removePasskey',
@@ -551,6 +554,53 @@ export class PasskeyController extends BaseController<
   }
 
   /**
+   * Exports the seed phrase after passkey step-up authentication.
+   *
+   * @param authenticationResponse - Result of `navigator.credentials.get()`.
+   * @param keyringId - Optional keyring id; defaults to the primary HD keyring.
+   * @returns Raw seed phrase bytes from KeyringController.
+   */
+  async exportSeedPhraseWithPasskey(
+    authenticationResponse: PasskeyAuthenticationResponse,
+    keyringId?: string,
+  ): Promise<Uint8Array> {
+    const vaultKey =
+      await this.retrieveVaultKeyWithPasskey(authenticationResponse);
+    return await this.messenger.call(
+      'KeyringController:exportSeedPhrase',
+      { encryptionKey: vaultKey },
+      keyringId,
+    );
+  }
+
+  /**
+   * Exports private keys for the given addresses after passkey step-up authentication.
+   *
+   * @param authenticationResponse - Result of `navigator.credentials.get()`.
+   * @param addresses - Account addresses to export.
+   * @returns Private keys in the same order as `addresses`.
+   */
+  async exportAccountsWithPasskey(
+    authenticationResponse: PasskeyAuthenticationResponse,
+    addresses: string[],
+  ): Promise<string[]> {
+    const vaultKey =
+      await this.retrieveVaultKeyWithPasskey(authenticationResponse);
+
+    const privateKeys: string[] = [];
+    for (const address of addresses) {
+      privateKeys.push(
+        await this.messenger.call(
+          'KeyringController:exportAccount',
+          { encryptionKey: vaultKey },
+          address,
+        ),
+      );
+    }
+    return privateKeys;
+  }
+
+  /**
    * Checks whether the given authentication assertion is valid for the enrolled passkey.
    *
    * On failure, returns `false` for {@link PasskeyControllerError} with a `code`;
@@ -654,6 +704,76 @@ export class PasskeyController extends BaseController<
       }
       state.passkeyRecord.encryptedVaultKey = { ciphertext, iv };
     });
+  }
+
+  /**
+   * Changes the wallet password after passkey step-up authentication.
+   *
+   * When `renewVaultKeyProtection` is `true` (default), re-wraps the vault key under the
+   * passkey after rotation. When `false`, removes the passkey instead.
+   *
+   * @param params - Change-password inputs.
+   * @param params.newPassword - New wallet password.
+   * @param params.authenticationResponse - Result of `navigator.credentials.get()`.
+   * @param params.options - Optional flow controls.
+   * @param params.options.renewVaultKeyProtection - Re-wrap vault key after password change.
+   */
+  async changePasswordWithPasskeyVerification(params: {
+    newPassword: string;
+    authenticationResponse: PasskeyAuthenticationResponse;
+    options?: { renewVaultKeyProtection?: boolean };
+  }): Promise<void> {
+    this.#requireEnrolled();
+
+    const verified = await this.verifyPasskeyAuthentication(
+      params.authenticationResponse,
+    );
+    if (!verified) {
+      throw new PasskeyControllerError(
+        PasskeyControllerErrorMessage.AuthenticationVerificationFailed,
+        { code: PasskeyControllerErrorCode.AuthenticationVerificationFailed },
+      );
+    }
+
+    const renewVaultKeyProtection =
+      params.options?.renewVaultKeyProtection ?? true;
+
+    if (!renewVaultKeyProtection) {
+      await this.messenger.call(
+        'KeyringController:changePassword',
+        params.newPassword,
+      );
+      this.removePasskey();
+      return;
+    }
+
+    const vaultKeyBefore = await this.messenger.call(
+      'KeyringController:exportEncryptionKey',
+    );
+    await this.messenger.call(
+      'KeyringController:changePassword',
+      params.newPassword,
+    );
+
+    try {
+      const vaultKeyAfter = await this.messenger.call(
+        'KeyringController:exportEncryptionKey',
+      );
+      await this.renewVaultKeyProtection({
+        authenticationResponse: params.authenticationResponse,
+        oldVaultKey: vaultKeyBefore,
+        newVaultKey: vaultKeyAfter,
+      });
+    } catch (error) {
+      this.removePasskey();
+      throw new PasskeyControllerError(
+        PasskeyControllerErrorMessage.VaultKeyRenewalFailed,
+        {
+          code: PasskeyControllerErrorCode.VaultKeyRenewalFailed,
+          cause: error instanceof Error ? error : new Error(String(error)),
+        },
+      );
+    }
   }
 
   /**
