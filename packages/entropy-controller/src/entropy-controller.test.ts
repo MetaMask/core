@@ -134,7 +134,11 @@ async function setup({
       'KeyringController:getState',
       'KeyringController:withKeyringV2Unsafe',
     ],
-    events: ['KeyringController:unlock'],
+    events: [
+      'KeyringController:unlock',
+      'KeyringController:keyringAdded',
+      'KeyringController:keyringRemoved',
+    ],
   });
 
   const controller = new EntropyController({
@@ -193,7 +197,10 @@ describe('EntropyController', () => {
       await controller.syncEntropies();
 
       expect(controller.state.entropySources).toStrictEqual({
-        [expectedId]: { type: 'bip44:srp', metadata: {} },
+        [expectedId]: {
+          type: 'bip44:srp',
+          metadata: { legacyEntropySource: keyringId },
+        },
       });
     });
 
@@ -215,7 +222,10 @@ describe('EntropyController', () => {
       await controller.syncEntropies();
 
       expect(controller.state.entropySources).toStrictEqual({
-        [expectedId]: { type: 'raw:private-key', metadata: {} },
+        [expectedId]: {
+          type: 'raw:private-key',
+          metadata: { legacyEntropySource: keyringId },
+        },
       });
     });
 
@@ -245,8 +255,14 @@ describe('EntropyController', () => {
       await controller.syncEntropies();
 
       expect(controller.state.entropySources).toStrictEqual({
-        [expectedId1]: { type: 'raw:private-key', metadata: {} },
-        [expectedId2]: { type: 'raw:private-key', metadata: {} },
+        [expectedId1]: {
+          type: 'raw:private-key',
+          metadata: { legacyEntropySource: keyringId },
+        },
+        [expectedId2]: {
+          type: 'raw:private-key',
+          metadata: { legacyEntropySource: keyringId },
+        },
       });
     });
 
@@ -293,7 +309,10 @@ describe('EntropyController', () => {
         options: {
           state: {
             entropySources: {
-              'stale-id': { type: 'bip44:srp', metadata: {} },
+              'stale-id': {
+                type: 'bip44:srp',
+                metadata: { legacyEntropySource: 'old-keyring-id' },
+              },
             },
           },
         },
@@ -310,7 +329,10 @@ describe('EntropyController', () => {
       await controller.syncEntropies();
 
       expect(controller.state.entropySources).toStrictEqual({
-        [expectedId]: { type: 'bip44:srp', metadata: {} },
+        [expectedId]: {
+          type: 'bip44:srp',
+          metadata: { legacyEntropySource: keyringId },
+        },
       });
       expect(controller.state.entropySources['stale-id']).toBeUndefined();
     });
@@ -360,8 +382,136 @@ describe('EntropyController', () => {
       await syncSpy.mock.results[0]?.value;
 
       expect(controller.state.entropySources).toStrictEqual({
-        [expectedId]: { type: 'bip44:srp', metadata: {} },
+        [expectedId]: {
+          type: 'bip44:srp',
+          metadata: { legacyEntropySource: keyringId },
+        },
       });
+    });
+  });
+
+  describe('keyringAdded', () => {
+    it('merges the new HD keyring into entropySources', async () => {
+      const keyringId = 'new-hd-keyring-id';
+      const expectedId = await toEntropyId(HD_MNEMONIC, 'bip44:srp');
+
+      const { controller, rootMessenger } = await setup({
+        keyrings: [
+          {
+            type: 'HD Key Tree',
+            metadata: { id: keyringId, name: '' },
+            mnemonic: HD_MNEMONIC,
+            accounts: [{ address: '0xabc' }],
+          },
+        ],
+      });
+
+      const syncSpy = jest.spyOn(controller, 'syncEntropies');
+
+      rootMessenger.publish('KeyringController:keyringAdded', {
+        type: 'HD Key Tree',
+        accounts: ['0xabc'],
+        metadata: { id: keyringId, name: '' },
+      });
+
+      // Wait for the async merge to complete
+      await new Promise(process.nextTick);
+      await new Promise(process.nextTick);
+
+      expect(controller.state.entropySources[expectedId]).toStrictEqual({
+        type: 'bip44:srp',
+        metadata: { legacyEntropySource: keyringId },
+      });
+      // syncEntropies should NOT have been called (incremental, not full rescan)
+      expect(syncSpy).not.toHaveBeenCalled();
+    });
+
+    it('ignores keyrings that do not own entropy', async () => {
+      const { controller, rootMessenger } = await setup();
+
+      rootMessenger.publish('KeyringController:keyringAdded', {
+        type: 'Snap Keyring',
+        accounts: [],
+        metadata: { id: 'snap-id', name: '' },
+      });
+
+      await new Promise(process.nextTick);
+
+      expect(controller.state.entropySources).toStrictEqual({});
+    });
+
+    it('does nothing when the vault is locked', async () => {
+      const keyringId = 'hd-keyring-id';
+      const { controller, rootMessenger, mocks } = await setup({
+        keyrings: [
+          {
+            type: 'HD Key Tree',
+            metadata: { id: keyringId, name: '' },
+            mnemonic: HD_MNEMONIC,
+            accounts: [{ address: '0xabc' }],
+          },
+        ],
+      });
+
+      mocks.KeyringController.getState.mockReturnValueOnce({
+        keyrings: [],
+        isUnlocked: false,
+      });
+
+      rootMessenger.publish('KeyringController:keyringAdded', {
+        type: 'HD Key Tree',
+        accounts: ['0xabc'],
+        metadata: { id: keyringId, name: '' },
+      });
+
+      await new Promise(process.nextTick);
+
+      expect(controller.state.entropySources).toStrictEqual({});
+    });
+  });
+
+  describe('keyringRemoved', () => {
+    it('removes all entropy sources belonging to the removed keyring', async () => {
+      const keyringId = 'hd-keyring-id';
+      const expectedId = await toEntropyId(HD_MNEMONIC, 'bip44:srp');
+
+      const { controller, rootMessenger } = await setup({
+        options: {
+          state: {
+            entropySources: {
+              [expectedId]: {
+                type: 'bip44:srp',
+                metadata: { legacyEntropySource: keyringId },
+              },
+              'other-entropy-id': {
+                type: 'bip44:srp',
+                metadata: { legacyEntropySource: 'other-keyring-id' },
+              },
+            },
+          },
+        },
+      });
+
+      rootMessenger.publish('KeyringController:keyringRemoved', {
+        id: keyringId,
+        name: '',
+      });
+
+      expect(controller.state.entropySources[expectedId]).toBeUndefined();
+      expect(
+        controller.state.entropySources['other-entropy-id'],
+      ).toBeDefined();
+    });
+
+    it('does nothing when no entropy sources match the removed keyring', async () => {
+      const { controller, rootMessenger } = await setup();
+
+      rootMessenger.publish('KeyringController:keyringRemoved', {
+        id: 'unknown-keyring-id',
+        name: '',
+      });
+
+      expect(controller.state.entropySources).toStrictEqual({});
     });
   });
 

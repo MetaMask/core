@@ -8,6 +8,8 @@ import type { HdKeyring } from '@metamask/eth-hd-keyring/v2';
 import type { SimpleKeyring } from '@metamask/eth-simple-keyring/v2';
 import type {
   KeyringControllerGetStateAction,
+  KeyringControllerKeyringAddedEvent,
+  KeyringControllerKeyringRemovedEvent,
   KeyringControllerUnlockEvent,
   KeyringControllerWithKeyringV2UnsafeAction,
 } from '@metamask/keyring-controller';
@@ -112,7 +114,10 @@ export type EntropyControllerEvents = EntropyControllerStateChangeEvent;
  * Events from other messengers that {@link EntropyControllerMessenger}
  * subscribes to.
  */
-type AllowedEvents = KeyringControllerUnlockEvent;
+type AllowedEvents =
+  | KeyringControllerUnlockEvent
+  | KeyringControllerKeyringAddedEvent
+  | KeyringControllerKeyringRemovedEvent;
 
 /**
  * The messenger restricted to actions and events accessed by
@@ -167,6 +172,29 @@ export class EntropyController extends BaseController<
     this.messenger.subscribe('KeyringController:unlock', () => {
       this.syncEntropies().catch(console.error);
     });
+
+    this.messenger.subscribe('KeyringController:keyringAdded', (keyringObject) => {
+      if (!isKeyringOwningEntropy(keyringObject)) {
+        return;
+      }
+      const { isUnlocked } = this.messenger.call('KeyringController:getState');
+      if (!isUnlocked) {
+        return;
+      }
+      this.#syncSingleKeyring(keyringObject.metadata.id, keyringObject.type).catch(
+        console.error,
+      );
+    });
+
+    this.messenger.subscribe('KeyringController:keyringRemoved', ({ id }) => {
+      this.update((state) => {
+        for (const [entropyId, entry] of Object.entries(state.entropySources)) {
+          if (entry.metadata.legacyEntropySource === id) {
+            delete state.entropySources[entropyId];
+          }
+        }
+      });
+    });
   }
 
   /**
@@ -206,6 +234,30 @@ export class EntropyController extends BaseController<
   }
 
   /**
+   * Derives entropy source entries for a single keyring and merges them into
+   * `state.entropySources`.
+   *
+   * Used by the `keyringAdded` event handler to incrementally update state
+   * without rescanning every keyring.
+   *
+   * @param id - The keyring metadata ID.
+   * @param type - The keyring type string.
+   */
+  async #syncSingleKeyring(id: string, type: string): Promise<void> {
+    const newEntries: EntropyControllerState['entropySources'] = {};
+
+    if (type === KeyringTypes.hd) {
+      await this.#syncHdKeyring(id, newEntries);
+    } else if (type === KeyringTypes.simple) {
+      await this.#syncSimpleKeyring(id, newEntries);
+    }
+
+    this.update((state) => {
+      Object.assign(state.entropySources, newEntries);
+    });
+  }
+
+  /**
    * Derives the entropy source entry for a single HD keyring and adds it to
    * the given map.
    *
@@ -229,7 +281,10 @@ export class EntropyController extends BaseController<
           return;
         }
         const entropyId = await toEntropyId(hdKeyring.mnemonic, 'bip44:srp');
-        sources[entropyId] = { type: 'bip44:srp', metadata: {} };
+        sources[entropyId] = {
+          type: 'bip44:srp',
+          metadata: { legacyEntropySource: id },
+        };
       },
     );
   }
@@ -264,7 +319,10 @@ export class EntropyController extends BaseController<
             hexToBytes(exported.privateKey),
             'raw:private-key',
           );
-          sources[entropyId] = { type: 'raw:private-key', metadata: {} };
+          sources[entropyId] = {
+            type: 'raw:private-key',
+            metadata: { legacyEntropySource: id },
+          };
         }
       },
     );

@@ -25,4 +25,11 @@ export type EntropyId = string;
  *
  * Currently a placeholder — fields will be added as requirements emerge.
  */
-export type EntropyMetadata = Record<string, never>;
+export type EntropyMetadata = {
+  /**
+   * The ID of the keyring that owns this entropy source.
+   * Prefixed `legacy` because keyrings are a transitional backing store —
+   * future entropy sources may not originate from a `KeyringController` keyring.
+   */
+  legacyEntropySource: string;
+};
