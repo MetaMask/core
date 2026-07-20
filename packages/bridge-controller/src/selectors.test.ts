@@ -1084,7 +1084,7 @@ describe('Bridge Selectors', () => {
 
         return {
           ...mockState,
-          quotes: [quoteResponse],
+          quotes: [quoteResponse as QuoteResponseV1],
           currencyRates,
           marketData,
           quoteRequest: [
@@ -1865,14 +1865,12 @@ describe('Bridge Selectors', () => {
       );
 
       const solanaQuote = solanaState.quotes[1];
-      // expect(solanaQuote.toTokenAmount?.amount).toBe('2.1');
 
       const expectedQuoteMetadata = calcQuoteMetadata(solanaQuote, {
         srcTokenExchangeRate: { exchangeRate: '0.5', usdExchangeRate: '10' },
         bridgeFeesPerGas: {
           estimatedBaseFeeInDecGwei: '0',
           feePerGasInDecGwei: '.1',
-          maxFeePerGasInDecGwei: '.2',
         },
         destTokenExchangeRate: {
           exchangeRate: '50005',

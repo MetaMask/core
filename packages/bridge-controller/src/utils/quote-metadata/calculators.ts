@@ -414,11 +414,10 @@ export const calcPriceImpact = (
  */
 export const calcQuoteMetadata = (
   quote: QuoteResponse,
-  options?: {
+  options: {
     bridgeFeesPerGas: null | {
       estimatedBaseFeeInDecGwei: string | null;
       feePerGasInDecGwei?: string;
-      maxFeePerGasInDecGwei?: string;
     };
     srcTokenExchangeRate: ExchangeRate;
     destTokenExchangeRate: ExchangeRate;
@@ -430,7 +429,7 @@ export const calcQuoteMetadata = (
     srcTokenExchangeRate = {},
     destTokenExchangeRate = {},
     nativeExchangeRate = {},
-  } = options ?? {};
+  } = options;
 
   const sentAmount = calcSentAmount(quote.quote, srcTokenExchangeRate);
   const toTokenAmount = calcToAmount(

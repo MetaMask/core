@@ -9,10 +9,7 @@ import { getMockBridgeQuotesSolErc20V2 } from '../../../tests/mock-quotes-sol-er
 import type { GenericQuoteRequest, L1GasFees } from '../../types';
 import type { Quote } from '../../validators/quote';
 import { isValidQuoteRequest } from '../../validators/quote-request';
-import {
-  QuoteResponseV1 as QuoteResponse,
-  QuoteResponseV1,
-} from '../../validators/quote-response-v1';
+import { QuoteResponseV1 } from '../../validators/quote-response-v1';
 import type { TxData } from '../../validators/trade';
 import { getNativeAssetForChainId, isNativeAddress } from '../bridge';
 import { formatEtaInMinutes } from '../number-formatters';
@@ -421,7 +418,7 @@ describe('Quote Metadata Utils', () => {
         },
       },
       trade: { value: '0x10A741A462780000' },
-    }) as QuoteResponseV1<TxData>;
+    }) as unknown as QuoteResponseV1<TxData, TxData>;
 
     it('should calculate relayer fee correctly with exchange rates', () => {
       const result = calcRelayerFee(mockBridgeQuote, {
@@ -450,6 +447,7 @@ describe('Quote Metadata Utils', () => {
     it('should calculate relayer fee correctly with no trade.value', () => {
       const result = calcRelayerFee(
         merge({}, mockBridgeQuotesNativeErc20V1[0], {
+          // @ts-expect-error - trade.value is an object
           trade: { ...mockBridgeQuote.trade, value: '0x0' },
         }),
         {
@@ -505,18 +503,17 @@ describe('Quote Metadata Utils', () => {
   });
 
   describe('calcEstimatedAndMaxTotalGasFee', () => {
-    const mockBridgeQuote: QuoteResponse & L1GasFees = {
+    const mockBridgeQuote: QuoteResponseV1<TxData, TxData> & L1GasFees = {
       quote: {} as Quote,
       trade: { gasLimit: 21000 },
       approval: { gasLimit: 46000 },
       l1GasFeesInHexWei: '0x5AF3107A4000',
-    };
+    } as unknown as QuoteResponseV1<TxData, TxData> & L1GasFees;
 
     it('should calculate estimated and max gas fees correctly', () => {
       const result = calcEstimatedAndMaxTotalGasFee({
         bridgeQuote: mockBridgeQuote,
         feePerGasInDecGwei: '52',
-        maxFeePerGasInDecGwei: '102',
         exchangeRate: '2000',
         usdExchangeRate: '1500',
       });
@@ -539,9 +536,8 @@ describe('Quote Metadata Utils', () => {
           ...mockBridgeQuote,
           trade: { gasLimit: 21000, effectiveGas: 10000 },
           approval: { gasLimit: 46000, effectiveGas: 20000 },
-        },
+        } as QuoteResponseV1<TxData, TxData> & L1GasFees,
         feePerGasInDecGwei: '52',
-        maxFeePerGasInDecGwei: '102',
         exchangeRate: '2000',
         usdExchangeRate: '1500',
       });
@@ -562,7 +558,6 @@ describe('Quote Metadata Utils', () => {
       const result = calcEstimatedAndMaxTotalGasFee({
         bridgeQuote: mockBridgeQuote,
         feePerGasInDecGwei: '102',
-        maxFeePerGasInDecGwei: '102',
         exchangeRate: undefined,
         usdExchangeRate: undefined,
       });
@@ -576,7 +571,6 @@ describe('Quote Metadata Utils', () => {
       const result = calcEstimatedAndMaxTotalGasFee({
         bridgeQuote: mockBridgeQuote,
         feePerGasInDecGwei: '102',
-        maxFeePerGasInDecGwei: '102',
         exchangeRate: '2000',
         usdExchangeRate: undefined,
       });
@@ -588,7 +582,6 @@ describe('Quote Metadata Utils', () => {
     it('should handle only USD exchange rate', () => {
       const result = calcEstimatedAndMaxTotalGasFee({
         bridgeQuote: mockBridgeQuote,
-        maxFeePerGasInDecGwei: '102',
         feePerGasInDecGwei: '102',
         exchangeRate: undefined,
         usdExchangeRate: '1500',
@@ -605,12 +598,11 @@ describe('Quote Metadata Utils', () => {
         approval: { gasLimit: 0 },
         l1GasFeesInHexWei: '0x0',
         estimatedProcessingTimeInSeconds: 60,
-      };
+      } as unknown as QuoteResponseV1<TxData, TxData> & L1GasFees;
 
       const result = calcEstimatedAndMaxTotalGasFee({
         bridgeQuote: zeroGasQuote,
         feePerGasInDecGwei: '102',
-        maxFeePerGasInDecGwei: '102',
         exchangeRate: '2000',
         usdExchangeRate: '1500',
       });
@@ -627,12 +619,11 @@ describe('Quote Metadata Utils', () => {
         approval: undefined,
         l1GasFeesInHexWei: '0x5AF3107A4000',
         estimatedProcessingTimeInSeconds: 60,
-      };
+      } as QuoteResponseV1<TxData, TxData> & L1GasFees;
 
       const result = calcEstimatedAndMaxTotalGasFee({
         bridgeQuote: noApprovalQuote,
         feePerGasInDecGwei: '102',
-        maxFeePerGasInDecGwei: '102',
         exchangeRate: '2000',
         usdExchangeRate: '1500',
       });
@@ -647,12 +638,11 @@ describe('Quote Metadata Utils', () => {
         approval: { gasLimit: 46000 },
         l1GasFeesInHexWei: '0x5AF3107A4000',
         estimatedProcessingTimeInSeconds: 60,
-      };
+      } as unknown as QuoteResponseV1<TxData, TxData> & L1GasFees;
 
       const result = calcEstimatedAndMaxTotalGasFee({
         bridgeQuote: noGasLimitQuote,
         feePerGasInDecGwei: '102',
-        maxFeePerGasInDecGwei: '102',
         exchangeRate: '2000',
         usdExchangeRate: '1500',
       });
@@ -667,12 +657,11 @@ describe('Quote Metadata Utils', () => {
         approval: { gasLimit: 500000 } as TxData,
         l1GasFeesInHexWei: '0x1BC16D674EC80000', // 2 ETH in wei
         estimatedProcessingTimeInSeconds: 60,
-      };
+      } as QuoteResponseV1<TxData, TxData> & L1GasFees;
 
       const result = calcEstimatedAndMaxTotalGasFee({
         bridgeQuote: largeGasQuote,
         feePerGasInDecGwei: '210',
-        maxFeePerGasInDecGwei: '210',
         exchangeRate: '3000',
         usdExchangeRate: '2500',
       });
@@ -779,7 +768,7 @@ describe('Quote Metadata Utils', () => {
       destAsset: {
         assetId: 'eip155:10/erc20:0x0000000000000000000000000000000000000000',
       },
-    };
+    } as unknown as Quote;
     it('should calculate adjusted return correctly', () => {
       const result = calcAdjustedReturn(
         mockToAmount,
@@ -825,31 +814,31 @@ describe('Quote Metadata Utils', () => {
 
     it('should handle null values', () => {
       const result = calcCost(
-        { valueInCurrency: null, usd: null },
+        { valueInCurrency: undefined, usd: undefined },
         mockSentAmount,
       );
 
-      expect(result.valueInCurrency).toBeNull();
-      expect(result.usd).toBeNull();
+      expect(result.valueInCurrency).toBeUndefined();
+      expect(result.usd).toBeUndefined();
     });
   });
 
   describe('calcSlippagePercentage', () => {
     it.each([
-      ['100', null, '100', null, '0'],
+      ['100', undefined, '100', undefined, '0'],
       ['95', '95', '100', '100', '5'],
       ['98.3', '98.3', '100', '100', '1.7'],
-      [null, '100', null, '100', '0'],
-      [null, null, null, '100', null],
+      [undefined, '100', undefined, '100', '0'],
+      [undefined, undefined, undefined, '100', null],
       ['105', '105', '100', '100', '5'],
     ])(
       'calcSlippagePercentage: calculate slippage absolute value for received amount %p, usd %p, sent amount %p, usd %p to expected slippage %p',
       (
-        returnValueInCurrency: string | null,
-        returnUsd: string | null,
-        sentValueInCurrency: string | null,
-        sentUsd: string | null,
-        expectedSlippage: string | null,
+        returnValueInCurrency: string | undefined,
+        returnUsd: string | undefined,
+        sentValueInCurrency: string | undefined,
+        sentUsd: string | undefined,
+        expectedSlippage: string | undefined | null,
       ) => {
         const result = calcSlippagePercentage(
           {
@@ -887,7 +876,7 @@ describe('Quote Metadata Utils', () => {
     it('returns undefined when sentAmount.valueInCurrency is null', () => {
       expect(
         calcPriceImpact({
-          sentAmount: { valueInCurrency: null },
+          sentAmount: { valueInCurrency: undefined },
           toTokenAmount: { valueInCurrency: '900' },
         }),
       ).toMatchInlineSnapshot(`

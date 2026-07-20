@@ -1288,7 +1288,7 @@ exports[`BridgeStatusController submitTx: EVM bridge should handle smart transac
       "token_symbol_destination": "ETH",
       "token_symbol_source": "ETH",
       "usd_balance_source": 0,
-      "usd_quoted_gas": 0,
+      "usd_quoted_gas": 2.5778,
       "usd_quoted_return": 0.134214,
       "warnings": [
         "low_return",

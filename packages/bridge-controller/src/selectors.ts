@@ -352,7 +352,6 @@ const selectBridgeQuotesWithMetadata = createBridgeSelector(
     nativeExchangeRate,
   ) => {
     return quotes.map((quote) => {
-      // This is a fallback for client unit tests
       const sourceAssetId = quote.quote.srcAsset.assetId;
       const srcTokenExchangeRate = selectExchangeRateByAssetId(
         exchangeRateSources,
@@ -521,13 +520,13 @@ const selectMetadataSum = createBridgeSelector(
   (recommendedQuotes, key) =>
     recommendedQuotes.reduce<TokenAmountValues>(
       (acc, quote) => {
-        acc.usd = new BigNumber(acc.usd ?? 0)
+        acc.usd = new BigNumber(acc.usd)
           .plus(quote?.[key]?.usd ?? 0)
           .toString();
-        acc.valueInCurrency = new BigNumber(acc.valueInCurrency ?? 0)
+        acc.valueInCurrency = new BigNumber(acc.valueInCurrency)
           .plus(quote?.[key]?.valueInCurrency ?? 0)
           .toString();
-        acc.amount = new BigNumber(acc.amount ?? 0)
+        acc.amount = new BigNumber(acc.amount)
           .plus(quote?.[key]?.amount ?? 0)
           .toString();
         return acc;

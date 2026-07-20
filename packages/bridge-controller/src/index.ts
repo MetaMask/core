@@ -69,6 +69,16 @@ export type {
 } from './types';
 
 export {
+  type QuoteMetadata,
+  type TokenAmountValues,
+} from './utils/quote-metadata/types';
+export {
+  validateQuoteResponseV1,
+  QuoteResponseSchemaV1,
+} from './validators/quote-response-v1';
+export { mergeQuoteMetadata } from './utils/quote-metadata/merge';
+
+export {
   AssetType,
   SortOrder,
   ChainId,
@@ -104,22 +114,13 @@ export {
   isEvmTxData,
   isStellarTrade,
 } from './validators/trade';
-export type { QuoteResponseV1 as QuoteResponse } from './validators/quote-response-v1';
+export type {
+  QuoteResponseV1 as QuoteResponse,
+  QuoteResponseV1,
+} from './validators/quote-response-v1';
 export type { Quote } from './validators/quote';
 export { FeeType, DiscountType } from './validators/quote';
 export { ActionTypes } from './validators/step';
-export {
-  type QuoteResponseV1,
-  validateQuoteResponseV1,
-  QuoteResponseSchemaV1,
-} from './validators/quote-response-v1';
-
-export {
-  type QuoteMetadata,
-  type TokenAmountValues,
-} from './utils/quote-metadata/types';
-
-export { mergeQuoteMetadata } from './utils/quote-metadata/merge';
 
 export {
   validateQuoteStreamComplete,

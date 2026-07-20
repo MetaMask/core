@@ -12,7 +12,7 @@ import {
   formatAddressToAssetId,
   formatChainIdToCaip,
 } from '../caip-formatters';
-import { QuoteMetadata } from '../quote-metadata/types';
+import type { QuoteMetadata } from '../quote-metadata/types';
 import { MetricsSwapType } from './constants';
 import type {
   AccountHardwareType,
@@ -170,7 +170,7 @@ export const getQuotesReceivedProperties = (
     quoted_time_minutes: activeQuote?.estimatedProcessingTimeInSeconds
       ? activeQuote.estimatedProcessingTimeInSeconds / 60
       : 0,
-    usd_quoted_gas: Number(activeQuote?.gasFee?.effective?.usd ?? 0),
+    usd_quoted_gas: Number(activeQuote?.gasFee?.total?.usd ?? 0),
     usd_quoted_return: Number(activeQuote?.toTokenAmount?.usd ?? 0),
     usd_balance_source: usdBalanceSource ?? 0,
     best_quote_provider: recommendedQuote

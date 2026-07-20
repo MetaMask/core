@@ -42,7 +42,7 @@ type QuoteMetadataV1 = {
    * total is the gas fee that is spent by the user, including refunds.
    * max is the max gas fee that will be used by the transaction.
    */
-  gasFee: Record<'effective' | 'total' | 'max', TokenAmountValues>;
+  gasFee: Record<'total', TokenAmountValues>;
   relayerFee?: Partial<TokenAmountValues>; // relayer/provider fee in native units
   /**
    * The total network fee required to submit the trade and any approvals. This includes
