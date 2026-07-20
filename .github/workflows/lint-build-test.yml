@@ -35,14 +35,15 @@ jobs:
       matrix:
         node-version: [24.x]
         script:
-          - lint:eslint
-          - lint:misc:check
+          - codeowners:check
           - constraints
           - lint:dependencies
+          - lint:eslint
+          - lint:misc:check
           - lint:teams
+          - lint:tsconfigs:all
           - messenger-action-types:check
           - readme-content:check
-          - lint:tsconfigs:all
     steps:
       - name: Checkout and setup environment
         uses: MetaMask/action-checkout-and-setup@v3
