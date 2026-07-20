@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Added `FollowTradingTokenScreen` value to `MetaMetricsSwapsEventSource` enum for attributing swap and bridge flows to the follow trading token screen entry point ([#9552](https://github.com/MetaMask/core/pull/9552))
-- Added `FollowTradingFeedScreen` value to `MetaMetricsSwapsEventSource` enum for attributing swap and bridge flows to the follow trading feed screen entry point ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Added `FollowTradingTokenScreen` and `FollowTradingFeedScreen` values to `MetaMetricsSwapsEventSource` enum for attributing swap and bridge flows to follow trading entry points ([#TBD](https://github.com/MetaMask/core/pull/TBD))
+- Added `FollowTrader` value to `MetaMetricsSwapsEventSource` enum for attributing swap and bridge flows to the follow trader entry point ([#9552](https://github.com/MetaMask/core/pull/9552))
 
 ## [77.5.0]
 
