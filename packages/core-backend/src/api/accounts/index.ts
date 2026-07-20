@@ -3,6 +3,7 @@
  */
 
 export { AccountsApiClient } from './client';
+export { V6_DEFI_POSITION_TYPES } from './types';
 export type {
   V5BalanceItem,
   V5BalancesResponse,
@@ -10,6 +11,7 @@ export type {
   V2BalancesResponse,
   V4BalancesResponse,
   V6VsCurrency,
+  V6DeFiPositionType,
   V6BalanceMetadata,
   V6TokenMetadata,
   V6BalanceItem,

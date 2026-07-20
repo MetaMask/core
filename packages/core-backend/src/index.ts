@@ -121,6 +121,7 @@ export {
   API_URLS,
   STALE_TIMES,
   GC_TIMES,
+  V6_DEFI_POSITION_TYPES,
   // Helpers
   calculateRetryDelay,
   getQueryOptionsOverrides,
@@ -148,6 +149,7 @@ export type {
   V2BalancesResponse,
   V4BalancesResponse,
   V6VsCurrency,
+  V6DeFiPositionType,
   V6BalanceMetadata,
   V6TokenMetadata,
   V6BalanceItem,
