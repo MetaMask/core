@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `BOTTOM_NAV_BAR` to `PERPS_EVENT_VALUE.SOURCE` for bottom navigation bar analytics attribution
+
 ### Changed
 
 - Bump `@metamask/account-tree-controller` from `^7.5.3` to `7.5.4` ([#9429](https://github.com/MetaMask/core/pull/9429))

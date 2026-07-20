@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add `BottomNavBar` value to `MetaMetricsSwapsEventSource` for attributing swap and bridge flows to the bottom navigation bar entry point
+
 ## [77.5.0]
 
 ### Added
