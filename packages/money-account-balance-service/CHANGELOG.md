@@ -9,9 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add `fetchBalanceWithFallback` facade that selects Money API or RPC balance sources from the `moneyAccountBalanceSource` remote feature flag (`api` | `rpc` | `api-only` | `rpc-only`; default `api` = API primary with RPC fallback). Returns canonical amounts plus `source` and `usedFallback` provenance; throws `MoneyAccountBalanceFetchError` when all eligible sources fail.
-- Permit `MoneyAccountApiDataService:fetchPositions` on the balance service messenger so the facade can read Money API balances.
-- Export `CanonicalMoneyAccountBalanceResponse`, balance-source constants/types, and `MoneyAccountBalanceFetchError` / `MoneyAccountBalanceUnavailableError` / `MoneyAccountBalanceValidationError`.
+- Add `fetchBalanceWithFallback` facade that selects Money API or RPC balance sources from the `moneyAccountBalanceSource` remote feature flag (`api` | `rpc` | `api-only` | `rpc-only`; default `api` = API primary with RPC fallback). Returns canonical amounts plus `source` and `usedFallback` provenance; throws `MoneyAccountBalanceFetchError` when all eligible sources fail. ([#9554](https://github.com/MetaMask/core/pull/9554))
+- Permit `MoneyAccountApiDataService:fetchPositions` on the balance service messenger so the facade can read Money API balances. ([#9554](https://github.com/MetaMask/core/pull/9554))
+- Export `CanonicalMoneyAccountBalanceResponse`, balance-source constants/types, and `MoneyAccountBalanceFetchError` / `MoneyAccountBalanceUnavailableError` / `MoneyAccountBalanceValidationError`. ([#9554](https://github.com/MetaMask/core/pull/9554))
 
 ## [2.2.0]
 

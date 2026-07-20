@@ -1641,12 +1641,13 @@ describe('MoneyAccountBalanceService', () => {
     };
 
     it('returns API balance by default (API primary) without using fallback', async () => {
-      const mockFetchPositions = jest.fn().mockResolvedValue(MOCK_API_POSITIONS);
+      const mockFetchPositions = jest
+        .fn()
+        .mockResolvedValue(MOCK_API_POSITIONS);
       const { service } = createService({ mockFetchPositions });
 
-      const result = await service.fetchBalanceWithFallback(
-        MOCK_ACCOUNT_ADDRESS,
-      );
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
 
       expect(result).toStrictEqual({
         musdBalance: '2',
@@ -1675,14 +1676,43 @@ describe('MoneyAccountBalanceService', () => {
         mockFetchPositions,
       });
 
-      const result = await service.fetchBalanceWithFallback(
-        MOCK_ACCOUNT_ADDRESS,
-      );
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
 
       expect(result).toStrictEqual({
         musdBalance: '5000000',
         vmusdValueInMusd: '2200000',
         totalBalance: '7200000',
+        source: 'rpc',
+        usedFallback: true,
+      });
+    });
+
+    it('falls back to RPC when API balance is omitted', async () => {
+      mockMoneyAccountBalanceMulticall({
+        musdBalance: '9',
+        vmusdValueInMusd: '1',
+      });
+      const { balance: _omittedBalance, ...positionsWithoutBalance } =
+        MOCK_API_POSITIONS;
+      const mockFetchPositions = jest
+        .fn()
+        .mockResolvedValue(positionsWithoutBalance);
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+        mockFetchPositions,
+      });
+
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({
+        musdBalance: '9',
+        vmusdValueInMusd: '1',
+        totalBalance: '10',
         source: 'rpc',
         usedFallback: true,
       });
@@ -1704,9 +1734,8 @@ describe('MoneyAccountBalanceService', () => {
         mockFetchPositions,
       });
 
-      const result = await service.fetchBalanceWithFallback(
-        MOCK_ACCOUNT_ADDRESS,
-      );
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
 
       expect(result).toStrictEqual({
         musdBalance: '7',
@@ -1738,14 +1767,46 @@ describe('MoneyAccountBalanceService', () => {
         mockFetchPositions,
       });
 
-      const result = await service.fetchBalanceWithFallback(
-        MOCK_ACCOUNT_ADDRESS,
-      );
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
 
       expect(result).toStrictEqual({
         musdBalance: '1',
         vmusdValueInMusd: '2',
         totalBalance: '3',
+        source: 'rpc',
+        usedFallback: true,
+      });
+    });
+
+    it('falls back to RPC when API balance contains a non-integer amount', async () => {
+      mockMoneyAccountBalanceMulticall({
+        musdBalance: '5',
+        vmusdValueInMusd: '5',
+      });
+      const mockFetchPositions = jest.fn().mockResolvedValue({
+        ...MOCK_API_POSITIONS,
+        balance: {
+          musd_balance: '1.5',
+          vmusd_value_in_musd: '2',
+          total_balance: '3.5',
+        },
+      });
+      const { service } = createService({
+        rffcFlags: {
+          [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+            MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        },
+        mockFetchPositions,
+      });
+
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
+
+      expect(result).toStrictEqual({
+        musdBalance: '5',
+        vmusdValueInMusd: '5',
+        totalBalance: '10',
         source: 'rpc',
         usedFallback: true,
       });
@@ -1766,9 +1827,8 @@ describe('MoneyAccountBalanceService', () => {
         mockFetchPositions,
       });
 
-      const result = await service.fetchBalanceWithFallback(
-        MOCK_ACCOUNT_ADDRESS,
-      );
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
 
       expect(result).toStrictEqual({
         musdBalance: '5000000',
@@ -1781,7 +1841,9 @@ describe('MoneyAccountBalanceService', () => {
     });
 
     it('falls back to API when RPC primary fails and the flag is rpc', async () => {
-      const mockFetchPositions = jest.fn().mockResolvedValue(MOCK_API_POSITIONS);
+      const mockFetchPositions = jest
+        .fn()
+        .mockResolvedValue(MOCK_API_POSITIONS);
       const { service } = createService({
         rffcFlags: {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]:
@@ -1806,9 +1868,8 @@ describe('MoneyAccountBalanceService', () => {
           }) as unknown as Contract,
       );
 
-      const result = await service.fetchBalanceWithFallback(
-        MOCK_ACCOUNT_ADDRESS,
-      );
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
 
       expect(result).toStrictEqual({
         musdBalance: '2',
@@ -1852,7 +1913,9 @@ describe('MoneyAccountBalanceService', () => {
             },
           }) as unknown as Contract,
       );
-      const mockFetchPositions = jest.fn().mockResolvedValue(MOCK_API_POSITIONS);
+      const mockFetchPositions = jest
+        .fn()
+        .mockResolvedValue(MOCK_API_POSITIONS);
       const { service } = createService({
         rffcFlags: {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]:
@@ -1906,7 +1969,9 @@ describe('MoneyAccountBalanceService', () => {
     });
 
     it('defaults to api policy when the source flag is malformed', async () => {
-      const mockFetchPositions = jest.fn().mockResolvedValue(MOCK_API_POSITIONS);
+      const mockFetchPositions = jest
+        .fn()
+        .mockResolvedValue(MOCK_API_POSITIONS);
       const { service } = createService({
         rffcFlags: {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_VAULT_CONFIG,
@@ -1915,9 +1980,8 @@ describe('MoneyAccountBalanceService', () => {
         mockFetchPositions,
       });
 
-      const result = await service.fetchBalanceWithFallback(
-        MOCK_ACCOUNT_ADDRESS,
-      );
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
 
       expect(result.source).toBe('api');
       expect(result.usedFallback).toBe(false);
@@ -1928,7 +1992,9 @@ describe('MoneyAccountBalanceService', () => {
         musdBalance: '5000000',
         vmusdValueInMusd: '2200000',
       });
-      const mockFetchPositions = jest.fn().mockResolvedValue(MOCK_API_POSITIONS);
+      const mockFetchPositions = jest
+        .fn()
+        .mockResolvedValue(MOCK_API_POSITIONS);
       const { service, rootMessenger } = createService({
         rffcFlags: {
           [VAULT_CONFIG_FEATURE_FLAG_KEY]:
@@ -1938,20 +2004,22 @@ describe('MoneyAccountBalanceService', () => {
       });
 
       publishRFFCStateChange(rootMessenger, {
-        [VAULT_CONFIG_FEATURE_FLAG_KEY]: MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
+        [VAULT_CONFIG_FEATURE_FLAG_KEY]:
+          MOCK_VAULT_CONFIG_WITH_UNDERLYING_TOKEN,
         [MONEY_ACCOUNT_BALANCE_SOURCE_FEATURE_FLAG_KEY]: 'rpc-only',
       });
 
-      const result = await service.fetchBalanceWithFallback(
-        MOCK_ACCOUNT_ADDRESS,
-      );
+      const result =
+        await service.fetchBalanceWithFallback(MOCK_ACCOUNT_ADDRESS);
 
       expect(result.source).toBe('rpc');
       expect(mockFetchPositions).not.toHaveBeenCalled();
     });
 
     it('is callable via messenger action', async () => {
-      const mockFetchPositions = jest.fn().mockResolvedValue(MOCK_API_POSITIONS);
+      const mockFetchPositions = jest
+        .fn()
+        .mockResolvedValue(MOCK_API_POSITIONS);
       const { rootMessenger, service } = createService({ mockFetchPositions });
 
       const result = await rootMessenger.call(

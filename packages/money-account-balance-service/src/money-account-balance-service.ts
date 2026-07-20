@@ -128,9 +128,7 @@ const NON_NEGATIVE_INTEGER_STRING_PATTERN = /^\d+$/u;
  * @param balance - Balance amounts to validate.
  * @throws {@link MoneyAccountBalanceValidationError} when validation fails.
  */
-function assertValidBalanceAmounts(
-  balance: MoneyAccountBalanceResponse,
-): void {
+function assertValidBalanceAmounts(balance: MoneyAccountBalanceResponse): void {
   const entries: [keyof MoneyAccountBalanceResponse, string][] = [
     ['musdBalance', balance.musdBalance],
     ['vmusdValueInMusd', balance.vmusdValueInMusd],
@@ -156,6 +154,19 @@ function assertValidBalanceAmounts(
 }
 
 /**
+ * Routing table from policy to primary/fallback sources.
+ */
+const BALANCE_ROUTING_BY_POLICY: Record<
+  BalanceSourcePolicy,
+  { primary: BalanceSource; fallback: BalanceSource | null }
+> = {
+  api: { primary: 'api', fallback: 'rpc' },
+  rpc: { primary: 'rpc', fallback: 'api' },
+  'api-only': { primary: 'api', fallback: null },
+  'rpc-only': { primary: 'rpc', fallback: null },
+};
+
+/**
  * Resolves primary and optional fallback sources from a routing policy.
  *
  * @param policy - The active balance source policy.
@@ -165,20 +176,7 @@ function resolveBalanceRouting(policy: BalanceSourcePolicy): {
   primary: BalanceSource;
   fallback: BalanceSource | null;
 } {
-  switch (policy) {
-    case 'api':
-      return { primary: 'api', fallback: 'rpc' };
-    case 'rpc':
-      return { primary: 'rpc', fallback: 'api' };
-    case 'api-only':
-      return { primary: 'api', fallback: null };
-    case 'rpc-only':
-      return { primary: 'rpc', fallback: null };
-    default: {
-      const _exhaustive: never = policy;
-      return _exhaustive;
-    }
-  }
+  return BALANCE_ROUTING_BY_POLICY[policy];
 }
 
 // === MESSENGER ===
@@ -758,11 +756,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
     const errors: unknown[] = [];
 
     try {
-      return await this.#fetchBalanceFromSource(
-        accountAddress,
-        primary,
-        false,
-      );
+      return await this.#fetchBalanceFromSource(accountAddress, primary, false);
     } catch (primaryError) {
       errors.push(primaryError);
       balanceLogger('Primary balance source failed', {
@@ -776,11 +770,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
     }
 
     try {
-      return await this.#fetchBalanceFromSource(
-        accountAddress,
-        fallback,
-        true,
-      );
+      return await this.#fetchBalanceFromSource(accountAddress, fallback, true);
     } catch (fallbackError) {
       errors.push(fallbackError);
       balanceLogger('Fallback balance source failed', {
@@ -832,7 +822,7 @@ export class MoneyAccountBalanceService extends BaseDataService<
       accountAddress,
     );
 
-    if (positions.balance == null) {
+    if (positions.balance === undefined || positions.balance === null) {
       throw new MoneyAccountBalanceUnavailableError(
         'Money API returned a null or missing balance',
       );
