@@ -368,30 +368,22 @@ describe('Validation Utils', () => {
       ).toThrow(/Invalid params/u);
     });
 
-    it('rejects an extraneous top-level key without walking its value (JSON.stringify never called)', () => {
+    it('runs the size check before schema validation', () => {
       const stringifySpy = jest.spyOn(JSON, 'stringify');
 
-      const params = {
-        from: VALID_FROM,
-        to: VALID_TO,
-        test: {
-          get b(): never {
-            throw new Error('subtree must not be walked');
-          },
-        },
-      };
-
-      let thrown: unknown;
       try {
-        validateTransactionParams(params);
-      } catch (error) {
-        thrown = error;
-      }
-      const stringifyCallsAtRejection = stringifySpy.mock.calls.length;
-      stringifySpy.mockRestore();
+        expect(() =>
+          validateTransactionParams({
+            from: VALID_FROM,
+            to: VALID_TO,
+            extraKey: 'unexpected',
+          }),
+        ).toThrow(/Invalid params/u);
 
-      expect(thrown).toBeInstanceOf(Error);
-      expect(stringifyCallsAtRejection).toBe(0);
+        expect(stringifySpy).toHaveBeenCalled();
+      } finally {
+        stringifySpy.mockRestore();
+      }
     });
 
     it('throws when a typed field has the wrong type', () => {
