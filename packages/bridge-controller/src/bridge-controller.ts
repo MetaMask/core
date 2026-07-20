@@ -10,6 +10,7 @@ import { StaticIntervalPollingController } from '@metamask/polling-controller';
 import type { TransactionController } from '@metamask/transaction-controller';
 import type { CaipAssetType, Hex } from '@metamask/utils';
 
+import { toQuoteResponseV2 } from './coercers/quote-response-v1-to-v2';
 import type { BridgeClientId } from './constants/bridge';
 import {
   BRIDGE_CONTROLLER_NAME,
@@ -94,6 +95,7 @@ import {
   isValidQuoteRequest,
   isValidBatchSellQuoteRequest,
 } from './validators/quote-request';
+import type { QuoteResponse } from './validators/quote-response';
 import type { QuoteResponseV1 } from './validators/quote-response-v1';
 
 const metadata: StateMetadata<BridgeControllerState> = {
@@ -431,13 +433,21 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
     );
 
     this.#trackQuoteValidationFailures(validationFailures, featureId);
+    const srcChainIds = Array.from(
+      new Set(baseQuotes.map((quote) => quote.quote.srcChainId)),
+    ).filter(Boolean);
 
-    const quotesWithFees = await appendFeesToQuotes(
-      baseQuotes,
-      this.messenger,
-      this.#getLayer1GasFee,
-      this.#getMultichainSelectedAccount(quoteRequest.walletAddress),
-    );
+    const quotesWithFees =
+      srcChainIds.length > 1 || srcChainIds.length === 0
+        ? // Don't append fees if there are multiple srcChainIds
+          baseQuotes
+        : await appendFeesToQuotes(
+            formatChainIdToCaip(srcChainIds[0]),
+            baseQuotes,
+            this.messenger,
+            this.#getLayer1GasFee,
+            this.#getMultichainSelectedAccount(quoteRequest.walletAddress),
+          );
 
     return sortQuotes(quotesWithFees, featureId);
   };
@@ -451,7 +461,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
    * @param stxEnabled - Flag to estimate gas cost more precisely for the batch sell feature.
    */
   updateBatchSellTrades = async (
-    quotes: (QuoteResponseV1 | null)[],
+    quotes: (QuoteResponse | null)[],
     stxEnabled: boolean,
   ): Promise<void> => {
     this.#batchSellTradesAbortController?.abort(
@@ -895,7 +905,7 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
               state.quotesInitialLoadTime =
                 Date.now() - this.#quotesFirstFetched;
             }
-            state.quotes = quotes;
+            state.quotes = quotes.map(toQuoteResponseV2);
             state.quotesLoadingStatus = RequestStatus.FETCHED;
           });
         },
@@ -994,9 +1004,10 @@ export class BridgeController extends StaticIntervalPollingController<BridgePoll
       {
         onQuoteValidationFailure: (validationFailures) =>
           this.#trackQuoteValidationFailures(validationFailures, featureId),
-        onValidQuoteReceived: async (quote: QuoteResponseV1) => {
+        onValidQuoteReceived: async (quote: QuoteResponse) => {
           const feeAppendPromise = (async () => {
             const quotesWithFees = await appendFeesToQuotes(
+              quote.chainId,
               [quote],
               this.messenger,
               this.#getLayer1GasFee,

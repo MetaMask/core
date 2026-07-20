@@ -2,13 +2,13 @@
 import {
   formatChainIdToCaip,
   isCrossChain,
-  QuoteResponse,
+  QuoteResponseV1,
 } from '@metamask/bridge-controller';
 
 import { TraceName } from '../constants';
 
 export const getTraceParams = (
-  quoteResponse: QuoteResponse,
+  quoteResponse: QuoteResponseV1,
   isStxEnabled: boolean,
 ) => {
   return {
@@ -26,7 +26,7 @@ export const getTraceParams = (
 };
 
 export const getApprovalTraceParams = (
-  quoteResponse: QuoteResponse,
+  quoteResponse: QuoteResponseV1,
   isStxEnabled: boolean,
 ) => {
   return {

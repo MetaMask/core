@@ -272,7 +272,7 @@ type RequiredEventContextFromClientBase = {
     } & InputPrimaryDenominationData;
   [UnifiedSwapBridgeEventName.Failed]: (
     | // Tx failed before confirmation
-      (Pick<
+    (Pick<
         RequestMetadata,
         | 'stx_enabled'
         | 'usd_amount_source'
@@ -310,7 +310,7 @@ type RequiredEventContextFromClientBase = {
   // Emitted by clients
   [UnifiedSwapBridgeEventName.AllQuotesOpened]: Pick<
     TradeData,
-    'gas_included'
+    'gas_included' | 'gas_included_7702'
   > &
     Pick<QuoteFetchData, 'price_impact'> &
     Pick<RequestParams, 'token_symbol_source' | 'token_symbol_destination'> & {

@@ -10,10 +10,15 @@ import {
 } from '@metamask/superstruct';
 import type { Infer } from '@metamask/superstruct';
 
+import { AmountsAndAssetSchema } from './amount-and-asset';
 import { ChainIdSchema, BridgeAssetSchema } from './bridge-asset';
 import { IntentSchema } from './intent';
-import { TruthyDigitStringSchema, NumberStringSchema } from './number';
-import { RefuelDataSchema, StepSchema } from './step';
+import {
+  TruthyDigitStringSchema,
+  NumberStringSchema,
+  FloatStringSchema,
+} from './number';
+import { RefuelDataSchema, StepSchema, StepSchemaV2 } from './step';
 
 export enum FeeType {
   METABRIDGE = 'metabridge',
@@ -93,6 +98,8 @@ export const QuoteSchema = intersection([
     bridgeId: string(),
     bridges: array(string()),
     // TODO require this after v2 migration
+    protocols: optional(array(string())),
+    // TODO require this after v2 migration
     aggregator: optional(string()),
     steps: array(StepSchema),
     refuel: optional(RefuelDataSchema),
@@ -108,9 +115,89 @@ export const QuoteSchema = intersection([
     walletAddress: optional(string()),
     destWalletAddress: optional(string()),
     slippage: optional(number()),
-    // TODO require this after v2 migration
-    protocols: optional(array(string())),
   }),
 ]);
 
 export type Quote = Infer<typeof QuoteSchema>;
+
+export const QuoteSchemaV2 = intersection([
+  GaslessPropertiesSchema,
+  type({
+    requestId: string(),
+    src: intersection([
+      AmountsAndAssetSchema,
+      type({
+        // amount: NumberStringSchema,
+        walletAddress: optional(string()),
+      }),
+    ]),
+    dest: intersection([
+      AmountsAndAssetSchema,
+      type({
+        // amount: NumberStringSchema,
+        minAmount: optional(string()),
+        minAmountUsd: optional(string()),
+        minAmountValueInCurrency: optional(string()),
+        minAmountNormalized: optional(string()),
+        walletAddress: optional(string()),
+      }),
+    ]),
+    priceData: optional(
+      type({
+        swapRate: optional(FloatStringSchema),
+        priceImpact: optional(
+          type({
+            usd: optional(nullable(FloatStringSchema)),
+            amount: optional(nullable(FloatStringSchema)),
+            valueInCurrency: optional(FloatStringSchema),
+          }),
+        ),
+        cost: optional(
+          type({
+            usd: optional(nullable(FloatStringSchema)),
+            valueInCurrency: optional(nullable(FloatStringSchema)),
+          }),
+        ),
+        adjustedReturn: optional(
+          type({
+            usd: nullable(optional(FloatStringSchema)),
+            valueInCurrency: nullable(optional(FloatStringSchema)),
+          }),
+        ),
+      }),
+    ),
+    feeData: type({
+      [FeeType.METABRIDGE]: array(
+        intersection([
+          AmountsAndAssetSchema,
+          type({
+            quoteBpsFee: optional(number()),
+            baseBpsFee: optional(number()),
+            discountType: optional(nullable(string())),
+          }),
+        ]),
+      ),
+      [FeeType.REFUEL]: optional(array(AmountsAndAssetSchema)),
+      /**
+       * The tx fees included in the quote for gasless execution
+       */
+      [FeeType.TX_FEE]: optional(
+        array(intersection([AmountsAndAssetSchema, TxFeeGasLimitsSchema])),
+      ),
+      /**
+       * The gas fees for the quote, excluding any provider or relayer fees
+       */
+      [FeeType.NETWORK]: optional(array(AmountsAndAssetSchema)),
+      /**
+       * The relayer or provider fees for the quote,
+       */
+      [FeeType.RELAYER]: optional(array(AmountsAndAssetSchema)),
+    }),
+    aggregator: string(),
+    protocols: array(string()),
+    steps: optional(array(StepSchemaV2)),
+    refuel: optional(StepSchema),
+    intent: optional(IntentSchema),
+    slippage: optional(number()),
+  }),
+]);

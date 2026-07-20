@@ -18,11 +18,7 @@ import {
   SYMBOL_TO_SLIP44_MAP,
 } from '../constants/tokens';
 import type { SupportedSwapsNativeCurrencySymbols } from '../constants/tokens';
-import type {
-  BridgeAsset,
-  BridgeControllerState,
-  GenericQuoteRequest,
-} from '../types';
+import type { BridgeControllerState, GenericQuoteRequest } from '../types';
 import { ChainId } from '../types';
 import type { BridgeAsset } from '../validators/bridge-asset';
 import type { QuoteResponseV1 } from '../validators/quote-response-v1';

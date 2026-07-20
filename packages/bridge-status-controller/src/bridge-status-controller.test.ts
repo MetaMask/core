@@ -3,7 +3,7 @@
 import { deriveStateFromMetadata } from '@metamask/base-controller';
 import type {
   BridgeControllerMessenger,
-  QuoteResponse,
+  QuoteResponseV1,
   QuoteMetadata,
   TxData,
   TronTradeData,
@@ -19,6 +19,8 @@ import {
   UnifiedSwapBridgeEventName,
   MetaMetricsSwapsEventSource,
   mergeQuoteMetadata,
+  validateQuoteResponseV1,
+  toQuoteResponseV2,
 } from '@metamask/bridge-controller';
 import { Messenger, MOCK_ANY_NAMESPACE } from '@metamask/messenger';
 import type {
@@ -2191,7 +2193,7 @@ describe('BridgeStatusController', () => {
   });
 
   describe('submitTx: Solana bridge', () => {
-    const mockQuote: QuoteResponse<string> = {
+    const mockQuote: QuoteResponseV1<string> = {
       quote: {
         requestId: '123',
         srcChainId: ChainId.SOLANA,
@@ -2424,7 +2426,7 @@ describe('BridgeStatusController', () => {
   });
 
   describe('submitTx: Solana swap', () => {
-    const mockQuoteResponse: QuoteResponse<string> & QuoteMetadata = {
+    const mockQuoteResponse: QuoteResponseV1<string> & QuoteMetadata = {
       quote: {
         requestId: '123',
         srcChainId: ChainId.SOLANA,
@@ -2677,7 +2679,7 @@ describe('BridgeStatusController', () => {
         '0a02aabb22084dde86d0f68ae3e5403a680801b2630a31747970652e676f6f676c65617069732e636f6d2f70726f746f636f6c2e54726967676572536d617274436f6e747261637412330a15418f7ea8cce9f8bba67d7ae59cd49a1965d617e71b121541a614f803b6fd780986a42c78ec9c7f77e6ded13c',
     };
 
-    const mockQuoteResponse: QuoteResponse<TronTradeData, TronTradeData> &
+    const mockQuoteResponse: QuoteResponseV1<TronTradeData, TronTradeData> &
       QuoteMetadata = {
       quote: {
         requestId: '123',
@@ -2944,7 +2946,8 @@ describe('BridgeStatusController', () => {
         chainId: 42161,
         gasLimit: 21000,
       },
-    } as QuoteResponse & QuoteMetadata;
+    };
+    validateQuoteResponseV1(mockEvmQuoteResponse);
 
     const mockEvmTxMeta = {
       id: 'test-tx-id',
@@ -3157,7 +3160,7 @@ describe('BridgeStatusController', () => {
         }) => {
           const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
           const quoteResponseV2 = mergeQuoteMetadata(
-            quoteWithoutApproval,
+            toQuoteResponseV2(quoteWithoutApproval),
             quoteWithoutApproval,
           );
           const quotesReceivedContext = getQuotesReceivedProperties(
@@ -4388,6 +4391,35 @@ describe('BridgeStatusController', () => {
       });
       mockMessengerCall.mockReturnValueOnce(mockSelectedAccount);
 
+      const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
+      const mockQuote = {
+        ...quoteWithoutApproval,
+        quote: {
+          ...quoteWithoutApproval.quote,
+          gasIncluded: true,
+          gasIncluded7702: false,
+          feeData: {
+            ...quoteWithoutApproval.quote.feeData,
+            txFee: {
+              amount: '100',
+              asset: mockEvmQuoteResponse.quote.feeData.metabridge.asset,
+              maxFeePerGas: '1395348', // Decimal string from quote
+              maxPriorityFeePerGas: '1000001',
+            },
+          },
+        },
+        trade: {
+          ...(quoteWithoutApproval.trade as TxData),
+          gasLimit: null,
+        },
+        sentAmount: {
+          amount: undefined,
+          valueInCurrency: undefined,
+          usd: undefined,
+        },
+      };
+      validateQuoteResponseV1(mockQuote);
+
       await withController(
         { mockMessengerCall },
         async ({
@@ -4395,36 +4427,10 @@ describe('BridgeStatusController', () => {
           rootMessenger,
           startPollingForBridgeTxStatusSpy,
         }) => {
-          const { approval, ...quoteWithoutApproval } = mockEvmQuoteResponse;
           const result = await rootMessenger.call(
             'BridgeStatusController:submitTx',
             (mockEvmQuoteResponse.trade as TxData).from,
-            {
-              ...quoteWithoutApproval,
-              quote: {
-                ...quoteWithoutApproval.quote,
-                gasIncluded: true,
-                gasIncluded7702: false,
-                feeData: {
-                  ...quoteWithoutApproval.quote.feeData,
-                  txFee: {
-                    amount: '100',
-                    asset: quoteWithoutApproval.quote.feeData.metabridge.asset,
-                    maxFeePerGas: '1395348', // Decimal string from quote
-                    maxPriorityFeePerGas: '1000001',
-                  },
-                },
-              },
-              trade: {
-                ...(quoteWithoutApproval.trade as TxData),
-                gasLimit: null,
-              },
-              sentAmount: {
-                amount: null as never,
-                valueInCurrency: null,
-                usd: null,
-              },
-            },
+            mockQuote,
             false, // isStxEnabledOnClient = FALSE (key for this test)
           );
           controller.stopAllPolling();
@@ -6617,7 +6623,7 @@ describe('BridgeStatusController', () => {
       const EVM_TX_META_ID = 'evmEarlyTxMetaId';
       const EVM_QUOTE_ID = 'evm-early-quote-1';
 
-      const mockEvmSwapQuoteResponse = {
+      const mockEvmSwapQuoteResponse: QuoteResponseV1 & QuoteMetadata = {
         ...getMockQuote({ srcChainId: 42161, destChainId: 42161 }),
         quoteId: EVM_QUOTE_ID,
         quote: {

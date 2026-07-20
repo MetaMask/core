@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **BREAKING:** Store streamed quotes as QuoteResponse v2 in the BridgeController. This affects the batch-sell, unified swap/bridge and quickBuy experiences
 - **BREAKING:** Make `QuoteMetadata` fields optional and remove unused values
   - Remove falsy (`0` and `null`) fallbacks; missing values are now `undefined`
   - Replace `gasFee.effective`, `gasFee.max`, and `totalMaxNetworkFee` usages with `gasFee.total` and `totalNetworkFee`.

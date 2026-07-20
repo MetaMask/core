@@ -5,6 +5,7 @@ import {
   weiHexToGweiDec,
 } from '@metamask/controller-utils';
 import { is } from '@metamask/superstruct';
+import { KnownCaipNamespace } from '@metamask/utils';
 import { BigNumber } from 'bignumber.js';
 
 import type {
@@ -12,12 +13,11 @@ import type {
   ExchangeRate,
   NonEvmFees,
   DeepPartial,
-  BridgeAsset,
 } from '../../types';
+import type { BridgeAsset, BridgeAssetV2 } from '../../validators/bridge-asset';
 import { FloatStringSchema } from '../../validators/number';
-import type { QuoteResponseV1 as QuoteResponse } from '../../validators/quote-response-v1';
-import { TxData } from '../../validators/trade';
-import { isEvmQuoteResponse, isNativeAddress } from '../bridge';
+import type { QuoteResponse } from '../../validators/quote-response';
+import { isNativeAddress } from '../bridge';
 import { calcTokenAmount } from '../number-formatters';
 import type { QuoteMetadata, TokenAmountValues } from './types';
 
@@ -40,7 +40,7 @@ export const calcNonEvmTotalNetworkFee = (
 
 export const calcToAmount = (
   destTokenAmount: string | undefined,
-  destAsset: BridgeAsset,
+  destAsset: BridgeAssetV2,
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
   const normalizedDestAmount = calcTokenAmount(
@@ -57,35 +57,16 @@ export const calcToAmount = (
 };
 
 export const calcSentAmount = (
-  { srcTokenAmount, srcAsset, feeData, intent }: QuoteResponse['quote'],
+  { src: { amount, asset } }: QuoteResponse['quote'],
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
-  // For intent-based swaps (e.g. CoW Protocol), srcTokenAmount is the total
-  // fixed commitment the user makes to the protocol — the protocol fee is
-  // already baked in. Adding feeData fees on top would double-count them.
-  // For conventional swaps, srcTokenAmount is the net routing amount (fees
-  // excluded), so the src-token fees must be added to get the wallet deduction.
-  const sentAmount = intent
-    ? new BigNumber(srcTokenAmount)
-    : Object.values(feeData)
-        .filter(
-          (fee) =>
-            fee?.amount &&
-            fee.asset?.assetId?.toLowerCase() ===
-              srcAsset.assetId?.toLowerCase(),
-        )
-        .reduce(
-          (acc, { amount }) => acc.plus(amount),
-          new BigNumber(srcTokenAmount),
-        );
-  const normalizedSentAmount = calcTokenAmount(sentAmount, srcAsset.decimals);
+  const normalizedSentAmount = calcTokenAmount(amount, asset.decimals);
   return {
-    amount: normalizedSentAmount?.toString(),
+    amount: normalizedSentAmount?.toFixed(),
     valueInCurrency:
-      exchangeRate && normalizedSentAmount?.times(exchangeRate).toString(),
+      exchangeRate && normalizedSentAmount?.times(exchangeRate).toFixed(),
     usd:
-      usdExchangeRate &&
-      normalizedSentAmount?.times(usdExchangeRate).toString(),
+      usdExchangeRate && normalizedSentAmount?.times(usdExchangeRate).toFixed(),
   };
 };
 
@@ -97,7 +78,8 @@ export const calcBatchFees = (
   const normalizedAmount = calcTokenAmount(amount, asset.decimals);
 
   return {
-    amount: normalizedAmount?.toString(),
+    amount,
+    normalizedAmount: normalizedAmount?.toString(),
     valueInCurrency: exchangeRate
       ? normalizedAmount?.times(exchangeRate).toString()
       : null,
@@ -109,7 +91,7 @@ export const calcBatchFees = (
 };
 
 export const calcRelayerFee = (
-  quoteResponse: QuoteResponse<TxData>,
+  quoteResponse: QuoteResponse & { namespace: KnownCaipNamespace.Eip155 },
   { exchangeRate, usdExchangeRate }: ExchangeRate,
 ) => {
   const { quote, trade } = quoteResponse;
@@ -121,7 +103,7 @@ export const calcRelayerFee = (
     : undefined;
 
   // Subtract srcAmount and other fees from trade value if srcAsset is native
-  if (isNativeAddress(quote.srcAsset.assetId)) {
+  if (isNativeAddress(quote.src.asset.assetId)) {
     const sentAmountInNative = calcSentAmount(quote, {
       exchangeRate,
       usdExchangeRate,
@@ -197,7 +179,9 @@ export const calcEstimatedAndMaxTotalGasFee = ({
   exchangeRate: nativeToDisplayCurrencyExchangeRate,
   usdExchangeRate: nativeToUsdExchangeRate,
 }: {
-  bridgeQuote: QuoteResponse<TxData, TxData> & L1GasFees;
+  bridgeQuote: QuoteResponse & {
+    namespace: KnownCaipNamespace.Eip155;
+  } & L1GasFees;
   feePerGasInDecGwei?: string;
 } & ExchangeRate) => {
   // Estimated total gas fee, including refunded fees (medium)
@@ -257,7 +241,7 @@ export const calcIncludedTxFees = (
   {
     gasIncluded,
     gasIncluded7702,
-    srcAsset,
+    src: { asset: srcAsset },
     feeData: { txFee },
   }: QuoteResponse['quote'],
   srcTokenExchangeRate: ExchangeRate,
@@ -268,12 +252,12 @@ export const calcIncludedTxFees = (
   }
   // Use exchange rate of the token that is being used to pay for the transaction
   const { exchangeRate, usdExchangeRate } =
-    txFee?.asset.assetId === srcAsset.assetId
+    txFee?.[0].asset.assetId === srcAsset.assetId
       ? srcTokenExchangeRate
       : destTokenExchangeRate;
   const normalizedTxFeeAmount = calcTokenAmount(
-    txFee?.amount,
-    txFee?.asset.decimals,
+    txFee?.[0].amount,
+    txFee?.[0].asset.decimals,
   );
 
   return {
@@ -291,11 +275,13 @@ export const calcAdjustedReturn = (
   totalEstimatedNetworkFee: Partial<TokenAmountValues>,
   {
     feeData: { txFee },
-    destAsset: { assetId: destAssetId },
+    dest: {
+      asset: { assetId: destAssetId },
+    },
   }: QuoteResponse['quote'],
 ) => {
   // If gas is included and is taken from the dest token, don't subtract network fee from return
-  if (txFee?.asset?.assetId?.toLowerCase() === destAssetId.toLowerCase()) {
+  if (txFee?.[0]?.asset?.assetId?.toLowerCase() === destAssetId.toLowerCase()) {
     return {
       valueInCurrency: toTokenAmount.valueInCurrency,
       usd: toTokenAmount.usd,
@@ -378,18 +364,16 @@ export const calcSlippagePercentage = (
  * @returns Formatted fiat impact string, or `undefined` when either fiat value is unavailable.
  */
 export const calcPriceImpact = (
-  quote?: DeepPartial<
-    Pick<QuoteMetadata, 'sentAmount' | 'toTokenAmount'>
-  > | null,
+  quote?: DeepPartial<QuoteResponse['quote']> | null,
 ) => {
-  if (!quote?.sentAmount || !quote?.toTokenAmount) {
+  if (!quote?.src || !quote?.dest) {
     return undefined;
   }
 
-  const sourceFiat = quote.sentAmount.valueInCurrency;
-  const destFiat = quote.toTokenAmount.valueInCurrency;
-  const sourceUsd = quote.sentAmount.usd;
-  const destUsd = quote.toTokenAmount.usd;
+  const sourceFiat = quote.src.valueInCurrency;
+  const destFiat = quote.dest.valueInCurrency;
+  const sourceUsd = quote.src.usd;
+  const destUsd = quote.dest.usd;
 
   const isSourceFiatValid = (value: unknown): value is string[] =>
     is(value, FloatStringSchema);
@@ -439,13 +423,13 @@ export const calcQuoteMetadata = (
 
   const sentAmount = calcSentAmount(quote.quote, srcTokenExchangeRate);
   const toTokenAmount = calcToAmount(
-    quote.quote.destTokenAmount,
-    quote.quote.destAsset,
+    quote.quote.dest.amount,
+    quote.quote.dest.asset,
     destTokenExchangeRate,
   );
   const minToTokenAmount = calcToAmount(
-    quote.quote.minDestTokenAmount,
-    quote.quote.destAsset,
+    quote.quote.dest.minAmount ?? quote.quote.dest.amount,
+    quote.quote.dest.asset,
     destTokenExchangeRate,
   );
 
@@ -457,14 +441,15 @@ export const calcQuoteMetadata = (
 
   let totalEstimatedNetworkFee, relayerFee, gasFee;
 
-  if (isEvmQuoteResponse(quote)) {
+  if (quote.namespace === KnownCaipNamespace.Eip155) {
     relayerFee = calcRelayerFee(quote, nativeExchangeRate);
+
     gasFee = calcEstimatedAndMaxTotalGasFee({
       bridgeQuote: quote,
       ...bridgeFeesPerGas,
       ...nativeExchangeRate,
     });
-    // Uses effectiveGasFee to calculate the total estimated network fee
+    // Uses total gasFee to calculate the total estimated network fee
     totalEstimatedNetworkFee = calcTotalEstimatedNetworkFee(gasFee, relayerFee);
   } else {
     // Use the new generic function for all non-EVM chains
@@ -485,7 +470,16 @@ export const calcQuoteMetadata = (
   const cost = calcCost(adjustedReturn, sentAmount);
 
   // The quote has not been updated at this point, so we need to calculate the price impact using sentAmount and toTokenAmount
-  const priceImpact = calcPriceImpact({ sentAmount, toTokenAmount });
+  const priceImpact = calcPriceImpact({
+    src: {
+      valueInCurrency: sentAmount.valueInCurrency,
+      usd: sentAmount.usd,
+    },
+    dest: {
+      valueInCurrency: toTokenAmount.valueInCurrency,
+      usd: toTokenAmount.usd,
+    },
+  });
 
   return {
     sentAmount,

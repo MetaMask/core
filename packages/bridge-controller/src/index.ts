@@ -74,6 +74,7 @@ export {
 export {
   validateQuoteResponseV1,
   QuoteResponseSchemaV1,
+  type QuoteResponseV1,
 } from './validators/quote-response-v1';
 export { mergeQuoteMetadata } from './utils/quote-metadata/merge';
 
@@ -113,24 +114,39 @@ export {
   isEvmTxData,
   isStellarTrade,
 } from './validators/trade';
-export type {
-  QuoteResponseV1 as QuoteResponse,
-  QuoteResponseV1,
-} from './validators/quote-response-v1';
+export type { QuoteResponse } from './validators/quote-response';
 export type { Quote } from './validators/quote';
 export { FeeType, DiscountType } from './validators/quote';
 export { ActionTypes } from './validators/step';
+export { toQuoteResponseV1 } from './coercers/quote-response-v2-to-v1';
+export { toQuoteResponseV2 } from './coercers/quote-response-v1-to-v2';
+
+export { sumAmounts } from './utils/number-formatters';
+export { toQuoteMetadataV1 } from './utils/quote-metadata/to-quote-metadata-v1';
+export { toQuoteMetadataV2 } from './utils/quote-metadata/to-quote-metadata-v2';
+
 export {
   validateQuoteStreamComplete,
   QuoteStreamCompleteReason,
 } from './validators/quote-stream-complete';
 export { BatchSellTransactionType } from './validators/batch-sell';
+export { type AmountsAndAssetSchema } from './validators/amount-and-asset';
 export { TokenFeatureType } from './validators/token-feature';
+export type {
+  BridgeAsset,
+  BridgeAssetV2,
+  MinimalAsset,
+} from './validators/bridge-asset';
 export {
   BridgeAssetSchema,
   validateBridgeAsset,
+  validateBridgeAssetV2,
+  MinimalAssetSchema,
+  BridgeAssetV2Schema,
+  BridgeAssetSecurityDataType,
 } from './validators/bridge-asset';
 export { FeatureId } from './validators/feature-flags';
+export { toBridgeAssetV2 } from './coercers/quote-response-v1-to-v2';
 
 export {
   ALLOWED_BRIDGE_CHAIN_IDS,

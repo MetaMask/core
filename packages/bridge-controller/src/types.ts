@@ -41,6 +41,7 @@ import type { IntentSchema } from './validators/intent';
 import type { TxFeeGasLimitsSchema } from './validators/quote';
 import type { FeeDataSchema } from './validators/quote';
 import type { GaslessPropertiesSchema } from './validators/quote';
+import type { QuoteResponse } from './validators/quote-response';
 import type { QuoteResponseV1 } from './validators/quote-response-v1';
 import type { QuoteStreamCompleteSchema } from './validators/quote-stream-complete';
 import type { StepSchema } from './validators/step';
@@ -264,7 +265,7 @@ export enum RequestStatus {
 
 export type BridgeControllerState = {
   quoteRequest: Partial<GenericQuoteRequest>[];
-  quotes: (QuoteResponseV1 & L1GasFees & NonEvmFees)[];
+  quotes: QuoteResponse[];
   /**
    * The time elapsed between the initial quote fetch and when the first valid quote was received
    */
