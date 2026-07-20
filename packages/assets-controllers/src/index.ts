@@ -286,6 +286,10 @@ export type {
 } from './DeFiPositionsController/DeFiPositionsControllerV2';
 export type { DeFiPositionsControllerV2FetchDeFiPositionsAction } from './DeFiPositionsController/DeFiPositionsControllerV2-method-action-types';
 export {
+  mergePositionsForAccounts,
+  mergeSections,
+} from './DeFiPositionsController/merge-positions-for-accounts';
+export {
   DEFI_SUPPORTED_NETWORKS,
   buildDeFiBalancesQuery,
 } from './DeFiPositionsController/build-defi-balances-query';
