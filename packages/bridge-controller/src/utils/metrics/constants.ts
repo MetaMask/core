@@ -68,6 +68,7 @@ export enum MetaMetricsSwapsEventSource {
   TransactionDetails = 'Transaction Details',
   DeepLink = 'Deep Link',
   Unknown = 'Unknown',
+  BottomNavBar = 'Bottom Nav Bar',
 }
 
 export enum BatchSellMetricsLocation {
