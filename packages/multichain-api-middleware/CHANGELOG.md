@@ -7,14 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- refactor: add `.js` import extensions to Core Platform packages ([#9571](https://github.com/MetaMask/core/pull/9571))
-- Ensure refs in tsconfig files are synced with internal deps ([#8384](https://github.com/MetaMask/core/pull/8384))
-- chore: MIT license text update ([#9472](https://github.com/MetaMask/core/pull/9472))
-- Revert "Release/1115.0.0 ([#9464](https://github.com/MetaMask/core/pull/9464))
-- Release/1115.0.0 ([#9464](https://github.com/MetaMask/core/pull/9464))
-
 ### Changed
 
 - Bump `@metamask/accounts-controller` from `^39.0.4` to `^39.0.5` ([#9470](https://github.com/MetaMask/core/pull/9470))

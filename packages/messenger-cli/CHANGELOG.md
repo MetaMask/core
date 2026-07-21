@@ -7,13 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Uncategorized
-
-- refactor: add `.js` import extensions to Core Platform packages ([#9571](https://github.com/MetaMask/core/pull/9571))
-- Ensure refs in tsconfig files are synced with internal deps ([#8384](https://github.com/MetaMask/core/pull/8384))
-- chore: MIT license text update ([#9472](https://github.com/MetaMask/core/pull/9472))
-- chore: remove unused deps in core-platform packages ([#9064](https://github.com/MetaMask/core/pull/9064))
-
 ### Added
 
 - Add `--esm` flag for ESM-compatible import extensions ([#9572](https://github.com/MetaMask/core/pull/9572))
