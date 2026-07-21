@@ -9,7 +9,11 @@ import {
 import type { NetworkClientId } from '@metamask/network-controller';
 
 import type { TransactionControllerMessenger } from '../TransactionController';
-import type { InferTransactionTypeResult, TransactionParams } from '../types';
+import type {
+  InferTransactionTypeResult,
+  TransactionMeta,
+  TransactionParams,
+} from '../types';
 import { TransactionType } from '../types';
 import { DELEGATION_PREFIX } from './eip7702';
 import { rpcRequest } from './provider';
@@ -188,4 +192,29 @@ async function readAddressAsContract(
       !contractCode.startsWith(DELEGATION_PREFIX)
     : false;
   return { contractCode, isContractAddress };
+}
+
+/**
+ * Check whether a transaction (or any of its nested transactions) has one of
+ * the given types.
+ *
+ * @param transactionMeta - Transaction metadata.
+ * @param types - Transaction types to match against.
+ * @returns `true` when the transaction or a nested transaction has one of the given types.
+ */
+export function hasTransactionType(
+  transactionMeta: TransactionMeta | undefined,
+  types: readonly TransactionType[],
+): boolean {
+  const { nestedTransactions, type } = transactionMeta ?? {};
+
+  if (types.includes(type as TransactionType)) {
+    return true;
+  }
+
+  return (
+    nestedTransactions?.some((tx) =>
+      types.includes(tx.type as TransactionType),
+    ) ?? false
+  );
 }

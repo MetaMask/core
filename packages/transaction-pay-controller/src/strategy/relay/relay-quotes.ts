@@ -2,6 +2,10 @@
 
 import { Interface } from '@ethersproject/abi';
 import { toHex } from '@metamask/controller-utils';
+import {
+  TransactionType,
+  hasTransactionType,
+} from '@metamask/transaction-controller';
 import type {
   AuthorizationList,
   TransactionMeta,
@@ -55,7 +59,6 @@ import {
   normalizeTokenAddress,
   TokenAddressTarget,
 } from '../../utils/token';
-import { isPredictWithdrawTransaction } from '../../utils/transaction';
 import { TOKEN_TRANSFER_FOUR_BYTE } from './constants';
 import { applyHyperliquidActivationFee } from './hyperliquid-activation';
 import { applyPolymarketDepositWalletOverrides } from './polymarket/withdraw';
@@ -829,7 +832,8 @@ async function calculateSourceNetworkCost(
     relayParams[0];
 
   const isPredictWithdraw =
-    request.isPostQuote && isPredictWithdrawTransaction(transaction);
+    request.isPostQuote &&
+    hasTransactionType(transaction, [TransactionType.predictWithdraw]);
 
   // `fromOverride = Safe proxy` is only valid for deposit-style Relay routes
   // where the deposit contract reads the user's source-token balance directly.

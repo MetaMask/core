@@ -1,4 +1,7 @@
-import { TransactionType } from '@metamask/transaction-controller';
+import {
+  TransactionType,
+  hasTransactionType,
+} from '@metamask/transaction-controller';
 
 import type {
   PayStrategy,
@@ -8,7 +11,6 @@ import type {
   TransactionPayQuote,
 } from '../../types';
 import { getPayStrategiesConfig } from '../../utils/feature-flags';
-import { isPredictWithdrawTransaction } from '../../utils/transaction';
 import { getAcrossDestination } from './across-actions';
 import { getAcrossQuotes } from './across-quotes';
 import { submitAcrossQuotes } from './across-submit';
@@ -65,7 +67,7 @@ export class AcrossStrategy implements PayStrategy<AcrossQuote> {
 
     return actionableRequests.every((singleRequest) => {
       if (singleRequest.isPostQuote) {
-        return isPredictWithdrawTransaction(request.transaction);
+        return hasTransactionType(request.transaction, [TransactionType.predictWithdraw]);
       }
 
       try {
@@ -91,7 +93,7 @@ export class AcrossStrategy implements PayStrategy<AcrossQuote> {
       return true;
     }
 
-    if (!isPredictWithdrawTransaction(request.transaction)) {
+    if (!hasTransactionType(request.transaction, [TransactionType.predictWithdraw])) {
       return false;
     }
 
