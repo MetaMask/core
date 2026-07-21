@@ -128,18 +128,28 @@ export class DeFiPositionsControllerV2 extends BaseController<
   readonly #minimumFetchIntervalMs: number;
 
   /**
-   * In-memory timestamp (ms) of the last fetch per set of accounts.
+   * In-memory fetch claim per set of accounts.
    *
-   * This is a controller-level gate, separate from TanStack's `staleTime` inside
-   * `fetchV6MultiAccountBalances`: when the interval has not elapsed we
-   * early-return without regrouping or writing state. TanStack still dedupes
-   * in-flight HTTP for identical query keys; this Map skips that work entirely.
+   * Controller-level gate, separate from TanStack's `staleTime` inside
+   * `fetchV6MultiAccountBalances`: when the interval has not elapsed for the
+   * same accounts *and* currency we early-return without regrouping or writing
+   * state. TanStack still dedupes in-flight HTTP for identical query keys; this
+   * Map skips that work entirely.
    *
-   * Keyed by sorted CAIP account IDs only (not networks / vsCurrency).
-   * Intentionally not persisted: resets on restart, so the first fetch after a
-   * restart always goes through.
+   * Keyed by sorted CAIP account IDs only (not networks). A currency change
+   * invalidates the throttle for that account set so a plain
+   * `fetchDeFiPositions()` (e.g. returning to the DeFi tab) refetches prices
+   * without needing `forceRefresh`.
+   *
+   * `generation` identifies the latest claim for a key so overlapping
+   * `forceRefresh` calls discard stale responses (and older failures do not
+   * clear a newer claim). Intentionally not persisted: resets on restart, so
+   * the first fetch after a restart always goes through.
    */
-  readonly #lastFetchByKey = new Map<string, number>();
+  readonly #lastFetchByKey = new Map<
+    string,
+    { fetchedAt: number; vsCurrency: string; generation: number }
+  >();
 
   /**
    * @param options - Constructor options.
@@ -192,13 +202,15 @@ export class DeFiPositionsControllerV2 extends BaseController<
    * method: resolving the accounts, calling the Accounts API, transforming the
    * response, and updating state.
    *
-   * Throttled per set of accounts by an in-memory minimum interval, so repeated
-   * calls within the window are no-ops (no HTTP, no regroup, no state write).
-   * Pass `{ forceRefresh: true }` to bypass that throttle (e.g. pull-to-refresh
-   * or after a confirmed transaction). The successful/forced fetch still
-   * updates the throttle timestamp, so subsequent non-forced calls remain
-   * gated. Disabled controllers and empty account groups return without
-   * fetching.
+   * Throttled per set of accounts + vsCurrency by an in-memory minimum
+   * interval, so repeated calls within the window are no-ops (no HTTP, no
+   * regroup, no state write). A change in fiat currency bypasses that window
+   * so tab-focus refetches pick up new prices without `forceRefresh`. Pass
+   * `{ forceRefresh: true }` to bypass the throttle entirely (e.g.
+   * pull-to-refresh or after a confirmed transaction). The successful/forced
+   * fetch still updates the throttle claim, so subsequent non-forced calls for
+   * the same accounts and currency remain gated. Disabled controllers and
+   * empty account groups return without fetching.
    *
    * @param options - Optional fetch modifiers.
    * @param options.forceRefresh - When true, bypass the minimum-interval
@@ -226,20 +238,28 @@ export class DeFiPositionsControllerV2 extends BaseController<
     // Stable key so the same account set throttles together regardless of map
     // iteration order.
     const throttleKey = [...accountIds].sort().join(',');
+    const vsCurrency = this.#getVsCurrency().toLowerCase();
     const now = Date.now();
-    const lastFetchedAt = this.#lastFetchByKey.get(throttleKey);
+    const lastFetch = this.#lastFetchByKey.get(throttleKey);
     if (
       !options?.forceRefresh &&
-      lastFetchedAt !== undefined &&
-      now - lastFetchedAt < this.#minimumFetchIntervalMs
+      lastFetch?.vsCurrency === vsCurrency &&
+      now - lastFetch.fetchedAt < this.#minimumFetchIntervalMs
     ) {
       return;
     }
-    // Claim the slot before awaiting so a second call that arrives while the
-    // first is in flight is also dropped (TanStack would share that promise;
-    // we intentionally skip instead). forceRefresh also claims the slot so
-    // follow-up non-forced calls within the interval stay throttled.
-    this.#lastFetchByKey.set(throttleKey, now);
+    // Claim the slot before awaiting so a second non-forced call that arrives
+    // while the first is in flight is also dropped (TanStack would share that
+    // promise; we intentionally skip instead). forceRefresh also claims the
+    // slot so follow-up non-forced calls within the interval stay throttled.
+    // Bump generation so overlapping forceRefresh calls can discard stale
+    // responses that finish out of order.
+    const fetchGeneration = (lastFetch?.generation ?? 0) + 1;
+    this.#lastFetchByKey.set(throttleKey, {
+      fetchedAt: now,
+      vsCurrency,
+      generation: fetchGeneration,
+    });
 
     try {
       const response =
@@ -250,8 +270,13 @@ export class DeFiPositionsControllerV2 extends BaseController<
           forceFetchDeFiPositions:
             DEFI_BALANCES_V6_REQUEST_OPTIONS.forceFetchDeFiPositions,
           includePrices: DEFI_BALANCES_V6_REQUEST_OPTIONS.includePrices,
-          vsCurrency: this.#getVsCurrency().toLowerCase(),
+          vsCurrency,
         });
+
+      if (this.#lastFetchByKey.get(throttleKey)?.generation !== fetchGeneration) {
+        // A newer fetch for this account set has already claimed the slot.
+        return;
+      }
 
       // The v6 response echoes a per-chain CAIP-10 ID for every chain
       // (`eip155:1:<addr>`, `eip155:137:<addr>`, ...), while we requested with
@@ -283,8 +308,11 @@ export class DeFiPositionsControllerV2 extends BaseController<
         }
       });
     } catch (error) {
-      // Clear the claim so a failed fetch does not burn the throttle window.
-      this.#lastFetchByKey.delete(throttleKey);
+      // Only the latest attempt may clear the claim; an older failure must not
+      // reopen the throttle window for a newer in-flight or completed fetch.
+      if (this.#lastFetchByKey.get(throttleKey)?.generation === fetchGeneration) {
+        this.#lastFetchByKey.delete(throttleKey);
+      }
       console.error('Failed to fetch DeFi positions', error);
     }
 

@@ -412,6 +412,34 @@ describe('DeFiPositionsControllerV2', () => {
     expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(2);
   });
 
+  it('refetches when vsCurrency changes even without forceRefresh', async () => {
+    let vsCurrency = 'USD';
+    const { controller, mockFetchV6MultiAccountBalances } = setupController({
+      minimumFetchIntervalMs: 60_000,
+      getVsCurrency: () => vsCurrency,
+    });
+
+    await controller.fetchDeFiPositions();
+    expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(1);
+    expect(mockFetchV6MultiAccountBalances).toHaveBeenLastCalledWith(
+      expect.any(Array),
+      expect.objectContaining({ vsCurrency: 'usd' }),
+    );
+
+    vsCurrency = 'EUR';
+    await controller.fetchDeFiPositions();
+
+    expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(2);
+    expect(mockFetchV6MultiAccountBalances).toHaveBeenLastCalledWith(
+      expect.any(Array),
+      expect.objectContaining({ vsCurrency: 'eur' }),
+    );
+
+    // Same currency again within the interval stays throttled.
+    await controller.fetchDeFiPositions();
+    expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(2);
+  });
+
   it('clears the throttle claim when a fetch fails so retries are allowed', async () => {
     const consoleErrorSpy = jest
       .spyOn(console, 'error')
@@ -437,6 +465,114 @@ describe('DeFiPositionsControllerV2', () => {
     expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(2);
     expect(controller.state.allDeFiPositionsV2['evm-account-id']).toHaveLength(
       1,
+    );
+  });
+
+  it('does not let a slower older response overwrite a newer forceRefresh result', async () => {
+    let resolveFirst!: (value: V6BalancesResponse) => void;
+    let resolveSecond!: (value: V6BalancesResponse) => void;
+    const firstPending = new Promise<V6BalancesResponse>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const secondPending = new Promise<V6BalancesResponse>((resolve) => {
+      resolveSecond = resolve;
+    });
+
+    const staleResponse = buildMockBalancesResponse();
+    const freshResponse = buildMockBalancesResponse({
+      accounts: [
+        {
+          accountId: `eip155:0:${EVM_ADDRESS}`,
+          balances: [
+            {
+              category: 'defi',
+              assetId:
+                'eip155:1/erc20:0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2',
+              name: 'Wrapped Ether',
+              symbol: 'WETH',
+              decimals: 18,
+              balance: '1',
+              price: '3000',
+              metadata: {
+                protocolId: 'aave-v3',
+                productName: 'Aave V3',
+                description: 'Aave V3 on ethereum',
+                protocolUrl: 'https://aave.com/',
+                protocolIconUrl: 'https://example.com/aave.png',
+                positionType: 'deposit',
+                poolAddress: '0xpool',
+                groupId: 'group-aave-1',
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    const mockFetchV6MultiAccountBalances = jest
+      .fn()
+      .mockReturnValueOnce(firstPending)
+      .mockReturnValueOnce(secondPending);
+
+    const { controller } = setupController({
+      mockFetchV6MultiAccountBalances,
+    });
+
+    const firstFetch = controller.fetchDeFiPositions();
+    const secondFetch = controller.fetchDeFiPositions({ forceRefresh: true });
+
+    resolveSecond(freshResponse);
+    await secondFetch;
+    expect(
+      controller.state.allDeFiPositionsV2['evm-account-id'][0],
+    ).toMatchObject({ marketValue: 3000 });
+
+    resolveFirst(staleResponse);
+    await firstFetch;
+    expect(
+      controller.state.allDeFiPositionsV2['evm-account-id'][0],
+    ).toMatchObject({ marketValue: 3000 });
+  });
+
+  it('does not clear a newer fetch throttle claim when an older overlapping fetch fails', async () => {
+    const consoleErrorSpy = jest
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+
+    let rejectFirst!: (reason?: unknown) => void;
+    let resolveSecond!: (value: V6BalancesResponse) => void;
+    const firstPending = new Promise<V6BalancesResponse>((_resolve, reject) => {
+      rejectFirst = reject;
+    });
+    const secondPending = new Promise<V6BalancesResponse>((resolve) => {
+      resolveSecond = resolve;
+    });
+
+    const mockFetchV6MultiAccountBalances = jest
+      .fn()
+      .mockReturnValueOnce(firstPending)
+      .mockReturnValueOnce(secondPending);
+
+    const { controller } = setupController({
+      mockFetchV6MultiAccountBalances,
+      minimumFetchIntervalMs: 60_000,
+    });
+
+    const firstFetch = controller.fetchDeFiPositions();
+    const secondFetch = controller.fetchDeFiPositions({ forceRefresh: true });
+
+    rejectFirst(new Error('network error'));
+    await firstFetch;
+
+    resolveSecond(buildMockBalancesResponse());
+    await secondFetch;
+
+    // Older failure must not wipe the newer claim, or this would fetch again.
+    await controller.fetchDeFiPositions();
+    expect(mockFetchV6MultiAccountBalances).toHaveBeenCalledTimes(2);
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Failed to fetch DeFi positions',
+      expect.any(Error),
     );
   });
 
