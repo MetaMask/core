@@ -16,10 +16,10 @@ import {
 import type { InternalAccount } from '@metamask/keyring-internal-api';
 import { createDeferredPromise } from '@metamask/utils';
 
-import type { WalletState } from './MultichainAccountWallet';
-import { MultichainAccountWallet } from './MultichainAccountWallet';
-import { TimeoutError } from './providers';
-import type { MockAccountProvider, RootMessenger } from './tests';
+import type { WalletState } from './MultichainAccountWallet.js';
+import { MultichainAccountWallet } from './MultichainAccountWallet.js';
+import { TimeoutError } from './providers/index.js';
+import type { MockAccountProvider, RootMessenger } from './tests/index.js';
 import {
   MOCK_HD_ACCOUNT_1,
   MOCK_HD_KEYRING_1,
@@ -35,8 +35,8 @@ import {
   setupBip44AccountProvider,
   getMultichainAccountServiceMessenger,
   getRootMessenger,
-} from './tests';
-import type { MultichainAccountServiceMessenger } from './types';
+} from './tests/index.js';
+import type { MultichainAccountServiceMessenger } from './types.js';
 
 function setup({
   entropySource = MOCK_WALLET_1_ENTROPY_SOURCE,

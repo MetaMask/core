@@ -14,9 +14,9 @@ import type { RemoteFeatureFlagControllerGetStateAction } from '@metamask/remote
 import type { RemoteFeatureFlagControllerStateChangeEvent } from '@metamask/remote-feature-flag-controller';
 import { Duration, inMilliseconds, Json } from '@metamask/utils';
 
-import type { ConfigRegistryApiServiceFetchConfigAction } from './config-registry-api-service/config-registry-api-service-method-action-types';
-import type { RegistryNetworkConfig } from './config-registry-api-service/types';
-import type { ConfigRegistryControllerMethodActions } from './ConfigRegistryController-method-action-types';
+import type { ConfigRegistryApiServiceFetchConfigAction } from './config-registry-api-service/config-registry-api-service-method-action-types.js';
+import type { RegistryNetworkConfig } from './config-registry-api-service/types.js';
+import type { ConfigRegistryControllerMethodActions } from './ConfigRegistryController-method-action-types.js';
 
 const controllerName = 'ConfigRegistryController';
 

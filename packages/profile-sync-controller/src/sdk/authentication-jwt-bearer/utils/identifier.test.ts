@@ -1,6 +1,6 @@
-import { createSHA256Hash } from '../../../shared/encryption';
-import { Env } from '../../../shared/env';
-import { computeIdentifierId, IDENTIFIER_SALT } from './identifier';
+import { createSHA256Hash } from '../../../shared/encryption/index.js';
+import { Env } from '../../../shared/env.js';
+import { computeIdentifierId, IDENTIFIER_SALT } from './identifier.js';
 
 describe('computeIdentifierId', () => {
   const MOCK_PUBLIC_KEY =

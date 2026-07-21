@@ -265,6 +265,32 @@ export type {
   DeFiPositionsControllerMessenger,
 } from './DeFiPositionsController/DeFiPositionsController';
 export type { GroupedDeFiPositions } from './DeFiPositionsController/group-defi-positions';
+export {
+  DeFiPositionsControllerV2,
+  getDefaultDeFiPositionsControllerV2State,
+} from './DeFiPositionsController/DeFiPositionsControllerV2';
+export type {
+  DeFiPositionsControllerV2State,
+  DeFiPositionsControllerV2Actions,
+  DeFiPositionsControllerV2Events,
+  DeFiPositionsControllerV2GetStateAction,
+  DeFiPositionsControllerV2StateChangedEvent,
+  DeFiPositionsControllerV2Messenger,
+} from './DeFiPositionsController/DeFiPositionsControllerV2';
+export type { DeFiPositionsControllerV2FetchDeFiPositionsAction } from './DeFiPositionsController/DeFiPositionsControllerV2-method-action-types';
+export {
+  DEFI_POSITION_TYPES,
+  DEFI_POSITION_LIABILITY_TYPES,
+} from './DeFiPositionsController/group-defi-positions-v6';
+export type {
+  DeFiPositionsByAccount,
+  DeFiProtocolPositionGroup,
+  DeFiPositionDetailsSection,
+  DeFiUnderlyingPosition,
+  DeFiPositionIconGroupItem,
+  DeFiPositionType,
+} from './DeFiPositionsController/group-defi-positions-v6';
+export { mergePositionsForAccounts } from './DeFiPositionsController/merge-positions-for-accounts';
 export type {
   AccountGroupBalance,
   WalletBalance,

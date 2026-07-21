@@ -5,11 +5,11 @@ import {
 } from '@metamask/account-api';
 import type { AccountWalletId } from '@metamask/account-api';
 
-import type { AccountGroupMultichainAccountObject } from '../../group';
-import { backupAndSyncLogger } from '../../logger';
-import type { AccountTreeControllerState } from '../../types';
-import type { AccountWalletEntropyObject } from '../../wallet';
-import type { BackupAndSyncContext } from '../types';
+import type { AccountGroupMultichainAccountObject } from '../../group.js';
+import { backupAndSyncLogger } from '../../logger.js';
+import type { AccountTreeControllerState } from '../../types.js';
+import type { AccountWalletEntropyObject } from '../../wallet.js';
+import type { BackupAndSyncContext } from '../types.js';
 
 /**
  * Gets all local entropy wallets that can be synced.

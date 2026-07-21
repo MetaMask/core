@@ -16,7 +16,7 @@ import {
   MOCK_USER_PROFILE_LINEAGE_RESPONSE,
   MOCK_CUSTOMER_SERVICE_TOKEN_URL,
   MOCK_CUSTOMER_SERVICE_TOKEN_RESPONSE,
-} from '../mocks/auth';
+} from '../mocks/auth.js';
 
 type MockReply = {
   status: nock.StatusCode;
