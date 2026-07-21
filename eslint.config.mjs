@@ -401,6 +401,7 @@ const config = createConfig([
       'packages/gas-fee-controller/**',
       'packages/json-rpc-engine/**',
       'packages/json-rpc-middleware-stream/**',
+      'packages/logging-controller/**',
       'packages/messenger/**',
       'packages/messenger-cli/**',
       'packages/money-account-controller/**',
