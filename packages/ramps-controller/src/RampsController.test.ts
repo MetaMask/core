@@ -24,6 +24,15 @@ import {
 } from './RampsController.js';
 import { RAMPS_ERROR_CODES } from './rampsErrorCodes.js';
 import type {
+  RampsServiceGetGeolocationAction,
+  RampsServiceGetCountriesAction,
+  RampsServiceGetTokensAction,
+  RampsServiceGetProvidersAction,
+  RampsServiceGetPaymentMethodsAction,
+  RampsServiceGetQuotesAction,
+  RampsServiceGetBuyWidgetUrlAction,
+} from './RampsService-method-action-types.js';
+import type {
   Country,
   TokensResponse,
   Provider,
@@ -36,15 +45,6 @@ import type {
   RampsOrder,
 } from './RampsService.js';
 import { RampsOrderStatus } from './RampsService.js';
-import type {
-  RampsServiceGetGeolocationAction,
-  RampsServiceGetCountriesAction,
-  RampsServiceGetTokensAction,
-  RampsServiceGetProvidersAction,
-  RampsServiceGetPaymentMethodsAction,
-  RampsServiceGetQuotesAction,
-  RampsServiceGetBuyWidgetUrlAction,
-} from './RampsService-method-action-types.js';
 import { RequestStatus } from './RequestCache.js';
 import type {
   TransakAccessToken,

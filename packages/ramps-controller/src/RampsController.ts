@@ -16,6 +16,17 @@ import type { RampsControllerMethodActions } from './RampsController-method-acti
 import type { RampsErrorCode } from './rampsErrorCodes.js';
 import { RAMPS_ERROR_CODES } from './rampsErrorCodes.js';
 import type {
+  RampsServiceGetGeolocationAction,
+  RampsServiceGetCountriesAction,
+  RampsServiceGetTokensAction,
+  RampsServiceGetProvidersAction,
+  RampsServiceGetPaymentMethodsAction,
+  RampsServiceGetQuotesAction,
+  RampsServiceGetBuyWidgetUrlAction,
+  RampsServiceGetOrderAction,
+  RampsServiceGetOrderFromCallbackAction,
+} from './RampsService-method-action-types.js';
+import type {
   BuyWidget,
   Country,
   TokensResponse,
@@ -33,17 +44,6 @@ import type {
 } from './RampsService.js';
 import { RampsOrderStatus } from './RampsService.js';
 import type {
-  RampsServiceGetGeolocationAction,
-  RampsServiceGetCountriesAction,
-  RampsServiceGetTokensAction,
-  RampsServiceGetProvidersAction,
-  RampsServiceGetPaymentMethodsAction,
-  RampsServiceGetQuotesAction,
-  RampsServiceGetBuyWidgetUrlAction,
-  RampsServiceGetOrderAction,
-  RampsServiceGetOrderFromCallbackAction,
-} from './RampsService-method-action-types.js';
-import type {
   RequestCache as RequestCacheType,
   RequestState,
   ExecuteRequestOptions,
@@ -60,23 +60,6 @@ import {
   createErrorState,
   RequestStatus,
 } from './RequestCache.js';
-import type {
-  TransakAccessToken,
-  TransakUserDetails,
-  TransakBuyQuote,
-  TransakKycRequirement,
-  TransakAdditionalRequirementsResponse,
-  TransakDepositOrder,
-  TransakUserLimits,
-  TransakOttResponse,
-  TransakQuoteTranslation,
-  TransakTranslationRequest,
-  TransakIdProofStatus,
-  TransakOrderPaymentMethod,
-  PatchUserRequestBody,
-  TransakOrder,
-} from './TransakService.js';
-import type { TransakServiceActions } from './TransakService.js';
 import type {
   TransakServiceSetApiKeyAction,
   TransakServiceSetAccessTokenAction,
@@ -103,6 +86,23 @@ import type {
   TransakServiceCancelAllActiveOrdersAction,
   TransakServiceGetActiveOrdersAction,
 } from './TransakService-method-action-types.js';
+import type {
+  TransakAccessToken,
+  TransakUserDetails,
+  TransakBuyQuote,
+  TransakKycRequirement,
+  TransakAdditionalRequirementsResponse,
+  TransakDepositOrder,
+  TransakUserLimits,
+  TransakOttResponse,
+  TransakQuoteTranslation,
+  TransakTranslationRequest,
+  TransakIdProofStatus,
+  TransakOrderPaymentMethod,
+  PatchUserRequestBody,
+  TransakOrder,
+} from './TransakService.js';
+import type { TransakServiceActions } from './TransakService.js';
 
 // === GENERAL ===
 
