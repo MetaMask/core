@@ -215,9 +215,9 @@ export class BackupAndSyncService {
    *
    * @returns A promise that resolves when the sync is complete.
    */
-  performFullSync(): Promise<void> {
+  async performFullSync(): Promise<void> {
     if (!this.isBackupAndSyncEnabled) {
-      return Promise.resolve(undefined);
+      return undefined;
     }
 
     // If there's an ongoing sync (including first sync), return it
@@ -249,9 +249,9 @@ export class BackupAndSyncService {
    *
    * @returns A promise that resolves when the sync is complete.
    */
-  performFullSyncAtLeastOnce(): Promise<void> {
+  async performFullSyncAtLeastOnce(): Promise<void> {
     if (!this.isBackupAndSyncEnabled) {
-      return Promise.resolve(undefined);
+      return undefined;
     }
 
     if (!this.#firstOngoingFullSyncPromise) {
