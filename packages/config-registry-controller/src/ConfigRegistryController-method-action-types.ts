@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { ConfigRegistryController } from './ConfigRegistryController';
+import type { ConfigRegistryController } from './ConfigRegistryController.js';
 
 /**
  * Stop all polling.

@@ -2,9 +2,9 @@ import { createSandbox } from '@metamask/utils/node';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-import { generateAllActionTypesFiles } from './fix';
-import { generateActionTypesContent } from './generate-content';
-import type { SourceInfo } from './parse-source';
+import { generateAllActionTypesFiles } from './fix.js';
+import { generateActionTypesContent } from './generate-content.js';
+import type { SourceInfo } from './parse-source.js';
 
 const { withinSandbox } = createSandbox('messenger/fix-action-types');
 

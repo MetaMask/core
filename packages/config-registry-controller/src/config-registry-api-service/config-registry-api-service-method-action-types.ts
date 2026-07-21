@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { ConfigRegistryApiService } from './config-registry-api-service';
+import type { ConfigRegistryApiService } from './config-registry-api-service.js';
 
 export type ConfigRegistryApiServiceFetchConfigAction = {
   type: `ConfigRegistryApiService:fetchConfig`;

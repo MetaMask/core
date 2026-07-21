@@ -3,8 +3,8 @@ import { JsonRpcEngine } from '@metamask/json-rpc-engine';
 import type { Json } from '@metamask/utils';
 import util from 'util';
 
-import type { PollingBlockTrackerOptions } from '../src';
-import { PollingBlockTracker } from '../src';
+import type { PollingBlockTrackerOptions } from '../src/index.js';
+import { PollingBlockTracker } from '../src/index.js';
 
 type WithPollingBlockTrackerOptions = {
   provider?: FakeProviderOptions;

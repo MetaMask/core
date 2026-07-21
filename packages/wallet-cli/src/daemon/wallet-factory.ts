@@ -14,10 +14,10 @@ import {
 import type { WalletOptions } from '@metamask/wallet';
 import { rm } from 'node:fs/promises';
 
-import { KeyValueStore } from '../persistence/KeyValueStore';
-import { loadState, subscribeToChanges } from '../persistence/persistence';
-import type { Password, Srp } from './secrets';
-import type { Logger } from './types';
+import { KeyValueStore } from '../persistence/KeyValueStore.js';
+import { loadState, subscribeToChanges } from '../persistence/persistence.js';
+import type { Password, Srp } from './secrets.js';
+import type { Logger } from './types.js';
 
 const IN_MEMORY_DATABASE_PATH = ':memory:';
 

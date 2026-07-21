@@ -8,9 +8,9 @@ import {
   propagateToContext,
   propagateToRequest,
   deserializeError,
-} from './compatibility-utils';
-import { MiddlewareContext } from './MiddlewareContext';
-import { stringify } from './utils';
+} from './compatibility-utils.js';
+import { MiddlewareContext } from './MiddlewareContext.js';
+import { stringify } from './utils.js';
 
 const jsonrpc = '2.0' as const;
 

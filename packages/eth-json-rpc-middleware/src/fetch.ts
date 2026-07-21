@@ -5,7 +5,7 @@ import type {
 import { rpcErrors } from '@metamask/rpc-errors';
 import type { Json, JsonRpcRequest } from '@metamask/utils';
 
-import type { AbstractRpcServiceLike } from './types';
+import type { AbstractRpcServiceLike } from './types.js';
 
 /**
  * Creates middleware for sending a JSON-RPC request through the given RPC
