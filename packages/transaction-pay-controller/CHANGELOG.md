@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Consume `hasTransactionType` helper from `@metamask/transaction-controller` to derive relevant transaction type against the top-level `TransactionMeta` ([#](https://github.com/MetaMask/core/pull/))
+- Consume `hasTransactionType` helper from `@metamask/transaction-controller` to derive relevant transaction type against the top-level `TransactionMeta` ([#9570](https://github.com/MetaMask/core/pull/9570))
 
 ## [25.0.0]
 

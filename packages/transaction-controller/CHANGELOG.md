@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Export `hasTransactionType` helper for checking a transaction's type against the top-level `TransactionMeta` and any nested transactions ([#9497](https://github.com/MetaMask/core/pull/9497))
+- Export `hasTransactionType` helper for checking a transaction's type against the top-level `TransactionMeta` and any nested transactions ([#9570](https://github.com/MetaMask/core/pull/9570))
 
 ### Changed
 
