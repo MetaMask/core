@@ -15,8 +15,6 @@ import { groupDeFiPositionsV6 } from './group-defi-positions-v6';
 
 const controllerName = 'DeFiPositionsControllerV2';
 
-const ONE_MINUTE_IN_MS = 60_000;
-
 const MESSENGER_EXPOSED_METHODS = ['fetchDeFiPositions'] as const;
 
 export type DeFiPositionsControllerV2State = {
@@ -96,6 +94,10 @@ export type DeFiPositionsControllerV2Messenger = Messenger<
  * Controller that fetches DeFi positions for the selected account group from
  * the Accounts API (v6 multiaccount balances) and stores them in the shape the
  * client consumes directly.
+ *
+ * Deduplication and freshness are handled by the shared TanStack Query cache on
+ * {@link ApiPlatformClient} (balances default `staleTime` is 1 minute). Pass
+ * `{ forceRefresh: true }` to bypass that cache for pull-to-refresh.
  */
 export class DeFiPositionsControllerV2 extends BaseController<
   typeof controllerName,
@@ -108,24 +110,12 @@ export class DeFiPositionsControllerV2 extends BaseController<
 
   readonly #getVsCurrency: () => string;
 
-  readonly #minimumFetchIntervalMs: number;
-
-  /**
-   * In-memory per-account-set fetch claim (`fetchedAt`, `vsCurrency`,
-   * `generation`). Not persisted. See {@link fetchDeFiPositions}.
-   */
-  readonly #lastFetchByKey = new Map<
-    string,
-    { fetchedAt: number; vsCurrency: string; generation: number }
-  >();
-
   /**
    * @param options - Constructor options.
    * @param options.messenger - The controller messenger.
    * @param options.apiClient - Accounts API client used to fetch balances/positions. Auth is handled by the client.
    * @param options.isEnabled - Returns whether fetching is enabled (default: () => false).
    * @param options.getVsCurrency - Returns the fiat currency for prices (default: () => 'usd').
-   * @param options.minimumFetchIntervalMs - Minimum time between fetches for the same accounts (default: 1 minute).
    * @param options.state - Initial controller state.
    */
   constructor({
@@ -133,14 +123,12 @@ export class DeFiPositionsControllerV2 extends BaseController<
     apiClient,
     isEnabled,
     getVsCurrency,
-    minimumFetchIntervalMs = ONE_MINUTE_IN_MS,
     state,
   }: {
     messenger: DeFiPositionsControllerV2Messenger;
     apiClient: ApiPlatformClient;
     isEnabled: () => boolean;
     getVsCurrency: () => string;
-    minimumFetchIntervalMs?: number;
     state?: Partial<DeFiPositionsControllerV2State>;
   }) {
     super({
@@ -156,7 +144,6 @@ export class DeFiPositionsControllerV2 extends BaseController<
     this.#apiClient = apiClient;
     this.#isEnabled = isEnabled;
     this.#getVsCurrency = getVsCurrency;
-    this.#minimumFetchIntervalMs = minimumFetchIntervalMs;
 
     this.messenger.registerMethodActionHandlers(
       this,
@@ -166,17 +153,17 @@ export class DeFiPositionsControllerV2 extends BaseController<
 
   /**
    * Fetches DeFi positions for the selected account group. Each account key in
-   * a valid response replaces that account's state (other accounts stay). If
-   * any account is still indexing (`processingDefiPositions`), the response is
-   * discarded and prior state is kept. No-ops when disabled, when the group
-   * has no supported accounts, or when the same accounts + `vsCurrency` were
-   * fetched within `minimumFetchIntervalMs`. Pass `{ forceRefresh: true }` to
-   * bypass the throttle (e.g. pull-to-refresh). A `vsCurrency` change for the
-   * same accounts also bypasses it.
+   * a ready response replaces that account's state (other accounts stay).
+   * Accounts still indexing (`processingDefiPositions`) are skipped so prior
+   * state is kept for them. No-ops when disabled or when the group has no
+   * supported accounts. Caching / spam prevention is handled by the apiClient
+   * TanStack Query cache (keyed by accounts + query options including
+   * `vsCurrency`). Pass `{ forceRefresh: true }` to bypass the cache (e.g.
+   * pull-to-refresh).
    *
    * @param options - Optional fetch modifiers.
-   * @param options.forceRefresh - When true, bypass the minimum-interval
-   * throttle and fetch immediately.
+   * @param options.forceRefresh - When true, bypass the apiClient cache and
+   * fetch immediately.
    */
   async fetchDeFiPositions(options?: {
     forceRefresh?: boolean;
@@ -197,62 +184,40 @@ export class DeFiPositionsControllerV2 extends BaseController<
     }
 
     const accountIds = [...internalAccountIdByCaip.keys()];
-    // Stable key so the same account set throttles together regardless of map
-    // iteration order.
-    const accountsKey = [...accountIds].sort().join(',');
     const vsCurrency = this.#getVsCurrency().toLowerCase();
-    const now = Date.now();
-    const lastFetch = this.#lastFetchByKey.get(accountsKey);
-    if (
-      !options?.forceRefresh &&
-      lastFetch?.vsCurrency === vsCurrency &&
-      now - lastFetch.fetchedAt < this.#minimumFetchIntervalMs
-    ) {
-      return;
-    }
-    // Claim before awaiting so a second non-forced call while in flight is
-    // dropped. forceRefresh also claims so follow-up non-forced calls stay
-    // throttled. Bump generation so overlapping forceRefresh calls discard
-    // stale responses that finish out of order.
-    const fetchGeneration = (lastFetch?.generation ?? 0) + 1;
-    this.#lastFetchByKey.set(accountsKey, {
-      fetchedAt: now,
-      vsCurrency,
-      generation: fetchGeneration,
-    });
 
     try {
       const response =
-        await this.#apiClient.accounts.fetchV6MultiAccountBalances(accountIds, {
-          networks,
-          includeDeFiBalances: true,
-          forceFetchDeFiPositions: true,
-          includePrices: true,
-          vsCurrency,
-        });
+        await this.#apiClient.accounts.fetchV6MultiAccountBalances(
+          accountIds,
+          {
+            networks,
+            includeDeFiBalances: true,
+            forceFetchDeFiPositions: true,
+            includePrices: true,
+            vsCurrency,
+          },
+          {
+            // staleTime: 0 makes TanStack treat the cache as stale for this call.
+            ...(options?.forceRefresh ? { staleTime: 0 } : {}),
+          },
+        );
 
-      if (
-        this.#lastFetchByKey.get(accountsKey)?.generation !== fetchGeneration
-      ) {
-        // A newer fetch for this account set has already claimed the slot.
-        return;
-      }
-
-      // Incomplete indexing is not a valid snapshot — keep prior state and
-      // drop the throttle claim so the next call can retry.
-      if (
-        response.accounts.some((account) => account.processingDefiPositions)
-      ) {
-        this.#lastFetchByKey.delete(accountsKey);
+      // Skip accounts still indexing — their balances are not a valid snapshot.
+      const readyAccounts = response.accounts.filter(
+        (account) => !account.processingDefiPositions,
+      );
+      if (readyAccounts.length === 0) {
         return;
       }
 
       const positionsByAccount = groupDeFiPositionsV6(
-        response,
+        { ...response, accounts: readyAccounts },
         internalAccountIdByCaip,
       );
 
-      // Last valid response wins per account; other accounts stay untouched.
+      // Last valid response wins per ready account; processing / other accounts
+      // stay untouched.
       this.update((state) => {
         for (const [accountId, positions] of Object.entries(
           positionsByAccount,
@@ -261,13 +226,6 @@ export class DeFiPositionsControllerV2 extends BaseController<
         }
       });
     } catch (error) {
-      // Only the latest attempt may clear the claim; an older failure must not
-      // reopen the throttle window for a newer in-flight or completed fetch.
-      if (
-        this.#lastFetchByKey.get(accountsKey)?.generation === fetchGeneration
-      ) {
-        this.#lastFetchByKey.delete(accountsKey);
-      }
       console.error('Failed to fetch DeFi positions', error);
     }
   }
