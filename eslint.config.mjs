@@ -422,6 +422,7 @@ const config = createConfig([
       'packages/react-data-query/**',
       'packages/sample-controllers/**',
       'packages/selected-network-controller/**',
+      'packages/signature-controller/**',
       'packages/smart-transactions-controller/**',
       'packages/snap-account-service/**',
       'packages/wallet/**',

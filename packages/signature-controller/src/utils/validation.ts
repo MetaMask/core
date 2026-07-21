@@ -15,8 +15,8 @@ import type {
   MessageParamsTyped,
   MessageParamsTypedData,
   OriginalRequest,
-} from '../types';
-import { isDelegationRequest } from './delegations';
+} from '../types.js';
+import { isDelegationRequest } from './delegations.js';
 
 export const PRIMARY_TYPE_DELEGATION = 'Delegation';
 export const DELEGATOR_FIELD = 'delegator';
