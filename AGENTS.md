@@ -219,3 +219,17 @@ When adding or updating data services in packages, follow these guidelines:
 - Make sure to write comprehensive tests for the service class.
 
 Use the `sample-gas-prices-service/` directory in the `sample-controllers` package as examples for implementation and tests.
+
+## Cursor Cloud specific instructions
+
+This repo is a **library monorepo** — a collection of `@metamask/*` TypeScript packages published to npm and consumed by MetaMask clients. There is **no long-running server/app to start**; "running" the code means building packages, running their test suites, or invoking one of the CLI packages (e.g. `messenger-cli`, `wallet-cli`). Do not look for a dev server.
+
+Environment prerequisites (Node LTS + Yarn 4 via Corepack + `yarn install`) are handled by the startup update script, so you normally don't need to reinstall. If you do run it manually, use `corepack enable` before any `yarn` command — the base image's global `yarn` is Classic (1.x), and this repo requires Yarn 4 (pinned via `packageManager`).
+
+Standard lint/test/build commands are documented above and in `docs/processes/`. Non-obvious caveats for this environment:
+
+- `yarn build` (whole monorepo, via `ts-bridge`) takes ~100s. `yarn lint:eslint` takes ~3–4 minutes.
+- `yarn lint:eslint` runs `build:only-clean` first, which **deletes all `packages/*/dist`**. Run `yarn build` again afterward if you need the built artifacts (tests don't need `dist`; they run TS/Babel directly).
+- The full `yarn lint` does much more than ESLint (constraints, `knip` dependency checks, changelog/teams/tsconfig/codeowners checks); prefer `yarn lint:eslint` for a quick code-quality pass.
+- Per-package tests are fast: `yarn workspace <package-name> run test`. `yarn test` across all packages is heavy.
+- `yarn install` emits `YN0060`/`YN0002`/`YN0086` peer-dependency warnings — these are expected and not failures.
