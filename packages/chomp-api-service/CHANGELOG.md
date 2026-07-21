@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0]
+
 ### Added
 
 - Add `getAssociatedAddresses` method, exposed as the `ChompApiService:getAssociatedAddresses` messenger action, which fetches the active address associations of the authenticated profile via `GET /v1/auth/address` ([#9387](https://github.com/MetaMask/core/pull/9387))
@@ -22,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Bump `@metamask/controller-utils` from `^12.0.0` to `^12.3.0` ([#8774](https://github.com/MetaMask/core/pull/8774), [#9058](https://github.com/MetaMask/core/pull/9058), [#9083](https://github.com/MetaMask/core/pull/9083), [#9218](https://github.com/MetaMask/core/pull/9218))
 - Bump `@metamask/base-data-service` from `^0.1.2` to `^0.1.3` ([#8799](https://github.com/MetaMask/core/pull/8799))
 - Bump `@metamask/messenger` from `^1.2.0` to `^2.0.0` ([#9392](https://github.com/MetaMask/core/pull/9392))
+- Update `LICENSE` text ([#9472](https://github.com/MetaMask/core/pull/9472))
 
 ## [3.1.0]
 
@@ -55,7 +58,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Add `ChompApiService` ([#8413](https://github.com/MetaMask/core/pull/8413))
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@3.1.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@4.0.0...HEAD
+[4.0.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@3.1.0...@metamask/chomp-api-service@4.0.0
 [3.1.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@3.0.1...@metamask/chomp-api-service@3.1.0
 [3.0.1]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@3.0.0...@metamask/chomp-api-service@3.0.1
 [3.0.0]: https://github.com/MetaMask/core/compare/@metamask/chomp-api-service@2.0.0...@metamask/chomp-api-service@3.0.0
