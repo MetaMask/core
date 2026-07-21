@@ -382,6 +382,7 @@ const config = createConfig([
       'packages/account-tree-controller/**',
       'packages/accounts-controller/**',
       'packages/address-book-controller/**',
+      'packages/approval-controller/**',
       'packages/authenticated-user-storage/**',
       'packages/base-controller/**',
       'packages/base-data-service/**',
