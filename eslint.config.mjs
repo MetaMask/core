@@ -394,6 +394,7 @@ const config = createConfig([
       'packages/controller-utils/**',
       'packages/eip-5792-middleware/**',
       'packages/eip1193-permission-middleware/**',
+      'packages/ens-controller/**',
       'packages/eth-block-tracker/**',
       'packages/eth-json-rpc-middleware/**',
       'packages/eth-json-rpc-provider/**',
