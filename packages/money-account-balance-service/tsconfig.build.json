@@ -9,6 +9,7 @@
     { "path": "../base-data-service/tsconfig.build.json" },
     { "path": "../controller-utils/tsconfig.build.json" },
     { "path": "../messenger/tsconfig.build.json" },
+    { "path": "../money-account-api-data-service/tsconfig.build.json" },
     { "path": "../network-controller/tsconfig.build.json" },
     { "path": "../remote-feature-flag-controller/tsconfig.build.json" }
   ],
