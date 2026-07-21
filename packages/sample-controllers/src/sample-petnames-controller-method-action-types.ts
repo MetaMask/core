@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { SamplePetnamesController } from './sample-petnames-controller';
+import type { SamplePetnamesController } from './sample-petnames-controller.js';
 
 /**
  * Registers the given name with the given address (relative to the given

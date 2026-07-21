@@ -12,6 +12,7 @@ export * from './constants';
 export * as Mocks from './mocks';
 export * from '../shared';
 export { isVersionInBounds } from './utils/isVersionInBounds';
+export { getNotificationSubtype } from './utils/get-notification-subtype';
 
 export type {
   NotificationServicesControllerInitAction,

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0]
+
+### Added
+
+- Add `fetchBalanceWithFallback` facade that selects Money API or RPC balance sources from the `moneyAccountBalanceSource` remote feature flag (`api` | `rpc` | `api-only` | `rpc-only`; default `rpc` = RPC primary with Money API fallback). Returns canonical amounts plus `source` and `usedFallback` provenance; reports validation/unavailable source defects via messenger `captureException`; throws `MoneyAccountBalanceFetchError` when all eligible sources fail. ([#9554](https://github.com/MetaMask/core/pull/9554))
+- Permit `MoneyAccountApiDataService:fetchPositions` on the balance service messenger so the facade can read Money API balances. ([#9554](https://github.com/MetaMask/core/pull/9554))
+- Export `CanonicalMoneyAccountBalanceResponse`, balance-source constants/types, and `MoneyAccountBalanceFetchError` / `MoneyAccountBalanceUnavailableError` / `MoneyAccountBalanceValidationError`. ([#9554](https://github.com/MetaMask/core/pull/9554))
+
+### Changed
+
+- Bump `@metamask/money-account-api-data-service` from `^0.1.0` to `^0.2.0` ([#9573](https://github.com/MetaMask/core/pull/9573))
+
 ## [2.2.0]
 
 ### Added
@@ -107,7 +119,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Compute mUSD-equivalent value of vault share holdings (`getMusdEquivalentValue`)
   - Fetch vault APY from the Veda performance REST API (`getVaultApy`)
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.2.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.3.0...HEAD
+[2.3.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.2.0...@metamask/money-account-balance-service@2.3.0
 [2.2.0]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.1.2...@metamask/money-account-balance-service@2.2.0
 [2.1.2]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.1.1...@metamask/money-account-balance-service@2.1.2
 [2.1.1]: https://github.com/MetaMask/core/compare/@metamask/money-account-balance-service@2.1.0...@metamask/money-account-balance-service@2.1.1

@@ -1,6 +1,6 @@
 import { ParsedMessage } from '@spruceid/siwe-parser';
 
-import { detectSIWE, isValidSIWEOrigin } from './siwe';
+import { detectSIWE, isValidSIWEOrigin } from './siwe.js';
 
 const siweMessage =
   'example.com wants you to sign in with your Ethereum account:\n0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2\n\n\nURI: https://example.com/login\nVersion: 1\nChain ID: 1\nNonce: 32891756\nIssued At: 2021-09-30T16:25:24Z';

@@ -3,7 +3,10 @@ import {
   successfulFetch,
   toHex,
 } from '@metamask/controller-utils';
-import { TransactionType } from '@metamask/transaction-controller';
+import {
+  TransactionType,
+  hasTransactionType,
+} from '@metamask/transaction-controller';
 import type {
   BatchTransactionParams,
   TransactionMeta,
@@ -26,7 +29,6 @@ import {
   collectTransactionIds,
   getTransaction,
   updateTransaction,
-  isPredictWithdrawTransaction,
   waitForTransactionConfirmed,
 } from '../../utils/transaction';
 import {
@@ -426,7 +428,7 @@ function shouldEstimate7702SubmitBatch(
   quote: TransactionPayQuote<AcrossQuote>,
 ): boolean {
   return (
-    isPredictWithdrawTransaction(parentTransaction) &&
+    hasTransactionType(parentTransaction, [TransactionType.predictWithdraw]) &&
     quote.request.isPostQuote === true &&
     quote.fees.isSourceGasFeeToken === true
   );
@@ -543,7 +545,7 @@ function buildOriginalTransaction(
 function getOriginalTransactionType(
   transaction: TransactionMeta,
 ): TransactionMeta['type'] {
-  if (isPredictWithdrawTransaction(transaction)) {
+  if (hasTransactionType(transaction, [TransactionType.predictWithdraw])) {
     return TransactionType.predictWithdraw;
   }
 
@@ -567,7 +569,7 @@ function hasOriginalTransactionGas(transaction: TransactionMeta): boolean {
  * @returns Across-specific transaction type for known flows, or the original type.
  */
 function getAcrossDepositType(transaction: TransactionMeta): TransactionType {
-  if (isPredictWithdrawTransaction(transaction)) {
+  if (hasTransactionType(transaction, [TransactionType.predictWithdraw])) {
     return TransactionType.predictAcrossWithdraw;
   }
 

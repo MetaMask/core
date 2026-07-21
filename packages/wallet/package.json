@@ -70,7 +70,7 @@
     "@metamask/scure-bip39": "^2.1.1",
     "@metamask/seedless-onboarding-controller": "^10.0.3",
     "@metamask/storage-service": "^1.0.2",
-    "@metamask/transaction-controller": "^69.0.0",
+    "@metamask/transaction-controller": "^69.1.0",
     "@metamask/utils": "^11.11.0"
   },
   "devDependencies": {

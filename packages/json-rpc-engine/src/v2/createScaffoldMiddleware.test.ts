@@ -1,9 +1,9 @@
 import { rpcErrors } from '@metamask/rpc-errors';
 
-import { makeRequest } from '../../tests/utils';
-import type { MiddlewareScaffold } from './createScaffoldMiddleware';
-import { createScaffoldMiddleware } from './createScaffoldMiddleware';
-import { JsonRpcEngineV2 } from './JsonRpcEngineV2';
+import { makeRequest } from '../../tests/utils.js';
+import type { MiddlewareScaffold } from './createScaffoldMiddleware.js';
+import { createScaffoldMiddleware } from './createScaffoldMiddleware.js';
+import { JsonRpcEngineV2 } from './JsonRpcEngineV2.js';
 
 describe('createScaffoldMiddleware', () => {
   it('basic middleware test', async () => {

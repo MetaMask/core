@@ -4,8 +4,8 @@ import { randomUUID } from 'node:crypto';
 import { createConnection } from 'node:net';
 import type { Socket } from 'node:net';
 
-import { readLine, writeLine } from './socket-line';
-import { isErrorWithCode } from './utils';
+import { readLine, writeLine } from './socket-line.js';
+import { isErrorWithCode } from './utils.js';
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 
