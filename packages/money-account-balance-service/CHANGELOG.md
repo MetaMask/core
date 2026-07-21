@@ -9,10 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.3.0]
 
-### Uncategorized
-
-- Ensure refs in tsconfig files are synced with internal deps ([#8384](https://github.com/MetaMask/core/pull/8384))
-
 ### Added
 
 - Add `fetchBalanceWithFallback` facade that selects Money API or RPC balance sources from the `moneyAccountBalanceSource` remote feature flag (`api` | `rpc` | `api-only` | `rpc-only`; default `rpc` = RPC primary with Money API fallback). Returns canonical amounts plus `source` and `usedFallback` provenance; reports validation/unavailable source defects via messenger `captureException`; throws `MoneyAccountBalanceFetchError` when all eligible sources fail. ([#9554](https://github.com/MetaMask/core/pull/9554))
