@@ -504,9 +504,6 @@ describe('groupDeFiPositionsV6', () => {
     expect(group.sections[0].productName).toBe('Pendle YT');
     expect(
       group.sections[0].positions.map((position) => position.groupId),
-    ).toStrictEqual([
-      'group-yt-1',
-      'group-yt-2',
-    ]);
+    ).toStrictEqual(['group-yt-1', 'group-yt-2']);
   });
 });
