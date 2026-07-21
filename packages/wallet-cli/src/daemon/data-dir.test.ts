@@ -1,7 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import { chmod } from 'node:fs/promises';
 
-import { ensureOwnerOnlyDirectory } from './data-dir';
+import { ensureOwnerOnlyDirectory } from './data-dir.js';
 
 jest.mock('node:fs');
 jest.mock('node:fs/promises');

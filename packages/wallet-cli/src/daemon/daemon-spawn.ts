@@ -2,10 +2,10 @@ import { spawn } from 'node:child_process';
 import { closeSync, existsSync, openSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { pingDaemon } from './daemon-client';
-import { ensureOwnerOnlyDirectory } from './data-dir';
-import { getDaemonPaths } from './paths';
-import type { DaemonSpawnConfig } from './types';
+import { pingDaemon } from './daemon-client.js';
+import { ensureOwnerOnlyDirectory } from './data-dir.js';
+import { getDaemonPaths } from './paths.js';
+import type { DaemonSpawnConfig } from './types.js';
 
 const POLL_INTERVAL_MS = 100;
 const MAX_POLLS = 300; // 30 seconds
