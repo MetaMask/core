@@ -381,6 +381,7 @@ const config = createConfig([
     files: [
       'packages/account-tree-controller/**',
       'packages/accounts-controller/**',
+      'packages/address-book-controller/**',
       'packages/authenticated-user-storage/**',
       'packages/base-controller/**',
       'packages/base-data-service/**',
