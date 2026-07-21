@@ -16,7 +16,7 @@ import {
 } from './process-feature-announcement';
 import { processSnapNotification } from './process-snap-notifications';
 
-const isOnChainNotification = (
+const isAPINotification = (
   notification: RawNotificationUnion,
 ): notification is NormalisedAPINotification =>
   NOTIFICATION_API_TRIGGER_TYPES_SET.has(notification.type);
@@ -61,7 +61,7 @@ export function processNotification(
     return processSnapNotification(notification);
   }
 
-  if (isOnChainNotification(notification)) {
+  if (isAPINotification(notification)) {
     return processAPINotifications(notification);
   }
 
