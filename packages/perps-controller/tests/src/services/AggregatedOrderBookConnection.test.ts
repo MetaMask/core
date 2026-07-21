@@ -27,7 +27,13 @@ type L2Emit = (data: unknown) => void;
 
 type MockState = {
   transports: MockTransport[];
-  listeners: { channel: string; params: unknown; listener: L2Emit }[];
+  listeners: {
+    channel: string;
+    params: unknown;
+    listener: L2Emit;
+    /** The SDK's post-confirmation failure callback, if the caller passed one. */
+    onError?: (error: Error) => void;
+  }[];
   unsubscribe: jest.Mock;
   resolveSubscribe: boolean;
   rejectSubscribe: boolean;
@@ -72,13 +78,17 @@ jest.mock('@nktkas/hyperliquid', () => {
         channel: string,
         params: unknown,
         listener: (event: { detail: unknown }) => void,
+        options?: { onError?: (error: Error) => void },
       ) => {
         // Store an emitter that mirrors the SDK's CustomEvent delivery so tests
-        // can push a raw snapshot via `listeners[i].listener(rawData)`.
+        // can push a raw snapshot via `listeners[i].listener(rawData)`, plus the
+        // SDK's post-confirmation `onError` callback so tests can simulate a
+        // rejected re-subscription via `listeners[i].onError(err)`.
         state.listeners.push({
           channel,
           params,
           listener: (detail: unknown) => listener({ detail }),
+          onError: options?.onError,
         });
         if (state.rejectSubscribe) {
           return Promise.reject(new Error('subscribe failed'));
@@ -553,6 +563,32 @@ describe('AggregatedOrderBookConnection', () => {
       await flush();
       expect(onStatusChange).toHaveBeenLastCalledWith('error');
       expect(onStatusChange).not.toHaveBeenCalledWith('connected');
+    });
+
+    it('errors and tears down when a confirmed subscription is rejected on resubscribe', async () => {
+      const connection = new AggregatedOrderBookConnection({
+        isTestnet: (): boolean => false,
+      });
+      const onStatusChange = jest.fn();
+      connection.subscribe({
+        symbol: 'BTC',
+        nSigFigs: 2,
+        callback: jest.fn(),
+        onStatusChange,
+      });
+
+      // The subscription is confirmed first.
+      await flush();
+      expect(onStatusChange).toHaveBeenLastCalledWith('connected');
+
+      // After a reconnect the server rejects the re-subscription: the SDK
+      // invokes `onError` and removes the listener (no further events follow).
+      // The service must surface `error` and tear down rather than keep
+      // reporting `connected` with a frozen order book.
+      mockState.listeners[0].onError?.(new Error('resubscribe rejected'));
+
+      expect(onStatusChange).toHaveBeenLastCalledWith('error');
+      expect(mockState.transports[0].close).toHaveBeenCalledTimes(1);
     });
 
     it('reports error when the subscription request rejects', async () => {

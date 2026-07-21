@@ -310,6 +310,20 @@ export class AggregatedOrderBookConnection {
       }
     };
 
+    // Surfaces a subscription failure the same way regardless of when it
+    // happens: report `error` (before teardown flips `cancelled`, which gates
+    // status updates) then release the refcount so the dead subscription doesn't
+    // keep the dedicated socket open. Used for both the initial subscribe
+    // rejection (`.catch`) and post-confirmation failures the SDK reports only
+    // through `onError` — e.g. the server rejecting the re-subscription after a
+    // reconnect, which removes the listener and stops all further events (a
+    // frozen order book that would otherwise still read as `connected`).
+    // Idempotent via `teardown`'s `cancelled` guard.
+    const handleSubscriptionError = (): void => {
+      reportStatus('error');
+      teardown();
+    };
+
     reportStatus('connecting');
 
     // The SDK's typed `l2Book` subscription drops unknown fields, so it can't
@@ -328,6 +342,12 @@ export class AggregatedOrderBookConnection {
           }
           params.callback(processAggregatedOrderBook(data, levels));
         },
+        // `onError` fires at most once for an *already confirmed* subscription
+        // that later fails (rejected re-subscription after reconnect, permanent
+        // termination, or a drop while re-subscription is disabled). The SDK
+        // removes the listener and emits nothing further, so treat it exactly
+        // like an initial failure.
+        { onError: handleSubscriptionError },
       )
       .then(async (sub) => {
         if (cancelled) {
@@ -342,13 +362,7 @@ export class AggregatedOrderBookConnection {
         reportStatus('connected');
         return undefined;
       })
-      .catch(() => {
-        // Report before teardown flips `cancelled` (which gates status updates),
-        // then release the refcount this subscription reserved so a failed
-        // subscribe doesn't keep the dedicated socket open.
-        reportStatus('error');
-        teardown();
-      });
+      .catch(handleSubscriptionError);
 
     return teardown;
   }
