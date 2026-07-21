@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { SampleGasPricesController } from './sample-gas-prices-controller';
+import type { SampleGasPricesController } from './sample-gas-prices-controller.js';
 
 /**
  * Fetches the latest gas prices for the given chain and persists them to
