@@ -137,4 +137,40 @@ describe('generateActionTypesContent', () => {
 
     expect(result).not.toContain('EmptyControllerMethodActions');
   });
+
+  describe('with esm: true', () => {
+    it('adds .js extension to the import path', async () => {
+      const controller: SourceInfo = {
+        name: 'FooController',
+        filePath: '/some/path/FooController.ts',
+
+        methods: [{ name: 'doSomething', jsDoc: '' }],
+      };
+
+      const result = await generateActionTypesContent(
+        controller,
+        'prettier',
+        true,
+      );
+      expect(result).toMatchInlineSnapshot(`
+        "/**
+         * This file is auto generated.
+         * Do not edit manually.
+         */
+
+        import type { FooController } from './FooController.js';
+
+        export type FooControllerDoSomethingAction = {
+          type: \`FooController:doSomething\`;
+          handler: FooController['doSomething'];
+        };
+
+        /**
+         * Union of all FooController action types.
+         */
+        export type FooControllerMethodActions = FooControllerDoSomethingAction;
+        "
+      `);
+    });
+  });
 });
