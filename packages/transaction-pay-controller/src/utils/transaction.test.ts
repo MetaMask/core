@@ -23,7 +23,6 @@ import {
   collectTransactionIds,
   getTransaction,
   getTransferredAmountFromTxHash,
-  isPredictWithdrawTransaction,
   subscribeAssetChanges,
   subscribeTransactionChanges,
   updateTransaction,
