@@ -15,6 +15,7 @@ import { NetworkController, NetworkStatus } from '@metamask/network-controller';
 import type {
   NetworkControllerMessenger,
   NetworkState,
+  ProviderProxy,
 } from '@metamask/network-controller';
 import type { Hex } from '@metamask/utils';
 import nock from 'nock';
@@ -279,6 +280,7 @@ describe('GasFeeController', () => {
    *
    * @param options - The options.
    * @param options.getChainId - Sets getChainId on the GasFeeController.
+   * @param options.getProvider - Sets getProvider on the GasFeeController.
    * @param options.onNetworkDidChange - A function for registering an event handler for the
    * @param options.getIsEIP1559Compatible - Sets getCurrentNetworkEIP1559Compatibility on the
    * GasFeeController.
@@ -293,6 +295,7 @@ describe('GasFeeController', () => {
    * @param options.state - The initial GasFeeController state
    * @param options.initializeNetworkProvider - Whether to instruct the
    * NetworkController to initialize its provider.
+   * @returns The root messenger, so tests can publish network events to it.
    */
   async function setupGasFeeController({
     getIsEIP1559Compatible = jest.fn().mockResolvedValue(true),
@@ -303,6 +306,7 @@ describe('GasFeeController', () => {
     EIP1559APIEndpoint = 'http://eip-1559.endpoint/<chain_id>',
     clientId,
     getChainId,
+    getProvider = jest.fn(),
     onNetworkDidChange,
     networkControllerState = {},
     state,
@@ -310,6 +314,7 @@ describe('GasFeeController', () => {
     initializeNetworkProvider = true,
   }: {
     getChainId?: jest.Mock<Hex>;
+    getProvider?: jest.Mock<ProviderProxy>;
     onNetworkDidChange?: jest.Mock<void>;
     getIsEIP1559Compatible?: jest.Mock<Promise<boolean>>;
     getCurrentNetworkLegacyGasAPICompatibility?: jest.Mock<boolean>;
@@ -329,7 +334,7 @@ describe('GasFeeController', () => {
     });
     const restrictedMessenger = getGasFeeControllerMessenger(rootMessenger);
     gasFeeController = new GasFeeController({
-      getProvider: jest.fn(),
+      getProvider,
       getChainId,
       onNetworkDidChange,
       messenger: restrictedMessenger,
@@ -341,6 +346,7 @@ describe('GasFeeController', () => {
       clientId,
       interval,
     });
+    return { rootMessenger };
   }
 
   beforeEach(() => {
@@ -1400,7 +1406,7 @@ describe('GasFeeController', () => {
   });
 
   describe('when the selected network changes', () => {
-    it('resets the eth query and updates the chain ID when notified via the onNetworkDidChange callback', async () => {
+    it('updates the chain ID used for the next fetch when notified via the onNetworkDidChange callback', async () => {
       let networkDidChangeListener:
         | ((networkControllerState: NetworkState) => Promise<void>)
         | undefined;
@@ -1438,23 +1444,10 @@ describe('GasFeeController', () => {
       );
     });
 
-    it('resets the eth query and updates the chain ID when notified via NetworkController:networkDidChange', async () => {
-      const rootMessenger = getRootMessenger();
-      networkController = await setupNetworkController({
-        rootMessenger,
-        state: {},
-        initializeProvider: false,
-      });
-      gasFeeController = new GasFeeController({
-        getProvider: jest.fn(),
-        messenger: getGasFeeControllerMessenger(rootMessenger),
-        getCurrentNetworkLegacyGasAPICompatibility: jest
-          .fn()
-          .mockReturnValue(false),
-        getCurrentNetworkEIP1559Compatibility: jest
-          .fn()
-          .mockResolvedValue(true),
+    it('updates the chain ID used for the next fetch when notified via NetworkController:networkDidChange', async () => {
+      const { rootMessenger } = await setupGasFeeController({
         EIP1559APIEndpoint: 'https://some-eip-1559-endpoint/<chain_id>',
+        initializeNetworkProvider: false,
       });
 
       await gasFeeController.fetchGasFeeEstimates();
@@ -1480,6 +1473,41 @@ describe('GasFeeController', () => {
           )}`,
         }),
       );
+    });
+
+    it('reads the provider once, caches the eth query, then rebuilds it from the provider after a network change', async () => {
+      const provider1 = { id: 1 } as unknown as ProviderProxy;
+      const provider2 = { id: 2 } as unknown as ProviderProxy;
+      const getProvider = jest
+        .fn<ProviderProxy, []>()
+        .mockReturnValueOnce(provider1)
+        .mockReturnValueOnce(provider2);
+      const { rootMessenger } = await setupGasFeeController({
+        getProvider,
+        EIP1559APIEndpoint: 'https://some-eip-1559-endpoint/<chain_id>',
+        initializeNetworkProvider: false,
+      });
+
+      // The provider is read lazily on the first fetch, and the resulting eth
+      // query is cached across subsequent fetches.
+      await gasFeeController.fetchGasFeeEstimates();
+      await gasFeeController.fetchGasFeeEstimates();
+      expect(getProvider).toHaveBeenCalledTimes(1);
+      const ethQueryBeforeChange =
+        mockedDetermineGasFeeCalculations.mock.lastCall?.[0].ethQuery;
+
+      // Simulate the network switching to Sepolia.
+      rootMessenger.publish('NetworkController:networkDidChange', {
+        selectedNetworkClientId: 'sepolia',
+      } as NetworkState);
+      await flushPromises();
+
+      // The next fetch rebuilds the eth query from the provider.
+      await gasFeeController.fetchGasFeeEstimates();
+      expect(getProvider).toHaveBeenCalledTimes(2);
+      const ethQueryAfterChange =
+        mockedDetermineGasFeeCalculations.mock.lastCall?.[0].ethQuery;
+      expect(ethQueryAfterChange).not.toBe(ethQueryBeforeChange);
     });
   });
 

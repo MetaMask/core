@@ -549,8 +549,9 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
 
     if (shouldUpdateState) {
       const chainId = toHex(decimalChainId);
+      const currentChainId = this.#getCurrentChainId();
       this.update((state) => {
-        if (this.#getCurrentChainId() === chainId) {
+        if (currentChainId === chainId) {
           state.gasFeeEstimates = gasFeeCalculations.gasFeeEstimates;
           state.estimatedGasFeeTimeBounds =
             gasFeeCalculations.estimatedGasFeeTimeBounds;
@@ -670,10 +671,7 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
   async #onNetworkControllerDidChange({
     selectedNetworkClientId,
   }: NetworkState) {
-    const newChainId = this.messenger.call(
-      'NetworkController:getNetworkClientById',
-      selectedNetworkClientId,
-    ).configuration.chainId;
+    const newChainId = this.#getChainIdForNetworkClient(selectedNetworkClientId);
 
     if (newChainId !== this.currentChainId) {
       // Reset so the next fetch rebuilds it from the new network's provider.
@@ -699,9 +697,13 @@ export class GasFeeController extends StaticIntervalPollingController<GasFeePoll
     const { selectedNetworkClientId } = this.messenger.call(
       'NetworkController:getState',
     );
+    return this.#getChainIdForNetworkClient(selectedNetworkClientId);
+  }
+
+  #getChainIdForNetworkClient(networkClientId: NetworkClientId): Hex {
     return this.messenger.call(
       'NetworkController:getNetworkClientById',
-      selectedNetworkClientId,
+      networkClientId,
     ).configuration.chainId;
   }
 
