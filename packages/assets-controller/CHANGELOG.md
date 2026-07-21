@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `TokenDataSource` balance-only metadata heals no longer apply EVM occurrence / non-EVM Blockaid spam filtering (or delete those holdings from `assetsBalance`); filtering still applies to newly `detectedAssets`. Fixes missing `assetsInfo` for already-tracked balances after [#9547](https://github.com/MetaMask/core/pull/9547)
 - `TokenDataSource` now also fetches token metadata for assets present in `assetsBalance` that are missing `assetsInfo` (previously only detected assets without metadata were enriched) ([#9547](https://github.com/MetaMask/core/pull/9547))
 
 ## [11.0.0]
