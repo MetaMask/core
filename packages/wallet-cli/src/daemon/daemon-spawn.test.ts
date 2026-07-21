@@ -2,11 +2,12 @@ import { spawn } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
 import { closeSync, existsSync, openSync } from 'node:fs';
 
-import { pingDaemon } from './daemon-client';
-import { ensureDaemon } from './daemon-spawn';
-import { ensureOwnerOnlyDirectory } from './data-dir';
-import { getDaemonPaths } from './paths';
-import type { DaemonSpawnConfig } from './types';
+import { pingDaemon } from './daemon-client.js';
+import { ensureDaemon } from './daemon-spawn.js';
+import { ensureOwnerOnlyDirectory } from './data-dir.js';
+import { getDaemonPaths } from './paths.js';
+import { Password, Srp } from './secrets.js';
+import type { DaemonSpawnConfig } from './types.js';
 
 jest.mock('node:child_process');
 jest.mock('node:fs');
@@ -26,11 +27,14 @@ const mockGetDaemonPaths = jest.mocked(getDaemonPaths);
 // assert it is wired into the child's stdio and later closed in the parent.
 const LOG_FILE_DESCRIPTOR = 7;
 
+const SRP =
+  'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+
 const CONFIG: DaemonSpawnConfig = {
   dataDir: '/tmp/data',
   infuraProjectId: 'test-key',
-  password: 'test-pass',
-  srp: 'test test test test test test test test test test test ball',
+  password: Password.from('test-pass'),
+  srp: Srp.from(SRP),
   packageRoot: '/pkg',
 };
 
@@ -146,8 +150,7 @@ describe('ensureDaemon', () => {
           MM_DAEMON_SOCKET_PATH: '/tmp/test.sock',
           INFURA_PROJECT_ID: 'test-key',
           MM_WALLET_PASSWORD: 'test-pass',
-          MM_WALLET_SRP:
-            'test test test test test test test test test test test ball',
+          MM_WALLET_SRP: SRP,
         }),
       }),
     );
@@ -379,6 +382,43 @@ describe('ensureDaemon', () => {
     expect((thrownError as Error).message).toContain(
       'Failed to spawn daemon process',
     );
+  });
+
+  it('omits MM_WALLET_PASSWORD from the child env when no password is supplied', async () => {
+    mockPingDaemon
+      .mockResolvedValueOnce(ABSENT)
+      .mockResolvedValueOnce(RESPONSIVE);
+    mockExistsSync.mockReturnValue(true);
+
+    // Snapshot+restore the whole env via assignment so the await between
+    // mutation and restore does not trip `require-atomic-updates`.
+    const savedEnv = process.env;
+    process.env = { ...savedEnv, MM_WALLET_PASSWORD: 'leaked-from-parent' };
+    let spawnedEnv: NodeJS.ProcessEnv | undefined;
+    try {
+      const { password: _password, ...configWithoutPassword } = CONFIG;
+      await ensureDaemon(configWithoutPassword);
+      spawnedEnv = (mockSpawn.mock.calls[0][2] as { env: NodeJS.ProcessEnv })
+        .env;
+    } finally {
+      // Restoring after await is intentional; jest runs each test serially.
+      // eslint-disable-next-line require-atomic-updates
+      process.env = savedEnv;
+    }
+
+    expect(spawnedEnv).not.toHaveProperty('MM_WALLET_PASSWORD');
+  });
+
+  it('forwards an explicitly-supplied password to the child env', async () => {
+    mockPingDaemon
+      .mockResolvedValueOnce(ABSENT)
+      .mockResolvedValueOnce(RESPONSIVE);
+    mockExistsSync.mockReturnValue(true);
+
+    await ensureDaemon({ ...CONFIG, password: Password.from('explicit-pass') });
+
+    const spawnOpts = mockSpawn.mock.calls[0][2] as { env: NodeJS.ProcessEnv };
+    expect(spawnOpts.env.MM_WALLET_PASSWORD).toBe('explicit-pass');
   });
 
   it('writes spawn errors to stderr', async () => {

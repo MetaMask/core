@@ -4,15 +4,15 @@ import type {
   DefaultActions,
   DefaultEvents,
   RootMessenger,
-} from './initialization/defaults';
-import type { ApprovalControllerInstanceOptions } from './initialization/instances/approval-controller/types';
-import type { ConnectivityControllerInstanceOptions } from './initialization/instances/connectivity-controller/types';
-import type { KeyringControllerInstanceOptions } from './initialization/instances/keyring-controller/types';
-import type { NetworkControllerInstanceOptions } from './initialization/instances/network-controller/types';
-import type { RemoteFeatureFlagControllerInstanceOptions } from './initialization/instances/remote-feature-flag-controller/types';
-import type { StorageServiceInstanceOptions } from './initialization/instances/storage-service/types';
-import type { TransactionControllerInstanceOptions } from './initialization/instances/transaction-controller/types';
-import type { InitializationConfiguration } from './initialization/types';
+} from './initialization/defaults.js';
+import type { ApprovalControllerInstanceOptions } from './initialization/instances/approval-controller/types.js';
+import type { ConnectivityControllerInstanceOptions } from './initialization/instances/connectivity-controller/types.js';
+import type { KeyringControllerInstanceOptions } from './initialization/instances/keyring-controller/types.js';
+import type { NetworkControllerInstanceOptions } from './initialization/instances/network-controller/types.js';
+import type { RemoteFeatureFlagControllerInstanceOptions } from './initialization/instances/remote-feature-flag-controller/types.js';
+import type { StorageServiceInstanceOptions } from './initialization/instances/storage-service/types.js';
+import type { TransactionControllerInstanceOptions } from './initialization/instances/transaction-controller/types.js';
+import type { InitializationConfiguration } from './initialization/types.js';
 
 export type WalletOptions = {
   messenger?: RootMessenger<DefaultActions, DefaultEvents>;

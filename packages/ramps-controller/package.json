@@ -1,6 +1,6 @@
 {
   "name": "@metamask/ramps-controller",
-  "version": "15.1.0",
+  "version": "17.0.0",
   "description": "A controller for managing cryptocurrency on/off ramps functionality",
   "keywords": [
     "Ethereum",
@@ -45,8 +45,10 @@
     "changelog:update": "../../scripts/update-changelog.sh @metamask/ramps-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/ramps-controller",
     "dev": "node dev-watch.js",
-    "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --check",
-    "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --generate",
+    "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
+    "lint:tsconfigs:fix": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
+    "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --esm --check",
+    "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --esm --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest --reporters=jest-silent-reporter",
     "test:clean": "NODE_OPTIONS=--experimental-vm-modules jest --clearCache",
@@ -57,7 +59,8 @@
     "@metamask/base-controller": "^9.1.0",
     "@metamask/controller-utils": "^12.3.0",
     "@metamask/messenger": "^2.0.0",
-    "@metamask/profile-sync-controller": "^28.2.0"
+    "@metamask/profile-sync-controller": "^28.3.0",
+    "@metamask/remote-feature-flag-controller": "^4.2.2"
   },
   "devDependencies": {
     "@metamask/auto-changelog": "^6.1.0",

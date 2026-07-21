@@ -31,6 +31,7 @@ export type {
   AssetsControllerGetAssetsAction,
   AssetsControllerGetAssetsBalanceAction,
   AssetsControllerGetAssetMetadataAction,
+  AssetsControllerGetAssetAction,
   AssetsControllerGetAssetsPriceAction,
   AssetsControllerAddCustomAssetAction,
   AssetsControllerRemoveCustomAssetAction,
@@ -177,6 +178,8 @@ export {
 export type {
   AccountForLegacyFormat,
   BridgeExchangeRatesFormat,
+  FormatExchangeRatesForBridgeParams,
+  FormatStateForTransactionPayParams,
   LegacyToken,
   TransactionPayLegacyFormat,
 } from './utils';

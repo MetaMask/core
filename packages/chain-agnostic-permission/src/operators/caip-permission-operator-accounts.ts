@@ -13,11 +13,14 @@ import type {
   Hex,
 } from '@metamask/utils';
 
-import type { Caip25CaveatValue } from '../caip25Permission';
-import { KnownWalletScopeString } from '../scope/constants';
-import { getUniqueArrayItems } from '../scope/transform';
-import type { InternalScopeString, InternalScopesObject } from '../scope/types';
-import { parseScopeString } from '../scope/types';
+import type { Caip25CaveatValue } from '../caip25Permission.js';
+import { KnownWalletScopeString } from '../scope/constants.js';
+import { getUniqueArrayItems } from '../scope/transform.js';
+import type {
+  InternalScopeString,
+  InternalScopesObject,
+} from '../scope/types.js';
+import { parseScopeString } from '../scope/types.js';
 
 /*
  *

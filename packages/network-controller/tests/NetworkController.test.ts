@@ -1351,9 +1351,7 @@ describe('NetworkController', () => {
             async ({ controller }) => {
               expect(() =>
                 controller.getNetworkClientById(NetworkType.mainnet),
-              ).toThrow(
-                'No Infura network client was found with the ID "mainnet".',
-              );
+              ).toThrow('No network client was found with ID "mainnet".');
             },
           );
         });
@@ -1415,7 +1413,7 @@ describe('NetworkController', () => {
             },
             async ({ controller }) => {
               expect(() => controller.getNetworkClientById('0x1337')).toThrow(
-                'No custom network client was found with the ID "0x1337".',
+                'No network client was found with ID "0x1337".',
               );
             },
           );
@@ -1898,7 +1896,7 @@ describe('NetworkController', () => {
           await expect(() =>
             controller.lookupNetwork('non-existent-network-id'),
           ).rejects.toThrow(
-            'No custom network client was found with the ID "non-existent-network-id".',
+            'No network client was found with ID "non-existent-network-id".',
           );
         });
       });
@@ -3056,7 +3054,7 @@ describe('NetworkController', () => {
             controller.setActiveNetwork('invalid-network-client-id'),
           ).rejects.toThrow(
             new Error(
-              "No network client found with ID 'invalid-network-client-id'",
+              'No network client was found with ID "invalid-network-client-id".',
             ),
           );
         });
@@ -4785,52 +4783,6 @@ describe('NetworkController', () => {
     }
 
     describe('given the ID of a non-Infura-supported chain', () => {
-      it('throws (albeit for a different reason) if rpcEndpoints contains an Infura RPC endpoint that represents a different chain that the one being added', async () => {
-        uuidV4Mock
-          .mockReturnValueOnce('AAAA-AAAA-AAAA-AAAA')
-          .mockReturnValueOnce('BBBB-BBBB-BBBB-BBBB');
-        const defaultRpcEndpoint = buildInfuraRpcEndpoint(
-          InfuraNetworkType.mainnet,
-        );
-
-        await withController(
-          {
-            state: {
-              selectedNetworkClientId: TESTNET.networkType,
-              networkConfigurationsByChainId: {
-                [TESTNET.chainId]: buildInfuraNetworkConfiguration(
-                  TESTNET.networkType,
-                ),
-              },
-            },
-          },
-          ({ controller }) => {
-            expect(() =>
-              controller.addNetwork({
-                blockExplorerUrls: [],
-                chainId: '0x1337',
-                defaultRpcEndpointIndex: 0,
-                name: 'Some Network',
-                nativeCurrency: 'TOKEN',
-                rpcEndpoints: [
-                  defaultRpcEndpoint,
-                  {
-                    failoverUrls: [],
-                    name: 'Test Network 2',
-                    type: RpcEndpointType.Custom,
-                    url: 'https://test.endpoint/2',
-                  },
-                ],
-              }),
-            ).toThrow(
-              new Error(
-                "Could not add network with chain ID 0x1337 and Infura RPC endpoint for 'Ethereum' which represents 0x1, as the two conflict",
-              ),
-            );
-          },
-        );
-      });
-
       it('creates a new network client for each given RPC endpoint', async () => {
         uuidV4Mock
           .mockReturnValueOnce('AAAA-AAAA-AAAA-AAAA')
@@ -5258,39 +5210,6 @@ describe('NetworkController', () => {
           ).rejects.toThrow(
             new Error(
               'Could not update network: `rpcEndpoints` must be a non-empty array',
-            ),
-          );
-        },
-      );
-    });
-
-    it('throws if one of the new rpcEndpoints is custom and uses an Infura network name for networkClientId', async () => {
-      const networkConfigurationToUpdate = buildCustomNetworkConfiguration({
-        chainId: '0x1337',
-      });
-
-      await withController(
-        {
-          state: buildNetworkControllerStateWithDefaultSelectedNetworkClientId({
-            networkConfigurationsByChainId: {
-              '0x1337': networkConfigurationToUpdate,
-            },
-          }),
-        },
-        async ({ controller }) => {
-          await expect(
-            controller.updateNetwork('0x1337', {
-              ...networkConfigurationToUpdate,
-              rpcEndpoints: [
-                buildUpdateNetworkCustomRpcEndpointFields({
-                  networkClientId: InfuraNetworkType.mainnet,
-                  url: 'https://test.network',
-                }),
-              ],
-            }),
-          ).rejects.toThrow(
-            new Error(
-              "Could not update network: Custom RPC endpoint 'https://test.network' has invalid network client ID 'mainnet'",
             ),
           );
         },
@@ -10641,44 +10560,6 @@ describe('NetworkController', () => {
             );
           });
 
-          it('throws if the existing Infura RPC endpoint is not removed in the process of changing the chain ID', async () => {
-            const networkConfigurationToUpdate =
-              buildInfuraNetworkConfiguration(infuraNetworkType);
-
-            await withController(
-              {
-                state: {
-                  networkConfigurationsByChainId: {
-                    [infuraChainId]: networkConfigurationToUpdate,
-                    '0x9999': buildCustomNetworkConfiguration({
-                      chainId: '0x9999',
-                      nativeCurrency: 'TEST-9999',
-                      rpcEndpoints: [
-                        buildCustomRpcEndpoint({
-                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
-                          url: 'https://selected.endpoint',
-                        }),
-                      ],
-                    }),
-                  },
-                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
-                },
-              },
-              async ({ controller }) => {
-                await expect(
-                  controller.updateNetwork(infuraChainId, {
-                    ...networkConfigurationToUpdate,
-                    chainId: '0x1337',
-                  }),
-                ).rejects.toThrow(
-                  new Error(
-                    `Could not update network with chain ID 0x1337 and Infura RPC endpoint for '${infuraNetworkNickname}' which represents ${infuraChainId}, as the two conflict`,
-                  ),
-                );
-              },
-            );
-          });
-
           it('re-files the existing network configuration from under the old chain ID to under the new one, regenerating network client IDs for each custom RPC endpoint', async () => {
             uuidV4Mock
               .mockReturnValueOnce('CCCC-CCCC-CCCC-CCCC')
@@ -11368,44 +11249,6 @@ describe('NetworkController', () => {
                   }),
                 ).rejects.toThrow(
                   `Cannot move network from chain ${infuraChainId} to ${anotherInfuraChainId} as another network for that chain already exists ('${anotherInfuraNetworkNickname}')`,
-                );
-              },
-            );
-          });
-
-          it('throws if the existing Infura RPC endpoint is not updated in the process of changing the chain ID', async () => {
-            const networkConfigurationToUpdate =
-              buildInfuraNetworkConfiguration(infuraNetworkType);
-
-            await withController(
-              {
-                state: {
-                  networkConfigurationsByChainId: {
-                    [infuraChainId]: networkConfigurationToUpdate,
-                    '0x9999': buildCustomNetworkConfiguration({
-                      chainId: '0x9999',
-                      nativeCurrency: 'TEST-9999',
-                      rpcEndpoints: [
-                        buildCustomRpcEndpoint({
-                          networkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
-                          url: 'https://selected.endpoint',
-                        }),
-                      ],
-                    }),
-                  },
-                  selectedNetworkClientId: 'ZZZZ-ZZZZ-ZZZZ-ZZZZ',
-                },
-              },
-              async ({ controller }) => {
-                await expect(
-                  controller.updateNetwork(infuraChainId, {
-                    ...networkConfigurationToUpdate,
-                    chainId: anotherInfuraChainId,
-                  }),
-                ).rejects.toThrow(
-                  new Error(
-                    `Could not update network with chain ID ${anotherInfuraChainId} and Infura RPC endpoint for '${infuraNetworkNickname}' which represents ${infuraChainId}, as the two conflict`,
-                  ),
                 );
               },
             );

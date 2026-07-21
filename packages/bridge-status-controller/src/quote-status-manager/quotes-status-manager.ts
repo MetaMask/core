@@ -143,7 +143,10 @@ export class QuoteStatusManager {
    * manager is disabled, and surfaces an error when the entry is missing or
    * cannot transition to the finalized state.
    *
-   * @param txMetaId - Transaction metadata id of the finalized quote.
+   * A single 7702/nested batch transaction submits multiple quotes under one
+   * `txMetaId`, so every entry sharing that id is finalized together.
+   *
+   * @param txMetaId - Transaction metadata id of the finalized quote(s).
    * @param success - Whether the transaction finalized successfully.
    */
   reportFinalised(txMetaId: string, success: boolean): void {
@@ -151,9 +154,9 @@ export class QuoteStatusManager {
       return;
     }
 
-    const entry = this.#quoteStatusEntryStore.getByTxMetaId(txMetaId);
+    const entries = this.#quoteStatusEntryStore.getAllByTxMetaId(txMetaId);
 
-    if (!entry) {
+    if (entries.length === 0) {
       this.#onError?.(
         new QuoteStatusUpdateError(
           'reporting finalization status but entry was not found',
@@ -167,19 +170,34 @@ export class QuoteStatusManager {
       ? QuoteStatusState.FinalizedSuccess
       : QuoteStatusState.FinalizedFailed;
 
-    if (!entry.status.canTransitionTo(nextState)) {
-      // This is expected, there are race conditions where
-      // reportFinalized can be called twice. If the second
-      // call fails due to the first completed sucesfully
-      // backend will report that we cannot transition outside
-      // a final state, which is correct and we can safely abort
-      // the flow.
+    let hasEntryToProcess = false;
+
+    for (const entry of entries) {
+      if (!entry.status.canTransitionTo(nextState)) {
+        // This is expected, there are race conditions where
+        // reportFinalized can be called twice. If the second
+        // call fails due to the first completed sucesfully
+        // backend will report that we cannot transition outside
+        // a final state, which is correct and we can safely skip
+        // this entry.
+        continue;
+      }
+
+      entry.status.transitionTo(nextState);
+      hasEntryToProcess = true;
+    }
+
+    if (!hasEntryToProcess) {
       return;
     }
 
-    entry.status.transitionTo(nextState);
     this.#ensureRetryTimerRunning();
-    this.#processEntry(entry);
+
+    for (const entry of entries) {
+      if (entry.status.state === nextState) {
+        this.#processEntry(entry);
+      }
+    }
   }
 
   /**

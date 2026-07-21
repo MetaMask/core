@@ -115,6 +115,43 @@ describe('TransactionPayPublishHook', () => {
     expect(executeMock).not.toHaveBeenCalled();
   });
 
+  it('does nothing if transaction data has no quotes', async () => {
+    getControllerStateMock.mockReturnValue({
+      transactionData: {
+        [TRANSACTION_META_MOCK.id]: {
+          isLoading: false,
+          paymentToken: { address: '0x123' },
+          tokens: [],
+        },
+      },
+    } as unknown as TransactionPayControllerState);
+
+    const result = await runHook();
+
+    expect(result).toStrictEqual({ transactionHash: undefined });
+    expect(executeMock).not.toHaveBeenCalled();
+    expect(updateTransactionMock).not.toHaveBeenCalled();
+  });
+
+  it('does nothing if only a no-op quote is present', async () => {
+    getControllerStateMock.mockReturnValue({
+      transactionData: {
+        [TRANSACTION_META_MOCK.id]: {
+          isLoading: false,
+          paymentToken: { address: '0x123' },
+          quotes: [{ strategy: TransactionPayStrategy.None }],
+          tokens: [],
+        },
+      },
+    } as unknown as TransactionPayControllerState);
+
+    const result = await runHook();
+
+    expect(result).toStrictEqual({ transactionHash: undefined });
+    expect(executeMock).not.toHaveBeenCalled();
+    expect(updateTransactionMock).not.toHaveBeenCalled();
+  });
+
   it('throws if fiat payment is selected but no quotes are in state', async () => {
     getControllerStateMock.mockReturnValue({
       transactionData: {

@@ -453,6 +453,51 @@ describe('NotificationServicesController', () => {
         expect(mockSubscribeToPushNotifications).not.toHaveBeenCalled();
       });
     });
+
+    it('queues one re-fetch (not concurrent) when pushes arrive while a fetch is in-flight', async () => {
+      const mocks = arrangeMocks();
+      let resolveFetch!: (v: INotification[]) => void;
+      const controller = new NotificationServicesController({
+        messenger: mocks.messenger,
+        env: { featureAnnouncements: featureAnnouncementsEnv },
+        state: { isNotificationServicesEnabled: true },
+      });
+      controller.init();
+
+      const fetchSpy = jest
+        .spyOn(controller, 'fetchAndUpdateMetamaskNotifications')
+        .mockImplementationOnce(
+          () =>
+            new Promise<INotification[]>((resolve) => {
+              resolveFetch = resolve;
+            }),
+        )
+        .mockResolvedValue([]);
+
+      // First push — starts the in-flight fetch
+      mocks.globalMessenger.publish(
+        'NotificationServicesPushController:onNewNotifications',
+        [],
+      );
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+      // Second and third pushes arrive while fetch is still in-flight — both coalesced into one pending refetch
+      mocks.globalMessenger.publish(
+        'NotificationServicesPushController:onNewNotifications',
+        [],
+      );
+      mocks.globalMessenger.publish(
+        'NotificationServicesPushController:onNewNotifications',
+        [],
+      );
+      expect(fetchSpy).toHaveBeenCalledTimes(1);
+
+      // Resolve the first fetch — should trigger exactly one queued re-fetch
+      resolveFetch([]);
+      await waitFor(() => {
+        expect(fetchSpy).toHaveBeenCalledTimes(2);
+      });
+    });
   });
 
   // See /utils for more in-depth testing
@@ -1242,6 +1287,7 @@ describe('NotificationServicesController', () => {
       expect(filteredNotifications).toStrictEqual([
         {
           type: TRIGGER_TYPES.SNAP,
+          notification_subtype: TRIGGER_TYPES.SNAP,
           id: expect.any(String),
           createdAt: expect.any(String),
           isRead: false,
@@ -1611,6 +1657,7 @@ describe('NotificationServicesController', () => {
       expect(controller.state.metamaskNotificationsList).toStrictEqual([
         {
           type: TRIGGER_TYPES.SNAP,
+          notification_subtype: TRIGGER_TYPES.SNAP,
           id: expect.any(String),
           createdAt: expect.any(String),
           readDate: null,

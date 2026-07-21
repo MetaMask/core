@@ -326,7 +326,7 @@ function isErrorWithCode(error: unknown): error is { code: string | number } {
 /**
  * The string that uniquely identifies an Infura network client.
  */
-export type BuiltInNetworkClientId = InfuraNetworkType;
+export type BuiltInNetworkClientId = string;
 
 /**
  * The string that uniquely identifies a custom network client.
@@ -1074,20 +1074,15 @@ function isValidUrl(url: string): boolean {
  *
  * @param rpcEndpointUrl - The URL to operate on.
  * @returns The Infura network name that the URL references.
- * @throws if the URL is not an Infura API URL, or if an Infura network is not
- * present in the URL.
+ * @throws if no Infura network is present in the URL.
  */
 function deriveInfuraNetworkNameFromRpcEndpointUrl(
   rpcEndpointUrl: string,
-): InfuraNetworkType {
+): string {
   const match = INFURA_URL_REGEX.exec(rpcEndpointUrl);
 
   if (match?.groups) {
-    if (isInfuraNetworkType(match.groups.networkName)) {
-      return match.groups.networkName;
-    }
-
-    throw new Error(`Unknown Infura network '${match.groups.networkName}'`);
+    return match.groups.networkName;
   }
 
   throw new Error('Could not derive Infura network from RPC endpoint URL');
@@ -1409,11 +1404,7 @@ export class NetworkController extends BaseController<
       autoManagedNetworkClientRegistry,
     )) {
       for (const networkClientId of Object.keys(networkClientsById)) {
-        // Type assertion: We can assume that `networkClientId` is valid here.
-        const networkClient =
-          networkClientsById[
-            networkClientId as keyof typeof networkClientsById
-          ];
+        const networkClient = networkClientsById[networkClientId];
         if (
           networkClient.configuration.failoverRpcUrls &&
           networkClient.configuration.failoverRpcUrls.length > 0
@@ -1529,18 +1520,11 @@ export class NetworkController extends BaseController<
     const autoManagedNetworkClientRegistry =
       this.#ensureAutoManagedNetworkClientRegistryPopulated();
 
-    if (isInfuraNetworkType(networkClientId)) {
-      const infuraNetworkClient =
-        autoManagedNetworkClientRegistry[NetworkClientType.Infura][
-          networkClientId
-        ];
-      // This is impossible to reach
-      /* istanbul ignore if */
-      if (!infuraNetworkClient) {
-        throw new Error(
-          `No Infura network client was found with the ID "${networkClientId}".`,
-        );
-      }
+    const infuraNetworkClient =
+      autoManagedNetworkClientRegistry[NetworkClientType.Infura][
+        networkClientId
+      ];
+    if (infuraNetworkClient) {
       return infuraNetworkClient;
     }
 
@@ -1550,7 +1534,7 @@ export class NetworkController extends BaseController<
       ];
     if (!customNetworkClient) {
       throw new Error(
-        `No custom network client was found with the ID "${networkClientId}".`,
+        `No network client was found with ID "${networkClientId}".`,
       );
     }
     return customNetworkClient;
@@ -1620,10 +1604,7 @@ export class NetworkController extends BaseController<
       | NetworkStatus.Blocked;
     isEIP1559Compatible: undefined | boolean;
   }> {
-    // Force TypeScript to use one of the two overloads explicitly
-    const networkClient = isInfuraNetworkType(networkClientId)
-      ? this.getNetworkClientById(networkClientId)
-      : this.getNetworkClientById(networkClientId);
+    const networkClient = this.getNetworkClientById(networkClientId);
 
     const isInfura =
       networkClient.configuration.type === NetworkClientType.Infura;
@@ -2604,16 +2585,6 @@ export class NetworkController extends BaseController<
           : undefined;
 
       if (
-        rpcEndpointFields.type === RpcEndpointType.Custom &&
-        networkClientId !== undefined &&
-        isInfuraNetworkType(networkClientId)
-      ) {
-        throw new Error(
-          `${errorMessagePrefix}: Custom RPC endpoint '${rpcEndpointFields.url}' has invalid network client ID '${networkClientId}'`,
-        );
-      }
-
-      if (
         mode === 'update' &&
         networkClientId !== undefined &&
         rpcEndpointFields.type === RpcEndpointType.Custom &&
@@ -2698,22 +2669,6 @@ export class NetworkController extends BaseController<
       throw new Error(
         `${errorMessagePrefix}: There cannot be more than one Infura RPC endpoint`,
       );
-    }
-
-    const soleInfuraRpcEndpoint = infuraRpcEndpoints[0];
-    if (soleInfuraRpcEndpoint) {
-      const infuraNetworkName = deriveInfuraNetworkNameFromRpcEndpointUrl(
-        soleInfuraRpcEndpoint.url,
-      );
-      const infuraNetworkNickname = NetworkNickname[infuraNetworkName];
-      const infuraChainId = ChainId[infuraNetworkName];
-      if (networkFields.chainId !== infuraChainId) {
-        throw new Error(
-          mode === 'add'
-            ? `Could not add network with chain ID ${networkFields.chainId} and Infura RPC endpoint for '${infuraNetworkNickname}' which represents ${infuraChainId}, as the two conflict`
-            : `Could not update network with chain ID ${networkFields.chainId} and Infura RPC endpoint for '${infuraNetworkNickname}' which represents ${infuraChainId}, as the two conflict`,
-        );
-      }
     }
 
     if (
@@ -3097,42 +3052,7 @@ export class NetworkController extends BaseController<
       updateState?: (state: Draft<NetworkState>) => void;
     } = {},
   ): void {
-    const autoManagedNetworkClientRegistry =
-      this.#ensureAutoManagedNetworkClientRegistryPopulated();
-
-    let autoManagedNetworkClient:
-      | AutoManagedNetworkClient<CustomNetworkClientConfiguration>
-      | AutoManagedNetworkClient<InfuraNetworkClientConfiguration>;
-
-    if (isInfuraNetworkType(networkClientId)) {
-      const possibleAutoManagedNetworkClient =
-        autoManagedNetworkClientRegistry[NetworkClientType.Infura][
-          networkClientId
-        ];
-
-      // This is impossible to reach
-      /* istanbul ignore if */
-      if (!possibleAutoManagedNetworkClient) {
-        throw new Error(
-          `No Infura network client found with ID '${networkClientId}'`,
-        );
-      }
-
-      autoManagedNetworkClient = possibleAutoManagedNetworkClient;
-    } else {
-      const possibleAutoManagedNetworkClient =
-        autoManagedNetworkClientRegistry[NetworkClientType.Custom][
-          networkClientId
-        ];
-
-      if (!possibleAutoManagedNetworkClient) {
-        throw new Error(`No network client found with ID '${networkClientId}'`);
-      }
-
-      autoManagedNetworkClient = possibleAutoManagedNetworkClient;
-    }
-
-    this.#autoManagedNetworkClient = autoManagedNetworkClient;
+    this.#autoManagedNetworkClient = this.getNetworkClientById(networkClientId);
 
     this.update((state) => {
       state.selectedNetworkClientId = networkClientId;

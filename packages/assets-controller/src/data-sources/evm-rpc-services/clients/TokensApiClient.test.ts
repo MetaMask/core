@@ -13,7 +13,6 @@ const MAINNET_CHAIN_ID = '0x1' as ChainId;
 const POLYGON_CHAIN_ID = '0x89' as ChainId;
 const LINEA_MAINNET_CHAIN_ID = '0xe708' as ChainId;
 const MEGAETH_MAINNET_CHAIN_ID = '0x10e6' as ChainId;
-const TEMPO_MAINNET_CHAIN_ID = '0x1079' as ChainId;
 // 0xDEF1 = 57073 decimal — intentionally absent from DEFAULT_SUPPORTED_NETWORKS
 const UNSUPPORTED_CHAIN_ID = '0xDEF1' as ChainId;
 
@@ -33,7 +32,20 @@ const DEFAULT_SUPPORTED_NETWORKS = {
   partialSupport: [
     'eip155:4326', // MEGAETH_MAINNET_CHAIN_ID (0x10e6)
     'eip155:4217', // TEMPO_MAINNET_CHAIN_ID   (0x1079)
+    'eip155:143', // Monad — used for per-chain floor tests
   ],
+};
+
+/**
+ * Default `/v1/suggestedOccurrenceFloors` payload for `createMockFetch`.
+ * Mirrors production shape (decimal chain ID → floor). Linea is 1; mainnet
+ * and polygon are 3; MegaETH/Tempo omitted so tests can assert the fallback.
+ */
+const DEFAULT_SUGGESTED_OCCURRENCE_FLOORS: Record<string, number> = {
+  '1': 3,
+  '137': 3,
+  '143': 1,
+  '59144': 1,
 };
 
 // =============================================================================
@@ -53,15 +65,16 @@ function createMockResponse(
 }
 
 /**
- * Creates a mock fetch that routes `/v2/supportedNetworks` to
- * `DEFAULT_SUPPORTED_NETWORKS` and every other URL to `tokenListResponse`.
- * This mirrors production behaviour and avoids breaking existing tests that
- * only care about the token-list response.
+ * Creates a mock fetch that routes:
+ * - `/v2/supportedNetworks` → `supportedNetworks`
+ * - `/v1/suggestedOccurrenceFloors` → `suggestedOccurrenceFloors`
+ * - everything else → `tokenListResponse`
  *
  * @param tokenListResponse - The mocked response for token-list requests.
  * @param supportedNetworks - Override for the supported-networks payload.
  * @param supportedNetworks.fullSupport - Chains with full support.
  * @param supportedNetworks.partialSupport - Chains with partial support.
+ * @param suggestedOccurrenceFloors - Override for suggested floors payload.
  * @returns A Jest mock of the global `fetch` function.
  */
 function createMockFetch(
@@ -70,13 +83,40 @@ function createMockFetch(
     fullSupport?: string[];
     partialSupport?: string[];
   } = DEFAULT_SUPPORTED_NETWORKS,
+  suggestedOccurrenceFloors: Record<
+    string,
+    number
+  > = DEFAULT_SUGGESTED_OCCURRENCE_FLOORS,
 ): jest.MockedFunction<typeof globalThis.fetch> {
   return jest.fn((url: string | URL) => {
-    if (url.toString().includes('/v2/supportedNetworks')) {
+    const urlString = url.toString();
+    if (urlString.includes('/v2/supportedNetworks')) {
       return Promise.resolve(createMockResponse(supportedNetworks));
+    }
+    if (urlString.includes('/v1/suggestedOccurrenceFloors')) {
+      return Promise.resolve(createMockResponse(suggestedOccurrenceFloors));
     }
     return Promise.resolve(tokenListResponse);
   }) as unknown as jest.MockedFunction<typeof globalThis.fetch>;
+}
+
+/**
+ * Find the token-list request URL from a mock fetch (skips supported-networks
+ * and suggested-floors calls).
+ *
+ * @param mockFetch - Mocked fetch.
+ * @returns The token-list URL string.
+ */
+function getTokenListUrl(
+  mockFetch: jest.MockedFunction<typeof globalThis.fetch>,
+): string {
+  const call = (mockFetch.mock.calls as [string][]).find(([url]) =>
+    /\/tokens\/\d+/u.test(url),
+  );
+  if (call === undefined) {
+    throw new Error('Expected a /tokens/{chainId} fetch call');
+  }
+  return call[0];
 }
 
 function buildClient(config?: TokensApiClientConfig): TokensApiClient {
@@ -109,28 +149,25 @@ describe('TokensApiClient', () => {
     });
 
     it('uses the provided fetch function instead of globalThis.fetch', async () => {
-      // With routing: 1 supported-networks call + 1 token-list call = 2 total.
+      // With routing: supported-networks + floors + token-list = 3 total.
       const mockFetch = createMockFetch(createMockResponse([]));
       const client = buildClient({ fetch: mockFetch });
 
       await client.fetchTokenList(MAINNET_CHAIN_ID);
 
-      expect(mockFetch).toHaveBeenCalledTimes(2);
+      expect(mockFetch).toHaveBeenCalledTimes(3);
     });
   });
 
   describe('fetchTokenList', () => {
     describe('URL construction', () => {
-      // The supported-networks check is call[0]; the token-list request is call[1].
-
       it('hits the same `token.api.cx.metamask.io/tokens/{decimalChainId}` endpoint as TokenListController', async () => {
         const mockFetch = createMockFetch(createMockResponse([]));
         const client = buildClient({ fetch: mockFetch });
 
         await client.fetchTokenList(MAINNET_CHAIN_ID);
 
-        const [url] = mockFetch.mock.calls[1] as [string];
-        expect(url).toContain(`${EXPECTED_BASE_URL}/1?`);
+        expect(getTokenListUrl(mockFetch)).toContain(`${EXPECTED_BASE_URL}/1?`);
       });
 
       it('converts non-mainnet hex chain IDs to their decimal form in the URL', async () => {
@@ -139,8 +176,9 @@ describe('TokensApiClient', () => {
 
         await client.fetchTokenList(POLYGON_CHAIN_ID);
 
-        const [url] = mockFetch.mock.calls[1] as [string];
-        expect(url).toContain(`${EXPECTED_BASE_URL}/137?`);
+        expect(getTokenListUrl(mockFetch)).toContain(
+          `${EXPECTED_BASE_URL}/137?`,
+        );
       });
 
       it('includes the same query parameters as TokenListController', async () => {
@@ -149,7 +187,7 @@ describe('TokensApiClient', () => {
 
         await client.fetchTokenList(MAINNET_CHAIN_ID);
 
-        const [url] = mockFetch.mock.calls[1] as [string];
+        const url = getTokenListUrl(mockFetch);
         expect(url).toContain('occurrenceFloor=3');
         expect(url).toContain('includeNativeAssets=false');
         expect(url).toContain('includeTokenFees=false');
@@ -167,27 +205,72 @@ describe('TokensApiClient', () => {
 
         await client.fetchTokenList(MAINNET_CHAIN_ID);
 
-        const [url] = mockFetch.mock.calls[1] as [string];
-        expect(url).not.toMatch(/[?&]first=/u);
+        expect(getTokenListUrl(mockFetch)).not.toMatch(/[?&]first=/u);
       });
 
-      it.each([
-        ['Linea mainnet', LINEA_MAINNET_CHAIN_ID],
-        ['MegaETH mainnet', MEGAETH_MAINNET_CHAIN_ID],
-        ['Tempo mainnet', TEMPO_MAINNET_CHAIN_ID],
-      ])(
-        'lowers occurrenceFloor to 1 on %s (matching TokenListController)',
-        async (_label, chainId) => {
-          const mockFetch = createMockFetch(createMockResponse([]));
-          const client = buildClient({ fetch: mockFetch });
+      it('uses suggested occurrence floor from Token API for Linea', async () => {
+        const mockFetch = createMockFetch(createMockResponse([]));
+        const client = buildClient({ fetch: mockFetch });
 
-          await client.fetchTokenList(chainId);
+        await client.fetchTokenList(LINEA_MAINNET_CHAIN_ID);
 
-          const [url] = mockFetch.mock.calls[1] as [string];
-          expect(url).toContain('occurrenceFloor=1');
-          expect(url).not.toContain('occurrenceFloor=3');
-        },
-      );
+        const url = getTokenListUrl(mockFetch);
+        expect(url).toContain('occurrenceFloor=1');
+        expect(url).not.toContain('occurrenceFloor=3');
+      });
+
+      it('uses per-chain suggested occurrence floor (Monad → 1)', async () => {
+        const monadChainId = '0x8f' as ChainId; // 143
+        const mockFetch = createMockFetch(createMockResponse([]));
+        const client = buildClient({ fetch: mockFetch });
+
+        await client.fetchTokenList(monadChainId);
+
+        expect(getTokenListUrl(mockFetch)).toContain('occurrenceFloor=1');
+      });
+
+      it('falls back to occurrenceFloor=3 when chain is missing from suggested floors', async () => {
+        // MegaETH is supported but omitted from DEFAULT_SUGGESTED_OCCURRENCE_FLOORS.
+        const mockFetch = createMockFetch(createMockResponse([]));
+        const client = buildClient({ fetch: mockFetch });
+
+        await client.fetchTokenList(MEGAETH_MAINNET_CHAIN_ID);
+
+        expect(getTokenListUrl(mockFetch)).toContain('occurrenceFloor=3');
+      });
+
+      it('falls back to occurrenceFloor=3 when suggested floors fetch fails', async () => {
+        const mockFetch = jest.fn((url: string | URL) => {
+          const urlString = url.toString();
+          if (urlString.includes('/v2/supportedNetworks')) {
+            return Promise.resolve(
+              createMockResponse(DEFAULT_SUPPORTED_NETWORKS),
+            );
+          }
+          if (urlString.includes('/v1/suggestedOccurrenceFloors')) {
+            return Promise.reject(new Error('floors unavailable'));
+          }
+          return Promise.resolve(createMockResponse([]));
+        }) as unknown as jest.MockedFunction<typeof globalThis.fetch>;
+        const client = buildClient({ fetch: mockFetch });
+
+        await client.fetchTokenList(MAINNET_CHAIN_ID);
+
+        expect(getTokenListUrl(mockFetch)).toContain('occurrenceFloor=3');
+      });
+
+      it('caches suggested occurrence floors within TTL', async () => {
+        const mockFetch = createMockFetch(createMockResponse([]));
+        const client = buildClient({ fetch: mockFetch });
+
+        await client.fetchTokenList(MAINNET_CHAIN_ID);
+        await client.fetchTokenList(POLYGON_CHAIN_ID);
+
+        const floorsCalls = (mockFetch.mock.calls as [string][]).filter(
+          ([url]) => url.includes('/v1/suggestedOccurrenceFloors'),
+        );
+        expect(floorsCalls).toHaveLength(1);
+      });
     });
 
     describe('successful responses', () => {
@@ -682,8 +765,8 @@ describe('TokensApiClient', () => {
         const first = await client.fetchTokenList(MAINNET_CHAIN_ID);
         const second = await client.fetchTokenList(MAINNET_CHAIN_ID);
 
-        // 1 supported-networks call + 1 token-list call on first; nothing on second.
-        expect(mockFetch).toHaveBeenCalledTimes(2);
+        // supported-networks + floors + token-list on first; nothing on second.
+        expect(mockFetch).toHaveBeenCalledTimes(3);
         expect(second).toStrictEqual(first);
       });
 
@@ -695,18 +778,24 @@ describe('TokensApiClient', () => {
         await client.fetchTokenList(MAINNET_CHAIN_ID);
         await client.fetchTokenList(POLYGON_CHAIN_ID);
 
-        // 1 supported-networks + 1 mainnet token-list + 1 polygon token-list = 3
-        expect(mockFetch).toHaveBeenCalledTimes(3);
+        // supported-networks + floors + mainnet list + polygon list = 4
+        expect(mockFetch).toHaveBeenCalledTimes(4);
       });
 
       it('dedupes concurrent in-flight token-list requests for the same chain', async () => {
-        // The supported-networks call resolves immediately; the token-list
-        // response is held pending so we can assert deduplication.
+        // The supported-networks + floors calls resolve immediately; the
+        // token-list response is held pending so we can assert deduplication.
         let resolveTokenList: ((value: Response) => void) | undefined;
         const mockFetch = jest.fn((url: string | URL) => {
-          if (url.toString().includes('/v2/supportedNetworks')) {
+          const urlString = url.toString();
+          if (urlString.includes('/v2/supportedNetworks')) {
             return Promise.resolve(
               createMockResponse(DEFAULT_SUPPORTED_NETWORKS),
+            );
+          }
+          if (urlString.includes('/v1/suggestedOccurrenceFloors')) {
+            return Promise.resolve(
+              createMockResponse(DEFAULT_SUGGESTED_OCCURRENCE_FLOORS),
             );
           }
           return new Promise<Response>((resolve) => {
@@ -720,15 +809,15 @@ describe('TokensApiClient', () => {
         const a = client.fetchTokenList(MAINNET_CHAIN_ID);
         const b = client.fetchTokenList(MAINNET_CHAIN_ID);
 
-        // Yield to the event loop so the supported-networks microtasks drain
-        // and both callers reach queryClient.fetchQuery (setting resolveTokenList).
+        // Yield to the event loop so the supported-networks / floors
+        // microtasks drain and both callers reach queryClient.fetchQuery.
         await new Promise<void>((resolve) => setTimeout(resolve, 0));
 
         resolveTokenList?.(createMockResponse([]));
         await Promise.all([a, b]);
 
-        // 1 supported-networks call + 1 deduplicated token-list call = 2 total
-        expect(mockFetch).toHaveBeenCalledTimes(2);
+        // supported-networks + floors + 1 deduplicated token-list = 3
+        expect(mockFetch).toHaveBeenCalledTimes(3);
       });
 
       it('does not cap the page size in the cached path either', async () => {
@@ -738,8 +827,7 @@ describe('TokensApiClient', () => {
 
         await client.fetchTokenList(MAINNET_CHAIN_ID);
 
-        const [url] = mockFetch.mock.calls[1] as [string];
-        expect(url).not.toMatch(/[?&]first=/u);
+        expect(getTokenListUrl(mockFetch)).not.toMatch(/[?&]first=/u);
       });
 
       it('falls back to direct fetch when no queryClient is provided', async () => {
@@ -750,10 +838,10 @@ describe('TokensApiClient', () => {
         await client.fetchTokenList(MAINNET_CHAIN_ID);
 
         // Without a queryClient there is no token-list cache:
-        // call 1: 1 supported-networks + 1 token-list = 2
-        // call 2: supported-networks cached + 1 token-list = 1
-        // total = 3
-        expect(mockFetch).toHaveBeenCalledTimes(3);
+        // call 1: supported-networks + floors + token-list = 3
+        // call 2: both caches hit + 1 token-list = 1
+        // total = 4
+        expect(mockFetch).toHaveBeenCalledTimes(4);
       });
     });
   });

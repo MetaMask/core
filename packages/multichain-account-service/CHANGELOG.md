@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [13.0.0]
+
+### Changed
+
+- Bump `@metamask/accounts-controller` from `^39.0.4` to `^39.0.5` ([#9470](https://github.com/MetaMask/core/pull/9470))
+
+### Removed
+
+- **BREAKING:** Removed use of v1 `createAccount` entirely ([#9460](https://github.com/MetaMask/core/pull/9460))
+  - All BIP-44 Snaps are expected to implement `createAccounts` (v1 or v2).
+  - The old v1 `createAccount` flow had some undesired side-effetcs sometimes (e.g auto-selecting a non-EVM account after being created, which is not compatible with our new group model).
+
 ## [12.0.0]
 
 ### Added
@@ -571,7 +583,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add `MultichainAccountService` ([#6141](https://github.com/MetaMask/core/pull/6141), [#6165](https://github.com/MetaMask/core/pull/6165))
   - This service manages multichain accounts/wallets.
 
-[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@12.0.0...HEAD
+[Unreleased]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@13.0.0...HEAD
+[13.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@12.0.0...@metamask/multichain-account-service@13.0.0
 [12.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@11.1.0...@metamask/multichain-account-service@12.0.0
 [11.1.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@11.0.0...@metamask/multichain-account-service@11.1.0
 [11.0.0]: https://github.com/MetaMask/core/compare/@metamask/multichain-account-service@10.0.3...@metamask/multichain-account-service@11.0.0

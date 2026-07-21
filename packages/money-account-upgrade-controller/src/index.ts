@@ -1,9 +1,14 @@
 export type { UpgradeConfig } from './types';
 export {
   MoneyAccountUpgradeStepError,
+  TerminalUpgradeError,
   isMoneyAccountUpgradeStepError,
+  isTerminalMoneyAccountUpgradeError,
 } from './errors';
-export { MoneyAccountUpgradeController } from './MoneyAccountUpgradeController';
+export {
+  MoneyAccountUpgradeController,
+  getDefaultMoneyAccountUpgradeControllerState,
+} from './MoneyAccountUpgradeController';
 export type {
   MoneyAccountUpgradeControllerState,
   MoneyAccountUpgradeControllerGetStateAction,
@@ -11,5 +16,6 @@ export type {
   MoneyAccountUpgradeControllerStateChangedEvent,
   MoneyAccountUpgradeControllerEvents,
   MoneyAccountUpgradeControllerMessenger,
+  MoneyAccountUpgradeStatus,
 } from './MoneyAccountUpgradeController';
 export type { MoneyAccountUpgradeControllerUpgradeAccountAction } from './MoneyAccountUpgradeController-method-action-types';

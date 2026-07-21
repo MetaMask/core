@@ -3,7 +3,7 @@
  * Do not edit manually.
  */
 
-import type { RampsController } from './RampsController';
+import type { RampsController } from './RampsController.js';
 
 /**
  * Executes a request with caching, deduplication, and at most one in-flight
@@ -289,7 +289,7 @@ export type RampsControllerGetBuyWidgetDataAction = {
  *
  * @param params - Object containing order identifiers and wallet info.
  * @param params.orderId - Full order ID (e.g. "/providers/paypal/orders/abc123") or order code.
- * @param params.providerCode - Provider code (e.g. "paypal", "transak"), with or without /providers/ prefix.
+ * @param params.providerCode - Canonical provider code (e.g. "paypal", "transak").
  * @param params.walletAddress - Wallet address for the order.
  * @param params.chainId - Optional chain ID for the order.
  */

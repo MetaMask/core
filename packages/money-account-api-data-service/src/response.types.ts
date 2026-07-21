@@ -17,15 +17,6 @@ import type {
 export type DataFreshness = 'live' | 'degraded';
 
 /**
- * Aggregated balance summary within the positions response.
- */
-export type Balance = {
-  musd_balance: string;
-  vmusd_value_in_musd: string;
-  total_balance: string;
-};
-
-/**
  * A single vault position within the positions response.
  */
 export type VaultPosition = {
@@ -41,6 +32,16 @@ export type VaultPosition = {
   lifetime_interest_usd: string;
   current_apy: string;
   effective_apy: string;
+};
+
+/**
+ * Balance summary on the positions response.
+ * `null` when the API's wallet-balance path is disabled or unavailable.
+ */
+export type PositionBalance = {
+  musd_balance: string;
+  vmusd_value_in_musd: string;
+  total_balance: string;
 };
 
 /**

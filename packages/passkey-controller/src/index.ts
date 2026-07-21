@@ -11,12 +11,11 @@ export {
 export type {
   PasskeyControllerState,
   PasskeyControllerMessenger,
+  PasskeyControllerOptions,
   PasskeyControllerGetStateAction,
   PasskeyControllerActions,
   PasskeyControllerStateChangedEvent,
   PasskeyControllerEvents,
-} from './PasskeyController';
-export type {
   PasskeyCredentialInfo,
   PasskeyDerivationMethod,
   PasskeyKeyDerivation,
@@ -30,3 +29,21 @@ export type {
   PasskeyAuthenticationOptions,
   PasskeyAuthenticationResponse,
 } from './webauthn/types';
+export type {
+  PasskeyControllerIsPasskeyEnrolledAction,
+  PasskeyControllerGenerateRegistrationOptionsAction,
+  PasskeyControllerGeneratePostRegistrationAuthenticationOptionsAction,
+  PasskeyControllerGenerateAuthenticationOptionsAction,
+  PasskeyControllerProtectVaultKeyWithPasskeyAction,
+  PasskeyControllerRetrieveVaultKeyWithPasskeyAction,
+  PasskeyControllerUnlockWithPasskeyAction,
+  PasskeyControllerExportSeedPhraseWithPasskeyAction,
+  PasskeyControllerExportAccountsWithPasskeyAction,
+  PasskeyControllerVerifyPasskeyAuthenticationAction,
+  PasskeyControllerRenewVaultKeyProtectionAction,
+  PasskeyControllerChangePasswordWithPasskeyVerificationAction,
+  PasskeyControllerRemovePasskeyWithPasskeyVerificationAction,
+  PasskeyControllerRemovePasskeyWithPasswordVerificationAction,
+  PasskeyControllerClearStateAction,
+  PasskeyControllerDestroyAction,
+} from './PasskeyController-method-action-types';

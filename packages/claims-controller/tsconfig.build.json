@@ -17,6 +17,9 @@
     },
     {
       "path": "../keyring-controller/tsconfig.build.json"
+    },
+    {
+      "path": "../controller-utils/tsconfig.build.json"
     }
   ],
   "include": ["../../types", "./src"]

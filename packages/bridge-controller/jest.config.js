@@ -23,7 +23,7 @@ module.exports = merge(baseConfig, {
       statements: 98.79,
     },
     './src/selectors.ts': {
-      branches: 91.58,
+      branches: 91.42,
       functions: 100,
       lines: 100,
       statements: 100,

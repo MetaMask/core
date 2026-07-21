@@ -41,8 +41,8 @@ import type { Hex } from '@metamask/utils';
 import { KnownCaipNamespace } from '@metamask/utils';
 import { createSelector } from 'reselect';
 
-import type { NetworkConnectionBannerControllerMethodActions } from './NetworkConnectionBannerController-method-action-types';
-import { getIsInfuraEndpoint } from './url-utils';
+import type { NetworkConnectionBannerControllerMethodActions } from './NetworkConnectionBannerController-method-action-types.js';
+import { getIsInfuraEndpoint } from './url-utils.js';
 
 /**
  * The name of the {@link NetworkConnectionBannerController}, used to namespace

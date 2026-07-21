@@ -10,6 +10,7 @@ import type { Messenger } from '@metamask/messenger';
 import type { AuthenticationController } from '@metamask/profile-sync-controller';
 import {
   array,
+  assign,
   boolean,
   enums,
   is,
@@ -23,6 +24,8 @@ import {
 
 import { serviceName, SocialServiceErrorMessage } from './social-constants';
 import type {
+  FeedResponse,
+  FetchFeedOptions,
   FetchFollowersOptions,
   FetchLeaderboardOptions,
   FetchPositionByIdOptions,
@@ -154,6 +157,27 @@ const PositionsResponseStruct = structType({
   computedAt: optional(nullable(string())),
 });
 
+// A feed item is a position plus the trader who made the trade (`actor`) and
+// the item's creation timestamp. Reuses PositionStruct so the trade/position
+// fields stay in lockstep with the positions endpoints.
+const FeedItemStruct = assign(
+  PositionStruct,
+  structType({
+    actor: ProfileSummaryStruct,
+    timestamp: number(),
+  }),
+);
+
+const FeedPaginationStruct = structType({
+  olderCursor: nullable(string()),
+  newerCursor: nullable(string()),
+});
+
+const FeedResponseStruct = structType({
+  items: array(FeedItemStruct),
+  pagination: FeedPaginationStruct,
+});
+
 const FollowersResponseStruct = structType({
   followers: array(ProfileSummaryStruct),
   count: number(),
@@ -184,6 +208,7 @@ const MESSENGER_EXPOSED_METHODS = [
   'fetchFollowers',
   'fetchFollowing',
   'fetchPositionById',
+  'fetchFeed',
   'follow',
   'unfollow',
   'optOutOfLeaderboard',
@@ -469,6 +494,71 @@ export class SocialService extends BaseDataService<
     });
 
     return positionResponse;
+  }
+
+  /**
+   * Fetches a page of the trader-activity feed.
+   *
+   * Calls `GET ${baseUrl}/feed`. For the `following` scope the current user is
+   * identified server-side from the JWT sub claim carried in the Authorization
+   * header; the `leaderboard` scope is generic and shared by all users.
+   *
+   * Cursor pagination supports infinite scroll: pass `pagination.olderCursor`
+   * from a prior response back as `olderThan` to load older items, and
+   * `pagination.newerCursor` as `newerThan` to fetch newer items.
+   *
+   * @param options - Options bag.
+   * @param options.scope - `following` (default) or `leaderboard`.
+   * @param options.chains - Filter by one or more chains.
+   * @param options.limit - Number of results per page.
+   * @param options.olderThan - Cursor for older items (scroll down).
+   * @param options.newerThan - Cursor for newer items (refresh).
+   * @returns The feed response with items and pagination cursors.
+   */
+  async fetchFeed(options?: FetchFeedOptions): Promise<FeedResponse> {
+    const feedResponse = await this.fetchQuery({
+      queryKey: [`${this.name}:fetchFeed`, options ?? null],
+      staleTime: 0,
+      queryFn: async () => {
+        const { scope, chains, limit, olderThan, newerThan } = options ?? {};
+        const url = new URL(`${this.#v1Url}/feed`);
+        if (scope) {
+          url.searchParams.append('scope', scope);
+        }
+        if (chains) {
+          for (const chain of chains) {
+            url.searchParams.append('chains', chain);
+          }
+        }
+        if (limit !== undefined) {
+          url.searchParams.append('limit', String(limit));
+        }
+        if (olderThan) {
+          url.searchParams.append('olderThan', olderThan);
+        }
+        if (newerThan) {
+          url.searchParams.append('newerThan', newerThan);
+        }
+
+        const authHeaders = await this.#getAuthHeaders();
+        const response = await fetch(url.toString(), {
+          headers: authHeaders,
+        });
+        SocialService.#throwIfNotOk(
+          response,
+          SocialServiceErrorMessage.FETCH_FEED_FAILED,
+        );
+        const feedData = await response.json();
+        if (!is(feedData, FeedResponseStruct)) {
+          throw new Error(
+            SocialServiceErrorMessage.FETCH_FEED_INVALID_RESPONSE,
+          );
+        }
+        return feedData as FeedResponse;
+      },
+    });
+
+    return feedResponse;
   }
 
   /**

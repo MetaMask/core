@@ -214,7 +214,8 @@ export class MoneyAccountApiDataService extends BaseDataService<
    * Fetches the current vault positions for a given user address.
    *
    * @param address - The user's Ethereum address.
-   * @returns The position response containing vault positions.
+   * @returns The position response containing vault positions and an optional
+   * `balance` summary (`null` when the API balance path is unavailable).
    */
   async fetchPositions(address: string): Promise<PositionResponse> {
     const url = new URL(

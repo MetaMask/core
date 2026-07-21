@@ -1,6 +1,6 @@
 {
   "name": "@metamask/shield-controller",
-  "version": "5.1.2",
+  "version": "5.1.3",
   "description": "Controller handling shield transaction coverage logic",
   "keywords": [
     "Ethereum",
@@ -44,6 +44,8 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/shield-controller",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/shield-controller",
+    "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
+    "lint:tsconfigs:fix": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
     "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --check",
     "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --formatter oxfmt --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",
@@ -57,7 +59,7 @@
     "@metamask/controller-utils": "^12.3.0",
     "@metamask/messenger": "^2.0.0",
     "@metamask/signature-controller": "^39.2.7",
-    "@metamask/transaction-controller": "^68.3.0",
+    "@metamask/transaction-controller": "^69.1.0",
     "@metamask/utils": "^11.11.0",
     "cockatiel": "^3.1.2"
   },

@@ -27,17 +27,19 @@ import {
 const MOCK_ADDRESS = '0x1111111111111111111111111111111111111111';
 const MOCK_VAULT_ADDRESS = '0x2222222222222222222222222222222222222222';
 
+const MOCK_POSITION_BALANCE = {
+  musd_balance: '2',
+  vmusd_value_in_musd: '1513527',
+  total_balance: '1513529',
+};
+
 const MOCK_POSITION_RESPONSE = {
   address: MOCK_ADDRESS,
   as_of_block: 12345,
   as_of_timestamp: '2026-06-01T12:00:00Z',
   data_freshness: 'live' as const,
   indexer_lag_seconds: 5,
-  balance: {
-    musd_balance: '1000000',
-    vmusd_value_in_musd: '1052340000000000000',
-    total_balance: '1052341000000000000',
-  },
+  balance: MOCK_POSITION_BALANCE,
   positions: [
     {
       vault_address: MOCK_VAULT_ADDRESS,
@@ -241,6 +243,52 @@ describe('MoneyAccountApiDataService', () => {
         .get(`/v1/positions/${MOCK_ADDRESS}`)
         .once()
         .reply(200, { invalid: true });
+
+      await expect(service.fetchPositions(MOCK_ADDRESS)).rejects.toThrow(
+        MoneyAccountApiResponseValidationError,
+      );
+      service.destroy();
+    });
+
+    it('accepts a null balance when the API balance path is unavailable', async () => {
+      const { service } = createService(Env.DEV);
+      const responseWithNullBalance = {
+        ...MOCK_POSITION_RESPONSE,
+        balance: null,
+      };
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}`)
+        .reply(200, responseWithNullBalance);
+
+      const result = await service.fetchPositions(MOCK_ADDRESS);
+      expect(result).toStrictEqual(responseWithNullBalance);
+      service.destroy();
+    });
+
+    it('accepts a response that omits the balance field', async () => {
+      const { service } = createService(Env.DEV);
+      const { balance: _balance, ...responseWithoutBalance } =
+        MOCK_POSITION_RESPONSE;
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}`)
+        .reply(200, responseWithoutBalance);
+
+      const result = await service.fetchPositions(MOCK_ADDRESS);
+      expect(result).toStrictEqual(responseWithoutBalance);
+      service.destroy();
+    });
+
+    it('throws MoneyAccountApiResponseValidationError on malformed balance', async () => {
+      const { service } = createService(Env.DEV);
+
+      nock(MONEY_ACCOUNT_API_URL_MAP[Env.DEV])
+        .get(`/v1/positions/${MOCK_ADDRESS}`)
+        .reply(200, {
+          ...MOCK_POSITION_RESPONSE,
+          balance: { musd_balance: '1' },
+        });
 
       await expect(service.fetchPositions(MOCK_ADDRESS)).rejects.toThrow(
         MoneyAccountApiResponseValidationError,
@@ -730,6 +778,30 @@ describe('MoneyAccountApiDataService', () => {
           errorName: expect.any(String),
         }),
       );
+      service.destroy();
+    });
+
+    it('traces non-Error rejections with the thrown value type', async () => {
+      const { service } = createService(Env.DEV, { trace: mockTrace });
+      jest
+        .spyOn(globalThis, 'fetch')
+        .mockRejectedValue('network down' as never);
+
+      await expect(service.fetchPositions(MOCK_ADDRESS)).rejects.toBe(
+        'network down',
+      );
+
+      expect(mockTrace).toHaveBeenCalled();
+      const lastCall = mockTrace.mock.calls[
+        mockTrace.mock.calls.length - 1
+      ] as [MoneyAccountApiDataServiceTraceRequest, unknown];
+      expect(lastCall[0].data).toStrictEqual(
+        expect.objectContaining({
+          success: false,
+          errorName: 'string',
+        }),
+      );
+      jest.restoreAllMocks();
       service.destroy();
     });
 

@@ -1,15 +1,44 @@
+import { define, literal } from '@metamask/superstruct';
 import type { Json } from '@metamask/utils';
 import type { Wallet } from '@metamask/wallet';
 import { appendFile, readFile, rm, writeFile } from 'node:fs/promises';
 
-import { pingDaemon } from './daemon-client';
-import { ensureOwnerOnlyDirectory } from './data-dir';
-import { getDaemonPaths } from './paths';
-import { startRpcSocketServer } from './rpc-socket-server';
-import type { RpcSocketServerHandle } from './rpc-socket-server';
-import type { DaemonStatusInfo, Logger, RpcHandlerMap } from './types';
-import { isErrorWithCode, isProcessAlive, readPidFile } from './utils';
-import { createWallet } from './wallet-factory';
+import { pingDaemon } from './daemon-client.js';
+import { ensureOwnerOnlyDirectory } from './data-dir.js';
+import { getDaemonPaths } from './paths.js';
+import { startRpcSocketServer } from './rpc-socket-server.js';
+import type { RpcSocketServerHandle } from './rpc-socket-server.js';
+import { Password, Srp } from './secrets.js';
+import { defineHandler } from './types.js';
+import type {
+  DaemonStatusInfo,
+  Logger,
+  RpcDispatcher,
+  RpcHandlerMap,
+} from './types.js';
+import { isErrorWithCode, isProcessAlive, readPidFile } from './utils.js';
+import { createWallet } from './wallet-factory.js';
+
+/**
+ * Params struct for the `call` RPC method. `params` must be a non-empty array
+ * whose first element is the messenger action name; remaining elements are
+ * positional action arguments forwarded as-is to `messenger.call`.
+ */
+const callParamsStruct = define<[string, ...unknown[]]>(
+  'CallParams',
+  (value) => {
+    if (!Array.isArray(value)) {
+      return 'Expected an array';
+    }
+    if (value.length === 0) {
+      return 'Expected a non-empty array';
+    }
+    if (typeof value[0] !== 'string') {
+      return 'Expected the first element to be a string action name';
+    }
+    return true;
+  },
+);
 
 const startTime = Date.now();
 
@@ -29,22 +58,25 @@ async function main(): Promise<void> {
     throw new Error('INFURA_PROJECT_ID environment variable is required');
   }
 
-  const password = process.env.MM_WALLET_PASSWORD;
-  if (!password) {
-    throw new Error('MM_WALLET_PASSWORD environment variable is required');
-  }
+  // Password is optional: when absent, the daemon starts without unlocking
+  // the keyring (e.g. when the user prefers to call `mm wallet unlock`
+  // interactively rather than embed the password in their environment).
+  // First-run startup still requires a password; wallet-factory enforces
+  // that and surfaces a clear error.
+  const passwordRaw = process.env.MM_WALLET_PASSWORD;
 
-  const srp = process.env.MM_WALLET_SRP;
-  if (!srp) {
+  const srpRaw = process.env.MM_WALLET_SRP;
+  if (!srpRaw) {
     throw new Error('MM_WALLET_SRP environment variable is required');
   }
 
-  // Scrub the wallet secrets from the environment now they are captured. The
-  // daemon is long-lived and dispatches arbitrary messenger actions over its
-  // socket, so leaving the SRP/password in `process.env` for its whole lifetime
-  // needlessly widens their exposure to any in-process code.
+  // Scrub before validation so a throw from Password.from / Srp.from (bad
+  // value) does not leave the raw secrets in the long-lived daemon's env.
   delete process.env.MM_WALLET_PASSWORD;
   delete process.env.MM_WALLET_SRP;
+
+  const password = passwordRaw ? Password.from(passwordRaw) : undefined;
+  const srp = Srp.from(srpRaw);
 
   await ensureOwnerOnlyDirectory(dataDir);
 
@@ -98,39 +130,37 @@ async function main(): Promise<void> {
     }));
 
     const constructedWallet = wallet;
+    // Arbitrary messenger dispatch is intentional: the CLI exposes the full
+    // messenger surface over a Unix socket inside the per-user oclif data
+    // directory. The dataDir is chmodded to 0o700 above and the socket to
+    // 0o600 by the RPC server on bind, so only the owning user can open them,
+    // but there is no in-process auth check beyond that filesystem-permission
+    // barrier. The messenger is strongly typed by action name; we narrow it
+    // once here to the RpcDispatcher shape the `call` handler needs.
+    const dispatch = constructedWallet.messenger.call.bind(
+      constructedWallet.messenger,
+    ) as unknown as RpcDispatcher;
+
     const handlers: RpcHandlerMap = {
-      getStatus: async (): Promise<DaemonStatusInfo> => ({
-        pid: process.pid,
-        uptime: Math.floor((Date.now() - startTime) / 1000),
+      getStatus: defineHandler(
+        literal(null),
+        async (): Promise<DaemonStatusInfo> => ({
+          pid: process.pid,
+          uptime: Math.floor((Date.now() - startTime) / 1000),
+        }),
+      ),
+      call: defineHandler(callParamsStruct, async (params) => {
+        const [action, ...args] = params;
+        return await dispatch(action, ...(args as Json[]));
       }),
       // Exposes the callable surface for discovery: it grows silently as
       // controllers are wired, so consumers need a way to see it without a
       // hand-kept catalog that would rot.
-      listActions: async (): Promise<Json> =>
-        constructedWallet.messenger.getRegisteredActionTypes(),
-      // Arbitrary messenger dispatch is intentional: the CLI exposes the full
-      // messenger surface over a Unix socket inside the per-user oclif data
-      // directory. The dataDir is chmodded to 0o700 above and the socket to
-      // 0o600 by the RPC server on bind, so only the owning user can open
-      // them, but there is no in-process auth check beyond that
-      // filesystem-permission barrier.
-      call: async (params) => {
-        if (!Array.isArray(params) || typeof params[0] !== 'string') {
-          throw new Error('Expected params to be an array with an action name');
-        }
-        const [action, ...args] = params as [string, ...Json[]];
-        // The messenger's `call` is typed to a literal action-name union; the
-        // daemon dispatches arbitrary action names from RPC. Cast to a
-        // string-keyed `call` (which preserves arity) rather than to `any`, so
-        // the only untyped value is the `unknown` result narrowed below.
-        type ArbitraryDispatch = {
-          call: (actionName: string, ...callArgs: Json[]) => unknown;
-        };
-        const result = (
-          constructedWallet.messenger as unknown as ArbitraryDispatch
-        ).call(action, ...args);
-        return (result instanceof Promise ? await result : result) as Json;
-      },
+      listActions: defineHandler(
+        literal(null),
+        async (): Promise<Json> =>
+          constructedWallet.messenger.getRegisteredActionTypes(),
+      ),
     };
 
     // `startRpcSocketServer` restricts the socket to the owner (chmod 0o600)
@@ -182,7 +212,11 @@ async function main(): Promise<void> {
         } catch (closeError) {
           log(`handle.close() failed: ${String(closeError)}`);
         }
-        await activeDispose();
+        try {
+          await activeDispose();
+        } catch (disposeError) {
+          log(`dispose() failed during shutdown: ${String(disposeError)}`);
+        }
         await Promise.all([
           removeOwnedPidFile(pidPath, pidFileContents).catch(
             (rmError: unknown) => {

@@ -1,6 +1,6 @@
 {
   "name": "@metamask/authenticated-user-storage",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "SDK for authenticated (non-encrypted) user storage endpoints",
   "keywords": [
     "Ethereum",
@@ -44,6 +44,8 @@
     "build:docs": "typedoc",
     "changelog:update": "../../scripts/update-changelog.sh @metamask/authenticated-user-storage",
     "changelog:validate": "../../scripts/validate-changelog.sh @metamask/authenticated-user-storage",
+    "lint:tsconfigs": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts",
+    "lint:tsconfigs:fix": "tsx ../../scripts/lint-tsconfigs/lint-tsconfigs.mts --fix",
     "messenger-action-types:check": "tsx ../../packages/messenger-cli/src/cli.ts --check",
     "messenger-action-types:generate": "tsx ../../packages/messenger-cli/src/cli.ts --generate",
     "since-latest-release": "../../scripts/since-latest-release.sh",

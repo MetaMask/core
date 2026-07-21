@@ -2,7 +2,10 @@ import { createSandbox } from '@metamask/utils/node';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 
-import { findSourcesWithExposedMethods, parseSourceFile } from './parse-source';
+import {
+  findSourcesWithExposedMethods,
+  parseSourceFile,
+} from './parse-source.js';
 
 const { withinSandbox: withinParseSourceSandbox } = createSandbox(
   'messenger/parse-source',
@@ -217,7 +220,7 @@ export class BaseController {
       await fs.promises.writeFile(
         controllerFile,
         `
-import { BaseController } from './BaseController';
+import { BaseController } from './BaseController.js';
 
 const MESSENGER_EXPOSED_METHODS = ['doStuff', 'baseMethod'] as const;
 
@@ -276,7 +279,7 @@ export class BaseNoDoc {
       await fs.promises.writeFile(
         controllerFile,
         `
-import { BaseNoDoc } from './BaseNoDoc';
+import { BaseNoDoc } from './BaseNoDoc.js';
 
 const MESSENGER_EXPOSED_METHODS = ['doStuff', 'baseMethod'] as const;
 

@@ -14,8 +14,8 @@ export type {
   MoneyAccountApiDataServiceFetchRateHistoryAction,
 } from './money-account-api-data-service-method-action-types';
 export type {
-  Balance,
   PositionResponse,
+  PositionBalance,
   InterestResponse,
   HistoryResponse,
   RateHistoryResponse,
